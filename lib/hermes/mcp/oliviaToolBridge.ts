@@ -100,7 +100,23 @@ function requestIdFromHeaders(extra: { requestInfo?: { headers?: Record<string, 
 
 export function attachOliviaToolBridge(server: Server) {
   server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
-    const tools = listHermesOliviaTools(requestIdFromHeaders(extra));
+    const requestId = requestIdFromHeaders(extra);
+    const executionContext = getHermesExecutionContext(requestId);
+    const tools = listHermesOliviaTools(requestId);
+    // 실제 Hermes reverse-MCP ListTools 응답을 requestId와 함께 남긴다. 도구 이름은 공개된
+    // capability 이름일 뿐이며, 사용자 메시지·경로·secret은 기록하지 않는다.
+    console.info("[HermesMcpListTools]", {
+      requestId: requestId ?? null,
+      hasExecutionContext: Boolean(executionContext),
+      selectedToolCount: executionContext?.selectedToolNames?.length ?? null,
+      returnedToolCount: tools.length,
+      returnedToolNames: tools.map((tool) => tool.name),
+      includesPhotoStorageTools: {
+        findPhotoFolder: tools.some((tool) => tool.name === "find_photo_folder"),
+        startPhotoSourcePrep: tools.some((tool) => tool.name === "start_photo_source_prep"),
+        startPhotoSceneSort: tools.some((tool) => tool.name === "start_photo_scene_sort"),
+      },
+    });
     // 이 기록은 연결 진단용일 뿐이다. 실패해도 recordHermesMcpListTools 내부에서 삼키므로
     // Hermes의 실제 ListTools 응답은 항상 계속된다.
     await recordHermesMcpListTools(tools.length);

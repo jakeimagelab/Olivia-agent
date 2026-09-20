@@ -187,6 +187,18 @@ export async function runHermesChat(input: {
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
   registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId, input.selectedToolNames);
+  // Hermes가 실제 MCP ListTools를 요청하기 전에, 이 chat turn에서 선택된 목록을 남긴다.
+  // 사용자 문장·대화 내용·context 값은 포함하지 않아 운영 로그에서 개인정보를 남기지 않는다.
+  console.info("[HermesChatToolSelection]", {
+    requestId,
+    selectedToolCount: input.selectedToolNames?.length ?? null,
+    selectedToolNames: input.selectedToolNames ?? null,
+    includesPhotoStorageTools: {
+      findPhotoFolder: input.selectedToolNames?.includes("find_photo_folder") ?? false,
+      startPhotoSourcePrep: input.selectedToolNames?.includes("start_photo_source_prep") ?? false,
+      startPhotoSceneSort: input.selectedToolNames?.includes("start_photo_scene_sort") ?? false,
+    },
+  });
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
   const abort = () => controller.abort();
