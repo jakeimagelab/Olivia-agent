@@ -57,4 +57,17 @@ describe("photo folder catalog", () => {
     const result = await resolveSinglePhotoFolderCandidate("0915_포토클리닉", source);
     expect(result.sourceRelativePath).toBe(rawName);
   });
+
+  it("자연어 공백과 실제 폴더 구분자가 달라도 같은 촬영 폴더를 찾는다", async () => {
+    const source = dataSource({
+      "0918_삼칠갈비": [file("0918_삼칠갈비", "A.JPG", 100)],
+    });
+
+    const result = await resolveSinglePhotoFolderCandidate("0918 삼 칠 갈 비", source);
+
+    expect(result).toMatchObject({
+      displayName: "0918_삼칠갈비",
+      sourceRelativePath: "0918_삼칠갈비",
+    });
+  });
 });

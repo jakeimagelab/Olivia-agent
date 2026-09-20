@@ -57,6 +57,7 @@ function executor(options: {
 describe("사진 작업 직접 실행 명령 파서", () => {
   it.each([
     ["0918 삼칠갈비 원본 분리해줘", "source_prep", ["0918 삼칠갈비"]],
+    ["0918 삼 칠 갈 비 원본 분류해줘", "source_prep", ["0918 삼 칠 갈 비"]],
     ["0918_삼칠갈비 RAW와 JPG로 분리해줘", "source_prep", ["0918_삼칠갈비"]],
     ["르셀청담 JPG 통합해줘", "source_prep", ["르셀청담"]],
     ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep", ["르셀청담", "세무사회"]],

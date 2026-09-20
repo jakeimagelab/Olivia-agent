@@ -20,7 +20,15 @@ export type PhotoFolderCandidate = {
 };
 
 function comparable(value: string): string {
-  return value.normalize("NFC").trim().toLocaleLowerCase("ko-KR");
+  // 사용자는 "0918 삼 칠 갈비"처럼 말할 수 있고 실제 백업 폴더는
+  // "0918_삼칠갈비"일 수 있다. 검색 비교에서만 흔한 구분자를 제거하며,
+  // 실제 relative path는 원문 그대로 보존한다. 넓어진 검색이 여러 폴더에
+  // 걸리면 기존 ambiguity guard가 mutation을 계속 차단한다.
+  return value
+    .normalize("NFC")
+    .trim()
+    .toLocaleLowerCase("ko-KR")
+    .replace(/[\s_-]+/g, "");
 }
 
 function extension(entry: RemoteNasEntry): string {

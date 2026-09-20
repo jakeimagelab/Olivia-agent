@@ -59,7 +59,7 @@ type ExecuteTool = (
   context: OliviaContextSnapshot,
 ) => Promise<{ id: string; execution: OliviaAgentToolExecution }>;
 
-const SOURCE_PREP_PATTERN = /(?:원본(?:을|를)?\s*분리|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:를|을)?\s*(?:로\s*)?(?:분리|통합)|1\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
+const SOURCE_PREP_PATTERN = /(?:원본(?:을|를)?\s*(?:분리|분류)|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:를|을)?\s*(?:로\s*)?(?:분리|통합)|1\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const SCENE_SORT_PATTERN = /(?:(?:씬|scene)(?:\s*별)?(?:로|을|를)?\s*분류|사진(?:을|를)?\s*분류|2\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const MULTI_FOLDER_SPLIT_PATTERN = /분리(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const PHOTO_TOOL_NAMES = new Set(["find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort"]);
