@@ -11,7 +11,7 @@ describe("Olivia Hermes MCP registry", () => {
   });
 
   it("Olivia registry의 비차단 Tool을 누락 없이 자동 노출한다", () => {
-    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => !BLOCKED_TOOLS.has(name)).sort();
+    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
     const actual = listHermesOliviaTools().map((tool) => tool.name).sort();
     expect(new Set(actual).size).toBe(actual.length);
     expect(actual).toEqual(expected);
@@ -139,76 +139,32 @@ describe("Olivia Hermes MCP registry", () => {
     expect(listHermesOliviaTools().map((tool) => tool.name)).toContain("update_quote_service");
   });
 
-  // 코드 요청서(2026-09-18) 작업 C — route.ts가 legacy 경로와 동일한 selectOliviaTools() 결과를
-  // registerHermesExecutionContext에 실어보내면, 그 requestId로 ListTools를 조회할 때만 좁혀진
-  // 목록이 나와야 한다. CallTool(executeHermesOliviaTool)은 그 목록과 무관하게 항상 실행된다.
-  describe("listHermesOliviaTools — 선택된 도구로 좁히기", () => {
+  // Hermes MCP client는 ListTools를 연결 단위로 캐시한다. request별로 목록을 좁히면 먼저
+  // 캐시한 turn의 도구가 계속 남아 다른 도메인의 도구가 사라진다. 따라서 request context와
+  // 무관하게 항상 동일한 전체 catalog를 반환해야 한다.
+  describe("listHermesOliviaTools — 안정적인 전체 catalog", () => {
     afterEach(() => {
       clearHermesExecutionContext("req-narrow-1");
-      clearHermesExecutionContext("req-narrow-empty");
       vi.restoreAllMocks();
     });
 
-    it("requestId가 없으면(기존 동작) 전체 목록을 반환한다", () => {
-      const withoutId = listHermesOliviaTools().map((t) => t.name).sort();
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => !BLOCKED_TOOLS.has(name)).sort();
-      expect(withoutId).toEqual(full);
-    });
-
-    it("등록된 requestId가 있으면 selectedToolNames로 노출 목록을 좁힌다", () => {
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["calendar_add", "client_search"]);
-      const names = listHermesOliviaTools("req-narrow-1").map((t) => t.name);
-      expect(names.sort()).toEqual(["calendar_add", "client_search"]);
-    });
-
-    it("좁혀진 목록보다 전체 도구 개수가 눈에 띄게 적다(수용 기준: 평소 turn에 훨씬 적은 도구)", () => {
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["calendar_add", "client_search", "create_quote"]);
-      const narrowed = listHermesOliviaTools("req-narrow-1");
-      const full = listHermesOliviaTools();
-      expect(narrowed.length).toBeLessThan(full.length);
-      expect(narrowed.length).toBe(3);
-    });
-
-    it("selectedToolNames가 빈 배열이면(컨텍스트는 등록됐지만 선택된 게 없음) 누락으로 실패하지 않고 전체 목록으로 폴백한다", () => {
-      registerHermesExecutionContext("req-narrow-empty", { recentActions: [], revision: 0 }, undefined, []);
-      const names = listHermesOliviaTools("req-narrow-empty").map((t) => t.name).sort();
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => !BLOCKED_TOOLS.has(name)).sort();
+    it("requestId가 없어도 전체 목록을 반환한다", () => {
+      const names = listHermesOliviaTools().map((t) => t.name).sort();
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
       expect(names).toEqual(full);
     });
 
-    it("BLOCKED 도구는 selectedToolNames에 있어도 노출되지 않는다(차단 정책이 좁히기보다 우선)", () => {
-      const blockedName = [...BLOCKED_TOOLS][0];
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["calendar_add", blockedName]);
+    it("등록된 request context가 있어도 목록을 좁히지 않는다", () => {
+      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 });
       const names = listHermesOliviaTools("req-narrow-1").map((t) => t.name);
-      expect(names).not.toContain(blockedName);
-      expect(names).toContain("calendar_add");
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
+      expect(names.sort()).toEqual(full);
     });
 
-    it("좁혀진 목록 밖의 Tool을 호출해도(CallTool) 여전히 정상 실행된다 — 차단하지 않는다", async () => {
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["calendar_add"]);
-      // client_search는 selectedToolNames에 없지만 CallTool 자체는 read tool이라 정상 응답해야
-      // 한다(존재하지 않는 Tool과 다르게 TOOL_NOT_AVAILABLE이 아니어야 함).
+    it("전체 catalog의 존재하지 않는 Tool만 안전하게 거부한다", async () => {
+      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 });
       const response = await executeHermesOliviaTool({ toolName: "no_such_tool_at_all", input: {}, requestId: "req-narrow-1" });
-      // no_such_tool_at_all은 애초에 존재하지 않는 Tool이라 TOOL_NOT_AVAILABLE로 실패하는 게
-      // 맞다 — 이 테스트가 검증하려는 것은 "좁힌 목록 밖이라서" 거부되는 게 아니라 "Tool 자체가
-      // 없어서" 거부된다는 차이다. 실제로 존재하는데 좁힌 목록 밖인 도구로 다시 검증한다.
       expect(JSON.parse(response.content[0].text as string).code).toBe("TOOL_NOT_AVAILABLE");
-      const existingButNotSelected = await executeHermesOliviaTool({ toolName: "client_search", input: { query: "test" }, requestId: "req-narrow-1" });
-      expect(JSON.parse(existingButNotSelected.content[0].text as string).code).not.toBe("TOOL_NOT_AVAILABLE");
-    });
-
-    it("좁혀진 목록 밖의 Tool 호출은 차단하지 않되 로그를 남긴다", async () => {
-      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["calendar_add"]);
-      await executeHermesOliviaTool({ toolName: "client_search", input: { query: "test" }, requestId: "req-narrow-1" });
-      expect(infoSpy).toHaveBeenCalledWith("[HermesTool] called outside narrowed selection", { requestId: "req-narrow-1", toolName: "client_search" });
-    });
-
-    it("좁혀진 목록 안의 Tool 호출은 로그를 남기지 않는다", async () => {
-      const infoSpy = vi.spyOn(console, "info").mockImplementation(() => undefined);
-      registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 }, undefined, ["client_search"]);
-      await executeHermesOliviaTool({ toolName: "client_search", input: { query: "test" }, requestId: "req-narrow-1" });
-      expect(infoSpy).not.toHaveBeenCalledWith("[HermesTool] called outside narrowed selection", expect.anything());
     });
   });
 });

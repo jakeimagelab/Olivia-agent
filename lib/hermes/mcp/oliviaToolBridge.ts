@@ -19,17 +19,14 @@ function schemaWithRequestId(parameters: unknown): JsonSchema {
   return { ...schema, properties: { ...properties, requestId: { type: "string", format: "uuid", description: "Optional Olivia request correlation id" } } };
 }
 
-// 코드 요청서(2026-09-18) 작업 C — 매 turn 69개 전체 도구를 Hermes에 보내는 대신, route.ts가
-// legacy 경로와 똑같이 selectOliviaTools()로 이미 골라둔 이름 집합(requestId로 조회)이 있으면
-// 그것만 내려준다. requestId가 없거나(로컬 도구 테스트 등) 그 turn에 선택된 이름이 비어있으면
-// (예: 컨텍스트가 아직 등록 안 됐거나 legacy 경로처럼 이 값 자체를 안 쓰는 호출) 절대 도구를
-// 숨기지 않고 기존처럼 전체 목록을 돌려준다 — "누락으로 실패"하느니 프롬프트가 조금 커지는
-// 쪽이 낫다. CallTool(executeHermesOliviaTool)은 이 좁힌 목록과 무관하게 항상 실행한다.
+// Hermes는 MCP ListTools 결과를 연결 단위로 캐시한다. 따라서 request별로 다른 목록을 주면
+// 먼저 캐시한 turn의 도구만 계속 보이게 된다. Hermes 경로는 항상 하나의 안정적인 전체 catalog를
+// 제공한다. selectOliviaTools()는 레거시 OpenAI Responses 경로에서만 사용한다.
 export function listHermesOliviaTools(requestId?: string) {
+  // 호출 호환성을 위해 requestId는 받되, catalog 결정에는 절대 쓰지 않는다.
+  void requestId;
   const allowed = OLIVIA_V2_TOOLS.filter((tool) => getHermesToolPolicy(tool.name) !== "blocked");
-  const selectedToolNames = getHermesExecutionContext(requestId)?.selectedToolNames;
-  const narrowed = selectedToolNames?.length ? allowed.filter((tool) => selectedToolNames.includes(tool.name)) : allowed;
-  return narrowed.map((tool) => ({
+  return allowed.map((tool) => ({
     name: tool.name,
     description: tool.description,
     inputSchema: schemaWithRequestId(tool.parameters),
@@ -51,13 +48,6 @@ export async function executeHermesOliviaTool(options: { toolName: string; input
   const input = { ...(options.input ?? {}) };
   const requestId = options.requestId || (typeof input.requestId === "string" ? input.requestId : undefined);
   delete input.requestId;
-  // 좁힌 목록 밖의 도구를 Hermes가 불러도 막지 않는다(요청서 §21 관찰가능성과 같은 원칙 —
-  // 차단이 가끔의 큰 프롬프트보다 더 나쁘다). 왜 좁혀지지 않은 도구가 호출됐는지 로그로만
-  // 남겨서, listHermesOliviaTools()의 좁히기 기준이 실제로 부족한지 나중에 판단할 수 있게 한다.
-  const selectedToolNames = getHermesExecutionContext(requestId)?.selectedToolNames;
-  if (selectedToolNames?.length && !selectedToolNames.includes(options.toolName)) {
-    console.info("[HermesTool] called outside narrowed selection", { requestId, toolName: options.toolName });
-  }
   const mode = getHermesToolMode(definition.name, definition.description ?? "");
   const checked = validator.getValidator(definition.parameters as JsonSchema)(input);
   if (!checked.valid) {
@@ -102,13 +92,13 @@ export function attachOliviaToolBridge(server: Server) {
   server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
     const requestId = requestIdFromHeaders(extra);
     const executionContext = getHermesExecutionContext(requestId);
-    const tools = listHermesOliviaTools(requestId);
+    const tools = listHermesOliviaTools();
     // 실제 Hermes reverse-MCP ListTools 응답을 requestId와 함께 남긴다. 도구 이름은 공개된
     // capability 이름일 뿐이며, 사용자 메시지·경로·secret은 기록하지 않는다.
     console.info("[HermesMcpListTools]", {
       requestId: requestId ?? null,
       hasExecutionContext: Boolean(executionContext),
-      selectedToolCount: executionContext?.selectedToolNames?.length ?? null,
+      catalogMode: "full",
       returnedToolCount: tools.length,
       returnedToolNames: tools.map((tool) => tool.name),
       includesPhotoStorageTools: {

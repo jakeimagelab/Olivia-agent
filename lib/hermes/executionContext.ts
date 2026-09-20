@@ -1,6 +1,6 @@
 import type { HermesChatContext } from "@/lib/hermes/types";
 
-type Entry = { context: HermesChatContext; conversationId?: string; createdAt: number; selectedToolNames?: string[] };
+type Entry = { context: HermesChatContext; conversationId?: string; createdAt: number };
 const globalStore = globalThis as typeof globalThis & { __oliviaHermesExecutionContext?: Map<string, Entry> };
 const entries = globalStore.__oliviaHermesExecutionContext ?? new Map<string, Entry>();
 globalStore.__oliviaHermesExecutionContext = entries;
@@ -11,12 +11,12 @@ function prune() {
   for (const [id, entry] of entries) if (entry.createdAt < cutoff) entries.delete(id);
 }
 
-// 코드 요청서(2026-09-18) 작업 C — 이번 turn에 route.ts의 selectOliviaTools()가 이미 골라둔
-// 도구 이름 집합을 실행 컨텍스트에 같이 저장해둔다. listHermesOliviaTools()가 이 값으로
-// ListTools 응답을 좁히고, executeHermesOliviaTool()은 이 값을 읽어 로그만 남긴다(차단 안 함).
-export function registerHermesExecutionContext(requestId: string, context: HermesChatContext, conversationId?: string, selectedToolNames?: string[]) {
+// Hermes MCP는 도구 목록을 연결 단위로 캐시한다. turn별 선택 목록을 여기에 싣고 ListTools를
+// 좁히면 이전 turn의 목록이 계속 재사용되어 실제 도구가 사라질 수 있다. 실행 컨텍스트에는
+// 권한·현재 리소스처럼 CallTool에 필요한 상태만 보관한다.
+export function registerHermesExecutionContext(requestId: string, context: HermesChatContext, conversationId?: string) {
   prune();
-  entries.set(requestId, { context, conversationId, createdAt: Date.now(), selectedToolNames });
+  entries.set(requestId, { context, conversationId, createdAt: Date.now() });
 }
 
 export function getHermesExecutionContext(requestId?: string) {

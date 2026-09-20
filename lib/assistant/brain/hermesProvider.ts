@@ -17,9 +17,14 @@ export const hermesProvider: OliviaBrain = {
         context: input.context,
         signal: input.signal,
         callbacks: input.callbacks,
-        selectedToolNames: input.selectedToolNames,
       });
-      return { type: "message", text: result.message, runId: result.runId, toolCalls: result.toolCalls };
+      return {
+        type: "message",
+        text: result.message,
+        runId: result.runId,
+        toolCalls: result.toolCalls,
+        ...(result.usage ? { usage: result.usage } : {}),
+      };
     } catch (error) {
       if (error instanceof HermesChatError) throw new BrainUnavailableError(error.message, error.fallbackSafe);
       throw error;

@@ -12,6 +12,13 @@ function sse(text: string) {
   });
 }
 
+function sseWithUsage(text: string, usage: { prompt_tokens: number; completion_tokens: number; total_tokens: number }) {
+  return new Response(
+    `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: ${JSON.stringify({ choices: [], usage })}\n\ndata: [DONE]\n\n`,
+    { status: 200, headers: { "Content-Type": "text/event-stream" } },
+  );
+}
+
 describe("Hermes chat adapter", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -222,6 +229,19 @@ describe("Hermes chat adapter", () => {
     vi.stubGlobal("fetch", vi.fn(async () => sse("안녕하세요.")));
     const result = await runHermesChat({ message: "안녕" });
     expect(result.message).toBe("안녕하세요.");
+  });
+
+  it("Hermes가 SSE usage를 보내면 실제 토큰 값을 결과에 보존한다", async () => {
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    vi.stubGlobal("fetch", vi.fn(async () => sseWithUsage("안녕하세요.", {
+      prompt_tokens: 1234,
+      completion_tokens: 56,
+      total_tokens: 1290,
+    })));
+
+    const result = await runHermesChat({ message: "안녕" });
+    expect(result.usage).toEqual({ promptTokens: 1234, completionTokens: 56, totalTokens: 1290 });
   });
 
   it("MCP audit가 실패면 Hermes의 낙관적인 완료 문구를 차단한다", async () => {

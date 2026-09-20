@@ -50,16 +50,27 @@ export type HermesToolCallRecord = {
   uiActions?: OliviaUiAction[];
 };
 
+// Hermes가 OpenAI-compatible SSE의 마지막 usage event를 보내는 배포에서만 채워진다.
+// usage를 보내지 않는 Hermes 버전도 정상 동작해야 하므로 모든 필드는 optional이다.
+export type HermesUsage = {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+};
+
 export type HermesChatResult = {
   success: true;
   message: string;
   runId: string;
   toolCalls: HermesToolCallRecord[];
   data?: OliviaClientSearchResult;
+  usage?: HermesUsage;
 };
 
 export type HermesCallbacks = {
   onTextDelta?: (delta: string) => void;
+  /** Hermes SSE에서 첫 텍스트 delta가 도착할 때의 Hermes 요청 기준 경과 시간. */
+  onFirstTextDelta?: (elapsedMs: number) => void;
   onToolStart?: (tool: string, toolCallId: string) => void;
   onToolResult?: (record: HermesToolCallRecord) => void;
 };

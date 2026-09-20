@@ -7,6 +7,7 @@ import type {
   HermesChatMessage,
   HermesChatResult,
   HermesToolCallRecord,
+  HermesUsage,
 } from "@/lib/hermes/types";
 
 const HERMES_TIMEOUT_MS = 60_000;
@@ -174,6 +175,31 @@ function normalizeToolName(name: string | undefined) {
   return name?.replaceAll(".", "_");
 }
 
+// Hermes는 OpenAI-compatible SSE를 사용하지만, 모든 배포가 usage chunk를 보내는 것은 아니다.
+// 요청 payload를 임의로 바꾸지 않고, 서버가 보내준 표준 usage만 수집한다. 따라서 아래 값이
+// 없으면 "0 tokens"가 아니라 "Hermes가 usage를 제공하지 않음"을 뜻한다.
+function parseHermesUsage(payload: unknown): HermesUsage | undefined {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return undefined;
+  const usage = (payload as { usage?: unknown }).usage;
+  if (!usage || typeof usage !== "object" || Array.isArray(usage)) return undefined;
+  const record = usage as Record<string, unknown>;
+  const numberAt = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === "number" && Number.isFinite(value) && value >= 0) return value;
+    }
+    return undefined;
+  };
+  const parsed = {
+    promptTokens: numberAt("prompt_tokens", "input_tokens"),
+    completionTokens: numberAt("completion_tokens", "output_tokens"),
+    totalTokens: numberAt("total_tokens"),
+  };
+  return parsed.promptTokens !== undefined || parsed.completionTokens !== undefined || parsed.totalTokens !== undefined
+    ? parsed
+    : undefined;
+}
+
 export async function runHermesChat(input: {
   message: string;
   history?: HermesChatMessage[];
@@ -181,22 +207,24 @@ export async function runHermesChat(input: {
   context?: HermesChatContext;
   signal?: AbortSignal;
   callbacks?: HermesCallbacks;
-  selectedToolNames?: string[];
 }): Promise<HermesChatResult> {
   const config = getHermesConfig();
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
-  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId, input.selectedToolNames);
-  // Hermes가 실제 MCP ListTools를 요청하기 전에, 이 chat turn에서 선택된 목록을 남긴다.
-  // 사용자 문장·대화 내용·context 값은 포함하지 않아 운영 로그에서 개인정보를 남기지 않는다.
-  console.info("[HermesChatToolSelection]", {
+  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId);
+  // Hermes MCP는 request별 축소 목록이 아니라 연결 내내 같은 전체 catalog를 쓴다. 이름·schema만
+  // 직렬화해 크기를 측정하고, 사용자 메시지·대화 내용·context 값은 로그에 남기지 않는다.
+  const toolCatalog = (await import("@/lib/hermes/mcp/oliviaToolBridge")).listHermesOliviaTools();
+  const toolCatalogBytes = Buffer.byteLength(JSON.stringify(toolCatalog), "utf8");
+  console.info("[HermesMcpCatalog]", {
     requestId,
-    selectedToolCount: input.selectedToolNames?.length ?? null,
-    selectedToolNames: input.selectedToolNames ?? null,
+    catalogMode: "full",
+    toolCount: toolCatalog.length,
+    serializedBytes: toolCatalogBytes,
     includesPhotoStorageTools: {
-      findPhotoFolder: input.selectedToolNames?.includes("find_photo_folder") ?? false,
-      startPhotoSourcePrep: input.selectedToolNames?.includes("start_photo_source_prep") ?? false,
-      startPhotoSceneSort: input.selectedToolNames?.includes("start_photo_scene_sort") ?? false,
+      findPhotoFolder: toolCatalog.some((tool) => tool.name === "find_photo_folder"),
+      startPhotoSourcePrep: toolCatalog.some((tool) => tool.name === "start_photo_source_prep"),
+      startPhotoSceneSort: toolCatalog.some((tool) => tool.name === "start_photo_scene_sort"),
     },
   });
   const controller = new AbortController();
@@ -254,6 +282,8 @@ export async function runHermesChat(input: {
   const guardedResponse = searchRequest || mutationRequest || uiExecutionRequest;
   let buffer = "";
   let finalText = "";
+  let firstTextDeltaMs: number | undefined;
+  let usage: HermesUsage | undefined;
 
   const handleEvent = (block: string) => {
     let eventName = "message";
@@ -266,6 +296,10 @@ export async function runHermesChat(input: {
     if (!raw || raw === "[DONE]") return;
     let payload: unknown;
     try { payload = JSON.parse(raw); } catch { return; }
+
+    // OpenAI-compatible stream은 마지막 choices:[] chunk에 usage를 붙일 수 있다. text/tool
+    // event와 독립적으로 먼저 수집해, usage-only chunk도 놓치지 않는다.
+    usage = parseHermesUsage(payload) ?? usage;
 
     if (eventName === "hermes.tool.progress") {
       const name = normalizeToolName(eventValue(payload, ["tool_name", "tool", "name"]));
@@ -289,6 +323,10 @@ export async function runHermesChat(input: {
     const choices = (payload as { choices?: Array<{ delta?: { content?: unknown } }> }).choices;
     const content = choices?.[0]?.delta?.content;
     if (typeof content === "string" && content) {
+      if (firstTextDeltaMs === undefined) {
+        firstTextDeltaMs = performance.now() - startedAt;
+        input.callbacks?.onFirstTextDelta?.(Math.round(firstTextDeltaMs));
+      }
       finalText += content;
       if (!guardedResponse) input.callbacks?.onTextDelta?.(content);
     }
@@ -470,5 +508,6 @@ export async function runHermesChat(input: {
     runId: requestId,
     toolCalls: [...toolCalls.values()],
     ...(verifiedSearch ? { data: verifiedSearch } : {}),
+    ...(usage ? { usage } : {}),
   };
 }
