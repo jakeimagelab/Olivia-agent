@@ -573,7 +573,7 @@
 .calendarEditBody { flex: 1; min-height: 0; overflow-y: auto; display: grid; align-content: start; gap: 12px; padding: 18px calc(env(safe-area-inset-right, 0px) + 16px) calc(86px + env(safe-area-inset-bottom, 0px)) calc(env(safe-area-inset-left, 0px) + 16px); }
 .calendarField { display: grid; gap: 7px; color: var(--mobile-muted); font-size: 10px; font-weight: 650; }
 .calendarField > span { display: flex; align-items: center; gap: 5px; padding-left: 2px; }
-.calendarField input, .calendarField textarea, .calendarField select, .calendarDateTimeGroup input { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 9px 12px; outline: 0; background: #fff; color: var(--mobile-ink); font: 550 16px/1.4 inherit; }
+.calendarField input, .calendarField textarea, .calendarField select { width: 100%; min-width: 0; min-height: 48px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 9px 12px; outline: 0; background: #fff; color: var(--mobile-ink); font: 550 16px/1.4 inherit; }
 .calendarField textarea { resize: none; font-size: 13px; }
 .calendarField select { font-size: 13px; }
 .calendarField input:focus, .calendarField textarea:focus, .calendarField select:focus, .calendarDateTimeGroup input:focus { border-color: rgba(21,88,85,.42); box-shadow: 0 0 0 3px rgba(21,88,85,.06); }
@@ -586,11 +586,12 @@
 .calendarSettingRow > .calendarSwitchOn { background: var(--mobile-green); }
 .calendarSettingRow > .calendarSwitchOn i { transform: translateX(19px); }
 .calendarDateTimeGroup { overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 15px; background: #fff; }
-.calendarDateTimeGroup label { min-height: 58px; display: grid; grid-template-columns: 48px minmax(0,1fr) minmax(0,.76fr); align-items: center; gap: 7px; border-bottom: 1px solid var(--mobile-line); padding: 5px 8px 5px 12px; }
+.calendarDateTimeGroup label { min-height: 58px; display: grid; grid-template-columns: 42px minmax(0,1fr); align-items: center; gap: 8px; border-bottom: 1px solid var(--mobile-line); padding: 7px 9px 7px 12px; }
 .calendarDateTimeGroup label:last-child { border-bottom: 0; }
 .calendarDateTimeGroup label > span { color: var(--mobile-ink); font-size: 11px; font-weight: 650; }
-.calendarDateTimeGroup input { min-height: 42px; border: 0; border-radius: 10px; padding: 5px 7px; background: #f5f9f8; font-size: 12px; }
-.calendarDateTimeGroup label > input:last-child:nth-child(2) { grid-column: 2 / -1; }
+.calendarDateTimeInputs { width: 100%; min-width: 0; display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 6px; }
+.calendarDateTimeInputs[data-all-day="true"] { grid-template-columns: minmax(0,1fr); }
+.calendarDateTimeInputs input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 42px; display: block; overflow: hidden; border: 0; border-radius: 10px; padding: 5px 7px; outline: 0; background: #f5f9f8; color: var(--mobile-ink); font: 560 12px/1.2 inherit; text-align: center; -webkit-appearance: none; appearance: none; }
 .calendarFormError { margin: 0; border-radius: 12px; padding: 10px 12px; background: #fff0eb; color: #a8492a; font-size: 10px; line-height: 1.5; }
 .calendarSaveBar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; padding: 8px calc(env(safe-area-inset-right, 0px) + 14px) calc(8px + env(safe-area-inset-bottom, 0px)) calc(env(safe-area-inset-left, 0px) + 14px); border-top: 1px solid var(--mobile-line); background: rgba(255,255,255,.96); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
 .calendarSaveBar button { width: 100%; min-height: 50px; border: 0; border-radius: 14px; background: var(--mobile-green); color: #fff; font: 720 13px/1 inherit; }

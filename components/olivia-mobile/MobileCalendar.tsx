@@ -247,8 +247,20 @@ function CalendarEventScreen({ task, draft, saving, deleting, error, onBack, onE
               <button type="button" role="switch" aria-checked={draft.allDay} className={draft.allDay ? styles.calendarSwitchOn : undefined} onClick={() => onDraft({ ...draft, allDay: !draft.allDay, reminderEnabled: draft.allDay ? draft.reminderEnabled : false })}><i /></button>
             </div>
             <div className={styles.calendarDateTimeGroup}>
-              <label><span>시작</span><input type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />{draft.allDay ? null : <input type="time" value={draft.time} onChange={(event) => onDraft({ ...draft, time: event.target.value })} />}</label>
-              <label><span>종료</span><input type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />{draft.allDay ? null : <input type="time" value={draft.endTime} onChange={(event) => onDraft({ ...draft, endTime: event.target.value })} />}</label>
+              <label>
+                <span>시작</span>
+                <span className={styles.calendarDateTimeInputs} data-all-day={draft.allDay}>
+                  <input aria-label="시작 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
+                  {draft.allDay ? null : <input aria-label="시작 시간" type="time" value={draft.time} onChange={(event) => onDraft({ ...draft, time: event.target.value })} />}
+                </span>
+              </label>
+              <label>
+                <span>종료</span>
+                <span className={styles.calendarDateTimeInputs} data-all-day={draft.allDay}>
+                  <input aria-label="종료 날짜" type="date" value={draft.date} onChange={(event) => onDraft({ ...draft, date: event.target.value })} />
+                  {draft.allDay ? null : <input aria-label="종료 시간" type="time" value={draft.endTime} onChange={(event) => onDraft({ ...draft, endTime: event.target.value })} />}
+                </span>
+              </label>
             </div>
             <div className={styles.calendarSettingRow} aria-label="반복 설정"><span><Repeat2 size={16} /> 반복</span><strong>안 함</strong></div>
             <label className={styles.calendarField}><span>위치</span><input value={draft.location} onChange={(event) => onDraft({ ...draft, location: event.target.value })} placeholder="위치" /></label>

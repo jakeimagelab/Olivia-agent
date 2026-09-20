@@ -61,6 +61,7 @@ describe("Olivia mobile PWA shell", () => {
   it("keeps the dock out of the chat and protects calendar gestures while enabling primary-tab swipes", () => {
     const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
     const calendar = read("components/olivia-mobile/MobileCalendar.tsx");
+    const styles = read("components/olivia-mobile/OliviaMobileShell.module.css");
 
     expect(shell).toContain("SWIPEABLE_PRIMARY_VIEWS");
     expect(shell).toContain("IOS_BACK_GESTURE_EDGE_PX");
@@ -79,6 +80,9 @@ describe("Olivia mobile PWA shell", () => {
     expect(calendar).toContain("calendarEventScreen");
     expect(calendar).toContain("calendarTimelineEvent");
     expect(calendar).toContain('role="switch"');
+    expect(calendar).toContain("calendarDateTimeInputs");
+    expect(styles).toContain(".calendarDateTimeInputs input");
+    expect(styles).toContain("-webkit-appearance: none");
   });
 
   it("adds non-destructive mobile preview controls and dismissible photo-status cards", () => {
