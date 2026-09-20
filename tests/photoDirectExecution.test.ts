@@ -58,6 +58,8 @@ describe("사진 작업 직접 실행 명령 파서", () => {
   it.each([
     ["0918 삼칠갈비 원본 분리해줘", "source_prep", ["0918 삼칠갈비"]],
     ["0918 삼 칠 갈 비 원본 분류해줘", "source_prep", ["0918 삼 칠 갈 비"]],
+    ["나스에스 0918 삼칠갈비 원본 분류해줘", "source_prep", ["0918 삼칠갈비"]],
+    ["Workstation에서 0918_삼칠갈비 원본 분리해줘", "source_prep", ["0918_삼칠갈비"]],
     ["0918_삼칠갈비 RAW와 JPG로 분리해줘", "source_prep", ["0918_삼칠갈비"]],
     ["르셀청담 JPG 통합해줘", "source_prep", ["르셀청담"]],
     ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep", ["르셀청담", "세무사회"]],
@@ -156,9 +158,45 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
   it("후보가 없으면 파일 업로드를 제안하지 않고 쓰기 도구도 호출하지 않는다", async () => {
     const executeTool = executor({ folders: { 없는병원: [] } });
     const result = await executePhotoDirectTurn({ enabled: true, userMessage: "없는병원 원본 분리해줘", hermesToolNames: [], context, executeTool });
+    expect(result).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "folder_retry" } });
     expect(result.text).toContain("Workstation");
+    expect(result.text).toContain("정확한 폴더명");
     expect(result.text).not.toMatch(/업로드/);
     expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder"]);
+  });
+
+  it("검색 결과가 없으면 사용자가 알려준 정확한 폴더명으로 다시 검색해 실행한다", async () => {
+    const executeTool = executor({
+      folders: {
+        "0918 삼칠갈비": [],
+        "0918_삼칠갈비": [candidate("0918_삼칠갈비")],
+      },
+    });
+    const first = await executePhotoDirectTurn({
+      enabled: true,
+      userMessage: "나스에스 0918 삼칠갈비 원본 분류해줘",
+      hermesToolNames: [],
+      context,
+      executeTool,
+    });
+    expect(first).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "folder_retry" } });
+
+    const second = await executePhotoDirectTurn({
+      enabled: true,
+      userMessage: "0918_삼칠갈비야",
+      hermesToolNames: [],
+      pendingState: first.pendingState ?? undefined,
+      context,
+      executeTool,
+    });
+
+    expect(second).toMatchObject({ handled: true, reason: "executed", pendingState: null });
+    expect(executeTool.mock.calls.map(([name]) => name)).toEqual([
+      "find_photo_folder",
+      "find_photo_folder",
+      "start_photo_source_prep",
+    ]);
+    expect(executeTool.mock.calls[1][1]).toEqual({ query: "0918_삼칠갈비" });
   });
 
   it("Scene 분류는 폴더를 확정해도 진료과와 촬영모드 전에는 시작하지 않는다", async () => {

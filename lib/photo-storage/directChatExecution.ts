@@ -1,7 +1,7 @@
 import type { OliviaAgentToolExecution, OliviaContextSnapshot, OliviaToolVerification } from "@/lib/olivia/v2/types";
 
 export type PhotoDirectOperation = "source_prep" | "scene_sort";
-export type PhotoDirectPendingStage = "choose_folder" | "scene_settings" | "restart_confirmation";
+export type PhotoDirectPendingStage = "choose_folder" | "folder_retry" | "scene_settings" | "restart_confirmation";
 
 export type PhotoDirectFolderCandidate = {
   displayName: string;
@@ -120,7 +120,9 @@ function parseOperation(message: string): { operation: PhotoDirectOperation; mat
 function cleanFolderQuery(value: string): string {
   return value
     .replace(/["'“”‘’]/g, " ")
-    .replace(/\b(?:nas|workstation)\b/gi, " ")
+    // "나스에서"의 흔한 오타인 "나스에스"까지 위치 표현으로 취급한다. 이 접두사가
+    // 검색어에 남으면 실제 "0918_삼칠갈비" 폴더를 찾지 못한다.
+    .replace(/(?:(?:\bnas\b|나스)(?:에서|에스|의|쪽)?|(?:\bwork\s*station\b|워크\s*스테이션)(?:에서|의|쪽)?)/gi, " ")
     .replace(/(?:촬영|백업)\s*폴더(?:를|을|에서|의)?/g, " ")
     .replace(/폴더(?:를|을|에서|의)?/g, " ")
     .replace(/(?:두|2)\s*(?:개|곳)(?:를|을|다|모두)?/g, " ")
@@ -221,7 +223,7 @@ function itemFromUnknown(value: unknown): PhotoDirectWorkItem | undefined {
 export function readPendingPhotoDirectExecution(metadata: unknown): PhotoDirectPendingState | undefined {
   const raw = record(record(metadata)?.pendingPhotoDirectExecution);
   if (!raw || raw.version !== 1 || (raw.operation !== "source_prep" && raw.operation !== "scene_sort")) return undefined;
-  if (!(["choose_folder", "scene_settings", "restart_confirmation"] as unknown[]).includes(raw.stage)) return undefined;
+  if (!(["choose_folder", "folder_retry", "scene_settings", "restart_confirmation"] as unknown[]).includes(raw.stage)) return undefined;
   if (!Array.isArray(raw.items)) return undefined;
   const items = raw.items.flatMap((item) => {
     const parsed = itemFromUnknown(item);
@@ -251,12 +253,29 @@ function selectedCandidate(message: string, candidates: PhotoDirectFolderCandida
   });
 }
 
+function folderCorrection(message: string): string | undefined {
+  const explicitlyNamed = /^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/.test(message.trim());
+  const cleaned = message
+    .replace(/["'“”‘’]/g, " ")
+    .replace(/^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/, "")
+    .replace(/(?:이야|야|입니다|이에요|예요|맞아|맞아요)[.!~\s]*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (cleaned.length < 2 || cleaned.length > 120) return undefined;
+  if (APPROVE_PATTERN.test(cleaned) || REJECT_PATTERN.test(cleaned)) return undefined;
+  // 검색 실패 직후라도 일반 대화를 폴더명으로 오인하지 않는다. 명시적인 "폴더명" 표현,
+  // 촬영일 숫자/경로 구분자, 또는 공백 없는 단일 고유명사 형태만 재검색에 사용한다.
+  const looksLikeFolder = explicitlyNamed || /\d{3,}|[_-]/.test(cleaned) || !/\s/.test(cleaned);
+  return looksLikeFolder ? cleaned : undefined;
+}
+
 function canConsumePending(message: string, pending: PhotoDirectPendingState): boolean {
   if (REJECT_PATTERN.test(message)) return true;
   if (pending.stage === "choose_folder") {
     const candidates = pending.items[pending.currentIndex]?.candidates ?? [];
     return Boolean(selectedCandidate(message, candidates));
   }
+  if (pending.stage === "folder_retry") return Boolean(folderCorrection(message));
   if (pending.stage === "scene_settings") {
     const settings = parseExplicitSceneSettings(message, true);
     return Boolean(settings.department || settings.shootingMode);
@@ -347,9 +366,14 @@ async function runQueue(input: {
       }
       const candidates = candidatesFromResult(called.execution);
       if (!candidates.length) {
-        state.completedReports.push(`${item.query} — Workstation에서 일치하는 촬영 폴더를 찾지 못했어요.`);
-        state.currentIndex += 1;
-        continue;
+        state.stage = "folder_retry";
+        return {
+          handled: true,
+          text: `${item.query} — Workstation에서 일치하는 촬영 폴더를 찾지 못했어요. 정확한 폴더명을 알려주세요.`,
+          pendingState: state,
+          toolCalls,
+          reason: "needs_input",
+        };
       }
       if (candidates.length > 1) {
         item.candidates = candidates;
@@ -462,6 +486,14 @@ export async function executePhotoDirectTurn(input: {
       current.selectedFolder = selected.sourceRelativePath;
       current.selectedDisplayName = selected.displayName;
       delete current.candidates;
+    } else if (state.stage === "folder_retry") {
+      const corrected = folderCorrection(input.userMessage);
+      if (!corrected) return { handled: false, toolCalls: [], reason: "no_intent" };
+      current.query = corrected;
+      delete current.selectedFolder;
+      delete current.selectedDisplayName;
+      delete current.candidates;
+      state.stage = "choose_folder";
     } else if (state.stage === "scene_settings") {
       const settings = parseExplicitSceneSettings(input.userMessage, true);
       state.department = settings.department ?? state.department;
