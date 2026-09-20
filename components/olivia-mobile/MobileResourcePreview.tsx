@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X, ZoomIn, ZoomOut } from "lucide-react";
+import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { MobileGenericDocument } from "./MobileResourceDocument";
@@ -16,6 +16,16 @@ async function requestJson(url: string, init?: RequestInit) {
   const payload = await response.json().catch(() => null);
   if (!response.ok || !payload?.ok) throw new Error(payload?.error || "문서를 불러오지 못했어요.");
   return payload;
+}
+
+function touchDistance(touches: TouchList) {
+  const [first, second] = [touches.item(0), touches.item(1)];
+  if (!first || !second) return 0;
+  return Math.hypot(second.clientX - first.clientX, second.clientY - first.clientY);
+}
+
+function clampPreviewZoom(value: number) {
+  return Math.min(3, Math.max(1, value));
 }
 
 export default function MobileResourcePreview({
@@ -37,6 +47,9 @@ export default function MobileResourcePreview({
   const [zoom, setZoom] = useState(1);
   const paperRef = useRef<HTMLDivElement>(null);
   const contractFrameRef = useRef<HTMLIFrameElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const pinchRef = useRef({ startDistance: 0, startZoom: 1 });
+  const zoomRef = useRef(1);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -83,6 +96,40 @@ export default function MobileResourcePreview({
   }, [load]);
 
   useEffect(() => setRegistrationDismissed(false), [resource.temporaryDocumentId]);
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  useEffect(() => {
+    const preview = previewScrollRef.current;
+    if (!preview) return;
+
+    const handleTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) return;
+      pinchRef.current = {
+        startDistance: touchDistance(event.touches),
+        startZoom: zoomRef.current,
+      };
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      if (event.touches.length !== 2 || pinchRef.current.startDistance <= 0) return;
+      event.preventDefault();
+      const scale = touchDistance(event.touches) / pinchRef.current.startDistance;
+      setZoom(clampPreviewZoom(pinchRef.current.startZoom * scale));
+    };
+    const handleTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length < 2) pinchRef.current.startDistance = 0;
+    };
+
+    preview.addEventListener("touchstart", handleTouchStart, { passive: true });
+    preview.addEventListener("touchmove", handleTouchMove, { passive: false });
+    preview.addEventListener("touchend", handleTouchEnd, { passive: true });
+    preview.addEventListener("touchcancel", handleTouchEnd, { passive: true });
+    return () => {
+      preview.removeEventListener("touchstart", handleTouchStart);
+      preview.removeEventListener("touchmove", handleTouchMove);
+      preview.removeEventListener("touchend", handleTouchEnd);
+      preview.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, []);
 
   const share = async () => {
     setBusy("share");
@@ -228,12 +275,7 @@ export default function MobileResourcePreview({
   return (
     <section className={`${styles.screenWithHeader} ${styles.previewScreen}`} aria-label="모바일 문서 미리보기">
       <button type="button" className={styles.previewClose} onClick={onClose} aria-label="미리보기 닫기"><X size={19} /></button>
-      <div className={styles.previewZoomControls} aria-label="미리보기 확대 축소">
-        <button type="button" onClick={() => setZoom((current) => Math.max(.75, current - .25))} disabled={zoom <= .75} aria-label="축소"><ZoomOut size={16} /></button>
-        <button type="button" onClick={() => setZoom(1)} aria-label="100퍼센트로 보기">{Math.round(zoom * 100)}%</button>
-        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + .25))} disabled={zoom >= 2} aria-label="확대"><ZoomIn size={16} /></button>
-      </div>
-      <div className={styles.previewScroll}>
+      <div ref={previewScrollRef} className={styles.previewScroll}>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>최신 문서를 불러오고 있어요...</div> : data ? (
           <div className={styles.previewZoomCanvas} style={{ "--mobile-preview-zoom": zoom } as CSSProperties}>
             <div ref={paperRef}>

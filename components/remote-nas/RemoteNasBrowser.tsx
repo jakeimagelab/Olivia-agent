@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ArrowRight,
+  Check,
   ChevronLeft,
   ChevronRight,
   File,
@@ -8,13 +10,14 @@ import {
   Folder,
   FolderOpen,
   HardDrive,
+  Info,
   LockKeyhole,
   RefreshCw,
   Search,
   Server,
   X,
 } from "lucide-react";
-import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildRemoteNasBreadcrumbs,
   normalizeRemoteNasRelativePath,
@@ -49,6 +52,7 @@ const REMOTE_NAS_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
   hour: "2-digit",
   minute: "2-digit",
 });
+const DOUBLE_TAP_MS = 300;
 
 function formatFileSize(sizeBytes: number | null): string {
   if (sizeBytes === null) return "—";
@@ -95,6 +99,8 @@ export default function RemoteNasBrowser({
   const [error, setError] = useState("");
   const [errorConnection, setErrorConnection] = useState<RemoteNasConnectionState | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [selectedFolder, setSelectedFolder] = useState<RemoteNasSelection | null>(null);
+  const lastTapRef = useRef<{ path: string; timestamp: number } | null>(null);
   const deferredQuery = useDeferredValue(query);
 
   useEffect(() => {
@@ -147,13 +153,25 @@ export default function RemoteNasBrowser({
   };
 
   const handleSelect = () => {
-    if (!result || result.path !== currentPath || loading || error) return;
-    const selection: RemoteNasSelection = {
-      path: result.path,
-      displayPath: result.displayPath,
-      rootName: result.rootName,
-    };
-    onSelect?.(selection.path, selection);
+    if (!selectedFolder || loading || error) return;
+    onSelect?.(selectedFolder.path, selectedFolder);
+  };
+
+  const handleDirectoryTap = (entry: RemoteNasEntry) => {
+    const timestamp = Date.now();
+    const previousTap = lastTapRef.current;
+    const isDoubleTap = previousTap?.path === entry.path && timestamp - previousTap.timestamp <= DOUBLE_TAP_MS;
+    setSelectedFolder({
+      path: entry.path,
+      displayPath: entry.displayPath,
+      rootName: result?.rootName || "Workstation(M.2SSD)",
+    });
+    if (isDoubleTap) {
+      lastTapRef.current = null;
+      navigateTo(entry.path);
+      return;
+    }
+    lastTapRef.current = { path: entry.path, timestamp };
   };
 
   const totalEntries = result?.path === currentPath ? result.entries.length : 0;
@@ -222,6 +240,11 @@ export default function RemoteNasBrowser({
         </label>
       </div>
 
+      <div className={styles.selectionHint}>
+        <Info size={16} strokeWidth={1.8} aria-hidden="true" />
+        <span><strong>한 번 탭:</strong> 폴더 선택 <i>·</i> <strong>두 번 탭:</strong> 폴더 열기</span>
+      </div>
+
       <div className={styles.locationBar}>
         <FolderOpen size={16} strokeWidth={1.7} aria-hidden="true" />
         <strong>{displayLocation}</strong>
@@ -254,12 +277,15 @@ export default function RemoteNasBrowser({
           ) : null}
 
           {!error ? visibleEntries.map((entry) => {
+            const selected = entry.kind === "directory" && selectedFolder?.path === entry.path;
             const content = (
               <>
                 <span className={styles.entryName}>
                   <i className={entry.kind === "directory" ? styles.folderIcon : styles.fileIcon}><EntryIcon entry={entry} /></i>
                   <span><strong>{entry.displayName}</strong>{!foldersOnly ? <small>{getEntryType(entry)} · {formatFileSize(entry.sizeBytes)} · {formatModifiedAt(entry.modifiedAt)}</small> : null}</span>
-                  {entry.kind === "directory" ? <ChevronRight className={styles.entryChevron} size={16} aria-hidden="true" /> : null}
+                  {entry.kind === "directory" ? selected
+                    ? <span className={styles.entryCheck}><Check size={16} strokeWidth={2.3} aria-hidden="true" /></span>
+                    : <ChevronRight className={styles.entryChevron} size={16} aria-hidden="true" /> : null}
                 </span>
                 {!foldersOnly ? <><span className={styles.entryMeta}>{getEntryType(entry)}</span><span className={styles.entryMeta}>{formatFileSize(entry.sizeBytes)}</span><span className={styles.entryMeta}>{formatModifiedAt(entry.modifiedAt)}</span></> : null}
               </>
@@ -269,9 +295,10 @@ export default function RemoteNasBrowser({
               <button
                 key={entry.path}
                 type="button"
-                className={styles.entryRow}
-                onClick={() => navigateTo(entry.path)}
-                title={`${entry.displayName} 폴더 열기`}
+                className={`${styles.entryRow} ${selected ? styles.entryRowSelected : ""}`}
+                onClick={() => handleDirectoryTap(entry)}
+                title={`${entry.displayName} 폴더 선택, 두 번 탭하여 열기`}
+                aria-label={`${entry.displayName} 폴더${selected ? ", 선택됨" : ", 한 번 탭하여 선택"}. 두 번 탭하여 열기`}
                 role="listitem"
               >
                 {content}
@@ -292,8 +319,8 @@ export default function RemoteNasBrowser({
         </div>
         <div className={styles.footerActions}>
           <button type="button" className={styles.cancelButton} onClick={onCancel}>취소</button>
-          <button type="button" className={styles.selectButton} onClick={handleSelect} disabled={!result || result.path !== currentPath || loading || Boolean(error)}>
-            <FolderOpen size={16} strokeWidth={1.8} aria-hidden="true" /> 이 폴더 선택
+          <button type="button" className={styles.selectButton} onClick={handleSelect} disabled={!selectedFolder || loading || Boolean(error)}>
+            <FolderOpen size={17} strokeWidth={1.8} aria-hidden="true" /> 선택한 폴더 적용 ({selectedFolder ? 1 : 0}) <ArrowRight size={17} aria-hidden="true" />
           </button>
         </div>
       </footer>

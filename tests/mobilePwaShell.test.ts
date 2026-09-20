@@ -85,13 +85,19 @@ describe("Olivia mobile PWA shell", () => {
     expect(styles).toContain("-webkit-appearance: none");
   });
 
-  it("adds non-destructive mobile preview controls and dismissible photo-status cards", () => {
+  it("uses non-destructive pinch zoom and dismissible photo-status cards", () => {
     const preview = read("components/olivia-mobile/MobileResourcePreview.tsx");
     const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
     const photoNotification = read("components/photo-storage/PhotoProjectNotification.tsx");
 
     expect(preview).toContain("previewClose");
-    expect(preview).toContain("previewZoomControls");
+    expect(preview).not.toContain("previewZoomControls");
+    expect(preview).not.toContain("ZoomIn");
+    expect(preview).not.toContain("ZoomOut");
+    expect(preview).toContain("pinchRef");
+    expect(preview).toContain("event.touches.length !== 2");
+    expect(preview).toContain('{ passive: false }');
+    expect(preview).toContain("clampPreviewZoom");
     expect(preview).toContain("setZoom");
     expect(shell).toContain("onClose={closePreview}");
     expect(photoNotification).toContain("dismissCurrent");
@@ -115,6 +121,24 @@ describe("Olivia mobile PWA shell", () => {
     expect(navigation).toContain('"clients"');
   });
 
+  it("builds the final mobile home from live resources without persistent empty photo sections", () => {
+    const home = read("components/olivia-mobile/MobileHome.tsx");
+    const styles = read("components/olivia-mobile/OliviaMobileShell.module.css");
+
+    expect(home).toContain('onNavigate("clients")');
+    expect(home).toContain('onNavigate("photo-workspace")');
+    expect(home).toContain("pendingPhotoCount > 0");
+    expect(home).toContain("normalizeMobileDocument");
+    expect(home).toContain("normalizeQuoteResource");
+    expect(home).toContain("normalizeContractResource");
+    expect(home).toContain("uniqueResources");
+    expect(home).toContain("slice(0, 2)");
+    expect(home).toContain("recentDocumentList");
+    expect(home).toContain("navigator.geolocation");
+    expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(styles).toContain(".pendingPhotoCard");
+  });
+
   it("uses the existing canonical conti read routes and keeps field completion local", () => {
     const conti = read("components/olivia-mobile/MobileContiFieldView.tsx");
     expect(conti).toContain('"/api/conti/runs?list=1&limit=60"');
@@ -122,6 +146,10 @@ describe("Olivia mobile PWA shell", () => {
     expect(conti).toContain("localStorage");
     expect(conti).not.toContain('method: "PATCH"');
     expect(conti).toContain("wakeLock");
-    expect(conti).toContain("current === 1 ? 4 : current === 4 ? 8 : 1");
+    expect(conti).toContain("setMode(value)");
+    expect(conti).toContain("activeSceneIndex");
+    expect(conti).toContain("mobileContiScenePager");
+    expect(conti).toContain("scene.patient_role_text");
+    expect(conti).not.toContain("advanceMode");
   });
 });

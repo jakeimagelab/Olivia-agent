@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ClipboardList, Grid2X2, LayoutGrid, Maximize2 } from "lucide-react";
+import { Camera, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, LayoutGrid, MapPin, StickyNote, UserRound, Users } from "lucide-react";
 import type { ContiGroupRow, ContiRunRow, ContiSceneRow } from "@/components/conti/v2/types";
 import styles from "./OliviaMobileShell.module.css";
 
@@ -46,6 +46,16 @@ function isTodayShootingMatch(run: ListedRun, task: CalendarTask) {
   return Boolean(scheduleText) && (scheduleText.includes(hospital) || hospital.includes(scheduleText));
 }
 
+function sceneFraming(scene: ContiSceneRow) {
+  return scene.keyword?.trim() || scene.preparation_text?.trim() || "";
+}
+
+function SceneInformation({ icon, label, value }: { icon: "place" | "framing" | "people" | "subject"; label: string; value: string }) {
+  if (!value.trim()) return null;
+  const Icon = icon === "place" ? MapPin : icon === "framing" ? Camera : icon === "people" ? Users : UserRound;
+  return <span className={styles.mobileContiSceneInfo}><Icon size={15} /><small>{label}</small><strong>{value}</strong></span>;
+}
+
 export default function MobileContiFieldView() {
   const [runs, setRuns] = useState<ListedRun[]>([]);
   const [runId, setRunId] = useState<string | null>(null);
@@ -53,6 +63,7 @@ export default function MobileContiFieldView() {
   const [groups, setGroups] = useState<ContiGroupRow[]>([]);
   const [scenes, setScenes] = useState<ContiSceneRow[]>([]);
   const [mode, setMode] = useState<FieldMode>(1);
+  const [activeSceneIndex, setActiveSceneIndex] = useState(0);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -132,6 +143,10 @@ export default function MobileContiFieldView() {
     return [...scenes].sort((left, right) => (groupOrder.get(left.group_id || "") ?? 999) - (groupOrder.get(right.group_id || "") ?? 999) || left.sort - right.sort);
   }, [groups, scenes]);
 
+  useEffect(() => {
+    setActiveSceneIndex((current) => Math.min(current, Math.max(0, sortedScenes.length - 1)));
+  }, [sortedScenes.length]);
+
   const toggleScene = useCallback((sceneId: string) => {
     if (!runId) return;
     setCompleted((current) => {
@@ -147,8 +162,6 @@ export default function MobileContiFieldView() {
     });
   }, [runId]);
 
-  const advanceMode = () => setMode((current) => current === 1 ? 4 : current === 4 ? 8 : 1);
-
   if (loading) return <section className={styles.screen}><div className={styles.emptyState}>현장 콘티를 준비하고 있어요...</div></section>;
   if (error) return <section className={styles.screen}><div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => runId ? void loadRun(runId) : void loadCandidates()}>다시 시도</button></div></section>;
   if (!runId || !run) return (
@@ -161,22 +174,56 @@ export default function MobileContiFieldView() {
     </section>
   );
 
-  const ModeIcon = mode === 1 ? Maximize2 : mode === 4 ? Grid2X2 : LayoutGrid;
+  const activeScene = sortedScenes[activeSceneIndex] || null;
+  const renderCompactScene = (scene: ContiSceneRow, index: number) => {
+    const done = completed.has(scene.id);
+    return <button type="button" key={scene.id} className={done ? styles.mobileContiSceneDone : undefined} onClick={() => toggleScene(scene.id)}>
+      <span className={styles.mobileContiSceneCardTop}>
+        <span className={styles.mobileContiSceneNumber}>{done ? <Check size={16} /> : String(index + 1).padStart(2, "0")}</span>
+        <small>{done ? "촬영 완료" : "○ 미촬영"}</small>
+      </span>
+      <strong>{scene.name}</strong>
+      {scene.description ? <p>{scene.description}</p> : null}
+      <span className={styles.mobileContiCompactMeta}>
+        {scene.space_text ? <small><MapPin size={12} /> 장소 <b>{scene.space_text}</b></small> : null}
+        {scene.patient_role_text ? <small><UserRound size={12} /> 대상자 <b>{scene.patient_role_text}</b></small> : null}
+      </span>
+      {mode === 4 ? <span className={styles.mobileContiSceneArrow}><ChevronRight size={17} /></span> : null}
+    </button>;
+  };
+
   return (
     <section className={`${styles.screen} ${styles.mobileContiField} ${styles[`mobileContiField_${mode}`]}`} aria-label="현장 콘티" data-mobile-swipe-lock>
       <header className={styles.mobileContiFieldHeader}>
         <div><small>현장 콘티</small><h1>{run.hospital_name || "촬영 콘티"}</h1><p>{completed.size}/{sortedScenes.length} 장면 완료</p></div>
-        <button type="button" onClick={advanceMode} aria-label={`카드 ${mode}개 보기`}><ModeIcon size={17} /><b>{mode}</b></button>
+        <div className={styles.mobileContiModeSelector} aria-label="콘티 카드 보기 방식">
+          <span aria-hidden="true"><LayoutGrid size={16} /></span>
+          {([1, 4, 8] as const).map((value) => <button type="button" key={value} aria-pressed={mode === value} onClick={() => setMode(value)}>{value}</button>)}
+        </div>
       </header>
-      <div className={styles.mobileContiSceneGrid}>{sortedScenes.map((scene, index) => {
-        const done = completed.has(scene.id);
-        return <button type="button" key={scene.id} className={done ? styles.mobileContiSceneDone : undefined} onClick={() => toggleScene(scene.id)}>
-          <span className={styles.mobileContiSceneNumber}>{done ? <Check size={16} /> : String(index + 1).padStart(2, "0")}</span>
-          <strong>{scene.name}</strong>
-          {mode !== 8 && scene.preparation_text ? <small>{scene.preparation_text}</small> : null}
-          {mode === 1 && scene.note ? <p>{scene.note}</p> : null}
-        </button>;
-      })}</div>
+      {mode === 1 && activeScene ? <>
+        <button type="button" className={`${styles.mobileContiDetailCard} ${completed.has(activeScene.id) ? styles.mobileContiSceneDone : ""}`} onClick={() => toggleScene(activeScene.id)}>
+          <span className={styles.mobileContiDetailTop}>
+            <span className={styles.mobileContiSceneNumber}>{completed.has(activeScene.id) ? <Check size={18} /> : String(activeSceneIndex + 1).padStart(2, "0")}</span>
+            <small>촬영 장면</small>
+            {activeScene.minutes ? <b><Clock3 size={15} /> 약 {activeScene.minutes}분</b> : null}
+          </span>
+          <h2>{activeScene.name}</h2>
+          {activeScene.description ? <p className={styles.mobileContiDetailDescription}>{activeScene.description}</p> : null}
+          <span className={styles.mobileContiDetailInfoGrid}>
+            <SceneInformation icon="place" label="장소" value={activeScene.space_text || ""} />
+            <SceneInformation icon="framing" label="구도" value={sceneFraming(activeScene)} />
+            <SceneInformation icon="people" label="필요인원" value={activeScene.people_text || ""} />
+            <SceneInformation icon="subject" label="대상자" value={activeScene.patient_role_text || ""} />
+          </span>
+          {activeScene.note ? <span className={styles.mobileContiDetailNote}><small><StickyNote size={14} /> 추가 메모</small><strong>{activeScene.note}</strong></span> : null}
+        </button>
+        <nav className={styles.mobileContiScenePager} aria-label="콘티 장면 이동">
+          <button type="button" disabled={activeSceneIndex === 0} onClick={() => setActiveSceneIndex((current) => Math.max(0, current - 1))}><ChevronLeft size={17} /> 이전 장면</button>
+          <strong>{activeSceneIndex + 1} / {sortedScenes.length}</strong>
+          <button type="button" disabled={activeSceneIndex >= sortedScenes.length - 1} onClick={() => setActiveSceneIndex((current) => Math.min(sortedScenes.length - 1, current + 1))}>다음 장면 <ChevronRight size={17} /></button>
+        </nav>
+      </> : <div className={styles.mobileContiSceneGrid}>{sortedScenes.map(renderCompactScene)}</div>}
     </section>
   );
 }

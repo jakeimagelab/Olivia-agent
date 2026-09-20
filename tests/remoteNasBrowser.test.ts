@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildRemoteNasBreadcrumbs,
@@ -62,5 +63,22 @@ describe("Remote NAS mock data source", () => {
     const empty = await dataSource.listFolder("0911_WINF", { foldersOnly: true });
     expect(empty.entries).toEqual([]);
     expect(empty.path).toBe("0911_WINF");
+  });
+});
+
+describe("Remote NAS mobile folder selection", () => {
+  it("keeps selection independent from navigation and applies only the selected row", () => {
+    const browser = readFileSync("components/remote-nas/RemoteNasBrowser.tsx", "utf8");
+
+    expect(browser).toContain("const DOUBLE_TAP_MS = 300");
+    expect(browser).toContain("const [selectedFolder, setSelectedFolder]");
+    expect(browser).toContain("lastTapRef");
+    expect(browser).toContain("handleDirectoryTap(entry)");
+    expect(browser).toContain("navigateTo(entry.path)");
+    expect(browser).toContain("onSelect?.(selectedFolder.path, selectedFolder)");
+    expect(browser).toContain("한 번 탭:");
+    expect(browser).toContain("두 번 탭:");
+    expect(browser).toContain("선택한 폴더 적용");
+    expect(browser).toContain("disabled={!selectedFolder");
   });
 });

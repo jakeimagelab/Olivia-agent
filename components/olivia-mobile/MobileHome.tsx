@@ -3,9 +3,12 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Bell,
   ChevronRight,
   Clock3,
   Eye,
+  FolderOpen,
+  Search,
 } from "lucide-react";
 import { AppIcon as DesktopAppIcon, type IconName } from "@/components/AppIcon";
 import { CalendarAppIcon } from "@/components/olivia-os/CalendarAppIcon";
@@ -26,6 +29,7 @@ import type { MobileDocumentsSection } from "./MobileDocuments";
 import styles from "./OliviaMobileShell.module.css";
 
 type CalendarTask = { id: string; title: string; time?: string | null; location?: string | null };
+type MobileWeather = { temperature: number; label: string; symbol: string; location: string | null };
 
 const QUICK_ITEMS = [
   { id: "voice", label: "음성 기록", description: "현장 음성 메모", iconName: "work-log" },
@@ -38,6 +42,9 @@ const QUICK_ITEMS = [
 
 const ACTIVE_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
   "MERGING", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
+]);
+const PENDING_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
+  "READY", "MERGE_COMPLETED", "REVIEW_REQUIRED", "MERGE_FAILED", "COPY_FAILED", "CLASSIFY_FAILED",
 ]);
 
 function photoProgress(project: PhotoStorageProject) {
@@ -91,6 +98,29 @@ function seoulDate() {
   return new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 }
 
+function seoulDateLabel() {
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  }).format(new Date()).replace(/\.$/, "");
+}
+
+function recentDate(value?: string) {
+  if (!value) return "최근";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "최근";
+  return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric" }).format(date);
+}
+
+function resourceIconName(type: MobileResource["type"]): IconName {
+  if (type === "quote") return "quote";
+  if (type === "contract") return "contract";
+  if (type === "storyboard") return "storyboard";
+  return "library";
+}
+
 async function jsonRequest(url: string) {
   const response = await fetch(url, { cache: "no-store" });
   const payload = await response.json().catch(() => null);
@@ -126,6 +156,8 @@ export default function MobileHome({
   const isSending = useOliviaConversationStore((state) => state.isSending);
   const [todayTasks, setTodayTasks] = useState<CalendarTask[]>([]);
   const [resource, setResource] = useState<MobileResource | null>(null);
+  const [recentResources, setRecentResources] = useState<MobileResource[]>([]);
+  const [weather, setWeather] = useState<MobileWeather | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const { projects } = usePhotoProjectNotifications();
@@ -141,15 +173,30 @@ export default function MobileHome({
         jsonRequest("/api/contracts?limit=10").catch(() => ({ contracts: [] })),
       ]);
       setTodayTasks(calendarPayload.tasks || []);
+      const temporaryResources = (temporaryPayload.documents || [])
+        .map((row: Record<string, unknown>) => normalizeMobileDocument(row))
+        .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
+      const quoteResources = (quotesPayload.quotes || [])
+        .map((row: Record<string, unknown>) => normalizeQuoteResource(row))
+        .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
+      const contractResources = (contractsPayload.contracts || [])
+        .map((row: Record<string, unknown>) => normalizeContractResource(row))
+        .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
+      const uniqueResources = new Map<string, MobileResource>();
+      [...temporaryResources, ...quoteResources, ...contractResources]
+        .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())
+        .forEach((item) => {
+          const key = `${item.type}:${item.id}`;
+          if (!uniqueResources.has(key)) uniqueResources.set(key, item);
+        });
+      setRecentResources([...uniqueResources.values()].slice(0, 2));
       if (contextualResource) {
         setResource(contextualResource);
       } else {
-        const temporary = (temporaryPayload.documents || [])
-          .map((row: Record<string, unknown>) => normalizeMobileDocument(row))
-          .find(Boolean) || null;
+        const temporary = temporaryResources[0] || null;
         const canonical = [
-          ...(quotesPayload.quotes || []).map((row: Record<string, unknown>) => normalizeQuoteResource(row)),
-          ...(contractsPayload.contracts || []).map((row: Record<string, unknown>) => normalizeContractResource(row)),
+          ...quoteResources,
+          ...contractResources,
         ]
           .filter((item): item is MobileResource => Boolean(item) && isOpenMobileResourceStatus(item.status))
           .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())[0] || null;
@@ -163,6 +210,24 @@ export default function MobileHome({
   }, [currentDocumentId, currentDocumentType]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!("geolocation" in navigator)) return;
+    let active = true;
+    navigator.geolocation.getCurrentPosition((position) => {
+      const params = new URLSearchParams({
+        latitude: String(position.coords.latitude),
+        longitude: String(position.coords.longitude),
+      });
+      void fetch(`/api/mobile/weather?${params}`, { cache: "no-store" })
+        .then((response) => response.ok ? response.json() : null)
+        .then((payload) => {
+          if (!active || !payload?.ok || !payload.weather) return;
+          setWeather({ ...payload.weather, location: typeof payload.location === "string" ? payload.location : null });
+        })
+        .catch(() => undefined);
+    }, () => undefined, { enableHighAccuracy: false, maximumAge: 15 * 60_000, timeout: 5_000 });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     const refresh = () => void load();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
@@ -189,6 +254,7 @@ export default function MobileHome({
   const activePhotoProject = useMemo(() => projects
     .filter((project) => ACTIVE_PHOTO_STATUSES.has(project.status))
     .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())[0] || null, [projects]);
+  const pendingPhotoCount = useMemo(() => projects.filter((project) => PENDING_PHOTO_STATUSES.has(project.status)).length, [projects]);
 
   const handleQuick = (id: typeof QUICK_ITEMS[number]["id"]) => {
     if (id === "quote-contract") return onOpenDocuments("quote-contract");
@@ -204,12 +270,28 @@ export default function MobileHome({
     <section className={`${styles.screen} ${styles.homeScreen}`} aria-label="Olivia 모바일 홈">
       <header className={styles.homeHeader}>
         <div className={styles.homeBrand}>
-          <span className={styles.homeBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={30} height={30} priority /></span>
+          <span className={styles.homeBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={38} height={38} priority /></span>
           <span><strong>PHOTO CLINIC</strong><small>OLIVIA MOBILE</small></span>
         </div>
+        <div className={styles.homeHeaderActions}>
+          <button type="button" onClick={() => onNavigate("clients")} aria-label="고객 검색"><Search size={19} /></button>
+          <button type="button" onClick={() => onNavigate("photo-workspace")} aria-label="사진 작업 알림">
+            <Bell size={19} />
+            {pendingPhotoCount > 0 ? <i aria-hidden="true" /> : null}
+          </button>
+        </div>
       </header>
-      <div className={styles.homeGreeting}>
-        <h1>안녕하세요, 오늘도 좋은 하루 되세요! <span>👋</span></h1>
+      <div className={styles.homeGreetingRow}>
+        <div className={styles.homeGreeting}>
+          <small>대표님, 안녕하세요!</small>
+          <h1>오늘도 좋은 하루 되세요! <span>👋</span></h1>
+          <p>좋은 이미지는 좋은 변화를 만듭니다.</p>
+        </div>
+        <div className={styles.homeDateWeather}>
+          <strong>{seoulDateLabel()}</strong>
+          {weather ? <span>{weather.symbol} {weather.label} {weather.temperature}°</span> : null}
+          {weather?.location ? <small>{weather.location}</small> : null}
+        </div>
       </div>
 
       <button type="button" className={`${styles.card} ${styles.todayCard}`} onClick={() => onNavigate("calendar")}>
@@ -220,7 +302,7 @@ export default function MobileHome({
       {todayTasks[0] ? <div className={styles.nextSchedule}><Clock3 size={14} /><strong>{todayTasks[0].time?.slice(0, 5) || "시간 미정"}</strong><span>{todayTasks[0].title}</span></div> : null}
 
       <section className={styles.homeSection}>
-        <h2 className={styles.sectionLabel}>현재 작업 중</h2>
+        <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>현재 작업 중</h2></div>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void load()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>현재 작업을 확인하고 있어요...</div> : (
           <MobileCurrentWorkCard resource={resource} state={workState} onPreview={onOpenPreview} onContinue={() => onNavigate("chat")} />
         )}
@@ -233,7 +315,7 @@ export default function MobileHome({
       </button> : null}
 
       <section className={styles.homeSection}>
-        <h2 className={styles.sectionLabel}>빠른 메뉴</h2>
+        <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>빠른 메뉴</h2></div>
         <div className={styles.quickGrid}>
           {QUICK_ITEMS.map(({ id, label, description, ...item }) => (
             <button type="button" key={id} onClick={() => handleQuick(id)}>
@@ -244,6 +326,30 @@ export default function MobileHome({
           ))}
         </div>
       </section>
+
+      {recentResources.length ? <section className={styles.homeSection}>
+        <div className={styles.homeSectionHeading}>
+          <h2 className={styles.sectionLabel}>최근 문서</h2>
+          <button type="button" onClick={() => onOpenDocuments("quote-contract")}>전체 보기 <ChevronRight size={14} /></button>
+        </div>
+        <div className={styles.recentDocumentList}>
+          {recentResources.map((item) => (
+            <button type="button" key={`${item.type}:${item.id}`} onClick={() => onOpenPreview({ resourceType: item.type, resourceId: item.id, temporaryDocumentId: item.temporaryDocumentId })}>
+              <span><DesktopAppIcon name={resourceIconName(item.type)} size={29} /></span>
+              <strong>{item.title}</strong>
+              <small>{recentDate(item.updatedAt)}</small>
+              <ChevronRight size={16} />
+            </button>
+          ))}
+        </div>
+      </section> : null}
+
+      {pendingPhotoCount > 0 ? <button type="button" className={styles.pendingPhotoCard} onClick={() => onNavigate("photo-workspace")}>
+        <span><FolderOpen size={21} /></span>
+        <span><strong>파일 분류 대기</strong><small>분류가 필요한 파일이 {pendingPhotoCount.toLocaleString("ko-KR")}개 있어요.</small></span>
+        <b>{pendingPhotoCount.toLocaleString("ko-KR")}</b>
+        <ChevronRight size={17} />
+      </button> : null}
 
     </section>
   );
