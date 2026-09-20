@@ -145,7 +145,10 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     const result = await executeNasBackupTool("start_photo_source_prep", {
       folderName: "0917_청담스시", confirmRestart: false,
     }, context, defaultDependencies());
-    expect(result).toMatchObject({ success: true, data: { createdProject: true, status: "MERGE_APPROVED" } });
+    expect(result).toMatchObject({
+      success: true,
+      data: { createdProject: true, status: "MERGE_APPROVED", summary: "작업을 시작했습니다. 진행 중입니다." },
+    });
     expect(state.projects).toMatchObject([{
       source_relative_path: "0917_청담스시", status: "MERGE_APPROVED", raw_count: 1, jpg_count: 1, jpg_bytes: 100,
     }]);

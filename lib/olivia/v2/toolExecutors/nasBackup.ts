@@ -190,7 +190,7 @@ export async function executeNasBackupTool(
           createdProject: !existing,
           summary: project.status === "MERGE_COMPLETED"
             ? `"${candidate.displayName}"은(는) 이미 JPG 통합이 완료되어 있어요.`
-            : `"${candidate.displayName}" JPG 통합 작업을 주문했어요.`,
+            : "작업을 시작했습니다. 진행 중입니다.",
         },
         verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { projectId: project.id } }),
       };
@@ -255,7 +255,7 @@ export async function executeNasBackupTool(
         createdProject: !existing,
         summary: project.status === "CLASSIFY_COMPLETED"
           ? `"${candidate.displayName}"은(는) 이미 사진 분류가 완료되어 있어요.`
-          : `"${candidate.displayName}"의 JPG 통합 → SSD2 복사 → Scene 분류 작업을 주문했어요.`,
+          : "작업을 시작했습니다. 진행 중입니다.",
       },
       verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { projectId: project.id } }),
     };

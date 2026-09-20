@@ -424,7 +424,7 @@ async function runQueue(input: {
       };
     }
     if (result.success) {
-      state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — ${string(result.data?.summary) || "작업을 주문했어요."}`);
+      state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — ${string(result.data?.summary) || "작업을 시작했습니다. 진행 중입니다."}`);
     } else {
       state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — 실패 (${result.error || "작업을 시작하지 못했어요."}) 원본은 변경하지 않았어요.`);
     }

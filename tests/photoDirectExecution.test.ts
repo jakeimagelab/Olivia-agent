@@ -48,7 +48,7 @@ function executor(options: {
     return {
       id: `call-${sequence}`,
       execution: options.start?.(name, input) ?? success(name, {
-        summary: name === "start_photo_source_prep" ? "JPG 통합 작업을 주문했어요." : "Scene 분류 작업을 주문했어요.",
+        summary: "작업을 시작했습니다. 진행 중입니다.",
       }),
     };
   });
@@ -122,6 +122,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     });
     expect(result).toMatchObject({ handled: true, reason: "executed", pendingState: null });
     expect(result.text).toContain("0918_삼칠갈비");
+    expect(result.text).toContain("작업을 시작했습니다. 진행 중입니다.");
     expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder", "start_photo_source_prep"]);
     expect(executeTool.mock.calls[1][1]).toEqual({ folderName: "0918_삼칠갈비", confirmRestart: false });
   });
@@ -270,7 +271,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
       },
       start: (name, input) => String(input.folderName).includes("르셀")
         ? failure(name, "동일 이름 JPG 충돌")
-        : success(name, { summary: "JPG 통합 작업을 주문했어요." }),
+        : success(name, { summary: "작업을 시작했습니다. 진행 중입니다." }),
     });
     const result = await executePhotoDirectTurn({
       enabled: true,
