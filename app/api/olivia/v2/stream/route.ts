@@ -60,6 +60,13 @@ import { renderOliviaOutcome, renderVerifiedToolRound, resolveHermesFinalText, t
 import { isSystemStatusChatRequest } from "@/lib/system-status/chatIntent";
 import { collectSystemStatus } from "@/lib/system-status/service";
 import { formatSystemStatusForChat } from "@/lib/system-status/format";
+import {
+  executePhotoDirectTurn,
+  isPhotoDirectExecutionEnabled,
+  parsePhotoDirectCommand,
+  readPendingPhotoDirectExecution,
+  shouldGuardPhotoDirectTurn,
+} from "@/lib/photo-storage/directChatExecution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -426,6 +433,9 @@ async function runRoundWithSanitization(
 }
 
 function toolStatus(name: string) {
+  if (name === "find_photo_folder") return "Workstation 촬영 폴더를 찾는 중…";
+  if (name === "start_photo_source_prep") return "RAW는 그대로 두고 JPG 통합 작업을 주문하는 중…";
+  if (name === "start_photo_scene_sort") return "JPG 통합·복사·Scene 분류 작업을 주문하는 중…";
   if (name === "select_project") return "고객과 프로젝트를 확인하는 중…";
   if (name === "create_quote") return "견적 초안을 생성하는 중…";
   if (name === "create_contract") return "계약서 초안을 생성하는 중…";
@@ -757,6 +767,15 @@ export async function POST(req: NextRequest) {
         const conversationMetadata = conversationMetadataResult.data?.metadata && typeof conversationMetadataResult.data.metadata === "object"
           ? conversationMetadataResult.data.metadata as Record<string, unknown>
           : {};
+        const photoDirectExecutionEnabled = isPhotoDirectExecutionEnabled();
+        const pendingPhotoDirectExecution = readPendingPhotoDirectExecution(conversationMetadata);
+        // 사진 직접 실행 우회는 현재 사용자가 직접 입력한 원문만 판정한다. alias/referent rewrite,
+        // Hermes 답변, 대화 요약 또는 memory 문구가 사진 명령으로 승격되면 안 된다.
+        const photoDirectTurn = shouldGuardPhotoDirectTurn({
+          enabled: photoDirectExecutionEnabled,
+          userMessage: rawMessage,
+          pendingState: pendingPhotoDirectExecution,
+        });
         let pendingAction = readPendingAction(conversationMetadata);
         const pendingTurn = resolvePendingActionTurn(rawMessage, pendingAction);
         const pendingPromptHint = pendingTurn === "correction" && pendingAction
@@ -912,7 +931,7 @@ export async function POST(req: NextRequest) {
           // 없는 구간이기 때문이다. guarded 요청(검색/수정/UI실행 의도)은 지금처럼 도구 검증이
           // 끝난 뒤 한 번에 보낸다 — client.ts가 371~448행에서 finalText를 검증 결과로 바꿔치기할
           // 수 있어서, 검증 전 원문을 실시간으로 보여주면 안 된다.
-          const guardedResponse = isClientSearchRequest(message) || isMutationIntent(message) || isUiExecutionIntent(message);
+          const guardedResponse = photoDirectTurn || isClientSearchRequest(message) || isMutationIntent(message) || isUiExecutionIntent(message);
           const scriptGuard = createStreamingScriptGuard();
           // 실시간으로 이미 내보낸 텍스트를 그대로 누적한다 — 이상 문자가 나중에(sliding-window
           // 밖에서) 발견돼 fallback을 이어붙일 때, DB에 저장되는 텍스트가 실제로 화면에 보인
@@ -981,6 +1000,90 @@ export async function POST(req: NextRequest) {
             // Tool 실행까지 자체적으로 끝내고 최종 텍스트를 주기 때문이다(§4/§11). tool_call/plan은
             // 향후 Provider 확장을 위해 타입에만 예약해둔 상태라, 여기서 명시적으로 좁혀 사용한다.
             if (hermesResult.type !== "message") throw new Error("Hermes Brain이 지원하지 않는 응답 형식을 반환했습니다.");
+
+            const directCommand = parsePhotoDirectCommand(rawMessage);
+            const directExecution = await executePhotoDirectTurn({
+              enabled: photoDirectExecutionEnabled,
+              userMessage: rawMessage,
+              hermesToolNames: hermesResult.toolCalls.map((call) => call.name),
+              pendingState: pendingPhotoDirectExecution,
+              context: hermesContextSnapshot,
+              executeTool: async (name, toolInput, toolContext) => {
+                const id = crypto.randomUUID();
+                const startedAt = performance.now();
+                toolRounds += 1;
+                send({ type: "agent_status", status: toolStatus(name) });
+                send({ type: "tool_start", tool: name, toolCallId: id });
+                const execution = await executeAgentTool({ id, name, arguments: JSON.stringify(toolInput) }, toolContext);
+                toolExecutionMs += performance.now() - startedAt;
+                for (const action of execution.uiActions) send({ type: "ui_action", action });
+                send({
+                  type: "tool_result",
+                  tool: name,
+                  toolCallId: id,
+                  success: execution.result.success,
+                  result: execution.result.success
+                    ? execution.result.data || {}
+                    : { message: execution.result.error || OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric, code: execution.result.code },
+                });
+                return { id, execution };
+              },
+            });
+
+            console.info("[PhotoDirectExecution]", {
+              requestId,
+              enabled: photoDirectExecutionEnabled,
+              guardedTurn: photoDirectTurn,
+              handled: directExecution.handled,
+              reason: directExecution.reason,
+              operation: directCommand?.operation ?? pendingPhotoDirectExecution?.operation ?? null,
+              queryCount: directCommand?.folderQueries.length ?? pendingPhotoDirectExecution?.items.length ?? 0,
+              candidateCount: directExecution.pendingState?.items[directExecution.pendingState.currentIndex]?.candidates?.length ?? 0,
+              pendingStage: directExecution.pendingState?.stage ?? null,
+              directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),
+            });
+
+            if (directExecution.handled) {
+              const directText = directExecution.text || "사진 작업 요청을 확인했어요.";
+              // photoDirectTurn은 Hermes 호출 전에 guardedResponse에 반영되므로 Hermes의 "기능이
+              // 연결되지 않았다"는 원문은 아직 사용자에게 전송되지 않았다. 여기서 검증된 직접
+              // 실행 결과만 한 번 보낸다.
+              await flushTextAsDeltas(directText, send, messageId);
+              await mergeAssistantConversationMetadata(db, {
+                ownerId: owner.id,
+                conversationId: conversation.id,
+                metadata: { pendingPhotoDirectExecution: directExecution.pendingState ?? null },
+              });
+              console.info("[HermesTurn]", {
+                requestId,
+                intent: requestClass,
+                agentEngine: "hermes",
+                legacySelectedToolCount: selectedTools.length,
+                mcpCatalogMode: "full",
+                usage: hermesResult.usage ?? null,
+                activeResource: hermesRuntime.context.activeResource,
+                resolvedWorkSessionId: hermesRuntime.workSession?.id,
+                memoryCount: taughtMemories.length,
+                memoryIds: taughtMemories.map((memory) => memory.id),
+                historyCount: hermesRuntime.history.length,
+                toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
+                directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),
+                uiActionCount: 0,
+                finalTextSource: "photo_direct_execution",
+                streamedLive: false,
+              });
+              chatRouteLabel = "HERMES";
+              console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
+              await saveTurnAssistant(directText, {
+                blocks: [{ type: "text", text: directText }],
+                agentEngine: "hermes",
+                hermesRunId: hermesResult.runId,
+                routeDecision: "PHOTO_DIRECT_EXECUTION",
+                toolCalls: directExecution.toolCalls.map(({ id, name, success, verification }) => ({ id, name, success, verification })),
+              });
+              return;
+            }
+
             const rawResourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
               if (!call.success || !call.data || typeof call.data !== "object") return current;
               return { ...current, ...resourceMetadataFromTool(call.name, call.data as Record<string, unknown>, call.resourceType, call.resourceId) };
