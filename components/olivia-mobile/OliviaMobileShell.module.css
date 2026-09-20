@@ -295,8 +295,8 @@
   font: 650 11px/1 inherit;
   box-shadow: 0 10px 22px rgba(10, 59, 54, .22);
 }
-.homeGreeting { margin: 10px 0 10px; }
-.homeGreeting h1 { margin: 0; color: var(--mobile-ink); font-size: clamp(17px, 4.8875vw, 20.4px); font-weight: 660; line-height: 1.15; letter-spacing: -.045em; }
+.homeGreeting { margin: 8px 0; }
+.homeGreeting h1 { margin: 0; color: var(--mobile-ink); font-size: clamp(16px, 4.6vw, 19px); font-weight: 660; line-height: 1.13; letter-spacing: -.045em; }
 .homeGreeting h1 span { font-size: .8em; }
 .homeGreeting p { margin: 4px 0 0; color: var(--mobile-muted); font-size: 10px; }
 
@@ -321,22 +321,25 @@
 .nextSchedule { min-height: 23px; display: flex; align-items: center; gap: 5px; margin: 3px 6px 0; color: var(--mobile-muted); font-size: 9px; }
 .nextSchedule strong { color: var(--mobile-green); font-size: 9px; }
 .nextSchedule span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.homeSection { margin-top: 10px; }
+.homeSection { margin-top: 8px; }
 
 .homeScreen .sectionLabel { margin-bottom: 5px; font-size: 13px; }
 
-.currentWorkCard { padding: 10px 11px; }
+.currentWorkCard { padding: 7px 9px 8px; }
 .currentWorkTop { display: flex; align-items: center; justify-content: space-between; }
-.workState { min-height: 22px; display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 0 8px; background: var(--mobile-mint); color: var(--mobile-green); font-size: 8.5px; font-weight: 700; }
+.workState { min-height: 18px; display: inline-flex; align-items: center; gap: 3px; border-radius: 999px; padding: 0 7px; background: var(--mobile-mint); color: var(--mobile-green); font-size: 8px; font-weight: 700; }
+.currentWorkTop > svg { width: 15px; height: 15px; }
 .workState_working svg { animation: mobileWorkSpin 1.4s linear infinite; }
 .workState_failed { background: #fff0eb; color: #b84d2c; }
 .workState_done { background: #eaf6f0; color: #247157; }
 @keyframes mobileWorkSpin { to { transform: rotate(360deg); } }
-.currentWorkCard h3 { margin: 6px 0 2px; overflow: hidden; color: var(--mobile-ink); font-size: 13px; font-weight: 680; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
-.currentWorkAmount { display: block; color: var(--mobile-green); font-size: 16px; font-weight: 700; }
-.currentWorkCard p { margin: 2px 0 0; color: var(--mobile-muted); font-size: 8.5px; }
-.currentWorkActions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 7px; }
-.currentWorkActions button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--mobile-line); border-radius: 12px; background: #fff; color: var(--mobile-green); font: 650 10px/1 inherit; }
+.currentWorkCard h3 { margin: 4px 0 1px; overflow: hidden; color: var(--mobile-ink); font-size: 12px; font-weight: 680; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+.currentWorkAmount { display: block; color: var(--mobile-green); font-size: 14px; font-weight: 700; }
+.currentWorkCard p { margin: 1px 0 0; color: var(--mobile-muted); font-size: 8px; }
+.currentWorkActions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 5px; }
+.currentWorkActions button { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--mobile-line); border-radius: 10px; background: #fff; color: var(--mobile-green); font: 650 9px/1 inherit; }
+.currentWorkActions button svg { width: 14px; height: 14px; }
+.currentWorkEmpty { min-height: 66px; gap: 5px; border-radius: 15px; padding: 10px; font-size: 10px; }
 .currentWorkActions button:last-child { border-color: var(--mobile-green); background: var(--mobile-green); color: #fff; }
 
 .quickGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }

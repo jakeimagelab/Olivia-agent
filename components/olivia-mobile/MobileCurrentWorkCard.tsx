@@ -29,7 +29,7 @@ export default function MobileCurrentWorkCard({
   onContinue: () => void;
 }) {
   if (!resource) {
-    return <div className={styles.emptyState}><CircleDashed size={22} /><span>현재 작성 중인 문서가 없어요.</span></div>;
+    return <div className={`${styles.emptyState} ${styles.currentWorkEmpty}`}><CircleDashed size={17} /><span>현재 작성 중인 문서가 없어요.</span></div>;
   }
   const Icon = state === "failed" ? AlertCircle : state === "working" ? CircleDashed : CheckCircle2;
   const stateText = state === "failed" ? "수정하지 못했어요" : state === "working" ? "수정 중..." : state === "done" ? "수정 완료" : resource.statusLabel;
@@ -49,4 +49,3 @@ export default function MobileCurrentWorkCard({
     </article>
   );
 }
-

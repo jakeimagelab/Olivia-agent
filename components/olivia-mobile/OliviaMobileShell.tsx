@@ -34,7 +34,21 @@ function currentNavigation(): MobileNavigationState {
 const SWIPEABLE_PRIMARY_VIEWS = ["home", "calendar", "memo", "documents"] as const satisfies readonly MobilePrimaryView[];
 type SwipeablePrimaryView = typeof SWIPEABLE_PRIMARY_VIEWS[number];
 const IOS_BACK_GESTURE_EDGE_PX = 24;
-const SWIPE_DISTANCE_PX = 68;
+const SWIPE_DIRECTION_LOCK_PX = 10;
+const SWIPE_DISTANCE_PX = 54;
+const SWIPE_FLING_DISTANCE_PX = 28;
+const SWIPE_FLING_VELOCITY_PX_PER_MS = .42;
+
+type SwipeAxis = "pending" | "horizontal" | "vertical";
+type SwipeSession = {
+  pointerId: number;
+  view: SwipeablePrimaryView;
+  startX: number;
+  startY: number;
+  startedAt: number;
+  axis: SwipeAxis;
+  locked: boolean;
+};
 
 function isSwipeablePrimaryView(view: MobileNavigationState["view"]): view is SwipeablePrimaryView {
   return (SWIPEABLE_PRIMARY_VIEWS as readonly string[]).includes(view);
@@ -55,10 +69,14 @@ function isMobileSwipeLocked(target: EventTarget | null) {
   return false;
 }
 
+function releasePointerCapture(container: HTMLDivElement, pointerId: number) {
+  if (container.hasPointerCapture(pointerId)) container.releasePointerCapture(pointerId);
+}
+
 export default function OliviaMobileShell() {
   const [navigation, setNavigation] = useState<MobileNavigationState>(currentNavigation);
   const [documentsSection, setDocumentsSection] = useState<MobileDocumentsSection>("quote-contract");
-  const swipeRef = useRef<{ pointerId: number; view: SwipeablePrimaryView; startX: number; startY: number; locked: boolean } | null>(null);
+  const swipeRef = useRef<SwipeSession | null>(null);
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -98,24 +116,55 @@ export default function OliviaMobileShell() {
       view: navigation.view,
       startX: event.clientX,
       startY: event.clientY,
+      startedAt: performance.now(),
+      axis: "pending",
       locked: isMobileSwipeLocked(event.target),
     };
   }, [navigation.view]);
 
+  const onSwipePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const swipe = swipeRef.current;
+    if (!swipe || swipe.pointerId !== event.pointerId || swipe.locked || swipe.axis === "vertical") return;
+
+    const deltaX = event.clientX - swipe.startX;
+    const deltaY = event.clientY - swipe.startY;
+    const horizontalDistance = Math.abs(deltaX);
+    const verticalDistance = Math.abs(deltaY);
+    if (swipe.axis === "pending") {
+      if (Math.max(horizontalDistance, verticalDistance) < SWIPE_DIRECTION_LOCK_PX) return;
+      if (verticalDistance >= horizontalDistance) {
+        swipe.axis = "vertical";
+        return;
+      }
+      swipe.axis = "horizontal";
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+    // 가로 전환으로 확정된 뒤에만 기본 동작을 막는다. 세로 스크롤은 그대로 브라우저에 맡긴다.
+    event.preventDefault();
+  }, []);
+
   const onSwipePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const swipe = swipeRef.current;
     swipeRef.current = null;
-    if (!swipe || swipe.pointerId !== event.pointerId || swipe.locked) return;
+    if (!swipe || swipe.pointerId !== event.pointerId) return;
+    releasePointerCapture(event.currentTarget, event.pointerId);
+    if (swipe.locked || swipe.axis === "vertical") return;
     const deltaX = event.clientX - swipe.startX;
     const deltaY = event.clientY - swipe.startY;
-    if (Math.abs(deltaX) < SWIPE_DISTANCE_PX || Math.abs(deltaX) < Math.abs(deltaY) * 1.4) return;
+    const horizontalDistance = Math.abs(deltaX);
+    const elapsedMs = Math.max(1, performance.now() - swipe.startedAt);
+    const isIntentionalFling = horizontalDistance >= SWIPE_FLING_DISTANCE_PX && horizontalDistance / elapsedMs >= SWIPE_FLING_VELOCITY_PX_PER_MS;
+    if ((!isIntentionalFling && horizontalDistance < SWIPE_DISTANCE_PX) || horizontalDistance < Math.abs(deltaY) * 1.25) return;
     const currentIndex = SWIPEABLE_PRIMARY_VIEWS.indexOf(swipe.view);
     const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1);
     if (nextIndex < 0 || nextIndex >= SWIPEABLE_PRIMARY_VIEWS.length) return;
     navigate({ view: SWIPEABLE_PRIMARY_VIEWS[nextIndex] });
   }, [navigate]);
 
-  const clearSwipe = useCallback(() => { swipeRef.current = null; }, []);
+  const clearSwipe = useCallback((event?: ReactPointerEvent<HTMLDivElement>) => {
+    if (event) releasePointerCapture(event.currentTarget, event.pointerId);
+    swipeRef.current = null;
+  }, []);
 
   let screen;
   if (navigation.view === "preview") {
@@ -137,7 +186,7 @@ export default function OliviaMobileShell() {
   return (
     <OliviaUiSurfaceProvider value="mobile">
       <main className={styles.shell} data-olivia-mobile-shell>
-        <div className={styles.viewport} onPointerDown={onSwipePointerDown} onPointerUp={onSwipePointerUp} onPointerCancel={clearSwipe}>
+        <div className={styles.viewport} onPointerDown={onSwipePointerDown} onPointerMove={onSwipePointerMove} onPointerUp={onSwipePointerUp} onPointerCancel={clearSwipe} onLostPointerCapture={clearSwipe}>
           {/* key로 view가 바뀔 때 바운더리를 새로 마운트한다 — 한 화면에서 난 에러가 다른
               화면으로 넘어간 뒤에도 남아있지 않게 한다. */}
           <MobileErrorBoundary key={navigation.view} onGoHome={() => navigate({ view: "home" }, "replace")}>

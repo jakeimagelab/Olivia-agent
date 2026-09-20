@@ -62,6 +62,10 @@ describe("Olivia mobile PWA shell", () => {
     expect(shell).toContain("SWIPEABLE_PRIMARY_VIEWS");
     expect(shell).toContain("IOS_BACK_GESTURE_EDGE_PX");
     expect(shell).toContain("onPointerDown={onSwipePointerDown}");
+    expect(shell).toContain("onPointerMove={onSwipePointerMove}");
+    expect(shell).toContain("setPointerCapture");
+    expect(shell).toContain("SWIPE_FLING_VELOCITY_PX_PER_MS");
+    expect(shell).toContain("swipe.axis === \"vertical\"");
     expect(shell).toContain("navigation.view === \"chat\"");
     expect(calendar).toContain("data-mobile-swipe-lock");
     expect(calendar).toContain("selectedSchedulePanel");
