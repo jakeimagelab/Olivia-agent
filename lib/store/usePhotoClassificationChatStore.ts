@@ -23,7 +23,7 @@ export type PhotoClassificationChatStep =
   | "error";
 
 // 실제 PhotoSortingWorkspace.tsx 기본값과 동일하게 맞춘다(department:dermatology,
-// gapMinutes:3.5, departmentLogicEnabled/profileClassificationEnabled만 기본 true,
+// gapMinutes:3.5, departmentLogicEnabled만 기본 true,
 // lightingSensitivity:medium, studioSubMode:concept).
 export type PhotoClassificationSettings = {
   department: MedicalDepartment;
@@ -56,7 +56,7 @@ function defaultSettings(): PhotoClassificationSettings {
     departmentLogicEnabled: true,
     aiNamingEnabled: false,
     qualityAnalysisEnabled: false,
-    profileClassificationEnabled: true,
+    profileClassificationEnabled: false,
     lightingSensitivity: "medium",
     studioSubMode: "concept",
   };

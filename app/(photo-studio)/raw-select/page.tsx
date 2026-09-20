@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
+import { applyPhotoDuplicates } from "@/lib/photoSelect/analysis";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -150,39 +151,6 @@ async function analyzeJpg(file: File): Promise<{
   });
 }
 
-function hammingDist(a: string, b: string): number {
-  let d = 0;
-  for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) d++;
-  return d;
-}
-
-function applyDuplicates(files: PhotoFile[], thresholdPct: number): PhotoFile[] {
-  const maxDist = Math.round(64 * (1 - thresholdPct / 100));
-  const result = files.map(f => ({ ...f, dupGroupId: null as string | null, isDupRep: false }));
-  let gid = 0;
-
-  for (let i = 0; i < result.length; i++) {
-    if (!result[i].hash || result[i].dupGroupId !== null || result[i].rejectReason !== "ok") continue;
-    const group: number[] = [i];
-    for (let j = i + 1; j < result.length; j++) {
-      if (!result[j].hash || result[j].dupGroupId !== null || result[j].rejectReason !== "ok") continue;
-      if (hammingDist(result[i].hash!, result[j].hash!) <= maxDist) group.push(j);
-    }
-    if (group.length > 1) {
-      const gname = `g${++gid}`;
-      // Rep = sharpest
-      let repIdx = group[0];
-      for (const idx of group) {
-        if ((result[idx].blurScore ?? 0) > (result[repIdx].blurScore ?? 0)) repIdx = idx;
-      }
-      for (const idx of group) {
-        result[idx].dupGroupId = gname;
-        result[idx].isDupRep = (idx === repIdx);
-      }
-    }
-  }
-  return result;
-}
 
 async function getApiThumb(file: File): Promise<string> {
   return new Promise((res, rej) => {
@@ -419,7 +387,7 @@ export default function RawSelectPage() {
 
       // Duplicate grouping within scene
       if (options.dupRemoval) {
-        const grouped = applyDuplicates(updated[si].files, options.dupThreshold);
+        const grouped = applyPhotoDuplicates(updated[si].files, options.dupThreshold);
         updated[si].files = grouped.map(f => ({
           ...f,
           selected: f.rejectReason === "ok" && (f.dupGroupId === null || f.isDupRep),

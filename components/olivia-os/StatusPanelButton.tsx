@@ -26,6 +26,7 @@ const BACKUP_STATUS_LABEL: Record<string, string> = {
 const JOB_ACTION_LABEL: Record<string, string> = {
   PHOTO_SORT: "사진 분류", LIST_FOLDER: "폴더 조회", PHOTO_PREPARE_SOURCE: "JPG 통합",
   PHOTO_STAGE_JPG: "JPG 복사", PHOTO_CLASSIFY_WORK: "씬별 분류", COPY_TEST: "복사 테스트",
+  PHOTO_RAW_MATCH: "RAW 매칭", PHOTO_RESIZE: "사진 리사이즈", PHOTO_AI_SELECT: "AI 컷 정리", PHOTO_RETOUCH: "사진 보정 분석",
 };
 
 const JOB_STATUS_LABEL: Record<string, string> = {

@@ -36,6 +36,7 @@ export function BackupReadyNotifications() {
   const [department, setDepartment] = useState<MedicalDepartment | "">("");
   const [shootingMode, setShootingMode] = useState<"field" | "studio" | "">("");
   const [startError, setStartError] = useState<string | null>(null);
+  const [restartConfirmationId, setRestartConfirmationId] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   const fetchEvents = useCallback(async () => {
@@ -87,15 +88,17 @@ export function BackupReadyNotifications() {
     setStartError(null);
     setDepartment("");
     setShootingMode("");
+    setRestartConfirmationId(null);
     setExpandedId(event.id);
   }, []);
 
   const cancelPicker = useCallback(() => {
     setExpandedId(null);
     setStartError(null);
+    setRestartConfirmationId(null);
   }, []);
 
-  const confirmStart = useCallback(async (event: WorkerEvent) => {
+  const confirmStart = useCallback(async (event: WorkerEvent, confirmRestart = false) => {
     if (!department || !shootingMode) return;
     setStartingId(event.id);
     setStartError(null);
@@ -103,12 +106,18 @@ export function BackupReadyNotifications() {
       const response = await fetch(`/api/worker/events/${event.id}/start-classification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ department, shootingMode }),
+        body: JSON.stringify({ department, shootingMode, confirmRestart }),
       });
       const body = await response.json().catch(() => ({ ok: false }));
+      if (response.status === 409 && body.code === "PHOTO_PROJECT_RESTART_CONFIRMATION_REQUIRED") {
+        setRestartConfirmationId(event.id);
+        setStartError(body.error || "기존 작업 기록이 있습니다. 다시 시작할까요?");
+        return;
+      }
       if (!response.ok || !body.ok) throw new Error(body.error || "분류 시작에 실패했습니다.");
       setEvents((current) => current.filter((entry) => entry.id !== event.id));
       setExpandedId(null);
+      setRestartConfirmationId(null);
     } catch (cause) {
       setStartError(cause instanceof Error ? cause.message : "분류 시작에 실패했습니다.");
     } finally {
@@ -156,8 +165,8 @@ export function BackupReadyNotifications() {
                   type="button"
                   className={styles.start}
                   disabled={!department || !shootingMode || startingId === event.id}
-                  onClick={() => void confirmStart(event)}
-                >{startingId === event.id ? "시작 중..." : "확인"}</button>
+                  onClick={() => void confirmStart(event, restartConfirmationId === event.id)}
+                >{startingId === event.id ? "시작 중..." : restartConfirmationId === event.id ? "다시 시작 확인" : "확인"}</button>
               </div>
             </div>
           ) : (

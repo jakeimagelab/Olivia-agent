@@ -14,6 +14,7 @@ import { resolvePhotoWorkspaceToolState } from "./photoWorkspaceToolState";
 import styles from "./PhotoWorkspace.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
+import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner";
 
 const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then((module) => module.SelectMatchWorkspace), {
   ssr: false,
@@ -61,6 +62,7 @@ function PhotoWorkspaceContent({
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
   const rawRawMatchView = searchParams.get("rawMatchView") as RawMatchView | null;
+  const remoteJobId = searchParams.get("remoteJobId");
   const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
@@ -102,6 +104,7 @@ function PhotoWorkspaceContent({
       <main ref={contentRef} className={styles.content}>
         {hideHeader ? null : <PhotoWorkspaceHeader />}
         <PhotoWorkspaceTabs value={mode} onChange={updateQuery} />
+        <RemotePhotoOperationResultBanner jobId={remoteJobId} />
         {compact ? (
           <button
             type="button"

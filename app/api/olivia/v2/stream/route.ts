@@ -57,6 +57,9 @@ import {
   type OliviaPendingAction,
 } from "@/lib/olivia/conversation/dialogueState";
 import { renderOliviaOutcome, renderVerifiedToolRound, resolveHermesFinalText, toolResultOutcome } from "@/lib/olivia/conversation/response";
+import { isSystemStatusChatRequest } from "@/lib/system-status/chatIntent";
+import { collectSystemStatus } from "@/lib/system-status/service";
+import { formatSystemStatusForChat } from "@/lib/system-status/format";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -128,6 +131,8 @@ ${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 
   - ambiguous:true(documents가 2건 이상)면 절대 임의로 하나를 골라 열지 않는다 — documents 목록을 "[종류] 제목 · 고객 · 수정일" 형태로 번호를 매겨 보여주고 어느 것인지 되묻는다.
   - 도구가 실패(success:false)하면 "그런 문서는 없는 것 같습니다"처럼 바로 단정하지 않는다 — error 메시지를 그대로 전달하며 고객명이나 기간을 조금 더 알려달라고 자연스럽게 이어 묻는다.
   - Context에 "현재 채팅이 열어본 문서"가 있으면 "여기에"/"이 문서에"/"방금 그거"류 후속 요청은 다시 search_documents를 부르지 않고 그 문서를 대상으로 바로 처리한다(예: 콘티면 add_conti_shots/update_conti_shot을 그 문서의 resourceId로 실행).
+- 촬영 폴더의 "JPG 분리/통합"은 find_photo_folder로 실제 Workstation 후보부터 찾고 start_photo_source_prep을 쓴다. "사진/씬별 분류"는 find_photo_folder 후 start_photo_scene_sort을 쓴다. 후보가 둘 이상이면 장수·용량·수정일을 보여주고 반드시 어느 폴더인지 묻는다. 임의로 하나를 고르지 않는다. Scene 분류의 진료과와 촬영모드는 추측하지 않고 반드시 확인한다. 이미 완료됐거나 실패한 프로젝트를 다시 실행할 때는 현재 상태를 알리고 사용자가 재시도를 확인한 뒤에만 confirmRestart=true를 전달한다. 여러 폴더 요청은 폴더마다 독립적으로 실행하고 결과도 폴더별로 보고한다. "어디까지 됐어?"에는 get_photo_storage_status로 서버 상태를 확인한다.
+- 사진작업실 후속 작업도 화면을 열지 않고 실행할 수 있다. RAW 매칭은 start_photo_raw_match를 쓰며 최신 고객 셀렉 제출본을 우선하고 없으면 XMP 별점 선택본만 허용한다. 둘 다 없으면 전체 사진을 임의 매칭하지 말고 셀렉을 먼저 요청한다. 리사이즈는 start_photo_resize(기본 4000px/Q95), 1차 셀렉은 start_photo_ai_select, 보정은 start_photo_retouch를 쓴다. 보정은 실제 픽셀을 바꾸는 기능이 아니라 기존 피부/가운 컬러 분석 가이드이며, 1~10개의 정확한 파일명이 없으면 반드시 되묻는다. 모든 시작 도구는 find_photo_folder로 후보를 확인하고, 여러 후보 중 하나를 임의 선택하지 않는다.
 - "사진 셀렉하는 것 도와줘"/"셀렉 매칭 좀 해줘"/"고객이 고른 파일 RAW로 찾아줘"처럼 셀렉 매칭 작업 자체를 채팅에서 바로 진행하고 싶어하는 요청은 start_select_match_flow를 쓴다. 반면 "셀렉 매칭 열어줘"/"셀렉 매칭 페이지 보여줘"처럼 화면 자체를 열어달라는 요청은 open_feature를 쓴다 — "도와줘"/"해줘"/"진행해줘"처럼 작업을 시켜달라는 동사는 채팅 진행(start_select_match_flow), "열어줘"/"보여줘"/"띄워줘"처럼 화면 이동을 가리키는 동사는 open_feature로 구분한다. 애매하면(둘 다 해석 가능하면) 셀렉 매칭 요청은 기본적으로 채팅 진행(start_select_match_flow)을 우선한다 — 사용자가 명시적으로 "페이지"/"화면"을 언급했을 때만 open_feature를 쓴다. start_select_match_flow는 파라미터가 없고, 호출하면 채팅에 진행 카드가 뜨니 "카드를 보여드렸어요" 정도로 짧게 안내하고 이후는 사용자가 카드에서 직접 진행한다.
 - "OO 촬영/견적/계약/납품 준비하자"처럼 여러 단계에 걸친 업무 묶음을 시작하는 요청은 start_task_session을 쓴다(Workflow 단계 하나만 처리하는 process_workflow_step과 다르다). 그 뒤 "계속하자"/"다음"은 continue_task_session, "지금 뭐 남았어?"/"어디까지 했지?"는 get_task_session_status, "보류"는 pause_task_session을 쓴다. "체크리스트 뭐 남았어"처럼 지금 이 단계 하나의 세부 항목만 묻는 게 명확하면 list_workflow_step_tasks를 그대로 쓴다 — get_task_session_status가 "진행 중인 Task Session이 없다"고 답하면 그때 list_workflow_step_tasks로 바꿔 시도해본다.
 - DB 생성/수정 결과에 포함된 실제 ID만 사용한다.
@@ -544,6 +549,9 @@ export async function POST(req: NextRequest) {
   const aliasRewrite = applyAliasRewrite(context.aliases, rawMessage);
   const referentRewrite = applyReferentRewrite(aliasRewrite.text, context);
   const message = referentRewrite.text;
+  // Hermes/MCP 자체가 끊긴 상황을 진단하는 요청은 모델이나 MCP에 맡기면 영원히 실행될 수 없다.
+  // 그래서 이 의도만큼은 Olivia 서버가 직접 판정하고 아래 스트림 앞단에서 읽기 전용 점검한다.
+  const systemStatusChatRequest = isSystemStatusChatRequest(message);
   const resolutionApplied = [...aliasRewrite.applied, ...referentRewrite.applied];
   if (resolutionApplied.length) {
     console.info("[OliviaContext] resolved", { rawMessage, message, resolutionApplied });
@@ -569,7 +577,7 @@ export async function POST(req: NextRequest) {
   // 미적용 상태(테이블 없음)에서는 매 요청마다 실패하는 조회를 순차로 기다린 셈이라 더 심했다.
   const memoryScopes = getOliviaToolDomains(message, context, recentUserText);
   const databaseFastPath = hasDatabaseFastPath(message);
-  if (!useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
+  if (!systemStatusChatRequest && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -619,6 +627,68 @@ export async function POST(req: NextRequest) {
       send({ type: "agent_status", status: "요청을 확인했어요." });
 
       try {
+        if (systemStatusChatRequest) {
+          send({ type: "agent_status", status: "Olivia 시스템 연결을 직접 점검하는 중…" });
+          const report = await collectSystemStatus();
+          const text = formatSystemStatusForChat(report);
+          send({ type: "text_delta", messageId, delta: text });
+
+          // Supabase 자체 장애도 진단할 수 있어야 하므로 진단 응답은 DB 저장보다 먼저 보낸다.
+          // 대화 저장은 best-effort이며, 실패해도 이미 만들어진 진단 응답을 에러로 바꾸지 않는다.
+          let conversationId: string | undefined;
+          let persistedMessageId: string | undefined;
+          try {
+            const db = getSupabaseAdmin();
+            const owner = await ensurePrimaryAssistantOwner(db);
+            const requestedConversationId = optionalString(body.conversationId);
+            const [defaultConversation, requestedResult] = await Promise.all([
+              getOrCreateAssistantConversation(db, owner.id),
+              requestedConversationId
+                ? db.from("assistant_conversations").select("id,owner_id").eq("id", requestedConversationId).eq("owner_id", owner.id).maybeSingle()
+                : Promise.resolve({ data: null, error: null }),
+            ]);
+            const conversation = requestedResult.data
+              ? requestedResult.data as { id: string; owner_id: string }
+              : defaultConversation;
+            conversationId = conversation.id;
+            const userMessage = persistedUserMessageId
+              ? await db.from("olivia_chat_messages").select("id").eq("id", persistedUserMessageId).eq("owner_id", owner.id).eq("conversation_id", conversation.id).eq("role", "user").single()
+              : await saveAssistantMessage(db, {
+                ownerId: owner.id,
+                conversationId: conversation.id,
+                role: "user",
+                content: rawMessage,
+                channel: messageChannel,
+                externalMessageId: optionalString(body.clientRequestId) || crypto.randomUUID(),
+                metadata: { context, pageContext, routeDecision: "SYSTEM_STATUS_DIRECT" },
+              });
+            const userMessageId = "message" in userMessage
+              ? String(userMessage.message.id)
+              : String(userMessage.data?.id ?? "");
+            const saved = await saveAssistantMessage(db, {
+              ownerId: owner.id,
+              conversationId: conversation.id,
+              role: "assistant",
+              content: text,
+              channel: messageChannel,
+              externalMessageId: assistantExternalMessageId,
+              parentMessageId: userMessageId || undefined,
+              deliveryStatus: messageChannel === "telegram" ? "queued" : undefined,
+              metadata: {
+                blocks: [{ type: "text", text }],
+                routeDecision: "SYSTEM_STATUS_DIRECT",
+                systemStatusIssueCount: report.issueCount,
+              },
+            });
+            persistedMessageId = String(saved.message.id);
+          } catch (persistError) {
+            console.warn("[system-status] 채팅 기록 저장 실패", persistError instanceof Error ? persistError.message : persistError);
+          }
+
+          send({ type: "message_complete", messageId, conversationId, persistedMessageId });
+          return;
+        }
+
         const db = getSupabaseAdmin();
         const contextStartedAt = performance.now();
         const owner = await ensurePrimaryAssistantOwner(db);

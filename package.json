@@ -14,7 +14,11 @@
     "photo:prepare-source-job": "node --import tsx scripts/photo-prepare-source-runner.ts",
     "nas:watch": "node --import tsx scripts/nas-backup-watcher.ts",
     "photo:stage-jpg": "node --import tsx scripts/photo-stage-jpg-runner.ts",
-    "photo:classify-work": "node --import tsx scripts/photo-classify-work-runner.ts"
+    "photo:classify-work": "node --import tsx scripts/photo-classify-work-runner.ts",
+    "photo:raw-match": "node --import tsx scripts/photo-raw-match-runner.ts",
+    "photo:resize": "node --import tsx scripts/photo-resize-runner.ts",
+    "photo:ai-select": "node --import tsx scripts/photo-ai-select-runner.ts",
+    "photo:retouch": "node --import tsx scripts/photo-retouch-runner.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

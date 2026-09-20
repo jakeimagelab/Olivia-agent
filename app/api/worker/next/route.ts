@@ -4,6 +4,7 @@ import {
   getConfiguredWorkerId,
   isAuthorizedWorker,
 } from "@/lib/remoteWorkerAuth";
+import { readWorkerDiagnostics, workerDiagnosticsToRow } from "@/lib/system-status/workerDiagnostics";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
     const now = new Date().toISOString();
     const nasHeader = request.headers.get("x-olivia-nas-connected")?.trim().toLowerCase();
     const nasConnected = nasHeader === "true" ? true : nasHeader === "false" ? false : undefined;
+    const workerDiagnostics = workerDiagnosticsToRow(readWorkerDiagnostics(request.headers));
 
     // 승인된 촬영 프로젝트를 원격 실행 큐로 넘기는 claim은 DB 함수가 원자적으로 수행한다.
     // migration이 아직 적용되지 않은 환경에서도 기존 job polling은 계속 동작해야 한다.
@@ -54,7 +56,7 @@ export async function GET(request: NextRequest) {
     });
     if (nasClassifyClaimError) console.warn("[worker/next nas-classify claim]", nasClassifyClaimError.message);
 
-    const { error: heartbeatError } = await supabase
+    let { error: heartbeatError } = await supabase
       .from("remote_workers")
       .upsert({
         worker_id: workerId,
@@ -62,7 +64,23 @@ export async function GET(request: NextRequest) {
         worker_status: "online",
         updated_at: now,
         ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
+        ...workerDiagnostics,
       }, { onConflict: "worker_id" });
+
+    // 새 진단 migration보다 Worker 배포가 먼저 된 경우에도 기존 heartbeat/job claim은
+    // 멈추지 않는다. 진단 컬럼을 뺀 기존 payload로 한 번만 재시도한다.
+    if (heartbeatError && Object.keys(workerDiagnostics).length > 0) {
+      const fallback = await supabase
+        .from("remote_workers")
+        .upsert({
+          worker_id: workerId,
+          last_seen_at: now,
+          worker_status: "online",
+          updated_at: now,
+          ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
+        }, { onConflict: "worker_id" });
+      if (!fallback.error) heartbeatError = null;
+    }
 
     // Migration 적용 전에도 기존 Worker job claim은 계속 동작해야 한다.
     if (heartbeatError) console.warn("[worker/next heartbeat]", heartbeatError.message);

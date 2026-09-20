@@ -17,7 +17,7 @@ export const PHOTO_CLASSIFY_DEFAULT_OPTIONS: RemotePhotoSortRunnerOptions = {
   departmentLogicEnabled: true,
   aiNamingEnabled: false,
   qualityAnalysisEnabled: false,
-  profileClassificationEnabled: true,
+  profileClassificationEnabled: false,
 };
 
 export type PhotoClassifyWorkInput = RemotePhotoSortRunnerOptions & {

@@ -121,7 +121,28 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
       status: "MERGE_APPROVED",
       nas_department: "dermatology",
       nas_shooting_mode: "field",
+      classify_approved_at: expect.any(String),
     }]);
     expect(store.events).toMatchObject([{ id: EVENT_ID, status: "STARTED" }]);
+  });
+
+  it("기존 실패 프로젝트는 알림 버튼에서도 재확인을 받은 뒤 같은 helper로 재시작한다", async () => {
+    store.projects.push({
+      id: "project-failed",
+      project_name: "0917_청담스시",
+      source_relative_path: "0917_청담스시",
+      status: "MERGE_FAILED",
+    });
+
+    const first = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field", confirmRestart: false });
+    expect(first.status).toBe(409);
+    expect(await first.json()).toMatchObject({ code: "PHOTO_PROJECT_RESTART_CONFIRMATION_REQUIRED" });
+    expect(store.projects[0].status).toBe("MERGE_FAILED");
+
+    const confirmed = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field", confirmRestart: true });
+    expect(confirmed.status).toBe(200);
+    expect(await confirmed.json()).toMatchObject({ ok: true, status: "MERGE_APPROVED" });
+    expect(store.projects[0]).toMatchObject({ status: "MERGE_APPROVED", classify_approved_at: expect.any(String) });
+    expect(store.events[0]).toMatchObject({ status: "STARTED" });
   });
 });

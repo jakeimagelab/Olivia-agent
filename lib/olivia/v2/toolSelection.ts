@@ -3,7 +3,7 @@ import { OLIVIA_V2_TOOLS } from "./toolExecutor";
 import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
 
-type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"window";
+type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"photo_storage"|"window";
 
 const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   navigation: ["open_feature","show_workspace"],
@@ -29,6 +29,12 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   // start/refine(스펙 §35/36, 이미 화면이 열려 있는 상태에서의 후속 대화)은 자연어 파라미터
   // 추출이 필요해 GPT를 거친다(PHASE 4, 2026-08-30 / AI 사진 분류 2.0).
   photo_classification: ["rename_photo_scene","merge_photo_scenes","split_photo_scene","start_ai_photo_classification","refine_photo_classification"],
+  photo_storage: [
+    "find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort",
+    "start_photo_raw_match", "start_photo_resize", "start_photo_ai_select", "start_photo_retouch",
+    "get_photo_storage_status", "list_photo_storage_projects",
+    "nas_backup_status", "nas_backup_recent", "nas_backup_get", "nas_backup_start_sort",
+  ],
 };
 
 const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
@@ -40,6 +46,7 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
   ["agent_run",/(준비해|준비하자|계속하자|어디까지|보류|끝까지|알아서\s*처리)/i],
   ["client",/(고객|병원|의원|프로젝트)/i], ["navigation",/(열어|보여줘|이동|화면|페이지)/i],
   ["photo_classification",/(씬)/i],
+  ["photo_storage",/(jpg|jpeg|원본\s*(?:분리|통합)|사진.{0,8}(?:분류|정리|셀렉|보정|리사이즈)|ai\s*셀렉|피부\s*보정|가운\s*보정|씬별\s*분류|raw\s*(?:매칭|찾)|촬영\s*폴더|폴더.{0,8}(?:찾|검색)|어디까지\s*(?:됐|진행)|크기\s*(?:변경|조절))/i],
   ["window",/(이\s*창|창\s*닫|닫아줘|최소화|내려줘|전체화면|창\s*키워)/i],
 ];
 

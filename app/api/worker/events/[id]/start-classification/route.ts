@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
-import { startNasBackupClassification } from "@/lib/photo-storage/nasClassifyHandoff";
+import { PhotoPipelineStartError, startNasBackupClassification } from "@/lib/photo-storage/nasClassifyHandoff";
 import { DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +48,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       folderName: event.folder_name as string,
       department: department as MedicalDepartment,
       shootingMode,
+      confirmRestart: body.confirmRestart === true,
+      approvedBy: "olivia-notification",
     });
 
     await db.from("worker_events").update({ status: "STARTED" }).eq("id", id);
@@ -55,6 +57,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return Response.json({ ok: true, projectId: project.id, status: project.status });
   } catch (error) {
     console.error("[worker/events start-classification]", error);
-    return Response.json({ ok: false, error: error instanceof Error ? error.message : "분류 시작에 실패했습니다." }, { status: 500 });
+    return Response.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "분류 시작에 실패했습니다.",
+        ...(error instanceof PhotoPipelineStartError ? { code: error.code, details: error.details } : {}),
+      },
+      { status: error instanceof PhotoPipelineStartError ? 409 : 500 },
+    );
   }
 }

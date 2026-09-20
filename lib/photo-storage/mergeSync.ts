@@ -52,10 +52,18 @@ export async function syncPhotoMergeProject(
     patch.merge_started_at = project.merge_started_at ?? now;
   } else if (input.jobStatus === "COMPLETED") {
     const result = record(input.result);
-    status = resultStatus(input.result) === "REVIEW_REQUIRED" ? "REVIEW_REQUIRED" : "MERGE_COMPLETED";
+    const mergeCompleted = resultStatus(input.result) !== "REVIEW_REQUIRED";
+    // 채팅의 start_photo_scene_sort, 기존 nas_backup_start_sort, 알림 버튼은 모두 같은 helper에서
+    // 후속 분류 승인을 classify_approved_at에 미리 기록한다. 그 승인이 있을 때만 JPG 통합 완료
+    // 직후 기존 COPY claim 상태로 넘긴다. 원본 분리만 승인한 요청은 MERGE_COMPLETED에서 멈춘다.
+    const continueFullPipeline = mergeCompleted
+      && Boolean(project.classify_approved_at)
+      && Boolean(project.nas_department)
+      && Boolean(project.nas_shooting_mode);
+    status = !mergeCompleted ? "REVIEW_REQUIRED" : continueFullPipeline ? "CLASSIFY_APPROVED" : "MERGE_COMPLETED";
     patch.status = status;
     patch.merge_completed_at = now;
-    if (status === "MERGE_COMPLETED") {
+    if (mergeCompleted) {
       patch.merge_error = null;
       patch.merge_conflict_count = 0;
       patch.merged_jpg_count = (nonNegativeInteger(result.jpgMoved) ?? 0) + (nonNegativeInteger(result.jpgAlreadyPrepared) ?? 0);
@@ -77,8 +85,18 @@ export async function syncPhotoMergeProject(
   const { error: updateError } = await db.from("photo_storage_projects").update(patch).eq("id", projectId);
   if (updateError) throw updateError;
 
-  if (status === "MERGE_COMPLETED" || status === "MERGE_FAILED" || status === "REVIEW_REQUIRED") {
-    await acknowledgePhotoStorageEvents(db, projectId, status === "MERGE_COMPLETED" ? "PHOTO_MERGE_COMPLETED" : status === "MERGE_FAILED" ? "PHOTO_MERGE_FAILED" : "PHOTO_PROJECT_REVIEW_REQUIRED");
+  if (status === "MERGE_COMPLETED" || status === "CLASSIFY_APPROVED" || status === "MERGE_FAILED" || status === "REVIEW_REQUIRED") {
+    await acknowledgePhotoStorageEvents(
+      db,
+      projectId,
+      status === "MERGE_COMPLETED"
+        ? "PHOTO_MERGE_COMPLETED"
+        : status === "CLASSIFY_APPROVED"
+          ? "PHOTO_PROJECT_CLASSIFY_APPROVED"
+          : status === "MERGE_FAILED"
+            ? "PHOTO_MERGE_FAILED"
+            : "PHOTO_PROJECT_REVIEW_REQUIRED",
+    );
   }
   await ensurePhotoStorageEvent(db, {
     projectId,

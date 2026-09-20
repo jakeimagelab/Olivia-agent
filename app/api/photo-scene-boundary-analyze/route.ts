@@ -10,6 +10,7 @@ type BoundaryRequest = {
   boundaryIndex: number;
   before: SceneAiImage[];
   after: SceneAiImage[];
+  timeGapSeconds?: number;
   options?: { useHighModel?: boolean };
 };
 
@@ -46,6 +47,7 @@ export async function POST(request: NextRequest) {
       department: body.department,
       before: body.before,
       after: body.after,
+      timeGapSeconds: body.timeGapSeconds,
       useHighModel: body.options?.useHighModel,
     });
     return NextResponse.json({ ok: true, boundaryIndex: body.boundaryIndex, analysis });

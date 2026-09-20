@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { eventForStatus, validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
+import { syncPhotoMergeProject } from "@/lib/photo-storage/mergeSync";
 
 type Row = Record<string, unknown>;
 
@@ -209,5 +210,48 @@ describe("PHASE 6 retry routing per failed stage", () => {
     currentDb = createFakeSupabase({ projects: [project], events: [] });
     const response = await postRetry(project.id as string);
     expect(response.status).toBe(409);
+  });
+});
+
+describe("JPG 통합 완료 후 승인 의도에 따른 다음 단계", () => {
+  it("원본 분리만 승인한 프로젝트는 MERGE_COMPLETED에서 멈춘다", async () => {
+    const project = baseProject({ status: "MERGING", merge_job_id: "job-merge" });
+    const store = { projects: [project], events: [] as Row[] };
+    const db = createFakeSupabase(store);
+
+    await syncPhotoMergeProject(db as any, {
+      jobId: "job-merge",
+      jobStatus: "COMPLETED",
+      payload: { project_id: project.id },
+      progress: null,
+      result: { status: "JPG_MERGE_COMPLETED", jpgMoved: 10, jpgAlreadyPrepared: 0, rawUntouched: 10 },
+    });
+
+    expect(store.projects[0]).toMatchObject({ status: "MERGE_COMPLETED", merged_jpg_count: 10 });
+  });
+
+  it("전체 Scene 분류가 승인된 프로젝트는 MERGE 완료 후 CLASSIFY_APPROVED로 넘어간다", async () => {
+    const project = baseProject({
+      status: "MERGING",
+      merge_job_id: "job-merge",
+      classify_approved_at: "2026-09-20T00:00:00.000Z",
+      nas_department: "dermatology",
+      nas_shooting_mode: "field",
+    });
+    const store = { projects: [project], events: [] as Row[] };
+    const db = createFakeSupabase(store);
+
+    await syncPhotoMergeProject(db as any, {
+      jobId: "job-merge",
+      jobStatus: "COMPLETED",
+      payload: { project_id: project.id },
+      progress: null,
+      result: { status: "JPG_MERGE_COMPLETED", jpgMoved: 10, jpgAlreadyPrepared: 0, rawUntouched: 10 },
+    });
+
+    expect(store.projects[0]).toMatchObject({ status: "CLASSIFY_APPROVED", merged_jpg_count: 10, raw_untouched_count: 10 });
+    expect(store.events).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event_type: "PHOTO_PROJECT_CLASSIFY_APPROVED" }),
+    ]));
   });
 });

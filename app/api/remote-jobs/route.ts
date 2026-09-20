@@ -15,6 +15,10 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_PREPARE_SOURCE",
   "PHOTO_STAGE_JPG",
   "PHOTO_CLASSIFY_WORK",
+  "PHOTO_RAW_MATCH",
+  "PHOTO_RESIZE",
+  "PHOTO_AI_SELECT",
+  "PHOTO_RETOUCH",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,6 +32,31 @@ function isInternalRequest(request: NextRequest): boolean {
 
 function isAuthorized(request: NextRequest): boolean {
   return isAdminSession(request) || isInternalRequest(request);
+}
+
+function safeProjectSubpath(value: unknown, fallback: string): string {
+  const candidate = value === undefined ? fallback : value;
+  if (typeof candidate !== "string" || !candidate.trim() || candidate.includes("\0") || candidate.includes("\\") || candidate.startsWith("/")) {
+    throw new Error("프로젝트 내부 경로는 안전한 상대경로여야 합니다.");
+  }
+  const segments = candidate.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === "..")) throw new Error("프로젝트 내부 경로가 올바르지 않습니다.");
+  return segments.join("/");
+}
+
+function safeFileNames(value: unknown, options: { required: boolean; max: number }): string[] | undefined {
+  if (value === undefined && !options.required) return undefined;
+  if (!Array.isArray(value) || value.length === 0 || value.length > options.max) throw new Error(`파일명은 1~${options.max}개 문자열 배열이어야 합니다.`);
+  return value.map((entry) => {
+    if (typeof entry !== "string" || !entry.trim() || entry.includes("\0") || entry.includes("/") || entry.includes("\\")) throw new Error("파일명에 경로를 포함할 수 없습니다.");
+    return entry.trim();
+  });
+}
+
+function finiteNumber(value: unknown, label: string, min: number, max: number, integer = false): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new Error(`${label} 값이 올바르지 않습니다.`);
+  return value;
 }
 
 export async function POST(request: NextRequest) {
@@ -198,6 +227,56 @@ export async function POST(request: NextRequest) {
       };
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 SSD2 작업 경로입니다." }, { status: 400 });
+    }
+  }
+
+  if (["PHOTO_RAW_MATCH", "PHOTO_RESIZE", "PHOTO_AI_SELECT", "PHOTO_RETOUCH"].includes(action)) {
+    const projectId = requestedPayload.project_id;
+    const projectRelativePath = requestedPayload.project_relative_path;
+    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+      return Response.json({ ok: false, error: `${action}에는 올바른 project_id가 필요합니다.` }, { status: 400 });
+    }
+    try {
+      const safeProjectPath = validatePhotoProjectRelativePath(projectRelativePath);
+      if (action === "PHOTO_RAW_MATCH") {
+        const selectedFileNames = safeFileNames(requestedPayload.selected_file_names, { required: false, max: 10_000 });
+        payload = {
+          project_id: projectId,
+          project_relative_path: safeProjectPath,
+          ...(selectedFileNames ? { selected_file_names: selectedFileNames } : {}),
+          ...(typeof requestedPayload.selection_id === "string" && UUID_PATTERN.test(requestedPayload.selection_id) ? { selection_id: requestedPayload.selection_id } : {}),
+        };
+      } else if (action === "PHOTO_RESIZE") {
+        payload = {
+          project_id: projectId,
+          project_relative_path: safeProjectPath,
+          input_relative_path: safeProjectSubpath(requestedPayload.input_relative_path, "씬별분류"),
+          ...(finiteNumber(requestedPayload.long_edge, "long_edge", 500, 10_000, true) === undefined ? {} : { long_edge: requestedPayload.long_edge }),
+          ...(finiteNumber(requestedPayload.quality, "quality", 1, 100, true) === undefined ? {} : { quality: requestedPayload.quality }),
+        };
+      } else if (action === "PHOTO_AI_SELECT") {
+        const booleanKeys = ["quality_filter", "dup_removal"] as const;
+        for (const key of booleanKeys) if (requestedPayload[key] !== undefined && typeof requestedPayload[key] !== "boolean") throw new Error(`${key}는 boolean이어야 합니다.`);
+        payload = {
+          project_id: projectId,
+          project_relative_path: safeProjectPath,
+          input_relative_path: safeProjectSubpath(requestedPayload.input_relative_path, "씬별분류"),
+          ...Object.fromEntries(booleanKeys.filter((key) => requestedPayload[key] !== undefined).map((key) => [key, requestedPayload[key]])),
+          ...(finiteNumber(requestedPayload.blur_threshold, "blur_threshold", 0, 10_000) === undefined ? {} : { blur_threshold: requestedPayload.blur_threshold }),
+          ...(finiteNumber(requestedPayload.dark_threshold, "dark_threshold", 0, 255) === undefined ? {} : { dark_threshold: requestedPayload.dark_threshold }),
+          ...(finiteNumber(requestedPayload.overexp_threshold, "overexp_threshold", 0, 255) === undefined ? {} : { overexp_threshold: requestedPayload.overexp_threshold }),
+          ...(finiteNumber(requestedPayload.dup_threshold, "dup_threshold", 0, 100) === undefined ? {} : { dup_threshold: requestedPayload.dup_threshold }),
+        };
+      } else {
+        payload = {
+          project_id: projectId,
+          project_relative_path: safeProjectPath,
+          file_names: safeFileNames(requestedPayload.file_names, { required: true, max: 10 }),
+          check_type: requestedPayload.check_type === "gown" ? "gown" : "skin",
+        };
+      }
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다." }, { status: 400 });
     }
   }
 

@@ -7,6 +7,46 @@ import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 
 const POLL_INTERVAL_MS = 1_000;
 const HIDDEN_POLL_INTERVAL_MS = 3_000;
+const OPERATION_POLL_INTERVAL_MS = 3_000;
+const TERMINAL_DISCOVERY_WINDOW_MS = 10 * 60 * 1_000;
+const PHOTO_OPERATION_ACTIONS = new Set(["PHOTO_RAW_MATCH", "PHOTO_RESIZE", "PHOTO_AI_SELECT", "PHOTO_RETOUCH"]);
+const SEEN_TERMINAL_KEY = "olivia:photo-operations:seen-terminal";
+
+type PhotoOperationJob = {
+  id: string;
+  action: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  progress?: { current?: number; total?: number; message?: string } | null;
+  message?: string | null;
+  error?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+};
+
+const OPERATION_PRESENTATION: Record<string, { label: string; mode: string; extra?: string }> = {
+  PHOTO_RAW_MATCH: { label: "Mac Studio RAW 매칭", mode: "raw-match", extra: "&rawMatchView=match" },
+  PHOTO_RESIZE: { label: "Mac Studio 사진 리사이즈", mode: "resize" },
+  PHOTO_AI_SELECT: { label: "Mac Studio AI 컷 정리", mode: "raw-match", extra: "&rawMatchView=ai-cull" },
+  PHOTO_RETOUCH: { label: "Mac Studio 사진 보정 분석", mode: "retouch" },
+};
+
+function readSeenTerminalIds(): Set<string> {
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(SEEN_TERMINAL_KEY) || "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function rememberTerminalId(ids: Set<string>, id: string) {
+  ids.add(id);
+  try {
+    window.sessionStorage.setItem(SEEN_TERMINAL_KEY, JSON.stringify([...ids].slice(-100)));
+  } catch (error) {
+    console.warn("[photo operation bridge] terminal 상태를 sessionStorage에 저장하지 못했습니다.", error);
+  }
+}
 
 function readStoredRemoteJobId(): string | null {
   try {
@@ -161,6 +201,86 @@ export default function PhotoStudioBackgroundJobBridge() {
       window.removeEventListener("focus", refreshNow);
       window.removeEventListener("online", refreshNow);
       document.removeEventListener("visibilitychange", refreshNow);
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let request: AbortController | null = null;
+    const seenTerminalIds = readSeenTerminalIds();
+
+    const schedule = (delay = OPERATION_POLL_INTERVAL_MS) => {
+      if (disposed) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void poll(), delay);
+    };
+
+    const mirror = (job: PhotoOperationJob) => {
+      const presentation = OPERATION_PRESENTATION[job.action];
+      if (!presentation) return;
+      const store = useBackgroundJobsStore.getState();
+      const existing = store.jobs[job.id];
+      const terminal = job.status === "COMPLETED" || job.status === "FAILED";
+      const completedAt = new Date(job.completed_at || job.created_at).getTime();
+      const recentTerminal = terminal && Number.isFinite(completedAt) && Date.now() - completedAt <= TERMINAL_DISCOVERY_WINDOW_MS;
+      if (terminal && !existing && (!recentTerminal || seenTerminalIds.has(job.id))) return;
+      const current = typeof job.progress?.current === "number" ? job.progress.current : 0;
+      const total = typeof job.progress?.total === "number" ? job.progress.total : 0;
+      const message = job.progress?.message || job.message || (job.status === "QUEUED" ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중");
+      if (!existing) {
+        store.startJob({
+          id: job.id,
+          label: presentation.label,
+          cur: current,
+          total,
+          msg: terminal && job.status === "FAILED" ? job.error || "작업 중 확인이 필요합니다." : message,
+          status: terminal ? (job.status === "FAILED" ? "error" : "done") : "running",
+          returnPath: `/photo-sorting?mode=${presentation.mode}${presentation.extra || ""}&remoteJobId=${encodeURIComponent(job.id)}`,
+          cancelRef: { current: false },
+          cancelable: false,
+        });
+      } else {
+        store.updateJob(job.id, { cur: current, total, msg: terminal && job.status === "FAILED" ? job.error || message : message });
+        if (terminal) store.finishJob(job.id, job.status === "FAILED" ? "error" : "done");
+      }
+      if (terminal) rememberTerminalId(seenTerminalIds, job.id);
+    };
+
+    const poll = async () => {
+      if (disposed || request) return;
+      request = new AbortController();
+      try {
+        const response = await fetch("/api/remote-jobs", { cache: "no-store", signal: request.signal });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body?.error || "원격 작업 조회 실패");
+        if (!disposed && Array.isArray(body.jobs)) {
+          for (const job of body.jobs as PhotoOperationJob[]) if (PHOTO_OPERATION_ACTIONS.has(job.action)) mirror(job);
+        }
+        schedule(document.visibilityState === "hidden" ? 10_000 : OPERATION_POLL_INTERVAL_MS);
+      } catch {
+        schedule(5_000);
+      } finally {
+        request = null;
+      }
+    };
+
+    const refresh = () => {
+      if (document.visibilityState !== "visible") return;
+      if (timer) clearTimeout(timer);
+      void poll();
+    };
+    void poll();
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      disposed = true;
+      if (timer) clearTimeout(timer);
+      request?.abort();
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 

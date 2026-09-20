@@ -102,6 +102,8 @@ describe("Olivia Hermes MCP registry", () => {
       "work_journal_list", "work_journal_get", "work_journal_create", "work_journal_update", "work_journal_complete", "work_journal_search",
       "remote_folder_list", "remote_folder_get_info", "remote_file_search",
       "nas_backup_status", "nas_backup_recent", "nas_backup_get", "nas_backup_start_sort",
+      "find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort",
+      "start_photo_raw_match", "start_photo_resize", "start_photo_ai_select", "start_photo_retouch",
     ]) {
       expect(exposedNames.has(name)).toBe(true);
     }
@@ -113,6 +115,18 @@ describe("Olivia Hermes MCP registry", () => {
     const properties = tool.inputSchema.properties as Record<string, unknown>;
     expect(properties).toHaveProperty("department");
     expect(properties).toHaveProperty("shootingMode");
+    expect(properties).toHaveProperty("confirmRestart");
+  });
+
+  it("사진 채팅 실행 도구에서 폴더 검색은 read, 시작 도구는 mutation이다", () => {
+    const tools = listHermesOliviaTools();
+    const find = tools.find((tool) => tool.name === "find_photo_folder")!;
+    expect(getHermesToolMode(find.name, find.description ?? "")).toBe("read");
+    for (const name of ["start_photo_source_prep", "start_photo_scene_sort", "start_photo_raw_match", "start_photo_resize", "start_photo_ai_select", "start_photo_retouch"]) {
+      const tool = tools.find((entry) => entry.name === name)!;
+      expect(getHermesToolPolicy(name)).toBe("open");
+      expect(getHermesToolMode(name, tool.description ?? "")).toBe("mutation");
+    }
   });
 
   it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {

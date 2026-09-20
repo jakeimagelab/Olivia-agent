@@ -77,10 +77,16 @@ export async function executePhotoStorageTool(
       .eq("project_id", project.id)
       .order("created_at", { ascending: false })
       .limit(5);
+    const { data: jobs } = await db
+      .from("remote_jobs")
+      .select("id,action,status,progress,message,error,created_at,started_at,completed_at")
+      .eq("payload->>project_id", project.id)
+      .order("created_at", { ascending: false })
+      .limit(10);
     return {
       tool: name,
       success: true,
-      data: { project: summarizeProject(project), recentEvents: events ?? [] },
+      data: { project: summarizeProject(project), recentEvents: events ?? [], recentJobs: jobs ?? [] },
       verification: createVerification({ executed: true, resourceExists: true }),
     };
   }

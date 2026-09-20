@@ -7,6 +7,7 @@ import { assertToolResultVerified } from "@/lib/olivia/v2/toolExecutors/verifica
 import { normalizeToolError } from "@/lib/olivia/v2/toolError";
 import { getHermesExecutionContext } from "@/lib/hermes/executionContext";
 import { recordHermesToolCall } from "@/lib/hermes/toolAudit";
+import { recordHermesMcpListTools } from "@/lib/system-status/mcpSignal";
 import { getHermesToolMode, getHermesToolPolicy } from "./exposurePolicy";
 
 type JsonSchema = Record<string, unknown>;
@@ -98,7 +99,13 @@ function requestIdFromHeaders(extra: { requestInfo?: { headers?: Record<string, 
 }
 
 export function attachOliviaToolBridge(server: Server) {
-  server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => ({ tools: listHermesOliviaTools(requestIdFromHeaders(extra)) }));
+  server.setRequestHandler(ListToolsRequestSchema, async (_request, extra) => {
+    const tools = listHermesOliviaTools(requestIdFromHeaders(extra));
+    // 이 기록은 연결 진단용일 뿐이다. 실패해도 recordHermesMcpListTools 내부에서 삼키므로
+    // Hermes의 실제 ListTools 응답은 항상 계속된다.
+    await recordHermesMcpListTools(tools.length);
+    return { tools };
+  });
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     return executeHermesOliviaTool({
       toolName: request.params.name,

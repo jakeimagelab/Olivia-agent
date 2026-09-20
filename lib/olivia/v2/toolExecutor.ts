@@ -32,6 +32,7 @@ import { PHOTO_STORAGE_TOOL_NAMES, executePhotoStorageTool } from "./toolExecuto
 import { COMMON_TOOL_NAMES, executeCommonTool } from "./toolExecutors/common";
 import { REMOTE_FINDER_TOOL_NAMES, executeRemoteFinderTool } from "./toolExecutors/remoteFinder";
 import { NAS_BACKUP_TOOL_NAMES, executeNasBackupTool } from "./toolExecutors/nasBackup";
+import { PHOTO_OPERATION_TOOL_NAMES, executePhotoOperationTool } from "./toolExecutors/photoOperations";
 
 // 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
 // 챗 도구로는 quote/contract/conti 3개만 노출돼 있었다. client/workflow는 위험도가 높아
@@ -482,7 +483,14 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   { type: "function", name: "nas_backup_status", description: "[READ] NAS Backup Watcher가 감지한 이벤트를 상태별로 집계해 새로 들어온 백업이 있는지 알려줍니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: {}, required: [] } },
   { type: "function", name: "nas_backup_recent", description: "[READ] 최근 NAS 백업 감지 이벤트 목록을 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { limit: { type: ["number", "null"] } }, required: ["limit"] } },
   { type: "function", name: "nas_backup_get", description: "[READ] id로 NAS 백업 감지 이벤트 하나를 상세 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { id: { type: "string" } }, required: ["id"] } },
-  { type: "function", name: "nas_backup_start_sort", description: "[WRITE] NAS에 감지된 폴더의 씬별 분류(PHASE 6 파이프라인)를 시작합니다. department(진료과)와 shootingMode(field 또는 studio)는 절대 추측하지 않으므로 대화에 없으면 반드시 사용자에게 물어보세요.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, department: { type: "string" }, shootingMode: { type: "string", enum: ["field", "studio"] }, eventId: { type: ["string", "null"] } }, required: ["folderName", "department", "shootingMode", "eventId"] } },
+  { type: "function", name: "find_photo_folder", description: "[READ] Workstation의 촬영 프로젝트 폴더를 부분 이름으로 찾고 장수·용량·수정일·현재 처리 상태를 반환합니다. 후보가 여러 개면 반드시 사용자에게 어느 폴더인지 물어보세요.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { query: { type: "string" } }, required: ["query"] } },
+  { type: "function", name: "start_photo_source_prep", description: "[WRITE] 정확히 선택된 Workstation 촬영 폴더에서 기존 PHOTO_PREPARE_SOURCE 파이프라인으로 JPG만 JPG전체에 통합합니다. RAW는 기존 안전장치로 보호됩니다. 실패/완료 작업의 재실행은 confirmRestart=true 전 사용자 확인이 필요합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, confirmRestart: { type: "boolean" } }, required: ["folderName", "confirmRestart"] } },
+  { type: "function", name: "start_photo_scene_sort", description: "[WRITE] 정확히 선택된 Workstation 촬영 폴더에 기존 JPG 통합 → SSD2/JPG전체 복사 → Scene 분류 전체 파이프라인을 주문합니다. department와 shootingMode는 절대 추측하지 말고 없으면 사용자에게 물어보세요. 실패 작업 재시도는 confirmRestart=true 전 사용자 확인이 필요합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, department: { type: "string" }, shootingMode: { type: "string", enum: ["field", "studio"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "department", "shootingMode", "confirmRestart"] } },
+  { type: "function", name: "nas_backup_start_sort", description: "[WRITE] NAS 감지 알림 또는 기존 대화에서 촬영 폴더의 JPG 통합 → SSD2 복사 → Scene 분류 전체 파이프라인을 시작합니다. start_photo_scene_sort와 같은 공통 상태 전이를 사용합니다. department와 shootingMode는 절대 추측하지 마세요.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, department: { type: "string" }, shootingMode: { type: "string", enum: ["field", "studio"] }, eventId: { type: ["string", "null"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "department", "shootingMode", "eventId", "confirmRestart"] } },
+  { type: "function", name: "start_photo_raw_match", description: "[WRITE] 정확히 선택된 촬영 프로젝트에서 최신 고객 셀렉 제출본을 우선 사용하고, 없으면 XMP 별점 1 이상만 사용해 Mac Studio RAW 매칭 작업을 주문합니다. 둘 다 없으면 전체 사진을 임의 매칭하지 않고 중단합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, galleryId: { type: ["string", "null"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "galleryId", "confirmRestart"] } },
+  { type: "function", name: "start_photo_resize", description: "[WRITE] SSD2 씬별분류 JPG를 원본 보존 상태로 Mac Studio에서 리사이즈합니다. 크기·품질을 말하지 않으면 기존 기본값 4000px/Q95를 사용하고 응답에 알려줍니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, inputRelativePath: { type: ["string", "null"] }, longEdge: { type: ["number", "null"] }, quality: { type: ["number", "null"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "inputRelativePath", "longEdge", "quality", "confirmRestart"] } },
+  { type: "function", name: "start_photo_ai_select", description: "[WRITE] SSD2 씬별분류를 기존 사진작업실 품질·중복 기준으로 분석해 선택 manifest를 만드는 Mac Studio 작업을 주문합니다. 원본 사진을 이동하거나 삭제하지 않습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, inputRelativePath: { type: ["string", "null"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "inputRelativePath", "confirmRestart"] } },
+  { type: "function", name: "start_photo_retouch", description: "[WRITE] 사용자가 명시한 1~10개 JPG를 기존 사진작업실 피부/가운 컬러 검사로 분석해 보정 가이드를 만듭니다. 실제 픽셀은 수정하지 않으며 파일명이 없으면 반드시 되묻습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { folderName: { type: "string" }, fileNames: { type: "array", minItems: 1, maxItems: 10, items: { type: "string" } }, checkType: { type: "string", enum: ["skin", "gown"] }, confirmRestart: { type: "boolean" } }, required: ["folderName", "fileNames", "checkType", "confirmRestart"] } },
 ];
 
 // ── Tool Router (구조 개편 2026-08-31) ────────────────────────────────────────────────
@@ -513,6 +521,7 @@ const DOMAIN_EXECUTORS: ReadonlyArray<readonly [ReadonlyArray<string>, ToolHandl
   [COMMON_TOOL_NAMES, executeCommonTool],
   [REMOTE_FINDER_TOOL_NAMES, executeRemoteFinderTool],
   [NAS_BACKUP_TOOL_NAMES, executeNasBackupTool],
+  [PHOTO_OPERATION_TOOL_NAMES, executePhotoOperationTool],
 ];
 
 const TOOL_ROUTER = new Map<string, ToolHandler>();
