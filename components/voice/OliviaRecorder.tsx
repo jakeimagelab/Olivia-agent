@@ -33,13 +33,6 @@ function formatTime(seconds: number) {
   return values.map((value) => String(value).padStart(2, "0")).join(":");
 }
 
-export function detectVoiceDevice(navigatorLike: Pick<Navigator, "userAgent" | "maxTouchPoints"> = navigator) {
-  const ua = navigatorLike.userAgent;
-  if (/iPhone/i.test(ua)) return "iphone";
-  if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigatorLike.maxTouchPoints > 1)) return "ipad";
-  if (/Android/i.test(ua)) return /Mobile/i.test(ua) ? "android-mobile" : "android-tablet";
-  return "desktop";
-}
 
 async function readError(response: Response, fallback: string) {
   try {
