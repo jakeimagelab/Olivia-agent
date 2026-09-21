@@ -80,7 +80,11 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
     case "quote-contract": content = <TabletAppFrame compact><TabletQuoteContract /></TabletAppFrame>; break;
     case "channel-analysis": content = <TabletAppFrame compact><AnalysisHostProvider surface="tablet"><TabletChannelAnalysis /></AnalysisHostProvider></TabletAppFrame>; break;
     case "brand-image": content = <TabletAppFrame compact><AnalysisHostProvider surface="tablet"><TabletBrandImage /></AnalysisHostProvider></TabletAppFrame>; break;
-    case "voice": content = <TabletAppFrame><TabletVoice /></TabletAppFrame>; break;
+    // 코드 요청서(2026-09-22, 태블릿 스펙 §7-1) — 음성 기록 목록을 녹음 화면 아래에 추가했다.
+    // 기본 "contained" 모드는 TabletAppFrame > *에 height:100%를 강제해서 OliviaRecorder
+    // 하나가 프레임 전체를 채우고 그 아래 목록이 보이지 않게 된다 — conti 케이스처럼
+    // scroll="page"로 바꿔서 두 컴포넌트가 자연스러운 높이로 쌓이고 프레임 자체가 스크롤되게 한다.
+    case "voice": content = <TabletAppFrame scroll="page"><TabletVoice /></TabletAppFrame>; break;
     case "photo-workspace": content = <TabletPhotoRemote />; break;
     default: content = <TabletHome onNavigate={onNavigate} />;
   }
