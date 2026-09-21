@@ -25,6 +25,23 @@ describe("Olivia Tablet Shell", () => {
     expect(shouldUseOliviaMobileSurface({ width: 1366, height: 1024, coarsePointer: true })).toBe(false);
   });
 
+  // docs/tablet-ipad-home-memo-voice-spec.md §1.1 — width 휴리스틱만으로는 세로모드 iPad가
+  // 거의 다 mobile로 잘못 분류됐다(위 it.each의 820×1180 케이스가 그 증거). deviceType 신호가
+  // ipad/android-tablet이면 폭/방향과 무관하게 tablet을 우선한다.
+  it.each([
+    [{ width: 834, height: 1194, coarsePointer: true, deviceType: "ipad" }, "tablet"], // iPad Pro 11" 세로모드(버그 재현 케이스)
+    [{ width: 820, height: 1180, coarsePointer: true, deviceType: "ipad" }, "tablet"], // 위 무-deviceType 테스트와 같은 폭이지만 결과가 달라야 함
+    [{ width: 600, height: 1200, coarsePointer: true, deviceType: "android-tablet" }, "tablet"],
+    [{ width: 390, height: 844, coarsePointer: true, deviceType: "iphone" }, "mobile"], // iPhone은 강제 대상 아님
+    [{ width: 1440, height: 900, coarsePointer: false, deviceType: "desktop" }, "desktop"],
+  ] as const)("deviceType 신호로 %o를 %s로 판정한다", (signals, expected) => {
+    expect(resolveOliviaSurface(signals)).toBe(expected);
+  });
+
+  it("forceMobilePreview는 deviceType:ipad보다 우선한다(로컬 미리보기 테스트용)", () => {
+    expect(resolveOliviaSurface({ width: 834, height: 1194, deviceType: "ipad", forceMobilePreview: true })).toBe("mobile");
+  });
+
   it("round-trips Tablet app history without losing the preview flag", () => {
     const href = buildTabletNavigationUrl("https://olivia.photoclinic.kr/?tabletPreview=1", "calendar");
     expect(href).toContain("tabletPreview=1");
