@@ -26,7 +26,11 @@
 
 ## Primary Brain boundary
 
-- `OLIVIA_AGENT_ENGINE=hermes`인 텍스트 OS 요청은 Hermes가 판단하고 Olivia MCP를 실행한다.
+- `OLIVIA_AGENT_ENGINE=hermes`여도 `OLIVIA_DIRECT_TOOL_EXECUTION`이 기본 활성화된 동안에는 일반
+  대화와 추론만 Hermes가 담당한다. `TOOL_ACTION`, 실행성 `FAST_COMMAND`, 확정적 UI/DB 요청은
+  Olivia의 기존 도구 실행기가 직접 처리한다.
+- Hermes API Server의 MCP 호출이 복구되면 `OLIVIA_DIRECT_TOOL_EXECUTION=0`으로 바꿔 기존
+  Hermes MCP 실행 경로로 복귀한다.
 - MCP는 executor/service를 호출하며 Supabase credential을 Hermes에 노출하지 않는다.
 - Mutation 완료의 ground truth는 Hermes 문장이 아니라 MCP audit + verification이다.
 - Work Session은 새 DB를 만들지 않고 canonical resource metadata로 구성한다.

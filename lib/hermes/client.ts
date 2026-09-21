@@ -136,7 +136,7 @@ export function claimsMutationCompletion(message: string) {
 // mutation 표현과 겹치지 않는 별도 집합이다 — UI 전환은 DB에 아무것도 쓰지 않으므로
 // claimsMutationCompletion()/mutationAudits로는 검증되지 않는다(§7 "NO UI ACTION = NO SUCCESS CLAIM").
 export function isUiExecutionIntent(message: string) {
-  return /(열어줘|열어|보여줘|띄워줘|바꿔줘|바꿔|전환해|이동해|가\s*줘|거기로\s*가|다시\s*열어|그걸로\s*바꿔)/i.test(message);
+  return /(열어줘|열어|보여줘|띄워줘|바꿔줘|바꿔|전환해|이동해|가\s*줘|거기로\s*가|다시\s*열어|그걸로\s*바꿔|닫아줘|닫아|창\s*닫기|최소화|최대화|전체\s*화면)/i.test(message);
 }
 
 const DOCUMENT_NAME_PRONOUNS = new Set(["그거", "그것", "이거", "이것", "저거", "저것", "그", "이", "저", "방금", "아까", "다시"]);

@@ -17,6 +17,7 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
+import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import type { OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
@@ -526,7 +527,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as Record<string, unknown>;
   const rawMessage = String(body.message || "").trim();
   if (!rawMessage) return Response.json({ ok: false, error: "메시지를 입력해주세요." }, { status: 400 });
-  const useHermes = getOliviaAgentEngine() === "hermes";
+  const configuredAgentEngine = getOliviaAgentEngine();
   const messageChannel: AssistantChannel = internalRequest && body.channel === "telegram" ? "telegram" : "web";
   const persistedUserMessageId = internalRequest ? optionalString(body.persistedUserMessageId) : undefined;
   const assistantExternalMessageId = internalRequest
@@ -587,6 +588,15 @@ export async function POST(req: NextRequest) {
   // 미적용 상태(테이블 없음)에서는 매 요청마다 실패하는 조회를 순차로 기다린 셈이라 더 심했다.
   const memoryScopes = getOliviaToolDomains(message, context, recentUserText);
   const databaseFastPath = hasDatabaseFastPath(message);
+  const engineRoute = resolveOliviaEngineRoute({
+    configuredEngine: configuredAgentEngine,
+    requestClass,
+    directToolExecutionEnabled: isDirectToolExecutionEnabled(),
+    deterministicAction: Boolean(deterministic),
+    databaseFastPath,
+    uiExecutionIntent: isUiExecutionIntent(message),
+  });
+  const useHermes = engineRoute.useHermes;
   if (!systemStatusChatRequest && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
@@ -603,17 +613,20 @@ export async function POST(req: NextRequest) {
     requestId,
     selectedToolCount: selectedTools.length,
     persistentAgentRun,
-    agentEngine: useHermes ? "hermes" : "legacy",
+    requestedAgentEngine: engineRoute.requestedEngine,
+    agentEngine: engineRoute.actualEngine,
+    directToolExecutionEnabled: engineRoute.directToolExecutionEnabled,
+    engineRouteReason: engineRoute.reason,
   });
 
   const encoder = new TextEncoder();
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      let activeAgentEngine: "hermes" | "legacy" = useHermes ? "hermes" : "legacy";
+      let activeAgentEngine: "hermes" | "legacy" = engineRoute.actualEngine;
       // [임시 진단] 이번 요청이 실제로 어떤 Brain으로 처리됐는지 — Hermes 성공/폴백/애초에
       // 레거시 GPT로 시작(=Hermes 시도조차 안 함) 셋을 명확히 구분한다. 사용자에게는 이 구분이
       // 전혀 보이지 않으므로 개발/디버깅 전용이다(운영 로그 + non-production message_complete에만 노출).
-      let chatRouteLabel: "HERMES" | "FALLBACK" | "LEGACY_GPT" | undefined;
+      let chatRouteLabel: "HERMES" | "FALLBACK" | "LEGACY_GPT" | "DIRECT_TOOL" | undefined;
       // Secure Tunnel 개편 §6 — Hermes가 요청됐지만(requestedEngine) 실제로는 legacy로
       // 처리됐을 때(actualEngine) 그 이유를 diagnostics에 남긴다.
       let fallbackReason: string | undefined;
@@ -767,7 +780,10 @@ export async function POST(req: NextRequest) {
         const conversationMetadata = conversationMetadataResult.data?.metadata && typeof conversationMetadataResult.data.metadata === "object"
           ? conversationMetadataResult.data.metadata as Record<string, unknown>
           : {};
-        const photoDirectExecutionEnabled = isPhotoDirectExecutionEnabled();
+        // 전체 직접 실행 우회를 끄면 사진 전용 우회도 함께 꺼져 Hermes MCP 경로로 완전히
+        // 복귀한다. 사진 기능 자체의 세부 feature flag는 기존대로 추가 안전장치로 유지한다.
+        const photoDirectExecutionEnabled = engineRoute.directToolExecutionEnabled
+          && isPhotoDirectExecutionEnabled();
         const pendingPhotoDirectExecution = readPendingPhotoDirectExecution(conversationMetadata);
         // 사진 직접 실행 우회는 현재 사용자가 직접 입력한 원문만 판정한다. alias/referent rewrite,
         // Hermes 답변, 대화 요약 또는 memory 문구가 사진 명령으로 승격되면 안 된다.
@@ -904,6 +920,74 @@ export async function POST(req: NextRequest) {
           await updateAssistantApprovalBlockState(db, { ownerId: owner.id, conversationId: conversation.id, approvalId: pendingAction.id, state: "cancelled" });
         }
 
+        // 사진 명령은 기존 결정론적 오케스트레이터를 Hermes보다 먼저 실행한다. 복수 폴더,
+        // 재시작 확인, 진료과/촬영모드 확인 상태를 그대로 보존하면서 최종 파일 작업은 여전히
+        // executeAgentTool()이 기존 remote worker job으로 주문한다.
+        if (photoDirectTurn) {
+          const directCommand = parsePhotoDirectCommand(rawMessage);
+          const directExecution = await executePhotoDirectTurn({
+            enabled: photoDirectExecutionEnabled,
+            userMessage: rawMessage,
+            hermesToolNames: [],
+            pendingState: pendingPhotoDirectExecution,
+            context: effectiveContext,
+            executeTool: async (name, toolInput, toolContext) => {
+              const id = crypto.randomUUID();
+              const startedAt = performance.now();
+              toolRounds += 1;
+              send({ type: "agent_status", status: toolStatus(name) });
+              send({ type: "tool_start", tool: name, toolCallId: id });
+              const execution = await executeAgentTool({ id, name, arguments: JSON.stringify(toolInput) }, toolContext);
+              toolExecutionMs += performance.now() - startedAt;
+              for (const action of execution.uiActions) send({ type: "ui_action", action });
+              send({
+                type: "tool_result",
+                tool: name,
+                toolCallId: id,
+                success: execution.result.success,
+                result: execution.result.success
+                  ? execution.result.data || {}
+                  : { message: execution.result.error || OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric, code: execution.result.code },
+              });
+              return { id, execution };
+            },
+          });
+
+          console.info("[PhotoDirectExecution]", {
+            requestId,
+            enabled: photoDirectExecutionEnabled,
+            guardedTurn: photoDirectTurn,
+            handled: directExecution.handled,
+            reason: directExecution.reason,
+            operation: directCommand?.operation ?? pendingPhotoDirectExecution?.operation ?? null,
+            queryCount: directCommand?.folderQueries.length ?? pendingPhotoDirectExecution?.items.length ?? 0,
+            candidateCount: directExecution.pendingState?.items[directExecution.pendingState.currentIndex]?.candidates?.length ?? 0,
+            pendingStage: directExecution.pendingState?.stage ?? null,
+            directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),
+            engineRouteReason: engineRoute.reason,
+          });
+
+          if (directExecution.handled) {
+            const directText = directExecution.text || "사진 작업 요청을 확인했어요.";
+            await flushTextAsDeltas(directText, send, messageId);
+            await mergeAssistantConversationMetadata(db, {
+              ownerId: owner.id,
+              conversationId: conversation.id,
+              metadata: { pendingPhotoDirectExecution: directExecution.pendingState ?? null },
+            });
+            chatRouteLabel = "DIRECT_TOOL";
+            activeAgentEngine = "legacy";
+            console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId, reason: "photo_direct_execution" });
+            await saveTurnAssistant(directText, {
+              blocks: [{ type: "text", text: directText }],
+              agentEngine: "legacy",
+              routeDecision: "PHOTO_DIRECT_EXECUTION",
+              toolCalls: directExecution.toolCalls.map(({ id, name, success, verification }) => ({ id, name, success, verification })),
+            });
+            return;
+          }
+        }
+
         if (useHermes) {
           send({ type: "agent_status", status: "Olivia가 요청을 확인하는 중…" });
           const hermesRuntime = buildHermesRuntime({
@@ -1000,89 +1084,6 @@ export async function POST(req: NextRequest) {
             // Tool 실행까지 자체적으로 끝내고 최종 텍스트를 주기 때문이다(§4/§11). tool_call/plan은
             // 향후 Provider 확장을 위해 타입에만 예약해둔 상태라, 여기서 명시적으로 좁혀 사용한다.
             if (hermesResult.type !== "message") throw new Error("Hermes Brain이 지원하지 않는 응답 형식을 반환했습니다.");
-
-            const directCommand = parsePhotoDirectCommand(rawMessage);
-            const directExecution = await executePhotoDirectTurn({
-              enabled: photoDirectExecutionEnabled,
-              userMessage: rawMessage,
-              hermesToolNames: hermesResult.toolCalls.map((call) => call.name),
-              pendingState: pendingPhotoDirectExecution,
-              context: hermesContextSnapshot,
-              executeTool: async (name, toolInput, toolContext) => {
-                const id = crypto.randomUUID();
-                const startedAt = performance.now();
-                toolRounds += 1;
-                send({ type: "agent_status", status: toolStatus(name) });
-                send({ type: "tool_start", tool: name, toolCallId: id });
-                const execution = await executeAgentTool({ id, name, arguments: JSON.stringify(toolInput) }, toolContext);
-                toolExecutionMs += performance.now() - startedAt;
-                for (const action of execution.uiActions) send({ type: "ui_action", action });
-                send({
-                  type: "tool_result",
-                  tool: name,
-                  toolCallId: id,
-                  success: execution.result.success,
-                  result: execution.result.success
-                    ? execution.result.data || {}
-                    : { message: execution.result.error || OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric, code: execution.result.code },
-                });
-                return { id, execution };
-              },
-            });
-
-            console.info("[PhotoDirectExecution]", {
-              requestId,
-              enabled: photoDirectExecutionEnabled,
-              guardedTurn: photoDirectTurn,
-              handled: directExecution.handled,
-              reason: directExecution.reason,
-              operation: directCommand?.operation ?? pendingPhotoDirectExecution?.operation ?? null,
-              queryCount: directCommand?.folderQueries.length ?? pendingPhotoDirectExecution?.items.length ?? 0,
-              candidateCount: directExecution.pendingState?.items[directExecution.pendingState.currentIndex]?.candidates?.length ?? 0,
-              pendingStage: directExecution.pendingState?.stage ?? null,
-              directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),
-            });
-
-            if (directExecution.handled) {
-              const directText = directExecution.text || "사진 작업 요청을 확인했어요.";
-              // photoDirectTurn은 Hermes 호출 전에 guardedResponse에 반영되므로 Hermes의 "기능이
-              // 연결되지 않았다"는 원문은 아직 사용자에게 전송되지 않았다. 여기서 검증된 직접
-              // 실행 결과만 한 번 보낸다.
-              await flushTextAsDeltas(directText, send, messageId);
-              await mergeAssistantConversationMetadata(db, {
-                ownerId: owner.id,
-                conversationId: conversation.id,
-                metadata: { pendingPhotoDirectExecution: directExecution.pendingState ?? null },
-              });
-              console.info("[HermesTurn]", {
-                requestId,
-                intent: requestClass,
-                agentEngine: "hermes",
-                legacySelectedToolCount: selectedTools.length,
-                mcpCatalogMode: "full",
-                usage: hermesResult.usage ?? null,
-                activeResource: hermesRuntime.context.activeResource,
-                resolvedWorkSessionId: hermesRuntime.workSession?.id,
-                memoryCount: taughtMemories.length,
-                memoryIds: taughtMemories.map((memory) => memory.id),
-                historyCount: hermesRuntime.history.length,
-                toolCalls: hermesResult.toolCalls.map((call) => ({ name: call.name, success: call.success, mode: call.mode })),
-                directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),
-                uiActionCount: 0,
-                finalTextSource: "photo_direct_execution",
-                streamedLive: false,
-              });
-              chatRouteLabel = "HERMES";
-              console.info(`[CHAT ROUTE] ${chatRouteLabel}`, { requestId });
-              await saveTurnAssistant(directText, {
-                blocks: [{ type: "text", text: directText }],
-                agentEngine: "hermes",
-                hermesRunId: hermesResult.runId,
-                routeDecision: "PHOTO_DIRECT_EXECUTION",
-                toolCalls: directExecution.toolCalls.map(({ id, name, success, verification }) => ({ id, name, success, verification })),
-              });
-              return;
-            }
 
             const rawResourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
               if (!call.success || !call.data || typeof call.data !== "object") return current;
@@ -1464,13 +1465,18 @@ export async function POST(req: NextRequest) {
           modelFirstTokenMs: modelFirstTokenMs === undefined ? null : Math.round(modelFirstTokenMs),
           toolExecutionMs: Math.round(toolExecutionMs),
           totalMs: Math.round(performance.now() - requestStartedAt),
-          model: activeAgentEngine === "hermes" ? "hermes-agent" : deterministic || persistentAgentRun ? null : model,
+          model: activeAgentEngine === "hermes"
+            ? "hermes-agent"
+            : deterministic || persistentAgentRun || chatRouteLabel === "DIRECT_TOOL"
+              ? null
+              : model,
           agentEngine: activeAgentEngine,
-          // Secure Tunnel 개편 §6 — useHermes(이번 요청이 Hermes를 쓰려고 했는지)와
-          // activeAgentEngine(실제로 어떤 Brain이 응답을 만들었는지)이 다르면 폴백이 일어난
-          // 것이다. fallbackReason은 폴백이 없었으면 undefined(JSON에서 생략).
-          requestedEngine: useHermes ? "hermes" : "legacy",
+          // 요청된 기본 엔진과 실제 라우팅 결과를 함께 남긴다. 둘이 달라도 직접 실행 우회라면
+          // 정상 동작이며, 실제 Hermes 장애 폴백일 때만 fallbackReason이 채워진다.
+          requestedEngine: engineRoute.requestedEngine,
           actualEngine: activeAgentEngine,
+          directToolExecutionEnabled: engineRoute.directToolExecutionEnabled,
+          engineRouteReason: engineRoute.reason,
           ...(fallbackReason ? { fallbackReason } : {}),
           requestClass,
           selectedToolCount: selectedTools.length,

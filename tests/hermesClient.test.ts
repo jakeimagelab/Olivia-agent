@@ -51,6 +51,8 @@ describe("Hermes chat adapter", () => {
     expect(isUiExecutionIntent("제일 최근 견적서 열어줘")).toBe(true);
     expect(isUiExecutionIntent("그럼 바꿔줘")).toBe(true);
     expect(isUiExecutionIntent("열어")).toBe(true);
+    expect(isUiExecutionIntent("이 창 닫아줘")).toBe(true);
+    expect(isUiExecutionIntent("최소화해줘")).toBe(true);
     expect(isUiExecutionIntent("제일 최근 견적서 찾아줘")).toBe(false);
   });
 
