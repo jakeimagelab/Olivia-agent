@@ -1,0 +1,64 @@
+.root {
+  --voice-green: #155855;
+  width: min(100%, 820px);
+  margin: 18px auto 0;
+  padding: 18px 20px 22px;
+  border: 1px solid rgba(21, 88, 85, 0.1);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 40px rgba(21, 88, 85, 0.06);
+  color: #17312d;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.header h2 { margin: 0; font-size: 14px; font-weight: 800; letter-spacing: -0.02em; }
+.refresh {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: #5a7470;
+  background: transparent;
+  cursor: pointer;
+}
+.refresh:hover:not(:disabled) { background: #eff7f5; color: var(--voice-green); }
+.refresh:disabled { cursor: default; opacity: 0.6; }
+.spin { animation: voice-history-spin 0.8s linear infinite; }
+@keyframes voice-history-spin { to { transform: rotate(360deg); } }
+
+.empty, .error, .loading { margin-top: 12px; padding: 20px 8px; color: #8a9e9a; font-size: 12px; text-align: center; }
+.error { color: #b24234; }
+.error button { margin-top: 8px; min-height: 30px; padding: 0 12px; border: 1px solid rgba(21, 88, 85, 0.16); border-radius: 8px; background: #fff; color: var(--voice-green); font: 650 11px/1 inherit; cursor: pointer; }
+
+.list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.list a {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(21, 88, 85, 0.08);
+  border-radius: 13px;
+  background: #fafcfb;
+  color: inherit;
+  text-decoration: none;
+}
+.list a:hover { background: #eff7f5; border-color: rgba(21, 88, 85, 0.16); }
+
+.itemBody { min-width: 0; display: grid; gap: 3px; }
+.itemTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 700; }
+.itemMeta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #8a9e9a; font-size: 10.5px; }
+
+.duration { flex: 0 0 auto; color: #5a7470; font-size: 11px; font-weight: 650; }
+
+.status { flex: 0 0 auto; min-height: 22px; padding: 0 9px; display: inline-flex; align-items: center; border-radius: 999px; font-size: 9.5px; font-weight: 750; }
+.statusDone { color: #1a9c6f; background: #eaf6f0; }
+.statusProgress { color: var(--voice-green); background: #eff7f5; }
+.statusError { color: #b24234; background: #fff1ef; }
