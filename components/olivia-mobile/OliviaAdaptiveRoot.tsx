@@ -36,6 +36,9 @@ function readSurface(): OliviaSurface {
     coarsePointer: window.matchMedia("(pointer: coarse)").matches,
     forceMobilePreview: previewEnabled && params.get("mobilePreview") === "1",
     forceTabletPreview: previewEnabled && params.get("tabletPreview") === "1",
+    // docs/tablet-ipad-home-memo-voice-spec.md §1.1 — 세로모드 iPad Pro 11"를 포함한
+    // 대부분의 iPad가 폭 휴리스틱만으로는 tablet이 아니라 mobile로 잘못 분류됐다.
+    deviceType: detectOliviaDevice(),
   });
 }
 
