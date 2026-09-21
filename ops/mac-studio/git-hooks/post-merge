@@ -1,0 +1,20 @@
+#!/bin/zsh
+set -u
+
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
+INSTALLER="$REPO_ROOT/ops/mac-studio/install-worker-bin.sh"
+WORKER_HOME="${OLIVIA_WORKER_HOME:-$HOME/OliviaWorker}"
+LOG_DIR="$WORKER_HOME/logs"
+LOG_FILE="$LOG_DIR/worker-install.log"
+
+[[ -x "$INSTALLER" ]] || exit 0
+mkdir -p "$LOG_DIR"
+
+if "$INSTALLER" --from-hook >>"$LOG_FILE" 2>&1; then
+  print -- "[OliviaWorker] git pull 후 worker bin 자동 갱신 완료"
+  exit 0
+fi
+
+print -u2 -- "[OliviaWorker] worker bin 자동 갱신 실패: $LOG_FILE"
+exit 1
+

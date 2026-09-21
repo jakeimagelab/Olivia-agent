@@ -23,6 +23,8 @@ ops/mac-studio/
 ├── bin/
 │   ├── worker.sh
 │   └── remote-bridge.sh
+├── git-hooks/
+│   └── post-merge
 ├── install-worker-bin.sh
 └── README.md
 ```
@@ -119,10 +121,11 @@ README에는 ZIP 복사본을 바로 삭제하지 않는 전환 절차를 제공
 5. foreground 또는 로그로 정상 동작 확인
 6. 이후 `git pull --ff-only`과 installer 실행으로 갱신
 
-워커 스크립트는 `~/OliviaWorker/bin`에 설치된 복사본이므로 단순 `git pull`만으로 실행
-파일이 즉시 교체되지는 않는다. 이를 명확히 하고, 안전한 갱신 명령을
-`git pull --ff-only && ./ops/mac-studio/install-worker-bin.sh`로 안내한다. 심볼릭 링크는
-경로 변경 시 런타임 전체가 깨질 수 있어 사용하지 않는다.
+워커 스크립트는 `~/OliviaWorker/bin`에 설치된 복사본이다. 최초 installer가 tracked
+`post-merge` hook을 해당 clone의 `core.hooksPath`로 연결해, 이후 `git pull --ff-only`가
+성공하면 installer를 자동 실행한다. 기존에 다른 `core.hooksPath`가 있으면 덮어쓰지 않고
+`git pull --ff-only && ./ops/mac-studio/install-worker-bin.sh`를 안내한다. 심볼릭 링크는 경로
+변경 시 런타임 전체가 깨질 수 있어 사용하지 않는다.
 
 ## 검증
 
@@ -135,4 +138,3 @@ README에는 ZIP 복사본을 바로 삭제하지 않는 전환 절차를 제공
 
 실제 NAS 파일 작업은 개발 머신에서 실행하지 않는다. 운영 Mac Studio에서는 설치 전
 백업 경로를 확인하고 `PING` 또는 읽기 전용 `LIST_FOLDER`로 먼저 검증한다.
-
