@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import { OliviaBrowserRecorder } from "@/lib/voice/browserRecorder";
 import { baseAudioMimeType, VOICE_RECORDINGS_BUCKET, VOICE_UPLOAD_STORAGE_PREFIX } from "@/lib/voice/config";
 import type { SpeakerHint, VoiceStatus } from "@/lib/voice/types";
+import { detectOliviaDevice } from "@/lib/device/detectDevice";
 import styles from "./OliviaRecorder.module.css";
 
 type Stage = "idle" | "starting" | "recording" | "paused" | "uploading" | "processing" | "complete" | "error";
