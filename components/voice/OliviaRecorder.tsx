@@ -273,7 +273,7 @@ export default function OliviaRecorder({
       const response = await fetch("/api/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mimeType: engine.mimeType, deviceType: detectVoiceDevice() }),
+        body: JSON.stringify({ mimeType: engine.mimeType, deviceType: detectOliviaDevice() }),
       });
       if (!response.ok) throw new Error(await readError(response, "녹음 세션 생성 실패"));
       const session = await response.json() as { id: string; path: string; uploadToken: string; mimeType: string };
