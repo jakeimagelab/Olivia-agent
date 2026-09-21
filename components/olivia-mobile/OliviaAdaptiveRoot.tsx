@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import { resolveOliviaSurface, type OliviaSurface } from "@/lib/olivia/mobile/adaptiveSurface";
+import { detectOliviaDevice } from "@/lib/device/detectDevice";
 import { PhotoProjectNotificationProvider } from "@/components/photo-storage/PhotoProjectNotificationProvider";
 import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNotification";
 import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
