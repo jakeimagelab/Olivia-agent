@@ -8,6 +8,8 @@ Date: 2026-09-22
 
 The Mac Studio bridge also queues every per-file progress HTTP request. A merge of hundreds of files can finish on SSD1 while the bridge is still sending hundreds of stale progress reports. The final `COMPLETED` report is delayed until that queue drains, leaving the database and UI in `MERGING` even though the file operation has completed.
 
+Production inspection also found that the NAS can return `JPG전체` in decomposed Unicode form. Direct string comparison then fails to exclude that directory from the source scan, so successfully moved files are mistaken for files left at their original location and verification reports a false failure.
+
 ## Chosen design
 
 Use accurate producer-side counts and bounded bridge-side reporting together.
@@ -17,6 +19,7 @@ Use accurate producer-side counts and bounded bridge-side reporting together.
 3. Coalesce progress reports in the Mac Studio bridge so that at most one progress request is in flight and only the newest pending snapshot is retained.
 4. Flush the newest progress snapshot before the terminal report, without replaying every superseded per-file event.
 5. Send the terminal `COMPLETED` report immediately after the bounded flush. The existing server synchronization then changes the project to `MERGE_COMPLETED` or `CLASSIFY_APPROVED`.
+6. Compare and resolve the `JPG전체` directory by Unicode-normalized name so SMB/macOS filename normalization cannot invalidate verification or idempotent recovery.
 
 This retains per-file accuracy in the UI while preventing hundreds of network round trips from delaying completion.
 

@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  createCoalescedProgressReporter,
   createRunnerInvocation,
   parseClaimedJob,
   resolveRunnerError,
@@ -26,6 +27,58 @@ function job(action: string, payload: Record<string, unknown>): ClaimedRemoteJob
 }
 
 describe("Mac Studio Worker repository scripts", () => {
+  it("coalesces superseded progress while preserving the latest snapshot", async () => {
+    let releaseFirst: (() => void) | undefined;
+    const firstRequest = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const sent: Record<string, unknown>[] = [];
+    const reporter = createCoalescedProgressReporter(async (progress) => {
+      sent.push(progress);
+      if (sent.length === 1) await firstRequest;
+    }, { intervalMs: 500 });
+
+    reporter.push({ stage: "PREPARING", current: 0, total: 473, message: "시작" });
+    await vi.waitFor(() => expect(sent).toHaveLength(1));
+    reporter.push({ stage: "PREPARING", current: 1, total: 473, message: "첫 파일" });
+    reporter.push({ stage: "PREPARING", current: 472, total: 473, message: "마지막 전 파일" });
+    reporter.push({ stage: "PREPARING", current: 473, total: 473, message: "마지막 파일" });
+    releaseFirst?.();
+    await reporter.flush();
+
+    expect(sent).toEqual([
+      { stage: "PREPARING", current: 0, total: 473, message: "시작" },
+      { stage: "PREPARING", current: 473, total: 473, message: "마지막 파일" },
+    ]);
+  });
+
+  it("waits for the last coalesced progress report before terminal reporting continues", async () => {
+    let releaseFirst: (() => void) | undefined;
+    let releaseLast: (() => void) | undefined;
+    const firstRequest = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const lastRequest = new Promise<void>((resolve) => { releaseLast = resolve; });
+    const sent: number[] = [];
+    const reporter = createCoalescedProgressReporter(async (progress) => {
+      sent.push(Number(progress.current));
+      if (sent.length === 1) await firstRequest;
+      if (sent.length === 2) await lastRequest;
+    }, { intervalMs: 0 });
+
+    reporter.push({ stage: "PREPARING", current: 0, total: 2, message: "시작" });
+    await vi.waitFor(() => expect(sent).toEqual([0]));
+    reporter.push({ stage: "PREPARING", current: 2, total: 2, message: "완료" });
+    const flush = reporter.flush();
+    releaseFirst?.();
+    await vi.waitFor(() => expect(sent).toEqual([0, 2]));
+    let flushed = false;
+    void flush.then(() => { flushed = true; });
+    await Promise.resolve();
+    expect(flushed).toBe(false);
+    releaseLast?.();
+    await flush;
+    expect(flushed).toBe(true);
+  });
+
   it("maps all PHASE 6 actions to their existing runners", () => {
     const prepare = createRunnerInvocation(job("PHOTO_PREPARE_SOURCE", {
       source_relative_path: "0918_삼칠갈비",

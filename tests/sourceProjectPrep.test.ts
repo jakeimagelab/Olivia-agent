@@ -33,8 +33,17 @@ describe("SSD1 primary JPG preparation", () => {
     await writeFile(path.join(project, "A002.jpeg"), "jpg-2");
     await writeFile(path.join(project, "notes.txt"), "keep");
 
-    const result = await preparePrimaryPhotoProject("0914_OO클리닉", { roots });
+    const progress: Array<{ current?: number; total?: number; message: string }> = [];
+    const result = await preparePrimaryPhotoProject("0914_OO클리닉", {
+      roots,
+      onProgress: (entry) => progress.push(entry),
+    });
     expect(result).toMatchObject({ projectPath: "0914_OO클리닉", jpgMoved: 2, jpgAlreadyPrepared: 0, rawUntouched: 2, status: "JPG_MERGE_COMPLETED" });
+    expect(progress.map(({ current, total }) => ({ current, total }))).toEqual([
+      { current: 0, total: 2 },
+      { current: 1, total: 2 },
+      { current: 2, total: 2 },
+    ]);
     await expect(readFile(path.join(project, "A001.ARW"), "utf8")).resolves.toBe("raw-1");
     await expect(readFile(path.join(project, "A002.CR3"), "utf8")).resolves.toBe("raw-2");
     await expect(readFile(path.join(project, "JPG전체", "A001.JPG"), "utf8")).resolves.toBe("jpg-1");
@@ -113,6 +122,26 @@ describe("SSD1 primary JPG preparation", () => {
     const second = await preparePrimaryPhotoProject("shoot", { roots });
     expect(second).toMatchObject({ jpgMoved: 1, jpgAlreadyPrepared: 1, rawUntouched: 1, status: "JPG_MERGE_COMPLETED" });
     expect(await readdir(path.join(project, "JPG전체"))).toEqual(expect.arrayContaining(["A001.JPG", "A002.JPG"]));
+  });
+
+  it("recognizes an existing decomposed-Unicode JPG전체 directory", async () => {
+    const { roots } = await testRoots();
+    const project = path.join(roots.sourceRoot, "unicode-directory");
+    const decomposedDirectoryName = "JPG전체".normalize("NFD");
+    await mkdir(path.join(project, decomposedDirectoryName), { recursive: true });
+    await writeFile(path.join(project, decomposedDirectoryName, "A001.JPG"), "prepared");
+    await writeFile(path.join(project, "A002.JPG"), "new");
+
+    const result = await preparePrimaryPhotoProject("unicode-directory", { roots });
+
+    expect(result).toMatchObject({
+      jpgMoved: 1,
+      jpgAlreadyPrepared: 1,
+      status: "JPG_MERGE_COMPLETED",
+    });
+    expect((await readdir(project)).filter((name) => name.normalize("NFC") === "JPG전체")).toHaveLength(1);
+    await expect(readFile(path.join(project, decomposedDirectoryName, "A001.JPG"), "utf8")).resolves.toBe("prepared");
+    await expect(readFile(path.join(project, decomposedDirectoryName, "A002.JPG"), "utf8")).resolves.toBe("new");
   });
 
   it("does not overwrite an existing destination and requests review", async () => {

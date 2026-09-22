@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   if (!sourceRelativePath) throw new Error("--source-relative-path가 필요합니다.");
 
   const result = await preparePrimaryPhotoProject(sourceRelativePath, {
-    onProgress: (message) => process.stderr.write(`${PROGRESS_PREFIX}${JSON.stringify({ stage: "PREPARING", message })}\n`),
+    onProgress: (progress) => process.stderr.write(`${PROGRESS_PREFIX}${JSON.stringify(progress)}\n`),
   });
 
   if (result.status !== "JPG_MERGE_COMPLETED") {

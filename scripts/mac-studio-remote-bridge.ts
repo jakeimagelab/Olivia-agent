@@ -46,6 +46,78 @@ type RunnerOutcome = {
   stderr: string;
 };
 
+type CoalescedProgressReporter = {
+  push: (progress: JsonRecord) => void;
+  flush: () => Promise<void>;
+};
+
+/**
+ * Keep progress observational and bounded: at most one HTTP report is in flight,
+ * while newer snapshots replace older unsent ones. Terminal job reporting calls
+ * flush(), so completion never waits behind one request per processed file.
+ */
+export function createCoalescedProgressReporter(
+  send: (progress: JsonRecord) => Promise<void>,
+  options: {
+    intervalMs?: number;
+    onError?: (error: unknown) => void;
+  } = {},
+): CoalescedProgressReporter {
+  const intervalMs = Math.max(0, options.intervalMs ?? 500);
+  const onError = options.onError ?? (() => undefined);
+  let pending: JsonRecord | null = null;
+  let inFlight: Promise<void> | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let lastStartedAt = 0;
+
+  const clearScheduled = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+
+  const startPending = (): void => {
+    if (inFlight || !pending) return;
+    const waitMs = Math.max(0, intervalMs - (Date.now() - lastStartedAt));
+    if (waitMs > 0) {
+      if (!timer) {
+        timer = setTimeout(() => {
+          timer = null;
+          startPending();
+        }, waitMs);
+      }
+      return;
+    }
+
+    const snapshot = pending;
+    pending = null;
+    lastStartedAt = Date.now();
+    inFlight = send(snapshot)
+      .catch(onError)
+      .finally(() => {
+        inFlight = null;
+        startPending();
+      });
+  };
+
+  return {
+    push(progress) {
+      pending = progress;
+      startPending();
+    },
+    async flush() {
+      clearScheduled();
+      while (inFlight) await inFlight;
+      clearScheduled();
+      if (!pending) return;
+      const snapshot = pending;
+      pending = null;
+      lastStartedAt = Date.now();
+      await send(snapshot).catch(onError);
+      while (inFlight) await inFlight;
+    },
+  };
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -251,18 +323,18 @@ async function executeRunner(
     let stdout = "";
     let stderr = "";
     let stderrBuffer = "";
-    let progressQueue = Promise.resolve();
+    const progressReporter = createCoalescedProgressReporter(onProgress, {
+      onError: (error) => {
+        console.error(`[remote-bridge] 진행 상태 보고 실패: ${error instanceof Error ? error.message : String(error)}`);
+      },
+    });
 
     const processStderrLine = (line: string): void => {
       if (line.startsWith(PROGRESS_PREFIX)) {
         try {
           const parsed: unknown = JSON.parse(line.slice(PROGRESS_PREFIX.length));
           if (!isRecord(parsed)) throw new Error("진행 정보가 JSON object가 아닙니다.");
-          progressQueue = progressQueue
-            .then(() => onProgress(parsed))
-            .catch((error: unknown) => {
-              console.error(`[remote-bridge] 진행 상태 보고 실패: ${error instanceof Error ? error.message : String(error)}`);
-            });
+          progressReporter.push(parsed);
           return;
         } catch (error) {
           console.error(`[remote-bridge] 진행 상태 해석 실패: ${error instanceof Error ? error.message : String(error)}`);
@@ -294,7 +366,7 @@ async function executeRunner(
     child.once("error", reject);
     child.once("close", (code) => {
       if (stderrBuffer) processStderrLine(stderrBuffer);
-      void progressQueue.then(() => {
+      void progressReporter.flush().then(() => {
         resolve({
           exitCode: code ?? 1,
           result: parseLastJsonObject(stdout),
@@ -482,4 +554,3 @@ if (entryPath === fileURLToPath(import.meta.url)) {
     process.exitCode = 1;
   });
 }
-
