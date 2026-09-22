@@ -94,9 +94,9 @@ export async function POST(request: NextRequest) {
     const remotePath = requestedPayload.remote_path;
     const foldersOnly = requestedPayload.folders_only;
 
-    if (typeof remotePath !== "string") {
+    if (remotePath !== undefined && remotePath !== null && typeof remotePath !== "string") {
       return Response.json(
-        { ok: false, error: "LIST_FOLDER에는 remote_path 문자열이 필요합니다." },
+        { ok: false, error: "LIST_FOLDER의 remote_path는 문자열이어야 합니다." },
         { status: 400 }
       );
     }
@@ -110,9 +110,10 @@ export async function POST(request: NextRequest) {
 
     try {
       // 경로의 Unicode form은 Worker가 반환한 그대로 유지한다. 절대경로와
-      // traversal만 차단하고 LIST_FOLDER에 불필요한 payload 필드는 전달하지 않는다.
+      // traversal만 차단한다. 빈 값/누락은 NAS Root를 뜻하며 LIST_FOLDER에
+      // 불필요한 payload 필드는 전달하지 않는다.
       payload = {
-        remote_path: normalizeRemoteNasRelativePath(remotePath),
+        remote_path: normalizeRemoteNasRelativePath(remotePath ?? ""),
         ...(foldersOnly === true ? { folders_only: true } : {}),
       };
     } catch (error) {

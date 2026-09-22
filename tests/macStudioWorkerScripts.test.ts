@@ -135,6 +135,86 @@ describe("Mac Studio Worker repository scripts", () => {
     expect(() => parseClaimedJob({ action: "PHOTO_STAGE_JPG", payload: {} })).toThrow("job_id가 없습니다");
   });
 
+  it.each([
+    ["omitted", {}],
+    ["empty", { remote_path: "" }],
+    ["null", { remote_path: null }],
+  ])("treats a %s LIST_FOLDER path as SOURCE_ROOT and preserves NFD entry paths", async (_label, payload) => {
+    const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-list-root-"));
+    temporaryDirectories.push(root);
+    const rawFolderName = "0815_강지혜".normalize("NFD");
+    await mkdir(path.join(root, rawFolderName));
+
+    const reports: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      reports.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }));
+    const previousEnvironment = {
+      REMOTE_API_BASE: process.env.REMOTE_API_BASE,
+      OLIVIA_WORKER_TOKEN: process.env.OLIVIA_WORKER_TOKEN,
+      SOURCE_ROOT: process.env.SOURCE_ROOT,
+      OLIVIA_PHOTO_SOURCE_ROOT: process.env.OLIVIA_PHOTO_SOURCE_ROOT,
+    };
+    try {
+      process.env.REMOTE_API_BASE = "https://olivia.example.test";
+      process.env.OLIVIA_WORKER_TOKEN = "existing-worker-token";
+      process.env.SOURCE_ROOT = root;
+      delete process.env.OLIVIA_PHOTO_SOURCE_ROOT;
+
+      await expect(runClaimedJob(job("LIST_FOLDER", payload), repoRoot)).resolves.toBe(true);
+
+      const completed = reports.at(-1);
+      expect(completed?.status).toBe("COMPLETED");
+      expect(completed?.result).toMatchObject({
+        ok: true,
+        path: "",
+        displayPath: "",
+        entries: [{
+          name: rawFolderName,
+          displayName: "0815_강지혜",
+          path: rawFolderName,
+          displayPath: "0815_강지혜",
+          type: "folder",
+        }],
+      });
+    } finally {
+      for (const [key, value] of Object.entries(previousEnvironment)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  it("keeps rejecting unsafe LIST_FOLDER paths", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-list-unsafe-"));
+    temporaryDirectories.push(root);
+    const reports: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      reports.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }));
+    const previousEnvironment = {
+      REMOTE_API_BASE: process.env.REMOTE_API_BASE,
+      OLIVIA_WORKER_TOKEN: process.env.OLIVIA_WORKER_TOKEN,
+      SOURCE_ROOT: process.env.SOURCE_ROOT,
+    };
+    try {
+      process.env.REMOTE_API_BASE = "https://olivia.example.test";
+      process.env.OLIVIA_WORKER_TOKEN = "existing-worker-token";
+      process.env.SOURCE_ROOT = root;
+
+      await expect(runClaimedJob(job("LIST_FOLDER", { remote_path: "../outside" }), repoRoot)).resolves.toBe(false);
+      expect(reports.at(-1)).toMatchObject({ status: "FAILED" });
+      expect(String(reports.at(-1)?.error)).toContain("NAS Root 밖");
+    } finally {
+      for (const [key, value] of Object.entries(previousEnvironment)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
   it("passes zsh syntax checks", () => {
     for (const script of [
       "ops/mac-studio/bin/worker.sh",
