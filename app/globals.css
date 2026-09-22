@@ -2955,15 +2955,17 @@ main:has(> .pc-header) {
 .payment-row {
   display: grid;
   grid-template-columns: 1fr 110px;
-  align-items: center;
-  /* 오른쪽 총액 박스(.total-box div)는 min-height:20px다. 여기가 27px로 더 커서 두 박스가
-     같은 y에서 시작해도(quote-bottom, align-items:start) 이 쪽 텍스트가 매 줄 아래로
-     처져 보였다 — 20px로 맞춘다(아이콘 16px + 위아래 2px 여유로 충분). */
-  min-height: 20px;
+  /* 박스 크기·위치는 그대로 두고, 안의 아이콘/텍스트만 위로 붙인다 — center였던 걸 start로
+     바꾸고 위쪽 여백만 살짝 준다(가운데 정렬이면 27px 박스 안에서 상하 여백이 똑같이
+     5.5px씩이라 오른쪽 총액 박스보다 아래로 처져 보였다). */
+  align-items: start;
+  padding-top: 3px;
+  min-height: 27px;
   border: 1px solid var(--quote-tint-border);
   background: #fdfbf8;
   margin-bottom: 5px;
-  padding: 0 4px;
+  padding-left: 4px;
+  padding-right: 4px;
   line-height: 1;
 }
 
