@@ -3002,13 +3002,6 @@ main:has(> .pc-header) {
   font-weight: 700;
 }
 
-.payment-terms-rows p {
-  margin-top: 4px;
-  font-size: 9px;
-  text-align: center;
-  line-height: 1.35;
-}
-
 .total-signature {
   display: grid;
   gap: 5px;
