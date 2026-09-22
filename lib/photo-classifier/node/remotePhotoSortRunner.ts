@@ -232,25 +232,33 @@ function representativeIndexes(length: number): number[] {
   ])).slice(0, 6);
 }
 
-async function enrichFastScenes(
+function needsSceneLabelResolution(scene: NodePhotoScene): boolean {
+  return scene.sceneType == null || scene.sceneType === "etc" || /(?:^|_)기타$/.test(scene.editedName);
+}
+
+function namedSceneFolder(scene: NodePhotoScene, label: string): string {
+  const prefix = /^\d{2}_/.test(scene.folderName)
+    ? String(scene.index).padStart(2, "0")
+    : `Scene${String(scene.index).padStart(2, "0")}`;
+  return `${prefix}_${label}`;
+}
+
+async function enrichScenes(
   scenes: NodePhotoScene[],
   input: RemotePhotoSortRunnerInput,
   ai: AiAdapter,
   warnings: RunnerWarning[],
   onProgress?: (progress: RunnerProgress) => void,
+  options: { unresolvedOnly?: boolean } = {},
 ): Promise<void> {
   if (!input.aiNamingEnabled && !input.departmentLogicEnabled) return;
-  if (!process.env.OPENAI_API_KEY) {
-    warnings.push({ stage: "SCENE_ANALYSIS", message: "OPENAI_API_KEY가 없어 Scene AI 분석을 건너뛰었습니다." });
-    return;
-  }
+  const targets = options.unresolvedOnly ? scenes.filter(needsSceneLabelResolution) : scenes;
 
-  for (let index = 0; index < scenes.length; index++) {
-    const scene = scenes[index];
+  await mapWithConcurrency(targets, 2, async (scene, index) => {
     onProgress?.({
       stage: "ANALYZING",
       current: index + 1,
-      total: scenes.length,
+      total: targets.length,
       message: `Scene 분석: ${scene.folderName}`,
     });
     try {
@@ -273,7 +281,7 @@ async function enrichFastScenes(
       scene.hasTreatmentBed = result.hasTreatmentBed;
       scene.hasConsultationDesk = result.hasConsultationDesk;
       if (input.aiNamingEnabled && result.suggestedFolderName) {
-        const suggested = `Scene${String(scene.index).padStart(2, "0")}_${result.suggestedFolderName}`;
+        const suggested = namedSceneFolder(scene, result.suggestedFolderName);
         scene.editedName = safeSceneFolderName(suggested, scene.folderName);
       }
     } catch (error) {
@@ -283,7 +291,7 @@ async function enrichFastScenes(
         fileName: scene.files[0]?.name,
       });
     }
-  }
+  });
 }
 
 async function classifyPrecise(
@@ -495,7 +503,7 @@ async function classifyPrecise(
     startTime: entries[range.startIndex].mtime,
     endTime: entries[range.endIndex - 1].mtime,
     files: entries.slice(range.startIndex, range.endIndex),
-    sceneType: null,
+    sceneType: range.sceneType,
     aiConfidence: range.aiConfidence,
     aiReason: range.boundaryBefore?.reasons.join(" · ") ?? null,
     boundaryBefore: range.boundaryBefore,
@@ -955,11 +963,14 @@ export async function runRemotePhotoSortRunner(
   if (input.fastAnalyzeMode) {
     scenes = buildFastScenes(scanned.jpg, input.gapMinutes);
     decisions = [];
-    await enrichFastScenes(scenes, input, ai, warnings, dependencies.onProgress);
+    await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress);
   } else {
     const precise = await classifyPrecise(scanned.jpg, input, ai, warnings, dependencies.onProgress);
     scenes = precise.scenes;
     decisions = precise.decisions;
+    if (input.aiNamingEnabled) {
+      await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress, { unresolvedOnly: true });
+    }
   }
   if (!scenes.length) throw new Error("Scene 계획을 생성하지 못했습니다.");
 

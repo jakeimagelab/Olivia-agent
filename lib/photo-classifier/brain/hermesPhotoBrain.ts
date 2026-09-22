@@ -1,6 +1,9 @@
 import { localPhotoBrain } from "./localPhotoBrain";
 import type { PhotoSceneBrain } from "./types";
 import type { SceneFrameAnalysis } from "@/lib/photo-classifier/hybrid-types";
+import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
+import type { MedicalDepartment } from "@/lib/photo-classifier/types";
+import type { PhotoSceneAnalysisOutput } from "@/lib/ai/openai";
 
 // Olivia OS 2.0 — 사진분류 AI를 Hermes Brain 중심 구조로 전환(요청서 §1/§2).
 //
@@ -23,7 +26,7 @@ const REVIEW_CONFIDENCE_THRESHOLD = 0.75; // 이보다 낮은 confidence만 Herm
 
 function getHermesConfig(): { baseUrl: string; apiKey: string; model: string } | null {
   const baseUrl = process.env.HERMES_BASE_URL?.trim().replace(/\/+$/, "");
-  const apiKey = process.env.HERMES_API_KEY?.trim();
+  const apiKey = process.env.HERMES_API_SECRET?.trim() || process.env.HERMES_API_KEY?.trim();
   if (!baseUrl || !apiKey) return null;
   return { baseUrl, apiKey, model: process.env.HERMES_MODEL?.trim() || "hermes-agent" };
 }
@@ -172,6 +175,60 @@ async function analyzeBoundaryWithHermes(input: Parameters<PhotoSceneBrain["anal
   return applyBoundaryRefinement(observation, refinement).analysis;
 }
 
+function sceneReviewPrompt(
+  department: MedicalDepartment,
+  observation: PhotoSceneAnalysisOutput,
+): string {
+  const config = getDepartmentConfig(department);
+  const allowed = config.sceneTypes
+    .map((rule) => `${rule.sceneType} (${rule.displayName}): ${rule.description}`)
+    .join("\n");
+  return `[Vision Tool의 Scene 대표컷 관찰 결과]\n${JSON.stringify(observation, null, 2)}\n\n`
+    + `진료과: ${config.displayName}\n`
+    + `허용된 Scene 타입:\n${allowed}\n\n`
+    + `이 관찰 결과를 검토해 Scene 전체의 촬영 목적을 하나만 판정하세요. `
+    + `세부 시술명이나 자유 형식 폴더명을 만들지 말고 위 sceneType 중 하나만 선택하세요. `
+    + `대표컷 관찰만으로도 확실하지 않으면 etc를 유지하세요. `
+    + `JSON 객체 {"sceneType":"treatment","confidence":0.9,"reason":"환자가 베드에 누워 핸드피스 시술 중"}만 반환하세요.`;
+}
+
+function applySceneRefinement(
+  department: MedicalDepartment,
+  base: PhotoSceneAnalysisOutput,
+  refinement: Record<string, unknown> | null,
+): PhotoSceneAnalysisOutput {
+  if (!refinement) return base;
+  const sceneType = typeof refinement.sceneType === "string" ? refinement.sceneType : "";
+  const confidence = refinement.confidence;
+  if (typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0.75 || confidence > 1) {
+    return base;
+  }
+  const rule = getDepartmentConfig(department).sceneTypes.find((candidate) => candidate.sceneType === sceneType);
+  if (!rule) return base;
+  const hermesReason = typeof refinement.reason === "string" ? refinement.reason.trim() : "";
+  return {
+    ...base,
+    sceneType: rule.sceneType,
+    displayName: rule.displayName,
+    suggestedFolderName: rule.folderName,
+    confidence,
+    reason: hermesReason ? `${base.reason} · [Hermes] ${hermesReason}` : base.reason,
+    needsReview: rule.sceneType === "etc",
+  };
+}
+
+/**
+ * Vision은 Scene 대표컷을 관찰하고 Hermes는 구조화된 관찰 결과만 최종 검토한다.
+ * Hermes 장애/낮은 확신/허용되지 않은 타입은 모두 기존 Vision 결과로 폴백한다.
+ */
+async function analyzeSceneWithHermes(
+  input: Parameters<PhotoSceneBrain["analyzeScene"]>[0],
+): ReturnType<PhotoSceneBrain["analyzeScene"]> {
+  const observation = await localPhotoBrain.analyzeScene(input);
+  const refinement = await callHermesForJson(sceneReviewPrompt(input.department, observation));
+  return applySceneRefinement(input.department, observation, refinement);
+}
+
 export const hermesPhotoBrain: PhotoSceneBrain = {
   engine: "hermes",
   analyzeBoundary: analyzeBoundaryWithHermes,
@@ -180,5 +237,5 @@ export const hermesPhotoBrain: PhotoSceneBrain = {
   // 그대로를 통과시켜 동작을 그대로 유지한다.
   scanPurpose: localPhotoBrain.scanPurpose,
   analyzeFolderPattern: localPhotoBrain.analyzeFolderPattern,
-  analyzeScene: localPhotoBrain.analyzeScene,
+  analyzeScene: analyzeSceneWithHermes,
 };

@@ -197,6 +197,83 @@ describe("remote photo sort runner", () => {
     }
   });
 
+  it("labels only an unresolved precise Scene through the existing representative Scene analyzer", async () => {
+    const { roots } = await testRoots();
+    const workShoot = path.join(roots.workRoot, "precise-scene-name");
+    await mkdir(workShoot);
+    for (let index = 0; index < 8; index++) {
+      await jpg(
+        path.join(workShoot, `D${String(index + 1).padStart(3, "0")}.jpg`),
+        "#155855",
+        new Date(Date.parse("2026-09-13T01:00:00Z") + index * 1_000),
+      );
+    }
+    let representativeCount = 0;
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      const result = await runRemotePhotoSortRunner({
+        ...runnerOptions(),
+        fastAnalyzeMode: false,
+        aiNamingEnabled: true,
+        workFolder: workShoot,
+      }, {
+        roots,
+        ai: {
+          scene: async (input) => {
+            representativeCount = input.images.length;
+            return {
+              department: "dermatology", sceneId: input.sceneId, sceneType: "treatment", displayName: "시술",
+              suggestedFolderName: "시술", confidence: 0.95, detectedCues: ["핸드피스"], negativeCues: [],
+              reason: "시술 장면", needsReview: false, patientPosture: "lying_down", hasHandpiece: true,
+              hasTreatmentDevice: true, hasTreatmentBed: true, hasConsultationDesk: false,
+            };
+          },
+        },
+      });
+
+      expect(result).toMatchObject({ ok: true, sceneCount: 1 });
+      expect(representativeCount).toBe(6);
+      await expect(stat(path.join(workShoot, "JPG", "01_시술", "D001.jpg"))).resolves.toBeTruthy();
+      const report = JSON.parse(await readFile(path.join(workShoot, "REPORT", "scene_report.json"), "utf8"));
+      expect(report.scenes[0]).toMatchObject({ folderName: "01_시술", sceneType: "treatment" });
+    } finally {
+      if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalOpenAiKey;
+    }
+  });
+
+  it("keeps 기타 and records a warning when remote Scene labeling fails", async () => {
+    const { roots } = await testRoots();
+    const workShoot = path.join(roots.workRoot, "precise-scene-fallback");
+    await mkdir(workShoot);
+    await jpg(path.join(workShoot, "E001.jpg"), "#155855", new Date("2026-09-13T01:00:00Z"));
+
+    const originalOpenAiKey = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      const result = await runRemotePhotoSortRunner({
+        ...runnerOptions(),
+        fastAnalyzeMode: false,
+        aiNamingEnabled: true,
+        workFolder: workShoot,
+      }, {
+        roots,
+        ai: { scene: async () => { throw new Error("remote scene unavailable"); } },
+      });
+
+      expect(result).toMatchObject({ ok: true, sceneCount: 1 });
+      await expect(stat(path.join(workShoot, "JPG", "01_기타", "E001.jpg"))).resolves.toBeTruthy();
+      const summary = JSON.parse(await readFile(path.join(workShoot, "REPORT", "summary.json"), "utf8"));
+      expect(summary.warnings).toEqual(expect.arrayContaining([
+        expect.objectContaining({ stage: "SCENE_ANALYSIS", message: "remote scene unavailable" }),
+      ]));
+    } finally {
+      if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = originalOpenAiKey;
+    }
+  });
+
   it("fails unsupported studio mode before creating output folders", async () => {
     const { roots } = await testRoots();
     const workShoot = path.join(roots.workRoot, "studio");

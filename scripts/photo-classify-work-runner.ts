@@ -2,6 +2,7 @@
 
 import { loadEnvConfig } from "@next/env";
 import { parseClassificationOptions, runPhotoClassifyWork } from "@/lib/photo-classifier/node/photoClassifyWork";
+import { analyzePhotoSceneRemotely } from "@/lib/photo-classifier/node/remoteSceneAi";
 
 loadEnvConfig(process.cwd());
 
@@ -52,12 +53,14 @@ async function main(): Promise<void> {
     quality_analysis_enabled: booleanValue(values, "quality-analysis-enabled", false),
     profile_classification_enabled: booleanValue(values, "profile-classification-enabled", true),
   };
+  const options = parseClassificationOptions(payload);
   const result = await runPhotoClassifyWork({
     workRelativePath,
     expectedJpgCount: values["expected-jpg-count"] === undefined ? undefined : Number(values["expected-jpg-count"]),
     expectedJpgBytes: values["expected-jpg-bytes"] === undefined ? undefined : Number(values["expected-jpg-bytes"]),
-    ...parseClassificationOptions(payload),
+    ...options,
   }, {
+    ...(options.aiNamingEnabled ? { ai: { scene: analyzePhotoSceneRemotely } } : {}),
     onProgress: (progress) => process.stderr.write(`${PROGRESS_PREFIX}${JSON.stringify(progress)}\n`),
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);

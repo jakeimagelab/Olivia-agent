@@ -21,11 +21,12 @@ function baseAnalysis(overrides: Partial<SceneFrameAnalysis> = {}): SceneFrameAn
 }
 
 const analyzeBoundaryMock = vi.fn();
+const analyzeSceneMock = vi.fn();
 vi.mock("@/lib/photo-classifier/brain/localPhotoBrain", () => ({
   localPhotoBrain: {
     engine: "openai",
     analyzeBoundary: (...args: unknown[]) => analyzeBoundaryMock(...args),
-    analyzeScene: vi.fn(),
+    analyzeScene: (...args: unknown[]) => analyzeSceneMock(...args),
     scanPurpose: vi.fn(),
     analyzeFolderPattern: vi.fn(),
   },
@@ -37,6 +38,7 @@ describe("Olivia OS 2.0 — 사진분류 PhotoSceneBrain", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
     analyzeBoundaryMock.mockReset();
+    analyzeSceneMock.mockReset();
   });
 
   it("getPhotoClassificationEngine/resolvePhotoSceneBrain — 기본값은 local(OpenAI 직접), 플래그를 켜야 hermes", async () => {
@@ -121,6 +123,64 @@ describe("Olivia OS 2.0 — 사진분류 PhotoSceneBrain", () => {
     const result = await hermesPhotoBrain.analyzeBoundary({ department: "dermatology", before: [], after: [], timeGapSeconds: 90 });
     expect(result.confidence).toBe(0.5); // out-of-range 값은 거부
     expect(result.primaryClinicianChanged).toBe(false); // 잘못된 타입("yes")도 거부
+  });
+
+  it("기타 Scene의 Vision 관찰 결과를 Hermes가 기존 진료과 타입으로 확정한다", async () => {
+    analyzeSceneMock.mockResolvedValue({
+      department: "dermatology",
+      sceneId: "01_기타",
+      sceneType: "etc",
+      displayName: "기타",
+      suggestedFolderName: "기타",
+      confidence: 0.55,
+      detectedCues: ["환자가 베드에 누움", "핸드피스"],
+      negativeCues: [],
+      reason: "시술로 보이나 확인 필요",
+      needsReview: true,
+      patientPosture: "lying_down",
+      hasHandpiece: true,
+      hasTreatmentDevice: true,
+      hasTreatmentBed: true,
+      hasConsultationDesk: false,
+    });
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const refinement = JSON.stringify({ sceneType: "treatment", confidence: 0.94, reason: "베드와 핸드피스가 확인되는 시술 장면" });
+    const sse = new Response(`data: {"choices":[{"delta":{"content":${JSON.stringify(refinement)}}}]}\n\ndata: [DONE]\n\n`, { status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async () => sse));
+
+    const { hermesPhotoBrain } = await import("@/lib/photo-classifier/brain/hermesPhotoBrain");
+    const result = await hermesPhotoBrain.analyzeScene({
+      department: "dermatology",
+      sceneId: "01_기타",
+      images: [{ fileName: "A001.JPG", base64: "data:image/jpeg;base64,AAAA" }],
+    });
+
+    expect(result.sceneType).toBe("treatment");
+    expect(result.displayName).toBe("시술");
+    expect(result.suggestedFolderName).toBe("시술");
+    expect(result.confidence).toBe(0.94);
+    expect(result.reason).toContain("[Hermes]");
+    expect(result.needsReview).toBe(false);
+  });
+
+  it("Hermes가 허용되지 않은 Scene 타입을 반환하면 Vision 결과를 유지한다", async () => {
+    analyzeSceneMock.mockResolvedValue({
+      department: "dermatology", sceneId: "01_기타", sceneType: "etc", displayName: "기타",
+      suggestedFolderName: "기타", confidence: 0.5, detectedCues: [], negativeCues: [], reason: "불명확",
+      needsReview: true, patientPosture: "unclear", hasHandpiece: false, hasTreatmentDevice: false,
+      hasTreatmentBed: false, hasConsultationDesk: false,
+    });
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const refinement = JSON.stringify({ sceneType: "thermage_special", confidence: 0.99, reason: "자유 형식 이름" });
+    const sse = new Response(`data: {"choices":[{"delta":{"content":${JSON.stringify(refinement)}}}]}\n\ndata: [DONE]\n\n`, { status: 200 });
+    vi.stubGlobal("fetch", vi.fn(async () => sse));
+
+    const { hermesPhotoBrain } = await import("@/lib/photo-classifier/brain/hermesPhotoBrain");
+    const result = await hermesPhotoBrain.analyzeScene({ department: "dermatology", sceneId: "01_기타", images: [{ fileName: "A.JPG", base64: "AAAA" }] });
+    expect(result.sceneType).toBe("etc");
+    expect(result.suggestedFolderName).toBe("기타");
   });
 
   it("engine 식별자가 각 Brain 구현체마다 올바르게 설정돼 있다", async () => {
