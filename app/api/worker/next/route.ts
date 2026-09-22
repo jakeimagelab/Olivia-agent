@@ -5,6 +5,7 @@ import {
   isAuthorizedWorker,
 } from "@/lib/remoteWorkerAuth";
 import { readWorkerDiagnostics, workerDiagnosticsToRow } from "@/lib/system-status/workerDiagnostics";
+import { applyPhotoWorkerJobPolicy } from "@/lib/photo-classifier/workerJobPolicy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
     return Response.json({
       job_id: job.job_id,
       action: job.action,
-      payload: job.payload ?? {},
+      payload: applyPhotoWorkerJobPolicy(job),
     });
   } catch (error) {
     const message =
