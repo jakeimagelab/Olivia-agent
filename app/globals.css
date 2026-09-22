@@ -2994,13 +2994,6 @@ main:has(> .pc-header) {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  /* .payment-label(display:flex)의 자식이라 기본 min-height:auto가 적용된다 — "₩" 글리프의
-     실제 렌더링 높이(NanumSquare, line-height:1에서도 지정값보다 크게 나옴, 3047행 grand-total
-     뱃지와 동일한 원인)가 16px보다 커서 flex item이 그 content min-height로 늘어나 있었다.
-     그 늘어난 높이가 .payment-label -> .payment-row로 그대로 전파돼(둘 다 align-items:center라
-     "가운데 정렬" 자체는 맞았지만, 기준이 되는 박스 높이 자체가 부풀어 있어 옆 총액 박스보다
-     아래로 처졌다). overflow:hidden으로 min-height:auto 팽창을 막아 진짜 16px로 고정한다. */
-  overflow: hidden;
   padding-left: 0;
   border-radius: 50%;
   background: var(--orange-soft);
