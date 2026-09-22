@@ -12,6 +12,52 @@ import { syncPhotoClassificationProject } from "@/lib/photo-storage/classificati
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+type RemoteJobRecord = {
+  id: string;
+  status: string;
+  action: string;
+  payload: Record<string, unknown> | null;
+};
+
+const PHOTO_LIFECYCLE_ACTIONS = new Set([
+  "PHOTO_PREPARE_SOURCE",
+  "PHOTO_STAGE_JPG",
+  "PHOTO_CLASSIFY_WORK",
+]);
+
+async function syncPhotoLifecycle(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  data: RemoteJobRecord,
+  input: {
+    status: "RUNNING" | "COMPLETED" | "FAILED";
+    progress: ReturnType<typeof parseRemoteJobProgress>;
+    result?: unknown;
+    error?: string | null;
+    message?: string | null;
+  },
+): Promise<void> {
+  const payload = data.payload && typeof data.payload === "object" && !Array.isArray(data.payload)
+    ? data.payload
+    : {};
+  const common = {
+    jobId: data.id,
+    jobStatus: input.status,
+    payload,
+    progress: input.progress,
+    result: input.result,
+    error: input.error,
+    message: input.message,
+  };
+
+  if (data.action === "PHOTO_PREPARE_SOURCE") {
+    await syncPhotoMergeProject(supabase, common);
+  } else if (data.action === "PHOTO_STAGE_JPG") {
+    await syncPhotoStageProject(supabase, common);
+  } else if (data.action === "PHOTO_CLASSIFY_WORK") {
+    await syncPhotoClassificationProject(supabase, common);
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAuthorizedWorker(request)) {
     return Response.json(
@@ -85,6 +131,38 @@ export async function POST(request: NextRequest) {
       updateData.error = body.error;
     }
 
+    // Terminal photo reports must synchronize the project while the remote job
+    // is still RUNNING. The recovery claim RPC excludes active jobs, so this
+    // ordering closes the window where a stale CLASSIFY_QUEUED project could be
+    // claimed again between the job completion and project completion writes.
+    let lifecycleSyncedBeforeTerminalUpdate = false;
+    if (status !== "RUNNING") {
+      const { data: runningJob, error: runningJobError } = await supabase
+        .from("remote_jobs")
+        .select("id,status,action,payload")
+        .eq("id", jobId)
+        .eq("target_worker", getConfiguredWorkerId())
+        .eq("status", "RUNNING")
+        .maybeSingle();
+      if (runningJobError) throw runningJobError;
+      if (!runningJob) {
+        return Response.json(
+          { ok: false, error: "Running job not found" },
+          { status: 404 }
+        );
+      }
+      if (PHOTO_LIFECYCLE_ACTIONS.has(runningJob.action)) {
+        await syncPhotoLifecycle(supabase, runningJob as RemoteJobRecord, {
+          status: status as "COMPLETED" | "FAILED",
+          progress,
+          result: body.result,
+          error: typeof body.error === "string" ? body.error : null,
+          message: typeof body.message === "string" ? body.message : null,
+        });
+        lifecycleSyncedBeforeTerminalUpdate = true;
+      }
+    }
+
     const { data, error } = await supabase
       .from("remote_jobs")
       .update(updateData)
@@ -103,53 +181,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (data.action === "PHOTO_PREPARE_SOURCE") {
+    if (PHOTO_LIFECYCLE_ACTIONS.has(data.action) && !lifecycleSyncedBeforeTerminalUpdate) {
       try {
-        await syncPhotoMergeProject(supabase, {
-          jobId: data.id,
-          jobStatus: status as "RUNNING" | "COMPLETED" | "FAILED",
-          payload: (data.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {}) as Record<string, unknown>,
+        await syncPhotoLifecycle(supabase, data as RemoteJobRecord, {
+          status: status as "RUNNING" | "COMPLETED" | "FAILED",
           progress,
           result: body.result,
           error: typeof body.error === "string" ? body.error : null,
           message: typeof body.message === "string" ? body.message : null,
         });
       } catch (projectError) {
-        console.warn("[worker/report photo-prepare-source project sync]", projectError instanceof Error ? projectError.message : projectError);
-      }
-    }
-
-    if (data.action === "PHOTO_STAGE_JPG") {
-      try {
-        await syncPhotoStageProject(supabase, {
-          jobId: data.id,
-          jobStatus: status as "RUNNING" | "COMPLETED" | "FAILED",
-          payload: (data.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {}) as Record<string, unknown>,
-          progress,
-          result: body.result,
-          error: typeof body.error === "string" ? body.error : null,
-          message: typeof body.message === "string" ? body.message : null,
-        });
-      } catch (projectError) {
-        // Job report 자체는 성공시켜 Worker가 재전송 루프에 빠지지 않게 하되,
-        // 프로젝트 lifecycle 동기화 실패는 서버 로그에서 확인할 수 있게 남긴다.
-        console.warn("[worker/report photo-stage project sync]", projectError instanceof Error ? projectError.message : projectError);
-      }
-    }
-
-    if (data.action === "PHOTO_CLASSIFY_WORK") {
-      try {
-        await syncPhotoClassificationProject(supabase, {
-          jobId: data.id,
-          jobStatus: status as "RUNNING" | "COMPLETED" | "FAILED",
-          payload: (data.payload && typeof data.payload === "object" && !Array.isArray(data.payload) ? data.payload : {}) as Record<string, unknown>,
-          progress,
-          result: body.result,
-          error: typeof body.error === "string" ? body.error : null,
-          message: typeof body.message === "string" ? body.message : null,
-        });
-      } catch (projectError) {
-        console.warn("[worker/report photo-classify project sync]", projectError instanceof Error ? projectError.message : projectError);
+        // RUNNING progress remains observational: a transient project sync
+        // failure must not prevent the worker from continuing its active job.
+        console.warn("[worker/report photo project sync]", projectError instanceof Error ? projectError.message : projectError);
       }
     }
 
