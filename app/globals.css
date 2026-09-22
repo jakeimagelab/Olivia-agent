@@ -2956,7 +2956,10 @@ main:has(> .pc-header) {
   display: grid;
   grid-template-columns: 1fr 110px;
   align-items: center;
-  min-height: 27px;
+  /* 오른쪽 총액 박스(.total-box div)는 min-height:20px다. 여기가 27px로 더 커서 두 박스가
+     같은 y에서 시작해도(quote-bottom, align-items:start) 이 쪽 텍스트가 매 줄 아래로
+     처져 보였다 — 20px로 맞춘다(아이콘 16px + 위아래 2px 여유로 충분). */
+  min-height: 20px;
   border: 1px solid var(--quote-tint-border);
   background: #fdfbf8;
   margin-bottom: 5px;
