@@ -2955,18 +2955,23 @@ main:has(> .pc-header) {
 .payment-row {
   display: grid;
   grid-template-columns: 1fr 110px;
-  /* 박스 크기·위치는 그대로 두고, 안의 아이콘/텍스트만 위로 붙인다 — center였던 걸 start로
-     바꾸고 위쪽 여백만 살짝 준다(가운데 정렬이면 27px 박스 안에서 상하 여백이 똑같이
-     5.5px씩이라 오른쪽 총액 박스보다 아래로 처져 보였다). */
-  align-items: start;
-  padding-top: 3px;
+  align-items: center;
   min-height: 27px;
   border: 1px solid var(--quote-tint-border);
   background: #fdfbf8;
   margin-bottom: 5px;
-  padding-left: 4px;
-  padding-right: 4px;
+  padding: 0 4px;
   line-height: 1;
+}
+
+/* 박스 크기·위치는 그대로 두고 안의 텍스트/아이콘만 살짝 위로 올린다. align-items를
+   center->start로 바꾸는 방식은 브라우저에선 맞지만, PDF 다운로드가 쓰는 html2canvas가
+   이 grid 정렬을 다르게 캡처해서(원 아이콘이 위 테두리에 걸림) 화면과 PDF가 서로
+   달라졌다 — html2canvas가 훨씬 안정적으로 지원하는 단순 margin으로 옮긴다.
+   .payment-row의 두 직계 자식(.payment-label, 금액 span) 둘 다 <span>이라 이 선택자
+   하나로 같이 움직인다. */
+.payment-row > span {
+  margin-top: -2px;
 }
 
 .payment-row strong {
