@@ -18,6 +18,8 @@ export type WindowContext = {
   resourceType?: string;
   documentId?: string;
   documentType?: string;
+  /** Canonical route (including query) used to initialize native window adapters. */
+  routeHref?: string;
 };
 
 export type OliviaWindowState = {

@@ -4,6 +4,7 @@ import {
   getDockApps,
   getOliviaApp,
   getOliviaAppByRoute,
+  resolveOliviaAppRoute,
 } from "@/components/olivia-os/registry/oliviaAppRegistry";
 
 describe("OLIVIA OS app registry navigation", () => {
@@ -45,5 +46,29 @@ describe("OLIVIA OS app registry navigation", () => {
     expect(getOliviaAppByRoute("/trend-dashboard?industry=피부과")?.id).toBe("trend-dashboard");
     expect(getOliviaAppByRoute("/hospital-brand-image-diagnosis")?.id).toBe("hospital-brand-image-diagnosis");
     expect(getOliviaAppByRoute("/channel-analyzer?clientId=client-1")?.id).toBe("channel-analyzer");
+  });
+
+  it("normalizes user-facing workspace aliases before using the legacy iframe", () => {
+    const cases = [
+      ["/select-match", "photo-workspace", "/photo-sorting?tool=select-raw"],
+      ["/metadata-select?clientId=client-1", "photo-workspace", "/photo-sorting?tool=metadata-match&clientId=client-1"],
+      ["/raw-select", "photo-workspace", "/photo-sorting?tool=ai-cull"],
+      ["/photo-retouching", "photo-workspace", "/photo-sorting?tool=retouch"],
+      ["/diagnosis", "hospital-brand-image-diagnosis", "/hospital-brand-image-diagnosis"],
+      ["/clients/reviews", "review-studio", "/review-studio"],
+      ["/photoclinic?resourceId=quote-1", "quote", "/quote?resourceId=quote-1"],
+    ] as const;
+
+    for (const [href, appId, resolvedHref] of cases) {
+      const result = resolveOliviaAppRoute(href);
+      expect(result?.app.id, href).toBe(appId);
+      expect(result?.href, href).toBe(resolvedHref);
+      expect(getOliviaAppByRoute(href)?.id, href).toBe(appId);
+    }
+  });
+
+  it("preserves exact native review routes and leaves unsupported admin routes for compatibility", () => {
+    expect(resolveOliviaAppRoute("/review-studio?reviewId=review-1")?.href).toBe("/review-studio?reviewId=review-1");
+    expect(resolveOliviaAppRoute("/admin/security")).toBeUndefined();
   });
 });

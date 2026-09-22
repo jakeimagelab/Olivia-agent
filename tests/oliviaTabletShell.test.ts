@@ -90,8 +90,8 @@ describe("Olivia Tablet Shell", () => {
     expect(css).toMatch(/\.dockButton\s*\{[^}]*flex:\s*0 0 66px/);
     expect(css).toMatch(/\.dockLabel\s*\{[^}]*font-size:\s*10px/);
     expect(css).toMatch(/\.homeScroll\s*\{[^}]*overflow:\s*hidden/);
-    expect(home).toContain("좋은 하루예요.");
-    expect(home).toContain('onNavigate("conti")');
+    expect(home).toContain("앱 보관함");
+    expect(home).toContain("onNavigate(app.id)");
     expect(home).not.toContain('window.location.href = "/conti"');
   });
 

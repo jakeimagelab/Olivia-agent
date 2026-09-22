@@ -1,4 +1,4 @@
-export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace" | "clients" | "conti";
+export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace" | "photo-pending" | "clients" | "conti";
 export type MobileResourceType = "quote" | "contract" | "document" | "storyboard";
 
 export type MobileNavigationState =
@@ -13,6 +13,7 @@ const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
   "chat",
   "voice",
   "photo-workspace",
+  "photo-pending",
   "clients",
   "conti",
 ]);
@@ -53,5 +54,7 @@ export function buildMobileNavigationUrl(currentHref: string, state: MobileNavig
 }
 
 export function primaryViewForNavigation(state: MobileNavigationState): MobilePrimaryView | null {
-  return state.view === "preview" ? null : state.view;
+  if (state.view === "preview") return null;
+  if (state.view === "photo-pending") return "home";
+  return state.view;
 }

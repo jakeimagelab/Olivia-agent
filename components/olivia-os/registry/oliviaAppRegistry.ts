@@ -21,6 +21,7 @@ import { BrandAnalysisWindowContent } from "../adapters/BrandAnalysisWindowConte
 import { TrendDashboardWindowContent } from "../adapters/TrendDashboardWindowContent";
 import { HospitalBrandDiagnosisWindowContent } from "../adapters/HospitalBrandDiagnosisWindowContent";
 import { ChannelAnalyzerWindowContent } from "../adapters/ChannelAnalyzerWindowContent";
+import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
 // conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
@@ -236,9 +237,43 @@ export function getOliviaApp(appId: string): OliviaAppDefinition | undefined {
   return oliviaAppRegistry.find((app) => app.id === appId);
 }
 
-export function getOliviaAppByRoute(href: string): OliviaAppDefinition | undefined {
-  const pathname = href.split("?")[0].replace(/\/$/, "") || "/";
+const NATIVE_ROUTE_ALIASES: Readonly<Record<string, string>> = {
+  "/photoclinic": "/quote",
+  "/clients/reviews": "/review-studio",
+};
+
+function appForPathname(pathname: string): OliviaAppDefinition | undefined {
   return oliviaAppRegistry.find((app) => app.route === pathname);
+}
+
+export type OliviaResolvedAppRoute = {
+  app: OliviaAppDefinition;
+  href: string;
+  originalHref: string;
+};
+
+/**
+ * Resolves old/user-facing aliases before allowing the launcher to fall back to the
+ * compatibility iframe. Exact native routes win so `/review-studio` continues to
+ * open a specific review while `/clients/reviews` opens the same native workspace.
+ */
+export function resolveOliviaAppRoute(href: string): OliviaResolvedAppRoute | undefined {
+  const pathname = href.split("?")[0].replace(/\/$/, "") || "/";
+  const exact = appForPathname(pathname);
+  if (exact) return { app: exact, href, originalHref: href };
+
+  const canonicalWorkspaceHref = getCanonicalWorkspaceHref(href);
+  const canonicalUrl = new URL(canonicalWorkspaceHref, "https://olivia.local");
+  const aliasedPathname = NATIVE_ROUTE_ALIASES[canonicalUrl.pathname] ?? canonicalUrl.pathname;
+  const app = appForPathname(aliasedPathname);
+  if (!app) return undefined;
+
+  const resolvedHref = `${aliasedPathname}${canonicalUrl.search}`;
+  return { app, href: resolvedHref, originalHref: href };
+}
+
+export function getOliviaAppByRoute(href: string): OliviaAppDefinition | undefined {
+  return resolveOliviaAppRoute(href)?.app;
 }
 
 export function getDesktopShortcutApps(): OliviaAppDefinition[] {

@@ -384,6 +384,28 @@
 .pendingPhotoCard b { min-width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: #e4f5ef; color: var(--mobile-green); font-size: 10px; }
 .pendingPhotoCard > svg { color: #98aaa6; }
 
+.mobilePhotoPendingScreen { display: flex; flex-direction: column; gap: 13px; }
+.mobilePendingBack { align-self: start; min-height: 38px; display: inline-flex; align-items: center; gap: 2px; margin: -4px 0 0 -8px; border: 0; border-radius: 12px; padding: 0 8px; background: transparent; color: var(--mobile-green); font: 680 11px/1 inherit; }
+.mobilePendingHeading { display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 10px; }
+.mobilePendingHeading > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 15px; background: #f2ebff; color: #7442a8; }
+.mobilePendingHeading h1 { margin: 0; color: var(--mobile-ink); font-size: 20px; font-weight: 740; letter-spacing: -.045em; }
+.mobilePendingHeading p { margin: 4px 0 0; color: var(--mobile-muted); font-size: 10px; }
+.mobilePendingHeading b { min-width: 30px; height: 30px; display: grid; place-items: center; border-radius: 999px; background: var(--mobile-mint); color: var(--mobile-green); font-size: 11px; }
+.mobilePendingList { display: grid; gap: 9px; }
+.mobilePendingList > button { width: 100%; min-height: 91px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--mobile-line); border-radius: 17px; padding: 11px; background: #fff; color: var(--mobile-ink); text-align: left; font: inherit; box-shadow: 0 6px 20px rgba(20,63,57,.035); }
+.mobilePendingList > button.mobilePendingItemDanger { border-color: rgba(232,93,44,.2); background: #fffaf8; }
+.mobilePendingIcon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: var(--mobile-mint); color: var(--mobile-green); }
+.mobilePendingItemDanger .mobilePendingIcon { background: #fff0eb; color: var(--mobile-orange); }
+.mobilePendingCopy { min-width: 0; display: grid; gap: 4px; }
+.mobilePendingCopy > span { min-width: 0; display: flex; align-items: center; gap: 6px; }
+.mobilePendingCopy strong { overflow: hidden; font-size: 13px; font-weight: 720; text-overflow: ellipsis; white-space: nowrap; }
+.mobilePendingCopy em { flex: 0 0 auto; border-radius: 999px; padding: 4px 6px; background: var(--mobile-mint); color: var(--mobile-green); font-size: 8px; font-style: normal; font-weight: 700; }
+.mobilePendingItemDanger .mobilePendingCopy em { background: #fff0eb; color: #b84d2c; }
+.mobilePendingCopy small { color: #56736d; font-size: 9.5px; }
+.mobilePendingCopy p { display: -webkit-box; overflow: hidden; margin: 0; color: #a44a2f; font-size: 8.5px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.mobilePendingCopy i { color: #93a39f; font-size: 8.5px; font-style: normal; }
+.mobilePendingList > button > svg { color: #98aaa6; }
+
 .commandCard { width: 100%; min-height: 54px; display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 9px; border: 0; border-radius: 15px; padding: 8px 10px; background: var(--mobile-green-deep); color: #fff; text-align: left; font: inherit; box-shadow: 0 10px 24px rgba(13, 71, 67, .12); }
 .commandIcon { width: 34px; height: 34px; border-radius: 11px; }
 .commandCard > span:nth-child(2) { min-width: 0; display: grid; gap: 2px; }

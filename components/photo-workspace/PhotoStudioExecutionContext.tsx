@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  getRemotePhotoSortJob,
   type RemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
 import {
@@ -23,8 +22,9 @@ import {
 } from "@/lib/photo-classifier/photoSource";
 import type { RemoteWorkerPresence } from "@/lib/remote-jobs/workerPresence";
 import { usePhotoSourceSurface } from "@/components/photo-classifier/usePhotoSourceSurface";
+import { useRemotePhotoJobStore, type RemotePhotoPollingState } from "@/lib/store/useRemotePhotoJobStore";
 
-export type RemotePollingState = "idle" | "connected" | "reconnecting";
+export type RemotePollingState = RemotePhotoPollingState;
 
 type PhotoStudioExecutionValue = {
   executionMode: ExecutionMode;
@@ -73,10 +73,9 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const surface = usePhotoSourceSurface();
   const availableModes = photoSourceModesForSurface(surface);
   const [executionMode, setExecutionModeState] = useState<ExecutionMode>("LOCAL_DIRECT");
-  const [remoteJobId, setRemoteJobId] = useState<string | null>(null);
-  const [remoteJob, setRemoteJob] = useState<RemotePhotoSortJob | null>(null);
-  const [remotePollingState, setRemotePollingState] = useState<RemotePollingState>("idle");
-  const [remotePollingMessage, setRemotePollingMessage] = useState("");
+  const remoteJob = useRemotePhotoJobStore((state) => state.job);
+  const remotePollingState = useRemotePhotoJobStore((state) => state.pollingState);
+  const remotePollingMessage = useRemotePhotoJobStore((state) => state.pollingMessage);
   const [workerPresence, setWorkerPresence] = useState<RemoteWorkerPresence>(EMPTY_WORKER);
   const [workerPollingState, setWorkerPollingState] = useState<RemotePollingState>("idle");
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
@@ -86,7 +85,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
       const storedMode = readPhotoStudioExecutionMode(localStorage);
       setExecutionModeState(resolvePhotoExecutionMode(surface, storedMode));
       const storedJobId = localStorage.getItem(PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY);
-      if (storedJobId) setRemoteJobId(storedJobId);
+      if (storedJobId) useRemotePhotoJobStore.getState().setTrackedJobId(storedJobId);
     } catch {
       setExecutionModeState(resolvePhotoExecutionMode(surface));
     }
@@ -101,85 +100,18 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   }, [surface]);
 
   const trackRemoteJob = useCallback((job: RemotePhotoSortJob) => {
-    setRemoteJob(job);
-    setRemoteJobId(job.id);
-    setRemotePollingState("connected");
-    setRemotePollingMessage("");
+    useRemotePhotoJobStore.getState().setTrackedJob(job);
     try {
       localStorage.setItem(PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY, job.id);
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   const clearRemoteJob = useCallback(() => {
-    setRemoteJobId(null);
-    setRemoteJob(null);
-    setRemotePollingState("idle");
-    setRemotePollingMessage("");
+    useRemotePhotoJobStore.getState().clearTrackedJob();
     try {
       localStorage.removeItem(PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY);
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
-
-  useEffect(() => {
-    if (!remoteJobId) return;
-
-    let disposed = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    let request: AbortController | null = null;
-    let failureCount = 0;
-
-    const schedule = (delay: number) => {
-      if (disposed) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => void poll(), delay);
-    };
-
-    const poll = async () => {
-      if (disposed || request) return;
-      request = new AbortController();
-      try {
-        const job = await getRemotePhotoSortJob(remoteJobId, { signal: request.signal });
-        if (disposed) return;
-        failureCount = 0;
-        setRemoteJob(job);
-        setRemotePollingState("connected");
-        setRemotePollingMessage("");
-        if (job.status === "QUEUED" || job.status === "RUNNING") {
-          schedule(document.visibilityState === "hidden" ? 3_000 : 1_000);
-        }
-      } catch (error) {
-        if (disposed || request.signal.aborted) return;
-        failureCount += 1;
-        setRemotePollingState("reconnecting");
-        setRemotePollingMessage(
-          error instanceof Error ? error.message : "Mac Studio 연결을 다시 확인하고 있습니다.",
-        );
-        schedule(Math.min(failureCount, 3) * 1_000);
-      } finally {
-        request = null;
-      }
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      if (timer) clearTimeout(timer);
-      timer = null;
-      void poll();
-    };
-
-    setRemotePollingState("connected");
-    void poll();
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("online", handleVisibility);
-
-    return () => {
-      disposed = true;
-      if (timer) clearTimeout(timer);
-      request?.abort();
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("online", handleVisibility);
-    };
-  }, [remoteJobId]);
 
   useEffect(() => {
     let disposed = false;

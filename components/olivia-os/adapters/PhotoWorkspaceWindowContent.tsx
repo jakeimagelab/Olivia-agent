@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 
 import PhotoStudioExecutionBar from "@/components/photo-workspace/PhotoStudioExecutionBar";
 import { PhotoStudioExecutionProvider } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 // components/photo-workspace/PhotoWorkspace.tsx는 GlobalHeader를 직접 그리지 않는다(탭 콘텐츠만
 // 그린다 — (photo-studio)/layout.tsx가 헤더를 그린다) — 그래서 그대로 마운트해도 헤더가 겹치지
@@ -14,11 +15,13 @@ const PhotoWorkspace = dynamic(() => import("@/components/photo-workspace/PhotoW
   loading: () => <div style={{ padding: 24, fontSize: 12, color: "#5A7470" }}>사진작업실을 준비하는 중...</div>,
 });
 
-export function PhotoWorkspaceWindowContent() {
+export function PhotoWorkspaceWindowContent({ context }: { context?: WindowContext }) {
+  const routeHref = context?.routeHref;
+  const initialTool = routeHref ? new URL(routeHref, "https://olivia.local").searchParams.get("tool") ?? undefined : undefined;
   return (
     <PhotoStudioExecutionProvider>
       <PhotoStudioExecutionBar />
-      <PhotoWorkspace />
+      <PhotoWorkspace initialTool={initialTool} />
     </PhotoStudioExecutionProvider>
   );
 }

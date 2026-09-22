@@ -4,10 +4,13 @@ import { useEffect } from "react";
 import { getRemotePhotoSortJob, type RemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
 import { PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY } from "@/lib/photo-classifier/photoSource";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
+import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
 
-const POLL_INTERVAL_MS = 1_000;
-const HIDDEN_POLL_INTERVAL_MS = 3_000;
-const OPERATION_POLL_INTERVAL_MS = 3_000;
+const POLL_INTERVAL_MS = 3_000;
+const HIDDEN_POLL_INTERVAL_MS = 30_000;
+const OPERATION_ACTIVE_POLL_INTERVAL_MS = 5_000;
+const OPERATION_IDLE_POLL_INTERVAL_MS = 60_000;
+const OPERATION_HIDDEN_POLL_INTERVAL_MS = 5 * 60_000;
 const TERMINAL_DISCOVERY_WINDOW_MS = 10 * 60 * 1_000;
 const PHOTO_OPERATION_ACTIONS = new Set(["PHOTO_RAW_MATCH", "PHOTO_RESIZE", "PHOTO_AI_SELECT", "PHOTO_RETOUCH"]);
 const SEEN_TERMINAL_KEY = "olivia:photo-operations:seen-terminal";
@@ -72,25 +75,31 @@ function progressValues(job: RemotePhotoSortJob): { current: number; total: numb
  * 상태를 다시 읽어 전역 BackgroundJobsWidget에 표시만 한다.
  */
 export default function PhotoStudioBackgroundJobBridge() {
+  const trackedJobId = useRemotePhotoJobStore((state) => state.jobId);
+
+  // 새로고침 복구와 다른 탭에서 시작/종료한 작업만 localStorage에서 동기화한다. 같은 탭에서
+  // 시작한 작업은 trackRemoteJob()이 store를 즉시 갱신하므로 1초짜리 storage watcher가 필요 없다.
+  useEffect(() => {
+    const syncStoredJob = () => {
+      const storedJobId = readStoredRemoteJobId();
+      const store = useRemotePhotoJobStore.getState();
+      if (storedJobId !== store.jobId) store.setTrackedJobId(storedJobId);
+    };
+    syncStoredJob();
+    window.addEventListener("storage", syncStoredJob);
+    return () => window.removeEventListener("storage", syncStoredJob);
+  }, []);
+
   useEffect(() => {
     let disposed = false;
-    let activeJobId: string | null = null;
     let terminalJobId: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let watcher: ReturnType<typeof setInterval> | null = null;
     let request: AbortController | null = null;
     let failureCount = 0;
 
     const clearTimer = () => {
       if (timer) clearTimeout(timer);
       timer = null;
-    };
-
-    const removeJob = (jobId: string | null) => {
-      if (!jobId) return;
-      if (useBackgroundJobsStore.getState().jobs[jobId]) {
-        useBackgroundJobsStore.getState().dismissJob(jobId);
-      }
     };
 
     const schedule = (delay: number) => {
@@ -100,6 +109,7 @@ export default function PhotoStudioBackgroundJobBridge() {
     };
 
     const mirrorJob = (job: RemotePhotoSortJob) => {
+      useRemotePhotoJobStore.getState().setTrackedJob(job);
       const values = progressValues(job);
       const store = useBackgroundJobsStore.getState();
       const existing = store.jobs[job.id];
@@ -126,7 +136,7 @@ export default function PhotoStudioBackgroundJobBridge() {
     };
 
     const poll = async () => {
-      const jobId = activeJobId;
+      const jobId = trackedJobId;
       if (disposed || !jobId || terminalJobId === jobId || request) return;
 
       request = new AbortController();
@@ -159,36 +169,23 @@ export default function PhotoStudioBackgroundJobBridge() {
             cancelable: false,
           });
         }
-        // 일시적인 네트워크 오류는 실패가 아니다. 1→2→3초까지만 완만하게 재시도한다.
-        schedule(Math.min(3_000, failureCount * 1_000));
+        useRemotePhotoJobStore.getState().setPollingFailure(message);
+        // 일시적인 네트워크 오류는 실패가 아니다. 호출 폭주를 막기 위해 5→10→30초로 물러난다.
+        schedule(Math.min(30_000, failureCount * 5_000));
         void error;
       } finally {
         request = null;
       }
     };
 
-    const syncStoredJob = () => {
-      const nextJobId = readStoredRemoteJobId();
-      if (nextJobId !== activeJobId) {
-        removeJob(activeJobId);
-        activeJobId = nextJobId;
-        terminalJobId = null;
-        failureCount = 0;
-        clearTimer();
-      }
-      if (activeJobId && terminalJobId !== activeJobId) void poll();
-    };
-
     const refreshNow = () => {
-      syncStoredJob();
       if (document.visibilityState === "visible") {
         clearTimer();
         void poll();
       }
     };
 
-    syncStoredJob();
-    watcher = setInterval(syncStoredJob, POLL_INTERVAL_MS);
+    if (trackedJobId) void poll();
     window.addEventListener("focus", refreshNow);
     window.addEventListener("online", refreshNow);
     document.addEventListener("visibilitychange", refreshNow);
@@ -196,13 +193,12 @@ export default function PhotoStudioBackgroundJobBridge() {
     return () => {
       disposed = true;
       clearTimer();
-      if (watcher) clearInterval(watcher);
       request?.abort();
       window.removeEventListener("focus", refreshNow);
       window.removeEventListener("online", refreshNow);
       document.removeEventListener("visibilitychange", refreshNow);
     };
-  }, []);
+  }, [trackedJobId]);
 
   useEffect(() => {
     let disposed = false;
@@ -210,7 +206,7 @@ export default function PhotoStudioBackgroundJobBridge() {
     let request: AbortController | null = null;
     const seenTerminalIds = readSeenTerminalIds();
 
-    const schedule = (delay = OPERATION_POLL_INTERVAL_MS) => {
+    const schedule = (delay = OPERATION_IDLE_POLL_INTERVAL_MS) => {
       if (disposed) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => void poll(), delay);
@@ -254,12 +250,19 @@ export default function PhotoStudioBackgroundJobBridge() {
         const response = await fetch("/api/remote-jobs", { cache: "no-store", signal: request.signal });
         const body = await response.json();
         if (!response.ok) throw new Error(body?.error || "원격 작업 조회 실패");
+        let hasActiveOperation = false;
         if (!disposed && Array.isArray(body.jobs)) {
-          for (const job of body.jobs as PhotoOperationJob[]) if (PHOTO_OPERATION_ACTIONS.has(job.action)) mirror(job);
+          for (const job of body.jobs as PhotoOperationJob[]) {
+            if (!PHOTO_OPERATION_ACTIONS.has(job.action)) continue;
+            mirror(job);
+            if (job.status === "QUEUED" || job.status === "RUNNING") hasActiveOperation = true;
+          }
         }
-        schedule(document.visibilityState === "hidden" ? 10_000 : OPERATION_POLL_INTERVAL_MS);
+        schedule(document.visibilityState === "hidden"
+          ? OPERATION_HIDDEN_POLL_INTERVAL_MS
+          : hasActiveOperation ? OPERATION_ACTIVE_POLL_INTERVAL_MS : OPERATION_IDLE_POLL_INTERVAL_MS);
       } catch {
-        schedule(5_000);
+        schedule(30_000);
       } finally {
         request = null;
       }

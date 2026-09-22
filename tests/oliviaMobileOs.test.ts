@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
-import { buildMobileNavigationUrl, parseMobileNavigation } from "@/lib/olivia/mobile/navigation";
+import { buildMobileNavigationUrl, parseMobileNavigation, primaryViewForNavigation } from "@/lib/olivia/mobile/navigation";
 import { normalizeMobileDocument, resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
 import {
   createMobileResourceShareToken,
@@ -30,6 +30,8 @@ describe("Olivia Mobile OS", () => {
     expect(parseMobileNavigation("?mobileView=photo-workspace")).toEqual({ view: "photo-workspace" });
     expect(buildMobileNavigationUrl("https://olivia.photoclinic.kr/", { view: "photo-workspace" }))
       .toContain("mobileView=photo-workspace");
+    expect(parseMobileNavigation("?mobileView=photo-pending")).toEqual({ view: "photo-pending" });
+    expect(primaryViewForNavigation({ view: "photo-pending" })).toBe("home");
   });
 
   it("normalizes canonical document references without creating a copied resource", () => {

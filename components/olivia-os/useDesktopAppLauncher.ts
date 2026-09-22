@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { getOliviaApp, getOliviaAppByRoute } from "./registry/oliviaAppRegistry";
+import { getOliviaApp, resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { contextFromHref, mergeDefinedWindowContext } from "@/lib/olivia/desktop/windowContext";
 
@@ -9,9 +9,11 @@ export function useDesktopAppLauncher() {
   const openApp = useOliviaDesktopStore((state) => state.openApp);
 
   return useCallback((href: string, title?: string, context?: WindowContext) => {
-    const app = getOliviaAppByRoute(href);
-    const hrefContext = contextFromHref(href);
-    if (app) {
+    const resolved = resolveOliviaAppRoute(href);
+    const resolvedHref = resolved?.href ?? href;
+    const hrefContext = { ...contextFromHref(resolvedHref), routeHref: resolvedHref };
+    if (resolved) {
+      const app = resolved.app;
       const mergedContext = mergeDefinedWindowContext(hrefContext, context);
       openApp({
         appId: app.id,
@@ -25,6 +27,9 @@ export function useDesktopAppLauncher() {
 
     const compatibilityApp = getOliviaApp("legacy-route");
     if (!compatibilityApp) return;
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[OLIVIA NATIVE ROUTE] compatibility fallback", { href });
+    }
     openApp({
       appId: compatibilityApp.id,
       title: title || "포토클리닉",

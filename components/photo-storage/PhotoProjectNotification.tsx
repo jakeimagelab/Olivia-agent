@@ -7,7 +7,7 @@ import type { PhotoStorageProject } from "@/lib/photo-storage/types";
 import styles from "./PhotoProjectNotification.module.css";
 
 const ACTIVE_STATUSES = new Set([
-  "READY",
+  "READY", "ERROR",
   "MERGE_APPROVED", "MERGING", "MERGE_COMPLETED", "MERGE_FAILED",
   "CLASSIFY_APPROVED",
   "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_FAILED",
@@ -35,7 +35,7 @@ function reviewStage(project: PhotoStorageProject): "merge" | "copy" | "classify
 }
 
 export default function PhotoProjectNotification() {
-  const { projects, events, lastAction, approve, defer, retry } = usePhotoProjectNotifications();
+  const { projects, events, lastAction, selectedProjectId, selectProject, approve, defer, retry } = usePhotoProjectNotifications();
   const [busy, setBusy] = useState<"approve" | "defer" | "retry" | null>(null);
   const [dismissedCards, setDismissedCards] = useState<string[]>([]);
   const [showConflicts, setShowConflicts] = useState(false);
@@ -43,10 +43,12 @@ export default function PhotoProjectNotification() {
     (ACTIVE_STATUSES.has(project.status) || project.status === "REVIEW_REQUIRED")
     && !dismissedCards.includes(`${project.id}:${project.status}`)
   );
-  const project = pending[0];
+  const selectedProject = selectedProjectId ? pending.find((candidate) => candidate.id === selectedProjectId) : undefined;
+  const project = selectedProject || pending[0];
   const event = project ? events.find((candidate) => candidate.project_id === project.id && candidate.status === "OPEN") : undefined;
   const dismissCurrent = () => {
     if (!project) return;
+    if (project.id === selectedProjectId) selectProject(null);
     const key = `${project.id}:${project.status}`;
     setDismissedCards((current) => current.includes(key) ? current : [...current, key]);
   };
@@ -151,8 +153,8 @@ export default function PhotoProjectNotification() {
     );
   }
 
-  // 상태 6 — REVIEW_REQUIRED / MERGE_FAILED / COPY_FAILED / CLASSIFY_FAILED
-  if (project.status === "MERGE_FAILED" || project.status === "COPY_FAILED" || project.status === "CLASSIFY_FAILED" || project.status === "REVIEW_REQUIRED") {
+  // 상태 6 — REVIEW_REQUIRED / ERROR / MERGE_FAILED / COPY_FAILED / CLASSIFY_FAILED
+  if (project.status === "MERGE_FAILED" || project.status === "COPY_FAILED" || project.status === "CLASSIFY_FAILED" || project.status === "REVIEW_REQUIRED" || project.status === "ERROR") {
     const stage = project.status === "MERGE_FAILED" ? "merge"
       : project.status === "COPY_FAILED" ? "copy"
       : project.status === "CLASSIFY_FAILED" ? "classify"

@@ -5,8 +5,9 @@ import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { navigateToFeature, syncCanonicalWorkspaceUrl } from "@/lib/olivia/features/navigationBridge";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 import { useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA, type OpenAppInput } from "@/lib/store/useOliviaDesktopStore";
-import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry";
+import { getOliviaApp, resolveOliviaAppRoute } from "@/components/olivia-os/registry/oliviaAppRegistry";
 import { resolveSnapBounds } from "@/components/olivia-os/window/snapZones";
+import { contextFromHref } from "@/lib/olivia/desktop/windowContext";
 
 const HOME_PREFIX = "/admin/dashboard/home";
 
@@ -33,21 +34,6 @@ const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, 
   contract: "contract",
   conti: "conti",
   "photo-sort": "photo-workspace",
-};
-
-// OPEN_FEATURE의 href → Desktop App. navigateToFeature(action.href)가 legacy에서 쓰는 원본
-// href 그대로를 key로 쓴다(getCanonicalWorkspaceHref로 정규화하지 않음 — /quote와 /photoclinic이
-// 서로 다른 경로로 들어와도 둘 다 같은 quote 창으로 연결되어야 하므로 정규화 전 원본을 그대로
-// 매핑한다).
-const FEATURE_HREF_TO_DESKTOP_APP_ID: Record<string, string> = {
-  "/clients": "customer",
-  "/calendar": "calendar",
-  "/photo-sorting": "photo-workspace",
-  "/review-studio": "review-studio",
-  "/contract": "contract",
-  "/conti": "conti",
-  "/quote": "quote",
-  "/photoclinic": "quote",
 };
 
 // Desktop의 singleton 모델(창 id === appId) 그대로 open/focus/restore를 재사용한다 —
@@ -239,16 +225,14 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // 아무 것도 하지 않는다(legacy route로 절대 보내지 않는다) — legacy route에서만
       // navigateToFeature를 그대로 쓴다.
       if (isOliviaOsRoute()) {
-        const [pathname, query = ""] = action.href.split("?");
-        const appId = FEATURE_HREF_TO_DESKTOP_APP_ID[pathname];
-        const params = new URLSearchParams(query);
-        const context = appId ? {
-          clientId: params.get("clientId") ?? (appId === "customer" ? params.get("id") ?? undefined : undefined),
-          projectId: params.get("workflowRunId") ?? undefined,
-          resourceId: params.get("resourceId") ?? (["quote", "contract", "conti"].includes(appId) ? params.get("id") ?? undefined : undefined),
-          resourceType: ["quote", "contract", "conti"].includes(appId) ? appId : undefined,
+        const resolved = resolveOliviaAppRoute(action.href);
+        const appId = resolved?.app.id;
+        const routeContext = resolved ? { ...contextFromHref(resolved.href), routeHref: resolved.href } : undefined;
+        const nativeContext = appId && routeContext ? {
+          ...routeContext,
+          resourceType: ["quote", "contract", "conti"].includes(appId) ? appId : routeContext.resourceType,
         } : undefined;
-        const input = appId ? desktopAppInputFor(appId, context) : undefined;
+        const input = appId ? desktopAppInputFor(appId, nativeContext) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
         // Adapter가 아직 없는 기존 기능도 Desktop을 벗어나지 않고 compatibility Window에서
         // 연다. 해당 기능에 전용 Adapter가 추가되면 위 매핑이 우선한다.

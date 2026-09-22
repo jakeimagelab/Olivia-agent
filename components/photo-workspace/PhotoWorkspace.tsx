@@ -48,9 +48,11 @@ const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 function PhotoWorkspaceContent({
   hideHeader = false,
   initialMode = "select",
+  initialTool,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
+  initialTool?: string;
 }) {
   const contentRef = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(false);
@@ -59,13 +61,14 @@ function PhotoWorkspaceContent({
   const router = useRouter();
   const searchParams = useSearchParams();
   const toolState = resolvePhotoWorkspaceToolState(searchParams.get("tool"));
+  const initialToolState = resolvePhotoWorkspaceToolState(initialTool);
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
   const rawRawMatchView = searchParams.get("rawMatchView") as RawMatchView | null;
   const remoteJobId = searchParams.get("remoteJobId");
-  const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialMode);
-  const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : "ai");
-  const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : "ai-cull");
+  const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
+  const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? "ai");
+  const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : initialToolState?.rawMatchView ?? "ai-cull");
   const { executionMode } = usePhotoStudioExecution();
   const remoteUnavailable = executionMode === "REMOTE_WORKER" && mode !== "classification";
 
@@ -160,13 +163,15 @@ function PhotoWorkspaceContent({
 export default function PhotoWorkspace({
   hideHeader = false,
   initialMode = "select",
+  initialTool,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
+  initialTool?: string;
 } = {}) {
   return (
     <Suspense fallback={<div className={styles.workspaceLoading}>사진작업실을 준비하는 중...</div>}>
-      <PhotoWorkspaceContent hideHeader={hideHeader} initialMode={initialMode} />
+      <PhotoWorkspaceContent hideHeader={hideHeader} initialMode={initialMode} initialTool={initialTool} />
     </Suspense>
   );
 }

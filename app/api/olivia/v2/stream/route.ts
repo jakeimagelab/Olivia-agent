@@ -42,7 +42,7 @@ import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmati
 import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
 import { getOliviaAgentEngine, isClientSearchRequest, isMutationIntent, isUiExecutionIntent } from "@/lib/hermes/client";
-import { hermesProvider, isBrainFallbackSafe } from "@/lib/assistant/brain";
+import { BrainUnavailableError, hermesProvider, isBrainFallbackSafe } from "@/lib/assistant/brain";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 import { buildHermesRuntime, resourceSessionMetadata } from "@/lib/hermes/runtimeContext";
@@ -68,6 +68,7 @@ import {
   readPendingPhotoDirectExecution,
   shouldGuardPhotoDirectTurn,
 } from "@/lib/photo-storage/directChatExecution";
+import { isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -780,10 +781,9 @@ export async function POST(req: NextRequest) {
         const conversationMetadata = conversationMetadataResult.data?.metadata && typeof conversationMetadataResult.data.metadata === "object"
           ? conversationMetadataResult.data.metadata as Record<string, unknown>
           : {};
-        // 전체 직접 실행 우회를 끄면 사진 전용 우회도 함께 꺼져 Hermes MCP 경로로 완전히
-        // 복귀한다. 사진 기능 자체의 세부 feature flag는 기존대로 추가 안전장치로 유지한다.
-        const photoDirectExecutionEnabled = engineRoute.directToolExecutionEnabled
-          && isPhotoDirectExecutionEnabled();
+        // 사진 작업은 NAS 원본을 다루므로 일반 엔진 라우팅과 독립된 결정론적 안전 경로를 쓴다.
+        // 반드시 사용자 원문만 판정하며 OLIVIA_PHOTO_DIRECT_EXECUTION 하나로만 켜고 끈다.
+        const photoDirectExecutionEnabled = isPhotoDirectExecutionEnabled();
         const pendingPhotoDirectExecution = readPendingPhotoDirectExecution(conversationMetadata);
         // 사진 직접 실행 우회는 현재 사용자가 직접 입력한 원문만 판정한다. alias/referent rewrite,
         // Hermes 답변, 대화 요약 또는 memory 문구가 사진 명령으로 승격되면 안 된다.
@@ -1084,6 +1084,15 @@ export async function POST(req: NextRequest) {
             // Tool 실행까지 자체적으로 끝내고 최종 텍스트를 주기 때문이다(§4/§11). tool_call/plan은
             // 향후 Provider 확장을 위해 타입에만 예약해둔 상태라, 여기서 명시적으로 좁혀 사용한다.
             if (hermesResult.type !== "message") throw new Error("Hermes Brain이 지원하지 않는 응답 형식을 반환했습니다.");
+
+            if (isHermesToolMiss({
+              message,
+              responseText: hermesResult.text,
+              toolCallCount: hermesResult.toolCalls.length,
+            })) {
+              console.warn("[CHAT ROUTE] HERMES_TOOL_MISS_RETRY", { requestId, requestClass });
+              throw new BrainUnavailableError("Hermes가 실행 요청에 필요한 도구를 호출하지 않았습니다.", true);
+            }
 
             const rawResourceMetadata = hermesResult.toolCalls.reduce<Record<string, unknown>>((current, call) => {
               if (!call.success || !call.data || typeof call.data !== "object") return current;

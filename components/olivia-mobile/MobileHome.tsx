@@ -41,10 +41,10 @@ const QUICK_ITEMS = [
 ] as const;
 
 const ACTIVE_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
-  "MERGING", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
+  "MERGE_APPROVED", "MERGING", "CLASSIFY_APPROVED", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
 ]);
 const PENDING_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
-  "READY", "MERGE_COMPLETED", "REVIEW_REQUIRED", "MERGE_FAILED", "COPY_FAILED", "CLASSIFY_FAILED",
+  "READY", "MERGE_COMPLETED", "REVIEW_REQUIRED", "ERROR", "MERGE_FAILED", "COPY_FAILED", "CLASSIFY_FAILED",
 ]);
 
 function photoProgress(project: PhotoStorageProject) {
@@ -275,7 +275,7 @@ export default function MobileHome({
         </div>
         <div className={styles.homeHeaderActions}>
           <button type="button" onClick={() => onNavigate("clients")} aria-label="고객 검색"><Search size={19} /></button>
-          <button type="button" onClick={() => onNavigate("photo-workspace")} aria-label="사진 작업 알림">
+          <button type="button" onClick={() => onNavigate(pendingPhotoCount > 0 ? "photo-pending" : "photo-workspace")} aria-label="사진 작업 알림">
             <Bell size={19} />
             {pendingPhotoCount > 0 ? <i aria-hidden="true" /> : null}
           </button>
@@ -344,7 +344,7 @@ export default function MobileHome({
         </div>
       </section> : null}
 
-      {pendingPhotoCount > 0 ? <button type="button" className={styles.pendingPhotoCard} onClick={() => onNavigate("photo-workspace")}>
+      {pendingPhotoCount > 0 ? <button type="button" className={styles.pendingPhotoCard} onClick={() => onNavigate("photo-pending")}>
         <span><FolderOpen size={21} /></span>
         <span><strong>파일 분류 대기</strong><small>분류가 필요한 파일이 {pendingPhotoCount.toLocaleString("ko-KR")}개 있어요.</small></span>
         <b>{pendingPhotoCount.toLocaleString("ko-KR")}</b>

@@ -5,12 +5,8 @@ export type OliviaExecutionEngine = "hermes" | "legacy";
 
 export type OliviaEngineRouteReason =
   | "configured_legacy"
-  | "direct_execution_disabled"
-  | "tool_action"
-  | "fast_command"
   | "deterministic_action"
   | "database_fast_path"
-  | "ui_execution"
   | "conversation";
 
 export type OliviaEngineRoute = {
@@ -22,9 +18,9 @@ export type OliviaEngineRoute = {
 };
 
 /**
- * Hermes API Server의 MCP 호출이 복구되면 값 하나로 기존 경로에 복귀한다.
- * 새 배포가 별도 환경변수 설정 없이 즉시 안전한 Olivia 실행 경로를 사용하도록
- * 기본값은 ON이며, 정확히 "0"일 때만 끈다.
+ * 과거 Hermes MCP 장애 우회 플래그다. 현재는 호환성과 진단 로그를 위해 값을 읽되,
+ * 메시지마다 엔진을 바꾸는 용도로 쓰지 않는다. 사진 직접 실행은 별도의
+ * OLIVIA_PHOTO_DIRECT_EXECUTION 플래그만 사용한다.
  */
 export function isDirectToolExecutionEnabled(
   value = process.env.OLIVIA_DIRECT_TOOL_EXECUTION,
@@ -50,30 +46,16 @@ export function resolveOliviaEngineRoute(input: {
     };
   }
 
-  if (!input.directToolExecutionEnabled) {
-    return {
-      requestedEngine: "hermes",
-      actualEngine: "hermes",
-      useHermes: true,
-      directToolExecutionEnabled: false,
-      reason: "direct_execution_disabled",
-    };
-  }
-
   const directReason: OliviaEngineRouteReason | undefined =
     input.deterministicAction ? "deterministic_action"
-      : input.databaseFastPath ? "database_fast_path"
-        : input.uiExecutionIntent ? "ui_execution"
-          : input.requestClass === "TOOL_ACTION" ? "tool_action"
-            : input.requestClass === "FAST_COMMAND" ? "fast_command"
-              : undefined;
+      : input.databaseFastPath ? "database_fast_path" : undefined;
 
   if (directReason) {
     return {
       requestedEngine: "hermes",
       actualEngine: "legacy",
       useHermes: false,
-      directToolExecutionEnabled: true,
+      directToolExecutionEnabled: input.directToolExecutionEnabled,
       reason: directReason,
     };
   }
@@ -82,7 +64,7 @@ export function resolveOliviaEngineRoute(input: {
     requestedEngine: "hermes",
     actualEngine: "hermes",
     useHermes: true,
-    directToolExecutionEnabled: true,
+    directToolExecutionEnabled: input.directToolExecutionEnabled,
     reason: "conversation",
   };
 }

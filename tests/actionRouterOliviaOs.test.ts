@@ -64,6 +64,20 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(useOliviaDesktopStore.getState().windows["review-studio"]).toBeDefined();
   });
 
+  it("기존 사진/진단 별칭은 legacy iframe 대신 canonical native AppWindow를 연다", () => {
+    stubPathname("/");
+    executeOliviaAction({ type: "OPEN_FEATURE", href: "/select-match?clientId=client-1" });
+    let win = useOliviaDesktopStore.getState().windows["photo-workspace"];
+    expect(win).toBeDefined();
+    expect(win.context?.routeHref).toBe("/photo-sorting?tool=select-raw&clientId=client-1");
+    expect(useOliviaDesktopStore.getState().windows["legacy-route"]).toBeUndefined();
+
+    executeOliviaAction({ type: "OPEN_FEATURE", href: "/diagnosis" });
+    win = useOliviaDesktopStore.getState().windows["hospital-brand-image-diagnosis"];
+    expect(win).toBeDefined();
+    expect(useOliviaDesktopStore.getState().windows["legacy-route"]).toBeUndefined();
+  });
+
   it("매핑 없는 OPEN_FEATURE href도 Desktop compatibility Window에서 연다", () => {
     stubPathname("/");
     executeOliviaAction({ type: "OPEN_FEATURE", href: "/some-unmapped-feature" });
