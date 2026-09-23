@@ -24,6 +24,7 @@ import {
 } from "@/lib/olivia/mobile/resources";
 import MobileCurrentWorkCard, { type MobileWorkState } from "./MobileCurrentWorkCard";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
+import { isPhotoProjectActive, isPhotoProjectPendingVisible } from "@/lib/photo-storage/notificationPolicy";
 import type { PhotoStorageProject } from "@/lib/photo-storage/types";
 import type { MobileDocumentsSection } from "./MobileDocuments";
 import styles from "./OliviaMobileShell.module.css";
@@ -40,13 +41,6 @@ const QUICK_ITEMS = [
   { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
 ] as const;
 
-const ACTIVE_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
-  "MERGE_APPROVED", "MERGING", "CLASSIFY_APPROVED", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
-]);
-const PENDING_PHOTO_STATUSES = new Set<PhotoStorageProject["status"]>([
-  "READY", "MERGE_COMPLETED", "REVIEW_REQUIRED", "ERROR", "MERGE_FAILED", "COPY_FAILED", "CLASSIFY_FAILED",
-]);
-
 function photoProgress(project: PhotoStorageProject) {
   const progress = project.status === "MERGING" ? project.merge_progress
     : project.status.startsWith("CLASSIFY") ? project.classification_progress
@@ -54,11 +48,12 @@ function photoProgress(project: PhotoStorageProject) {
   const current = typeof progress.current === "number" ? progress.current : 0;
   const total = typeof progress.total === "number" ? progress.total : project.jpg_count;
   const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-  const status = project.status === "MERGING" ? "JPG 통합 중"
-    : project.status === "COPY_QUEUED" ? "복사 준비 중"
+  const status = project.status === "MERGE_APPROVED" ? "JPG 통합 준비 중"
+    : project.status === "MERGING" ? "JPG 통합 중"
+      : project.status === "CLASSIFY_APPROVED" || project.status === "COPY_QUEUED" ? "복사 준비 중"
       : project.status === "COPYING" ? "JPG 복사 중"
         : project.status === "COPY_VERIFYING" ? "복사 확인 중"
-          : project.status === "CLASSIFY_QUEUED" ? "분류 준비 중"
+          : project.status === "COPY_COMPLETED" || project.status === "CLASSIFY_QUEUED" ? "분류 준비 중"
             : project.status === "CLASSIFYING" ? "씬 분류 중"
               : "분류 확인 중";
   return { status, percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0 };
@@ -176,6 +171,7 @@ export default function MobileHome({
       const temporaryResources = (temporaryPayload.documents || [])
         .map((row: Record<string, unknown>) => normalizeMobileDocument(row))
         .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
+      const openTemporaryResources = temporaryResources.filter((item: MobileResource) => !["linked", "archived"].includes(item.status?.toLowerCase() || ""));
       const quoteResources = (quotesPayload.quotes || [])
         .map((row: Record<string, unknown>) => normalizeQuoteResource(row))
         .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
@@ -190,10 +186,10 @@ export default function MobileHome({
           if (!uniqueResources.has(key)) uniqueResources.set(key, item);
         });
       setRecentResources([...uniqueResources.values()].slice(0, 2));
-      if (contextualResource) {
+      if (contextualResource && isOpenMobileResourceStatus(contextualResource.status)) {
         setResource(contextualResource);
       } else {
-        const temporary = temporaryResources[0] || null;
+        const temporary = openTemporaryResources[0] || null;
         const canonical = [
           ...quoteResources,
           ...contractResources,
@@ -211,21 +207,26 @@ export default function MobileHome({
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    if (!("geolocation" in navigator)) return;
+    if (!("geolocation" in navigator) || !("permissions" in navigator)) return;
     let active = true;
-    navigator.geolocation.getCurrentPosition((position) => {
-      const params = new URLSearchParams({
-        latitude: String(position.coords.latitude),
-        longitude: String(position.coords.longitude),
-      });
-      void fetch(`/api/mobile/weather?${params}`, { cache: "no-store" })
-        .then((response) => response.ok ? response.json() : null)
-        .then((payload) => {
-          if (!active || !payload?.ok || !payload.weather) return;
-          setWeather({ ...payload.weather, location: typeof payload.location === "string" ? payload.location : null });
-        })
-        .catch(() => undefined);
-    }, () => undefined, { enableHighAccuracy: false, maximumAge: 15 * 60_000, timeout: 5_000 });
+    void navigator.permissions.query({ name: "geolocation" }).then((permission) => {
+      if (!active || permission.state !== "granted") return;
+      navigator.geolocation.getCurrentPosition((position) => {
+        const params = new URLSearchParams({
+          latitude: String(position.coords.latitude),
+          longitude: String(position.coords.longitude),
+        });
+        void fetch(`/api/mobile/weather?${params}`, { cache: "no-store" })
+          .then((response) => response.ok ? response.json() : null)
+          .then((payload) => {
+            if (!active || !payload?.ok || !payload.weather) return;
+            setWeather({ ...payload.weather, location: typeof payload.location === "string" ? payload.location : null });
+          })
+          .catch(() => undefined);
+      }, () => undefined, { enableHighAccuracy: false, maximumAge: 15 * 60_000, timeout: 5_000 });
+    }).catch(() => {
+      // Permissions API가 없거나 조회에 실패하면 홈 진입만으로 위치 권한을 요청하지 않는다.
+    });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -252,9 +253,9 @@ export default function MobileHome({
   }, [agentRuns, isSending]);
 
   const activePhotoProject = useMemo(() => projects
-    .filter((project) => ACTIVE_PHOTO_STATUSES.has(project.status))
+    .filter(isPhotoProjectActive)
     .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())[0] || null, [projects]);
-  const pendingPhotoCount = useMemo(() => projects.filter((project) => PENDING_PHOTO_STATUSES.has(project.status)).length, [projects]);
+  const pendingPhotoCount = useMemo(() => projects.filter((project) => isPhotoProjectPendingVisible(project)).length, [projects]);
 
   const handleQuick = (id: typeof QUICK_ITEMS[number]["id"]) => {
     if (id === "quote-contract") return onOpenDocuments("quote-contract");

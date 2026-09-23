@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { eventForStatus, validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
 import { syncPhotoMergeProject } from "@/lib/photo-storage/mergeSync";
+import { isPhotoProjectPendingVisible, sceneClassificationRequirement } from "@/lib/photo-storage/notificationPolicy";
 
 type Row = Record<string, unknown>;
 
@@ -95,6 +96,16 @@ async function postRetry(id: string) {
   return POST(new NextRequest(`http://localhost/api/photo-storage/projects/${id}/retry`, { method: "POST" }), { params: Promise.resolve({ id }) });
 }
 
+async function postDefer(id: string) {
+  const { POST } = await import("@/app/api/photo-storage/projects/[id]/defer/route");
+  return POST(new NextRequest(`http://localhost/api/photo-storage/projects/${id}/defer`, { method: "POST" }), { params: Promise.resolve({ id }) });
+}
+
+async function postComplete(id: string) {
+  const { POST } = await import("@/app/api/photo-storage/projects/[id]/complete/route");
+  return POST(new NextRequest(`http://localhost/api/photo-storage/projects/${id}/complete`, { method: "POST" }), { params: Promise.resolve({ id }) });
+}
+
 beforeEach(() => {
   currentDb = null;
 });
@@ -126,6 +137,26 @@ describe("photo storage server guards", () => {
   });
 });
 
+describe("mobile photo notification policy", () => {
+  it("requires both department and shooting mode before scene classification", () => {
+    expect(sceneClassificationRequirement({ nas_department: "dermatology", nas_shooting_mode: "field" })).toBe("required");
+    expect(sceneClassificationRequirement({ nas_department: null, nas_shooting_mode: null })).toBe("not_required");
+    expect(sceneClassificationRequirement({ nas_department: "dermatology", nas_shooting_mode: null })).toBe("incomplete");
+  });
+
+  it("keeps deferred notifications until the deadline and hides completed notifications", () => {
+    const now = Date.parse("2026-09-24T00:00:00.000Z");
+    const visible = {
+      status: "MERGE_COMPLETED" as const,
+      notification_deferred_until: "2026-09-27T00:00:00.000Z",
+      notification_dismissed_at: null,
+    };
+    expect(isPhotoProjectPendingVisible(visible, now)).toBe(true);
+    expect(isPhotoProjectPendingVisible({ ...visible, notification_deferred_until: "2026-09-23T00:00:00.000Z" }, now)).toBe(false);
+    expect(isPhotoProjectPendingVisible({ ...visible, notification_dismissed_at: "2026-09-24T00:00:00.000Z" }, now)).toBe(false);
+  });
+});
+
 describe("PHASE 6 two-step approval gate", () => {
   it("approves READY -> MERGE_APPROVED on first approval", async () => {
     const project = baseProject({ status: "READY" });
@@ -139,7 +170,12 @@ describe("PHASE 6 two-step approval gate", () => {
   });
 
   it("approves MERGE_COMPLETED -> CLASSIFY_APPROVED on second approval", async () => {
-    const project = baseProject({ status: "MERGE_COMPLETED", merged_jpg_count: 10 });
+    const project = baseProject({
+      status: "MERGE_COMPLETED",
+      merged_jpg_count: 10,
+      nas_department: "dermatology",
+      nas_shooting_mode: "field",
+    });
     currentDb = createFakeSupabase({ projects: [project], events: [] });
     const response = await postApprove(project.id as string);
     const body = await response.json();
@@ -147,6 +183,14 @@ describe("PHASE 6 two-step approval gate", () => {
     expect(body.project.status).toBe("CLASSIFY_APPROVED");
     expect(body.project.classify_approved_at).toBeTruthy();
     expect(body.project.approved_at).toBeTruthy();
+  });
+
+  it("does not approve scene classification when department and shooting mode are absent", async () => {
+    const project = baseProject({ status: "MERGE_COMPLETED", nas_department: null, nas_shooting_mode: null });
+    currentDb = createFakeSupabase({ projects: [project], events: [] });
+    const response = await postApprove(project.id as string);
+    expect(response.status).toBe(409);
+    expect(project.status).toBe("MERGE_COMPLETED");
   });
 
   it("rejects approval from an in-progress or terminal status with 409", async () => {
@@ -164,6 +208,33 @@ describe("PHASE 6 two-step approval gate", () => {
     expect(response.status).toBe(200);
     expect(body.idempotent).toBe(true);
     expect(body.project.status).toBe("MERGE_APPROVED");
+  });
+});
+
+describe("mobile photo notification actions", () => {
+  it("defers the notification for 72 hours without changing pipeline status", async () => {
+    const project = baseProject({ status: "MERGE_COMPLETED", notification_deferred_until: null, notification_dismissed_at: null });
+    currentDb = createFakeSupabase({ projects: [project], events: [] });
+    const before = Date.now();
+    const response = await postDefer(project.id as string);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.project.status).toBe("MERGE_COMPLETED");
+    expect(new Date(body.project.notification_deferred_until).getTime()).toBeGreaterThanOrEqual(before + 72 * 60 * 60 * 1000);
+  });
+
+  it("completes only the notification and preserves the project and NAS pipeline result", async () => {
+    const project = baseProject({ status: "MERGE_COMPLETED", merged_jpg_count: 10, notification_dismissed_at: null });
+    const event = { id: "event-1", project_id: project.id, status: "OPEN", event_type: "PHOTO_MERGE_COMPLETED" };
+    const store = { projects: [project], events: [event] };
+    currentDb = createFakeSupabase(store);
+    const response = await postComplete(project.id as string);
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.project.status).toBe("MERGE_COMPLETED");
+    expect(body.project.merged_jpg_count).toBe(10);
+    expect(body.project.notification_dismissed_at).toBeTruthy();
+    expect(store.events[0]).toMatchObject({ status: "ACKNOWLEDGED" });
   });
 });
 

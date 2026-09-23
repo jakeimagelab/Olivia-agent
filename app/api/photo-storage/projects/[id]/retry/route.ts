@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
-import { acknowledgePhotoStorageEvents, ensurePhotoStorageEvent, isInternalPhotoStorageRequest } from "@/lib/photo-storage/server";
+import { acknowledgePhotoStorageEvents, clearPhotoProjectNotificationState, ensurePhotoStorageEvent, isInternalPhotoStorageRequest } from "@/lib/photo-storage/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,9 +57,13 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       const { data: latest, error: latestError } = await db.from("photo_storage_projects").select("*").eq("id", id).maybeSingle();
       if (latestError) throw latestError;
       if (!latest) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
-      if (latest.status === targetStatus) return Response.json({ ok: true, project: latest, idempotent: true });
+      if (latest.status === targetStatus) {
+        await clearPhotoProjectNotificationState(db, id);
+        return Response.json({ ok: true, project: latest, idempotent: true });
+      }
       return Response.json({ ok: false, error: "프로젝트 상태가 변경되었습니다.", project: latest }, { status: 409 });
     }
+    await clearPhotoProjectNotificationState(db, id);
     await acknowledgePhotoStorageEvents(db, id);
     if (targetStatus === "CLASSIFY_APPROVED" || targetStatus === "MERGE_APPROVED") {
       await ensurePhotoStorageEvent(db, { projectId: id, projectName: updated.project_name, status: targetStatus });

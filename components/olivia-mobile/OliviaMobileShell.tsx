@@ -136,7 +136,7 @@ export default function OliviaMobileShell() {
     if (state.view === "conti") return <MobileContiFieldView />;
     if (state.view === "voice") return <MobileVoice />;
     if (state.view === "photo-workspace") return <MobilePhotoWorkspace />;
-    if (state.view === "photo-pending") return <MobilePhotoPending onBack={() => navigate({ view: "home" })} onOpenProject={() => navigate({ view: "photo-workspace" })} />;
+    if (state.view === "photo-pending") return <MobilePhotoPending onBack={() => navigate({ view: "home" })} />;
     if (state.view === "documents") return <MobileDocuments initialSection={documentsSection} onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} />;
     return <MobileOliviaChat onOpenPreview={(resource) => navigate({ view: "preview", ...resource })} onClose={() => navigate({ view: "home" }, "replace")} />;
   };

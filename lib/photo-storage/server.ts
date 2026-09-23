@@ -41,6 +41,28 @@ export function parseOptionalIsoDate(value: unknown, field: string): string | nu
   return value;
 }
 
+export function isMissingPhotoNotificationColumns(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const record = error as { code?: unknown; message?: unknown; details?: unknown };
+  const text = `${String(record.message || "")} ${String(record.details || "")}`;
+  return (record.code === "42703" || record.code === "PGRST204")
+    && (text.includes("notification_deferred_until") || text.includes("notification_dismissed_at"));
+}
+
+/**
+ * 상태 전이가 먼저 성공한 뒤 호출되므로, 알림 컬럼 정리 실패가 동일 작업을 재실행하게 만들면 안 된다.
+ * 아직 migration이 적용되지 않은 배포에서는 기존 파이프라인을 보존하고, 그 외 오류만 기록한다.
+ */
+export async function clearPhotoProjectNotificationState(db: SupabaseClient, projectId: string): Promise<void> {
+  const { error } = await db
+    .from("photo_storage_projects")
+    .update({ notification_deferred_until: null, notification_dismissed_at: null })
+    .eq("id", projectId);
+  if (!error) return;
+  if (isMissingPhotoNotificationColumns(error)) return;
+  console.error("[photo-storage notification state clear]", error);
+}
+
 export function eventForStatus(status: PhotoProjectStatus): { type: PhotoProjectEventType; message: string; requiresAction: boolean } {
   if (status === "READY") return { type: "PHOTO_PROJECT_READY", message: "촬영 파일이 확인되었습니다.", requiresAction: true };
   if (status === "REVIEW_REQUIRED") return { type: "PHOTO_PROJECT_REVIEW_REQUIRED", message: "촬영 파일을 확인해야 합니다.", requiresAction: true };

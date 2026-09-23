@@ -15,6 +15,7 @@ type PhotoProjectNotificationContextValue = {
   refresh: () => Promise<void>;
   approve: (projectId: string) => Promise<PhotoStorageProject>;
   defer: (projectId: string) => Promise<PhotoStorageProject>;
+  complete: (projectId: string) => Promise<PhotoStorageProject>;
   retry: (projectId: string) => Promise<PhotoStorageProject>;
 };
 
@@ -99,14 +100,22 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
     };
   }, [refresh]);
 
-  const transition = useCallback(async (projectId: string, action: "approve" | "defer" | "retry") => {
+  const transition = useCallback(async (projectId: string, action: "approve" | "defer" | "complete" | "retry") => {
     const response = await fetch(`/api/photo-storage/projects/${projectId}/${action}`, { method: "POST" });
     const payload = await response.json().catch(() => ({})) as { project?: PhotoStorageProject; error?: string };
-    if (!response.ok || !payload.project) throw new Error(payload.error || "프로젝트 상태를 변경하지 못했습니다.");
+    if (!response.ok || !payload.project) {
+      if (response.status === 409 && payload.project && mounted.current) {
+        setProjects((current) => current.map((project) => project.id === payload.project!.id ? payload.project! : project));
+      }
+      if (response.status === 409) await refresh();
+      throw new Error(payload.error || "프로젝트 상태를 변경하지 못했습니다.");
+    }
     if (mounted.current) {
       setProjects((current) => current.map((project) => project.id === payload.project!.id ? payload.project! : project));
-      if (action !== "retry") setLastAction({ project: payload.project, action: action === "approve" ? "APPROVED" : "DEFERRED" });
-      window.setTimeout(() => setLastAction((current) => current?.project.id === payload.project!.id ? null : current), 6000);
+      if (action === "approve" || action === "defer") {
+        setLastAction({ project: payload.project, action: action === "approve" ? "APPROVED" : "DEFERRED" });
+        window.setTimeout(() => setLastAction((current) => current?.project.id === payload.project!.id ? null : current), 6000);
+      }
     }
     await refresh();
     return payload.project;
@@ -116,6 +125,7 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
     projects, events, loading, error, lastAction, selectedProjectId, selectProject: setSelectedProjectId, refresh,
     approve: (id) => transition(id, "approve"),
     defer: (id) => transition(id, "defer"),
+    complete: (id) => transition(id, "complete"),
     retry: (id) => transition(id, "retry"),
   }), [projects, events, loading, error, lastAction, selectedProjectId, refresh, transition]);
 

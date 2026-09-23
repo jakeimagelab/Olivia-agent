@@ -139,9 +139,23 @@ describe("Olivia mobile PWA shell", () => {
     expect(home).toContain("uniqueResources");
     expect(home).toContain("slice(0, 2)");
     expect(home).toContain("recentDocumentList");
-    expect(home).toContain("navigator.geolocation");
+    expect(home).toContain('navigator.permissions.query({ name: "geolocation" })');
+    expect(home).toContain('permission.state !== "granted"');
+    expect(home).toContain("openTemporaryResources");
     expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
     expect(styles).toContain(".pendingPhotoCard");
+  });
+
+  it("controls pending photo projects inline without opening Photo Workspace", () => {
+    const pending = read("components/olivia-mobile/MobilePhotoPending.tsx");
+    const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
+    expect(pending).toContain("sceneClassificationRequirement(project)");
+    expect(pending).toContain('runAction(project, "approve")');
+    expect(pending).toContain('runAction(project, "defer")');
+    expect(pending).toContain('runAction(project, "complete")');
+    expect(pending).toContain("사진 파일은 삭제되지 않습니다");
+    expect(pending).not.toContain("onOpenProject");
+    expect(shell).not.toContain('onOpenProject={() => navigate({ view: "photo-workspace" })}');
   });
 
   it("uses the existing canonical conti read routes and keeps field completion local", () => {
