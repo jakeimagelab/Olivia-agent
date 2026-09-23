@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  checkHermesHealth, claimsUiExecutionCompletion, extractRequestedDocumentName, getOliviaAgentEngine,
+  checkHermesHealth, claimsUiExecutionCompletion, extractRequestedDocumentName, getOliviaAgentEngine, HERMES_CHAT_TIMEOUTS,
   isClientSearchRequest, isHermesFallbackSafe, isMutationIntent, isUiExecutionIntent, runHermesChat,
 } from "@/lib/hermes/client";
 import { recordHermesClientSearch, recordHermesToolCall } from "@/lib/hermes/toolAudit";
@@ -19,8 +19,45 @@ function sseWithUsage(text: string, usage: { prompt_tokens: number; completion_t
   );
 }
 
+function timedSse(signal: AbortSignal | null | undefined, events: Array<{ at: number; text?: string; close?: true }>) {
+  const timers: Array<ReturnType<typeof setTimeout>> = [];
+  return new Response(new ReadableStream({
+    start(controller) {
+      let finished = false;
+      const clear = () => {
+        for (const timer of timers) clearTimeout(timer);
+      };
+      const abort = () => {
+        if (finished) return;
+        finished = true;
+        clear();
+        controller.error(new DOMException("Aborted", "AbortError"));
+      };
+      signal?.addEventListener("abort", abort, { once: true });
+      for (const event of events) {
+        timers.push(setTimeout(() => {
+          if (finished || signal?.aborted) return;
+          if (event.close) {
+            finished = true;
+            clear();
+            controller.close();
+            return;
+          }
+          controller.enqueue(new TextEncoder().encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: event.text ?? "" } }] })}\n\n`,
+          ));
+        }, event.at));
+      }
+    },
+    cancel() {
+      for (const timer of timers) clearTimeout(timer);
+    },
+  }), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+}
+
 describe("Hermes chat adapter", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
@@ -475,5 +512,97 @@ describe("Hermes chat adapter", () => {
     }), { status: 200 })));
     const error = await runHermesChat({ message: "안녕" }).catch((caught) => caught);
     expect(isHermesFallbackSafe(error)).toBe(false);
+  });
+
+  it("연결 단계가 제한 시간을 넘으면 fallback 가능한 연결 timeout으로 종료한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    })));
+
+    const pending = runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(HERMES_CHAT_TIMEOUTS.connectMs);
+    const error = await pending;
+
+    expect(error).toMatchObject({ message: expect.stringContaining("연결 시간이 초과") });
+    expect(isHermesFallbackSafe(error)).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith("[HERMES ERROR]", expect.objectContaining({ errorType: "connect_timeout" }));
+  });
+
+  it("첫 의미 있는 이벤트가 없으면 fallback 가능한 first-event timeout으로 종료한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => timedSse(init?.signal, [])));
+
+    const pending = runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(HERMES_CHAT_TIMEOUTS.firstEventMs);
+    const error = await pending;
+
+    expect(error).toMatchObject({ message: expect.stringContaining("첫 응답 생성 시간이 초과") });
+    expect(isHermesFallbackSafe(error)).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith("[HERMES ERROR]", expect.objectContaining({ errorType: "first_event_timeout" }));
+  });
+
+  it("첫 텍스트 뒤 스트림이 멈추면 fallback 불가 idle timeout으로 종료한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => timedSse(init?.signal, [
+      { at: 0, text: "진행 중" },
+    ])));
+
+    const pending = runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(HERMES_CHAT_TIMEOUTS.idleMs);
+    const error = await pending;
+
+    expect(error).toMatchObject({ message: expect.stringContaining("스트림이 멈춰") });
+    expect(isHermesFallbackSafe(error)).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith("[HERMES ERROR]", expect.objectContaining({ errorType: "idle_timeout" }));
+  });
+
+  it("데이터가 계속 도착하면 45초를 넘어도 정상 완료한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => timedSse(init?.signal, [
+      { at: 0, text: "가" },
+      { at: 17_000, text: "나" },
+      { at: 34_000, text: "다" },
+      { at: 46_000, text: "라" },
+      { at: 47_000, close: true },
+    ])));
+
+    const pending = runHermesChat({ message: "안녕" });
+    await vi.advanceTimersByTimeAsync(47_000);
+
+    await expect(pending).resolves.toMatchObject({ message: "가나다라" });
+  });
+
+  it("진행 중이어도 전체 상한에서는 fallback 불가 total timeout으로 종료한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => timedSse(init?.signal, [
+      { at: 0, text: "가" },
+      { at: 15_000, text: "나" },
+      { at: 30_000, text: "다" },
+      { at: 45_000, text: "라" },
+    ])));
+
+    const pending = runHermesChat({ message: "안녕" }).catch((caught) => caught);
+    await vi.advanceTimersByTimeAsync(HERMES_CHAT_TIMEOUTS.totalMs);
+    const error = await pending;
+
+    expect(error).toMatchObject({ message: expect.stringContaining("전체 처리 시간이 초과") });
+    expect(isHermesFallbackSafe(error)).toBe(false);
+    expect(warnSpy).toHaveBeenCalledWith("[HERMES ERROR]", expect.objectContaining({ errorType: "total_timeout" }));
   });
 });

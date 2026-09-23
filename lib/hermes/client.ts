@@ -11,10 +11,18 @@ import type {
 } from "@/lib/hermes/types";
 import { isOliviaMutationIntent, isOliviaUiExecutionIntent } from "@/lib/olivia/v2/executionIntent";
 
-// Vercel의 60초 함수 제한보다 먼저 자체 실패로 닫아야 브라우저가 끝없는 streaming 상태에
-// 남지 않는다. 폴백/오류 안내를 전송할 15초 여유를 둔다.
-const HERMES_TIMEOUT_MS = 45_000;
+// 연결, 첫 의미 있는 응답, 스트림 유휴를 하나의 고정 타이머로 묶으면 정상적으로 진행 중인
+// 도구 턴도 시작 45초 뒤 강제로 끊긴다. 각 단계를 따로 감시하되 Vercel의 60초 함수 제한보다
+// 먼저 전체 요청을 닫아 오류 전송과 정리 시간을 남긴다.
+export const HERMES_CHAT_TIMEOUTS = {
+  connectMs: 8_000,
+  firstEventMs: 25_000,
+  idleMs: 18_000,
+  totalMs: 52_000,
+} as const;
 const HERMES_HEALTH_TIMEOUT_MS = 5_000;
+
+type HermesTimeoutPhase = "connect" | "first_event" | "idle" | "total";
 
 export class HermesChatError extends Error {
   constructor(message: string, public readonly fallbackSafe: boolean) {
@@ -49,7 +57,7 @@ function getHermesConfig() {
 
 type HermesErrorLogInput = {
   requestId: string;
-  errorType: "fetch_failed" | "timeout" | "http_error" | "stream_error";
+  errorType: "fetch_failed" | "connect_timeout" | "first_event_timeout" | "idle_timeout" | "total_timeout" | "http_error" | "stream_error";
   httpStatus?: number;
   startedAt: number;
 };
@@ -62,6 +70,20 @@ function logHermesError({ requestId, errorType, httpStatus, startedAt }: HermesE
     httpStatus: httpStatus ?? null,
     elapsedMs: Math.round(performance.now() - startedAt),
   });
+}
+
+function hermesTimeoutErrorType(phase: HermesTimeoutPhase): HermesErrorLogInput["errorType"] {
+  if (phase === "connect") return "connect_timeout";
+  if (phase === "first_event") return "first_event_timeout";
+  if (phase === "idle") return "idle_timeout";
+  return "total_timeout";
+}
+
+function hermesTimeoutMessage(phase: HermesTimeoutPhase): string {
+  if (phase === "connect") return "응답 생성 단계에서 Hermes Agent 연결 시간이 초과되었습니다.";
+  if (phase === "first_event") return "응답 생성 단계에서 Hermes Agent의 첫 응답 생성 시간이 초과되었습니다.";
+  if (phase === "idle") return "응답 생성 단계에서 Hermes Agent 스트림이 멈춰 시간이 초과되었습니다.";
+  return "응답 생성 단계에서 Hermes Agent 전체 처리 시간이 초과되었습니다.";
 }
 
 export type HermesHealthResult = {
@@ -230,9 +252,49 @@ export async function runHermesChat(input: {
     },
   });
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HERMES_TIMEOUT_MS);
+  let timeoutPhase: HermesTimeoutPhase | undefined;
+  let connectTimer: ReturnType<typeof setTimeout> | undefined;
+  let firstEventTimer: ReturnType<typeof setTimeout> | undefined;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let totalTimer: ReturnType<typeof setTimeout> | undefined;
+  let meaningfulEventStarted = false;
+
+  const abortForTimeout = (phase: HermesTimeoutPhase) => {
+    if (controller.signal.aborted) return;
+    timeoutPhase = phase;
+    controller.abort();
+  };
+  const clearTimer = (timer: ReturnType<typeof setTimeout> | undefined) => {
+    if (timer) clearTimeout(timer);
+  };
+  const clearPhaseTimers = () => {
+    clearTimer(connectTimer);
+    clearTimer(firstEventTimer);
+    clearTimer(idleTimer);
+    clearTimer(totalTimer);
+    connectTimer = undefined;
+    firstEventTimer = undefined;
+    idleTimer = undefined;
+    totalTimer = undefined;
+  };
+  const resetIdleTimer = () => {
+    clearTimer(idleTimer);
+    idleTimer = setTimeout(() => abortForTimeout("idle"), HERMES_CHAT_TIMEOUTS.idleMs);
+  };
+  const markMeaningfulEvent = () => {
+    if (!meaningfulEventStarted) {
+      meaningfulEventStarted = true;
+      clearTimer(firstEventTimer);
+      firstEventTimer = undefined;
+    }
+    resetIdleTimer();
+  };
+
+  connectTimer = setTimeout(() => abortForTimeout("connect"), HERMES_CHAT_TIMEOUTS.connectMs);
+  totalTimer = setTimeout(() => abortForTimeout("total"), HERMES_CHAT_TIMEOUTS.totalMs);
   const abort = () => controller.abort();
   input.signal?.addEventListener("abort", abort, { once: true });
+  if (input.signal?.aborted) abort();
 
   let response: Response;
   try {
@@ -257,17 +319,23 @@ export async function runHermesChat(input: {
     });
   } catch {
     clearHermesExecutionContext(requestId);
-    clearTimeout(timeout);
+    clearPhaseTimers();
     input.signal?.removeEventListener("abort", abort);
-    const timedOut = controller.signal.aborted && !input.signal?.aborted;
-    logHermesError({ requestId, errorType: timedOut ? "timeout" : "fetch_failed", startedAt });
-    if (timedOut) throw new HermesChatError("응답 생성 단계에서 Hermes Agent 응답 시간이 초과되었습니다.", true);
+    const failedPhase = timeoutPhase;
+    const timedOut = failedPhase !== undefined && !input.signal?.aborted;
+    logHermesError({ requestId, errorType: failedPhase && !input.signal?.aborted ? hermesTimeoutErrorType(failedPhase) : "fetch_failed", startedAt });
+    if (failedPhase && timedOut) throw new HermesChatError(hermesTimeoutMessage(failedPhase), true);
     throw new HermesChatError("Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
   }
 
+  clearTimer(connectTimer);
+  connectTimer = undefined;
+  const firstEventRemainingMs = Math.max(1, HERMES_CHAT_TIMEOUTS.firstEventMs - (performance.now() - startedAt));
+  firstEventTimer = setTimeout(() => abortForTimeout("first_event"), firstEventRemainingMs);
+
   if (!response.ok || !response.body) {
     clearHermesExecutionContext(requestId);
-    clearTimeout(timeout);
+    clearPhaseTimers();
     input.signal?.removeEventListener("abort", abort);
     logHermesError({ requestId, errorType: "http_error", httpStatus: response.status, startedAt });
     throw new HermesChatError(response.status === 401
@@ -304,6 +372,7 @@ export async function runHermesChat(input: {
     usage = parseHermesUsage(payload) ?? usage;
 
     if (eventName === "hermes.tool.progress") {
+      markMeaningfulEvent();
       const name = normalizeToolName(eventValue(payload, ["tool_name", "tool", "name"]));
       const id = eventValue(payload, ["tool_call_id", "toolCallId", "id"]) || crypto.randomUUID();
       const status = eventValue(payload, ["status", "phase", "state"]);
@@ -325,6 +394,7 @@ export async function runHermesChat(input: {
     const choices = (payload as { choices?: Array<{ delta?: { content?: unknown } }> }).choices;
     const content = choices?.[0]?.delta?.content;
     if (typeof content === "string" && content) {
+      markMeaningfulEvent();
       if (firstTextDeltaMs === undefined) {
         firstTextDeltaMs = performance.now() - startedAt;
         input.callbacks?.onFirstTextDelta?.(Math.round(firstTextDeltaMs));
@@ -338,6 +408,9 @@ export async function runHermesChat(input: {
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      // 첫 의미 있는 이벤트 이후에는 실제 데이터가 계속 도착하는 한 정상 진행으로 본다.
+      // keep-alive/usage chunk도 전송 경로가 살아 있다는 증거이므로 유휴 타이머를 갱신한다.
+      if (meaningfulEventStarted) resetIdleTimer();
       buffer += decoder.decode(value, { stream: true }).replaceAll("\r\n", "\n");
       let boundary = buffer.indexOf("\n\n");
       while (boundary >= 0) {
@@ -349,12 +422,21 @@ export async function runHermesChat(input: {
     if (buffer.trim()) handleEvent(buffer);
   } catch {
     clearHermesExecutionContext(requestId);
-    const timedOut = controller.signal.aborted && !input.signal?.aborted;
-    logHermesError({ requestId, errorType: timedOut ? "timeout" : "stream_error", startedAt });
-    if (timedOut) throw new HermesChatError("응답 생성 단계에서 Hermes Agent 응답 시간이 초과되었습니다.", false);
+    // SSE progress가 누락됐더라도 MCP 감사 기록이 있으면 실제 도구가 시작된 것이다. 이 경우
+    // legacy fallback을 허용하면 같은 쓰기 작업을 두 번 실행할 수 있으므로 반드시 차단한다.
+    const failedSearchAudit = consumeHermesClientSearch(requestId);
+    const failedToolAudits = consumeHermesToolCalls(requestId);
+    const toolActivityStarted = toolCalls.size > 0 || Boolean(failedSearchAudit) || failedToolAudits.length > 0;
+    const failedPhase = timeoutPhase;
+    const timedOut = failedPhase !== undefined && !input.signal?.aborted;
+    logHermesError({ requestId, errorType: failedPhase && !input.signal?.aborted ? hermesTimeoutErrorType(failedPhase) : "stream_error", startedAt });
+    if (failedPhase && timedOut) {
+      const fallbackSafe = !meaningfulEventStarted && !finalText && !toolActivityStarted;
+      throw new HermesChatError(hermesTimeoutMessage(failedPhase), fallbackSafe);
+    }
     throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
-    clearTimeout(timeout);
+    clearPhaseTimers();
     input.signal?.removeEventListener("abort", abort);
   }
 

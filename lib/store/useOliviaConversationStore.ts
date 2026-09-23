@@ -71,7 +71,9 @@ let refreshPromise: Promise<void> | null = null;
 let cacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 const CONVERSATION_CACHE_KEY = "olivia:conversation:v2";
-export const OLIVIA_CHAT_REQUEST_TIMEOUT_MS = 50_000;
+// 서버의 Hermes 전체 상한(52초)이 오류/정리 이벤트를 보낼 시간을 확보하되 Vercel 60초
+// 함수 제한보다 먼저 브라우저도 종료한다.
+export const OLIVIA_CHAT_REQUEST_TIMEOUT_MS = 57_000;
 
 function visibleChatFailure(error: unknown): string {
   const message = error instanceof Error ? error.message : "";
