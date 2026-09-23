@@ -11,7 +11,9 @@ import type {
 } from "@/lib/hermes/types";
 import { isOliviaMutationIntent, isOliviaUiExecutionIntent } from "@/lib/olivia/v2/executionIntent";
 
-const HERMES_TIMEOUT_MS = 60_000;
+// Vercel의 60초 함수 제한보다 먼저 자체 실패로 닫아야 브라우저가 끝없는 streaming 상태에
+// 남지 않는다. 폴백/오류 안내를 전송할 15초 여유를 둔다.
+const HERMES_TIMEOUT_MS = 45_000;
 const HERMES_HEALTH_TIMEOUT_MS = 5_000;
 
 export class HermesChatError extends Error {
@@ -259,7 +261,7 @@ export async function runHermesChat(input: {
     input.signal?.removeEventListener("abort", abort);
     const timedOut = controller.signal.aborted && !input.signal?.aborted;
     logHermesError({ requestId, errorType: timedOut ? "timeout" : "fetch_failed", startedAt });
-    if (timedOut) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", true);
+    if (timedOut) throw new HermesChatError("응답 생성 단계에서 Hermes Agent 응답 시간이 초과되었습니다.", true);
     throw new HermesChatError("Hermes Agent에 연결할 수 없습니다. Mac Studio Hermes Server 상태를 확인해주세요.", true);
   }
 
@@ -349,7 +351,7 @@ export async function runHermesChat(input: {
     clearHermesExecutionContext(requestId);
     const timedOut = controller.signal.aborted && !input.signal?.aborted;
     logHermesError({ requestId, errorType: timedOut ? "timeout" : "stream_error", startedAt });
-    if (timedOut) throw new HermesChatError("Hermes Agent 응답 시간이 초과되었습니다.", false);
+    if (timedOut) throw new HermesChatError("응답 생성 단계에서 Hermes Agent 응답 시간이 초과되었습니다.", false);
     throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
     clearTimeout(timeout);

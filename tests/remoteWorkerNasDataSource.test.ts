@@ -73,6 +73,44 @@ describe("Remote Worker NAS data source", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
+  it("uses the explicit root contract for the Workstation top level", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: { id: "018e2f30-92af-78b1-8f21-67f4404f5027", action: "LIST_FOLDER", status: "QUEUED" },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: {
+          id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+          action: "LIST_FOLDER",
+          status: "COMPLETED",
+          result: { ok: true, root: "Workstation(M.2SSD)", path: "", entries: [] },
+        },
+      }));
+    const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
+
+    await source.listFolder("", { foldersOnly: true });
+
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      action: "LIST_FOLDER",
+      payload: { root: true, folders_only: true },
+    });
+  });
+
+  it("aborts a hanging Worker request at the shared deadline and reports the stage", async () => {
+    const fetcher = vi.fn<typeof fetch>((_input, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+    }));
+    const source = createRemoteWorkerNasDataSource({ fetcher, timeoutMs: 15 });
+
+    await expect(source.listFolder("")).rejects.toMatchObject({
+      name: "RemoteNasDataSourceError",
+      stage: "folder_lookup_job_creation",
+      message: expect.stringContaining("잡 생성 시간이 초과"),
+    });
+  });
+
   it("requests folders only and defensively removes file entries", async () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({

@@ -19,6 +19,7 @@ const execFileAsync = promisify(execFile);
 
 afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
   await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
@@ -139,6 +140,7 @@ describe("Mac Studio Worker repository scripts", () => {
     ["omitted", {}],
     ["empty", { remote_path: "" }],
     ["null", { remote_path: null }],
+    ["explicit", { root: true }],
   ])("treats a %s LIST_FOLDER path as SOURCE_ROOT and preserves NFD entry paths", async (_label, payload) => {
     const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-list-root-"));
     temporaryDirectories.push(root);
@@ -146,6 +148,7 @@ describe("Mac Studio Worker repository scripts", () => {
     await mkdir(path.join(root, rawFolderName));
 
     const reports: Record<string, unknown>[] = [];
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     vi.stubGlobal("fetch", vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       reports.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
@@ -178,6 +181,36 @@ describe("Mac Studio Worker repository scripts", () => {
           type: "folder",
         }],
       });
+      expect(info).toHaveBeenCalledWith("[remote-bridge] LIST_FOLDER completed: ROOT");
+    } finally {
+      for (const [key, value] of Object.entries(previousEnvironment)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  });
+
+  it("rejects a LIST_FOLDER payload that combines root and a child path", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-list-conflict-"));
+    temporaryDirectories.push(root);
+    const reports: Record<string, unknown>[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      reports.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    }));
+    const previousEnvironment = {
+      REMOTE_API_BASE: process.env.REMOTE_API_BASE,
+      OLIVIA_WORKER_TOKEN: process.env.OLIVIA_WORKER_TOKEN,
+      SOURCE_ROOT: process.env.SOURCE_ROOT,
+    };
+    try {
+      process.env.REMOTE_API_BASE = "https://olivia.example.test";
+      process.env.OLIVIA_WORKER_TOKEN = "existing-worker-token";
+      process.env.SOURCE_ROOT = root;
+
+      await expect(runClaimedJob(job("LIST_FOLDER", { root: true, remote_path: "0911_WINF" }), repoRoot)).resolves.toBe(false);
+      expect(reports.at(-1)).toMatchObject({ status: "FAILED" });
+      expect(String(reports.at(-1)?.error)).toContain("동시에 지정");
     } finally {
       for (const [key, value] of Object.entries(previousEnvironment)) {
         if (value === undefined) delete process.env[key];

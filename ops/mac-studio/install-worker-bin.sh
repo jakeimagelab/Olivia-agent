@@ -11,17 +11,22 @@ TIMESTAMP="$(date '+%Y%m%d-%H%M%S')"
 BACKUP_DIR="$BACKUP_ROOT/worker-bin-$TIMESTAMP"
 NEW_BIN="$WORKER_HOME/.worker-bin-install-$TIMESTAMP-$$"
 FROM_HOOK=0
+RESTART_WORKER=0
 
 if [[ -e "$BACKUP_DIR" ]]; then
   BACKUP_DIR="$BACKUP_ROOT/worker-bin-$TIMESTAMP-$$"
 fi
 
-if [[ "${1:-}" == "--from-hook" ]]; then
-  FROM_HOOK=1
-elif [[ -n "${1:-}" ]]; then
-  print -u2 -- "사용법: $0 [--from-hook]"
-  exit 2
-fi
+for argument in "$@"; do
+  case "$argument" in
+    --from-hook) FROM_HOOK=1 ;;
+    --restart) RESTART_WORKER=1 ;;
+    *)
+      print -u2 -- "사용법: $0 [--from-hook] [--restart]"
+      exit 2
+      ;;
+  esac
+done
 
 if [[ -z "$WORKER_HOME" || "$WORKER_HOME" == "/" || "$WORKER_HOME" == "$HOME" ]]; then
   print -u2 -- "[install] 안전하지 않은 OLIVIA_WORKER_HOME입니다: $WORKER_HOME"
@@ -105,6 +110,20 @@ fi
 print -- "[install] 설치 완료: $TARGET_BIN"
 print -- "[install] 리포지토리: $REPO_ROOT"
 print -- "[install] worker.env, logs, state, LaunchAgent는 변경하지 않았습니다."
-if [[ "$FROM_HOOK" == "0" ]]; then
+if ! cmp -s "$SOURCE_BIN/worker.sh" "$TARGET_BIN/worker.sh" || ! cmp -s "$SOURCE_BIN/remote-bridge.sh" "$TARGET_BIN/remote-bridge.sh"; then
+  print -u2 -- "[install] 설치 검증 실패: 리포지토리와 설치본이 다릅니다."
+  exit 1
+fi
+print -- "[install] 설치본 검증 완료: worker.sh / remote-bridge.sh"
+
+if [[ "$RESTART_WORKER" == "1" ]]; then
+  WORKER_SERVICE="gui/$(id -u)/com.olivia.macstudio.oliviaworker"
+  if launchctl print "$WORKER_SERVICE" >/dev/null 2>&1; then
+    launchctl kickstart -k "$WORKER_SERVICE"
+    print -- "[install] OliviaWorker 재시작 완료: $WORKER_SERVICE"
+  else
+    print -u2 -- "[install] OliviaWorker LaunchAgent가 로드되어 있지 않아 재시작을 건너뜁니다: $WORKER_SERVICE"
+  fi
+elif [[ "$FROM_HOOK" == "0" ]]; then
   print -- "[install] 실행 중인 Worker에는 재시작 후 새 worker.sh가 적용됩니다."
 fi

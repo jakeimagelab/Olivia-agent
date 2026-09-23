@@ -10,11 +10,10 @@ LOG_FILE="$LOG_DIR/worker-install.log"
 [[ -x "$INSTALLER" ]] || exit 0
 mkdir -p "$LOG_DIR"
 
-if "$INSTALLER" --from-hook >>"$LOG_FILE" 2>&1; then
-  print -- "[OliviaWorker] git pull 후 worker bin 자동 갱신 완료"
+if "$INSTALLER" --from-hook --restart >>"$LOG_FILE" 2>&1; then
+  print -- "[OliviaWorker] git pull 후 worker bin 자동 갱신·재시작 완료"
   exit 0
 fi
 
 print -u2 -- "[OliviaWorker] worker bin 자동 갱신 실패: $LOG_FILE"
 exit 1
-

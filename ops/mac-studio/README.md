@@ -8,10 +8,9 @@
 Mac Studio 터미널에서 실행한다. 기존 ZIP 폴더는 삭제하지 않고 백업 이름으로 이동한다.
 
 ```zsh
-cd ~/UGnasync/Cloade
-mv Olivia-agent-main "Olivia-agent-main.zip-backup-$(date +%Y%m%d-%H%M%S)"
-git clone git@github.com:jakeimagelab/Olivia-agent.git Olivia-agent-main
-cd Olivia-agent-main
+mv ~/UGnasync/Cloade/Olivia-agent-main "$HOME/UGnasync/Cloade/Olivia-agent-main.zip-backup-$(date +%Y%m%d-%H%M%S)"
+git clone git@github.com:jakeimagelab/Olivia-agent.git ~/olivia-worker
+cd ~/olivia-worker
 npm ci
 ```
 
@@ -20,9 +19,10 @@ SSH 인증이 설정되지 않았다면 GitHub에서 clone 권한을 먼저 연�
 
 ## 2. Worker bin 최초 설치
 
+현재 운영 clone이 `~/olivia-worker`라면 다음 한 줄을 사용한다.
+
 ```zsh
-cd ~/UGnasync/Cloade/Olivia-agent-main
-./ops/mac-studio/install-worker-bin.sh
+cd ~/olivia-worker && git pull --ff-only origin main && ./ops/mac-studio/install-worker-bin.sh --restart
 ```
 
 설치기는 다음을 수행한다.
@@ -44,7 +44,7 @@ bin을 즉시 복원한다.
 REMOTE_API_BASE=https://olivia.photoclinic.kr
 OLIVIA_WORKER_TOKEN=기존_워커_토큰
 OLIVIA_WORKER_ID=jake-macstudio-01
-OLIVIA_REPO_ROOT=/Users/jakemacstudio/UGnasync/Cloade/Olivia-agent-main
+OLIVIA_REPO_ROOT=/Users/jakemacstudio/olivia-worker
 OLIVIA_PHOTO_SOURCE_ROOT="/Volumes/Workstation(M.2SSD)"
 OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
 ```
@@ -54,7 +54,7 @@ OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
 
 ## 4. Worker 재시작과 확인
 
-OliviaWorker.app LaunchAgent를 쓰는 현재 구조라면 설치 후 한 번 재시작한다.
+`--restart`를 사용하지 않은 경우 OliviaWorker.app LaunchAgent를 한 번 재시작한다.
 
 ```zsh
 launchctl kickstart -k "gui/$(id -u)/com.olivia.macstudio.oliviaworker"
@@ -67,8 +67,16 @@ tail -f ~/OliviaWorker/logs/launch.err.log
 launchctl list | grep -i olivia
 ```
 
-첫 검증은 `PING` 또는 읽기 전용 원격 폴더 조회로 한다. 실제 사진 작업 전에는
-Workstation과 Agentstation 접근 상태가 `ACCESSIBLE`인지 확인한다.
+설치본과 저장소가 같은지 확인한 뒤, 채팅/원격 Finder에서 최상위 폴더를 한 번 조회한다.
+
+```zsh
+cmp ~/olivia-worker/ops/mac-studio/bin/worker.sh ~/OliviaWorker/bin/worker.sh
+cmp ~/olivia-worker/ops/mac-studio/bin/remote-bridge.sh ~/OliviaWorker/bin/remote-bridge.sh
+tail -100 ~/OliviaWorker/logs/launch.err.log | grep 'LIST_FOLDER completed: ROOT'
+```
+
+마지막 명령에 `LIST_FOLDER completed: ROOT`가 나오면 명시적 ROOT 조회가 설치본까지 도달한
+것이다. 실제 사진 작업 전에는 Workstation과 Agentstation 접근 상태가 `ACCESSIBLE`인지 확인한다.
 
 ## 5. 이후 업데이트
 
@@ -76,8 +84,8 @@ Workstation과 Agentstation 접근 상태가 `ACCESSIBLE`인지 확인한다.
 다음 명령만 실행하면 pull 직후 `~/OliviaWorker/bin`도 자동 갱신된다.
 
 ```zsh
-cd ~/UGnasync/Cloade/Olivia-agent-main
-git pull --ff-only
+cd ~/olivia-worker
+git pull --ff-only origin main
 ```
 
 자동 설치 결과는 다음 로그에 남는다.
@@ -90,12 +98,12 @@ tail -100 ~/OliviaWorker/logs/worker-install.log
 그 경우에는 다음 한 줄을 사용한다.
 
 ```zsh
-git pull --ff-only && ./ops/mac-studio/install-worker-bin.sh
+git pull --ff-only origin main && ./ops/mac-studio/install-worker-bin.sh --restart
 ```
 
-`git pull`은 실행 중인 프로세스를 자동 재시작하지 않는다. worker script 자체가 변경된
-릴리스에서는 위 `launchctl kickstart`를 한 번 실행한다. job별로 새로 실행되는 bridge와
-runner 코드는 pull/install 직후 새 버전을 사용한다.
+설치기가 연결한 tracked `post-merge` hook은 pull 직후 bin 설치와 OliviaWorker 재시작까지
+수행한다. `OLIVIA_SKIP_GIT_HOOK=1`로 hook을 설치하지 않은 환경에서는 위의 installer
+`--restart` 한 줄을 직접 실행한다.
 
 ## 6. 오류 확인
 

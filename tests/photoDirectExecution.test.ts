@@ -62,6 +62,8 @@ describe("사진 작업 직접 실행 명령 파서", () => {
     ["Workstation에서 0918_삼칠갈비 원본 분리해줘", "source_prep", ["0918_삼칠갈비"]],
     ["0918_삼칠갈비 RAW와 JPG로 분리해줘", "source_prep", ["0918_삼칠갈비"]],
     ["르셀청담 JPG 통합해줘", "source_prep", ["르셀청담"]],
+    ["올리비아, 0911_WINF > JPG만 분리해줄래", "source_prep", ["0911_WINF"]],
+    ["0911_WINF JPG만 줄래", "source_prep", ["0911_WINF"]],
     ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep", ["르셀청담", "세무사회"]],
     ["삼칠갈비 씬별 분류해줘", "scene_sort", ["삼칠갈비"]],
     ["삼칠갈비 2차 분류해줘", "scene_sort", ["삼칠갈비"]],
@@ -198,6 +200,36 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
       "start_photo_source_prep",
     ]);
     expect(executeTool.mock.calls[1][1]).toEqual({ query: "0918_삼칠갈비" });
+  });
+
+  it("검색 실패 뒤 현재 답변의 폴더명만 재검색하고 이전 요청 문장을 합치지 않는다", async () => {
+    const executeTool = executor({
+      folders: {
+        "0911 WINF": [],
+        "0911_WINF": [candidate("0911_WINF")],
+      },
+    });
+    const first = await executePhotoDirectTurn({
+      enabled: true,
+      userMessage: "올리비아, 0911 WINF > JPG만 분리해줄래",
+      hermesToolNames: [],
+      context,
+      executeTool,
+    });
+    expect(first).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "folder_retry" } });
+
+    const second = await executePhotoDirectTurn({
+      enabled: true,
+      userMessage: "0911_WINF",
+      hermesToolNames: [],
+      pendingState: first.pendingState ?? undefined,
+      context,
+      executeTool,
+    });
+
+    expect(second).toMatchObject({ handled: true, reason: "executed" });
+    expect(executeTool.mock.calls[1]?.[1]).toEqual({ query: "0911_WINF" });
+    expect(executeTool.mock.calls.map(([, input]) => input.query).filter(Boolean)).toEqual(["0911 WINF", "0911_WINF"]);
   });
 
   it("Scene 분류는 폴더를 확정해도 진료과와 촬영모드 전에는 시작하지 않는다", async () => {

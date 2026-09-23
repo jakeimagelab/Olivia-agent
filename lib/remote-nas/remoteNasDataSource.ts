@@ -18,7 +18,7 @@ import {
 } from "./types";
 
 export const REMOTE_WORKER_NAS_POLL_INTERVAL_MS = 800;
-export const REMOTE_WORKER_NAS_TIMEOUT_MS = 20_000;
+export const REMOTE_WORKER_NAS_TIMEOUT_MS = 15_000;
 
 const HIDDEN_SYSTEM_ITEMS = new Set(["#recycle", ".ds_store", "@eadir"]);
 
@@ -41,13 +41,20 @@ type RemoteWorkerNasDataSourceOptions = {
   timeoutMs?: number;
 };
 
+export type RemoteNasFailureStage =
+  | "folder_lookup_job_creation"
+  | "folder_lookup_worker_wait"
+  | "folder_lookup_result";
+
 export class RemoteNasDataSourceError extends Error {
   readonly connection: RemoteNasConnectionState;
+  readonly stage?: RemoteNasFailureStage;
 
-  constructor(message: string, connection: RemoteNasConnectionState) {
+  constructor(message: string, connection: RemoteNasConnectionState, stage?: RemoteNasFailureStage) {
     super(message);
     this.name = "RemoteNasDataSourceError";
     this.connection = connection;
+    this.stage = stage;
   }
 }
 
@@ -61,6 +68,30 @@ function createAbortError(): DOMException {
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw createAbortError();
+}
+
+function createDeadlineSignal(timeoutMs: number, externalSignal?: AbortSignal): {
+  signal: AbortSignal;
+  timedOut: () => boolean;
+  dispose: () => void;
+} {
+  const controller = new AbortController();
+  let deadlineReached = false;
+  const abortFromExternal = () => controller.abort(externalSignal?.reason);
+  if (externalSignal?.aborted) abortFromExternal();
+  else externalSignal?.addEventListener("abort", abortFromExternal, { once: true });
+  const timer = setTimeout(() => {
+    deadlineReached = true;
+    controller.abort(new DOMException("요청 시간이 초과되었습니다.", "TimeoutError"));
+  }, Math.max(1, timeoutMs));
+  return {
+    signal: controller.signal,
+    timedOut: () => deadlineReached,
+    dispose: () => {
+      clearTimeout(timer);
+      externalSignal?.removeEventListener("abort", abortFromExternal);
+    },
+  };
 }
 
 function waitForPolling(delayMs: number, signal?: AbortSignal): Promise<void> {
@@ -230,120 +261,137 @@ export function createRemoteWorkerNasDataSource(
 
   return {
     async listFolder(relativePath: string, requestOptions?: ListRemoteNasFolderOptions): Promise<RemoteNasFolderResult> {
-      const signal = requestOptions?.signal;
+      const externalSignal = requestOptions?.signal;
       const foldersOnly = requestOptions?.foldersOnly === true;
       const path = normalizeRemoteNasRelativePath(relativePath);
-      throwIfAborted(signal);
+      throwIfAborted(externalSignal);
+      const deadline = createDeadlineSignal(timeoutMs, externalSignal);
+      const signal = deadline.signal;
+      let stage: RemoteNasFailureStage = "folder_lookup_job_creation";
 
-      let createResponse: Response;
       try {
-        createResponse = await fetcher("/api/remote-jobs", {
+        const createResponse = await fetcher("/api/remote-jobs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "LIST_FOLDER",
             payload: {
-              remote_path: path,
+              ...(path ? { remote_path: path } : { root: true }),
               ...(foldersOnly ? { folders_only: true } : {}),
             },
           }),
           signal,
         });
-      } catch (error) {
-        if (signal?.aborted) throw createAbortError();
-        throw new RemoteNasDataSourceError(
-          error instanceof Error ? error.message : "Mac Studio 작업 요청에 실패했습니다.",
-          { macStudio: "unknown", nas: "unknown", source: "worker" },
-        );
-      }
-
-      const createBody = await readJsonResponse(createResponse);
-      if (!createResponse.ok) {
-        throw new RemoteNasDataSourceError(
-          apiErrorMessage(createBody, "Mac Studio 작업 요청에 실패했습니다."),
-          { macStudio: "unknown", nas: "unknown", source: "worker" },
-        );
-      }
-
-      let createdJob: RemoteJob;
-      try {
-        createdJob = parseJob(createBody);
-      } catch (error) {
-        throw new RemoteNasDataSourceError(
-          error instanceof Error ? error.message : "Mac Studio 작업 정보를 읽지 못했습니다.",
-          { macStudio: "unknown", nas: "unknown", source: "worker" },
-        );
-      }
-
-      const startedAt = Date.now();
-      while (Date.now() - startedAt < timeoutMs) {
-        throwIfAborted(signal);
-
-        let pollResponse: Response;
-        try {
-          pollResponse = await fetcher(`/api/remote-jobs?id=${encodeURIComponent(createdJob.id)}`, {
-            method: "GET",
-            cache: "no-store",
-            signal,
-          });
-        } catch (error) {
-          if (signal?.aborted) throw createAbortError();
+        const createBody = await readJsonResponse(createResponse);
+        if (!createResponse.ok) {
           throw new RemoteNasDataSourceError(
-            error instanceof Error ? error.message : "Mac Studio 작업 상태를 확인하지 못했습니다.",
+            apiErrorMessage(createBody, "폴더 조회 작업을 만들지 못했습니다."),
             { macStudio: "unknown", nas: "unknown", source: "worker" },
+            stage,
           );
         }
 
-        const pollBody = await readJsonResponse(pollResponse);
-        if (!pollResponse.ok) {
-          throw new RemoteNasDataSourceError(
-            apiErrorMessage(pollBody, "Mac Studio 작업 상태를 확인하지 못했습니다."),
-            { macStudio: "unknown", nas: "unknown", source: "worker" },
-          );
-        }
-
-        let job: RemoteJob;
+        let createdJob: RemoteJob;
         try {
-          job = parseJob(pollBody);
+          createdJob = parseJob(createBody);
         } catch (error) {
           throw new RemoteNasDataSourceError(
-            error instanceof Error ? error.message : "Mac Studio 작업 상태를 읽지 못했습니다.",
+            error instanceof Error ? error.message : "폴더 조회 작업 정보를 읽지 못했습니다.",
             { macStudio: "unknown", nas: "unknown", source: "worker" },
+            stage,
           );
         }
 
-        if (job.action && job.action !== "LIST_FOLDER") {
-          throw new RemoteNasDataSourceError(
-            "요청한 폴더 작업과 다른 결과가 반환되었습니다.",
-            { macStudio: "online", nas: "unknown", source: "worker" },
-          );
-        }
+        stage = "folder_lookup_worker_wait";
+        while (true) {
+          throwIfAborted(signal);
 
-        if (job.status === "COMPLETED") {
+          let pollResponse: Response;
           try {
-            return mapRemoteWorkerFolderResult(job.result, path, foldersOnly);
+            pollResponse = await fetcher(`/api/remote-jobs?id=${encodeURIComponent(createdJob.id)}`, {
+              method: "GET",
+              cache: "no-store",
+              signal,
+            });
           } catch (error) {
+            if (signal.aborted) throw error;
             throw new RemoteNasDataSourceError(
-              error instanceof Error ? error.message : "NAS 폴더 결과를 읽지 못했습니다.",
-              { macStudio: "online", nas: "unknown", source: "worker" },
+              error instanceof Error ? error.message : "Mac Studio 작업 상태를 확인하지 못했습니다.",
+              { macStudio: "unknown", nas: "unknown", source: "worker" },
+              stage,
             );
           }
-        }
 
-        if (job.status === "FAILED") {
+          const pollBody = await readJsonResponse(pollResponse);
+          if (!pollResponse.ok) {
+            throw new RemoteNasDataSourceError(
+              apiErrorMessage(pollBody, "Mac Studio 작업 상태를 확인하지 못했습니다."),
+              { macStudio: "unknown", nas: "unknown", source: "worker" },
+              stage,
+            );
+          }
+
+          let job: RemoteJob;
+          try {
+            job = parseJob(pollBody);
+          } catch (error) {
+            throw new RemoteNasDataSourceError(
+              error instanceof Error ? error.message : "Mac Studio 작업 상태를 읽지 못했습니다.",
+              { macStudio: "unknown", nas: "unknown", source: "worker" },
+              stage,
+            );
+          }
+
+          if (job.action && job.action !== "LIST_FOLDER") {
+            throw new RemoteNasDataSourceError(
+              "요청한 폴더 작업과 다른 결과가 반환되었습니다.",
+              { macStudio: "online", nas: "unknown", source: "worker" },
+              stage,
+            );
+          }
+
+          if (job.status === "COMPLETED") {
+            stage = "folder_lookup_result";
+            try {
+              return mapRemoteWorkerFolderResult(job.result, path, foldersOnly);
+            } catch (error) {
+              throw new RemoteNasDataSourceError(
+                error instanceof Error ? error.message : "NAS 폴더 결과를 읽지 못했습니다.",
+                { macStudio: "online", nas: "unknown", source: "worker" },
+                stage,
+              );
+            }
+          }
+
+          if (job.status === "FAILED") {
+            throw new RemoteNasDataSourceError(
+              job.error || job.message || "Mac Studio에서 NAS 폴더를 불러오지 못했습니다.",
+              { macStudio: "online", nas: "unknown", source: "worker" },
+              stage,
+            );
+          }
+
+          await waitForPolling(Math.max(0, pollIntervalMs), signal);
+        }
+      } catch (error) {
+        if (externalSignal?.aborted) throw createAbortError();
+        if (deadline.timedOut()) {
+          const label = stage === "folder_lookup_job_creation" ? "폴더 조회 잡 생성" : "워커 응답 대기";
           throw new RemoteNasDataSourceError(
-            job.error || job.message || "Mac Studio에서 NAS 폴더를 불러오지 못했습니다.",
-            { macStudio: "online", nas: "unknown", source: "worker" },
+            `${label} 시간이 초과되었습니다. Mac Studio 연결 상태를 확인해주세요.`,
+            { macStudio: "offline", nas: "unknown", source: "worker" },
+            stage,
           );
         }
-
-        await waitForPolling(Math.max(0, pollIntervalMs), signal);
+        if (error instanceof RemoteNasDataSourceError) throw error;
+        throw new RemoteNasDataSourceError(
+          error instanceof Error ? error.message : "NAS 폴더 조회에 실패했습니다.",
+          { macStudio: "unknown", nas: "unknown", source: "worker" },
+          stage,
+        );
+      } finally {
+        deadline.dispose();
       }
-
-      throw new RemoteNasDataSourceError(
-        "Mac Studio 응답 시간이 초과되었습니다. 연결 상태를 확인하고 다시 시도해주세요.",
-        { macStudio: "offline", nas: "unknown", source: "worker" },
-      );
     },
   };
 }

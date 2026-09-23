@@ -44,6 +44,11 @@ describe("normalizeToolError — 원본 에러가 사용자 메시지로 절대 
     const normalized = normalizeToolError(new Error(`"quote"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`));
     expect(normalized.userMessage).toBe(`"quote"은(는) 아직 챗에서 직접 생성·수정할 수 없는 기능이에요.`);
   });
+
+  it("내부에서 작성한 단계별 timeout은 어느 단계인지 보존한다", () => {
+    const message = "폴더 조회 잡 생성 시간이 초과되었습니다. Mac Studio 연결 상태를 확인해주세요.";
+    expect(normalizeToolError(new Error(message)).userMessage).toBe(message);
+  });
 });
 
 describe("OLIVIA_FALLBACK_MESSAGES — 내부 기능명을 사용자에게 강요하지 않는다", () => {

@@ -71,6 +71,14 @@ let refreshPromise: Promise<void> | null = null;
 let cacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 const CONVERSATION_CACHE_KEY = "olivia:conversation:v2";
+export const OLIVIA_CHAT_REQUEST_TIMEOUT_MS = 50_000;
+
+function visibleChatFailure(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  return /(?:폴더 조회|잡 생성|워커 응답 대기|응답 생성).*(?:시간이 초과|응답이 지연)/.test(message)
+    ? message
+    : "응답을 이어가지 못했어요. 다시 시도할까요?";
+}
 
 // 이 도구들이 실행되면(성공 시) OPEN_WORKSPACE/SWITCH_WORKSPACE ui_action이 뒤따른다 —
 // lib/olivia/agent/uiActionResolvers.ts의 실제 매핑과 반드시 함께 유지. 결과가 오기 전
@@ -390,7 +398,14 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     }));
     useOliviaLayoutStore.getState().startConversation();
 
-    activeController = new AbortController();
+    const requestController = new AbortController();
+    activeController = requestController;
+    let requestTimedOut = false;
+    let lastAgentStatus = "응답 생성";
+    const requestWatchdog = setTimeout(() => {
+      requestTimedOut = true;
+      requestController.abort();
+    }, OLIVIA_CHAT_REQUEST_TIMEOUT_MS);
     try {
       const pathname = typeof location !== "undefined" ? location.pathname : undefined;
       const context = getOliviaContextSnapshot(pathname);
@@ -407,7 +422,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           context,
           pageContext: buildOliviaPageContext(pathname),
         }),
-        signal: activeController.signal,
+        signal: requestController.signal,
       });
       await readEventStream(response, (event) => {
         if (event.type === "message_start") {
@@ -416,6 +431,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           appendPendingDelta(responseId, event.delta);
           scheduleDeltaFlush(set, responseId);
         } else if (event.type === "agent_status") {
+          lastAgentStatus = event.status.replace(/[…\s]+$/g, "") || "응답 생성";
           set({ agentStatus: event.status });
         } else if (event.type === "tool_start") {
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
@@ -476,9 +492,10 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               blocks: [...message.blocks, { type: "approval", approvalId: approval.approvalId, summary: approval.summary, toolName: approval.toolName, toolInput: approval.toolInput, confirmLabel: approval.confirmLabel, state: "pending" }],
             } : message) }));
           } else if (event.action.type === "DOWNLOAD_QUOTE_PDF") {
-            // PDF는 브라우저에 열려 있는 QuoteBuilder만 실제로 만들 수 있다(html2canvas가 DOM을
-            // 캡처한다) — 서버 tool의 success:true는 "요청을 접수했다"일 뿐, 진짜 성공/실패는
-            // 사람이 누르는 다운로드 버튼과 같은 downloadPdf()가 끝난 뒤에만 확정된다(Phase 4).
+            // 현재 QuoteBuilder의 저장되지 않은 편집 상태를 먼저 저장한 뒤 canonical print route로
+            // native PDF를 생성해야 하므로 다운로드는 열린 QuoteBuilder의 downloadPdf()가 이어서
+            // 처리한다. 서버 tool의 success:true는 "요청을 접수했다"는 뜻이고, 진짜 성공/실패는
+            // render API 다운로드가 끝난 뒤에만 확정된다.
             // executeOliviaAction으로 안 보내는 이유는 actionRouter.ts가 이 스토어를 다시
             // import하면 순환 참조가 되기 때문 — REQUEST_APPROVAL/OPEN_CLIENT_TASK와 같은
             // 이유로 여기서 가로챈다. PDF 생성은 수 초 걸릴 수 있어 원래 스트리밍 메시지가 이미
@@ -667,17 +684,34 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     } catch (error) {
       flushPendingDelta(set, responseId);
       if ((error as any)?.name === "AbortError") {
-        set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "stopped" } : message) }));
+        if (requestTimedOut) {
+          const timeoutMessage = `응답 시간이 초과되었습니다. 멈춘 단계: ${lastAgentStatus}`;
+          set((state) => ({
+            messages: state.messages.map((message) => message.id === responseId
+              ? {
+                ...message,
+                status: "error",
+                content: [message.content, timeoutMessage].filter(Boolean).join("\n"),
+                blocks: [...message.blocks, { type: "error", message: timeoutMessage, retryable: true }],
+              }
+              : message),
+            lastFailedContent: content,
+          }));
+        } else {
+          set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "stopped" } : message) }));
+        }
       } else {
+        const failureMessage = visibleChatFailure(error);
         set((state) => ({
           messages: state.messages.map((message) => message.id === responseId
-            ? { ...message, status: "error", blocks: message.blocks.length ? message.blocks : [{ type: "error", message: "응답을 이어가지 못했어요. 다시 시도할까요?", retryable: true }] }
+            ? { ...message, status: "error", blocks: message.blocks.length ? [...message.blocks, { type: "error", message: failureMessage, retryable: true }] : [{ type: "error", message: failureMessage, retryable: true }] }
             : message),
           lastFailedContent: content,
         }));
       }
     } finally {
-      activeController = null;
+      clearTimeout(requestWatchdog);
+      if (activeController === requestController) activeController = null;
       // 도구가 실패했거나 응답이 중단되면 OPEN_WORKSPACE가 끝내 안 올 수 있다 — 스켈레톤이
       // 영원히 남지 않도록 스트림이 끝나는 시점에 항상 정리한다.
       set({ isSending: false, isStreaming: false, activeResponseId: undefined, agentStatus: undefined, pendingWorkspaceOpen: false });

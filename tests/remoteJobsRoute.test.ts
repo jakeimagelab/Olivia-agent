@@ -46,6 +46,7 @@ describe("POST /api/remote-jobs LIST_FOLDER root contract", () => {
     ["omitted", {}],
     ["null", { remote_path: null }],
     ["empty", { remote_path: "" }],
+    ["explicit", { root: true }],
   ])("queues %s remote_path as the Workstation root", async (_label, payload) => {
     const response = await postListFolder(payload);
 
@@ -53,9 +54,16 @@ describe("POST /api/remote-jobs LIST_FOLDER root contract", () => {
     expect(state.inserted).toHaveLength(1);
     expect(state.inserted[0]).toMatchObject({
       action: "LIST_FOLDER",
-      payload: { remote_path: "" },
+      payload: { root: true },
       status: "QUEUED",
     });
+  });
+
+  it("rejects an explicit root combined with a child path", async () => {
+    const response = await postListFolder({ root: true, remote_path: "0911_WINF" });
+
+    expect(response.status).toBe(400);
+    expect(state.inserted).toHaveLength(0);
   });
 
   it.each([

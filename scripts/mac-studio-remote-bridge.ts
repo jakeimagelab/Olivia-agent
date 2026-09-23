@@ -386,11 +386,11 @@ function isInside(root: string, candidate: string): boolean {
 async function listFolder(payload: JsonRecord): Promise<JsonRecord> {
   const configuredRoot = process.env.SOURCE_ROOT?.trim() || process.env.OLIVIA_PHOTO_SOURCE_ROOT?.trim();
   if (!configuredRoot) throw new Error("SOURCE_ROOT 또는 OLIVIA_PHOTO_SOURCE_ROOT가 설정되어 있지 않습니다.");
-  // LIST_FOLDER에서 빈 경로는 SOURCE_ROOT 자체를 뜻한다. 원격 Finder와
-  // 촬영 폴더 검색 모두 최초 조회를 ""로 요청하므로 누락/null도 같은
-  // read-only root 조회로 처리한다. 다른 action의 필수 경로 검증은 유지한다.
-  const relativePath = normalizeRemoteNasRelativePath(stringValue(payload, "remote_path") ?? "");
-  const foldersOnly = payload.folders_only === true;
+  const rootRequested = booleanValue(payload, "root") === true;
+  const requestedPath = stringValue(payload, "remote_path") ?? "";
+  const relativePath = normalizeRemoteNasRelativePath(requestedPath);
+  if (rootRequested && relativePath) throw new Error("LIST_FOLDER의 root와 remote_path를 동시에 지정할 수 없습니다.");
+  const foldersOnly = booleanValue(payload, "folders_only") === true;
   const root = await realpath(configuredRoot);
   const target = path.resolve(root, ...relativePath.split("/").filter(Boolean));
   if (!isInside(root, target)) throw new Error("LIST_FOLDER 경로가 SOURCE_ROOT 밖입니다.");
@@ -416,13 +416,15 @@ async function listFolder(payload: JsonRecord): Promise<JsonRecord> {
       modifiedAt: metadata.mtime.toISOString(),
     });
   }
-  return {
+  const result = {
     ok: true,
     root: REMOTE_NAS_ROOT_NAME,
     path: relativePath,
     displayPath: toRemoteNasDisplayPath(relativePath),
     entries,
   };
+  console.info(`[remote-bridge] LIST_FOLDER completed: ${relativePath || "ROOT"}`);
+  return result;
 }
 
 async function copyTest(): Promise<JsonRecord> {

@@ -59,7 +59,7 @@ type ExecuteTool = (
   context: OliviaContextSnapshot,
 ) => Promise<{ id: string; execution: OliviaAgentToolExecution }>;
 
-const SOURCE_PREP_PATTERN = /(?:원본(?:을|를)?\s*(?:분리|분류)|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:를|을)?\s*(?:로\s*)?(?:분리|통합)|1\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
+const SOURCE_PREP_PATTERN = /(?:원본(?:을|를)?\s*(?:분리|분류)|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:만|를|을)?\s*(?:로\s*)?(?:분리|통합|(?:줘|줄래))|1\s*차\s*분류)(?:\s*(?:해\s*줄래|해줄래|해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const SCENE_SORT_PATTERN = /(?:(?:씬|scene)(?:\s*별)?(?:로|을|를)?\s*분류|사진(?:을|를)?\s*분류|2\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const MULTI_FOLDER_SPLIT_PATTERN = /분리(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const PHOTO_TOOL_NAMES = new Set(["find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort"]);
@@ -118,8 +118,10 @@ function parseOperation(message: string): { operation: PhotoDirectOperation; mat
 }
 
 function cleanFolderQuery(value: string): string {
-  return value
+  const beforeInstruction = value.split(">", 1)[0] ?? value;
+  return beforeInstruction
     .replace(/["'“”‘’]/g, " ")
+    .replace(/^\s*(?:올리비아(?:야)?)[,!?.~\s]*/i, " ")
     // "나스에서"의 흔한 오타인 "나스에스"까지 위치 표현으로 취급한다. 이 접두사가
     // 검색어에 남으면 실제 "0918_삼칠갈비" 폴더를 찾지 못한다.
     .replace(/(?:(?:\bnas\b|나스)(?:에서|에스|의|쪽)?|(?:\bwork\s*station\b|워크\s*스테이션)(?:에서|의|쪽)?)/gi, " ")
@@ -128,7 +130,7 @@ function cleanFolderQuery(value: string): string {
     .replace(/(?:두|2)\s*(?:개|곳)(?:를|을|다|모두)?/g, " ")
     .replace(/(?:둘|전부)\s*다/g, " ")
     .replace(/(?:작업을?\s*)?(?:시작|실행|진행)(?:해\s*줘|해주세요|해줘|해)?/g, " ")
-    .replace(/(?:부탁해|부탁해요|해주세요|해\s*줘|해줘)/g, " ")
+    .replace(/(?:부탁해|부탁해요|해\s*줄래|해줄래|줄래|주세요|해주세요|해\s*줘|해줘)/g, " ")
     .replace(/\s+/g, " ")
     .replace(/(?:을|를|은|는)$/, "")
     .trim();
@@ -255,8 +257,7 @@ function selectedCandidate(message: string, candidates: PhotoDirectFolderCandida
 
 function folderCorrection(message: string): string | undefined {
   const explicitlyNamed = /^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/.test(message.trim());
-  const cleaned = message
-    .replace(/["'“”‘’]/g, " ")
+  const cleaned = cleanFolderQuery(message)
     .replace(/^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/, "")
     .replace(/(?:이야|야|입니다|이에요|예요|맞아|맞아요)[.!~\s]*$/, "")
     .replace(/\s+/g, " ")

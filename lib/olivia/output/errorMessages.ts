@@ -39,6 +39,11 @@ function looksLikeSafeAuthoredMessage(raw: string): boolean {
   return HANGUL_PATTERN.test(raw) && raw.length <= MAX_PASSTHROUGH_LENGTH;
 }
 
+function isAuthoredStageTimeout(raw: string): boolean {
+  return /^(?:폴더 조회(?: 잡 생성)?|워커 응답 대기|잡 생성|응답 생성).*(?:시간이 초과|응답이 지연)/.test(raw)
+    && looksLikeSafeAuthoredMessage(raw);
+}
+
 /**
  * 원본 에러(raw)는 절대 사용자에게 그대로 내보내지 않는다. 알려진 위험 패턴(Postgres 코드,
  * 스택트레이스, raw JSON 등)이면 안전한 한국어 문구로 바꾸고, 그렇지 않고 이미 한국어로 작성된
@@ -48,7 +53,9 @@ function looksLikeSafeAuthoredMessage(raw: string): boolean {
 export function normalizeToolError(error: unknown, fallback: string = OLIVIA_FALLBACK_MESSAGES.toolFailureGeneric): NormalizedError {
   const raw = error instanceof Error ? error.message : String(error ?? "알 수 없는 오류");
   const matched = ERROR_PATTERN_MAP.find((rule) => rule.test(raw));
-  const userMessage = matched
+  const userMessage = isAuthoredStageTimeout(raw)
+    ? raw
+    : matched
     ? matched.message
     : looksLikeSafeAuthoredMessage(raw)
       ? raw

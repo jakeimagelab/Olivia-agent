@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
 
   if (action === "LIST_FOLDER") {
     const remotePath = requestedPayload.remote_path;
+    const root = requestedPayload.root;
     const foldersOnly = requestedPayload.folders_only;
 
     if (remotePath !== undefined && remotePath !== null && typeof remotePath !== "string") {
@@ -108,12 +109,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (root !== undefined && typeof root !== "boolean") {
+      return Response.json(
+        { ok: false, error: "LIST_FOLDER의 root는 boolean이어야 합니다." },
+        { status: 400 }
+      );
+    }
+
     try {
       // 경로의 Unicode form은 Worker가 반환한 그대로 유지한다. 절대경로와
       // traversal만 차단한다. 빈 값/누락은 NAS Root를 뜻하며 LIST_FOLDER에
       // 불필요한 payload 필드는 전달하지 않는다.
+      const normalizedPath = normalizeRemoteNasRelativePath(remotePath ?? "");
+      if (root === true && normalizedPath) {
+        return Response.json(
+          { ok: false, error: "LIST_FOLDER의 root와 remote_path를 동시에 지정할 수 없습니다." },
+          { status: 400 }
+        );
+      }
       payload = {
-        remote_path: normalizeRemoteNasRelativePath(remotePath ?? ""),
+        ...(root === true || !normalizedPath ? { root: true } : { remote_path: normalizedPath }),
         ...(foldersOnly === true ? { folders_only: true } : {}),
       };
     } catch (error) {
