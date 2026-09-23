@@ -106,7 +106,7 @@ export function buildConversationExchanges(messages: OliviaV2Message[]): OliviaE
     // 첫 교환은 "이전 화제"가 없으니 change로 치지 않는다 — 실제 전환(A화제 → B화제)만 표시.
     const topicChanged = previousTopicKey !== null && previousTopicKey !== topicKey;
     exchanges.push({
-      id: `exchange:${user.id}`,
+      id: `exchange:${user.id}:${index}`,
       userMessageId: user.id,
       userText: compactText(user.content || "메시지"),
       assistantText: compactText(assistant?.content || "Olivia가 답변을 준비하고 있어요.", 110),

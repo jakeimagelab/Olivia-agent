@@ -116,6 +116,7 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   revision: 0,
 
   setClient: (id, name) => set((state) => {
+    if (state.activeClientId === id && state.activeClientName === name) return state;
     const alias = name ? deriveAlias(name) : null;
     return {
       activeClientId: id,
@@ -126,15 +127,19 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
       aliases: alias && id && name ? { ...state.aliases, [alias]: { type: "client", id, name } } : state.aliases,
     };
   }),
-  setProject: (id, name) => set((state) => ({
-    activeProjectId: id,
-    activeProjectName: name,
-    lastAction: "setProject",
-    revision: state.revision + 1,
-    recentEntities: id ? rememberEntityIn(state.recentEntities, { type: "project", id, name }) : state.recentEntities,
-  })),
+  setProject: (id, name) => set((state) => {
+    if (state.activeProjectId === id && state.activeProjectName === name) return state;
+    return {
+      activeProjectId: id,
+      activeProjectName: name,
+      lastAction: "setProject",
+      revision: state.revision + 1,
+      recentEntities: id ? rememberEntityIn(state.recentEntities, { type: "project", id, name }) : state.recentEntities,
+    };
+  }),
   setWorkspace: (workspace, resourceId) => set((state) => {
     const contextChanged = workspace !== state.activeWorkspace || resourceId !== state.activeResourceId;
+    if (!contextChanged) return state;
     return {
       activeWorkspace: workspace,
       activeResourceId: resourceId,
@@ -163,6 +168,7 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   }),
   setResource: (resourceId) => set((state) => {
     const resourceChanged = resourceId !== state.activeResourceId;
+    if (!resourceChanged) return state;
     return {
       activeResourceId: resourceId,
       selectedRowId: resourceChanged ? undefined : state.selectedRowId,
@@ -232,6 +238,7 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   })),
   setCurrentDocument: (id, type, title) => set((state) => {
     const documentChanged = id !== state.currentDocumentId || type !== state.currentDocumentType;
+    if (!documentChanged && title === state.currentDocumentTitle) return state;
     return {
       currentDocumentId: id,
       currentDocumentType: type,

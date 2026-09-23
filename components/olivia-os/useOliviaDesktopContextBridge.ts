@@ -37,6 +37,7 @@ export function useOliviaDesktopContextBridge() {
   const activeWorkspace = useOliviaContextStore((state) => state.activeWorkspace);
   const activeResourceId = useOliviaContextStore((state) => state.activeResourceId);
 
+  const effectiveWindowId = effective?.windowId;
   const effectiveAppId = effective?.appId;
   useEffect(() => {
     const mapped = effectiveAppId ? DESKTOP_APP_TO_WORKSPACE[effectiveAppId] : undefined;
@@ -50,20 +51,21 @@ export function useOliviaDesktopContextBridge() {
   // 기존 feature가 Olivia context store에 기록한 실제 선택을 활성 Window에도 되돌려 적는다.
   // 동일 값이면 쓰지 않아 effect/store 갱신 루프가 생기지 않는다.
   useEffect(() => {
-    if (!effective) return;
+    if (!effectiveWindowId || !effectiveAppId) return;
     const desktop = useOliviaDesktopStore.getState();
-    const win = desktop.windows[effective.windowId];
+    const win = desktop.windows[effectiveWindowId];
     if (!win) return;
-    const mapped = DESKTOP_APP_TO_WORKSPACE[effective.appId];
+    const mapped = DESKTOP_APP_TO_WORKSPACE[effectiveAppId];
+    const customerOwnsSelection = effectiveAppId === "customer";
     const next = {
       ...win.context,
-      clientId: activeClientId ?? win.context?.clientId,
-      clientName: activeClientName ?? win.context?.clientName,
-      projectId: activeProjectId ?? win.context?.projectId,
-      projectName: activeProjectName ?? win.context?.projectName,
+      clientId: customerOwnsSelection ? activeClientId : activeClientId ?? win.context?.clientId,
+      clientName: customerOwnsSelection ? activeClientName : activeClientName ?? win.context?.clientName,
+      projectId: customerOwnsSelection ? activeProjectId : activeProjectId ?? win.context?.projectId,
+      projectName: customerOwnsSelection ? activeProjectName : activeProjectName ?? win.context?.projectName,
       resourceId: mapped && activeWorkspace === mapped ? activeResourceId : win.context?.resourceId,
       resourceType: mapped ?? win.context?.resourceType,
     };
-    if (JSON.stringify(next) !== JSON.stringify(win.context ?? {})) desktop.updateWindowContext(effective.windowId, next);
-  }, [activeClientId, activeClientName, activeProjectId, activeProjectName, activeResourceId, activeWorkspace, effective]);
+    desktop.updateWindowContext(effectiveWindowId, next);
+  }, [activeClientId, activeClientName, activeProjectId, activeProjectName, activeResourceId, activeWorkspace, effectiveAppId, effectiveWindowId]);
 }

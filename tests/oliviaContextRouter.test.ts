@@ -86,4 +86,18 @@ describe("Olivia Context와 Model Router", () => {
     expect(classifyOliviaRequest("해 줘", context)).toBe("TOOL_ACTION");
     expect(classifyOliviaRequest("맞아 230만원으로 맞추면 돼", context)).toBe("TOOL_ACTION");
   });
+
+  it("같은 고객·프로젝트·workspace를 다시 동기화해도 revision을 증가시키지 않는다", () => {
+    const store = useOliviaContextStore.getState();
+    store.setClient("client-1", "히어산부인과");
+    store.setProject("project-1", "브랜드 촬영");
+    store.setWorkspace("quote", "quote-1");
+    const before = useOliviaContextStore.getState();
+
+    store.setClient("client-1", "히어산부인과");
+    store.setProject("project-1", "브랜드 촬영");
+    store.setWorkspace("quote", "quote-1");
+
+    expect(useOliviaContextStore.getState()).toBe(before);
+  });
 });

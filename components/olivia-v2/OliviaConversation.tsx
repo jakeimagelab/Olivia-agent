@@ -425,10 +425,10 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             </div>
           </div>
         ) : null}
-        {messages.map((message) => {
+        {messages.map((message, messageIndex) => {
           const exchange = message.role === "user" ? exchangeByUserMessageId.get(message.id) : undefined;
           return (
-            <Fragment key={message.id}>
+            <Fragment key={`${message.id}:${messageIndex}`}>
               {exchange?.topicChanged ? (
                 <div className="olivia-topic-divider" data-topic={exchange.topicKey}>
                   <span className="olivia-topic-divider__line" />

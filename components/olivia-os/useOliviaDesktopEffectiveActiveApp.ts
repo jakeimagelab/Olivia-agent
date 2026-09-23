@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 
 // OLIVIA OS Phase 3 — Olivia 채팅창 자신에 포커스가 가면(입력창을 클릭하는 순간 등)
@@ -14,6 +14,11 @@ export function useOliviaDesktopEffectiveActiveApp(): { windowId: string; appId:
   const windows = useOliviaDesktopStore((state) => state.windows);
   const activeAppId = activeWindowId ? windows[activeWindowId]?.appId ?? null : null;
   const lastRef = useRef<{ windowId: string; appId: string } | null>(null);
+  const current = useMemo(() => (
+    activeAppId && activeAppId !== "olivia-chat"
+      ? { windowId: activeWindowId as string, appId: activeAppId }
+      : null
+  ), [activeAppId, activeWindowId]);
 
   useEffect(() => {
     if (activeAppId && activeAppId !== "olivia-chat") {
@@ -26,6 +31,6 @@ export function useOliviaDesktopEffectiveActiveApp(): { windowId: string; appId:
     lastRef.current = null;
   }
 
-  if (activeAppId && activeAppId !== "olivia-chat") return { windowId: activeWindowId as string, appId: activeAppId };
+  if (current) return current;
   return lastRef.current;
 }

@@ -103,6 +103,25 @@ type ClientsWorkspaceProps = {
   surface?: OliviaUiSurface;
 };
 
+export function resolveClientWorkspaceSelection({
+  initialClientId,
+  initialClientChanged,
+  selectedClientId,
+  availableClientIds,
+}: {
+  initialClientId: string | null;
+  initialClientChanged: boolean;
+  selectedClientId: string | null;
+  availableClientIds: string[];
+}) {
+  // initialClientId는 창을 열거나 외부 명령으로 고객을 바꾼 순간에만 우선한다. 사용자가 목록에서
+  // B를 누른 직후에도 이전 initialClientId(A)를 매 렌더마다 우선하면 A↔B가 반복되며 API 요청과
+  // window context 갱신이 무한히 왕복한다.
+  if (initialClientChanged && initialClientId && availableClientIds.includes(initialClientId)) return initialClientId;
+  if (selectedClientId && availableClientIds.includes(selectedClientId)) return selectedClientId;
+  return availableClientIds[0] ?? null;
+}
+
 export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId, surface = "desktop" }: ClientsWorkspaceProps = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
@@ -144,6 +163,7 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
   } = useClientRoster();
   const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
   const filteredClientIds = filtered.map((client) => client.id).join("|");
+  const lastAppliedInitialClientIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
@@ -152,9 +172,14 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
 
   useEffect(() => {
     if (loading) return;
-    const requestedId = initialClientId && filtered.some((client) => client.id === initialClientId) ? initialClientId : null;
-    const retainedId = selectedClientId && filtered.some((client) => client.id === selectedClientId) ? selectedClientId : null;
-    const nextId = requestedId || retainedId || filtered[0]?.id || null;
+    const initialClientChanged = lastAppliedInitialClientIdRef.current !== initialClientId;
+    lastAppliedInitialClientIdRef.current = initialClientId;
+    const nextId = resolveClientWorkspaceSelection({
+      initialClientId,
+      initialClientChanged,
+      selectedClientId,
+      availableClientIds: filtered.map((client) => client.id),
+    });
     if (nextId === selectedClientId) return;
     setSelectedClientId(nextId);
     const selected = filtered.find((client) => client.id === nextId);

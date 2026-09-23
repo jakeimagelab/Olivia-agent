@@ -78,4 +78,13 @@ describe("OLIVIA OS desktop store", () => {
     expect(updated.x).toBe(firstBounds.x);
     expect(updated.y).toBe(firstBounds.y);
   });
+
+  it("does not publish a new desktop state for an identical window context", () => {
+    const store = useOliviaDesktopStore.getState();
+    const context = { clientId: "client-1", projectId: "project-1" };
+    store.openApp({ appId: "customer", title: "고객관리", width: 900, height: 640, context });
+    const before = useOliviaDesktopStore.getState();
+    store.updateWindowContext("customer", { ...context });
+    expect(useOliviaDesktopStore.getState()).toBe(before);
+  });
 });

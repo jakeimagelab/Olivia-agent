@@ -70,6 +70,16 @@ export type OpenAppInput = {
 
 type SnapBounds = { x: number; y: number; width: number; height: number };
 
+export function areWindowContextsEqual(left?: WindowContext, right?: WindowContext) {
+  const leftContext = left ?? {};
+  const rightContext = right ?? {};
+  const keys = new Set([...Object.keys(leftContext), ...Object.keys(rightContext)] as Array<keyof WindowContext>);
+  for (const key of keys) {
+    if (leftContext[key] !== rightContext[key]) return false;
+  }
+  return true;
+}
+
 type OliviaDesktopState = {
   windows: Record<string, OliviaWindowState>;
   activeWindowId: string | null;
@@ -167,6 +177,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   updateWindowContext: (id, context) => set((state) => {
     const win = state.windows[id];
     if (!win) return state;
+    if (areWindowContextsEqual(win.context, context)) return state;
     return { windows: { ...state.windows, [id]: { ...win, context } } };
   }),
 

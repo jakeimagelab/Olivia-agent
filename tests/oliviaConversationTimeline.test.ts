@@ -29,4 +29,15 @@ describe("Olivia conversation timeline", () => {
     const newerServer = [...messages, message("u3", "user", "콘티 보여줘", "2026-08-13T01:00:00.000Z")];
     expect(chooseConversationMessages(messages, newerServer)).toBe(newerServer);
   });
+
+  it("builds unique navigation keys even when persisted message ids collide", () => {
+    const duplicated = [
+      message("5", "user", "첫 질문", "2026-08-13T02:00:00.000Z"),
+      message("6", "assistant", "첫 답변", "2026-08-13T02:00:01.000Z"),
+      message("5", "user", "둘째 질문", "2026-08-13T02:01:00.000Z"),
+      message("7", "assistant", "둘째 답변", "2026-08-13T02:01:01.000Z"),
+    ];
+    const ids = buildConversationExchanges(duplicated).map((exchange) => exchange.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });

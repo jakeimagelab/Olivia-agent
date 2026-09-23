@@ -99,13 +99,14 @@ export function MarkdownText({ text, isUser }: { text: string; isUser: boolean }
 
     // 순서 있는 목록
     if (/^\d+\.\s/.test(line)) {
+      const listStart = i;
       const items: string[] = [];
       while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
         items.push(lines[i].replace(/^\d+\.\s/, ""));
         i++;
       }
       result.push(
-        <ol key={i} style={{ paddingLeft: 18, margin: "4px 0" }}>
+        <ol key={`ordered-${listStart}`} style={{ paddingLeft: 18, margin: "4px 0" }}>
           {items.map((item, idx) => <li key={idx} style={{ fontSize: "12px", lineHeight: 1.7, color }}>{parseInline(item, idx)}</li>)}
         </ol>
       );
@@ -114,13 +115,14 @@ export function MarkdownText({ text, isUser }: { text: string; isUser: boolean }
 
     // 순서 없는 목록
     if (/^[-*•]\s/.test(line)) {
+      const listStart = i;
       const items: string[] = [];
       while (i < lines.length && /^[-*•]\s/.test(lines[i])) {
         items.push(lines[i].replace(/^[-*•]\s/, ""));
         i++;
       }
       result.push(
-        <ul key={i} style={{ paddingLeft: 16, margin: "4px 0", listStyle: "none" }}>
+        <ul key={`unordered-${listStart}`} style={{ paddingLeft: 16, margin: "4px 0", listStyle: "none" }}>
           {items.map((item, idx) => (
             <li key={idx} style={{ fontSize: "12px", lineHeight: 1.7, color, display: "flex", gap: 6 }}>
               <span style={{ color: "#E85D2C", flexShrink: 0, marginTop: 1 }}>•</span>
