@@ -1,5 +1,5 @@
-import { buildQuoteHtml } from "./buildQuoteHtml";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
+import { createQuotePrintToken, QUOTE_PRINT_AUTH_HEADER } from "@/lib/quote/quotePrintAuth";
 
 // app/api/quotes/[id]/render/route.ts(미리보기 PNG/PDF)와 publish_quote(최종 PDF 아카이브,
 // lib/olivia/v2/toolExecutors/quote.ts)가 둘 다 쓰는 공용 렌더러. quote row → Buffer 변환
@@ -33,16 +33,42 @@ export async function renderQuoteBuffer(
   opts: { baseUrl?: string } = {},
 ): Promise<QuoteRenderResult> {
   const baseUrl = opts.baseUrl || resolveServerBaseUrl();
-  const html = buildQuoteHtml(quote, { baseUrl });
+  const quoteId = typeof quote.id === "string" ? quote.id.trim() : "";
+  if (!quoteId) throw new Error("견적서 PDF 렌더링에 quote id가 필요합니다.");
+  const printUrl = `${baseUrl.replace(/\/$/, "")}/quote-print/${encodeURIComponent(quoteId)}?print=1`;
 
   let browser;
   try {
     browser = await launchBrowser();
-    const page = await browser.newPage({ viewport: { width: 794, height: 1123 } });
-    await page.setContent(html, { waitUntil: "networkidle" });
+    const page = await browser.newPage({ viewport: { width: 1123, height: 794 } });
+    await page.setExtraHTTPHeaders({
+      [QUOTE_PRINT_AUTH_HEADER]: createQuotePrintToken(quoteId),
+    });
+    const response = await page.goto(printUrl, { waitUntil: "networkidle" });
+    if (!response?.ok()) {
+      throw new Error(`견적서 print page를 열지 못했습니다. (${response?.status() ?? "응답 없음"})`);
+    }
+    await page.waitForSelector('[data-quote-print-ready="true"]', { state: "attached" });
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await Promise.all(Array.from(document.images).map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        });
+      }));
+    });
 
     if (format === "pdf") {
-      const buffer = await page.pdf({ width: "794px", height: "1123px", printBackground: true });
+      await page.emulateMedia({ media: "print" });
+      const buffer = await page.pdf({
+        format: "A4",
+        landscape: true,
+        printBackground: true,
+        margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
+        preferCSSPageSize: true,
+      });
       return { buffer: Buffer.from(buffer), contentType: "application/pdf", ext: "pdf" };
     }
     const el = await page.$(".quote-page");

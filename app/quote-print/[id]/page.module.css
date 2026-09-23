@@ -1,0 +1,29 @@
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
+.printPage {
+  width: 297mm;
+  height: 210mm;
+  margin: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.printPage :global(.quote-page) {
+  width: 1123px;
+  min-height: 794px;
+  transform: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+@media print {
+  .printPage {
+    width: 297mm;
+    height: 210mm;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

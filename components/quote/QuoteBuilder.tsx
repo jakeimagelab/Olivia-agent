@@ -16,7 +16,8 @@ import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/q
 import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
-import QuoteDocument, { type QuoteDocumentData } from "@/components/quote/QuoteDocument";
+import QuoteDocument from "@/components/quote/QuoteDocument";
+import type { QuoteDocumentData } from "@/lib/quote/quoteDocumentData";
 import {
   CheckCircle2,
   ChevronDown,
@@ -218,33 +219,6 @@ const escapeHtml = (value: string) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 
-// html2canvas가 CSS filter를 지원하지 못해, PDF 캡처 직전에 로고 이미지를
-// 직접 색상 반전(흰색화)한 data URL로 바꿔치기하기 위한 헬퍼.
-const invertImageColors = (src: string): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { reject(new Error("canvas context 생성 실패")); return; }
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        data[i] = 255 - data[i];
-        data[i + 1] = 255 - data[i + 1];
-        data[i + 2] = 255 - data[i + 2];
-      }
-      ctx.putImageData(imageData, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
-    };
-    img.onerror = () => reject(new Error("로고 이미지 로드 실패"));
-    img.src = src;
-  });
-
 // Olivia Agent 2.0 — DynamicWorkspace가 견적서를 채팅 아래에 열어둔 상태에서, 채팅으로
 // "프로필 촬영 50만원으로 바꿔줘" 같은 편집 명령을 받아 이 견적서에 바로 반영하기 위한
 // 명령형 핸들. ref를 안 넘기면(기존 모든 사용처: /quote, /photoclinic, 고객관리 WorkspaceModal)
@@ -301,7 +275,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
-  const previewRef = useRef<HTMLDivElement>(null);
   const previewShellRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
   // Agent가 채팅에서 건드려야 하는 필드는 QuoteBuilder만의 로컬 useState가 아니라 공유
@@ -1452,8 +1425,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 실제 성공/실패를 알려준다. 별도의 "Agent용 PDF 함수"를 만들지 않고 같은 함수를 그대로
   // 재사용하기 위한 최소한의 확장이다(Phase 4).
   const downloadPdf = async (onResult?: (result: { success: boolean; error?: string }) => void) => {
-    if (!previewRef.current || isGenerating) {
-      onResult?.({ success: false, error: isGenerating ? "이미 PDF를 생성하고 있어요." : "견적서 화면을 찾지 못했어요." });
+    if (isGenerating) {
+      onResult?.({ success: false, error: "이미 PDF를 생성하고 있어요." });
       return;
     }
     const snapshot = buildContractQuoteData();
@@ -1568,94 +1541,25 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     writeGeneratingWindow();
     setIsGenerating(true);
 
-    let captureRoot: HTMLDivElement | null = null;
-
     try {
       const savedSnapshot = await saveRecentQuote(snapshot);
       if (!savedSnapshot) throw new Error("견적 DB 저장에 실패했습니다.");
 
-      const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf")
-      ]);
-
-      // 화면용 미리보기는 transform scale이 적용되어 있으므로,
-      // PDF용으로는 원본 견적서를 복제해 1123 x 794 사이즈로 따로 캡처합니다.
-      // 이렇게 해야 새 창에 "생성 중"만 남거나 PDF가 미리보기와 다르게 나오는 문제를 줄일 수 있습니다.
-      captureRoot = document.createElement("div");
-      // previewRef가 가리키는 .quote-page는 브랜드 색상(--quote-ink 등)을 정의하는
-      // .quote-app / .quote-app--jakeimage의 자손일 뿐이라, previewRef만 복제하면
-      // 그 조상 클래스가 통째로 빠져 CSS 변수가 비어버린다 — 캡처 컨테이너에도 동일한
-      // 브랜드 클래스를 붙여줘야 PDF가 화면 미리보기와 같은 색상으로 나온다.
-      captureRoot.className = `quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`;
-      captureRoot.setAttribute("aria-hidden", "true");
-      captureRoot.style.position = "fixed";
-      captureRoot.style.left = "-10000px";
-      captureRoot.style.top = "0";
-      captureRoot.style.width = "1123px";
-      captureRoot.style.height = "794px";
-      captureRoot.style.overflow = "visible";
-      captureRoot.style.background = "#ffffff";
-      captureRoot.style.pointerEvents = "none";
-      captureRoot.style.zIndex = "-1";
-
-      const captureTarget = previewRef.current.cloneNode(true) as HTMLElement;
-      captureTarget.style.width = "1123px";
-      captureTarget.style.height = "794px";
-      captureTarget.style.minHeight = "794px";
-      captureTarget.style.margin = "0";
-      captureTarget.style.transform = "none";
-      captureTarget.style.transformOrigin = "top left";
-      captureTarget.style.zoom = "1";
-
-      captureRoot.appendChild(captureTarget);
-      document.body.appendChild(captureRoot);
-
-      // html2canvas는 CSS filter(제이크이미지연구소 로고를 흰색으로 반전시키는
-      // brightness(0) invert(1))를 제대로 그리지 못해, 화면과 달리 PDF에서는
-      // 원본 색(어두운 잉크색) 로고가 어두운 배경(--quote-ink)에 묻혀버린다.
-      // 캡처 직전에 로고 픽셀 자체를 캔버스로 반전시켜 별도 이미지로 바꿔치기한다.
-      if (brand === "jakeimage") {
-        const logoImg = captureTarget.querySelector<HTMLImageElement>(".rail-slogan img");
-        if (logoImg) {
-          try {
-            const inverted = await invertImageColors(logoImg.src);
-            logoImg.src = inverted;
-            logoImg.style.filter = "none";
-          } catch {
-            // 반전 실패 시 원본 로고라도 그대로 남겨 완전히 안 보이는 상황은 피한다.
-          }
-        }
-      }
-
-      if (document.fonts?.ready) {
-        await document.fonts.ready;
-      }
-
-      await new Promise((resolve) => window.requestAnimationFrame(resolve));
-
-      const canvas = await html2canvas(captureTarget, {
-        scale: 2.4,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        width: 1123,
-        height: 794,
-        windowWidth: 1123,
-        windowHeight: 794,
-        scrollX: 0,
-        scrollY: 0
+      const renderResponse = await fetch(`/api/quotes/${encodeURIComponent(savedSnapshot.id)}/render`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format: "pdf" }),
       });
-
-      const image = canvas.toDataURL("image/png");
-      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4", compress: true });
-      const safeMargin = 4;
-      pdf.addImage(image, "PNG", safeMargin, safeMargin, 297 - safeMargin * 2, 210 - safeMargin * 2);
+      const renderPayload = await renderResponse.json().catch(() => null) as { ok?: boolean; url?: string; error?: string } | null;
+      if (!renderResponse.ok || !renderPayload?.ok || !renderPayload.url) {
+        throw new Error(renderPayload?.error || "견적서 PDF를 생성하지 못했습니다.");
+      }
+      const pdfResponse = await fetch(renderPayload.url, { cache: "no-store" });
+      if (!pdfResponse.ok) throw new Error("생성된 견적서 PDF를 내려받지 못했습니다.");
+      const pdfBlob = await pdfResponse.blob();
 
       const hospital = customer.hospitalName.trim() || cfg.label;
       const fileName = `${hospital}_${cfg.label}_견적서_${customer.quoteDate}.pdf`;
-      const pdfBlob = pdf.output("blob");
       const pageParams = new URLSearchParams(window.location.search);
       try {
         // 고객 레코드가 아직 CRM에 없어 연결에 실패해도(신규 브랜드 등) 로컬 PDF 저장은 막지 않는다.
@@ -1673,7 +1577,15 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       } catch (artifactError) {
         console.error("workflow artifact upload failed (non-blocking)", artifactError);
       }
-      pdf.save(fileName);
+
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
 
       if (pdfWindow) {
         pdfWindow.close();
@@ -1685,9 +1597,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       writeErrorWindow(message);
       onResult?.({ success: false, error: message });
     } finally {
-      if (captureRoot) {
-        captureRoot.remove();
-      }
       setIsGenerating(false);
     }
   };
@@ -1808,7 +1717,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             >
             <QuoteDocument
               data={quoteDocumentData}
-              pageRef={previewRef}
               scale={showFullscreenPreview ? fullscreenPreviewScale : previewScale}
             />
             </div>

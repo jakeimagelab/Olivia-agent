@@ -38,9 +38,9 @@ export type OliviaUiAction =
   | { type: "SET_SELECTION"; entityType: string; entityId: string }
   | { type: "PREVIEW_QUOTE"; resourceId: string }
   // 현재 마운트된 QuoteBuilder 인스턴스가 useQuoteStore에 등록해 둔 pdfHandler를 호출한다 —
-  // 사람이 누르는 다운로드 버튼과 정확히 같은 downloadPdf() 함수다. 서버 tool은 DB를 건드리지
-  // 않으므로(PDF는 브라우저 DOM 캡처로만 만들 수 있다) 실제 성공/실패는 이 액션이 클라이언트에서
-  // 실행된 뒤에만 확정된다(actionRouter.ts 참고).
+  // 사람이 누르는 다운로드 버튼과 정확히 같은 downloadPdf() 함수다. 서버 tool은 현재 편집
+  // 상태를 직접 저장할 수 없으므로 실제 성공/실패는 이 액션이 클라이언트에서 canonical render
+  // API 호출까지 마친 뒤에만 확정된다(actionRouter.ts 참고).
   | { type: "DOWNLOAD_QUOTE_PDF"; resourceId: string }
   // 위 DOWNLOAD_QUOTE_PDF와 정확히 같은 이유(2026-08-30, PHASE 3) — ContractBuilder가
   // useContractPdfHandlerStore에 등록해 둔 pdfHandler를 호출한다.

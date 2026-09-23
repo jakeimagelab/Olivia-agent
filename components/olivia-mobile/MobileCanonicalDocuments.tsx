@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import QuoteDocument, { quoteDocumentDataFromRow } from "@/components/quote/QuoteDocument";
+import QuoteDocument from "@/components/quote/QuoteDocument";
 import { buildContractHtmlFromRow } from "@/lib/contract/contractDocument";
+import { quoteDocumentDataFromRow } from "@/lib/quote/quoteDocumentData";
 import styles from "./OliviaMobileShell.module.css";
 
 function useFitScale(naturalWidth: number) {

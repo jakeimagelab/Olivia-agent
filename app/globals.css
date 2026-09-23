@@ -83,6 +83,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Chromium 견적서 native PDF 전용. :has()로 print route에서만 root canvas를 A4 landscape로
+   고정해 다른 화면과 계약서 인쇄 규칙에는 영향을 주지 않는다. */
+html:has(.quote-print-page),
+body:has(.quote-print-page) {
+  width: 297mm;
+  height: 210mm;
+  margin: 0;
+  overflow: hidden;
+  background: #ffffff;
+}
+
 button,
 input,
 textarea,
@@ -2962,16 +2973,6 @@ main:has(> .pc-header) {
   margin-bottom: 5px;
   padding: 0 4px;
   line-height: 1;
-}
-
-/* 박스 크기·위치는 그대로 두고 안의 텍스트/아이콘만 살짝 위로 올린다. align-items를
-   center->start로 바꾸는 방식은 브라우저에선 맞지만, PDF 다운로드가 쓰는 html2canvas가
-   이 grid 정렬을 다르게 캡처해서(원 아이콘이 위 테두리에 걸림) 화면과 PDF가 서로
-   달라졌다 — html2canvas가 훨씬 안정적으로 지원하는 단순 margin으로 옮긴다.
-   .payment-row의 두 직계 자식(.payment-label, 금액 span) 둘 다 <span>이라 이 선택자
-   하나로 같이 움직인다. */
-.payment-row > span {
-  margin-top: -2px;
 }
 
 .payment-row strong {
@@ -9036,10 +9037,11 @@ main, .pc-console, .pc-page, .pc-page-content {
 /* 병원브랜드이미지 진단 — 결과 리포트를 브라우저 인쇄(Ctrl/Cmd+P)로 저장할 때
    사이드바/헤더/버튼 등은 숨기고 리포트 본문만 인쇄되도록 한다 (PDF 생성 실패 시 대체 수단). */
 @media print {
-  body * { visibility: hidden; }
-  .hbd-print-area, .hbd-print-area * { visibility: visible; }
-  .hbd-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-  .hbd-print-hide { display: none !important; }
+  body:has(.hbd-print-area) * { visibility: hidden; }
+  body:has(.hbd-print-area) .hbd-print-area,
+  body:has(.hbd-print-area) .hbd-print-area * { visibility: visible; }
+  body:has(.hbd-print-area) .hbd-print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  body:has(.hbd-print-area) .hbd-print-hide { display: none !important; }
 }
 
 /* 병원브랜드이미지 진단 — 모바일에서 고정 2열이던 영역을 1열로 전환 (STEP1 진료과/지역,
