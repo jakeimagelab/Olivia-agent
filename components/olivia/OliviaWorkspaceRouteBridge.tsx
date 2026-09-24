@@ -34,6 +34,7 @@ export default function OliviaWorkspaceRouteBridge({
   const clientId = searchParams.get("clientId") ?? undefined;
   const workflowRunId = searchParams.get("workflowRunId") ?? searchParams.get("projectId") ?? undefined;
   const resourceId = searchParams.get("resourceId") ?? searchParams.get("stepKey") ?? undefined;
+  const sourceQuoteId = searchParams.get("sourceQuoteId") ?? searchParams.get("quoteId") ?? undefined;
   const layoutMode = useOliviaLayoutStore((s) => s.mode);
   const hasWorkspace = useWorkspaceStore((s) => s.type !== null);
   const reduceMotion = useReducedMotion();
@@ -44,11 +45,11 @@ export default function OliviaWorkspaceRouteBridge({
     // 쿼리 파라미터가 살짝 바뀌었다고 다시 split 모드로 되돌리면 안 된다.
     if (store.type === workspaceType && store.mode === "fullscreen") return;
     if (store.type === workspaceType) {
-      store.switchWorkspace(workspaceType, { clientId, workflowRunId, resourceId, openedBy: "route" });
+      store.switchWorkspace(workspaceType, { clientId, workflowRunId, resourceId, sourceQuoteId, openedBy: "route" });
     } else {
-      store.openWorkspace(workspaceType, { clientId, workflowRunId, resourceId, openedBy: "route" });
+      store.openWorkspace(workspaceType, { clientId, workflowRunId, resourceId, sourceQuoteId, openedBy: "route" });
     }
-  }, [workspaceType, clientId, workflowRunId, resourceId]);
+  }, [workspaceType, clientId, workflowRunId, resourceId, sourceQuoteId]);
 
   if (!renderSplitView) return null;
 

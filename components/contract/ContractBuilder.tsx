@@ -41,6 +41,7 @@ export default function ContractBuilder({
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
   resourceId,
+  sourceQuoteId,
   onClose,
   onPublished,
   registerRequestClose,
@@ -49,6 +50,7 @@ export default function ContractBuilder({
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  sourceQuoteId?: string;
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
@@ -167,6 +169,39 @@ export default function ContractBuilder({
       window.addEventListener("olivia-resource-refresh", onRefresh);
       return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
     }
+    if (sourceQuoteId) {
+      setError("");
+      setContractId(null);
+      setSignatureDataUrl("");
+      setQuote(null);
+      const controller = new AbortController();
+      fetch(`/api/quotes/${sourceQuoteId}`, { signal: controller.signal })
+        .then(async (response) => {
+          const json = await response.json().catch(() => null);
+          if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+          return json.quote as Record<string, unknown>;
+        })
+        .then((sourceQuote) => {
+          const loadedQuote = normalizeContractQuoteData(sourceQuote, sourceQuote);
+          if (!loadedQuote) throw new Error("견적 데이터를 계약서 형식으로 변환하지 못했습니다.");
+          if (loadedQuote.items.length === 0) throw new Error("선택한 견적서에 계약서로 가져올 항목이 없습니다.");
+          const formState = sourceQuote.form_state;
+          if (formState && typeof formState === "object" && (formState as Record<string, unknown>).brand === "jakeimage") {
+            setBrand("jakeimage");
+          } else {
+            setBrand("photoclinic");
+          }
+          setQuote(loadedQuote);
+          lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" });
+        })
+        .catch((loadError) => {
+          if (loadError instanceof DOMException && loadError.name === "AbortError") return;
+          console.error("source quote load failed", loadError);
+          setQuote(null);
+          setError(loadError instanceof Error ? loadError.message : "견적 정보를 불러올 수 없습니다.");
+        });
+      return () => controller.abort();
+    }
     if (!modalClientId) return;
     fetch(`/api/clients/${modalClientId}/workspace`)
       .then((r) => r.json())
@@ -215,8 +250,7 @@ export default function ContractBuilder({
         });
       })
       .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, modalClientId, resourceId]);
+  }, [isModal, modalClientId, resourceId, sourceQuoteId]);
 
   useEffect(() => {
     if (isModal) return;

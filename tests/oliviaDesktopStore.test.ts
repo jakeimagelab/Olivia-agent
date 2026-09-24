@@ -79,6 +79,17 @@ describe("OLIVIA OS desktop store", () => {
     expect(updated.y).toBe(firstBounds.y);
   });
 
+  it("reuses the contract window while replacing its source quote", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({ appId: "contract", title: "계약서", width: 1000, height: 700, context: { sourceQuoteId: "quote-1" } });
+    const firstBounds = useOliviaDesktopStore.getState().windows.contract;
+    store.openApp({ appId: "contract", title: "계약서", width: 1000, height: 700, context: { sourceQuoteId: "quote-2" } });
+    const updated = useOliviaDesktopStore.getState().windows.contract;
+    expect(updated.context).toEqual({ sourceQuoteId: "quote-2" });
+    expect(updated.x).toBe(firstBounds.x);
+    expect(updated.y).toBe(firstBounds.y);
+  });
+
   it("does not publish a new desktop state for an identical window context", () => {
     const store = useOliviaDesktopStore.getState();
     const context = { clientId: "client-1", projectId: "project-1" };

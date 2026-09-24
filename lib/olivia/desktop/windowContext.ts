@@ -7,6 +7,7 @@ export function contextFromHref(href: string): WindowContext {
     clientId: params.get("clientId") ?? params.get("client_id") ?? params.get("id") ?? undefined,
     projectId: params.get("projectId") ?? params.get("workflowRunId") ?? params.get("workflow_run_id") ?? undefined,
     workflowRunId: params.get("workflowRunId") ?? params.get("workflow_run_id") ?? undefined,
+    sourceQuoteId: params.get("sourceQuoteId") ?? params.get("quoteId") ?? undefined,
     resourceId:
       params.get("resourceId")
       ?? params.get("reviewId")

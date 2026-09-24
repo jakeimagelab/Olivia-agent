@@ -21,6 +21,7 @@ export type WorkspaceBuilderProps = {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  sourceQuoteId?: string;
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;

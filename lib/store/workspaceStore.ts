@@ -29,6 +29,7 @@ export type OpenWorkspaceContext = {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  sourceQuoteId?: string;
   clientName?: string;
   projectName?: string;
   workspaceTitle?: string;
@@ -46,6 +47,7 @@ export type WorkspaceState = {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  sourceQuoteId?: string;
   clientName?: string;
   projectName?: string;
   workspaceTitle?: string;
@@ -62,6 +64,7 @@ export type WorkspaceState = {
 
 const EMPTY_CONTEXT = {
   clientId: undefined, workflowRunId: undefined, resourceId: undefined, clientName: undefined,
+  sourceQuoteId: undefined,
   projectName: undefined, workspaceTitle: undefined, source: undefined, openedBy: undefined,
   startInPreview: undefined,
 };
@@ -84,6 +87,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       clientId: ctx.clientId ?? state.clientId,
       workflowRunId: ctx.workflowRunId ?? state.workflowRunId,
       resourceId: ctx.resourceId,
+      sourceQuoteId: ctx.sourceQuoteId,
       clientName: ctx.clientName ?? state.clientName,
       projectName: ctx.projectName ?? state.projectName,
       workspaceTitle: ctx.workspaceTitle,

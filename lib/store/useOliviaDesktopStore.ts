@@ -15,6 +15,8 @@ export type WindowContext = {
   projectName?: string;
   workflowRunId?: string;
   resourceId?: string;
+  /** Exact quote used to seed a new contract. This is not an existing contract resourceId. */
+  sourceQuoteId?: string;
   resourceType?: string;
   documentId?: string;
   documentType?: string;

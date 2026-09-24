@@ -11,6 +11,7 @@ import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
 import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
@@ -270,6 +271,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 분할뷰 모달의 레이아웃(상단 상태바 + 인라인 액션 바)이 그대로 유지된다.
   const isDesktopWindowMode = useDesktopWindowMode();
   const isDesktopWindow = isModal && isDesktopWindowMode;
+  const launchDesktopApp = useDesktopAppLauncher();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaClient = useOliviaContextStore((state) => state.setClient);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
@@ -954,11 +956,38 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     useQuoteStore.getState().clearDirty();
   };
 
-  const openContractWithQuote = (data: ContractQuoteData) => {
-    const { formState, ...contractPayload } = data;
-    const contractBrand = formState?.brand ?? "photoclinic";
-    const encoded = encodeURIComponent(JSON.stringify(contractPayload));
-    window.open(`/contract?data=${encoded}&brand=${contractBrand}`, "_blank");
+  const [openingContract, setOpeningContract] = useState(false);
+  const openContractWithQuote = async (data: ContractQuoteData) => {
+    if (openingContract) return;
+    setOpeningContract(true);
+    setRecentQuoteMessage("");
+    try {
+      // 계약서에는 현재 화면의 임시 JSON이 아니라 DB에 저장된 정확한 견적을 넘긴다.
+      // 저장이 실패하면 예전 /contract 페이지를 열어 빈 계약서를 보여주지 않는다.
+      const saved = await saveRecentQuote(data);
+      if (!saved?.id) return;
+
+      if (isDesktopWindow) {
+        launchDesktopApp(
+          `/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`,
+          saved.hospitalName || "계약서",
+          {
+            clientId,
+            projectId: workflowRunId,
+            workflowRunId,
+            sourceQuoteId: saved.id,
+            resourceType: "quote",
+          },
+        );
+        setRecentQuoteMessage("저장된 견적 항목으로 계약서 창을 열었습니다.");
+        return;
+      }
+
+      // 직접 URL/기존 분할 워크스페이스의 호환 경로도 큰 JSON 쿼리 대신 quoteId 하나만 쓴다.
+      window.open(`/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`, "_blank");
+    } finally {
+      setOpeningContract(false);
+    }
   };
 
   const publishQuoteToPortal = async (
@@ -1009,8 +1038,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 계약서 생성 페이지로 이동 (견적 데이터 전달)
   const goToContract = () => {
     const data = buildContractQuoteData();
-    saveRecentQuote(data);
-    openContractWithQuote(data);
+    void openContractWithQuote(data);
   };
 
   const saveCurrentQuoteSnapshot = () => {
@@ -2367,10 +2395,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => openContractWithQuote(item)}
+                        onClick={() => void openContractWithQuote(item)}
+                        disabled={openingContract}
                       >
                         <FileText size={15} />
-                        계약서
+                        {openingContract ? "준비 중" : "계약서"}
                       </button>
                       <button
                         type="button"
@@ -2462,10 +2491,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               className="primary-button"
               type="button"
               onClick={goToContract}
+              disabled={openingContract}
               style={{ background: "var(--quote-accent)" }}
             >
               <FileText size={18} />
-              고객 승인 후 계약서 생성
+              {openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성"}
             </button>
             <button className="secondary-button" type="button" onClick={resetForm}>
               <RefreshCcw size={18} />
@@ -2537,7 +2567,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
               { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
               { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
-              { key: "contract", label: "고객 승인 후 계약서 생성", onClick: goToContract, variant: "primary", icon: <FileText size={14} /> },
+              { key: "contract", label: openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성", onClick: goToContract, disabled: openingContract, variant: "primary", icon: <FileText size={14} /> },
             ]}
           />
         </div>

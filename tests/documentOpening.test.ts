@@ -36,6 +36,16 @@ describe("document opening", () => {
     expect(contextFromHref("/gallery?galleryId=gallery-1").resourceId).toBe("gallery-1");
   });
 
+  it("계약서 생성용 quoteId는 기존 계약서 resourceId와 분리한다", () => {
+    expect(contextFromHref("/contract?sourceQuoteId=quote-1")).toEqual({
+      clientId: undefined,
+      projectId: undefined,
+      workflowRunId: undefined,
+      sourceQuoteId: "quote-1",
+      resourceId: undefined,
+    });
+  });
+
   it("분석 앱 창에서도 workflowRunId를 별도 context로 보존한다", () => {
     const context = contextFromHref("/channel-analyzer?clientId=client-1&workflowRunId=run-1");
     expect(context.clientId).toBe("client-1");
