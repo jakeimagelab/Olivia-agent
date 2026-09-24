@@ -13,6 +13,7 @@ import { getTemporaryDocument, linkTemporaryDocumentsForHospital, listTemporaryD
 function toDocSummary(doc: OliviaDocumentRef) {
   return {
     id: doc.id,
+    sourceId: doc.sourceId,
     type: doc.type,
     typeLabel: DOCUMENT_TYPE_LABELS[doc.type],
     title: doc.title,

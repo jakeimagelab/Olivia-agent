@@ -671,7 +671,7 @@ export async function executeQuoteTool(
   if (name === "link_new_client_to_quote") {
     const resourceId = text(input, "resourceId") || activeResource(context, "quote");
     const clientId = text(input, "clientId") || null;
-    const { updated, client } = await linkNewClientToQuote(db, {
+    const { updated, client, workflowRunId } = await linkNewClientToQuote(db, {
       resourceId,
       clientId,
       hospitalName: text(input, "hospitalName") || null,
@@ -682,7 +682,14 @@ export async function executeQuoteTool(
     return {
       tool: name,
       success: true,
-      data: { resourceId, updatedResource: updated, summary: `${client.hospital_name}에 이 견적서를 연결했어요.` },
+      data: {
+        resourceId,
+        clientId: client.id,
+        workflowRunId,
+        hospitalName: client.hospital_name,
+        updatedResource: updated,
+        summary: `${client.hospital_name}에 이 견적서를 연결했어요.`,
+      },
       // linkNewClientToQuote는 실패 시 throw하므로, 여기 도달했다는 것 자체가 실제 연결
       // 확인이다(스펙 §16) — updated.client_id로 다시 한번 실제 저장값을 확인한다.
       verification: createVerification({ executed: true, persisted: true, resourceExists: true, linked: Boolean(updated.client_id) }),

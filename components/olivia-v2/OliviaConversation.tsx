@@ -3,7 +3,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowUp, Maximize2, Minimize2, Minus, Paperclip, Plus, Search, Square } from "lucide-react";
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
-import { messageText } from "@/lib/olivia/v2/types";
+import { messageText, type OliviaMessageBlock } from "@/lib/olivia/v2/types";
+import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { useOliviaChatDockStore } from "@/lib/store/useOliviaChatDockStore";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
@@ -26,6 +27,19 @@ import {
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
 const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "메모 남겨줘"];
+
+function openDesktopResource(block: Extract<OliviaMessageBlock, { type: "resource_card" }>) {
+  const workspace = block.resourceType === "storyboard"
+    ? "conti"
+    : block.resourceType === "quote" || block.resourceType === "contract"
+      ? block.resourceType
+      : undefined;
+  if (!workspace) return;
+  const prefix = block.resourceType === "storyboard" ? ["storyboard:", "conti:"] : [`${block.resourceType}:`];
+  const matchedPrefix = prefix.find((candidate) => block.resourceId.startsWith(candidate));
+  const resourceId = matchedPrefix ? block.resourceId.slice(matchedPrefix.length) : block.resourceId;
+  executeOliviaAction({ type: "OPEN_WORKSPACE", workspace, resourceId });
+}
 
 export default function OliviaConversation({ variant = "main", showExpandToggle = false, onMinimize }: { variant?: "main" | "workspace" | "drawer" | "home" | "mobile"; showExpandToggle?: boolean; onMinimize?: () => void }) {
   const messages = useOliviaConversationStore((state) => state.messages);
@@ -449,7 +463,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                   {message.blocks.map((block, index) => {
                     if (block.type === "text") return <MarkdownText key={index} text={block.text} isUser={message.role === "user"} />;
                     if (block.type === "status") return <div key={index} className="olivia-message__status">{block.text}</div>;
-                    if (block.type === "resource_card") return isMobile ? <button key={index} type="button" className="olivia-resource-card olivia-resource-card--mobile" onClick={() => window.dispatchEvent(new CustomEvent("olivia-mobile-open-resource", { detail: block }))}><strong>{block.title || (block.resourceType === "quote" ? "견적서" : block.resourceType === "contract" ? "계약서" : "문서")}</strong><span>{block.summary || "미리보기"}</span><b>미리보기</b></button> : <div key={index} className="olivia-resource-card"><strong>{block.title || block.resourceType}</strong><span>{block.summary || block.resourceId}</span></div>;
+                    if (block.type === "resource_card") return isMobile ? <button key={index} type="button" className="olivia-resource-card olivia-resource-card--mobile" onClick={() => window.dispatchEvent(new CustomEvent("olivia-mobile-open-resource", { detail: block }))}><strong>{block.title || (block.resourceType === "quote" ? "견적서" : block.resourceType === "contract" ? "계약서" : "문서")}</strong><span>{block.summary || "미리보기"}</span><b>미리보기</b></button> : <button key={index} type="button" className="olivia-resource-card olivia-resource-card--desktop" onClick={() => openDesktopResource(block)} disabled={!(["quote", "contract", "storyboard", "conti"].includes(block.resourceType))}><strong>{block.title || block.resourceType}</strong><span>{block.summary || "문서 열기"}</span></button>;
                     if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
                     if (block.type === "approval") return <div key={index} className="olivia-approval-card">
                       <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : "확인이 필요해요"}</strong>

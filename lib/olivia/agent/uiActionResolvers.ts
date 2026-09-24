@@ -69,6 +69,16 @@ function temporaryDocumentApproval(result: OliviaToolResult): OliviaUiAction[] {
   }];
 }
 
+function clientDetailAction(result: OliviaToolResult): OliviaUiAction[] {
+  if (!result.success) return [];
+  const clientId = value(result.data, "clientId");
+  if (!clientId) return [];
+  const workflowRunId = value(result.data, "workflowRunId");
+  const query = new URLSearchParams({ clientId });
+  if (workflowRunId) query.set("workflowRunId", workflowRunId);
+  return [{ type: "OPEN_FEATURE", href: `/clients?${query.toString()}` }];
+}
+
 export const uiActionResolvers: Record<string, UiActionResolver> = {
   select_project: async ({ result }) => {
     if (!result.success) return [];
@@ -166,7 +176,10 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   // ui_action을 만들면 마법사가 이미 자기 안에서 같은 도구를 부를 때도 중복 카드가 뜬다
   // (견적서 UX 개편, 2026-08-31).
   resolve_quote_client: async () => [],
-  link_new_client_to_quote: async ({ result }) => mutationActions("quote", result),
+  link_new_client_to_quote: async ({ result }) => [
+    ...mutationActions("quote", result),
+    ...clientDetailAction(result),
+  ],
   download_quote_pdf: async ({ result, context }) => {
     if (!result.success) return [];
     const resourceId = value(result.data, "resourceId") || context.activeResourceId;
@@ -195,6 +208,7 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
       toolInput: { temporaryDocumentId },
     }];
   },
+  link_temporary_document_client: async ({ result }) => clientDetailAction(result),
   publish_contract: async ({ result }) => mutationActions("contract", result),
   download_contract_pdf: async ({ result, context }) => {
     if (!result.success) return [];

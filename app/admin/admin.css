@@ -2759,6 +2759,12 @@
 .olivia-message.is-assistant .olivia-message__body *::selection { background: var(--olivia-orange); color: #fff; }
 .olivia-message.is-user .olivia-message__body::selection,
 .olivia-message.is-user .olivia-message__body *::selection { background: #fff; color: #9f3516; }
+.olivia-resource-card--desktop { width: 100%; margin-top: 8px; display: grid; gap: 3px; border: 1px solid rgba(21,88,85,.12); border-radius: 12px; padding: 10px 12px; background: #f7fbfa; color: #17332e; text-align: left; font: inherit; cursor: pointer; }
+.olivia-resource-card--desktop strong { font-size: 11px; }
+.olivia-resource-card--desktop span { color: #6e817c; font-size: 9px; }
+.olivia-resource-card--desktop:hover { border-color: rgba(21,88,85,.28); background: #eef7f5; }
+.olivia-resource-card--desktop:focus-visible { outline: 2px solid var(--olivia-orange); outline-offset: 2px; }
+.olivia-resource-card--desktop:disabled { cursor: default; opacity: .72; }
 .olivia-message__body p { margin: 0; }
 .olivia-message__error { color: #9e4327; }
 .olivia-message__error button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 8px; background: #fff0ea; color: var(--olivia-orange); font-size: 9px; cursor: pointer; }

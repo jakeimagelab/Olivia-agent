@@ -45,7 +45,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   const [wallpaper, setWallpaper] = useState<WallpaperMode>("original");
   const [customWallpaper, setCustomWallpaper] = useState<string>();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number }>();
-  const handledInitialLaunchRef = useRef(false);
+  const handledInitialLaunchRef = useRef<OliviaRootLaunch | null>(null);
 
   // Phase 3 — 활성 창을 Olivia의 LLM 컨텍스트(useOliviaContextStore)로 계속 흘려보낸다.
   useOliviaDesktopContextBridge();
@@ -103,8 +103,8 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   }, []);
 
   useEffect(() => {
-    if (!initialLaunch || handledInitialLaunchRef.current) return;
-    handledInitialLaunchRef.current = true;
+    if (!initialLaunch || handledInitialLaunchRef.current === initialLaunch) return;
+    handledInitialLaunchRef.current = initialLaunch;
     const app = oliviaAppRegistry.find((candidate) => candidate.id === initialLaunch.appId);
     if (!app) return;
     useOliviaDesktopStore.getState().openApp({

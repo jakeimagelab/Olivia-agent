@@ -474,10 +474,28 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
             if (data?.resourceId) useOliviaContextStore.getState().setCurrentDocument(data.resourceId, data.workspace, data.hospitalName);
           }
           if (event.success && event.tool === "search_documents") {
-            const data = event.result as { matched?: boolean; documents?: Array<{ id: string; type: string; title: string }> } | undefined;
+            const data = event.result as { matched?: boolean; documents?: Array<{ id: string; sourceId?: string; type: string; title: string }> } | undefined;
             if (data?.matched && data.documents?.[0]) {
               const doc = data.documents[0];
               useOliviaContextStore.getState().setCurrentDocument(doc.id, doc.type, doc.title);
+              const resourceType = doc.type === "quote" || doc.type === "contract" || doc.type === "storyboard"
+                ? doc.type
+                : "document";
+              const resourceId = doc.sourceId || doc.id.split(":").slice(1).join(":") || doc.id;
+              set((state) => ({
+                messages: state.messages.map((message) => message.id === responseId && !message.blocks.some((block) => block.type === "resource_card" && block.resourceId === resourceId)
+                  ? {
+                      ...message,
+                      blocks: [...message.blocks, {
+                        type: "resource_card",
+                        resourceType,
+                        resourceId,
+                        title: doc.title,
+                        summary: "문서 열기",
+                      }],
+                    }
+                  : message),
+              }));
             }
           }
           if (event.success && (event.tool === "start_task_session" || event.tool === "continue_task_session")) {
