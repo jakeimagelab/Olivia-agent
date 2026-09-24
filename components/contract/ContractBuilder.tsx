@@ -377,60 +377,6 @@ export default function ContractBuilder({
     setSignatureDataUrl("");
   };
 
-  const createContractPdf = async () => {
-    if (!quote || !previewFrameRef.current?.contentDocument?.body) {
-      throw new Error("계약서 미리보기를 불러온 뒤 다시 시도해주세요.");
-    }
-
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import("html2canvas"),
-      import("jspdf")
-    ]);
-
-    const doc = previewFrameRef.current.contentDocument;
-    const pages = Array.from(doc.querySelectorAll<HTMLElement>(".contract-page"));
-    if (!pages.length) {
-      throw new Error("계약서 페이지를 찾을 수 없습니다.");
-    }
-
-    if (doc.fonts?.ready) {
-      await doc.fonts.ready;
-    }
-
-    await Promise.all(
-      Array.from(doc.images).map((image) => {
-        if (image.complete) return Promise.resolve();
-        return new Promise<void>((resolve) => {
-          image.onload = () => resolve();
-          image.onerror = () => resolve();
-        });
-      })
-    );
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
-    for (const [index, page] of pages.entries()) {
-      const rect = page.getBoundingClientRect();
-      const canvas = await html2canvas(page, {
-        scale: 2,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        width: Math.ceil(rect.width),
-        height: Math.ceil(rect.height),
-        windowWidth: Math.ceil(rect.width),
-        windowHeight: Math.ceil(rect.height),
-        scrollX: 0,
-        scrollY: 0
-      });
-
-      if (index > 0) pdf.addPage();
-      pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297);
-    }
-
-    return pdf;
-  };
-
   const contractFileName = () =>
     `${cfg.label}_계약서_${quote?.hospitalName || "고객"}_${quote?.quoteDate || ""}.pdf`;
 
@@ -446,13 +392,23 @@ export default function ContractBuilder({
     try {
       const savedContractId = await handleSave();
       if (!savedContractId) throw new Error("계약 DB 저장에 실패했습니다.");
-      const pdf = await createContractPdf();
+      const pdfResponse = await fetch(`/api/contracts/${encodeURIComponent(savedContractId)}/pdf`, {
+        cache: "no-store",
+      });
+      if (!pdfResponse.ok) {
+        const payload = await pdfResponse.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || "계약서 PDF를 생성하지 못했습니다.");
+      }
+      const pdfBlob = await pdfResponse.blob();
+      if (pdfBlob.type !== "application/pdf") {
+        throw new Error("계약서 PDF 응답 형식이 올바르지 않습니다.");
+      }
       const fileName = contractFileName();
       const pageParams = new URLSearchParams(window.location.search);
       try {
         // 고객 레코드가 아직 CRM에 없어 연결에 실패해도 로컬 PDF 저장은 막지 않는다.
         await uploadWorkflowArtifact({
-          file: pdf.output("blob"),
+          file: pdfBlob,
           fileName,
           documentType: "contract",
           sourceTable: "contracts",
@@ -465,7 +421,14 @@ export default function ContractBuilder({
       } catch (artifactError) {
         console.error("workflow artifact upload failed (non-blocking)", artifactError);
       }
-      pdf.save(fileName);
+      const downloadUrl = URL.createObjectURL(pdfBlob);
+      const anchor = document.createElement("a");
+      anchor.href = downloadUrl;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 30_000);
       onResult?.({ success: true });
     } catch (e: any) {
       setError(e.message || "PDF 생성에 실패했습니다.");

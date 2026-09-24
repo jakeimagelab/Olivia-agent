@@ -26,6 +26,10 @@ export interface ContractQuoteData {
 
 export type ContractBrand = "photoclinic" | "jakeimage";
 
+export type ContractHtmlOptions = {
+  baseUrl?: string;
+};
+
 export const CONTRACT_BRAND_CONFIG: Record<ContractBrand, {
   label: string;
   logo: string;
@@ -125,7 +129,12 @@ export function normalizeContractQuoteData(raw: unknown, contract: Record<string
   };
 }
 
-export function buildContractHtml(q: ContractQuoteData, signatureDataUrl = "", brand: ContractBrand = "photoclinic"): string {
+export function buildContractHtml(
+  q: ContractQuoteData,
+  signatureDataUrl = "",
+  brand: ContractBrand = "photoclinic",
+  options: ContractHtmlOptions = {},
+): string {
   const cfg = CONTRACT_BRAND_CONFIG[brand];
   const ink = brand === "jakeimage" ? "#162238" : "#155855";
   const accent = brand === "jakeimage" ? "#2f4a73" : "#E85D2C";
@@ -133,7 +142,8 @@ export function buildContractHtml(q: ContractQuoteData, signatureDataUrl = "", b
   const tintBorder = brand === "jakeimage" ? "#CDDAEA" : "#F3C6B1";
   const quoteNumberPrefix = brand === "jakeimage" ? "JI-" : "PC-";
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-  const baseHref = typeof window !== "undefined" ? window.location.origin : "";
+  const runtimeBaseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const baseHref = (options.baseUrl ?? runtimeBaseUrl).replace(/\/+$/, "");
   const signatureHtml = signatureDataUrl ? `<img class="signature-image" src="${signatureDataUrl}" alt="${cfg.label} 서명">` : "";
   const effectiveDepositRate = q.depositRate ?? Math.round(((q.depositAmount || 0) / (q.totalAmount || 1)) * 100);
   const { depositAmount: effectiveDeposit, balanceAmount: effectiveBalance } = q.depositRate != null
@@ -156,7 +166,7 @@ export function buildContractHtml(q: ContractQuoteData, signatureDataUrl = "", b
     ? `${q.specialTerms}\n\n본 계약서는 양 당사자가 서명(또는 날인)한 시점부터 법적 효력이 발생합니다.\n구두 합의 사항은 본 계약서에 반영된 경우에 한하여 효력을 인정합니다.\n촬영 현장에서의 안전사고에 대한 책임은 각 당사자가 부담합니다.`
     : `${q.memos ? `【메모】 ${q.memos}\n\n` : ""}본 계약서는 양 당사자가 서명(또는 날인)한 시점부터 법적 효력이 발생합니다.\n구두 합의 사항은 본 계약서에 반영된 경우에 한하여 효력을 인정합니다.\n촬영 현장에서의 안전사고에 대한 책임은 각 당사자가 부담합니다.`;
 
-  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><base href="${baseHref}/"><title>${cfg.docTitle} · ${q.hospitalName}</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"><style>
+  return `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><base href="${baseHref ? `${baseHref}/` : "/"}"><title>${cfg.docTitle} · ${q.hospitalName}</title><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet"><style>
 *{box-sizing:border-box;margin:0;padding:0}body{font-family:'Noto Sans KR',sans-serif;color:#1C2B28;background:#F3F8F7;padding:18px 0;font-size:10.8px;line-height:1.55;margin:0}.contract-page{width:794px;height:1123px;margin:0 auto 18px;padding:42px 56px;background:#fff;overflow:hidden;position:relative;page-break-after:always}.contract-page:last-child{margin-bottom:0;page-break-after:auto}.top-accent{height:6px;background:${accent};border-radius:99px;margin-bottom:18px}.header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:28px;align-items:start;margin-bottom:18px;padding-bottom:14px;border-bottom:2px solid ${ink}}.brand-logo{width:126px;height:auto;display:block;margin-bottom:8px}.brand-sub{font-size:8.8px;color:#6B8B87;margin-top:2px;line-height:1.45;white-space:nowrap}.doc-title{font-size:20px;font-weight:700;color:#1C2B28;letter-spacing:.3px;text-align:right;white-space:nowrap}.doc-meta{font-size:10px;color:#6B8B87;text-align:right;margin-top:6px;line-height:1.55}.doc-meta strong{color:${accent}}.parties{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:18px}.party{border-top:3px solid ${ink};padding:9px 0 0;background:#fff}.party.party-client{border-top-color:${accent}}.party h3{font-size:10px;font-weight:700;color:${ink};letter-spacing:.02em;margin-bottom:7px}.party.party-client h3{color:${accent}}.party .row{display:grid;grid-template-columns:62px minmax(0,1fr);gap:9px;padding:3px 0;font-size:10.4px;border-bottom:1px solid #EEF4F3}.party .k{color:#6B8B87}.party .v{font-weight:600;color:#1C2B28;word-break:keep-all;overflow-wrap:break-word;line-height:1.45}.section{margin-bottom:13px;break-inside:avoid}.section h3{font-size:10.6px;font-weight:700;color:${ink};margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid #C8DDD9;display:flex;align-items:center;gap:7px}.art{display:inline-block;background:${ink};color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;flex-shrink:0}.section:nth-of-type(2n) .art{background:${accent}}.clause{border-left:3px solid ${ink};padding:2px 0 2px 11px;font-size:10px;line-height:1.6;color:#2C3E3D;white-space:pre-line;word-break:keep-all;overflow-wrap:break-word}.quote-list{display:grid;gap:3px;margin-bottom:8px}.quote-item{display:grid;grid-template-columns:36px minmax(0,1fr) 132px;gap:12px;align-items:start;padding:6px 0;border-bottom:1px solid #E4F0EE}.item-index{font-size:10px;font-weight:700;color:${accent}}.item-main strong{display:block;font-size:10.6px;color:#1C2B28;margin-bottom:1px;word-break:keep-all;overflow-wrap:break-word}.item-main span{display:block;font-size:9.2px;color:#6B8B87;line-height:1.35;word-break:keep-all;overflow-wrap:break-word}.item-main em{display:inline-block;margin-top:4px;font-style:normal;font-size:9px;color:#fff;background:${ink};border-radius:99px;padding:1px 7px}.item-amount{text-align:right}.item-amount small{display:block;font-size:9px;color:#9BB5B0;margin-bottom:2px}.item-amount b{font-size:10.8px;color:${ink}}.amount-panel{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;align-items:end;border-top:2px solid ${ink};padding-top:8px}.amount-note{font-size:9px;color:#6B8B87;line-height:1.45;word-break:keep-all}.amt-row{display:flex;justify-content:space-between;padding:2px 0;font-size:9.8px;border-bottom:.5px solid #EEF4F3}.amt-row .l{color:#6B8B87}.amt-total{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;font-weight:700;color:${ink};border-top:2px solid ${accent};margin-top:2px}.pay-boxes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px}.pay-box{border:1px solid #C8DDD9;border-radius:7px;padding:8px;text-align:center;background:#FAFCFC}.pay-box .pt{font-size:10px;color:#9BB5B0;margin-bottom:3px}.pay-box .pa{font-size:14px;font-weight:700;color:${ink}}.pay-box:first-child .pa{color:${accent}}.pay-box .ps{font-size:10px;color:#9BB5B0;margin-top:2px}.effect-box{background:${tint};border:1px solid ${tintBorder};border-radius:7px;padding:8px 10px;margin:14px 0 12px;font-size:9.1px;color:#2C3E3D;line-height:1.55;text-align:center}.sign-area{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;align-items:stretch}.sign-box{min-width:0;border:1px solid #C8DDD9;border-radius:9px;padding:12px 14px}.sign-box h4{font-size:11px;font-weight:700;color:#6B8B87;margin-bottom:12px;padding-bottom:5px;border-bottom:1px solid #EEF4F3}.sl{display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;align-items:center;margin-bottom:6px}.sl .sk{font-size:9.8px;color:#9BB5B0}.sl .sv{font-size:10.8px;font-weight:600;color:#1C2B28;border-bottom:1px solid #C8DDD9;padding-bottom:1px;min-height:20px;min-width:0}.signature-image{display:block;width:128px;height:42px;object-fit:contain;object-position:left center}.stamp{margin-top:8px;height:42px;border:1px dashed #C8DDD9;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#C8DDD9}.effect-line{display:block;white-space:nowrap;letter-spacing:-.02em}.final-page{display:flex;flex-direction:column}.final-spacer{flex:1;min-height:260px}.footer{margin-top:12px;text-align:center;font-size:9px;color:#9BB5B0;padding-top:8px;border-top:1px solid #EEF4F3}@media print{body{padding:0;background:#fff}.contract-page{margin:0;box-shadow:none}@page{size:A4;margin:0}}
 </style></head><body>
 <div class="contract-page"><div class="top-accent"></div><div class="header"><div><img class="brand-logo" src="${cfg.logo}" alt="${cfg.logoAlt}"><div class="brand-sub">${cfg.brandSub}</div><div class="brand-sub">사업자번호: 190-16-00212 · 제이크이미지연구소</div></div><div><div class="doc-title">${cfg.docTitle}</div><div class="doc-meta"><strong>계약일: ${today}</strong><br>견적번호: ${q.quoteNumber || quoteNumberPrefix + new Date().toISOString().slice(0,10).replace(/-/g,"")}</div></div></div>
@@ -167,9 +177,12 @@ ${section("제1조", "계약 목적 및 촬영 범위", scope)}<div class="secti
 <div class="contract-page final-page">${section("제9조", "분쟁 해결", dispute)}${section("제10조", "특약사항", special)}<div class="final-spacer"></div><div class="effect-box"><span class="effect-line">위 계약의 성립을 증명하기 위하여 본 계약서를 2부 작성하고, 각 1부씩 보관합니다.</span><br><strong>${today}</strong></div><div class="sign-area"><div class="sign-box"><h4>${cfg.clientPartyTitle}</h4><div class="sl"><span class="sk">${cfg.entityLabel}</span><span class="sv">${q.hospitalName || ""}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${q.businessNumber || ""}</span></div><div class="sl"><span class="sk">${cfg.directorLabel}</span><span class="sv">${q.contactName || ""}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv"></span></div><div class="sl"><span class="sk">서명</span><span class="sv"></span></div><div class="stamp">직인 / 서명</div></div><div class="sign-box"><h4>${cfg.companyDisplayName}</h4><div class="sl"><span class="sk">상호</span><span class="sv">${cfg.companyDisplayName}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">190-16-00212</span></div><div class="sl"><span class="sk">대표자</span><span class="sv">정연호</span></div><div class="sl"><span class="sk">서명일</span><span class="sv">${today}</span></div><div class="sl"><span class="sk">서명</span><span class="sv">${signatureHtml}</span></div><div class="stamp">직인 / 서명</div></div></div><div class="footer">${cfg.footerTagline}<br>본 계약서는 양 당사자가 서명한 시점부터 법적 효력이 발생합니다.</div></div></body></html>`;
 }
 
-export function buildContractHtmlFromRow(contract: Record<string, unknown>): string {
+export function buildContractHtmlFromRow(
+  contract: Record<string, unknown>,
+  options: ContractHtmlOptions = {},
+): string {
   const quote = normalizeContractQuoteData(contract.quote_data, contract);
   if (!quote) return "";
   const brand: ContractBrand = quote.quoteNumber.startsWith("JI-") ? "jakeimage" : "photoclinic";
-  return buildContractHtml(quote, String(contract.signature_data_url ?? ""), brand);
+  return buildContractHtml(quote, String(contract.signature_data_url ?? ""), brand, options);
 }

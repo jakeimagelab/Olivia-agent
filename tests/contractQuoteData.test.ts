@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeContractQuoteData } from "@/lib/contract/contractDocument";
+import { buildContractHtml, normalizeContractQuoteData } from "@/lib/contract/contractDocument";
 
 describe("contract quote data", () => {
   it("canonical 견적 row의 항목과 금액을 계약서 데이터로 보존한다", () => {
@@ -26,5 +26,21 @@ describe("contract quote data", () => {
       depositRate: 50,
       items: [{ name: "브랜드 촬영", detail: "연출 촬영", unitPrice: 1_000_000, qty: 1, subtotal: 1_000_000 }],
     });
+  });
+
+  it("서버 PDF용 base URL을 계약서의 상대 에셋 기준으로 사용한다", () => {
+    const quote = normalizeContractQuoteData({
+      hospital_name: "테스트의원",
+      quote_number: "PC-20260925-001",
+      items: [],
+    }, {});
+
+    expect(quote).not.toBeNull();
+    const html = buildContractHtml(quote!, "", "photoclinic", {
+      baseUrl: "https://olivia.example.com/",
+    });
+
+    expect(html).toContain('<base href="https://olivia.example.com/">');
+    expect(html).toContain('src="/assets/photoclinic-logo.png"');
   });
 });
