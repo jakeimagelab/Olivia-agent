@@ -64,10 +64,14 @@ function progressText(client: ClientListItem) {
   return client.active_run ? "프로젝트 진행 중" : "최근 진행 기록이 없습니다.";
 }
 
+function initialClientId() {
+  return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("clientId");
+}
+
 export default function MobileClients() {
   const [clients, setClients] = useState<ClientListItem[]>([]);
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialClientId);
   const [detail, setDetail] = useState<ClientDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -107,6 +111,11 @@ export default function MobileClients() {
 
   useEffect(() => { void loadClients(); }, [loadClients]);
   useEffect(() => {
+    if (selectedId) void openClient(selectedId);
+    // URL에서 전달된 고객은 최초 진입 시 한 번만 연다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
     const refresh = () => void loadClients();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
     window.addEventListener("focus", refresh);
@@ -133,7 +142,14 @@ export default function MobileClients() {
       ?? workflow?.phases?.find((phase) => phase.status === "completed");
     return (
       <section className={`${styles.screen} ${styles.mobileClientsScreen}`} aria-label="모바일 고객 상세" data-mobile-swipe-lock>
-        <button type="button" className={styles.mobileClientsBack} onClick={() => { setSelectedId(null); setDetail(null); setError(""); }}>
+        <button type="button" className={styles.mobileClientsBack} onClick={() => {
+          setSelectedId(null);
+          setDetail(null);
+          setError("");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("clientId");
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+        }}>
           <ChevronLeft size={18} /> 고객 목록
         </button>
         {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void openClient(selectedId)}>다시 시도</button></div> : detailLoading || !client ? (

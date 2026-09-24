@@ -23,6 +23,7 @@ export const PHOTO_EVENT_TYPES = [
   "PHOTO_MERGE_COMPLETED",
   "PHOTO_MERGE_FAILED",
   "PHOTO_PROJECT_CLASSIFY_APPROVED",
+  "PHOTO_WORKFLOW_STEP_CHANGED",
 ] as const;
 export type PhotoProjectEventType = (typeof PHOTO_EVENT_TYPES)[number];
 

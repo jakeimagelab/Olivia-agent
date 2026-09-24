@@ -13,6 +13,7 @@ interface GalleryInfo {
   allow_web_select: boolean; allow_download_upload: boolean;
   allow_download_zip: boolean; allow_resubmit: boolean;
   total_jpg_count: number; file_expires_at: string; files_expired: boolean;
+  nas_link?: string;
 }
 interface GalleryImage {
   id: string; gallery_id: string;
@@ -119,6 +120,17 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
             아래 방법 중 하나를 선택해 보정할 사진을 골라주세요.
           </div>
         </div>
+
+        {gallery.nas_link ? (
+          <a
+            href={gallery.nas_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ display: "block", background: C.teal, color: C.white, padding: "13px 18px", borderRadius: 10, textAlign: "center", fontSize: 14, fontWeight: 800, textDecoration: "none" }}
+          >
+            원본 사진 열기
+          </a>
+        ) : null}
 
         {/* 경고 배너 */}
         <div style={{ background: "rgba(242,163,38,.08)", border: "1px solid rgba(242,163,38,.3)", borderRadius: 10, padding: "14px 18px", fontSize: 12, color: "#d29922", lineHeight: 1.8 }}>

@@ -54,6 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sha
         total_jpg_count: gallery.total_jpg_count,
         file_expires_at: gallery.file_expires_at,
         files_expired: filesExpired,
+        nas_link: gallery.nas_link,
       },
       images,
       selection,

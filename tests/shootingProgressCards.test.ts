@@ -123,4 +123,53 @@ describe("shooting progress home cards", () => {
 
     expect(cards.map((card) => card.projectId)).toEqual(["action", "waiting"]);
   });
+
+  it("advances standalone projects with audited skip actions and can restore them", () => {
+    const skipped = buildShootingProgressCards({
+      projects: [project()],
+      events: [
+        { project_id: "project-1", event_type: "PHOTO_WORKFLOW_STEP_CHANGED", payload: { stage: "original_delivery", state: "skipped" }, created_at: "2026-09-12T11:00:00.000Z" },
+      ],
+    });
+    expect(skipped[0]).toMatchObject({ stage: "client_selection" });
+    expect(skipped[0].manualStates).toMatchObject({ original_delivery: "skipped" });
+
+    const restored = buildShootingProgressCards({
+      projects: [project()],
+      events: [
+        { project_id: "project-1", event_type: "PHOTO_WORKFLOW_STEP_CHANGED", payload: { stage: "original_delivery", state: "skipped" }, created_at: "2026-09-12T11:00:00.000Z" },
+        { project_id: "project-1", event_type: "PHOTO_WORKFLOW_STEP_CHANGED", payload: { stage: "original_delivery", state: "restored" }, created_at: "2026-09-12T12:00:00.000Z" },
+      ],
+    });
+    expect(restored[0]).toMatchObject({ stage: "original_delivery" });
+    expect(restored[0].manualStates).toMatchObject({ original_delivery: "restored" });
+  });
+
+  it("removes the shooting card after final delivery is explicitly completed", () => {
+    const cards = buildShootingProgressCards({
+      projects: [project({ workflow_run_id: "run-1" })],
+      workflows: [{ id: "run-1", current_step_key: "revision", status: "active" }],
+      events: [{
+        project_id: "project-1",
+        event_type: "PHOTO_WORKFLOW_STEP_CHANGED",
+        payload: { stage: "final_delivery", state: "completed" },
+        created_at: "2026-09-24T10:00:00.000Z",
+      }],
+    });
+    expect(cards).toHaveLength(0);
+  });
+
+  it("keeps a skipped final delivery visible so the skip can be undone", () => {
+    const cards = buildShootingProgressCards({
+      projects: [project({ workflow_run_id: "run-1" })],
+      workflows: [{ id: "run-1", current_step_key: "revision", status: "active" }],
+      events: [{
+        project_id: "project-1",
+        event_type: "PHOTO_WORKFLOW_STEP_CHANGED",
+        payload: { stage: "final_delivery", state: "skipped" },
+        created_at: "2026-09-24T10:00:00.000Z",
+      }],
+    });
+    expect(cards[0]).toMatchObject({ stage: "revision", manualStates: { final_delivery: "skipped" } });
+  });
 });

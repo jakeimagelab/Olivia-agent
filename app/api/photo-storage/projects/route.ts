@@ -80,7 +80,11 @@ export async function GET(request: NextRequest) {
     if (eventError) throw eventError;
     let shootingProgress: ShootingProgressCard[] = [];
     try {
-      shootingProgress = await loadShootingProgressCards(db, projects as unknown as PhotoStorageProject[]);
+      shootingProgress = await loadShootingProgressCards(
+        db,
+        projects as unknown as PhotoStorageProject[],
+        (events ?? []) as Array<{ project_id: string; event_type: string; payload?: Record<string, unknown>; created_at?: string }>,
+      );
     } catch (progressError) {
       // 진행 카드 조회가 실패해도 기존 사진 알림과 파이프라인 상태 조회를 깨뜨리지 않는다.
       console.warn("[photo-storage shooting progress]", progressError instanceof Error ? progressError.message : progressError);

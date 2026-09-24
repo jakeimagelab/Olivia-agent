@@ -5,6 +5,7 @@ import {
   completeOpenStepTasksForManualSave,
   ensureStepRun,
   getWorkflowRun,
+  revertWorkflowToStep,
 } from "@/lib/workflowAutomation";
 import { validatePhotoProjectRelativePath } from "./server";
 
@@ -20,10 +21,21 @@ export type ShootingProgressStage =
 
 export type ShootingProgressTone = "attention" | "progress" | "waiting";
 
+export type ShootingProgressActionStage =
+  | "original_delivery"
+  | "client_selection"
+  | "raw_matching"
+  | "retouching"
+  | "final_delivery";
+
+export type ShootingProgressManualState = "completed" | "skipped" | "restored";
+
 export type ShootingProgressCard = {
   projectId: string;
   projectName: string;
+  sourceRelativePath: string;
   clientName: string;
+  clientId: string | null;
   workflowRunId: string | null;
   calendarTaskId: string | null;
   shootDate: string | null;
@@ -36,6 +48,10 @@ export type ShootingProgressCard = {
   detail: string;
   progressPercent: number;
   updatedAt: string;
+  galleryId: string | null;
+  nasLink: string | null;
+  selectionUrl: string | null;
+  manualStates: Partial<Record<ShootingProgressActionStage, ShootingProgressManualState>>;
 };
 
 export type PhotoWorkflowLink = {
@@ -302,6 +318,115 @@ async function completeStepRun(db: SupabaseClient, workflowRunId: string, stepKe
     .eq("id", stepRun.id)
     .neq("status", "completed");
   if (error) throw error;
+}
+
+export async function syncOriginalDeliveryRegisteredWorkflow(
+  db: SupabaseClient,
+  workflowRunId: string | null | undefined,
+): Promise<void> {
+  if (!workflowRunId) return;
+  await completeStepRun(db, workflowRunId, "original_delivery");
+  const run = await getWorkflowRun(db, workflowRunId);
+  if (run.current_step_key !== "client_selection") return;
+  await ensureStepRun(db, workflowRunId, "client_selection", "in_progress");
+  const { error } = await db.from("workflow_runs").update({
+    next_action: buildNextAction("client_selection"),
+    updated_at: new Date().toISOString(),
+  }).eq("id", workflowRunId);
+  if (error) throw error;
+}
+
+export async function syncManualShootingProgressAction(
+  db: SupabaseClient,
+  input: {
+    workflowRunId: string | null | undefined;
+    stage: ShootingProgressActionStage;
+    state: ShootingProgressManualState;
+  },
+): Promise<void> {
+  const workflowRunId = input.workflowRunId;
+  if (!workflowRunId) return;
+  const run = await getWorkflowRun(db, workflowRunId);
+
+  if (input.state === "restored") {
+    if (input.stage === "original_delivery" || input.stage === "raw_matching") {
+      const now = new Date().toISOString();
+      const { error: reopenError } = await db.from("workflow_step_runs")
+        .update({ status: "in_progress", completed_at: null, updated_at: now })
+        .eq("workflow_run_id", workflowRunId)
+        .eq("step_key", input.stage);
+      if (reopenError) throw reopenError;
+      await ensureStepRun(db, workflowRunId, input.stage, "in_progress");
+      const { error: nextActionError } = await db.from("workflow_runs").update({
+        next_action: buildNextAction(input.stage),
+        updated_at: now,
+      }).eq("id", workflowRunId);
+      if (nextActionError) throw nextActionError;
+    }
+    const target = input.stage === "retouching" || input.stage === "final_delivery"
+      ? input.stage
+      : "client_selection";
+    if (run.current_step_key !== target) {
+      try {
+        await revertWorkflowToStep(db, {
+          workflow_run_id: workflowRunId,
+          to_step_key: target,
+          reason: `촬영 진행 ${input.stage} 단계 건너뛰기 취소`,
+        });
+      } catch (error) {
+        // 같은 단계이거나 이미 더 앞선 단계라면 이벤트 이력만 복원해도 카드가 다시 열린다.
+        console.warn("[shooting progress restore workflow]", error instanceof Error ? error.message : error);
+      }
+    }
+    return;
+  }
+
+  if (input.stage === "original_delivery") {
+    await syncOriginalDeliveryRegisteredWorkflow(db, workflowRunId);
+    return;
+  }
+  if (input.stage === "raw_matching") {
+    await completeStepRun(db, workflowRunId, "raw_matching");
+    if (run.current_step_key === "client_selection") {
+      await completeOpenStepTasksForManualSave(db, workflowRunId, "client_selection");
+      await advanceWorkflow(db, {
+        workflow_run_id: workflowRunId,
+        from_step_key: "client_selection",
+        to_step_key: "retouching",
+        reason: `RAW 매칭 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
+      });
+    }
+    return;
+  }
+  if (input.stage === "client_selection" && run.current_step_key === "client_selection") {
+    await completeStepRun(db, workflowRunId, "client_selection");
+    await completeOpenStepTasksForManualSave(db, workflowRunId, "client_selection");
+    await advanceWorkflow(db, {
+      workflow_run_id: workflowRunId,
+      from_step_key: "client_selection",
+      to_step_key: "retouching",
+      reason: `고객 셀렉 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
+    });
+    return;
+  }
+  if (input.stage === "retouching" && run.current_step_key === "retouching") {
+    await advanceWorkflow(db, {
+      workflow_run_id: workflowRunId,
+      from_step_key: "retouching",
+      to_step_key: "final_delivery",
+      reason: `보정 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
+    });
+    return;
+  }
+  if (input.stage === "final_delivery" && run.current_step_key === "final_delivery") {
+    await completeOpenStepTasksForManualSave(db, workflowRunId, "final_delivery");
+    await advanceWorkflow(db, {
+      workflow_run_id: workflowRunId,
+      from_step_key: "final_delivery",
+      to_step_key: "revision",
+      reason: `2차 전달 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
+    });
+  }
 }
 
 export async function syncClassificationCompletedWorkflow(

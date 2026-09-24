@@ -137,7 +137,7 @@ export default function MobileHome({
   const [weather, setWeather] = useState<MobileWeather | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { projects, shootingProgress } = usePhotoProjectNotifications();
+  const { projects, shootingProgress, refresh: refreshPhotoProjects } = usePhotoProjectNotifications();
 
   const load = useCallback(async () => {
     setError("");
@@ -289,7 +289,20 @@ export default function MobileHome({
         )}
       </section>
 
-      <ShootingProgressCards cards={shootingProgress} variant="mobile" />
+      <ShootingProgressCards
+        cards={shootingProgress}
+        variant="mobile"
+        onUpdated={refreshPhotoProjects}
+        onOpenFolder={(card) => {
+          window.location.assign(`/remote-files?path=${encodeURIComponent(card.sourceRelativePath)}`);
+        }}
+        onOpenClient={(clientId) => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("clientId", clientId);
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+          onNavigate("clients");
+        }}
+      />
 
       <section className={styles.homeSection}>
         <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>빠른 메뉴</h2></div>

@@ -12,6 +12,7 @@ import type { PhotoStorageProject } from "./types";
 
 type WorkflowRow = {
   id: string;
+  client_id?: string | null;
   client_name?: string | null;
   project_name?: string | null;
   shoot_date?: string | null;
@@ -29,6 +30,7 @@ type StepRunRow = {
 
 type GalleryRow = {
   id: string;
+  client_id?: string | null;
   photo_storage_project_id?: string | null;
   workflow_run_id?: string | null;
   hospital_name?: string | null;
@@ -37,6 +39,15 @@ type GalleryRow = {
   selected_count?: number | null;
   submitted_at?: string | null;
   updated_at?: string | null;
+  nas_link?: string | null;
+  share_token?: string | null;
+};
+
+type ProgressEventRow = {
+  project_id: string;
+  event_type: string;
+  payload?: Record<string, unknown> | null;
+  created_at?: string | null;
 };
 
 type RemoteJobRow = {
@@ -57,6 +68,54 @@ const STEP_PROGRESS: Record<Exclude<ShootingProgressStage, "completed">, number>
   final_delivery: 90,
   revision: 96,
 };
+
+const ACTION_STAGE_ORDER = [
+  "original_delivery",
+  "client_selection",
+  "raw_matching",
+  "retouching",
+  "final_delivery",
+] as const;
+
+type ActionStage = (typeof ACTION_STAGE_ORDER)[number];
+type ManualState = "completed" | "skipped" | "restored";
+
+function isActionStage(value: unknown): value is ActionStage {
+  return typeof value === "string" && (ACTION_STAGE_ORDER as readonly string[]).includes(value);
+}
+
+function manualStatesForProject(events: ProgressEventRow[], projectId: string) {
+  const states: Partial<Record<ActionStage, ManualState>> = {};
+  const matching = events
+    .filter((event) => event.project_id === projectId && event.event_type === "PHOTO_WORKFLOW_STEP_CHANGED")
+    .sort((left, right) => timestamp(left.created_at) - timestamp(right.created_at));
+  for (const event of matching) {
+    const stage = event.payload?.stage;
+    const state = event.payload?.state;
+    if (!isActionStage(stage) || !["completed", "skipped", "restored"].includes(String(state))) continue;
+    states[stage] = state as ManualState;
+  }
+  return states;
+}
+
+export function applyManualProgressStates(
+  stage: ShootingProgressStage,
+  states: Partial<Record<ActionStage, ManualState>>,
+): ShootingProgressStage {
+  if (stage === "completed" || stage === "backup_sorting") return stage;
+  if (stage === "revision") {
+    return states.final_delivery === "completed" ? "completed" : stage;
+  }
+  let index = ACTION_STAGE_ORDER.indexOf(stage);
+  while (index >= 0) {
+    const current = ACTION_STAGE_ORDER[index];
+    const state = states[current];
+    if (state !== "completed" && state !== "skipped") return current;
+    if (current === "final_delivery") return state === "completed" ? "completed" : "revision";
+    index += 1;
+  }
+  return stage;
+}
 
 function timestamp(value: string | null | undefined): number {
   const parsed = new Date(value ?? "").getTime();
@@ -184,11 +243,11 @@ function inferredShootDate(project: PhotoStorageProject): string | null {
   return buildFolderDateCandidates(project.project_name, new Date(project.discovered_at))[0] ?? null;
 }
 
-function isMissingLinkColumn(error: unknown): boolean {
+function isMissingLinkColumn(error: unknown, columns = ["photo_storage_project_id"]): boolean {
   if (!error || typeof error !== "object") return false;
   const record = error as { code?: unknown; message?: unknown; details?: unknown };
   const message = `${String(record.message ?? "")} ${String(record.details ?? "")}`;
-  return (record.code === "42703" || record.code === "PGRST204") && message.includes("photo_storage_project_id");
+  return (record.code === "42703" || record.code === "PGRST204") && columns.some((column) => message.includes(column));
 }
 
 export function buildShootingProgressCards(input: {
@@ -197,6 +256,7 @@ export function buildShootingProgressCards(input: {
   stepRuns?: StepRunRow[];
   galleries?: GalleryRow[];
   rawJobs?: RemoteJobRow[];
+  events?: ProgressEventRow[];
   nowMs?: number;
 }): ShootingProgressCard[] {
   const {
@@ -205,6 +265,7 @@ export function buildShootingProgressCards(input: {
     stepRuns = [],
     galleries = [],
     rawJobs = [],
+    events = [],
     nowMs = Date.now(),
   } = input;
   const workflowById = new Map(workflows.map((workflow) => [workflow.id, workflow]));
@@ -217,15 +278,18 @@ export function buildShootingProgressCards(input: {
     const workflow = project.workflow_run_id ? workflowById.get(project.workflow_run_id) : undefined;
     const gallery = galleryByProject.get(project.id) ?? (project.workflow_run_id ? galleryByWorkflow.get(project.workflow_run_id) : undefined);
     const rawJob = rawJobByProject.get(project.id);
-    const stage = resolveShootingProgressStage({
+    const canonicalStage = resolveShootingProgressStage({
       projectStatus: project.status,
       galleryStatus: gallery?.status,
+      galleryNasLink: gallery?.nas_link,
       rawJobStatus: rawJob?.status,
       workflowCurrentStep: workflow?.current_step_key,
       workflowStatus: workflow?.status,
       originalDeliveryStepStatus: project.workflow_run_id ? stepByWorkflowAndKey.get(`${project.workflow_run_id}:original_delivery`)?.status : null,
       rawMatchingStepStatus: project.workflow_run_id ? stepByWorkflowAndKey.get(`${project.workflow_run_id}:raw_matching`)?.status : null,
     });
+    const manualStates = manualStatesForProject(events, project.id);
+    const stage = applyManualProgressStates(canonicalStage, manualStates);
     if (stage === "completed") return [];
     const presentation = stagePresentation({ stage, project, gallery, rawJob, nowMs });
     const shootDate = workflow?.shoot_date ?? gallery?.shooting_date ?? inferredShootDate(project);
@@ -242,7 +306,9 @@ export function buildShootingProgressCards(input: {
     return [{
       projectId: project.id,
       projectName: project.project_name,
+      sourceRelativePath: project.source_relative_path,
       clientName,
+      clientId: workflow?.client_id ?? gallery?.client_id ?? null,
       workflowRunId: project.workflow_run_id ?? null,
       calendarTaskId: project.calendar_task_id ?? null,
       shootDate,
@@ -255,6 +321,10 @@ export function buildShootingProgressCards(input: {
       detail,
       progressPercent,
       updatedAt: workflow?.updated_at ?? gallery?.updated_at ?? project.updated_at,
+      galleryId: gallery?.id ?? null,
+      nasLink: gallery?.nas_link ?? null,
+      selectionUrl: gallery?.share_token ? `/select/${gallery.share_token}` : null,
+      manualStates,
     }];
   }).sort((left, right) => Number(right.actionRequired) - Number(left.actionRequired) || timestamp(right.updatedAt) - timestamp(left.updatedAt));
 }
@@ -262,19 +332,20 @@ export function buildShootingProgressCards(input: {
 export async function loadShootingProgressCards(
   db: SupabaseClient,
   projects: PhotoStorageProject[],
+  events: ProgressEventRow[] = [],
 ): Promise<ShootingProgressCard[]> {
   if (!projects.length) return [];
   const projectIds = projects.map((project) => project.id);
   const workflowIds = [...new Set(projects.map((project) => project.workflow_run_id).filter((id): id is string => Boolean(id)))];
 
   const workflowsPromise = workflowIds.length
-    ? db.from("workflow_runs").select("id,client_name,project_name,shoot_date,current_step_key,status,updated_at").in("id", workflowIds)
+    ? db.from("workflow_runs").select("id,client_id,client_name,project_name,shoot_date,current_step_key,status,updated_at").in("id", workflowIds)
     : Promise.resolve({ data: [], error: null });
   const stepRunsPromise = workflowIds.length
     ? db.from("workflow_step_runs").select("workflow_run_id,step_key,status,updated_at").in("workflow_run_id", workflowIds).in("step_key", ["original_delivery", "raw_matching"])
     : Promise.resolve({ data: [], error: null });
   const galleriesPromise = db.from("select_galleries")
-    .select("id,photo_storage_project_id,workflow_run_id,hospital_name,shooting_date,status,selected_count,submitted_at,updated_at")
+    .select("id,client_id,photo_storage_project_id,workflow_run_id,hospital_name,shooting_date,status,selected_count,submitted_at,updated_at,nas_link,share_token")
     .in("photo_storage_project_id", projectIds)
     .order("updated_at", { ascending: false });
   const rawJobsPromise = db.from("remote_jobs")
@@ -284,12 +355,23 @@ export async function loadShootingProgressCards(
     .order("created_at", { ascending: false })
     .limit(Math.max(100, projectIds.length * 3));
 
-  const [workflowResult, stepRunResult, galleryResult, rawJobResult] = await Promise.all([
+  const [workflowResult, stepRunResult, initialGalleryResult, rawJobResult] = await Promise.all([
     workflowsPromise,
     stepRunsPromise,
     galleriesPromise,
     rawJobsPromise,
   ]);
+  let galleryResult = initialGalleryResult;
+  if (galleryResult.error && isMissingLinkColumn(galleryResult.error, ["nas_link"])) {
+    const fallbackGalleryResult = await db.from("select_galleries")
+      .select("id,client_id,photo_storage_project_id,workflow_run_id,hospital_name,shooting_date,status,selected_count,submitted_at,updated_at,share_token")
+      .in("photo_storage_project_id", projectIds)
+      .order("updated_at", { ascending: false });
+    galleryResult = {
+      ...fallbackGalleryResult,
+      data: fallbackGalleryResult.data?.map((gallery) => ({ ...gallery, nas_link: null })) ?? null,
+    } as typeof galleryResult;
+  }
   if (workflowResult.error) throw workflowResult.error;
   if (stepRunResult.error) throw stepRunResult.error;
   if (galleryResult.error && !isMissingLinkColumn(galleryResult.error)) throw galleryResult.error;
@@ -299,5 +381,5 @@ export async function loadShootingProgressCards(
   const stepRuns = (stepRunResult.data ?? []) as StepRunRow[];
   const galleries = galleryResult.error ? [] : (galleryResult.data ?? []) as GalleryRow[];
   const rawJobs = (rawJobResult.data ?? []) as RemoteJobRow[];
-  return buildShootingProgressCards({ projects, workflows, stepRuns, galleries, rawJobs });
+  return buildShootingProgressCards({ projects, workflows, stepRuns, galleries, rawJobs, events });
 }

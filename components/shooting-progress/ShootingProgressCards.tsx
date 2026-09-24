@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ShootingProgressCard } from "@/lib/photo-storage/shootingProgress";
+import { ShootingProgressDialog } from "./ShootingProgressDialog";
 import styles from "./ShootingProgressCards.module.css";
 
 const COLLAPSED_COUNT = 3;
@@ -17,13 +18,25 @@ export function ShootingProgressCards({
   cards,
   variant,
   onOpen,
+  onUpdated,
+  onOpenFolder,
+  onOpenClient,
 }: {
   cards: ShootingProgressCard[];
   variant: "mobile" | "desktop";
   onOpen?: (card: ShootingProgressCard) => void;
+  onUpdated?: () => Promise<void> | void;
+  onOpenFolder?: (card: ShootingProgressCard) => void;
+  onOpenClient?: (clientId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [selected, setSelected] = useState<ShootingProgressCard | null>(null);
   const visibleCards = expanded ? cards : cards.slice(0, COLLAPSED_COUNT);
+  const closeDialog = useCallback(() => setSelected(null), []);
+
+  useEffect(() => {
+    setSelected((current) => current ? cards.find((card) => card.projectId === current.projectId) ?? null : null);
+  }, [cards]);
 
   if (!cards.length) return null;
 
@@ -54,23 +67,16 @@ export function ShootingProgressCards({
               </div>
             </>
           );
-          return onOpen ? (
+          return (
             <button
               type="button"
               className={`${styles.card} ${card.actionRequired ? styles.cardAttention : ""}`}
+              data-project-id={card.projectId}
               key={card.projectId}
-              onClick={() => onOpen(card)}
+              onClick={() => onOpen ? onOpen(card) : setSelected(card)}
             >
               {content}
             </button>
-          ) : (
-            <article
-              className={`${styles.card} ${card.actionRequired ? styles.cardAttention : ""}`}
-              data-project-id={card.projectId}
-              key={card.projectId}
-            >
-              {content}
-            </article>
           );
         })}
       </div>
@@ -79,6 +85,7 @@ export function ShootingProgressCards({
           {expanded ? <><ChevronUp size={15} />접기</> : <><ChevronDown size={15} />나머지 {cards.length - COLLAPSED_COUNT}건 보기</>}
         </button>
       ) : null}
+      {selected ? <ShootingProgressDialog card={selected} variant={variant} onClose={closeDialog} onUpdated={onUpdated} onOpenFolder={onOpenFolder} onOpenClient={onOpenClient} /> : null}
     </section>
   );
 }
