@@ -9,9 +9,8 @@ import {
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
 import { getStorageRoots } from "./storageConfig";
+import { JPG_INTEGRATED_DIRECTORY } from "./storageLayout";
 import type { RunnerProgress, RunnerRoots } from "./types";
-
-const JPG_INTEGRATED_DIRECTORY = "JPG전체";
 
 function normalizedName(value: string): string {
   return value.normalize("NFC");
@@ -279,4 +278,4 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: sourceJpgs.length, jpgAlreadyPrepared: destinationNames.size, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
 }
 
-export { JPG_INTEGRATED_DIRECTORY };
+export { JPG_INTEGRATED_DIRECTORY } from "./storageLayout";

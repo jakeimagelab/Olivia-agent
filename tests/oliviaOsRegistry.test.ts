@@ -31,7 +31,7 @@ describe("OLIVIA OS app registry navigation", () => {
 
   it("keeps non-Dock apps registered for All Apps", () => {
     for (const appId of [
-      "quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route",
+      "quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route", "metadata-select",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
     ]) {
       const app = getOliviaApp(appId);
@@ -51,7 +51,7 @@ describe("OLIVIA OS app registry navigation", () => {
   it("normalizes user-facing workspace aliases before using the legacy iframe", () => {
     const cases = [
       ["/select-match", "photo-workspace", "/photo-sorting?tool=select-raw"],
-      ["/metadata-select?clientId=client-1", "photo-workspace", "/photo-sorting?tool=metadata-match&clientId=client-1"],
+      ["/metadata-select?clientId=client-1", "metadata-select", "/metadata-select?clientId=client-1"],
       ["/raw-select", "photo-workspace", "/photo-sorting?tool=ai-cull"],
       ["/photo-retouching", "photo-workspace", "/photo-sorting?tool=retouch"],
       ["/diagnosis", "hospital-brand-image-diagnosis", "/hospital-brand-image-diagnosis"],

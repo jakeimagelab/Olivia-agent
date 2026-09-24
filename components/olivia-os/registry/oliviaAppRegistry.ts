@@ -21,6 +21,7 @@ import { BrandAnalysisWindowContent } from "../adapters/BrandAnalysisWindowConte
 import { TrendDashboardWindowContent } from "../adapters/TrendDashboardWindowContent";
 import { HospitalBrandDiagnosisWindowContent } from "../adapters/HospitalBrandDiagnosisWindowContent";
 import { ChannelAnalyzerWindowContent } from "../adapters/ChannelAnalyzerWindowContent";
+import { MetadataSelectWindowContent } from "../adapters/MetadataSelectWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
@@ -91,6 +92,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     desktopShortcutOrder: 3,
     dockOrder: 3,
     component: PhotoWorkspaceWindowContent,
+  },
+  {
+    id: "metadata-select",
+    title: "메타데이터 셀렉",
+    icon: appIcon("metadata-select"),
+    route: "/metadata-select",
+    defaultSize: { width: 980, height: 720 },
+    minSize: { width: 620, height: 440 },
+    singleton: true,
+    component: MetadataSelectWindowContent,
   },
   {
     id: "quote",

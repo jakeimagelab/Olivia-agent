@@ -15,6 +15,7 @@ import styles from "./PhotoWorkspace.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
 import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner";
+import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 
 const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then((module) => module.SelectMatchWorkspace), {
   ssr: false,
@@ -132,7 +133,11 @@ function PhotoWorkspaceContent({
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
-            {!remoteUnavailable && mode === "metadata-select" ? <MetadataSelectWorkspace /> : null}
+            {!remoteUnavailable && mode === "metadata-select" ? (
+              <DesktopWindowProvider value={true}>
+                <MetadataSelectWorkspace />
+              </DesktopWindowProvider>
+            ) : null}
             {!remoteUnavailable && mode === "raw-match" ? (
               <>
                 <SegmentedTabs

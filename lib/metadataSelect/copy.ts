@@ -6,3 +6,19 @@ export async function copyFileStreamed(src: FileSystemFileHandle, dest: FileSyst
   const wr = await fh.createWritable();
   await file.stream().pipeTo(wr);
 }
+
+export async function copyFileStreamedAndVerify(
+  src: FileSystemFileHandle,
+  dest: FileSystemDirectoryHandle,
+  name: string,
+): Promise<FileSystemFileHandle> {
+  const sourceFile = await src.getFile();
+  const destinationHandle = await (dest as any).getFileHandle(name, { create: true }) as FileSystemFileHandle;
+  const writable = await (destinationHandle as any).createWritable();
+  await sourceFile.stream().pipeTo(writable);
+  const destinationFile = await destinationHandle.getFile();
+  if (destinationFile.size !== sourceFile.size) {
+    throw new Error(`${name} 복사 크기 검증에 실패했습니다 (${sourceFile.size} → ${destinationFile.size} bytes).`);
+  }
+  return destinationHandle;
+}

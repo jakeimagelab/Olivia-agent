@@ -1,13 +1,14 @@
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
 import { METADATA_SELECT_JPG_EXTENSIONS } from "@/lib/metadataSelect/matcher";
+import { SELECTED_RAW_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 
 export interface ScannedFile {
   /** 루트 폴더 기준 상대 경로 포함 이름 — 중첩 폴더에 같은 파일명이 있어도 구분되도록 유지한다. */
   name: string;
   handle: FileSystemFileHandle;
+  /** 안전 이동/복구 때 원본 엔트리를 정확히 삭제하거나 복원하기 위한 직접 부모. */
+  parent: FileSystemDirectoryHandle;
 }
-
-const OUTPUT_FOLDER_NAME = "Selected_RAW";
 
 async function scanByExtension(
   root: FileSystemDirectoryHandle,
@@ -19,14 +20,18 @@ async function scanByExtension(
   const scan = async (dir: FileSystemDirectoryHandle, prefix: string, depth: number) => {
     if (depth > maxDepth) return;
     for await (const [name, handle] of (dir as any).entries()) {
-      if (name === OUTPUT_FOLDER_NAME) continue;
+      if (name === SELECTED_RAW_DIRECTORY) continue;
       if ((handle as FileSystemHandle).kind === "directory") {
         await scan(handle as FileSystemDirectoryHandle, prefix ? `${prefix}/${name}` : name, depth + 1);
         continue;
       }
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
       if (!extensions.has(ext)) continue;
-      results.push({ name: prefix ? `${prefix}/${name}` : name, handle: handle as FileSystemFileHandle });
+      results.push({
+        name: prefix ? `${prefix}/${name}` : name,
+        handle: handle as FileSystemFileHandle,
+        parent: dir,
+      });
     }
   };
 
