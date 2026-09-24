@@ -4,6 +4,7 @@ import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { normalizeIdList } from "@/lib/pcrm/gallery";
 import { mapGalleryRpcError, verifyPortalSelectGallery } from "@/lib/pcrm/galleryServer";
 import { getPortalProjectContext, pcrmError, pcrmOk } from "@/lib/pcrm/server";
+import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
       relatedType: "select_gallery",
       relatedId: galleryId,
     });
+    try {
+      await syncSelectionSubmittedWorkflow(context.db, context.session.workflowRunId);
+    } catch (workflowError) {
+      console.warn("[pcrm selection workflow sync]", workflowError instanceof Error ? workflowError.message : workflowError);
+    }
   }
   return pcrmOk({ selection: result });
 }

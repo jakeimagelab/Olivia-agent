@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,12 +72,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .update({ status: "selection_submitted", selected_count: selectedFiles.length, submitted_at: now, updated_at: now })
       .eq("id", id);
 
-    // 워크플로우 자동 진행: client_selection → raw_matching
-    if (gallery.workflow_run_id) {
-      await sb
-        .from("workflow_runs")
-        .update({ current_step_key: "raw_matching", updated_at: now })
-        .eq("id", gallery.workflow_run_id);
+    try {
+      await syncSelectionSubmittedWorkflow(sb, gallery.workflow_run_id);
+    } catch (workflowError) {
+      console.warn("[select upload workflow sync]", workflowError instanceof Error ? workflowError.message : workflowError);
     }
 
     return NextResponse.json({ ok: true, selection, selected_files: selectedFiles, rejected });

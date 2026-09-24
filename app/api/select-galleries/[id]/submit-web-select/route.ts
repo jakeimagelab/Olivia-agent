@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,12 +54,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .update({ status: "selection_submitted", selected_count: selected_files.length, submitted_at: now, updated_at: now })
       .eq("id", id);
 
-    // 워크플로우 자동 진행: client_selection → raw_matching
-    if (gallery.workflow_run_id) {
-      await sb
-        .from("workflow_runs")
-        .update({ current_step_key: "raw_matching", updated_at: now })
-        .eq("id", gallery.workflow_run_id);
+    try {
+      await syncSelectionSubmittedWorkflow(sb, gallery.workflow_run_id);
+    } catch (workflowError) {
+      // 고객의 셀렉 제출은 이미 저장됐다. 워크플로 동기화 오류로 제출을 실패 응답하면 고객이
+      // 다시 제출해 중복될 수 있으므로 별도로 기록하고 제출 성공은 유지한다.
+      console.warn("[select gallery workflow sync]", workflowError instanceof Error ? workflowError.message : workflowError);
     }
 
     return NextResponse.json({ ok: true, selection });

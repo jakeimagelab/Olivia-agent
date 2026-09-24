@@ -68,6 +68,8 @@ export type PhotoStorageProject = {
   classify_approved_at: string | null;
   nas_department: string | null;
   nas_shooting_mode: "field" | "studio" | null;
+  workflow_run_id: string | null;
+  calendar_task_id: string | null;
   notification_deferred_until: string | null;
   notification_dismissed_at: string | null;
 };

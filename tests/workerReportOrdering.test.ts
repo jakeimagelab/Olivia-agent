@@ -67,6 +67,9 @@ vi.mock("@/lib/photo-storage/copySync", () => ({
 vi.mock("@/lib/photo-storage/classificationSync", () => ({
   syncPhotoClassificationProject: recordProjectSync,
 }));
+vi.mock("@/lib/photo-storage/shootingProgress", () => ({
+  syncRawMatchWorkflow: recordProjectSync,
+}));
 
 async function report(status: "RUNNING" | "COMPLETED") {
   const { POST } = await import("@/app/api/worker/report/route");
@@ -90,7 +93,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/worker/report photo lifecycle ordering", () => {
-  it.each(["PHOTO_PREPARE_SOURCE", "PHOTO_STAGE_JPG", "PHOTO_CLASSIFY_WORK"])(
+  it.each(["PHOTO_PREPARE_SOURCE", "PHOTO_STAGE_JPG", "PHOTO_CLASSIFY_WORK", "PHOTO_RAW_MATCH"])(
     "synchronizes %s project state before making the remote job terminal",
     async (action) => {
       state.action = action;

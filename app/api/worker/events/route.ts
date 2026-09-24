@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { isAuthorizedWorker } from "@/lib/remoteWorkerAuth";
+import { registerDetectedPhotoProject } from "@/lib/photo-storage/shootingProgress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -67,6 +68,19 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (error) throw error;
+
+    try {
+      await registerDetectedPhotoProject(supabase, {
+        folderName,
+        detectedAt,
+        fileCount,
+        totalBytes,
+      });
+    } catch (linkError) {
+      // 일정/워크플로 연결은 보조 기능이다. 매칭 실패나 이전 마이그레이션 상태 때문에 NAS 감지
+      // 이벤트 자체를 재전송 루프에 빠뜨리면 안 된다.
+      console.warn("[worker/events shooting workflow link]", linkError instanceof Error ? linkError.message : linkError);
+    }
 
     // ignoreDuplicates:true면 이미 존재하는 행에는 data가 없다 — 그래도 idempotent 성공으로
     // 취급한다(§8 "전송 실패하면 BACKUP_READY 상태 유지 → 다음 loop에서 재전송"이 정상 동작하려면

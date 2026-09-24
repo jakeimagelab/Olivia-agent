@@ -8,6 +8,7 @@ import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
 import { syncPhotoMergeProject } from "@/lib/photo-storage/mergeSync";
 import { syncPhotoStageProject } from "@/lib/photo-storage/copySync";
 import { syncPhotoClassificationProject } from "@/lib/photo-storage/classificationSync";
+import { syncRawMatchWorkflow } from "@/lib/photo-storage/shootingProgress";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -24,6 +25,26 @@ const PHOTO_LIFECYCLE_ACTIONS = new Set([
   "PHOTO_STAGE_JPG",
   "PHOTO_CLASSIFY_WORK",
 ]);
+const PHOTO_WORKFLOW_ACTIONS = new Set([...PHOTO_LIFECYCLE_ACTIONS, "PHOTO_RAW_MATCH"]);
+
+async function syncPhotoWorkflow(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  data: RemoteJobRecord,
+  input: {
+    status: "RUNNING" | "COMPLETED" | "FAILED";
+    progress: ReturnType<typeof parseRemoteJobProgress>;
+    result?: unknown;
+    error?: string | null;
+    message?: string | null;
+  },
+): Promise<void> {
+  if (data.action === "PHOTO_RAW_MATCH") {
+    const projectId = typeof data.payload?.project_id === "string" ? data.payload.project_id : "";
+    if (projectId) await syncRawMatchWorkflow(supabase, { projectId, jobStatus: input.status });
+    return;
+  }
+  await syncPhotoLifecycle(supabase, data, input);
+}
 
 async function syncPhotoLifecycle(
   supabase: ReturnType<typeof getSupabaseAdmin>,
@@ -151,8 +172,8 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      if (PHOTO_LIFECYCLE_ACTIONS.has(runningJob.action)) {
-        await syncPhotoLifecycle(supabase, runningJob as RemoteJobRecord, {
+      if (PHOTO_WORKFLOW_ACTIONS.has(runningJob.action)) {
+        await syncPhotoWorkflow(supabase, runningJob as RemoteJobRecord, {
           status: status as "COMPLETED" | "FAILED",
           progress,
           result: body.result,
@@ -181,9 +202,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (PHOTO_LIFECYCLE_ACTIONS.has(data.action) && !lifecycleSyncedBeforeTerminalUpdate) {
+    if (PHOTO_WORKFLOW_ACTIONS.has(data.action) && !lifecycleSyncedBeforeTerminalUpdate) {
       try {
-        await syncPhotoLifecycle(supabase, data as RemoteJobRecord, {
+        await syncPhotoWorkflow(supabase, data as RemoteJobRecord, {
           status: status as "RUNNING" | "COMPLETED" | "FAILED",
           progress,
           result: body.result,
