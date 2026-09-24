@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, HelpCircle, RotateCcw, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, HelpCircle, XCircle } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { scanJpgFiles, scanRawFiles, type ScannedFile } from "@/lib/metadataSelect/folderScan";
@@ -15,15 +15,18 @@ import {
 } from "@/lib/metadataSelect/fileOperations";
 import { validateMetadataSelectFolders } from "@/lib/metadataSelect/folderValidation";
 import {
+  buildDateTimeIndex,
   buildOriginalIndex,
   buildRawIndexByBasename,
+  matchSelectionDateTimeToRaw,
+  matchSelectionNameToRaw,
   matchSelectionToRaw,
   type MetadataSelectRow,
   type MetadataSelectStatus,
 } from "@/lib/metadataSelect/matcher";
+import { planMetadataRawOutput } from "@/lib/metadataSelect/rawOutputPlan";
 import {
-  JPG_INTEGRATED_DIRECTORY,
-  JPG_RETOUCHED_DIRECTORY,
+  FINISHED_RAW_DIRECTORY,
   SELECTED_RAW_DIRECTORY,
 } from "@/lib/photo-classifier/node/storageLayout";
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
@@ -34,42 +37,33 @@ type Phase =
   | "analyzing"
   | "awaiting_confirmation"
   | "copying_raw"
-  | "moving_jpg"
-  | "restoring_jpg"
+  | "moving_finished_raw"
   | "done"
   | "failed";
 
 type MatchPlan = {
-  kind: "match";
   rows: MetadataSelectRow[];
   selectionCount: number;
-  rawTransfers: MetadataFileTransfer[];
-  jpgTransfers: MetadataFileTransfer[];
+  rawCopyTransfers: MetadataFileTransfer[];
+  selectedRawMoveTransfers: MetadataFileTransfer[];
+  destinationDirectory: typeof SELECTED_RAW_DIRECTORY | typeof FINISHED_RAW_DIRECTORY;
+  alreadyFinishedCount: number;
   excludeCompleted: boolean;
 };
-
-type RestorePlan = {
-  kind: "restore";
-  transfers: MetadataFileTransfer[];
-  source: FileSystemDirectoryHandle;
-  destination: FileSystemDirectoryHandle;
-};
-
-type OperationPlan = MatchPlan | RestorePlan;
 
 const PHASE_LABEL: Record<Phase, string> = {
   idle: "",
   analyzing: "촬영시간과 원본을 분석하는 중...",
   awaiting_confirmation: "분석 완료 · 확인 대기",
   copying_raw: "RAW 복사 중...",
-  moving_jpg: "작업 완료 JPG를 제외하는 중...",
-  restoring_jpg: "보정완료 JPG를 복구하는 중...",
+  moving_finished_raw: "기존 RAW 복사본을 완료 폴더로 옮기는 중...",
   done: "완료",
   failed: "실패",
 };
 
 const STATUS_META: Record<MetadataSelectStatus, { label: string; icon: typeof CheckCircle2; color: string }> = {
   success: { label: "매칭 성공", icon: CheckCircle2, color: C.success },
+  already_finished: { label: "작업 완료 제외", icon: CheckCircle2, color: C.teal },
   needs_review: { label: "확인 필요", icon: HelpCircle, color: C.gold },
   metadata_missing: { label: "메타데이터 없음", icon: XCircle, color: C.hint },
   raw_missing: { label: "RAW 미발견", icon: AlertTriangle, color: C.orange },
@@ -105,6 +99,16 @@ async function getDirectoryIfExists(
 
 function findScannedFile(files: readonly ScannedFile[], name: string | undefined): ScannedFile | undefined {
   return name ? files.find((file) => file.name === name) : undefined;
+}
+
+function normalizedLeafKey(name: string): string {
+  return leafName(name).normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function findScannedFileByLeaf(files: readonly ScannedFile[], name: string | undefined): ScannedFile | undefined {
+  if (!name) return undefined;
+  const key = normalizedLeafKey(name);
+  return files.find((file) => normalizedLeafKey(file.name) === key);
 }
 
 function toTransfer(file: ScannedFile): MetadataFileTransfer {
@@ -143,11 +147,13 @@ function Btn({ children, onClick, disabled, style }: {
   );
 }
 
-function FolderPickerRow({ step, label, dir, onPick, disabled }: {
+function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: {
   step: number;
   label: string;
+  hint?: string;
   dir: FileSystemDirectoryHandle | null;
   onPick: () => void;
+  onClear?: () => void;
   disabled: boolean;
 }) {
   return (
@@ -169,9 +175,12 @@ function FolderPickerRow({ step, label, dir, onPick, disabled }: {
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{label}</div>
-        {dir ? <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{dir.name}</div> : null}
+        {dir || hint ? <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{dir?.name ?? hint}</div> : null}
       </div>
-      <Btn onClick={onPick} disabled={disabled}>{dir ? `✅ ${dir.name}` : "📂 폴더 선택"}</Btn>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        {dir && onClear ? <Btn onClick={onClear} disabled={disabled} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}`, paddingInline: 12 }}>선택 해제</Btn> : null}
+        <Btn onClick={onPick} disabled={disabled}>{dir ? `✅ ${dir.name}` : "📂 폴더 선택"}</Btn>
+      </div>
     </div>
   );
 }
@@ -186,42 +195,21 @@ export default function MetadataSelectWorkspace() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [phaseDetail, setPhaseDetail] = useState("");
   const [rows, setRows] = useState<MetadataSelectRow[]>([]);
-  const [plan, setPlan] = useState<OperationPlan | null>(null);
+  const [plan, setPlan] = useState<MatchPlan | null>(null);
   const [error, setError] = useState("");
-  const [restoreCount, setRestoreCount] = useState(0);
-  const [refreshRestore, setRefreshRestore] = useState(0);
 
   useEffect(() => {
     setHasFS("showDirectoryPicker" in window);
   }, []);
 
-  const running = phase === "analyzing" || phase === "copying_raw" || phase === "moving_jpg" || phase === "restoring_jpg";
+  const running = phase === "analyzing" || phase === "copying_raw" || phase === "moving_finished_raw";
   const missingRequirements = useMemo(() => {
     const missing: string[] = [];
     if (!hasFS) missing.push("Chrome 또는 Edge에서 열어주세요.");
-    if (!selectionDir) missing.push("고객 선택본을 지정해주세요.");
-    if (!sourceDir) missing.push(excludeCompleted ? "프로젝트 폴더를 지정해주세요." : "원본 JPG 폴더를 지정해주세요.");
+    if (!selectionDir) missing.push("선택본을 지정해주세요.");
     if (!rawDir) missing.push("RAW 원본을 지정해주세요.");
     return missing;
-  }, [excludeCompleted, hasFS, rawDir, selectionDir, sourceDir]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!excludeCompleted || !sourceDir || running) {
-      setRestoreCount(0);
-      return () => { cancelled = true; };
-    }
-    void (async () => {
-      try {
-        const retouched = await getDirectoryIfExists(sourceDir, JPG_RETOUCHED_DIRECTORY);
-        const files = retouched ? await scanJpgFiles(retouched, 0) : [];
-        if (!cancelled) setRestoreCount(files.length);
-      } catch {
-        if (!cancelled) setRestoreCount(0);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [excludeCompleted, refreshRestore, running, sourceDir]);
+  }, [hasFS, rawDir, selectionDir]);
 
   const resetAnalysis = () => {
     setPlan(null);
@@ -246,32 +234,20 @@ export default function MetadataSelectWorkspace() {
   const toggleExclude = (checked: boolean) => {
     if (running) return;
     setExcludeCompleted(checked);
-    setSourceDir(null);
     resetAnalysis();
   };
 
   async function analyze() {
-    if (!selectionDir || !sourceDir || !rawDir || missingRequirements.length > 0) return;
+    if (!selectionDir || !rawDir || missingRequirements.length > 0) return;
     setError("");
     setRows([]);
     setPlan(null);
     setPhase("analyzing");
-    setPhaseDetail("원본 JPG 촬영시간을 읽고 있습니다.");
+    setPhaseDetail(sourceDir ? "원본 JPG 촬영시간을 읽고 있습니다." : "선택본 파일명을 확인하고 있습니다.");
 
     try {
-      const projectDir = excludeCompleted ? sourceDir : null;
-      let originalDir = sourceDir;
-      if (projectDir) {
-        try {
-          originalDir = await (projectDir as any).getDirectoryHandle(JPG_INTEGRATED_DIRECTORY) as FileSystemDirectoryHandle;
-        } catch (directoryError) {
-          if (isNotFound(directoryError)) throw new Error(`프로젝트 폴더에 ${JPG_INTEGRATED_DIRECTORY}/가 없습니다.`);
-          throw directoryError;
-        }
-      }
-
-      await validateMetadataSelectFolders({ selectionDir, sourceDir: originalDir, rawDir, projectDir });
-      const originalFiles = await scanJpgFiles(originalDir, excludeCompleted ? 0 : 5);
+      await validateMetadataSelectFolders({ selectionDir, sourceDir, rawDir });
+      const originalFiles = sourceDir ? await scanJpgFiles(sourceDir) : [];
       const originalEntries: { name: string; normalizedDateTime: string | null }[] = [];
       for (const item of originalFiles) {
         let normalizedDateTime: string | null = null;
@@ -288,22 +264,62 @@ export default function MetadataSelectWorkspace() {
       const rawFiles = await scanRawFiles(rawDir);
       const rawIndex = buildRawIndexByBasename(rawFiles, SELECT_MATCH_RAW_EXTENSIONS);
 
-      setPhaseDetail("고객 선택본의 EXIF와 원본을 대조하고 있습니다.");
+      setPhaseDetail(sourceDir ? "선택본의 EXIF와 원본 JPG를 대조하고 있습니다." : "선택본과 RAW 파일명을 대조하고 있습니다.");
       const selectionFiles = await scanJpgFiles(selectionDir);
-      if (selectionFiles.length === 0) throw new Error("고객 선택본 폴더에서 JPG를 찾지 못했습니다.");
+      if (selectionFiles.length === 0) throw new Error("선택본 폴더에서 JPG를 찾지 못했습니다.");
 
       const nextRows: MetadataSelectRow[] = [];
-      for (const item of selectionFiles) {
-        try {
-          const normalizedDateTime = await readExifDateTime(await item.handle.getFile());
-          nextRows.push(matchSelectionToRaw(item.name, normalizedDateTime, originalIndex, rawIndex));
-        } catch (selectionError) {
-          nextRows.push({
-            selectionName: item.name,
-            status: "error",
-            normalizedDateTime: null,
-            message: `EXIF 분석 실패: ${errorMessage(selectionError)}`,
-          });
+      if (!sourceDir) {
+        const directRows = selectionFiles.map((item) => matchSelectionNameToRaw(item.name, rawIndex));
+        const needsExifFallback = directRows.some((row) => row.status === "raw_missing");
+        let rawDateTimeIndex = new Map<string, string[]>();
+
+        if (needsExifFallback) {
+          setPhaseDetail("파일명이 바뀐 선택본을 위해 RAW 촬영시간을 확인하고 있습니다.");
+          const rawDateEntries: { name: string; normalizedDateTime: string | null }[] = [];
+          for (const item of rawFiles) {
+            let normalizedDateTime: string | null = null;
+            try {
+              normalizedDateTime = await readExifDateTime(await item.handle.getFile());
+            } catch {
+              normalizedDateTime = null;
+            }
+            rawDateEntries.push({ name: item.name, normalizedDateTime });
+          }
+          rawDateTimeIndex = buildDateTimeIndex(rawDateEntries);
+        }
+
+        for (const [index, item] of selectionFiles.entries()) {
+          const directRow = directRows[index];
+          if (directRow.status !== "raw_missing") {
+            nextRows.push(directRow);
+            continue;
+          }
+          try {
+            const normalizedDateTime = await readExifDateTime(await item.handle.getFile());
+            nextRows.push(matchSelectionDateTimeToRaw(item.name, normalizedDateTime, rawDateTimeIndex));
+          } catch (selectionError) {
+            nextRows.push({
+              selectionName: item.name,
+              status: "error",
+              normalizedDateTime: null,
+              message: `EXIF 분석 실패: ${errorMessage(selectionError)}`,
+            });
+          }
+        }
+      } else {
+        for (const item of selectionFiles) {
+          try {
+            const normalizedDateTime = await readExifDateTime(await item.handle.getFile());
+            nextRows.push(matchSelectionToRaw(item.name, normalizedDateTime, originalIndex, rawIndex));
+          } catch (selectionError) {
+            nextRows.push({
+              selectionName: item.name,
+              status: "error",
+              normalizedDateTime: null,
+              message: `EXIF 분석 실패: ${errorMessage(selectionError)}`,
+            });
+          }
         }
       }
       setRows(nextRows);
@@ -311,37 +327,57 @@ export default function MetadataSelectWorkspace() {
       if (excludeCompleted) {
         const failedRows = nextRows.filter((row) => row.status !== "success");
         if (failedRows.length > 0) throw new Error(`매칭 실패 ${failedRows.length}장이 있어 파일을 변경하지 않았습니다.`);
-        const duplicateOriginals = nextRows
-          .map((row) => row.matchedOriginalName)
+        const duplicateRaws = nextRows
+          .map((row) => row.rawName)
           .filter((name): name is string => !!name)
           .filter((name, index, names) => names.indexOf(name) !== index);
-        if (duplicateOriginals.length > 0) {
-          throw new Error(`같은 원본 JPG에 중복 매칭된 선택본이 있습니다: ${Array.from(new Set(duplicateOriginals)).join(", ")}`);
+        if (duplicateRaws.length > 0) {
+          throw new Error(`같은 RAW에 중복 매칭된 선택본이 있습니다: ${Array.from(new Set(duplicateRaws)).map(leafName).join(", ")}`);
         }
       }
 
       const successfulRows = nextRows.filter((row) => row.status === "success");
       if (successfulRows.length === 0) throw new Error("복사할 수 있는 RAW 매칭 결과가 없습니다.");
-      const rawTransfers = successfulRows.map((row) => {
-        const file = findScannedFile(rawFiles, row.rawName);
-        if (!file) throw new Error(`${row.rawName ?? row.selectionName}: RAW 파일 핸들을 찾지 못했습니다.`);
+      const selectedRaw = await getDirectoryIfExists(rawDir, SELECTED_RAW_DIRECTORY);
+      const finishedRaw = await getDirectoryIfExists(rawDir, FINISHED_RAW_DIRECTORY);
+      const selectedRawFiles = selectedRaw ? await scanRawFiles(selectedRaw, 0) : [];
+      const finishedRawFiles = finishedRaw ? await scanRawFiles(finishedRaw, 0) : [];
+      const output = planMetadataRawOutput({
+        rawNames: successfulRows.map((row) => row.rawName as string),
+        excludeCompleted,
+        selectedRawNames: selectedRawFiles.map((file) => file.name),
+        finishedRawNames: finishedRawFiles.map((file) => file.name),
+      });
+      const alreadyFinishedKeys = new Set(output.alreadyFinishedNames.map(normalizedLeafKey));
+      const plannedRows = nextRows.map((row): MetadataSelectRow => (
+        row.status === "success" && row.rawName && alreadyFinishedKeys.has(normalizedLeafKey(row.rawName))
+          ? { ...row, status: "already_finished", message: `${FINISHED_RAW_DIRECTORY}에 있어 작업 대상에서 제외했습니다.` }
+          : row
+      ));
+
+      const rawCopyTransfers = output.copyFromRawNames.map((name) => {
+        const file = findScannedFile(rawFiles, name);
+        if (!file) throw new Error(`${name}: RAW 원본 파일 핸들을 찾지 못했습니다.`);
         return toTransfer(file);
       });
-      const selectedRaw = await getDirectoryIfExists(rawDir, SELECTED_RAW_DIRECTORY);
-      await assertNoDestinationCollisions(selectedRaw, rawTransfers);
+      const selectedRawMoveTransfers = output.moveFromSelectedNames.map((name) => {
+        const file = findScannedFileByLeaf(selectedRawFiles, name);
+        if (!file) throw new Error(`${name}: ${SELECTED_RAW_DIRECTORY} 복사본을 찾지 못했습니다.`);
+        return toTransfer(file);
+      });
+      const destination = output.destinationDirectory === SELECTED_RAW_DIRECTORY ? selectedRaw : finishedRaw;
+      await assertNoDestinationCollisions(destination, [...rawCopyTransfers, ...selectedRawMoveTransfers]);
 
-      let jpgTransfers: MetadataFileTransfer[] = [];
-      if (excludeCompleted) {
-        jpgTransfers = successfulRows.map((row) => {
-          const file = findScannedFile(originalFiles, row.matchedOriginalName);
-          if (!file || file.name.includes("/")) throw new Error(`${row.matchedOriginalName ?? row.selectionName}: ${JPG_INTEGRATED_DIRECTORY}의 평면 원본 JPG가 아닙니다.`);
-          return toTransfer(file);
-        });
-        const retouched = await getDirectoryIfExists(sourceDir, JPG_RETOUCHED_DIRECTORY);
-        await assertNoDestinationCollisions(retouched, jpgTransfers);
-      }
-
-      setPlan({ kind: "match", rows: nextRows, selectionCount: selectionFiles.length, rawTransfers, jpgTransfers, excludeCompleted });
+      setRows(plannedRows);
+      setPlan({
+        rows: plannedRows,
+        selectionCount: selectionFiles.length,
+        rawCopyTransfers,
+        selectedRawMoveTransfers,
+        destinationDirectory: output.destinationDirectory,
+        alreadyFinishedCount: output.alreadyFinishedNames.length,
+        excludeCompleted,
+      });
       setPhaseDetail("");
       setPhase("awaiting_confirmation");
     } catch (analysisError) {
@@ -352,27 +388,30 @@ export default function MetadataSelectWorkspace() {
   }
 
   async function executeMatch() {
-    if (!rawDir || !sourceDir || plan?.kind !== "match") return;
+    if (!rawDir || !plan) return;
     setError("");
-    let selectedRaw: FileSystemDirectoryHandle | null = null;
+    let destination: FileSystemDirectoryHandle | null = null;
     let rawCreatedNames: string[] = [];
     try {
       setPhase("copying_raw");
-      selectedRaw = await (rawDir as any).getDirectoryHandle(SELECTED_RAW_DIRECTORY, { create: true }) as FileSystemDirectoryHandle;
-      const rawResult = await transferFilesSafely({
-        transfers: plan.rawTransfers,
-        destination: selectedRaw,
-        deleteSources: false,
-        onProgress: (current, total, name) => setPhaseDetail(`${current} / ${total} · ${name}`),
-      });
-      rawCreatedNames = rawResult.createdNames;
+      if (plan.rawCopyTransfers.length > 0 || plan.selectedRawMoveTransfers.length > 0) {
+        destination = await (rawDir as any).getDirectoryHandle(plan.destinationDirectory, { create: true }) as FileSystemDirectoryHandle;
+      }
+      if (destination && plan.rawCopyTransfers.length > 0) {
+        const rawResult = await transferFilesSafely({
+          transfers: plan.rawCopyTransfers,
+          destination,
+          deleteSources: false,
+          onProgress: (current, total, name) => setPhaseDetail(`${current} / ${total} · ${name}`),
+        });
+        rawCreatedNames = rawResult.createdNames;
+      }
 
-      if (plan.excludeCompleted) {
-        setPhase("moving_jpg");
-        const retouched = await (sourceDir as any).getDirectoryHandle(JPG_RETOUCHED_DIRECTORY, { create: true }) as FileSystemDirectoryHandle;
+      if (destination && plan.selectedRawMoveTransfers.length > 0) {
+        setPhase("moving_finished_raw");
         await transferFilesSafely({
-          transfers: plan.jpgTransfers,
-          destination: retouched,
+          transfers: plan.selectedRawMoveTransfers,
+          destination,
           deleteSources: true,
           onProgress: (current, total, name) => setPhaseDetail(`${current} / ${total} · ${name}`),
         });
@@ -382,56 +421,12 @@ export default function MetadataSelectWorkspace() {
       setPlan(null);
       setPhaseDetail("");
       setPhase("done");
-      setRefreshRestore((value) => value + 1);
     } catch (executionError) {
-      const cleanupFailures = selectedRaw && rawCreatedNames.length > 0
-        ? await removeTransferredCopies(selectedRaw, rawCreatedNames)
+      const cleanupFailures = destination && rawCreatedNames.length > 0
+        ? await removeTransferredCopies(destination, rawCreatedNames)
         : [];
       const base = errorMessage(executionError);
       setError(cleanupFailures.length > 0 ? `${base}\nRAW 복사본 정리 실패: ${cleanupFailures.join(", ")}` : base);
-      setPhaseDetail("");
-      setPhase("failed");
-    }
-  }
-
-  async function prepareRestore() {
-    if (!excludeCompleted || !sourceDir) return;
-    setError("");
-    try {
-      const source = await getDirectoryIfExists(sourceDir, JPG_RETOUCHED_DIRECTORY);
-      const destination = await getDirectoryIfExists(sourceDir, JPG_INTEGRATED_DIRECTORY);
-      if (!source) throw new Error(`${JPG_RETOUCHED_DIRECTORY}/를 찾지 못했습니다.`);
-      if (!destination) throw new Error(`${JPG_INTEGRATED_DIRECTORY}/를 찾지 못했습니다.`);
-      const files = await scanJpgFiles(source, 0);
-      if (files.length === 0) throw new Error("복구할 보정완료 JPG가 없습니다.");
-      const transfers = files.map(toTransfer);
-      await assertNoDestinationCollisions(destination, transfers);
-      setRows([]);
-      setPlan({ kind: "restore", transfers, source, destination });
-      setPhase("awaiting_confirmation");
-    } catch (restoreError) {
-      setError(errorMessage(restoreError));
-      setPhase("failed");
-    }
-  }
-
-  async function executeRestore() {
-    if (plan?.kind !== "restore") return;
-    setError("");
-    setPhase("restoring_jpg");
-    try {
-      await transferFilesSafely({
-        transfers: plan.transfers,
-        destination: plan.destination,
-        deleteSources: true,
-        onProgress: (current, total, name) => setPhaseDetail(`${current} / ${total} · ${name}`),
-      });
-      setPlan(null);
-      setPhaseDetail("");
-      setPhase("done");
-      setRefreshRestore((value) => value + 1);
-    } catch (restoreError) {
-      setError(errorMessage(restoreError));
       setPhaseDetail("");
       setPhase("failed");
     }
@@ -458,13 +453,21 @@ export default function MetadataSelectWorkspace() {
             <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0 0 12px", borderBottom: `1px solid ${C.border}`, color: C.ink }}>
               <span>
                 <strong style={{ display: "block", fontSize: 13 }}>이미 작업한 사진 제외</strong>
-                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>매칭된 원본 JPG를 {JPG_RETOUCHED_DIRECTORY}/로 안전하게 옮깁니다.</small>
+                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>매칭된 RAW를 {FINISHED_RAW_DIRECTORY}/로 분리하고 {SELECTED_RAW_DIRECTORY}/의 기존 복사본은 옮깁니다.</small>
               </span>
               <input type="checkbox" checked={excludeCompleted} disabled={running} onChange={(event) => toggleExclude(event.target.checked)} aria-label="이미 작업한 사진 제외" style={{ width: 20, height: 20, accentColor: C.orange }} />
             </label>
 
-            <FolderPickerRow step={1} label="고객 선택본" dir={selectionDir} disabled={running} onPick={() => pick(setSelectionDir, "read")} />
-            <FolderPickerRow step={2} label={excludeCompleted ? "프로젝트 폴더" : "원본 JPG"} dir={sourceDir} disabled={running} onPick={() => pick(setSourceDir, excludeCompleted ? "readwrite" : "read")} />
+            <FolderPickerRow step={1} label="선택본" dir={selectionDir} disabled={running} onPick={() => pick(setSelectionDir, "read")} />
+            <FolderPickerRow
+              step={2}
+              label="원본 JPG"
+              hint="선택 사항 · 선택본 파일명이 바뀐 경우에만 지정"
+              dir={sourceDir}
+              disabled={running}
+              onPick={() => pick(setSourceDir, "read")}
+              onClear={() => { setSourceDir(null); resetAnalysis(); }}
+            />
             <FolderPickerRow step={3} label="RAW 원본" dir={rawDir} disabled={running} onPick={() => pick(setRawDir, "readwrite")} />
 
             <div style={{ marginTop: 16, display: "grid", gap: 6 }} aria-live="polite">
@@ -475,11 +478,6 @@ export default function MetadataSelectWorkspace() {
               <Btn onClick={analyze} disabled={!canAnalyze} style={canAnalyze ? { background: C.orange } : undefined}>
                 {phase === "analyzing" ? PHASE_LABEL[phase] : "메타데이터 매칭 분석"}
               </Btn>
-              {excludeCompleted && restoreCount > 0 && phase !== "awaiting_confirmation" ? (
-                <Btn onClick={prepareRestore} disabled={running} style={{ background: C.white, color: C.teal, border: `1px solid ${C.border}` }}>
-                  <RotateCcw size={14} style={{ verticalAlign: -2, marginRight: 5 }} />보정완료 사진 복구 ({restoreCount}장)
-                </Btn>
-              ) : null}
             </div>
 
             {running ? <div style={{ marginTop: 12, fontSize: 12, color: C.teal, textAlign: "center" }}>{PHASE_LABEL[phase]}{phaseDetail ? ` · ${phaseDetail}` : ""}</div> : null}
@@ -487,33 +485,24 @@ export default function MetadataSelectWorkspace() {
 
             {phase === "awaiting_confirmation" && plan ? (
               <div style={{ marginTop: 18, border: `1px solid ${C.border}`, borderRadius: R.md, background: C.light, padding: 16, color: C.ink }}>
-                {plan.kind === "match" ? (
-                  <>
-                    <strong style={{ display: "block", fontSize: 14 }}>파일을 변경하기 전에 확인해주세요.</strong>
-                    <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.9, color: C.muted }}>
-                      선택본 {plan.selectionCount}장 · RAW 복사 {plan.rawTransfers.length}장
-                      {plan.excludeCompleted ? <> · JPG 제외 {plan.jpgTransfers.length}장<br />대상: {JPG_RETOUCHED_DIRECTORY}/</> : null}
-                    </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                      <Btn onClick={executeMatch} style={{ background: C.orange }}>{plan.excludeCompleted ? `${plan.jpgTransfers.length}장 제외하고 RAW 복사` : `${plan.rawTransfers.length}장 RAW 복사`}</Btn>
-                      <Btn onClick={resetAnalysis} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}` }}>취소</Btn>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <strong style={{ display: "block", fontSize: 14 }}>보정완료 JPG {plan.transfers.length}장을 복구할까요?</strong>
-                    <p style={{ margin: "8px 0 0", fontSize: 12, color: C.muted }}>{JPG_INTEGRATED_DIRECTORY}/로 되돌립니다. RAW 복사본은 건드리지 않습니다.</p>
-                    <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                      <Btn onClick={executeRestore} style={{ background: C.orange }}>{plan.transfers.length}장 복구</Btn>
-                      <Btn onClick={resetAnalysis} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}` }}>취소</Btn>
-                    </div>
-                  </>
-                )}
+                <strong style={{ display: "block", fontSize: 14 }}>파일을 변경하기 전에 확인해주세요.</strong>
+                <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.9, color: C.muted }}>
+                  선택본 {plan.selectionCount}장 · RAW 원본에서 복사 {plan.rawCopyTransfers.length}장
+                  {plan.selectedRawMoveTransfers.length > 0 ? <> · {SELECTED_RAW_DIRECTORY}에서 이동 {plan.selectedRawMoveTransfers.length}장</> : null}
+                  {plan.alreadyFinishedCount > 0 ? <> · 이미 완료되어 제외 {plan.alreadyFinishedCount}장</> : null}
+                  <br />대상: {plan.destinationDirectory}/
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                  <Btn onClick={executeMatch} style={{ background: C.orange }}>
+                    {plan.excludeCompleted ? `${FINISHED_RAW_DIRECTORY}로 제외` : `${plan.rawCopyTransfers.length}장 RAW 복사`}
+                  </Btn>
+                  <Btn onClick={resetAnalysis} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}` }}>취소</Btn>
+                </div>
               </div>
             ) : null}
 
             <div style={{ marginTop: 16, background: C.light, borderRadius: R.sm, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
-              <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />파일명이 아니라 사진 내부 EXIF의 촬영시간(DateTimeOriginal)으로 원본 JPG와 RAW를 찾습니다. RAW 원본은 유지하고 <strong>{SELECTED_RAW_DIRECTORY}/</strong>에 복사합니다.
+              <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />원본 JPG가 없어도 파일명을 먼저 비교하고, 이름이 바뀐 선택본은 EXIF 촬영시간으로 RAW를 직접 찾습니다. 원본 JPG를 지정하면 기존 EXIF 연결 방식으로 확인합니다. RAW 원본은 항상 유지합니다.
             </div>
           </section>
         )}

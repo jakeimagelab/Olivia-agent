@@ -1,6 +1,6 @@
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
 import { METADATA_SELECT_JPG_EXTENSIONS } from "@/lib/metadataSelect/matcher";
-import { SELECTED_RAW_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
+import { FINISHED_RAW_DIRECTORY, SELECTED_RAW_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 
 export interface ScannedFile {
   /** 루트 폴더 기준 상대 경로 포함 이름 — 중첩 폴더에 같은 파일명이 있어도 구분되도록 유지한다. */
@@ -20,7 +20,7 @@ async function scanByExtension(
   const scan = async (dir: FileSystemDirectoryHandle, prefix: string, depth: number) => {
     if (depth > maxDepth) return;
     for await (const [name, handle] of (dir as any).entries()) {
-      if (name === SELECTED_RAW_DIRECTORY) continue;
+      if (name === SELECTED_RAW_DIRECTORY || name === FINISHED_RAW_DIRECTORY) continue;
       if ((handle as FileSystemHandle).kind === "directory") {
         await scan(handle as FileSystemDirectoryHandle, prefix ? `${prefix}/${name}` : name, depth + 1);
         continue;
@@ -39,7 +39,7 @@ async function scanByExtension(
   return results;
 }
 
-/** 고객 선택본 / 촬영 원본 JPG 폴더를 재귀 스캔한다 (jpg/jpeg만). */
+/** 선택본 / 촬영 원본 JPG 폴더를 재귀 스캔한다 (jpg/jpeg만). */
 export async function scanJpgFiles(root: FileSystemDirectoryHandle, maxDepth = 5): Promise<ScannedFile[]> {
   return scanByExtension(root, METADATA_SELECT_JPG_EXTENSIONS, maxDepth);
 }

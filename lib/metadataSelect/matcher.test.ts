@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOriginalIndex,
+  buildDateTimeIndex,
   buildRawIndexByBasename,
+  matchSelectionDateTimeToRaw,
+  matchSelectionNameToRaw,
   matchSelectionToRaw,
   METADATA_SELECT_JPG_EXTENSIONS,
 } from "@/lib/metadataSelect/matcher";
@@ -103,6 +106,65 @@ describe("matchSelectionToRaw — CASE 1~5", () => {
     const row = matchSelectionToRaw("엉뚱한선택.jpg", "2026-08-25T14:32:17", originalIndex, rawIndex);
     expect(row.status).toBe("needs_review");
     expect(row.candidateNames).toEqual([]);
+  });
+});
+
+describe("matchSelectionNameToRaw — 원본 JPG 없는 직접 매칭", () => {
+  it("선택본과 RAW의 basename이 같으면 직접 매칭한다", () => {
+    const rawIndex = buildRawIndexByBasename([{ name: "R5K07537.ARW" }], RAW_EXTS);
+    expect(matchSelectionNameToRaw("R5K07537.JPG", rawIndex)).toMatchObject({
+      status: "success",
+      matchedOriginalName: "R5K07537.JPG",
+      rawName: "R5K07537.ARW",
+    });
+  });
+
+  it("같은 basename의 RAW가 없으면 RAW 미발견으로 표시한다", () => {
+    const rawIndex = buildRawIndexByBasename([], RAW_EXTS);
+    expect(matchSelectionNameToRaw("R5K07537.JPG", rawIndex)).toMatchObject({
+      status: "raw_missing",
+      message: "같은 파일명의 RAW를 찾지 못했습니다.",
+    });
+  });
+
+  it("같은 basename 후보가 여러 개면 자동 확정하지 않는다", () => {
+    const rawIndex = buildRawIndexByBasename([
+      { name: "camera-a/R5K07537.ARW" },
+      { name: "camera-b/R5K07537.ARW" },
+    ], RAW_EXTS);
+    expect(matchSelectionNameToRaw("R5K07537.JPG", rawIndex)).toMatchObject({
+      status: "needs_review",
+      candidateNames: ["camera-a/R5K07537.ARW", "camera-b/R5K07537.ARW"],
+    });
+  });
+});
+
+describe("matchSelectionDateTimeToRaw — 파일명이 바뀐 선택본 직접 매칭", () => {
+  const DATE = "2026-09-25T11:22:33";
+
+  it("동일 촬영시간의 RAW가 하나면 직접 매칭한다", () => {
+    const rawIndex = buildDateTimeIndex([{ name: "R5K07537.ARW", normalizedDateTime: DATE }]);
+    expect(matchSelectionDateTimeToRaw("WIN_F_0001.jpg", DATE, rawIndex)).toMatchObject({
+      status: "success",
+      rawName: "R5K07537.ARW",
+    });
+  });
+
+  it("동일 촬영시간의 RAW가 여러 개면 자동 확정하지 않는다", () => {
+    const rawIndex = buildDateTimeIndex([
+      { name: "camera-a/R5K07537.ARW", normalizedDateTime: DATE },
+      { name: "camera-b/R5K07538.ARW", normalizedDateTime: DATE },
+    ]);
+    expect(matchSelectionDateTimeToRaw("WIN_F_0001.jpg", DATE, rawIndex)).toMatchObject({
+      status: "needs_review",
+      candidateNames: ["camera-a/R5K07537.ARW", "camera-b/R5K07538.ARW"],
+    });
+  });
+
+  it("선택본에 촬영시간이 없으면 메타데이터 누락으로 표시한다", () => {
+    expect(matchSelectionDateTimeToRaw("WIN_F_0001.jpg", null, new Map())).toMatchObject({
+      status: "metadata_missing",
+    });
   });
 });
 

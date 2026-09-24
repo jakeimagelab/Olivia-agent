@@ -1,9 +1,9 @@
 /** 기존 셀렉/매칭(lib/selectMatch)과 무관한 독립 모듈 — 메타데이터 셀렉 전용.
- *  파일명이 아니라 EXIF DateTimeOriginal(초 단위)로 고객 선택본 → 원본 JPG → RAW를 연결한다. */
+ *  EXIF DateTimeOriginal(초 단위) 또는 원본 파일명으로 선택본과 RAW를 연결한다. */
 
 export const METADATA_SELECT_JPG_EXTENSIONS = new Set(["jpg", "jpeg"]);
 
-export type MetadataSelectStatus = "success" | "needs_review" | "metadata_missing" | "raw_missing" | "error";
+export type MetadataSelectStatus = "success" | "already_finished" | "needs_review" | "metadata_missing" | "raw_missing" | "error";
 
 export interface MetadataSelectRow {
   selectionName: string;
@@ -37,6 +37,9 @@ export function buildOriginalIndex(entries: { name: string; normalizedDateTime: 
   }
   return index;
 }
+
+/** RAW를 DateTimeOriginal 기준으로 직접 찾을 때도 같은 안전한 다중 후보 인덱스를 쓴다. */
+export const buildDateTimeIndex = buildOriginalIndex;
 
 /** RAW 파일 목록을 basename(소문자) 기준으로 인덱싱한다. 같은 basename이 여러 개면 배열에 함께 담긴다. */
 export function buildRawIndexByBasename(entries: { name: string }[], rawExtensions: Set<string>): Map<string, string[]> {
@@ -82,4 +85,82 @@ export function matchSelectionToRaw(
   }
 
   return { selectionName, status: "success", normalizedDateTime, matchedOriginalName, rawName: raws[0], message: "매칭 성공" };
+}
+
+/** 파일명이 유지된 선택본은 원본 JPG를 거치지 않고 같은 basename의 RAW와 직접 연결한다. */
+export function matchSelectionNameToRaw(
+  selectionName: string,
+  rawIndexByBasename: Map<string, string[]>,
+): MetadataSelectRow {
+  const raws = rawIndexByBasename.get(basenameOf(selectionName).toLowerCase()) ?? [];
+  if (raws.length === 0) {
+    return {
+      selectionName,
+      status: "raw_missing",
+      normalizedDateTime: null,
+      matchedOriginalName: selectionName,
+      message: "같은 파일명의 RAW를 찾지 못했습니다.",
+    };
+  }
+  if (raws.length > 1) {
+    return {
+      selectionName,
+      status: "needs_review",
+      normalizedDateTime: null,
+      matchedOriginalName: selectionName,
+      candidateNames: raws,
+      message: `RAW 후보 중복 (${raws.length}개)`,
+    };
+  }
+  return {
+    selectionName,
+    status: "success",
+    normalizedDateTime: null,
+    matchedOriginalName: selectionName,
+    rawName: raws[0],
+    message: "파일명 직접 매칭 성공",
+  };
+}
+
+/** 파일명이 바뀐 선택본을 원본 JPG 없이 DateTimeOriginal로 RAW에 직접 연결한다. */
+export function matchSelectionDateTimeToRaw(
+  selectionName: string,
+  normalizedDateTime: string | null,
+  rawIndexByDateTime: Map<string, string[]>,
+): MetadataSelectRow {
+  if (!normalizedDateTime) {
+    return {
+      selectionName,
+      status: "metadata_missing",
+      normalizedDateTime: null,
+      message: "DateTimeOriginal 없음",
+    };
+  }
+
+  const raws = rawIndexByDateTime.get(normalizedDateTime) ?? [];
+  if (raws.length === 0) {
+    return {
+      selectionName,
+      status: "raw_missing",
+      normalizedDateTime,
+      message: "동일 촬영시간의 RAW를 찾지 못했습니다.",
+    };
+  }
+  if (raws.length > 1) {
+    return {
+      selectionName,
+      status: "needs_review",
+      normalizedDateTime,
+      candidateNames: raws,
+      message: `동일 촬영시간의 RAW 후보 ${raws.length}개`,
+    };
+  }
+
+  return {
+    selectionName,
+    status: "success",
+    normalizedDateTime,
+    rawName: raws[0],
+    message: "촬영시간 직접 매칭 성공",
+  };
 }
