@@ -635,6 +635,16 @@
   pointer-events: none;
 }
 
+.desktopShootingProgress {
+  position: absolute;
+  z-index: 20;
+  top: 18px;
+  left: 18px;
+  max-height: calc(100% - 112px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
 .shortcut {
   display: flex;
   flex-direction: column;
@@ -914,6 +924,7 @@
   .desktopBody,
   .desktopBody:has(.assistantCollapsed) { display: block; padding: 0; }
   .leftRail { display: none; }
+  .desktopShootingProgress { left: 10px; top: 10px; }
   .assistantPanel { position: absolute; z-index: 4900; top: 10px; right: 10px; bottom: 98px; width: min(360px, calc(100% - 20px)); height: auto; margin-top: 0; }
   .assistantPanel.assistantCollapsed { width: 54px; }
   .dockArea,

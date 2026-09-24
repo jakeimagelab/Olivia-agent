@@ -13,7 +13,30 @@ export type ShootingProgressStage =
   | "original_delivery"
   | "client_selection"
   | "raw_matching"
-  | "retouching";
+  | "retouching"
+  | "final_delivery"
+  | "revision"
+  | "completed";
+
+export type ShootingProgressTone = "attention" | "progress" | "waiting";
+
+export type ShootingProgressCard = {
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  workflowRunId: string | null;
+  calendarTaskId: string | null;
+  shootDate: string | null;
+  jpgCount: number;
+  stage: Exclude<ShootingProgressStage, "completed">;
+  stageLabel: string;
+  tone: ShootingProgressTone;
+  actionRequired: boolean;
+  summary: string;
+  detail: string;
+  progressPercent: number;
+  updatedAt: string;
+};
 
 export type PhotoWorkflowLink = {
   shootDate: string | null;
@@ -45,6 +68,7 @@ type ProgressFacts = {
   galleryNasLink?: string | null;
   rawJobStatus?: string | null;
   workflowCurrentStep?: string | null;
+  workflowStatus?: string | null;
   originalDeliveryStepStatus?: string | null;
   rawMatchingStepStatus?: string | null;
 };
@@ -114,11 +138,16 @@ export function resolveShootingProgressStage(facts: ProgressFacts): ShootingProg
   const galleryStatus = String(facts.galleryStatus ?? "").toLowerCase();
   const workflowStep = String(facts.workflowCurrentStep ?? "").toLowerCase();
 
+  if (String(facts.workflowStatus ?? "").toLowerCase() === "completed") return "completed";
+  if (workflowStep === "reward") return "completed";
+  if (workflowStep === "revision") return "revision";
+  if (workflowStep === "final_delivery") return "final_delivery";
+
   if (
     rawStatus === "COMPLETED"
     || facts.rawMatchingStepStatus === "completed"
     || ["raw_matched", "retouching", "completed"].includes(galleryStatus)
-    || ["retouching", "revision", "final_delivery", "reward"].includes(workflowStep)
+    || workflowStep === "retouching"
   ) return "retouching";
 
   if (

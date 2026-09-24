@@ -6,6 +6,9 @@ import {
   ACTIONABLE_PHOTO_PROJECT_STATUSES,
   ACTIVE_PHOTO_PROJECT_STATUSES,
 } from "@/lib/photo-storage/notificationPolicy";
+import { loadShootingProgressCards } from "@/lib/photo-storage/shootingProgressCards";
+import type { ShootingProgressCard } from "@/lib/photo-storage/shootingProgress";
+import type { PhotoStorageProject } from "@/lib/photo-storage/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -31,7 +34,8 @@ export async function GET(request: NextRequest) {
         db
           .from("photo_storage_projects")
           .select("*")
-          .in("status", [...ACTIVE_PHOTO_PROJECT_STATUSES, "CLASSIFY_COMPLETED"])
+          // DEFERRED는 3일 뒤 알림 목록에서는 사라져도 촬영 진행 카드에는 남아야 한다.
+          .in("status", [...ACTIVE_PHOTO_PROJECT_STATUSES, "CLASSIFY_COMPLETED", "DEFERRED"])
           .order("updated_at", { ascending: false })
           .limit(100),
         db
@@ -74,7 +78,14 @@ export async function GET(request: NextRequest) {
       ? await db.from("photo_storage_events").select("*").in("project_id", projectIds).order("created_at", { ascending: false })
       : { data: [], error: null };
     if (eventError) throw eventError;
-    return Response.json({ ok: true, projects, events: events ?? [] });
+    let shootingProgress: ShootingProgressCard[] = [];
+    try {
+      shootingProgress = await loadShootingProgressCards(db, projects as unknown as PhotoStorageProject[]);
+    } catch (progressError) {
+      // 진행 카드 조회가 실패해도 기존 사진 알림과 파이프라인 상태 조회를 깨뜨리지 않는다.
+      console.warn("[photo-storage shooting progress]", progressError instanceof Error ? progressError.message : progressError);
+    }
+    return Response.json({ ok: true, projects, events: events ?? [], shootingProgress });
   } catch (error) {
     console.error("[photo-storage projects GET]", error);
     return Response.json({ ok: false, error: "촬영 프로젝트를 불러오지 못했습니다." }, { status: 500 });

@@ -3,10 +3,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { PhotoStorageEvent, PhotoStorageProject } from "@/lib/photo-storage/types";
 import { photoProjectPollDelayMs } from "@/lib/photo-storage/pollingPolicy";
+import type { ShootingProgressCard } from "@/lib/photo-storage/shootingProgress";
 
 type PhotoProjectNotificationContextValue = {
   projects: PhotoStorageProject[];
   events: PhotoStorageEvent[];
+  shootingProgress: ShootingProgressCard[];
   loading: boolean;
   error: string | null;
   lastAction: { project: PhotoStorageProject; action: "APPROVED" | "DEFERRED" } | null;
@@ -28,6 +30,7 @@ function isProject(value: unknown): value is PhotoStorageProject {
 export function PhotoProjectNotificationProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<PhotoStorageProject[]>([]);
   const [events, setEvents] = useState<PhotoStorageEvent[]>([]);
+  const [shootingProgress, setShootingProgress] = useState<ShootingProgressCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<PhotoProjectNotificationContextValue["lastAction"]>(null);
@@ -47,12 +50,13 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
         return;
       }
       if (!response.ok) throw new Error("촬영 프로젝트 알림을 불러오지 못했습니다.");
-      const payload = await response.json() as { projects?: unknown; events?: unknown };
+      const payload = await response.json() as { projects?: unknown; events?: unknown; shootingProgress?: unknown };
       if (!mounted.current) return;
       const nextProjects = Array.isArray(payload.projects) ? payload.projects.filter(isProject) : [];
       projectsRef.current = nextProjects;
       setProjects(nextProjects);
       setEvents(Array.isArray(payload.events) ? payload.events as PhotoStorageEvent[] : []);
+      setShootingProgress(Array.isArray(payload.shootingProgress) ? payload.shootingProgress as ShootingProgressCard[] : []);
       setError(null);
     } catch (cause) {
       if (cause instanceof DOMException && cause.name === "AbortError") return;
@@ -122,12 +126,12 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
   }, [refresh]);
 
   const value = useMemo<PhotoProjectNotificationContextValue>(() => ({
-    projects, events, loading, error, lastAction, selectedProjectId, selectProject: setSelectedProjectId, refresh,
+    projects, events, shootingProgress, loading, error, lastAction, selectedProjectId, selectProject: setSelectedProjectId, refresh,
     approve: (id) => transition(id, "approve"),
     defer: (id) => transition(id, "defer"),
     complete: (id) => transition(id, "complete"),
     retry: (id) => transition(id, "retry"),
-  }), [projects, events, loading, error, lastAction, selectedProjectId, refresh, transition]);
+  }), [projects, events, shootingProgress, loading, error, lastAction, selectedProjectId, refresh, transition]);
 
   return <PhotoProjectNotificationContext.Provider value={value}>{children}</PhotoProjectNotificationContext.Provider>;
 }

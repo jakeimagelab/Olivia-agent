@@ -1,0 +1,96 @@
+.section {
+  --shooting-green: #155855;
+  --shooting-orange: #e85d2c;
+  color: #17332e;
+}
+
+.heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.heading > div { min-width: 0; }
+.heading span { display: block; color: #77908a; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.heading h2 { margin: 2px 0 0; color: #17332e; font-size: 19px; font-weight: 780; letter-spacing: -.035em; }
+.heading b { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; background: #e7f3ef; color: var(--shooting-green); font-size: 10px; }
+
+.list { display: grid; gap: 9px; }
+
+.card {
+  width: 100%;
+  min-width: 0;
+  display: block;
+  padding: 14px;
+  border: 1px solid rgba(21, 88, 85, .1);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 10px 26px rgba(12, 65, 59, .06);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.card { cursor: pointer; }
+button.card:hover { border-color: rgba(21, 88, 85, .24); transform: translateY(-1px); }
+.cardAttention { border-color: rgba(232, 93, 44, .2); box-shadow: 0 10px 28px rgba(180, 75, 40, .08); }
+
+.cardTop { display: flex; align-items: center; gap: 9px; }
+.cardTop strong { min-width: 0; flex: 1; overflow: hidden; color: #17332e; font-size: 14px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
+.badge { flex: 0 0 auto; padding: 5px 8px; border-radius: 999px; font-size: 9px; font-style: normal; font-weight: 800; }
+.badge.attention { background: #fff0e9; color: #d24d21; }
+.badge.progress { background: #e5f5ef; color: #13765f; }
+.badge.waiting { background: #f0f2f1; color: #6b7e79; }
+
+.detail { margin: 6px 0 0; overflow: hidden; color: #82938f; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.progress { height: 4px; margin-top: 11px; overflow: hidden; border-radius: 999px; background: #eaf1ef; }
+.progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #1c7168, #58a793); transition: width 240ms ease-out; }
+.cardAttention .progress span { background: linear-gradient(90deg, #e85d2c, #f09a67); }
+.currentStep { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; margin-top: 10px; }
+.currentStep > span { padding-top: 1px; color: var(--shooting-green); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.cardAttention .currentStep > span { color: #d65228; }
+.currentStep p { margin: 0; color: #526b65; font-size: 10.5px; line-height: 1.45; }
+
+.expand {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 11px;
+  background: rgba(238, 247, 245, .86);
+  color: var(--shooting-green);
+  font: 700 10px/1 inherit;
+  cursor: pointer;
+}
+
+.desktop {
+  width: 310px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, .62);
+  border-radius: 17px;
+  background: rgba(248, 252, 250, .92);
+  box-shadow: 0 18px 48px rgba(3, 35, 31, .2), inset 0 1px 0 rgba(255, 255, 255, .82);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+  backdrop-filter: blur(24px) saturate(135%);
+}
+.desktop .heading { margin-bottom: 8px; }
+.desktop .heading h2 { font-size: 16px; }
+.desktop .card { padding: 11px; border-radius: 13px; box-shadow: none; }
+.desktop .cardTop strong { font-size: 11.5px; }
+.desktop .detail { font-size: 8.5px; }
+.desktop .currentStep p { font-size: 9px; }
+.desktop .currentStep > span { font-size: 9px; }
+
+.mobile { margin-top: 12px; }
+.mobile .heading > div > span { display: none; }
+.mobile .heading h2 { font-size: 18px; }
+
+@media (prefers-reduced-motion: reduce) {
+  button.card, .progress span { transition: none; }
+}

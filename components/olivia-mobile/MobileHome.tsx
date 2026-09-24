@@ -24,8 +24,8 @@ import {
 } from "@/lib/olivia/mobile/resources";
 import MobileCurrentWorkCard, { type MobileWorkState } from "./MobileCurrentWorkCard";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
-import { isPhotoProjectActive, isPhotoProjectPendingVisible } from "@/lib/photo-storage/notificationPolicy";
-import type { PhotoStorageProject } from "@/lib/photo-storage/types";
+import { isPhotoProjectPendingVisible } from "@/lib/photo-storage/notificationPolicy";
+import { ShootingProgressCards } from "@/components/shooting-progress/ShootingProgressCards";
 import type { MobileDocumentsSection } from "./MobileDocuments";
 import styles from "./OliviaMobileShell.module.css";
 
@@ -40,24 +40,6 @@ const QUICK_ITEMS = [
   { id: "photo-workspace", label: "사진작업실", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
   { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
 ] as const;
-
-function photoProgress(project: PhotoStorageProject) {
-  const progress = project.status === "MERGING" ? project.merge_progress
-    : project.status.startsWith("CLASSIFY") ? project.classification_progress
-      : project.copy_progress;
-  const current = typeof progress.current === "number" ? progress.current : 0;
-  const total = typeof progress.total === "number" ? progress.total : project.jpg_count;
-  const percent = total > 0 ? Math.round((current / total) * 100) : 0;
-  const status = project.status === "MERGE_APPROVED" ? "JPG 통합 준비 중"
-    : project.status === "MERGING" ? "JPG 통합 중"
-      : project.status === "CLASSIFY_APPROVED" || project.status === "COPY_QUEUED" ? "복사 준비 중"
-      : project.status === "COPYING" ? "JPG 복사 중"
-        : project.status === "COPY_VERIFYING" ? "복사 확인 중"
-          : project.status === "COPY_COMPLETED" || project.status === "CLASSIFY_QUEUED" ? "분류 준비 중"
-            : project.status === "CLASSIFYING" ? "씬 분류 중"
-              : "분류 확인 중";
-  return { status, percent: Number.isFinite(percent) ? Math.max(0, Math.min(100, percent)) : 0 };
-}
 
 function QuickMenuIcon({
   id,
@@ -155,7 +137,7 @@ export default function MobileHome({
   const [weather, setWeather] = useState<MobileWeather | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const { projects } = usePhotoProjectNotifications();
+  const { projects, shootingProgress } = usePhotoProjectNotifications();
 
   const load = useCallback(async () => {
     setError("");
@@ -252,13 +234,11 @@ export default function MobileHome({
     return "idle";
   }, [agentRuns, isSending]);
 
-  const activePhotoProject = useMemo(() => projects
-    .filter(isPhotoProjectActive)
-    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())[0] || null, [projects]);
   const pendingPhotoCount = useMemo(() => projects.filter((project) => isPhotoProjectPendingVisible(project)).length, [projects]);
 
   const handleQuick = (id: typeof QUICK_ITEMS[number]["id"]) => {
     if (id === "quote-contract") return onOpenDocuments("quote-contract");
+    if (id === "photo-workspace") return onNavigate("photo-workspace");
     if (id === "preview") {
       if (resource) onOpenPreview({ resourceType: resource.type, resourceId: resource.id, temporaryDocumentId: resource.temporaryDocumentId });
       else onOpenDocuments("quote-contract");
@@ -309,11 +289,7 @@ export default function MobileHome({
         )}
       </section>
 
-      {activePhotoProject ? <button type="button" className={styles.photoProgressCard} onClick={() => onNavigate("photo-workspace")}>
-        <span>사진 작업</span>
-        <strong>{activePhotoProject.project_name} · {photoProgress(activePhotoProject).status} · {photoProgress(activePhotoProject).percent}%</strong>
-        <ChevronRight size={17} />
-      </button> : null}
+      <ShootingProgressCards cards={shootingProgress} variant="mobile" />
 
       <section className={styles.homeSection}>
         <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>빠른 메뉴</h2></div>
