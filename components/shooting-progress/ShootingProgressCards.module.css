@@ -87,6 +87,19 @@ button.card:hover { border-color: rgba(21, 88, 85, .24); transform: translateY(-
 .desktop .currentStep p { font-size: 9px; }
 .desktop .currentStep > span { font-size: 9px; }
 
+.panel {
+  width: 100%;
+  padding: 0;
+}
+.panel .heading { margin-bottom: 7px; }
+.panel .heading > div > span { display: none; }
+.panel .heading h2 { font-size: 12px; font-weight: 700; }
+.panel .card { padding: 10px; border-radius: 11px; box-shadow: none; }
+.panel .cardTop strong { font-size: 11.5px; }
+.panel .detail { font-size: 9px; }
+.panel .currentStep > span,
+.panel .currentStep p { font-size: 9px; }
+
 .mobile { margin-top: 12px; }
 .mobile .heading > div > span { display: none; }
 .mobile .heading h2 { font-size: 18px; }

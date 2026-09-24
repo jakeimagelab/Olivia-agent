@@ -48,6 +48,7 @@ const ContractBuilder = dynamic(() => import("@/components/contract/ContractBuil
 const ContiWorkspace = dynamic(() => import("@/components/conti/v2/ContiWorkspaceAdapter"), { ssr: false, loading: modalLoading });
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { usePcrmHeaderActions } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 
 const STEP_INFO: Record<string, { icon: string; desc: string; href: string }> = {
   consult_meeting:   { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析",  href: "/consultation" },
@@ -122,6 +123,10 @@ export function resolveClientWorkspaceSelection({
   return availableClientIds[0] ?? null;
 }
 
+export function resolveEmbeddedClientDetailTarget(clientId: string, workflowRunId?: string | null) {
+  return { clientId, workflowRunId: workflowRunId ?? null };
+}
+
 export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId, surface = "desktop" }: ClientsWorkspaceProps = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
@@ -162,6 +167,7 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     deletingId, deleteClient, load,
   } = useClientRoster();
   const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
+  const [detailTarget, setDetailTarget] = useState<{ clientId: string; workflowRunId: string | null } | null>(null);
   const filteredClientIds = filtered.map((client) => client.id).join("|");
   const lastAppliedInitialClientIdRef = useRef<string | null | undefined>(undefined);
 
@@ -222,6 +228,17 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
   ), [search, setSearch]);
   usePcrmHeaderActions(headerActions, [headerActions]);
 
+  if (detailTarget) {
+    return (
+      <DetailView
+        clientId={detailTarget.clientId}
+        workflowRunId={detailTarget.workflowRunId}
+        onBack={() => setDetailTarget(null)}
+        onWorkflowRunChange={(workflowRunId) => setDetailTarget((current) => current ? { ...current, workflowRunId } : current)}
+      />
+    );
+  }
+
   return (
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
       <div
@@ -241,7 +258,11 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
 
         <div className="pcrm-inline-project-column">
           {selectedClientId ? (
-            <InlineClientProjectPanel clientId={selectedClientId} embedded={embedded} />
+            <InlineClientProjectPanel
+              clientId={selectedClientId}
+              embedded={embedded}
+              onOpenDetail={(workflowRunId) => setDetailTarget(resolveEmbeddedClientDetailTarget(selectedClientId, workflowRunId))}
+            />
           ) : (
             <div className="pc-card pc-card--padded pcrm-inline-project-empty">
               <p>등록된 고객이 없습니다.</p>
@@ -283,7 +304,15 @@ function invalidateClientDetailCache(clientId: string) {
   clientDetailCache.delete(clientId);
 }
 
-function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; embedded: boolean }) {
+function InlineClientProjectPanel({
+  clientId,
+  embedded,
+  onOpenDetail,
+}: {
+  clientId: string;
+  embedded: boolean;
+  onOpenDetail: (workflowRunId?: string | null) => void;
+}) {
   const router = useRouter();
   const cached = clientDetailCache.get(clientId);
   const [pageData, setPageData] = useState<any>(() => cached?.data ?? null);
@@ -393,9 +422,15 @@ function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; em
                 <div><h3>{workflowRun.project_name || `${client.name} 프로젝트`}</h3><b>{workflowCompleted ? "완료" : "진행 중"}</b></div>
                 <p>{workflowRun.started_at || workflowRun.created_at ? `시작 ${fmtDot(workflowRun.started_at || workflowRun.created_at)}` : "시작일 미정"}{workflowRun.shoot_date ? ` · 촬영 ${fmtDot(workflowRun.shoot_date)}` : ""}</p>
               </div>
-              <Link href={`/clients?id=${encodeURIComponent(clientId)}`}>
-                프로젝트 상세 보기 <ChevronRight size={16} />
-              </Link>
+              {embedded ? (
+                <button type="button" onClick={() => onOpenDetail(workflowRun.id)}>
+                  프로젝트 상세 보기 <ChevronRight size={16} />
+                </button>
+              ) : (
+                <Link href={`/clients?id=${encodeURIComponent(clientId)}`}>
+                  프로젝트 상세 보기 <ChevronRight size={16} />
+                </Link>
+              )}
             </div>
             {workflowSummary ? (
               <div className="pcrm-inline-project__workflow">
@@ -418,7 +453,7 @@ function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; em
             <PcrmActivityTimeline
               activities={activities}
               variant="row"
-              onViewAll={() => router.push(`/clients?id=${encodeURIComponent(clientId)}`)}
+              onViewAll={() => embedded ? onOpenDetail(workflowRun.id) : router.push(`/clients?id=${encodeURIComponent(clientId)}`)}
             />
           </div>
         </>
@@ -454,8 +489,20 @@ function InlineClientProjectPanel({ clientId, embedded }: { clientId: string; em
 }
 
 /* ── DETAIL VIEW ── */
-function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; workflowRunId: string | null; onBack: () => void }) {
+function DetailView({
+  clientId,
+  workflowRunId,
+  onBack,
+  onWorkflowRunChange,
+}: {
+  clientId: string;
+  workflowRunId: string | null;
+  onBack: () => void;
+  onWorkflowRunChange?: (workflowRunId: string) => void;
+}) {
   const router = useRouter();
+  const desktopWindowMode = useDesktopWindowMode();
+  const launchHref = useDesktopAppLauncher();
   const [pageData, setPageData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -578,7 +625,9 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
       openToolModal(targetStep);
     } else {
-      router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
+      const href = buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id });
+      if (desktopWindowMode) launchHref(href, client.name, { clientId, projectId: workflowRun.id });
+      else router.push(href);
     }
   };
 
@@ -617,7 +666,7 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
     <div style={{ color: C.txt }}>
       <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
       <nav className="pcrm-breadcrumb" aria-label="이동 경로">
-        <Link href="/clients">고객 관리</Link><span>/</span><span>고객 상세 · {activeTabLabel}</span>
+        {desktopWindowMode ? <button type="button" onClick={onBack}>고객 관리</button> : <Link href="/clients">고객 관리</Link>}<span>/</span><span>고객 상세 · {activeTabLabel}</span>
         <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
           <ChevronLeft size={13} /> 목록
         </button>
@@ -724,7 +773,8 @@ function DetailView({ clientId, workflowRunId, onBack }: { clientId: string; wor
           onClose={() => setShowProjectDialog(false)}
           onCreated={(newWorkflowRunId) => {
             setShowProjectDialog(false);
-            router.push(`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(newWorkflowRunId)}`);
+            if (onWorkflowRunChange) onWorkflowRunChange(newWorkflowRunId);
+            else router.push(`/clients?id=${encodeURIComponent(clientId)}&workflowRunId=${encodeURIComponent(newWorkflowRunId)}`);
           }}
         />
       )}

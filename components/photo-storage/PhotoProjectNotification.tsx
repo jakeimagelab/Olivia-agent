@@ -34,7 +34,7 @@ function reviewStage(project: PhotoStorageProject): "merge" | "copy" | "classify
   return null;
 }
 
-export default function PhotoProjectNotification() {
+export default function PhotoProjectNotification({ variant = "floating" }: { variant?: "floating" | "panel" }) {
   const { projects, events, lastAction, selectedProjectId, selectProject, approve, defer, retry } = usePhotoProjectNotifications();
   const [busy, setBusy] = useState<"approve" | "defer" | "retry" | null>(null);
   const [dismissedCards, setDismissedCards] = useState<string[]>([]);
@@ -71,12 +71,12 @@ export default function PhotoProjectNotification() {
     const label = lastAction.action === "DEFERRED"
       ? "나중에 처리하도록 보류됨"
       : lastAction.project.status === "CLASSIFY_APPROVED" ? "사진 분류 승인됨 · 작업 대기" : "JPG 통합 승인됨 · 작업 대기";
-    return <div className={styles.statusToast} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {label}</span></div>;
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {label}</span></div>;
   }
   if (!project) {
     const completed = projects.find((candidate) => candidate.status === "CLASSIFY_COMPLETED" && Date.now() - new Date(candidate.updated_at).getTime() < 10 * 60_000);
     if (!completed) return null;
-    return <div className={styles.statusToast} role="status"><Check size={16} /><span>{completed.project_name} · 분류 완료 · {completed.scene_count.toLocaleString("ko-KR")}개 Scene · {completed.classified_jpg_count.toLocaleString("ko-KR")}장</span></div>;
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name} · 분류 완료 · {completed.scene_count.toLocaleString("ko-KR")}개 Scene · {completed.classified_jpg_count.toLocaleString("ko-KR")}장</span></div>;
   }
 
   // 상태 2 — MERGING / MERGE_APPROVED (1/2단계)
@@ -87,7 +87,7 @@ export default function PhotoProjectNotification() {
     const percent = percentOf(current, total);
     const title = project.status === "MERGE_APPROVED" ? "통합을 준비하고 있습니다." : "SSD1에서 JPG를 통합하고 있습니다.";
     return (
-      <aside className={styles.card} role="status">
+      <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
         <button className={styles.close} type="button" aria-label="작업 상태 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><HardDrive size={20} /></div>
         <div className={styles.content}>
@@ -104,7 +104,7 @@ export default function PhotoProjectNotification() {
   // 상태 3 — MERGE_COMPLETED (2차 승인 + 통합 리포트)
   if (project.status === "MERGE_COMPLETED") {
     return (
-      <aside className={styles.card} role="status">
+      <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
         <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><Check size={20} /></div>
         <div className={styles.content}>
@@ -139,7 +139,7 @@ export default function PhotoProjectNotification() {
       ? `경계 검증 ${current.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")} · ${percent}%`
       : `${current.toLocaleString("ko-KR")} / ${total.toLocaleString("ko-KR")}장 · ${percent}%${totalBytes > 0 ? ` · ${formatBytes(copiedBytes)} / ${formatBytes(totalBytes)}` : ""}`;
     return (
-      <aside className={styles.card} role="status">
+      <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
         <button className={styles.close} type="button" aria-label="작업 상태 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><HardDrive size={20} /></div>
         <div className={styles.content}>
@@ -164,7 +164,7 @@ export default function PhotoProjectNotification() {
     // 파일 알림이다 — 재시도 대상이 없으므로 기존처럼 닫기만 제공한다.
     if (!stage) {
       return (
-        <aside className={styles.card} role="status">
+        <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
           <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
           <div className={styles.icon}><HardDrive size={20} /></div>
           <div className={styles.content}>
@@ -188,7 +188,7 @@ export default function PhotoProjectNotification() {
     const conflicts = Array.isArray(event?.payload?.conflicts) ? event.payload.conflicts as Array<{ source: string; destination: string; reason: string }> : [];
 
     return (
-      <aside className={`${styles.card} ${styles.cardDanger}`} role="alert">
+      <aside className={`${styles.card} ${styles.cardDanger} ${variant === "panel" ? styles.panel : ""}`} role="alert">
         <button className={styles.close} type="button" aria-label="오류 알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={`${styles.icon} ${styles.iconDanger}`}><AlertTriangle size={20} /></div>
         <div className={styles.content}>
@@ -215,7 +215,7 @@ export default function PhotoProjectNotification() {
 
   // 상태 1 — READY (1차 승인)
   return (
-    <aside className={styles.card} role="status">
+    <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
       <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
       <div className={styles.icon}><HardDrive size={20} /></div>
       <div className={styles.content}>

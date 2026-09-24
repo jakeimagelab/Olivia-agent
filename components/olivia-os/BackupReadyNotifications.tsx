@@ -29,7 +29,7 @@ function formatBytes(bytes: number): string {
 // Olivia OS 2.0 PHASE 6 §10/§11 — NAS 백업 완료 알림. 기존 Olivia OS에는 toast/notification
 // center 자체가 없어서(먼저 코드 확인 완료) 최소한의 카드 스택으로 새로 만든다 — 너무 큰
 // 모달은 금지(§10)라 OliviaDesktop 우상단 App Window 위에 떠 있는 작은 카드로 구현한다.
-export function BackupReadyNotifications() {
+export function BackupReadyNotifications({ variant = "floating" }: { variant?: "floating" | "panel" }) {
   const [events, setEvents] = useState<WorkerEvent[]>([]);
   const [startingId, setStartingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -128,7 +128,7 @@ export function BackupReadyNotifications() {
   if (!events.length) return null;
 
   return (
-    <div className={styles.stack} aria-live="polite">
+    <div className={`${styles.stack} ${variant === "panel" ? styles.panel : ""}`} aria-live="polite">
       {events.map((event) => (
         <div key={event.id} className={styles.card} role="status">
           <div className={styles.title}><span className={styles.dot} aria-hidden="true" /> 새 촬영 데이터가 백업되었습니다</div>

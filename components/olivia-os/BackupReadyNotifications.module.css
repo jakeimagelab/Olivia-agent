@@ -10,6 +10,18 @@
   pointer-events: none;
 }
 
+.stack.panel {
+  position: static;
+  width: 100%;
+  pointer-events: auto;
+}
+
+.panel .card {
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: none;
+}
+
 /* 코드 요청서(2026-09-19) 작업 A — PhotoProjectNotification.module.css와 같은 규칙. 그 카드는
    모바일에서 자기도 bottom-right로 옮겨오므로(같은 파일 24행), 같은 모서리에서 겹치지 않게
    이쪽은 왼쪽 하단으로 옮긴다 — 두 알림 다 내용에 따라 높이가 달라져서 세로로 정확히 쌓는

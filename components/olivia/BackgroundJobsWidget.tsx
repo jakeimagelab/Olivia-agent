@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useBackgroundJobsStore, type BackgroundJob } from "@/lib/store/useBackgroundJobsStore";
+import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 
 // RAW 매칭/사진 분류처럼 오래 걸리는 클라이언트 작업이 실행 중일 때, 사용자가 다른 페이지로
 // 이동해도 진행 상황을 계속 보여주기 위한 전역 팝업. app/layout.tsx에서 OliviaWorkspaceShell과
@@ -13,8 +14,9 @@ const AUTO_DISMISS_MS = 4000;
 
 const C = { teal: "#155855", green: "#22876A", red: "#DC2626", muted: "#5A7470", border: "rgba(21,88,85,.14)", bg: "#FFFFFF" };
 
-function JobCard({ job }: { job: BackgroundJob }) {
+function JobCard({ job, panel }: { job: BackgroundJob; panel: boolean }) {
   const router = useRouter();
+  const launchHref = useDesktopAppLauncher();
   const dismissJob = useBackgroundJobsStore((state) => state.dismissJob);
   const cancelJob = useBackgroundJobsStore((state) => state.cancelJob);
 
@@ -30,9 +32,9 @@ function JobCard({ job }: { job: BackgroundJob }) {
 
   return (
     <div
-      onClick={() => router.push(job.returnPath)}
+      onClick={() => panel ? launchHref(job.returnPath, job.label) : router.push(job.returnPath)}
       style={{
-        width: 280, background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12,
+        width: panel ? "100%" : 280, boxSizing: "border-box", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 12,
         padding: "12px 14px", boxShadow: "0 8px 24px rgba(21,88,85,.14)", cursor: "pointer", fontFamily: "inherit",
       }}
     >
@@ -68,14 +70,16 @@ function JobCard({ job }: { job: BackgroundJob }) {
   );
 }
 
-export default function BackgroundJobsWidget() {
+export default function BackgroundJobsWidget({ variant = "floating" }: { variant?: "floating" | "panel" }) {
   const jobs = useBackgroundJobsStore((state) => state.jobs);
   const jobList = Object.values(jobs);
   if (jobList.length === 0) return null;
 
   return (
-    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 10025, display: "flex", flexDirection: "column", gap: 8 }}>
-      {jobList.map((job) => <JobCard key={job.id} job={job} />)}
+    <div style={variant === "panel"
+      ? { position: "static", width: "100%", display: "flex", flexDirection: "column", gap: 8 }
+      : { position: "fixed", top: 16, right: 16, zIndex: 10025, display: "flex", flexDirection: "column", gap: 8 }}>
+      {jobList.map((job) => <JobCard key={job.id} job={job} panel={variant === "panel"} />)}
     </div>
   );
 }

@@ -5,9 +5,6 @@ import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
-import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
-import { ShootingProgressCards } from "@/components/shooting-progress/ShootingProgressCards";
-import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
@@ -16,8 +13,6 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
   const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
   const setWorkspaceSize = useOliviaDesktopStore((state) => state.setWorkspaceSize);
-  const { shootingProgress, refresh } = usePhotoProjectNotifications();
-  const launchHref = useDesktopAppLauncher();
   const surfaceRef = useRef<HTMLDivElement>(null);
 
   // WindowLayer 자체를 측정해 모든 창 좌표를 viewport가 아닌 DesktopSurface 기준으로 통일한다.
@@ -63,17 +58,6 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
         );
       }}
     >
-      {shootingProgress.length ? (
-        <div className={styles.desktopShootingProgress}>
-          <ShootingProgressCards
-            cards={shootingProgress}
-            variant="desktop"
-            onUpdated={refresh}
-            onOpenFolder={(card) => launchHref(`/remote-files?path=${encodeURIComponent(card.sourceRelativePath)}`, card.projectName)}
-            onOpenClient={(clientId) => launchHref(`/clients?clientId=${encodeURIComponent(clientId)}`, undefined, { clientId })}
-          />
-        </div>
-      ) : null}
       <div className={styles.windowLayer}>
         {Object.values(windows).map((win) => {
           const app = oliviaAppRegistry.find((candidate) => candidate.id === win.appId);

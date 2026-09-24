@@ -854,7 +854,7 @@
 .chatDock :global(.olivia-conversation--mobile .olivia-message) { max-width: 91%; gap: 7px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-message__avatar) { width: 25px; height: 25px; flex-basis: 25px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-message__body) { border: 1px solid rgba(21,88,85,.07); padding: 11px 13px; border-radius: 17px 17px 17px 6px; background: #fff; color: #263b36; font-size: 12.5px; line-height: 1.65; box-shadow: 0 6px 18px rgba(20,63,57,.035); }
-.chatDock :global(.olivia-conversation--mobile .olivia-message.is-user .olivia-message__body) { border-color: var(--mobile-green); border-radius: 17px 17px 6px 17px; background: var(--mobile-green); color: #fff; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message.is-user .olivia-message__body) { border-color: var(--mobile-orange); border-radius: 17px 17px 6px 17px; background: var(--mobile-orange); color: #fff; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__welcome) { padding: 22px; }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__welcome > span) { background: var(--mobile-mint); color: var(--mobile-green); }
 .chatDock :global(.olivia-conversation--mobile .olivia-conversation__welcome h1) { color: var(--mobile-ink); font-size: 23px; font-weight: 670; }

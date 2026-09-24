@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, RefreshCw, Server, XCircle } from "lucide-react";
+import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNotification";
+import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
+import { BackupReadyNotifications } from "./BackupReadyNotifications";
+import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
+import { ShootingProgressCards } from "@/components/shooting-progress/ShootingProgressCards";
+import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
+import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
 type StatusPanelData = {
@@ -33,6 +40,13 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   QUEUED: "진행중", RUNNING: "진행중", COMPLETED: "완료", FAILED: "실패",
 };
 
+const ATTENTION_PROJECT_STATUSES = new Set([
+  "READY", "ERROR", "REVIEW_REQUIRED", "MERGE_COMPLETED", "MERGE_FAILED",
+  "COPY_FAILED", "CLASSIFY_FAILED", "MERGE_APPROVED", "MERGING",
+  "CLASSIFY_APPROVED", "COPY_QUEUED", "COPYING", "COPY_VERIFYING",
+  "CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING",
+]);
+
 // components/olivia-os/DesktopWidgets.tsx와 동일한 상대시각 포맷 — 이 저장소는 공용 유틸로
 // 뽑지 않고 컴포넌트마다 이 정도 크기 함수는 로컬로 둔다(기존 관례).
 function relativeTime(value: string) {
@@ -55,6 +69,9 @@ export function StatusPanelButton() {
   const [error, setError] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
+  const { projects, shootingProgress, refresh: refreshPhotoProjects } = usePhotoProjectNotifications();
+  const jobs = useBackgroundJobsStore((state) => state.jobs);
+  const launchHref = useDesktopAppLauncher();
 
   const load = useCallback(async () => {
     setLoading(!hasLoadedRef.current);
@@ -94,6 +111,10 @@ export function StatusPanelButton() {
     };
   }, [open]);
 
+  const hasPendingWork = projects.some((project) => ATTENTION_PROJECT_STATUSES.has(project.status))
+    || shootingProgress.length > 0
+    || Object.keys(jobs).length > 0
+    || Boolean(data?.recentBackups.some((backup) => backup.status === "PENDING"));
   const hasWarning = data ? data.worker.online === false || data.worker.nas_connected === false : false;
 
   return (
@@ -107,16 +128,31 @@ export function StatusPanelButton() {
         onClick={() => setOpen((current) => !current)}
       >
         <Server size={15} />
-        {hasWarning ? <span className={styles.statusPanelWarningDot} /> : null}
+        {hasWarning || hasPendingWork ? <span className={styles.statusPanelWarningDot} /> : null}
       </button>
-      {open ? (
-        <div className={styles.statusPanel} role="dialog" aria-label="시스템 상태">
+      <div className={styles.statusPanel} role="dialog" aria-label="시스템 상태" hidden={!open}>
           <div className={styles.statusPanelHeader}>
-            <span>시스템 상태</span>
+            <span>상태 및 알림</span>
             <button type="button" className={styles.statusPanelRefresh} onClick={() => void load()} aria-label="새로고침" disabled={loading}>
               <RefreshCw size={13} className={loading ? styles.statusPanelSpin : undefined} />
             </button>
           </div>
+          {shootingProgress.length ? (
+            <div className={styles.statusPanelWorkSection}>
+              <ShootingProgressCards
+                cards={shootingProgress}
+                variant="panel"
+                onUpdated={refreshPhotoProjects}
+                onOpenFolder={(card) => launchHref(`/remote-files?path=${encodeURIComponent(card.sourceRelativePath)}`, card.projectName)}
+                onOpenClient={(clientId) => launchHref(`/clients?clientId=${encodeURIComponent(clientId)}`, undefined, { clientId })}
+              />
+            </div>
+          ) : null}
+
+          <PhotoProjectNotification variant="panel" />
+          <BackupReadyNotifications variant="panel" />
+          <BackgroundJobsWidget variant="panel" />
+
           {error && !data ? (
             <div className={styles.statusPanelError}>
               <span>상태를 불러오지 못했어요</span>
@@ -176,8 +212,7 @@ export function StatusPanelButton() {
               </div>
             </>
           )}
-        </div>
-      ) : null}
+      </div>
     </div>
   );
 }

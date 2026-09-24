@@ -23,7 +23,7 @@ export function ShootingProgressCards({
   onOpenClient,
 }: {
   cards: ShootingProgressCard[];
-  variant: "mobile" | "desktop";
+  variant: "mobile" | "desktop" | "panel";
   onOpen?: (card: ShootingProgressCard) => void;
   onUpdated?: () => Promise<void> | void;
   onOpenFolder?: (card: ShootingProgressCard) => void;
@@ -85,7 +85,7 @@ export function ShootingProgressCards({
           {expanded ? <><ChevronUp size={15} />접기</> : <><ChevronDown size={15} />나머지 {cards.length - COLLAPSED_COUNT}건 보기</>}
         </button>
       ) : null}
-      {selected ? <ShootingProgressDialog card={selected} variant={variant} onClose={closeDialog} onUpdated={onUpdated} onOpenFolder={onOpenFolder} onOpenClient={onOpenClient} /> : null}
+      {selected ? <ShootingProgressDialog card={selected} variant={variant === "mobile" ? "mobile" : "desktop"} onClose={closeDialog} onUpdated={onUpdated} onOpenFolder={onOpenFolder} onOpenClient={onOpenClient} /> : null}
     </section>
   );
 }

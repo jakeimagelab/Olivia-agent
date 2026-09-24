@@ -2392,11 +2392,11 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.84);
   border-radius: 28px;
-  background: rgba(247,251,250,.79);
+  background: #eef7f5;
   box-shadow: 0 20px 55px rgba(21,88,85,.075), inset 0 1px 0 rgba(255,255,255,.92);
 }
 .olivia-conversation--workspace { border-radius: 22px; }
-.olivia-conversation--drawer { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.olivia-conversation--drawer { border: 0; border-radius: 0; box-shadow: none; background: #eef7f5; }
 /* 레퍼런스 강제 재현(2026-08-18) — 홈의 Main Chat Card는 뷰포트를 채우는 캔버스가 아니라
    고정 높이 카드다. 비어있을 땐 ~380px, 대화가 시작되면 조금 더 커지되(내부 메시지 목록만
    스크롤) 여전히 유한한 높이를 유지한다 — 그래야 아래 Mission Bar/Bottom Grid가 항상 보인다. */
@@ -2629,6 +2629,7 @@
   flex-direction: column;
   gap: 12px;
   overscroll-behavior: contain;
+  background: #eef7f5;
 }
 .olivia-topic-divider { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
 .olivia-topic-divider__line { flex: 1; height: 1px; background: rgba(21,88,85,.14); }
@@ -2743,7 +2744,7 @@
 }
 .olivia-message.is-user { align-self: flex-end; flex-direction: row-reverse; }
 .olivia-message__avatar { width: 22px; height: 22px; flex: 0 0 22px; display: grid; place-items: center; border-radius: 50%; background: var(--olivia-orange); color: #fff; }
-.olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: rgba(255,255,255,.9); color: #243a36; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; -webkit-user-select: text; user-select: text; }
+.olivia-message__body { min-width: 20px; padding: 9px 12px; border-radius: 15px 15px 15px 5px; background: #fff; color: #2f3b38; box-shadow: 0 5px 18px rgba(21,88,85,.05); font-size: 11px; line-height: 1.6; -webkit-user-select: text; user-select: text; }
 .olivia-message__body :where(div,span,p,ol,ul,li,strong,em,code,pre,a) { -webkit-user-select: text; user-select: text; }
 .olivia-message__body :where(button,button *),
 .olivia-message__body :where([role="button"],[role="button"] *),
@@ -2753,7 +2754,11 @@
 .olivia-chat-message-attachments > a *,
 .olivia-approval-card__actions,
 .olivia-approval-card__actions * { -webkit-user-select: none; user-select: none; }
-.olivia-message.is-user .olivia-message__body { border-radius: 15px 15px 5px 15px; background: var(--olivia-green); color: #fff; box-shadow: 0 7px 20px rgba(21,88,85,.16); }
+.olivia-message.is-user .olivia-message__body { border-radius: 15px 15px 5px 15px; background: var(--olivia-orange); color: #fff; box-shadow: 0 7px 20px rgba(232,93,44,.2); }
+.olivia-message.is-assistant .olivia-message__body::selection,
+.olivia-message.is-assistant .olivia-message__body *::selection { background: var(--olivia-orange); color: #fff; }
+.olivia-message.is-user .olivia-message__body::selection,
+.olivia-message.is-user .olivia-message__body *::selection { background: #fff; color: #9f3516; }
 .olivia-message__body p { margin: 0; }
 .olivia-message__error { color: #9e4327; }
 .olivia-message__error button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 8px; background: #fff0ea; color: var(--olivia-orange); font-size: 9px; cursor: pointer; }
@@ -3901,7 +3906,8 @@
   gap: 9px;
 }
 .pcrm-inline-project__header-actions a,
-.pcrm-inline-project__project-heading > a {
+.pcrm-inline-project__project-heading > a,
+.pcrm-inline-project__project-heading > button {
   min-height: 40px;
   display: inline-flex;
   align-items: center;
@@ -3915,6 +3921,8 @@
   font-size: 12px;
   font-weight: 600;
   text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
 }
 .pcrm-inline-project__overview { padding: 22px 24px 20px; }
 .pcrm-inline-project__project-heading {
@@ -4024,7 +4032,8 @@
   .pcrm-inline-project__project-heading { align-items: flex-start; flex-direction: column; }
   .pcrm-inline-project__header-actions { width: 100%; }
   .pcrm-inline-project__header-actions a { flex: 1; }
-  .pcrm-inline-project__project-heading > a { width: 100%; }
+  .pcrm-inline-project__project-heading > a,
+  .pcrm-inline-project__project-heading > button { width: 100%; }
   .pcrm-inline-project__bottom-grid { grid-template-columns: 1fr; }
 }
 

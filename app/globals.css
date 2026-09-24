@@ -3922,8 +3922,10 @@ main:has(> .pc-header) {
 .pcrm-gallery-table .pcrm-project-row > span:first-child small { display: block; margin-top: 2px; color: var(--teal-soft); font-size: 9px; font-weight: 600; }
 
 .pcrm-breadcrumb { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; color: var(--teal-soft); font-size: 11px; font-weight: 600; }
-.pcrm-breadcrumb a { color: var(--muted); text-decoration: none; }
-.pcrm-breadcrumb a:hover { color: var(--teal); }
+.pcrm-breadcrumb a,
+.pcrm-breadcrumb > button { border: 0; padding: 0; background: transparent; color: var(--muted); font: inherit; text-decoration: none; cursor: pointer; }
+.pcrm-breadcrumb a:hover,
+.pcrm-breadcrumb > button:hover { color: var(--teal); }
 .pcrm-breadcrumb span:last-child { color: var(--teal); }
 
 .pcrm-summary-grid--compact { grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 14px 0; }
@@ -9131,7 +9133,7 @@ main,
    그대로 둔다 — .olivia-os-chat-dock 조상 스코프로 한정). 전송 버튼(deep green 원형)은
    admin.css 기본값이 이미 이 요구사항과 일치해서 손대지 않는다. */
 .olivia-os-chat-dock .olivia-conversation {
-  background: #F5FAF8;
+  background: #EEF7F5;
 }
 
 .olivia-os-chat-dock .olivia-composer {
@@ -9139,12 +9141,19 @@ main,
 }
 
 .olivia-os-chat-dock .olivia-message__body {
-  background: #F3F7F5;
+  background: #FFFFFF;
+  color: #2F3B38;
 }
 
 .olivia-os-chat-dock .olivia-message.is-user .olivia-message__body {
-  background: var(--olivia-green);
+  background: var(--olivia-orange);
+  color: #FFFFFF;
 }
+
+.olivia-os-chat-dock .olivia-message.is-assistant .olivia-message__body::selection,
+.olivia-os-chat-dock .olivia-message.is-assistant .olivia-message__body *::selection { background: var(--olivia-orange); color: #fff; }
+.olivia-os-chat-dock .olivia-message.is-user .olivia-message__body::selection,
+.olivia-os-chat-dock .olivia-message.is-user .olivia-message__body *::selection { background: #fff; color: #9f3516; }
 
 /* Desktop Window 안에서만 고객 목록을 macOS 사이드바처럼 표현한다. standalone /clients의
    카드 표현은 유지하고, 선택 행 역시 브랜드 딥 틸의 낮은 농도만 사용한다. */
