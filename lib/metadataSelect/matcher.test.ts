@@ -6,6 +6,7 @@ import {
   matchSelectionDateTimeToRaw,
   matchSelectionNameToRaw,
   matchSelectionToRaw,
+  markDuplicateRawMatches,
   METADATA_SELECT_JPG_EXTENSIONS,
 } from "@/lib/metadataSelect/matcher";
 
@@ -165,6 +166,24 @@ describe("matchSelectionDateTimeToRaw — 파일명이 바뀐 선택본 직접 �
     expect(matchSelectionDateTimeToRaw("WIN_F_0001.jpg", null, new Map())).toMatchObject({
       status: "metadata_missing",
     });
+  });
+});
+
+describe("markDuplicateRawMatches — 부분 처리 안전장치", () => {
+  it("중복 RAW 행만 확인 필요로 바꾸고 고유 매칭은 유지한다", () => {
+    const rows = markDuplicateRawMatches([
+      { selectionName: "a.jpg", status: "success", normalizedDateTime: null, rawName: "A.ARW", message: "성공" },
+      { selectionName: "b.jpg", status: "success", normalizedDateTime: null, rawName: "nested/A.ARW", message: "성공" },
+      { selectionName: "c.jpg", status: "success", normalizedDateTime: null, rawName: "C.ARW", message: "성공" },
+      { selectionName: "d.jpg", status: "raw_missing", normalizedDateTime: null, message: "없음" },
+    ]);
+
+    expect(rows.map((row) => row.status)).toEqual([
+      "needs_review",
+      "needs_review",
+      "success",
+      "raw_missing",
+    ]);
   });
 });
 

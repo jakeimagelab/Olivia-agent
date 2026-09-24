@@ -21,6 +21,7 @@ import {
   matchSelectionDateTimeToRaw,
   matchSelectionNameToRaw,
   matchSelectionToRaw,
+  markDuplicateRawMatches,
   type MetadataSelectRow,
   type MetadataSelectStatus,
 } from "@/lib/metadataSelect/matcher";
@@ -48,6 +49,7 @@ type MatchPlan = {
   selectedRawMoveTransfers: MetadataFileTransfer[];
   destinationDirectory: typeof SELECTED_RAW_DIRECTORY | typeof FINISHED_RAW_DIRECTORY;
   alreadyFinishedCount: number;
+  skippedCount: number;
   excludeCompleted: boolean;
 };
 
@@ -322,21 +324,10 @@ export default function MetadataSelectWorkspace() {
           }
         }
       }
-      setRows(nextRows);
+      const safeRows = markDuplicateRawMatches(nextRows);
+      setRows(safeRows);
 
-      if (excludeCompleted) {
-        const failedRows = nextRows.filter((row) => row.status !== "success");
-        if (failedRows.length > 0) throw new Error(`매칭 실패 ${failedRows.length}장이 있어 파일을 변경하지 않았습니다.`);
-        const duplicateRaws = nextRows
-          .map((row) => row.rawName)
-          .filter((name): name is string => !!name)
-          .filter((name, index, names) => names.indexOf(name) !== index);
-        if (duplicateRaws.length > 0) {
-          throw new Error(`같은 RAW에 중복 매칭된 선택본이 있습니다: ${Array.from(new Set(duplicateRaws)).map(leafName).join(", ")}`);
-        }
-      }
-
-      const successfulRows = nextRows.filter((row) => row.status === "success");
+      const successfulRows = safeRows.filter((row) => row.status === "success");
       if (successfulRows.length === 0) throw new Error("복사할 수 있는 RAW 매칭 결과가 없습니다.");
       const selectedRaw = await getDirectoryIfExists(rawDir, SELECTED_RAW_DIRECTORY);
       const finishedRaw = await getDirectoryIfExists(rawDir, FINISHED_RAW_DIRECTORY);
@@ -349,7 +340,7 @@ export default function MetadataSelectWorkspace() {
         finishedRawNames: finishedRawFiles.map((file) => file.name),
       });
       const alreadyFinishedKeys = new Set(output.alreadyFinishedNames.map(normalizedLeafKey));
-      const plannedRows = nextRows.map((row): MetadataSelectRow => (
+      const plannedRows = safeRows.map((row): MetadataSelectRow => (
         row.status === "success" && row.rawName && alreadyFinishedKeys.has(normalizedLeafKey(row.rawName))
           ? { ...row, status: "already_finished", message: `${FINISHED_RAW_DIRECTORY}에 있어 작업 대상에서 제외했습니다.` }
           : row
@@ -376,6 +367,7 @@ export default function MetadataSelectWorkspace() {
         selectedRawMoveTransfers,
         destinationDirectory: output.destinationDirectory,
         alreadyFinishedCount: output.alreadyFinishedNames.length,
+        skippedCount: plannedRows.filter((row) => row.status !== "success" && row.status !== "already_finished").length,
         excludeCompleted,
       });
       setPhaseDetail("");
@@ -490,6 +482,7 @@ export default function MetadataSelectWorkspace() {
                   선택본 {plan.selectionCount}장 · RAW 원본에서 복사 {plan.rawCopyTransfers.length}장
                   {plan.selectedRawMoveTransfers.length > 0 ? <> · {SELECTED_RAW_DIRECTORY}에서 이동 {plan.selectedRawMoveTransfers.length}장</> : null}
                   {plan.alreadyFinishedCount > 0 ? <> · 이미 완료되어 제외 {plan.alreadyFinishedCount}장</> : null}
+                  {plan.skippedCount > 0 ? <><br /><strong style={{ color: C.orange }}>매칭 실패 {plan.skippedCount}장은 변경하지 않고 건너뜁니다.</strong></> : null}
                   <br />대상: {plan.destinationDirectory}/
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>

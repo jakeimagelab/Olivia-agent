@@ -164,3 +164,30 @@ export function matchSelectionDateTimeToRaw(
     message: "촬영시간 직접 매칭 성공",
   };
 }
+
+function rawOutputKey(name: string): string {
+  return (name.split("/").pop() ?? name).normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+/**
+ * 여러 선택본이 같은 RAW(또는 평면 출력에서 같은 파일명)에 매칭되면 해당 행들만
+ * 자동 처리 대상에서 제외한다. 나머지 확정 행은 계속 처리할 수 있다.
+ */
+export function markDuplicateRawMatches(rows: readonly MetadataSelectRow[]): MetadataSelectRow[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.status !== "success" || !row.rawName) continue;
+    const key = rawOutputKey(row.rawName);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return rows.map((row) => {
+    if (row.status !== "success" || !row.rawName) return row;
+    if ((counts.get(rawOutputKey(row.rawName)) ?? 0) < 2) return row;
+    return {
+      ...row,
+      status: "needs_review",
+      message: "같은 RAW 또는 출력 파일명에 여러 선택본이 매칭되어 건너뜁니다.",
+    };
+  });
+}
