@@ -46,7 +46,7 @@ type MatchPlan = {
   rows: MetadataSelectRow[];
   selectionCount: number;
   rawCopyTransfers: MetadataFileTransfer[];
-  selectedRawMoveTransfers: MetadataFileTransfer[];
+  rawMoveTransfers: MetadataFileTransfer[];
   destinationDirectory: typeof SELECTED_RAW_DIRECTORY | typeof FINISHED_RAW_DIRECTORY;
   alreadyFinishedCount: number;
   skippedCount: number;
@@ -58,7 +58,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   analyzing: "촬영시간과 원본을 분석하는 중...",
   awaiting_confirmation: "분석 완료 · 확인 대기",
   copying_raw: "RAW 복사 중...",
-  moving_finished_raw: "기존 RAW 복사본을 완료 폴더로 옮기는 중...",
+  moving_finished_raw: "매칭된 RAW 작업본을 완료 폴더로 옮기는 중...",
   done: "완료",
   failed: "실패",
 };
@@ -105,12 +105,6 @@ function findScannedFile(files: readonly ScannedFile[], name: string | undefined
 
 function normalizedLeafKey(name: string): string {
   return leafName(name).normalize("NFC").toLocaleLowerCase("en-US");
-}
-
-function findScannedFileByLeaf(files: readonly ScannedFile[], name: string | undefined): ScannedFile | undefined {
-  if (!name) return undefined;
-  const key = normalizedLeafKey(name);
-  return files.find((file) => normalizedLeafKey(file.name) === key);
 }
 
 function toTransfer(file: ScannedFile): MetadataFileTransfer {
@@ -328,15 +322,13 @@ export default function MetadataSelectWorkspace() {
       setRows(safeRows);
 
       const successfulRows = safeRows.filter((row) => row.status === "success");
-      if (successfulRows.length === 0) throw new Error("복사할 수 있는 RAW 매칭 결과가 없습니다.");
+      if (successfulRows.length === 0) throw new Error("처리할 수 있는 RAW 매칭 결과가 없습니다.");
       const selectedRaw = await getDirectoryIfExists(rawDir, SELECTED_RAW_DIRECTORY);
       const finishedRaw = await getDirectoryIfExists(rawDir, FINISHED_RAW_DIRECTORY);
-      const selectedRawFiles = selectedRaw ? await scanRawFiles(selectedRaw, 0) : [];
       const finishedRawFiles = finishedRaw ? await scanRawFiles(finishedRaw, 0) : [];
       const output = planMetadataRawOutput({
         rawNames: successfulRows.map((row) => row.rawName as string),
         excludeCompleted,
-        selectedRawNames: selectedRawFiles.map((file) => file.name),
         finishedRawNames: finishedRawFiles.map((file) => file.name),
       });
       const alreadyFinishedKeys = new Set(output.alreadyFinishedNames.map(normalizedLeafKey));
@@ -351,20 +343,20 @@ export default function MetadataSelectWorkspace() {
         if (!file) throw new Error(`${name}: RAW 원본 파일 핸들을 찾지 못했습니다.`);
         return toTransfer(file);
       });
-      const selectedRawMoveTransfers = output.moveFromSelectedNames.map((name) => {
-        const file = findScannedFileByLeaf(selectedRawFiles, name);
-        if (!file) throw new Error(`${name}: ${SELECTED_RAW_DIRECTORY} 복사본을 찾지 못했습니다.`);
+      const rawMoveTransfers = output.moveFromRawNames.map((name) => {
+        const file = findScannedFile(rawFiles, name);
+        if (!file) throw new Error(`${name}: RAW 작업본 파일 핸들을 찾지 못했습니다.`);
         return toTransfer(file);
       });
       const destination = output.destinationDirectory === SELECTED_RAW_DIRECTORY ? selectedRaw : finishedRaw;
-      await assertNoDestinationCollisions(destination, [...rawCopyTransfers, ...selectedRawMoveTransfers]);
+      await assertNoDestinationCollisions(destination, [...rawCopyTransfers, ...rawMoveTransfers]);
 
       setRows(plannedRows);
       setPlan({
         rows: plannedRows,
         selectionCount: selectionFiles.length,
         rawCopyTransfers,
-        selectedRawMoveTransfers,
+        rawMoveTransfers,
         destinationDirectory: output.destinationDirectory,
         alreadyFinishedCount: output.alreadyFinishedNames.length,
         skippedCount: plannedRows.filter((row) => row.status !== "success" && row.status !== "already_finished").length,
@@ -385,8 +377,8 @@ export default function MetadataSelectWorkspace() {
     let destination: FileSystemDirectoryHandle | null = null;
     let rawCreatedNames: string[] = [];
     try {
-      setPhase("copying_raw");
-      if (plan.rawCopyTransfers.length > 0 || plan.selectedRawMoveTransfers.length > 0) {
+      setPhase(plan.rawMoveTransfers.length > 0 ? "moving_finished_raw" : "copying_raw");
+      if (plan.rawCopyTransfers.length > 0 || plan.rawMoveTransfers.length > 0) {
         destination = await (rawDir as any).getDirectoryHandle(plan.destinationDirectory, { create: true }) as FileSystemDirectoryHandle;
       }
       if (destination && plan.rawCopyTransfers.length > 0) {
@@ -399,10 +391,10 @@ export default function MetadataSelectWorkspace() {
         rawCreatedNames = rawResult.createdNames;
       }
 
-      if (destination && plan.selectedRawMoveTransfers.length > 0) {
+      if (destination && plan.rawMoveTransfers.length > 0) {
         setPhase("moving_finished_raw");
         await transferFilesSafely({
-          transfers: plan.selectedRawMoveTransfers,
+          transfers: plan.rawMoveTransfers,
           destination,
           deleteSources: true,
           onProgress: (current, total, name) => setPhaseDetail(`${current} / ${total} · ${name}`),
@@ -445,7 +437,7 @@ export default function MetadataSelectWorkspace() {
             <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0 0 12px", borderBottom: `1px solid ${C.border}`, color: C.ink }}>
               <span>
                 <strong style={{ display: "block", fontSize: 13 }}>이미 작업한 사진 제외</strong>
-                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>매칭된 RAW를 {FINISHED_RAW_DIRECTORY}/로 분리하고 {SELECTED_RAW_DIRECTORY}/의 기존 복사본은 옮깁니다.</small>
+                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>선택한 RAW 작업본에서 매칭된 파일을 {FINISHED_RAW_DIRECTORY}/로 옮깁니다.</small>
               </span>
               <input type="checkbox" checked={excludeCompleted} disabled={running} onChange={(event) => toggleExclude(event.target.checked)} aria-label="이미 작업한 사진 제외" style={{ width: 20, height: 20, accentColor: C.orange }} />
             </label>
@@ -460,7 +452,7 @@ export default function MetadataSelectWorkspace() {
               onPick={() => pick(setSourceDir, "read")}
               onClear={() => { setSourceDir(null); resetAnalysis(); }}
             />
-            <FolderPickerRow step={3} label="RAW 원본" dir={rawDir} disabled={running} onPick={() => pick(setRawDir, "readwrite")} />
+            <FolderPickerRow step={3} label={excludeCompleted ? "RAW 작업본" : "RAW 원본"} dir={rawDir} disabled={running} onPick={() => pick(setRawDir, "readwrite")} />
 
             <div style={{ marginTop: 16, display: "grid", gap: 6 }} aria-live="polite">
               {missingRequirements.map((message) => <div key={message} style={{ fontSize: 11, color: C.orange }}>• {message}</div>)}
@@ -479,8 +471,9 @@ export default function MetadataSelectWorkspace() {
               <div style={{ marginTop: 18, border: `1px solid ${C.border}`, borderRadius: R.md, background: C.light, padding: 16, color: C.ink }}>
                 <strong style={{ display: "block", fontSize: 14 }}>파일을 변경하기 전에 확인해주세요.</strong>
                 <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.9, color: C.muted }}>
-                  선택본 {plan.selectionCount}장 · RAW 원본에서 복사 {plan.rawCopyTransfers.length}장
-                  {plan.selectedRawMoveTransfers.length > 0 ? <> · {SELECTED_RAW_DIRECTORY}에서 이동 {plan.selectedRawMoveTransfers.length}장</> : null}
+                  선택본 {plan.selectionCount}장
+                  {plan.rawCopyTransfers.length > 0 ? <> · RAW 원본에서 복사 {plan.rawCopyTransfers.length}장</> : null}
+                  {plan.rawMoveTransfers.length > 0 ? <> · RAW 작업본에서 이동 {plan.rawMoveTransfers.length}장</> : null}
                   {plan.alreadyFinishedCount > 0 ? <> · 이미 완료되어 제외 {plan.alreadyFinishedCount}장</> : null}
                   {plan.skippedCount > 0 ? <><br /><strong style={{ color: C.orange }}>매칭 실패 {plan.skippedCount}장은 변경하지 않고 건너뜁니다.</strong></> : null}
                   <br />대상: {plan.destinationDirectory}/
@@ -495,7 +488,7 @@ export default function MetadataSelectWorkspace() {
             ) : null}
 
             <div style={{ marginTop: 16, background: C.light, borderRadius: R.sm, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
-              <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />원본 JPG가 없어도 파일명을 먼저 비교하고, 이름이 바뀐 선택본은 EXIF 촬영시간으로 RAW를 직접 찾습니다. 원본 JPG를 지정하면 기존 EXIF 연결 방식으로 확인합니다. RAW 원본은 항상 유지합니다.
+              <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />원본 JPG가 없어도 파일명을 먼저 비교하고, 이름이 바뀐 선택본은 EXIF 촬영시간으로 RAW를 직접 찾습니다. 제외 모드는 매칭된 RAW 작업본을 이동하며, 일반 모드만 RAW 원본을 유지하고 복사합니다.
             </div>
           </section>
         )}

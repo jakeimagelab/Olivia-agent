@@ -7,26 +7,24 @@ describe("planMetadataRawOutput", () => {
     expect(planMetadataRawOutput({
       rawNames: ["R5K0001.ARW"],
       excludeCompleted: false,
-      selectedRawNames: [],
       finishedRawNames: [],
     })).toEqual({
       destinationDirectory: SELECTED_RAW_DIRECTORY,
       copyFromRawNames: ["R5K0001.ARW"],
-      moveFromSelectedNames: [],
+      moveFromRawNames: [],
       alreadyFinishedNames: [],
     });
   });
 
-  it("제외 매칭은 Selected_RAW의 기존 복사본을 Finished_RAW로 이동시킨다", () => {
+  it("제외 매칭은 선택한 RAW 작업본을 Finished_RAW로 이동시킨다", () => {
     expect(planMetadataRawOutput({
       rawNames: ["camera/R5K0001.ARW", "camera/R5K0002.ARW"],
       excludeCompleted: true,
-      selectedRawNames: ["R5K0001.ARW"],
       finishedRawNames: [],
     })).toEqual({
       destinationDirectory: FINISHED_RAW_DIRECTORY,
-      copyFromRawNames: ["camera/R5K0002.ARW"],
-      moveFromSelectedNames: ["camera/R5K0001.ARW"],
+      copyFromRawNames: [],
+      moveFromRawNames: ["camera/R5K0001.ARW", "camera/R5K0002.ARW"],
       alreadyFinishedNames: [],
     });
   });
@@ -35,7 +33,6 @@ describe("planMetadataRawOutput", () => {
     expect(planMetadataRawOutput({
       rawNames: ["R5K0001.ARW", "R5K0002.ARW"],
       excludeCompleted: false,
-      selectedRawNames: [],
       finishedRawNames: ["R5K0001.ARW"],
     })).toMatchObject({
       copyFromRawNames: ["R5K0002.ARW"],
@@ -47,8 +44,7 @@ describe("planMetadataRawOutput", () => {
     expect(planMetadataRawOutput({
       rawNames: ["camera/R5K0001.ARW"],
       excludeCompleted: true,
-      selectedRawNames: ["r5k0001.arw"],
       finishedRawNames: [],
-    }).moveFromSelectedNames).toEqual(["camera/R5K0001.ARW"]);
+    }).moveFromRawNames).toEqual(["camera/R5K0001.ARW"]);
   });
 });
