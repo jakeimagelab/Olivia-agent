@@ -10,6 +10,10 @@ const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 셀렉 도구를 불러오는 중...</div>,
 });
+const RemotePhotoSelectWorkspace = dynamic(() => import("./RemotePhotoSelectWorkspace"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>원격 사진 셀렉을 준비하는 중...</div>,
+});
 
 const SELECT_TABS = [
   { mode: "ai", label: "AI 사진 셀렉", icon: Sparkles },
@@ -17,11 +21,14 @@ const SELECT_TABS = [
   { mode: "client", label: "고객 선택 불러오기", icon: Users },
 ] as const;
 
-export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch }: {
+export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch, remote = false }: {
   value: PhotoSelectMode;
   onChange: (mode: PhotoSelectMode) => void;
   onStartRawMatch: () => void;
+  remote?: boolean;
 }) {
+  if (remote) return <RemotePhotoSelectWorkspace />;
+
   return (
     <div>
       <div className={styles.selectTabs} role="tablist" aria-label="사진 셀렉 방식">

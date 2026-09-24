@@ -1,0 +1,384 @@
+.workspace {
+  display: grid;
+  gap: 16px;
+  color: #17332e;
+}
+
+.intro,
+.panel,
+.result {
+  border: 1px solid rgba(21, 88, 85, 0.11);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(21, 88, 85, 0.05);
+}
+
+.intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #eef7f5, #fff 72%);
+}
+
+.introText {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 5px;
+  color: #e85d2c;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.intro h3,
+.sectionHeading h3 {
+  margin: 0;
+  color: #0d4743;
+  font-size: 16px;
+}
+
+.intro p,
+.sectionHeading p {
+  margin: 5px 0 0;
+  color: #5a7470;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.workerState {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #eef7f5;
+  color: #155855;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.workerState i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22876a;
+}
+
+.workerOffline {
+  background: #fff3ef;
+  color: #b6401f;
+}
+
+.workerOffline i {
+  background: #e85d2c;
+}
+
+.panel {
+  padding: 18px;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 9px;
+  border-radius: 9px;
+  background: #155855;
+  color: #fff;
+  font-size: 12px;
+}
+
+.inputActions,
+.selectionActions,
+.targetRow,
+.submitRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: #155855;
+  color: #fff;
+}
+
+.secondaryButton {
+  border-color: rgba(21, 88, 85, 0.18);
+  background: #fff;
+  color: #155855;
+}
+
+.dangerButton {
+  background: #e85d2c;
+  color: #fff;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.fileSummary {
+  margin-top: 12px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: #eef7f5;
+  color: #5a7470;
+  font-size: 12px;
+}
+
+.fileSummary strong {
+  color: #155855;
+}
+
+.group {
+  margin-top: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(21, 88, 85, 0.1);
+  border-radius: 13px;
+  background: #f7fbfa;
+}
+
+.groupHeader {
+  width: 100%;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  border: 0;
+  background: #fff;
+  color: #17332e;
+  font: inherit;
+  cursor: pointer;
+}
+
+.groupHeader strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.groupHeader span {
+  flex: 0 0 auto;
+  color: #5a7470;
+  font-size: 11px;
+}
+
+.photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 7px;
+  padding: 10px;
+}
+
+.photoCard {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: 1px solid rgba(21, 88, 85, 0.1);
+  border-radius: 9px;
+  background: #dfecea;
+  cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: 108px 72px;
+}
+
+.photoCard img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.photoCardSelected {
+  box-shadow: inset 0 0 0 3px #155855;
+}
+
+.photoName {
+  position: absolute;
+  inset: auto 0 0;
+  overflow: hidden;
+  padding: 4px 6px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+  color: #fff;
+  font-size: 9px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #155855;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.targetRow {
+  justify-content: space-between;
+  padding: 13px 14px;
+  border-radius: 12px;
+  background: #eef7f5;
+}
+
+.targetInfo {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.targetInfo small {
+  color: #5a7470;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.targetInfo strong {
+  overflow-wrap: anywhere;
+  color: #0d4743;
+  font-size: 12px;
+}
+
+.submitRow {
+  justify-content: space-between;
+}
+
+.safetyNote {
+  color: #5a7470;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.notice,
+.error {
+  padding: 11px 13px;
+  border-radius: 11px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.notice {
+  background: #eef7f5;
+  color: #155855;
+}
+
+.error {
+  background: #fff3ef;
+  color: #b6401f;
+}
+
+.result {
+  padding: 17px 18px;
+}
+
+.result h3 {
+  margin: 0 0 8px;
+  color: #155855;
+  font-size: 15px;
+}
+
+.resultGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.resultGrid div {
+  padding: 10px;
+  border-radius: 10px;
+  background: #eef7f5;
+  text-align: center;
+}
+
+.resultGrid strong,
+.resultGrid span {
+  display: block;
+}
+
+.resultGrid strong {
+  color: #155855;
+  font-size: 20px;
+}
+
+.resultGrid span {
+  margin-top: 2px;
+  color: #5a7470;
+  font-size: 10px;
+}
+
+@media (max-width: 700px) {
+  .intro,
+  .submitRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workerState {
+    align-self: flex-start;
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .photoGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    min-height: 44px;
+  }
+}

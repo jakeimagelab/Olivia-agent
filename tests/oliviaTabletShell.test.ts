@@ -115,7 +115,7 @@ describe("Olivia Tablet Shell", () => {
     const clientsAdapter = readFileSync("components/olivia-os/adapters/ClientsWindowContent.tsx", "utf8");
     const photoRemote = readFileSync("components/olivia-tablet/TabletPhotoRemote.tsx", "utf8");
     expect(shell).toContain('OliviaUiSurfaceProvider value="tablet"');
-    expect(appContent).toContain("<TabletClients />");
+    expect(appContent).toContain("<TabletClients context={{");
     expect(clientsAdapter).toContain("useOliviaUiSurface");
     expect(clientsAdapter).toContain('value={resolvedSurface === "desktop"}');
     expect(photoRemote).toContain("연결 준비 중");

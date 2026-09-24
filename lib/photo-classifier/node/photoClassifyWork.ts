@@ -25,6 +25,8 @@ export type PhotoClassifyWorkInput = RemotePhotoSortRunnerOptions & {
   roots?: RunnerRoots;
   expectedJpgCount?: number;
   expectedJpgBytes?: number;
+  /** 테스트·운영 점검에서 기본 30GB 여유 기준을 명시적으로 조정할 때만 사용한다. */
+  minFreeBytes?: number;
 };
 
 export type PhotoClassifyWorkSuccess = {
@@ -229,7 +231,11 @@ export async function runPhotoClassifyWork(
   // 씬별분류는 JPG전체를 복사로 복제하므로 프로젝트당 SSD2 사용량이 약 2배가 된다.
   // 파일을 하나도 만들기 전에 여유 공간을 확인한다.
   const requiredBytes = totalBytes(before);
-  const safetyMargin = Math.max(requiredBytes * 0.05, MIN_SAFETY_MARGIN_BYTES, configuredMinFreeBytes());
+  const safetyMargin = Math.max(
+    requiredBytes * 0.05,
+    MIN_SAFETY_MARGIN_BYTES,
+    input.minFreeBytes ?? configuredMinFreeBytes(),
+  );
   const filesystem = await statfs(root);
   const availableBytes = Number(filesystem.bavail) * Number(filesystem.bsize);
   if (!Number.isFinite(availableBytes) || availableBytes < requiredBytes + safetyMargin) {

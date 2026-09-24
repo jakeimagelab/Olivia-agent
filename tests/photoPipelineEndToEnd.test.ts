@@ -25,6 +25,8 @@ const classifyOptions = {
   aiNamingEnabled: false,
   qualityAnalysisEnabled: false,
   profileClassificationEnabled: false,
+  // 테스트 결과가 개발 머신의 실제 남은 디스크 용량에 좌우되지 않게 한다.
+  minFreeBytes: 0,
 };
 
 describe("올리비아 사진 파이프라인 end-to-end (JPG 통합 -> 복사 -> 분류)", () => {
@@ -53,7 +55,7 @@ describe("올리비아 사진 파이프라인 end-to-end (JPG 통합 -> 복사 -
     await expect(readFile(path.join(ssd1JpgIntegrated, "A001.JPG"), "utf8")).resolves.toBe("jpg-1");
 
     // 2차 승인 1단계: SSD1/JPG전체 -> SSD2/JPG전체 COPY. SSD1은 그대로 남는다.
-    const copyResult = await stageProjectJpgToWorkStorage({ sourceRelativePath: projectName, roots });
+    const copyResult = await stageProjectJpgToWorkStorage({ sourceRelativePath: projectName, roots, minFreeBytes: 0 });
     expect(copyResult).toMatchObject({ ok: true, status: "COPY_COMPLETED", copiedCount: 2 });
     await expect(readFile(path.join(ssd1JpgIntegrated, "A001.JPG"), "utf8")).resolves.toBe("jpg-1");
     const ssd2JpgIntegrated = path.join(roots.workRoot, projectName, "JPG전체");

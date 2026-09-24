@@ -36,6 +36,8 @@ const baseOptions = {
   aiNamingEnabled: false,
   qualityAnalysisEnabled: false,
   profileClassificationEnabled: false,
+  // 테스트 결과가 개발 머신의 실제 남은 디스크 용량에 좌우되지 않게 한다.
+  minFreeBytes: 0,
 };
 
 describe("SSD2 PHOTO_CLASSIFY_WORK adapter", () => {

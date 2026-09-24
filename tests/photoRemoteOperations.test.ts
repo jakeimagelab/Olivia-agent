@@ -40,7 +40,7 @@ describe("Mac Studio 사진 후속 작업", () => {
     await mkdir(path.join(workProject, "씬별분류"));
     await writeFile(path.join(workProject, "씬별분류", "A001.JPG"), await jpeg({ r: 180, g: 150, b: 140 }));
     const before = await stat(path.join(sourceProject, "RAW-A", "A001.ARW"));
-    const result = await runPhotoRawMatch({ roots, projectRelativePath: "0919_test", selectedFileNames: ["A001.JPG", "MISSING.JPG"] });
+    const result = await runPhotoRawMatch({ roots, projectRelativePath: "0919_test", selectedFileNames: ["A001.JPG", "MISSING.JPG"], minFreeBytes: 0 });
     expect(result).toMatchObject({ ok: true, status: "RAW_MATCH_COMPLETED", selectionSource: "customer_selection", selectedCount: 2, matchedCount: 1, rawSourceUnchanged: true, missingNames: ["missing"] });
     await expect(readFile(path.join(workProject, "Selected_RAW", "A001.ARW"), "utf8")).resolves.toBe("raw-one");
     await expect(stat(path.join(workProject, "Selected_RAW", "A002.CR3"))).rejects.toThrow();
@@ -54,21 +54,21 @@ describe("Mac Studio 사진 후속 작업", () => {
     await mkdir(path.join(first.workProject, "씬별분류"));
     await writeFile(path.join(first.workProject, "씬별분류", "A001.JPG"), await jpeg({ r: 160, g: 130, b: 120 }));
     await writeFile(path.join(first.workProject, "씬별분류", "A001.xmp"), '<x:xmpmeta><rdf:Description xmp:Rating="1" /></x:xmpmeta>');
-    const xmpResult = await runPhotoRawMatch({ roots: first.roots, projectRelativePath: "0919_test" });
+    const xmpResult = await runPhotoRawMatch({ roots: first.roots, projectRelativePath: "0919_test", minFreeBytes: 0 });
     expect(xmpResult).toMatchObject({ ok: true, selectionSource: "xmp_rating", matchedCount: 1 });
 
     const second = await setup();
     await writeFile(path.join(second.sourceProject, "B001.ARW"), "raw");
     await mkdir(path.join(second.workProject, "씬별분류"));
     await writeFile(path.join(second.workProject, "씬별분류", "B001.JPG"), await jpeg({ r: 160, g: 130, b: 120 }));
-    const noSelection = await runPhotoRawMatch({ roots: second.roots, projectRelativePath: "0919_test" });
+    const noSelection = await runPhotoRawMatch({ roots: second.roots, projectRelativePath: "0919_test", minFreeBytes: 0 });
     expect(noSelection).toMatchObject({ ok: false, status: "REVIEW_REQUIRED", matchedCount: 0, selectionSource: "none" });
   });
 
   it("셀렉 파일명이 모두 누락되면 성공으로 보고하지 않고 RAW를 하나도 복사하지 않는다", async () => {
     const { roots, sourceProject, workProject } = await setup();
     await writeFile(path.join(sourceProject, "A001.ARW"), "raw");
-    const result = await runPhotoRawMatch({ roots, projectRelativePath: "0919_test", selectedFileNames: ["MISSING.JPG"] });
+    const result = await runPhotoRawMatch({ roots, projectRelativePath: "0919_test", selectedFileNames: ["MISSING.JPG"], minFreeBytes: 0 });
     expect(result).toMatchObject({
       ok: false,
       status: "REVIEW_REQUIRED",
@@ -78,6 +78,49 @@ describe("Mac Studio 사진 후속 작업", () => {
       missingNames: ["missing"],
       rawSourceUnchanged: true,
     });
+    await expect(stat(path.join(workProject, "Selected_RAW"))).rejects.toThrow();
+  });
+
+  it("Agentstation 프로젝트가 없어도 안전한 프로젝트와 Selected_RAW를 만든다", async () => {
+    const { roots, sourceProject, workProject } = await setup();
+    await rm(workProject, { recursive: true });
+    await writeFile(path.join(sourceProject, "A001.ARW"), "raw");
+    const result = await runPhotoRawMatch({
+      roots,
+      projectRelativePath: "0919_test",
+      selectedFileNames: ["A001.JPG"],
+      minFreeBytes: 0,
+    });
+    expect(result).toMatchObject({ ok: true, matchedCount: 1, rawSourceUnchanged: true });
+    await expect(readFile(path.join(workProject, "Selected_RAW", "A001.ARW"), "utf8")).resolves.toBe("raw");
+  });
+
+  it("브라우저 NFC 파일명과 NAS NFD RAW 파일명을 같은 사진으로 매칭한다", async () => {
+    const { roots, sourceProject, workProject } = await setup();
+    const nfcBase = "R5K_강지혜";
+    const nfdRawName = `${nfcBase.normalize("NFD")}.ARW`;
+    await writeFile(path.join(sourceProject, nfdRawName), "raw-nfd");
+    const result = await runPhotoRawMatch({
+      roots,
+      projectRelativePath: "0919_test",
+      selectedFileNames: [`${nfcBase}.JPG`],
+      minFreeBytes: 0,
+    });
+    expect(result).toMatchObject({ ok: true, matchedCount: 1, rawSourceUnchanged: true });
+    await expect(readFile(path.join(workProject, "Selected_RAW", nfdRawName), "utf8")).resolves.toBe("raw-nfd");
+  });
+
+  it("Agentstation 여유 공간이 부족하면 RAW를 하나도 복사하지 않는다", async () => {
+    const { roots, sourceProject, workProject } = await setup();
+    await writeFile(path.join(sourceProject, "A001.ARW"), "raw");
+    const result = await runPhotoRawMatch({
+      roots,
+      projectRelativePath: "0919_test",
+      selectedFileNames: ["A001.JPG"],
+      minFreeBytes: Number.MAX_SAFE_INTEGER,
+    });
+    expect(result).toMatchObject({ ok: false, status: "RAW_MATCH_FAILED", matchedCount: 0, rawSourceUnchanged: true });
+    expect(result.error).toContain("Agentstation 저장 공간이 부족");
     await expect(stat(path.join(workProject, "Selected_RAW"))).rejects.toThrow();
   });
 

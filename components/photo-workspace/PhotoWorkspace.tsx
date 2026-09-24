@@ -70,7 +70,8 @@ function PhotoWorkspaceContent({
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : initialToolState?.rawMatchView ?? "ai-cull");
   const { executionMode } = usePhotoStudioExecution();
-  const remoteUnavailable = executionMode === "REMOTE_WORKER" && mode !== "classification";
+  const remote = executionMode === "REMOTE_WORKER";
+  const remoteUnavailable = remote && mode !== "classification" && mode !== "select";
 
   useEffect(() => {
     const content = contentRef.current;
@@ -127,9 +128,9 @@ function PhotoWorkspaceContent({
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
-            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "select" ? "사진 셀렉" : mode === "metadata-select" ? "메타데이터 셀렉" : mode === "raw-match" ? "AI 컷 정리 / RAW 매칭" : mode === "retouch" ? "사진 보정" : "사진 리사이즈"} /> : null}
+            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "metadata-select" ? "메타데이터 셀렉" : mode === "raw-match" ? "AI 컷 정리 / RAW 매칭" : mode === "retouch" ? "사진 보정" : "사진 리사이즈"} /> : null}
             {!remoteUnavailable && mode === "select" ? (
-              <PhotoSelectWorkspace value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
+              <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
             {!remoteUnavailable && mode === "metadata-select" ? <MetadataSelectWorkspace /> : null}
             {!remoteUnavailable && mode === "raw-match" ? (

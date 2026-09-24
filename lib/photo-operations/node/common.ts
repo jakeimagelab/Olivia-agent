@@ -31,6 +31,7 @@ export async function requireSafeDirectory(target: string, label: string): Promi
 export async function resolvePhotoProjectDirectories(input: {
   projectRelativePath: string;
   roots?: RunnerRoots;
+  createWorkProject?: boolean;
 }): Promise<{ roots: RunnerRoots; relativePath: string; sourceRoot: string; workRoot: string; sourceProject: string; workProject: string }> {
   const roots = input.roots ?? getStorageRoots();
   const relativePath = normalizePhotoProjectPath(input.projectRelativePath);
@@ -45,6 +46,7 @@ export async function resolvePhotoProjectDirectories(input: {
     throw new Error("프로젝트 경로가 Storage Root 밖을 가리킵니다.");
   }
   const sourceProject = await requireSafeDirectory(sourceCandidate, "SSD1 프로젝트");
+  if (input.createWorkProject) await ensureSafeDirectory(workRoot, workCandidate);
   const workProject = await requireSafeDirectory(workCandidate, "SSD2 프로젝트");
   if (!isInside(sourceRoot, sourceProject) || !isInside(workRoot, workProject)) {
     throw new Error("프로젝트의 실제 경로가 Storage Root 밖을 가리킵니다.");

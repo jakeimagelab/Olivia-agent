@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { constants as fsConstants, createReadStream } from "node:fs";
-import { copyFile, lstat, open, readdir, readFile, rename, stat, unlink, utimes } from "node:fs/promises";
+import { copyFile, lstat, open, readdir, readFile, rename, stat, statfs, unlink, utimes } from "node:fs/promises";
 import path from "node:path";
 import type { RunnerProgress, RunnerRoots } from "@/lib/photo-classifier/node/types";
 import { readRatingFromXmpText } from "@/lib/selectMatch/bridgeRating";
@@ -10,6 +10,8 @@ import { ensureSafeDirectory, extension, posixRelative, resolvePhotoProjectDirec
 const JPG_EXTENSIONS = new Set(["jpg", "jpeg"]);
 const OUTPUT_DIRECTORY = "Selected_RAW";
 const TEMP_SUFFIX = ".olivia-part";
+const DEFAULT_MIN_FREE_BYTES = 30 * 1024 ** 3;
+const MIN_SAFETY_MARGIN_BYTES = 1024 ** 3;
 
 type RawFile = { path: string; relativePath: string; name: string; basename: string; size: number; mtimeMs: number };
 type RawSnapshot = Map<string, { size: number; mtimeMs: number }>;
@@ -18,6 +20,7 @@ export type PhotoRawMatchInput = {
   projectRelativePath: string;
   selectedFileNames?: string[];
   roots?: RunnerRoots;
+  minFreeBytes?: number;
   onProgress?: (progress: RunnerProgress) => void;
 };
 
@@ -40,7 +43,7 @@ export type PhotoRawMatchResult = {
 function selectedBasename(name: string): string | null {
   const trimmed = path.basename(name.trim());
   if (!trimmed || trimmed.includes("\0")) return null;
-  return trimmed.replace(/\.[^.]+$/, "").toLocaleLowerCase("en-US");
+  return trimmed.replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 async function sha256(filePath: string): Promise<string> {
@@ -72,7 +75,7 @@ async function collectRawFiles(sourceProject: string): Promise<{ files: RawFile[
         path: fullPath,
         relativePath,
         name: entry.name,
-        basename: entry.name.replace(/\.[^.]+$/, "").toLocaleLowerCase("en-US"),
+        basename: entry.name.replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"),
         size: metadata.size,
         mtimeMs: metadata.mtimeMs,
       });
@@ -147,7 +150,7 @@ function failure(input: Omit<PhotoRawMatchResult, "ok">): PhotoRawMatchResult {
 }
 
 export async function runPhotoRawMatch(input: PhotoRawMatchInput): Promise<PhotoRawMatchResult> {
-  const directories = await resolvePhotoProjectDirectories({ projectRelativePath: input.projectRelativePath, roots: input.roots });
+  const directories = await resolvePhotoProjectDirectories({ projectRelativePath: input.projectRelativePath, roots: input.roots, createWorkProject: true });
   input.onProgress?.({ stage: "SCANNING", message: "SSD1 RAW와 셀렉 파일명을 확인하는 중입니다." });
   const rawCollection = await collectRawFiles(directories.sourceProject);
   const explicit = (input.selectedFileNames ?? []).map(selectedBasename).filter((value): value is string => Boolean(value));
@@ -218,6 +221,28 @@ export async function runPhotoRawMatch(input: PhotoRawMatchInput): Promise<Photo
       });
     }
     existing.add(file.name);
+  }
+
+  const pending = matches.filter((file) => !existing.has(file.name));
+  if (pending.length) {
+    const pendingBytes = pending.reduce((total, file) => total + file.size, 0);
+    const filesystem = await statfs(directories.workRoot);
+    const availableBytes = Number(filesystem.bavail) * Number(filesystem.bsize);
+    const configuredMinFreeBytes = Number(process.env.OLIVIA_PHOTO_MIN_FREE_BYTES ?? DEFAULT_MIN_FREE_BYTES);
+    const minimumFreeBytes = Number.isFinite(input.minFreeBytes)
+      ? Math.max(0, Number(input.minFreeBytes))
+      : Number.isFinite(configuredMinFreeBytes) && configuredMinFreeBytes >= 0
+        ? configuredMinFreeBytes
+        : DEFAULT_MIN_FREE_BYTES;
+    const safetyMargin = Math.max(pendingBytes * 0.05, MIN_SAFETY_MARGIN_BYTES, minimumFreeBytes);
+    if (!Number.isFinite(availableBytes) || availableBytes < pendingBytes + safetyMargin) {
+      return failure({
+        status: "RAW_MATCH_FAILED", projectRelativePath: directories.relativePath, selectionSource, selectedCount: selected.length,
+        rawFoundCount: rawCollection.files.length, matchedCount: existing.size, alreadyCopiedCount: existing.size,
+        missingNames, ambiguousNames: [], rawSourceUnchanged: true, outputRelativePath: OUTPUT_DIRECTORY,
+        error: `Agentstation 저장 공간이 부족합니다. 현재 여유 ${(availableBytes / 1024 ** 3).toFixed(1)}GB, 필요 ${(pendingBytes / 1024 ** 3).toFixed(1)}GB + 안전 여유 ${(safetyMargin / 1024 ** 3).toFixed(1)}GB`,
+      });
+    }
   }
 
   if (matches.length) await ensureSafeDirectory(directories.workRoot, outputDirectory);
