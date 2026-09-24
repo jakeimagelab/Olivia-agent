@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadDesktopState, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardData";
 import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
@@ -11,6 +11,7 @@ import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
+import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 import styles from "./OliviaDesktop.module.css";
 
 const WALLPAPER_KEY = "olivia-os-wallpaper-v1";
@@ -39,11 +40,12 @@ async function optimizeWallpaper(file: File): Promise<string> {
 
 // OLIVIA OS Phase 1 루트 셸 — TopBar + Surface(shortcuts+windows) + Dock 조립.
 // height:100dvh overflow:hidden으로 body가 page처럼 길어지지 않게 한다(스펙 1-1).
-function OliviaDesktopContent() {
+function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
   const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
   const [wallpaper, setWallpaper] = useState<WallpaperMode>("original");
   const [customWallpaper, setCustomWallpaper] = useState<string>();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number }>();
+  const handledInitialLaunchRef = useRef(false);
 
   // Phase 3 — 활성 창을 Olivia의 LLM 컨텍스트(useOliviaContextStore)로 계속 흘려보낸다.
   useOliviaDesktopContextBridge();
@@ -99,6 +101,26 @@ function OliviaDesktopContent() {
       document.body.style.cursor = previousBodyCursor;
     };
   }, []);
+
+  useEffect(() => {
+    if (!initialLaunch || handledInitialLaunchRef.current) return;
+    handledInitialLaunchRef.current = true;
+    const app = oliviaAppRegistry.find((candidate) => candidate.id === initialLaunch.appId);
+    if (!app) return;
+    useOliviaDesktopStore.getState().openApp({
+      appId: app.id,
+      title: app.title,
+      width: app.defaultSize.width,
+      height: app.defaultSize.height,
+      context: {
+        clientId: initialLaunch.clientId,
+        projectId: initialLaunch.workflowRunId,
+        workflowRunId: initialLaunch.workflowRunId,
+        routeHref: "/clients",
+      },
+    });
+    window.history.replaceState(window.history.state, "", clearOliviaRootLaunchParams(window.location.href));
+  }, [initialLaunch]);
 
   const syncWallpaperSettings = useCallback((body: { wallpaperMode?: WallpaperMode; customWallpaperDataUrl?: string }) => {
     fetch("/api/desktop-settings", {
@@ -168,6 +190,6 @@ function OliviaDesktopContent() {
   );
 }
 
-export default function OliviaDesktop() {
-  return <DesktopShellErrorBoundary><OliviaDesktopContent /></DesktopShellErrorBoundary>;
+export default function OliviaDesktop({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
+  return <DesktopShellErrorBoundary><OliviaDesktopContent initialLaunch={initialLaunch} /></DesktopShellErrorBoundary>;
 }

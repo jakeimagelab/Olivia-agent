@@ -22,6 +22,7 @@ import {
   type MobilePrimaryView,
 } from "@/lib/olivia/mobile/navigation";
 import styles from "./OliviaMobileShell.module.css";
+import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 
 const MobileVoice = dynamic(() => import("./MobileVoice"), {
   loading: () => <div className={styles.mobileFeatureLoading}>음성 기록을 준비하고 있어요...</div>,
@@ -85,8 +86,8 @@ function releasePointerCapture(container: HTMLDivElement, pointerId: number) {
   if (container.hasPointerCapture(pointerId)) container.releasePointerCapture(pointerId);
 }
 
-export default function OliviaMobileShell() {
-  const [navigation, setNavigation] = useState<MobileNavigationState>(currentNavigation);
+export default function OliviaMobileShell({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
+  const [navigation, setNavigation] = useState<MobileNavigationState>(() => initialLaunch?.appId === "customer" ? { view: "clients" } : currentNavigation());
   const [documentsSection, setDocumentsSection] = useState<MobileDocumentsSection>("quote-contract");
   const [swipePreview, setSwipePreview] = useState<SwipePreview | null>(null);
   const swipeRef = useRef<SwipeSession | null>(null);
@@ -106,6 +107,13 @@ export default function OliviaMobileShell() {
       if (swipeTimerRef.current != null) window.clearTimeout(swipeTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (initialLaunch?.appId !== "customer") return;
+    const url = new URL(clearOliviaRootLaunchParams(window.location.href, { keepClientId: true }), window.location.origin);
+    url.searchParams.set("mobileView", "clients");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [initialLaunch]);
 
   const navigate = useCallback((next: MobileNavigationState, mode: "push" | "replace" = "push") => {
     const url = buildMobileNavigationUrl(window.location.href, next);

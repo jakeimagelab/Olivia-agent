@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
 import { resolveOliviaSurface, type OliviaSurface } from "@/lib/olivia/mobile/adaptiveSurface";
 import { detectOliviaDevice } from "@/lib/device/detectDevice";
+import { parseOliviaRootLaunch, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 import { PhotoProjectNotificationProvider } from "@/components/photo-storage/PhotoProjectNotificationProvider";
 import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNotification";
 import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
@@ -44,11 +45,15 @@ function readSurface(): OliviaSurface {
 
 export default function OliviaAdaptiveRoot() {
   const [surface, setSurface] = useState<OliviaSurface | null>(null);
+  const [initialLaunch, setInitialLaunch] = useState<OliviaRootLaunch | null>(null);
 
   useEffect(() => {
     const viewportQuery = window.matchMedia("(max-width: 820px)");
     const coarseQuery = window.matchMedia("(pointer: coarse)");
-    const update = () => setSurface(readSurface());
+    const update = () => {
+      setInitialLaunch((current) => current ?? parseOliviaRootLaunch(window.location.search));
+      setSurface(readSurface());
+    };
     update();
     viewportQuery.addEventListener("change", update);
     coarseQuery.addEventListener("change", update);
@@ -81,7 +86,11 @@ export default function OliviaAdaptiveRoot() {
       <Suspense fallback={null}>
         <BackupReadyNotifications />
       </Suspense>
-      {surface === "mobile" ? <OliviaMobileShell /> : surface === "tablet" ? <OliviaTabletShell /> : <OliviaDesktop />}
+      {surface === "mobile"
+        ? <OliviaMobileShell initialLaunch={initialLaunch} />
+        : surface === "tablet"
+          ? <OliviaTabletShell initialLaunch={initialLaunch} />
+          : <OliviaDesktop initialLaunch={initialLaunch} />}
     </PhotoProjectNotificationProvider>
   );
 }

@@ -60,7 +60,16 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
 }) {
   let content;
   switch (activeApp) {
-    case "customer": content = <TabletAppFrame><TabletClients /></TabletAppFrame>; break;
+    case "customer": content = (
+      <TabletAppFrame>
+        <TabletClients context={{
+          clientId: navigation.clientId,
+          projectId: navigation.workflowRunId,
+          workflowRunId: navigation.workflowRunId,
+          routeHref: "/clients",
+        }} />
+      </TabletAppFrame>
+    ); break;
     case "calendar": content = <TabletAppFrame><TabletCalendar /></TabletAppFrame>; break;
     case "conti": content = (
       <TabletAppFrame compact scroll="page">

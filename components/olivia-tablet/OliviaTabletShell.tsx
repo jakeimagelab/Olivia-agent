@@ -14,13 +14,16 @@ import TabletDock from "./TabletDock";
 import TabletTopBar from "./TabletTopBar";
 import { getTabletApp } from "./tabletApps";
 import styles from "./OliviaTabletShell.module.css";
+import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 
 function currentNavigation(): TabletNavigationState {
   return parseTabletNavigationState(window.location.search);
 }
 
-export default function OliviaTabletShell() {
-  const [navigation, setNavigation] = useState<TabletNavigationState>(currentNavigation);
+export default function OliviaTabletShell({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
+  const [navigation, setNavigation] = useState<TabletNavigationState>(() => initialLaunch?.appId === "customer"
+    ? { app: "customer", clientId: initialLaunch.clientId, workflowRunId: initialLaunch.workflowRunId }
+    : currentNavigation());
   const activeApp = navigation.app;
 
   useEffect(() => {
@@ -36,6 +39,14 @@ export default function OliviaTabletShell() {
       document.body.style.overflow = previousBodyOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    if (initialLaunch?.appId !== "customer") return;
+    const url = new URL(clearOliviaRootLaunchParams(window.location.href, { keepClientId: true }), window.location.origin);
+    url.searchParams.set("tabletApp", "customer");
+    if (initialLaunch.workflowRunId) url.searchParams.set("workflowRunId", initialLaunch.workflowRunId);
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+  }, [initialLaunch]);
 
   const navigate = useCallback((app: TabletAppId, context: TabletNavigationContext = {}) => {
     const href = buildTabletNavigationUrl(window.location.href, app, context);
