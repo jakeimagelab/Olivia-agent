@@ -492,6 +492,9 @@ export async function syncClassificationCompletedWorkflow(
   }
 }
 
+// to_step_key: "raw_matching"은 레거시/내부 세부 단계 키다(ACTIVE_WORKFLOW_STEP_KEYS엔 없고
+// client_selection의 하위 진행 표시로만 쓰인다 — lib/workflow.ts의 INTERNAL_STEP_GROUPS 참고).
+// from_step_key가 이미 "client_selection"으로 고정 확인되어 있어 건너뜀 위험이 없다.
 export async function syncSelectionSubmittedWorkflow(
   db: SupabaseClient,
   workflowRunId: string | null | undefined,
