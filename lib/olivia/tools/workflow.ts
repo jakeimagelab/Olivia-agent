@@ -14,8 +14,8 @@ import {
   executeWorkflowTask,
   getWorkflowRun,
   guardWorkflowStepJump,
-  maybeAdvanceWorkflow,
 } from "@/lib/workflowAutomation";
+import { completeStep } from "@/lib/core/commands/workflow";
 
 const STEP_LABELS: Record<string, string> = {
   consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
