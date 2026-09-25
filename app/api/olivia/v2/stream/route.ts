@@ -69,29 +69,30 @@ import {
   shouldGuardPhotoDirectTurn,
 } from "@/lib/photo-storage/directChatExecution";
 import { isClientScopedExecutionRequest, isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
+// PHASE 4 작업 5(2026-09-25) — route.ts를 400줄 안팎으로 줄이려고 순수 헬퍼를 lib/olivia/v2/stream/*로
+// 옮겼다. 동작 변경 없음 — 그대로 옮기고 import만 바꿨다.
+import { maxToolRounds } from "@/lib/olivia/v2/stream/turnLimits";
+import { buildSystemPrompt } from "@/lib/olivia/v2/stream/systemPrompt";
+import {
+  type ConversationMessage,
+  contextPrompt,
+  normalizeContext,
+  optionalBoolean,
+  optionalString,
+  summarizeOlderMessages,
+  toInputMessages,
+  updateWorkingContext,
+} from "@/lib/olivia/v2/stream/contextPrompt";
+import { type StreamingRequest, flushTextAsDeltas, runRoundWithSanitization } from "@/lib/olivia/v2/stream/scriptGuard";
+import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
+import { PHOTO_DIRECT_TOOL_TIMEOUT_MS, PHOTO_DIRECT_TURN_TIMEOUT_MS, executePhotoToolBeforeDeadline } from "@/lib/olivia/v2/stream/photoDirectTool";
+import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadata";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// 도구가 20여 개(견적/콘티) → 45개 이상(캘린더/워크플로우/메일링/갤러리/이메일/브리핑/미팅/진단 추가)으로
-// 늘면서 "이번달 일정 보여주고 계약 안 된 곳 견적 다시 보내줘" 같은 복합 요청이 한 라운드로 안 끝날
-// 수 있어 4 → 6 → 12로 올렸다(2026-08-15, 코드 요청서 1번 항목 — 무한 루프 세이프가드는 그대로 유지).
-function maxToolRounds(requestClass: ReturnType<typeof classifyOliviaRequest>) {
-  if (requestClass === "FAST_COMMAND") return 2;
-  if (requestClass === "NORMAL_CHAT") return 3;
-  if (requestClass === "TOOL_ACTION") return 5;
-  return 6;
-}
-
-// 레거시(Claude) 경로(lib/assistant/core/legacyOliviaCore.ts:752)는 시스템 프롬프트에 오늘 날짜를
-// 직접 박아 넣는데, v2(OpenAI) 경로는 이 프롬프트가 빠져 있어서 모델이 학습 데이터의 연도를 그대로
-// 추측해 답했다("지금이 2025년" 등, 2026-08-14 사용자 리포트로 발견) — 매 요청마다 새로 계산해서
-// 콜드/웜 스타트 시점에 관계없이 항상 실제 오늘 날짜를 쓰게 한다.
-// 진짜 source of truth는 lib/olivia/runtime/buildRuntimeContext.ts가 계산한 OliviaRuntimeContext다
-// — 이 프롬프트의 "오늘 날짜" 문구는 그 값을 GPT에게 설명해주는 보조 수단일 뿐이다(런타임 질문
-// 자체는 GPT를 거치지 않고 orchestrator가 직접 답한다. 아래 handleRequest 참고).
-function buildSystemPrompt(runtime: OliviaRuntimeContext, olderSummary?: string, taughtMemories: OliviaMemoryRow[] = []): string {
+function unusedBuildSystemPromptPlaceholder(runtime: OliviaRuntimeContext, olderSummary?: string, taughtMemories: OliviaMemoryRow[] = []): string {
   return `당신은 포토클리닉 운영 AI Agent Olivia다. 사용자는 대표자다.
 
 오늘 날짜: ${runtime.todayISO} ${runtime.weekdayKo} (한국 시간 기준 — 절대 학습 데이터의 연도로 추측하지 말고 이 날짜를 기준으로 답한다. '오늘'/'내일'/'이번주 금요일' 등을 YYYY-MM-DD로 변환할 때도 이 날짜를 쓴다.)
