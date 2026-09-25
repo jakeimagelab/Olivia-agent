@@ -245,13 +245,16 @@ export async function resolvePhotoWorkflowLink(
   };
 }
 
+// to_step_key를 고정하지 않는다 — getNextWorkflowStep(ACTIVE_WORKFLOW_STEP_KEYS 순서)이
+// shooting 다음을 payment_confirm으로 정한다. 예전엔 여기서 backup_sorting을 직접 지정해서
+// 잔금·계산서(payment_confirm) 단계를 통째로 건너뛰었다 — NAS 자동 감지가 홈 채팅 확인보다
+// 거의 항상 먼저 일어나서 실질적으로 이 단계가 한 번도 열리지 않는 사고였다.
 async function advanceShootingIfCurrent(db: SupabaseClient, workflowRunId: string): Promise<void> {
   const run = await getWorkflowRun(db, workflowRunId);
   if (run.current_step_key !== "shooting") return;
   await advanceWorkflow(db, {
     workflow_run_id: workflowRunId,
     from_step_key: "shooting",
-    to_step_key: "backup_sorting",
     reason: "NAS 촬영 폴더와 캘린더 촬영 일정 자동 연결",
   });
 }
