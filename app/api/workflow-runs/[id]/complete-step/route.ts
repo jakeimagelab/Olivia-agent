@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { completeOpenStepTasksForManualSave, getWorkflowRun, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { getWorkflowRun } from "@/lib/workflowAutomation";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { STEP_NAME } from "@/lib/workflow";
+import { completeStep } from "@/lib/core/commands/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
