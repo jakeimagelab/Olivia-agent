@@ -30,7 +30,7 @@ export type OliviaMessageBlock =
   // 이벤트를 프런트에서 이 블록으로 누적한다(lib/store/useOliviaConversationStore.ts).
   | { type: "progress"; steps: OliviaProgressStep[] };
 
-export type OliviaProgressStep = { id: string; label: string; state: "active" | "done" | "error" };
+export type OliviaProgressStep = { id: string; label: string; state: "active" | "done" | "error"; toolCallId?: string };
 
 export type OliviaMessage = {
   id: string;
