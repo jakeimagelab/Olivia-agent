@@ -539,6 +539,8 @@ export async function syncRawMatchWorkflow(
   if (input.jobStatus !== "COMPLETED" || !project.workflow_run_id) return;
   await completeStepRun(db, project.workflow_run_id, "raw_matching");
   const run = await getWorkflowRun(db, project.workflow_run_id);
+  // client_selection/raw_matching(레거시 하위 단계) 둘 다 ACTIVE_WORKFLOW_STEP_KEYS 상 다음이
+  // retouching이라 to_step_key를 고정해도 건너뜀이 아니다 — LEGACY_NEXT_STEP과 동일한 값.
   if (run.current_step_key === "client_selection" || run.current_step_key === "raw_matching") {
     await advanceWorkflow(db, {
       workflow_run_id: project.workflow_run_id,
