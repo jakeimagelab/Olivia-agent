@@ -825,6 +825,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
       }
     } finally {
       clearTimeout(requestWatchdog);
+      if (cleanupWatchdog) clearTimeout(cleanupWatchdog);
       if (activeController === requestController) activeController = null;
       // 도구가 실패했거나 응답이 중단되면 OPEN_WORKSPACE가 끝내 안 올 수 있다 — 스켈레톤이
       // 영원히 남지 않도록 스트림이 끝나는 시점에 항상 정리한다.
