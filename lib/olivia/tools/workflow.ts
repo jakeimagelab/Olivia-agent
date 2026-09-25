@@ -217,9 +217,9 @@ export async function processWorkflowStep(input: any, _req?: NextRequest | null)
       advanced = true;
       nextStepKey = latestRun.current_step_key;
     } else if (!(pendingApprovals || []).length) {
-      const advanceResult = await maybeAdvanceWorkflow(db, activeRun.id, stepKey);
-      advanced = Boolean(advanceResult.advanced);
-      nextStepKey = advanced && "result" in advanceResult ? (advanceResult.result?.to_step_key ?? null) : null;
+      const advanceResult = await completeStep(activeRun.id, stepKey, db);
+      advanced = advanceResult.ok && advanceResult.value.advanced;
+      nextStepKey = advanceResult.ok ? (advanceResult.value.toStep ?? null) : null;
     }
 
     await logActivity("process_workflow_step", activeRun.client_name, { stepKey, executedTasks: executedCount, advanced });
