@@ -195,6 +195,32 @@ describe("shooting progress automation", () => {
     expect(result.link).toMatchObject({ workflowRunId: null, calendarTaskId: null, reason: "calendar_not_found" });
   });
 
+  // PHASE 3 작업 1-B(2026-09-25) — 잔금·계산서 확인 전에 사진 분류가 끝나도 워크플로 단계
+  // 표시는 backup_sorting으로 넘어가지 않고 payment_confirm에서 대기해야 한다. 사진 분류
+  // 자체(이 함수가 불릴 때는 이미 끝난 상태)는 막지 않는다 — 여기서 검증하는 건 오직 워크플로
+  // "단계 표시" 전진 여부와 workflow.blocked 이벤트다.
+  it("waits at payment_confirm instead of auto-advancing when classification finishes early", async () => {
+    workflow.run = { id: "run-1", current_step_key: "payment_confirm", client_id: "client-1", project_id: "proj-1" };
+    const db = createDb({
+      photo_storage_projects: [{ id: "project-1", workflow_run_id: "run-1" }],
+      workflow_runs: [{ id: "run-1", current_step_key: "payment_confirm" }],
+      olivia_events: [],
+    });
+    const { syncClassificationCompletedWorkflow } = await import("@/lib/photo-storage/shootingProgress");
+    await syncClassificationCompletedWorkflow(db as any, "project-1");
+
+    expect(workflow.advances).toHaveLength(0);
+    expect(workflow.completedTasks).toHaveLength(0);
+    expect(db.tables.olivia_events[0]).toMatchObject({
+      event_type: "workflow.blocked",
+      workflow_run_id: "run-1",
+      client_id: "client-1",
+      project_id: "proj-1",
+      payload: { stepKey: "payment_confirm", waitingFor: "payment_confirm" },
+    });
+    expect(db.tables.workflow_runs[0]).toMatchObject({ next_action: "잔금·계산서 확인 후 분류 단계로 진행" });
+  });
+
   it("opens original delivery after classification without exposing a legacy current step", async () => {
     workflow.run.current_step_key = "backup_sorting";
     const db = createDb({
