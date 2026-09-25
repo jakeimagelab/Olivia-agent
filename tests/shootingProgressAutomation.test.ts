@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("shooting progress automation", () => {
-  it("links one shooting calendar and workflow, then advances shooting", async () => {
+  it("links one shooting calendar and workflow, then advances shooting to payment_confirm", async () => {
     const db = createDb({
       calendar_tasks: [{ id: "cal-1", date: "2026-09-11", title: "WINF 촬영", location: "WINF", category: "shooting" }],
       workflow_runs: [{ id: "run-1", shoot_date: "2026-09-11", client_name: "WINF", project_name: "9월 촬영", current_step_key: "shooting", status: "active" }],
@@ -117,7 +117,10 @@ describe("shooting progress automation", () => {
       calendar_task_id: "cal-1",
       status: "READY",
     });
-    expect(workflow.advances).toMatchObject([{ from_step_key: "shooting", to_step_key: "backup_sorting" }]);
+    // PHASE 3 작업 1-B(2026-09-25) — NAS 자동 감지가 잔금·계산서(payment_confirm)를 건너뛰고
+    // 곧장 backup_sorting으로 가던 사고를 고쳤다. 이제는 두 경로(홈 채팅 확인, NAS 자동 감지)
+    // 모두 payment_confirm에서 멈춘다.
+    expect(workflow.advances).toMatchObject([{ from_step_key: "shooting", to_step_key: "payment_confirm" }]);
   });
 
   it("keeps an unmatched folder as a standalone photo project", async () => {
