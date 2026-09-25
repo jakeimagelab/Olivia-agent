@@ -21,18 +21,29 @@ export async function GET(request: NextRequest) {
 
   const supabase = getSupabaseAdmin();
   const workerId = getConfiguredWorkerId();
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1_000).toISOString();
 
-  const [workerResult, backupsResult, jobsResult, consistencyResult] = await Promise.allSettled([
+  const [workerResult, backupsResult, jobsResult, consistencyResult, hermesFallbackResult] = await Promise.allSettled([
     supabase.from("remote_workers").select("worker_id,last_seen_at,worker_status,nas_connected").eq("worker_id", workerId).maybeSingle(),
     supabase.from("worker_events").select("id,folder_name,status,created_at").order("created_at", { ascending: false }).limit(RECENT_LIMIT),
     supabase.from("remote_jobs").select("id,action,status,created_at,completed_at").neq("action", "PING").order("created_at", { ascending: false }).limit(RECENT_LIMIT),
     findWorkflowConsistencyIssues(supabase),
+    // PHASE 4 작업 1 R3(2026-09-25) — 폴백이 로그에만 남아 몇 주째 아무도 모르던 사고의 재발을
+    // 막는다. "count-only" head 조회라 대화 내용은 전혀 읽지 않는다.
+    supabase.from("olivia_chat_messages").select("id", { count: "exact", head: true })
+      .eq("role", "assistant").eq("metadata->>agentEngine", "legacy").not("metadata->>fallbackReason", "is", null)
+      .gte("created_at", since24h),
   ]);
 
   if (workerResult.status === "rejected") console.warn("[status-panel] remote_workers 조회 실패", workerResult.reason);
   if (backupsResult.status === "rejected") console.warn("[status-panel] worker_events 조회 실패", backupsResult.reason);
   if (jobsResult.status === "rejected") console.warn("[status-panel] remote_jobs 조회 실패", jobsResult.reason);
   if (consistencyResult.status === "rejected") console.warn("[status-panel] workflow 정합성 조회 실패", consistencyResult.reason);
+  if (hermesFallbackResult.status === "rejected") console.warn("[status-panel] 헤르메스 폴백 횟수 조회 실패", hermesFallbackResult.reason);
+  const hermesFallbackCount24h = hermesFallbackResult.status === "fulfilled" && !hermesFallbackResult.value.error
+    ? hermesFallbackResult.value.count ?? 0
+    : null;
+  if (hermesFallbackResult.status === "fulfilled" && hermesFallbackResult.value.error) console.warn("[status-panel] 헤르메스 폴백 횟수 조회 실패", hermesFallbackResult.value.error.message);
 
   const workerRow = workerResult.status === "fulfilled" && !workerResult.value.error ? workerResult.value.data : null;
   if (workerResult.status === "fulfilled" && workerResult.value.error) console.warn("[status-panel] remote_workers 조회 실패", workerResult.value.error.message);
