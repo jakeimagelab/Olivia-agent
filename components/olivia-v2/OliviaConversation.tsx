@@ -524,6 +524,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                   })}
                   <OliviaChatMessageAttachments attachments={message.attachments} />
                   {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
+                  {message.role === "assistant" && message.fallbackReason ? <FallbackBadge reason={message.fallbackReason} /> : null}
                 </div>
               </article>
             </Fragment>
