@@ -46,6 +46,9 @@ export type ClientWorkspaceData = {
   portal: WorkspacePortal | null;
   recentActivity: Record<string, any>[];
   resourceIds: Record<string, string | null>;
+  resourceMeta: {
+    quote: { status: string; isApproved: boolean } | null;
+  };
   memo: string;
   nextAction: ClientWorkspaceNextAction;
 };

@@ -68,6 +68,8 @@ export default function ContractBuilder({
   const [mailingQueued, setMailingQueued] = useState(false);
   const [mailingNotice, setMailingNotice] = useState("");
   const [contractId, setContractId] = useState<string | null>(null);
+  const [sourceQuoteRecordId, setSourceQuoteRecordId] = useState<string | null>(sourceQuoteId ?? null);
+  const [sourceQuoteApproved, setSourceQuoteApproved] = useState<boolean | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
@@ -156,6 +158,8 @@ export default function ContractBuilder({
           const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
           if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
           setContractId(resourceId);
+          setSourceQuoteRecordId(typeof contract.source_quote_id === "string" ? contract.source_quote_id : null);
+          setSourceQuoteApproved(null);
           // deposit_rate/payment_terms/delivery_terms/special_terms는 quote_data(jsonb) 안이
           // 아니라 contracts 테이블의 별도 컬럼이라 매번 병합해서 넣는다(채팅 update_contract_terms
           // 도구가 이 컬럼들만 patch하므로, quote_data 자체는 안 건드려도 최신 상태로 보인다).
@@ -190,6 +194,8 @@ export default function ContractBuilder({
       setContractId(null);
       setSignatureDataUrl("");
       setQuote(null);
+      setSourceQuoteRecordId(sourceQuoteId);
+      setSourceQuoteApproved(null);
       const controller = new AbortController();
       fetch(`/api/quotes/${sourceQuoteId}`, { signal: controller.signal })
         .then(async (response) => {
@@ -208,6 +214,7 @@ export default function ContractBuilder({
             setBrand("photoclinic");
           }
           setQuote(loadedQuote);
+          setSourceQuoteApproved(["published", "final"].includes(String(sourceQuote.status || "draft")));
           setOliviaCurrentDocument(undefined, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
             clientId: typeof sourceQuote.client_id === "string" ? sourceQuote.client_id : modalClientId,
             clientName: loadedQuote.hospitalName || undefined,
@@ -225,9 +232,12 @@ export default function ContractBuilder({
       return () => controller.abort();
     }
     if (!modalClientId) {
-      setError("계약서에 연결된 고객이나 견적서가 없습니다.");
+      setQuote(null);
+      setError("고객이 지정되지 않아 계약서를 열 수 없습니다. 고객관리에서 고객을 선택한 뒤 다시 시도해주세요.");
       return;
     }
+    setQuote(null);
+    setError("");
     fetch(`/api/clients/${modalClientId}/workspace`)
       .then((r) => r.json())
       .then(async (ws) => {
@@ -240,9 +250,17 @@ export default function ContractBuilder({
         });
         const quoteId = ws.resourceIds?.quote;
         if (quoteId) {
-          const qRes = await fetch(`/api/quotes/${quoteId}`).then((r) => r.json()).catch(() => null);
-          if (qRes?.ok) {
+          const qResponse = await fetch(`/api/quotes/${quoteId}`);
+          const qRes = await qResponse.json().catch(() => null);
+          if (!qResponse.ok || !qRes?.ok) throw new Error(qRes?.error || "견적 정보를 불러오지 못했습니다.");
+          if (qRes.ok) {
             const q = qRes.quote;
+            setSourceQuoteRecordId(quoteId);
+            setSourceQuoteApproved(
+              typeof ws.resourceMeta?.quote?.isApproved === "boolean"
+                ? ws.resourceMeta.quote.isApproved
+                : ["published", "final"].includes(String(q.status || "draft")),
+            );
             setQuote({
               hospitalName: q.hospital_name || "",
               contactName: q.contact_name || "",
@@ -264,6 +282,8 @@ export default function ContractBuilder({
             return;
           }
         }
+        setSourceQuoteRecordId(null);
+        setSourceQuoteApproved(null);
         const today = new Date().toISOString().slice(0, 10);
         setQuote({
           hospitalName: ws.client?.name || "",
@@ -301,7 +321,7 @@ export default function ContractBuilder({
       fetch(`/api/clients/${clientId}`)
         .then(r => r.json())
         .then(d => {
-          if (!d.ok || !d.client) return;
+          if (!d.ok || !d.client) throw new Error(d.error || "계약서 고객 정보를 불러오지 못했습니다.");
           const c = d.client;
           const today = new Date().toISOString().slice(0, 10);
           setQuote({
@@ -325,11 +345,17 @@ export default function ContractBuilder({
             projectName: c.name || c.hospital_name,
           });
         })
-        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
+        .catch((loadError) => {
+          console.error("contract page client load failed", loadError);
+          setError(loadError instanceof Error ? loadError.message : "계약서 고객 정보를 불러오지 못했습니다.");
+        });
       return;
     }
 
-    if (!raw) return;
+    if (!raw) {
+      setError("계약서에 연결된 고객이나 견적서가 없습니다. 고객관리에서 고객을 선택한 뒤 다시 시도해주세요.");
+      return;
+    }
     try {
       const data: QuoteData = JSON.parse(decodeURIComponent(raw));
       setQuote(data);
@@ -600,26 +626,53 @@ export default function ContractBuilder({
   const handleSave = async (): Promise<string | null> => {
     if (!quote) return null;
     setSaveState("saving");
+    setError("");
     const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
     const linkIds = isModal ? { clientId: modalClientId, workflowRunId: modalWorkflowRunId } : {
       clientId: effectiveClientId(pageParams) ?? undefined,
       workflowRunId: effectiveWorkflowRunId(pageParams) ?? undefined,
     };
     try {
-      let savedId: string | null;
-      if (contractId) {
-        const r = await fetch(`/api/contracts/${contractId}`, {
+      const persistContractContent = async (id: string) => {
+        const response = await fetch(`/api/contracts/${id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            quoteData: quote, signatureDataUrl: signatureDataUrl || null,
-            hospitalName: quote.hospitalName, contactName: quote.contactName, email: quote.email,
+            quoteData: quote,
+            signatureDataUrl: signatureDataUrl || null,
+            hospitalName: quote.hospitalName,
+            contactName: quote.contactName,
+            email: quote.email,
             ...linkIds,
           }),
         });
-        const d = await r.json();
-        if (!d.ok) throw new Error(d.error);
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || !payload?.ok) throw new Error(payload?.error || "계약서를 저장하지 못했습니다.");
+      };
+
+      let savedId: string | null;
+      if (contractId) {
+        await persistContractContent(contractId);
         savedId = contractId;
+      } else if (sourceQuoteRecordId && sourceQuoteApproved) {
+        const createResponse = await fetch("/api/contracts/from-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoteId: sourceQuoteRecordId }),
+        });
+        const created = await createResponse.json().catch(() => null);
+        const existingContractId = created?.code === "CONTRACT_EXISTS"
+          && created.sourceQuoteId === sourceQuoteRecordId
+          && typeof created.contractId === "string"
+          ? created.contractId
+          : null;
+        if ((!createResponse.ok || !created?.ok) && !existingContractId) {
+          throw new Error(created?.error || "확정 견적에서 계약서를 생성하지 못했습니다.");
+        }
+        const createdId = String(existingContractId || created.contractId);
+        savedId = createdId;
+        await persistContractContent(createdId);
+        setContractId(createdId);
       } else {
         const r = await fetch("/api/contracts", {
           method: "POST",
@@ -628,6 +681,7 @@ export default function ContractBuilder({
             quoteNumber: quote.quoteNumber, hospitalName: quote.hospitalName,
             contactName: quote.contactName, email: quote.email,
             quoteData: quote, signatureDataUrl: signatureDataUrl || null,
+            sourceQuoteId: sourceQuoteRecordId,
             ...linkIds,
           }),
         });
@@ -643,7 +697,8 @@ export default function ContractBuilder({
         setDirty(false);
       }
       return savedId;
-    } catch {
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "계약서를 저장하지 못했습니다.");
       setSaveState("error");
       setTimeout(() => setSaveState("idle"), 3000);
       return null;
@@ -725,6 +780,12 @@ export default function ContractBuilder({
       {isModal ? (
         <div style={{ padding: "8px 20px", fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
           {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+        </div>
+      ) : null}
+
+      {sourceQuoteApproved === false ? (
+        <div role="status" style={{ margin: "0 20px 12px", padding: "11px 14px", borderRadius: 10, border: "1px solid rgba(232,93,44,.28)", background: "#FFF6F1", color: "#9A3B1D", fontSize: 12.5, fontWeight: 800 }}>
+          ⚠️ 확정된 견적이 없어 최근 초안으로 채웠습니다. 금액을 확인해주세요.
         </div>
       ) : null}
 

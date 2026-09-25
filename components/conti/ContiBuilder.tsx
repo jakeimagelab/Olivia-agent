@@ -113,6 +113,7 @@ export default function ContiBuilder({
 
   const [loading,          setLoading]          = useState(false);
   const [urlWorkflowRunId, setUrlWorkflowRunId] = useState<string | null>(null);
+  const [urlClientId, setUrlClientId] = useState<string | null>(null);
 
   useEffect(() => {
     setOliviaWorkspace("conti", resourceId);
@@ -135,6 +136,7 @@ export default function ContiBuilder({
     const doctors      = params.get("doctors");
     const extras       = params.get("extras");
     const clientId     = params.get("client_id") || params.get("clientId");
+    setUrlClientId(clientId);
     setUrlWorkflowRunId(params.get("workflowRunId"));
 
     if (clientId) {
@@ -607,6 +609,8 @@ export default function ContiBuilder({
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
   const [completeError, setCompleteError] = useState("");
+  const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
+  const [publishMessage, setPublishMessage] = useState("");
 
   const contiDocumentId = resourceId || savedContiId || undefined;
   const contiContextClientName = form.hospitalName || undefined;
@@ -667,6 +671,38 @@ export default function ContiBuilder({
     }
   };
 
+  const publishContiToPortal = async () => {
+    setPublishState("publishing");
+    setPublishMessage("");
+    try {
+      const sourceId = savedContiId || await saveConti({ silent: true });
+      if (!sourceId) throw new Error("콘티 DB 저장에 실패했습니다.");
+      const clientId = modalClientId || urlClientId;
+      const workflowRunId = modalWorkflowRunId || urlWorkflowRunId;
+      if (!clientId || !workflowRunId) throw new Error("콘티에 연결된 고객 프로젝트가 없습니다.");
+      const response = await fetch(`/api/publications/by-type/conti/${encodeURIComponent(sourceId)}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, workflowRunId, title: resultTitle || form.hospitalName || "촬영 콘티" }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "콘티를 공개하지 못했습니다.");
+      const advanceReason = payload.advance?.reason || payload.advanceReason;
+      setPublishMessage(
+        payload.advance?.advanced
+          ? "콘티를 공개하고 다음 단계로 이동했습니다."
+          : advanceReason === "open_items"
+            ? "콘티를 공개했지만 다음 단계로 넘어가지 않았습니다 — 남은 승인 항목이 있습니다."
+            : "콘티를 공개했습니다. 워크플로우는 이미 다른 단계에 있습니다.",
+      );
+      setPublishState("done");
+      onPublished?.();
+    } catch (publishError) {
+      setPublishMessage(publishError instanceof Error ? publishError.message : "콘티 공개에 실패했습니다.");
+      setPublishState("error");
+    }
+  };
+
   // Workspace Modal 전용 프리필 — resourceId(기존 콘티)가 있으면 그대로 불러오고, 없으면
   // clientId로 고객 기본 정보만 채운다(콘티 자체는 사용자가 폼 입력 후 직접 생성해야 한다 —
   // 견적/계약과 달리 AI 생성 버튼을 눌러야 result가 생기므로 자동으로 채울 콘텐츠가 없다).
@@ -679,6 +715,8 @@ export default function ContiBuilder({
         .then((json) => {
           if (!json.ok) return;
           const entry = json.data;
+          setUrlClientId(entry.client_id ?? modalClientId ?? null);
+          setUrlWorkflowRunId(entry.workflow_run_id ?? modalWorkflowRunId ?? null);
           setResult(withSceneIds(entry.result));
           setResultTitle(entry.title || entry.hospital_name);
           setForm((prev) => ({ ...prev, shootTitle: entry.title || entry.hospital_name || prev.shootTitle, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
@@ -1462,6 +1500,8 @@ ${header("타임테이블")}
                 downloadMenuOpen={showDownloadMenu}
                 completeState={completeState}
                 completeError={completeError}
+                publishState={publishState}
+                publishMessage={publishMessage}
                 onOpenLoad={openLoadPanel}
                 onReset={() => setResult(null)}
                 onFieldView={() => setFieldView(true)}
@@ -1472,6 +1512,7 @@ ${header("타임테이블")}
                 onPDF={() => { setShowDownloadMenu(false); handlePDF(); }}
                 onExcel={() => { setShowDownloadMenu(false); handleSpreadsheetDownload(); }}
                 onCompleteWorkflow={completeContiStep}
+                onPublish={() => { void publishContiToPortal(); }}
               />
             </div>
 

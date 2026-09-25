@@ -1100,7 +1100,15 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         setRecentQuoteMessage(json.error || "최종완료 처리에 실패했습니다.");
         return;
       }
-      setRecentQuoteMessage(json.advanced ? "견적서 단계를 최종완료 처리하고 다음 단계(계약서)로 진행했습니다." : "견적서 단계를 최종완료 처리했습니다.");
+      setRecentQuoteMessage(
+        json.advanced
+          ? "견적서 단계를 최종완료 처리하고 다음 단계(계약서)로 진행했습니다."
+          : json.advanceReason === "open_items"
+            ? "견적서를 저장했지만 남은 승인 항목이 있어 계약 단계로 넘어가지 않았습니다."
+            : json.advanceReason === "current_step_changed"
+              ? "견적서는 확정됐고 워크플로는 이미 다른 단계로 이동해 있습니다."
+              : `견적서를 저장했지만 계약 단계로 넘어가지 않았습니다${json.advanceReason ? ` — ${json.advanceReason}` : "."}`,
+      );
     } catch (error) {
       setRecentQuoteMessage(error instanceof Error ? error.message : "최종완료 처리 중 오류가 발생했습니다.");
     } finally {

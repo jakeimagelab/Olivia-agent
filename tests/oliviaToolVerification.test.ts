@@ -5,6 +5,10 @@ vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
   findExactDocumentClient: vi.fn(async () => null),
   getTemporaryDocument: vi.fn(), listTemporaryDocuments: vi.fn(), linkTemporaryDocumentsForHospital: vi.fn(), temporaryDocumentRoute: vi.fn(), updateTemporaryDocumentStatus: vi.fn(),
 }));
+vi.mock("@/lib/clientPortal", () => ({
+  ensurePortalAccess: vi.fn(),
+  logPortalEvent: vi.fn(async () => ({ id: "event-1" })),
+}));
 
 // Agent 실행 구조 개편(2026-08-31) — toolExecutor.ts를 domain executor로 쪼개고
 // OliviaToolResult에 verification을 추가한 작업의 회귀 테스트. "실행했다고 생각함"이 아니라
@@ -20,8 +24,12 @@ const quoteRow: Record<string, unknown> = {
   form_state: {},
   total_amount: 100000,
   discount_amount: 0,
-  client_id: null,
+  client_id: "client-1",
+  workflow_run_id: "project-1",
+  status: "published",
 };
+
+let contractRow: Record<string, unknown> | null = null;
 
 let quoteUpdateResult: { data: Record<string, unknown> | null; error: { message: string } | null } = {
   data: { ...quoteRow, total_amount: 200000 },
@@ -36,6 +44,21 @@ vi.mock("@/lib/supabase", () => ({
           select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: quoteRow, error: null }) }) }),
           update: () => ({ eq: () => ({ select: () => ({ single: async () => quoteUpdateResult }) }) }),
         };
+      }
+      if (table === "contracts") {
+        const query = {
+          select: () => query,
+          eq: () => query,
+          order: () => query,
+          limit: () => query,
+          insert: (payload: Record<string, unknown>) => {
+            contractRow = { id: "contract-real-1", ...payload };
+            return query;
+          },
+          single: async () => ({ data: contractRow, error: null }),
+          maybeSingle: async () => ({ data: contractRow, error: null }),
+        };
+        return query;
       }
       throw new Error(`unexpected table in test mock: ${table}`);
     },
@@ -110,6 +133,7 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     fuzzyNameSearchMock.mockReset().mockResolvedValue([]);
     linkDocumentToClientMock.mockReset().mockResolvedValue({ action: "done", message: "못 찾았어요" });
     quoteUpdateResult = { data: { ...quoteRow, total_amount: 200000 }, error: null };
+    contractRow = null;
   });
 
   it("A. create_quote 성공 시 verification.persisted/resourceExists가 실제 DB round-trip 결과를 반영한다", async () => {

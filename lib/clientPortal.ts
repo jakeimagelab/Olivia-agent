@@ -102,7 +102,7 @@ export async function logPortalEvent(params: {
   workflowRunId?: string | null;
 }) {
   const db = getSupabaseAdmin();
-  await Promise.all([
+  const results = await Promise.all([
     db.from("client_portal_events").insert({
       client_id: params.clientId,
       workflow_run_id: params.workflowRunId ?? null,
@@ -130,6 +130,8 @@ export async function logPortalEvent(params: {
       related_id: params.targetId ?? "",
     }),
   ]);
+  const failed = results.find((result) => result.error);
+  if (failed?.error) throw failed.error;
 }
 
 export async function createPortalAccess(params: {

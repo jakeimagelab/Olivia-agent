@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ChevronDown, Download, FileSpreadsheet, FileText, Link2, RotateCcw } from "lucide-react";
+import { CheckCircle2, ChevronDown, Download, FileSpreadsheet, FileText, Link2, RotateCcw, Send } from "lucide-react";
 
 type Props = {
   saveLoading: boolean;
@@ -11,6 +11,8 @@ type Props = {
   downloadMenuOpen: boolean;
   completeState: "idle" | "completing" | "done" | "error";
   completeError: string;
+  publishState: "idle" | "publishing" | "done" | "error";
+  publishMessage: string;
   onOpenLoad: () => void;
   onReset: () => void;
   onFieldView: () => void;
@@ -21,11 +23,12 @@ type Props = {
   onPDF: () => void;
   onExcel: () => void;
   onCompleteWorkflow: () => void;
+  onPublish: () => void;
 };
 
 const secondary = { display: "inline-flex", alignItems: "center", gap: 7, padding: "0 14px", minHeight: 40, border: "1px solid rgba(21,88,85,.25)", borderRadius: 8, background: "#fff", color: "#155855", fontWeight: 800, fontSize: 13, cursor: "pointer" } as const;
 
-export default function ContiExportActions({ saveLoading, autoSaveState, shareLoading, shareCopied, generatingImages, downloadMenuOpen, completeState, completeError, onOpenLoad, onReset, onFieldView, onShare, onGenerateImages, onSave, onToggleDownloadMenu, onPDF, onExcel, onCompleteWorkflow }: Props) {
+export default function ContiExportActions({ saveLoading, autoSaveState, shareLoading, shareCopied, generatingImages, downloadMenuOpen, completeState, completeError, publishState, publishMessage, onOpenLoad, onReset, onFieldView, onShare, onGenerateImages, onSave, onToggleDownloadMenu, onPDF, onExcel, onCompleteWorkflow, onPublish }: Props) {
   return <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
     <button type="button" onClick={onOpenLoad} style={secondary}><FileText size={15} /> 불러오기</button>
     <button type="button" onClick={onReset} style={secondary}><RotateCcw size={15} /> 다시 입력</button>
@@ -36,5 +39,7 @@ export default function ContiExportActions({ saveLoading, autoSaveState, shareLo
     <span style={{ ...secondary, cursor: "default", color: autoSaveState === "error" ? "#dc2626" : "#5A7470", fontSize: 11 }}>{autoSaveState === "saving" ? "저장 중..." : autoSaveState === "saved" ? "자동 저장됨" : autoSaveState === "error" ? "저장 실패" : "⌘S · ⌘Z · ⇧⌘Z"}</span>
     <div style={{ position: "relative" }}><button type="button" onClick={onToggleDownloadMenu} className="admin-primary-button"><Download size={15} /> 다운로드 <ChevronDown size={13} /></button>{downloadMenuOpen ? <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 30, minWidth: 140, overflow: "hidden", background: "#fff", border: "1px solid rgba(21,88,85,.14)", borderRadius: 10, boxShadow: "0 12px 30px rgba(21,88,85,.14)" }}><button type="button" onClick={onPDF} style={{ ...secondary, width: "100%", border: 0, borderRadius: 0 }}><Download size={14} /> PDF</button><button type="button" onClick={onExcel} style={{ ...secondary, width: "100%", border: 0, borderTop: "1px solid rgba(21,88,85,.08)", borderRadius: 0 }}><FileSpreadsheet size={14} /> Excel</button></div> : null}</div>
     <button type="button" onClick={onCompleteWorkflow} disabled={completeState === "completing"} title={completeState === "error" ? completeError : undefined} style={{ ...secondary, background: completeState === "error" ? "#fff" : "#155855", color: completeState === "error" ? "#c9581a" : "#fff", opacity: completeState === "completing" ? .7 : 1 }}><CheckCircle2 size={15} />{completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}</button>
+    <button type="button" onClick={onPublish} disabled={publishState === "publishing"} style={{ ...secondary, background: publishState === "error" ? "#fff" : "#E85D2C", color: publishState === "error" ? "#c9581a" : "#fff", opacity: publishState === "publishing" ? .7 : 1 }}><Send size={15} />{publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 포털 공개됨" : publishState === "error" ? "✕ 공개 실패" : "포털 공개"}</button>
+    {publishMessage ? <span role="status" style={{ flexBasis: "100%", textAlign: "right", color: publishState === "error" ? "#c9581a" : "#155855", fontSize: 12, fontWeight: 800 }}>{publishMessage}</span> : null}
   </div>;
 }

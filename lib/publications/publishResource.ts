@@ -15,6 +15,8 @@ export type PublishResourceResult = {
   portalUrl: string;
   publicationId: string;
   resource: Record<string, unknown>;
+  advanced: boolean;
+  advanceReason?: string;
 };
 
 async function persistPublication(db: SupabaseClient, kind: PublishKind, resource: Record<string, any>, clientId: string, workflowRunId: string) {
@@ -85,13 +87,22 @@ export async function publishQuoteService(
 
   await recordPcrmActivitySafely(db, { clientId, workflowRunId, actorType: "admin", actorName: "관리자", actionType: "quote_published", title: "견적서가 고객 포털에 공개됨", relatedType: "quote", relatedId: quoteId });
   await completeOpenStepTasksForManualSave(db, workflowRunId, "quote");
-  await maybeAdvanceWorkflow(db, workflowRunId, "quote");
+  const advance = await maybeAdvanceWorkflow(db, workflowRunId, "quote");
 
   const { data: verified, error: verifyError } = await db.from("quotes").select("*").eq("id", quoteId).single();
   if (verifyError || !verified || verified.status !== "published" || verified.client_id !== clientId || verified.workflow_run_id !== workflowRunId) {
     throw new OliviaToolError("견적서 최종 상태를 확인하지 못했습니다.", "VERIFICATION_FAILED", { databaseMessage: verifyError?.message });
   }
-  return { ok: true, clientId, workflowRunId, portalUrl: portalUrl(portal.token), publicationId: String(publication.id), resource: verified as Record<string, unknown> };
+  return {
+    ok: true,
+    clientId,
+    workflowRunId,
+    portalUrl: portalUrl(portal.token),
+    publicationId: String(publication.id),
+    resource: verified as Record<string, unknown>,
+    advanced: advance.advanced,
+    ...(!advance.advanced ? { advanceReason: advance.reason } : {}),
+  };
 }
 
 export async function publishContractService(
@@ -119,11 +130,20 @@ export async function publishContractService(
   if (!portal?.token) throw new OliviaToolError("고객 포털 접근 정보를 확인하지 못했습니다.", "VERIFICATION_FAILED");
   await recordPcrmActivitySafely(db, { clientId, workflowRunId, actorType: "admin", actorName: "관리자", actionType: "contract_published", title: "계약서가 고객 포털에 공개됨", relatedType: "contract", relatedId: contractId });
   await completeOpenStepTasksForManualSave(db, workflowRunId, "contract");
-  await maybeAdvanceWorkflow(db, workflowRunId, "contract");
+  const advance = await maybeAdvanceWorkflow(db, workflowRunId, "contract");
 
   const { data: verified, error: verifyError } = await db.from("contracts").select("*").eq("id", contractId).single();
   if (verifyError || !verified || verified.client_id !== clientId || verified.workflow_run_id !== workflowRunId || (overrides.finalize && verified.status !== "final")) {
     throw new OliviaToolError("계약서 최종 상태를 확인하지 못했습니다.", "VERIFICATION_FAILED", { databaseMessage: verifyError?.message });
   }
-  return { ok: true, clientId, workflowRunId, portalUrl: portalUrl(portal.token), publicationId: String(publication.id), resource: verified as Record<string, unknown> };
+  return {
+    ok: true,
+    clientId,
+    workflowRunId,
+    portalUrl: portalUrl(portal.token),
+    publicationId: String(publication.id),
+    resource: verified as Record<string, unknown>,
+    advanced: advance.advanced,
+    ...(!advance.advanced ? { advanceReason: advance.reason } : {}),
+  };
 }

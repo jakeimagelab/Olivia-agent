@@ -4,6 +4,10 @@ vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
   registerTemporaryDocument: vi.fn(async (_db, input: any) => ({ temporaryDocument: { id: `temp-${input.sourceId}`, status: input.clientId ? "linked" : "pending_review", client_id: input.clientId ?? null, workflow_run_id: input.workflowRunId ?? null }, clientResolution: input.clientId ? "existing" : "pending" })),
   findExactDocumentClient: vi.fn(async () => null),
 }));
+vi.mock("@/lib/clientPortal", () => ({
+  ensurePortalAccess: vi.fn(),
+  logPortalEvent: vi.fn(async () => ({ id: "event-1" })),
+}));
 
 const executionLog: string[] = [];
 
@@ -15,10 +19,13 @@ const quoteRow = {
   email: "hello@example.com",
   client_id: "client-1",
   workflow_run_id: "project-1",
+  status: "published",
   items: [{ id: "profile_shoot", name: "프로필 촬영", unitPrice: 300_000, qty: 1, subtotal: 300_000 }],
   discount_amount: 0,
   deposit_rate: 50,
 };
+
+let contractRow: Record<string, unknown> | null = null;
 
 const contiRow = {
   id: "conti-real-789",
@@ -26,19 +33,30 @@ const contiRow = {
 };
 
 function queryFor(table: string) {
-  const row = table === "quotes" ? quoteRow : table === "conti_saves" ? contiRow : null;
+  const currentRow = () => table === "quotes" ? quoteRow
+    : table === "contracts" ? contractRow
+    : table === "conti_saves" ? contiRow
+    : null;
   const query = {
     select: vi.fn(() => query),
     order: vi.fn(() => query),
     limit: vi.fn(() => query),
     eq: vi.fn(() => query),
+    insert: vi.fn((payload: Record<string, unknown>) => {
+      if (table === "contracts") {
+        executionLog.push("db:contract");
+        contractRow = { id: "contract-real-456", ...payload };
+      }
+      return query;
+    }),
     update: vi.fn((payload: Record<string, unknown>) => {
       executionLog.push(`db:update:${table}`);
+      const row = currentRow();
       if (row) Object.assign(row, payload);
       return query;
     }),
-    single: vi.fn(async () => ({ data: row, error: null })),
-    maybeSingle: vi.fn(async () => ({ data: row, error: null })),
+    single: vi.fn(async () => ({ data: currentRow(), error: null })),
+    maybeSingle: vi.fn(async () => ({ data: currentRow(), error: null })),
   };
   return query;
 }
@@ -101,6 +119,7 @@ function call(name: string, input: Record<string, unknown>) {
 describe("Olivia Tool → DB → Result → UI Action", () => {
   beforeEach(() => {
     executionLog.length = 0;
+    contractRow = null;
     vi.mocked(executeOliviaCrud).mockClear();
   });
 

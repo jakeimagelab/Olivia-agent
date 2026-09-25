@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { ensurePortalAccess } from "@/lib/clientPortal";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { isGenericPublicationType, PUBLICATION_TYPE_LABEL } from "@/lib/clientWorkspace/publications";
-import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { publishConti } from "@/lib/core/commands/document";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,6 +23,19 @@ export async function POST(req: NextRequest, { params }: Params) {
   const workflowRunId = body?.workflowRunId;
   if (!clientId || !workflowRunId) {
     return NextResponse.json({ ok: false, error: "clientId, workflowRunId가 필요합니다." }, { status: 400 });
+  }
+
+  if (relatedType === "conti") {
+    const result = await publishConti(relatedId, { clientId, workflowRunId, title: body?.title });
+    if (!result.ok) {
+      const status = result.code === "NOT_FOUND" ? 404 : result.code === "INVALID_INPUT" ? 400 : 500;
+      return NextResponse.json({ ok: false, error: result.reason, code: result.code, ...result.details }, { status });
+    }
+    return NextResponse.json({ ok: true, ...result.value, advance: {
+      ok: true,
+      advanced: result.value.advanced,
+      ...(!result.value.advanced ? { reason: result.value.advanceReason } : {}),
+    } });
   }
 
   const db = getSupabaseAdmin();
@@ -63,17 +76,6 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   const portal = await ensurePortalAccess({ clientId }).catch(() => null);
-
-  // conti는 quote/contract와 같은 워크플로우 스텝 키(conti)를 그대로 쓰는 유일한 범용 공개
-  // 유형이라 "공개" 눌렀을 때만 여기서 워크플로우를 전진시킨다. 나머지 유형(셀렉갤러리/원본
-  // 다운로드/1차보정/최종전달)은 이 relatedType 문자열이 워크플로우 스텝 키와 일치하지 않고
-  // 각자 다른 방식으로 전진하므로 건드리지 않는다.
-  if (relatedType === "conti") {
-    await completeOpenStepTasksForManualSave(db, workflowRunId, "conti").catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-    await maybeAdvanceWorkflow(db, workflowRunId, "conti").catch((err) => {
-      console.error("[publications] maybeAdvanceWorkflow(conti) 실패", err);
-    });
-  }
 
   await recordPcrmActivitySafely(db, {
     clientId,

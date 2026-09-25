@@ -1,11 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource, latestResource } from "./common";
 import { loadQuote } from "./quote";
 import { createVerification } from "./verification";
-import { publishContractService } from "@/lib/publications/publishResource";
+import { createContractFromQuote, publishContract } from "@/lib/core/commands/document";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 
 async function loadContractRow(id: string) {
@@ -64,28 +64,20 @@ export async function executeContractTool(
     if (!quote) throw new Error("계약서의 기준이 될 견적서를 먼저 만들어주세요.");
     const finalHospitalName = hospitalName || String(quote.hospital_name || "");
     if (!finalHospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
-    const execution = await executeOliviaCrud(db, {
-      operation: "create",
-      domain: "contract",
-      data: {
-        quoteNumber: quote.quote_number,
-        hospitalName: finalHospitalName,
-        contactName: quote.contact_name,
-        email: quote.email,
-        quoteData: quote,
-        workflowRunId: context.activeProjectId,
-      },
-      requestText: `${finalHospitalName} 계약서 생성`,
-    });
-    const record = execution.record || {};
+    const resolvedQuoteId = String(quote.id || quoteId || (context.activeWorkspace === "quote" ? context.activeResourceId : "") || "");
+    if (!resolvedQuoteId) throw new Error("계약서의 기준 견적 ID를 확인하지 못했어요.");
+    const createResult = await createContractFromQuote(resolvedQuoteId, db);
+    if (!createResult.ok) throw new OliviaToolError(createResult.reason, createResult.code ?? "CONTRACT_CREATE_FAILED", createResult.details);
+    const execution = createResult.value;
+    const record = await loadContractRow(execution.contractId);
     const registered = await registerTemporaryDocument(db, {
       documentType: "contract",
       sourceTable: "contracts",
-      sourceId: execution.recordId,
+      sourceId: execution.contractId,
       title: `${record.hospital_name || finalHospitalName} 계약서`,
       hospitalName: String(record.hospital_name || finalHospitalName),
-      clientId: typeof record.client_id === "string" ? record.client_id : context.activeClientId,
-      workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : context.activeProjectId,
+      clientId: execution.clientId,
+      workflowRunId: execution.workflowRunId,
       metadata: { quoteNumber: record.quote_number || null },
     });
     const temporaryDocument = registered.temporaryDocument;
@@ -93,8 +85,8 @@ export async function executeContractTool(
       tool: name,
       success: true,
       data: {
-        contractId: execution.recordId,
-        resourceId: execution.recordId,
+        contractId: execution.contractId,
+        resourceId: execution.contractId,
         hospitalName: record.hospital_name,
         clientId: temporaryDocument.client_id,
         workflowRunId: temporaryDocument.workflow_run_id,
@@ -107,8 +99,8 @@ export async function executeContractTool(
       },
       verification: createVerification({
         executed: true,
-        persisted: Boolean(execution.recordId),
-        resourceExists: Boolean(execution.recordId),
+        persisted: Boolean(execution.contractId),
+        resourceExists: Boolean(execution.contractId),
         linked: temporaryDocument.status === "linked",
         details: { temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status },
       }),
@@ -175,7 +167,7 @@ export async function executeContractTool(
     const resourceId = activeResource(context, "contract");
     const contract = await loadContractRow(resourceId);
     // 최종 생성 전 필수 확인(스펙 §28) — 부족한 항목만 짚어서 되묻는다. 실제 고객/프로젝트
-    // 연결과 최종 재조회는 API Route도 공유하는 publishContractService가 처리한다.
+    // 연결과 최종 재조회는 API Route도 공유하는 publishContract Core Command가 처리한다.
     const quoteData = (contract.quote_data && typeof contract.quote_data === "object") ? contract.quote_data as Record<string, unknown> : {};
     const missing: string[] = [];
     if (!contract.hospital_name) missing.push("고객명");
@@ -183,11 +175,13 @@ export async function executeContractTool(
     if (!quoteData.shootDate) missing.push("촬영 예정일");
     if (!contract.signature_data_url) missing.push("대표 서명");
     if (missing.length) throw new Error(`아직 부족한 항목이 있어요: ${missing.join(", ")}`);
-    const payload = await publishContractService(resourceId, {
+    const publishResult = await publishContract(resourceId, {
       clientId: context.activeClientId,
       workflowRunId: context.activeProjectId,
       finalize: true,
     }, db);
+    if (!publishResult.ok) throw new OliviaToolError(publishResult.reason, publishResult.code ?? "PUBLISH_FAILED", publishResult.details);
+    const payload = publishResult.value;
     const updatedResource = payload.resource;
     return {
       tool: name, success: true,

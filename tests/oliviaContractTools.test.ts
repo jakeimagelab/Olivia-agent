@@ -4,6 +4,10 @@ vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
   registerTemporaryDocument: vi.fn(async (_db, input: any) => ({ temporaryDocument: { id: `temp-${input.sourceId}`, status: input.clientId ? "linked" : "pending_review", client_id: input.clientId ?? null, workflow_run_id: input.workflowRunId ?? null }, clientResolution: input.clientId ? "existing" : "pending" })),
   findExactDocumentClient: vi.fn(async () => null),
 }));
+vi.mock("@/lib/clientPortal", () => ({
+  ensurePortalAccess: vi.fn(),
+  logPortalEvent: vi.fn(async () => ({ id: "event-1" })),
+}));
 
 // PHASE 3(계약서 Chat-native Workflow) 신규 도구 회귀 테스트 — oliviaToolSequence.test.ts의
 // queryFor() 체이닝 mock 패턴을 그대로 따른다.
@@ -16,23 +20,29 @@ const quoteRow = {
   email: "hello@example.com",
   client_id: "client-1",
   workflow_run_id: "project-1",
+  status: "published",
 };
 
 let contractRow: Record<string, any>;
 
 function queryFor(table: string) {
-  const row = table === "quotes" ? quoteRow : table === "contracts" ? contractRow : null;
+  const currentRow = () => table === "quotes" ? quoteRow : table === "contracts" ? contractRow : null;
   const query = {
     select: vi.fn(() => query),
     order: vi.fn(() => query),
     limit: vi.fn(() => query),
     eq: vi.fn(() => query),
+    insert: vi.fn((payload: Record<string, unknown>) => {
+      if (table === "contracts") contractRow = { id: "contract-1", ...payload };
+      return query;
+    }),
     update: vi.fn((payload: Record<string, unknown>) => {
+      const row = currentRow();
       if (row) Object.assign(row, payload);
       return query;
     }),
-    single: vi.fn(async () => ({ data: row, error: null })),
-    maybeSingle: vi.fn(async () => ({ data: row, error: null })),
+    single: vi.fn(async () => ({ data: currentRow(), error: null })),
+    maybeSingle: vi.fn(async () => ({ data: currentRow(), error: null })),
   };
   return query;
 }
@@ -69,12 +79,15 @@ function call(name: string, input: Record<string, unknown>, context: OliviaConte
 }
 
 describe("create_contract — 견적 우선순위(스펙 §3, §38)", () => {
+  beforeEach(() => { contractRow = undefined as unknown as Record<string, any>; });
+
   it("지금 열려 있는 견적 Workspace를 hospitalName 없이도 우선 사용한다", async () => {
     const execution = await call("create_contract", { hospitalName: null, quoteId: null }, {
       ...baseContext, activeWorkspace: "quote", activeResourceId: "quote-1",
     });
     expect(execution.result.success).toBe(true);
-    expect(contractRow.quote_data).toMatchObject({ id: "quote-1", hospital_name: "유진스의원" });
+    expect(contractRow).toMatchObject({ source_quote_id: "quote-1", hospital_name: "유진스의원" });
+    expect(contractRow.quote_data).toMatchObject({ hospitalName: "유진스의원" });
     expect(execution.uiActions).toEqual(expect.arrayContaining([
       expect.objectContaining({ type: "OPEN_WORKSPACE", workspace: "contract", resourceId: "contract-1" }),
       expect.objectContaining({ type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: "contract-1" }),

@@ -6,6 +6,7 @@ import { getWorkflowPhaseProgress, STEP_NAME } from "@/lib/workflow";
 import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
 import { toDisplayStatus } from "@/lib/clientWorkspace/publications";
 import { computeClientWorkspaceNextAction } from "@/lib/clientWorkspace/nextAction";
+import { selectWorkspaceQuote } from "@/lib/clientWorkspace/quoteSelection";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,25 +58,35 @@ export async function GET(req: NextRequest, { params }: Params) {
   // "공개" 버튼이 어떤 자료를 공개할지 알아야 하므로, 이 프로젝트의 최신 견적/계약/콘티/셀렉갤러리
   // id를 같이 내려준다 — quote/contract는 전용 publish 라우트가, 나머지는 범용 publish 라우트가 씀.
   let resourceIds: Record<string, string | null> = { quote: null, contract: null, conti: null, select_gallery: null };
+  let resourceMeta: { quote: { status: string; isApproved: boolean } | null } = { quote: null };
 
   if (activeProject) {
-    const [tasksRes, approvalsRes, mailingRes, pubRes, activityRes, quoteRes, contractRes, contiRes, galleryRes] = await Promise.all([
+    const [tasksRes, approvalsRes, mailingRes, pubRes, activityRes, approvedQuoteRes, latestQuoteRes, contractRes, contiRes, galleryRes] = await Promise.all([
       db.from("agent_tasks").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
       db.from("agent_approvals").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
       db.from("mailing_queue").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
       db.from("pcrm_publications").select("*").eq("workflow_run_id", activeProject.id).order("version", { ascending: false }),
       db.from("pcrm_activity_logs").select("*").eq("client_id", clientId).eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(20),
-      db.from("quotes").select("id").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      db.from("quotes").select("id,status").eq("workflow_run_id", activeProject.id).in("status", ["published", "final"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      db.from("quotes").select("id,status").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       db.from("contracts").select("id").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       db.from("conti_saves").select("id").eq("workflow_run_id", activeProject.id).order("saved_at", { ascending: false }).limit(1).maybeSingle(),
       db.from("select_galleries").select("id").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
+    if (approvedQuoteRes.error || latestQuoteRes.error) {
+      return NextResponse.json({
+        ok: false,
+        error: approvedQuoteRes.error?.message ?? latestQuoteRes.error?.message ?? "견적서를 확인하지 못했습니다.",
+      }, { status: 500 });
+    }
+    const quoteSelection = selectWorkspaceQuote(approvedQuoteRes.data, latestQuoteRes.data);
     resourceIds = {
-      quote: quoteRes.data?.id ?? null,
+      quote: quoteSelection.quote?.id ?? null,
       contract: contractRes.data?.id ?? null,
       conti: contiRes.data?.id ?? null,
       select_gallery: galleryRes.data?.id ?? null,
     };
+    resourceMeta = { quote: quoteSelection.meta };
 
     const nextAction = buildWorkflowNextAction({
       run: activeProject,
@@ -152,6 +163,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     portal,
     recentActivity,
     resourceIds,
+    resourceMeta,
     memo: activeProject?.project_memo ?? client.memo ?? "",
     nextAction,
   });

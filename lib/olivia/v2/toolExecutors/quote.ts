@@ -10,7 +10,8 @@ import { createVerification } from "./verification";
 import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
-import { publishQuoteService } from "@/lib/publications/publishResource";
+import { publishQuote } from "@/lib/core/commands/document";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { archiveWorkflowPdf } from "@/lib/workflowArtifacts/archivePdf";
 import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 
@@ -580,7 +581,7 @@ export async function executeQuoteTool(
 
   if (name === "publish_quote") {
     const resourceId = activeResource(context, "quote");
-    // 공용 publishQuoteService는 API Route와 Agent가 함께 사용하며
+    // 공용 publishQuote Core Command는 API Route와 Agent가 함께 사용하며
     // resolveQuoteWorkflowLink()로 고객을 자동 매칭·생성까지 전부 마친 뒤에야 성공 결과를
     // 준다 — "등록할까요?"라고 물어볼 시점이 이미 지나 있다(결정은 서버가 동기적으로 이미
     // 내렸다). 대신 발행 전/후 client_id를 비교해 "이번에 새로 연결/생성됐는지"만 판단하고,
@@ -589,7 +590,9 @@ export async function executeQuoteTool(
     const quoteBeforePublish = await loadQuote(resourceId);
     const hadClientBefore = Boolean(quoteBeforePublish.client_id);
     const baseUrl = resolveServerBaseUrl();
-    const payload = await publishQuoteService(resourceId, {}, db);
+    const publishResult = await publishQuote(resourceId, {}, db);
+    if (!publishResult.ok) throw new OliviaToolError(publishResult.reason, publishResult.code ?? "PUBLISH_FAILED", publishResult.details);
+    const payload = publishResult.value;
     const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
 
     // 최종 승인 시 PDF를 원본 보관함(workflow_artifacts)에 아카이브한다(스펙 M5). 공개 후

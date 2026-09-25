@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSupabaseAdmin } from "@/lib/supabase";
-import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
-import { resolveQuoteWorkflowLink } from "@/lib/quote/quoteWorkflowLink";
-import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
+import { completeQuote } from "@/lib/core/commands/document";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,36 +10,20 @@ export const dynamic = "force-dynamic";
 // 포털 공개가 안 된 상태라도(=고객에게 아직 안 보여줬어도) 완료로 친다 — 그게 이번 원칙의 핵심.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = getSupabaseAdmin();
   const body = await req.json().catch(() => ({} as any));
-
-  const { data: quote, error: quoteError } = await db.from("quotes").select("*").eq("id", id).maybeSingle();
-  if (quoteError) return NextResponse.json({ ok: false, error: quoteError.message }, { status: 500 });
-  if (!quote) return NextResponse.json({ ok: false, error: "견적서를 찾을 수 없습니다." }, { status: 404 });
-
-  try {
-    const link = await resolveQuoteWorkflowLink(db, quote, body);
-    if (link.status === "needs_confirmation") {
-      return NextResponse.json({ ok: false, needsConfirmation: true, candidate: link.candidate }, { status: 409 });
-    }
-    const { clientId, workflowRunId } = link;
-
-    await completeOpenStepTasksForManualSave(db, workflowRunId, "quote");
-    const result = await maybeAdvanceWorkflow(db, workflowRunId, "quote");
-
-    await recordPcrmActivitySafely(db, {
-      clientId,
-      workflowRunId,
-      actorType: "admin",
-      actorName: "관리자",
-      actionType: "quote_completed",
-      title: "견적서 단계가 최종완료 처리됨",
-      relatedType: "quote",
-      relatedId: id,
-    });
-
-    return NextResponse.json({ ok: true, clientId, workflowRunId, advanced: result.advanced });
-  } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "최종완료 처리 실패" }, { status: 500 });
+  const result = await completeQuote(id, {
+    forceClientId: typeof body.forceClientId === "string" ? body.forceClientId : undefined,
+    forceCreateNew: body.forceCreateNew === true,
+  });
+  if (!result.ok) {
+    const candidate = result.details?.candidate;
+    const status = result.code === "NOT_FOUND" ? 404 : result.code === "AMBIGUOUS" ? 409 : 500;
+    return NextResponse.json({
+      ok: false,
+      error: result.reason,
+      code: result.code,
+      ...(candidate ? { needsConfirmation: true, candidate } : {}),
+    }, { status });
   }
+  return NextResponse.json({ ok: true, ...result.value });
 }
