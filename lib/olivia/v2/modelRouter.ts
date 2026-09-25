@@ -19,11 +19,14 @@ function hasShortOpenTargetUtterance(normalized: string, context: OliviaContextS
 
 export function classifyOliviaRequest(message: string, context: OliviaContextSnapshot): OliviaRequestClass {
   const normalized = message.trim();
+  // REASONING을 Context 규칙보다 먼저 본다 — "브랜드 전략 전체 분석해줘"처럼 20자 이하인 깊은
+  // 분석 요청이 문서가 열려 있다는 이유만으로 TOOL_ACTION으로 잘못 넘어가면 안 된다(기존 테스트
+  // 회귀). 나머지 분기 순서는 작업 지시서 예시 그대로 Context 우선이다.
+  if (REASONING_PATTERN.test(normalized)) return "REASONING";
   if (hasShortOpenTargetUtterance(normalized, context)) return "TOOL_ACTION";
   // 고객이 확정된 채로(activeClientId) 자원 이름 + 실행 동사가 함께 오면(예: "견적 승인해") 말투와
   // 무관하게 실행 의도다 — executionIntent.ts의 판정을 그대로 재사용한다(새 판정 안 만듦).
   if (context.activeClientId && isClientScopedExecutionRequest(normalized)) return "TOOL_ACTION";
-  if (REASONING_PATTERN.test(normalized)) return "REASONING";
   if (hasOliviaToolActionLanguage(normalized)) return "TOOL_ACTION";
   if (hasOliviaFastCommandLanguage(normalized)) return "FAST_COMMAND";
   return "NORMAL_CHAT";
