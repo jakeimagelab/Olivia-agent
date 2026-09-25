@@ -62,8 +62,9 @@ export async function executeContiTool(
   }
 
   if (name === "create_conti") {
-    const hospitalName = text(input, "hospitalName") || context.activeClientName;
-    if (!hospitalName) throw new Error("콘티를 만들 고객을 먼저 알려주세요.");
+    const contiClientTarget = requireClientTarget(context, text(input, "hospitalName"), "콘티");
+    if (!contiClientTarget.ok) throw new Error(contiClientTarget.message);
+    const hospitalName = contiClientTarget.clientName;
     const specialties = Array.isArray(input.specialties)
       ? input.specialties.filter((item): item is string => typeof item === "string")
       : [];
