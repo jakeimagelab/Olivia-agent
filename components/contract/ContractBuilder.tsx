@@ -601,13 +601,13 @@ export default function ContractBuilder({
       const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
       const workflowRunId = effectiveWorkflowRunId(pageParams);
       if (!workflowRunId) throw new Error("계약서에 연결된 프로젝트가 없습니다. 먼저 견적서를 완료해 프로젝트를 생성해주세요.");
-      const r = await fetch(`/api/workflow-runs/${workflowRunId}/complete-step`, {
+      const r = await fetch(`/api/contracts/${savedContractId}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepKey: "contract" }),
+        body: JSON.stringify({ workflowRunId }),
       });
-      const d = await r.json();
-      if (!d.ok) throw new Error(d.error);
+      const d = await r.json().catch(() => null);
+      if (!r.ok || !d?.ok) throw new Error(d?.error || "최종완료 처리에 실패했습니다.");
       setCompleteState("done");
       setTimeout(() => setCompleteState("idle"), 3000);
     } catch (e: any) {
@@ -661,15 +661,10 @@ export default function ContractBuilder({
           body: JSON.stringify({ quoteId: sourceQuoteRecordId }),
         });
         const created = await createResponse.json().catch(() => null);
-        const existingContractId = created?.code === "CONTRACT_EXISTS"
-          && created.sourceQuoteId === sourceQuoteRecordId
-          && typeof created.contractId === "string"
-          ? created.contractId
-          : null;
-        if ((!createResponse.ok || !created?.ok) && !existingContractId) {
+        if (!createResponse.ok || !created?.ok) {
           throw new Error(created?.error || "확정 견적에서 계약서를 생성하지 못했습니다.");
         }
-        const createdId = String(existingContractId || created.contractId);
+        const createdId = String(created.contractId);
         savedId = createdId;
         await persistContractContent(createdId);
         setContractId(createdId);

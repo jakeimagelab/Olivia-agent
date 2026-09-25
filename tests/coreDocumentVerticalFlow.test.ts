@@ -57,12 +57,20 @@ beforeEach(() => {
     const next = step === "quote" ? "contract" : step === "contract" ? "conti" : step === "conti" ? "shooting" : step;
     const run = db.tables.workflow_runs.find((row: any) => row.id === workflowRunId);
     if (run) run.current_step_key = next;
-    return { advanced: true, toStep: next };
+    return { advanced: true, result: { to_step_key: next } };
   });
   dependencies.publishContractService.mockImplementation(async (contractId: string, _overrides: unknown, db: any) => {
     const contract = db.tables.contracts.find((row: any) => row.id === contractId);
     contract.status = "final";
     db.tables.workflow_runs[0].current_step_key = "conti";
+    db.tables.pcrm_publications.push({
+      id: "contract-publication",
+      client_id: "client-1",
+      workflow_run_id: "run-1",
+      related_type: "contract",
+      related_id: contractId,
+      status: "published",
+    });
     return {
       ok: true, clientId: "client-1", workflowRunId: "run-1", portalUrl: "/portal",
       publicationId: "contract-publication", resource: { ...contract }, advanced: true,
@@ -71,10 +79,15 @@ beforeEach(() => {
 });
 
 describe("Core quote → contract → conti vertical flow", () => {
-  it("keeps every transition and resource visible through the canonical snapshot", async () => {
+  it("completes internal document work through Core without creating portal publications", async () => {
     const db = memorySupabase(verticalTables());
-    const { completeQuote, createContractFromQuote, publishContract, publishConti } = await import("@/lib/core/commands/document");
-    const { getCoreProjectSnapshot } = await import("@/lib/core/readModels/projectSnapshot");
+    const {
+      completeQuote,
+      createContractFromQuote,
+      completeContract,
+      completeConti,
+    } = await import("@/lib/core/commands/document");
+    const { getCoreProjectSnapshot, summarizeCoreProjectSnapshot } = await import("@/lib/core/readModels/projectSnapshot");
 
     const completedQuote = await completeQuote("quote-1", {}, db as never);
     expect(completedQuote).toMatchObject({ ok: true, value: { advanced: true, status: "final" } });
@@ -93,21 +106,65 @@ describe("Core quote → contract → conti vertical flow", () => {
     expect(repeated).toMatchObject({ ok: true, idempotent: true, value: { contractId } });
     expect(db.tables.contracts).toHaveLength(1);
 
-    const publishedContract = await publishContract(contractId, { finalize: true }, db as never);
-    expect(publishedContract.ok).toBe(true);
+    const completedContract = await completeContract(contractId, { workflowRunId: "run-1" }, db as never);
+    expect(completedContract).toMatchObject({ ok: true, value: { status: "final", advanced: true } });
     snapshot = await getCoreProjectSnapshot("run-1", db as never);
     expect(snapshot.ok && snapshot.value.workflow.currentStep).toBe("conti");
+    expect(snapshot.ok && snapshot.value.resources.contract?.status).toBe("final");
+    expect(snapshot.ok && summarizeCoreProjectSnapshot(snapshot.value)).toContain("계약 완료");
+    expect(db.tables.pcrm_publications).toHaveLength(0);
 
     db.tables.conti_runs.push({
       id: "conti-1", hospital_id: "client-1", workflow_run_id: "run-1", hospital_name: "기통찬의원",
       created_at: "2026-09-25T01:00:00Z", updated_at: "2026-09-25T01:00:00Z",
     });
-    const publishedConti = await publishConti("conti-1", {
-      clientId: "client-1", workflowRunId: "run-1", title: "기통찬의원 촬영 콘티",
-    }, db as never);
-    expect(publishedConti.ok).toBe(true);
+    const completedConti = await completeConti("conti-1", { workflowRunId: "run-1" }, db as never);
+    expect(completedConti).toMatchObject({ ok: true, value: { advanced: true } });
     snapshot = await getCoreProjectSnapshot("run-1", db as never);
     expect(snapshot.ok && snapshot.value.workflow.currentStep).toBe("shooting");
     expect(snapshot.ok && snapshot.value.resources.conti).toMatchObject({ id: "conti-1", sourceTable: "conti_runs" });
+    expect(db.tables.pcrm_publications).toHaveLength(0);
+  });
+
+  it("creates portal publications only through the separate publish commands", async () => {
+    const tables = verticalTables();
+    tables.workflow_runs[0].current_step_key = "contract";
+    tables.contracts.push({
+      id: "contract-1",
+      status: "draft",
+      client_id: "client-1",
+      workflow_run_id: "run-1",
+      source_quote_id: "quote-1",
+      created_at: "2026-09-25T00:30:00Z",
+    });
+    const db = memorySupabase(tables);
+    const { publishContract, publishConti } = await import("@/lib/core/commands/document");
+
+    const publishedContract = await publishContract("contract-1", { finalize: true }, db as never);
+    expect(publishedContract.ok).toBe(true);
+    expect(db.tables.pcrm_publications).toContainEqual(expect.objectContaining({
+      related_type: "contract",
+      related_id: "contract-1",
+    }));
+
+    db.tables.conti_runs.push({
+      id: "conti-1",
+      hospital_id: "client-1",
+      workflow_run_id: "run-1",
+      hospital_name: "기통찬의원",
+      created_at: "2026-09-25T01:00:00Z",
+      updated_at: "2026-09-25T01:00:00Z",
+    });
+    const publishedConti = await publishConti("conti-1", {
+      clientId: "client-1",
+      workflowRunId: "run-1",
+      title: "기통찬의원 촬영 콘티",
+    }, db as never);
+    expect(publishedConti.ok).toBe(true);
+    expect(db.tables.pcrm_publications).toContainEqual(expect.objectContaining({
+      related_type: "conti",
+      related_id: "conti-1",
+      status: "published",
+    }));
   });
 });

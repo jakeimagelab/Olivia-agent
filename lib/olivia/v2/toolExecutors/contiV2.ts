@@ -6,13 +6,15 @@ import { createVerification } from "./verification";
 import { addCanonicalContiScene, createCanonicalConti, deleteCanonicalContiScene, getCanonicalConti, updateCanonicalContiScene, type CanonicalContiPayload } from "@/lib/conti/canonicalService";
 import { findExactDocumentClient, registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { completeConti } from "@/lib/core/commands/document";
+import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 
 type ContiPayload = CanonicalContiPayload;
 
 export const CONTI_V2_TOOL_NAMES = [
   "create_conti_v2", "get_conti_v2", "update_conti_scene_v2", "add_conti_scene_v2",
   "request_remove_conti_scene_v2", "remove_conti_scene_v2", "reorder_conti_scene_v2",
-  "get_conti_field_view_v2", "preview_conti_v2",
+  "get_conti_field_view_v2", "preview_conti_v2", "complete_conti_v2",
 ] as const;
 
 async function loadConti(runId: string): Promise<ContiPayload> {
@@ -92,6 +94,29 @@ export async function executeContiV2Tool(name: string, input: Record<string, unk
   if (["get_conti_v2", "get_conti_field_view_v2", "preview_conti_v2"].includes(name)) {
     const payload = await loadConti(runId);
     return { tool: name, success: true, data: { contiId: runId, resourceId: runId, ...payload, view: name === "get_conti_field_view_v2" ? "field" : "preview" }, verification: createVerification({ executed: true, resourceExists: true, details: { sceneCount: payload.scenes.length } }) };
+  }
+
+  if (name === "complete_conti_v2") {
+    const completion = await completeConti(runId, {
+      workflowRunId: context.activeProjectId,
+    }, getSupabaseAdmin());
+    if (!completion.ok) throw new OliviaToolError(completion.reason, completion.code ?? "CONTI_COMPLETE_FAILED", completion.details);
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId: runId,
+        ...completion.value,
+        idempotent: completion.idempotent ?? false,
+        summary: "콘티를 최종완료하고 촬영 단계로 이동했어요.",
+      },
+      verification: createVerification({
+        executed: true,
+        persisted: true,
+        resourceExists: true,
+        linked: Boolean(completion.value.workflowRunId),
+      }),
+    };
   }
 
   const before = await loadConti(runId);

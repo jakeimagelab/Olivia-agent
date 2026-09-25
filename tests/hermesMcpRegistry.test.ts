@@ -32,6 +32,18 @@ describe("Olivia Hermes MCP registry", () => {
     });
   });
 
+  it("문서 내부 최종완료 도구는 Hermes 전체 catalog에 mutation으로 노출된다", () => {
+    const tools = listHermesOliviaTools();
+    for (const name of ["complete_contract", "complete_conti_v2"]) {
+      const tool = tools.find((entry) => entry.name === name);
+      expect(tool, `${name} must be exposed through the live Hermes catalog`).toBeTruthy();
+      expect(tool?.description).toContain("[WRITE]");
+      expect(getHermesToolMode(name, tool?.description ?? "")).toBe("mutation");
+    }
+    expect(tools.find((tool) => tool.name === "complete_contract")?.description).toContain("고객 포털에는 공개하지 않습니다");
+    expect(tools.find((tool) => tool.name === "complete_conti_v2")?.description).toContain("고객 포털 공개와는 별개입니다");
+  });
+
   it("새 Tool의 기본 노출 정책은 OPEN이다", () => {
     expect(getHermesToolPolicy("future_olivia_tool")).toBe("open");
   });

@@ -13,8 +13,8 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
   client: ["select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
   quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","apply_quote_rebalance","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  contract: ["create_contract","update_contract_terms","request_contract_signature","complete_contract","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  conti: ["get_conti_status","create_conti","complete_conti_v2","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   workflow: ["get_project_snapshot","get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
   mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
   // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이
@@ -81,7 +81,7 @@ const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
 const EDIT_TOOLS = new Set(Object.entries(PAGE_TOOL_CAPABILITY)
   .filter(([, capability]) => capability.endsWith(".edit") || capability.endsWith(".discount") || capability.endsWith(".add_item") || capability.includes("scene"))
   .map(([tool]) => tool));
-const FINALIZE_TOOLS = new Set(["request_quote_publish", "request_contract_publish"]);
+const FINALIZE_TOOLS = new Set(["request_quote_publish", "complete_contract", "request_contract_publish", "complete_conti_v2"]);
 
 function isAllowedByPageContext(toolName: string, context: OliviaContextSnapshot) {
   const requiredCapability = PAGE_TOOL_CAPABILITY[toolName];

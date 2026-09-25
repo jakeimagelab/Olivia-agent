@@ -8,8 +8,10 @@ import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { publishContractService, publishQuoteService } from "@/lib/publications/publishResource";
 import { resolveQuoteWorkflowLink } from "@/lib/quote/quoteWorkflowLink";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { ACTIVE_WORKFLOW_STEP_KEYS, getWorkflowDisplayStepKey } from "@/lib/workflow";
 import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 import { getCoreProjectSnapshot } from "@/lib/core/readModels/projectSnapshot";
+import { completeStep } from "./workflow";
 import { coreCommandFailure, type CoreCommandResult } from "./result";
 
 type QuoteLinkOverrides = { forceClientId?: string; forceCreateNew?: boolean };
@@ -41,6 +43,27 @@ function existingContractResult(
     code: "CONTRACT_SOURCE_CONFLICT",
     details: { contractId: existing.id, sourceQuoteId: existing.source_quote_id ?? null },
   };
+}
+
+function workflowStepIndex(stepKey: string) {
+  const displayKey = getWorkflowDisplayStepKey(stepKey) ?? stepKey;
+  return ACTIVE_WORKFLOW_STEP_KEYS.indexOf(displayKey as (typeof ACTIVE_WORKFLOW_STEP_KEYS)[number]);
+}
+
+function isWorkflowAfter(currentStep: string, completedStep: "contract" | "conti") {
+  const currentIndex = workflowStepIndex(currentStep);
+  const completedIndex = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(completedStep);
+  return currentIndex > completedIndex;
+}
+
+function isWorkflowBefore(currentStep: string, targetStep: "contract" | "conti") {
+  const currentIndex = workflowStepIndex(currentStep);
+  const targetIndex = ACTIVE_WORKFLOW_STEP_KEYS.indexOf(targetStep);
+  return currentIndex >= 0 && currentIndex < targetIndex;
+}
+
+function workflowBlockedReason(stepName: "계약" | "콘티") {
+  return `아직 완료되지 않은 ${stepName} 단계 업무 또는 승인이 있습니다.`;
 }
 
 export async function completeQuote(
@@ -220,6 +243,121 @@ export async function createContractFromQuote(
   }
 }
 
+export async function completeContract(
+  contractId: string,
+  input: { workflowRunId?: string } = {},
+  db: SupabaseClient = getSupabaseAdmin(),
+): Promise<CoreCommandResult<{
+  contractId: string;
+  clientId: string;
+  workflowRunId: string;
+  status: string;
+  advanced: boolean;
+}>> {
+  try {
+    const { data: contract, error: contractError } = await db.from("contracts")
+      .select("id,status,client_id,workflow_run_id,source_quote_id")
+      .eq("id", contractId)
+      .maybeSingle();
+    if (contractError) throw new OliviaToolError("계약서를 조회하지 못했습니다.", "DB_ERROR", { databaseMessage: contractError.message });
+    if (!contract) return { ok: false, reason: "계약서를 찾을 수 없습니다.", code: "NOT_FOUND" };
+
+    const clientId = String(contract.client_id || "");
+    const workflowRunId = String(contract.workflow_run_id || "");
+    if (!clientId || !workflowRunId) {
+      return { ok: false, reason: "계약서에 연결된 고객 프로젝트가 없습니다.", code: "BLOCKED" };
+    }
+    if (input.workflowRunId && input.workflowRunId !== workflowRunId) {
+      return {
+        ok: false,
+        reason: "현재 프로젝트와 계약서의 연결 정보가 일치하지 않습니다.",
+        code: "RESOURCE_PROJECT_MISMATCH",
+      };
+    }
+
+    const before = await getCoreProjectSnapshot(workflowRunId, db);
+    if (!before.ok) return before;
+    if (before.value.resources.contract?.id !== contractId) {
+      return {
+        ok: false,
+        reason: "현재 프로젝트의 계약서와 완료하려는 계약서가 일치하지 않습니다.",
+        code: "RESOURCE_MISMATCH",
+      };
+    }
+    if (contract.status === "final" && isWorkflowAfter(before.value.workflow.currentStep, "contract")) {
+      return {
+        ok: true,
+        idempotent: true,
+        value: { contractId, clientId, workflowRunId, status: "final", advanced: false },
+      };
+    }
+    if (isWorkflowBefore(before.value.workflow.currentStep, "contract")) {
+      return { ok: false, reason: "아직 계약 단계를 완료할 차례가 아닙니다.", code: "WORKFLOW_BLOCKED" };
+    }
+
+    const completion = await completeStep(workflowRunId, "contract", db);
+    if (!completion.ok) return completion;
+    if (!completion.value.advanced && completion.value.reason === "open_items") {
+      return { ok: false, reason: workflowBlockedReason("계약"), code: "WORKFLOW_BLOCKED" };
+    }
+    if (!completion.value.advanced && completion.value.reason !== "current_step_changed") {
+      return { ok: false, reason: "계약 단계를 완료하지 못했습니다.", code: "WORKFLOW_BLOCKED" };
+    }
+
+    if (contract.status !== "final") {
+      const { data: updated, error: updateError } = await db.from("contracts")
+        .update({ status: "final", updated_at: new Date().toISOString() })
+        .eq("id", contractId)
+        .select("id")
+        .single();
+      if (updateError || !updated) throw new OliviaToolError("계약서 최종 상태를 저장하지 못했습니다.", "DB_ERROR", { databaseMessage: updateError?.message });
+    }
+    const { data: verified, error: verifyError } = await db.from("contracts")
+      .select("id,status,client_id,workflow_run_id")
+      .eq("id", contractId)
+      .maybeSingle();
+    if (verifyError || !verified
+      || verified.status !== "final"
+      || verified.client_id !== clientId
+      || verified.workflow_run_id !== workflowRunId) {
+      throw new OliviaToolError("계약서 최종 상태 검증이 일치하지 않습니다.", "VERIFICATION_FAILED", { databaseMessage: verifyError?.message });
+    }
+
+    const after = await getCoreProjectSnapshot(workflowRunId, db);
+    const expectedStep = completion.value.advanced
+      ? after.ok && after.value.workflow.currentStep === "conti"
+      : after.ok && isWorkflowAfter(after.value.workflow.currentStep, "contract");
+    if (!after.ok
+      || after.value.resources.contract?.id !== contractId
+      || after.value.resources.contract.status !== "final"
+      || !expectedStep) {
+      return {
+        ok: false,
+        reason: after.ok ? "계약 완료 후 프로젝트 상태를 확인하지 못했습니다." : after.reason,
+        code: "VERIFICATION_FAILED",
+        details: { contractId, workflowRunId },
+      };
+    }
+
+    await recordPcrmActivitySafely(db, {
+      clientId,
+      workflowRunId,
+      actorType: "admin",
+      actorName: "관리자",
+      actionType: "contract_completed",
+      title: "계약서 단계가 최종완료 처리됨",
+      relatedType: "contract",
+      relatedId: contractId,
+    });
+    return {
+      ok: true,
+      value: { contractId, clientId, workflowRunId, status: "final", advanced: completion.value.advanced },
+    };
+  } catch (error) {
+    return commandFailure(error, "계약서 최종완료 처리에 실패했습니다.");
+  }
+}
+
 export async function publishContract(
   contractId: string,
   overrides: ContractPublishOverrides = {},
@@ -241,6 +379,122 @@ export async function publishContract(
     return { ok: true, value: published };
   } catch (error) {
     return commandFailure(error, "계약서 공개에 실패했습니다.");
+  }
+}
+
+export async function completeConti(
+  contiId: string,
+  input: { workflowRunId?: string } = {},
+  db: SupabaseClient = getSupabaseAdmin(),
+): Promise<CoreCommandResult<{
+  contiId: string;
+  clientId: string | null;
+  workflowRunId: string;
+  advanced: boolean;
+}>> {
+  try {
+    const { data: canonical, error: canonicalError } = await db.from("conti_runs")
+      .select("id,hospital_id,workflow_run_id,hospital_name")
+      .eq("id", contiId)
+      .maybeSingle();
+    if (canonicalError) throw new OliviaToolError("콘티를 조회하지 못했습니다.", "DB_ERROR", { databaseMessage: canonicalError.message });
+
+    let resource: { id: string; clientId: string | null; workflowRunId: string | null; source: "conti_runs" | "conti_saves" } | null = canonical
+      ? {
+          id: canonical.id,
+          clientId: canonical.hospital_id ?? null,
+          workflowRunId: canonical.workflow_run_id ?? null,
+          source: "conti_runs",
+        }
+      : null;
+    if (!resource) {
+      const { data: legacy, error: legacyError } = await db.from("conti_saves")
+        .select("id,client_id,workflow_run_id,title")
+        .eq("id", contiId)
+        .maybeSingle();
+      if (legacyError) throw new OliviaToolError("이전 콘티를 조회하지 못했습니다.", "DB_ERROR", { databaseMessage: legacyError.message });
+      if (legacy) {
+        resource = {
+          id: legacy.id,
+          clientId: legacy.client_id ?? null,
+          workflowRunId: legacy.workflow_run_id ?? null,
+          source: "conti_saves",
+        };
+      }
+    }
+    if (!resource) return { ok: false, reason: "콘티를 찾을 수 없습니다.", code: "NOT_FOUND" };
+    if (!resource.workflowRunId) {
+      return { ok: false, reason: "콘티에 연결된 프로젝트가 없습니다.", code: "BLOCKED" };
+    }
+    const workflowRunId = resource.workflowRunId;
+    if (input.workflowRunId && input.workflowRunId !== workflowRunId) {
+      return {
+        ok: false,
+        reason: "현재 프로젝트와 콘티의 연결 정보가 일치하지 않습니다.",
+        code: "RESOURCE_PROJECT_MISMATCH",
+      };
+    }
+
+    const before = await getCoreProjectSnapshot(workflowRunId, db);
+    if (!before.ok) return before;
+    if (before.value.resources.conti?.id !== contiId) {
+      return {
+        ok: false,
+        reason: "현재 프로젝트의 콘티와 완료하려는 콘티가 일치하지 않습니다.",
+        code: "RESOURCE_MISMATCH",
+      };
+    }
+    if (isWorkflowAfter(before.value.workflow.currentStep, "conti")) {
+      return {
+        ok: true,
+        idempotent: true,
+        value: { contiId, clientId: resource.clientId, workflowRunId, advanced: false },
+      };
+    }
+    if (isWorkflowBefore(before.value.workflow.currentStep, "conti")) {
+      return { ok: false, reason: "아직 콘티 단계를 완료할 차례가 아닙니다.", code: "WORKFLOW_BLOCKED" };
+    }
+
+    const completion = await completeStep(workflowRunId, "conti", db);
+    if (!completion.ok) return completion;
+    if (!completion.value.advanced && completion.value.reason === "open_items") {
+      return { ok: false, reason: workflowBlockedReason("콘티"), code: "WORKFLOW_BLOCKED" };
+    }
+    if (!completion.value.advanced && completion.value.reason !== "current_step_changed") {
+      return { ok: false, reason: "콘티 단계를 완료하지 못했습니다.", code: "WORKFLOW_BLOCKED" };
+    }
+
+    const after = await getCoreProjectSnapshot(workflowRunId, db);
+    const expectedStep = completion.value.advanced
+      ? after.ok && after.value.workflow.currentStep === "shooting"
+      : after.ok && isWorkflowAfter(after.value.workflow.currentStep, "conti");
+    if (!after.ok || after.value.resources.conti?.id !== contiId || !expectedStep) {
+      return {
+        ok: false,
+        reason: after.ok ? "콘티 완료 후 프로젝트 상태를 확인하지 못했습니다." : after.reason,
+        code: "VERIFICATION_FAILED",
+        details: { contiId, workflowRunId, source: resource.source },
+      };
+    }
+
+    if (resource.clientId) {
+      await recordPcrmActivitySafely(db, {
+        clientId: resource.clientId,
+        workflowRunId,
+        actorType: "admin",
+        actorName: "관리자",
+        actionType: "conti_completed",
+        title: "콘티 단계가 최종완료 처리됨",
+        relatedType: "conti",
+        relatedId: contiId,
+      });
+    }
+    return {
+      ok: true,
+      value: { contiId, clientId: resource.clientId, workflowRunId, advanced: completion.value.advanced },
+    };
+  } catch (error) {
+    return commandFailure(error, "콘티 최종완료 처리에 실패했습니다.");
   }
 }
 

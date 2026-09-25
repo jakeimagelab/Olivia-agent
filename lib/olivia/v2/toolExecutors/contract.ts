@@ -5,7 +5,7 @@ import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/ty
 import { text, activeResource, latestResource } from "./common";
 import { loadQuote } from "./quote";
 import { createVerification } from "./verification";
-import { createContractFromQuote, publishContract } from "@/lib/core/commands/document";
+import { completeContract, createContractFromQuote, publishContract } from "@/lib/core/commands/document";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
 
@@ -25,7 +25,7 @@ async function saveContractRow(id: string, data: Record<string, unknown>) {
 
 export const CONTRACT_TOOL_NAMES = [
   "create_contract", "get_contract", "preview_contract", "update_contract_terms", "request_contract_signature",
-  "request_contract_publish", "publish_contract", "download_contract_pdf",
+  "complete_contract", "request_contract_publish", "publish_contract", "download_contract_pdf",
 ] as const;
 
 export async function executeContractTool(
@@ -157,6 +157,30 @@ export async function executeContractTool(
       tool: name, success: true,
       data: { resourceId, contractId: resourceId, hospitalName: contract.hospital_name, summary: "대표 서명이 필요해요." },
       verification: createVerification({ executed: true, persisted: false, resourceExists: true }),
+    };
+  }
+
+  if (name === "complete_contract") {
+    const resourceId = activeResource(context, "contract");
+    const completion = await completeContract(resourceId, {
+      workflowRunId: context.activeProjectId,
+    }, db);
+    if (!completion.ok) throw new OliviaToolError(completion.reason, completion.code ?? "CONTRACT_COMPLETE_FAILED", completion.details);
+    return {
+      tool: name,
+      success: true,
+      data: {
+        resourceId,
+        ...completion.value,
+        idempotent: completion.idempotent ?? false,
+        summary: "계약서를 최종완료하고 콘티 단계로 이동했어요.",
+      },
+      verification: createVerification({
+        executed: true,
+        persisted: completion.value.status === "final",
+        resourceExists: true,
+        linked: Boolean(completion.value.clientId && completion.value.workflowRunId),
+      }),
     };
   }
 

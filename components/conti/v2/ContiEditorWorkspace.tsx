@@ -108,10 +108,10 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
       if (activeDocument.run.workflow_run_id !== activeWorkflowRunId) {
         if (!await controller.linkCanonicalConti(activeDocument.run.hospital_id || undefined, activeWorkflowRunId)) throw new Error("프로젝트 연결에 실패했습니다.");
       }
-      const response = await fetch(`/api/workflow-runs/${activeWorkflowRunId}/complete-step`, {
+      const response = await fetch(`/api/conti/runs/${activeDocument.run.id}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepKey: "conti" }),
+        body: JSON.stringify({ workflowRunId: activeWorkflowRunId }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) throw new Error(body.error ?? "최종완료 처리에 실패했습니다.");
