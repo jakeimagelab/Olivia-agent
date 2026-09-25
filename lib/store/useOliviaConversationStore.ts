@@ -473,7 +473,24 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
         }),
         signal: requestController.signal,
       });
+      // PHASE 4 작업 2 R3(2026-09-25) — 마지막 이벤트 이후 3초 넘게 아무 일도 없는데 아직 텍스트가
+      // 하나도 안 나왔으면(도구는 다 끝났는데 최종 답변 생성이 오래 걸리는 구간) "정리하는 중…"을
+      // 보여준다. 서버 타이밍을 새로 계측하지 않고 클라이언트가 관찰한 침묵 시간만 쓴다.
+      let cleanupWatchdog: ReturnType<typeof setTimeout> | null = null;
+      const resetCleanupWatchdog = () => {
+        if (cleanupWatchdog) clearTimeout(cleanupWatchdog);
+        cleanupWatchdog = setTimeout(() => {
+          const current = get().messages.find((message) => message.id === responseId);
+          if (!current || current.status !== "streaming" || current.content) return;
+          set((state) => ({
+            messages: state.messages.map((message) => message.id === responseId
+              ? { ...message, blocks: appendProgressStatus(message.blocks, "정리하는 중…") }
+              : message),
+          }));
+        }, 3_000);
+      };
       await readEventStream(response, (event) => {
+        resetCleanupWatchdog();
         if (event.type === "message_start") {
           set({ conversationId: event.conversationId ?? get().conversationId, activeResponseId: event.messageId });
         } else if (event.type === "text_delta") {
