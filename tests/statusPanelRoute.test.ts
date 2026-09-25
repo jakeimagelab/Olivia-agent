@@ -8,20 +8,30 @@ function createFakeTable(rows: Row[], opts: { failWith?: string } = {}) {
     query() {
       const filters: Array<(row: Row) => boolean> = [];
       let limitCount: number | undefined;
+      let headCount = false;
       const builder = {
         eq(col: string, val: unknown) { filters.push((row) => row[col] === val); return builder; },
         neq(col: string, val: unknown) { filters.push((row) => row[col] !== val); return builder; },
+        // PHASE 4 작업 1 R3(2026-09-25) — hermesFallbackCount24h 조회가 쓰는 .not()/head count.
+        // 실제 값은 검사하지 않는다(테스트 fixture가 이미 조건에 맞는 row만 넣어둔다) — .not()이
+        // 있어야 한다는 체이닝 자체만 흉내낸다.
+        not() { return builder; },
+        gte() { return builder; },
         order() { return builder; },
         limit(n: number) { limitCount = n; return builder; },
-        select() { return builder; },
+        select(_columns?: string, options?: { count?: string; head?: boolean }) {
+          if (options?.head) headCount = true;
+          return builder;
+        },
         async maybeSingle() {
           if (opts.failWith) return { data: null, error: { message: opts.failWith } };
           const matches = rows.filter((row) => filters.every((f) => f(row)));
           return { data: matches[0] ?? null, error: null };
         },
-        then(resolve: (result: { data: Row[] | null; error: { message: string } | null }) => void) {
+        then(resolve: (result: { data: Row[] | null; error: { message: string } | null; count?: number }) => void) {
           if (opts.failWith) { resolve({ data: null, error: { message: opts.failWith } }); return; }
           let matches = rows.filter((row) => filters.every((f) => f(row)));
+          if (headCount) { resolve({ data: null, error: null, count: matches.length }); return; }
           if (limitCount !== undefined) matches = matches.slice(0, limitCount);
           resolve({ data: matches, error: null });
         },
@@ -32,15 +42,22 @@ function createFakeTable(rows: Row[], opts: { failWith?: string } = {}) {
 }
 
 let currentDb: any = null;
-function createFakeSupabase(tables: { remote_workers: Row[]; worker_events: Row[]; remote_jobs: Row[] }, failing: Partial<Record<keyof typeof tables, string>> = {}) {
+function createFakeSupabase(
+  tables: { remote_workers: Row[]; worker_events: Row[]; remote_jobs: Row[]; olivia_chat_messages?: Row[] },
+  failing: Partial<Record<"remote_workers" | "worker_events" | "remote_jobs" | "olivia_chat_messages", string>> = {},
+) {
   const fakes = {
     remote_workers: createFakeTable(tables.remote_workers, { failWith: failing.remote_workers }),
     worker_events: createFakeTable(tables.worker_events, { failWith: failing.worker_events }),
     remote_jobs: createFakeTable(tables.remote_jobs, { failWith: failing.remote_jobs }),
+    olivia_chat_messages: createFakeTable(tables.olivia_chat_messages ?? [], { failWith: failing.olivia_chat_messages }),
   };
   return {
-    from(table: keyof typeof fakes) {
-      return { select: () => fakes[table].query() };
+    from(table: keyof typeof fakes | "workflow_runs") {
+      // findWorkflowConsistencyIssues가 조회하는 workflow_runs 등은 이 테스트의 관심사가
+      // 아니다 — 빈 결과로 흘려보내면 그 함수 내부에서 안전하게 issues:[]로 정리된다.
+      if (!(table in fakes)) return { select: () => createFakeTable([]).query() };
+      return { select: () => fakes[table as keyof typeof fakes].query() };
     },
   };
 }
