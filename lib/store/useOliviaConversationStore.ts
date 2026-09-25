@@ -699,7 +699,19 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           if (event.resolvedContext) {
             useOliviaContextStore.getState().setContextLink(event.resolvedContext);
           }
-          set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "complete" } : message) }));
+          set((state) => ({
+            messages: state.messages.map((message) => message.id === responseId
+              ? {
+                ...message,
+                status: "complete",
+                agentEngine: event.agentEngine,
+                fallbackReason: event.fallbackReason,
+                // PHASE 4 작업 2 — 라운드가 끝났으니 아직 "active"로 남은 진행 단계가 있으면
+                // (예: 마지막 tool_result 없이 바로 최종 텍스트로 끝난 경우) 전부 done으로 닫는다.
+                blocks: closeActiveProgressSteps(message.blocks),
+              }
+              : message),
+          }));
         } else if (event.type === "error") {
           throw new Error(event.message);
         }
