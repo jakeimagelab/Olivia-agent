@@ -133,6 +133,28 @@ describe("GET /api/olivia-os/status-panel", () => {
     expect((body.recentJobs as Array<{ id: string }>).map((j) => j.id)).toEqual(["job-sort"]);
   });
 
+  it("헤르메스 폴백이 없으면 hermesFallbackCount24h가 0이다", async () => {
+    currentDb = createFakeSupabase({ remote_workers: [], worker_events: [], remote_jobs: [], olivia_chat_messages: [] });
+    const response = await callStatusPanel();
+    const body = await response.json();
+    expect(body.hermesFallbackCount24h).toBe(0);
+  });
+
+  it("legacy 폴백 메시지 개수를 hermesFallbackCount24h로 센다(작업 1 R3)", async () => {
+    currentDb = createFakeSupabase({
+      remote_workers: [], worker_events: [], remote_jobs: [],
+      olivia_chat_messages: [
+        { id: "msg-1", role: "assistant", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "connect timeout" },
+        { id: "msg-2", role: "assistant", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "idle timeout" },
+        { id: "msg-3", role: "assistant", "metadata->>agentEngine": "hermes", "metadata->>fallbackReason": null },
+        { id: "msg-4", role: "user", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "connect timeout" },
+      ],
+    });
+    const response = await callStatusPanel();
+    const body = await response.json();
+    expect(body.hermesFallbackCount24h).toBe(2);
+  });
+
   it("한 테이블 조회가 실패해도(부분 실패) 나머지 섹션은 정상 반환하고 200을 유지한다", async () => {
     const now = new Date().toISOString();
     currentDb = createFakeSupabase(
