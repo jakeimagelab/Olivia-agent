@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isOptionalClientDetailColumnMissing, withClientDetailDefaults } from "@/lib/clientDetailFallback";
 import { isMissingColumnError } from "@/lib/dbErrors";
-import { getWorkflowPhaseProgress, STEP_NAME } from "@/lib/workflow";
-import { buildWorkflowNextAction } from "@/lib/workflowNextAction";
+import { getWorkflowPhaseProgress } from "@/lib/workflow";
 import { toDisplayStatus } from "@/lib/clientWorkspace/publications";
 import { computeClientWorkspaceNextAction } from "@/lib/clientWorkspace/nextAction";
-import { selectWorkspaceQuote } from "@/lib/clientWorkspace/quoteSelection";
+import { getCoreProjectSnapshot } from "@/lib/core/readModels/projectSnapshot";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -61,48 +60,39 @@ export async function GET(req: NextRequest, { params }: Params) {
   let resourceMeta: { quote: { status: string; isApproved: boolean } | null } = { quote: null };
 
   if (activeProject) {
-    const [tasksRes, approvalsRes, mailingRes, pubRes, activityRes, approvedQuoteRes, latestQuoteRes, contractRes, contiRes, galleryRes] = await Promise.all([
-      db.from("agent_tasks").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
-      db.from("agent_approvals").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
-      db.from("mailing_queue").select("*").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }),
+    const [snapshotResult, pubRes, activityRes] = await Promise.all([
+      getCoreProjectSnapshot(activeProject.id, db),
       db.from("pcrm_publications").select("*").eq("workflow_run_id", activeProject.id).order("version", { ascending: false }),
       db.from("pcrm_activity_logs").select("*").eq("client_id", clientId).eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(20),
-      db.from("quotes").select("id,status").eq("workflow_run_id", activeProject.id).in("status", ["published", "final"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      db.from("quotes").select("id,status").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      db.from("contracts").select("id").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      db.from("conti_saves").select("id").eq("workflow_run_id", activeProject.id).order("saved_at", { ascending: false }).limit(1).maybeSingle(),
-      db.from("select_galleries").select("id").eq("workflow_run_id", activeProject.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    if (approvedQuoteRes.error || latestQuoteRes.error) {
-      return NextResponse.json({
-        ok: false,
-        error: approvedQuoteRes.error?.message ?? latestQuoteRes.error?.message ?? "견적서를 확인하지 못했습니다.",
-      }, { status: 500 });
+    if (!snapshotResult.ok) {
+      return NextResponse.json({ ok: false, error: snapshotResult.reason, code: snapshotResult.code }, {
+        status: snapshotResult.code === "PROJECT_NOT_FOUND" ? 404 : 500,
+      });
     }
-    const quoteSelection = selectWorkspaceQuote(approvedQuoteRes.data, latestQuoteRes.data);
+    const snapshot = snapshotResult.value;
     resourceIds = {
-      quote: quoteSelection.quote?.id ?? null,
-      contract: contractRes.data?.id ?? null,
-      conti: contiRes.data?.id ?? null,
-      select_gallery: galleryRes.data?.id ?? null,
+      quote: snapshot.resources.quote?.id ?? null,
+      contract: snapshot.resources.contract?.id ?? null,
+      conti: snapshot.resources.conti?.id ?? null,
+      select_gallery: snapshot.resources.selectGallery?.id ?? null,
     };
-    resourceMeta = { quote: quoteSelection.meta };
+    resourceMeta = {
+      quote: snapshot.resources.quote ? {
+        status: snapshot.resources.quote.status ?? "draft",
+        isApproved: snapshot.resources.quote.approved,
+      } : null,
+    };
 
-    const nextAction = buildWorkflowNextAction({
-      run: activeProject,
-      tasks: tasksRes.data ?? [],
-      approvals: approvalsRes.data ?? [],
-      mailing: mailingRes.data ?? [],
-    });
-    const { phases, progressPercent } = getWorkflowPhaseProgress(activeProject.current_step_key, activeProject.status);
+    const { phases } = getWorkflowPhaseProgress(snapshot.workflow.currentStep, snapshot.project.status);
     workflowSummary = {
-      currentStepKey: activeProject.current_step_key,
-      currentStepName: STEP_NAME[activeProject.current_step_key] ?? activeProject.current_step_key,
+      currentStepKey: snapshot.workflow.currentStep,
+      currentStepName: snapshot.workflow.currentStepName,
       phases,
-      progressPercent,
-      nextActionLabel: nextAction.label,
-      primaryAction: nextAction.primaryAction,
-      primaryActionLabel: nextAction.primaryActionLabel,
+      progressPercent: snapshot.workflow.progressPercent,
+      nextActionLabel: snapshot.nextAction.label,
+      primaryAction: snapshot.nextAction.primaryAction,
+      primaryActionLabel: snapshot.nextAction.primaryActionLabel,
     };
 
     // related_type별 최신 버전 한 건만 남긴다(오래된 버전은 이력용으로만 필요, 화면 카드엔 최신만).

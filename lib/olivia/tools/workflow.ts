@@ -16,6 +16,7 @@ import {
   guardWorkflowStepJump,
 } from "@/lib/workflowAutomation";
 import { completeStep } from "@/lib/core/commands/workflow";
+import { getCoreProjectSnapshot, summarizeCoreProjectSnapshot } from "@/lib/core/readModels/projectSnapshot";
 
 const STEP_LABELS: Record<string, string> = {
   consult_meeting: "1. 상담/미팅", quote: "2. 견적서", contract: "3. 계약서", conti: "4. 콘티",
@@ -67,13 +68,19 @@ export async function getWorkflowStatus(input: any) {
   if (!run) {
     return { action: "done", message: `⚠️ **${input.clientName}**의 활성 워크플로우를 찾을 수 없어요.\n/clients 에서 워크플로우를 시작해주세요.` };
   }
-  const step = STEP_LABELS[run.current_step_key] ?? run.current_step_key;
-  const updated = new Date(run.updated_at).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+  const snapshotResult = await getCoreProjectSnapshot(run.id, db);
+  if (!snapshotResult.ok) {
+    return { action: "done", message: `⚠️ 프로젝트 상태를 불러오지 못했어요: ${snapshotResult.reason}` };
+  }
+  const snapshot = snapshotResult.value;
   return {
     action: "done",
-    message: `📋 **${run.client_name}** 워크플로우 현황\n\n**현재 단계:** ${step}\n**마지막 업데이트:** ${updated}\n\n다음 단계로 진행하려면 "다음 단계로 넘겨줘" 또는 "XX단계로 이동해줘"라고 말씀해주세요.`,
-    clientName: run.client_name,
-    currentStepKey: run.current_step_key,
+    message: `📋 **${snapshot.client.name}** 프로젝트 현황\n\n${summarizeCoreProjectSnapshot(snapshot)}`,
+    clientName: snapshot.client.name,
+    workflowRunId: snapshot.project.workflowRunId,
+    currentStepKey: snapshot.workflow.currentStep,
+    snapshot,
+    summary: summarizeCoreProjectSnapshot(snapshot),
   };
 }
 

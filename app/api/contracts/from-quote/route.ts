@@ -12,10 +12,10 @@ export async function POST(req: NextRequest) {
   const result = await createContractFromQuote(quoteId);
   if (!result.ok) {
     const status = result.code === "NOT_FOUND" ? 404
-      : result.code === "CONTRACT_EXISTS" ? 409
+      : result.code === "CONTRACT_SOURCE_CONFLICT" ? 409
       : ["UNAPPROVED_QUOTE", "BLOCKED", "INVALID_QUOTE"].includes(result.code ?? "") ? 400
       : 500;
     return NextResponse.json({ ok: false, error: result.reason, code: result.code, ...result.details }, { status });
   }
-  return NextResponse.json({ ok: true, ...result.value });
+  return NextResponse.json({ ok: true, ...result.value, idempotent: result.idempotent ?? false });
 }

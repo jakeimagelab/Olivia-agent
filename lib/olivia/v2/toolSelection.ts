@@ -15,7 +15,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","apply_quote_rebalance","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   contract: ["create_contract","update_contract_terms","request_contract_signature","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   conti: ["get_conti_status","create_conti","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  workflow: ["get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
+  workflow: ["get_project_snapshot","get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
   mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
   // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이
   // 이 도구를 아예 선택지로 못 받아서 항상 open_feature(페이지 이동)로 새는 사고가 났다
@@ -50,7 +50,7 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
   ["window",/(이\s*창|창\s*닫|닫아줘|최소화|내려줘|전체화면|창\s*키워)/i],
 ];
 
-const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
+const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_project_snapshot","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
 
 // PageContext가 명시된 경우에만 적용한다. 페이지와 무관한 조회/탐색/DB 도구는 이 표에 넣지
 // 않아 기존 전역 동작을 유지하고, 현재 UI가 실제 제공하는 mutation만 후보에서 제한한다.

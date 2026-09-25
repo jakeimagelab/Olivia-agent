@@ -155,7 +155,7 @@ describe("document Core commands", () => {
     }));
   });
 
-  it("prevents a second contract for the same workflow run", async () => {
+  it("returns the same contract idempotently for the same source quote", async () => {
     const db = memoryDb({
       quotes: [{ id: "quote-1", status: "final", client_id: "client-1", workflow_run_id: "run-1" }],
       contracts: [{ id: "contract-existing", workflow_run_id: "run-1", source_quote_id: "quote-1" }],
@@ -165,8 +165,25 @@ describe("document Core commands", () => {
     const result = await createContractFromQuote("quote-1", db as never);
 
     expect(result).toMatchObject({
+      ok: true,
+      idempotent: true,
+      value: { contractId: "contract-existing", clientId: "client-1", workflowRunId: "run-1" },
+    });
+    expect(db.tables.contracts).toHaveLength(1);
+  });
+
+  it("rejects a different source quote when the workflow already has a contract", async () => {
+    const db = memoryDb({
+      quotes: [{ id: "quote-2", status: "final", client_id: "client-1", workflow_run_id: "run-1" }],
+      contracts: [{ id: "contract-existing", workflow_run_id: "run-1", source_quote_id: "quote-1" }],
+    });
+    const { createContractFromQuote } = await import("@/lib/core/commands/document");
+
+    const result = await createContractFromQuote("quote-2", db as never);
+
+    expect(result).toMatchObject({
       ok: false,
-      code: "CONTRACT_EXISTS",
+      code: "CONTRACT_SOURCE_CONFLICT",
       details: { contractId: "contract-existing", sourceQuoteId: "quote-1" },
     });
     expect(db.tables.contracts).toHaveLength(1);

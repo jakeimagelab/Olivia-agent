@@ -11,10 +11,25 @@ describe("Olivia Hermes MCP registry", () => {
   });
 
   it("Olivia registry의 비차단 Tool을 누락 없이 자동 노출한다", () => {
-    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
+    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
+      .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
     const actual = listHermesOliviaTools().map((tool) => tool.name).sort();
     expect(new Set(actual).size).toBe(actual.length);
     expect(actual).toEqual(expected);
+  });
+
+  it("canonical project snapshot은 Hermes에서 workflow.get_snapshot으로 노출된다", () => {
+    const tools = listHermesOliviaTools();
+    const names = tools.map((tool) => tool.name);
+    expect(names).toContain("workflow.get_snapshot");
+    expect(names).not.toContain("get_project_snapshot");
+    const snapshotTool = tools.find((tool) => tool.name === "workflow.get_snapshot")!;
+    expect(snapshotTool.description).toContain("Never infer workflow/resource state from chat history");
+    expect(snapshotTool.inputSchema.required).toContain("workflowRunId");
+    expect((snapshotTool.inputSchema.properties as Record<string, unknown>).workflowRunId).toEqual({
+      type: "string",
+      format: "uuid",
+    });
   });
 
   it("새 Tool의 기본 노출 정책은 OPEN이다", () => {
@@ -169,14 +184,16 @@ describe("Olivia Hermes MCP registry", () => {
 
     it("requestId가 없어도 전체 목록을 반환한다", () => {
       const names = listHermesOliviaTools().map((t) => t.name).sort();
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
+        .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
       expect(names).toEqual(full);
     });
 
     it("등록된 request context가 있어도 목록을 좁히지 않는다", () => {
       registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 });
       const names = listHermesOliviaTools("req-narrow-1").map((t) => t.name);
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name).filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
+        .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
       expect(names.sort()).toEqual(full);
     });
 

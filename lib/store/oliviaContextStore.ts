@@ -44,6 +44,9 @@ export type OliviaPageContext = {
 };
 
 export type OliviaContextState = {
+  // Context Store는 사용자가 지금 보고 있는 위치를 나타낸다. 실제 workflow 단계, 완료 여부,
+  // 연결된 문서의 존재 여부는 lib/core/readModels/projectSnapshot.ts의 Core Snapshot이 소유한다.
+  // activeProjectId는 Project Runtime canonical identity인 workflow_runs.id다.
   activeClientId?: string;
   activeClientName?: string;
   activeProjectId?: string;

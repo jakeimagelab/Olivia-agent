@@ -11,9 +11,10 @@ import { linkDocumentToClient } from "@/lib/olivia/tools/documentLink";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { fromLegacyResult } from "./common";
 import { createVerification } from "./verification";
+import { getCoreProjectSnapshot, summarizeCoreProjectSnapshot } from "@/lib/core/readModels/projectSnapshot";
 
 export const WORKFLOW_TOOL_NAMES = [
-  "get_workflow_status", "list_active_workflows", "advance_workflow_step",
+  "get_workflow_status", "get_project_snapshot", "list_active_workflows", "advance_workflow_step",
   "complete_workflow_retroactively", "list_workflow_step_tasks", "process_workflow_step",
   "approve_workflow_task", "link_document_to_client",
 ] as const;
@@ -21,11 +22,44 @@ export const WORKFLOW_TOOL_NAMES = [
 export async function executeWorkflowTool(
   name: string,
   input: Record<string, unknown>,
-  _context: OliviaContextSnapshot,
+  context: OliviaContextSnapshot,
 ): Promise<OliviaToolResult> {
   const db = getSupabaseAdmin();
 
   if (name === "get_workflow_status") return fromLegacyResult(name, await getWorkflowStatus(input));
+  if (name === "get_project_snapshot") {
+    const workflowRunId = typeof input.workflowRunId === "string" && input.workflowRunId.trim()
+      ? input.workflowRunId.trim()
+      : context.activeProjectId;
+    if (!workflowRunId) {
+      return {
+        tool: name,
+        success: false,
+        error: "먼저 프로젝트를 선택해주세요.",
+        code: "PROJECT_REQUIRED",
+        verification: createVerification({ executed: false, resourceExists: false }),
+      };
+    }
+    const snapshotResult = await getCoreProjectSnapshot(workflowRunId, db);
+    if (!snapshotResult.ok) {
+      return {
+        tool: name,
+        success: false,
+        error: snapshotResult.reason,
+        code: snapshotResult.code,
+        verification: createVerification({ executed: true, resourceExists: false }),
+      };
+    }
+    return {
+      tool: name,
+      success: true,
+      data: {
+        snapshot: snapshotResult.value,
+        summary: summarizeCoreProjectSnapshot(snapshotResult.value),
+      },
+      verification: createVerification({ executed: true, resourceExists: true }),
+    };
+  }
   if (name === "list_active_workflows") {
     const { data: runs, error } = await db
       .from("workflow_runs")

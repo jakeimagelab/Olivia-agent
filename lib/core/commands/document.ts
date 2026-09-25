@@ -9,6 +9,7 @@ import { publishContractService, publishQuoteService } from "@/lib/publications/
 import { resolveQuoteWorkflowLink } from "@/lib/quote/quoteWorkflowLink";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { completeOpenStepTasksForManualSave, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { getCoreProjectSnapshot } from "@/lib/core/readModels/projectSnapshot";
 import { coreCommandFailure, type CoreCommandResult } from "./result";
 
 type QuoteLinkOverrides = { forceClientId?: string; forceCreateNew?: boolean };
@@ -19,6 +20,27 @@ function commandFailure(error: unknown, fallback: string): CoreCommandResult<nev
     return { ok: false, reason: error.message, code: error.code, details: error.details };
   }
   return coreCommandFailure(error, fallback);
+}
+
+function existingContractResult(
+  existing: { id: string; source_quote_id?: string | null },
+  quoteId: string,
+  clientId: string,
+  workflowRunId: string,
+): CoreCommandResult<{ contractId: string; clientId: string; workflowRunId: string }> {
+  if (existing.source_quote_id === quoteId) {
+    return {
+      ok: true,
+      idempotent: true,
+      value: { contractId: existing.id, clientId, workflowRunId },
+    };
+  }
+  return {
+    ok: false,
+    reason: "이 프로젝트에는 다른 견적에서 생성된 계약서가 이미 있습니다.",
+    code: "CONTRACT_SOURCE_CONFLICT",
+    details: { contractId: existing.id, sourceQuoteId: existing.source_quote_id ?? null },
+  };
 }
 
 export async function completeQuote(
@@ -134,12 +156,7 @@ export async function createContractFromQuote(
       .maybeSingle();
     if (existingError) throw new OliviaToolError("기존 계약서를 확인하지 못했습니다.", "DB_ERROR", { databaseMessage: existingError.message });
     if (existing) {
-      return {
-        ok: false,
-        reason: "이미 계약서가 있습니다.",
-        code: "CONTRACT_EXISTS",
-        details: { contractId: existing.id, sourceQuoteId: existing.source_quote_id ?? null },
-      };
+      return existingContractResult(existing, quoteId, clientId, workflowRunId);
     }
 
     const quoteData = normalizeContractQuoteData(quote, quote);
@@ -164,12 +181,7 @@ export async function createContractFromQuote(
     if (insertError || !inserted) {
       if (insertError?.code === "23505") {
         const { data: raced } = await db.from("contracts").select("id,source_quote_id").eq("workflow_run_id", workflowRunId).limit(1).maybeSingle();
-        return {
-          ok: false,
-          reason: "이미 계약서가 있습니다.",
-          code: "CONTRACT_EXISTS",
-          details: raced?.id ? { contractId: raced.id, sourceQuoteId: raced.source_quote_id ?? null } : undefined,
-        };
+        if (raced?.id) return existingContractResult(raced, quoteId, clientId, workflowRunId);
       }
       throw new OliviaToolError("계약서를 저장하지 못했습니다.", "DB_ERROR", { databaseMessage: insertError?.message });
     }
@@ -214,7 +226,19 @@ export async function publishContract(
   db: SupabaseClient = getSupabaseAdmin(),
 ): Promise<CoreCommandResult<Awaited<ReturnType<typeof publishContractService>>>> {
   try {
-    return { ok: true, value: await publishContractService(contractId, overrides, db) };
+    const published = await publishContractService(contractId, overrides, db);
+    if (published.advanced) {
+      const snapshot = await getCoreProjectSnapshot(published.workflowRunId, db);
+      if (!snapshot.ok || snapshot.value.workflow.currentStep !== "conti") {
+        return {
+          ok: false,
+          reason: snapshot.ok ? "계약 완료 후 콘티 단계 전환을 확인하지 못했습니다." : snapshot.reason,
+          code: "VERIFICATION_FAILED",
+          details: { contractId, workflowRunId: published.workflowRunId, publicationId: published.publicationId },
+        };
+      }
+    }
+    return { ok: true, value: published };
   } catch (error) {
     return commandFailure(error, "계약서 공개에 실패했습니다.");
   }
@@ -234,13 +258,26 @@ export async function publishConti(
     if (!input.clientId || !input.workflowRunId) {
       return { ok: false, reason: "clientId, workflowRunId가 필요합니다.", code: "INVALID_INPUT" };
     }
-    const { data: conti, error: contiError } = await db.from("conti_saves")
-      .select("id,client_id,workflow_run_id,title")
+    const { data: canonicalConti, error: canonicalError } = await db.from("conti_runs")
+      .select("id,hospital_id,workflow_run_id,hospital_name")
       .eq("id", contiId)
-      .eq("client_id", input.clientId)
+      .eq("hospital_id", input.clientId)
       .eq("workflow_run_id", input.workflowRunId)
       .maybeSingle();
-    if (contiError) throw new OliviaToolError("콘티를 확인하지 못했습니다.", "DB_ERROR", { databaseMessage: contiError.message });
+    if (canonicalError) throw new OliviaToolError("콘티를 확인하지 못했습니다.", "DB_ERROR", { databaseMessage: canonicalError.message });
+    let conti: { id: string; title?: string | null } | null = canonicalConti
+      ? { id: canonicalConti.id, title: canonicalConti.hospital_name ? `${canonicalConti.hospital_name} 촬영 콘티` : null }
+      : null;
+    if (!conti) {
+      const { data: legacyConti, error: legacyError } = await db.from("conti_saves")
+        .select("id,client_id,workflow_run_id,title")
+        .eq("id", contiId)
+        .eq("client_id", input.clientId)
+        .eq("workflow_run_id", input.workflowRunId)
+        .maybeSingle();
+      if (legacyError) throw new OliviaToolError("이전 콘티를 확인하지 못했습니다.", "DB_ERROR", { databaseMessage: legacyError.message });
+      conti = legacyConti;
+    }
     if (!conti) return { ok: false, reason: "이 프로젝트에 연결된 콘티를 찾을 수 없습니다.", code: "NOT_FOUND" };
 
     const { data: existing, error: lookupError } = await db.from("pcrm_publications")
@@ -296,6 +333,20 @@ export async function publishConti(
       relatedType: "conti",
       relatedId: contiId,
     });
+
+    if (advance.advanced) {
+      const snapshot = await getCoreProjectSnapshot(input.workflowRunId, db);
+      if (!snapshot.ok
+        || snapshot.value.workflow.currentStep !== "shooting"
+        || snapshot.value.resources.conti?.id !== contiId) {
+        return {
+          ok: false,
+          reason: snapshot.ok ? "콘티 완료 후 촬영 단계와 연결 자료를 확인하지 못했습니다." : snapshot.reason,
+          code: "VERIFICATION_FAILED",
+          details: { contiId, workflowRunId: input.workflowRunId, publicationId },
+        };
+      }
+    }
 
     return {
       ok: true,

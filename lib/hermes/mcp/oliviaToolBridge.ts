@@ -13,6 +13,42 @@ import { getHermesToolMode, getHermesToolPolicy } from "./exposurePolicy";
 type JsonSchema = Record<string, unknown>;
 const validator = new AjvJsonSchemaValidator();
 
+const HERMES_TOOL_ALIASES: Record<string, string> = {
+  "workflow.get_snapshot": "get_project_snapshot",
+};
+
+const HERMES_TOOL_OVERRIDES: Record<string, { description: string; parameters: JsonSchema }> = {
+  "workflow.get_snapshot": {
+    description: "Read the canonical Olivia Core project snapshot for an exact workflow run. Never infer workflow/resource state from chat history when this tool is available.",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        workflowRunId: { type: "string", format: "uuid" },
+      },
+      required: ["workflowRunId"],
+    },
+  },
+};
+
+function exposedHermesToolName(executorToolName: string) {
+  return Object.entries(HERMES_TOOL_ALIASES).find(([, executor]) => executor === executorToolName)?.[0] ?? executorToolName;
+}
+
+function executorToolName(exposedToolName: string) {
+  return HERMES_TOOL_ALIASES[exposedToolName] ?? exposedToolName;
+}
+
+function hermesToolShape(executorName: string, description: string | null | undefined, parameters: unknown) {
+  const exposedName = exposedHermesToolName(executorName);
+  const override = HERMES_TOOL_OVERRIDES[exposedName];
+  return {
+    exposedName,
+    description: override?.description ?? description ?? undefined,
+    parameters: override?.parameters ?? parameters,
+  };
+}
+
 function schemaWithRequestId(parameters: unknown): JsonSchema {
   const schema = parameters && typeof parameters === "object" && !Array.isArray(parameters) ? parameters as JsonSchema : { type: "object" };
   const properties = schema.properties && typeof schema.properties === "object" && !Array.isArray(schema.properties) ? schema.properties as Record<string, unknown> : {};
@@ -26,12 +62,15 @@ export function listHermesOliviaTools(requestId?: string) {
   // 호출 호환성을 위해 requestId는 받되, catalog 결정에는 절대 쓰지 않는다.
   void requestId;
   const allowed = OLIVIA_V2_TOOLS.filter((tool) => getHermesToolPolicy(tool.name) !== "blocked");
-  return allowed.map((tool) => ({
-    name: tool.name,
-    description: tool.description,
-    inputSchema: schemaWithRequestId(tool.parameters),
-    annotations: getHermesToolPolicy(tool.name) === "approval" ? { destructiveHint: true, openWorldHint: false } : { openWorldHint: false },
-  }));
+  return allowed.map((tool) => {
+    const shape = hermesToolShape(tool.name, tool.description, tool.parameters);
+    return {
+      name: shape.exposedName,
+      description: shape.description,
+      inputSchema: schemaWithRequestId(shape.parameters),
+      annotations: getHermesToolPolicy(tool.name) === "approval" ? { destructiveHint: true, openWorldHint: false } : { openWorldHint: false },
+    };
+  });
 }
 
 function inferResource(data: Record<string, unknown> | undefined, toolName: string) {
@@ -41,44 +80,47 @@ function inferResource(data: Record<string, unknown> | undefined, toolName: stri
 }
 
 export async function executeHermesOliviaTool(options: { toolName: string; input?: Record<string, unknown>; requestId?: string; fallbackContext?: OliviaContextSnapshot }) {
-  const definition = OLIVIA_V2_TOOLS.find((tool) => tool.name === options.toolName);
-  if (!definition || getHermesToolPolicy(options.toolName) === "blocked") {
+  const executorName = executorToolName(options.toolName);
+  const definition = OLIVIA_V2_TOOLS.find((tool) => tool.name === executorName);
+  if (!definition || getHermesToolPolicy(executorName) === "blocked") {
     return { isError: true as const, content: [{ type: "text" as const, text: JSON.stringify({ success: false, code: "TOOL_NOT_AVAILABLE", error: "이 Olivia 작업은 현재 MCP에서 실행할 수 없습니다." }) }] };
   }
   const input = { ...(options.input ?? {}) };
   const requestId = options.requestId || (typeof input.requestId === "string" ? input.requestId : undefined);
   delete input.requestId;
   const mode = getHermesToolMode(definition.name, definition.description ?? "");
-  const checked = validator.getValidator(definition.parameters as JsonSchema)(input);
+  const checked = validator.getValidator(
+    hermesToolShape(definition.name, definition.description, definition.parameters).parameters as JsonSchema,
+  )(input);
   if (!checked.valid) {
     const error = checked.errorMessage || "Tool 입력값이 schema와 일치하지 않습니다.";
-    recordHermesToolCall(requestId, definition.name, { success: false, mode, error, code: "INVALID_TOOL_INPUT" });
+    recordHermesToolCall(requestId, options.toolName, { success: false, mode, error, code: "INVALID_TOOL_INPUT", uiToolName: executorName });
     return { isError: true as const, content: [{ type: "text" as const, text: JSON.stringify({ success: false, code: "INVALID_TOOL_INPUT", error }) }] };
   }
   const context = getHermesExecutionContext(requestId)?.context ?? options.fallbackContext ?? { recentActions: [], revision: 0 };
   if (mode === "mutation" && context.canEdit === false) {
     const error = "현재 Olivia Context에는 수정 권한이 없습니다.";
-    recordHermesToolCall(requestId, definition.name, { success: false, mode, error, code: "PERMISSION_DENIED" });
+    recordHermesToolCall(requestId, options.toolName, { success: false, mode, error, code: "PERMISSION_DENIED", uiToolName: executorName });
     return { isError: true as const, content: [{ type: "text" as const, text: JSON.stringify({ success: false, code: "PERMISSION_DENIED", error }) }] };
   }
   try {
-    const { result, uiActions } = await executeAgentTool({ id: crypto.randomUUID(), name: definition.name, arguments: JSON.stringify(input) }, context);
-    const resource = inferResource(result.data, definition.name);
+    const { result, uiActions } = await executeAgentTool({ id: crypto.randomUUID(), name: executorName, arguments: JSON.stringify(input) }, context);
+    const resource = inferResource(result.data, executorName);
     const changedEntityId = typeof result.data?.changedEntityId === "string" ? result.data.changedEntityId : undefined;
     if (!result.success) {
       const failure = { success: false as const, error: result.error || "요청을 처리하지 못했어요.", code: result.code || "TOOL_EXECUTION_FAILED", details: result.details, data: result.data, verification: result.verification, uiActions };
-      recordHermesToolCall(requestId, definition.name, { ...failure, mode, uiToolName: definition.name, ...resource, changedEntityId });
+      recordHermesToolCall(requestId, options.toolName, { ...failure, mode, uiToolName: executorName, ...resource, changedEntityId });
       return { isError: true as const, content: [{ type: "text" as const, text: JSON.stringify(failure) }] };
     }
     assertToolResultVerified(result, mode);
     const data = resource.resourceType || resource.resourceId ? { ...(result.data ?? {}), ...resource } : result.data;
     const success = { success: true as const, data, verification: result.verification, uiActions };
-    recordHermesToolCall(requestId, definition.name, { ...success, mode, uiToolName: definition.name, ...resource, changedEntityId });
+    recordHermesToolCall(requestId, options.toolName, { ...success, mode, uiToolName: executorName, ...resource, changedEntityId });
     return { content: [{ type: "text" as const, text: JSON.stringify(success) }], structuredContent: success as unknown as Record<string, unknown> };
   } catch (error) {
     const failure = { success: false as const, ...normalizeToolError(error) };
     const resource = inferResource(input, definition.name);
-    recordHermesToolCall(requestId, definition.name, { ...failure, mode, uiToolName: definition.name, ...resource });
+    recordHermesToolCall(requestId, options.toolName, { ...failure, mode, uiToolName: executorName, ...resource });
     return { isError: true as const, content: [{ type: "text" as const, text: JSON.stringify(failure) }] };
   }
 }
