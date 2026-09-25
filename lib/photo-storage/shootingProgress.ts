@@ -340,6 +340,9 @@ export async function syncOriginalDeliveryRegisteredWorkflow(
   if (error) throw error;
 }
 
+// 아래의 to_step_key 고정값들은 전부 안전하다 — 매 분기가 advanceWorkflow를 부르기 전에
+// run.current_step_key(또는 input.stage)가 바로 그 단계인지 먼저 확인하므로, 지정한
+// to_step_key는 ACTIVE_WORKFLOW_STEP_KEYS 순서상 실제 다음 단계와 항상 일치한다(건너뜀 없음).
 export async function syncManualShootingProgressAction(
   db: SupabaseClient,
   input: {
