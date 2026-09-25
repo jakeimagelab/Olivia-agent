@@ -7,6 +7,7 @@ import {
   getWorkflowRun,
   revertWorkflowToStep,
 } from "@/lib/workflowAutomation";
+import { completeShoot } from "@/lib/core/commands/workflow";
 import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
 import { validatePhotoProjectRelativePath } from "./server";
 
