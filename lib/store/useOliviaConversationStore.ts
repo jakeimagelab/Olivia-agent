@@ -180,6 +180,8 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
     externalMessageId: row.external_message_id || undefined,
     deliveryStatus: row.delivery_status || undefined,
     attachments: sanitizeOliviaAttachments(row.metadata?.attachments),
+    agentEngine: row.metadata?.agentEngine === "hermes" || row.metadata?.agentEngine === "legacy" ? row.metadata.agentEngine : undefined,
+    fallbackReason: typeof row.metadata?.fallbackReason === "string" ? row.metadata.fallbackReason : undefined,
   };
 }
 
