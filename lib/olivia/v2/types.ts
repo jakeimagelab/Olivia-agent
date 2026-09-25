@@ -143,6 +143,10 @@ export type OliviaStreamEvent =
       /** [임시 진단] 이번 응답을 실제로 만든 Brain. production에서는 절대 채우지 않는다 —
        * 사용자에게 내부 구조를 노출하지 않기 위한 개발 전용 필드. */
       chatRoute?: "HERMES" | "FALLBACK" | "LEGACY_GPT" | "DIRECT_TOOL";
+      /** PHASE 4 작업 1 — chatRoute와 달리 dev 전용이 아니다. 폴백이 실제로 일어났을 때
+       * 대표가 그 자리에서 바로 알아야 한다(운영 진단 목적이 아니라 신뢰성 표시 목적). */
+      agentEngine?: "hermes" | "legacy";
+      fallbackReason?: string;
       resolvedContext?: {
         clientId?: string;
         clientName?: string;
