@@ -158,6 +158,9 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "저장 실패");
+      if (data.advance && data.advance.advanced === false && data.advance.reason) {
+        alert(`갤러리는 등록됐지만 워크플로 단계 전환은 보류됐어요: ${data.advance.reason}`);
+      }
       onSaved();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "저장 실패");
