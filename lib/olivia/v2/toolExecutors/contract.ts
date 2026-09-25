@@ -56,14 +56,21 @@ export async function executeContractTool(
     } else if (context.activeWorkspace === "quote" && context.activeResourceId) {
       quote = await loadQuote(context.activeResourceId).catch(() => null);
     }
-    const hospitalName = text(input, "hospitalName") || context.activeClientName || (quote ? String(quote.hospital_name || "") : "");
+    const explicitHospitalName = text(input, "hospitalName");
+    const hospitalName = explicitHospitalName || context.activeClientName || (quote ? String(quote.hospital_name || "") : "");
     if (!quote) {
-      if (!hospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
+      if (!hospitalName) {
+        const clientTarget = requireClientTarget(context, explicitHospitalName, "계약서");
+        if (!clientTarget.ok) throw new Error(clientTarget.message);
+      }
       quote = await latestResource("quote", { ...context, activeClientName: hospitalName });
     }
     if (!quote) throw new Error("계약서의 기준이 될 견적서를 먼저 만들어주세요.");
     const finalHospitalName = hospitalName || String(quote.hospital_name || "");
-    if (!finalHospitalName) throw new Error("계약서를 만들 고객을 먼저 알려주세요.");
+    if (!finalHospitalName) {
+      const clientTarget = requireClientTarget(context, explicitHospitalName, "계약서");
+      if (!clientTarget.ok) throw new Error(clientTarget.message);
+    }
     const resolvedQuoteId = String(quote.id || quoteId || (context.activeWorkspace === "quote" ? context.activeResourceId : "") || "");
     if (!resolvedQuoteId) throw new Error("계약서의 기준 견적 ID를 확인하지 못했어요.");
     const createResult = await createContractFromQuote(resolvedQuoteId, db);
