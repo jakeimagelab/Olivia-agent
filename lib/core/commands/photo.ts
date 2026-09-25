@@ -1,3 +1,18 @@
+/*
+ * 사진 상태 머신(photo_storage_projects.status)과 워크플로 12단계(workflow_runs.current_step_key)는
+ * 별개다 — 절대 하나로 합치지 않는다. 사진 파이프라인은 잔금·계산서(payment_confirm) 확인 여부와
+ * 무관하게 계속 돌아간다. 아래 표에 없는 조합으로 이 파일이 워크플로 단계를 바꾸지 않는다.
+ *
+ * | 사진 머신 상태 변화                          | 워크플로 단계 영향                                    |
+ * |-----------------------------------------------|--------------------------------------------------------|
+ * | NAS 폴더 감지 → READY                          | shooting → payment_confirm                             |
+ * | 1차 승인 (MERGE_APPROVED)                      | 없음                                                     |
+ * | 2차 승인 (CLASSIFY_APPROVED)                   | 없음                                                     |
+ * | 분류 완료                                       | backup_sorting → client_selection (단, payment_confirm이면 대기) |
+ * | 셀렉 갤러리 생성                                 | backup_sorting → client_selection                       |
+ * | 고객 셀렉 제출                                   | client_selection → raw_matching                         |
+ * | RAW 매칭 완료                                    | → retouching                                            |
+ */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
 import {
