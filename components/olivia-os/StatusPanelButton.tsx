@@ -195,6 +195,24 @@ export function StatusPanelButton() {
                 </div>
               </div>
 
+              <div className={styles.statusPanelCard}>
+                <div className={styles.statusPanelRow}>
+                  {hasFallbackWarning
+                    ? <XCircle size={16} className={styles.statusPanelIconBad} />
+                    : <CheckCircle2 size={16} className={styles.statusPanelIconOk} />}
+                  <div className={styles.statusPanelRowBody}>
+                    <strong>최근 24시간 헤르메스 폴백 {data.hermesFallbackCount24h ?? 0}회</strong>
+                    <span>
+                      {data.hermesFallbackCount24h === null
+                        ? "조회 실패"
+                        : hasFallbackWarning
+                          ? "기본 모델(legacy)로 대신 답한 대화가 있어요 — 채팅에서 배지를 눌러 사유를 확인하세요."
+                          : "지난 24시간 동안 헤르메스가 정상 응답했어요."}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               <div className={styles.statusPanelSection}>
                 <span className={styles.statusPanelSectionTitle}>Core 우회 의심</span>
                 {data.consistencyError ? (
