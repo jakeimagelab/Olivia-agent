@@ -33,8 +33,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const db = getSupabaseAdmin();
   try {
     const run = await getWorkflowRun(db, workflowRunId);
-    await completeOpenStepTasksForManualSave(db, workflowRunId, stepKey);
-    const result = await maybeAdvanceWorkflow(db, workflowRunId, stepKey);
+    const result = await completeStep(workflowRunId, stepKey, db);
+    if (!result.ok) return NextResponse.json({ ok: false, error: result.reason }, { status: 500 });
 
     await recordPcrmActivitySafely(db, {
       clientId: run.client_id ?? undefined,
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       relatedId: workflowRunId,
     });
 
-    return NextResponse.json({ ok: true, workflowRunId, advanced: result.advanced });
+    return NextResponse.json({ ok: true, workflowRunId, advanced: result.value.advanced, reason: result.value.reason });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "최종완료 처리 실패" }, { status: 500 });
   }
