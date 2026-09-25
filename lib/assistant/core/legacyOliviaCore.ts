@@ -1,3 +1,15 @@
+/*
+ * PHASE 4 작업 6(2026-09-25) — 이 파일은 카카오톡·음성 채널 전용 경로입니다.
+ * - 사용처: lib/assistant/core/oliviaCore.ts (processOliviaChannelMessage) →
+ *           app/api/kakao/skill, app/api/kakao/simulator, app/api/assistant/voice/[token],
+ *           lib/assistant/jobs/service.ts(예약 발송 잡)
+ *           그리고 app/api/olivia/route.ts, app/api/olivia/stream/route.ts가 processOliviaRequest를
+ *           직접 불러 쓴다 — 둘 다 현재 웹 프런트가 호출하지 않는 legacy 라우트다.
+ * - 웹 채팅(데스크탑/모바일/태블릿)은 이 파일을 쓰지 않습니다. 웹 채팅의 유일한 엔드포인트는
+ *   app/api/olivia/v2/stream 입니다.
+ * - 새 기능을 여기에 추가하지 마세요. v2 경로(app/api/olivia/v2/*)에 추가하고, 카카오·음성에도
+ *   필요하면 채널 어댑터(oliviaCore.ts)에서 그 로직을 호출하세요.
+ */
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { prepareOliviaAttachmentBlocks } from "@/lib/olivia/attachmentAnalysis";
