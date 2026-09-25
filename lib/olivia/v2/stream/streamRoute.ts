@@ -1,56 +1,38 @@
 import { NextRequest } from "next/server";
-import OpenAI from "openai";
-import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import {
   getOrCreateAssistantConversation,
   listAssistantMessages,
   mergeAssistantConversationMetadata,
   saveAssistantMessage,
-  updateAssistantApprovalBlockState,
 } from "@/lib/assistant/conversations/service";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
-import type { OliviaAgentToolExecution, OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
+import type { OliviaStreamEvent } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
-import { resolveTemporalExpression } from "@/lib/olivia/runtime/temporalResolver";
 import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRequest";
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isReadOnlyOliviaTool, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, resolveRequiredFollowupTool, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
-import { toHermesMemoryEntry } from "@/lib/olivia/memory/format";
-import { executeOliviaToolBatch } from "@/lib/olivia/v2/toolScheduler";
 import { inferPersistentRunClientName, inferPersistentRunType, shouldCreatePersistentAgentRun } from "@/lib/olivia/v2/persistentRunClassifier";
 import { createAgentRun } from "@/lib/olivia/agentRuns/service";
 import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/databaseFastPath";
-import { createStreamingScriptGuard } from "@/lib/olivia/output/scriptSanitizer";
-import { resolveHermesDisplayText } from "@/lib/olivia/output/hermesDisplayText";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
-import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
-import { buildContractRoundConfirmation } from "@/lib/olivia/output/contractConfirmations";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
-import { getOliviaAgentEngine, isClientSearchRequest, isMutationIntent, isUiExecutionIntent } from "@/lib/hermes/client";
-import { BrainUnavailableError, hermesProvider, isBrainFallbackSafe } from "@/lib/assistant/brain";
+import { getOliviaAgentEngine, isUiExecutionIntent } from "@/lib/hermes/client";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
-import { buildHermesRuntime, resourceSessionMetadata } from "@/lib/hermes/runtimeContext";
-import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import {
-  pendingActionBlock,
-  pendingActionFromUiAction,
   pendingActionPromptContext,
   readPendingAction,
   resolvePendingActionContext,
   resolvePendingActionTurn,
-  transitionPendingAction,
-  type OliviaPendingAction,
 } from "@/lib/olivia/conversation/dialogueState";
-import { renderOliviaOutcome, renderVerifiedToolRound, resolveHermesFinalText, toolResultOutcome } from "@/lib/olivia/conversation/response";
 import { isSystemStatusChatRequest } from "@/lib/system-status/chatIntent";
 import { collectSystemStatus } from "@/lib/system-status/service";
 import { formatSystemStatusForChat } from "@/lib/system-status/format";
@@ -61,25 +43,16 @@ import {
   readPendingPhotoDirectExecution,
   shouldGuardPhotoDirectTurn,
 } from "@/lib/photo-storage/directChatExecution";
-import { isClientScopedExecutionRequest, isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
+import { isClientScopedExecutionRequest } from "@/lib/olivia/v2/executionIntent";
 // PHASE 4 작업 5(2026-09-25) — route.ts를 400줄 안팎으로 줄이려고 순수 헬퍼를 lib/olivia/v2/stream/*로
 // 옮겼다. 동작 변경 없음 — 그대로 옮기고 import만 바꿨다.
-import { maxToolRounds } from "@/lib/olivia/v2/stream/turnLimits";
-import { buildSystemPrompt } from "@/lib/olivia/v2/stream/systemPrompt";
 import {
-  type ConversationMessage,
-  contextPrompt,
   normalizeContext,
-  optionalBoolean,
   optionalString,
-  summarizeOlderMessages,
-  toInputMessages,
-  updateWorkingContext,
 } from "@/lib/olivia/v2/stream/contextPrompt";
-import { type StreamingRequest, flushTextAsDeltas, runRoundWithSanitization } from "@/lib/olivia/v2/stream/scriptGuard";
+import { flushTextAsDeltas } from "@/lib/olivia/v2/stream/scriptGuard";
 import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
-import { PHOTO_DIRECT_TOOL_TIMEOUT_MS, PHOTO_DIRECT_TURN_TIMEOUT_MS, executePhotoToolBeforeDeadline } from "@/lib/olivia/v2/stream/photoDirectTool";
-import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadata";
+import { PHOTO_DIRECT_TURN_TIMEOUT_MS, executePhotoToolBeforeDeadline } from "@/lib/olivia/v2/stream/photoDirectTool";
 import {
   clientTargetQuestion,
   resolveTrustedClientProjectContext,

@@ -33,7 +33,9 @@ export default function AnalysisWorkspaceShell({
     <div className={styles.shell} data-analysis-surface={surface}>
       <AnalysisExecutionBar />
       <div className={styles.viewport}>
-        <AnalysisWorkspaceHeader title={title} description={description} eyebrow={eyebrow} target={target} />
+        {surface === "window" ? null : (
+          <AnalysisWorkspaceHeader title={title} description={description} eyebrow={eyebrow} target={target} />
+        )}
         <AnalysisWorkspaceTabs tabs={tabs} value={activeTab} onChange={onTabChange} />
         <div className={styles.body}>{children}</div>
       </div>

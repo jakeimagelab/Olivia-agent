@@ -20,6 +20,7 @@ export function readWorkerDiagnostics(headers: Headers): Partial<WorkerDiagnosti
   const agentstationMounted = optionalBoolean(headers.get("x-olivia-agentstation-mounted"));
   const agentstationAccessible = optionalBoolean(headers.get("x-olivia-agentstation-accessible"));
   const watcherLastScanAt = optionalIsoDate(headers.get("x-olivia-photo-watcher-last-scan-at"));
+  const openAiApiKeyConfigured = optionalBoolean(headers.get("x-olivia-openai-api-key-configured"));
 
   return {
     ...(workstationMounted === undefined ? {} : { workstationMounted }),
@@ -27,6 +28,7 @@ export function readWorkerDiagnostics(headers: Headers): Partial<WorkerDiagnosti
     ...(agentstationMounted === undefined ? {} : { agentstationMounted }),
     ...(agentstationAccessible === undefined ? {} : { agentstationAccessible }),
     ...(watcherLastScanAt === undefined ? {} : { watcherLastScanAt }),
+    ...(openAiApiKeyConfigured === undefined ? {} : { openAiApiKeyConfigured }),
   };
 }
 
@@ -37,5 +39,6 @@ export function workerDiagnosticsToRow(snapshot: Partial<WorkerDiagnosticSnapsho
     ...(snapshot.agentstationMounted === undefined ? {} : { agentstation_mounted: snapshot.agentstationMounted }),
     ...(snapshot.agentstationAccessible === undefined ? {} : { agentstation_accessible: snapshot.agentstationAccessible }),
     ...(snapshot.watcherLastScanAt === undefined ? {} : { watcher_last_scan_at: snapshot.watcherLastScanAt }),
+    ...(snapshot.openAiApiKeyConfigured === undefined ? {} : { openai_api_key_configured: snapshot.openAiApiKeyConfigured }),
   };
 }

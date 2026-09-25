@@ -40,6 +40,8 @@ export type ListRemoteNasFolderOptions = {
 
 /** UI가 의존하는 유일한 조회 계약. 후속 LIST_FOLDER adapter가 이 인터페이스를 구현한다. */
 export interface RemoteNasDataSource {
+  /** Explicit Workstation root lookup. Worker resolves this from SOURCE_ROOT. */
+  listRoot(options?: ListRemoteNasFolderOptions): Promise<RemoteNasFolderResult>;
   listFolder(
     relativePath: string,
     options?: ListRemoteNasFolderOptions,
@@ -47,7 +49,7 @@ export interface RemoteNasDataSource {
 }
 
 export type RemoteNasSelection = {
-  /** Worker에 전달할 원본 상대 경로. Root는 빈 문자열이다. */
+  /** Worker에 전달할 원본 상대 경로. Root selection is represented as an empty path in UI state only. */
   path: string;
   /** 사용자에게 보여줄 NFC 경로. */
   displayPath: string;

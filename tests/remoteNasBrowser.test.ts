@@ -35,7 +35,7 @@ describe("Remote NAS mock data source", () => {
   const dataSource = createMockRemoteNasDataSource({ delayMs: 0 });
 
   it("lists the real-world mock root as read-only folders", async () => {
-    const result = await dataSource.listFolder("");
+    const result = await dataSource.listRoot();
     expect(result.rootName).toBe("Workstation(M.2SSD)");
     expect(result.readOnly).toBe(true);
     expect(result.entries).toHaveLength(9);

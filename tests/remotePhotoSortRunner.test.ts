@@ -149,8 +149,8 @@ describe("remote photo sort runner", () => {
 
     const workShoot = path.join(roots.workRoot, "0913_BLS_GN2");
     await expect(stat(path.join(workShoot, "RAW", "A001.CR2"))).resolves.toBeTruthy();
-    await expect(stat(path.join(workShoot, "JPG", "Scene01", "A001.jpg"))).resolves.toBeTruthy();
-    await expect(stat(path.join(workShoot, "JPG", "Scene02", "A002.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "01_미분류", "A001.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "02_미분류", "A002.jpg"))).resolves.toBeTruthy();
     await expect(stat(path.join(workShoot, "SELECT", "JPG_SELECT"))).resolves.toBeTruthy();
     const summary = JSON.parse(await readFile(path.join(workShoot, "REPORT", "summary.json"), "utf8"));
     expect(summary).toMatchObject({ totalJpg: 2, totalRaw: 1, totalScenes: 2 });
@@ -168,7 +168,7 @@ describe("remote photo sort runner", () => {
     }, { roots });
 
     expect(result.sceneCount).toBe(1);
-    await expect(stat(path.join(workShoot, "JPG", "Scene01", "B001.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "01_미분류", "B001.jpg"))).resolves.toBeTruthy();
   });
 
   it("runs the precise local-feature path without browser Image, Canvas, or Worker APIs", async () => {
@@ -189,8 +189,8 @@ describe("remote photo sort runner", () => {
       }, { roots });
 
       expect(result).toMatchObject({ ok: true, jpgCount: 3, sceneCount: 2 });
-      await expect(stat(path.join(workShoot, "JPG", "01_기타", "C001.jpg"))).resolves.toBeTruthy();
-      await expect(stat(path.join(workShoot, "JPG", "02_기타", "C003.jpg"))).resolves.toBeTruthy();
+      await expect(stat(path.join(workShoot, "JPG", "01_미분류", "C001.jpg"))).resolves.toBeTruthy();
+      await expect(stat(path.join(workShoot, "JPG", "02_미분류", "C003.jpg"))).resolves.toBeTruthy();
     } finally {
       if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalOpenAiKey;

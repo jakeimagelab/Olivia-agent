@@ -183,12 +183,17 @@ function stagePresentation(input: {
 }): { stageLabel: string; summary: string; tone: ShootingProgressTone; actionRequired: boolean } {
   const { stage, project, gallery, rawJob, nowMs } = input;
   if (stage === "backup_sorting") return { stageLabel: "백업·분류", ...projectStatusSummary(project) };
-  if (stage === "original_delivery") return {
-    stageLabel: "1차 전달",
-    summary: "씬 분류가 끝났습니다. 유그린 링크를 등록하면 1차 전달로 넘어갑니다.",
-    tone: "attention",
-    actionRequired: true,
-  };
+  if (stage === "original_delivery") {
+    const warning = typeof project.classification_progress?.warning === "string"
+      ? project.classification_progress.warning
+      : null;
+    return {
+      stageLabel: "1차 전달",
+      summary: warning ?? "씬 분류가 끝났습니다. 유그린 링크를 등록하면 1차 전달로 넘어갑니다.",
+      tone: "attention",
+      actionRequired: true,
+    };
+  }
   if (stage === "client_selection") {
     const selected = Math.max(0, Number(gallery?.selected_count ?? 0));
     return {

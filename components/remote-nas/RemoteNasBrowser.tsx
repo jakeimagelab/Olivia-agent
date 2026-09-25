@@ -123,7 +123,10 @@ export default function RemoteNasBrowser({
     setLoading(true);
     setError("");
     setErrorConnection(null);
-    dataSource.listFolder(currentPath, { signal: controller.signal, foldersOnly })
+    const request = currentPath
+      ? dataSource.listFolder(currentPath, { signal: controller.signal, foldersOnly })
+      : dataSource.listRoot({ signal: controller.signal, foldersOnly });
+    request
       .then((nextResult) => {
         if (!active) return;
         setResult(nextResult);

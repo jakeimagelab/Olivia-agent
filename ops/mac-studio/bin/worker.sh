@@ -75,6 +75,7 @@ poll_once() {
   headers=(
     -H "Authorization: Bearer $WORKER_TOKEN_VALUE"
     -H "x-olivia-worker: $WORKER_ID_VALUE"
+    -H "x-olivia-openai-api-key-configured: $([[ -n "${OPENAI_API_KEY:-}" ]] && print true || print false)"
   )
   if [[ -n "${VERCEL_BYPASS_SECRET:-}" ]]; then
     headers+=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET")

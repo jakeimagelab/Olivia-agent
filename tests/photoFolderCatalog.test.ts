@@ -16,12 +16,18 @@ function file(parent: string, name: string, sizeBytes: number, modifiedAt = "202
 function dataSource(folders: Record<string, RemoteNasEntry[]>): RemoteNasDataSource {
   const rootEntries = Object.keys(folders).map((name) => directory(name));
   return {
+    async listRoot(): Promise<RemoteNasFolderResult> {
+      return {
+        rootName: "Workstation(M.2SSD)", path: "", displayPath: "", entries: rootEntries,
+        connection: { macStudio: "online", nas: "connected", source: "worker" }, readOnly: true,
+      };
+    },
     async listFolder(relativePath): Promise<RemoteNasFolderResult> {
       return {
         rootName: "Workstation(M.2SSD)",
         path: relativePath,
         displayPath: relativePath.normalize("NFC"),
-        entries: relativePath ? folders[relativePath] ?? [] : rootEntries,
+        entries: folders[relativePath] ?? [],
         connection: { macStudio: "online", nas: "connected", source: "worker" },
         readOnly: true,
       };

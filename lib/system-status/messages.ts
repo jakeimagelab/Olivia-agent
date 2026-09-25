@@ -21,6 +21,7 @@ export const SYSTEM_STATUS_GUIDANCE = {
   agentstationPermission: "시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 OliviaWorker.app 권한을 확인하세요.",
   workerDiagnosticsMissing: "Worker가 마운트·접근 상태를 보고하도록 최신 Remote Bridge 설정을 적용하세요.",
   watcherMissing: "Mac Studio의 Photo Storage Watcher 실행 상태와 상태 보고 설정을 확인하세요.",
+  workerOpenAiMissing: "Mac Studio의 ~/OliviaWorker/config/worker.env에 OPENAI_API_KEY를 설정하고 Olivia Worker를 재시작하세요.",
   databaseUnavailable: "Supabase 연결과 service role 환경변수를 확인하세요.",
   requiredTableMissing: (table: string) => `${table} 테이블을 만드는 Supabase migration을 적용하세요.`,
   envMissing: (name: string) => `Vercel 환경변수 ${name}을 설정하세요. 값은 이 진단 결과에 노출되지 않습니다.`,

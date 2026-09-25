@@ -318,6 +318,7 @@ print -n -- '200'
     const curlArguments = await readFile(argumentsFile, "utf8");
     expect(curlArguments).toContain("Authorization: Bearer existing-worker-token");
     expect(curlArguments).toContain("x-olivia-worker: jake-macstudio-01");
+    expect(curlArguments).toContain("x-olivia-openai-api-key-configured: false");
     expect(curlArguments).toContain("https://olivia.example.test/api/worker/next");
   });
 

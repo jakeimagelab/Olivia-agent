@@ -144,6 +144,7 @@ type WorkerDiagnosticRow = {
   agentstation_accessible?: boolean | null;
   watcher_last_scan_at?: string | null;
 };
+type WorkerAiDiagnosticRow = { openai_api_key_configured?: boolean | null };
 
 function mountItem(options: { id: string; label: string; mounted: boolean | null | undefined; remedy: string }): SystemStatusItem {
   if (options.mounted === true) return { id: options.id, group: "mac_studio", label: options.label, level: "ok", state: "MOUNTED" };
@@ -159,9 +160,10 @@ function accessItem(options: { id: string; label: string; mounted: boolean | nul
 
 async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusItem[]> {
   const workerId = getConfiguredWorkerId();
-  const [baseResult, diagnosticsResult, queuedResult] = await Promise.all([
+  const [baseResult, diagnosticsResult, aiDiagnosticsResult, queuedResult] = await Promise.all([
     db.from("remote_workers").select("last_seen_at,worker_status,nas_connected").eq("worker_id", workerId).maybeSingle(),
     db.from("remote_workers").select("workstation_mounted,workstation_accessible,agentstation_mounted,agentstation_accessible,watcher_last_scan_at").eq("worker_id", workerId).maybeSingle(),
+    db.from("remote_workers").select("openai_api_key_configured").eq("worker_id", workerId).maybeSingle(),
     db.from("remote_jobs").select("id", { count: "exact", head: true }).eq("status", "QUEUED"),
   ]);
 
@@ -180,6 +182,9 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
   }
 
   const diagnostics = !diagnosticsResult.error && diagnosticsResult.data ? diagnosticsResult.data as WorkerDiagnosticRow : null;
+  const aiDiagnostics = !aiDiagnosticsResult.error && aiDiagnosticsResult.data
+    ? aiDiagnosticsResult.data as WorkerAiDiagnosticRow
+    : null;
   const diagnosticsUnavailable = Boolean(diagnosticsResult.error && isMissingSchemaObject(diagnosticsResult.error));
   if (diagnosticsResult.error && !diagnosticsUnavailable) console.warn("[system-status] worker diagnostics 조회 실패", diagnosticsResult.error.message);
 
@@ -189,6 +194,12 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
     mountItem({ id: "agentstation_mount", label: "Agentstation 마운트", mounted: diagnostics?.agentstation_mounted, remedy: SYSTEM_STATUS_GUIDANCE.agentstationNotMounted }),
     accessItem({ id: "agentstation_access", label: "Agentstation 접근", mounted: diagnostics?.agentstation_mounted, accessible: diagnostics?.agentstation_accessible, remedy: SYSTEM_STATUS_GUIDANCE.agentstationPermission }),
   );
+
+  items.push(aiDiagnostics?.openai_api_key_configured === true
+    ? { id: "worker_openai_key", group: "mac_studio", label: "Worker 씬 AI", level: "ok", state: "설정됨" }
+    : aiDiagnostics?.openai_api_key_configured === false
+      ? { id: "worker_openai_key", group: "mac_studio", label: "Worker 씬 AI", level: "error", state: "OPENAI_API_KEY 없음", detail: "씬 경계는 시간·로컬 특징으로만 나뉘며 폴더명은 미분류 추정값으로 표시됩니다.", remedy: SYSTEM_STATUS_GUIDANCE.workerOpenAiMissing }
+      : unknownItem("worker_openai_key", "mac_studio", "Worker 씬 AI", "Worker의 OPENAI_API_KEY 설정 여부를 아직 보고받지 못했습니다.", SYSTEM_STATUS_GUIDANCE.workerDiagnosticsMissing));
 
   const watcherIso = diagnostics?.watcher_last_scan_at;
   const watcherMs = watcherIso ? new Date(watcherIso).getTime() : Number.NaN;
@@ -230,6 +241,7 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
       unknownItem("workstation_access", "mac_studio", "Workstation 접근", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("agentstation_mount", "mac_studio", "Agentstation 마운트", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("agentstation_access", "mac_studio", "Agentstation 접근", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
+      unknownItem("worker_openai_key", "mac_studio", "Worker 씬 AI", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("watcher_scan", "mac_studio", "NAS 감지기", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("queued_jobs", "mac_studio", "대기 중인 잡", "Remote job 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
     ];

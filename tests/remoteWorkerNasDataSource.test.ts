@@ -69,7 +69,7 @@ describe("Remote Worker NAS data source", () => {
     const controller = new AbortController();
     controller.abort();
 
-    await expect(source.listFolder("", { signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
+    await expect(source.listRoot({ signal: controller.signal })).rejects.toMatchObject({ name: "AbortError" });
     expect(fetcher).not.toHaveBeenCalled();
   });
 
@@ -90,7 +90,7 @@ describe("Remote Worker NAS data source", () => {
       }));
     const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
 
-    await source.listFolder("", { foldersOnly: true });
+    await source.listRoot({ foldersOnly: true });
 
     expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
       action: "LIST_FOLDER",
@@ -104,7 +104,7 @@ describe("Remote Worker NAS data source", () => {
     }));
     const source = createRemoteWorkerNasDataSource({ fetcher, timeoutMs: 15 });
 
-    await expect(source.listFolder("")).rejects.toMatchObject({
+    await expect(source.listRoot()).rejects.toMatchObject({
       name: "RemoteNasDataSourceError",
       stage: "folder_lookup_job_creation",
       message: expect.stringContaining("잡 생성 시간이 초과"),
@@ -162,12 +162,19 @@ describe("Remote Worker NAS data source", () => {
       }));
     const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
 
-    const promise = source.listFolder("");
+    const promise = source.listRoot();
     await expect(promise).rejects.toBeInstanceOf(RemoteNasDataSourceError);
     await expect(promise).rejects.toMatchObject({
       message: "NAS가 연결되어 있지 않습니다.",
       connection: { macStudio: "online", nas: "unknown", source: "worker" },
     });
+  });
+
+  it("rejects an empty listFolder path before creating a Worker job", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const source = createRemoteWorkerNasDataSource({ fetcher });
+    await expect(source.listFolder("")).rejects.toThrow("listRoot");
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("filters system entries and rejects a different root", () => {

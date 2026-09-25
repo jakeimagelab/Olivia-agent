@@ -10,6 +10,12 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/remote-nas/remoteNasDataSource", () => ({
   createRemoteWorkerNasDataSource: () => ({
+    listRoot: async () => {
+      state.listFolderCalls.push("");
+      const node = state.tree[""];
+      if (!node) throw new Error("no mock folder: ROOT");
+      return { rootName: "NAS", path: "", displayPath: node.displayPath, entries: node.entries, connection: { macStudio: "online", nas: "connected", source: "worker" }, readOnly: true };
+    },
     listFolder: async (path: string) => {
       state.listFolderCalls.push(path);
       const node = state.tree[path];

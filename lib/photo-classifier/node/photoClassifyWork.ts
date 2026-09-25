@@ -7,6 +7,7 @@ import { getStorageRoots } from "./storageConfig";
 import { JPG_INTEGRATED_DIRECTORY, SCENE_CLASSIFIED_DIRECTORY } from "./storageLayout";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { RemotePhotoSortRunnerOptions, RunnerProgress, RunnerRoots } from "./types";
+import type { RunnerWarning } from "./types";
 
 export const PHOTO_CLASSIFY_DEFAULT_OPTIONS: RemotePhotoSortRunnerOptions = {
   shootingMode: "field",
@@ -37,6 +38,7 @@ export type PhotoClassifyWorkSuccess = {
   jpgCount: number;
   sceneCount: number;
   durationMs: number;
+  warnings: RunnerWarning[];
 };
 
 export type PhotoClassifyWorkFailure = {
@@ -225,6 +227,7 @@ export async function runPhotoClassifyWork(
       jpgCount: before.length,
       sceneCount: output.sceneCount,
       durationMs: 0,
+      warnings: [],
     };
   }
 
@@ -287,6 +290,7 @@ export async function runPhotoClassifyWork(
       jpgCount: before.length,
       sceneCount: result.sceneCount,
       durationMs: Date.now() - startedAt,
+      warnings: result.warnings,
     };
   } catch (error) {
     return fail("CLASSIFY_FAILED", before.length, error instanceof Error ? error.message : String(error));

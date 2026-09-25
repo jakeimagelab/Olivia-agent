@@ -107,7 +107,7 @@ export async function findPhotoFolderCandidates(
   const needle = comparable(query);
   if (!needle) throw new OliviaToolError("찾을 촬영 폴더 이름을 알려주세요.", "PHOTO_FOLDER_QUERY_REQUIRED");
 
-  const root = await dataSource.listFolder("", { foldersOnly: true });
+  const root = await dataSource.listRoot({ foldersOnly: true });
   const matches = root.entries
     .filter((entry) => entry.kind === "directory" && comparable(entry.displayName).includes(needle))
     .slice(0, MAX_MATCHES);

@@ -26,4 +26,5 @@ export type WorkerDiagnosticSnapshot = {
   agentstationMounted: boolean | null;
   agentstationAccessible: boolean | null;
   watcherLastScanAt: string | null;
+  openAiApiKeyConfigured: boolean | null;
 };

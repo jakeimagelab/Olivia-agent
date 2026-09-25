@@ -259,11 +259,17 @@ export function createRemoteWorkerNasDataSource(
   const pollIntervalMs = options.pollIntervalMs ?? REMOTE_WORKER_NAS_POLL_INTERVAL_MS;
   const timeoutMs = options.timeoutMs ?? REMOTE_WORKER_NAS_TIMEOUT_MS;
 
-  return {
-    async listFolder(relativePath: string, requestOptions?: ListRemoteNasFolderOptions): Promise<RemoteNasFolderResult> {
+  const fetchFolder = async (
+    relativePath: string,
+    requestOptions?: ListRemoteNasFolderOptions,
+    allowRoot = false,
+  ): Promise<RemoteNasFolderResult> => {
       const externalSignal = requestOptions?.signal;
       const foldersOnly = requestOptions?.foldersOnly === true;
       const path = normalizeRemoteNasRelativePath(relativePath);
+      if (!path && !allowRoot) {
+        throw new Error("NAS 루트 조회는 빈 경로가 아니라 listRoot()를 사용해야 합니다.");
+      }
       throwIfAborted(externalSignal);
       const deadline = createDeadlineSignal(timeoutMs, externalSignal);
       const signal = deadline.signal;
@@ -392,6 +398,14 @@ export function createRemoteWorkerNasDataSource(
       } finally {
         deadline.dispose();
       }
+  };
+
+  return {
+    listRoot(requestOptions) {
+      return fetchFolder("", requestOptions, true);
+    },
+    listFolder(relativePath, requestOptions) {
+      return fetchFolder(relativePath, requestOptions, false);
     },
   };
 }
@@ -486,9 +500,13 @@ function waitForMock(delayMs: number, signal?: AbortSignal): Promise<void> {
 export function createMockRemoteNasDataSource(options: { delayMs?: number } = {}): RemoteNasDataSource {
   const delayMs = options.delayMs ?? 90;
 
-  return {
-    async listFolder(relativePath: string, requestOptions?: ListRemoteNasFolderOptions): Promise<RemoteNasFolderResult> {
+  const fetchFolder = async (
+    relativePath: string,
+    requestOptions?: ListRemoteNasFolderOptions,
+    allowRoot = false,
+  ): Promise<RemoteNasFolderResult> => {
       const path = normalizeRemoteNasRelativePath(relativePath);
+      if (!path && !allowRoot) throw new Error("NAS 루트 조회는 빈 경로가 아니라 listRoot()를 사용해야 합니다.");
       await waitForMock(delayMs, requestOptions?.signal);
 
       const nodes = MOCK_TREE[path];
@@ -504,6 +522,14 @@ export function createMockRemoteNasDataSource(options: { delayMs?: number } = {}
         connection: { macStudio: "online", nas: "connected", source: "mock" },
         readOnly: true,
       };
+  };
+
+  return {
+    listRoot(requestOptions) {
+      return fetchFolder("", requestOptions, true);
+    },
+    listFolder(relativePath, requestOptions) {
+      return fetchFolder(relativePath, requestOptions, false);
     },
   };
 }

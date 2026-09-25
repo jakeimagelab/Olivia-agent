@@ -12,6 +12,7 @@ import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { isContiCoreCompleted } from "@/lib/core/readModels/projectViewState";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 interface ClientOption { id: string; name: string }
 
@@ -24,6 +25,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   onOpenRun: (runId: string) => void;
   onPublished?: () => void;
 }) {
+  const isDesktopWindow = useDesktopWindowMode();
   const [previousOpen, setPreviousOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareStatus, setShareStatus] = useState("");
@@ -177,10 +179,12 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   return (
     <div className={styles.editorWorkspace}>
       <header className={styles.editorHeader}>
-        <div className={styles.editorTitleBlock}>
-          <button type="button" className={styles.iconButton} onClick={onBack} aria-label="입력 화면으로"><ArrowLeft size={17} /></button>
-          <div><span>{linked ? "고객관리 연결됨" : "DRAFT"}</span><h2>{title}</h2><small>{document.scenes.length} Scene · {formatMinutes(totalMinutes)}</small></div>
-        </div>
+        {isDesktopWindow ? null : (
+          <div className={styles.editorTitleBlock}>
+            <button type="button" className={styles.iconButton} onClick={onBack} aria-label="입력 화면으로"><ArrowLeft size={17} /></button>
+            <div><span>{linked ? "고객관리 연결됨" : "DRAFT"}</span><h2>{title}</h2><small>{document.scenes.length} Scene · {formatMinutes(totalMinutes)}</small></div>
+          </div>
+        )}
         <div className={styles.editorActions}>
           <SaveState status={controller.saveStatus} lastSavedAt={controller.lastSavedAt} onRetry={() => void controller.flushSave()} />
           <button type="button" className={styles.secondaryAction} onClick={() => void downloadExcel()}><FileSpreadsheet size={14} />Excel</button>

@@ -48,6 +48,9 @@ function fakeSupabase(options: FakeOptions): SupabaseClient {
                 count: null,
               };
             }
+            if (table === "remote_workers" && columns.includes("openai_api_key_configured")) {
+              return { data: { openai_api_key_configured: true }, error: null, count: null };
+            }
             if (table === "remote_jobs" && selectOptions?.head) {
               return { data: null, error: null, count: 0 };
             }
@@ -114,6 +117,7 @@ describe("Olivia chat 시스템 진단", () => {
       "x-olivia-agentstation-mounted": "false",
       "x-olivia-agentstation-accessible": "false",
       "x-olivia-photo-watcher-last-scan-at": "2026-09-19T01:02:03+09:00",
+      "x-olivia-openai-api-key-configured": "false",
     });
     expect(workerDiagnosticsToRow(readWorkerDiagnostics(headers))).toEqual({
       workstation_mounted: true,
@@ -121,6 +125,33 @@ describe("Olivia chat 시스템 진단", () => {
       agentstation_mounted: false,
       agentstation_accessible: false,
       watcher_last_scan_at: "2026-09-18T16:02:03.000Z",
+      openai_api_key_configured: false,
+    });
+  });
+
+  it("Worker의 OPENAI_API_KEY 누락을 작업 전에 오류로 표시한다", async () => {
+    const now = new Date("2026-09-19T12:00:00+09:00");
+    const db = fakeSupabase({ now: now.toISOString() });
+    const originalFrom = db.from.bind(db);
+    db.from = ((table: string) => {
+      const builder = originalFrom(table);
+      if (table !== "remote_workers") return builder;
+      const originalSelect = builder.select.bind(builder);
+      builder.select = ((columns: string, options?: { count?: string; head?: boolean }) => {
+        if (!columns.includes("openai_api_key_configured")) return originalSelect(columns, options);
+        const query = {
+          eq() { return query; },
+          maybeSingle: async () => ({ data: { openai_api_key_configured: false }, error: null }),
+        };
+        return query as never;
+      }) as typeof builder.select;
+      return builder;
+    }) as typeof db.from;
+    const { collectSystemStatus } = await import("@/lib/system-status/service");
+    const report = await collectSystemStatus({ now, db });
+    expect(report.items.find((item) => item.id === "worker_openai_key")).toMatchObject({
+      level: "error",
+      state: "OPENAI_API_KEY 없음",
     });
   });
 

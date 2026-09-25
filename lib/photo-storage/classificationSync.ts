@@ -64,6 +64,11 @@ export async function syncPhotoClassificationProject(
     if (input.progress?.current !== undefined) patch.classified_jpg_count = input.progress.current;
   } else if (input.jobStatus === "COMPLETED") {
     const result = record(input.result);
+    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    const visibleWarning = warnings.find((warning) => record(warning).userVisible === true);
+    const visibleWarningMessage = typeof record(visibleWarning).message === "string"
+      ? String(record(visibleWarning).message)
+      : undefined;
     status = resultStatus(input.result) === "REVIEW_REQUIRED" ? "REVIEW_REQUIRED" : "CLASSIFY_COMPLETED";
     patch.status = status;
     patch.classification_completed_at = now;
@@ -75,6 +80,7 @@ export async function syncPhotoClassificationProject(
       ?? nonNegativeInteger(result.classifiedJpgCount)
       ?? project.classified_jpg_count
       ?? 0;
+    if (visibleWarningMessage) patch.classification_progress = { ...progress, warning: visibleWarningMessage };
   } else {
     const result = record(input.result);
     status = resultStatus(input.result) === "REVIEW_REQUIRED" ? "REVIEW_REQUIRED" : "CLASSIFY_FAILED";

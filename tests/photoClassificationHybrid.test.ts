@@ -4,7 +4,7 @@ import { buildCandidateSegments, buildVisualBoundaryCandidates, sortTimestampedF
 import { BOUNDARY_WEIGHTS, decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
 import { evaluateSceneBoundaries } from "@/lib/photo-classifier/evaluation/metrics";
-import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
+import { buildFieldScenesFromBoundaries, buildSceneRangesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
 import { parseExifTimestamp } from "@/lib/photo-classifier/timestamp";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import sceneV2GroundTruth from "./fixtures/dermatology-scene-v2-ground-truth.json";
@@ -359,6 +359,23 @@ describe("hybrid photo classification", () => {
     expect(simpleSceneFolderName(1, "consultation")).toBe("01_상담");
     expect(simpleSceneFolderName(2, "treatment")).toBe("02_시술");
     expect(simpleSceneFolderName(3, "profile")).toBe("03_프로필");
+  });
+
+  it("keeps missing AI analysis visibly unclassified instead of silently using 기타", () => {
+    const withoutEstimate = buildSceneRangesFromBoundaries(6, [
+      decision({ boundaryIndex: 3, score: 0.8, decision: "split" }),
+    ]);
+    expect(withoutEstimate.map((scene) => scene.folderName)).toEqual(["01_미분류", "02_미분류"]);
+    expect(withoutEstimate.every((scene) => scene.classificationOrigin === "unclassified")).toBe(true);
+
+    const withDepartmentEstimate = buildSceneRangesFromBoundaries(6, [
+      decision({ boundaryIndex: 3, score: 0.8, decision: "split" }),
+    ], { fallbackSceneType: "treatment" });
+    expect(withDepartmentEstimate.map((scene) => scene.folderName)).toEqual([
+      "01_미분류(추정_시술)",
+      "02_미분류(추정_시술)",
+    ]);
+    expect(withDepartmentEstimate.every((scene) => scene.classificationOrigin === "department_estimate")).toBe(true);
   });
 });
 

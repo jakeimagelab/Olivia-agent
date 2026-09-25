@@ -32,7 +32,9 @@ async function searchRemoteFolder(query: string, basePath: string): Promise<Remo
   async function walk(path: string, depth: number) {
     if (visited >= SEARCH_MAX_FOLDERS_VISITED || depth > SEARCH_MAX_DEPTH || Date.now() > deadline) return;
     visited += 1;
-    const result = await dataSource.listFolder(path, { foldersOnly: false });
+    const result = path
+      ? await dataSource.listFolder(path, { foldersOnly: false })
+      : await dataSource.listRoot({ foldersOnly: false });
     for (const entry of result.entries) {
       if (entry.displayName.toLocaleLowerCase("ko-KR").includes(needle)) matches.push(entry);
     }
@@ -56,7 +58,9 @@ export async function executeRemoteFinderTool(
 
   if (name === "remote_folder_list") {
     const path = text(input, "path");
-    const result = await dataSource.listFolder(path, { foldersOnly: false });
+    const result = path
+      ? await dataSource.listFolder(path, { foldersOnly: false })
+      : await dataSource.listRoot({ foldersOnly: false });
     return {
       tool: name,
       success: true,

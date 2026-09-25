@@ -887,21 +887,21 @@ export default function ReviewStoryWorkspace({ initialReviewId, initialContentId
   return (
     <main ref={workspaceRef} className={styles.workspace} style={workspaceHeight ? { height: workspaceHeight } : undefined}>
       <header className={styles.header}>
-        <div>
-          <nav className={styles.breadcrumb} aria-label="이동 경로">
-            <Link href="/clients/reviews">리뷰 콘텐츠</Link>
-            <span className={styles.breadcrumbSep}>/</span>
-            <span>{source.hospitalName || "새 리뷰"}</span>
-            <span className={styles.breadcrumbSep}>/</span>
-            <span className={styles.breadcrumbCurrent}>콘텐츠 만들기</span>
-          </nav>
-          {!isDesktopWindow && (
+        {!isDesktopWindow ? (
+          <div>
+            <nav className={styles.breadcrumb} aria-label="이동 경로">
+              <Link href="/clients/reviews">리뷰 콘텐츠</Link>
+              <span className={styles.breadcrumbSep}>/</span>
+              <span>{source.hospitalName || "새 리뷰"}</span>
+              <span className={styles.breadcrumbSep}>/</span>
+              <span className={styles.breadcrumbCurrent}>콘텐츠 만들기</span>
+            </nav>
             <>
               <h1 className={styles.title}>리뷰 콘텐츠 만들기</h1>
               <p className={styles.subtitle}>하나의 캔버스에서 편집하고, 같은 디자인으로 PNG와 PDF를 내보냅니다.</p>
             </>
-          )}
-        </div>
+          </div>
+        ) : null}
         <div className={styles.headerActions}>
           {activeContent?.status === "approved" ? <button className={`${styles.button} ${styles.primaryOrange}`} onClick={() => void publish()} disabled={Boolean(busy)}><Send size={14} /><span>Instagram 게시</span></button> : null}
           {activeContent && !["approved", "published"].includes(activeContent.status) ? <button className={styles.button} onClick={() => void approve()} disabled={Boolean(busy)}><Check size={14} /><span>대표 승인</span></button> : null}

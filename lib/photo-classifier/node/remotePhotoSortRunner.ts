@@ -25,6 +25,7 @@ import {
 } from "@/lib/photo-classifier/constants";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
+import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
 import { computeFolderStats, type SceneWeightProfile } from "@/lib/photo-classifier/pattern-analysis";
 import type {
   LocalVisualFeatures,
@@ -49,6 +50,7 @@ import type {
   RemotePhotoSortRunnerInput,
   RemotePhotoSortSuccess,
   RunnerProgress,
+  RunnerWarning,
   RunnerRoots,
 } from "./types";
 import type { analyzeFolderPattern } from "@/lib/photo-classifier/server/folderPatternAi";
@@ -68,12 +70,6 @@ type Operation = {
   status: "completed" | "failed";
   error?: string;
   at: string;
-};
-
-type RunnerWarning = {
-  stage: string;
-  message: string;
-  fileName?: string;
 };
 
 type AiAdapter = {
@@ -214,10 +210,41 @@ function buildFastScenes(entries: NodePhotoEntry[], gapMinutes: number): NodePho
       endTime: files[files.length - 1].mtime,
       files,
       sceneType: null,
+      classificationOrigin: "unclassified",
       aiConfidence: null,
       aiReason: null,
     };
   });
+}
+
+function departmentFallbackSceneType(
+  department: RemotePhotoSortRunnerInput["department"],
+): NodePhotoScene["sceneType"] {
+  return getDepartmentConfig(department).sceneTypes
+    .filter((rule) => rule.sceneType !== "profile" && rule.sceneType !== "etc")
+    .sort((left, right) => right.priority - left.priority)[0]?.sceneType ?? null;
+}
+
+function applyUnavailableAiLabels(
+  scenes: NodePhotoScene[],
+  input: RemotePhotoSortRunnerInput,
+): void {
+  const fallback = input.departmentLogicEnabled
+    ? departmentFallbackSceneType(input.department)
+    : null;
+  const estimatedLabel = fallback
+    ? getDepartmentConfig(input.department).sceneTypes.find((rule) => rule.sceneType === fallback)?.folderName ?? fallback
+    : null;
+  for (const scene of scenes) {
+    scene.sceneType = fallback;
+    scene.classificationOrigin = fallback ? "department_estimate" : "unclassified";
+    scene.folderName = fallback
+      ? `${String(scene.index).padStart(2, "0")}_미분류(추정_${estimatedLabel})`
+      : `${String(scene.index).padStart(2, "0")}_미분류`;
+    scene.editedName = scene.folderName;
+    scene.aiConfidence = null;
+    scene.aiReason = "AI 씬 분석 미실행";
+  }
 }
 
 function representativeIndexes(length: number): number[] {
@@ -273,6 +300,7 @@ async function enrichScenes(
         useHighModel: false,
       });
       scene.sceneType = result.sceneType as NodePhotoScene["sceneType"];
+      scene.classificationOrigin = result.sceneType === "etc" ? "ai_unresolved" : "ai";
       scene.aiConfidence = result.confidence;
       scene.aiReason = result.reason;
       scene.patientPosture = result.patientPosture;
@@ -285,9 +313,15 @@ async function enrichScenes(
         scene.editedName = safeSceneFolderName(suggested, scene.folderName);
       }
     } catch (error) {
+      scene.sceneType = "etc";
+      scene.classificationOrigin = "ai_unresolved";
+      scene.folderName = `${String(scene.index).padStart(2, "0")}_기타`;
+      scene.editedName = scene.folderName;
+      scene.aiConfidence = null;
+      scene.aiReason = error instanceof Error ? error.message : String(error);
       warnings.push({
         stage: "SCENE_ANALYSIS",
-        message: error instanceof Error ? error.message : String(error),
+        message: scene.aiReason,
         fileName: scene.files[0]?.name,
       });
     }
@@ -496,7 +530,10 @@ async function classifyPrecise(
   });
 
   const stabilized = stabilizeBoundaries(decisions, entries.length, settings.minimumSceneImages);
-  const scenes = buildSceneRangesFromBoundaries(entries.length, stabilized).map((range): NodePhotoScene => ({
+  const fallbackSceneType = !process.env.OPENAI_API_KEY && input.departmentLogicEnabled
+    ? departmentFallbackSceneType(input.department) ?? undefined
+    : undefined;
+  const scenes = buildSceneRangesFromBoundaries(entries.length, stabilized, { fallbackSceneType }).map((range): NodePhotoScene => ({
     index: range.index,
     folderName: range.folderName,
     editedName: range.folderName,
@@ -504,6 +541,7 @@ async function classifyPrecise(
     endTime: entries[range.endIndex - 1].mtime,
     files: entries.slice(range.startIndex, range.endIndex),
     sceneType: range.sceneType,
+    classificationOrigin: range.classificationOrigin,
     aiConfidence: range.aiConfidence,
     aiReason: range.boundaryBefore?.reasons.join(" · ") ?? null,
     boundaryBefore: range.boundaryBefore,
@@ -805,6 +843,7 @@ async function organizeWorkCopy(input: {
         endTime: new Date(scene.endTime).toISOString(),
         fileCount: scene.files.length,
         sceneType: scene.sceneType,
+        classificationOrigin: scene.classificationOrigin,
         aiConfidence: scene.aiConfidence,
         aiReason: scene.aiReason,
         files: scene.files.map((entry) => entry.name),
@@ -899,6 +938,7 @@ async function organizeSceneCopy(input: {
         endTime: new Date(scene.endTime).toISOString(),
         fileCount: scene.files.length,
         sceneType: scene.sceneType,
+        classificationOrigin: scene.classificationOrigin,
         aiConfidence: scene.aiConfidence,
         aiReason: scene.aiReason,
         files: scene.files.map((entry) => entry.name),
@@ -946,11 +986,22 @@ export async function runRemotePhotoSortRunner(
 
   const roots = dependencies.roots ?? getStorageRoots();
   const ai: AiAdapter = { ...defaultAi, ...dependencies.ai };
+  // 테스트/호스트가 명시적으로 주입한 Scene analyzer도 실제 분석 가능 경로다. Worker의
+  // 기본 adapter만 사용할 때는 OPENAI_API_KEY가 있어야 하며, 이 둘을 구분해야 주입된
+  // analyzer까지 "AI 미실행"으로 오판하지 않는다.
+  const sceneAnalysisAvailable = Boolean(process.env.OPENAI_API_KEY || dependencies.ai?.scene);
   const prepared = await prepareRemotePhotoWorkFolder({
     sourceFolder: "sourceFolder" in input ? input.sourceFolder : undefined,
     workFolder: "workFolder" in input ? input.workFolder : undefined,
   }, roots, dependencies.onProgress);
   const warnings: RunnerWarning[] = [];
+  if (!sceneAnalysisAvailable) {
+    warnings.push({
+      stage: "SCENE_ANALYSIS",
+      message: "AI 씬 분석이 실행되지 않아 씬 종류를 판별하지 못했습니다 (Worker에 OPENAI_API_KEY 없음). 경계는 시간 규칙과 로컬 특징으로만 나눴습니다.",
+      userVisible: true,
+    });
+  }
 
   const scanned = await scanWorkFolder(prepared.workFolder, input.fastAnalyzeMode, dependencies.onProgress);
   if (!scanned.jpg.length) throw new Error("분류할 JPG/JPEG 파일이 없습니다.");
@@ -963,12 +1014,16 @@ export async function runRemotePhotoSortRunner(
   if (input.fastAnalyzeMode) {
     scenes = buildFastScenes(scanned.jpg, input.gapMinutes);
     decisions = [];
-    await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress);
+    if (sceneAnalysisAvailable) {
+      await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress);
+    } else {
+      applyUnavailableAiLabels(scenes, input);
+    }
   } else {
     const precise = await classifyPrecise(scanned.jpg, input, ai, warnings, dependencies.onProgress);
     scenes = precise.scenes;
     decisions = precise.decisions;
-    if (input.aiNamingEnabled) {
+    if (input.aiNamingEnabled && sceneAnalysisAvailable) {
       await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress, { unresolvedOnly: true });
     }
   }
@@ -1022,5 +1077,6 @@ export async function runRemotePhotoSortRunner(
     sceneCount: scenes.length,
     reviewBoundaryCount: decisions.filter((decision) => decision.needsReview).length,
     durationMs: Date.now() - startedAt,
+    warnings,
   };
 }

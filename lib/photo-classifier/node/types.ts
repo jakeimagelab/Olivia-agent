@@ -4,6 +4,14 @@ import type {
   TimestampSource,
 } from "@/lib/photo-classifier/hybrid-types";
 import type { MedicalDepartment, SceneType } from "@/lib/photo-classifier/types";
+import type { SceneClassificationOrigin } from "@/lib/photo-classifier/scene-builder";
+
+export type RunnerWarning = {
+  stage: string;
+  message: string;
+  fileName?: string;
+  userVisible?: boolean;
+};
 
 export type RemotePhotoSortRunnerOptions = {
   shootingMode: "field" | "studio";
@@ -36,6 +44,7 @@ export type RemotePhotoSortSuccess = {
   sceneCount: number;
   reviewBoundaryCount: number;
   durationMs: number;
+  warnings: RunnerWarning[];
 };
 
 export type RemotePhotoSortFailure = {
@@ -73,6 +82,7 @@ export type NodePhotoScene = {
   endTime: number;
   files: NodePhotoEntry[];
   sceneType: SceneType | null;
+  classificationOrigin: SceneClassificationOrigin;
   aiConfidence: number | null;
   aiReason: string | null;
   patientPosture?: string | null;

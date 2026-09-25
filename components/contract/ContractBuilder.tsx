@@ -6,6 +6,8 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import GlobalHeader from "@/components/GlobalHeader";
+import ActionBar from "@/components/ui/ActionBar";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
@@ -60,6 +62,7 @@ export default function ContractBuilder({
   registerRequestClose?: (fn: () => void) => void;
 } = {}) {
   const isModal = mode === "modal";
+  const isDesktopWindow = isModal && useDesktopWindowMode();
   const previewFrameRef = useRef<HTMLIFrameElement>(null);
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
@@ -883,7 +886,7 @@ export default function ContractBuilder({
             </button>
           </>
         );
-        return isModal ? (
+        return isDesktopWindow ? null : isModal ? (
           <header className="pc-header">
             <div className="pc-header-left">
               <div className="pc-header-brand">
@@ -1047,6 +1050,35 @@ export default function ContractBuilder({
 
         </div>
       </div>
+      {isDesktopWindow ? (
+        <div style={{ position: "sticky", bottom: 0, zIndex: 20 }}>
+          {showDownloadMenu ? (
+            <div style={{
+              position: "absolute", bottom: "100%", right: 20, marginBottom: 4, zIndex: 30,
+              background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10,
+              boxShadow: "0 12px 30px rgba(21,88,85,.14)", minWidth: 120, overflow: "hidden",
+            }}>
+              <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadPdf(); }}
+                style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                PDF
+              </button>
+              <button type="button" onClick={() => { setShowDownloadMenu(false); void downloadExcel(); }}
+                style={{ display: "block", width: "100%", padding: "10px 14px", border: 0, borderTop: `1px solid ${C.border}`, background: "transparent", cursor: "pointer", fontSize: 13, fontWeight: 700, color: C.teal, textAlign: "left" }}>
+                Excel
+              </button>
+            </div>
+          ) : null}
+          <ActionBar
+            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+            actions={[
+              { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" },
+              { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
+              { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
+              { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: "primary" },
+            ]}
+          />
+        </div>
+      ) : null}
     </div>
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>

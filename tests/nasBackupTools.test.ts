@@ -44,11 +44,8 @@ const state = vi.hoisted(() => ({
 }));
 
 function remoteFolders(names = ["0917_청담스시"]): RemoteNasDataSource {
-  return {
-    async listFolder(relativePath) {
-      const entries = relativePath === ""
-        ? names.map((name) => ({ kind: "directory" as const, name, path: name, displayName: name, displayPath: name, sizeBytes: null, modifiedAt: "2026-09-20T00:00:00.000Z" }))
-        : [
+  const list = async (relativePath: string) => {
+      const entries = relativePath === "" ? names.map((name) => ({ kind: "directory" as const, name, path: name, displayName: name, displayPath: name, sizeBytes: null, modifiedAt: "2026-09-20T00:00:00.000Z" })) : [
             { kind: "file" as const, name: "A001.JPG", path: `${relativePath}/A001.JPG`, displayName: "A001.JPG", displayPath: `${relativePath}/A001.JPG`, sizeBytes: 100, modifiedAt: "2026-09-20T00:00:00.000Z" },
             { kind: "file" as const, name: "A001.ARW", path: `${relativePath}/A001.ARW`, displayName: "A001.ARW", displayPath: `${relativePath}/A001.ARW`, sizeBytes: 300, modifiedAt: "2026-09-20T00:00:00.000Z" },
           ];
@@ -60,7 +57,10 @@ function remoteFolders(names = ["0917_청담스시"]): RemoteNasDataSource {
         connection: { macStudio: "online" as const, nas: "connected" as const, source: "worker" as const },
         readOnly: true as const,
       };
-    },
+  };
+  return {
+    listRoot: () => list(""),
+    listFolder: (relativePath) => list(relativePath),
   };
 }
 
@@ -159,12 +159,14 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     const folderName = "0918_중복스캔방지";
     const base = remoteFolders([folderName]);
     const listFolder = vi.fn(base.listFolder.bind(base));
-    const dataSource: RemoteNasDataSource = { listFolder };
+    const listRoot = vi.fn(base.listRoot.bind(base));
+    const dataSource: RemoteNasDataSource = { listRoot, listFolder };
     const dependencies = { dataSource };
 
     const found = await executeNasBackupTool("find_photo_folder", { query: "중복스캔방지" }, context, dependencies);
     expect(found).toMatchObject({ success: true, data: { candidates: [{ sourceRelativePath: folderName }] } });
-    expect(listFolder).toHaveBeenCalledTimes(2);
+    expect(listRoot).toHaveBeenCalledTimes(1);
+    expect(listFolder).toHaveBeenCalledTimes(1);
 
     const started = await executeNasBackupTool("start_photo_source_prep", {
       folderName,
@@ -172,7 +174,8 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     }, context, dependencies);
 
     expect(started).toMatchObject({ success: true, data: { status: "MERGE_APPROVED", createdProject: true } });
-    expect(listFolder).toHaveBeenCalledTimes(2);
+    expect(listRoot).toHaveBeenCalledTimes(1);
+    expect(listFolder).toHaveBeenCalledTimes(1);
   });
 
   it("부분 이름이 여러 폴더에 걸리면 프로젝트 행과 job 의도를 만들지 않는다", async () => {

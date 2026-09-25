@@ -76,7 +76,10 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
   if (!project) {
     const completed = projects.find((candidate) => candidate.status === "CLASSIFY_COMPLETED" && Date.now() - new Date(candidate.updated_at).getTime() < 10 * 60_000);
     if (!completed) return null;
-    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name} · 분류 완료 · {completed.scene_count.toLocaleString("ko-KR")}개 Scene · {completed.classified_jpg_count.toLocaleString("ko-KR")}장</span></div>;
+    const warning = typeof completed.classification_progress?.warning === "string"
+      ? completed.classification_progress.warning
+      : null;
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name} · 분류 완료 · {completed.scene_count.toLocaleString("ko-KR")}개 Scene · {completed.classified_jpg_count.toLocaleString("ko-KR")}장{warning ? <><br /><strong>⚠️ {warning}</strong></> : null}</span></div>;
   }
 
   // 상태 2 — MERGING / MERGE_APPROVED (1/2단계)
