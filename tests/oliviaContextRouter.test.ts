@@ -87,6 +87,35 @@ describe("Olivia Context와 Model Router", () => {
     expect(classifyOliviaRequest("맞아 230만원으로 맞추면 돼", context)).toBe("TOOL_ACTION");
   });
 
+  // PHASE 4 작업 3(2026-09-25) — 정규식(말투)보다 Context(상황)를 먼저 본다.
+  it("문서가 열려 있으면 정규식으로 못 잡는 짧은 발화도 TOOL_ACTION으로 본다", () => {
+    const quoteOpen: OliviaContextSnapshot = { currentDocumentId: "quote-1", currentDocumentType: "quote", recentActions: [], revision: 1 };
+    expect(classifyOliviaRequest("1500으로", quoteOpen)).toBe("TOOL_ACTION");
+
+    const contractOpen: OliviaContextSnapshot = { currentDocumentId: "contract-1", currentDocumentType: "contract", recentActions: [], revision: 1 };
+    expect(classifyOliviaRequest("이대로 해줘", contractOpen)).toBe("TOOL_ACTION");
+  });
+
+  it("아무 Context도 없으면 짧은 발화도 NORMAL_CHAT이다", () => {
+    const context: OliviaContextSnapshot = { recentActions: [], revision: 0 };
+    expect(classifyOliviaRequest("고마워", context)).toBe("NORMAL_CHAT");
+  });
+
+  it("고객이 확정돼 있으면 자원+실행 동사 조합을 TOOL_ACTION으로 본다(문서가 안 열려 있어도)", () => {
+    const clientSelected: OliviaContextSnapshot = { activeClientId: "client-1", recentActions: [], revision: 0 };
+    expect(classifyOliviaRequest("견적 승인해", clientSelected)).toBe("TOOL_ACTION");
+  });
+
+  it("고객이 없어도 실행 동사 자체가 있으면 TOOL_ACTION으로 넘겨 도구가 대상을 되묻게 한다", () => {
+    const noClient: OliviaContextSnapshot = { recentActions: [], revision: 0 };
+    expect(classifyOliviaRequest("견적 승인해", noClient)).toBe("TOOL_ACTION");
+  });
+
+  it("Context가 있어도 20자 넘는 REASONING 요청은 그대로 REASONING이다(회귀 방지)", () => {
+    const context: OliviaContextSnapshot = { currentDocumentId: "quote-1", recentActions: [], revision: 1 };
+    expect(classifyOliviaRequest("이 견적 전체를 다시 깊게 분석해서 전략을 짜줘", context)).toBe("REASONING");
+  });
+
   it("같은 고객·프로젝트·workspace를 다시 동기화해도 revision을 증가시키지 않는다", () => {
     const store = useOliviaContextStore.getState();
     store.setClient("client-1", "히어산부인과");
