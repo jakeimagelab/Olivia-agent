@@ -29,6 +29,7 @@ type StatusPanelData = {
     updatedAt: string;
   }>;
   consistencyError: string | null;
+  hermesFallbackCount24h: number | null;
 };
 
 const CLOSED_POLL_MS = 60_000;
