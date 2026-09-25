@@ -44,6 +44,9 @@ export default function CurrentStepCard({
   const stepName = STEP_NAME[stepKey] || stepKey;
   const appHref = buildStepAppLink({ stepKey, clientId: client.id, workflowRunId: workflowRun.id });
   const isModalStep = MODAL_TOOL_STEPS.has(stepKey);
+  // payment_confirm은 STEP_APP_LINKS에 연결된 앱이 없다 — 계좌 API 연동 전까지는 대표가
+  // 입금 확인 후 수동으로 누르는 버튼 하나가 전부다(PHASE 3, 2026-09-25 작업 1-B).
+  const isPaymentConfirmStep = stepKey === "payment_confirm";
 
   return (
     <section className="pcrm-current-step-card">
@@ -57,7 +60,9 @@ export default function CurrentStepCard({
       </div>
       {!isCompleted && (
         <div className="pcrm-current-step-card__actions">
-          {isModalStep && onOpenToolModal ? (
+          {isPaymentConfirmStep ? (
+            <PaymentConfirmAction workflowRunId={workflowRun.id} onRefresh={onRefresh} />
+          ) : isModalStep && onOpenToolModal ? (
             <button type="button" onClick={() => onOpenToolModal(stepKey as "quote" | "contract" | "conti")} className="pc-btn pc-btn--orange pc-btn--sm">
               관련 앱 열기
             </button>
@@ -67,5 +72,38 @@ export default function CurrentStepCard({
         </div>
       )}
     </section>
+  );
+}
+
+function PaymentConfirmAction({ workflowRunId, onRefresh }: { workflowRunId: string; onRefresh?: () => void }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const confirm = async () => {
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/workflow-runs/${workflowRunId}/complete-step`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stepKey: "payment_confirm" }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "잔금·계산서 확인 처리에 실패했습니다.");
+      onRefresh?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "잔금·계산서 확인 처리에 실패했습니다.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+      <button type="button" onClick={confirm} disabled={submitting} className="pc-btn pc-btn--orange pc-btn--sm">
+        {submitting ? "처리 중..." : "잔금·계산서 확인 완료"}
+      </button>
+      {error && <span style={{ fontSize: 11, color: "#DC2626" }}>{error}</span>}
+    </div>
   );
 }
