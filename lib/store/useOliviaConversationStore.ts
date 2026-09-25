@@ -10,7 +10,7 @@ import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassifi
 // re-export하면서 select_match 등록 side effect를 트리거하기 때문이다.
 import { getInlineTool, hasInProgressInlineTool } from "@/lib/olivia/inline-tools";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
-import type { OliviaMessageBlock, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
+import type { OliviaMessageBlock, OliviaProgressStep, OliviaRunStreamPayload, OliviaStreamEvent, OliviaV2Message } from "@/lib/olivia/v2/types";
 import { mergeConversationMessages } from "@/lib/olivia/conversationTimeline";
 import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
 import { resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
