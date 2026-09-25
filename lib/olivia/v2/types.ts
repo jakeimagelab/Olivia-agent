@@ -24,7 +24,13 @@ export type OliviaMessageBlock =
   | { type: "error"; message: string; retryable: boolean }
   // 촬영일이 지났는데 워크플로우가 아직 "촬영" 단계에 머물러 있는 고객을 홈 채팅에서 먼저
   // 물어보는 카드 — /api/olivia/shoot-confirmations가 감지해서 만든 insight 1건과 대응된다.
-  | { type: "shoot_confirm"; insightId: string; workflowRunId: string; clientName: string; shootDate: string; state?: "pending" | "confirmed" | "snoozed" | "error" };
+  | { type: "shoot_confirm"; insightId: string; workflowRunId: string; clientName: string; shootDate: string; state?: "pending" | "confirmed" | "snoozed" | "error" }
+  // PHASE 4 작업 2(2026-09-25) — guarded 턴(텍스트를 실시간으로 안 흘리는 턴)에서 agent_status/
+  // tool_start/tool_result를 진행 타임라인으로 보여준다. 새 이벤트를 만들지 않고 기존 스트림
+  // 이벤트를 프런트에서 이 블록으로 누적한다(lib/store/useOliviaConversationStore.ts).
+  | { type: "progress"; steps: OliviaProgressStep[] };
+
+export type OliviaProgressStep = { id: string; label: string; state: "active" | "done" | "error" };
 
 export type OliviaMessage = {
   id: string;
@@ -38,6 +44,11 @@ export type OliviaMessage = {
   externalMessageId?: string;
   deliveryStatus?: "queued" | "sent" | "accepted" | "delivered" | "failed";
   attachments?: import("@/lib/olivia/chatAttachments").OliviaChatAttachment[];
+  // PHASE 4 작업 1(2026-09-25) — Hermes 실패 시 legacy로 폴백했는지를 화면에 보이게 한다.
+  // 예전엔 fallbackReason이 서버 로그에만 남아서 대표가 몇 주 뒤에야(HERMES_BASE_URL이
+  // Tailscale IP로 잘못 박혀 있던 사고) 알아챘다 — 이제 message_complete 이벤트로 그대로 보낸다.
+  agentEngine?: "hermes" | "legacy";
+  fallbackReason?: string;
 };
 
 export type OliviaV2Message = OliviaMessage;
