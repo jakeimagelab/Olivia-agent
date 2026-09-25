@@ -3843,6 +3843,7 @@ function PhotoSortingInner({
                   const createData = await createRes.json();
                   if (!createData.ok) throw new Error(createData.error ?? "갤러리 생성 실패");
                   const galleryId = createData.gallery.id;
+                  const advanceReason: string | null = createData.advance?.advanced === false ? (createData.advance.reason ?? null) : null;
 
                   // 2) 실제 JPG 파일 업로드 (씬별, 배치 5장)
                   const allFiles: { handle: FileSystemFileHandle; name: string; sceneName: string; folderName: string; sortOrder: number }[] = [];
