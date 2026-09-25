@@ -16,7 +16,10 @@ export const dynamic = "force-dynamic";
 // client_selection/retouching/final_delivery는 코드 요청서 7차(2026-08-16)의 정합성 점검
 // "지금 완료 처리" 버튼이 쓴다 — 갤러리 등록 시 자동완료(2차 3번 항목)와 같은 함수 쌍을
 // 그대로 재사용하므로 이 라우트에 새 로직 없이 허용 단계만 넓히면 된다.
-const COMPLETABLE_STEP_KEYS = new Set(["contract", "conti", "client_selection", "retouching", "final_delivery"]);
+// shooting/payment_confirm은 PHASE 3(2026-09-25) 작업 1-B — 홈 채팅 "촬영 완료" 확인이 이미
+// 같은 방식으로 shooting을 완료 처리하고, 고객관리 화면의 "잔금·계산서 확인 완료" 버튼이
+// payment_confirm을 완료 처리한다.
+const COMPLETABLE_STEP_KEYS = new Set(["shooting", "payment_confirm", "contract", "conti", "client_selection", "retouching", "final_delivery"]);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: workflowRunId } = await params;
