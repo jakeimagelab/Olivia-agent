@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { getWorkflowDisplayStepKey, STEP_NAME, type ToolOnlyStepKey } from "@/lib/workflow";
 
@@ -15,12 +16,14 @@ export default function CurrentStepCard({
   stepIcon,
   stepDescription,
   onOpenToolModal,
+  onRefresh,
 }: {
   client: Record<string, any>;
   workflowRun: any;
   stepIcon?: string;
   stepDescription?: string;
   onOpenToolModal?: (stepKey: "quote" | "contract" | "conti") => void;
+  onRefresh?: () => void;
 }) {
   if (!workflowRun?.id) {
     return (
