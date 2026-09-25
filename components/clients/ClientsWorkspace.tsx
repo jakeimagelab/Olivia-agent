@@ -758,6 +758,7 @@ function DetailView({
         stepIcon={STEP_INFO[displayStepKey]?.icon}
         stepDescription={STEP_INFO[displayStepKey]?.desc}
         onOpenToolModal={openToolModal}
+        onRefresh={load}
       />
 
       <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭" style={{ marginTop: 14 }}>
