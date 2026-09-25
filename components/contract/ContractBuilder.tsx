@@ -9,6 +9,9 @@ import GlobalHeader from "@/components/GlobalHeader";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import { isContractCoreCompleted } from "@/lib/core/readModels/projectViewState";
 import {
   buildContractHtml,
   CONTRACT_BRAND_CONFIG,
@@ -68,6 +71,7 @@ export default function ContractBuilder({
   const [mailingQueued, setMailingQueued] = useState(false);
   const [mailingNotice, setMailingNotice] = useState("");
   const [contractId, setContractId] = useState<string | null>(null);
+  const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | undefined>(modalWorkflowRunId);
   const [sourceQuoteRecordId, setSourceQuoteRecordId] = useState<string | null>(sourceQuoteId ?? null);
   const [sourceQuoteApproved, setSourceQuoteApproved] = useState<boolean | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -95,12 +99,30 @@ export default function ContractBuilder({
   const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
   const setOliviaPageContext = useOliviaContextStore((state) => state.setPageContext);
   useEffect(() => {
-    if (modalWorkflowRunId) setOliviaProject(modalWorkflowRunId);
+    if (modalWorkflowRunId) {
+      setLinkedWorkflowRunId(modalWorkflowRunId);
+      setOliviaProject(modalWorkflowRunId);
+    }
   }, [modalWorkflowRunId, setOliviaProject]);
+
+  useEffect(() => {
+    if (isModal) return;
+    const workflowRunId = new URLSearchParams(window.location.search).get("workflowRunId") || undefined;
+    if (workflowRunId) setLinkedWorkflowRunId(workflowRunId);
+  }, [isModal]);
 
   const contractDocumentId = resourceId || contractId || undefined;
   const contractContextClientName = quote?.hospitalName || undefined;
   const hasContractQuote = Boolean(quote);
+  const {
+    snapshot: coreSnapshot,
+    refresh: refreshCoreSnapshot,
+  } = useCoreProjectSnapshot(linkedWorkflowRunId);
+  const contractCoreCompleted = Boolean(
+    contractDocumentId
+    && coreSnapshot
+    && isContractCoreCompleted(coreSnapshot, contractDocumentId),
+  );
   useEffect(() => {
     const current = useOliviaContextStore.getState();
     if (current.activeWorkspace !== "contract" || current.activeResourceId !== contractDocumentId) {
@@ -121,18 +143,21 @@ export default function ContractBuilder({
       contractContextClientName ? `${contractContextClientName} 계약서` : "계약서",
       {
         ...(modalClientId ? { clientId: modalClientId, clientName: contractContextClientName } : {}),
-        ...(modalWorkflowRunId ? { projectId: modalWorkflowRunId, projectName: contractContextClientName } : {}),
+        ...(linkedWorkflowRunId ? { projectId: linkedWorkflowRunId, projectName: contractContextClientName } : {}),
       },
     );
+    const canComplete = hasContractQuote && !contractCoreCompleted;
     setOliviaPageContext({
       pageMode: contractDocumentId ? "edit" : "create",
-      capabilities: ["contract.edit", "contract.sign", "contract.publish", "contract.download_pdf"],
-      documentStatus: publishState === "done" ? "published" : "draft",
+      capabilities: ["contract.edit", "contract.sign", "contract.complete", "contract.publish", "contract.download_pdf"],
+      documentStatus: publishState === "done" ? "published" : contractCoreCompleted ? "final" : "draft",
       brand,
-      canEdit: publishState !== "done",
-      canFinalize: hasContractQuote && publishState !== "done",
+      canEdit: !contractCoreCompleted && publishState !== "done",
+      canComplete,
+      canPublish: Boolean(contractDocumentId),
+      canFinalize: canComplete,
     });
-  }, [brand, contractContextClientName, contractDocumentId, hasContractQuote, modalClientId, modalWorkflowRunId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, contractContextClientName, contractCoreCompleted, contractDocumentId, hasContractQuote, linkedWorkflowRunId, modalClientId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
@@ -158,6 +183,7 @@ export default function ContractBuilder({
           const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
           if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
           setContractId(resourceId);
+          if (typeof contract.workflow_run_id === "string") setLinkedWorkflowRunId(contract.workflow_run_id);
           setSourceQuoteRecordId(typeof contract.source_quote_id === "string" ? contract.source_quote_id : null);
           setSourceQuoteApproved(null);
           // deposit_rate/payment_terms/delivery_terms/special_terms는 quote_data(jsonb) 안이
@@ -214,6 +240,7 @@ export default function ContractBuilder({
             setBrand("photoclinic");
           }
           setQuote(loadedQuote);
+          if (typeof sourceQuote.workflow_run_id === "string") setLinkedWorkflowRunId(sourceQuote.workflow_run_id);
           setSourceQuoteApproved(["published", "final"].includes(String(sourceQuote.status || "draft")));
           setOliviaCurrentDocument(undefined, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
             clientId: typeof sourceQuote.client_id === "string" ? sourceQuote.client_id : modalClientId,
@@ -255,6 +282,7 @@ export default function ContractBuilder({
           if (!qResponse.ok || !qRes?.ok) throw new Error(qRes?.error || "견적 정보를 불러오지 못했습니다.");
           if (qRes.ok) {
             const q = qRes.quote;
+            if (typeof q.workflow_run_id === "string") setLinkedWorkflowRunId(q.workflow_run_id);
             setSourceQuoteRecordId(quoteId);
             setSourceQuoteApproved(
               typeof ws.resourceMeta?.quote?.isApproved === "boolean"
@@ -582,6 +610,11 @@ export default function ContractBuilder({
         await navigator.clipboard.writeText(d.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       }
       setPublishState("done");
+      const workflowRunId = effectiveWorkflowRunId(pageParams);
+      if (workflowRunId) {
+        await refreshCoreSnapshot();
+        notifyCoreSnapshotUpdated(workflowRunId);
+      }
       setTimeout(() => setPublishState("idle"), 3000);
       if (isModal) setTimeout(() => { onPublished?.(); onClose?.(); }, 700);
     } catch (e: any) {
@@ -609,11 +642,11 @@ export default function ContractBuilder({
       const d = await r.json().catch(() => null);
       if (!r.ok || !d?.ok) throw new Error(d?.error || "최종완료 처리에 실패했습니다.");
       setCompleteState("done");
-      setTimeout(() => setCompleteState("idle"), 3000);
+      await refreshCoreSnapshot();
+      notifyCoreSnapshotUpdated(workflowRunId);
     } catch (e: any) {
       setError(e.message || "최종완료 처리에 실패했습니다.");
       setCompleteState("error");
-      setTimeout(() => setCompleteState("idle"), 3000);
     }
   };
 
@@ -621,14 +654,14 @@ export default function ContractBuilder({
   const effectiveClientId = (pageParams: URLSearchParams) =>
     isModal ? modalClientId : (pageParams.get("client_id") || pageParams.get("clientId"));
   const effectiveWorkflowRunId = (pageParams: URLSearchParams) =>
-    isModal ? modalWorkflowRunId : pageParams.get("workflowRunId");
+    linkedWorkflowRunId || (isModal ? modalWorkflowRunId : pageParams.get("workflowRunId"));
 
   const handleSave = async (): Promise<string | null> => {
     if (!quote) return null;
     setSaveState("saving");
     setError("");
     const pageParams = new URLSearchParams(isModal ? "" : window.location.search);
-    const linkIds = isModal ? { clientId: modalClientId, workflowRunId: modalWorkflowRunId } : {
+    const linkIds = isModal ? { clientId: modalClientId, workflowRunId: linkedWorkflowRunId || modalWorkflowRunId } : {
       clientId: effectiveClientId(pageParams) ?? undefined,
       workflowRunId: effectiveWorkflowRunId(pageParams) ?? undefined,
     };
@@ -668,6 +701,8 @@ export default function ContractBuilder({
         savedId = createdId;
         await persistContractContent(createdId);
         setContractId(createdId);
+        if (typeof created.workflowRunId === "string") setLinkedWorkflowRunId(created.workflowRunId);
+        else if (linkIds.workflowRunId) setLinkedWorkflowRunId(linkIds.workflowRunId);
       } else {
         const r = await fetch("/api/contracts", {
           method: "POST",
@@ -683,6 +718,8 @@ export default function ContractBuilder({
         const d = await r.json();
         if (!d.ok) throw new Error(d.error);
         setContractId(d.id);
+        if (typeof d.workflowRunId === "string") setLinkedWorkflowRunId(d.workflowRunId);
+        else if (linkIds.workflowRunId) setLinkedWorkflowRunId(linkIds.workflowRunId);
         savedId = d.id;
       }
       setSaveState("saved");
@@ -821,13 +858,13 @@ export default function ContractBuilder({
                 </div>
               )}
             </div>
-            <button onClick={completeContractStep} disabled={completeState === "completing"} className="pc-btn pc-btn--sm"
+            <button onClick={completeContractStep} disabled={completeState === "completing" || contractCoreCompleted} className="pc-btn pc-btn--sm"
               style={{
-                background: completeState === "done" ? undefined : "#155855",
-                color: completeState === "done" ? "#16a34a" : "#fff",
+                background: contractCoreCompleted || completeState === "done" ? undefined : "#155855",
+                color: contractCoreCompleted || completeState === "done" ? "#16a34a" : "#fff",
                 borderColor: completeState === "error" ? C.orange : undefined,
               }}>
-              {completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
+              {contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "최종완료 처리 중..." : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "✕ 완료 실패" : "최종완료"}
             </button>
             <button onClick={publishToPortal} disabled={publishState === "publishing"} className="pc-btn pc-btn--secondary pc-btn--sm"
               style={{

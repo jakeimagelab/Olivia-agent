@@ -8,6 +8,7 @@ import { findExactDocumentClient, registerTemporaryDocument } from "@/lib/olivia
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { completeConti } from "@/lib/core/commands/document";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
+import { contiCompletionSummary } from "@/lib/olivia/v2/completionMessages";
 
 type ContiPayload = CanonicalContiPayload;
 
@@ -101,6 +102,10 @@ export async function executeContiV2Tool(name: string, input: Record<string, unk
       workflowRunId: context.activeProjectId,
     }, getSupabaseAdmin());
     if (!completion.ok) throw new OliviaToolError(completion.reason, completion.code ?? "CONTI_COMPLETE_FAILED", completion.details);
+    const summary = contiCompletionSummary({
+      idempotent: completion.idempotent,
+      currentStepName: completion.value.currentStepName,
+    });
     return {
       tool: name,
       success: true,
@@ -108,7 +113,7 @@ export async function executeContiV2Tool(name: string, input: Record<string, unk
         resourceId: runId,
         ...completion.value,
         idempotent: completion.idempotent ?? false,
-        summary: "콘티를 최종완료하고 촬영 단계로 이동했어요.",
+        summary,
       },
       verification: createVerification({
         executed: true,

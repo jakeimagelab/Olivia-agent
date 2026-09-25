@@ -40,6 +40,8 @@ export type OliviaPageContext = {
   documentStatus?: string;
   brand?: string;
   canEdit?: boolean;
+  canComplete?: boolean;
+  canPublish?: boolean;
   canFinalize?: boolean;
 };
 
@@ -83,6 +85,8 @@ export type OliviaContextState = {
   documentStatus?: string;
   brand?: string;
   canEdit?: boolean;
+  canComplete?: boolean;
+  canPublish?: boolean;
   canFinalize?: boolean;
 
   setClient: (id?: string, name?: string) => void;
@@ -164,6 +168,8 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
       documentStatus: contextChanged ? undefined : state.documentStatus,
       brand: contextChanged ? undefined : state.brand,
       canEdit: contextChanged ? undefined : state.canEdit,
+      canComplete: contextChanged ? undefined : state.canComplete,
+      canPublish: contextChanged ? undefined : state.canPublish,
       canFinalize: contextChanged ? undefined : state.canFinalize,
       currentDocumentId: contextChanged ? undefined : state.currentDocumentId,
       currentDocumentType: contextChanged ? undefined : state.currentDocumentType,
@@ -338,6 +344,8 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     documentStatus: undefined,
     brand: undefined,
     canEdit: undefined,
+    canComplete: undefined,
+    canPublish: undefined,
     canFinalize: undefined,
     revision: state.revision + 1,
   })),
@@ -367,6 +375,8 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     documentStatus: undefined,
     brand: undefined,
     canEdit: undefined,
+    canComplete: undefined,
+    canPublish: undefined,
     canFinalize: undefined,
     currentDocumentId: undefined,
     currentDocumentType: undefined,
@@ -410,6 +420,8 @@ export function getOliviaContextSnapshot(pathname?: string) {
     documentStatus: state.documentStatus,
     brand: state.brand,
     canEdit: state.canEdit,
+    canComplete: state.canComplete,
+    canPublish: state.canPublish,
     canFinalize: state.canFinalize,
   };
 }
@@ -438,6 +450,8 @@ export function buildOliviaPageContext(pathname?: string): string {
     documentStatus: context.documentStatus,
     brand: context.brand,
     canEdit: context.canEdit,
+    canComplete: context.canComplete,
+    canPublish: context.canPublish,
     canFinalize: context.canFinalize,
     recentActions: context.recentActions.slice(-4).map((action) => action.type),
     currentDocument: context.currentDocumentId

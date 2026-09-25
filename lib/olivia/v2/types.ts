@@ -84,6 +84,8 @@ export type OliviaContextSnapshot = {
   documentStatus?: string;
   brand?: string;
   canEdit?: boolean;
+  canComplete?: boolean;
+  canPublish?: boolean;
   canFinalize?: boolean;
   /** 현재 turn의 사용자 원문. 견적 모드처럼 원문 단어 자체가 규칙인 domain guard에서만 사용한다. */
   currentRequestText?: string;

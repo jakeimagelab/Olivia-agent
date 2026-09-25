@@ -8,6 +8,10 @@ import ContiPreviousDrawer from "@/components/conti/v2/ContiPreviousDrawer";
 import ContiResultTable from "@/components/conti/v2/ContiResultTable";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import styles from "@/components/conti/v2/ContiV2.module.css";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import { isContiCoreCompleted } from "@/lib/core/readModels/projectViewState";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 interface ClientOption { id: string; name: string }
 
@@ -30,6 +34,52 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
   const [completeError, setCompleteError] = useState("");
   const document = controller.document;
+  const activeWorkflowRunId = workflowRunId || document?.run.workflow_run_id || undefined;
+  const activeContiId = document?.run.id;
+  const activeClientId = document?.run.hospital_id || clientId || undefined;
+  const activeClientName = document?.run.hospital_name || undefined;
+  const {
+    snapshot: coreSnapshot,
+    refresh: refreshCoreSnapshot,
+  } = useCoreProjectSnapshot(activeWorkflowRunId);
+  const contiCoreCompleted = Boolean(
+    activeContiId
+    && coreSnapshot
+    && isContiCoreCompleted(coreSnapshot, activeContiId),
+  );
+  const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
+  const setOliviaPageContext = useOliviaContextStore((state) => state.setPageContext);
+
+  useEffect(() => {
+    if (!activeContiId) return;
+    setOliviaCurrentDocument(
+      activeContiId,
+      "conti",
+      `${activeClientName || "고객"} 촬영 콘티`,
+      {
+        clientId: activeClientId,
+        clientName: activeClientName,
+        projectId: activeWorkflowRunId,
+        projectName: activeClientName,
+      },
+    );
+    setOliviaPageContext({
+      pageMode: "edit",
+      capabilities: [
+        "conti.edit",
+        "conti.add_scene",
+        "conti.reorder_scene",
+        "conti.remove_scene",
+        "conti.complete",
+        "conti.publish",
+      ],
+      documentStatus: contiCoreCompleted ? "final" : "draft",
+      canEdit: !contiCoreCompleted,
+      canComplete: !contiCoreCompleted,
+      canPublish: true,
+      canFinalize: !contiCoreCompleted,
+    });
+  }, [activeClientId, activeClientName, activeContiId, activeWorkflowRunId, contiCoreCompleted, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     if (!linkOpen || clients.length) return;
@@ -100,7 +150,6 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   }
 
   async function completeWorkflowStep() {
-    const activeWorkflowRunId = workflowRunId || activeDocument.run.workflow_run_id || "";
     if (!activeWorkflowRunId) return;
     setCompleteState("completing"); setCompleteError("");
     try {
@@ -116,6 +165,8 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
       const body = await response.json().catch(() => ({}));
       if (!response.ok || !body.ok) throw new Error(body.error ?? "최종완료 처리에 실패했습니다.");
       setCompleteState("done");
+      await refreshCoreSnapshot();
+      notifyCoreSnapshotUpdated(activeWorkflowRunId);
       onPublished?.();
     } catch (caught) {
       setCompleteError(caught instanceof Error ? caught.message : "최종완료 처리에 실패했습니다.");
@@ -140,7 +191,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
           </div>
           <button type="button" className={styles.secondaryAction} onClick={onOpenField}><Tablet size={14} />현장뷰</button>
           <button type="button" className={styles.primarySaveAction} disabled={savingLink} onClick={() => void saveCanonical()}><Save size={14} />{savingLink ? "저장 중…" : "저장하기"}</button>
-          {(workflowRunId || activeDocument.run.workflow_run_id) ? <button type="button" className={`${styles.secondaryAction} ${completeState === "done" ? styles.completeActionDone : ""}`} disabled={completeState === "completing" || completeState === "done"} onClick={() => void completeWorkflowStep()}><CheckCircle2 size={14} />{completeState === "completing" ? "완료 처리 중…" : completeState === "done" ? "최종완료됨" : completeState === "error" ? "다시 완료" : "최종완료"}</button> : null}
+          {activeWorkflowRunId ? <button type="button" className={`${styles.secondaryAction} ${contiCoreCompleted || completeState === "done" ? styles.completeActionDone : ""}`} disabled={completeState === "completing" || contiCoreCompleted} onClick={() => void completeWorkflowStep()}><CheckCircle2 size={14} />{contiCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중…" : completeState === "done" ? "✓ 최종완료됨" : completeState === "error" ? "다시 완료" : "최종완료"}</button> : null}
         </div>
       </header>
 

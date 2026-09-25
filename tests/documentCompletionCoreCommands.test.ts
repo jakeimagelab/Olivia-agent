@@ -63,10 +63,16 @@ function snapshot(input: {
   contract?: { id: string; status: string } | null;
   conti?: { id: string } | null;
 }) {
+  const stepNames: Record<string, string> = {
+    contract: "계약서 작성 / 전달",
+    conti: "콘티 작성 / 전달",
+    shooting: "촬영",
+    retouching: "보정",
+  };
   return {
     ok: true,
     value: {
-      workflow: { currentStep: input.step },
+      workflow: { currentStep: input.step, currentStepName: stepNames[input.step] ?? input.step },
       resources: {
         contract: input.contract === undefined
           ? { id: "contract-1", status: "draft" }
@@ -102,7 +108,7 @@ describe("completeContract", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      value: { contractId: "contract-1", workflowRunId: "run-1", status: "final", advanced: true },
+      value: { contractId: "contract-1", workflowRunId: "run-1", status: "final", advanced: true, currentStep: "conti", currentStepName: "콘티 작성 / 전달" },
     });
     expect(db.tables.contracts[0].status).toBe("final");
     expect(db.tables.pcrm_publications).toHaveLength(0);
@@ -165,7 +171,7 @@ describe("completeContract", () => {
 
     const result = await completeContract("contract-1", {}, db as never);
 
-    expect(result).toMatchObject({ ok: true, idempotent: true, value: { advanced: false, status: "final" } });
+    expect(result).toMatchObject({ ok: true, idempotent: true, value: { advanced: false, status: "final", currentStep: "shooting", currentStepName: "촬영" } });
     expect(dependencies.advance).not.toHaveBeenCalled();
   });
 });
@@ -185,7 +191,7 @@ describe("completeConti", () => {
 
     const result = await completeConti("conti-1", { workflowRunId: "run-1" }, db as never);
 
-    expect(result).toMatchObject({ ok: true, value: { contiId: "conti-1", workflowRunId: "run-1", advanced: true } });
+    expect(result).toMatchObject({ ok: true, value: { contiId: "conti-1", workflowRunId: "run-1", advanced: true, currentStep: "shooting", currentStepName: "촬영" } });
     expect(db.tables.pcrm_publications).toHaveLength(0);
     expect(dependencies.completeTasks).toHaveBeenCalledWith(db, "run-1", "conti");
   });
@@ -256,7 +262,7 @@ describe("completeConti", () => {
 
     const result = await completeConti("conti-1", {}, db as never);
 
-    expect(result).toMatchObject({ ok: true, idempotent: true, value: { advanced: false } });
+    expect(result).toMatchObject({ ok: true, idempotent: true, value: { advanced: false, currentStep: "retouching", currentStepName: "보정" } });
     expect(dependencies.advance).not.toHaveBeenCalled();
   });
 });

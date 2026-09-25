@@ -54,6 +54,8 @@ describe("Olivia Context와 Model Router", () => {
       documentStatus: "draft",
       brand: "jakeimage",
       canEdit: true,
+      canComplete: false,
+      canPublish: true,
       canFinalize: true,
     });
 
@@ -64,8 +66,31 @@ describe("Olivia Context와 Model Router", () => {
       documentStatus: "draft",
       brand: "jakeimage",
       canEdit: true,
+      canComplete: false,
+      canPublish: true,
       canFinalize: true,
     });
+  });
+
+  it("완료/공개 capability를 page clear, context clear, workspace 변경에서 정리한다", () => {
+    const store = useOliviaContextStore.getState();
+    store.setWorkspace("contract", "contract-1");
+    store.setPageContext({ canComplete: false, canPublish: true });
+    expect(useOliviaContextStore.getState()).toMatchObject({ canComplete: false, canPublish: true });
+
+    store.clearPageContext();
+    expect(useOliviaContextStore.getState().canComplete).toBeUndefined();
+    expect(useOliviaContextStore.getState().canPublish).toBeUndefined();
+
+    store.setPageContext({ canComplete: true, canPublish: false });
+    store.setWorkspace("conti", "conti-1");
+    expect(useOliviaContextStore.getState().canComplete).toBeUndefined();
+    expect(useOliviaContextStore.getState().canPublish).toBeUndefined();
+
+    store.setPageContext({ canComplete: true, canPublish: true });
+    store.clearContext();
+    expect(useOliviaContextStore.getState().canComplete).toBeUndefined();
+    expect(useOliviaContextStore.getState().canPublish).toBeUndefined();
   });
 
   it("열린 Resource/Selection이 있으면 짧은 금액 명령을 TOOL_ACTION으로 분류한다", () => {

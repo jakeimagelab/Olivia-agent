@@ -253,6 +253,8 @@ export async function completeContract(
   workflowRunId: string;
   status: string;
   advanced: boolean;
+  currentStep: string;
+  currentStepName: string;
 }>> {
   try {
     const { data: contract, error: contractError } = await db.from("contracts")
@@ -288,7 +290,15 @@ export async function completeContract(
       return {
         ok: true,
         idempotent: true,
-        value: { contractId, clientId, workflowRunId, status: "final", advanced: false },
+        value: {
+          contractId,
+          clientId,
+          workflowRunId,
+          status: "final",
+          advanced: false,
+          currentStep: before.value.workflow.currentStep,
+          currentStepName: before.value.workflow.currentStepName,
+        },
       };
     }
     if (isWorkflowBefore(before.value.workflow.currentStep, "contract")) {
@@ -351,7 +361,15 @@ export async function completeContract(
     });
     return {
       ok: true,
-      value: { contractId, clientId, workflowRunId, status: "final", advanced: completion.value.advanced },
+      value: {
+        contractId,
+        clientId,
+        workflowRunId,
+        status: "final",
+        advanced: completion.value.advanced,
+        currentStep: after.value.workflow.currentStep,
+        currentStepName: after.value.workflow.currentStepName,
+      },
     };
   } catch (error) {
     return commandFailure(error, "계약서 최종완료 처리에 실패했습니다.");
@@ -391,6 +409,8 @@ export async function completeConti(
   clientId: string | null;
   workflowRunId: string;
   advanced: boolean;
+  currentStep: string;
+  currentStepName: string;
 }>> {
   try {
     const { data: canonical, error: canonicalError } = await db.from("conti_runs")
@@ -448,7 +468,14 @@ export async function completeConti(
       return {
         ok: true,
         idempotent: true,
-        value: { contiId, clientId: resource.clientId, workflowRunId, advanced: false },
+        value: {
+          contiId,
+          clientId: resource.clientId,
+          workflowRunId,
+          advanced: false,
+          currentStep: before.value.workflow.currentStep,
+          currentStepName: before.value.workflow.currentStepName,
+        },
       };
     }
     if (isWorkflowBefore(before.value.workflow.currentStep, "conti")) {
@@ -491,7 +518,14 @@ export async function completeConti(
     }
     return {
       ok: true,
-      value: { contiId, clientId: resource.clientId, workflowRunId, advanced: completion.value.advanced },
+      value: {
+        contiId,
+        clientId: resource.clientId,
+        workflowRunId,
+        advanced: completion.value.advanced,
+        currentStep: after.value.workflow.currentStep,
+        currentStepName: after.value.workflow.currentStepName,
+      },
     };
   } catch (error) {
     return commandFailure(error, "콘티 최종완료 처리에 실패했습니다.");

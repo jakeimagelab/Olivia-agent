@@ -81,11 +81,15 @@ export function normalizeContext(value: unknown): OliviaContextSnapshot {
     documentStatus: optionalString(input.documentStatus),
     brand: optionalString(input.brand),
     canEdit: optionalBoolean(input.canEdit),
+    canComplete: optionalBoolean(input.canComplete),
+    canPublish: optionalBoolean(input.canPublish),
     canFinalize: optionalBoolean(input.canFinalize),
   };
 }
 
 export function contextPrompt(context: OliviaContextSnapshot, pageContext?: string, temporalHint?: string) {
+  const effectiveCanComplete = context.canComplete ?? context.canFinalize;
+  const effectiveCanPublish = context.canPublish ?? context.canFinalize;
   const lines = [
     "판단 우선순위: 현재 PageContext > 실제 Tool/DB 결과 > 최근 Agent Context > 대화 텍스트 > 추론. 현재 PageContext와 충돌하는 값을 추측하지 않는다.",
     temporalHint ? `해석된 날짜(코드가 계산함 — 이 값을 그대로 쓴다): ${temporalHint}` : null,
@@ -109,9 +113,11 @@ export function contextPrompt(context: OliviaContextSnapshot, pageContext?: stri
     context.documentStatus ? `현재 문서 상태: ${context.documentStatus}` : null,
     context.brand ? `현재 브랜드: ${context.brand} — 대화에서 다른 브랜드를 추측하지 않는다.` : null,
     typeof context.canEdit === "boolean" ? `현재 수정 가능: ${context.canEdit ? "예" : "아니오"}` : null,
-    typeof context.canFinalize === "boolean" ? `현재 최종 승인 가능: ${context.canFinalize ? "예" : "아니오"}` : null,
+    typeof effectiveCanComplete === "boolean" ? `현재 내부 최종완료 가능: ${effectiveCanComplete ? "예" : "아니오"}` : null,
+    typeof effectiveCanPublish === "boolean" ? `현재 포털 공개 가능: ${effectiveCanPublish ? "예" : "아니오"}` : null,
     context.canEdit === false ? "현재 페이지 종속 수정 Tool을 실행하지 말고 수정 불가 상태를 안내한다." : null,
-    context.canFinalize === false ? "현재 문서의 최종 승인/공개 Tool을 실행하지 않는다." : null,
+    effectiveCanComplete === false ? "현재 문서의 내부 최종완료 Tool을 실행하지 않는다." : null,
+    effectiveCanPublish === false ? "현재 문서의 고객 포털 공개 Tool을 실행하지 않는다." : null,
     context.recentActions.length
       ? `최근 UI Action: ${context.recentActions.slice(-4).map((action) => action.type).join(" → ")}`
       : null,

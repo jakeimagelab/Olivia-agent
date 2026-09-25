@@ -21,6 +21,7 @@ import {
   resolveProgressToolCall,
 } from "@/lib/olivia/v2/progressTimeline";
 import { normalizePersistedAgentEngine } from "@/lib/olivia/v2/fallbackMetadata";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
 
@@ -523,6 +524,14 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
               : message),
           }));
           notifyAgentCenter();
+          if (event.success && (event.tool === "complete_contract" || event.tool === "complete_conti_v2")) {
+            const completion = event.result && typeof event.result === "object" && !Array.isArray(event.result)
+              ? event.result as { workflowRunId?: unknown }
+              : undefined;
+            if (typeof completion?.workflowRunId === "string") {
+              notifyCoreSnapshotUpdated(completion.workflowRunId);
+            }
+          }
           if (event.success && CALENDAR_MUTATION_TOOLS.has(event.tool) && typeof window !== "undefined") {
             const result = event.result && typeof event.result === "object" && !Array.isArray(event.result)
               ? event.result as { taskId?: string; resourceId?: string }

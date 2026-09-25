@@ -8,6 +8,7 @@ import { createVerification } from "./verification";
 import { completeContract, createContractFromQuote, publishContract } from "@/lib/core/commands/document";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
+import { contractCompletionSummary } from "@/lib/olivia/v2/completionMessages";
 
 async function loadContractRow(id: string) {
   const db = getSupabaseAdmin();
@@ -166,6 +167,10 @@ export async function executeContractTool(
       workflowRunId: context.activeProjectId,
     }, db);
     if (!completion.ok) throw new OliviaToolError(completion.reason, completion.code ?? "CONTRACT_COMPLETE_FAILED", completion.details);
+    const summary = contractCompletionSummary({
+      idempotent: completion.idempotent,
+      currentStepName: completion.value.currentStepName,
+    });
     return {
       tool: name,
       success: true,
@@ -173,7 +178,7 @@ export async function executeContractTool(
         resourceId,
         ...completion.value,
         idempotent: completion.idempotent ?? false,
-        summary: "계약서를 최종완료하고 콘티 단계로 이동했어요.",
+        summary,
       },
       verification: createVerification({
         executed: true,
