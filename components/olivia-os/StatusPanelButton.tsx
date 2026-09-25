@@ -140,7 +140,7 @@ export function StatusPanelButton() {
         onClick={() => setOpen((current) => !current)}
       >
         <Server size={15} />
-        {hasWarning || hasPendingWork || hasCoreWarning ? <span className={styles.statusPanelWarningDot} /> : null}
+        {hasWarning || hasPendingWork || hasCoreWarning || hasFallbackWarning ? <span className={styles.statusPanelWarningDot} /> : null}
       </button>
       <div className={styles.statusPanel} role="dialog" aria-label="시스템 상태" hidden={!open}>
           <div className={styles.statusPanelHeader}>
