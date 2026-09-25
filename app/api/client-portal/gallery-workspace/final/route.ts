@@ -71,6 +71,9 @@ export async function POST(req: NextRequest) {
     const workflowRunId = context.session.workflowRunId!;
     if (!workflowRun) return pcrmError("연결된 프로젝트 진행 정보를 찾을 수 없습니다.", 404);
     if (workflowRun.current_step_key !== "reward") {
+      // to_step_key: "reward" 고정은 의도된 다단계 점프다 — 고객이 최종 납품을 확정하면
+      // final_delivery/revision 중 어디에 있든(위 28행 가드가 이 셋만 허용) 그 사이 단계를
+      // 굳이 하나씩 거치지 않고 바로 마지막 단계로 넘어간다(고객 최종 확정 = 전체 완료).
       const advanced = await advanceWorkflow(context.db, {
         workflow_run_id: workflowRunId,
         from_step_key: workflowRun.current_step_key,
