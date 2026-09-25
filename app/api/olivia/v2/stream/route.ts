@@ -1,10 +1,6 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
-import type {
-  ResponseCreateParamsStreaming,
-  ResponseInputItem,
-  ResponseStreamEvent,
-} from "openai/resources/responses/responses";
+import type { ResponseInputItem } from "openai/resources/responses/responses";
 import { ensurePrimaryAssistantOwner } from "@/lib/assistant/owners/service";
 import {
   getOrCreateAssistantConversation,
@@ -18,10 +14,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
-import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import type { OliviaAgentToolExecution, OliviaContextSnapshot, OliviaStreamEvent, OliviaToolCall, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
-import type { OliviaRuntimeContext } from "@/lib/olivia/runtime/types";
 import { resolveTemporalExpression } from "@/lib/olivia/runtime/temporalResolver";
 import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRequest";
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
@@ -29,13 +23,12 @@ import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
 import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isReadOnlyOliviaTool, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
-import { formatMemoryForPrompt, toHermesMemoryEntry } from "@/lib/olivia/memory/format";
-import type { OliviaMemoryRow } from "@/lib/olivia/memory/types";
+import { toHermesMemoryEntry } from "@/lib/olivia/memory/format";
 import { executeOliviaToolBatch } from "@/lib/olivia/v2/toolScheduler";
 import { inferPersistentRunClientName, inferPersistentRunType, shouldCreatePersistentAgentRun } from "@/lib/olivia/v2/persistentRunClassifier";
 import { createAgentRun } from "@/lib/olivia/agentRuns/service";
 import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/databaseFastPath";
-import { createStreamingScriptGuard, detectAbnormalScript, isWellFormedHistoryText } from "@/lib/olivia/output/scriptSanitizer";
+import { createStreamingScriptGuard } from "@/lib/olivia/output/scriptSanitizer";
 import { resolveHermesDisplayText } from "@/lib/olivia/output/hermesDisplayText";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { buildQuoteRoundConfirmation } from "@/lib/olivia/output/quoteConfirmations";
