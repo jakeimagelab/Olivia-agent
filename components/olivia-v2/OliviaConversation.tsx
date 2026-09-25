@@ -28,6 +28,36 @@ import {
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
 const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "메모 남겨줘"];
 
+// PHASE 4 작업 1(2026-09-25) — Hermes 실패 시 legacy로 폴백했음을 접었다 펼치는 배지로 보여준다.
+// 사유는 lib/hermes/client.ts의 단계별 타임아웃 문구(connect/first_event/idle/total)를 그대로
+// 쓴다 — 이미 자연어라 새로 다듬지 않는다.
+function FallbackBadge({ reason }: { reason: string }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="olivia-fallback-badge">
+      <button type="button" className="olivia-fallback-badge__toggle" onClick={() => setExpanded((value) => !value)}>
+        ⚠️ 헤르메스 응답 실패 — 기본 모델로 답했습니다 · {expanded ? "접기" : "사유 보기"}
+      </button>
+      {expanded ? <p className="olivia-fallback-badge__reason">{reason}</p> : null}
+    </div>
+  );
+}
+
+// PHASE 4 작업 2 — guarded 턴에서 텍스트 대신(또는 텍스트가 나오기 전) 보여주는 진행 타임라인.
+function ProgressTimeline({ steps }: { steps: Extract<OliviaMessageBlock, { type: "progress" }>["steps"] }) {
+  if (!steps.length) return null;
+  return (
+    <div className="olivia-progress-timeline">
+      {steps.map((step) => (
+        <div key={step.id} className={`olivia-progress-timeline__step is-${step.state}`}>
+          <span className="olivia-progress-timeline__step-icon">{step.state === "active" ? "●" : step.state === "error" ? "✗" : "✓"}</span>
+          <span>{step.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function openDesktopResource(block: Extract<OliviaMessageBlock, { type: "resource_card" }>) {
   const workspace = block.resourceType === "storyboard"
     ? "conti"
