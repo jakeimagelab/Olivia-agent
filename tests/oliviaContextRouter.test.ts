@@ -111,9 +111,11 @@ describe("Olivia Context와 Model Router", () => {
     expect(classifyOliviaRequest("견적 승인해", noClient)).toBe("TOOL_ACTION");
   });
 
-  it("Context가 있어도 20자 넘는 REASONING 요청은 그대로 REASONING이다(회귀 방지)", () => {
+  it("문서가 열려 있어도 20자 이하 REASONING 요청은 TOOL_ACTION으로 새지 않는다(회귀 방지)", () => {
+    // "전체 분석해줘"는 7자라 hasShortOpenTargetUtterance 조건(길이<=20 + currentDocumentId)에도
+    // 그대로 걸린다 — REASONING_PATTERN을 Context 규칙보다 먼저 봐야만 이 테스트가 통과한다.
     const context: OliviaContextSnapshot = { currentDocumentId: "quote-1", recentActions: [], revision: 1 };
-    expect(classifyOliviaRequest("이 견적 전체를 다시 깊게 분석해서 전략을 짜줘", context)).toBe("REASONING");
+    expect(classifyOliviaRequest("전체 분석해줘", context)).toBe("REASONING");
   });
 
   it("같은 고객·프로젝트·workspace를 다시 동기화해도 revision을 증가시키지 않는다", () => {
