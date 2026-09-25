@@ -119,8 +119,9 @@ export async function executeQuoteTool(
   }
 
   if (name === "create_quote") {
-    const hospitalName = text(input, "hospitalName") || context.activeClientName;
-    if (!hospitalName) throw new Error("견적을 만들 고객을 먼저 알려주세요.");
+    const clientTarget = requireClientTarget(context, text(input, "hospitalName"), "견적서");
+    if (!clientTarget.ok) throw new Error(clientTarget.message);
+    const hospitalName = clientTarget.clientName;
 
     // 새 고객은 문서 내용 승인 뒤에만 등록한다. 현재 컨텍스트에 이미 확정된 고객이 있으면
     // 그대로 연결하고, 그렇지 않으면 원본 견적부터 만든 뒤 공통 임시문서 등록기가 정확 일치
