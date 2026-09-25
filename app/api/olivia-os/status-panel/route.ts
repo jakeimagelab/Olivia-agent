@@ -73,5 +73,6 @@ export async function GET(request: NextRequest) {
     recentJobs: jobsRows,
     coreBypassIssues,
     consistencyError,
+    hermesFallbackCount24h,
   });
 }
