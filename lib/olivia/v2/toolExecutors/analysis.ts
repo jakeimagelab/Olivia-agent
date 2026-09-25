@@ -17,8 +17,9 @@ async function getClient(clientId: string) {
 async function resolveClient(input: Record<string, unknown>, context: OliviaContextSnapshot) {
   let clientId = text(input, "clientId") || context.activeClientId;
   if (!clientId) {
-    const name = text(input, "hospitalName") || context.activeClientName;
-    if (!name) throw new Error("분석할 고객을 먼저 알려주세요.");
+    const clientTarget = requireClientTarget(context, text(input, "hospitalName"), "분석");
+    if (!clientTarget.ok) throw new Error(clientTarget.message);
+    const name = clientTarget.clientName;
     const found = await searchOliviaClients(name);
     if (found.clients.length !== 1) throw new Error(found.clients.length ? "비슷한 고객이 여러 곳이에요. 고객을 먼저 확정해주세요." : "등록된 고객을 찾지 못했어요.");
     clientId = found.clients[0].id;
