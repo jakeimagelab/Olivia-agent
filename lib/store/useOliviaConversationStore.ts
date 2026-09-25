@@ -481,10 +481,25 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           scheduleDeltaFlush(set, responseId);
         } else if (event.type === "agent_status") {
           lastAgentStatus = event.status.replace(/[…\s]+$/g, "") || "응답 생성";
-          set({ agentStatus: event.status });
+          set((state) => ({
+            agentStatus: event.status,
+            messages: state.messages.map((message) => message.id === responseId
+              ? { ...message, blocks: appendProgressStatus(message.blocks, event.status) }
+              : message),
+          }));
         } else if (event.type === "tool_start") {
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
+          set((state) => ({
+            messages: state.messages.map((message) => message.id === responseId
+              ? { ...message, blocks: attachToolCallToProgress(message.blocks, event.toolCallId) }
+              : message),
+          }));
         } else if (event.type === "tool_result") {
+          set((state) => ({
+            messages: state.messages.map((message) => message.id === responseId
+              ? { ...message, blocks: resolveProgressToolResult(message.blocks, event.toolCallId, event.success) }
+              : message),
+          }));
           notifyAgentCenter();
           if (event.success && CALENDAR_MUTATION_TOOLS.has(event.tool) && typeof window !== "undefined") {
             const result = event.result && typeof event.result === "object" && !Array.isArray(event.result)
