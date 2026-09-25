@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { completeOpenStepTasksForManualSave, getWorkflowRun, maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
 import { getErrorMessage } from "@/lib/errors";
 import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { logPortalEvent } from "@/lib/clientPortal";
+import { registerGallery } from "@/lib/core/commands/workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
