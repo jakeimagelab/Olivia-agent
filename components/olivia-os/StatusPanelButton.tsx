@@ -126,6 +126,8 @@ export function StatusPanelButton() {
     || Boolean(data?.recentBackups.some((backup) => backup.status === "PENDING"));
   const hasWarning = data ? data.worker.online === false || data.worker.nas_connected === false : false;
   const hasCoreWarning = Boolean(data?.coreBypassIssues?.length || data?.consistencyError);
+  // PHASE 4 작업 1 R3(2026-09-25) — 폴백이 한 번이라도 있으면 대표가 그날 안에 알아야 한다.
+  const hasFallbackWarning = Boolean(data?.hermesFallbackCount24h);
 
   return (
     <div className={styles.statusPanelGroup} ref={panelRef}>
