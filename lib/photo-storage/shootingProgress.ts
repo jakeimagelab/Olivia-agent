@@ -449,6 +449,27 @@ export async function syncClassificationCompletedWorkflow(
     await advanceShootingIfCurrent(db, project.workflow_run_id);
     run = await getWorkflowRun(db, project.workflow_run_id);
   }
+
+  // 사진 분류 자체(이 함수를 부르는 시점엔 이미 끝난 상태)는 잔금·계산서 확인과 무관하게 계속
+  // 돌아간다 — 사진 상태 머신과 워크플로 12단계는 별개다(lib/core/commands/photo.ts 상단 표 참고).
+  // 여기서는 "워크플로 단계 표시"만 잔금 확인 전까지 backup_sorting으로 넘기지 않고 대기시킨다.
+  if (run.current_step_key === "payment_confirm") {
+    await emitOliviaEvent(db, {
+      eventType: "workflow.blocked",
+      eventSource: "photo_storage_watcher",
+      clientId: run.client_id ?? null,
+      projectId: run.project_id ?? null,
+      workflowRunId: run.id,
+      payload: { stepKey: "payment_confirm", waitingFor: "payment_confirm" },
+      deduplicationKey: createEventDeduplicationKey("workflow.blocked", run.id, "payment_confirm"),
+    });
+    await db.from("workflow_runs").update({
+      next_action: "잔금·계산서 확인 후 분류 단계로 진행",
+      updated_at: new Date().toISOString(),
+    }).eq("id", run.id);
+    return;
+  }
+
   if (run.current_step_key === "backup_sorting") {
     await completeOpenStepTasksForManualSave(db, project.workflow_run_id, "backup_sorting");
     await advanceWorkflow(db, {
