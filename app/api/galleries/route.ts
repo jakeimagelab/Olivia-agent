@@ -297,84 +297,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, gallery });
     }
 
-    const { data: gallery, error: galleryError } = await supabase
-      .from("photo_galleries")
-      .insert({
-        hospital_name: hospitalName,
-        contact_name: contactName || "",
-        contact_email: contactEmail || "",
-        shoot_date: shootDate || null,
-        nas_link: nasLink,
-        description: description || "",
-        client_id: client_id || null,
-        workflow_run_id: workflow_run_id || null,
-        gallery_type: galleryTypeValue,
-      })
-      .select()
-      .single();
-
-    if (galleryError) throw galleryError;
-
     // clients.original_photos_link / retouched_photos_link 반영은 DB 트리거(trg_sync_gallery_to_client)가 처리한다.
 
     const autoThumbnailUrl = thumbnailUrl || await extractThumbnailFromNasLink(nasLink);
 
-    const cleanItems = autoThumbnailUrl
-      ? [
-          {
-            gallery_id: gallery.id,
-            title: "대표 이미지",
-            thumbnail_url: autoThumbnailUrl,
-            nas_file_url: nasLink,
-            sort_order: 0
-          }
-        ]
-      : items.filter((item) => item.thumbnailUrl || item.nasFileUrl || item.title).map((item, index) => ({
-        gallery_id: gallery.id,
-        title: item.title || `썸네일 ${index + 1}`,
-        thumbnail_url: item.thumbnailUrl || "",
-        nas_file_url: item.nasFileUrl || nasLink,
-        sort_order: index
-      }));
-
-    if (cleanItems.length) {
-      const { error: itemsError } = await supabase.from("photo_gallery_items").insert(cleanItems);
-      if (itemsError) throw itemsError;
-    }
-
-    // ── 자동 후처리 (client_id가 있을 때만) ───────────────────
-    // 코드 요청서 2차(2026-08-16) 1·3번 항목 — 메일 초안 자동 생성은 워크플로우 진행 조건에서
-    // 완전히 제외됐다(메일링은 앞으로 독립 기능으로만 존재). 대신 gallery_type에 맞춰 실제
-    // 워크플로우 단계를 자동 완료·전진시킨다: 원본(원본사진/원본영상) 등록 → client_selection
-    // 완료, 완료본(완료사진/완료영상) 등록 → 지금 단계가 retouching이면 final_delivery로,
-    // final_delivery면 revision으로. 두 단계를 한 번에 건너뛰지 않도록 현재 단계를 먼저 확인한 뒤
-    // 그 단계만 완료 처리한다(completeOpenStepTasksForManualSave/maybeAdvanceWorkflow는 현재
-    // 단계와 다르면 안전하게 아무 것도 안 한다 — 중복/오전진 걱정 없음).
-    if (gallery && client_id && workflow_run_id) {
-      const isOriginalType = galleryTypeValue === "original" || galleryTypeValue === "original_photo" || galleryTypeValue === "original_video";
-      const isFinalType = galleryTypeValue === "retouched" || galleryTypeValue === "final_photo" || galleryTypeValue === "final_video";
-      if (isOriginalType || isFinalType) {
-        try {
-          const run = await getWorkflowRun(supabase, workflow_run_id);
-          let targetStep: string | null = null;
-          if (isOriginalType && run.current_step_key === "client_selection") targetStep = "client_selection";
-          else if (isFinalType && (run.current_step_key === "retouching" || run.current_step_key === "final_delivery")) targetStep = run.current_step_key;
-          if (targetStep) {
-            await completeOpenStepTasksForManualSave(supabase, workflow_run_id, targetStep);
-            await maybeAdvanceWorkflow(supabase, workflow_run_id, targetStep);
-          }
-        } catch (err) {
-          console.error("[galleries-api] 워크플로우 자동 완료 실패", err);
-        }
-      }
-    }
+    // 원본 갤러리 등록 = 1차 납품, 완료본 갤러리 등록 = 2차 납품이다. 갤러리 등록(DB insert)
+    // 자체와 그 뒤의 워크플로 단계 전진은 registerGallery Command 안에서 이미 분리돼 있다 —
+    // 여기서는 그 결과(advance)를 그대로 응답에 실어서 전진 실패를 console로만 삼키지 않는다
+    // (PHASE 3 작업 2, 2026-09-25. 예전엔 이 블록 전체가 try/catch로 감싸져 console.error만
+    // 찍고 조용히 넘어갔다 — 갤러리는 등록됐는데 시스템은 아직 납품 전으로 아는 사고였다).
+    const result = await registerGallery({
+      hospitalName, contactName, contactEmail, shootDate, nasLink, description,
+      thumbnailUrl: autoThumbnailUrl, items, clientId: client_id, workflowRunId: workflow_run_id,
+      galleryType: galleryTypeValue,
+    }, supabase);
+    if (!result.ok) return NextResponse.json({ ok: false, error: result.reason }, { status: 500 });
+    const { gallery, advance } = result.value;
 
     // 고객 포털에 "새 소식" 기록 (실제 발송 채널은 아직 미확정 — 로그인 시 포털에서 확인 가능)
-    if (gallery && client_id) {
+    if (client_id) {
       await logPortalEvent({ clientId: client_id, eventType: "gallery_ready", targetType: "photo_galleries", targetId: gallery.id, workflowRunId: workflow_run_id || null }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
 
-    return NextResponse.json({ ok: true, gallery });
+    return NextResponse.json({ ok: true, gallery, advance });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: getErrorMessage(error) },
