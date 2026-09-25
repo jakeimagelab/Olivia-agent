@@ -9,26 +9,38 @@ const workflow = vi.hoisted(() => ({
   completedTasks: [] as string[],
 }));
 
-vi.mock("@/lib/workflowAutomation", () => ({
-  getWorkflowRun: async () => ({ ...workflow.run }),
-  advanceWorkflow: async (_db: unknown, input: Row) => {
-    workflow.advances.push(input);
-    workflow.run.current_step_key = input.to_step_key;
-    return { skipped: false, from_step_key: input.from_step_key, to_step_key: input.to_step_key, created: [] };
-  },
-  ensureStepRun: async (_db: unknown, workflowRunId: string, stepKey: string, status: string) => {
-    const key = `${workflowRunId}:${stepKey}`;
-    const existing = workflow.stepRuns.get(key);
-    if (existing) return existing;
-    const created = { id: `step-${stepKey}`, workflow_run_id: workflowRunId, step_key: stepKey, status };
-    workflow.stepRuns.set(key, created);
-    return created;
-  },
-  completeOpenStepTasksForManualSave: async (_db: unknown, _workflowRunId: string, stepKey: string) => {
-    workflow.completedTasks.push(stepKey);
-  },
-  buildNextAction: (stepKey: string) => `next:${stepKey}`,
-}));
+vi.mock("@/lib/workflowAutomation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/workflowAutomation")>();
+  const advanceWorkflow = async (_db: unknown, input: Row) => {
+    // completeShoot()가 to_step_key 없이 부르므로(PHASE 3 작업 1-B/3), 실제 getNextWorkflowStep으로
+    // 다음 단계를 계산한다 — 기존처럼 backup_sorting을 아무 데서나 하드코딩하지 않는다.
+    const toStepKey = input.to_step_key ?? actual.getNextWorkflowStep(input.from_step_key);
+    workflow.advances.push({ ...input, to_step_key: toStepKey });
+    workflow.run.current_step_key = toStepKey;
+    return { skipped: false, from_step_key: input.from_step_key, to_step_key: toStepKey, created: [] };
+  };
+  const maybeAdvanceWorkflow = async (db: unknown, workflowRunId: string, stepKey: string) => {
+    const result = await advanceWorkflow(db, { workflow_run_id: workflowRunId, from_step_key: stepKey, reason: "auto" });
+    return { advanced: true as const, result };
+  };
+  return {
+    getWorkflowRun: async () => ({ ...workflow.run }),
+    advanceWorkflow,
+    maybeAdvanceWorkflow,
+    ensureStepRun: async (_db: unknown, workflowRunId: string, stepKey: string, status: string) => {
+      const key = `${workflowRunId}:${stepKey}`;
+      const existing = workflow.stepRuns.get(key);
+      if (existing) return existing;
+      const created = { id: `step-${stepKey}`, workflow_run_id: workflowRunId, step_key: stepKey, status };
+      workflow.stepRuns.set(key, created);
+      return created;
+    },
+    completeOpenStepTasksForManualSave: async (_db: unknown, _workflowRunId: string, stepKey: string) => {
+      workflow.completedTasks.push(stepKey);
+    },
+    buildNextAction: (stepKey: string) => `next:${stepKey}`,
+  };
+});
 
 function createDb(initial: Record<string, Row[]>) {
   const tables = Object.fromEntries(Object.entries(initial).map(([name, rows]) => [name, rows.map((row) => ({ ...row }))]));
