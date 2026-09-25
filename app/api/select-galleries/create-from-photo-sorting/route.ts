@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
+import { advanceWorkflow } from "@/lib/workflowAutomation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,20 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (!title) return NextResponse.json({ ok: false, error: "title 필수" }, { status: 400 });
+
+    let workflowRun: { id: string; current_step_key: string } | null = null;
+    if (workflowRunId) {
+      const { data: run, error: runError } = await sb.from("workflow_runs")
+        .select("id,current_step_key")
+        .eq("id", workflowRunId)
+        .maybeSingle();
+      if (runError) throw runError;
+      if (!run) return NextResponse.json({ ok: false, error: "연결된 프로젝트 진행 정보를 찾을 수 없습니다." }, { status: 404 });
+      if (!["backup_sorting", "client_selection"].includes(run.current_step_key)) {
+        return NextResponse.json({ ok: false, error: `현재 ${run.current_step_key} 단계에서는 셀렉 갤러리를 만들 수 없습니다.` }, { status: 409 });
+      }
+      workflowRun = run;
+    }
 
     // 고객 정보 자동 조회
     let clientInfo: any = null;
@@ -88,12 +103,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 워크플로우 단계를 client_selection으로 업데이트
-    if (workflowRunId) {
-      await sb
-        .from("workflow_runs")
-        .update({ current_step_key: "client_selection", updated_at: new Date().toISOString() })
-        .eq("id", workflowRunId);
+    // 분류 결과가 실제 셀렉 갤러리로 생성된 뒤에만 기존 Workflow Command로 전진한다.
+    if (workflowRun && workflowRun.current_step_key !== "client_selection") {
+        const advanced = await advanceWorkflow(sb, {
+          workflow_run_id: workflowRun.id,
+          from_step_key: "backup_sorting",
+          to_step_key: "client_selection",
+          reason: "셀렉 갤러리 생성",
+        });
+        if (advanced.skipped) throw new Error(advanced.reason || "프로젝트 단계가 변경되었습니다.");
     }
 
     return NextResponse.json({ ok: true, gallery, shareToken });

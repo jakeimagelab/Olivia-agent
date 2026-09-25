@@ -2276,6 +2276,7 @@
 .olivia-mission-bar__title { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-width: 0; }
 .olivia-mission-bar__label { color: #81928D; font-size: 12px; font-weight: 500; white-space: nowrap; }
 .olivia-mission-bar__title strong { color: #243632; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.olivia-mission-bar__context-notice { color: #B45309; font-size: 10.5px; font-weight: 700; line-height: 1.3; }
 .olivia-mission-bar__badge { flex: 0 0 auto; border-radius: 999px; padding: 3px 10px; background: var(--olivia-mint); color: var(--olivia-green); font-size: 10.5px; font-weight: 600; margin-top: 2px; }
 .olivia-mission-bar__metric { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .olivia-mission-bar__metric-label { display: inline-flex; align-items: center; gap: 4px; color: #81928D; font-size: 12px; font-weight: 500; white-space: nowrap; }

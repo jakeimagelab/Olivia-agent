@@ -435,6 +435,19 @@
   background: #fff;
   border: 1px solid rgba(21, 88, 85, .08);
 }
+.statusPanelListButton {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
 .statusPanelListName {
   min-width: 0;
   overflow: hidden;

@@ -31,27 +31,39 @@ export default function OliviaChatContextBanner() {
   const mode = useWorkspaceStore((state) => state.mode);
   const clientName = useWorkspaceStore((state) => state.clientName);
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
+  const targetLabel = activeClientName || "선택되지 않음";
 
   if (effective && windowTitle) {
-    const label = activeClientName ? `${windowTitle} · ${activeClientName}` : windowTitle;
     return (
       <div className="olivia-chat-context-banner">
-        <span>● {label}</span>
+        <span>지금 대상: {targetLabel} · 현재 창: {windowTitle}</span>
         <button type="button" onClick={() => focusWindow(effective.windowId)}>
           창 보기
         </button>
       </div>
     );
   }
-  if (mode !== "split" || !type) return null;
+  if (mode !== "split" || !type) {
+    return (
+      <div className="olivia-chat-context-banner">
+        <span>지금 대상: {targetLabel}</span>
+      </div>
+    );
+  }
   const entry = workspaceRegistry[type];
-  if (!entry) return null;
+  if (!entry) {
+    return (
+      <div className="olivia-chat-context-banner">
+        <span>지금 대상: {targetLabel}</span>
+      </div>
+    );
+  }
 
   const label = workspaceTitle || `${clientName ? `${clientName} ` : ""}${entry.label}`;
 
   return (
     <div className="olivia-chat-context-banner">
-      <span>현재 작업 · {label}</span>
+      <span>지금 대상: {targetLabel} · 현재 작업: {label}</span>
       <button type="button" onClick={() => executeOliviaAction({ type: "ENTER_FULLSCREEN" })}>
         전체화면으로 열기
       </button>

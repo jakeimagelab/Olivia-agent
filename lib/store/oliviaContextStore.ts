@@ -23,6 +23,13 @@ export type ConversationEntity = {
 
 export type EntityAlias = { type: string; id: string; name: string };
 
+export type OliviaContextLink = {
+  clientId?: string;
+  clientName?: string;
+  projectId?: string;
+  projectName?: string;
+};
+
 export type OliviaPageMode = "create" | "edit" | "view" | "list";
 
 export type OliviaPageContext = {
@@ -87,7 +94,8 @@ export type OliviaContextState = {
   rememberEntity: (entity: Omit<ConversationEntity, "lastMentionedAt">) => void;
   setAlias: (alias: string, ref: EntityAlias) => void;
   setLastToolIntent: (tool?: string, intent?: string) => void;
-  setCurrentDocument: (id?: string, type?: string, title?: string) => void;
+  setContextLink: (link: OliviaContextLink) => void;
+  setCurrentDocument: (id?: string, type?: string, title?: string, link?: OliviaContextLink) => void;
   setCurrentDocumentTotal: (total?: number, dirty?: boolean) => void;
   setPageContext: (context: OliviaPageContext) => void;
   setSelectedRow: (id?: string) => void;
@@ -236,15 +244,64 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     lastIntent: intent,
     revision: state.revision + 1,
   })),
-  setCurrentDocument: (id, type, title) => set((state) => {
+  setContextLink: (link) => set((state) => {
+    const nextClientId = Object.hasOwn(link, "clientId") ? link.clientId : state.activeClientId;
+    const nextClientName = Object.hasOwn(link, "clientName") ? link.clientName : state.activeClientName;
+    const nextProjectId = Object.hasOwn(link, "projectId") ? link.projectId : state.activeProjectId;
+    const nextProjectName = Object.hasOwn(link, "projectName") ? link.projectName : state.activeProjectName;
+    if (
+      nextClientId === state.activeClientId
+      && nextClientName === state.activeClientName
+      && nextProjectId === state.activeProjectId
+      && nextProjectName === state.activeProjectName
+    ) return state;
+    const alias = nextClientName ? deriveAlias(nextClientName) : null;
+    let recentEntities = state.recentEntities;
+    if (nextClientId) recentEntities = rememberEntityIn(recentEntities, { type: "client", id: nextClientId, name: nextClientName });
+    if (nextProjectId) recentEntities = rememberEntityIn(recentEntities, { type: "project", id: nextProjectId, name: nextProjectName });
+    return {
+      activeClientId: nextClientId,
+      activeClientName: nextClientName,
+      activeProjectId: nextProjectId,
+      activeProjectName: nextProjectName,
+      aliases: alias && nextClientId && nextClientName
+        ? { ...state.aliases, [alias]: { type: "client", id: nextClientId, name: nextClientName } }
+        : state.aliases,
+      recentEntities,
+      lastAction: "setContextLink",
+      revision: state.revision + 1,
+    };
+  }),
+  setCurrentDocument: (id, type, title, link) => set((state) => {
     const documentChanged = id !== state.currentDocumentId || type !== state.currentDocumentType;
-    if (!documentChanged && title === state.currentDocumentTitle) return state;
+    const nextClientId = link && Object.hasOwn(link, "clientId") ? link.clientId : state.activeClientId;
+    const nextClientName = link && Object.hasOwn(link, "clientName") ? link.clientName : state.activeClientName;
+    const nextProjectId = link && Object.hasOwn(link, "projectId") ? link.projectId : state.activeProjectId;
+    const nextProjectName = link && Object.hasOwn(link, "projectName") ? link.projectName : state.activeProjectName;
+    const contextChanged = nextClientId !== state.activeClientId
+      || nextClientName !== state.activeClientName
+      || nextProjectId !== state.activeProjectId
+      || nextProjectName !== state.activeProjectName;
+    if (!documentChanged && title === state.currentDocumentTitle && !contextChanged) return state;
+    const alias = nextClientName ? deriveAlias(nextClientName) : null;
+    let recentEntities = state.recentEntities;
+    if (nextClientId) recentEntities = rememberEntityIn(recentEntities, { type: "client", id: nextClientId, name: nextClientName });
+    if (nextProjectId) recentEntities = rememberEntityIn(recentEntities, { type: "project", id: nextProjectId, name: nextProjectName });
     return {
       currentDocumentId: id,
       currentDocumentType: type,
       currentDocumentTitle: title,
+      activeClientId: nextClientId,
+      activeClientName: nextClientName,
+      activeProjectId: nextProjectId,
+      activeProjectName: nextProjectName,
       selectedRowId: documentChanged ? undefined : state.selectedRowId,
       selectedSceneId: documentChanged ? undefined : state.selectedSceneId,
+      aliases: alias && nextClientId && nextClientName
+        ? { ...state.aliases, [alias]: { type: "client", id: nextClientId, name: nextClientName } }
+        : state.aliases,
+      recentEntities,
+      lastAction: "setCurrentDocument",
       revision: state.revision + 1,
     };
   }),

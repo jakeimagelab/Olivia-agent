@@ -344,9 +344,18 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
   const quoteDocumentId = resourceId || currentQuoteId || undefined;
+  const quoteContextClientName = customer.hospitalName || undefined;
 
   useEffect(() => {
-    setOliviaCurrentDocument(quoteDocumentId, "quote", quoteTitle || customer.hospitalName || "견적서");
+    setOliviaCurrentDocument(
+      quoteDocumentId,
+      "quote",
+      quoteTitle || quoteContextClientName || "견적서",
+      {
+        ...(clientId ? { clientId, clientName: quoteContextClientName } : {}),
+        ...(workflowRunId ? { projectId: workflowRunId, projectName: quoteTitle || quoteContextClientName } : {}),
+      },
+    );
     setOliviaPageContext({
       pageMode: quoteDocumentId ? "edit" : "create",
       capabilities: ["quote.edit", "quote.discount", "quote.add_item", "quote.publish", "contract.create"],
@@ -355,7 +364,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       canEdit: currentQuoteStatus !== "archived",
       canFinalize: currentQuoteStatus !== "published" && currentQuoteStatus !== "archived",
     });
-  }, [brand, currentQuoteStatus, customer.hospitalName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, clientId, currentQuoteStatus, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext, workflowRunId]);
 
   useEffect(() => {
     const current = useOliviaContextStore.getState();
@@ -1121,8 +1130,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         .then((json) => {
           if (json.ok) {
             loadRecentQuote(rowToContractQuoteData(json.quote));
-            setOliviaClient(json.quote?.client_id, json.quote?.hospital_name);
-            if (json.quote?.workflow_run_id) setOliviaProject(json.quote.workflow_run_id);
+            setOliviaCurrentDocument(resourceId, "quote", json.quote?.title || json.quote?.hospital_name || "견적서", {
+              clientId: json.quote?.client_id,
+              clientName: json.quote?.hospital_name,
+              projectId: json.quote?.workflow_run_id,
+              projectName: json.quote?.title || json.quote?.hospital_name,
+            });
           }
         })
         .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });

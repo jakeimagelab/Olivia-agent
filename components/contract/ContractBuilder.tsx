@@ -97,6 +97,8 @@ export default function ContractBuilder({
   }, [modalWorkflowRunId, setOliviaProject]);
 
   const contractDocumentId = resourceId || contractId || undefined;
+  const contractContextClientName = quote?.hospitalName || undefined;
+  const hasContractQuote = Boolean(quote);
   useEffect(() => {
     const current = useOliviaContextStore.getState();
     if (current.activeWorkspace !== "contract" || current.activeResourceId !== contractDocumentId) {
@@ -111,16 +113,24 @@ export default function ContractBuilder({
   }, [contractDocumentId, setOliviaWorkspace]);
 
   useEffect(() => {
-    setOliviaCurrentDocument(contractDocumentId, "contract", quote?.hospitalName ? `${quote.hospitalName} 계약서` : "계약서");
+    setOliviaCurrentDocument(
+      contractDocumentId,
+      "contract",
+      contractContextClientName ? `${contractContextClientName} 계약서` : "계약서",
+      {
+        ...(modalClientId ? { clientId: modalClientId, clientName: contractContextClientName } : {}),
+        ...(modalWorkflowRunId ? { projectId: modalWorkflowRunId, projectName: contractContextClientName } : {}),
+      },
+    );
     setOliviaPageContext({
       pageMode: contractDocumentId ? "edit" : "create",
       capabilities: ["contract.edit", "contract.sign", "contract.publish", "contract.download_pdf"],
       documentStatus: publishState === "done" ? "published" : "draft",
       brand,
       canEdit: publishState !== "done",
-      canFinalize: Boolean(quote) && publishState !== "done",
+      canFinalize: hasContractQuote && publishState !== "done",
     });
-  }, [brand, contractDocumentId, publishState, quote, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, contractContextClientName, contractDocumentId, hasContractQuote, modalClientId, modalWorkflowRunId, publishState, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     setOliviaCurrentDocumentTotal(quote?.totalAmount, dirty);
@@ -151,6 +161,12 @@ export default function ContractBuilder({
           // 도구가 이 컬럼들만 patch하므로, quote_data 자체는 안 건드려도 최신 상태로 보인다).
           setQuote(loadedQuote);
           setSignatureDataUrl(String(contract.signature_data_url ?? ""));
+          setOliviaCurrentDocument(resourceId, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
+            clientId: typeof contract.client_id === "string" ? contract.client_id : undefined,
+            clientName: loadedQuote.hospitalName || undefined,
+            projectId: typeof contract.workflow_run_id === "string" ? contract.workflow_run_id : undefined,
+            projectName: loadedQuote.hospitalName || undefined,
+          });
           lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: String(contract.signature_data_url ?? "") });
         })
         .catch((loadError) => {
@@ -192,6 +208,12 @@ export default function ContractBuilder({
             setBrand("photoclinic");
           }
           setQuote(loadedQuote);
+          setOliviaCurrentDocument(undefined, "contract", `${loadedQuote.hospitalName || "고객"} 계약서`, {
+            clientId: typeof sourceQuote.client_id === "string" ? sourceQuote.client_id : modalClientId,
+            clientName: loadedQuote.hospitalName || undefined,
+            projectId: typeof sourceQuote.workflow_run_id === "string" ? sourceQuote.workflow_run_id : modalWorkflowRunId,
+            projectName: loadedQuote.hospitalName || undefined,
+          });
           lastSavedSnapshotRef.current = JSON.stringify({ quote: loadedQuote, signatureDataUrl: "" });
         })
         .catch((loadError) => {
@@ -202,11 +224,20 @@ export default function ContractBuilder({
         });
       return () => controller.abort();
     }
-    if (!modalClientId) return;
+    if (!modalClientId) {
+      setError("계약서에 연결된 고객이나 견적서가 없습니다.");
+      return;
+    }
     fetch(`/api/clients/${modalClientId}/workspace`)
       .then((r) => r.json())
       .then(async (ws) => {
-        if (!ws.ok) return;
+        if (!ws.ok) throw new Error(ws.error || "계약서에 연결된 고객 정보를 불러오지 못했습니다.");
+        setOliviaCurrentDocument(undefined, "contract", `${ws.client?.name || "고객"} 계약서`, {
+          clientId: modalClientId,
+          clientName: ws.client?.name || ws.client?.hospital_name,
+          projectId: modalWorkflowRunId,
+          projectName: ws.workflowRun?.project_name || ws.client?.name,
+        });
         const quoteId = ws.resourceIds?.quote;
         if (quoteId) {
           const qRes = await fetch(`/api/quotes/${quoteId}`).then((r) => r.json()).catch(() => null);
@@ -249,8 +280,11 @@ export default function ContractBuilder({
           memos: null,
         });
       })
-      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-  }, [isModal, modalClientId, resourceId, sourceQuoteId]);
+      .catch((loadError) => {
+        console.error("contract client load failed", loadError);
+        setError(loadError instanceof Error ? loadError.message : "계약서 고객 정보를 불러오지 못했습니다.");
+      });
+  }, [isModal, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
 
   useEffect(() => {
     if (isModal) return;
@@ -284,6 +318,12 @@ export default function ContractBuilder({
             totalAmount: 0, depositAmount: 0, balanceAmount: 0,
             memos: null,
           });
+          setOliviaCurrentDocument(undefined, "contract", `${c.name || c.hospital_name || "고객"} 계약서`, {
+            clientId,
+            clientName: c.name || c.hospital_name,
+            projectId: params.get("workflowRunId") || undefined,
+            projectName: c.name || c.hospital_name,
+          });
         })
         .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       return;
@@ -308,10 +348,10 @@ export default function ContractBuilder({
         setMailingNotice("계약서가 올리비아 메일링함에 자동 저장되었습니다.");
         setTimeout(() => setMailingNotice(""), 5000);
       });
-    } catch (e) {
+    } catch {
       setError("견적 데이터를 불러올 수 없습니다.");
     }
-  }, []);
+  }, [isModal, setOliviaCurrentDocument]);
 
   useEffect(() => {
     if (!quote) return;

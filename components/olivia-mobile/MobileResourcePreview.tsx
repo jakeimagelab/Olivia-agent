@@ -28,6 +28,10 @@ function clampPreviewZoom(value: number) {
   return Math.min(3, Math.max(1, value));
 }
 
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 export default function MobileResourcePreview({
   resource,
   onRequestEdit,
@@ -108,6 +112,24 @@ export default function MobileResourcePreview({
   }, [resource.resourceId, resource.resourceType, resource.temporaryDocumentId]);
 
   useEffect(() => { void load(); }, [load]);
+  const contextClientId = optionalString(data?.client_id) || optionalString(temporaryDocument?.client_id);
+  const contextClientName = optionalString(data?.hospital_name) || optionalString(data?.client_name) || optionalString(temporaryDocument?.hospital_name);
+  const contextProjectId = optionalString(data?.workflow_run_id) || optionalString(temporaryDocument?.workflow_run_id);
+  const contextProjectName = optionalString(data?.title) || contextClientName;
+  const hasLoadedResource = data !== null;
+  useEffect(() => {
+    if (!hasLoadedResource) return;
+    const workspace = resource.resourceType === "storyboard" ? "conti" : resource.resourceType;
+    useOliviaContextStore.getState().setCurrentDocument(
+      resource.resourceId,
+      workspace,
+      contextProjectName || "현재 문서",
+      {
+        ...(contextClientId ? { clientId: contextClientId, clientName: contextClientName } : {}),
+        ...(contextProjectId ? { projectId: contextProjectId, projectName: contextProjectName } : {}),
+      },
+    );
+  }, [contextClientId, contextClientName, contextProjectId, contextProjectName, hasLoadedResource, resource.resourceId, resource.resourceType]);
   useEffect(() => {
     const timer = window.setInterval(() => void load(true), 4000);
     const refresh = () => void load(true);
@@ -287,7 +309,10 @@ export default function MobileResourcePreview({
   const requestEdit = () => {
     const workspace = resource.resourceType === "storyboard" ? "conti" : resource.resourceType;
     useOliviaContextStore.getState().setWorkspace(workspace, resource.resourceId);
-    useOliviaContextStore.getState().setCurrentDocument(resource.resourceId, workspace, String(data?.title || data?.hospital_name || "현재 문서"));
+    useOliviaContextStore.getState().setCurrentDocument(resource.resourceId, workspace, String(data?.title || data?.hospital_name || "현재 문서"), {
+      ...(contextClientId ? { clientId: contextClientId, clientName: contextClientName } : {}),
+      ...(contextProjectId ? { projectId: contextProjectId, projectName: contextProjectName } : {}),
+    });
     onRequestEdit();
   };
 

@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { registerGalleryLink } from "@/lib/core/commands/photo";
 import {
-  registerOriginalDeliveryLink,
   updateManualShootingProgress,
 } from "@/lib/photo-storage/shootingProgressActions";
 import type { ShootingProgressActionStage, ShootingProgressManualState } from "@/lib/photo-storage/shootingProgress";
@@ -28,13 +28,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const db = getSupabaseAdmin();
 
     if (action === "register_link") {
-      const result = await registerOriginalDeliveryLink(db, {
+      const result = await registerGalleryLink(db, {
         projectId: id,
-        nasLink: body.nasLink,
+        url: body.nasLink,
         clientId: typeof body.clientId === "string" ? body.clientId : null,
         baseUrl: request.nextUrl.origin,
       });
-      return Response.json({ ok: true, ...result });
+      if (!result.ok) return Response.json({ ok: false, error: result.reason, code: result.code }, { status: 400 });
+      return Response.json({ ok: true, ...result.value });
     }
 
     const stage = body.stage;

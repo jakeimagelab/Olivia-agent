@@ -132,6 +132,12 @@ export type OliviaStreamEvent =
       /** [임시 진단] 이번 응답을 실제로 만든 Brain. production에서는 절대 채우지 않는다 —
        * 사용자에게 내부 구조를 노출하지 않기 위한 개발 전용 필드. */
       chatRoute?: "HERMES" | "FALLBACK" | "LEGACY_GPT" | "DIRECT_TOOL";
+      resolvedContext?: {
+        clientId?: string;
+        clientName?: string;
+        projectId?: string;
+        projectName?: string;
+      };
     }
   | { type: "run_created"; run: OliviaRunStreamPayload }
   | { type: "run_updated"; run: OliviaRunStreamPayload }

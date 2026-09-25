@@ -207,11 +207,11 @@ describe("shooting progress automation", () => {
     const { syncSelectionSubmittedWorkflow, syncRawMatchWorkflow } = await import("@/lib/photo-storage/shootingProgress");
 
     await syncSelectionSubmittedWorkflow(db as any, "run-1");
-    expect(workflow.stepRuns.get("run-1:raw_matching")).toMatchObject({ status: "in_progress" });
-    expect(db.tables.workflow_runs[0]).toMatchObject({ current_step_key: "client_selection", next_action: "next:raw_matching" });
+    expect(workflow.advances.at(-1)).toMatchObject({ from_step_key: "client_selection", to_step_key: "raw_matching" });
+    expect(workflow.run.current_step_key).toBe("raw_matching");
 
     await syncRawMatchWorkflow(db as any, { projectId: "project-1", jobStatus: "COMPLETED" });
     expect(db.tables.select_galleries[0]).toMatchObject({ status: "raw_matched" });
-    expect(workflow.advances.at(-1)).toMatchObject({ from_step_key: "client_selection", to_step_key: "retouching" });
+    expect(workflow.advances.at(-1)).toMatchObject({ from_step_key: "raw_matching", to_step_key: "retouching" });
   });
 });

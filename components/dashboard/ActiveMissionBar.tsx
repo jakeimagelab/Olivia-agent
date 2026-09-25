@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 type WorkflowRun = {
   id: string;
   client_id: string | null;
   client_name: string;
+  project_id?: string | null;
   project_name?: string | null;
   manager_name?: string | null;
   shoot_date?: string | null;
@@ -35,6 +37,9 @@ type ActiveMissionBarProps = {
 // /api/workflow/summary 그대로 재사용, 페이지별로 새로 데이터를 만들지 않는다 — 40절).
 export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProps = {}) {
   const [run, setRun] = useState<WorkflowRun | null | undefined>(undefined);
+  const activeClientId = useOliviaContextStore((state) => state.activeClientId);
+  const activeClientName = useOliviaContextStore((state) => state.activeClientName);
+  const setContextLink = useOliviaContextStore((state) => state.setContextLink);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +69,11 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
   const clientName = run.client_name || "이름 없는 고객";
   const projectName = run.project_name || "프로젝트";
   const title = projectName.trim().startsWith(clientName.trim()) ? projectName : `${clientName} ${projectName}`;
+  const differsFromChatTarget = Boolean(
+    (activeClientId && run.client_id && activeClientId !== run.client_id)
+    || (!activeClientId && activeClientName && activeClientName !== clientName)
+    || (!activeClientId && !activeClientName && run.client_id),
+  );
 
   return (
     <MissionStatusBar
@@ -74,6 +84,13 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
       owner={run.manager_name || undefined}
       progress={run.progress}
       detailHref={run.client_id ? `/clients?clientId=${run.client_id}` : "/clients"}
+      contextNotice={differsFromChatTarget ? "추천 미션 · 현재 채팅 대상과 다름" : undefined}
+      onDetailClick={() => setContextLink({
+        clientId: run.client_id || undefined,
+        clientName,
+        projectId: run.id,
+        projectName,
+      })}
     />
   );
 }

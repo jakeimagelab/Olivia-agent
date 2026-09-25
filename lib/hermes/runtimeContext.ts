@@ -2,6 +2,7 @@ import type { AssistantChannel } from "@/lib/assistant/types";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 import type { HermesChatContext, HermesChatMessage } from "@/lib/hermes/types";
 import type { HermesMemoryEntry } from "@/lib/olivia/memory/format";
+import { isClientScopedExecutionRequest } from "@/lib/olivia/v2/executionIntent";
 
 type ContextMessage = {
   role: string;
@@ -34,7 +35,9 @@ function resourceFromMetadata(value: unknown) {
     version: number(metadata.resourceVersion) ?? number(metadata.version),
     workSessionId: string(metadata.workSessionId),
     clientId: string(metadata.clientId),
+    clientName: string(metadata.clientName),
     projectId: string(metadata.projectId),
+    projectName: string(metadata.projectName),
   };
 }
 
@@ -83,7 +86,9 @@ export function buildHermesRuntime(input: {
     version: undefined,
     workSessionId: undefined,
     clientId: input.snapshot.activeClientId,
+    clientName: input.snapshot.activeClientName,
     projectId: input.snapshot.activeProjectId,
+    projectName: input.snapshot.activeProjectName,
   } : undefined;
   // §17 "Active UI와 대화 대상 불일치 처리" — "그럼 바꿔줘"/"열어"처럼 이번 메시지 자체에는
   // 대상이 없는 후속 실행 명령이면, 지금 실제 열려 있는 화면(snapshotResource)보다 방금 전
@@ -96,18 +101,29 @@ export function buildHermesRuntime(input: {
   const recentResource = followupReference ? recentResources[0] : undefined;
   const resource = replyResource || (followupReference && recentResource) || snapshotResource || recentResource;
   const workSessionId = resource?.workSessionId || (resource ? `resource:${resource.type}:${resource.id}` : undefined);
+  const clientScopedExecution = isClientScopedExecutionRequest(input.message);
+  const activeClientId = replyResource?.clientId
+    || input.snapshot.activeClientId
+    || (clientScopedExecution ? undefined : recentResource?.clientId);
+  const activeClientName = replyResource?.clientName
+    || input.snapshot.activeClientName
+    || (clientScopedExecution ? undefined : recentResource?.clientName);
+  const activeProjectId = replyResource?.projectId
+    || input.snapshot.activeProjectId
+    || (clientScopedExecution ? undefined : recentResource?.projectId);
+  const activeProjectName = replyResource?.projectName
+    || input.snapshot.activeProjectName
+    || (clientScopedExecution ? undefined : recentResource?.projectName);
   const workSession = workSessionId ? {
     id: workSessionId,
     title: resource?.title,
     status: "active" as const,
     resourceType: resource?.type,
     resourceId: resource?.id,
-    clientId: replyResource?.clientId || input.snapshot.activeClientId || recentResource?.clientId,
-    projectId: replyResource?.projectId || input.snapshot.activeProjectId || recentResource?.projectId,
+    clientId: activeClientId,
+    projectId: activeProjectId,
   } : undefined;
 
-  const activeClientId = replyResource?.clientId || input.snapshot.activeClientId || recentResource?.clientId;
-  const activeProjectId = replyResource?.projectId || input.snapshot.activeProjectId || recentResource?.projectId;
   const context: HermesChatContext = {
     ...input.snapshot,
     currentRequestText: input.message,
@@ -115,13 +131,13 @@ export function buildHermesRuntime(input: {
     todayDate: input.today,
     channel: input.channel,
     activeClientId,
-    activeClientName: input.snapshot.activeClientName,
+    activeClientName,
     activeProjectId,
-    activeProjectName: input.snapshot.activeProjectName,
+    activeProjectName,
     activeWorkspace: input.snapshot.activeWorkspace,
     activeResourceId: resource?.id,
-    activeClient: activeClientId || input.snapshot.activeClientName ? { id: activeClientId, name: input.snapshot.activeClientName } : undefined,
-    activeProject: activeProjectId || input.snapshot.activeProjectName ? { id: activeProjectId, name: input.snapshot.activeProjectName } : undefined,
+    activeClient: activeClientId || activeClientName ? { id: activeClientId, name: activeClientName } : undefined,
+    activeProject: activeProjectId || activeProjectName ? { id: activeProjectId, name: activeProjectName } : undefined,
     activeResource: resource ? { type: resource.type, id: resource.id, title: resource.title, status: resource.status, version: resource.version } : undefined,
     selectedEntity: input.snapshot.selectedEntityId || input.snapshot.selectedEntityType ? { type: input.snapshot.selectedEntityType, id: input.snapshot.selectedEntityId } : undefined,
     selectedRowId: input.snapshot.selectedRowId,
@@ -154,7 +170,17 @@ export function buildHermesRuntime(input: {
     return [{ role: message.role, content: message.content }];
   }).slice(-12);
 
-  return { context, history, workSession };
+  return {
+    context,
+    history,
+    workSession,
+    resolvedContext: {
+      clientId: activeClientId,
+      clientName: activeClientName,
+      projectId: activeProjectId,
+      projectName: activeProjectName,
+    },
+  };
 }
 
 export function resourceSessionMetadata(input: {
@@ -164,7 +190,9 @@ export function resourceSessionMetadata(input: {
   resourceStatus?: string;
   resourceVersion?: number;
   clientId?: string;
+  clientName?: string;
   projectId?: string;
+  projectName?: string;
 }) {
   if (!input.resourceType || !input.resourceId) return {};
   return {

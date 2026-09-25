@@ -68,7 +68,7 @@ import {
   readPendingPhotoDirectExecution,
   shouldGuardPhotoDirectTurn,
 } from "@/lib/photo-storage/directChatExecution";
-import { isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
+import { isClientScopedExecutionRequest, isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -746,7 +746,18 @@ export async function POST(req: NextRequest) {
             console.warn("[system-status] 채팅 기록 저장 실패", persistError instanceof Error ? persistError.message : persistError);
           }
 
-          send({ type: "message_complete", messageId, conversationId, persistedMessageId });
+          send({
+            type: "message_complete",
+            messageId,
+            conversationId,
+            persistedMessageId,
+            resolvedContext: {
+              clientId: context.activeClientId,
+              clientName: context.activeClientName,
+              projectId: context.activeProjectId,
+              projectName: context.activeProjectName,
+            },
+          });
           return;
         }
 
@@ -857,6 +868,12 @@ export async function POST(req: NextRequest) {
         const isDevDiagnostics = process.env.VERCEL_ENV
           ? process.env.VERCEL_ENV !== "production"
           : process.env.NODE_ENV !== "production";
+        let resolvedContextForMessage = {
+          clientId: effectiveContext.activeClientId,
+          clientName: effectiveContext.activeClientName,
+          projectId: effectiveContext.activeProjectId,
+          projectName: effectiveContext.activeProjectName,
+        };
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
@@ -874,6 +891,7 @@ export async function POST(req: NextRequest) {
             messageId,
             conversationId: conversation.id,
             persistedMessageId: String(saved.message.id),
+            resolvedContext: resolvedContextForMessage,
             ...(isDevDiagnostics && chatRouteLabel ? { chatRoute: chatRouteLabel } : {}),
           });
           return saved.message;
@@ -884,6 +902,36 @@ export async function POST(req: NextRequest) {
         historyMs = performance.now() - historyStartedAt;
 
         send({ type: "message_start", messageId, conversationId: conversation.id });
+
+        const replyClientId = optionalString(replyContext?.clientId);
+        const replyClientName = optionalString(replyContext?.clientName);
+        const replyProjectId = optionalString(replyContext?.projectId);
+        const replyProjectName = optionalString(replyContext?.projectName);
+        const trustedClientId = replyClientId || context.activeClientId;
+        if (isClientScopedExecutionRequest(message) && !trustedClientId) {
+          const text = "이 작업을 실행할 고객이 선택되지 않았습니다. 먼저 견적서·계약서·콘티를 열거나 고객을 지정해주세요.";
+          send({ type: "text_delta", messageId, delta: text });
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: "CLIENT_CONTEXT_REQUIRED",
+          });
+          return;
+        }
+        if (isClientScopedExecutionRequest(message)) {
+          effectiveContext = {
+            ...effectiveContext,
+            activeClientId: trustedClientId,
+            activeClientName: replyClientName || context.activeClientName,
+            activeProjectId: replyProjectId || context.activeProjectId,
+            activeProjectName: replyProjectName || context.activeProjectName,
+          };
+          resolvedContextForMessage = {
+            clientId: effectiveContext.activeClientId,
+            clientName: effectiveContext.activeClientName,
+            projectId: effectiveContext.activeProjectId,
+            projectName: effectiveContext.activeProjectName,
+          };
+        }
 
         // 승인을 기다리는 작업에 대한 짧은 답은 모델/Hermes에 다시 해석시키지 않는다. 대화에
         // 저장된 정확한 tool/input/대상을 그대로 사용해야 채널이나 런타임 상태가 달라도 같은
@@ -1044,6 +1092,7 @@ export async function POST(req: NextRequest) {
             memories: taughtMemories.map(toHermesMemoryEntry),
             compactConversationSummary: compactSummary,
           });
+          resolvedContextForMessage = hermesRuntime.resolvedContext;
           const hermesContextSnapshot: OliviaContextSnapshot = {
             ...effectiveContext,
             activeClientId: hermesRuntime.context.activeClientId,

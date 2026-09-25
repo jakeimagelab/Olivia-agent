@@ -471,15 +471,16 @@ export async function syncSelectionSubmittedWorkflow(
   if (!workflowRunId) return;
   const run = await getWorkflowRun(db, workflowRunId);
   if (!["client_selection", "raw_matching"].includes(run.current_step_key)) return;
+  if (run.current_step_key === "raw_matching") return;
 
+  const advanced = await advanceWorkflow(db, {
+    workflow_run_id: workflowRunId,
+    from_step_key: "client_selection",
+    to_step_key: "raw_matching",
+    reason: "고객 셀렉 제출",
+  });
+  if (advanced.skipped) throw new Error(advanced.reason || "프로젝트 단계가 변경되었습니다.");
   await completeStepRun(db, workflowRunId, "original_delivery");
-  await completeStepRun(db, workflowRunId, "client_selection");
-  await ensureStepRun(db, workflowRunId, "raw_matching", "in_progress");
-  await db.from("workflow_runs").update({
-    current_step_key: "client_selection",
-    next_action: buildNextAction("raw_matching"),
-    updated_at: new Date().toISOString(),
-  }).eq("id", workflowRunId);
 }
 
 export async function syncRawMatchWorkflow(

@@ -21,6 +21,14 @@ type StatusPanelData = {
   };
   recentBackups: Array<{ id: string; folder_name: string; status: string; created_at: string }>;
   recentJobs: Array<{ id: string; action: string; status: string; created_at: string; completed_at: string | null }>;
+  coreBypassIssues: Array<{
+    workflowRunId: string;
+    clientId: string | null;
+    clientName: string;
+    currentStepName: string;
+    updatedAt: string;
+  }>;
+  consistencyError: string | null;
 };
 
 const CLOSED_POLL_MS = 60_000;
@@ -116,6 +124,7 @@ export function StatusPanelButton() {
     || Object.keys(jobs).length > 0
     || Boolean(data?.recentBackups.some((backup) => backup.status === "PENDING"));
   const hasWarning = data ? data.worker.online === false || data.worker.nas_connected === false : false;
+  const hasCoreWarning = Boolean(data?.coreBypassIssues?.length || data?.consistencyError);
 
   return (
     <div className={styles.statusPanelGroup} ref={panelRef}>
@@ -128,7 +137,7 @@ export function StatusPanelButton() {
         onClick={() => setOpen((current) => !current)}
       >
         <Server size={15} />
-        {hasWarning || hasPendingWork ? <span className={styles.statusPanelWarningDot} /> : null}
+        {hasWarning || hasPendingWork || hasCoreWarning ? <span className={styles.statusPanelWarningDot} /> : null}
       </button>
       <div className={styles.statusPanel} role="dialog" aria-label="시스템 상태" hidden={!open}>
           <div className={styles.statusPanelHeader}>
@@ -181,6 +190,32 @@ export function StatusPanelButton() {
                     {data.worker.nas_connected === true ? "연결됨" : data.worker.nas_connected === false ? "연결 안 됨" : "확인 안 됨"}
                   </span>
                 </div>
+              </div>
+
+              <div className={styles.statusPanelSection}>
+                <span className={styles.statusPanelSectionTitle}>Core 우회 의심</span>
+                {data.consistencyError ? (
+                  <p className={styles.statusPanelEmpty}>정합성 진단 실패 · {data.consistencyError}</p>
+                ) : data.coreBypassIssues.length ? (
+                  <ul className={styles.statusPanelList}>
+                    {data.coreBypassIssues.map((issue) => (
+                      <li key={issue.workflowRunId}>
+                        <button
+                          type="button"
+                          className={styles.statusPanelListButton}
+                          onClick={() => launchHref(
+                            issue.clientId ? `/clients?clientId=${encodeURIComponent(issue.clientId)}` : "/clients",
+                            issue.clientName || "워크플로우 정합성",
+                            issue.clientId ? { clientId: issue.clientId } : undefined,
+                          )}
+                        >
+                          <span className={styles.statusPanelListName}>{issue.clientName || "이름 없는 고객"}</span>
+                          <span className={styles.statusPanelListMeta}>{issue.currentStepName} · {relativeTime(issue.updatedAt)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className={styles.statusPanelEmpty}>최근 Core 우회 의심 기록이 없어요.</p>}
               </div>
 
               <div className={styles.statusPanelSection}>

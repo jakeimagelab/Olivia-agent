@@ -9,9 +9,10 @@ import {
   type ToolOnlyStepKey,
 } from "@/lib/workflow";
 import { addYearsIso } from "@/lib/dataRetention";
-import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { createEventDeduplicationKey, emitOliviaEvent, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredData } from "@/lib/workflowDataContext";
 import { addPoints } from "@/lib/per";
+import { coreCommandFailure, type CoreCommandResult } from "@/lib/core/commands/result";
 
 export type StepAutomation = {
   task_type: string;
@@ -334,7 +335,7 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
     }).eq("id", run.id);
     if (completionError) throw new Error(completionError.message);
     await logAgent(db, { workflow_run_id: run.id, log_type: "workflow_completed", message: `${run.client_name || "워크플로우"} 전체 단계가 완료되었습니다.` });
-    await emitOliviaEventSafely(db, {
+    await emitOliviaEvent(db, {
       eventType: "workflow.completed",
       eventSource: "workflow_automation",
       clientId: run.client_id ?? null,
@@ -346,12 +347,13 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
     return { completed: true, from_step_key: fromStep, to_step_key: null, created: [] };
   }
 
-  await db
+  const { error: currentStepError } = await db
     .from("workflow_step_runs")
     .update({ status: "completed", completed_at: now, updated_at: now })
     .eq("workflow_run_id", run.id)
     .eq("step_key", fromStep)
     .neq("status", "completed");
+  if (currentStepError) throw new Error(currentStepError.message);
 
   const { error } = await db
     .from("workflow_runs")
@@ -389,7 +391,7 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
     output_summary: `created_tasks: ${taskResult.created.length}`,
   });
 
-  await emitOliviaEventSafely(db, {
+  await emitOliviaEvent(db, {
     eventType: "workflow.step_changed",
     eventSource: "workflow_automation",
     clientId: run.client_id ?? null,
@@ -406,6 +408,45 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   });
 
   return { completed: false, from_step_key: fromStep, to_step_key: toStep, created: taskResult.created };
+}
+
+export async function cancelWorkflow(
+  db: SupabaseClient,
+  input: { workflow_run_id: string; reason?: string },
+): Promise<CoreCommandResult<{ workflow_run_id: string }>> {
+  try {
+    const run = await getWorkflowRun(db, input.workflow_run_id);
+    if (run.status === "canceled") {
+      return { ok: true, value: { workflow_run_id: run.id }, idempotent: true };
+    }
+    if (!["active", "paused"].includes(run.status)) {
+      return { ok: false, reason: `${run.status || "unknown"} 상태의 워크플로우는 취소할 수 없습니다.`, code: "INVALID_STATE" };
+    }
+
+    const now = new Date().toISOString();
+    const { data: canceled, error } = await db.from("workflow_runs")
+      .update({ status: "canceled", completed_at: now, updated_at: now })
+      .eq("id", run.id)
+      .eq("status", run.status)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!canceled) return { ok: false, reason: "다른 화면에서 워크플로우 상태가 변경되었습니다.", code: "STATE_CHANGED" };
+
+    await emitOliviaEvent(db, {
+      eventType: "workflow.canceled",
+      eventSource: "workflow_automation",
+      clientId: run.client_id ?? null,
+      projectId: run.project_id ?? null,
+      workflowRunId: run.id,
+      payload: { fromStatus: run.status, reason: input.reason ?? "" },
+      deduplicationKey: createEventDeduplicationKey("workflow.canceled", run.id),
+    });
+
+    return { ok: true, value: { workflow_run_id: run.id }, idempotent: false };
+  } catch (error) {
+    return coreCommandFailure(error, "워크플로우를 취소하지 못했습니다.");
+  }
 }
 
 // 실제 문서(견적서/계약서/콘티)가 있어야 넘어갈 수 있는 단계에 머물러 있을 때, 그 문서 없이
@@ -495,6 +536,16 @@ export async function revertWorkflowToStep(
     input_summary: input.reason ?? "",
   });
 
+  await emitOliviaEvent(db, {
+    eventType: "workflow.step_changed",
+    eventSource: "workflow_revert",
+    clientId: run.client_id ?? null,
+    projectId: run.project_id ?? null,
+    workflowRunId: run.id,
+    payload: { fromStepKey: fromStep, toStepKey: toStep, reason: input.reason ?? "", reverted: true },
+    deduplicationKey: createEventDeduplicationKey("workflow.step_changed", run.id, fromStep, toStep, "revert"),
+  });
+
   return { from_step_key: fromStep, to_step_key: toStep };
 }
 
@@ -554,7 +605,7 @@ export async function completeWorkflowRetroactively(
     input_summary: input.reason ?? "",
   });
 
-  await emitOliviaEventSafely(db, {
+  await emitOliviaEvent(db, {
     eventType: "workflow.completed",
     eventSource: "workflow_retroactive_completion",
     clientId: run.client_id ?? null,
@@ -1055,7 +1106,8 @@ function buildMailLinks(taskType: string, hospitalName: string, output: any) {
   return [{ label: "고객 포털 확인", url: `${baseUrl}/client-portal` }];
 }
 
-export type WorkflowConsistencyIssue = {
+export type WorkflowResourceAheadIssue = {
+  kind: "resource_ahead";
   workflowRunId: string;
   clientId: string | null;
   clientName: string;
@@ -1067,6 +1119,45 @@ export type WorkflowConsistencyIssue = {
   resourceId: string | null;
 };
 
+export type WorkflowCoreBypassIssue = {
+  kind: "core_bypass_suspected";
+  workflowRunId: string;
+  clientId: string | null;
+  clientName: string;
+  currentStepKey: string;
+  currentStepName: string;
+  status: string;
+  updatedAt: string;
+};
+
+export type WorkflowConsistencyIssue = WorkflowResourceAheadIssue | WorkflowCoreBypassIssue;
+
+type WorkflowEventTimestamp = {
+  workflow_run_id: string | null;
+  event_type: string;
+  occurred_at: string;
+};
+
+const WORKFLOW_MUTATION_EVENT_TYPES = [
+  "workflow.step_changed",
+  "workflow.completed",
+  "workflow.canceled",
+  "workflow.client_relinked",
+] as const;
+const CORE_EVENT_MATCH_WINDOW_MS = 5_000;
+
+export function hasWorkflowMutationEventNear(
+  runId: string,
+  updatedAt: string,
+  events: WorkflowEventTimestamp[],
+) {
+  const updatedAtMs = new Date(updatedAt).getTime();
+  if (!Number.isFinite(updatedAtMs)) return false;
+  return events.some((event) => event.workflow_run_id === runId
+    && WORKFLOW_MUTATION_EVENT_TYPES.includes(event.event_type as (typeof WORKFLOW_MUTATION_EVENT_TYPES)[number])
+    && Math.abs(new Date(event.occurred_at).getTime() - updatedAtMs) <= CORE_EVENT_MATCH_WINDOW_MS);
+}
+
 // 코드 요청서 7차(2026-08-16) — "문서/갤러리는 이미 있는데 워크플로우 단계 표시가 그만큼
 // 안 넘어간" 경우를 사람이 우연히 발견하기 전에 찾아낸다(재현: 더힐피부과신사점, 콘티는
 // 이미 있는데 current_step_key가 여전히 conti에 머물러 있던 사례). "완료 인정 기준"은 새로
@@ -1075,20 +1166,31 @@ export type WorkflowConsistencyIssue = {
 // 관리자가 "지금 완료 처리"를 눌러야 한다(app/api/workflow-runs/[id]/complete-step,
 // app/api/quotes/[id]/complete 재사용).
 export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise<WorkflowConsistencyIssue[]> {
-  const { data: runs, error } = await db
-    .from("workflow_runs")
-    .select("id, client_id, client_name, current_step_key, status")
-    .eq("status", "active");
-  if (error || !runs?.length) return [];
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1_000).toISOString();
+  const [activeRunsResult, recentRunsResult] = await Promise.all([
+    db.from("workflow_runs")
+      .select("id, client_id, client_name, current_step_key, status, created_at, updated_at")
+      .eq("status", "active"),
+    db.from("workflow_runs")
+      .select("id, client_id, client_name, current_step_key, status, created_at, updated_at")
+      .gte("updated_at", sevenDaysAgo),
+  ]);
+  if (activeRunsResult.error) throw new Error(activeRunsResult.error.message);
+  if (recentRunsResult.error) throw new Error(recentRunsResult.error.message);
+  const runs = activeRunsResult.data ?? [];
 
   const runIds = runs.map((run) => run.id);
+  const emptyRows = Promise.resolve({ data: [], error: null });
   const [quotesRes, contractsRes, contisRes, contiRunsRes, galleriesRes] = await Promise.all([
-    db.from("quotes").select("id, workflow_run_id").in("workflow_run_id", runIds),
-    db.from("contracts").select("id, workflow_run_id").in("workflow_run_id", runIds),
-    db.from("conti_saves").select("id, workflow_run_id").in("workflow_run_id", runIds),
-    db.from("conti_runs").select("id, workflow_run_id").in("workflow_run_id", runIds),
-    db.from("photo_galleries").select("id, workflow_run_id, gallery_type").in("workflow_run_id", runIds),
+    runIds.length ? db.from("quotes").select("id, workflow_run_id").in("workflow_run_id", runIds) : emptyRows,
+    runIds.length ? db.from("contracts").select("id, workflow_run_id").in("workflow_run_id", runIds) : emptyRows,
+    runIds.length ? db.from("conti_saves").select("id, workflow_run_id").in("workflow_run_id", runIds) : emptyRows,
+    runIds.length ? db.from("conti_runs").select("id, workflow_run_id").in("workflow_run_id", runIds) : emptyRows,
+    runIds.length ? db.from("photo_galleries").select("id, workflow_run_id, gallery_type").in("workflow_run_id", runIds) : emptyRows,
   ]);
+  for (const result of [quotesRes, contractsRes, contisRes, contiRunsRes, galleriesRes]) {
+    if (result.error) throw new Error(result.error.message);
+  }
 
   // workflow_run_id별로 "가장 최근에 저장된 문서 1건의 id"만 있으면 되므로(오래된 순서는 관심 없음),
   // 각 배열을 workflow_run_id → id 맵으로 접는다. 여러 건이어도 아무거나 하나면 충분하다
@@ -1121,12 +1223,12 @@ export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise
     // ACTIVE_WORKFLOW_STEP_KEYS 순서대로 훑으면서, 증거가 있는 가장 뒤(=가장 진행된) 단계를 찾는다.
     let foundIdx = -1;
     let foundStepKey = "";
-    let resourceType: WorkflowConsistencyIssue["resourceType"] = "quote";
+    let resourceType: WorkflowResourceAheadIssue["resourceType"] = "quote";
     let resourceId: string | null = null;
 
     ACTIVE_WORKFLOW_STEP_KEYS.forEach((stepKey, idx) => {
       let hasEvidence = false;
-      let stepResourceType: WorkflowConsistencyIssue["resourceType"] = "quote";
+      let stepResourceType: WorkflowResourceAheadIssue["resourceType"] = "quote";
       let stepResourceId: string | null = null;
 
       if (stepKey === "quote" && quoteByRun.has(run.id)) {
@@ -1155,6 +1257,7 @@ export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise
     if (foundIdx === -1 || currentIdx > foundIdx) continue;
 
     issues.push({
+      kind: "resource_ahead",
       workflowRunId: run.id,
       clientId: run.client_id ?? null,
       clientName: run.client_name || "",
@@ -1165,6 +1268,36 @@ export async function findWorkflowConsistencyIssues(db: SupabaseClient): Promise
       resourceType,
       resourceId,
     });
+  }
+
+  const recentRuns = (recentRunsResult.data ?? []).filter((run) => {
+    const createdAt = new Date(run.created_at ?? 0).getTime();
+    const updatedAt = new Date(run.updated_at ?? 0).getTime();
+    return Number.isFinite(updatedAt) && (!Number.isFinite(createdAt) || Math.abs(updatedAt - createdAt) > CORE_EVENT_MATCH_WINDOW_MS);
+  });
+  if (recentRuns.length) {
+    const earliestEventTime = new Date(new Date(sevenDaysAgo).getTime() - CORE_EVENT_MATCH_WINDOW_MS).toISOString();
+    const { data: events, error: eventsError } = await db.from("olivia_events")
+      .select("workflow_run_id,event_type,occurred_at")
+      .in("workflow_run_id", recentRuns.map((run) => run.id))
+      .in("event_type", [...WORKFLOW_MUTATION_EVENT_TYPES])
+      .gte("occurred_at", earliestEventTime);
+    if (eventsError) throw new Error(eventsError.message);
+    const eventRows = (events ?? []) as WorkflowEventTimestamp[];
+    for (const run of recentRuns) {
+      if (hasWorkflowMutationEventNear(run.id, run.updated_at, eventRows)) continue;
+      const displayCurrentKey = getWorkflowDisplayStepKey(run.current_step_key) || run.current_step_key;
+      issues.push({
+        kind: "core_bypass_suspected",
+        workflowRunId: run.id,
+        clientId: run.client_id ?? null,
+        clientName: run.client_name || "",
+        currentStepKey: run.current_step_key,
+        currentStepName: STEP_NAME[displayCurrentKey] || displayCurrentKey,
+        status: run.status,
+        updatedAt: run.updated_at,
+      });
+    }
   }
 
   return issues;

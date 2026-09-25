@@ -4,6 +4,8 @@ import { moveRecordToTrash } from "@/lib/trash";
 import { isOptionalClientDetailColumnMissing, withClientDetailDefaults } from "@/lib/clientDetailFallback";
 import { isMissingColumnError } from "@/lib/dbErrors";
 import { getWorkflowPhaseProgress } from "@/lib/workflow";
+import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
+import { cancelWorkflow } from "@/lib/workflowAutomation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -210,10 +212,21 @@ export async function DELETE(
   const supabase = getSupabaseAdmin();
   const { id } = await params;
   try {
+    const { data: activeRuns, error: activeRunsError } = await supabase.from("workflow_runs")
+      .select("id")
+      .eq("client_id", id)
+      .in("status", ["active", "paused"]);
+    if (activeRunsError) throw activeRunsError;
     const item = await moveRecordToTrash(supabase, "client", id);
     // 고객관리가 기준 데이터이므로, 고객을 삭제하면 연결된 프로젝트도 홈 화면 칸반보드에서
     // 곧바로 사라지도록 취소 처리한다. workflow_runs 자체는 남겨 감사·복구 시 참고할 수 있게 유지한다.
-    await supabase.from("workflow_runs").update({ status: "canceled", updated_at: new Date().toISOString() }).eq("client_id", id);
+    for (const run of activeRuns ?? []) {
+      const result = await cancelWorkflow(supabase, {
+        workflow_run_id: run.id,
+        reason: "고객 레코드 삭제",
+      });
+      if (!result.ok) throw new Error(result.reason);
+    }
     return NextResponse.json({ ok: true, trashId: item.id });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "고객 삭제 실패" }, { status: 500 });
@@ -232,7 +245,7 @@ async function healClientLinkAndRespond(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   requestedRunId: string
 ) {
-  const { data: run } = await supabase.from("workflow_runs").select("id, client_name, status").eq("id", requestedRunId).maybeSingle();
+  const { data: run } = await supabase.from("workflow_runs").select("id, client_id, client_name, project_id, status").eq("id", requestedRunId).maybeSingle();
   const runClientName = String(run?.client_name || "").trim();
   if (run && run.status !== "canceled" && runClientName) {
     const { data: candidates } = await supabase.from("clients").select("id, hospital_name").ilike("hospital_name", `%${runClientName}%`).limit(5);
@@ -240,7 +253,31 @@ async function healClientLinkAndRespond(
     const matched = (candidates ?? []).find((row) => normalize(row.hospital_name) === normalize(runClientName));
 
     if (matched?.id) {
-      await supabase.from("workflow_runs").update({ client_id: matched.id }).eq("id", run.id);
+      const { data: updated, error: updateError } = await supabase.from("workflow_runs")
+        .update({ client_id: matched.id, updated_at: new Date().toISOString() })
+        .eq("id", run.id)
+        .select("id")
+        .maybeSingle();
+      if (updateError || !updated) {
+        return NextResponse.json({ ok: false, error: updateError?.message || "고객 연결을 복구하지 못했습니다." }, { status: 500 });
+      }
+      try {
+        await emitOliviaEvent(supabase, {
+          eventType: "workflow.client_relinked",
+          eventSource: "client_link_repair",
+          clientId: matched.id,
+          projectId: run.project_id ?? null,
+          workflowRunId: run.id,
+          payload: { previousClientId: run.client_id ?? null, nextClientId: matched.id, reason: "client_name exact match repair" },
+          deduplicationKey: createEventDeduplicationKey("workflow.client_relinked", run.id, matched.id),
+        });
+      } catch (eventError) {
+        return NextResponse.json({
+          ok: false,
+          error: eventError instanceof Error ? `고객 연결은 복구했지만 이벤트 기록에 실패했습니다: ${eventError.message}` : "고객 연결 이벤트 기록에 실패했습니다.",
+          healedClientId: matched.id,
+        }, { status: 500 });
+      }
       return NextResponse.json({ ok: false, error: "고객 연결이 어긋나 있어 방금 복구했습니다. 새로고침해주세요.", healedClientId: matched.id }, { status: 409 });
     }
   }

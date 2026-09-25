@@ -91,7 +91,6 @@ export default function ContiBuilder({
   const isDesktopWindowMode = useDesktopWindowMode();
   const isDesktopWindow = isModal && isDesktopWindowMode;
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
-  const setOliviaClient = useOliviaContextStore((state) => state.setClient);
   const setOliviaProject = useOliviaContextStore((state) => state.setProject);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
@@ -610,8 +609,18 @@ export default function ContiBuilder({
   const [completeError, setCompleteError] = useState("");
 
   const contiDocumentId = resourceId || savedContiId || undefined;
+  const contiContextClientName = form.hospitalName || undefined;
+  const contiContextProjectId = modalWorkflowRunId || urlWorkflowRunId || undefined;
   useEffect(() => {
-    setOliviaCurrentDocument(contiDocumentId, "storyboard", resultTitle || form.hospitalName || "촬영 콘티");
+    setOliviaCurrentDocument(
+      contiDocumentId,
+      "storyboard",
+      resultTitle || contiContextClientName || "촬영 콘티",
+      {
+        ...(modalClientId ? { clientId: modalClientId, clientName: contiContextClientName } : {}),
+        ...(contiContextProjectId ? { projectId: contiContextProjectId, projectName: resultTitle || contiContextClientName } : {}),
+      },
+    );
     setOliviaPageContext({
       pageMode: result ? (contiDocumentId ? "edit" : "create") : "create",
       capabilities: result
@@ -620,9 +629,9 @@ export default function ContiBuilder({
       documentStatus: completeState === "done" ? "approved" : "draft",
       brand: "photoclinic",
       canEdit: completeState !== "done",
-      canFinalize: Boolean(result && (urlWorkflowRunId || modalWorkflowRunId)) && completeState !== "done",
+      canFinalize: Boolean(result && contiContextProjectId) && completeState !== "done",
     });
-  }, [completeState, contiDocumentId, form.hospitalName, modalWorkflowRunId, result, resultTitle, setOliviaCurrentDocument, setOliviaPageContext, urlWorkflowRunId]);
+  }, [completeState, contiContextClientName, contiContextProjectId, contiDocumentId, modalClientId, result, resultTitle, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     const current = useOliviaContextStore.getState();
@@ -670,15 +679,18 @@ export default function ContiBuilder({
         .then((json) => {
           if (!json.ok) return;
           const entry = json.data;
-          if (entry.client_id || entry.hospital_name) setOliviaClient(entry.client_id, entry.hospital_name);
-          if (entry.workflow_run_id) setOliviaProject(entry.workflow_run_id);
           setResult(withSceneIds(entry.result));
           setResultTitle(entry.title || entry.hospital_name);
           setForm((prev) => ({ ...prev, shootTitle: entry.title || entry.hospital_name || prev.shootTitle, hospitalName: entry.hospital_name, specialties: entry.specialties || prev.specialties }));
           setSavedContiId(resourceId);
           // In-page Agent 패널이 "여기에 추가해줘"처럼 지금 보고 있는 문서를 다시 지칭하지
           // 않아도 알아듣도록, 실제로 콘티를 불러온 시점에 현재 문서로 기록한다.
-          setOliviaCurrentDocument(resourceId, "storyboard", entry.title || entry.hospital_name);
+          setOliviaCurrentDocument(resourceId, "storyboard", entry.title || entry.hospital_name, {
+            clientId: entry.client_id,
+            clientName: entry.hospital_name,
+            projectId: entry.workflow_run_id,
+            projectName: entry.title || entry.hospital_name,
+          });
         })
         .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
       void loadResource();

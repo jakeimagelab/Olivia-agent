@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { acknowledgePhotoStorageEvents, ensurePhotoStorageEvent, validatePhotoProjectRelativePath } from "./server";
 import type { PhotoProjectStatus } from "./types";
 import type { RemoteJobProgress } from "@/lib/remote-jobs/progress";
-import { syncClassificationCompletedWorkflow } from "./shootingProgress";
+import { completeSceneSort } from "@/lib/core/commands/photo";
 
 type JsonRecord = Record<string, unknown>;
 type ClassifyJobStatus = "RUNNING" | "COMPLETED" | "FAILED";
@@ -96,12 +96,13 @@ export async function syncPhotoClassificationProject(
     await acknowledgePhotoStorageEvents(db, projectId);
   }
   if (status === "CLASSIFY_COMPLETED") {
-    try {
-      await syncClassificationCompletedWorkflow(db, projectId);
-    } catch (workflowError) {
-      // 사진 파일 작업과 검증은 이미 성공했다. 고객관리 연결 오류가 사진 프로젝트의 완료 상태나
-      // worker report를 되돌리면 같은 파일 작업이 다시 실행될 수 있으므로 로그만 남긴다.
-      console.warn("[photo classification workflow sync]", workflowError instanceof Error ? workflowError.message : workflowError);
+    const workflowResult = await completeSceneSort(db, projectId);
+    if (!workflowResult.ok) {
+      status = "REVIEW_REQUIRED";
+      const { error: workflowSyncError } = await db.from("photo_storage_projects")
+        .update({ status, classification_error: workflowResult.reason, updated_at: new Date().toISOString() })
+        .eq("id", projectId);
+      if (workflowSyncError) throw workflowSyncError;
     }
   }
   await ensurePhotoStorageEvent(db, {

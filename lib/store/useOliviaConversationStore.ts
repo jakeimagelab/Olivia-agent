@@ -696,6 +696,9 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           notifyAgentCenter();
         } else if (event.type === "message_complete") {
           flushPendingDelta(set, responseId);
+          if (event.resolvedContext) {
+            useOliviaContextStore.getState().setContextLink(event.resolvedContext);
+          }
           set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "complete" } : message) }));
         } else if (event.type === "error") {
           throw new Error(event.message);
