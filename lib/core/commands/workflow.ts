@@ -20,9 +20,7 @@ export async function completeStep(
   try {
     await completeOpenStepTasksForManualSave(db, workflowRunId, stepKey);
     const advance = await maybeAdvanceWorkflow(db, workflowRunId, stepKey);
-    const toStep = advance.advanced && "result" in advance && !advance.result.completed
-      ? advance.result.to_step_key ?? undefined
-      : undefined;
+    const toStep = advance.advanced ? advance.result.to_step_key ?? undefined : undefined;
     return {
       ok: true,
       value: {
