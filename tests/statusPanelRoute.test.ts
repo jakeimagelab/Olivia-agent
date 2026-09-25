@@ -5,24 +5,20 @@ type Row = Record<string, unknown>;
 
 function createFakeTable(rows: Row[], opts: { failWith?: string } = {}) {
   return {
-    query() {
+    // PHASE 4 작업 1 R3(2026-09-25) — hermesFallbackCount24h가 select(col, {count,head})로 head
+    // count 모드를 쓰므로, from(table).select(...)에서 넘어온 head 여부를 여기서 받는다.
+    query(headCount = false) {
       const filters: Array<(row: Row) => boolean> = [];
       let limitCount: number | undefined;
-      let headCount = false;
       const builder = {
         eq(col: string, val: unknown) { filters.push((row) => row[col] === val); return builder; },
         neq(col: string, val: unknown) { filters.push((row) => row[col] !== val); return builder; },
-        // PHASE 4 작업 1 R3(2026-09-25) — hermesFallbackCount24h 조회가 쓰는 .not()/head count.
-        // 실제 값은 검사하지 않는다(테스트 fixture가 이미 조건에 맞는 row만 넣어둔다) — .not()이
-        // 있어야 한다는 체이닝 자체만 흉내낸다.
+        // .not()의 실제 조건은 검사하지 않는다(테스트 fixture가 이미 조건에 맞는 row만 넣어둔다) —
+        // 체이닝이 끊기지 않게만 한다.
         not() { return builder; },
         gte() { return builder; },
         order() { return builder; },
         limit(n: number) { limitCount = n; return builder; },
-        select(_columns?: string, options?: { count?: string; head?: boolean }) {
-          if (options?.head) headCount = true;
-          return builder;
-        },
         async maybeSingle() {
           if (opts.failWith) return { data: null, error: { message: opts.failWith } };
           const matches = rows.filter((row) => filters.every((f) => f(row)));
@@ -57,7 +53,7 @@ function createFakeSupabase(
       // findWorkflowConsistencyIssues가 조회하는 workflow_runs 등은 이 테스트의 관심사가
       // 아니다 — 빈 결과로 흘려보내면 그 함수 내부에서 안전하게 issues:[]로 정리된다.
       if (!(table in fakes)) return { select: () => createFakeTable([]).query() };
-      return { select: () => fakes[table as keyof typeof fakes].query() };
+      return { select: (_columns?: string, options?: { head?: boolean }) => fakes[table as keyof typeof fakes].query(options?.head) };
     },
   };
 }
