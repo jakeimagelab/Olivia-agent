@@ -448,6 +448,7 @@ function InlineClientProjectPanel({
                 stepIcon={STEP_INFO[displayStepKey]?.icon}
                 stepDescription={STEP_INFO[displayStepKey]?.desc}
                 onOpenToolModal={openToolModal}
+                onRefresh={refresh}
               />
             </section>
             <PcrmActivityTimeline
