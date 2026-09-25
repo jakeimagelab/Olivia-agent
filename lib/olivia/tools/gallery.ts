@@ -95,9 +95,14 @@ export async function createGallery(input: any, req?: NextRequest | null) {
   if (!d.ok) return { action: "done", message: `❌ 갤러리 생성 실패: ${d.error}` };
   await logActivity("send_workflow_mail", input.clientName, { gallery: true, nasLink: input.nasLink });
 
-  const autoMsg = run?.current_step_key === "retouching"
-    ? "\n\n✅ 보정완료 처리 + 메일 draft 자동 생성 + **final_delivery** 단계로 자동 전진됐어요."
-    : "\n\n메일링함에 draft가 저장됐습니다.";
+  // /api/galleries가 이제 단계 전진 성공 여부를 advance로 실제 결과째 알려준다 — 여기서도
+  // registerGallery 호출 전 run.current_step_key만 보고 미리 "자동 전진됐어요"라고 단정하지
+  // 않고, 실제 결과를 반영한다(PHASE 3 작업 2, 2026-09-25).
+  const autoMsg = d.advance?.advanced
+    ? `\n\n✅ 단계 전진 완료 + 메일 draft 자동 생성 — 다음 단계로 넘어갔어요.`
+    : d.advance?.reason
+      ? `\n\n⚠️ 갤러리는 등록됐지만 단계 전진은 보류됐어요: ${d.advance.reason}`
+      : "\n\n메일링함에 draft가 저장됐습니다.";
 
   return {
     action: "done",
