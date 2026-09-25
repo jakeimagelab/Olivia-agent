@@ -3876,7 +3876,7 @@ function PhotoSortingInner({
                     } catch { batch.forEach(b => failed.push(b.name)); }
                   }
 
-                  setGalleryProgress({ step: `3. 완료! ${uploaded}장 업로드${failed.length ? ` (실패 ${failed.length}장)` : ""}`, cur: uploaded, total: allFiles.length });
+                  setGalleryProgress({ step: `3. 완료! ${uploaded}장 업로드${failed.length ? ` (실패 ${failed.length}장)` : ""}${advanceReason ? ` — 단계 전환 보류: ${advanceReason}` : ""}`, cur: uploaded, total: allFiles.length });
 
                   // 3) 페이지 이동
                   await new Promise(r => setTimeout(r, 800));
