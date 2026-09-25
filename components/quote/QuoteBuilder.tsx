@@ -13,6 +13,8 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
 import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
@@ -336,6 +338,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   // 찾아 수정할 수 있게(activeResourceId) 하고, 수정 후 실시간 반영에도 쓴다.
   const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
   const [currentQuoteStatus, setCurrentQuoteStatus] = useState("draft");
+  const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | undefined>(workflowRunId);
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
@@ -345,6 +348,15 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
   const quoteDocumentId = resourceId || currentQuoteId || undefined;
   const quoteContextClientName = customer.hospitalName || undefined;
+  const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(linkedWorkflowRunId);
+  const snapshotQuote = coreSnapshot?.resources.quote;
+  const effectiveQuoteStatus = snapshotQuote?.id === quoteDocumentId
+    ? snapshotQuote?.status || currentQuoteStatus
+    : currentQuoteStatus;
+
+  useEffect(() => {
+    if (workflowRunId) setLinkedWorkflowRunId(workflowRunId);
+  }, [workflowRunId]);
 
   useEffect(() => {
     setOliviaCurrentDocument(
@@ -353,18 +365,18 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       quoteTitle || quoteContextClientName || "견적서",
       {
         ...(clientId ? { clientId, clientName: quoteContextClientName } : {}),
-        ...(workflowRunId ? { projectId: workflowRunId, projectName: quoteTitle || quoteContextClientName } : {}),
+        ...(linkedWorkflowRunId ? { projectId: linkedWorkflowRunId, projectName: quoteTitle || quoteContextClientName } : {}),
       },
     );
     setOliviaPageContext({
       pageMode: quoteDocumentId ? "edit" : "create",
       capabilities: ["quote.edit", "quote.discount", "quote.add_item", "quote.publish", "contract.create"],
-      documentStatus: currentQuoteStatus,
+      documentStatus: effectiveQuoteStatus,
       brand,
-      canEdit: currentQuoteStatus !== "archived",
-      canFinalize: currentQuoteStatus !== "published" && currentQuoteStatus !== "archived",
+      canEdit: effectiveQuoteStatus !== "archived",
+      canFinalize: effectiveQuoteStatus !== "published" && effectiveQuoteStatus !== "final" && effectiveQuoteStatus !== "archived",
     });
-  }, [brand, clientId, currentQuoteStatus, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext, workflowRunId]);
+  }, [brand, clientId, effectiveQuoteStatus, linkedWorkflowRunId, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     const current = useOliviaContextStore.getState();
@@ -881,6 +893,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       if (body.conflictDetected) {
         setRecentQuoteMessage("⚠️ 저장했지만, 그 사이 다른 곳에서 이 견적서가 먼저 수정됐어요. 최신 상태인지 확인해주세요.");
       }
+      if (linkedWorkflowRunId) {
+        notifyCoreSnapshotUpdated(linkedWorkflowRunId);
+        await refreshCoreSnapshot();
+      }
       return savedData;
     } catch (error) {
       setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
@@ -1028,6 +1044,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
       );
       if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
+      if (linkedWorkflowRunId) {
+        notifyCoreSnapshotUpdated(linkedWorkflowRunId);
+        await refreshCoreSnapshot();
+      }
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(json.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
         setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");
@@ -1109,6 +1129,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               ? "견적서는 확정됐고 워크플로는 이미 다른 단계로 이동해 있습니다."
               : `견적서를 저장했지만 계약 단계로 넘어가지 않았습니다${json.advanceReason ? ` — ${json.advanceReason}` : "."}`,
       );
+      const completedWorkflowRunId = typeof json.workflowRunId === "string"
+        ? json.workflowRunId
+        : linkedWorkflowRunId;
+      if (completedWorkflowRunId) {
+        setLinkedWorkflowRunId(completedWorkflowRunId);
+        notifyCoreSnapshotUpdated(completedWorkflowRunId);
+        await refreshCoreSnapshot();
+      }
     } catch (error) {
       setRecentQuoteMessage(error instanceof Error ? error.message : "최종완료 처리 중 오류가 발생했습니다.");
     } finally {
@@ -1137,6 +1165,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         .then((res) => res.json())
         .then((json) => {
           if (json.ok) {
+            if (typeof json.quote?.workflow_run_id === "string") {
+              setLinkedWorkflowRunId(json.quote.workflow_run_id);
+            }
             loadRecentQuote(rowToContractQuoteData(json.quote));
             setOliviaCurrentDocument(resourceId, "quote", json.quote?.title || json.quote?.hospital_name || "견적서", {
               clientId: json.quote?.client_id,
@@ -1181,23 +1212,27 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
     if (!isModal) return;
     if (clientId) {
-      fetch(`/api/clients/${clientId}/workspace`)
+      const suffix = linkedWorkflowRunId
+        ? `?workflowRunId=${encodeURIComponent(linkedWorkflowRunId)}`
+        : "";
+      fetch(`/api/clients/${clientId}${suffix}`)
         .then((res) => res.json())
         .then((json) => {
           if (!json.ok) return;
+          if (typeof json.workflowRun?.id === "string") setLinkedWorkflowRunId(json.workflowRun.id);
           setCustomer((prev) => ({
             ...prev,
             hospitalName: json.client?.name || prev.hospitalName,
             managerName: json.client?.manager_name || prev.managerName,
             phone: json.client?.phone || prev.phone,
             email: json.client?.email || prev.email,
-            shootDate: json.activeProject?.shoot_date || prev.shootDate,
+            shootDate: json.workflowRun?.shoot_date || prev.shootDate,
           }));
         })
         .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, clientId, resourceId]);
+  }, [isModal, clientId, linkedWorkflowRunId, resourceId]);
 
   // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서 — 모달 전용 effect 위에는 아예 없던
   // 리스너라 채팅으로 지금 보고 있는 견적을 수정해도 화면이 그대로였다(콘티와 동일한 버그).

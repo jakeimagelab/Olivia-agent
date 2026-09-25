@@ -116,8 +116,11 @@ export default function ContractBuilder({
   const hasContractQuote = Boolean(quote);
   const {
     snapshot: coreSnapshot,
+    loading: coreSnapshotLoading,
     refresh: refreshCoreSnapshot,
   } = useCoreProjectSnapshot(linkedWorkflowRunId);
+  const coreQuoteId = coreSnapshot?.resources.quote?.id;
+  const coreQuoteApproved = coreSnapshot?.resources.quote?.approved;
   const contractCoreCompleted = Boolean(
     contractDocumentId
     && coreSnapshot
@@ -263,19 +266,24 @@ export default function ContractBuilder({
       setError("고객이 지정되지 않아 계약서를 열 수 없습니다. 고객관리에서 고객을 선택한 뒤 다시 시도해주세요.");
       return;
     }
+    if (linkedWorkflowRunId && coreSnapshotLoading) return;
     setQuote(null);
     setError("");
-    fetch(`/api/clients/${modalClientId}/workspace`)
+    const suffix = linkedWorkflowRunId
+      ? `?workflowRunId=${encodeURIComponent(linkedWorkflowRunId)}`
+      : "";
+    fetch(`/api/clients/${modalClientId}${suffix}`)
       .then((r) => r.json())
-      .then(async (ws) => {
-        if (!ws.ok) throw new Error(ws.error || "계약서에 연결된 고객 정보를 불러오지 못했습니다.");
-        setOliviaCurrentDocument(undefined, "contract", `${ws.client?.name || "고객"} 계약서`, {
+      .then(async (clientResponse) => {
+        if (!clientResponse.ok) throw new Error(clientResponse.error || "계약서에 연결된 고객 정보를 불러오지 못했습니다.");
+        const client = clientResponse.client;
+        setOliviaCurrentDocument(undefined, "contract", `${coreSnapshot?.client.name || client?.name || "고객"} 계약서`, {
           clientId: modalClientId,
-          clientName: ws.client?.name || ws.client?.hospital_name,
-          projectId: modalWorkflowRunId,
-          projectName: ws.workflowRun?.project_name || ws.client?.name,
+          clientName: coreSnapshot?.client.name || client?.name || client?.hospital_name,
+          projectId: linkedWorkflowRunId,
+          projectName: coreSnapshot?.project.name || clientResponse.workflowRun?.project_name || client?.name,
         });
-        const quoteId = ws.resourceIds?.quote;
+        const quoteId = coreQuoteId;
         if (quoteId) {
           const qResponse = await fetch(`/api/quotes/${quoteId}`);
           const qRes = await qResponse.json().catch(() => null);
@@ -285,8 +293,8 @@ export default function ContractBuilder({
             if (typeof q.workflow_run_id === "string") setLinkedWorkflowRunId(q.workflow_run_id);
             setSourceQuoteRecordId(quoteId);
             setSourceQuoteApproved(
-              typeof ws.resourceMeta?.quote?.isApproved === "boolean"
-                ? ws.resourceMeta.quote.isApproved
+              typeof coreQuoteApproved === "boolean"
+                ? coreQuoteApproved
                 : ["published", "final"].includes(String(q.status || "draft")),
             );
             setQuote({
@@ -314,10 +322,10 @@ export default function ContractBuilder({
         setSourceQuoteApproved(null);
         const today = new Date().toISOString().slice(0, 10);
         setQuote({
-          hospitalName: ws.client?.name || "",
-          contactName: ws.client?.manager_name || "",
-          phone: ws.client?.phone || "",
-          email: ws.client?.email || "",
+          hospitalName: coreSnapshot?.client.name || client?.name || "",
+          contactName: client?.manager_name || "",
+          phone: client?.phone || "",
+          email: client?.email || "",
           quoteNumber: "",
           quoteDate: today,
           shootDate: null,
@@ -332,7 +340,7 @@ export default function ContractBuilder({
         console.error("contract client load failed", loadError);
         setError(loadError instanceof Error ? loadError.message : "계약서 고객 정보를 불러오지 못했습니다.");
       });
-  }, [isModal, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
+  }, [coreQuoteApproved, coreQuoteId, coreSnapshot?.client.name, coreSnapshot?.project.name, coreSnapshotLoading, isModal, linkedWorkflowRunId, modalClientId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
 
   useEffect(() => {
     if (isModal) return;

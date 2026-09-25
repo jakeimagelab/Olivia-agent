@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { MobileGenericDocument } from "./MobileResourceDocument";
 import { MobileCanonicalContractDocument, MobileCanonicalQuoteDocument } from "./MobileCanonicalDocuments";
 import styles from "./OliviaMobileShell.module.css";
@@ -116,6 +118,10 @@ export default function MobileResourcePreview({
   const contextClientName = optionalString(data?.hospital_name) || optionalString(data?.client_name) || optionalString(temporaryDocument?.hospital_name);
   const contextProjectId = optionalString(data?.workflow_run_id) || optionalString(temporaryDocument?.workflow_run_id);
   const contextProjectName = optionalString(data?.title) || contextClientName;
+  const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(contextProjectId);
+  const resolvedClientId = coreSnapshot?.client.id || contextClientId;
+  const resolvedClientName = coreSnapshot?.client.name || contextClientName;
+  const resolvedProjectName = coreSnapshot?.project.name || contextProjectName;
   const hasLoadedResource = data !== null;
   useEffect(() => {
     if (!hasLoadedResource) return;
@@ -123,13 +129,13 @@ export default function MobileResourcePreview({
     useOliviaContextStore.getState().setCurrentDocument(
       resource.resourceId,
       workspace,
-      contextProjectName || "현재 문서",
+      resolvedProjectName || "현재 문서",
       {
-        ...(contextClientId ? { clientId: contextClientId, clientName: contextClientName } : {}),
-        ...(contextProjectId ? { projectId: contextProjectId, projectName: contextProjectName } : {}),
+        ...(resolvedClientId ? { clientId: resolvedClientId, clientName: resolvedClientName } : {}),
+        ...(contextProjectId ? { projectId: contextProjectId, projectName: resolvedProjectName } : {}),
       },
     );
-  }, [contextClientId, contextClientName, contextProjectId, contextProjectName, hasLoadedResource, resource.resourceId, resource.resourceType]);
+  }, [contextProjectId, hasLoadedResource, resolvedClientId, resolvedClientName, resolvedProjectName, resource.resourceId, resource.resourceType]);
   useEffect(() => {
     const timer = window.setInterval(() => void load(true), 4000);
     const refresh = () => void load(true);
@@ -310,8 +316,8 @@ export default function MobileResourcePreview({
     const workspace = resource.resourceType === "storyboard" ? "conti" : resource.resourceType;
     useOliviaContextStore.getState().setWorkspace(workspace, resource.resourceId);
     useOliviaContextStore.getState().setCurrentDocument(resource.resourceId, workspace, String(data?.title || data?.hospital_name || "현재 문서"), {
-      ...(contextClientId ? { clientId: contextClientId, clientName: contextClientName } : {}),
-      ...(contextProjectId ? { projectId: contextProjectId, projectName: contextProjectName } : {}),
+      ...(resolvedClientId ? { clientId: resolvedClientId, clientName: resolvedClientName } : {}),
+      ...(contextProjectId ? { projectId: contextProjectId, projectName: resolvedProjectName } : {}),
     });
     onRequestEdit();
   };
@@ -338,6 +344,10 @@ export default function MobileResourcePreview({
       setRegistrationDismissed(false);
       setNotice(payload.message || "고객 확인을 승인했어요.");
       window.dispatchEvent(new CustomEvent("olivia-resource-updated"));
+      if (contextProjectId) {
+        notifyCoreSnapshotUpdated(contextProjectId);
+        await refreshCoreSnapshot();
+      }
     } catch (approvalError) {
       setNotice(approvalError instanceof Error ? approvalError.message : "승인하지 못했어요.");
     } finally {
@@ -360,6 +370,10 @@ export default function MobileResourcePreview({
       setRegistrationDismissed(true);
       setNotice(payload.message || "고객등록과 문서 연결을 완료했어요.");
       window.dispatchEvent(new CustomEvent("olivia-resource-updated"));
+      if (contextProjectId) {
+        notifyCoreSnapshotUpdated(contextProjectId);
+        await refreshCoreSnapshot();
+      }
       void load(true);
     } catch (registrationError) {
       setNotice(registrationError instanceof Error ? registrationError.message : "고객을 등록하지 못했어요.");

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { getWorkflowDisplayStepKey, STEP_NAME, type ToolOnlyStepKey } from "@/lib/workflow";
 
 const MODAL_TOOL_STEPS = new Set<ToolOnlyStepKey>(["quote", "contract", "conti"]);
@@ -25,6 +27,8 @@ export default function CurrentStepCard({
   onOpenToolModal?: (stepKey: "quote" | "contract" | "conti") => void;
   onRefresh?: () => void;
 }) {
+  const workflowRunId = typeof workflowRun?.id === "string" ? workflowRun.id : undefined;
+  const { snapshot } = useCoreProjectSnapshot(workflowRunId);
   if (!workflowRun?.id) {
     return (
       <section className="pcrm-current-step-card">
@@ -39,8 +43,9 @@ export default function CurrentStepCard({
     );
   }
 
-  const isCompleted = workflowRun.status === "completed";
-  const stepKey = getWorkflowDisplayStepKey(workflowRun.current_step_key) || workflowRun.current_step_key;
+  const isCompleted = (snapshot?.project.status ?? workflowRun.status) === "completed";
+  const currentStep = snapshot?.workflow.currentStep ?? workflowRun.current_step_key;
+  const stepKey = getWorkflowDisplayStepKey(currentStep) || currentStep;
   const stepName = STEP_NAME[stepKey] || stepKey;
   const appHref = buildStepAppLink({ stepKey, clientId: client.id, workflowRunId: workflowRun.id });
   const isModalStep = MODAL_TOOL_STEPS.has(stepKey);
@@ -90,6 +95,7 @@ function PaymentConfirmAction({ workflowRunId, onRefresh }: { workflowRunId: str
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "잔금·계산서 확인 처리에 실패했습니다.");
+      notifyCoreSnapshotUpdated(workflowRunId);
       onRefresh?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "잔금·계산서 확인 처리에 실패했습니다.");

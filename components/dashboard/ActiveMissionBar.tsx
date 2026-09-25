@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 type WorkflowRun = {
@@ -36,59 +37,63 @@ type ActiveMissionBarProps = {
 // 업데이트된 활성 워크플로우를 "현재 미션"으로 노출한다(기존 RecentProjects가 쓰는
 // /api/workflow/summary 그대로 재사용, 페이지별로 새로 데이터를 만들지 않는다 — 40절).
 export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProps = {}) {
-  const [run, setRun] = useState<WorkflowRun | null | undefined>(undefined);
+  const [summaryRun, setSummaryRun] = useState<WorkflowRun | null | undefined>(workflowRunId ? null : undefined);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const setContextLink = useOliviaContextStore((state) => state.setContextLink);
+  const selectedWorkflowRunId = workflowRunId || summaryRun?.id;
+  const { snapshot, loading: snapshotLoading } = useCoreProjectSnapshot(selectedWorkflowRunId);
 
   useEffect(() => {
+    if (workflowRunId) {
+      setSummaryRun(null);
+      return;
+    }
     let cancelled = false;
     fetch("/api/workflow/summary", { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled || !Array.isArray(data?.workflowRuns)) return;
         const runs = data.workflowRuns as WorkflowRun[];
-        if (workflowRunId) {
-          setRun(runs.find((candidate) => candidate.id === workflowRunId) ?? null);
-          return;
-        }
         const active = runs
           .filter((candidate) => candidate.status === "active")
           .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        setRun(active[0] ?? null);
+        setSummaryRun(active[0] ?? null);
       })
-      .catch(() => { if (!cancelled) setRun(null); });
+      .catch(() => { if (!cancelled) setSummaryRun(null); });
     return () => { cancelled = true; };
   }, [workflowRunId]);
 
-  if (run === undefined) return <MissionStatusBar title="" loading />;
-  if (!run) return null;
+  if ((!workflowRunId && summaryRun === undefined) || (selectedWorkflowRunId && snapshotLoading && !snapshot)) {
+    return <MissionStatusBar title="" loading />;
+  }
+  if (!snapshot) return null;
 
   // project_name이 이미 client_name으로 시작하는 경우가 많다(예: "더힐피부과신사점 브랜드 촬영") —
   // 그대로 이어붙이면 "더힐피부과신사점 더힐피부과신사점 브랜드 촬영"처럼 중복 표시된다.
-  const clientName = run.client_name || "이름 없는 고객";
-  const projectName = run.project_name || "프로젝트";
+  const clientName = snapshot.client.name || "이름 없는 고객";
+  const projectName = snapshot.project.name || "프로젝트";
   const title = projectName.trim().startsWith(clientName.trim()) ? projectName : `${clientName} ${projectName}`;
   const differsFromChatTarget = Boolean(
-    (activeClientId && run.client_id && activeClientId !== run.client_id)
+    (activeClientId && snapshot.client.id && activeClientId !== snapshot.client.id)
     || (!activeClientId && activeClientName && activeClientName !== clientName)
-    || (!activeClientId && !activeClientName && run.client_id),
+    || (!activeClientId && !activeClientName && snapshot.client.id),
   );
 
   return (
     <MissionStatusBar
       title={title}
-      status={run.status === "completed" ? "완료" : run.status === "paused" ? "보류" : "진행 중"}
-      currentStage={run.current_step_name}
-      nextScheduleLabel={formatShootDate(run.shoot_date)}
-      owner={run.manager_name || undefined}
-      progress={run.progress}
-      detailHref={run.client_id ? `/clients?clientId=${run.client_id}` : "/clients"}
+      status={snapshot.project.status === "completed" ? "완료" : snapshot.project.status === "paused" ? "보류" : "진행 중"}
+      currentStage={snapshot.workflow.currentStepName}
+      nextScheduleLabel={formatShootDate(summaryRun?.shoot_date)}
+      owner={summaryRun?.manager_name || undefined}
+      progress={snapshot.workflow.progressPercent}
+      detailHref={snapshot.client.id ? `/clients?clientId=${snapshot.client.id}` : "/clients"}
       contextNotice={differsFromChatTarget ? "추천 미션 · 현재 채팅 대상과 다름" : undefined}
       onDetailClick={() => setContextLink({
-        clientId: run.client_id || undefined,
+        clientId: snapshot.client.id || undefined,
         clientName,
-        projectId: run.id,
+        projectId: snapshot.project.workflowRunId,
         projectName,
       })}
     />

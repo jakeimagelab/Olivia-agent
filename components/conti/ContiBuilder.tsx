@@ -7,6 +7,9 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import { isContiCoreCompleted } from "@/lib/core/readModels/projectViewState";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { addContiShots as addContiShotsShared, duplicateContiShot as duplicateContiShotShared, removeContiShot as removeContiShotShared, reorderContiShot as reorderContiShotShared, updateContiShot as updateContiShotShared } from "@/lib/conti/contiMutationService";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
@@ -615,6 +618,11 @@ export default function ContiBuilder({
   const contiDocumentId = resourceId || savedContiId || undefined;
   const contiContextClientName = form.hospitalName || undefined;
   const contiContextProjectId = modalWorkflowRunId || urlWorkflowRunId || undefined;
+  const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(contiContextProjectId);
+  const contiCoreCompleted = Boolean(
+    coreSnapshot && contiDocumentId && isContiCoreCompleted(coreSnapshot, contiDocumentId),
+  );
+  const effectiveCompleteState = contiCoreCompleted ? "done" : completeState;
   useEffect(() => {
     setOliviaCurrentDocument(
       contiDocumentId,
@@ -630,12 +638,14 @@ export default function ContiBuilder({
       capabilities: result
         ? ["conti.edit", "conti.add_scene", "conti.remove_scene", "conti.reorder_scene", "conti.export"]
         : [],
-      documentStatus: completeState === "done" ? "approved" : "draft",
+      documentStatus: contiCoreCompleted ? "final" : "draft",
       brand: "photoclinic",
-      canEdit: completeState !== "done",
-      canFinalize: Boolean(result && contiContextProjectId) && completeState !== "done",
+      canEdit: !contiCoreCompleted,
+      canComplete: Boolean(result && contiContextProjectId) && !contiCoreCompleted,
+      canPublish: Boolean(contiDocumentId),
+      canFinalize: Boolean(result && contiContextProjectId) && !contiCoreCompleted,
     });
-  }, [completeState, contiContextClientName, contiContextProjectId, contiDocumentId, modalClientId, result, resultTitle, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [contiContextClientName, contiContextProjectId, contiCoreCompleted, contiDocumentId, modalClientId, result, resultTitle, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     const current = useOliviaContextStore.getState();
@@ -654,20 +664,20 @@ export default function ContiBuilder({
     try {
       const sourceId = savedContiId || await saveConti({ silent: true });
       if (!sourceId) throw new Error("콘티 DB 저장에 실패했습니다.");
-      if (!urlWorkflowRunId) throw new Error("콘티에 연결된 프로젝트가 없습니다. 먼저 견적서·계약서를 완료해 프로젝트를 생성해주세요.");
-      const r = await fetch(`/api/workflow-runs/${urlWorkflowRunId}/complete-step`, {
+      if (!contiContextProjectId) throw new Error("콘티에 연결된 프로젝트가 없습니다. 먼저 견적서·계약서를 완료해 프로젝트를 생성해주세요.");
+      const r = await fetch(`/api/conti/runs/${encodeURIComponent(sourceId)}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ stepKey: "conti" }),
+        body: JSON.stringify({ workflowRunId: contiContextProjectId }),
       });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error);
       setCompleteState("done");
-      setTimeout(() => setCompleteState("idle"), 3000);
+      notifyCoreSnapshotUpdated(contiContextProjectId);
+      await refreshCoreSnapshot();
     } catch (error: any) {
       setCompleteError(error?.message || "최종완료 처리에 실패했습니다.");
       setCompleteState("error");
-      setTimeout(() => setCompleteState("idle"), 3000);
     }
   };
 
@@ -696,6 +706,8 @@ export default function ContiBuilder({
             : "콘티를 공개했습니다. 워크플로우는 이미 다른 단계에 있습니다.",
       );
       setPublishState("done");
+      notifyCoreSnapshotUpdated(workflowRunId);
+      await refreshCoreSnapshot();
       onPublished?.();
     } catch (publishError) {
       setPublishMessage(publishError instanceof Error ? publishError.message : "콘티 공개에 실패했습니다.");
@@ -849,6 +861,10 @@ export default function ContiBuilder({
       const data = await res.json();
       if (!data.ok) throw new Error(data.error);
       setSavedContiId(data.id);
+      if (contiContextProjectId) {
+        notifyCoreSnapshotUpdated(contiContextProjectId);
+        await refreshCoreSnapshot();
+      }
       lastAutoSavedSignatureRef.current = JSON.stringify(payload);
       if (isModal) setDirty(false);
       if (silent) {
@@ -1498,7 +1514,7 @@ ${header("타임테이블")}
                 shareCopied={shareCopied}
                 generatingImages={generatingImages}
                 downloadMenuOpen={showDownloadMenu}
-                completeState={completeState}
+                completeState={effectiveCompleteState}
                 completeError={completeError}
                 publishState={publishState}
                 publishMessage={publishMessage}

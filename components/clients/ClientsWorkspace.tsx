@@ -7,6 +7,7 @@ import { Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Copy
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
+  getWorkflowPhaseProgress,
   getWorkflowDisplayStepKey,
   resolvePhaseTargetStep,
 } from "@/lib/workflow";
@@ -35,6 +36,9 @@ import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from 
 import { useClientRoster } from "@/app/(client-hub)/clients/_hooks/useClientRoster";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import type { OliviaUiSurface } from "@/lib/olivia/surfaceContext";
+import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
+import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import type { CoreProjectSnapshot } from "@/lib/core/readModels/types";
 
 // 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
 // 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
@@ -304,6 +308,38 @@ function invalidateClientDetailCache(clientId: string) {
   clientDetailCache.delete(clientId);
 }
 
+function mergeClientPageDataWithSnapshot(pageData: any, snapshot?: CoreProjectSnapshot) {
+  if (!pageData?.workflowRun || !snapshot) return pageData;
+  if (pageData.workflowRun.id !== snapshot.project.workflowRunId) return pageData;
+  return {
+    ...pageData,
+    client: {
+      ...pageData.client,
+      id: snapshot.client.id ?? pageData.client?.id,
+      name: snapshot.client.name || pageData.client?.name,
+    },
+    workflowRun: {
+      ...pageData.workflowRun,
+      id: snapshot.project.workflowRunId,
+      project_id: snapshot.project.projectId,
+      project_name: snapshot.project.name,
+      status: snapshot.project.status,
+      current_step_key: snapshot.workflow.currentStep,
+    },
+    workflowSummary: getWorkflowPhaseProgress(
+      snapshot.workflow.currentStep,
+      snapshot.project.status,
+    ),
+    resourceIds: {
+      ...pageData.resourceIds,
+      quote: snapshot.resources.quote?.id ?? null,
+      contract: snapshot.resources.contract?.id ?? null,
+      conti: snapshot.resources.conti?.id ?? null,
+      select_gallery: snapshot.resources.selectGallery?.id ?? null,
+    },
+  };
+}
+
 function InlineClientProjectPanel({
   clientId,
   embedded,
@@ -322,8 +358,14 @@ function InlineClientProjectPanel({
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
+  const snapshotWorkflowRunId = pageData?.workflowRun?.id as string | undefined;
+  const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(snapshotWorkflowRunId);
 
-  const refresh = () => { invalidateClientDetailCache(clientId); setReloadKey((value) => value + 1); };
+  const refresh = () => {
+    invalidateClientDetailCache(clientId);
+    setReloadKey((value) => value + 1);
+    void refreshCoreSnapshot();
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -374,7 +416,8 @@ function InlineClientProjectPanel({
     </div>
   );
 
-  const { client, workflowRun, workflowSummary, resourceIds, activities = [] } = pageData;
+  const effectivePageData = mergeClientPageDataWithSnapshot(pageData, coreSnapshot);
+  const { client, workflowRun, workflowSummary, resourceIds, activities = [] } = effectivePageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -389,6 +432,8 @@ function InlineClientProjectPanel({
     if (!workflowRun) return;
     const targetStep = resolvePhaseTargetStep(phase.key, workflowRun.current_step_key);
     await tryMoveWorkflowStep(workflowRun.id, targetStep);
+    notifyCoreSnapshotUpdated(workflowRun.id);
+    await refreshCoreSnapshot();
     refresh();
     if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") openToolModal(targetStep);
     else if (!embedded) router.push(buildStepAppLink({ stepKey: targetStep, clientId, workflowRunId: workflowRun.id }));
@@ -521,6 +566,8 @@ function DetailView({
   // 빈 콘티가 또 열림).
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
+  const snapshotWorkflowRunId = workflowRunId || (pageData?.workflowRun?.id as string | undefined);
+  const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(snapshotWorkflowRunId || undefined);
 
   const deleteClient = async (clientName: string) => {
     if (!window.confirm(`'${clientName}' 고객을 삭제할까요? 휴지통으로 이동되며 30일 안에 복원할 수 있습니다.`)) return;
@@ -600,7 +647,8 @@ function DetailView({
     </div>
   );
 
-  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary, resourceIds } = pageData;
+  const effectivePageData = mergeClientPageDataWithSnapshot(pageData, coreSnapshot);
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary, resourceIds } = effectivePageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -622,7 +670,9 @@ function DetailView({
     if (!workflowRun) return;
     const targetStep = resolvePhaseTargetStep(phase.key, workflowRun.current_step_key);
     await tryMoveWorkflowStep(workflowRun.id, targetStep);
-    load();
+    notifyCoreSnapshotUpdated(workflowRun.id);
+    await refreshCoreSnapshot();
+    void load();
     if (targetStep === "quote" || targetStep === "contract" || targetStep === "conti") {
       openToolModal(targetStep);
     } else {
