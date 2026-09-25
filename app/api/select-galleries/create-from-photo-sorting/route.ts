@@ -104,17 +104,23 @@ export async function POST(req: NextRequest) {
     }
 
     // 분류 결과가 실제 셀렉 갤러리로 생성된 뒤에만 기존 Workflow Command로 전진한다.
+    // 갤러리·이미지는 이미 저장됐으므로, 단계 전진이 건너뛰어져도(skipped) 이 요청 자체를
+    // 실패로 만들지 않는다 — 그 시점에 throw하면 화면엔 500이 뜨지만 갤러리는 이미 만들어진
+    // 상태로 남아 사용자가 "실패했다"고 오해한다. advance 필드로 사실만 별도로 알린다.
+    let advance: { advanced: boolean; reason?: string } = { advanced: false };
     if (workflowRun && workflowRun.current_step_key !== "client_selection") {
-        const advanced = await advanceWorkflow(sb, {
-          workflow_run_id: workflowRun.id,
-          from_step_key: "backup_sorting",
-          to_step_key: "client_selection",
-          reason: "셀렉 갤러리 생성",
-        });
-        if (advanced.skipped) throw new Error(advanced.reason || "프로젝트 단계가 변경되었습니다.");
+      const advanced = await advanceWorkflow(sb, {
+        workflow_run_id: workflowRun.id,
+        from_step_key: workflowRun.current_step_key,
+        to_step_key: "client_selection",
+        reason: "셀렉 갤러리 생성",
+      });
+      advance = advanced.skipped
+        ? { advanced: false, reason: advanced.reason || "프로젝트 단계가 변경되었습니다." }
+        : { advanced: true };
     }
 
-    return NextResponse.json({ ok: true, gallery, shareToken });
+    return NextResponse.json({ ok: true, gallery, shareToken, advance });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }
