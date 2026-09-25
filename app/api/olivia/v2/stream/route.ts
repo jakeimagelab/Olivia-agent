@@ -478,7 +478,10 @@ function toolStatus(name: string) {
   if (normalized.includes("analysis")) return "분석을 처리하는 중…";
   if (normalized.startsWith("document_") || normalized.startsWith("gallery_")) return "자료를 확인하는 중…";
   if (normalized.startsWith("ui_")) return "화면을 준비하는 중…";
-  return "요청을 처리하는 중…";
+  // PHASE 4 작업 2(2026-09-25) R2 — 매핑에 없는 도구를 "요청을 처리하는 중…"처럼 뭉뚱그리지
+  // 않는다. 뭘 하는지 모르는 게 제일 답답하다는 게 이 작업의 명시적 요구사항이라, 못 찾은
+  // 도구는 이름을 그대로 노출한다.
+  return `${name} 처리하는 중…`;
 }
 
 const PHOTO_DIRECT_TURN_TIMEOUT_MS = 35_000;
