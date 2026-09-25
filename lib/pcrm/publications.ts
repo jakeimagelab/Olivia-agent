@@ -3,7 +3,7 @@ import type { PortalSession } from "@/lib/clientPortal";
 import { canTransitionPublication } from "./collaboration";
 import { recordPcrmActivitySafely } from "./activity";
 import type { PcrmPublicationStatus } from "./types";
-import { maybeAdvanceWorkflow } from "@/lib/workflowAutomation";
+import { completeStep } from "@/lib/core/commands/workflow";
 
 // 워크플로우 단계 자동전환 대상 문서 타입 — 견적/계약 승인은 곧 그 단계의 완료를 뜻하므로
 // 고객이 포털에서 승인하는 순간 다음 단계(계약/콘티)로 자동 전환한다.
