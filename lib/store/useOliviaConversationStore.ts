@@ -183,6 +183,53 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
   };
 }
 
+// PHASE 4 작업 2(2026-09-25) — guarded 턴(텍스트를 실시간으로 안 흘리는 실행형 요청)은 끝날 때까지
+// 화면에 아무것도 안 보이다가 한 번에 나왔다. 새 스트림 이벤트를 만들지 않고, 이미 보내고 있던
+// agent_status/tool_start/tool_result를 메시지의 progress 블록에 누적해 타임라인으로 보여준다.
+function upsertProgressStep(
+  blocks: OliviaMessageBlock[],
+  update: (steps: OliviaProgressStep[]) => OliviaProgressStep[],
+): OliviaMessageBlock[] {
+  const index = blocks.findIndex((block) => block.type === "progress");
+  if (index === -1) return [...blocks, { type: "progress", steps: update([]) }];
+  const existing = blocks[index] as Extract<OliviaMessageBlock, { type: "progress" }>;
+  const next = [...blocks];
+  next[index] = { ...existing, steps: update(existing.steps) };
+  return next;
+}
+
+function appendProgressStatus(blocks: OliviaMessageBlock[], label: string): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => [
+    // agent_status는 보통 새 단계로 넘어갔다는 뜻이다 — 앞서 active로 남아있던 단계(tool_result가
+    // 안 왔거나 애초에 도구가 없는 단순 상태 알림)는 여기서 done으로 닫는다.
+    ...steps.map((step) => (step.state === "active" ? { ...step, state: "done" as const } : step)),
+    { id: newId("progress"), label, state: "active" },
+  ]);
+}
+
+// tool_start는 agent_status 바로 다음에 전송된다(app/api/olivia/v2/stream/route.ts의 모든 호출
+// 지점이 이 순서를 지킨다) — 그래서 새 단계를 만들지 않고, 방금 agent_status가 만든 마지막 active
+// 단계에 toolCallId만 매칭용으로 얹는다.
+function attachToolCallToProgress(blocks: OliviaMessageBlock[], toolCallId: string): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => {
+    const lastActiveIndex = [...steps].reverse().findIndex((step) => step.state === "active" && !step.toolCallId);
+    if (lastActiveIndex === -1) return steps;
+    const index = steps.length - 1 - lastActiveIndex;
+    const next = [...steps];
+    next[index] = { ...next[index], toolCallId };
+    return next;
+  });
+}
+
+function resolveProgressToolResult(blocks: OliviaMessageBlock[], toolCallId: string, success: boolean): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => steps.map((step) =>
+    step.toolCallId === toolCallId ? { ...step, state: success ? "done" as const : "error" as const } : step));
+}
+
+function closeActiveProgressSteps(blocks: OliviaMessageBlock[]): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => steps.map((step) => (step.state === "active" ? { ...step, state: "done" as const } : step)));
+}
+
 function appendTextDelta(messages: OliviaV2Message[], messageId: string, delta: string) {
   return messages.map((message) => {
     if (message.id !== messageId) return message;
