@@ -5,7 +5,7 @@ import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalR
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
-import { text, activeResource } from "./common";
+import { text, activeResource, requireClientTarget } from "./common";
 import { createVerification } from "./verification";
 import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
