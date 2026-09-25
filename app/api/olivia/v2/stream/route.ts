@@ -874,7 +874,16 @@ export async function POST(req: NextRequest) {
           projectId: effectiveContext.activeProjectId,
           projectName: effectiveContext.activeProjectName,
         };
+        // PHASE 4 작업 1(2026-09-25) — 폴백이 일어난 턴은 한 곳(여기)에서만 기록하면 이후 모든
+        // saveTurnAssistant 호출(hermes 성공/legacy/deterministic/fast-path 등 어디로 가든)이
+        // 자동으로 agentEngine/fallbackReason을 DB metadata와 SSE 이벤트 둘 다에 싣는다. 호출부가
+        // 이미 명시한 값(예: hermes 성공 경로의 agentEngine:"hermes")은 그대로 우선한다.
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
+          const enrichedMetadata = {
+            agentEngine: activeAgentEngine,
+            ...(fallbackReason ? { fallbackReason } : {}),
+            ...metadata,
+          };
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
             conversationId: conversation.id,
@@ -884,7 +893,7 @@ export async function POST(req: NextRequest) {
             externalMessageId: assistantExternalMessageId,
             parentMessageId: userMessageId,
             deliveryStatus: messageChannel === "telegram" ? "queued" : undefined,
-            metadata,
+            metadata: enrichedMetadata,
           });
           send({
             type: "message_complete",
@@ -892,6 +901,8 @@ export async function POST(req: NextRequest) {
             conversationId: conversation.id,
             persistedMessageId: String(saved.message.id),
             resolvedContext: resolvedContextForMessage,
+            agentEngine: activeAgentEngine,
+            ...(fallbackReason ? { fallbackReason } : {}),
             ...(isDevDiagnostics && chatRouteLabel ? { chatRoute: chatRouteLabel } : {}),
           });
           return saved.message;
