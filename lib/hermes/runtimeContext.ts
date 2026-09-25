@@ -2,7 +2,7 @@ import type { AssistantChannel } from "@/lib/assistant/types";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 import type { HermesChatContext, HermesChatMessage } from "@/lib/hermes/types";
 import type { HermesMemoryEntry } from "@/lib/olivia/memory/format";
-import { isClientScopedExecutionRequest } from "@/lib/olivia/v2/executionIntent";
+import { resolveTrustedClientProjectContext } from "@/lib/core/context/clientTarget";
 
 type ContextMessage = {
   role: string;
@@ -101,19 +101,16 @@ export function buildHermesRuntime(input: {
   const recentResource = followupReference ? recentResources[0] : undefined;
   const resource = replyResource || (followupReference && recentResource) || snapshotResource || recentResource;
   const workSessionId = resource?.workSessionId || (resource ? `resource:${resource.type}:${resource.id}` : undefined);
-  const clientScopedExecution = isClientScopedExecutionRequest(input.message);
-  const activeClientId = replyResource?.clientId
-    || input.snapshot.activeClientId
-    || (clientScopedExecution ? undefined : recentResource?.clientId);
-  const activeClientName = replyResource?.clientName
-    || input.snapshot.activeClientName
-    || (clientScopedExecution ? undefined : recentResource?.clientName);
-  const activeProjectId = replyResource?.projectId
-    || input.snapshot.activeProjectId
-    || (clientScopedExecution ? undefined : recentResource?.projectId);
-  const activeProjectName = replyResource?.projectName
-    || input.snapshot.activeProjectName
-    || (clientScopedExecution ? undefined : recentResource?.projectName);
+  const resolvedClientProject = resolveTrustedClientProjectContext({
+    message: input.message,
+    snapshot: input.snapshot,
+    explicit: replyResource,
+    recent: recentResource,
+  });
+  const activeClientId = resolvedClientProject.clientId;
+  const activeClientName = resolvedClientProject.clientName;
+  const activeProjectId = resolvedClientProject.projectId;
+  const activeProjectName = resolvedClientProject.projectName;
   const workSession = workSessionId ? {
     id: workSessionId,
     title: resource?.title,

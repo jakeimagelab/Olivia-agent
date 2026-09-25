@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     // PHASE 4 작업 1 R3(2026-09-25) — 폴백이 로그에만 남아 몇 주째 아무도 모르던 사고의 재발을
     // 막는다. "count-only" head 조회라 대화 내용은 전혀 읽지 않는다.
     supabase.from("olivia_chat_messages").select("id", { count: "exact", head: true })
-      .eq("role", "assistant").eq("metadata->>agentEngine", "legacy").not("metadata->>fallbackReason", "is", null)
+      .eq("role", "assistant").not("metadata->>fallbackReason", "is", null)
       .gte("created_at", since24h),
   ]);
 

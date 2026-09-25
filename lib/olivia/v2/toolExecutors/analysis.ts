@@ -1,7 +1,8 @@
 import { searchOliviaClients } from "@/lib/olivia/clientSearch";
+import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { callOliviaApi } from "./http";
-import { text, requireClientTarget } from "./common";
+import { text } from "./common";
 import { createVerification } from "./verification";
 
 export const ANALYSIS_TOOL_NAMES = [

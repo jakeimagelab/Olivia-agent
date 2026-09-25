@@ -110,27 +110,6 @@ const WINDOW_TOOL_NAMES = ["maximize_active_window", "close_active_window", "min
 
 export const COMMON_TOOL_NAMES = ["show_workspace", ...WINDOW_TOOL_NAMES] as const;
 
-// PHASE 4 작업 4(2026-09-25) — 대상(고객) 미지정 가드가 quote/contract/conti/analysis
-// executor마다 따로 있었다. 도구를 새로 만들 때 이 가드를 빼먹으면 조용히 엉뚱한 고객에게
-// 실행될 수 있어 한 곳으로 모은다. "그냥 알려주세요"로 끝내지 않고 context.recentEntities에
-// 이미 쌓여 있는 최근 고객 후보를 함께 제시한다(lib/store/oliviaContextStore.ts의
-// rememberEntityIn이 채운다).
-export function requireClientTarget(
-  context: OliviaContextSnapshot,
-  explicitName: string | undefined,
-  what: string,
-): { ok: true; clientName: string } | { ok: false; message: string } {
-  const clientName = explicitName || context.activeClientName;
-  if (clientName) return { ok: true, clientName };
-  const candidates = Array.from(new Set(
-    (context.recentEntities ?? [])
-      .filter((entity) => entity.type === "client" && entity.name)
-      .map((entity) => entity.name as string),
-  )).slice(-3);
-  const hint = candidates.length ? `\n최근: ${candidates.join(" · ")}` : "";
-  return { ok: false, message: `어떤 고객의 ${what}인가요?${hint}` };
-}
-
 export async function executeCommonTool(
   name: string,
   input: Record<string, unknown>,

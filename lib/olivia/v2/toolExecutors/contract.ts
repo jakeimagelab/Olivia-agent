@@ -1,7 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { computeContractDeposit } from "@/lib/contract/computeContractDeposit";
+import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
-import { text, activeResource, latestResource, requireClientTarget } from "./common";
+import { text, activeResource, latestResource } from "./common";
 import { loadQuote } from "./quote";
 import { createVerification } from "./verification";
 import { createContractFromQuote, publishContract } from "@/lib/core/commands/document";

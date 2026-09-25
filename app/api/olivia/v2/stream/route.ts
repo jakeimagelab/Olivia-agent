@@ -80,6 +80,12 @@ import { type StreamingRequest, flushTextAsDeltas, runRoundWithSanitization } fr
 import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
 import { PHOTO_DIRECT_TOOL_TIMEOUT_MS, PHOTO_DIRECT_TURN_TIMEOUT_MS, executePhotoToolBeforeDeadline } from "@/lib/olivia/v2/stream/photoDirectTool";
 import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadata";
+import {
+  clientTargetQuestion,
+  resolveTrustedClientProjectContext,
+  shouldRequireClientSelection,
+} from "@/lib/core/context/clientTarget";
+import { buildAssistantEngineMetadata } from "@/lib/olivia/v2/fallbackMetadata";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -422,14 +428,13 @@ export async function POST(req: NextRequest) {
         };
         // PHASE 4 작업 1(2026-09-25) — 폴백이 일어난 턴은 한 곳(여기)에서만 기록하면 이후 모든
         // saveTurnAssistant 호출(hermes 성공/legacy/deterministic/fast-path 등 어디로 가든)이
-        // 자동으로 agentEngine/fallbackReason을 DB metadata와 SSE 이벤트 둘 다에 싣는다. 호출부가
-        // 이미 명시한 값(예: hermes 성공 경로의 agentEngine:"hermes")은 그대로 우선한다.
+        // 자동으로 agentEngine/fallbackReason을 DB metadata와 SSE 이벤트 둘 다에 싣는다.
+        // 호출부의 오래된 "cloud" 같은 표기가 실제 route 판정을 덮어쓰지 못하게 여기서 강제한다.
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
-          const enrichedMetadata = {
+          const enrichedMetadata = buildAssistantEngineMetadata(metadata, {
             agentEngine: activeAgentEngine,
-            ...(fallbackReason ? { fallbackReason } : {}),
-            ...metadata,
-          };
+            fallbackReason,
+          });
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
             conversationId: conversation.id,
@@ -464,9 +469,20 @@ export async function POST(req: NextRequest) {
         const replyClientName = optionalString(replyContext?.clientName);
         const replyProjectId = optionalString(replyContext?.projectId);
         const replyProjectName = optionalString(replyContext?.projectName);
-        const trustedClientId = replyClientId || context.activeClientId;
-        if (isClientScopedExecutionRequest(message) && !trustedClientId) {
-          const text = "이 작업을 실행할 고객이 선택되지 않았습니다. 먼저 견적서·계약서·콘티를 열거나 고객을 지정해주세요.";
+        const trustedClientProject = resolveTrustedClientProjectContext({
+          message,
+          // restoreDocumentContextFromHistory()가 복구한 오래된 문서 고객은 실행 대상의 근거로
+          // 쓰지 않는다. 현재 화면 snapshot과 명시 reply context만 신뢰한다.
+          snapshot: context,
+          explicit: {
+            clientId: replyClientId,
+            clientName: replyClientName,
+            projectId: replyProjectId,
+            projectName: replyProjectName,
+          },
+        });
+        if (shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
+          const text = clientTargetQuestion(context, "작업");
           send({ type: "text_delta", messageId, delta: text });
           await saveTurnAssistant(text, {
             blocks: [{ type: "text", text }],
@@ -477,10 +493,10 @@ export async function POST(req: NextRequest) {
         if (isClientScopedExecutionRequest(message)) {
           effectiveContext = {
             ...effectiveContext,
-            activeClientId: trustedClientId,
-            activeClientName: replyClientName || context.activeClientName,
-            activeProjectId: replyProjectId || context.activeProjectId,
-            activeProjectName: replyProjectName || context.activeProjectName,
+            activeClientId: trustedClientProject.clientId,
+            activeClientName: trustedClientProject.clientName,
+            activeProjectId: trustedClientProject.projectId,
+            activeProjectName: trustedClientProject.projectName,
           };
           resolvedContextForMessage = {
             clientId: effectiveContext.activeClientId,
@@ -1091,7 +1107,7 @@ export async function POST(req: NextRequest) {
 
         if (!finalText.trim()) finalText = deferredFailureText || OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
         const approvalBlock = pendingActionBlock(nextPendingAction);
-        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])], model, agentEngine: "cloud", requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
+        await saveTurnAssistant(finalText, { blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])], model, requestClass, toolCalls: cloudToolCalls, ...latestResourceMetadata });
         if (nextPendingAction) {
           await mergeAssistantConversationMetadata(db, { ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPendingAction } });
         }

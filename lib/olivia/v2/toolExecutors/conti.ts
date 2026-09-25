@@ -1,10 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
+import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import { parseShotPosition, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addContiShots, duplicateContiShot, estimateContiDuration, normalizeContiResult, removeContiShot, reorderContiShot, resolveContiShot, updateContiShot } from "@/lib/conti/contiMutationService";
 import { getContiStatus } from "@/lib/olivia/tools/conti";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
-import { text, fromLegacyResult, activeResource, requireClientTarget } from "./common";
+import { text, fromLegacyResult, activeResource } from "./common";
 import { createVerification } from "./verification";
 
 async function loadConti(id: string) {

@@ -13,9 +13,10 @@ function createFakeTable(rows: Row[], opts: { failWith?: string } = {}) {
       const builder = {
         eq(col: string, val: unknown) { filters.push((row) => row[col] === val); return builder; },
         neq(col: string, val: unknown) { filters.push((row) => row[col] !== val); return builder; },
-        // .not()의 실제 조건은 검사하지 않는다(테스트 fixture가 이미 조건에 맞는 row만 넣어둔다) —
-        // 체이닝이 끊기지 않게만 한다.
-        not() { return builder; },
+        not(col: string, operator: string, val: unknown) {
+          if (operator === "is" && val === null) filters.push((row) => row[col] !== null && row[col] !== undefined);
+          return builder;
+        },
         gte() { return builder; },
         order() { return builder; },
         limit(n: number) { limitCount = n; return builder; },
@@ -136,14 +137,16 @@ describe("GET /api/olivia-os/status-panel", () => {
     expect(body.hermesFallbackCount24h).toBe(0);
   });
 
-  it("legacy 폴백 메시지 개수를 hermesFallbackCount24h로 센다(작업 1 R3)", async () => {
+  it("실제 fallbackReason이 있는 assistant 메시지만 hermesFallbackCount24h로 센다", async () => {
     currentDb = createFakeSupabase({
       remote_workers: [], worker_events: [], remote_jobs: [],
       olivia_chat_messages: [
         { id: "msg-1", role: "assistant", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "connect timeout" },
-        { id: "msg-2", role: "assistant", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "idle timeout" },
+        // 초기 Phase 4 배포에서 cloud로 잘못 저장된 과거 폴백도 집계해야 한다.
+        { id: "msg-2", role: "assistant", "metadata->>agentEngine": "cloud", "metadata->>fallbackReason": "idle timeout" },
         { id: "msg-3", role: "assistant", "metadata->>agentEngine": "hermes", "metadata->>fallbackReason": null },
         { id: "msg-4", role: "user", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": "connect timeout" },
+        { id: "msg-5", role: "assistant", "metadata->>agentEngine": "legacy", "metadata->>fallbackReason": null },
       ],
     });
     const response = await callStatusPanel();

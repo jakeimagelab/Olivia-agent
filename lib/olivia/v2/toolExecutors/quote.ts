@@ -4,8 +4,9 @@ import { buildAgentQuoteData, formatIncludedService, type QuoteIncludedService }
 import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
+import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
-import { text, activeResource, requireClientTarget } from "./common";
+import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
 import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";

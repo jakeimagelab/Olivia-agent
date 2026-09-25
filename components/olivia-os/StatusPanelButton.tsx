@@ -206,7 +206,7 @@ export function StatusPanelButton() {
                       {data.hermesFallbackCount24h === null
                         ? "조회 실패"
                         : hasFallbackWarning
-                          ? "기본 모델(legacy)로 대신 답한 대화가 있어요 — 채팅에서 배지를 눌러 사유를 확인하세요."
+                          ? "헤르메스 대신 대체 처리 경로를 사용한 대화가 있어요 — 채팅에서 배지를 눌러 사유를 확인하세요."
                           : "지난 24시간 동안 헤르메스가 정상 응답했어요."}
                     </span>
                   </div>

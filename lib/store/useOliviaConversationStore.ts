@@ -14,6 +14,13 @@ import type { OliviaMessageBlock, OliviaProgressStep, OliviaRunStreamPayload, Ol
 import { mergeConversationMessages } from "@/lib/olivia/conversationTimeline";
 import { sanitizeOliviaAttachments, type OliviaChatAttachment } from "@/lib/olivia/chatAttachments";
 import { resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
+import {
+  appendProgressStep,
+  attachProgressToolCall,
+  finalizeProgressSteps,
+  resolveProgressToolCall,
+} from "@/lib/olivia/v2/progressTimeline";
+import { normalizePersistedAgentEngine } from "@/lib/olivia/v2/fallbackMetadata";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
 
@@ -159,6 +166,7 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
   const normalizedResourceType = resourceType === "conti" ? "storyboard" : resourceType;
   const resourceId = typeof row.metadata?.resourceId === "string" ? row.metadata.resourceId : "";
   const hasResourceCard = persistedBlocks.some((block: OliviaMessageBlock) => block.type === "resource_card");
+  const fallbackReason = typeof row.metadata?.fallbackReason === "string" ? row.metadata.fallbackReason : undefined;
   const blocks: OliviaMessageBlock[] = row.role !== "user" && resourceId && ["quote", "contract", "storyboard", "document"].includes(normalizedResourceType) && !hasResourceCard
     ? [...persistedBlocks, {
       type: "resource_card",
@@ -180,8 +188,8 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
     externalMessageId: row.external_message_id || undefined,
     deliveryStatus: row.delivery_status || undefined,
     attachments: sanitizeOliviaAttachments(row.metadata?.attachments),
-    agentEngine: row.metadata?.agentEngine === "hermes" || row.metadata?.agentEngine === "legacy" ? row.metadata.agentEngine : undefined,
-    fallbackReason: typeof row.metadata?.fallbackReason === "string" ? row.metadata.fallbackReason : undefined,
+    agentEngine: normalizePersistedAgentEngine(row.metadata?.agentEngine, fallbackReason),
+    fallbackReason,
   };
 }
 
@@ -201,35 +209,30 @@ function upsertProgressStep(
 }
 
 function appendProgressStatus(blocks: OliviaMessageBlock[], label: string): OliviaMessageBlock[] {
-  return upsertProgressStep(blocks, (steps) => [
-    // agent_status는 보통 새 단계로 넘어갔다는 뜻이다 — 앞서 active로 남아있던 단계(tool_result가
-    // 안 왔거나 애초에 도구가 없는 단순 상태 알림)는 여기서 done으로 닫는다.
-    ...steps.map((step) => (step.state === "active" ? { ...step, state: "done" as const } : step)),
-    { id: newId("progress"), label, state: "active" },
-  ]);
+  return upsertProgressStep(blocks, (steps) => appendProgressStep(steps, {
+    id: newId("progress"),
+    label,
+    state: "active",
+  }));
 }
 
 // tool_start는 agent_status 바로 다음에 전송된다(app/api/olivia/v2/stream/route.ts의 모든 호출
 // 지점이 이 순서를 지킨다) — 그래서 새 단계를 만들지 않고, 방금 agent_status가 만든 마지막 active
 // 단계에 toolCallId만 매칭용으로 얹는다.
-function attachToolCallToProgress(blocks: OliviaMessageBlock[], toolCallId: string): OliviaMessageBlock[] {
-  return upsertProgressStep(blocks, (steps) => {
-    const lastActiveIndex = [...steps].reverse().findIndex((step) => step.state === "active" && !step.toolCallId);
-    if (lastActiveIndex === -1) return steps;
-    const index = steps.length - 1 - lastActiveIndex;
-    const next = [...steps];
-    next[index] = { ...next[index], toolCallId };
-    return next;
-  });
+function attachToolCallToProgress(blocks: OliviaMessageBlock[], toolCallId: string, fallbackLabel: string): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => attachProgressToolCall(steps, {
+    toolCallId,
+    fallbackId: newId("progress"),
+    fallbackLabel,
+  }));
 }
 
 function resolveProgressToolResult(blocks: OliviaMessageBlock[], toolCallId: string, success: boolean): OliviaMessageBlock[] {
-  return upsertProgressStep(blocks, (steps) => steps.map((step) =>
-    step.toolCallId === toolCallId ? { ...step, state: success ? "done" as const : "error" as const } : step));
+  return upsertProgressStep(blocks, (steps) => resolveProgressToolCall(steps, toolCallId, success));
 }
 
-function closeActiveProgressSteps(blocks: OliviaMessageBlock[]): OliviaMessageBlock[] {
-  return upsertProgressStep(blocks, (steps) => steps.map((step) => (step.state === "active" ? { ...step, state: "done" as const } : step)));
+function closeActiveProgressSteps(blocks: OliviaMessageBlock[], outcome: "complete" | "error"): OliviaMessageBlock[] {
+  return upsertProgressStep(blocks, (steps) => finalizeProgressSteps(steps, outcome));
 }
 
 function appendTextDelta(messages: OliviaV2Message[], messageId: string, delta: string) {
@@ -510,7 +513,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
           if (WORKSPACE_OPENING_TOOLS.has(event.tool)) set({ pendingWorkspaceOpen: true });
           set((state) => ({
             messages: state.messages.map((message) => message.id === responseId
-              ? { ...message, blocks: attachToolCallToProgress(message.blocks, event.toolCallId) }
+              ? { ...message, blocks: attachToolCallToProgress(message.blocks, event.toolCallId, lastAgentStatus) }
               : message),
           }));
         } else if (event.type === "tool_result") {
@@ -787,9 +790,9 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 status: "complete",
                 agentEngine: event.agentEngine,
                 fallbackReason: event.fallbackReason,
-                // PHASE 4 작업 2 — 라운드가 끝났으니 아직 "active"로 남은 진행 단계가 있으면
-                // (예: 마지막 tool_result 없이 바로 최종 텍스트로 끝난 경우) 전부 done으로 닫는다.
-                blocks: closeActiveProgressSteps(message.blocks),
+                // 일반 상태 단계는 done으로 닫되, tool_result가 누락된 도구 단계는 성공으로
+                // 오인하지 않고 error로 닫는다.
+                blocks: closeActiveProgressSteps(message.blocks, "complete"),
               }
               : message),
           }));
@@ -808,19 +811,21 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 ...message,
                 status: "error",
                 content: [message.content, timeoutMessage].filter(Boolean).join("\n"),
-                blocks: [...message.blocks, { type: "error", message: timeoutMessage, retryable: true }],
+                blocks: [...closeActiveProgressSteps(message.blocks, "error"), { type: "error", message: timeoutMessage, retryable: true }],
               }
               : message),
             lastFailedContent: content,
           }));
         } else {
-          set((state) => ({ messages: state.messages.map((message) => message.id === responseId ? { ...message, status: "stopped" } : message) }));
+          set((state) => ({ messages: state.messages.map((message) => message.id === responseId
+            ? { ...message, status: "stopped", blocks: closeActiveProgressSteps(message.blocks, "error") }
+            : message) }));
         }
       } else {
         const failureMessage = visibleChatFailure(error);
         set((state) => ({
           messages: state.messages.map((message) => message.id === responseId
-            ? { ...message, status: "error", blocks: message.blocks.length ? [...message.blocks, { type: "error", message: failureMessage, retryable: true }] : [{ type: "error", message: failureMessage, retryable: true }] }
+            ? { ...message, status: "error", blocks: [...closeActiveProgressSteps(message.blocks, "error"), { type: "error", message: failureMessage, retryable: true }] }
             : message),
           lastFailedContent: content,
         }));
