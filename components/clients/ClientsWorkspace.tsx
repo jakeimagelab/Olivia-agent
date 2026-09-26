@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, CalendarDays, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
+import { Building2, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
@@ -13,7 +13,6 @@ import {
 } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { tryMoveWorkflowStep } from "@/lib/clientWorkspace/stepNavigation";
-import { TOOL_LINK_TITLES } from "@/lib/clientWorkspace/nextAction";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
@@ -30,7 +29,6 @@ import ClientScheduleTab from "@/app/(client-hub)/clients/_components/detail/Cli
 import ClientRevisionsTab from "@/app/(client-hub)/clients/_components/detail/ClientRevisionsTab";
 import ClientPortalTab from "@/app/(client-hub)/clients/_components/detail/ClientPortalTab";
 import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
-import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { C } from "@/lib/theme";
 import { formatArtifactSize, openWorkflowArtifact, type WorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useClientRoster } from "@/app/(client-hub)/clients/_hooks/useClientRoster";
@@ -91,6 +89,17 @@ function fmtDot(value?: string | null) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "미정";
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function fmtShootSummary(value?: string | null) {
+  if (!value) return "촬영일 미정";
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "촬영일 미정";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const days = Math.ceil((date.getTime() - today.getTime()) / 86_400_000);
+  const suffix = days > 0 ? `${days}일 뒤` : days === 0 ? "오늘" : `${Math.abs(days)}일 지남`;
+  return `촬영 ${date.getMonth() + 1}월 ${date.getDate()}일 (${suffix})`;
 }
 
 const MAIL_LABELS: Record<string, string> = {
@@ -557,7 +566,6 @@ function DetailView({
   workflowRunId,
   onBack,
   onWorkflowRunChange,
-  embedded = false,
 }: {
   clientId: string;
   workflowRunId: string | null;
@@ -703,23 +711,6 @@ function DetailView({
     }
   };
 
-  // 헤더 빠른 실행 버튼 — ClientWorkspaceView의 headerQuickAction과 동일한 규칙(코드 요청서
-  // 6차 4-1번 항목). 항상 진행바가 가리키는 현재 단계를 따라가고, 정적 문구를 하드코딩하지 않는다.
-  const headerQuickAction = (() => {
-    if (!workflowRun) {
-      return <button type="button" onClick={() => openToolModal("quote")} className="pc-btn pc-btn--orange pc-btn--sm">+ 견적서 작성</button>;
-    }
-    if (workflowCompleted) return null;
-    if (displayStepKey === "quote" || displayStepKey === "contract" || displayStepKey === "conti") {
-      return (
-        <button type="button" onClick={() => openToolModal(displayStepKey)} className="pc-btn pc-btn--orange pc-btn--sm">
-          + {TOOL_LINK_TITLES[displayStepKey]}
-        </button>
-      );
-    }
-    return null;
-  })();
-
   const copyPortalLink = async () => {
     if (!workflowRun?.id) { alert("먼저 프로젝트를 생성해야 링크를 복사할 수 있습니다."); return; }
     setLinkCopyBusy(true);
@@ -758,40 +749,25 @@ function DetailView({
           <div className="pcrm-detail-header__body">
             <div className="pcrm-detail-header__name-row">
               <h1>{client.name}</h1>
-              <span className="pcrm-badge-soft" data-tone={workflowCompleted ? "done" : "active"}>{workflowCompleted ? "프로젝트 완료" : workflowRun ? "프로젝트 진행 중" : "프로젝트 없음"}</span>
+              <span className="pcrm-badge-soft" data-tone={workflowCompleted ? "done" : "active"}>
+                {workflowCompleted ? "완료 100%" : workflowRun ? `진행 중 ${workflowSummary?.progressPercent ?? 0}%` : "프로젝트 없음"}
+              </span>
             </div>
-            <div className="pcrm-detail-header__fields">
-              <div><span>프로젝트명</span><span>{workflowRun?.project_name || "—"}</span></div>
-              <div>
-                <span>담당 매니저</span>
-                <span>
-                  {workflowRun?.manager_name && <i className="pcrm-mini-avatar" style={{ background: avatarColor(workflowRun.manager_name) }}>{avatarInitial(workflowRun.manager_name)}</i>}
-                  {workflowRun?.manager_name || "미지정"}
-                </span>
-              </div>
+            <div className="pcrm-detail-header__contact-row">
+              <span>{workflowRun?.manager_name || client.contact_name || "담당자 미지정"}</span>
+              <i aria-hidden="true">·</i>
+              <span>{fmtShootSummary(workflowRun?.shoot_date)}</span>
+              <i aria-hidden="true">·</i>
+              <span>{workflowRun ? `${fmtDot(workflowRun.created_at)}~${workflowRun.shoot_date ? fmtDot(workflowRun.shoot_date) : "미정"}` : "프로젝트 기간 미정"}</span>
+              <button type="button" onClick={openClientInfoEditor}><Pencil size={11} /> 고객 정보 수정</button>
             </div>
           </div>
         </div>
 
-        <div className="pcrm-detail-header__meta">
-          <div><CalendarDays size={14} /> 프로젝트 기간 <b>{workflowRun ? `${fmtDot(workflowRun.created_at)} ~ ${workflowRun.shoot_date ? fmtDot(workflowRun.shoot_date) : "미정"}` : "—"}</b></div>
-          <div><CalendarDays size={14} /> 촬영 예정일 <b>{workflowRun?.shoot_date ? fmtDot(workflowRun.shoot_date) : "—"}</b></div>
-          <div><ClipboardList size={14} /> 프로젝트 상태 <b><span className="pcrm-badge-soft" data-tone={workflowCompleted ? "done" : "active"}>{workflowCompleted ? "완료" : workflowRun ? "진행 중" : "없음"}</span></b></div>
-        </div>
-
         <div className="pcrm-detail-header__actions">
-          {headerQuickAction}
           <button onClick={openClientPreview} disabled={previewLoading} className="pc-btn pc-btn--secondary pc-btn--sm">
-            <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 포털 보기"}
+            <Eye size={13} /> {previewLoading ? "준비 중..." : "고객 포털"}
           </button>
-          <button onClick={copyPortalLink} disabled={linkCopyBusy} className="pc-btn pc-btn--ghost pc-btn--sm">
-            <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "링크 복사"}
-          </button>
-          <button type="button" onClick={openClientInfoEditor} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 고객 정보 수정</button>
-          {workflowRun && (
-            <button onClick={() => setShowEditProjectDialog(true)} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 프로젝트 수정</button>
-          )}
-          <button onClick={() => setShowProjectDialog(true)} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 프로젝트 생성</button>
           <div className="pcrm-row-menu">
             <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm" aria-label="더보기" onClick={() => setHeaderMenuOpen((v) => !v)}>
               <MoreVertical size={15} />
@@ -800,6 +776,17 @@ function DetailView({
               <>
                 <div className="pcrm-row-menu__scrim" onClick={() => setHeaderMenuOpen(false)} />
                 <div className="pcrm-row-menu__panel">
+                  <button type="button" disabled={linkCopyBusy} onClick={() => { setHeaderMenuOpen(false); void copyPortalLink(); }}>
+                    <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "포털 링크 복사"}
+                  </button>
+                  {workflowRun ? (
+                    <button type="button" onClick={() => { setHeaderMenuOpen(false); setShowEditProjectDialog(true); }}>
+                      <Pencil size={13} /> 프로젝트 수정
+                    </button>
+                  ) : null}
+                  <button type="button" onClick={() => { setHeaderMenuOpen(false); setShowProjectDialog(true); }}>
+                    <Plus size={13} /> 프로젝트 생성
+                  </button>
                   <button type="button" className="is-danger" disabled={deleting} onClick={() => { setHeaderMenuOpen(false); deleteClient(client.name); }}>
                     <Trash2 size={13} /> {deleting ? "삭제 중..." : "고객 삭제"}
                   </button>
@@ -810,54 +797,23 @@ function DetailView({
         </div>
       </div>
 
-      {workflowRun ? (
-        <div style={{ marginBottom: 14 }}>
-          <MissionStatusBar
-            title={`${client.name} ${workflowRun.project_name || "프로젝트"}`}
-            status={workflowCompleted ? "완료" : "진행 중"}
-            currentStage={ACTIVE_WORKFLOW_STEPS.find((step) => step.key === displayStepKey)?.name}
-            nextScheduleLabel={workflowRun.shoot_date ? `${fmtDot(workflowRun.shoot_date)} 촬영` : undefined}
-            owner={workflowRun.manager_name || undefined}
-            progress={workflowSummary?.progressPercent}
-          />
-        </div>
-      ) : null}
-
       {workflowRun && workflowSummary ? (
-        <div className="pc-card pc-card--padded" style={{ marginBottom: 14 }}>
-          <ProjectWorkflowStepper phases={workflowSummary.phases} progressPercent={workflowSummary.progressPercent} onSelectPhase={handlePhaseClick} />
-          <button type="button" onClick={() => setProgressModalOpen(true)} style={{ marginTop: 8, border: "none", background: "none", padding: 0, color: C.teal, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-            전체 과정 보기 →
-          </button>
-        </div>
+        <ProjectWorkflowStepper
+          phases={workflowSummary.phases}
+          progressPercent={workflowSummary.progressPercent}
+          variant="pills"
+          onSelectPhase={handlePhaseClick}
+          onOpenProgress={() => setProgressModalOpen(true)}
+        />
       ) : null}
-
-      <CurrentStepCard
-        client={client}
-        workflowRun={workflowRun}
-        stepIcon={STEP_INFO[displayStepKey]?.icon}
-        stepDescription={STEP_INFO[displayStepKey]?.desc}
-        onOpenToolModal={openToolModal}
-        onRefresh={load}
-      />
       </section>
 
-      <nav
-        ref={detailTabsRef}
-        className="pcrm-detail-tabs"
-        aria-label="고객 상세 탭"
-        style={embedded ? {
-          position: "sticky",
-          top: 0,
-          zIndex: 8,
-          marginTop: 14,
-          background: C.bg,
-        } : { marginTop: 14 }}
-      >
-        {DETAIL_TABS.map((tab) => (
-          <button key={tab.key} type="button" data-active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
-        ))}
-      </nav>
+      {activeTab !== "overview" ? (
+        <nav ref={detailTabsRef} className="pcrm-detail-subview-nav" aria-label="고객 상세 하위 화면">
+          <button type="button" onClick={() => setActiveTab("overview")}><ChevronLeft size={14} /> 개요</button>
+          <strong>{activeTabLabel}</strong>
+        </nav>
+      ) : null}
 
       {showProjectDialog && (
         <NewPcrmProjectDialog
@@ -899,7 +855,21 @@ function DetailView({
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14, alignItems: "start", width: "100%", minWidth: 0 }}>
 
         {activeTab === "overview" && (
-          <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} onNavigateTab={setActiveTab} />
+          <ClientOverviewTab
+            client={client}
+            workflowRun={workflowRun}
+            artifacts={artifacts}
+            activities={activities}
+            quotes={quotes}
+            contracts={contracts}
+            resourceIds={resourceIds}
+            stepIcon={STEP_INFO[displayStepKey]?.icon}
+            stepDescription={STEP_INFO[displayStepKey]?.desc}
+            onRefresh={load}
+            onNavigateTab={setActiveTab}
+            onOpenToolModal={openToolModal}
+            onOpenProjectSettings={() => workflowRun ? setShowEditProjectDialog(true) : setShowProjectDialog(true)}
+          />
         )}
 
         {activeTab === "documents" && (

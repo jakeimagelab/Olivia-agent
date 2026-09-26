@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import MissionStatusBar from "@/components/olivia/ui/MissionStatusBar";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { formatProjectMissionTitle } from "@/lib/clientWorkspace/projectOverview";
 
 type WorkflowRun = {
   id: string;
@@ -69,11 +70,9 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
   }
   if (!snapshot) return null;
 
-  // project_name이 이미 client_name으로 시작하는 경우가 많다(예: "더힐피부과신사점 브랜드 촬영") —
-  // 그대로 이어붙이면 "더힐피부과신사점 더힐피부과신사점 브랜드 촬영"처럼 중복 표시된다.
   const clientName = snapshot.client.name || "이름 없는 고객";
   const projectName = snapshot.project.name || "프로젝트";
-  const title = projectName.trim().startsWith(clientName.trim()) ? projectName : `${clientName} ${projectName}`;
+  const title = formatProjectMissionTitle(clientName, projectName);
   const differsFromChatTarget = Boolean(
     (activeClientId && snapshot.client.id && activeClientId !== snapshot.client.id)
     || (!activeClientId && activeClientName && activeClientName !== clientName)

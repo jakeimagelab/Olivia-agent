@@ -15,14 +15,45 @@ export default function ProjectWorkflowStepper({
   progressPercent,
   compact = false,
   light = false,
+  variant = "steps",
   onSelectPhase,
+  onOpenProgress,
 }: {
   phases: WorkspacePhase[];
   progressPercent: number;
   compact?: boolean;
   light?: boolean;
+  variant?: "steps" | "pills";
   onSelectPhase?: (phase: WorkspacePhase) => void;
+  onOpenProgress?: () => void;
 }) {
+  if (variant === "pills") {
+    return (
+      <div className="pcrm-project-phase-row" aria-label={`프로젝트 진행률 ${progressPercent}%`}>
+        <div className="pcrm-project-phase-pills">
+          {phases.map((phase) => (
+            <button
+              key={phase.key}
+              type="button"
+              data-state={phase.status}
+              disabled={!onSelectPhase}
+              onClick={() => onSelectPhase?.(phase)}
+              aria-current={phase.status === "active" ? "step" : undefined}
+            >
+              {phase.status === "completed" ? <Check size={12} aria-hidden="true" /> : null}
+              <span>{phase.name}</span>
+            </button>
+          ))}
+        </div>
+        {onOpenProgress ? (
+          <button type="button" className="pcrm-project-phase-more" onClick={onOpenProgress}>
+            전체 과정 <span aria-hidden="true">→</span>
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
   const circleSize = compact ? 20 : 30;
   return (
     <div className={`pcrm-project-stepper${light ? " pcrm-project-stepper--light" : ""}`}>

@@ -6,6 +6,7 @@ import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { getWorkflowDisplayStepKey, STEP_NAME, type ToolOnlyStepKey } from "@/lib/workflow";
+import { TOOL_LINK_TITLES } from "@/lib/clientWorkspace/nextAction";
 
 const MODAL_TOOL_STEPS = new Set<ToolOnlyStepKey>(["quote", "contract", "conti"]);
 
@@ -19,6 +20,8 @@ export default function CurrentStepCard({
   stepDescription,
   onOpenToolModal,
   onRefresh,
+  presentation = "standard",
+  secondaryAction,
 }: {
   client: Record<string, any>;
   workflowRun: any;
@@ -26,12 +29,14 @@ export default function CurrentStepCard({
   stepDescription?: string;
   onOpenToolModal?: (stepKey: "quote" | "contract" | "conti") => void;
   onRefresh?: () => void;
+  presentation?: "standard" | "overview";
+  secondaryAction?: { label: string; onClick: () => void };
 }) {
   const workflowRunId = typeof workflowRun?.id === "string" ? workflowRun.id : undefined;
   const { snapshot } = useCoreProjectSnapshot(workflowRunId);
   if (!workflowRun?.id) {
     return (
-      <section className="pcrm-current-step-card">
+      <section className={`pcrm-current-step-card${presentation === "overview" ? " pcrm-current-step-card--overview" : ""}`}>
         <div className="pcrm-current-step-card__left">
           <div className="pcrm-current-step-card__body">
             <span className="pcrm-current-step-card__label">현재 단계</span>
@@ -52,13 +57,18 @@ export default function CurrentStepCard({
   // payment_confirm은 STEP_APP_LINKS에 연결된 앱이 없다 — 계좌 API 연동 전까지는 대표가
   // 입금 확인 후 수동으로 누르는 버튼 하나가 전부다(PHASE 3, 2026-09-25 작업 1-B).
   const isPaymentConfirmStep = stepKey === "payment_confirm";
+  const primaryLabel = isModalStep
+    ? TOOL_LINK_TITLES[stepKey as ToolOnlyStepKey]
+    : stepKey === "backup_sorting"
+      ? "사진작업실 열기"
+      : `${stepName} 열기`;
 
   return (
-    <section className="pcrm-current-step-card">
+    <section className={`pcrm-current-step-card${presentation === "overview" ? " pcrm-current-step-card--overview" : ""}`}>
       <div className="pcrm-current-step-card__left">
-        <div className="pcrm-current-step-card__icon">{stepIcon || "🟠"}</div>
+        {presentation === "overview" ? <span className="pcrm-current-step-card__signal" aria-hidden="true" /> : <div className="pcrm-current-step-card__icon">{stepIcon || "🟠"}</div>}
         <div className="pcrm-current-step-card__body">
-          <span className="pcrm-current-step-card__label">현재 단계</span>
+          <span className="pcrm-current-step-card__label">{presentation === "overview" ? "지금 할 일" : "현재 단계"}</span>
           <h2 className="pcrm-current-step-card__title">{isCompleted ? "모든 단계 완료" : stepName}</h2>
           <p className="pcrm-current-step-card__desc">{isCompleted ? "워크플로우의 모든 단계가 완료되었습니다." : stepDescription}</p>
         </div>
@@ -66,21 +76,26 @@ export default function CurrentStepCard({
       {!isCompleted && (
         <div className="pcrm-current-step-card__actions">
           {isPaymentConfirmStep ? (
-            <PaymentConfirmAction workflowRunId={workflowRun.id} onRefresh={onRefresh} />
+            <PaymentConfirmAction workflowRunId={workflowRun.id} onRefresh={onRefresh} compact={presentation === "overview"} />
           ) : isModalStep && onOpenToolModal ? (
             <button type="button" onClick={() => onOpenToolModal(stepKey as "quote" | "contract" | "conti")} className="pc-btn pc-btn--orange pc-btn--sm">
-              관련 앱 열기
+              {primaryLabel}
             </button>
           ) : (
-            <Link href={appHref} className="pc-btn pc-btn--orange pc-btn--sm">관련 앱 열기</Link>
+            <Link href={appHref} className="pc-btn pc-btn--orange pc-btn--sm">{primaryLabel}</Link>
           )}
+          {secondaryAction ? (
+            <button type="button" onClick={secondaryAction.onClick} className="pc-btn pc-btn--secondary pc-btn--sm">
+              {secondaryAction.label}
+            </button>
+          ) : null}
         </div>
       )}
     </section>
   );
 }
 
-function PaymentConfirmAction({ workflowRunId, onRefresh }: { workflowRunId: string; onRefresh?: () => void }) {
+function PaymentConfirmAction({ workflowRunId, onRefresh, compact = false }: { workflowRunId: string; onRefresh?: () => void; compact?: boolean }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -107,7 +122,7 @@ function PaymentConfirmAction({ workflowRunId, onRefresh }: { workflowRunId: str
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
       <button type="button" onClick={confirm} disabled={submitting} className="pc-btn pc-btn--orange pc-btn--sm">
-        {submitting ? "처리 중..." : "잔금·계산서 확인 완료"}
+        {submitting ? "처리 중..." : compact ? "확인 완료" : "잔금·계산서 확인 완료"}
       </button>
       {error && <span style={{ fontSize: 11, color: "#DC2626" }}>{error}</span>}
     </div>
