@@ -79,7 +79,7 @@ const DETAIL_TABS: { key: string; label: string }[] = [
   { key: "documents", label: "문서" },
   { key: "schedule", label: "일정" },
   { key: "gallery", label: "갤러리" },
-  { key: "revisions", label: "수정·승인" },
+  { key: "revisions", label: "보정 요청" },
   { key: "activity", label: "활동 기록" },
   { key: "memo", label: "메모" },
   { key: "info", label: "고객 정보" },
