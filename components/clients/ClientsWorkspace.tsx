@@ -910,7 +910,7 @@ function DetailView({
           </div>
         )}
 
-        {activeTab === "info" && <InfoPanel client={client} onUpdate={load} />}
+        {activeTab === "info" && <InfoPanel client={client} onUpdate={load} forceEditSignal={infoEditSignal} />}
 
         {activeTab === "portal" && <ClientPortalTab clientId={clientId} workflowRunId={workflowRun?.id} />}
 
