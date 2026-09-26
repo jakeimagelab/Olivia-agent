@@ -1360,11 +1360,18 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
   );
 }
 
-function InfoPanel({ client, onUpdate }: { client: any; onUpdate: () => void }) {
+function InfoPanel({ client, onUpdate, forceEditSignal }: { client: any; onUpdate: () => void; forceEditSignal?: number }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // DetailView 헤더의 "고객 정보 수정" 버튼이 개요 탭에서 바로 이 편집 폼을 열 때 쓰는
+  // 신호. 0(기본값)일 때는 무시하고, 클릭마다 증가하는 값이 오면 즉시 편집 모드로 연다.
+  useEffect(() => {
+    if (forceEditSignal) startEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forceEditSignal]);
 
   const startEdit = () => {
     setForm({
