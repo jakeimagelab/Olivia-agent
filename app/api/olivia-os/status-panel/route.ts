@@ -4,6 +4,8 @@ import { isAdminSession } from "@/lib/passkey";
 import { getConfiguredWorkerId } from "@/lib/remoteWorkerAuth";
 import { isRemoteWorkerOnline } from "@/lib/remote-jobs/workerPresence";
 import { findWorkflowConsistencyIssues } from "@/lib/workflowAutomation";
+import { checkMcpSignal, systemStatusInternals } from "@/lib/system-status/service";
+import type { SystemStatusItem } from "@/lib/system-status/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,7 +25,7 @@ export async function GET(request: NextRequest) {
   const workerId = getConfiguredWorkerId();
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1_000).toISOString();
 
-  const [workerResult, backupsResult, jobsResult, consistencyResult, hermesFallbackResult] = await Promise.allSettled([
+  const [workerResult, backupsResult, jobsResult, consistencyResult, hermesFallbackResult, mcpResult, diagnosticsSchemaResult] = await Promise.allSettled([
     supabase.from("remote_workers").select("worker_id,last_seen_at,worker_status,nas_connected").eq("worker_id", workerId).maybeSingle(),
     supabase.from("worker_events").select("id,folder_name,status,created_at").order("created_at", { ascending: false }).limit(RECENT_LIMIT),
     supabase.from("remote_jobs").select("id,action,status,created_at,completed_at").neq("action", "PING").order("created_at", { ascending: false }).limit(RECENT_LIMIT),
@@ -33,6 +35,11 @@ export async function GET(request: NextRequest) {
     supabase.from("olivia_chat_messages").select("id", { count: "exact", head: true })
       .eq("role", "assistant").not("metadata->>fallbackReason", "is", null)
       .gte("created_at", since24h),
+    checkMcpSignal(supabase, new Date()),
+    supabase.from("remote_workers")
+      .select("workstation_mounted,workstation_accessible,agentstation_mounted,agentstation_accessible,watcher_last_scan_at")
+      .eq("worker_id", workerId)
+      .maybeSingle(),
   ]);
 
   if (workerResult.status === "rejected") console.warn("[status-panel] remote_workers 조회 실패", workerResult.reason);
@@ -40,6 +47,8 @@ export async function GET(request: NextRequest) {
   if (jobsResult.status === "rejected") console.warn("[status-panel] remote_jobs 조회 실패", jobsResult.reason);
   if (consistencyResult.status === "rejected") console.warn("[status-panel] workflow 정합성 조회 실패", consistencyResult.reason);
   if (hermesFallbackResult.status === "rejected") console.warn("[status-panel] 헤르메스 폴백 횟수 조회 실패", hermesFallbackResult.reason);
+  if (mcpResult.status === "rejected") console.warn("[status-panel] MCP 연결 조회 실패", mcpResult.reason);
+  if (diagnosticsSchemaResult.status === "rejected") console.warn("[status-panel] 진단 스키마 조회 실패", diagnosticsSchemaResult.reason);
   const hermesFallbackCount24h = hermesFallbackResult.status === "fulfilled" && !hermesFallbackResult.value.error
     ? hermesFallbackResult.value.count ?? 0
     : null;
@@ -59,6 +68,19 @@ export async function GET(request: NextRequest) {
       ? consistencyResult.reason.message
       : "워크플로우 정합성 점검에 실패했습니다."
     : null;
+  const mcp: SystemStatusItem = mcpResult.status === "fulfilled"
+    ? mcpResult.value
+    : { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "unknown", state: "확인 불가", detail: "MCP 연결 상태를 조회하지 못했습니다.", toolCount: 0 };
+  const diagnosticsSchemaError = diagnosticsSchemaResult.status === "fulfilled"
+    ? diagnosticsSchemaResult.value.error
+    : null;
+  const diagnosticsMigrationMissing = Boolean(
+    diagnosticsSchemaError && systemStatusInternals.isMissingSchemaObject(diagnosticsSchemaError),
+  );
+  const schemaWarnings = Array.from(new Set([
+    mcp.migration,
+    diagnosticsMigrationMissing ? "supabase/migrations/20260919_system_status_diagnostics.sql" : undefined,
+  ].filter((migration): migration is string => Boolean(migration))));
 
   return Response.json({
     ok: true,
@@ -74,5 +96,12 @@ export async function GET(request: NextRequest) {
     coreBypassIssues,
     consistencyError,
     hermesFallbackCount24h,
+    mcp: {
+      level: mcp.level,
+      state: mcp.state,
+      detail: mcp.detail ?? null,
+      toolCount: mcp.toolCount ?? 0,
+    },
+    schemaWarnings,
   });
 }

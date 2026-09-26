@@ -400,6 +400,24 @@
   background: #eff7f5;
 }
 
+.statusPanelCardBad {
+  border: 1px solid rgba(192, 71, 63, .24);
+  background: #fff1ef;
+}
+
+.statusPanelSchemaWarning {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(192, 71, 63, .3);
+  border-radius: 10px;
+  background: #fff0ee;
+  color: #9e312b;
+  font-size: 10.5px;
+  overflow-wrap: anywhere;
+}
+.statusPanelSchemaWarning strong { font-size: 11.5px; }
+
 .statusPanelRow { display: flex; align-items: flex-start; gap: 8px; }
 .statusPanelRowBody { display: grid; gap: 2px; min-width: 0; }
 .statusPanelRowBody strong { font-size: 12.5px; font-weight: 700; color: #17332e; }

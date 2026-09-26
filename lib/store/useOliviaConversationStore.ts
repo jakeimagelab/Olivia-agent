@@ -22,6 +22,7 @@ import {
 } from "@/lib/olivia/v2/progressTimeline";
 import { normalizePersistedAgentEngine } from "@/lib/olivia/v2/fallbackMetadata";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
+import { executedToolsFromMetadata } from "@/lib/olivia/v2/executionEvidence";
 
 export type { OliviaMessage } from "@/lib/olivia/v2/types";
 
@@ -191,6 +192,7 @@ function normalizePersistedMessage(row: any): OliviaV2Message {
     attachments: sanitizeOliviaAttachments(row.metadata?.attachments),
     agentEngine: normalizePersistedAgentEngine(row.metadata?.agentEngine, fallbackReason),
     fallbackReason,
+    executedToolCount: executedToolsFromMetadata(row.metadata).length,
   };
 }
 
@@ -799,6 +801,7 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
                 status: "complete",
                 agentEngine: event.agentEngine,
                 fallbackReason: event.fallbackReason,
+                executedToolCount: event.executedToolCount,
                 // 일반 상태 단계는 done으로 닫되, tool_result가 누락된 도구 단계는 성공으로
                 // 오인하지 않고 error로 닫는다.
                 blocks: closeActiveProgressSteps(message.blocks, "complete"),

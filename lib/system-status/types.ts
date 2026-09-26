@@ -10,6 +10,8 @@ export type SystemStatusItem = {
   state: string;
   detail?: string;
   remedy?: string;
+  toolCount?: number;
+  migration?: string;
 };
 
 export type SystemStatusReport = {

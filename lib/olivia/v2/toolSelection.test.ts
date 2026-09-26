@@ -39,6 +39,15 @@ describe("selectOliviaTools", () => {
     expect(names).toContain("search_client_projects");
   });
 
+  it("신규 고객 등록 요청에는 임시문서가 없어도 client_create를 제공한다", () => {
+    const message = "테스트병원0926 고객으로 등록해줘";
+    const tools = selectOliviaTools({ requestClass: "TOOL_ACTION", message, context: baseContext });
+    const names = tools.map((tool) => tool.name);
+    expect(names).toContain("client_search");
+    expect(names).toContain("client_create");
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: names })).toBe("client_create");
+  });
+
   it("getOliviaToolDomains는 recentText와 message를 합쳐서 판단한다", () => {
     const domains = getOliviaToolDomains("해줘", baseContext, "콘티 10~15번 컷 추가해줘");
     expect(domains).toContain("conti");
@@ -157,6 +166,8 @@ describe("isFollowupComplaint / buildLastActionFollowupHint", () => {
     expect(isFollowupComplaint("왜 안 바꾸는 거야?")).toBe(true);
     expect(isFollowupComplaint("아직 안 바뀌었는데?")).toBe(true);
     expect(isFollowupComplaint("그게 아니잖아")).toBe(true);
+    expect(isFollowupComplaint("진짜 조회했어?")).toBe(true);
+    expect(isFollowupComplaint("확인했어?")).toBe(true);
     expect(isFollowupComplaint("잔금 100%로 바꿔줘")).toBe(false);
   });
 
@@ -178,8 +189,10 @@ describe("isFollowupComplaint / buildLastActionFollowupHint", () => {
     expect(buildLastActionFollowupHint("잔금 100%로 바꿔줘", rows)).toBeNull();
   });
 
-  it("직전 assistant turn에 Tool 기록이 없으면 힌트를 만들지 않는다", () => {
+  it("직전 assistant turn에 Tool 기록이 없으면 실행하지 않았다는 사실을 주입한다", () => {
     const rows = [{ role: "assistant", metadata: {} }];
-    expect(buildLastActionFollowupHint("왜 안 바뀌었어?", rows)).toBeNull();
+    const hint = buildLastActionFollowupHint("진짜 조회했어?", rows);
+    expect(hint).toContain("실제로 실행된 Tool은 0개");
+    expect(hint).toContain("조회·등록·수정 작업을 하지 않았다");
   });
 });

@@ -31,12 +31,15 @@ const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "�
 // PHASE 4 작업 1(2026-09-25) — Hermes 실패 뒤 안전한 대체 경로로 처리했음을 접었다 펼치는 배지로 보여준다.
 // 사유는 lib/hermes/client.ts의 단계별 타임아웃 문구(connect/first_event/idle/total)를 그대로
 // 쓴다 — 이미 자연어라 새로 다듬지 않는다.
-function FallbackBadge({ reason }: { reason: string }) {
+function FallbackBadge({ reason, executedToolCount }: { reason: string; executedToolCount: number }) {
   const [expanded, setExpanded] = useState(false);
+  const summary = executedToolCount > 0
+    ? `대체 처리 경로를 사용했습니다 · 실행된 도구: ${executedToolCount}개`
+    : "대체 경로로 답했지만 실행된 작업은 없습니다 · 실행된 도구: 0개";
   return (
     <div className="olivia-fallback-badge">
       <button type="button" className="olivia-fallback-badge__toggle" onClick={() => setExpanded((value) => !value)}>
-        ⚠️ 헤르메스 대신 대체 처리 경로로 완료했습니다 · {expanded ? "접기" : "사유 보기"}
+        ⚠️ 헤르메스 대신 {summary} · {expanded ? "접기" : "사유 보기"}
       </button>
       {expanded ? <p className="olivia-fallback-badge__reason">{reason}</p> : null}
     </div>
@@ -524,7 +527,9 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                   })}
                   <OliviaChatMessageAttachments attachments={message.attachments} />
                   {message.status === "streaming" && !messageText(message) ? <span className="olivia-typing"><i /><i /><i /></span> : null}
-                  {message.role === "assistant" && message.fallbackReason ? <FallbackBadge reason={message.fallbackReason} /> : null}
+                  {message.role === "assistant" && message.fallbackReason ? (
+                    <FallbackBadge reason={message.fallbackReason} executedToolCount={message.executedToolCount ?? 0} />
+                  ) : null}
                 </div>
               </article>
             </Fragment>

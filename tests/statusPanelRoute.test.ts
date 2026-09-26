@@ -40,14 +40,15 @@ function createFakeTable(rows: Row[], opts: { failWith?: string } = {}) {
 
 let currentDb: any = null;
 function createFakeSupabase(
-  tables: { remote_workers: Row[]; worker_events: Row[]; remote_jobs: Row[]; olivia_chat_messages?: Row[] },
-  failing: Partial<Record<"remote_workers" | "worker_events" | "remote_jobs" | "olivia_chat_messages", string>> = {},
+  tables: { remote_workers: Row[]; worker_events: Row[]; remote_jobs: Row[]; olivia_chat_messages?: Row[]; system_status_signals?: Row[] },
+  failing: Partial<Record<"remote_workers" | "worker_events" | "remote_jobs" | "olivia_chat_messages" | "system_status_signals", string>> = {},
 ) {
   const fakes = {
     remote_workers: createFakeTable(tables.remote_workers, { failWith: failing.remote_workers }),
     worker_events: createFakeTable(tables.worker_events, { failWith: failing.worker_events }),
     remote_jobs: createFakeTable(tables.remote_jobs, { failWith: failing.remote_jobs }),
     olivia_chat_messages: createFakeTable(tables.olivia_chat_messages ?? [], { failWith: failing.olivia_chat_messages }),
+    system_status_signals: createFakeTable(tables.system_status_signals ?? [], { failWith: failing.system_status_signals }),
   };
   return {
     from(table: keyof typeof fakes | "workflow_runs") {
@@ -135,6 +136,31 @@ describe("GET /api/olivia-os/status-panel", () => {
     const response = await callStatusPanel();
     const body = await response.json();
     expect(body.hermesFallbackCount24h).toBe(0);
+  });
+
+  it("기존 MCP 신호 점검을 재사용해 연결 상태와 도구 수를 반환한다", async () => {
+    currentDb = createFakeSupabase({
+      remote_workers: [], worker_events: [], remote_jobs: [],
+      system_status_signals: [{
+        signal_key: "hermes_mcp_list_tools",
+        last_seen_at: new Date().toISOString(),
+        tool_count: 145,
+      }],
+    });
+    const response = await callStatusPanel();
+    const body = await response.json();
+    expect(body.mcp).toMatchObject({ level: "ok", state: "연결됨", toolCount: 145 });
+  });
+
+  it("MCP 진단 migration이 없으면 적용할 파일명을 schemaWarnings로 반환한다", async () => {
+    currentDb = createFakeSupabase(
+      { remote_workers: [], worker_events: [], remote_jobs: [] },
+      { system_status_signals: "relation system_status_signals does not exist" },
+    );
+    const response = await callStatusPanel();
+    const body = await response.json();
+    expect(body.mcp).toMatchObject({ level: "error", state: "기록 불가", toolCount: 0 });
+    expect(body.schemaWarnings).toContain("supabase/migrations/20260919_system_status_diagnostics.sql");
   });
 
   it("실제 fallbackReason이 있는 assistant 메시지만 hermesFallbackCount24h로 센다", async () => {

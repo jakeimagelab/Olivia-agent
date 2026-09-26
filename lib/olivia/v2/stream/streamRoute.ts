@@ -59,6 +59,7 @@ import {
   shouldRequireClientSelection,
 } from "@/lib/core/context/clientTarget";
 import { buildAssistantEngineMetadata } from "@/lib/olivia/v2/fallbackMetadata";
+import { buildExecutedToolsContext, withExecutedToolsMetadata } from "@/lib/olivia/v2/executionEvidence";
 import { handlePendingActionTurn } from "@/lib/olivia/v2/stream/pendingAction";
 import { runHermesTurn, type ChatRouteLabel } from "@/lib/olivia/v2/stream/hermesTurn";
 import { runLegacyTurn } from "@/lib/olivia/v2/stream/legacyTurn";
@@ -263,6 +264,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
                 blocks: [{ type: "text", text }],
                 routeDecision: "SYSTEM_STATUS_DIRECT",
                 systemStatusIssueCount: report.issueCount,
+                executedTools: [],
               },
             });
             persistedMessageId = String(saved.message.id);
@@ -275,6 +277,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             messageId,
             conversationId,
             persistedMessageId,
+            executedToolCount: 0,
             resolvedContext: {
               clientId: context.activeClientId,
               clientName: context.activeClientName,
@@ -371,8 +374,9 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           : pendingActionPromptContext(pendingAction);
         // §7/§8 "왜 안 바뀌는 거야?" 같은 후속 항의를 새 Intent로 재분류하지 않는다 — 직전
         // turn에 실제로 어떤 Tool이 실행됐는지(성공/실패)를 짧게 복기시킨다.
+        const executedToolsHint = buildExecutedToolsContext(history);
         const lastActionHint = buildLastActionFollowupHint(rawMessage, history);
-        const historyHint = [pendingPromptHint, lastActionHint].filter(Boolean).join("\n\n") || undefined;
+        const historyHint = [pendingPromptHint, executedToolsHint, lastActionHint].filter(Boolean).join("\n\n") || undefined;
         if (pendingAction) effectiveContext = resolvePendingActionContext(effectiveContext, pendingAction);
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
@@ -403,10 +407,12 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         // 자동으로 agentEngine/fallbackReason을 DB metadata와 SSE 이벤트 둘 다에 싣는다.
         // 호출부의 오래된 "cloud" 같은 표기가 실제 route 판정을 덮어쓰지 못하게 여기서 강제한다.
         const saveTurnAssistant = async (content: string, metadata: Record<string, unknown>) => {
-          const enrichedMetadata = buildAssistantEngineMetadata(metadata, {
-            agentEngine: activeAgentEngine,
-            fallbackReason,
-          });
+          const enrichedMetadata = withExecutedToolsMetadata(
+            buildAssistantEngineMetadata(metadata, {
+              agentEngine: activeAgentEngine,
+              fallbackReason,
+            }),
+          );
           const saved = await saveAssistantMessage(db, {
             ownerId: owner.id,
             conversationId: conversation.id,
@@ -425,6 +431,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             persistedMessageId: String(saved.message.id),
             resolvedContext: resolvedContextForMessage,
             agentEngine: activeAgentEngine,
+            executedToolCount: enrichedMetadata.executedTools.length,
             ...(fallbackReason ? { fallbackReason } : {}),
             ...(isDevDiagnostics && chatRouteLabel ? { chatRoute: chatRouteLabel } : {}),
           });

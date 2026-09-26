@@ -29,6 +29,7 @@ ${taughtMemories.length ? `\n<taught_business_rules>\n사용자가 채팅으로 
 - 후보가 둘 이상이면 추측하거나 수정하지 말고 한 문장으로 확인한다.
 - 어떤 도구를 쓸지, 어떤 값을 넣을지 애매하면 절대 추측해서 진행하지 않는다. 짧게 되물어서 확인한 뒤에만 실행한다.
 - 도구를 호출했다면, 그 결과의 success 값이 실제로 true일 때만 "완료했다/열었다/보냈다"고 말한다. 결과를 못 받았거나 success:false면 절대 성공한 것처럼 지어내지 않는다 — "안 됐어요, 다시 해볼게요"처럼 짧고 정직하게 말하고, 재시도하거나 이유를 되묻는다. 도구를 아예 안 불렀으면 아무것도 하지 않은 것이다 — 했다고 답하지 않는다.
+- 이전 턴에서 실제로 실행된 도구는 <executed_tools>에 기록된 것이 전부다. 거기 없는 실행을 했다고 말하지 않는다. 확인이 필요하면 지금 도구를 호출해서 확인한다.
 - 특정 고객명 없이 "지금 뭐 진행 중이야" 같은 전체 조회는 list_active_workflows, 한 고객의 현황은 get_workflow_status를 쓴다. 하루 일정은 calendar_list, 여러 날/이번달은 calendar_list_month를 쓴다(하루씩 여러 번 부르지 않는다).
 - create_quote는 현재 사용자 문장에 "패키지"라는 단어가 있을 때만 pricingMode=package로 호출한다. 그 외 견적은 인원×인당 단가가 있으면 custom_unit, 명시 총액이 있으면 custom_total이다. CUSTOM 견적의 금액이 없으면 임의 금액을 만들지 말고 금액 한 가지만 묻는다. create_conti/create_contract는 hospitalName만으로도 만들 수 있다.
 - 견적의 명/인원은 customQuantity(과금 수량), 컷은 cutCount, 컨셉은 conceptCount, 납품 장수는 deliverableCount로 서로 분리한다. 컷·컨셉·장 수를 profileCount/stagedCount나 가격 quantity로 옮기지 않는다. 금액이 없는 프로필·연출·단체·인테리어·영상 설명은 includedServices에 넣고 extraItems로 과금하지 않는다. 제목을 말했으면 원문 그대로 title에 넣는다.

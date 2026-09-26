@@ -30,6 +30,13 @@ type StatusPanelData = {
   }>;
   consistencyError: string | null;
   hermesFallbackCount24h: number | null;
+  mcp: {
+    level: "ok" | "warning" | "error" | "unknown";
+    state: string;
+    detail: string | null;
+    toolCount: number;
+  };
+  schemaWarnings: string[];
 };
 
 const CLOSED_POLL_MS = 60_000;
@@ -124,7 +131,12 @@ export function StatusPanelButton() {
     || shootingProgress.length > 0
     || Object.keys(jobs).length > 0
     || Boolean(data?.recentBackups.some((backup) => backup.status === "PENDING"));
-  const hasWarning = data ? data.worker.online === false || data.worker.nas_connected === false : false;
+  const hasWarning = data
+    ? data.worker.online === false
+      || data.worker.nas_connected === false
+      || data.mcp.level !== "ok"
+      || data.schemaWarnings.length > 0
+    : false;
   const hasCoreWarning = Boolean(data?.coreBypassIssues?.length || data?.consistencyError);
   // PHASE 4 작업 1 R3(2026-09-25) — 폴백이 한 번이라도 있으면 대표가 그날 안에 알아야 한다.
   const hasFallbackWarning = Boolean(data?.hermesFallbackCount24h);
@@ -149,6 +161,27 @@ export function StatusPanelButton() {
               <RefreshCw size={13} className={loading ? styles.statusPanelSpin : undefined} />
             </button>
           </div>
+          {data?.schemaWarnings.length ? (
+            <div className={styles.statusPanelSchemaWarning} role="alert">
+              <strong>시스템 진단 DB가 준비되지 않았습니다.</strong>
+              {data.schemaWarnings.map((migration) => (
+                <span key={migration}>{migration} 적용 필요</span>
+              ))}
+            </div>
+          ) : null}
+          {data ? (
+            <div className={`${styles.statusPanelCard} ${data.mcp.level === "ok" ? "" : styles.statusPanelCardBad}`}>
+              <div className={styles.statusPanelRow}>
+                {data.mcp.level === "ok"
+                  ? <CheckCircle2 size={16} className={styles.statusPanelIconOk} />
+                  : <XCircle size={16} className={styles.statusPanelIconBad} />}
+                <div className={styles.statusPanelRowBody}>
+                  <strong>MCP 도구 · {data.mcp.state} · 도구 {data.mcp.toolCount.toLocaleString("ko-KR")}개</strong>
+                  <span>{data.mcp.detail || "연결 기록 없음"}</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
           {shootingProgress.length ? (
             <div className={styles.statusPanelWorkSection}>
               <ShootingProgressCards

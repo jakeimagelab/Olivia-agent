@@ -26,7 +26,7 @@ export function isClientScopedExecutionRequest(message: string): boolean {
   return CLIENT_SCOPED_RESOURCE_PATTERN.test(message) && CLIENT_SCOPED_ACTION_PATTERN.test(message);
 }
 
-export function isHermesToolMiss(input: {
+export function isToolExecutionMiss(input: {
   message: string;
   responseText: string;
   toolCallCount: number;

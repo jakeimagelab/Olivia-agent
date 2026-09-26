@@ -49,6 +49,7 @@ export type OliviaMessage = {
   // Tailscale IP로 잘못 박혀 있던 사고) 알아챘다 — 이제 message_complete 이벤트로 그대로 보낸다.
   agentEngine?: "hermes" | "legacy";
   fallbackReason?: string;
+  executedToolCount?: number;
 };
 
 export type OliviaV2Message = OliviaMessage;
@@ -149,6 +150,7 @@ export type OliviaStreamEvent =
        * 대표가 그 자리에서 바로 알아야 한다(운영 진단 목적이 아니라 신뢰성 표시 목적). */
       agentEngine?: "hermes" | "legacy";
       fallbackReason?: string;
+      executedToolCount?: number;
       resolvedContext?: {
         clientId?: string;
         clientName?: string;

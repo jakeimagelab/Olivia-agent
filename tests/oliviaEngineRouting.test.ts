@@ -4,7 +4,7 @@ import {
   resolveOliviaEngineRoute,
 } from "@/lib/olivia/v2/engineRouting";
 import { classifyOliviaRequest } from "@/lib/olivia/v2/modelRouter";
-import { isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
+import { isToolExecutionMiss } from "@/lib/olivia/v2/executionIntent";
 
 const emptyContext = { recentActions: [], revision: 0 };
 
@@ -80,17 +80,17 @@ describe("Olivia Hermes-first 엔진 라우팅", () => {
   });
 
   it("도구 없이 불가/약속 답변을 내면 legacy 재시도 대상으로 판정한다", () => {
-    expect(isHermesToolMiss({
+    expect(isToolExecutionMiss({
       message: "내일 3시 일정 등록해줘",
       responseText: "일정을 등록할게요.",
       toolCallCount: 0,
     })).toBe(true);
-    expect(isHermesToolMiss({
+    expect(isToolExecutionMiss({
       message: "팝업 닫아줘",
       responseText: "화면을 바꾸는 기능이 연결되어 있지 않아요.",
       toolCallCount: 0,
     })).toBe(true);
-    expect(isHermesToolMiss({
+    expect(isToolExecutionMiss({
       message: "내일 3시 일정 등록해줘",
       responseText: "일정을 등록했습니다.",
       toolCallCount: 1,

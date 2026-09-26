@@ -43,6 +43,7 @@ import {
 import { buildSystemPrompt } from "@/lib/olivia/v2/stream/systemPrompt";
 import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
 import { maxToolRounds } from "@/lib/olivia/v2/stream/turnLimits";
+import { isToolExecutionMiss } from "@/lib/olivia/v2/executionIntent";
 
 type LegacyTurnInput = {
   db: SupabaseClient;
@@ -148,24 +149,37 @@ export async function runLegacyTurn({
       onFirstToken,
     });
     if (!response.toolCalls.length) {
-      const forcedToolChoice = resolveToollessActionRetry(
+      const executionMiss = isToolExecutionMiss({
+        message,
+        responseText: response.text,
+        toolCallCount: executedToolCalls.size,
+      });
+      const requiredToolChoice = resolveToollessActionRetry(
         round,
         requiredFollowupTool,
-        response.toolCalls.length,
+        executedToolCalls.size,
       );
+      const forcedToolChoice = requiredToolChoice
+        ?? (executionMiss && round === 0 && executedToolCalls.size === 0 ? "required" as const : undefined);
       if (forcedToolChoice) {
         console.warn("[olivia-v2] tool action returned text without execution; forcing one retry", {
           requestId,
           requiredFollowupTool,
         });
-        send({ type: "agent_status", status: toolStatus(forcedToolChoice.name) });
+        send({
+          type: "agent_status",
+          status: typeof forcedToolChoice === "string"
+            ? "실행 도구를 다시 확인하는 중…"
+            : toolStatus(forcedToolChoice.name),
+        });
         request = { ...request, tool_choice: forcedToolChoice };
         continue;
       }
+      const stoppedExecutionMiss = executionMiss && executedToolCalls.size === 0;
       const safeText = hasRenderedVerifiedOutcome
         ? ""
-        : requiredFollowupTool && !executedToolCalls.size
-          ? "요청을 실행할 도구 결과를 받지 못했어요. 확인되지 않은 성공이나 실패로 답하지 않고 중단했습니다."
+        : (requiredFollowupTool && !executedToolCalls.size) || stoppedExecutionMiss
+          ? "요청을 실행하지 못했습니다. 도구를 호출하지 못해서 아무 작업도 하지 않았습니다."
           : response.text || deferredFailureText;
       finalText += safeText;
       await flushTextAsDeltas(safeText, send, messageId);

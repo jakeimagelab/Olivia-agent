@@ -16,7 +16,7 @@ import { toHermesMemoryEntry } from "@/lib/olivia/memory/format";
 import { resolveHermesDisplayText } from "@/lib/olivia/output/hermesDisplayText";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { createStreamingScriptGuard } from "@/lib/olivia/output/scriptSanitizer";
-import { isHermesToolMiss } from "@/lib/olivia/v2/executionIntent";
+import { isToolExecutionMiss } from "@/lib/olivia/v2/executionIntent";
 import type { OliviaContextSnapshot, OliviaStreamEvent, OliviaToolResult } from "@/lib/olivia/v2/types";
 import type { ConversationMessage } from "@/lib/olivia/v2/stream/contextPrompt";
 import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadata";
@@ -169,7 +169,7 @@ export async function runHermesTurn(input: HermesTurnInput): Promise<HermesTurnR
     if (hermesResult.type !== "message") {
       throw new Error("Hermes Brain이 지원하지 않는 응답 형식을 반환했습니다.");
     }
-    if (isHermesToolMiss({
+    if (isToolExecutionMiss({
       message,
       responseText: hermesResult.text,
       toolCallCount: hermesResult.toolCalls.length,

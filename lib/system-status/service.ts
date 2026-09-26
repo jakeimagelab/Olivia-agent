@@ -99,7 +99,7 @@ async function checkRequiredTable(db: SupabaseClient, table: string, migration: 
     const { error } = await db.from(table).select("*").limit(1);
     if (!error) return { id: `table_${table}`, group: "database", label: table, level: "ok", state: "OK" };
     if (isMissingSchemaObject(error)) {
-      return { id: `table_${table}`, group: "database", label: table, level: "error", state: "없음", detail: "필수 테이블을 찾지 못했습니다.", remedy: `${migration} migration을 적용하세요.` };
+      return { id: `table_${table}`, group: "database", label: table, level: "error", state: "없음", detail: "필수 테이블을 찾지 못했습니다.", remedy: `${migration} migration을 적용하세요.`, migration };
     }
     return unknownItem(`table_${table}`, "database", table, "테이블 조회에 실패했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   } catch {
@@ -107,7 +107,7 @@ async function checkRequiredTable(db: SupabaseClient, table: string, migration: 
   }
 }
 
-async function checkMcpSignal(db: SupabaseClient, now: Date): Promise<SystemStatusItem> {
+export async function checkMcpSignal(db: SupabaseClient, now: Date): Promise<SystemStatusItem> {
   try {
     const { data, error } = await db
       .from("system_status_signals")
@@ -116,21 +116,21 @@ async function checkMcpSignal(db: SupabaseClient, now: Date): Promise<SystemStat
       .maybeSingle();
     if (error) {
       if (isMissingSchemaObject(error)) {
-        return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "기록 불가", detail: "MCP 연결 기록용 migration이 적용되지 않았습니다.", remedy: SYSTEM_STATUS_GUIDANCE.mcpSignalUnavailable };
+        return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "기록 불가", detail: "MCP 연결 기록용 migration이 적용되지 않았습니다.", remedy: SYSTEM_STATUS_GUIDANCE.mcpSignalUnavailable, toolCount: 0, migration: "supabase/migrations/20260919_system_status_diagnostics.sql" };
       }
       return unknownItem("mcp_tools", "cloud", "MCP 도구", "MCP 연결 기록을 조회하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
     }
     if (!data) {
-      return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "미연결", detail: "Hermes의 Olivia ListTools 요청 기록이 없습니다.", remedy: SYSTEM_STATUS_GUIDANCE.mcpDisconnected };
+      return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "미연결", detail: "Hermes의 Olivia ListTools 요청 기록이 없습니다.", remedy: SYSTEM_STATUS_GUIDANCE.mcpDisconnected, toolCount: 0 };
     }
     const lastSeenAt = typeof data.last_seen_at === "string" ? data.last_seen_at : null;
     const toolCount = typeof data.tool_count === "number" ? data.tool_count : 0;
     const lastSeenMs = lastSeenAt ? new Date(lastSeenAt).getTime() : Number.NaN;
     const recent = Number.isFinite(lastSeenMs) && now.getTime() - lastSeenMs <= MCP_STALE_MS;
     if (!recent || toolCount <= 0) {
-      return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "미연결", detail: `도구 ${toolCount.toLocaleString("ko-KR")}개 · 마지막 확인 ${relativeKorean(lastSeenAt, now)}`, remedy: SYSTEM_STATUS_GUIDANCE.mcpDisconnected };
+      return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "error", state: "미연결", detail: `도구 ${toolCount.toLocaleString("ko-KR")}개 · 마지막 확인 ${relativeKorean(lastSeenAt, now)}`, remedy: SYSTEM_STATUS_GUIDANCE.mcpDisconnected, toolCount };
     }
-    return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "ok", state: "연결됨", detail: `도구 ${toolCount.toLocaleString("ko-KR")}개 · 마지막 확인 ${relativeKorean(lastSeenAt, now)}` };
+    return { id: "mcp_tools", group: "cloud", label: "MCP 도구", level: "ok", state: "연결됨", detail: `도구 ${toolCount.toLocaleString("ko-KR")}개 · 마지막 확인 ${relativeKorean(lastSeenAt, now)}`, toolCount };
   } catch {
     return unknownItem("mcp_tools", "cloud", "MCP 도구", "MCP 연결 기록을 조회하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   }

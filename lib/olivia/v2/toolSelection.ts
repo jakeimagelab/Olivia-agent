@@ -2,6 +2,7 @@ import type { FunctionTool } from "openai/resources/responses/responses";
 import { OLIVIA_V2_TOOLS } from "./toolExecutor";
 import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
+import { executedToolsFromMetadata } from "./executionEvidence";
 
 type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"photo_storage"|"window";
 
@@ -11,7 +12,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   // 안 겹쳐서 별도 도메인이 필요하다("크게 보여줘"만 navigation과 우연히 겹침, 문제 없음).
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
-  client: ["select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
+  client: ["client_search","client_get","client_create","select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
   quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","apply_quote_rebalance","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   contract: ["create_contract","update_contract_terms","request_contract_signature","complete_contract","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   conti: ["get_conti_status","create_conti","complete_conti_v2","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
@@ -118,7 +119,7 @@ export function buildCanonicalRecentUserText(rows: Array<{ role?: string; conten
 // 항의는 새 Intent로 처음부터 분류하면 안 된다. 직전 turn에 실행된 tool 이름/성공 여부를
 // 짧게 복기시켜, Hermes/legacy가 그 작업을 다시 확인·재실행하는 쪽으로 해석하게 한다.
 // 매 turn 무조건 넣지 않고(토큰 낭비), 후속 항의로 보이는 메시지에서만 넣는다.
-const FOLLOWUP_COMPLAINT_PATTERN = /(왜\s*안|안\s*바뀌|안\s*됐|안\s*되잖아|아직\s*안|다시\s*해|그게\s*아니|그거\s*말고|반영\s*안)/i;
+const FOLLOWUP_COMPLAINT_PATTERN = /(왜.*안|안\s*바뀌|안\s*됐|안\s*되잖아|아직\s*안|다시\s*해|그게\s*아니|그거\s*말고|반영\s*안|진짜.*했|정말.*했|확인.*했)/i;
 
 export function isFollowupComplaint(message: string): boolean {
   return FOLLOWUP_COMPLAINT_PATTERN.test(message);
@@ -130,19 +131,13 @@ export function buildLastActionFollowupHint(
 ): string | null {
   if (!isFollowupComplaint(message)) return null;
   const lastAssistant = [...rows].reverse().find((row) => row.role === "assistant");
-  const metadata = lastAssistant?.metadata;
-  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
-  const toolCalls = (metadata as Record<string, unknown>).toolCalls;
-  if (!Array.isArray(toolCalls) || !toolCalls.length) return null;
-  const summaries = toolCalls
-    .filter((call): call is Record<string, unknown> => Boolean(call) && typeof call === "object")
-    .map((call) => {
-      const name = typeof call.name === "string" ? call.name.replace(/^mcp_olivia_/, "").replaceAll(".", "_") : "";
-      if (!name) return null;
-      return `${name}(${call.success ? "성공" : "실패"}${call.resourceType ? `, ${call.resourceType}` : ""})`;
-    })
-    .filter((line): line is string => Boolean(line));
-  if (!summaries.length) return null;
+  if (!lastAssistant) return null;
+  const tools = executedToolsFromMetadata(lastAssistant.metadata);
+  if (!tools.length) {
+    return "[직전 작업 기록] 바로 전 turn에서 실제로 실행된 Tool은 0개다. 조회·등록·수정 작업을 하지 않았다. "
+      + "지금 확인이 필요하면 해당 Tool을 새로 호출하고, 호출 전 실행을 했다고 말하지 않는다.";
+  }
+  const summaries = tools.map((tool) => `${tool.name}(${tool.success ? "성공" : "실패"}${tool.resourceType ? `, ${tool.resourceType}` : ""})`);
   return `[직전 작업 기록] 바로 전 turn에서 실행된 Tool: ${summaries.join(", ")}. `
     + `지금 메시지는 그 결과에 대한 후속 항의로 보인다 — 새 Intent로 처음부터 다시 분류하지 말고, `
     + `직전에 어떤 필드를 바꾸려 했는지부터 확인해서 올바른 Tool로 다시 시도하거나 실제 반영 여부를 확인한다.`;
@@ -181,16 +176,19 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   const recent = input.recentText || "";
   const available = new Set(input.availableToolNames);
   const candidates = [
-    { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote" },
-    { pattern: /(계약)/gi, create: "create_contract" },
-    { pattern: /(콘티|스토리보드|촬영\s*준비)/gi, create: "create_conti" },
+    { pattern: /(고객\s*등록|고객으로\s*등록|신규\s*고객|거래처\s*등록)/gi, create: "client_create", source: message },
+    { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote", source: recent },
+    { pattern: /(계약)/gi, create: "create_contract", source: recent },
+    { pattern: /(콘티|스토리보드|촬영\s*준비)/gi, create: "create_conti", source: recent },
   ].map((candidate) => {
     let lastIndex = -1;
-    for (const match of recent.matchAll(candidate.pattern)) lastIndex = match.index ?? lastIndex;
+    for (const match of candidate.source.matchAll(candidate.pattern)) lastIndex = match.index ?? lastIndex;
     return { ...candidate, lastIndex };
   }).filter((candidate) => candidate.lastIndex >= 0).sort((a, b) => b.lastIndex - a.lastIndex);
   const domain = candidates[0];
   if (!domain) return undefined;
+
+  if (domain.create === "client_create" && available.has("client_create")) return "client_create";
 
   const confirmsPendingAction = /^(맞아|응|그래|네|오케이|좋아|해\s*줘|진행해|적용해)/.test(message)
     || /(맞추면\s*돼|적용하면\s*돼|그렇게\s*해)/.test(message);
