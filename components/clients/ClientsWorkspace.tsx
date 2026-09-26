@@ -775,6 +775,7 @@ function DetailView({
           <button onClick={copyPortalLink} disabled={linkCopyBusy} className="pc-btn pc-btn--ghost pc-btn--sm">
             <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "링크 복사"}
           </button>
+          <button onClick={() => { setActiveTab("info"); setInfoEditSignal((n) => n + 1); }} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 고객 정보 수정</button>
           {workflowRun && (
             <button onClick={() => setShowEditProjectDialog(true)} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 프로젝트 수정</button>
           )}
