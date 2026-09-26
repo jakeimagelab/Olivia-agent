@@ -232,18 +232,15 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
   ), [search, setSearch]);
   usePcrmHeaderActions(headerActions, [headerActions]);
 
-  if (detailTarget) {
-    return (
-      <DetailView
-        clientId={detailTarget.clientId}
-        workflowRunId={detailTarget.workflowRunId}
-        onBack={() => setDetailTarget(null)}
-        onWorkflowRunChange={(workflowRunId) => setDetailTarget((current) => current ? { ...current, workflowRunId } : current)}
-      />
-    );
-  }
-
-  return (
+  const body = detailTarget ? (
+    <DetailView
+      clientId={detailTarget.clientId}
+      workflowRunId={detailTarget.workflowRunId}
+      onBack={() => setDetailTarget(null)}
+      onWorkflowRunChange={(workflowRunId) => setDetailTarget((current) => current ? { ...current, workflowRunId } : current)}
+      embedded={embedded}
+    />
+  ) : (
     <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
       <div
         className="pcrm-workspace-grid"
@@ -294,6 +291,23 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
           .pcrm-workspace-grid > div { height: auto !important; max-height: none !important; }
         }
       `}</style>
+    </div>
+  );
+
+  // 창(embedded) 안에는 검색/등록 버튼을 받을 페이지 헤더가 없다 — usePcrmHeaderActions는
+  // standalone route(/clients)에서만 실제로 반영되고, 창에서는 여기서 같은 headerActions를
+  // 고정 상단바로 직접 그린다. 목록 화면이든 상세 화면(DetailView)이든 스크롤과 무관하게
+  // 항상 보이도록 body보다 앞에, flex 고정 영역으로 둔다.
+  if (!embedded) return body;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
+      <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${C.border}` }}>
+        {headerActions}
+      </div>
+      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+        {body}
+      </div>
     </div>
   );
 }
