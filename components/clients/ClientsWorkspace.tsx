@@ -241,10 +241,10 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
       embedded={embedded}
     />
   ) : (
-    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
+    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "auto" : undefined, minHeight: embedded ? "100%" : 0, overflow: embedded ? "visible" : undefined }}>
       <div
         className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: embedded ? "100%" : "calc(100vh - 160px)", minHeight: embedded ? 0 : 560, padding: embedded ? 12 : "0 0 16px" }}
+        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: embedded ? "auto" : "calc(100vh - 160px)", minHeight: embedded ? "100%" : 560, padding: embedded ? 12 : "0 0 16px" }}
       >
         <ClientListPanel
           clients={filtered}
@@ -305,7 +305,10 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
       <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: `1px solid ${C.border}` }}>
         {headerActions}
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div
+        className="pcrm-window-scroll-region"
+        style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
+      >
         {body}
       </div>
     </div>
@@ -575,6 +578,7 @@ function DetailView({
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [infoEditSignal, setInfoEditSignal] = useState(0);
+  const detailTabsRef = useRef<HTMLElement>(null);
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   // 코드 요청서 7차(2026-08-16) — resourceId까지 같이 들고 있어야 이미 있는 문서를 그대로
@@ -730,9 +734,17 @@ function DetailView({
     }
   };
 
+  const openClientInfoEditor = () => {
+    setActiveTab("info");
+    setInfoEditSignal((current) => current + 1);
+    requestAnimationFrame(() => {
+      detailTabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   return (
-    <div style={{ color: C.txt, display: embedded ? "flex" : undefined, flexDirection: embedded ? "column" : undefined, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
-      <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0, flexShrink: embedded ? 0 : undefined }}>
+    <div style={{ color: C.txt, minWidth: 0 }}>
+      <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
       <nav className="pcrm-breadcrumb" aria-label="이동 경로">
         {desktopWindowMode ? <button type="button" onClick={onBack}>고객 관리</button> : <Link href="/clients">고객 관리</Link>}<span>/</span><span>고객 상세 · {activeTabLabel}</span>
         <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
@@ -775,7 +787,7 @@ function DetailView({
           <button onClick={copyPortalLink} disabled={linkCopyBusy} className="pc-btn pc-btn--ghost pc-btn--sm">
             <Copy size={13} /> {linkCopyBusy ? "복사 중..." : "링크 복사"}
           </button>
-          <button onClick={() => { setActiveTab("info"); setInfoEditSignal((n) => n + 1); }} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 고객 정보 수정</button>
+          <button type="button" onClick={openClientInfoEditor} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 고객 정보 수정</button>
           {workflowRun && (
             <button onClick={() => setShowEditProjectDialog(true)} className="pc-btn pc-btn--secondary pc-btn--sm"><Pencil size={13} /> 프로젝트 수정</button>
           )}
@@ -828,13 +840,24 @@ function DetailView({
         onOpenToolModal={openToolModal}
         onRefresh={load}
       />
+      </section>
 
-      <nav className="pcrm-detail-tabs" aria-label="고객 상세 탭" style={{ marginTop: 14 }}>
+      <nav
+        ref={detailTabsRef}
+        className="pcrm-detail-tabs"
+        aria-label="고객 상세 탭"
+        style={embedded ? {
+          position: "sticky",
+          top: 0,
+          zIndex: 8,
+          marginTop: 14,
+          background: C.bg,
+        } : { marginTop: 14 }}
+      >
         {DETAIL_TABS.map((tab) => (
           <button key={tab.key} type="button" data-active={activeTab === tab.key} onClick={() => setActiveTab(tab.key)}>{tab.label}</button>
         ))}
       </nav>
-      </section>
 
       {showProjectDialog && (
         <NewPcrmProjectDialog
@@ -873,7 +896,7 @@ function DetailView({
         />
       ) : null}
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start", flex: embedded ? 1 : undefined, minHeight: embedded ? 0 : undefined, width: embedded ? "100%" : undefined, overflowY: embedded ? "auto" : undefined }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14, alignItems: "start", width: "100%", minWidth: 0 }}>
 
         {activeTab === "overview" && (
           <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} onNavigateTab={setActiveTab} />
