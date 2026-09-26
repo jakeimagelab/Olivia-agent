@@ -873,7 +873,7 @@ function DetailView({
         />
       ) : null}
 
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start" }}>
+      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px 80px", display: "grid", gridTemplateColumns: "1fr", gap: 14, alignItems: "start", flex: embedded ? 1 : undefined, minHeight: embedded ? 0 : undefined, width: embedded ? "100%" : undefined, overflowY: embedded ? "auto" : undefined }}>
 
         {activeTab === "overview" && (
           <ClientOverviewTab client={client} workflowRun={workflowRun} artifacts={artifacts} activities={activities} onRefresh={load} onNavigateTab={setActiveTab} />
