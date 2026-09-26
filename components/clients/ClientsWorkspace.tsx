@@ -731,8 +731,8 @@ function DetailView({
   };
 
   return (
-    <div style={{ color: C.txt }}>
-      <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
+    <div style={{ color: C.txt, display: embedded ? "flex" : undefined, flexDirection: embedded ? "column" : undefined, height: embedded ? "100%" : undefined, minHeight: 0, overflow: embedded ? "hidden" : undefined }}>
+      <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0, flexShrink: embedded ? 0 : undefined }}>
       <nav className="pcrm-breadcrumb" aria-label="이동 경로">
         {desktopWindowMode ? <button type="button" onClick={onBack}>고객 관리</button> : <Link href="/clients">고객 관리</Link>}<span>/</span><span>고객 상세 · {activeTabLabel}</span>
         <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
