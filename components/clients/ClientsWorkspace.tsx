@@ -554,11 +554,13 @@ function DetailView({
   workflowRunId,
   onBack,
   onWorkflowRunChange,
+  embedded = false,
 }: {
   clientId: string;
   workflowRunId: string | null;
   onBack: () => void;
   onWorkflowRunChange?: (workflowRunId: string) => void;
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const desktopWindowMode = useDesktopWindowMode();
