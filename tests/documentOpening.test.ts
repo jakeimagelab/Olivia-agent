@@ -31,9 +31,10 @@ describe("document opening", () => {
     });
   });
 
-  it("reviewId와 galleryId도 문서 resourceId로 해석한다", () => {
+  it("reviewId, galleryId와 셀렉 갤러리 상세 경로도 문서 resourceId로 해석한다", () => {
     expect(contextFromHref("/review-studio?reviewId=review-1").resourceId).toBe("review-1");
     expect(contextFromHref("/gallery?galleryId=gallery-1").resourceId).toBe("gallery-1");
+    expect(contextFromHref("/select-galleries/gallery-2").resourceId).toBe("gallery-2");
   });
 
   it("계약서 생성용 quoteId는 기존 계약서 resourceId와 분리한다", () => {

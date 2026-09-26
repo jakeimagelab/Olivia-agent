@@ -33,6 +33,7 @@ describe("OLIVIA OS app registry navigation", () => {
     for (const appId of [
       "quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route", "metadata-select",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
+      "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
     ]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
@@ -63,6 +64,22 @@ describe("OLIVIA OS app registry navigation", () => {
       const result = resolveOliviaAppRoute(href);
       expect(result?.app.id, href).toBe(appId);
       expect(result?.href, href).toBe(resolvedHref);
+      expect(getOliviaAppByRoute(href)?.id, href).toBe(appId);
+    }
+  });
+
+  it("routes select galleries, delivery, mailing, and work screens to native adapters", () => {
+    const cases = [
+      ["/select-galleries?clientId=client-1", "select-galleries"],
+      ["/select-galleries/gallery-1?workflowRunId=run-1", "select-galleries"],
+      ["/seo-delivery?clientId=client-1", "seo-delivery"],
+      ["/mailing", "mailing"],
+      ["/work-journal", "work-journal"],
+      ["/report", "report"],
+    ] as const;
+
+    for (const [href, appId] of cases) {
+      expect(resolveOliviaAppRoute(href)?.app.id, href).toBe(appId);
       expect(getOliviaAppByRoute(href)?.id, href).toBe(appId);
     }
   });

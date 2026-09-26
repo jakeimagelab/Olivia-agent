@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL, type SelectGallery } from "@/lib/selectGallery";
 import { C } from "@/lib/theme";
+import WorkspaceLink, { type SelectGalleryNavigate } from "@/components/select-galleries/WorkspaceLink";
+import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 
 function nextActionLabel(g: SelectGallery) {
   if (g.status === "draft") return { text: "브랜드메일 발송 필요", color: C.orange };
@@ -16,18 +17,31 @@ function nextActionLabel(g: SelectGallery) {
 }
 
 export default function SelectGalleriesPage() {
+  const windowRoute = useDesktopWindowRoute();
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>}>
-      <SelectGalleriesInner />
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontFamily: "var(--font-sans)" }}>불러오는 중...</div>}>
+      <SelectGalleriesWorkspace
+        clientId={windowRoute.clientId}
+        workflowRunId={windowRoute.workflowRunId}
+        onNavigate={windowRoute.navigate}
+      />
     </Suspense>
   );
 }
 
-function SelectGalleriesInner() {
+function SelectGalleriesWorkspace({
+  clientId: contextClientId,
+  workflowRunId: contextWorkflowRunId,
+  onNavigate,
+}: {
+  clientId?: string;
+  workflowRunId?: string;
+  onNavigate?: SelectGalleryNavigate;
+} = {}) {
   const sp = useSearchParams();
   const router = useRouter();
-  const clientId = sp.get("clientId") ?? sp.get("client_id") ?? "";
-  const workflowRunId = sp.get("workflowRunId") ?? "";
+  const clientId = contextClientId ?? sp.get("clientId") ?? sp.get("client_id") ?? "";
+  const workflowRunId = contextWorkflowRunId ?? sp.get("workflowRunId") ?? "";
 
   const [galleries, setGalleries] = useState<SelectGallery[]>([]);
   const [client, setClient] = useState<any>(null);
@@ -109,10 +123,16 @@ function SelectGalleriesInner() {
     if (d.ok) {
       setShowForm(false);
       const params = new URLSearchParams();
-      if (clientId) params.set("clientId", clientId);
+      if (linkedClientId) params.set("clientId", linkedClientId);
       if (workflowRunId) params.set("workflowRunId", workflowRunId);
       params.set("stepKey", "client_selection");
-      router.push(`/select-galleries/${d.gallery.id}?${params.toString()}`);
+      const href = `/select-galleries/${d.gallery.id}?${params.toString()}`;
+      if (onNavigate) onNavigate(href, d.gallery.title, {
+        clientId: linkedClientId,
+        clientName: form.hospital_name || client?.hospital_name || client?.name,
+        workflowRunId: workflowRunId || undefined,
+      });
+      else router.push(href);
     } else {
       alert("오류: " + d.error);
     }
@@ -120,7 +140,8 @@ function SelectGalleriesInner() {
 
   const buildDetailHref = (g: SelectGallery) => {
     const params = new URLSearchParams();
-    if (clientId) params.set("clientId", clientId);
+    const linkedClientId = clientId || g.client_id;
+    if (linkedClientId) params.set("clientId", linkedClientId);
     if (workflowRunId) params.set("workflowRunId", workflowRunId);
     params.set("stepKey", g.status === "selection_submitted" || g.status === "raw_matched" ? "raw_matching" : "client_selection");
     return `/select-galleries/${g.id}?${params.toString()}`;
@@ -131,20 +152,20 @@ function SelectGalleriesInner() {
 
       {/* 고객 컨텍스트 배너 */}
       {client ? (
-        <div style={{ background: "#EAF4F2", border: "1.5px solid #B2D8D4", borderRadius: 10, padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ background: C.mint, border: `1.5px solid color-mix(in srgb, ${C.teal} 32%, transparent)`, borderRadius: 10, padding: "12px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 2 }}>현재 고객</div>
             <div style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>{client.hospital_name ?? client.name}</div>
             {client.manager_name && <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{client.manager_name}</div>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href={`/clients?clientId=${clientId}`} style={{ fontSize: 12, color: C.teal, fontWeight: 700, padding: "6px 14px", border: `1px solid ${C.teal}`, borderRadius: 6, textDecoration: "none" }}>
+            <WorkspaceLink href={`/clients?clientId=${clientId}`} onNavigate={onNavigate} style={{ fontSize: 12, color: C.teal, fontWeight: 700, padding: "6px 14px", border: `1px solid ${C.teal}`, borderRadius: 6, textDecoration: "none" }}>
               고객관리로
-            </Link>
+            </WorkspaceLink>
           </div>
         </div>
       ) : clientId ? null : (
-        <div style={{ background: "#FFF8F0", border: "1px solid #FBD5B5", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: C.muted }}>
+        <div style={{ background: `color-mix(in srgb, ${C.orange} 7%, ${C.white})`, border: `1px solid color-mix(in srgb, ${C.orange} 28%, transparent)`, borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 12, color: C.muted }}>
           고객관리와 연결되지 않은 셀렉 갤러리입니다. 고객 워크플로우에서 접근하면 자동 연결됩니다.
         </div>
       )}
@@ -168,7 +189,7 @@ function SelectGalleriesInner() {
             <div ref={clientPickerRef} style={{ marginBottom: 16, position: "relative" }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>등록된 고객에서 불러오기</label>
               {pickedClientId ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "#EAF4F2", border: `1.5px solid #B2D8D4`, borderRadius: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: C.mint, border: `1.5px solid color-mix(in srgb, ${C.teal} 32%, transparent)`, borderRadius: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: C.teal, flex: 1 }}>🏥 {form.hospital_name}</span>
                   <button onClick={() => { setPickedClientId(""); }} style={{ fontSize: 11, color: C.muted, background: "none", border: "none", cursor: "pointer" }}>변경</button>
                 </div>
@@ -186,7 +207,7 @@ function SelectGalleriesInner() {
                       {filteredClients.map(c => (
                         <div key={c.id} onClick={() => pickClient(c)}
                           style={{ padding: "9px 14px", cursor: "pointer", borderBottom: `1px solid ${C.border}`, display: "flex", flexDirection: "column", gap: 2 }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#EAF4F2")}
+                          onMouseEnter={e => (e.currentTarget.style.background = C.mint)}
                           onMouseLeave={e => (e.currentTarget.style.background = "")}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{c.hospital_name}</span>
                           {c.contact_name && <span style={{ fontSize: 11, color: C.muted }}>{c.contact_name}</span>}
@@ -252,7 +273,12 @@ function SelectGalleriesInner() {
           {galleries.map(g => {
             const na = nextActionLabel(g);
             return (
-              <Link key={g.id} href={buildDetailHref(g)}
+              <WorkspaceLink
+                key={g.id}
+                href={buildDetailHref(g)}
+                title={g.title}
+                onNavigate={onNavigate}
+                context={{ clientId: clientId || g.client_id, clientName: g.hospital_name, workflowRunId: workflowRunId || g.workflow_run_id }}
                 style={{ textDecoration: "none", background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, transition: "box-shadow .15s" }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: C.txt, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -270,14 +296,14 @@ function SelectGalleriesInner() {
                   <div style={{ fontSize: 12, fontWeight: 700, color: na.color }}>→ {na.text}</div>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 5, background: (GALLERY_STATUS_COLOR[g.status] ?? "#888") + "20", color: GALLERY_STATUS_COLOR[g.status] ?? C.muted }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 5, background: `color-mix(in srgb, ${GALLERY_STATUS_COLOR[g.status] ?? C.muted} 12%, transparent)`, color: GALLERY_STATUS_COLOR[g.status] ?? C.muted }}>
                     {GALLERY_STATUS_LABEL[g.status] ?? g.status}
                   </span>
                   <span style={{ fontSize: 11, color: C.hint }}>
                     {new Date(g.created_at).toLocaleDateString("ko-KR")}
                   </span>
                 </div>
-              </Link>
+              </WorkspaceLink>
             );
           })}
         </div>

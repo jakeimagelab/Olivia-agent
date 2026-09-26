@@ -1,17 +1,12 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL } from "@/lib/selectGallery";
 import type { SelectGallery, SelectGalleryImage, ClientPhotoSelection, SelectRawMatch } from "@/lib/selectGallery";
-
-const C = {
-  teal: "#155855", bg: "#F0F9F8", white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", green: "#22876A",
-  red: "#DC2626", yellow: "#D97706", orange: "#E85D2C",
-};
+import WorkspaceLink, { type SelectGalleryNavigate } from "@/components/select-galleries/WorkspaceLink";
+import { C } from "@/lib/theme";
+import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 
 const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2","x3f","3fr","mef","mrw","pef","srw"]);
 
@@ -25,19 +20,41 @@ interface RawMatchRow {
 
 /* ════════════════════════════════════════════ */
 export default function SelectGalleryDetailPage() {
+  const windowRoute = useDesktopWindowRoute();
+  const routePath = windowRoute.routeHref
+    ? new URL(windowRoute.routeHref, "https://olivia.local").pathname.replace(/\/$/, "")
+    : "";
+  const routeMatch = routePath.match(/^\/select-galleries\/([^/]+)$/);
+  const galleryId = routeMatch ? decodeURIComponent(routeMatch[1]) : undefined;
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#5A7470", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>}>
-      <SelectGalleryDetailInner />
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "var(--muted)", fontFamily: "var(--font-sans)" }}>불러오는 중...</div>}>
+      <SelectGalleryDetailWorkspace
+        galleryId={galleryId}
+        clientId={windowRoute.clientId}
+        workflowRunId={windowRoute.workflowRunId}
+        onNavigate={windowRoute.navigate}
+      />
     </Suspense>
   );
 }
 
-function SelectGalleryDetailInner() {
-  const { id } = useParams<{ id: string }>();
+function SelectGalleryDetailWorkspace({
+  galleryId,
+  clientId: contextClientId,
+  workflowRunId: contextWorkflowRunId,
+  onNavigate,
+}: {
+  galleryId?: string;
+  clientId?: string;
+  workflowRunId?: string;
+  onNavigate?: SelectGalleryNavigate;
+} = {}) {
+  const routeParams = useParams<{ id: string }>();
   const sp = useSearchParams();
   const router = useRouter();
-  const clientId = sp.get("clientId") ?? sp.get("client_id") ?? "";
-  const workflowRunId = sp.get("workflowRunId") ?? "";
+  const id = galleryId ?? routeParams.id ?? "";
+  const clientId = contextClientId ?? sp.get("clientId") ?? sp.get("client_id") ?? "";
+  const workflowRunId = contextWorkflowRunId ?? sp.get("workflowRunId") ?? "";
 
   const [gallery, setGallery] = useState<SelectGallery | null>(null);
   const [images, setImages] = useState<SelectGalleryImage[]>([]);
@@ -65,6 +82,10 @@ function SelectGalleryDetailInner() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     fetch(`/api/select-galleries/${id}`)
       .then(r => r.json())
@@ -294,7 +315,7 @@ function SelectGalleryDetailInner() {
     draft:               { text: "JPG 업로드 후 브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
     uploading_images:    { text: "JPG 업로드 중입니다...", color: C.orange },
     ready:               { text: "브랜드메일 초안을 생성하세요", color: C.orange, sub: `${images.length}장 등록됨` },
-    mail_draft_created:  { text: "메일링 큐에서 브랜드메일을 검토·발송하세요", color: "#103A62", sub: "메일 관리 → 검토 후 발송" },
+    mail_draft_created:  { text: "메일링 큐에서 브랜드메일을 검토·발송하세요", color: "var(--ui-teal)", sub: "메일 관리 → 검토 후 발송" },
     mail_sent:           { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
     waiting_selection:   { text: "고객이 사진을 선택하기를 기다리세요", color: C.teal, sub: "셀렉 링크를 고객에게 공유하세요" },
     selection_submitted: { text: "고객이 선택을 완료했습니다. RAW 폴더를 선택해 주세요", color: C.orange, sub: `${gallery.selected_count}장 선택됨` },
@@ -305,9 +326,10 @@ function SelectGalleryDetailInner() {
     expired:             { text: "파일이 만료되었습니다", color: C.muted },
   };
   const todo = todoMap[gallery.status] ?? { text: "갤러리 상태를 확인하세요", color: C.muted };
+  const linkedClientId = clientId || gallery.client_id || "";
 
   const backParams = new URLSearchParams();
-  if (clientId) backParams.set("clientId", clientId);
+  if (linkedClientId) backParams.set("clientId", linkedClientId);
   if (workflowRunId) backParams.set("workflowRunId", workflowRunId);
   const backHref = `/select-galleries?${backParams.toString()}`;
 
@@ -316,35 +338,41 @@ function SelectGalleryDetailInner() {
 
       {/* 고객 컨텍스트 배너 */}
       {(client || clientId) && (
-        <div style={{ background: "#EAF4F2", border: "1.5px solid #B2D8D4", borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <div style={{ background: C.mint, border: `1.5px solid color-mix(in srgb, ${C.teal} 32%, transparent)`, borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 2 }}>현재 고객</div>
             <div style={{ fontSize: 14, fontWeight: 900, color: C.txt }}>{client?.hospital_name ?? client?.name ?? "고객 정보 로딩 중"}</div>
             {client?.manager_name && <div style={{ fontSize: 12, color: C.muted }}>{client.manager_name}</div>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href={`/clients?clientId=${clientId}`}
+            <WorkspaceLink href={`/clients?clientId=${linkedClientId}`} onNavigate={onNavigate}
               style={{ fontSize: 12, color: C.teal, fontWeight: 700, padding: "6px 14px", border: `1px solid ${C.teal}`, borderRadius: 6, textDecoration: "none" }}>
               고객관리로
-            </Link>
+            </WorkspaceLink>
           </div>
         </div>
       )}
 
       {/* 헤더 */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <Link href={backHref} style={{ color: C.muted, fontSize: 20, textDecoration: "none", lineHeight: 1 }}>←</Link>
+        <WorkspaceLink
+          href={backHref}
+          title="고객 셀렉 갤러리"
+          onNavigate={onNavigate}
+          context={{ clientId: linkedClientId, clientName: client?.hospital_name ?? client?.name, workflowRunId: workflowRunId || gallery.workflow_run_id }}
+          style={{ color: C.muted, fontSize: 20, textDecoration: "none", lineHeight: 1 }}
+        >←</WorkspaceLink>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{gallery.shooting_name ?? gallery.title}</div>
           {gallery.hospital_name && <div style={{ fontSize: 13, color: C.muted }}>{gallery.hospital_name}</div>}
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: statusColor + "20", color: statusColor }}>
+        <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>
           {GALLERY_STATUS_LABEL[gallery.status] ?? gallery.status}
         </span>
       </div>
 
       {/* 현재 해야 할 일 */}
-      <div style={{ background: todo.color + "12", border: `2px solid ${todo.color}40`, borderRadius: 12, padding: "14px 20px", marginBottom: 20 }}>
+      <div style={{ background: `color-mix(in srgb, ${todo.color} 7%, transparent)`, border: `2px solid color-mix(in srgb, ${todo.color} 25%, transparent)`, borderRadius: 12, padding: "14px 20px", marginBottom: 20 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: todo.color, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>현재 해야 할 일</div>
         <div style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>{todo.text}</div>
         {todo.sub && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{todo.sub}</div>}
@@ -388,7 +416,7 @@ function SelectGalleryDetailInner() {
             {uploading ? "업로드 중..." : "📤 JPG 파일 업로드"}
           </Btn>
           {uploadLog.length > 0 && (
-            <div style={{ marginTop: 10, maxHeight: 100, overflowY: "auto", fontFamily: "monospace", fontSize: 11, color: C.green, background: "#F0FDF4", borderRadius: 6, padding: 10 }}>
+            <div style={{ marginTop: 10, maxHeight: 100, overflowY: "auto", fontFamily: "monospace", fontSize: 11, color: C.green, background: `color-mix(in srgb, ${C.green} 8%, ${C.white})`, borderRadius: 6, padding: 10 }}>
               {uploadLog.map((l, i) => <div key={i}>{l}</div>)}
             </div>
           )}
@@ -413,7 +441,7 @@ function SelectGalleryDetailInner() {
             <Btn onClick={copyLink} variant="secondary">🔗 셀렉 링크 복사</Btn>
           </div>
           {mailResult && (
-            <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 8, background: mailResult.ok ? "#F0FDF4" : "#FFF5F5", color: mailResult.ok ? C.green : C.red, fontSize: 12 }}>
+            <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 8, background: `color-mix(in srgb, ${mailResult.ok ? C.green : C.red} 8%, ${C.white})`, color: mailResult.ok ? C.green : C.red, fontSize: 12 }}>
               {mailResult.msg}
             </div>
           )}
@@ -429,7 +457,7 @@ function SelectGalleryDetailInner() {
                 <InfoBadge label="제출 일시" value={new Date(selection.submitted_at).toLocaleDateString("ko-KR")} />
               </div>
               {selection.customer_memo && (
-                <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#92400E", marginBottom: 12 }}>
+                <div style={{ background: `color-mix(in srgb, ${C.gold} 10%, ${C.white})`, border: `1px solid color-mix(in srgb, ${C.gold} 45%, transparent)`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.gold, marginBottom: 12 }}>
                   💬 고객 메모: {selection.customer_memo}
                 </div>
               )}
@@ -460,7 +488,7 @@ function SelectGalleryDetailInner() {
           <Card title="🎯 RAW 자동 매칭">
             {rawMatches.length > 0 ? (
               <div>
-                <div style={{ background: C.green + "10", border: `1px solid ${C.green}40`, borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
+                <div style={{ background: `color-mix(in srgb, ${C.green} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${C.green} 25%, transparent)`, borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
                   <div style={{ fontSize: 13, fontWeight: 900, color: C.green, marginBottom: 8 }}>✅ RAW 매칭 완료</div>
                   <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
                     <span style={{ color: C.green, fontWeight: 700 }}>매칭 {matchedCount}장</span>
@@ -485,10 +513,12 @@ function SelectGalleryDetailInner() {
                   {workflowRunId && (
                     <Btn onClick={() => {
                       const params = new URLSearchParams();
-                      if (clientId) params.set("clientId", clientId);
+                      if (linkedClientId) params.set("clientId", linkedClientId);
                       if (workflowRunId) params.set("workflowRunId", workflowRunId);
                       params.set("stepKey", "retouching");
-                      router.push(`/photo-retouching?${params.toString()}`);
+                      const href = `/photo-retouching?${params.toString()}`;
+                      if (onNavigate) onNavigate(href, "사진 보정");
+                      else router.push(href);
                     }}>보정 단계로 이동 →</Btn>
                   )}
                 </div>
@@ -506,7 +536,7 @@ function SelectGalleryDetailInner() {
                 </div>
 
                 {!hasFS && (
-                  <div style={{ background: "#FFF3CD", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#856404", marginBottom: 12 }}>
+                  <div style={{ background: `color-mix(in srgb, ${C.gold} 18%, ${C.white})`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.gold, marginBottom: 12 }}>
                     ⚠️ Chrome / Edge에서만 파일 시스템 접근이 가능합니다.
                   </div>
                 )}
@@ -524,7 +554,7 @@ function SelectGalleryDetailInner() {
                   <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{matchProgress}</div>
                 )}
                 {matchLog.length > 0 && (
-                  <div style={{ maxHeight: 140, overflowY: "auto", fontFamily: "monospace", fontSize: 11, background: "#F8FFFE", borderRadius: 6, padding: 10, border: `1px solid ${C.border}` }}>
+                  <div style={{ maxHeight: 140, overflowY: "auto", fontFamily: "monospace", fontSize: 11, background: `color-mix(in srgb, ${C.teal} 3%, ${C.white})`, borderRadius: 6, padding: 10, border: `1px solid ${C.border}` }}>
                     {matchLog.map((l, i) => (
                       <div key={i} style={{ color: l.startsWith("✅") ? C.green : l.startsWith("❌") ? C.red : l.startsWith("📁") ? C.teal : C.muted }}>{l}</div>
                     ))}

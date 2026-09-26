@@ -21,6 +21,7 @@ describe("useOliviaDesktopContextBridge — DESKTOP_APP_TO_WORKSPACE 매핑", ()
 
   it("핵심 4개 중 workspace 개념이 있는 photo-workspace/calendar는 매핑에 포함된다", () => {
     expect(DESKTOP_APP_TO_WORKSPACE["photo-workspace"]).toBe("photo-sort");
+    expect(DESKTOP_APP_TO_WORKSPACE["select-galleries"]).toBe("photo-sort");
     expect(DESKTOP_APP_TO_WORKSPACE["calendar"]).toBe("calendar");
   });
 

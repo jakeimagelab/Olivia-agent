@@ -1,8 +1,9 @@
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 export function contextFromHref(href: string): WindowContext {
-  const query = href.split("?")[1] ?? "";
-  const params = new URLSearchParams(query);
+  const url = new URL(href, "https://olivia.local");
+  const params = url.searchParams;
+  const galleryMatch = url.pathname.replace(/\/$/, "").match(/^\/select-galleries\/([^/]+)$/);
   return {
     clientId: params.get("clientId") ?? params.get("client_id") ?? params.get("id") ?? undefined,
     projectId: params.get("projectId") ?? params.get("workflowRunId") ?? params.get("workflow_run_id") ?? undefined,
@@ -14,6 +15,7 @@ export function contextFromHref(href: string): WindowContext {
       ?? params.get("contentId")
       ?? params.get("memoId")
       ?? params.get("galleryId")
+      ?? (galleryMatch ? decodeURIComponent(galleryMatch[1]) : null)
       ?? undefined,
   };
 }

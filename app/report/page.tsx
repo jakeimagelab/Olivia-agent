@@ -6,6 +6,7 @@ import {
   Activity, BarChart2, RefreshCw, TrendingUp
 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 type ReportData = {
   total: number;
@@ -35,7 +36,7 @@ function formatTime(iso: string) {
   return `${Math.floor(diff / 86400)}일 전`;
 }
 
-export default function ReportPage() {
+function ReportWorkspace({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   const [data, setData] = useState<ReportData | null>(null);
   const [period, setPeriod] = useState<"week" | "month" | "all">("week");
   const [loading, setLoading] = useState(true);
@@ -63,8 +64,8 @@ export default function ReportPage() {
   const maxChart = data ? Math.max(...data.chartData.map(d => d.count), 1) : 1;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F0F9F8" }}>
-      <GlobalHeader title="업무 리포트" description="AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다." />
+    <div style={{ minHeight: hideHeader ? "100%" : "100vh", background: "var(--teal-tint)" }}>
+      {hideHeader ? null : <GlobalHeader title="업무 리포트" description="AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다." />}
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "18px 20px 48px" }}>
 
@@ -220,4 +221,9 @@ export default function ReportPage() {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
+}
+
+export default function ReportPage() {
+  const hideHeader = useDesktopWindowMode();
+  return <ReportWorkspace hideHeader={hideHeader} />;
 }

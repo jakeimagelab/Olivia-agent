@@ -7,6 +7,7 @@ import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { useContactDirectory } from "@/lib/hooks/useContactDirectory";
 import { C } from "@/lib/theme";
+import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 
 const iS: React.CSSProperties = {
   width: "100%", border: `1px solid ${C.border}`, borderRadius: 9,
@@ -57,7 +58,7 @@ const fmtDate = (iso: string) =>
 // ═══════════════════════════════════════════════════════════
 // 탭 1 — 임시저장 메일링 (기존 기능)
 // ═══════════════════════════════════════════════════════════
-function QueueTab() {
+function QueueTab({ initialClientId }: { initialClientId?: string }) {
   const [items, setItems]             = useState<MailItem[]>([]);
   const [loading, setLoading]         = useState(true);
   const [loadError, setLoadError]     = useState("");
@@ -113,15 +114,14 @@ function QueueTab() {
 
   // client_id 파라미터가 있으면 해당 고객의 병원명으로 자동 필터
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const p = new URLSearchParams(window.location.search);
-    const clientId = p.get("client_id") || p.get("clientId");
+    const p = typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+    const clientId = initialClientId || p?.get("client_id") || p?.get("clientId");
     if (!clientId || filterHosp) return;
     fetch(`/api/clients/${clientId}`)
       .then(r => r.json())
       .then(d => { if (d.ok && d.client) setFilterHosp(d.client.name || d.client.hospital_name || ""); })
       .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-  }, []);
+  }, [filterHosp, initialClientId]);
 
   useEffect(() => { load(); }, [filterType, filterStatus, filterHosp]);
 
@@ -1624,12 +1624,12 @@ function SelectGalleryMailTab() {
 // ═══════════════════════════════════════════════════════════
 type Tab = "queue" | "brand" | "review" | "custom" | "select" | "history";
 
-export default function MailingPage() {
+function MailingWorkspace({ hideHeader = false, clientId }: { hideHeader?: boolean; clientId?: string } = {}) {
   const [tab, setTab] = useState<Tab>("custom");
 
   return (
-    <main className="mailing-page" style={{ minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}>
-      <GlobalHeader title="통합 메일링" description="견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다." />
+    <main className="mailing-page" style={{ minHeight: hideHeader ? "100%" : "100vh", background: C.bg, fontFamily: "var(--font-sans)", color: C.txt }}>
+      {hideHeader ? null : <GlobalHeader title="통합 메일링" description="견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다." />}
       <div className="pc-content" style={{ paddingBottom: 0 }}>
         <SegmentedTabs<Tab>
           ariaLabel="메일링 탭 선택"
@@ -1647,11 +1647,17 @@ export default function MailingPage() {
       </div>
 
       {tab === "custom" && <CustomBrandMailTab />}
-      {tab === "queue"  && <QueueTab />}
+      {tab === "queue"  && <QueueTab initialClientId={clientId} />}
       {tab === "brand"  && <BrandMailTab />}
       {tab === "review" && <ReviewOnlyMailTab />}
       {tab === "select" && <SelectGalleryMailTab />}
       {tab === "history" && <HistoryTab />}
     </main>
   );
+}
+
+export default function MailingPage() {
+  const hideHeader = useDesktopWindowMode();
+  const windowRoute = useDesktopWindowRoute();
+  return <MailingWorkspace hideHeader={hideHeader} clientId={windowRoute.clientId} />;
 }

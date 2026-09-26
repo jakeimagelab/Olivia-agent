@@ -97,8 +97,16 @@
 .window.active .trafficLightMinimize { background: #FEBC2E; }
 .window.active .trafficLightMaximize { background: #28C840; }
 
-.title {
+.titleArea {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.title {
   min-width: 0;
   font-size: 12px;
   font-weight: 400;
@@ -112,6 +120,54 @@
 .window.active .title {
   color: #1C2B28;
   font-weight: 600;
+}
+
+.compatibilityBadge {
+  position: relative;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: var(--panel-bg);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: help;
+  outline: none;
+}
+
+.compatibilityBadge:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--deep-green) 20%, transparent);
+}
+
+.compatibilityTooltip {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  z-index: 80;
+  width: max-content;
+  max-width: 240px;
+  translate: -50% 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 18%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease, translate 140ms ease;
+}
+
+.compatibilityBadge:hover .compatibilityTooltip,
+.compatibilityBadge:focus .compatibilityTooltip {
+  translate: -50% 2px;
+  opacity: 1;
 }
 
 .content {

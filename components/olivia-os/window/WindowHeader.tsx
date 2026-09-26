@@ -6,9 +6,10 @@ import styles from "./AppWindow.module.css";
 // macOS 스타일 traffic-light — 평소엔 색 원만 보이고, hover 시에만 글리프(×/−/□)가 나타난다
 // (참고 이미지 요청에 따라 이전의 "복제하지 않는다" 결정을 뒤집음). 클릭 핸들러는 그대로.
 export function WindowHeader({
-  title, onPointerDown, onDoubleClick, onClose, onMinimize, onToggleMaximize,
+  title, compatibilityMode = false, onPointerDown, onDoubleClick, onClose, onMinimize, onToggleMaximize,
 }: {
   title: string;
+  compatibilityMode?: boolean;
   onPointerDown: (event: React.PointerEvent) => void;
   onDoubleClick: () => void;
   onClose?: () => void;
@@ -30,7 +31,22 @@ export function WindowHeader({
           <Square size={6} strokeWidth={3} className={styles.trafficLightGlyph} />
         </button>
       </div>
-      <div className={styles.title}>{title}</div>
+      <div className={styles.titleArea}>
+        <div className={styles.title}>{title}</div>
+        {compatibilityMode ? (
+          <span
+            className={styles.compatibilityBadge}
+            tabIndex={0}
+            aria-describedby="olivia-compatibility-tooltip"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            호환 화면
+            <span id="olivia-compatibility-tooltip" role="tooltip" className={styles.compatibilityTooltip}>
+              단축키와 대화 컨텍스트 연동이 제한됩니다
+            </span>
+          </span>
+        ) : null}
+      </div>
       <div style={{ width: 60, flexShrink: 0 }} aria-hidden="true" />
     </div>
   );

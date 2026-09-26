@@ -12,6 +12,7 @@ import { C } from "@/lib/theme";
 import { todayStr } from "@/lib/work-journal/dateLabel";
 import type { CalendarEvent, UpcomingEntry } from "@/lib/work-journal/types";
 import type { PrepEquipmentItem, ScheduleRental, ScheduleTodo } from "@/lib/work-journal/scheduleTypes";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 // 서버가 500 등으로 죽으면 응답 본문이 JSON이 아닐 수 있다 — 항상 사람이 읽을 수 있는 메시지로 바꾼다.
 async function fetchJson(url: string, init?: RequestInit): Promise<any> {
@@ -49,14 +50,19 @@ function SpinBox() {
 }
 
 export default function WorkJournalPage() {
+  const hideHeader = useDesktopWindowMode();
+  return <WorkJournalWorkspace hideHeader={hideHeader} />;
+}
+
+function WorkJournalWorkspace({ hideHeader = false }: { hideHeader?: boolean } = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
-      <WorkJournalInner />
+      <WorkJournalInner hideHeader={hideHeader} syncRoute={!hideHeader} />
     </Suspense>
   );
 }
 
-function WorkJournalInner() {
+function WorkJournalInner({ hideHeader, syncRoute }: { hideHeader: boolean; syncRoute: boolean }) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -81,11 +87,12 @@ function WorkJournalInner() {
 
   // date/schedule 두 URL 파라미터가 따로 레이스를 내지 않도록 한 곳에서만 router.replace를 호출한다.
   const syncUrl = useCallback((date: string, scheduleId: string | null) => {
+    if (!syncRoute) return;
     const qs = new URLSearchParams();
     qs.set("date", date);
     if (scheduleId) qs.set("schedule", scheduleId);
     router.replace(`/work-journal?${qs.toString()}`, { scroll: false });
-  }, [router]);
+  }, [router, syncRoute]);
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);
@@ -307,8 +314,8 @@ function WorkJournalInner() {
   const isShooting = selectedSchedule?.category === "shooting";
 
   return (
-    <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
-      <GlobalHeader title="업무일지" description="촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다." />
+    <main className="pc-page" style={{ color: C.ink, fontFamily: "var(--font-sans)", minHeight: hideHeader ? "100%" : undefined }}>
+      {hideHeader ? null : <GlobalHeader title="업무일지" description="촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다." />}
       <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, margin: "-8px 0 20px" }}>
           일정을 선택하면 To-do를 관리할 수 있고, 촬영 일정은 준비사항(장비·렌탈)도 함께 관리할 수 있습니다.
@@ -319,7 +326,7 @@ function WorkJournalInner() {
 
         <div
           className="wj-columns"
-          style={{ display: "grid", gridTemplateColumns: "280px 1fr 360px", gap: 16, height: "calc(100vh - 260px)", minHeight: 560 }}
+          style={{ display: "grid", gridTemplateColumns: "280px 1fr 360px", gap: 16, height: hideHeader ? "calc(100cqh - 150px)" : "calc(100vh - 260px)", minHeight: hideHeader ? 420 : 560 }}
         >
           <ScheduleColumn
             currentMonth={currentMonth}
@@ -370,6 +377,15 @@ function WorkJournalInner() {
 
       <style jsx global>{`
         @media (max-width: 1100px) {
+          .wj-columns {
+            grid-template-columns: 1fr !important;
+            grid-template-rows: auto auto auto !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          .wj-columns > div { height: 480px; }
+        }
+        @container (max-width: 1100px) {
           .wj-columns {
             grid-template-columns: 1fr !important;
             grid-template-rows: auto auto auto !important;

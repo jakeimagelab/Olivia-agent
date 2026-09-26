@@ -69,6 +69,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
       <div className={styles.body}>
         <WindowHeader
           title={win.title}
+          compatibilityMode={win.appId === "legacy-route"}
           onPointerDown={beginDrag}
           onDoubleClick={toggleMaximize}
           onClose={win.appId === "olivia-chat" ? undefined : () => closeWindow(windowId)}

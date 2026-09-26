@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import GlobalHeader from "@/components/GlobalHeader";
+import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 
 /* ── 색상 ── */
 const C = {
@@ -66,10 +67,20 @@ const RISK_COLOR = { safe: C.green, caution: C.caution, danger: C.danger };
 const RISK_LABEL = { safe: "안전", caution: "주의", danger: "위험" };
 
 /* ── 메인 컴포넌트 ── */
-function SeoDeliveryInner() {
+function SeoDeliveryWorkspace({
+  hideHeader = false,
+  clientId: contextClientId,
+  workflowRunId: contextWorkflowRunId,
+  onNavigate,
+}: {
+  hideHeader?: boolean;
+  clientId?: string;
+  workflowRunId?: string;
+  onNavigate?: (href: string, title?: string) => void;
+} = {}) {
   const sp = useSearchParams();
-  const clientId = sp.get("clientId") || sp.get("client_id");
-  const workflowRunId = sp.get("workflowRunId") || sp.get("workflow_run_id");
+  const clientId = contextClientId ?? sp.get("clientId") ?? sp.get("client_id");
+  const workflowRunId = contextWorkflowRunId ?? sp.get("workflowRunId") ?? sp.get("workflow_run_id");
 
   /* 고객 연결 모드 */
   const [clientInfo, setClientInfo] = useState<any>(null);
@@ -208,27 +219,31 @@ function SeoDeliveryInner() {
       body: JSON.stringify({ workflow_run_id: workflowRunId, to_step_key: "final_delivery" }),
     });
     const d = await res.json();
-    if (d.ok) window.location.href = `/clients?id=${clientId}`;
+    if (d.ok) {
+      const href = `/clients?clientId=${clientId}`;
+      if (onNavigate) onNavigate(href, "고객관리");
+      else window.location.href = href;
+    }
     else alert(d.error || "완료 처리 실패");
   };
 
   const sel = selectedIdx !== null ? results[selectedIdx] : null;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8FAFB", fontFamily: "'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif", color: C.txt }}>
+    <div style={{ minHeight: hideHeader ? "100%" : "100vh", background: "var(--content-bg)", fontFamily: "var(--font-sans)", color: C.txt }}>
 
-      <GlobalHeader
+      {hideHeader ? null : <GlobalHeader
         title={`AI 검색 최적화 납품 생성${clientInfo ? ` · ${clientInfo.hospital_name || clientInfo.name}` : ""}`}
         description="납품 사진의 SEO 파일명·ALT·캡션·메타데이터를 자동 생성합니다."
         pageActions={
           clientId
             ? <Link href={`/clients?id=${clientId}`} className="pc-header-back">← 고객관리</Link>
-            : <span style={{ fontSize: 11, color: "#9BB5B0" }}>독립 실행 모드</span>
+            : <span style={{ fontSize: 11, color: "var(--teal-soft)" }}>독립 실행 모드</span>
         }
-      />
+      />}
 
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "20px 16px 80px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: results.length ? "1fr 480px" : "1fr", gap: 16, alignItems: "start" }}>
+        <div className="seo-delivery-grid" style={{ display: "grid", gridTemplateColumns: results.length ? "1fr 480px" : "1fr", gap: 16, alignItems: "start" }}>
 
           {/* ── 왼쪽: 입력 + 이미지 목록 ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -473,6 +488,11 @@ function SeoDeliveryInner() {
           )}
         </div>
       </div>
+      <style jsx global>{`
+        @container (max-width: 900px) {
+          .seo-delivery-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }
@@ -510,9 +530,16 @@ const fieldLabel: React.CSSProperties = { fontSize: 10, fontWeight: 800, color: 
 const tdS: React.CSSProperties = { padding: "9px 12px", borderBottom: `1px solid ${C.border}` };
 
 export default function SeoDeliveryPage() {
+  const hideHeader = useDesktopWindowMode();
+  const windowRoute = useDesktopWindowRoute();
   return (
-    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#9BB5B0" }}>로딩 중...</div>}>
-      <SeoDeliveryInner />
+    <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "var(--teal-soft)" }}>로딩 중...</div>}>
+      <SeoDeliveryWorkspace
+        hideHeader={hideHeader}
+        clientId={windowRoute.clientId}
+        workflowRunId={windowRoute.workflowRunId}
+        onNavigate={windowRoute.navigate}
+      />
     </Suspense>
   );
 }

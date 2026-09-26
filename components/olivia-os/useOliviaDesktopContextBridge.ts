@@ -24,6 +24,7 @@ import { useOliviaDesktopEffectiveActiveApp } from "./useOliviaDesktopEffectiveA
 // 브라우저 QA로 검증한다 — tests/oliviaDesktopContextBridge.test.ts 참고).
 export const DESKTOP_APP_TO_WORKSPACE: Partial<Record<string, string>> = {
   "photo-workspace": "photo-sort",
+  "select-galleries": "photo-sort",
   quote: "quote",
   contract: "contract",
   conti: "conti",
