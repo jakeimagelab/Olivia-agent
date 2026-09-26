@@ -574,6 +574,7 @@ function DetailView({
   const [showEditProjectDialog, setShowEditProjectDialog] = useState(false);
   const [progressModalOpen, setProgressModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+  const [infoEditSignal, setInfoEditSignal] = useState(0);
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
   // 코드 요청서 7차(2026-08-16) — resourceId까지 같이 들고 있어야 이미 있는 문서를 그대로
