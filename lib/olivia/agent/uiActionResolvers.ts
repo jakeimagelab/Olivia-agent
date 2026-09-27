@@ -90,6 +90,41 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
       projectName: value(result.data, "projectName"),
     }];
   },
+  client_create: async ({ input, result }) => {
+    if (!result.success || !result.data?.approvalRequired) return [];
+    const hospitalName = value(result.data, "hospitalName");
+    if (!hospitalName) return [];
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(result.data.summary || `${hospitalName}을 신규 고객으로 등록할까요?`),
+      confirmLabel: "등록",
+      toolName: "apply_client_create",
+      toolInput: {
+        hospitalName,
+        contactName: input.contactName ?? null,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        specialty: input.specialty ?? null,
+        memo: input.memo ?? null,
+      },
+    }];
+  },
+  apply_client_create: async ({ result }) => clientDetailAction(result),
+  client_archive: async ({ result }) => {
+    if (!result.success || !result.data?.approvalRequired) return [];
+    const targetClientId = value(result.data, "targetClientId");
+    const hospitalName = value(result.data, "hospitalName");
+    if (!targetClientId || !hospitalName) return [];
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(result.data.summary || "이 고객을 목록에서 숨길까요?"),
+      confirmLabel: "목록에서 숨기기",
+      toolName: "apply_client_archive",
+      toolInput: { clientId: targetClientId, expectedHospitalName: hospitalName },
+    }];
+  },
   create_quote: async (args) => {
     const opened = workspaceAction("quote", args);
     if (!opened.length) return opened;

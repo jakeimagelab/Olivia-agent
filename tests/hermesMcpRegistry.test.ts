@@ -48,6 +48,20 @@ describe("Olivia Hermes MCP registry", () => {
     expect(getHermesToolPolicy("future_olivia_tool")).toBe("open");
   });
 
+  it("고객 생성·보관은 승인 Tool만 Hermes에 노출하고 내부 mutation Tool은 숨긴다", () => {
+    const names = listHermesOliviaTools().map((tool) => tool.name);
+    expect(names).toContain("client_create");
+    expect(names).toContain("client_archive");
+    expect(getHermesToolPolicy("client_create")).toBe("approval");
+    expect(getHermesToolPolicy("client_archive")).toBe("approval");
+    expect(names).not.toContain("apply_client_create");
+    expect(names).not.toContain("apply_client_archive");
+    expect(names).not.toContain("client_delete");
+    expect(OLIVIA_V2_TOOLS.map((tool) => tool.name)).not.toContain("apply_client_create");
+    expect(OLIVIA_V2_TOOLS.map((tool) => tool.name)).not.toContain("apply_client_archive");
+    expect(OLIVIA_V2_TOOLS.map((tool) => tool.name)).not.toContain("client_delete");
+  });
+
   // Olivia OS 2.0 §7 — DANGEROUS는 이름 패턴만으로도 코드 레벨에서 차단되어야 한다(Prompt 의존 금지).
   it.each([
     "delete_raw_photos", "move_raw_files", "remove_raw_asset", "raw_file_delete",

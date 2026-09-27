@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  pendingActionBlock,
   pendingActionFromUiAction,
   readPendingAction,
   resolvePendingActionContext,
@@ -24,6 +25,17 @@ describe("Olivia dialogue state", () => {
     expect(resolvePendingActionTurn(message, pending)).toBe("approve");
   });
 
+  it("고객 보관 승인의 확인 표현을 해당 pending action에서만 승인으로 해석한다", () => {
+    expect(resolvePendingActionTurn("삭제", { ...pending, toolName: "apply_client_archive" })).toBe("approve");
+    expect(resolvePendingActionTurn("목록에서 숨겨", { ...pending, toolName: "apply_client_archive" })).toBe("approve");
+    expect(resolvePendingActionTurn("삭제", pending)).toBe("none");
+  });
+
+  it("고객 등록 승인의 확인 라벨 '등록'을 해당 pending action에서만 승인으로 해석한다", () => {
+    expect(resolvePendingActionTurn("등록", { ...pending, toolName: "apply_client_create" })).toBe("approve");
+    expect(resolvePendingActionTurn("등록", pending)).toBe("none");
+  });
+
   it("보류와 취소를 승인과 구분한다", () => {
     expect(resolvePendingActionTurn("일단 보류", pending)).toBe("defer");
     expect(resolvePendingActionTurn("아니야 취소", pending)).toBe("reject");
@@ -40,6 +52,28 @@ describe("Olivia dialogue state", () => {
     }, { recentActions: [], revision: 0, activeWorkspace: "quote", activeResourceId: "q", activeClientName: "리나클리닉" }, "2026-09-11T00:00:00.000Z");
     expect(state).toMatchObject({ id: "a", status: "pending", toolName: "publish_quote", target: { resourceType: "quote", resourceId: "q", title: "리나클리닉" } });
     expect(readPendingAction({ pendingAction: state })).toEqual(state);
+  });
+
+  it("보관 승인 라벨과 정확한 고객 대상을 저장·복원한다", () => {
+    const state = pendingActionFromUiAction({
+      type: "REQUEST_APPROVAL", approvalId: "archive-a", summary: "목록에서 숨길까요?", confirmLabel: "목록에서 숨기기",
+      toolName: "apply_client_archive", toolInput: { clientId: "client-1", expectedHospitalName: "기통찬의원" },
+    }, { recentActions: [], revision: 0 });
+    const restored = readPendingAction({ pendingAction: state });
+    expect(pendingActionBlock(restored)).toMatchObject({ confirmLabel: "목록에서 숨기기", toolName: "apply_client_archive" });
+    expect(restored?.target).toEqual({ resourceType: "client", resourceId: "client-1", title: "기통찬의원" });
+    const activeOther = { recentActions: [], revision: 0, activeClientId: "other-client", activeClientName: "다른의원" };
+    expect(restored && resolvePendingActionContext(activeOther, restored)).toEqual(activeOther);
+  });
+
+  it("고객 생성 승인도 현재 다른 고객 context를 mutation 대상으로 바꾸지 않는다", () => {
+    const state = pendingActionFromUiAction({
+      type: "REQUEST_APPROVAL", approvalId: "create-a", summary: "등록할까요?", confirmLabel: "등록",
+      toolName: "apply_client_create", toolInput: { hospitalName: "새봄의원" },
+    }, { recentActions: [], revision: 0, activeClientId: "other", activeClientName: "다른의원" });
+    expect(state?.target).toEqual({ resourceType: "client", title: "새봄의원" });
+    expect(state && resolvePendingActionContext({ recentActions: [], revision: 0, activeClientId: "other" }, state))
+      .toEqual({ recentActions: [], revision: 0, activeClientId: "other" });
   });
 
   it("pending target을 빈 채널 context에 복구하고 해결된 상태는 재실행하지 않는다", () => {

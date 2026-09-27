@@ -41,6 +41,7 @@ export async function searchOliviaClients(
       select: "id,hospital_name,specialty",
       query: keyword,
       limit: Math.min(Math.max(options.limit ?? 10, 1), 20),
+      filter: (query) => query.is("archived_at", null),
       throwOnError: true,
     });
   } catch {

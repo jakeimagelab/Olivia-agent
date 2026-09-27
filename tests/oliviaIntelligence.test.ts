@@ -55,6 +55,32 @@ describe("applyAliasRewrite — 등록된 별칭을 정식 명칭으로 치환�
     expect(matches).toHaveLength(1);
     expect(matches[0].alias).toBe("히어산");
   });
+
+  it("이미 정식명이 들어 있으면 별칭 앞부분을 다시 치환하지 않는다", () => {
+    const aliases = {
+      "여의도기통찬": { type: "client", id: "c4", name: "여의도기통찬의원" },
+    };
+    expect(applyAliasRewrite(aliases, "여의도기통찬의원 삭제")).toEqual({
+      text: "여의도기통찬의원 삭제",
+      applied: [],
+    });
+  });
+
+  it("짧은 별칭만 입력하면 정식명으로 한 번만 치환한다", () => {
+    const aliases = {
+      "여의도기통찬": { type: "client", id: "c4", name: "여의도기통찬의원" },
+    };
+    expect(applyAliasRewrite(aliases, "여의도기통찬 삭제").text).toBe("여의도기통찬의원 삭제");
+  });
+
+  it("이미 접미사가 반복된 이름과 잘못 파생된 별칭을 더 늘리지 않는다", () => {
+    const aliases = {
+      "여의도기통찬": { type: "client", id: "c4", name: "여의도기통찬의원" },
+      "여의도기통찬의원": { type: "client", id: "bad", name: "여의도기통찬의원의원" },
+    };
+    expect(applyAliasRewrite(aliases, "여의도기통찬의원의원").text).toBe("여의도기통찬의원의원");
+    expect(applyAliasRewrite(aliases, "여의도기통찬의원 삭제").text).toBe("여의도기통찬의원 삭제");
+  });
 });
 
 describe("resolveReferent — 지시어를 최근 언급된 실명으로 해석한다", () => {

@@ -19,6 +19,7 @@ async function selectProject(hospitalName: string): Promise<OliviaToolResult> {
   const { data: exact, error: exactError } = await db.from("clients")
     .select("id,hospital_name")
     .eq("hospital_name", hospitalName)
+    .is("archived_at", null)
     .limit(2);
   if (exactError) throw new Error("고객 정보를 확인하지 못했어요.");
   let clients = exact || [];
@@ -26,6 +27,7 @@ async function selectProject(hospitalName: string): Promise<OliviaToolResult> {
     const { data: partial, error: partialError } = await db.from("clients")
       .select("id,hospital_name")
       .ilike("hospital_name", `%${hospitalName}%`)
+      .is("archived_at", null)
       .limit(3);
     if (partialError) throw new Error("고객 정보를 확인하지 못했어요.");
     clients = partial || [];
@@ -55,9 +57,71 @@ async function selectProject(hospitalName: string): Promise<OliviaToolResult> {
 }
 
 export const CLIENT_TOOL_NAMES = [
-  "client_search", "select_project", "client_get", "client_create", "client_update", "memo_add", "run_brand_diagnosis",
+  "client_search", "select_project", "client_get", "client_create", "apply_client_create", "client_update", "client_archive", "apply_client_archive", "memo_add", "run_brand_diagnosis",
   ...OLIVIA_CHAT_WORK_TOOL_NAMES, ...MEETING_TOOL_NAMES,
 ] as const;
+
+type ClientArchiveTarget = { id: string; hospital_name: string; archived_at?: string | null };
+
+async function resolveClientArchiveTarget(
+  input: Record<string, unknown>,
+  db: ReturnType<typeof getSupabaseAdmin>,
+): Promise<ClientArchiveTarget> {
+  const clientId = text(input, "clientId");
+  const hospitalName = text(input, "hospitalName");
+
+  if (clientId) {
+    const { data: client, error } = await db.from("clients")
+      .select("id,hospital_name,archived_at")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (error) throw new OliviaToolError("고객 정보를 조회하지 못했습니다.", "DB_ERROR");
+    if (!client) throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 일치하는 고객이 없습니다.", "NOT_FOUND");
+    if (hospitalName && client.hospital_name !== hospitalName) {
+      throw new OliviaToolError("요청한 고객명과 고객 ID의 현재 대상이 일치하지 않습니다.", "TARGET_CHANGED");
+    }
+    if (client.archived_at) throw new OliviaToolError("이미 고객 목록에서 숨긴 고객입니다.", "ALREADY_ARCHIVED");
+    return client as ClientArchiveTarget;
+  }
+
+  if (!hospitalName) {
+    throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 숨길 고객명을 정확히 알려주세요.", "NOT_FOUND");
+  }
+
+  const { data: exact, error: exactError } = await db.from("clients")
+    .select("id,hospital_name,archived_at")
+    .eq("hospital_name", hospitalName)
+    .is("archived_at", null)
+    .limit(10);
+  if (exactError) throw new OliviaToolError("고객 정보를 조회하지 못했습니다.", "DB_ERROR");
+  const exactRows = (exact ?? []) as ClientArchiveTarget[];
+  if (exactRows.length > 1) {
+    throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 같은 이름의 고객이 여러 곳입니다.", "AMBIGUOUS", {
+      candidates: exactRows.map((client) => ({ id: client.id, name: client.hospital_name })),
+    });
+  }
+  if (exactRows.length === 1) return exactRows[0];
+
+  const candidates = await fuzzyNameSearch<ClientArchiveTarget>({
+    db,
+    table: "clients",
+    nameColumn: "hospital_name",
+    select: "id,hospital_name,archived_at",
+    query: hospitalName,
+    limit: 10,
+    filter: (query) => query.is("archived_at", null),
+    throwOnError: true,
+  }).catch(() => {
+    throw new OliviaToolError("고객 정보를 조회하지 못했습니다.", "DB_ERROR");
+  });
+  if (!candidates.length) throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 일치하는 고객이 없습니다.", "NOT_FOUND");
+  if (candidates.length > 1) {
+    throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 비슷한 고객이 여러 곳입니다.", "AMBIGUOUS", {
+      candidates: candidates.map((client) => ({ id: client.id, name: client.hospital_name })),
+    });
+  }
+  return candidates[0];
+}
 
 export async function executeClientTool(
   name: string,
@@ -80,6 +144,32 @@ export async function executeClientTool(
 
   if (name === "client_create") {
     const hospitalName = text(input, "hospitalName");
+    if (!hospitalName) throw new OliviaToolError("등록할 고객명을 정확히 알려주세요.", "INVALID_TARGET");
+    const { data: existing, error: existingError } = await db.from("clients")
+      .select("id,hospital_name")
+      .eq("hospital_name", hospitalName)
+      .limit(2);
+    if (existingError) throw new OliviaToolError("기존 고객을 확인하지 못했습니다.", "DB_ERROR");
+    if ((existing ?? []).length > 0) {
+      throw new OliviaToolError("같은 이름의 고객이 이미 등록되어 있습니다. 기존 고객을 확인해주세요.", "ALREADY_EXISTS", {
+        candidates: (existing ?? []).map((client) => ({ id: client.id, name: client.hospital_name })),
+      });
+    }
+    return {
+      tool: name,
+      success: true,
+      data: {
+        approvalRequired: true,
+        hospitalName,
+        summary: `${hospitalName}을 신규 고객으로 등록할까요?`,
+      },
+      verification: createVerification({ executed: true, persisted: false, resourceExists: false }),
+    };
+  }
+
+  if (name === "apply_client_create") {
+    const hospitalName = text(input, "hospitalName");
+    if (!hospitalName) throw new OliviaToolError("승인된 고객 등록 정보가 부족합니다.", "INVALID_TARGET");
     const payload = await callOliviaApi<{ ok: boolean; id: string; workflowRunId?: string; created: boolean }>("/api/clients", {
       method: "POST",
       body: JSON.stringify({
@@ -112,6 +202,70 @@ export async function executeClientTool(
     return { tool: name, success: true, data: { clientId, resourceId: clientId, client: readBack.client }, verification: createVerification({ executed: true, persisted: true, resourceExists: true }) };
   }
 
+  if (name === "client_archive") {
+    const client = await resolveClientArchiveTarget(input, db);
+    return {
+      tool: name,
+      success: true,
+      data: {
+        approvalRequired: true,
+        targetClientId: client.id,
+        hospitalName: client.hospital_name,
+        summary: `${client.hospital_name}을 고객 목록에서 숨길까요? 프로젝트와 문서는 그대로 유지됩니다.`,
+      },
+      verification: createVerification({ executed: true, persisted: false, resourceExists: true }),
+    };
+  }
+
+  if (name === "apply_client_archive") {
+    const clientId = text(input, "clientId");
+    const expectedHospitalName = text(input, "expectedHospitalName");
+    if (!clientId || !expectedHospitalName) {
+      throw new OliviaToolError("승인된 고객 보관 대상 정보가 부족합니다.", "INVALID_TARGET");
+    }
+
+    const { data: client, error: clientError } = await db.from("clients")
+      .select("id,hospital_name,archived_at")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (clientError) throw new OliviaToolError("고객 정보를 조회하지 못했습니다.", "DB_ERROR");
+    if (!client) throw new OliviaToolError("현재 해당 작업을 안전하게 수행할 수 없습니다. 일치하는 고객이 없습니다.", "NOT_FOUND");
+    if (client.hospital_name !== expectedHospitalName) {
+      throw new OliviaToolError("승인 후 고객 대상이 변경되어 보관을 중단했습니다.", "TARGET_CHANGED", {
+        expectedHospitalName,
+        actualHospitalName: client.hospital_name,
+      });
+    }
+
+    if (client.archived_at) throw new OliviaToolError("이미 고객 목록에서 숨긴 고객입니다.", "ALREADY_ARCHIVED");
+
+    const archivedAt = new Date().toISOString();
+    const { error: archiveError } = await db.from("clients")
+      .update({ archived_at: archivedAt })
+      .eq("id", clientId);
+    if (archiveError) throw new OliviaToolError("고객을 목록에서 숨기지 못했습니다.", "DB_ERROR");
+
+    const { data: archived, error: verifyError } = await db.from("clients")
+      .select("id,hospital_name,archived_at")
+      .eq("id", clientId)
+      .maybeSingle();
+    if (verifyError || !archived || archived.archived_at !== archivedAt) {
+      throw new OliviaToolError("고객 보관 상태를 재검증하지 못했습니다.", "VERIFICATION_FAILED");
+    }
+
+    return {
+      tool: name,
+      success: true,
+      data: {
+        clientId,
+        hospitalName: expectedHospitalName,
+        archivedAt,
+        summary: `${expectedHospitalName}을 고객 목록에서 숨겼습니다. 프로젝트와 문서는 그대로 유지됩니다.`,
+      },
+      verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { archived: true } }),
+    };
+  }
+
   if (name === "select_project") return selectProject(text(input, "hospitalName"));
 
   // ── 병원 채널 진단 — lib/channelAnalysis.ts의 /channel-analyzer 로직을 그대로 재사용 ──
@@ -120,7 +274,7 @@ export async function executeClientTool(
     const candidates = await fuzzyNameSearch<any>({
       db, table: "clients", nameColumn: "hospital_name",
       select: "id, hospital_name, specialty, website_url, instagram_url, naver_place_url",
-      query: clientName, limit: 3, throwOnError: true,
+      query: clientName, limit: 3, filter: (query) => query.is("archived_at", null), throwOnError: true,
     });
     if (candidates.length > 1) throw new OliviaToolError("비슷한 고객이 여러 곳이에요. 고객을 먼저 확정해주세요.", "AMBIGUOUS", { candidates: candidates.map((item) => ({ id: item.id, name: item.hospital_name })) });
     const client = candidates[0] ?? null;
@@ -151,7 +305,7 @@ export async function executeClientTool(
   // ── 메모 ──
   if (name === "memo_add") {
     const clientName = text(input, "clientName");
-    const clients = await fuzzyNameSearch<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: clientName, limit: 3, throwOnError: true });
+    const clients = await fuzzyNameSearch<any>({ db, table: "clients", nameColumn: "hospital_name", select: "id, hospital_name", query: clientName, limit: 3, filter: (query) => query.is("archived_at", null), throwOnError: true });
     if (!clients.length) throw new OliviaToolError(`“${clientName}” 고객을 찾지 못했어요. 독립 메모가 필요하면 메모 화면에서 별도로 생성해주세요.`, "NOT_FOUND");
     if (clients.length > 1) throw new OliviaToolError("비슷한 고객이 여러 곳이에요. 메모를 연결할 고객을 확정해주세요.", "AMBIGUOUS", { candidates: clients.map((item) => ({ id: item.id, name: item.hospital_name })) });
     const client = clients[0];

@@ -2,24 +2,30 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { searchOliviaClients } from "@/lib/olivia/clientSearch";
 import { authorizeHermesToolRequest } from "@/lib/hermes/auth";
 
-type Row = { id: string; hospital_name: string; specialty: string | null };
+type Row = { id: string; hospital_name: string; specialty: string | null; archived_at?: string | null };
 
 function fakeDb(rows: Row[], fail = false) {
   return {
     from: () => {
       let keyword: string | undefined;
+      let nullColumn: keyof Row | undefined;
       const builder = {
         select: () => builder,
         ilike: (_column: string, pattern: string) => {
           keyword = pattern.slice(1, -1);
           return builder;
         },
+        is: (column: keyof Row, value: unknown) => {
+          if (value === null) nullColumn = column;
+          return builder;
+        },
         limit: () => builder,
         then: (resolve: (value: { data: Row[] | null; error: { message: string } | null }) => unknown) => {
           if (fail) return Promise.resolve(resolve({ data: null, error: { message: "db unavailable" } }));
+          const activeRows = nullColumn ? rows.filter((row) => row[nullColumn!] == null) : rows;
           const data = keyword
-            ? rows.filter((row) => row.hospital_name.toLowerCase().includes(keyword!.toLowerCase()))
-            : rows;
+            ? activeRows.filter((row) => row.hospital_name.toLowerCase().includes(keyword!.toLowerCase()))
+            : activeRows;
           return Promise.resolve(resolve({ data, error: null }));
         },
       };
@@ -63,6 +69,16 @@ describe("Hermes Olivia client.search", () => {
     });
     expect(result.clients).toHaveLength(2);
     expect(result.status).toBe("AMBIGUOUS");
+  });
+
+  it("보관된 고객은 고객 검색 결과에서 제외한다", async () => {
+    const result = await searchOliviaClients("강재활", {
+      db: fakeDb([
+        { id: "1", hospital_name: "강재활의학과", specialty: null, archived_at: null },
+        { id: "2", hospital_name: "강재활의학과 옛고객", specialty: null, archived_at: "2026-09-27T00:00:00.000Z" },
+      ]) as never,
+    });
+    expect(result.clients.map((client) => client.id)).toEqual(["1"]);
   });
 
   it("DB 오류를 0건으로 가장하지 않는다", async () => {

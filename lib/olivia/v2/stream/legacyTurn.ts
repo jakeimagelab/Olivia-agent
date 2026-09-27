@@ -24,6 +24,7 @@ import type {
 } from "@/lib/olivia/v2/types";
 import type { classifyOliviaRequest } from "@/lib/olivia/v2/modelRouter";
 import {
+  isRequiredToolChoiceCompatible,
   isReadOnlyOliviaTool,
   resolveToollessActionRetry,
   type selectOliviaTools,
@@ -110,6 +111,9 @@ export async function runLegacyTurn({
     compactSummary || summarizeOlderMessages(history),
     taughtMemories,
   );
+  const safeRequiredFollowupTool = isRequiredToolChoiceCompatible(message, requiredFollowupTool)
+    ? requiredFollowupTool
+    : undefined;
   let request: StreamingRequest = {
     instructions,
     input: toInputMessages(
@@ -121,8 +125,8 @@ export async function runLegacyTurn({
     ),
     tools: selectedTools,
     parallel_tool_calls: true,
-    ...(requiredFollowupTool
-      ? { tool_choice: { type: "function" as const, name: requiredFollowupTool } }
+    ...(safeRequiredFollowupTool
+      ? { tool_choice: { type: "function" as const, name: safeRequiredFollowupTool } }
       : {}),
   };
   let workingContext = effectiveContext;
@@ -156,7 +160,7 @@ export async function runLegacyTurn({
       });
       const requiredToolChoice = resolveToollessActionRetry(
         round,
-        requiredFollowupTool,
+        safeRequiredFollowupTool,
         executedToolCalls.size,
       );
       const forcedToolChoice = requiredToolChoice
@@ -164,7 +168,7 @@ export async function runLegacyTurn({
       if (forcedToolChoice) {
         console.warn("[olivia-v2] tool action returned text without execution; forcing one retry", {
           requestId,
-          requiredFollowupTool,
+          requiredFollowupTool: safeRequiredFollowupTool,
         });
         send({
           type: "agent_status",
@@ -178,7 +182,7 @@ export async function runLegacyTurn({
       const stoppedExecutionMiss = executionMiss && executedToolCalls.size === 0;
       const safeText = hasRenderedVerifiedOutcome
         ? ""
-        : (requiredFollowupTool && !executedToolCalls.size) || stoppedExecutionMiss
+        : (safeRequiredFollowupTool && !executedToolCalls.size) || stoppedExecutionMiss
           ? "요청을 실행하지 못했습니다. 도구를 호출하지 못해서 아무 작업도 하지 않았습니다."
           : response.text || deferredFailureText;
       finalText += safeText;

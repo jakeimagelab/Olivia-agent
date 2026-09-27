@@ -12,6 +12,7 @@ export type OliviaPendingAction = {
   toolInput: Record<string, unknown>;
   target?: { resourceType?: string; resourceId?: string; title?: string };
   prompt: string;
+  confirmLabel?: string;
   createdAt: string;
   resolvedAt?: string;
 };
@@ -46,6 +47,7 @@ export function readPendingAction(metadata: unknown): OliviaPendingAction | unde
       ...(typeof target.title === "string" ? { title: target.title } : {}),
     } } : {}),
     prompt: raw.prompt,
+    ...(typeof raw.confirmLabel === "string" ? { confirmLabel: raw.confirmLabel } : {}),
     createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date(0).toISOString(),
     ...(typeof raw.resolvedAt === "string" ? { resolvedAt: raw.resolvedAt } : {}),
   };
@@ -57,18 +59,32 @@ export function pendingActionFromUiAction(
   now = new Date().toISOString(),
 ): OliviaPendingAction | undefined {
   if (action.type !== "REQUEST_APPROVAL") return undefined;
+  const clientApproval = action.toolName === "apply_client_archive" || action.toolName === "apply_client_create";
+  const clientId = clientApproval && typeof action.toolInput.clientId === "string"
+    ? action.toolInput.clientId
+    : undefined;
+  const clientName = clientApproval
+    ? typeof action.toolInput.expectedHospitalName === "string"
+      ? action.toolInput.expectedHospitalName
+      : typeof action.toolInput.hospitalName === "string"
+        ? action.toolInput.hospitalName
+        : undefined
+    : undefined;
   return {
     id: action.approvalId,
     status: "pending",
     intent: action.toolName,
     toolName: action.toolName,
     toolInput: action.toolInput,
-    target: {
-      ...(context.activeWorkspace ? { resourceType: context.activeWorkspace } : {}),
-      ...(context.activeResourceId ? { resourceId: context.activeResourceId } : {}),
-      ...(context.activeClientName ? { title: context.activeClientName } : {}),
-    },
+    target: clientApproval
+      ? { resourceType: "client", ...(clientId ? { resourceId: clientId } : {}), ...(clientName ? { title: clientName } : {}) }
+      : {
+          ...(context.activeWorkspace ? { resourceType: context.activeWorkspace } : {}),
+          ...(context.activeResourceId ? { resourceId: context.activeResourceId } : {}),
+          ...(context.activeClientName ? { title: context.activeClientName } : {}),
+        },
     prompt: action.summary,
+    confirmLabel: action.confirmLabel,
     createdAt: now,
   };
 }
@@ -80,6 +96,8 @@ export function resolvePendingActionTurn(message: string, pending?: OliviaPendin
   if (DEFER_PATTERN.test(normalized)) return "defer";
   if (CORRECTION_PATTERN.test(normalized) && /\d|[일이삼사오육칠팔구십백천만억]/.test(normalized)) return "correction";
   if (REJECT_PATTERN.test(normalized)) return "reject";
+  if (pending.toolName === "apply_client_archive" && /^(삭제|숨겨|목록에서\s*숨겨|보관)(?:해)?([.!~\s]|$)/i.test(normalized)) return "approve";
+  if (pending.toolName === "apply_client_create" && /^등록(?:해)?([.!~\s]|$)/i.test(normalized)) return "approve";
   if (APPROVE_PATTERN.test(normalized) || /(하면\s*돼|맞추면\s*돼|그대로\s*(해|진행))/.test(normalized)) return "approve";
   return "none";
 }
@@ -88,6 +106,9 @@ export function resolvePendingActionContext(
   context: OliviaContextSnapshot,
   pending: OliviaPendingAction,
 ): OliviaContextSnapshot {
+  // 고객 생성/보관 대상은 승인 toolInput의 고정 값으로 검증한다. 승인 과정에서 현재 보고 있던
+  // 다른 고객 Context를 mutation 대상으로 바꾸면 안 된다.
+  if (pending.toolName === "apply_client_archive" || pending.toolName === "apply_client_create") return context;
   const resourceType = pending.target?.resourceType;
   const resourceId = pending.target?.resourceId;
   return {
@@ -120,7 +141,7 @@ export function pendingActionBlock(pending?: OliviaPendingAction): OliviaMessage
     summary: pending.prompt,
     toolName: pending.toolName,
     toolInput: pending.toolInput,
-    confirmLabel: "진행",
+    confirmLabel: pending.confirmLabel || "진행",
     state: "pending",
   };
 }

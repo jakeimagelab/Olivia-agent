@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("clients")
     .select(`${BASE_CLIENT_COLUMNS}, ${EXTENDED_CLIENT_COLUMNS}`)
+    .is("archived_at", null)
     .order("created_at", { ascending: false });
   // 병원명/원장명/담당자명 통합 검색. 확장 컬럼(director_name)이 없는 환경일 수 있어
   // q 검색은 안전하게 hospital_name/contact_name만 우선 적용하고, director_name은 클라이언트 select 실패 시 자동으로 빠진다.
@@ -60,9 +61,16 @@ export async function GET(req: NextRequest) {
   ]);
 
   if (isMissingColumnError(clientsRes.error)) {
-    let fallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).order("created_at", { ascending: false });
+    let fallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).is("archived_at", null).order("created_at", { ascending: false });
     if (q) fallbackQuery = fallbackQuery.or(`hospital_name.ilike.%${q}%,contact_name.ilike.%${q}%`);
     clientsRes = (await fallbackQuery) as typeof clientsRes;
+    // 배포 직후 마이그레이션이 아직 적용되지 않은 짧은 구간에는 기존 목록을 계속 제공한다.
+    // 보관 실행 자체는 archived_at이 없으면 실패하므로 조용히 성공으로 가장하지 않는다.
+    if (isMissingColumnError(clientsRes.error)) {
+      let legacyFallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).order("created_at", { ascending: false });
+      if (q) legacyFallbackQuery = legacyFallbackQuery.or(`hospital_name.ilike.%${q}%,contact_name.ilike.%${q}%`);
+      clientsRes = (await legacyFallbackQuery) as typeof clientsRes;
+    }
   }
   if (clientsRes.error)
     return NextResponse.json({ ok: false, error: clientsRes.error.message }, { status: 500 });

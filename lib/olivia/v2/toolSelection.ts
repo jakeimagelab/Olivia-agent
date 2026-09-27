@@ -3,6 +3,7 @@ import { OLIVIA_V2_TOOLS } from "./toolExecutor";
 import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
 import { executedToolsFromMetadata } from "./executionEvidence";
+import { hasClientDestructiveIntent, hasClientPermanentDeleteIntent, hasClientRegistrationIntent, NEGATIVE_MUTATION_PATTERN } from "./mutationIntentGuard";
 
 type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"photo_storage"|"window";
 
@@ -12,7 +13,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   // 안 겹쳐서 별도 도메인이 필요하다("크게 보여줘"만 navigation과 우연히 겹침, 문제 없음).
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
-  client: ["client_search","client_get","client_create","select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
+  client: ["client_search","client_get","client_archive","client_create","select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
   quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","apply_quote_rebalance","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   contract: ["create_contract","update_contract_terms","request_contract_signature","complete_contract","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   conti: ["get_conti_status","create_conti","complete_conti_v2","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
@@ -175,6 +176,10 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   const message = input.message.trim();
   const recent = input.recentText || "";
   const available = new Set(input.availableToolNames);
+  // 부정·취소·삭제 의도는 어떤 생성 후보보다 먼저 판정한다. "고객등록에서 삭제"처럼 등록이라는
+  // 명사가 섞여 있어도 client_create를 tool_choice로 강제하지 않는다. 보관은 모델이 공개
+  // client_archive를 고르되, 실행 직전 mutation guard가 반대 mutation을 다시 차단한다.
+  if (NEGATIVE_MUTATION_PATTERN.test(message)) return undefined;
   const candidates = [
     { pattern: /(고객\s*등록|고객으로\s*등록|신규\s*고객|거래처\s*등록)/gi, create: "client_create", source: message },
     { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote", source: recent },
@@ -188,7 +193,7 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   const domain = candidates[0];
   if (!domain) return undefined;
 
-  if (domain.create === "client_create" && available.has("client_create")) return "client_create";
+  if (domain.create === "client_create" && hasClientRegistrationIntent(message) && available.has("client_create")) return "client_create";
 
   const confirmsPendingAction = /^(맞아|응|그래|네|오케이|좋아|해\s*줘|진행해|적용해)/.test(message)
     || /(맞추면\s*돼|적용하면\s*돼|그렇게\s*해)/.test(message);
@@ -210,6 +215,15 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   return undefined;
 }
 
+const CREATION_TOOL_NAMES = new Set(["client_create", "create_quote", "create_contract", "create_conti"]);
+
+export function isRequiredToolChoiceCompatible(message: string, toolName?: string): boolean {
+  if (!toolName) return false;
+  if (NEGATIVE_MUTATION_PATTERN.test(message) && CREATION_TOOL_NAMES.has(toolName)) return false;
+  if (toolName === "client_create" && !hasClientRegistrationIntent(message)) return false;
+  return true;
+}
+
 export function resolveToollessActionRetry(round: number, requiredTool: string | undefined, toolCallCount: number) {
   if (round !== 0 || !requiredTool || toolCallCount > 0) return undefined;
   return { type: "function" as const, name: requiredTool };
@@ -221,6 +235,16 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
   const names=new Set<string>();
   for(const domain of domains) for(const name of DOMAIN_TOOLS[domain]) names.add(name);
   if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
+  if (hasClientPermanentDeleteIntent(input.message)) {
+    names.delete("client_create");
+    names.delete("client_update");
+    names.delete("client_archive");
+  } else if (hasClientDestructiveIntent(input.message)) {
+    names.delete("client_create");
+    names.delete("client_update");
+  } else if (hasClientRegistrationIntent(input.message)) {
+    names.delete("client_archive");
+  }
   names.add("open_feature");
   names.add("select_project");
   // Adaptive Memory 도구는 어느 도메인 turn에서든 "앞으로 이렇게 해" 같은 가르침이 나올 수

@@ -12,7 +12,8 @@ import { renderOliviaOutcome, toolResultOutcome } from "@/lib/olivia/conversatio
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APPROVABLE_TOOLS = new Set(["apply_quote_rebalance", "publish_quote", "publish_contract", "apply_remove_conti_shot", "remove_conti_scene_v2", "apply_send_mailing", "apply_feature_record_write", "approve_temporary_document", "link_temporary_document_client"]);
+const APPROVABLE_TOOLS = new Set(["apply_quote_rebalance", "publish_quote", "publish_contract", "apply_remove_conti_shot", "remove_conti_scene_v2", "apply_send_mailing", "apply_feature_record_write", "approve_temporary_document", "link_temporary_document_client", "apply_client_create", "apply_client_archive"]);
+const CLIENT_APPROVAL_TOOLS = new Set(["apply_client_create", "apply_client_archive"]);
 
 export async function POST(req: NextRequest) {
   if (!isAdminSession(req)) return NextResponse.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
@@ -44,6 +45,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, message });
   }
   const toolName = matchingPending?.toolName || (typeof body.toolName === "string" ? body.toolName : "");
+  if (CLIENT_APPROVAL_TOOLS.has(toolName) && !matchingPending) {
+    return NextResponse.json({ ok: false, error: "유효한 고객 변경 승인 요청을 찾지 못했습니다." }, { status: 409 });
+  }
   if (!APPROVABLE_TOOLS.has(toolName)) return NextResponse.json({ ok: false, error: "승인할 수 없는 작업입니다." }, { status: 400 });
   const input = matchingPending?.toolInput || (body.toolInput && typeof body.toolInput === "object" && !Array.isArray(body.toolInput) ? body.toolInput : {});
   const rawContext = body.context && typeof body.context === "object" && !Array.isArray(body.context) ? body.context as OliviaContextSnapshot : { recentActions: [], revision: 0 };

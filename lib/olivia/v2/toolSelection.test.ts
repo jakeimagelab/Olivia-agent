@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isFollowupComplaint, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isFollowupComplaint, isRequiredToolChoiceCompatible, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
 import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
@@ -46,6 +46,32 @@ describe("selectOliviaTools", () => {
     expect(names).toContain("client_search");
     expect(names).toContain("client_create");
     expect(resolveRequiredFollowupTool({ message, availableToolNames: names })).toBe("client_create");
+  });
+
+  it("실제 사고 문장의 삭제 의도를 고객 등록보다 먼저 처리한다", () => {
+    const message = "여의도기통찬의원 고객등록에서 삭제해줘";
+    const tools = selectOliviaTools({ requestClass: "TOOL_ACTION", message, context: baseContext });
+    const names = tools.map((tool) => tool.name);
+    expect(names).toContain("client_archive");
+    expect(names).not.toContain("client_create");
+    expect(names).not.toContain("client_update");
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: names })).toBeUndefined();
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: ["client_create", "client_update"] })).toBeUndefined();
+    expect(isRequiredToolChoiceCompatible(message, "client_create")).toBe(false);
+  });
+
+  it("신규 고객 등록 의도는 기존 client_create 경로를 유지한다", () => {
+    const message = "여의도기통찬의원 신규 고객으로 등록해줘";
+    const names = selectOliviaTools({ requestClass: "TOOL_ACTION", message, context: baseContext }).map((tool) => tool.name);
+    expect(names).not.toContain("client_archive");
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: names })).toBe("client_create");
+    expect(isRequiredToolChoiceCompatible(message, "client_create")).toBe(true);
+  });
+
+  it.each(["취소", "해지", "되돌려", "롤백", "중단", "하지 마", "안 할래"])("부정 표현 '%s'이 있으면 생성 도구를 강제하지 않는다", (negative) => {
+    const message = `여의도기통찬의원 고객 등록 ${negative}`;
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: ["client_create"] })).toBeUndefined();
+    expect(isRequiredToolChoiceCompatible(message, "client_create")).toBe(false);
   });
 
   it("getOliviaToolDomains는 recentText와 message를 합쳐서 판단한다", () => {

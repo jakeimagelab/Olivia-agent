@@ -33,6 +33,7 @@ import { COMMON_TOOL_NAMES, executeCommonTool } from "./toolExecutors/common";
 import { REMOTE_FINDER_TOOL_NAMES, executeRemoteFinderTool } from "./toolExecutors/remoteFinder";
 import { NAS_BACKUP_TOOL_NAMES, executeNasBackupTool } from "./toolExecutors/nasBackup";
 import { PHOTO_OPERATION_TOOL_NAMES, executePhotoOperationTool } from "./toolExecutors/photoOperations";
+import { validateMutationIntent } from "./mutationIntentGuard";
 
 // 코드 요청서(2026-08-15) 3번 항목 — CRUD 엔진(lib/olivia/crud)은 12개 도메인을 지원하지만
 // 챗 도구로는 quote/contract/conti 3개만 노출돼 있었다. client/workflow는 위험도가 높아
@@ -440,8 +441,9 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   // Hermes와 OpenAI 경로가 함께 쓰는 canonical 확장 Tool. 정의는 이 registry 한 곳에만 둔다.
   { type: "function", name: "client_search", description: "[READ] 등록 고객을 병원명/고객명으로 검색하고 FOUND, NOT_FOUND, AMBIGUOUS를 구분합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { query: { type: "string" } }, required: ["query"] } },
   { type: "function", name: "client_get", description: "[READ] clientId 또는 현재 선택 고객의 상세 정보와 연결된 프로젝트/자료를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] } }, required: ["clientId"] } },
-  { type: "function", name: "client_create", description: "[WRITE] 신규 고객을 등록(생성)합니다. 'OO병원 고객으로 등록해줘', 'OO 고객 등록', '신규 고객 추가' 요청에 이 도구를 씁니다. 임시문서가 없어도 등록할 수 있습니다. 먼저 client_search로 중복을 확인한 뒤 호출합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { hospitalName: { type: "string" }, contactName: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, email: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, memo: { type: ["string", "null"] } }, required: ["hospitalName", "contactName", "phone", "email", "specialty", "memo"] } },
+  { type: "function", name: "client_create", description: "신규 고객 등록 승인 요청입니다. 'OO병원 고객으로 등록해줘', 'OO 고객 등록', '신규 고객 추가' 요청에만 사용합니다. 이 도구 자체는 고객을 생성하지 않고 정확한 고객명과 입력값을 확인한 뒤 승인 카드를 만듭니다. 삭제·제거·취소 요청에는 절대 사용하지 않습니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { hospitalName: { type: "string" }, contactName: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, email: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, memo: { type: ["string", "null"] } }, required: ["hospitalName", "contactName", "phone", "email", "specialty", "memo"] } },
   { type: "function", name: "client_update", description: "[WRITE] clientId 또는 현재 선택 고객의 전달된 필드만 수정하고 재조회 검증합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { clientId: { type: ["string", "null"] }, hospitalName: { type: ["string", "null"] }, contactName: { type: ["string", "null"] }, phone: { type: ["string", "null"] }, email: { type: ["string", "null"] }, specialty: { type: ["string", "null"] }, memo: { type: ["string", "null"] } }, required: ["clientId", "hospitalName", "contactName", "phone", "email", "specialty", "memo"] } },
+  { type: "function", name: "client_archive", description: "고객 보관 승인 요청입니다. 일반적인 '고객에서 삭제', '목록에서 빼', '고객등록 취소' 요청에서 정확한 고객을 확인하고 목록에서 숨길지 승인만 요청합니다. 프로젝트와 문서는 그대로 남고 이 도구 자체는 변경하지 않습니다. 완전 삭제 요청은 실행하지 말고 고객관리 화면에서 삭제하도록 안내합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { hospitalName: { type: ["string", "null"] }, clientId: { type: ["string", "null"] } }, required: ["hospitalName", "clientId"] } },
   { type: "function", name: "get_quote", description: "[READ] quoteId 또는 현재 열린 견적서의 canonical 데이터를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { quoteId: { type: ["string", "null"] } }, required: ["quoteId"] } },
   { type: "function", name: "get_contract", description: "[READ] contractId 또는 현재 열린 계약서의 canonical 데이터를 조회합니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contractId: { type: ["string", "null"] } }, required: ["contractId"] } },
   { type: "function", name: "preview_contract", description: "현재 계약서 canonical resource를 읽어 미리보기를 엽니다.", strict: true, parameters: { type: "object", additionalProperties: false, properties: { contractId: { type: ["string", "null"] } }, required: ["contractId"] } },
@@ -552,6 +554,23 @@ export async function executeAgentTool(
     input = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return { result: { tool: toolCall.name, success: false, error: OLIVIA_FALLBACK_MESSAGES.toolInputUnreadable }, uiActions: [] };
+  }
+
+  const intentGuard = validateMutationIntent({
+    requestText: context.currentRequestText,
+    toolName: toolCall.name,
+  });
+  if (!intentGuard.allowed) {
+    return {
+      result: {
+        tool: toolCall.name,
+        success: false,
+        code: intentGuard.code,
+        error: intentGuard.reason,
+        verification: { executed: false },
+      },
+      uiActions: [],
+    };
   }
 
   try {

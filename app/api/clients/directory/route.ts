@@ -11,6 +11,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("clients")
     .select("id, hospital_name, contact_name, phone, email")
+    .is("archived_at", null)
     .not("email", "is", null)
     .neq("email", "")
     .order("hospital_name", { ascending: true });
