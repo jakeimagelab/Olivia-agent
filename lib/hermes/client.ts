@@ -1,5 +1,10 @@
 import { buildHermesSystemPrompt } from "@/lib/hermes/systemPrompt";
-import { consumeHermesClientSearch, consumeHermesToolCalls } from "@/lib/hermes/toolAudit";
+import {
+  consumeHermesClientSearch,
+  consumeHermesToolCalls,
+  type HermesClientSearchAudit,
+  type HermesToolAudit,
+} from "@/lib/hermes/toolAudit";
 import { clearHermesExecutionContext, registerHermesExecutionContext } from "@/lib/hermes/executionContext";
 import type {
   HermesCallbacks,
@@ -235,7 +240,12 @@ export async function runHermesChat(input: {
   const config = getHermesConfig();
   const requestId = crypto.randomUUID();
   const startedAt = performance.now();
-  registerHermesExecutionContext(requestId, input.context ?? { recentActions: [], revision: 0 }, input.conversationId);
+  registerHermesExecutionContext(requestId, {
+    ...(input.context ?? { recentActions: [], revision: 0 }),
+    // MCP Tool에는 대화 원문이나 공개 인자로 idempotency key를 맡기지 않는다. Olivia가 알고
+    // 있는 canonical conversation id를 실행 컨텍스트에만 넣어 동일 mutation 재전송을 막는다.
+    currentConversationId: input.conversationId,
+  }, input.conversationId);
   // Hermes MCP는 request별 축소 목록이 아니라 연결 내내 같은 전체 catalog를 쓴다. 이름·schema만
   // 직렬화해 크기를 측정하고, 사용자 메시지·대화 내용·context 값은 로그에 남기지 않는다.
   const toolCatalog = (await import("@/lib/hermes/mcp/oliviaToolBridge")).listHermesOliviaTools();
@@ -354,6 +364,9 @@ export async function runHermesChat(input: {
   let finalText = "";
   let firstTextDeltaMs: number | undefined;
   let usage: HermesUsage | undefined;
+  let recoveredTimeoutPhase: HermesTimeoutPhase | undefined;
+  let recoveredSearchAudit: HermesClientSearchAudit | undefined;
+  let recoveredToolAudits: Array<{ toolName: string; result: HermesToolAudit }> | undefined;
 
   const handleEvent = (block: string) => {
     let eventName = "message";
@@ -431,16 +444,40 @@ export async function runHermesChat(input: {
     const timedOut = failedPhase !== undefined && !input.signal?.aborted;
     logHermesError({ requestId, errorType: failedPhase && !input.signal?.aborted ? hermesTimeoutErrorType(failedPhase) : "stream_error", startedAt });
     if (failedPhase && timedOut) {
-      const fallbackSafe = !meaningfulEventStarted && !finalText && !toolActivityStarted;
-      throw new HermesChatError(hermesTimeoutMessage(failedPhase), fallbackSafe);
+      // Tool 실행은 끝났는데 Hermes가 마지막 자연어를 정리하다 total timeout이 나는 경우가
+      // 있다. 이때 실패를 내보내면 사용자가 재시도하면서 같은 mutation이 다시 실행된다.
+      // audit는 executeAgentTool이 성공/실패 검증을 마친 뒤에만 기록되므로, 완료 audit가 있는
+      // 실행형 도구는 그 결과를 ground truth로 복구하고 legacy로 재실행하지 않는다.
+      const recoverableToolAudits = failedToolAudits.filter((audit) => audit.result.mode !== "read");
+      if (failedSearchAudit || recoverableToolAudits.length > 0) {
+        recoveredTimeoutPhase = failedPhase;
+        recoveredSearchAudit = failedSearchAudit;
+        recoveredToolAudits = failedToolAudits;
+        finalText = "";
+        console.warn("[HERMES TOOL RESULT RECOVERY]", {
+          requestId,
+          timeoutPhase: failedPhase,
+          toolCalls: failedToolAudits.map((audit) => ({
+            name: audit.toolName,
+            mode: audit.result.mode,
+            success: audit.result.success,
+          })),
+          clientSearchCompleted: Boolean(failedSearchAudit),
+        });
+        // 아래 공통 audit → HermesToolCallRecord → 최종 응답 경로로 계속 진행한다.
+      } else {
+        const fallbackSafe = !meaningfulEventStarted && !finalText && !toolActivityStarted;
+        throw new HermesChatError(hermesTimeoutMessage(failedPhase), fallbackSafe);
+      }
+    } else {
+      throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
     }
-    throw new HermesChatError("Hermes Agent 응답을 받는 중 문제가 발생했습니다.", false);
   } finally {
     clearPhaseTimers();
     input.signal?.removeEventListener("abort", abort);
   }
 
-  const searchAudit = consumeHermesClientSearch(requestId);
+  const searchAudit = recoveredSearchAudit ?? consumeHermesClientSearch(requestId);
   if (searchRequest && !searchAudit) {
     clearHermesExecutionContext(requestId);
     throw new Error("고객 정보를 확인하려면 고객검색 도구 실행이 필요합니다.");
@@ -452,7 +489,7 @@ export async function runHermesChat(input: {
   const verifiedSearch = searchAudit?.success ? searchAudit.result : undefined;
 
   // 실제로 호출된 도구만 MCP handler의 감사 기록을 ground truth로 반영한다.
-  const toolAudits = consumeHermesToolCalls(requestId);
+  const toolAudits = recoveredToolAudits ?? consumeHermesToolCalls(requestId);
   for (const audit of toolAudits) {
     const mcpName = `mcp_olivia_${audit.toolName.replaceAll(".", "_")}`;
     const existing = [...toolCalls.values()].find((call) => call.name === mcpName);
@@ -533,6 +570,23 @@ export async function runHermesChat(input: {
     }
   } else if (mutationRequest && mutationAudits.length === 0 && claimsMutationCompletion(finalText)) {
     finalText = "실제 Olivia Tool 실행 결과를 확인하지 못해 완료 여부를 확정할 수 없습니다.";
+  }
+
+  if (recoveredTimeoutPhase) {
+    // 타임아웃 전에 흘러온 "확인 중" 같은 미완성 문장은 버리고, 실제 Tool audit의 최종
+    // 결과만으로 답한다. 성공/실패가 섞였으면 둘 다 빠뜨리지 않는다.
+    const finalAuditByTool = new Map<string, (typeof toolAudits)[number]>();
+    for (const audit of toolAudits) finalAuditByTool.set(audit.toolName, audit);
+    const recoveredLines = [...finalAuditByTool.values()].map((audit) => {
+      if (!audit.result.success) return `요청을 완료하지 못했습니다. ${audit.result.error}`;
+      const data = audit.result.data;
+      return data && typeof data === "object" && !Array.isArray(data)
+        && typeof (data as Record<string, unknown>).summary === "string"
+        ? String((data as Record<string, unknown>).summary)
+        : undefined;
+    }).filter((line): line is string => Boolean(line));
+    if (recoveredLines.length > 0) finalText = [...new Set(recoveredLines)].join("\n");
+    else if (!searchAudit) finalText = "요청한 작업의 실행 결과를 확인했습니다.";
   }
 
   // §7 "NO UI ACTION = NO SUCCESS CLAIM" — "열었어요"/"바꿨어요" 같은 화면 전환 완료 주장은

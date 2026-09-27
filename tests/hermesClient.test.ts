@@ -605,4 +605,61 @@ describe("Hermes chat adapter", () => {
     expect(isHermesFallbackSafe(error)).toBe(false);
     expect(warnSpy).toHaveBeenCalledWith("[HERMES ERROR]", expect.objectContaining({ errorType: "total_timeout" }));
   });
+
+  it("mutation 저장 audit 뒤 전체 timeout이면 실패 대신 검증된 Tool 결과로 복구한다", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("HERMES_BASE_URL", "https://hermes.example.com");
+    vi.stubEnv("HERMES_API_SECRET", "secret");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const onToolResult = vi.fn();
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> };
+      const requestId = body.messages[0].content.match(/[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0];
+      recordHermesToolCall(requestId, "create_quote", {
+        success: true,
+        mode: "mutation",
+        data: {
+          quoteId: "quote-recovered-1",
+          resourceId: "quote-recovered-1",
+          summary: "1989 청담스시 견적서를 저장했어요.",
+        },
+        resourceType: "quote",
+        resourceId: "quote-recovered-1",
+        verification: { executed: true, persisted: true, resourceExists: true },
+      });
+      return timedSse(init?.signal, [
+        { at: 0, text: "정리하는 중" },
+        // Hermes가 keep-alive를 계속 보내 idle timeout은 피하지만, 최종 답변을 끝내지 못해
+        // total timeout에 닿는 실제 운영 증상을 재현한다.
+        { at: 10_000 },
+        { at: 20_000 },
+        { at: 30_000 },
+        { at: 40_000 },
+        { at: 50_000 },
+      ]);
+    }));
+
+    const pending = runHermesChat({
+      message: "1989 청담스시 견적서 만들어줘",
+      callbacks: { onToolResult },
+    });
+    await vi.advanceTimersByTimeAsync(HERMES_CHAT_TIMEOUTS.totalMs);
+
+    await expect(pending).resolves.toMatchObject({
+      message: "1989 청담스시 견적서를 저장했어요.",
+      toolCalls: [expect.objectContaining({
+        name: "mcp_olivia_create_quote",
+        success: true,
+        resourceId: "quote-recovered-1",
+        verification: { executed: true, persisted: true, resourceExists: true },
+      })],
+    });
+    expect(onToolResult).toHaveBeenCalledWith(expect.objectContaining({
+      name: "mcp_olivia_create_quote",
+      success: true,
+    }));
+    expect(warnSpy).toHaveBeenCalledWith("[HERMES TOOL RESULT RECOVERY]", expect.objectContaining({
+      timeoutPhase: "total",
+    }));
+  });
 });

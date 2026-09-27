@@ -90,6 +90,8 @@ export type OliviaContextSnapshot = {
   canFinalize?: boolean;
   /** 현재 turn의 사용자 원문. 견적 모드처럼 원문 단어 자체가 규칙인 domain guard에서만 사용한다. */
   currentRequestText?: string;
+  /** 서버가 주입하는 현재 대화 ID. 모델 프롬프트에는 노출하지 않고 mutation 멱등성에만 쓴다. */
+  currentConversationId?: string;
 };
 
 export type OliviaToolCall = { id: string; name: string; arguments: string };

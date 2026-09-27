@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const idempotencyMocks = vi.hoisted(() => ({
+  findRecent: vi.fn(async () => null as Record<string, unknown> | null),
+}));
+
+vi.mock("@/lib/quote/quoteCreateIdempotency", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/quote/quoteCreateIdempotency")>(),
+  findRecentQuoteByCreateRequestKey: idempotencyMocks.findRecent,
+}));
+
 vi.mock("@/lib/olivia/documents/temporaryDocuments", () => ({
   registerTemporaryDocument: vi.fn(async (_db, input: any) => ({ temporaryDocument: { id: `temp-${input.sourceId}`, status: input.clientId ? "linked" : "pending_review", client_id: input.clientId ?? null, workflow_run_id: input.workflowRunId ?? null }, clientResolution: input.clientId ? "existing" : "pending" })),
   findExactDocumentClient: vi.fn(async () => null),
@@ -35,8 +44,10 @@ vi.mock("@/lib/clients/createClientWithWorkflow", () => ({
 }));
 
 let lastCrudCall: any = null;
+let crudCallCount = 0;
 vi.mock("@/lib/olivia/crud/executor", () => ({
   executeOliviaCrud: vi.fn(async (_db: unknown, request: any) => {
+    crudCallCount += 1;
     lastCrudCall = request;
     return {
       recordId: "quote-real-1",
@@ -53,16 +64,18 @@ import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
 const contextWithoutClient: OliviaContextSnapshot = { recentActions: [], revision: 0 };
 
-function callCreateQuote(hospitalName: string) {
+function callCreateQuote(hospitalName: string, context: OliviaContextSnapshot = contextWithoutClient) {
   return executeAgentTool(
-    { id: "create-quote-call", name: "create_quote", arguments: JSON.stringify({ hospitalName, packageId: "standard", contactName: null, phone: null, email: null, shootDate: null, profileCount: 0, stagedCount: 0, memo: null }) },
-    contextWithoutClient,
+    { id: "create-quote-call", name: "create_quote", arguments: JSON.stringify({ hospitalName, packageId: "standard", customTotalPrice: 1_566_500, contactName: null, phone: null, email: null, shootDate: null, profileCount: 0, stagedCount: 0, memo: null }) },
+    context,
   );
 }
 
 describe("create_quote — temporary document client approval policy", () => {
   beforeEach(() => {
     lastCrudCall = null;
+    crudCallCount = 0;
+    idempotencyMocks.findRecent.mockReset().mockResolvedValue(null);
     listActiveMemoriesMock.mockClear();
     fuzzyNameSearchMock.mockClear();
     createClientWithWorkflowMock.mockClear();
@@ -113,5 +126,35 @@ describe("create_quote — temporary document client approval policy", () => {
     expect(fuzzyNameSearchMock).not.toHaveBeenCalled();
     expect(execution.result.success).toBe(true);
     expect(lastCrudCall.data.clientId).toBeUndefined();
+  });
+
+  it("같은 대화의 동일 견적 재전송은 기존 견적을 반환하고 새 행을 만들지 않는다", async () => {
+    const context: OliviaContextSnapshot = {
+      recentActions: [],
+      revision: 0,
+      currentConversationId: "conversation-1",
+      currentRequestText: "1989 청담스시 견적서 만들어줘",
+    };
+    const first = await callCreateQuote("1989 청담스시", context);
+    const requestKey = lastCrudCall.data.formState.oliviaCreateRequestKey;
+    expect(first.result.success).toBe(true);
+    expect(requestKey).toMatch(/^[0-9a-f]{64}$/);
+    expect(crudCallCount).toBe(1);
+
+    idempotencyMocks.findRecent.mockResolvedValueOnce({
+      id: "quote-real-1",
+      hospital_name: "1989 청담스시",
+      title: "1989 청담스시 사진촬영 견적서",
+      total_amount: 1_350_000,
+      form_state: { oliviaCreateRequestKey: requestKey },
+    });
+    const retry = await callCreateQuote("1989 청담스시", context);
+
+    expect(crudCallCount).toBe(1);
+    expect(retry.result).toMatchObject({
+      success: true,
+      data: { quoteId: "quote-real-1", deduplicated: true },
+      verification: { persisted: true, resourceExists: true, details: { deduplicated: true } },
+    });
   });
 });

@@ -352,7 +352,13 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         const history = historyRows.filter((row) => row.id !== userMessageId);
         // 현재 요청 원문은 Quote Engine의 결정론적 mode guard에 전달한다. 모델이 packageId를
         // 잘못 채워도 원문에 "패키지"가 없으면 CUSTOM으로 강제하기 위한 실행 전용 값이다.
-        let effectiveContext = restoreDocumentContextFromHistory({ ...context, currentRequestText: rawMessage }, history);
+        let effectiveContext = restoreDocumentContextFromHistory({
+          ...context,
+          currentRequestText: rawMessage,
+          // 클라이언트가 보내는 context 값이 아니라 인증된 canonical conversation id만 쓴다.
+          // create_quote 같은 mutation의 짧은 재전송 멱등성에 사용한다.
+          currentConversationId: conversation.id,
+        }, history);
         const conversationMetadata = conversationMetadataResult.data?.metadata && typeof conversationMetadataResult.data.metadata === "object"
           ? conversationMetadataResult.data.metadata as Record<string, unknown>
           : {};

@@ -15,6 +15,11 @@ import { publishQuote } from "@/lib/core/commands/document";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { archiveWorkflowPdf } from "@/lib/workflowArtifacts/archivePdf";
 import { registerTemporaryDocument } from "@/lib/olivia/documents/temporaryDocuments";
+import {
+  buildQuoteCreateRequestKey,
+  findRecentQuoteByCreateRequestKey,
+  stampQuoteCreateRequestKey,
+} from "@/lib/quote/quoteCreateIdempotency";
 
 // request_quote_publish(승인 요청)와 publish_quote(완료 보고) 둘 다 항목별 요약이 필요해서
 // 뽑아냈다(스펙 §19-22) — 금액은 전부 quotes 테이블에 이미 저장된 실제 값이고 여기서
@@ -75,6 +80,66 @@ function quoteDiscountAmount(items: QuoteItem[], quote: Record<string, unknown>,
   return Number(quote.discount_amount) || 0;
 }
 
+async function finalizeCreatedQuote(input: {
+  db: ReturnType<typeof getSupabaseAdmin>;
+  toolName: string;
+  quoteId: string;
+  record: Record<string, unknown>;
+  fallbackHospitalName: string;
+  fallbackClientId?: string;
+  fallbackWorkflowRunId?: string;
+  reused: boolean;
+}): Promise<OliviaToolResult> {
+  const {
+    db, toolName, quoteId, record, fallbackHospitalName,
+    fallbackClientId, fallbackWorkflowRunId, reused,
+  } = input;
+  const hospitalName = String(record.hospital_name || fallbackHospitalName);
+  const registered = await registerTemporaryDocument(db, {
+    documentType: "quote",
+    sourceTable: "quotes",
+    sourceId: quoteId,
+    title: String(record.title || `${hospitalName} 견적서`),
+    hospitalName,
+    clientId: typeof record.client_id === "string" ? record.client_id : fallbackClientId,
+    workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : fallbackWorkflowRunId,
+    metadata: { totalAmount: Number(record.total_amount) || 0, quoteNumber: record.quote_number || null },
+  });
+  const temporaryDocument = registered.temporaryDocument;
+  return {
+    tool: toolName,
+    success: true,
+    data: {
+      quoteId,
+      resourceId: quoteId,
+      totalAmount: record.total_amount,
+      hospitalName,
+      clientId: temporaryDocument.client_id,
+      workflowRunId: temporaryDocument.workflow_run_id,
+      temporaryDocumentId: temporaryDocument.id,
+      temporaryDocumentStatus: temporaryDocument.status,
+      clientResolution: registered.clientResolution,
+      deduplicated: reused,
+      summary: reused
+        ? `${hospitalName} 견적서는 이미 생성되어 있어 기존 문서를 열었어요.`
+        : temporaryDocument.status === "linked"
+          ? `${hospitalName} 견적서를 저장하고 기존 고객에게 연결했어요.`
+          : `${hospitalName} 견적서를 임시문서함에 저장했어요. 내용을 확인해주세요.`,
+    },
+    verification: createVerification({
+      executed: true,
+      persisted: true,
+      resourceExists: true,
+      linked: temporaryDocument.status === "linked",
+      details: {
+        temporaryDocumentId: temporaryDocument.id,
+        temporaryDocumentStatus: temporaryDocument.status,
+        deduplicated: reused,
+      },
+    }),
+  };
+}
+
 function serviceType(value: unknown): QuoteIncludedService["type"] | undefined {
   return (["profile", "staged", "group", "interior", "video", "other"] as const)
     .find((candidate) => candidate === value);
@@ -132,12 +197,29 @@ export async function executeQuoteTool(
 
     // 요청 초입에서 확정한 실제 Context 브랜드가 모델 인자보다 우선한다. Context가 없을 때만
     // create_quote가 직접 받은 brand를 사용하고, 둘 다 없으면 기존 기본값(photoclinic)을 유지한다.
-    const quoteData = buildAgentQuoteData({
+    let quoteData: Record<string, unknown> = buildAgentQuoteData({
       ...input,
       brand: isKnownDocumentBrand(context.brand) ? context.brand : input.brand,
       hospitalName,
     }, workflowRunId, context.currentRequestText);
-    if (clientId) (quoteData as Record<string, unknown>).clientId = clientId;
+    if (clientId) quoteData.clientId = clientId;
+    const createRequestKey = buildQuoteCreateRequestKey(context, quoteData);
+    if (createRequestKey) {
+      quoteData = stampQuoteCreateRequestKey(quoteData, createRequestKey);
+      const existing = await findRecentQuoteByCreateRequestKey(db, createRequestKey);
+      if (existing?.id) {
+        return finalizeCreatedQuote({
+          db,
+          toolName: name,
+          quoteId: String(existing.id),
+          record: existing,
+          fallbackHospitalName: hospitalName,
+          fallbackClientId: clientId,
+          fallbackWorkflowRunId: workflowRunId,
+          reused: true,
+        });
+      }
+    }
     const execution = await executeOliviaCrud(db, {
       operation: "create",
       domain: "quote",
@@ -145,44 +227,17 @@ export async function executeQuoteTool(
       requestText: `${hospitalName} 견적 생성`,
     });
     const record = execution.record || {};
-    const registered = await registerTemporaryDocument(db, {
-      documentType: "quote",
-      sourceTable: "quotes",
-      sourceId: execution.recordId,
-      title: String(record.title || `${record.hospital_name || hospitalName} 견적서`),
-      hospitalName: String(record.hospital_name || hospitalName),
-      clientId: typeof record.client_id === "string" ? record.client_id : clientId,
-      workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : workflowRunId,
-      metadata: { totalAmount: Number(record.total_amount) || 0, quoteNumber: record.quote_number || null },
+    // executeOliviaCrud의 create는 insert().select().single()로 실제 저장된 row를 돌려받는다.
+    return finalizeCreatedQuote({
+      db,
+      toolName: name,
+      quoteId: execution.recordId,
+      record,
+      fallbackHospitalName: hospitalName,
+      fallbackClientId: clientId,
+      fallbackWorkflowRunId: workflowRunId,
+      reused: false,
     });
-    const temporaryDocument = registered.temporaryDocument;
-    // executeOliviaCrud의 create는 insert().select().single()로 실제 저장된 row를 돌려받는다 —
-    // execution.recordId가 있다는 것 자체가 이미 실제 DB round-trip으로 확인된 결과다(스펙 §13).
-    return {
-      tool: name,
-      success: true,
-      data: {
-        quoteId: execution.recordId,
-        resourceId: execution.recordId,
-        totalAmount: record.total_amount,
-        hospitalName: record.hospital_name,
-        clientId: temporaryDocument.client_id,
-        workflowRunId: temporaryDocument.workflow_run_id,
-        temporaryDocumentId: temporaryDocument.id,
-        temporaryDocumentStatus: temporaryDocument.status,
-        clientResolution: registered.clientResolution,
-        summary: temporaryDocument.status === "linked"
-          ? `${record.hospital_name || hospitalName} 견적서를 저장하고 기존 고객에게 연결했어요.`
-          : `${record.hospital_name || hospitalName} 견적서를 임시문서함에 저장했어요. 내용을 확인해주세요.`,
-      },
-      verification: createVerification({
-        executed: true,
-        persisted: Boolean(execution.recordId),
-        resourceExists: Boolean(execution.recordId),
-        linked: temporaryDocument.status === "linked",
-        details: { temporaryDocumentId: temporaryDocument.id, temporaryDocumentStatus: temporaryDocument.status },
-      }),
-    };
   }
 
   if (name === "update_quote_item") {
