@@ -479,6 +479,181 @@
 
 .statusPanelEmpty { margin: 0; padding: 10px 8px; color: #849a96; font-size: 11px; }
 
+/* 2026-09-27 — 평평한 상태 목록을 긴급/내 차례/진행/연결/기록 계층으로 재구성. */
+.statusPanelBadge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid #155855;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+}
+.statusPanelBadge_red { background: #c53f36; }
+.statusPanelBadge_orange { background: #e85d2c; }
+.statusPanelBadge_blue { background: #3977aa; }
+
+.statusPanel {
+  width: min(420px, calc(100vw - 32px));
+  max-height: min(78vh, 680px);
+  overscroll-behavior: contain;
+  padding: 12px;
+  gap: 8px;
+  border-radius: 14px;
+}
+.statusPanelHeader {
+  min-height: 30px;
+  padding: 0 2px 4px;
+  font-size: 13px;
+  font-weight: 760;
+}
+.statusPanelRefresh {
+  width: auto;
+  min-height: 26px;
+  height: auto;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 650 10px/1 inherit;
+}
+.statusPanelSection {
+  display: block;
+  overflow: hidden;
+  border: 1px solid rgba(21, 88, 85, .09);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .82);
+}
+.statusPanelSectionButton {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.statusPanelSectionButton:hover { background: rgba(238, 247, 245, .72); }
+.statusPanelSectionLabel,
+.statusPanelSectionSummary { display: inline-flex; align-items: center; gap: 6px; }
+.statusPanelSectionLabel { color: #17332e; font-size: 11.5px; font-weight: 730; }
+.statusPanelSectionSummary { color: #718984; font-size: 10.5px; white-space: nowrap; }
+.statusPanelSectionBody { display: grid; gap: 5px; padding: 0 7px 7px; }
+
+.statusPanelUrgent {
+  padding: 8px;
+  border-color: rgba(232, 93, 44, .22);
+  background: #fff8f4;
+}
+.statusPanelUrgentTitle {
+  min-height: 28px;
+  padding: 0 3px 5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #a83f1e;
+  font-size: 11.5px;
+  font-weight: 760;
+}
+.statusPanelUrgentTitle span { display: inline-flex; align-items: center; gap: 6px; }
+.statusPanelUrgentTitle b {
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(232, 93, 44, .12);
+  font-size: 10px;
+}
+
+.statusPanelEntry {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(21, 88, 85, .06);
+  color: inherit;
+  text-align: left;
+}
+button.statusPanelEntry { cursor: pointer; }
+button.statusPanelEntry:hover { background: #f2f8f6; }
+.statusPanelSeverity {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  margin-top: 5px;
+  border-radius: 999px;
+}
+.statusPanelSeverity_error { background: #c53f36; }
+.statusPanelSeverity_warning { background: #e85d2c; }
+.statusPanelSeverity_unknown { background: #9a7b38; }
+.statusPanelSeverity_info { background: #3977aa; }
+.statusPanelEntryText { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.statusPanelEntryText strong {
+  overflow: hidden;
+  color: #17332e;
+  font-size: 11.5px;
+  font-weight: 690;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+.statusPanelEntryText small {
+  color: #6f8580;
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.statusPanelEntryArrow { flex: 0 0 auto; margin-top: 3px; color: #91a29f; }
+.statusPanelProgress {
+  width: 100%;
+  height: 3px;
+  margin-top: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5efed;
+}
+.statusPanelProgress i { display: block; height: 100%; border-radius: inherit; background: #155855; }
+
+.statusPanelConnection {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #f3f8f7;
+}
+.statusPanelConnection > span { min-width: 0; display: grid; gap: 2px; }
+.statusPanelConnection strong { color: #17332e; font-size: 11px; }
+.statusPanelConnection small { color: #617a75; font-size: 10px; line-height: 1.4; }
+.statusPanelConnection em { color: #9d3b2e; font-size: 9.5px; font-style: normal; line-height: 1.4; }
+.statusPanelConnectionBad { background: #fff4ef; }
+.statusPanelWorkSection { padding: 0; overflow: hidden; border-radius: 9px; }
+.statusPanelCheckedAt {
+  padding: 2px 4px 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  color: #91a29f;
+  font-size: 9.5px;
+}
+
 .desktopBody {
   position: relative;
   z-index: 2;

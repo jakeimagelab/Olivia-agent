@@ -46,9 +46,12 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     expect(zeroToolText).not.toContain("완료");
   });
 
-  it("시스템 상태 팝업은 MCP와 migration 경고를 표시한다", () => {
+  it("시스템 상태 팝업은 공통 진단 결과와 내 차례를 계층형으로 표시한다", () => {
     const source = readFileSync("components/olivia-os/StatusPanelButton.tsx", "utf8");
-    expect(source).toContain("MCP 도구 · {data.mcp.state} · 도구");
-    expect(source).toContain("시스템 진단 DB가 준비되지 않았습니다.");
+    const routeSource = readFileSync("app/api/olivia-os/status-panel/route.ts", "utf8");
+    expect(source).toContain("systemAttentionItems(data)");
+    expect(source).toContain('label="내 차례"');
+    expect(source).toContain("STATUS_PANEL_STORAGE_KEY");
+    expect(routeSource).toContain("collectSystemStatus({ db, now })");
   });
 });

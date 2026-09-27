@@ -181,6 +181,12 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
       : { id: "worker", group: "mac_studio", label: "Worker", level: "error", state: "OFFLINE", detail: `마지막 연결 ${relativeKorean(base.last_seen_at, now)}`, remedy: SYSTEM_STATUS_GUIDANCE.workerOffline });
   }
 
+  items.push(base?.nas_connected === true
+    ? { id: "nas_connection", group: "mac_studio", label: "NAS", level: "ok", state: "연결됨" }
+    : base?.nas_connected === false
+      ? { id: "nas_connection", group: "mac_studio", label: "NAS", level: "error", state: "연결 안 됨", detail: "Worker가 NAS 연결 실패를 보고했습니다.", remedy: SYSTEM_STATUS_GUIDANCE.workstationNotMounted }
+      : unknownItem("nas_connection", "mac_studio", "NAS", "Worker가 NAS 연결 상태를 아직 보고하지 않았습니다.", SYSTEM_STATUS_GUIDANCE.workerDiagnosticsMissing));
+
   const diagnostics = !diagnosticsResult.error && diagnosticsResult.data ? diagnosticsResult.data as WorkerDiagnosticRow : null;
   const aiDiagnostics = !aiDiagnosticsResult.error && aiDiagnosticsResult.data
     ? aiDiagnosticsResult.data as WorkerAiDiagnosticRow
@@ -237,6 +243,7 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
     mcpItem = unknownItem("mcp_tools", "cloud", "MCP 도구", "MCP 연결 기록을 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
     workerItems = [
       unknownItem("worker", "mac_studio", "Worker", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
+      unknownItem("nas_connection", "mac_studio", "NAS", "NAS 연결 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("workstation_mount", "mac_studio", "Workstation 마운트", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("workstation_access", "mac_studio", "Workstation 접근", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("agentstation_mount", "mac_studio", "Agentstation 마운트", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),

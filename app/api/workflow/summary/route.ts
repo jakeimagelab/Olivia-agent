@@ -12,13 +12,12 @@ import {
   getWorkflowStepProgress,
 } from "@/lib/workflow";
 import { getErrorMessage } from "@/lib/errors";
+import { isWorkflowWaitingCustomer } from "@/lib/workflowWaiting";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const today = () => new Date().toISOString().slice(0, 10);
-const CUSTOMER_WAIT_STEPS = new Set(["quote", "contract", "conti", "client_selection", "final_delivery", "revision"]);
-
 function monthStart() {
   const now = new Date();
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
@@ -67,7 +66,11 @@ export async function GET() {
       const stage = WORKFLOW_STAGES.find((candidate) => candidate.key === step?.stage);
       const waitingApprovalCount = pendingApprovals.filter((approval) => approval.workflow_run_id === run.id).length;
       const revisionRequestCount = revisionApprovals.filter((approval) => approval.workflow_run_id === run.id).length;
-      const waitingCustomer = run.status === "active" && CUSTOMER_WAIT_STEPS.has(displayStepKey) && waitingApprovalCount === 0;
+      const waitingCustomer = isWorkflowWaitingCustomer({
+        status: run.status,
+        displayStepKey,
+        waitingApprovalCount,
+      });
 
       return {
         ...run,
