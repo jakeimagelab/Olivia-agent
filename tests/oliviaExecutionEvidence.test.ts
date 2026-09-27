@@ -39,6 +39,14 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     expect(legacySource).toContain("도구를 호출하지 못해서 아무 작업도 하지 않았습니다");
   });
 
+  it("legacy 응답은 화면 전송 전과 저장 전에 완료 주장 가드를 통과한다", () => {
+    const legacySource = readFileSync("lib/olivia/v2/stream/legacyTurn.ts", "utf8");
+    expect(legacySource).toContain("guardCompletionText(safeText, round)");
+    expect(legacySource).toContain("guardCompletionText(roundText, round)");
+    expect(legacySource).toContain('guardCompletionText(finalText, "final")');
+    expect(legacySource).toContain("[olivia/completion-claim]");
+  });
+
   it("도구 0회 폴백 배지는 완료라고 표현하지 않는다", () => {
     const source = readFileSync("components/olivia-v2/OliviaConversation.tsx", "utf8");
     const zeroToolText = "대체 경로로 답했지만 실행된 작업은 없습니다 · 실행된 도구: 0개";

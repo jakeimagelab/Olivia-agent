@@ -45,6 +45,7 @@ import { buildSystemPrompt } from "@/lib/olivia/v2/stream/systemPrompt";
 import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
 import { maxToolRounds } from "@/lib/olivia/v2/stream/turnLimits";
 import { isToolExecutionMiss } from "@/lib/olivia/v2/executionIntent";
+import { enforceCompletionClaims } from "@/lib/olivia/v2/completionClaimGuard";
 
 type LegacyTurnInput = {
   db: SupabaseClient;
@@ -142,6 +143,18 @@ export async function runLegacyTurn({
     success: boolean;
     verification?: OliviaToolResult["verification"];
   }> = [];
+  const guardCompletionText = (text: string, round: number | "final") => {
+    const guarded = enforceCompletionClaims({ text, executedTools: cloudToolCalls });
+    if (guarded.unsupported.length) {
+      console.warn("[olivia/completion-claim] 근거 없는 완료 주장을 차단했습니다", {
+        conversationId,
+        round,
+        unsupported: guarded.unsupported,
+        executedTools: cloudToolCalls.map((call) => `${call.name}(${call.success ? "성공" : "실패"})`),
+      });
+    }
+    return guarded.text;
+  };
 
   for (let round = 0; round < maxToolRounds(requestClass); round += 1) {
     onToolRound(round + 1);
@@ -185,8 +198,9 @@ export async function runLegacyTurn({
         : (safeRequiredFollowupTool && !executedToolCalls.size) || stoppedExecutionMiss
           ? "요청을 실행하지 못했습니다. 도구를 호출하지 못해서 아무 작업도 하지 않았습니다."
           : response.text || deferredFailureText;
-      finalText += safeText;
-      await flushTextAsDeltas(safeText, send, messageId);
+      const guardedText = guardCompletionText(safeText, round);
+      finalText += guardedText;
+      await flushTextAsDeltas(guardedText, send, messageId);
       break;
     }
     if (!response.responseId) throw new Error("OpenAI tool response ID가 없습니다.");
@@ -296,8 +310,9 @@ export async function runLegacyTurn({
       deferredFailureText = "";
     }
     if (verifiedRoundText) hasRenderedVerifiedOutcome = true;
-    finalText += roundText;
-    await flushTextAsDeltas(roundText, send, messageId);
+    const guardedRoundText = guardCompletionText(roundText, round);
+    finalText += guardedRoundText;
+    await flushTextAsDeltas(guardedRoundText, send, messageId);
     send({ type: "agent_status", status: "결과를 정리하는 중…" });
     if (nextPendingAction) break;
     request = {
@@ -312,6 +327,9 @@ export async function runLegacyTurn({
   if (!finalText.trim()) {
     finalText = deferredFailureText || OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
   }
+  // 스트리밍 전 모든 라운드에 가드를 적용하지만, 향후 분기에서 finalText를 합치는 코드가
+  // 추가되어도 저장된 대화 기록에 근거 없는 완료 주장이 남지 않도록 마지막에 다시 검증한다.
+  finalText = guardCompletionText(finalText, "final");
   const approvalBlock = pendingActionBlock(nextPendingAction);
   await saveTurnAssistant(finalText, {
     blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])],

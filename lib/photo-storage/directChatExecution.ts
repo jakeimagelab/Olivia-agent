@@ -1,4 +1,7 @@
 import type { OliviaAgentToolExecution, OliviaContextSnapshot, OliviaToolVerification } from "@/lib/olivia/v2/types";
+import { matchPhotoFoldersInMessage } from "@/lib/photo-storage/photoFolderCatalog";
+import type { FolderMatch } from "@/lib/photo-storage/folderMatch";
+import type { RemoteNasDataSource } from "@/lib/remote-nas/types";
 
 export type PhotoDirectOperation = "source_prep" | "scene_sort";
 export type PhotoDirectPendingStage = "choose_folder" | "folder_retry" | "scene_settings" | "restart_confirmation";
@@ -101,47 +104,20 @@ function normalizeToolName(name: string): string {
   return name.replace(/^mcp_olivia_/, "").replaceAll(".", "_");
 }
 
-function parseOperation(message: string): { operation: PhotoDirectOperation; matchedText: string } | null {
+function parseOperation(message: string): { operation: PhotoDirectOperation } | null {
   const source = message.match(SOURCE_PREP_PATTERN);
   const scene = message.match(SCENE_SORT_PATTERN);
   if (source && scene) return null;
-  if (source) return { operation: "source_prep", matchedText: source[0] };
-  if (scene) return { operation: "scene_sort", matchedText: scene[0] };
+  if (source) return { operation: "source_prep" };
+  if (scene) return { operation: "scene_sort" };
   // "르셀청담이랑 세무사회 두 개 분리해줘"처럼 대상이 명백히 여러 개인 축약 표현만 원본
   // 분리로 허용한다. 단일 "Scene을 분리해줘"를 JPG 통합으로 오인하면 실제 job이 생기므로,
   // 일반적인 '분리' 한 단어만으로는 절대 실행하지 않는다.
   const multiFolderSplit = message.match(MULTI_FOLDER_SPLIT_PATTERN);
   if (multiFolderSplit && /(?:두\s*(?:개|곳)|둘\s*다|이랑\s+|랑\s+|하고\s+|그리고\s+|,|와\s+|과\s+)/.test(message)) {
-    return { operation: "source_prep", matchedText: multiFolderSplit[0] };
+    return { operation: "source_prep" };
   }
   return null;
-}
-
-function cleanFolderQuery(value: string): string {
-  const beforeInstruction = value.split(">", 1)[0] ?? value;
-  return beforeInstruction
-    .replace(/["'“”‘’]/g, " ")
-    .replace(/^\s*(?:올리비아(?:야)?)[,!?.~\s]*/i, " ")
-    // "나스에서"의 흔한 오타인 "나스에스"까지 위치 표현으로 취급한다. 이 접두사가
-    // 검색어에 남으면 실제 "0918_삼칠갈비" 폴더를 찾지 못한다.
-    .replace(/(?:(?:\bnas\b|나스)(?:에서|에스|의|쪽)?|(?:\bwork\s*station\b|워크\s*스테이션)(?:에서|의|쪽)?)/gi, " ")
-    .replace(/(?:촬영|백업)\s*폴더(?:를|을|에서|의)?/g, " ")
-    .replace(/폴더(?:를|을|에서|의)?/g, " ")
-    .replace(/(?:두|2)\s*(?:개|곳)(?:를|을|다|모두)?/g, " ")
-    .replace(/(?:둘|전부)\s*다/g, " ")
-    .replace(/(?:작업을?\s*)?(?:시작|실행|진행)(?:해\s*줘|해주세요|해줘|해)?/g, " ")
-    .replace(/(?:부탁해|부탁해요|해\s*줄래|해줄래|줄래|주세요|해주세요|해\s*줘|해줘)/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/(?:을|를|은|는)$/, "")
-    .trim();
-}
-
-function splitFolderQueries(message: string, matchedText: string): string[] {
-  const withoutIntent = message.replace(matchedText, " ");
-  return withoutIntent
-    .split(/\s*(?:,|그리고|이랑|랑|하고|와|과)\s+/)
-    .map(cleanFolderQuery)
-    .filter((value) => value.length >= 2);
 }
 
 function parseExplicitSceneSettings(message: string, allowBareDepartment: boolean): {
@@ -162,18 +138,15 @@ function parseExplicitSceneSettings(message: string, allowBareDepartment: boolea
 
 export function parsePhotoDirectCommand(message: string): {
   operation: PhotoDirectOperation;
-  folderQueries: string[];
   department?: string;
   shootingMode?: "field" | "studio";
 } | null {
   const parsed = parseOperation(message);
   if (!parsed) return null;
-  const folderQueries = splitFolderQueries(message, parsed.matchedText);
-  if (!folderQueries.length) return null;
   const settings = parsed.operation === "scene_sort"
     ? parseExplicitSceneSettings(message, false)
     : {};
-  return { operation: parsed.operation, folderQueries, ...settings };
+  return { operation: parsed.operation, ...settings };
 }
 
 function candidateFromUnknown(value: unknown): PhotoDirectFolderCandidate | undefined {
@@ -255,33 +228,38 @@ function selectedCandidate(message: string, candidates: PhotoDirectFolderCandida
   });
 }
 
-function folderCorrection(message: string): string | undefined {
-  const explicitlyNamed = /^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/.test(message.trim());
-  const cleaned = cleanFolderQuery(message)
-    .replace(/^(?:정확한\s*)?폴더명(?:은|는|이|가|:)?\s*/, "")
-    .replace(/(?:이야|야|입니다|이에요|예요|맞아|맞아요)[.!~\s]*$/, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (cleaned.length < 2 || cleaned.length > 120) return undefined;
-  if (APPROVE_PATTERN.test(cleaned) || REJECT_PATTERN.test(cleaned)) return undefined;
-  // 검색 실패 직후라도 일반 대화를 폴더명으로 오인하지 않는다. 명시적인 "폴더명" 표현,
-  // 촬영일 숫자/경로 구분자, 또는 공백 없는 단일 고유명사 형태만 재검색에 사용한다.
-  const looksLikeFolder = explicitlyNamed || /\d{3,}|[_-]/.test(cleaned) || !/\s/.test(cleaned);
-  return looksLikeFolder ? cleaned : undefined;
-}
-
 function canConsumePending(message: string, pending: PhotoDirectPendingState): boolean {
   if (REJECT_PATTERN.test(message)) return true;
   if (pending.stage === "choose_folder") {
     const candidates = pending.items[pending.currentIndex]?.candidates ?? [];
     return Boolean(selectedCandidate(message, candidates));
   }
-  if (pending.stage === "folder_retry") return Boolean(folderCorrection(message));
+  // 실제 폴더 목록과의 대조는 async라 executePhotoDirectTurn에서 한다. 여기서는 대기 중인
+  // 사용자의 답을 한 번 확인 대상으로만 올리고, 목록 매치가 없으면 일반 대화로 되돌려보낸다.
+  if (pending.stage === "folder_retry") return Boolean(message.trim());
   if (pending.stage === "scene_settings") {
     const settings = parseExplicitSceneSettings(message, true);
     return Boolean(settings.department || settings.shootingMode);
   }
   return APPROVE_PATTERN.test(message);
+}
+
+function workItemsFromMatchGroups(groups: readonly FolderMatch[][]): PhotoDirectWorkItem[] {
+  return groups.map((group) => {
+    const first = group[0];
+    if (group.length === 1) {
+      return {
+        query: first.core,
+        // matchPhotoFoldersInMessage의 입력은 Workstation 루트의 실제 displayName 목록이다.
+        // 정규화 문자열이 아니라 이 원본 이름을 그대로 start tool의 exact resolver에 넘긴다.
+        selectedFolder: first.displayName,
+        selectedDisplayName: first.displayName,
+      };
+    }
+    // 동일 핵심명으로 실제 폴더가 여러 개면 기존 find tool로 장수·용량·수정일을 채운 뒤
+    // 사용자에게 선택을 받는다. 여기서는 어떤 후보도 임의로 고르지 않는다.
+    return { query: first.core };
+  });
 }
 
 export function shouldGuardPhotoDirectTurn(input: {
@@ -447,6 +425,7 @@ export async function executePhotoDirectTurn(input: {
   hermesToolNames: string[];
   pendingState?: PhotoDirectPendingState;
   context: OliviaContextSnapshot;
+  dataSource: RemoteNasDataSource;
   executeTool: ExecuteTool;
   now?: string;
 }): Promise<PhotoDirectExecutionResult> {
@@ -458,17 +437,29 @@ export async function executePhotoDirectTurn(input: {
   const command = parsePhotoDirectCommand(input.userMessage);
   let state: PhotoDirectPendingState | undefined;
   if (command) {
+    const matchGroups = await matchPhotoFoldersInMessage(input.userMessage, input.dataSource);
     state = {
       version: 1,
       operation: command.operation,
-      stage: "choose_folder",
-      items: command.folderQueries.map((query) => ({ query })),
+      stage: matchGroups.length ? "choose_folder" : "folder_retry",
+      items: matchGroups.length
+        ? workItemsFromMatchGroups(matchGroups)
+        : [{ query: input.userMessage }],
       currentIndex: 0,
       completedReports: [],
       ...(command.department ? { department: command.department } : {}),
       ...(command.shootingMode ? { shootingMode: command.shootingMode } : {}),
       createdAt: input.now ?? new Date().toISOString(),
     };
+    if (!matchGroups.length) {
+      return {
+        handled: true,
+        text: "Workstation에서 요청과 일치하는 촬영 폴더를 찾지 못했어요. 정확한 폴더명을 알려주세요.",
+        pendingState: state,
+        toolCalls: [],
+        reason: "needs_input",
+      };
+    }
   } else if (input.pendingState && canConsumePending(input.userMessage, input.pendingState)) {
     state = structuredClone(input.pendingState);
     if (REJECT_PATTERN.test(input.userMessage)) {
@@ -488,12 +479,9 @@ export async function executePhotoDirectTurn(input: {
       current.selectedDisplayName = selected.displayName;
       delete current.candidates;
     } else if (state.stage === "folder_retry") {
-      const corrected = folderCorrection(input.userMessage);
-      if (!corrected) return { handled: false, toolCalls: [], reason: "no_intent" };
-      current.query = corrected;
-      delete current.selectedFolder;
-      delete current.selectedDisplayName;
-      delete current.candidates;
+      const matchGroups = await matchPhotoFoldersInMessage(input.userMessage, input.dataSource);
+      if (!matchGroups.length) return { handled: false, toolCalls: [], reason: "no_intent" };
+      state.items.splice(state.currentIndex, 1, ...workItemsFromMatchGroups(matchGroups));
       state.stage = "choose_folder";
     } else if (state.stage === "scene_settings") {
       const settings = parseExplicitSceneSettings(input.userMessage, true);

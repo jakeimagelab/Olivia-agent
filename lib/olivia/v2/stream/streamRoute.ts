@@ -63,6 +63,10 @@ import { buildExecutedToolsContext, withExecutedToolsMetadata } from "@/lib/oliv
 import { handlePendingActionTurn } from "@/lib/olivia/v2/stream/pendingAction";
 import { runHermesTurn, type ChatRouteLabel } from "@/lib/olivia/v2/stream/hermesTurn";
 import { runLegacyTurn } from "@/lib/olivia/v2/stream/legacyTurn";
+import { createRemoteWorkerNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
+import { internalFetcher } from "@/lib/olivia/v2/toolExecutors/http";
+
+const photoDirectDataSource = createRemoteWorkerNasDataSource({ fetcher: internalFetcher });
 
 function encodeEvent(event: OliviaStreamEvent) {
   return `data: ${JSON.stringify(event)}\n\n`;
@@ -518,6 +522,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             hermesToolNames: [],
             pendingState: pendingPhotoDirectExecution,
             context: effectiveContext,
+            dataSource: photoDirectDataSource,
             executeTool: async (name, toolInput, toolContext) => {
               const id = crypto.randomUUID();
               const startedAt = performance.now();
@@ -551,7 +556,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             handled: directExecution.handled,
             reason: directExecution.reason,
             operation: directCommand?.operation ?? pendingPhotoDirectExecution?.operation ?? null,
-            queryCount: directCommand?.folderQueries.length ?? pendingPhotoDirectExecution?.items.length ?? 0,
+            queryCount: directExecution.pendingState?.items.length ?? pendingPhotoDirectExecution?.items.length ?? (directCommand ? 1 : 0),
             candidateCount: directExecution.pendingState?.items[directExecution.pendingState.currentIndex]?.candidates?.length ?? 0,
             pendingStage: directExecution.pendingState?.stage ?? null,
             directToolCalls: directExecution.toolCalls.map((call) => ({ name: call.name, success: call.success, code: call.code })),

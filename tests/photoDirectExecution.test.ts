@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  executePhotoDirectTurn,
+  executePhotoDirectTurn as executePhotoDirectTurnWithDataSource,
   isPhotoDirectExecutionEnabled,
   parsePhotoDirectCommand,
   readPendingPhotoDirectExecution,
@@ -8,6 +8,7 @@ import {
   type PhotoDirectFolderCandidate,
 } from "@/lib/photo-storage/directChatExecution";
 import type { OliviaAgentToolExecution } from "@/lib/olivia/v2/types";
+import type { RemoteNasDataSource, RemoteNasEntry } from "@/lib/remote-nas/types";
 
 const context = { recentActions: [], revision: 0 };
 
@@ -34,12 +35,37 @@ function failure(tool: string, error: string, code = "TOOL_EXECUTION_FAILED", de
   return { result: { tool, success: false, error, code, details, verification: { executed: false } }, uiActions: [] };
 }
 
+function dataSourceForFolders(folders: Record<string, PhotoDirectFolderCandidate[]> = {}): RemoteNasDataSource {
+  const names = [...new Set(Object.values(folders).flat().map((folder) => folder.displayName))];
+  const entries: RemoteNasEntry[] = names.map((name) => ({
+    kind: "directory",
+    name,
+    path: name,
+    displayName: name,
+    displayPath: name,
+    sizeBytes: null,
+    modifiedAt: "2026-09-20T01:00:00.000Z",
+  }));
+  const result = {
+    rootName: "Workstation(M.2SSD)" as const,
+    path: "",
+    displayPath: "Workstation(M.2SSD)",
+    entries,
+    connection: { macStudio: "online" as const, nas: "connected" as const, source: "mock" as const },
+    readOnly: true as const,
+  };
+  return {
+    listRoot: vi.fn(async () => result),
+    listFolder: vi.fn(async () => result),
+  };
+}
+
 function executor(options: {
   folders?: Record<string, PhotoDirectFolderCandidate[]>;
   start?: (name: string, input: Record<string, unknown>) => OliviaAgentToolExecution;
 } = {}) {
   let sequence = 0;
-  return vi.fn(async (name: string, input: Record<string, unknown>) => {
+  const executeTool = vi.fn(async (name: string, input: Record<string, unknown>) => {
     sequence += 1;
     if (name === "find_photo_folder") {
       const query = String(input.query);
@@ -52,23 +78,31 @@ function executor(options: {
       }),
     };
   });
+  return Object.assign(executeTool, { dataSource: dataSourceForFolders(options.folders) });
+}
+
+function executePhotoDirectTurn(
+  input: Omit<Parameters<typeof executePhotoDirectTurnWithDataSource>[0], "dataSource">,
+) {
+  const executeTool = input.executeTool as ReturnType<typeof executor>;
+  return executePhotoDirectTurnWithDataSource({ ...input, dataSource: executeTool.dataSource });
 }
 
 describe("사진 작업 직접 실행 명령 파서", () => {
   it.each([
-    ["0918 삼칠갈비 원본 분리해줘", "source_prep", ["0918 삼칠갈비"]],
-    ["0918 삼 칠 갈 비 원본 분류해줘", "source_prep", ["0918 삼 칠 갈 비"]],
-    ["나스에스 0918 삼칠갈비 원본 분류해줘", "source_prep", ["0918 삼칠갈비"]],
-    ["Workstation에서 0918_삼칠갈비 원본 분리해줘", "source_prep", ["0918_삼칠갈비"]],
-    ["0918_삼칠갈비 RAW와 JPG로 분리해줘", "source_prep", ["0918_삼칠갈비"]],
-    ["르셀청담 JPG 통합해줘", "source_prep", ["르셀청담"]],
-    ["올리비아, 0911_WINF > JPG만 분리해줄래", "source_prep", ["0911_WINF"]],
-    ["0911_WINF JPG만 줄래", "source_prep", ["0911_WINF"]],
-    ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep", ["르셀청담", "세무사회"]],
-    ["삼칠갈비 씬별 분류해줘", "scene_sort", ["삼칠갈비"]],
-    ["삼칠갈비 2차 분류해줘", "scene_sort", ["삼칠갈비"]],
-  ])("'%s'를 %s로 안전하게 식별한다", (message, operation, folderQueries) => {
-    expect(parsePhotoDirectCommand(message)).toMatchObject({ operation, folderQueries });
+    ["0918 삼칠갈비 원본 분리해줘", "source_prep"],
+    ["0918 삼 칠 갈 비 원본 분류해줘", "source_prep"],
+    ["나스에스 0918 삼칠갈비 원본 분류해줘", "source_prep"],
+    ["Workstation에서 0918_삼칠갈비 원본 분리해줘", "source_prep"],
+    ["0918_삼칠갈비 RAW와 JPG로 분리해줘", "source_prep"],
+    ["르셀청담 JPG 통합해줘", "source_prep"],
+    ["올리비아, 0911_WINF > JPG만 분리해줄래", "source_prep"],
+    ["0911_WINF JPG만 줄래", "source_prep"],
+    ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep"],
+    ["삼칠갈비 씬별 분류해줘", "scene_sort"],
+    ["삼칠갈비 2차 분류해줘", "scene_sort"],
+  ])("'%s'를 %s로 안전하게 식별한다", (message, operation) => {
+    expect(parsePhotoDirectCommand(message)).toMatchObject({ operation });
   });
 
   it("일반 질문과 다른 사진 작업은 직접 실행 대상으로 만들지 않는다", () => {
@@ -113,7 +147,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(executeTool).not.toHaveBeenCalled();
   });
 
-  it("단일 후보는 기존 검색 도구 뒤 기존 원본 분리 도구로 주문한다", async () => {
+  it("실제 목록에서 찾은 단일 폴더는 원본 이름 그대로 기존 원본 분리 도구로 주문한다", async () => {
     const executeTool = executor({ folders: { "0918 삼칠갈비": [candidate("0918_삼칠갈비")] } });
     const result = await executePhotoDirectTurn({
       enabled: true,
@@ -125,8 +159,29 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(result).toMatchObject({ handled: true, reason: "executed", pendingState: null });
     expect(result.text).toContain("0918_삼칠갈비");
     expect(result.text).toContain("작업을 시작했습니다. 진행 중입니다.");
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder", "start_photo_source_prep"]);
-    expect(executeTool.mock.calls[1][1]).toEqual({ folderName: "0918_삼칠갈비", confirmRestart: false });
+    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["start_photo_source_prep"]);
+    expect(executeTool.mock.calls[0][1]).toEqual({ folderName: "0918_삼칠갈비", confirmRestart: false });
+  });
+
+  it("연세라이프구강내과라는 자연어에서 실제 폴더를 찾아 1차 분류를 시작한다", async () => {
+    const executeTool = executor({
+      folders: { 연세라이프구강: [candidate("0923_연세라이프구강")] },
+    });
+    const result = await executePhotoDirectTurn({
+      enabled: true,
+      userMessage: "연세라이프구강내과 1차 분류 좀 해줘",
+      hermesToolNames: [],
+      context,
+      executeTool,
+    });
+
+    expect(result).toMatchObject({ handled: true, reason: "executed", pendingState: null });
+    expect(result.text).toContain("0923_연세라이프구강");
+    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["start_photo_source_prep"]);
+    expect(executeTool.mock.calls[0][1]).toEqual({
+      folderName: "0923_연세라이프구강",
+      confirmRestart: false,
+    });
   });
 
   it("복수 후보는 장수·용량·수정일을 보여주고 선택 전에는 쓰지 않는다", async () => {
@@ -165,7 +220,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(result.text).toContain("Workstation");
     expect(result.text).toContain("정확한 폴더명");
     expect(result.text).not.toMatch(/업로드/);
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder"]);
+    expect(executeTool).not.toHaveBeenCalled();
   });
 
   it("검색 결과가 없으면 사용자가 알려준 정확한 폴더명으로 다시 검색해 실행한다", async () => {
@@ -175,6 +230,10 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
         "0918_삼칠갈비": [candidate("0918_삼칠갈비")],
       },
     });
+    const available = await dataSourceForFolders({ exact: [candidate("0918_삼칠갈비")] }).listRoot();
+    vi.mocked(executeTool.dataSource.listRoot)
+      .mockResolvedValueOnce({ ...available, entries: [] })
+      .mockResolvedValue(available);
     const first = await executePhotoDirectTurn({
       enabled: true,
       userMessage: "나스에스 0918 삼칠갈비 원본 분류해줘",
@@ -194,12 +253,8 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     });
 
     expect(second).toMatchObject({ handled: true, reason: "executed", pendingState: null });
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual([
-      "find_photo_folder",
-      "find_photo_folder",
-      "start_photo_source_prep",
-    ]);
-    expect(executeTool.mock.calls[1][1]).toEqual({ query: "0918_삼칠갈비" });
+    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["start_photo_source_prep"]);
+    expect(executeTool.mock.calls[0][1]).toEqual({ folderName: "0918_삼칠갈비", confirmRestart: false });
   });
 
   it("검색 실패 뒤 현재 답변의 폴더명만 재검색하고 이전 요청 문장을 합치지 않는다", async () => {
@@ -209,6 +264,10 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
         "0911_WINF": [candidate("0911_WINF")],
       },
     });
+    const available = await dataSourceForFolders({ exact: [candidate("0911_WINF")] }).listRoot();
+    vi.mocked(executeTool.dataSource.listRoot)
+      .mockResolvedValueOnce({ ...available, entries: [] })
+      .mockResolvedValue(available);
     const first = await executePhotoDirectTurn({
       enabled: true,
       userMessage: "올리비아, 0911 WINF > JPG만 분리해줄래",
@@ -228,8 +287,8 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     });
 
     expect(second).toMatchObject({ handled: true, reason: "executed" });
-    expect(executeTool.mock.calls[1]?.[1]).toEqual({ query: "0911_WINF" });
-    expect(executeTool.mock.calls.map(([, input]) => input.query).filter(Boolean)).toEqual(["0911 WINF", "0911_WINF"]);
+    expect(executeTool.mock.calls).toHaveLength(1);
+    expect(executeTool.mock.calls[0]?.[1]).toEqual({ folderName: "0911_WINF", confirmRestart: false });
   });
 
   it("Scene 분류는 폴더를 확정해도 진료과와 촬영모드 전에는 시작하지 않는다", async () => {
@@ -238,7 +297,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(first).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "scene_settings" } });
     expect(first.text).toContain("진료과");
     expect(first.text).toContain("현장/스튜디오");
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder"]);
+    expect(executeTool).not.toHaveBeenCalled();
 
     const second = await executePhotoDirectTurn({
       enabled: true,
@@ -292,7 +351,7 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     });
     expect(result.text).toContain("권한이 없어요");
     expect(result.text).toContain("원본은 변경하지 않았어요");
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["find_photo_folder"]);
+    expect(executeTool).not.toHaveBeenCalled();
   });
 
   it("여러 폴더 중 하나가 실패해도 나머지를 독립적으로 계속한다", async () => {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findPhotoFolderCandidates,
+  matchPhotoFoldersInMessage,
   resolveSinglePhotoFolderCandidate,
 } from "@/lib/photo-storage/photoFolderCatalog";
 import type { RemoteNasDataSource, RemoteNasEntry, RemoteNasFolderResult } from "@/lib/remote-nas/types";
@@ -36,6 +37,21 @@ function dataSource(folders: Record<string, RemoteNasEntry[]>): RemoteNasDataSou
 }
 
 describe("photo folder catalog", () => {
+  it("Workstation 루트 목록을 원문과 대조해 실제 표시 이름을 돌려준다", async () => {
+    const source = dataSource({
+      "0923_연세라이프구강": [],
+      "0918_삼칠갈비": [],
+    });
+
+    const groups = await matchPhotoFoldersInMessage("연세라이프구강내과 1차 분류 좀 해줘", source);
+
+    expect(groups).toMatchObject([[{
+      displayName: "0923_연세라이프구강",
+      core: "연세라이프구강",
+      score: 1,
+    }]]);
+  });
+
   it("부분 이름 후보를 장수·JPG bytes·전체 용량·수정일과 함께 반환한다", async () => {
     const source = dataSource({
       "0730_르셀청담": [file("0730_르셀청담", "A001.JPG", 100), file("0730_르셀청담", "A001.ARW", 300)],

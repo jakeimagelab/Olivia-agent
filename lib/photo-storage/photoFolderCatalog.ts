@@ -2,6 +2,10 @@ import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
 import type { RemoteNasDataSource, RemoteNasEntry } from "@/lib/remote-nas/types";
 import { OliviaToolError } from "@/lib/olivia/v2/toolError";
+import {
+  resolveFolderTargets,
+  type FolderMatch,
+} from "@/lib/photo-storage/folderMatch";
 
 const MAX_MATCHES = 12;
 const MAX_VISITED_FOLDERS_PER_PROJECT = 256;
@@ -29,6 +33,19 @@ function comparable(value: string): string {
     .trim()
     .toLocaleLowerCase("ko-KR")
     .replace(/[\s_-]+/g, "");
+}
+
+/** Workstation의 실제 1-depth 폴더 목록을 사용자 원문과 대조한다. */
+export async function matchPhotoFoldersInMessage(
+  message: string,
+  dataSource: RemoteNasDataSource,
+): Promise<FolderMatch[][]> {
+  const root = await dataSource.listRoot({ foldersOnly: true });
+  const folderNames = root.entries
+    .filter((entry) => entry.kind === "directory")
+    .map((entry) => entry.displayName);
+  const resolution = resolveFolderTargets(message, folderNames);
+  return resolution.kind === "targets" ? resolution.groups : [];
 }
 
 function extension(entry: RemoteNasEntry): string {
