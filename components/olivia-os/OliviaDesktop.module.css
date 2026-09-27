@@ -301,7 +301,31 @@
 }
 
 /* 코드 요청서(2026-09-19) 상단바 상태표시 팝업 */
-.statusPanelGroup { position: relative; display: flex; align-items: center; }
+.statusPanelGroup { position: relative; display: flex; align-items: center; gap: 4px; }
+.statusPanelActiveChip {
+  width: min(270px, 25vw);
+  height: 25px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .11);
+  color: rgba(255, 255, 255, .92);
+  cursor: pointer;
+}
+.statusPanelActiveChip:hover { background: rgba(255, 255, 255, .17); }
+.statusPanelActiveChip span {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  font-size: 9.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.statusPanelActiveChip b { flex: 0 0 auto; font-size: 9px; font-variant-numeric: tabular-nums; }
 
 .statusPanelWarningDot {
   position: absolute;
@@ -591,6 +615,16 @@
   color: inherit;
   text-align: left;
 }
+.statusPanelEntryGroup {
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(21, 88, 85, .06);
+}
+.statusPanelEntryGroup .statusPanelEntry { border-radius: 8px 8px 0 0; box-shadow: none; }
+.statusPanelEntryGroup .statusPanelEntry:only-child { border-radius: 8px; }
+.statusPanelEntryMain { min-height: 42px; }
 button.statusPanelEntry { cursor: pointer; }
 button.statusPanelEntry:hover { background: #f2f8f6; }
 .statusPanelSeverity {
@@ -629,6 +663,53 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   background: #e5efed;
 }
 .statusPanelProgress i { display: block; height: 100%; border-radius: inherit; background: #155855; }
+.statusPanelRemoteProgress {
+  width: 100%;
+  padding: 0 8px 7px 23px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.statusPanelRemoteProgress:hover { background: #f2f8f6; }
+.statusPanelEntryActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 8px 8px 23px;
+}
+.statusPanelActionPrimary,
+.statusPanelActionSecondary {
+  min-height: 25px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 7px;
+  font: 700 9.5px/1 inherit;
+  cursor: pointer;
+}
+.statusPanelActionPrimary {
+  border: 1px solid #155855;
+  background: #155855;
+  color: #fff;
+}
+.statusPanelActionSecondary {
+  border: 1px solid rgba(21, 88, 85, .18);
+  background: #fff;
+  color: #155855;
+}
+.statusPanelActionPrimary:disabled,
+.statusPanelActionSecondary:disabled { cursor: wait; opacity: .58; }
+.statusPanelActionSuccess,
+.statusPanelActionError {
+  margin: -2px 8px 8px 23px;
+  font-size: 9.5px;
+  line-height: 1.4;
+}
+.statusPanelActionSuccess { color: #155855; }
+.statusPanelActionError { color: #a83f1e; }
 
 .statusPanelConnection {
   display: flex;

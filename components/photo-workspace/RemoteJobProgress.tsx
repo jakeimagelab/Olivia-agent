@@ -7,6 +7,8 @@ import styles from "./RemoteJobProgress.module.css";
 
 const STAGES = [
   ["STAGING", "작업 폴더 복사"],
+  ["PREPARING", "원본 준비"],
+  ["COPYING", "파일 복사"],
   ["SCANNING", "사진 확인"],
   ["ANALYZING", "사진 분석"],
   ["ORGANIZING", "Scene 분류·파일 정리"],
@@ -18,11 +20,13 @@ export default function RemoteJobProgress({
   pollingState,
   pollingMessage,
   compact = false,
+  label,
 }: {
-  job: RemotePhotoSortJob | null;
+  job: Pick<RemotePhotoSortJob, "id" | "status" | "message" | "error" | "progress"> | null;
   pollingState: RemotePollingState;
   pollingMessage?: string;
   compact?: boolean;
+  label?: string;
 }) {
   if (!job) return null;
 
@@ -42,7 +46,7 @@ export default function RemoteJobProgress({
       <div className={styles.heading}>
         <span>
           {isFailed ? <TriangleAlert size={16} /> : isComplete ? <Check size={16} /> : <LoaderCircle className={styles.spin} size={16} />}
-          <strong>{isFailed ? "작업 실패" : isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중"}</strong>
+          <strong>{label || (isFailed ? "작업 실패" : isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중")}</strong>
         </span>
         {percent !== null ? <b>{percent}%</b> : null}
       </div>

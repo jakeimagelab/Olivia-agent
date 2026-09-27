@@ -1,9 +1,16 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ACTIVE_PHOTO_PROJECT_STATUSES } from "@/lib/photo-storage/notificationPolicy";
+import { STEP_INFO } from "@/lib/clientStepInfo";
+import { buildStepAppLink } from "@/lib/clientAppLinks";
+import { ACTIVE_PHOTO_PROJECT_STATUSES, isPhotoProjectPendingVisible } from "@/lib/photo-storage/notificationPolicy";
+import { eventForStatus } from "@/lib/photo-storage/server";
+import type { PhotoProjectStatus } from "@/lib/photo-storage/types";
+import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
 import { getWorkflowDisplayStepKey, STEP_NAME } from "@/lib/workflow";
-import { findWorkflowConsistencyIssues } from "@/lib/workflowAutomation";
+import { findWorkflowConsistencyIssues, type WorkflowConsistencyIssue } from "@/lib/workflowAutomation";
 import { isWorkflowWaitingCustomer } from "@/lib/workflowWaiting";
-import type { StatusPanelData, StatusPanelEntry, StatusPanelRecentEntry } from "./panelTypes";
+import type { StatusPanelAction, StatusPanelData, StatusPanelEntry, StatusPanelRecentEntry } from "./panelTypes";
 import type { SystemStatusReport } from "./types";
 
 const RECENT_LIMIT = 5;
@@ -25,6 +32,10 @@ type PhotoProjectRow = {
   source_relative_path: string | null;
   status: string;
   workflow_run_id: string | null;
+  jpg_count?: number | null;
+  raw_count?: number | null;
+  notification_deferred_until?: string | null;
+  notification_dismissed_at?: string | null;
   updated_at: string | null;
 };
 type ApprovalRow = {
@@ -50,7 +61,15 @@ type EventRow = {
   payload: Record<string, unknown> | null;
   occurred_at: string | null;
 };
-type BackupRow = { id: string; folder_name: string | null; status: string | null; created_at: string | null };
+type BackupRow = {
+  id: string;
+  event_type: string | null;
+  folder_name: string | null;
+  file_count: number | null;
+  total_bytes: number | null;
+  status: string | null;
+  created_at: string | null;
+};
 type RemoteJobRow = {
   id: string;
   action: string | null;
@@ -62,6 +81,7 @@ type RemoteJobRow = {
   created_at: string | null;
   completed_at: string | null;
 };
+type FallbackRow = { id: string; metadata: Record<string, unknown> | null; created_at: string | null };
 type QueryResult<T> = { data: T[] | null; error: { message?: string } | null };
 
 const JOB_ACTION_LABEL: Record<string, string> = {
@@ -113,6 +133,95 @@ function percentFromProgress(progress: Record<string, unknown> | null | undefine
   return Math.max(0, Math.min(100, Math.round((current / total) * 100)));
 }
 
+export function photoSortingHref(folder: string | null | undefined) {
+  return folder?.trim() ? `/photo-sorting?remoteFolder=${encodeURIComponent(folder.trim())}` : "/photo-sorting";
+}
+
+export function isTransientRemoteJobFailure(error: string | null | undefined) {
+  if (!error) return false;
+  return /(?:curl(?:\s+exit(?:\s+code)?)?\s*[=:]?\s*(?:6|7|28)\b|could not resolve|failed to connect|connection (?:refused|timed out)|operation timed out|network (?:is )?unreachable|\b(?:ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT)\b)/i.test(error);
+}
+
+function safeRemoteProgress(progress: Record<string, unknown> | null | undefined) {
+  try {
+    return parseRemoteJobProgress(progress);
+  } catch {
+    return null;
+  }
+}
+
+function projectIdFromJob(job: RemoteJobRow) {
+  return typeof job.payload?.project_id === "string" ? job.payload.project_id : null;
+}
+
+function jobFolder(job: RemoteJobRow, project?: PhotoProjectRow) {
+  for (const key of ["source_relative_path", "source_folder", "project_relative_path"]) {
+    const value = job.payload?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return project?.source_relative_path?.trim() || null;
+}
+
+function formatBytes(bytes: number | null | undefined) {
+  if (!bytes || bytes <= 0) return null;
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value.toFixed(value >= 10 || unit === 0 ? 0 : 1)}${units[unit]}`;
+}
+
+function apiAction(id: string, label: string, endpoint: string, options: {
+  body?: Record<string, unknown>;
+  tone?: StatusPanelAction["tone"];
+  auto?: boolean;
+} = {}): StatusPanelAction {
+  return { id, label, kind: "api", endpoint, method: "POST", ...options };
+}
+
+function openAction(id: string, label: string, href: string): StatusPanelAction {
+  return { id, label, kind: "open", href };
+}
+
+function photoActions(project: PhotoProjectRow, options: { retry?: boolean } = {}): StatusPanelAction[] {
+  const href = photoSortingHref(project.source_relative_path);
+  if (options.retry) {
+    return [
+      apiAction(`retry:${project.id}`, "재시도", `/api/photo-storage/projects/${project.id}/retry`, { tone: "primary" }),
+      openAction(`open:${project.id}`, "열어보기", href),
+    ];
+  }
+  return [
+    apiAction(`approve:${project.id}`, project.status === "MERGE_COMPLETED" ? "분류 시작" : "승인", `/api/photo-storage/projects/${project.id}/approve`, { tone: "primary" }),
+    apiAction(`defer:${project.id}`, "미루기", `/api/photo-storage/projects/${project.id}/defer`),
+    openAction(`open:${project.id}`, "열어보기", href),
+  ];
+}
+
+function sanitizeFallbackReason(value: unknown) {
+  if (typeof value !== "string") return "알 수 없는 사유";
+  return value.trim()
+    .replace(/https?:\/\/\S+/gi, "[주소]")
+    .replace(/Bearer\s+\S+/gi, "Bearer [숨김]")
+    .slice(0, 180) || "알 수 없는 사유";
+}
+
+function fallbackSummary(rows: FallbackRow[]) {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    const reason = sanitizeFallbackReason(row.metadata?.fallbackReason);
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 3)
+    .map(([reason, count]) => `${reason} ${count}회`)
+    .join(" · ");
+}
+
 function fulfilledRows<T>(result: PromiseSettledResult<QueryResult<T>>): T[] {
   if (result.status !== "fulfilled" || result.value.error) return [];
   return result.value.data ?? [];
@@ -131,6 +240,46 @@ function queryFailure(
   return { id: `query:${id}`, kind: "query_error", level: "unknown", title: `${label} · 확인 불가`, detail };
 }
 
+function supabaseSqlEditorUrl() {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return "https://supabase.com/dashboard/projects";
+  try {
+    const projectRef = new URL(raw).hostname.split(".")[0];
+    return projectRef ? `https://supabase.com/dashboard/project/${encodeURIComponent(projectRef)}/sql/new` : "https://supabase.com/dashboard/projects";
+  } catch {
+    return "https://supabase.com/dashboard/projects";
+  }
+}
+
+export async function loadSchemaWarningEntries(diagnostics: SystemStatusReport): Promise<StatusPanelEntry[]> {
+  const migrations = new Map<string, string>();
+  for (const item of diagnostics.items ?? []) {
+    if (item.level === "ok" || !item.migration) continue;
+    if (!/^supabase\/migrations\/[0-9A-Za-z._-]+\.sql$/.test(item.migration)) continue;
+    migrations.set(item.id, item.migration);
+  }
+  const migrationRoot = path.resolve(process.cwd(), "supabase/migrations");
+  return Promise.all([...migrations.entries()].map(async ([diagnosticId, migration]) => {
+    const absolutePath = path.resolve(process.cwd(), migration);
+    const insideMigrationRoot = absolutePath.startsWith(`${migrationRoot}${path.sep}`);
+    let sql = "";
+    if (insideMigrationRoot) sql = await readFile(absolutePath, "utf8").catch(() => "");
+    const fileName = path.basename(migration);
+    return {
+      id: `diagnostic:${diagnosticId}`,
+      kind: "schema_warning",
+      level: "warning" as const,
+      title: `적용 안 된 SQL · ${fileName}`,
+      detail: sql ? "SQL 원문을 복사해 Supabase에서 적용하세요." : "SQL 파일을 읽지 못했습니다. 저장소에서 직접 확인하세요.",
+      createdAt: diagnostics.checkedAt,
+      actions: [
+        ...(sql ? [{ id: `copy-sql:${diagnosticId}`, label: "SQL 복사", kind: "copy" as const, value: sql, tone: "primary" as const }] : []),
+        { id: `open-supabase:${diagnosticId}`, label: "Supabase 열기", kind: "external" as const, href: supabaseSqlEditorUrl() },
+      ],
+    };
+  }));
+}
+
 export function buildStatusPanelCollections(input: {
   diagnostics: SystemStatusReport;
   photoProjects?: PhotoProjectRow[];
@@ -140,15 +289,11 @@ export function buildStatusPanelCollections(input: {
   blockedEvents?: EventRow[];
   backups?: BackupRow[];
   remoteJobs?: RemoteJobRow[];
-  fallbackCount24h?: number | null;
-  coreBypassIssues?: Array<{
-    workflowRunId: string;
-    clientId: string | null;
-    clientName: string;
-    currentStepName: string;
-    updatedAt: string;
-  }>;
+  fallbackRows?: FallbackRow[];
+  consistencyIssues?: WorkflowConsistencyIssue[];
+  schemaIssues?: StatusPanelEntry[];
   queryIssues?: StatusPanelEntry[];
+  nowMs?: number;
 }): StatusPanelData {
   const photoProjects = input.photoProjects ?? [];
   const workflowRuns = input.workflowRuns ?? [];
@@ -157,50 +302,102 @@ export function buildStatusPanelCollections(input: {
   const blockedEvents = input.blockedEvents ?? [];
   const backups = input.backups ?? [];
   const remoteJobs = input.remoteJobs ?? [];
+  const fallbackRows = input.fallbackRows ?? [];
+  const nowMs = input.nowMs ?? Date.now();
   const runById = new Map(workflowRuns.map((run) => [run.id, run]));
+  const projectById = new Map(photoProjects.map((project) => [project.id, project]));
+  const projectByPath = new Map(photoProjects.map((project) => [project.source_relative_path ?? project.project_name ?? "", project]));
+  const failedJobCount = new Map<string, number>();
+  for (const job of remoteJobs) {
+    if (job.status !== "FAILED") continue;
+    const projectId = projectIdFromJob(job);
+    if (!projectId || !job.action) continue;
+    const key = `${projectId}:${job.action}`;
+    failedJobCount.set(key, (failedJobCount.get(key) ?? 0) + 1);
+  }
   const pendingApprovalCount = new Map<string, number>();
   for (const approval of approvals) {
     if (!approval.workflow_run_id) continue;
     pendingApprovalCount.set(approval.workflow_run_id, (pendingApprovalCount.get(approval.workflow_run_id) ?? 0) + 1);
   }
 
-  const panelIssues: StatusPanelEntry[] = [...(input.queryIssues ?? [])];
-  if ((input.fallbackCount24h ?? 0) > 0) {
+  const panelIssues: StatusPanelEntry[] = [...(input.queryIssues ?? []), ...(input.schemaIssues ?? [])];
+  if (fallbackRows.length > 0) {
     panelIssues.push({
       id: "hermes-fallbacks",
       kind: "hermes_fallback",
       level: "warning",
-      title: `최근 24시간 헤르메스 폴백 ${input.fallbackCount24h}회`,
-      detail: "대체 처리 경로가 사용된 대화가 있습니다. 채팅의 폴백 배지에서 사유를 확인하세요.",
+      title: `최근 24시간 헤르메스 폴백 ${fallbackRows.length}회`,
+      detail: fallbackSummary(fallbackRows) || "폴백 사유를 확인할 수 없습니다.",
+      createdAt: fallbackRows[0]?.created_at ?? input.diagnostics.checkedAt,
     });
   }
-  for (const issue of input.coreBypassIssues ?? []) {
+  for (const issue of input.consistencyIssues ?? []) {
+    if (issue.kind === "resource_ahead") {
+      const endpoint = issue.resourceType === "quote" && issue.resourceId
+        ? `/api/quotes/${issue.resourceId}/complete`
+        : `/api/workflow-runs/${issue.workflowRunId}/complete-step`;
+      panelIssues.push({
+        id: `consistency:${issue.workflowRunId}:${issue.foundStepKey}`,
+        kind: "consistency_repair",
+        level: "warning",
+        title: `단계 정합성 · ${issue.clientName || "이름 없는 고객"}`,
+        detail: `${issue.foundStepName} 자료가 있지만 ${issue.currentStepName} 단계에 머물러 있습니다.`,
+        href: projectHref(runById.get(issue.workflowRunId), issue.clientId),
+        clientId: issue.clientId,
+        workflowRunId: issue.workflowRunId,
+        createdAt: input.diagnostics.checkedAt,
+        actions: [
+          apiAction(`repair:${issue.workflowRunId}:${issue.foundStepKey}`, "지금 완료 처리", endpoint, {
+            tone: "primary",
+            ...(issue.resourceType === "quote" ? {} : { body: { stepKey: issue.foundStepKey } }),
+          }),
+          openAction(`open-client:${issue.workflowRunId}`, "열어보기", projectHref(runById.get(issue.workflowRunId), issue.clientId)),
+        ],
+      });
+      continue;
+    }
     panelIssues.push({
       id: `core-bypass:${issue.workflowRunId}`,
       kind: "core_bypass",
       level: "warning",
       title: `Core 우회 의심 · ${issue.clientName || "이름 없는 고객"}`,
-      detail: `${issue.currentStepName} · 워크플로 상태를 확인하세요.`,
+      detail: `${issue.currentStepName} · 단계 변경 시각 ${issue.updatedAt}`,
       href: projectHref(runById.get(issue.workflowRunId), issue.clientId),
       clientId: issue.clientId,
       workflowRunId: issue.workflowRunId,
       createdAt: issue.updatedAt,
+      actions: [openAction(`open-client:${issue.workflowRunId}`, "대상 열기", projectHref(runById.get(issue.workflowRunId), issue.clientId))],
     });
   }
   for (const project of photoProjects) {
     if (!PHOTO_FAILURE_STATUSES.has(project.status)) continue;
     const run = project.workflow_run_id ? runById.get(project.workflow_run_id) : undefined;
+    const latestFailedJob = remoteJobs.find((job) => job.status === "FAILED" && projectIdFromJob(job) === project.id);
+    const failureKey = latestFailedJob?.action ? `${project.id}:${latestFailedJob.action}` : null;
+    const autoRetry = Boolean(
+      latestFailedJob
+      && failureKey
+      && failedJobCount.get(failureKey) === 1
+      && isTransientRemoteJobFailure(latestFailedJob.error || latestFailedJob.message),
+    );
+    const href = photoSortingHref(project.source_relative_path);
+    const statusEvent = eventForStatus(project.status as PhotoProjectStatus);
     panelIssues.push({
       id: `photo-failure:${project.id}`,
       kind: "photo_failure",
       level: project.status === "REVIEW_REQUIRED" ? "warning" : "error",
       title: `사진 작업 확인 필요 · ${project.project_name || "이름 없는 폴더"}`,
-      detail: project.status,
-      href: "/photo-sorting",
+      detail: latestFailedJob?.error || statusEvent.message,
+      href,
       clientId: run?.client_id ?? null,
       workflowRunId: project.workflow_run_id,
       projectId: project.id,
       createdAt: project.updated_at,
+      actions: [
+        ...(autoRetry ? [apiAction(`auto-retry:${project.id}:${latestFailedJob?.id}`, "자동 재시도", `/api/photo-storage/projects/${project.id}/retry`, { tone: "primary", auto: true })] : []),
+        openAction(`open:${project.id}`, "열어보기", href),
+      ],
     });
   }
 
@@ -208,18 +405,27 @@ export function buildStatusPanelCollections(input: {
   const representedRuns = new Set<string>();
   for (const project of photoProjects) {
     if (!["READY", "DEFERRED", "MERGE_COMPLETED"].includes(project.status)) continue;
+    if (!isPhotoProjectPendingVisible({
+      status: project.status as PhotoProjectStatus,
+      notification_deferred_until: project.notification_deferred_until ?? null,
+      notification_dismissed_at: project.notification_dismissed_at ?? null,
+    }, nowMs)) continue;
     if (project.workflow_run_id) representedRuns.add(project.workflow_run_id);
     const firstApproval = project.status === "READY" || project.status === "DEFERRED";
+    const href = photoSortingHref(project.source_relative_path);
     myTurn.push({
       id: `photo-action:${project.id}`,
       kind: firstApproval ? "photo_first_approval" : "photo_second_approval",
       level: "info",
-      title: `${firstApproval ? "1차 승인 대기" : "2차 승인 대기"} · ${project.project_name || "이름 없는 폴더"}`,
-      detail: firstApproval ? "원본 분리 작업을 확인해주세요." : "씬별 분류 진행 여부를 확인해주세요.",
-      href: "/photo-sorting",
+      title: `${project.project_name || "이름 없는 폴더"} · ${firstApproval ? "원본 분리 승인 대기" : "1차 분류 완료"}`,
+      detail: firstApproval
+        ? `JPG ${(project.jpg_count ?? 0).toLocaleString("ko-KR")}장 · 승인하면 원본 분리를 시작합니다.`
+        : `씬 분류를 시작할 차례입니다. ${STEP_INFO.backup_sorting?.desc ?? "사진 분류 단계를 진행합니다."}`,
+      href,
       workflowRunId: project.workflow_run_id,
       projectId: project.id,
       createdAt: project.updated_at,
+      actions: photoActions(project),
     });
   }
 
@@ -235,11 +441,15 @@ export function buildStatusPanelCollections(input: {
       kind: "workflow_blocked",
       level: "info",
       title: `잔금·계산서 확인 대기 · ${projectTitle(run)}`,
-      detail: "잔금과 계산서 확인 후 사진 분류 단계로 진행할 수 있습니다.",
+      detail: STEP_INFO.payment_confirm?.desc ?? "잔금과 계산서 확인 후 다음 단계로 진행할 수 있습니다.",
       href: projectHref(run, event.client_id),
       clientId: run.client_id ?? event.client_id,
       workflowRunId: run.id,
       createdAt: event.occurred_at,
+      actions: [
+        apiAction(`complete-payment:${run.id}`, "확인 완료", `/api/workflow-runs/${run.id}/complete-step`, { body: { stepKey: "payment_confirm" }, tone: "primary" }),
+        openAction(`open-client:${run.id}`, "열어보기", projectHref(run, event.client_id)),
+      ],
     });
   }
 
@@ -287,69 +497,112 @@ export function buildStatusPanelCollections(input: {
       kind: "waiting_customer",
       level: "info",
       title: `고객 대기 중 · ${projectTitle(run)}`,
-      detail: `${STEP_NAME[displayStepKey ?? ""] || displayStepKey || "현재 단계"} 확인이 필요합니다.`,
-      href: projectHref(run),
+      detail: STEP_INFO[displayStepKey ?? ""]?.desc || `${STEP_NAME[displayStepKey ?? ""] || displayStepKey || "현재 단계"} 확인이 필요합니다.`,
+      href: run.client_id && displayStepKey
+        ? buildStepAppLink({ stepKey: displayStepKey, clientId: run.client_id, workflowRunId: run.id })
+        : projectHref(run),
       clientId: run.client_id,
       workflowRunId: run.id,
       createdAt: run.updated_at,
+      actions: [openAction(
+        `open-step:${run.id}`,
+        `${STEP_NAME[displayStepKey ?? ""] || "현재 단계"} 열기`,
+        run.client_id && displayStepKey
+          ? buildStepAppLink({ stepKey: displayStepKey, clientId: run.client_id, workflowRunId: run.id })
+          : projectHref(run),
+      )],
     });
   }
 
   const progress: StatusPanelEntry[] = [];
+  const activeRemoteProjectIds = new Set(
+    remoteJobs
+      .filter((job) => ["QUEUED", "RUNNING"].includes(job.status ?? ""))
+      .map(projectIdFromJob)
+      .filter((projectId): projectId is string => Boolean(projectId)),
+  );
   for (const project of photoProjects) {
     if (!ACTIVE_PHOTO_STATUSES.includes(project.status)) continue;
+    // 실제 remote_jobs.progress가 있으면 단계별 current/total을 보여주는 쪽을 우선한다.
+    // 같은 프로젝트의 포괄 상태 카드를 함께 내보내면 진행률이 두 줄로 중복된다.
+    if (activeRemoteProjectIds.has(project.id)) continue;
+    const href = photoSortingHref(project.source_relative_path);
     progress.push({
       id: `photo-progress:${project.id}`,
       kind: "photo_progress",
       level: "info",
       title: `${PHOTO_STATUS_LABEL[project.status] || project.status} · ${project.project_name || "이름 없는 폴더"}`,
       detail: project.source_relative_path || "사진작업실에서 진행 상황을 확인하세요.",
-      href: "/photo-sorting",
+      href,
       workflowRunId: project.workflow_run_id,
       projectId: project.id,
       createdAt: project.updated_at,
     });
   }
-  const activeProjectIds = new Set(progress.map((entry) => entry.projectId).filter(Boolean));
   for (const job of remoteJobs) {
     if (!["QUEUED", "RUNNING"].includes(job.status ?? "")) continue;
-    const projectId = typeof job.payload?.project_id === "string" ? job.payload.project_id : null;
-    if (projectId && activeProjectIds.has(projectId)) continue;
+    const projectId = projectIdFromJob(job);
+    const project = projectId ? projectById.get(projectId) : undefined;
+    const folder = jobFolder(job, project);
     const progressPercent = percentFromProgress(job.progress);
+    const actionLabel = JOB_ACTION_LABEL[job.action ?? ""] || job.action || "원격 작업";
+    const targetName = project?.project_name || folder || "대상 확인 중";
     progress.push({
       id: `remote-job:${job.id}`,
       kind: "remote_job_progress",
       level: "info",
-      title: `${JOB_ACTION_LABEL[job.action ?? ""] || job.action || "원격 작업"} · ${JOB_STATUS_LABEL[job.status ?? ""] || job.status || "진행 중"}`,
+      title: `${actionLabel} · ${targetName}`,
       detail: job.message || (typeof job.progress?.message === "string" ? job.progress.message : "Mac Studio에서 처리 중입니다."),
-      href: "/photo-sorting",
+      href: photoSortingHref(folder),
       projectId,
       createdAt: job.created_at,
       progressPercent,
+      remoteJob: {
+        id: job.id,
+        status: job.status === "QUEUED" ? "QUEUED" : "RUNNING",
+        message: job.message,
+        error: job.error,
+        progress: safeRemoteProgress(job.progress),
+      },
     });
   }
 
   const recentActivity: StatusPanelRecentEntry[] = [];
   for (const backup of backups.slice(0, RECENT_LIMIT)) {
+    const project = projectByPath.get(backup.folder_name ?? "");
+    const href = photoSortingHref(backup.folder_name);
+    const fileCount = Math.max(0, Number(backup.file_count ?? 0));
+    const byteText = formatBytes(backup.total_bytes);
+    const actions = project && ["READY", "DEFERRED", "MERGE_COMPLETED"].includes(project.status)
+      ? photoActions(project)
+      : [openAction(`open-backup:${backup.id}`, "열어보기", href)];
     recentActivity.push({
       id: `backup:${backup.id}`,
       kind: "backup",
       title: backup.folder_name || "이름 없는 백업 폴더",
-      detail: `백업 감지 · ${backup.status || "상태 확인 중"}`,
+      detail: `백업 감지 · ${fileCount.toLocaleString("ko-KR")}개 파일${byteText ? ` · ${byteText}` : ""} · ${backup.status || "상태 확인 중"}`,
       level: "info",
-      href: "/photo-sorting",
+      href,
       createdAt: backup.created_at || input.diagnostics.checkedAt,
+      projectId: project?.id ?? null,
+      actions,
     });
   }
   for (const job of remoteJobs.filter((row) => ["COMPLETED", "FAILED"].includes(row.status ?? "")).slice(0, RECENT_LIMIT)) {
+    const projectId = projectIdFromJob(job);
+    const project = projectId ? projectById.get(projectId) : undefined;
+    const folder = jobFolder(job, project);
+    const actionLabel = JOB_ACTION_LABEL[job.action ?? ""] || job.action || "원격 작업";
     recentActivity.push({
       id: `recent-job:${job.id}`,
       kind: "remote_job",
-      title: JOB_ACTION_LABEL[job.action ?? ""] || job.action || "원격 작업",
+      title: `${actionLabel} · ${project?.project_name || folder || "대상 확인 중"}`,
       detail: `${JOB_STATUS_LABEL[job.status ?? ""] || job.status}${job.status === "FAILED" && job.error ? ` · ${job.error}` : ""}`,
       level: job.status === "FAILED" ? "error" : "info",
-      href: "/photo-sorting",
+      href: photoSortingHref(folder),
       createdAt: job.completed_at || job.created_at || input.diagnostics.checkedAt,
+      projectId,
+      actions: [openAction(`open-job:${job.id}`, "대상 열기", photoSortingHref(folder))],
     });
   }
   recentActivity.sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime());
@@ -371,8 +624,10 @@ export async function collectStatusPanelData(options: {
   now?: Date;
 }): Promise<StatusPanelData> {
   const { db, diagnostics } = options;
-  const since24h = new Date((options.now ?? new Date()).getTime() - 24 * 60 * 60 * 1_000).toISOString();
-  const results = await Promise.allSettled([
+  const now = options.now ?? new Date();
+  const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1_000).toISOString();
+  const [results, schemaIssues] = await Promise.all([
+    Promise.allSettled([
     // 오래된 운영 DB에는 workflow_run_id가 아직 없을 수 있다. 명시 select로 optional 컬럼을
     // 요구하면 사진 상태 전체가 사라지므로 기존 photo-storage/projects API처럼 행 전체를 읽고,
     // 연결 컬럼이 실제로 있을 때만 아래 조립 단계에서 사용한다.
@@ -387,13 +642,16 @@ export async function collectStatusPanelData(options: {
       .eq("status", "failed").order("updated_at", { ascending: false }).limit(20),
     db.from("olivia_events").select("id,client_id,workflow_run_id,payload,occurred_at")
       .eq("event_type", "workflow.blocked").order("occurred_at", { ascending: false }).limit(30),
-    db.from("worker_events").select("id,folder_name,status,created_at")
+    db.from("worker_events").select("id,event_type,folder_name,file_count,total_bytes,status,created_at")
       .order("created_at", { ascending: false }).limit(RECENT_LIMIT),
     db.from("remote_jobs").select("id,action,status,payload,progress,message,error,created_at,completed_at")
-      .neq("action", "PING").order("created_at", { ascending: false }).limit(20),
-    db.from("olivia_chat_messages").select("id", { count: "exact", head: true })
-      .eq("role", "assistant").not("metadata->>fallbackReason", "is", null).gte("created_at", since24h),
+      .neq("action", "PING").order("created_at", { ascending: false }).limit(200),
+    db.from("olivia_chat_messages").select("id,metadata,created_at")
+      .eq("role", "assistant").not("metadata->>fallbackReason", "is", null).gte("created_at", since24h)
+      .order("created_at", { ascending: false }).limit(500),
     findWorkflowConsistencyIssues(db),
+    ]),
+    loadSchemaWarningEntries(diagnostics),
   ]);
 
   const [photoResult, runsResult, approvalsResult, tasksResult, eventsResult, backupsResult, jobsResult, fallbackResult, consistencyResult] = results;
@@ -413,11 +671,8 @@ export async function collectStatusPanelData(options: {
     } : null,
   ].filter((entry): entry is StatusPanelEntry => Boolean(entry));
 
-  const fallbackCount24h = fallbackResult.status === "fulfilled" && !fallbackResult.value.error
-    ? fallbackResult.value.count ?? 0
-    : null;
-  const coreBypassIssues = consistencyResult.status === "fulfilled"
-    ? consistencyResult.value.filter((issue) => issue.kind === "core_bypass_suspected").slice(0, RECENT_LIMIT)
+  const consistencyIssues = consistencyResult.status === "fulfilled"
+    ? consistencyResult.value.slice(0, RECENT_LIMIT)
     : [];
 
   return buildStatusPanelCollections({
@@ -429,8 +684,10 @@ export async function collectStatusPanelData(options: {
     blockedEvents: fulfilledRows(eventsResult) as EventRow[],
     backups: fulfilledRows(backupsResult) as BackupRow[],
     remoteJobs: fulfilledRows(jobsResult) as RemoteJobRow[],
-    fallbackCount24h,
-    coreBypassIssues,
+    fallbackRows: fulfilledRows(fallbackResult) as FallbackRow[],
+    consistencyIssues,
+    schemaIssues,
     queryIssues,
+    nowMs: now.getTime(),
   });
 }

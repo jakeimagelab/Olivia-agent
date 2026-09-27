@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STATUS_PANEL_SECTIONS,
   hasConnectionProblem,
+  normalizeStatusPanelData,
   parseStoredSectionState,
   resolveSectionState,
+  retryableStatusIssueIds,
   statusPanelBadge,
   systemAttentionItems,
 } from "./panelModel";
@@ -59,5 +61,44 @@ describe("status panel model", () => {
     ], myTurnCount: 3 })).toEqual({ tone: "orange", count: 2 });
     expect(statusPanelBadge({ issues: [], myTurnCount: 3 })).toEqual({ tone: "blue", count: 3 });
     expect(statusPanelBadge({ issues: [], myTurnCount: 0 })).toEqual({ tone: "none", count: 0 });
+  });
+
+  it.each([
+    ["worker 없음", { diagnostics: { items: [{ id: "mcp_tools", level: "ok" }] } }],
+    ["recentBackups 없음", { diagnostics: { items: [] }, progress: [] }],
+    ["recentJobs 없음", { diagnostics: { items: [] }, recentActivity: [] }],
+    ["coreBypassIssues 없음", { diagnostics: { items: [] }, myTurn: [] }],
+    ["consistencyError 없음", { diagnostics: { items: [] }, panelIssues: [] }],
+    ["hermesFallbackCount24h 없음", { diagnostics: { items: [] } }],
+    ["mcp 없음", { diagnostics: { items: [{ id: "worker", level: "ok" }] } }],
+    ["schemaWarnings 없음", {}],
+  ])("부분 응답에서도 상태표시줄 모델이 안전하게 렌더 데이터를 만든다: %s", (_label, raw) => {
+    const normalized = normalizeStatusPanelData(raw);
+    expect(() => systemAttentionItems(normalized)).not.toThrow();
+    expect(normalized.panelIssues).toEqual([]);
+    expect(normalized.myTurn).toEqual([]);
+    expect(normalized.progress).toEqual([]);
+    expect(normalized.recentActivity).toEqual([]);
+  });
+
+  it("MCP 확인 불가와 워크플로 정합성 조회 실패만 30초 재조회 대상으로 고른다", () => {
+    const value = data("ok");
+    value.diagnostics.items = [{
+      id: "mcp_tools",
+      group: "cloud",
+      label: "MCP 도구",
+      level: "unknown",
+      state: "확인 불가",
+    }];
+    value.panelIssues = [{
+      id: "query:workflow-consistency",
+      kind: "query_error",
+      level: "unknown",
+      title: "워크플로 정합성 · 확인 불가",
+    }];
+    expect(retryableStatusIssueIds(value)).toEqual([
+      "diagnostic:mcp_tools",
+      "query:workflow-consistency",
+    ]);
   });
 });

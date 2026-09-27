@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ErrorInfo, type ReactNode } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -8,25 +8,31 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  Copy,
+  ExternalLink,
   History,
   RefreshCw,
   Server,
   UserRoundCheck,
 } from "lucide-react";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
+import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { ShootingProgressCards } from "@/components/shooting-progress/ShootingProgressCards";
+import { logOliviaError } from "@/lib/errors/errorDiagnostics";
 import {
   connectionStatusItems,
   DEFAULT_STATUS_PANEL_SECTIONS,
   hasConnectionProblem,
+  normalizeStatusPanelData,
   parseStoredSectionState,
+  retryableStatusIssueIds,
   STATUS_PANEL_STORAGE_KEY,
   statusPanelBadge,
   systemAttentionItems,
   type StatusPanelSectionKey,
   type StatusPanelSectionState,
 } from "@/lib/system-status/panelModel";
-import type { StatusPanelData, StatusPanelEntry, StatusPanelRecentEntry } from "@/lib/system-status/panelTypes";
+import type { StatusPanelAction, StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import type { SystemStatusItem } from "@/lib/system-status/types";
 import { useBackgroundJobsStore, type BackgroundJob } from "@/lib/store/useBackgroundJobsStore";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
@@ -34,6 +40,39 @@ import styles from "./OliviaDesktop.module.css";
 
 const CLOSED_POLL_MS = 60_000;
 const OPEN_POLL_MS = 25_000;
+const TRANSIENT_RECHECK_MS = 30_000;
+
+type EntryActionState = { loading?: boolean; message?: string; error?: boolean };
+
+class StatusPanelErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    logOliviaError("status-panel", error, { componentStack: info.componentStack });
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <button
+          type="button"
+          className={styles.topBarIconButton}
+          aria-label="시스템 상태 확인 안 됨"
+          title="상태표시줄을 불러오지 못했습니다. 다른 기능은 계속 사용할 수 있습니다."
+          onClick={() => this.setState({ failed: false })}
+        >
+          <Server size={15} />
+          <span className={`${styles.statusPanelBadge} ${styles.statusPanelBadge_orange}`}>!</span>
+        </button>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function relativeTime(value: string | null | undefined) {
   if (!value) return "시각 확인 불가";
@@ -83,14 +122,26 @@ function PanelSection({
   );
 }
 
-function EntryRow({ entry, onOpen }: { entry: StatusPanelEntry; onOpen: (entry: StatusPanelEntry) => void }) {
+function EntryRow({
+  entry,
+  onOpen,
+  onAction,
+  actionStates,
+}: {
+  entry: StatusPanelEntry;
+  onOpen: (entry: StatusPanelEntry) => void;
+  onAction: (entry: StatusPanelEntry, action: StatusPanelAction) => void;
+  actionStates: Record<string, EntryActionState>;
+}) {
   const content = (
     <>
       <span className={`${styles.statusPanelSeverity} ${styles[`statusPanelSeverity_${entry.level}`]}`} aria-hidden="true" />
       <span className={styles.statusPanelEntryText}>
         <strong>{entry.title}</strong>
-        {entry.detail ? <small>{entry.detail}</small> : null}
-        {typeof entry.progressPercent === "number" ? (
+        {entry.detail || entry.createdAt ? (
+          <small>{entry.detail || "상태 확인"}{entry.createdAt ? ` · ${relativeTime(entry.createdAt)}` : ""}</small>
+        ) : null}
+        {!entry.remoteJob && typeof entry.progressPercent === "number" ? (
           <span className={styles.statusPanelProgress} aria-label={`진행률 ${entry.progressPercent}%`}>
             <i style={{ width: `${entry.progressPercent}%` }} />
           </span>
@@ -99,23 +150,42 @@ function EntryRow({ entry, onOpen }: { entry: StatusPanelEntry; onOpen: (entry: 
       {entry.href ? <ChevronRight size={14} className={styles.statusPanelEntryArrow} /> : null}
     </>
   );
-  return entry.href ? (
-    <button type="button" className={styles.statusPanelEntry} onClick={() => onOpen(entry)}>{content}</button>
-  ) : (
-    <div className={styles.statusPanelEntry}>{content}</div>
-  );
-}
-
-function RecentRow({ entry, onOpen }: { entry: StatusPanelRecentEntry; onOpen: (entry: StatusPanelRecentEntry) => void }) {
+  const feedback = (entry.actions ?? []).map((action) => actionStates[action.id]).find((state) => state?.message);
   return (
-    <button type="button" className={styles.statusPanelEntry} onClick={() => onOpen(entry)}>
-      <span className={`${styles.statusPanelSeverity} ${styles[`statusPanelSeverity_${entry.level}`]}`} aria-hidden="true" />
-      <span className={styles.statusPanelEntryText}>
-        <strong>{entry.title}</strong>
-        <small>{entry.detail} · {relativeTime(entry.createdAt)}</small>
-      </span>
-      <ChevronRight size={14} className={styles.statusPanelEntryArrow} />
-    </button>
+    <div className={styles.statusPanelEntryGroup}>
+      {entry.href ? (
+        <button type="button" className={`${styles.statusPanelEntry} ${styles.statusPanelEntryMain}`} onClick={() => onOpen(entry)}>{content}</button>
+      ) : (
+        <div className={`${styles.statusPanelEntry} ${styles.statusPanelEntryMain}`}>{content}</div>
+      )}
+      {entry.remoteJob ? (
+        <button type="button" className={styles.statusPanelRemoteProgress} onClick={() => onOpen(entry)}>
+          <RemoteJobProgress job={entry.remoteJob} pollingState="connected" compact label={entry.title} />
+        </button>
+      ) : null}
+      {entry.actions?.length ? (
+        <div className={styles.statusPanelEntryActions}>
+          {entry.actions.slice(0, 3).map((action) => {
+            const state = actionStates[action.id];
+            return (
+              <button
+                key={action.id}
+                type="button"
+                className={action.tone === "primary" ? styles.statusPanelActionPrimary : styles.statusPanelActionSecondary}
+                disabled={state?.loading}
+                onClick={() => onAction(entry, action)}
+              >
+                {action.kind === "copy" ? <Copy size={11} /> : action.kind === "external" ? <ExternalLink size={11} /> : null}
+                {state?.loading ? "처리 중" : action.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      {feedback?.message ? (
+        <p className={feedback.error ? styles.statusPanelActionError : styles.statusPanelActionSuccess}>{feedback.message}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -149,16 +219,21 @@ function BrowserJobRow({ job, onOpen }: { job: BackgroundJob; onOpen: (href: str
   );
 }
 
-export function StatusPanelButton() {
+function StatusPanelButtonContent() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<StatusPanelData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [actionStates, setActionStates] = useState<Record<string, EntryActionState>>({});
+  const [deferredIssueIds, setDeferredIssueIds] = useState<Set<string>>(() => new Set());
   const [sections, setSections] = useState<StatusPanelSectionState>(DEFAULT_STATUS_PANEL_SECTIONS);
   const panelRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
   const requestSequenceRef = useRef(0);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const recheckedIssueIdsRef = useRef(new Set<string>());
+  const recheckTimersRef = useRef<number[]>([]);
+  const autoActionIdsRef = useRef(new Set<string>());
   const { shootingProgress, refresh: refreshPhotoProjects } = usePhotoProjectNotifications();
   const backgroundJobMap = useBackgroundJobsStore((state) => state.jobs);
   const backgroundJobs = useMemo(() => Object.values(backgroundJobMap), [backgroundJobMap]);
@@ -175,7 +250,7 @@ export function StatusPanelButton() {
       const body = await response.json().catch(() => ({ ok: false }));
       if (!response.ok || !body.ok) throw new Error("상태를 불러오지 못했습니다.");
       if (requestSequence !== requestSequenceRef.current) return;
-      setData(body as StatusPanelData);
+      setData(normalizeStatusPanelData(body));
       setError(false);
       hasLoadedRef.current = true;
     } catch (cause) {
@@ -199,7 +274,28 @@ export function StatusPanelButton() {
     return () => window.clearInterval(timer);
   }, [open, load]);
 
-  useEffect(() => () => requestControllerRef.current?.abort(), []);
+  useEffect(() => () => {
+    requestControllerRef.current?.abort();
+    for (const timer of recheckTimersRef.current) window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    const pending = retryableStatusIssueIds(data).filter((id) => !recheckedIssueIdsRef.current.has(id));
+    if (!pending.length) return;
+    for (const id of pending) recheckedIssueIdsRef.current.add(id);
+    setDeferredIssueIds((current) => new Set([...current, ...pending]));
+    const timer = window.setTimeout(() => {
+      void load().finally(() => {
+        setDeferredIssueIds((current) => {
+          const next = new Set(current);
+          for (const id of pending) next.delete(id);
+          return next;
+        });
+      });
+    }, TRANSIENT_RECHECK_MS);
+    recheckTimersRef.current.push(timer);
+  }, [data, load]);
 
   useEffect(() => {
     if (!open) return;
@@ -222,13 +318,42 @@ export function StatusPanelButton() {
     setSections((current) => current.connections ? current : { ...current, connections: true });
   }, [connectionProblem]);
 
-  const issues = useMemo(() => data ? systemAttentionItems(data) : [], [data]);
+  const issues = useMemo(
+    () => data ? systemAttentionItems(data).filter((entry) => !deferredIssueIds.has(entry.id)) : [],
+    [data, deferredIssueIds],
+  );
   const badge = statusPanelBadge({ issues, myTurnCount: data?.myTurn.length ?? 0 });
   const effectiveBadge = error && !data ? { tone: "orange" as const, count: 1 } : badge;
-  const visibleShootingProgress = shootingProgress.filter((card) => !card.actionRequired);
+  const rawServerProgress = data?.progress ?? [];
+  const remoteJobProjectIds = new Set(
+    rawServerProgress
+      .filter((entry) => entry.kind === "remote_job_progress")
+      .map((entry) => entry.projectId)
+      .filter((projectId): projectId is string => Boolean(projectId)),
+  );
+  const visibleShootingProgress = shootingProgress.filter((card) => !card.actionRequired && !remoteJobProjectIds.has(card.projectId));
   const shootingProjectIds = new Set(visibleShootingProgress.map((card) => card.projectId));
-  const serverProgress = (data?.progress ?? []).filter((entry) => !entry.projectId || !shootingProjectIds.has(entry.projectId));
+  const serverProgress = rawServerProgress.filter((entry) => (
+    entry.kind === "remote_job_progress" || !entry.projectId || !shootingProjectIds.has(entry.projectId)
+  ));
   const progressCount = visibleShootingProgress.length + serverProgress.length + backgroundJobs.length;
+  const topBarProgressEntry = useMemo<StatusPanelEntry | null>(() => {
+    const remoteEntry = serverProgress.find((entry) => entry.kind === "remote_job_progress") ?? serverProgress[0];
+    if (remoteEntry) return remoteEntry;
+    const shooting = visibleShootingProgress[0];
+    if (!shooting) return null;
+    return {
+      id: `topbar-progress:${shooting.projectId}`,
+      kind: "shooting_progress",
+      level: "info",
+      title: `${shooting.stageLabel} · ${shooting.projectName}`,
+      detail: shooting.summary,
+      href: `/photo-sorting?remoteFolder=${encodeURIComponent(shooting.sourceRelativePath)}`,
+      projectId: shooting.projectId,
+      workflowRunId: shooting.workflowRunId,
+      progressPercent: shooting.progressPercent,
+    };
+  }, [serverProgress, visibleShootingProgress]);
 
   const toggleSection = useCallback((key: StatusPanelSectionKey) => {
     setSections((current) => {
@@ -252,8 +377,73 @@ export function StatusPanelButton() {
     await Promise.all([load(), refreshPhotoProjects()]);
   }, [load, refreshPhotoProjects]);
 
+  const executeAction = useCallback(async (entry: StatusPanelEntry, action: StatusPanelAction) => {
+    if (action.kind === "open" && action.href) {
+      openEntry({ ...entry, href: action.href });
+      return;
+    }
+    if (action.kind === "external" && action.href) {
+      window.open(action.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (action.kind === "copy" && action.value) {
+      try {
+        await navigator.clipboard.writeText(action.value);
+        setActionStates((current) => ({ ...current, [action.id]: { message: "클립보드에 복사했습니다." } }));
+      } catch {
+        setActionStates((current) => ({ ...current, [action.id]: { message: "복사하지 못했습니다.", error: true } }));
+      }
+      return;
+    }
+    if (action.kind !== "api" || !action.endpoint) return;
+    setActionStates((current) => ({ ...current, [action.id]: { loading: true } }));
+    try {
+      const response = await fetch(action.endpoint, {
+        method: action.method ?? "POST",
+        headers: action.body ? { "Content-Type": "application/json" } : undefined,
+        body: action.body ? JSON.stringify(action.body) : undefined,
+      });
+      const body = await response.json().catch(() => ({ ok: false }));
+      if (!response.ok || !body.ok) throw new Error(body.error || "요청을 처리하지 못했습니다.");
+      setActionStates((current) => ({
+        ...current,
+        [action.id]: { message: action.auto ? "일시적 오류라 자동으로 한 번 다시 시도했습니다." : "처리했습니다." },
+      }));
+      await refreshAll();
+    } catch (cause) {
+      setActionStates((current) => ({
+        ...current,
+        [action.id]: { message: cause instanceof Error ? cause.message : "요청을 처리하지 못했습니다.", error: true },
+      }));
+    }
+  }, [openEntry, refreshAll]);
+
+  useEffect(() => {
+    if (!data) return;
+    const entries = [...(data.panelIssues ?? []), ...(data.myTurn ?? []), ...(data.progress ?? []), ...(data.recentActivity ?? [])];
+    for (const entry of entries) {
+      for (const action of entry.actions ?? []) {
+        if (!action.auto || autoActionIdsRef.current.has(action.id)) continue;
+        autoActionIdsRef.current.add(action.id);
+        void executeAction(entry, action);
+      }
+    }
+  }, [data, executeAction]);
+
   return (
     <div className={styles.statusPanelGroup} ref={panelRef}>
+      {topBarProgressEntry ? (
+        <button
+          type="button"
+          className={styles.statusPanelActiveChip}
+          onClick={() => openEntry(topBarProgressEntry)}
+          title={`${topBarProgressEntry.title}${topBarProgressEntry.detail ? ` · ${topBarProgressEntry.detail}` : ""}`}
+        >
+          <RefreshCw size={11} className={styles.statusPanelSpin} />
+          <span>{topBarProgressEntry.title}</span>
+          {typeof topBarProgressEntry.progressPercent === "number" ? <b>{topBarProgressEntry.progressPercent}%</b> : null}
+        </button>
+      ) : null}
       <button
         type="button"
         className={styles.topBarIconButton}
@@ -293,7 +483,15 @@ export function StatusPanelButton() {
                   <b>{issues.length}</b>
                 </div>
                 <div className={styles.statusPanelSectionBody}>
-                  {issues.map((entry) => <EntryRow key={entry.id} entry={entry} onOpen={openEntry} />)}
+                  {issues.map((entry) => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onOpen={openEntry}
+                      onAction={executeAction}
+                      actionStates={actionStates}
+                    />
+                  ))}
                 </div>
               </section>
             ) : null}
@@ -306,7 +504,15 @@ export function StatusPanelButton() {
               onToggle={() => toggleSection("myTurn")}
             >
               {data.myTurn.length
-                ? data.myTurn.map((entry) => <EntryRow key={entry.id} entry={entry} onOpen={openEntry} />)
+                ? data.myTurn.map((entry) => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onOpen={openEntry}
+                      onAction={executeAction}
+                      actionStates={actionStates}
+                    />
+                  ))
                 : <p className={styles.statusPanelEmpty}>지금 직접 확인할 항목이 없습니다.</p>}
             </PanelSection>
 
@@ -328,7 +534,15 @@ export function StatusPanelButton() {
                   />
                 </div>
               ) : null}
-              {serverProgress.map((entry) => <EntryRow key={entry.id} entry={entry} onOpen={openEntry} />)}
+              {serverProgress.map((entry) => (
+                <EntryRow
+                  key={entry.id}
+                  entry={entry}
+                  onOpen={openEntry}
+                  onAction={executeAction}
+                  actionStates={actionStates}
+                />
+              ))}
               {backgroundJobs.map((job) => <BrowserJobRow key={job.id} job={job} onOpen={(href, title) => { launchHref(href, title); setOpen(false); }} />)}
               {progressCount === 0 ? <p className={styles.statusPanelEmpty}>현재 진행 중인 작업이 없습니다.</p> : null}
             </PanelSection>
@@ -351,7 +565,15 @@ export function StatusPanelButton() {
               onToggle={() => toggleSection("recent")}
             >
               {data.recentActivity.length
-                ? data.recentActivity.map((entry) => <RecentRow key={entry.id} entry={entry} onOpen={openEntry} />)
+                ? data.recentActivity.map((entry) => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      onOpen={openEntry}
+                      onAction={executeAction}
+                      actionStates={actionStates}
+                    />
+                  ))
                 : <p className={styles.statusPanelEmpty}>최근 기록이 없습니다.</p>}
               <div className={styles.statusPanelCheckedAt}><Clock3 size={11} />{relativeTime(data.checkedAt)} 확인</div>
             </PanelSection>
@@ -359,5 +581,13 @@ export function StatusPanelButton() {
         )}
       </div>
     </div>
+  );
+}
+
+export function StatusPanelButton() {
+  return (
+    <StatusPanelErrorBoundary>
+      <StatusPanelButtonContent />
+    </StatusPanelErrorBoundary>
   );
 }

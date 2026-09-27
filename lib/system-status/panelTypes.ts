@@ -1,6 +1,28 @@
 import type { SystemStatusReport } from "./types";
+import type { RemoteJobProgress } from "@/lib/remote-jobs/progress";
 
 export type StatusPanelLevel = "info" | "warning" | "error" | "unknown";
+
+export type StatusPanelAction = {
+  id: string;
+  label: string;
+  kind: "api" | "copy" | "open" | "external";
+  endpoint?: string;
+  method?: "POST";
+  body?: Record<string, unknown>;
+  href?: string;
+  value?: string;
+  tone?: "primary" | "secondary" | "danger";
+  auto?: boolean;
+};
+
+export type StatusPanelRemoteJob = {
+  id: string;
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  message: string | null;
+  error: string | null;
+  progress: RemoteJobProgress | null;
+};
 
 export type StatusPanelEntry = {
   id: string;
@@ -14,14 +36,13 @@ export type StatusPanelEntry = {
   projectId?: string | null;
   createdAt?: string | null;
   progressPercent?: number | null;
+  actions?: StatusPanelAction[];
+  remoteJob?: StatusPanelRemoteJob | null;
 };
 
-export type StatusPanelRecentEntry = {
-  id: string;
+export type StatusPanelRecentEntry = StatusPanelEntry & {
   kind: "backup" | "remote_job";
-  title: string;
   detail: string;
-  level: StatusPanelLevel;
   href: string;
   createdAt: string;
 };
