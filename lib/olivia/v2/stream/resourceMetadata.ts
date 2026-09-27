@@ -20,6 +20,13 @@ export function resourceMetadataFromTool(toolName: string, data: Record<string, 
     ...(typeof data.temporaryDocumentId === "string" ? { temporaryDocumentId: data.temporaryDocumentId } : {}),
     ...(typeof data.version === "number" ? { resourceVersion: data.version } : {}),
     ...(typeof data.clientId === "string" ? { clientId: data.clientId } : {}),
+    // document executor는 canonical 고객명을 hospitalName으로 반환한다. 이 값을 함께 저장해야
+    // 다음 턴이 화면의 오래된 고객이 아니라 방금 연 문서의 고객을 식별할 수 있다.
+    ...(typeof data.clientName === "string"
+      ? { clientName: data.clientName }
+      : typeof data.hospitalName === "string"
+        ? { clientName: data.hospitalName }
+        : {}),
     ...(typeof data.workflowRunId === "string" ? { projectId: data.workflowRunId } : {}),
   };
 }

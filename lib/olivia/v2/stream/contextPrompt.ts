@@ -54,6 +54,8 @@ export function normalizeContext(value: unknown): OliviaContextSnapshot {
     pathname: optionalString(input.pathname),
     activeClientId: optionalString(input.activeClientId),
     activeClientName: optionalString(input.activeClientName),
+    activeClientSelectedAt: optionalString(input.activeClientSelectedAt),
+    activeClientSource: (["screen", "conversation", "explicit"] as const).find((source) => source === input.activeClientSource),
     activeProjectId: optionalString(input.activeProjectId),
     activeProjectName: optionalString(input.activeProjectName),
     activeWorkspace: optionalString(input.activeWorkspace),
@@ -95,7 +97,7 @@ export function contextPrompt(context: OliviaContextSnapshot, pageContext?: stri
     temporalHint ? `해석된 날짜(코드가 계산함 — 이 값을 그대로 쓴다): ${temporalHint}` : null,
     context.pathname ? `현재 경로: ${context.pathname}` : null,
     context.activeClientName || context.activeClientId
-      ? `현재 고객: ${context.activeClientName || "이름 없음"} (${context.activeClientId || "ID 없음"})`
+      ? `현재 고객: ${context.activeClientName || "이름 없음"} (${context.activeClientId || "ID 없음"})${context.activeClientSource ? ` · 근거: ${context.activeClientSource}` : ""}`
       : null,
     context.activeProjectName || context.activeProjectId
       ? `현재 프로젝트: ${context.activeProjectName || "이름 없음"} (${context.activeProjectId || "ID 없음"})`

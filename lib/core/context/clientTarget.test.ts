@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 import {
+  clientTargetConflictQuestion,
   extractExplicitClientHint,
+  recentClientProjectContextFromHistory,
   requireClientTarget,
   resolveTrustedClientProjectContext,
   shouldRequireClientSelection,
@@ -41,7 +43,7 @@ describe("client target policy", () => {
       message: "아까 견적 내용 알려줘",
       snapshot: emptyContext,
       recent: { clientId: "client-1", clientName: "기통찬", projectId: "project-1", projectName: "가을 촬영" },
-    })).toEqual({ clientId: "client-1", clientName: "기통찬", projectId: "project-1", projectName: "가을 촬영" });
+    })).toMatchObject({ clientId: "client-1", clientName: "기통찬", projectId: "project-1", projectName: "가을 촬영", clientSource: "conversation" });
   });
 
   it("explicit context가 snapshot과 recent보다 우선한다", () => {
@@ -51,6 +53,82 @@ describe("client target policy", () => {
       explicit: { clientId: "explicit-client", clientName: "명시 고객" },
       recent: { clientId: "recent-client" },
     })).toMatchObject({ clientId: "explicit-client", clientName: "명시 고객", projectId: "snapshot-project" });
+  });
+
+  it("문장에 지정된 고객 context가 화면과 대화보다 우선한다", () => {
+    expect(resolveTrustedClientProjectContext({
+      message: "히어산부인과 견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "screen", activeClientName: "여의도기통찬", activeClientSelectedAt: "2026-09-27T10:00:00.000Z" },
+      explicit: { clientId: "explicit", clientName: "히어산부인과" },
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:09:00.000Z" },
+    })).toMatchObject({ clientId: "explicit", clientName: "히어산부인과", clientSource: "explicit" });
+  });
+
+  it("대화에서 더 최근에 확정한 고객은 화면보다 우선한다", () => {
+    expect(resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "screen", activeClientName: "여의도기통찬", activeClientSelectedAt: "2026-09-27T10:00:00.000Z" },
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:09:00.000Z" },
+    })).toMatchObject({ clientId: "recent", clientName: "청담스시", clientSource: "conversation" });
+  });
+
+  it("더 최근에 화면에서 직접 고른 고객은 대화보다 우선한다", () => {
+    expect(resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "screen", activeClientName: "여의도기통찬", activeClientSelectedAt: "2026-09-27T10:09:00.000Z" },
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:00:00.000Z" },
+    })).toMatchObject({ clientId: "screen", clientName: "여의도기통찬", clientSource: "screen" });
+  });
+
+  it("선택 시각이 없는 구버전 화면은 기존처럼 화면을 우선한다", () => {
+    expect(resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "screen", activeClientName: "여의도기통찬" },
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:09:00.000Z" },
+    })).toMatchObject({ clientId: "screen", clientName: "여의도기통찬", clientSource: "screen" });
+  });
+
+  it("화면이 없으면 비실행 문서는 최근 대화 고객을 쓴다", () => {
+    expect(resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: emptyContext,
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:09:00.000Z" },
+    })).toMatchObject({ clientId: "recent", clientName: "청담스시" });
+  });
+
+  it("화면과 대화가 1분 이내로 어긋나면 실행 대신 대상을 되묻는다", () => {
+    const resolved = resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "screen", activeClientName: "여의도기통찬", activeClientSelectedAt: "2026-09-27T10:00:00.000Z" },
+      recent: { clientId: "recent", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:00:30.000Z" },
+    });
+    expect(resolved.clientConflict).toBeDefined();
+    expect(shouldRequireClientSelection({ message: "견적서 열어줘", resolved })).toBe(true);
+    expect(clientTargetConflictQuestion({ message: "견적서 열어줘", conflict: resolved.clientConflict! })).toContain("청담스시");
+  });
+
+  it("화면과 대화가 같은 고객이면 되묻지 않는다", () => {
+    const resolved = resolveTrustedClientProjectContext({
+      message: "견적서 열어줘",
+      snapshot: { ...emptyContext, activeClientId: "client-1", activeClientName: "청담스시", activeClientSelectedAt: "2026-09-27T10:00:00.000Z" },
+      recent: { clientId: "client-1", clientName: "청담스시", clientSelectedAt: "2026-09-27T10:00:30.000Z" },
+    });
+    expect(resolved.clientConflict).toBeUndefined();
+    expect(shouldRequireClientSelection({ message: "견적서 열어줘", resolved })).toBe(false);
+  });
+
+  it("assistant 도구 결과의 created_at만 대화 대상 시각으로 쓴다", () => {
+    expect(recentClientProjectContextFromHistory([
+      { role: "user", created_at: "2026-09-27T10:02:00.000Z", metadata: { clientId: "screen", clientName: "화면 고객" } },
+      { role: "assistant", created_at: "2026-09-27T10:01:00.000Z", metadata: { clientId: "chat", hospitalName: "청담스시", projectId: "p1" } },
+    ])).toEqual({
+      clientId: "chat",
+      clientName: "청담스시",
+      projectId: "p1",
+      projectName: undefined,
+      clientSelectedAt: "2026-09-27T10:01:00.000Z",
+      clientSource: "conversation",
+    });
   });
 
   it("명시 이름과 active 이름을 사용하고 없으면 최근 후보와 함께 되묻는다", () => {

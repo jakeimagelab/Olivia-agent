@@ -54,7 +54,9 @@ import { flushTextAsDeltas } from "@/lib/olivia/v2/stream/scriptGuard";
 import { toolStatus } from "@/lib/olivia/v2/stream/toolStatusLabels";
 import { PHOTO_DIRECT_TURN_TIMEOUT_MS, executePhotoToolBeforeDeadline } from "@/lib/olivia/v2/stream/photoDirectTool";
 import {
+  clientTargetConflictQuestion,
   clientTargetQuestion,
+  recentClientProjectContextFromHistory,
   resolveTrustedClientProjectContext,
   shouldRequireClientSelection,
 } from "@/lib/core/context/clientTarget";
@@ -409,6 +411,8 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         let resolvedContextForMessage = {
           clientId: effectiveContext.activeClientId,
           clientName: effectiveContext.activeClientName,
+          clientSelectedAt: effectiveContext.activeClientSelectedAt,
+          clientSource: effectiveContext.activeClientSource,
           projectId: effectiveContext.activeProjectId,
           projectName: effectiveContext.activeProjectName,
         };
@@ -458,10 +462,9 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         const replyClientName = optionalString(replyContext?.clientName);
         const replyProjectId = optionalString(replyContext?.projectId);
         const replyProjectName = optionalString(replyContext?.projectName);
+        const recentClientProject = recentClientProjectContextFromHistory(history);
         const trustedClientProject = resolveTrustedClientProjectContext({
           message,
-          // restoreDocumentContextFromHistory()가 복구한 오래된 문서 고객은 실행 대상의 근거로
-          // 쓰지 않는다. 현재 화면 snapshot과 명시 reply context만 신뢰한다.
           snapshot: context,
           explicit: {
             clientId: replyClientId,
@@ -469,7 +472,20 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             projectId: replyProjectId,
             projectName: replyProjectName,
           },
+          recent: recentClientProject,
         });
+        if (trustedClientProject.clientConflict) {
+          const text = clientTargetConflictQuestion({
+            message,
+            conflict: trustedClientProject.clientConflict,
+          });
+          send({ type: "text_delta", messageId, delta: text });
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: "CLIENT_CONTEXT_AMBIGUOUS",
+          });
+          return;
+        }
         if (shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
           const text = clientTargetQuestion(context, "작업");
           send({ type: "text_delta", messageId, delta: text });
@@ -479,17 +495,28 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return;
         }
-        if (isClientScopedExecutionRequest(message)) {
+        // 대화에서 가장 최근에 실제로 확정한 고객 또는 이번 reply context가 선택되면, 단순
+        // "견적서 열어줘"에도 그 대상을 tool context로 넘긴다. 화면 선택만 있는 구버전 경로는
+        // 기존처럼 화면을 유지한다.
+        if (
+          isClientScopedExecutionRequest(message)
+          || trustedClientProject.clientSource === "conversation"
+          || trustedClientProject.clientSource === "explicit"
+        ) {
           effectiveContext = {
             ...effectiveContext,
             activeClientId: trustedClientProject.clientId,
             activeClientName: trustedClientProject.clientName,
+            activeClientSelectedAt: trustedClientProject.clientSelectedAt,
+            activeClientSource: trustedClientProject.clientSource,
             activeProjectId: trustedClientProject.projectId,
             activeProjectName: trustedClientProject.projectName,
           };
           resolvedContextForMessage = {
             clientId: effectiveContext.activeClientId,
             clientName: effectiveContext.activeClientName,
+            clientSelectedAt: effectiveContext.activeClientSelectedAt,
+            clientSource: effectiveContext.activeClientSource,
             projectId: effectiveContext.activeProjectId,
             projectName: effectiveContext.activeProjectName,
           };
@@ -616,6 +643,8 @@ export async function handleOliviaStreamPost(req: NextRequest) {
               resolvedContextForMessage = {
                 clientId: resolved.clientId,
                 clientName: resolved.clientName,
+                clientSelectedAt: resolved.clientSelectedAt,
+                clientSource: resolved.clientSource,
                 projectId: resolved.projectId,
                 projectName: resolved.projectName,
               };

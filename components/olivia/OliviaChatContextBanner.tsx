@@ -7,6 +7,12 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaDesktopEffectiveActiveApp } from "@/components/olivia-os/useOliviaDesktopEffectiveActiveApp";
 
+const CLIENT_TARGET_SOURCE_LABEL = {
+  screen: "화면",
+  conversation: "대화",
+  explicit: "직접 지정",
+} as const;
+
 // 스펙 §42 — Full Editor를 직접 열어놓은 채 Chat을 열면(또는 split-view에서 이미 작업 중인
 // 화면이 있으면) "지금 무엇을 작업 중인지"를 채팅 쪽에서도 보여준다. split(왼쪽 워크스페이스
 // + 오른쪽 채팅) 상태에서만 의미가 있다 — fullscreen에서는 DynamicWorkspace.tsx 자체 헤더가
@@ -26,17 +32,29 @@ export default function OliviaChatContextBanner() {
   ));
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
+  const activeClientId = useOliviaContextStore((state) => state.activeClientId);
+  const activeClientSource = useOliviaContextStore((state) => state.activeClientSource);
+  const clearClientTarget = useOliviaContextStore((state) => state.clearClientTarget);
 
   const type = useWorkspaceStore((state) => state.type);
   const mode = useWorkspaceStore((state) => state.mode);
   const clientName = useWorkspaceStore((state) => state.clientName);
   const workspaceTitle = useWorkspaceStore((state) => state.workspaceTitle);
-  const targetLabel = activeClientName || "선택되지 않음";
+  const hasClientTarget = Boolean(activeClientId || activeClientName);
+  const targetLabel = activeClientName || (hasClientTarget ? "이름 없는 고객" : "선택되지 않음");
+  const targetSourceLabel = activeClientSource ? CLIENT_TARGET_SOURCE_LABEL[activeClientSource] : undefined;
+  const targetText = `${targetLabel}${targetSourceLabel ? ` (${targetSourceLabel})` : ""}`;
+  const clearTargetButton = hasClientTarget ? (
+    <button type="button" onClick={clearClientTarget} aria-label="현재 고객 대상 해제">
+      대상 해제
+    </button>
+  ) : null;
 
   if (effective && windowTitle) {
     return (
       <div className="olivia-chat-context-banner">
-        <span>지금 대상: {targetLabel} · 현재 창: {windowTitle}</span>
+        <span>지금 대상: {targetText} · 현재 창: {windowTitle}</span>
+        {clearTargetButton}
         <button type="button" onClick={() => focusWindow(effective.windowId)}>
           창 보기
         </button>
@@ -46,7 +64,8 @@ export default function OliviaChatContextBanner() {
   if (mode !== "split" || !type) {
     return (
       <div className="olivia-chat-context-banner">
-        <span>지금 대상: {targetLabel}</span>
+        <span>지금 대상: {targetText}</span>
+        {clearTargetButton}
       </div>
     );
   }
@@ -54,7 +73,8 @@ export default function OliviaChatContextBanner() {
   if (!entry) {
     return (
       <div className="olivia-chat-context-banner">
-        <span>지금 대상: {targetLabel}</span>
+        <span>지금 대상: {targetText}</span>
+        {clearTargetButton}
       </div>
     );
   }
@@ -63,7 +83,8 @@ export default function OliviaChatContextBanner() {
 
   return (
     <div className="olivia-chat-context-banner">
-      <span>지금 대상: {targetLabel} · 현재 작업: {label}</span>
+      <span>지금 대상: {targetText} · 현재 작업: {label}</span>
+      {clearTargetButton}
       <button type="button" onClick={() => executeOliviaAction({ type: "ENTER_FULLSCREEN" })}>
         전체화면으로 열기
       </button>

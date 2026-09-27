@@ -26,6 +26,8 @@ export type EntityAlias = { type: string; id: string; name: string };
 export type OliviaContextLink = {
   clientId?: string;
   clientName?: string;
+  clientSelectedAt?: string;
+  clientSource?: "screen" | "conversation" | "explicit";
   projectId?: string;
   projectName?: string;
 };
@@ -51,6 +53,8 @@ export type OliviaContextState = {
   // activeProjectId는 Project Runtime canonical identity인 workflow_runs.id다.
   activeClientId?: string;
   activeClientName?: string;
+  activeClientSelectedAt?: string;
+  activeClientSource?: "screen" | "conversation" | "explicit";
   activeProjectId?: string;
   activeProjectName?: string;
   activeWorkspace?: string;
@@ -89,7 +93,7 @@ export type OliviaContextState = {
   canPublish?: boolean;
   canFinalize?: boolean;
 
-  setClient: (id?: string, name?: string) => void;
+  setClient: (id?: string, name?: string, source?: "screen" | "conversation" | "explicit") => void;
   setProject: (id?: string, name?: string) => void;
   setWorkspace: (workspace?: string, resourceId?: string) => void;
   setResource: (resourceId?: string) => void;
@@ -109,6 +113,7 @@ export type OliviaContextState = {
   setSelectedScene: (id?: string) => void;
   clearPageContext: () => void;
   clearSelection: () => void;
+  clearClientTarget: () => void;
   clearContext: () => void;
 };
 
@@ -130,12 +135,14 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   aliases: {},
   revision: 0,
 
-  setClient: (id, name) => set((state) => {
+  setClient: (id, name, source = "screen") => set((state) => {
     if (state.activeClientId === id && state.activeClientName === name) return state;
     const alias = name ? deriveAlias(name) : null;
     return {
       activeClientId: id,
       activeClientName: name,
+      activeClientSelectedAt: id || name ? new Date().toISOString() : undefined,
+      activeClientSource: id || name ? source : undefined,
       lastAction: "setClient",
       revision: state.revision + 1,
       recentEntities: id ? rememberEntityIn(state.recentEntities, { type: "client", id, name }) : state.recentEntities,
@@ -258,9 +265,17 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     const nextClientName = Object.hasOwn(link, "clientName") ? link.clientName : state.activeClientName;
     const nextProjectId = Object.hasOwn(link, "projectId") ? link.projectId : state.activeProjectId;
     const nextProjectName = Object.hasOwn(link, "projectName") ? link.projectName : state.activeProjectName;
+    const clientChanged = nextClientId !== state.activeClientId || nextClientName !== state.activeClientName;
+    const nextClientSelectedAt = (nextClientId || nextClientName)
+      ? (link.clientSelectedAt || (clientChanged ? new Date().toISOString() : state.activeClientSelectedAt))
+      : undefined;
+    const nextClientSource = (nextClientId || nextClientName)
+      ? (link.clientSource || (clientChanged ? "conversation" : state.activeClientSource))
+      : undefined;
     if (
-      nextClientId === state.activeClientId
-      && nextClientName === state.activeClientName
+      !clientChanged
+      && nextClientSelectedAt === state.activeClientSelectedAt
+      && nextClientSource === state.activeClientSource
       && nextProjectId === state.activeProjectId
       && nextProjectName === state.activeProjectName
     ) return state;
@@ -271,6 +286,8 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     return {
       activeClientId: nextClientId,
       activeClientName: nextClientName,
+      activeClientSelectedAt: nextClientSelectedAt,
+      activeClientSource: nextClientSource,
       activeProjectId: nextProjectId,
       activeProjectName: nextProjectName,
       aliases: alias && nextClientId && nextClientName
@@ -358,9 +375,27 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     lastAction: "clearSelection",
     revision: state.revision + 1,
   })),
+  clearClientTarget: () => set((state) => ({
+    activeClientId: undefined,
+    activeClientName: undefined,
+    activeClientSelectedAt: undefined,
+    activeClientSource: undefined,
+    activeProjectId: undefined,
+    activeProjectName: undefined,
+    activeResourceId: undefined,
+    currentDocumentId: undefined,
+    currentDocumentType: undefined,
+    currentDocumentTitle: undefined,
+    currentDocumentTotal: undefined,
+    currentDocumentDirty: undefined,
+    lastAction: "clearClientTarget",
+    revision: state.revision + 1,
+  })),
   clearContext: () => set((state) => ({
     activeClientId: undefined,
     activeClientName: undefined,
+    activeClientSelectedAt: undefined,
+    activeClientSource: undefined,
     activeProjectId: undefined,
     activeProjectName: undefined,
     activeWorkspace: undefined,
@@ -395,6 +430,8 @@ export function getOliviaContextSnapshot(pathname?: string) {
     pathname,
     activeClientId: state.activeClientId,
     activeClientName: state.activeClientName,
+    activeClientSelectedAt: state.activeClientSelectedAt,
+    activeClientSource: state.activeClientSource,
     activeProjectId: state.activeProjectId,
     activeProjectName: state.activeProjectName,
     activeWorkspace: state.activeWorkspace,

@@ -20,13 +20,22 @@ describe("customer workspace selection", () => {
     })).toBe("client-b");
   });
 
-  it("falls back to the first available customer when the selection disappeared", () => {
+  it("does not choose a customer merely because the customer list opened", () => {
     expect(resolveClientWorkspaceSelection({
       initialClientId: "missing",
       initialClientChanged: false,
       selectedClientId: "also-missing",
       availableClientIds: ["client-a", "client-b"],
-    })).toBe("client-a");
+    })).toBeNull();
+  });
+
+  it("keeps a list-only window without a selected customer", () => {
+    expect(resolveClientWorkspaceSelection({
+      initialClientId: null,
+      initialClientChanged: true,
+      selectedClientId: null,
+      availableClientIds: ["client-a", "client-b"],
+    })).toBeNull();
   });
 });
 

@@ -114,7 +114,9 @@ export function resolveClientWorkspaceSelection({
   // window context 갱신이 무한히 왕복한다.
   if (initialClientChanged && initialClientId && availableClientIds.includes(initialClientId)) return initialClientId;
   if (selectedClientId && availableClientIds.includes(selectedClientId)) return selectedClientId;
-  return availableClientIds[0] ?? null;
+  // 목록을 연 것만으로 첫 고객을 선택하면, 전혀 관련 없는 대화의 "지금 대상"까지
+  // 덮어쓴다. 고객 행을 직접 누르거나 clientId 딥링크로 연 경우에만 선택한다.
+  return null;
 }
 
 export function resolveEmbeddedClientDetailTarget(clientId: string, workflowRunId?: string | null) {
@@ -182,10 +184,14 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     });
     if (nextId === selectedClientId) return;
     setSelectedClientId(nextId);
-    const selected = filtered.find((client) => client.id === nextId);
-    const contextStore = useOliviaContextStore.getState();
-    contextStore.setClient(selected?.id, selected?.name);
-    contextStore.setProject(undefined, undefined);
+    // 목록 상태(nextId 없음)는 대화 컨텍스트를 절대 바꾸지 않는다. 실제 선택/명시 딥링크만
+    // 아래 selectClient 또는 유효한 initialClientId 경로에서 화면 대상으로 기록된다.
+    if (nextId) {
+      const selected = filtered.find((client) => client.id === nextId);
+      const contextStore = useOliviaContextStore.getState();
+      contextStore.setClient(selected?.id, selected?.name, "screen");
+      contextStore.setProject(undefined, undefined);
+    }
     if (!embedded && nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
   // filteredClientIds는 선택 가능한 id 집합만 추적해 검색 입력 중 불필요한 effect 재실행을 막는다.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -195,7 +201,7 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     setSelectedClientId(clientId);
     const selected = filtered.find((client) => client.id === clientId);
     const contextStore = useOliviaContextStore.getState();
-    contextStore.setClient(clientId, selected?.name);
+    contextStore.setClient(clientId, selected?.name, "screen");
     contextStore.setProject(undefined, undefined);
     if (!embedded) router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
   };

@@ -23,6 +23,33 @@ describe("Olivia Context와 Model Router", () => {
     });
   });
 
+  it("대화가 확정한 대상의 근거를 보존하고 사용자가 대상만 해제할 수 있다", () => {
+    const store = useOliviaContextStore.getState();
+    store.setClient("screen-client", "화면 고객", "screen");
+    store.setContextLink({
+      clientId: "chat-client",
+      clientName: "청담스시",
+      clientSelectedAt: "2026-09-27T10:00:00.000Z",
+      clientSource: "conversation",
+      projectId: "project-1",
+    });
+
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: "chat-client",
+      activeClientName: "청담스시",
+      activeClientSelectedAt: "2026-09-27T10:00:00.000Z",
+      activeClientSource: "conversation",
+    });
+
+    useOliviaContextStore.getState().clearClientTarget();
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: undefined,
+      activeClientName: undefined,
+      activeProjectId: undefined,
+      activeClientSource: undefined,
+    });
+  });
+
   it("E. Workspace와 문서가 바뀌면 row/scene transient context를 정리한다", () => {
     const store = useOliviaContextStore.getState();
     store.setWorkspace("conti", "conti-1");

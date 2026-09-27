@@ -58,6 +58,10 @@ export type OliviaContextSnapshot = {
   pathname?: string;
   activeClientId?: string;
   activeClientName?: string;
+  /** 화면에서 현재 고객을 실제로 선택한 시각. 구버전 클라이언트는 보내지 않아도 된다. */
+  activeClientSelectedAt?: string;
+  /** 현재 고객이 어떤 근거로 정해졌는지. 채팅 배너의 설명과 충돌 방지에 쓴다. */
+  activeClientSource?: "screen" | "conversation" | "explicit";
   activeProjectId?: string;
   activeProjectName?: string;
   activeWorkspace?: string;
@@ -156,6 +160,8 @@ export type OliviaStreamEvent =
       resolvedContext?: {
         clientId?: string;
         clientName?: string;
+        clientSelectedAt?: string;
+        clientSource?: "screen" | "conversation" | "explicit";
         projectId?: string;
         projectName?: string;
       };

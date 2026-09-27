@@ -8,6 +8,7 @@ type ContextMessage = {
   role: string;
   content: string;
   metadata?: unknown;
+  created_at?: unknown;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -22,7 +23,7 @@ function number(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
-function resourceFromMetadata(value: unknown) {
+function resourceFromMetadata(value: unknown, createdAt?: unknown) {
   const metadata = record(value);
   const type = string(metadata.resourceType);
   const id = string(metadata.resourceId);
@@ -35,7 +36,9 @@ function resourceFromMetadata(value: unknown) {
     version: number(metadata.resourceVersion) ?? number(metadata.version),
     workSessionId: string(metadata.workSessionId),
     clientId: string(metadata.clientId),
-    clientName: string(metadata.clientName),
+    clientName: string(metadata.clientName) || string(metadata.hospitalName),
+    clientSelectedAt: string(createdAt),
+    clientSource: "conversation" as const,
     projectId: string(metadata.projectId),
     projectName: string(metadata.projectName),
   };
@@ -73,7 +76,7 @@ export function buildHermesRuntime(input: {
 }) {
   const replyResource = resourceFromMetadata(input.replyContext);
   const recentResources = [...input.history].reverse().flatMap((message) => {
-    const resource = resourceFromMetadata(message.metadata);
+    const resource = resourceFromMetadata(message.metadata, message.created_at);
     return resource ? [resource] : [];
   });
   const snapshotResourceId = input.snapshot.currentDocumentId || input.snapshot.activeResourceId;
@@ -87,6 +90,8 @@ export function buildHermesRuntime(input: {
     workSessionId: undefined,
     clientId: input.snapshot.activeClientId,
     clientName: input.snapshot.activeClientName,
+    clientSelectedAt: input.snapshot.activeClientSelectedAt,
+    clientSource: input.snapshot.activeClientSource || "screen",
     projectId: input.snapshot.activeProjectId,
     projectName: input.snapshot.activeProjectName,
   } : undefined;
@@ -129,6 +134,8 @@ export function buildHermesRuntime(input: {
     channel: input.channel,
     activeClientId,
     activeClientName,
+    activeClientSelectedAt: resolvedClientProject.clientSelectedAt,
+    activeClientSource: resolvedClientProject.clientSource,
     activeProjectId,
     activeProjectName,
     activeWorkspace: input.snapshot.activeWorkspace,
@@ -152,7 +159,7 @@ export function buildHermesRuntime(input: {
   const related = workSessionId
     ? input.history.filter((message) => {
         const metadata = record(message.metadata);
-        const resourceMetadata = resourceFromMetadata(metadata);
+        const resourceMetadata = resourceFromMetadata(metadata, message.created_at);
         return metadata.workSessionId === workSessionId
           || (resourceMetadata?.type === resource?.type && resourceMetadata?.id === resource?.id);
       })
@@ -174,6 +181,8 @@ export function buildHermesRuntime(input: {
     resolvedContext: {
       clientId: activeClientId,
       clientName: activeClientName,
+      clientSelectedAt: resolvedClientProject.clientSelectedAt,
+      clientSource: resolvedClientProject.clientSource,
       projectId: activeProjectId,
       projectName: activeProjectName,
     },

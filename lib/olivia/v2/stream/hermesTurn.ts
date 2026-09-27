@@ -56,6 +56,8 @@ type HermesTurnInput = {
   onResolvedContext: (context: {
     clientId?: string;
     clientName?: string;
+    clientSelectedAt?: string;
+    clientSource?: "screen" | "conversation" | "explicit";
     projectId?: string;
     projectName?: string;
   }) => void;
@@ -111,6 +113,9 @@ export async function runHermesTurn(input: HermesTurnInput): Promise<HermesTurnR
   const hermesContextSnapshot: OliviaContextSnapshot = {
     ...effectiveContext,
     activeClientId: hermesRuntime.context.activeClientId,
+    activeClientName: hermesRuntime.context.activeClientName,
+    activeClientSelectedAt: hermesRuntime.context.activeClientSelectedAt,
+    activeClientSource: hermesRuntime.context.activeClientSource,
     activeProjectId: hermesRuntime.context.activeProjectId,
     activeResourceId: hermesRuntime.context.activeResourceId,
   };
