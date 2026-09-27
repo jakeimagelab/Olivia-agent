@@ -28,5 +28,19 @@ export type WorkerDiagnosticSnapshot = {
   agentstationMounted: boolean | null;
   agentstationAccessible: boolean | null;
   watcherLastScanAt: string | null;
+  watcherProgress: WorkerWatcherProgress | null;
   openAiApiKeyConfigured: boolean | null;
+  workerRevision: string | null;
+  workerInstalledAt: string | null;
+};
+
+export type WorkerWatcherProgress = {
+  version: 1;
+  scannedAt: string;
+  sourceStatus: "ONLINE" | "SOURCE_OFFLINE";
+  stabilizing: Array<{
+    projectName: string;
+    elapsedSeconds: number;
+    targetSeconds: number;
+  }>;
 };

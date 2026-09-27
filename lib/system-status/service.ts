@@ -145,6 +145,19 @@ type WorkerDiagnosticRow = {
   watcher_last_scan_at?: string | null;
 };
 type WorkerAiDiagnosticRow = { openai_api_key_configured?: boolean | null };
+type WorkerRevisionDiagnosticRow = { worker_rev?: string | null; worker_installed_at?: string | null };
+
+function deployedRevision(): string | null {
+  for (const value of [process.env.VERCEL_GIT_COMMIT_SHA, process.env.OLIVIA_SERVER_REVISION, process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA]) {
+    const normalized = value?.trim().toLowerCase();
+    if (normalized && /^[0-9a-f]{7,64}$/.test(normalized)) return normalized;
+  }
+  return null;
+}
+
+function shortRevision(value: string | null | undefined): string {
+  return value?.slice(0, 12) || "확인 불가";
+}
 
 function mountItem(options: { id: string; label: string; mounted: boolean | null | undefined; remedy: string }): SystemStatusItem {
   if (options.mounted === true) return { id: options.id, group: "mac_studio", label: options.label, level: "ok", state: "MOUNTED" };
@@ -160,10 +173,11 @@ function accessItem(options: { id: string; label: string; mounted: boolean | nul
 
 async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusItem[]> {
   const workerId = getConfiguredWorkerId();
-  const [baseResult, diagnosticsResult, aiDiagnosticsResult, queuedResult] = await Promise.all([
+  const [baseResult, diagnosticsResult, aiDiagnosticsResult, revisionDiagnosticsResult, queuedResult] = await Promise.all([
     db.from("remote_workers").select("last_seen_at,worker_status,nas_connected").eq("worker_id", workerId).maybeSingle(),
     db.from("remote_workers").select("workstation_mounted,workstation_accessible,agentstation_mounted,agentstation_accessible,watcher_last_scan_at").eq("worker_id", workerId).maybeSingle(),
     db.from("remote_workers").select("openai_api_key_configured").eq("worker_id", workerId).maybeSingle(),
+    db.from("remote_workers").select("worker_rev,worker_installed_at").eq("worker_id", workerId).maybeSingle(),
     db.from("remote_jobs").select("id", { count: "exact", head: true }).eq("status", "QUEUED"),
   ]);
 
@@ -207,6 +221,45 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
       ? { id: "worker_openai_key", group: "mac_studio", label: "Worker 씬 AI", level: "error", state: "OPENAI_API_KEY 없음", detail: "씬 경계는 시간·로컬 특징으로만 나뉘며 폴더명은 미분류 추정값으로 표시됩니다.", remedy: SYSTEM_STATUS_GUIDANCE.workerOpenAiMissing }
       : unknownItem("worker_openai_key", "mac_studio", "Worker 씬 AI", "Worker의 OPENAI_API_KEY 설정 여부를 아직 보고받지 못했습니다.", SYSTEM_STATUS_GUIDANCE.workerDiagnosticsMissing));
 
+  const serverRevision = deployedRevision();
+  const revisionSchemaMissing = Boolean(revisionDiagnosticsResult.error && isMissingSchemaObject(revisionDiagnosticsResult.error));
+  const revisionDiagnostics = !revisionDiagnosticsResult.error && revisionDiagnosticsResult.data
+    ? revisionDiagnosticsResult.data as WorkerRevisionDiagnosticRow
+    : null;
+  const installedRevision = revisionDiagnostics?.worker_rev?.trim().toLowerCase() || null;
+  const installedDetail = revisionDiagnostics?.worker_installed_at
+    ? `설치 ${relativeKorean(revisionDiagnostics.worker_installed_at, now)}`
+    : "설치 시각 확인 불가";
+  if (revisionSchemaMissing) {
+    items.push({
+      id: "worker_revision",
+      group: "mac_studio",
+      label: "Worker 설치본",
+      level: "warning",
+      state: "진단 미적용",
+      detail: "Worker revision 진단 컬럼이 없습니다.",
+      remedy: "supabase/migrations/20260927_worker_liveness_revision_diagnostics.sql migration을 적용하세요.",
+      migration: "supabase/migrations/20260927_worker_liveness_revision_diagnostics.sql",
+    });
+  } else if (revisionDiagnosticsResult.error) {
+    items.push(unknownItem("worker_revision", "mac_studio", "Worker 설치본", "Worker revision을 조회하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable));
+  } else if (!serverRevision) {
+    items.push({
+      id: "worker_revision",
+      group: "mac_studio",
+      label: "Worker 설치본",
+      level: "ok",
+      state: installedRevision ? shortRevision(installedRevision) : "비교 기준 없음",
+      detail: installedRevision ? installedDetail : "서버 배포 revision을 확인할 수 없어 신·구 버전을 판정하지 않습니다.",
+    });
+  } else if (!installedRevision) {
+    items.push({ id: "worker_revision", group: "mac_studio", label: "Worker 설치본", level: "warning", state: "보고 없음", detail: `서버 ${shortRevision(serverRevision)}`, remedy: SYSTEM_STATUS_GUIDANCE.workerRevisionMissing });
+  } else if (installedRevision !== serverRevision) {
+    items.push({ id: "worker_revision", group: "mac_studio", label: "Worker 설치본", level: "warning", state: "업데이트 필요", detail: `설치 ${shortRevision(installedRevision)} · 서버 ${shortRevision(serverRevision)} · ${installedDetail}`, remedy: SYSTEM_STATUS_GUIDANCE.workerRevisionStale });
+  } else {
+    items.push({ id: "worker_revision", group: "mac_studio", label: "Worker 설치본", level: "ok", state: "최신", detail: `${shortRevision(installedRevision)} · ${installedDetail}` });
+  }
+
   const watcherIso = diagnostics?.watcher_last_scan_at;
   const watcherMs = watcherIso ? new Date(watcherIso).getTime() : Number.NaN;
   const watcherRecent = Number.isFinite(watcherMs) && now.getTime() - watcherMs < WATCHER_STALE_MS;
@@ -249,6 +302,7 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
       unknownItem("agentstation_mount", "mac_studio", "Agentstation 마운트", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("agentstation_access", "mac_studio", "Agentstation 접근", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("worker_openai_key", "mac_studio", "Worker 씬 AI", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
+      unknownItem("worker_revision", "mac_studio", "Worker 설치본", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("watcher_scan", "mac_studio", "NAS 감지기", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
       unknownItem("queued_jobs", "mac_studio", "대기 중인 잡", "Remote job 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
     ];

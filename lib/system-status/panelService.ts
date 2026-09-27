@@ -7,11 +7,13 @@ import { ACTIVE_PHOTO_PROJECT_STATUSES, isPhotoProjectPendingVisible } from "@/l
 import { eventForStatus } from "@/lib/photo-storage/server";
 import type { PhotoProjectStatus } from "@/lib/photo-storage/types";
 import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
+import { getConfiguredWorkerId } from "@/lib/remoteWorkerAuth";
 import { getWorkflowDisplayStepKey, STEP_NAME } from "@/lib/workflow";
 import { findWorkflowConsistencyIssues, type WorkflowConsistencyIssue } from "@/lib/workflowAutomation";
 import { isWorkflowWaitingCustomer } from "@/lib/workflowWaiting";
 import type { StatusPanelAction, StatusPanelData, StatusPanelEntry, StatusPanelRecentEntry } from "./panelTypes";
 import type { SystemStatusReport } from "./types";
+import type { WorkerWatcherProgress } from "./types";
 
 const RECENT_LIMIT = 5;
 const ACTIVE_PHOTO_STATUSES = Array.from(ACTIVE_PHOTO_PROJECT_STATUSES) as string[];
@@ -82,6 +84,7 @@ type RemoteJobRow = {
   completed_at: string | null;
 };
 type FallbackRow = { id: string; metadata: Record<string, unknown> | null; created_at: string | null };
+type WorkerProgressRow = { watcher_progress?: unknown };
 type QueryResult<T> = { data: T[] | null; error: { message?: string } | null };
 
 const JOB_ACTION_LABEL: Record<string, string> = {
@@ -131,6 +134,25 @@ function percentFromProgress(progress: Record<string, unknown> | null | undefine
   const total = typeof progress.total === "number" ? progress.total : null;
   if (current === null || total === null || total <= 0) return null;
   return Math.max(0, Math.min(100, Math.round((current / total) * 100)));
+}
+
+function normalizeWatcherProgress(value: unknown): WorkerWatcherProgress | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  if (source.version !== 1 || typeof source.scannedAt !== "string" || !Array.isArray(source.stabilizing)) return null;
+  const sourceStatus = source.sourceStatus === "ONLINE" || source.sourceStatus === "SOURCE_OFFLINE" ? source.sourceStatus : null;
+  if (!sourceStatus) return null;
+  const stabilizing = source.stabilizing.slice(0, 10).flatMap((value) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+    const row = value as Record<string, unknown>;
+    const projectName = typeof row.projectName === "string" ? row.projectName.trim() : "";
+    const elapsedSeconds = typeof row.elapsedSeconds === "number" && Number.isFinite(row.elapsedSeconds) ? Math.max(0, Math.floor(row.elapsedSeconds)) : null;
+    const targetSeconds = typeof row.targetSeconds === "number" && Number.isFinite(row.targetSeconds) ? Math.max(1, Math.floor(row.targetSeconds)) : null;
+    return projectName && elapsedSeconds !== null && targetSeconds !== null
+      ? [{ projectName, elapsedSeconds: Math.min(elapsedSeconds, targetSeconds), targetSeconds }]
+      : [];
+  });
+  return { version: 1, scannedAt: source.scannedAt, sourceStatus, stabilizing };
 }
 
 export function photoSortingHref(folder: string | null | undefined) {
@@ -293,6 +315,7 @@ export function buildStatusPanelCollections(input: {
   consistencyIssues?: WorkflowConsistencyIssue[];
   schemaIssues?: StatusPanelEntry[];
   queryIssues?: StatusPanelEntry[];
+  watcherProgress?: WorkerWatcherProgress | null;
   nowMs?: number;
 }): StatusPanelData {
   const photoProjects = input.photoProjects ?? [];
@@ -515,6 +538,18 @@ export function buildStatusPanelCollections(input: {
   }
 
   const progress: StatusPanelEntry[] = [];
+  for (const item of input.watcherProgress?.stabilizing ?? []) {
+    progress.push({
+      id: `watcher-stabilizing:${item.projectName}`,
+      kind: "watcher_stabilizing",
+      level: "info",
+      title: `${item.projectName} · 복사 확인 중 ${item.elapsedSeconds}/${item.targetSeconds}초`,
+      detail: "촬영 파일 복사가 계속되면 안정화 확인 시간이 다시 시작됩니다.",
+      href: photoSortingHref(item.projectName),
+      createdAt: input.watcherProgress?.scannedAt ?? input.diagnostics.checkedAt,
+      progressPercent: Math.max(0, Math.min(100, Math.round((item.elapsedSeconds / item.targetSeconds) * 100))),
+    });
+  }
   const activeRemoteProjectIds = new Set(
     remoteJobs
       .filter((job) => ["QUEUED", "RUNNING"].includes(job.status ?? ""))
@@ -626,7 +661,7 @@ export async function collectStatusPanelData(options: {
   const { db, diagnostics } = options;
   const now = options.now ?? new Date();
   const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1_000).toISOString();
-  const [results, schemaIssues] = await Promise.all([
+  const [results, schemaIssues, workerProgressResult] = await Promise.all([
     Promise.allSettled([
     // 오래된 운영 DB에는 workflow_run_id가 아직 없을 수 있다. 명시 select로 optional 컬럼을
     // 요구하면 사진 상태 전체가 사라지므로 기존 photo-storage/projects API처럼 행 전체를 읽고,
@@ -652,6 +687,7 @@ export async function collectStatusPanelData(options: {
     findWorkflowConsistencyIssues(db),
     ]),
     loadSchemaWarningEntries(diagnostics),
+    db.from("remote_workers").select("watcher_progress").eq("worker_id", getConfiguredWorkerId()).maybeSingle(),
   ]);
 
   const [photoResult, runsResult, approvalsResult, tasksResult, eventsResult, backupsResult, jobsResult, fallbackResult, consistencyResult] = results;
@@ -688,6 +724,7 @@ export async function collectStatusPanelData(options: {
     consistencyIssues,
     schemaIssues,
     queryIssues,
+    watcherProgress: normalizeWatcherProgress((workerProgressResult.data as WorkerProgressRow | null)?.watcher_progress),
     nowMs: now.getTime(),
   });
 }

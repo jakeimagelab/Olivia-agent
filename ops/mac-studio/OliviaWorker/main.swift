@@ -5,8 +5,8 @@ import Darwin
 
 // OliviaWorker.app — macOS TCC 권한 영구 수정.
 //
-// 역할: 기존 worker.sh / remote-bridge.sh / nas-backup-watcher.ts 3개 프로세스를 감시·재시작한다.
-// 이 세 스크립트의 로직·프로토콜·Job 구조는 전혀 건드리지 않는다 — 그대로 spawn만 한다.
+// 역할: worker.sh와 nas-backup-watcher.ts를 감시·재시작한다.
+// remote-bridge.sh는 worker.sh가 잡마다 --job-file과 함께 실행하는 단발 프로세스다.
 //
 // 배경: launchd가 /bin/zsh(worker.sh)를 직접 spawn하면, macOS TCC가 그 인터프리터 자체를
 // code identity로 취급해서 Terminal에 부여된 NAS network volume 권한이 적용되지 않았다
@@ -17,9 +17,14 @@ let home = FileManager.default.homeDirectoryForCurrentUser.path
 let base = "\(home)/OliviaWorker"
 let logsDir = "\(base)/logs"
 let stateDir = "\(base)/state"
-let repoPath = "\(home)/UGnasync/Cloade/Olivia-agent-main"
+let configuredRepoPath = ProcessInfo.processInfo.environment["OLIVIA_REPO_ROOT"]
+let gitCloneRepoPath = "\(home)/olivia-worker"
+let legacyRepoPath = "\(home)/UGnasync/Cloade/Olivia-agent-main"
+let repoPath = configuredRepoPath
+    ?? (FileManager.default.fileExists(atPath: gitCloneRepoPath) ? gitCloneRepoPath : legacyRepoPath)
 let lockPath = "\(stateDir)/oliviaworker.lock"
 let healthPath = "\(stateDir)/oliviaworker_app_status.json"
+let nasWatcherHeartbeatPath = "\(stateDir)/nas-watcher-heartbeat"
 let appLogPath = "\(logsDir)/oliviaworker-app.log"
 
 func appLog(_ message: String) {
@@ -153,6 +158,7 @@ final class Supervisor {
     private let queue = DispatchQueue(label: "com.olivia.macstudio.oliviaworker.supervisor")
     private var managed: [ManagedProcess] = []
     private var stopping = false
+    private var heartbeatRestartRequested = Set<Int32>()
     private let restartDelaySeconds: TimeInterval = 10 // 기존 launchd plist의 ThrottleInterval과 동일
 
     func addAndStart(_ process: ManagedProcess) {
@@ -175,6 +181,39 @@ final class Supervisor {
                     self.startWithRestartHandling(finishedProcess)
                 }
             }
+        }
+    }
+
+    func restartIfHeartbeatStale(
+        _ process: ManagedProcess,
+        heartbeatPath: String,
+        maxAgeSeconds: TimeInterval,
+        startupGraceSeconds: TimeInterval
+    ) {
+        queue.async {
+            guard !self.stopping,
+                  let pid = process.pid,
+                  let startedAt = process.lastStartedAt else { return }
+            guard Date().timeIntervalSince(startedAt) >= startupGraceSeconds else {
+                self.heartbeatRestartRequested.remove(pid)
+                return
+            }
+
+            let attributes = try? FileManager.default.attributesOfItem(atPath: heartbeatPath)
+            let modifiedAt = attributes?[.modificationDate] as? Date
+            let reference = modifiedAt ?? startedAt
+            guard Date().timeIntervalSince(reference) >= maxAgeSeconds else {
+                self.heartbeatRestartRequested.remove(pid)
+                return
+            }
+            guard !self.heartbeatRestartRequested.contains(pid) else { return }
+
+            self.heartbeatRestartRequested.insert(pid)
+            let reason = modifiedAt == nil
+                ? "heartbeat 파일 없음"
+                : "heartbeat가 \(Int(Date().timeIntervalSince(reference)))초 동안 갱신되지 않음"
+            appLog("\(process.name) 비정상 감지(\(reason)) — PID 생존과 무관하게 재시작합니다.")
+            process.terminate()
         }
     }
 
@@ -224,6 +263,7 @@ try? FileManager.default.createDirectory(atPath: logsDir, withIntermediateDirect
 try? FileManager.default.createDirectory(atPath: stateDir, withIntermediateDirectories: true)
 
 appLog("OliviaWorker.app supervisor 시작 (PID \(ProcessInfo.processInfo.processIdentifier))")
+appLog("실행 repository: \(repoPath)")
 acquireSingletonLockOrExit()
 
 let supervisor = Supervisor()
@@ -236,15 +276,6 @@ let worker = ManagedProcess(
     arguments: ["\(base)/bin/worker.sh"],
     stdoutPath: "\(logsDir)/launch.out.log",
     stderrPath: "\(logsDir)/launch.err.log"
-)
-
-// 기존 com.olivia.macstudio.remote-bridge.plist와 완전히 동일.
-let remoteBridge = ManagedProcess(
-    name: "remote-bridge.sh",
-    executablePath: "/bin/zsh",
-    arguments: ["\(base)/bin/remote-bridge.sh"],
-    stdoutPath: "\(logsDir)/bridge.out.log",
-    stderrPath: "\(logsDir)/bridge.err.log"
 )
 
 // ops/mac-studio/com.olivia.macstudio.nas-watcher.plist 템플릿(한 번도 설치된 적 없음)과
@@ -264,13 +295,20 @@ let nasWatcher = ManagedProcess(
 )
 
 supervisor.addAndStart(worker)
-supervisor.addAndStart(remoteBridge)
 supervisor.addAndStart(nasWatcher)
 
 // 30초마다 health 상태 파일 갱신.
 let healthTimer = DispatchSource.makeTimerSource(queue: .main)
 healthTimer.schedule(deadline: .now() + 5, repeating: 30)
-healthTimer.setEventHandler { supervisor.writeHealthSnapshot() }
+healthTimer.setEventHandler {
+    supervisor.restartIfHeartbeatStale(
+        nasWatcher,
+        heartbeatPath: nasWatcherHeartbeatPath,
+        maxAgeSeconds: 5 * 60,
+        startupGraceSeconds: 5 * 60
+    )
+    supervisor.writeHealthSnapshot()
+}
 healthTimer.resume()
 
 // SIGTERM/SIGINT 기본 동작을 막고(SIG_IGN) DispatchSource로 직접 처리해야 자식 프로세스를

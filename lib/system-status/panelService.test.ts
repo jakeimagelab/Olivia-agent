@@ -162,6 +162,24 @@ describe("buildStatusPanelCollections", () => {
     expect(result.progress).toHaveLength(1);
   });
 
+  it("NAS watcher 안정화 시간을 진행 줄과 대상 폴더 링크로 표시한다", () => {
+    const result = buildStatusPanelCollections({
+      diagnostics,
+      watcherProgress: {
+        version: 1,
+        scannedAt: "2026-09-27T02:00:00.000Z",
+        sourceStatus: "ONLINE",
+        stabilizing: [{ projectName: "0927_BLS_TEST", elapsedSeconds: 45, targetSeconds: 90 }],
+      },
+    });
+    expect(result.progress).toContainEqual(expect.objectContaining({
+      kind: "watcher_stabilizing",
+      title: "0927_BLS_TEST · 복사 확인 중 45/90초",
+      href: "/photo-sorting?remoteFolder=0927_BLS_TEST",
+      progressPercent: 50,
+    }));
+  });
+
   it("진단이 지정한 저장소 migration만 SQL 복사 액션으로 제공한다", async () => {
     const entries = await loadSchemaWarningEntries({
       ...diagnostics,

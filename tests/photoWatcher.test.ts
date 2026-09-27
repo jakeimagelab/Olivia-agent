@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { PhotoStorageWatcher, type PhotoWatcherState } from "@/lib/photo-classifier/node/photoWatcher";
+import { fingerprintPhotoProject, PhotoStorageWatcher, type PhotoWatcherState } from "@/lib/photo-classifier/node/photoWatcher";
 import type { RunnerRoots } from "@/lib/photo-classifier/node/types";
 
 const temporaryDirectories: string[] = [];
@@ -24,6 +24,39 @@ afterEach(async () => {
 });
 
 describe("SSD1 photo watcher", () => {
+  it("reports a heartbeat after every completed scan", async () => {
+    const { roots, statePath, lockPath } = await testRoots();
+    const reportHeartbeat = vi.fn(async () => undefined);
+    const watcher = new PhotoStorageWatcher({ roots, statePath, lockPath, logger: () => undefined, reportHeartbeat });
+    await watcher.scanOnce();
+    await watcher.scanOnce();
+    expect(reportHeartbeat).toHaveBeenCalledTimes(2);
+    expect(reportHeartbeat).toHaveBeenLastCalledWith(expect.objectContaining({
+      version: 1,
+      sourceStatus: "ONLINE",
+      stabilizing: expect.any(Array),
+    }));
+  });
+
+  it("ignores Finder metadata but still detects real photo changes", async () => {
+    const { roots } = await testRoots();
+    const project = path.join(roots.sourceRoot, "finder-open");
+    await mkdir(project);
+    await writeFile(path.join(project, "A001.JPG"), "photo-one");
+    await writeFile(path.join(project, ".DS_Store"), "finder-state-1");
+    await writeFile(path.join(project, "._IMG_1234.JPG"), "apple-double-1");
+    await writeFile(path.join(project, "Icon\r"), "finder-icon-1");
+
+    const before = await fingerprintPhotoProject(project);
+    await writeFile(path.join(project, ".DS_Store"), "finder-state-updated-and-longer");
+    await writeFile(path.join(project, "._IMG_1234.JPG"), "apple-double-updated-and-longer");
+    await writeFile(path.join(project, "Icon\r"), "finder-icon-updated-and-longer");
+    expect(await fingerprintPhotoProject(project)).toEqual(before);
+
+    await writeFile(path.join(project, "A002.JPG"), "photo-two");
+    expect(await fingerprintPhotoProject(project)).not.toEqual(before);
+  });
+
   it("baselines existing projects and detects a new project", async () => {
     const { roots, statePath, lockPath } = await testRoots();
     const existing = path.join(roots.sourceRoot, "0913_existing");
@@ -190,6 +223,9 @@ describe("SSD1 photo watcher", () => {
     await first.start();
     const second = new PhotoStorageWatcher({ roots, statePath, lockPath, logger: () => undefined });
     await expect(second.start({ once: true })).rejects.toThrow(/이미 실행 중/);
+    await second.stop();
+    const third = new PhotoStorageWatcher({ roots, statePath, lockPath, logger: () => undefined });
+    await expect(third.start({ once: true })).rejects.toThrow(/이미 실행 중/);
     await first.stop();
   });
 

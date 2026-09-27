@@ -86,6 +86,17 @@ export type PhotoWatcherScanResult = {
   errors: string[];
 };
 
+export type PhotoWatcherHeartbeat = {
+  version: 1;
+  scannedAt: string;
+  sourceStatus: "ONLINE" | "SOURCE_OFFLINE";
+  stabilizing: Array<{
+    projectName: string;
+    elapsedSeconds: number;
+    targetSeconds: number;
+  }>;
+};
+
 export type PhotoStorageWatcherOptions = {
   roots?: RunnerRoots;
   statePath?: string;
@@ -95,6 +106,7 @@ export type PhotoStorageWatcherOptions = {
   now?: () => Date;
   logger?: (message: string) => void;
   reportReady?: (report: PhotoWatcherReadyReport) => Promise<void>;
+  reportHeartbeat?: (heartbeat: PhotoWatcherHeartbeat) => Promise<void>;
 };
 
 // #recycle/@Recycle/@eaDir는 Synology 등 NAS가 자동 생성하는 휴지통/썸네일 캐시 폴더다 —
@@ -203,6 +215,9 @@ export async function fingerprintPhotoProject(projectRoot: string): Promise<Phot
         continue;
       }
       if (!entry.isFile()) continue;
+      // Finder가 폴더를 열어둔 동안 계속 갱신하는 메타파일은 촬영본 복사 상태가 아니다.
+      // 지문에 포함하면 사용자가 폴더를 보기만 해도 안정화 시간이 영원히 리셋된다.
+      if (entry.name.startsWith(".") || entry.name.startsWith("._") || entry.name === "Icon\r") continue;
       const metadata = await stat(fullPath);
       const fileExtension = extension(entry.name);
       fingerprint.fileCount += 1;
@@ -247,6 +262,7 @@ export class PhotoStorageWatcher {
   private readonly now: () => Date;
   private readonly logger: (message: string) => void;
   private readonly reportReady?: (report: PhotoWatcherReadyReport) => Promise<void>;
+  private readonly reportHeartbeat?: (heartbeat: PhotoWatcherHeartbeat) => Promise<void>;
   private state: PhotoWatcherState | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private lockHandle: Awaited<ReturnType<typeof open>> | null = null;
@@ -265,6 +281,7 @@ export class PhotoStorageWatcher {
     this.now = options.now ?? (() => new Date());
     this.logger = options.logger ?? ((message) => console.log(message));
     this.reportReady = options.reportReady;
+    this.reportHeartbeat = options.reportHeartbeat;
   }
 
   private log(message: string): void {
@@ -300,9 +317,29 @@ export class PhotoStorageWatcher {
   }
 
   private async releaseLock(): Promise<void> {
-    await this.lockHandle?.close().catch(() => undefined);
+    // acquireLock()에 실패한 두 번째 watcher가 살아 있는 첫 번째 watcher의 lock을
+    // 지우면 안 된다. 현재 인스턴스가 실제 handle을 가진 경우에만 unlink한다.
+    const ownedHandle = this.lockHandle;
+    if (!ownedHandle) return;
     this.lockHandle = null;
+    await ownedHandle.close().catch(() => undefined);
     await unlink(this.lockPath).catch(() => undefined);
+  }
+
+  private heartbeat(result: PhotoWatcherScanResult): PhotoWatcherHeartbeat {
+    const scannedAt = this.state?.lastScanAt ?? this.now().toISOString();
+    const scannedAtMs = new Date(scannedAt).getTime();
+    const targetSeconds = Math.max(1, Math.floor(this.stableMs / 1000));
+    const stabilizing = Object.entries(this.state?.projects ?? {})
+      .filter(([, project]) => project.status === "STABILIZING" && Boolean(project.stableSince))
+      .map(([projectName, project]) => ({
+        projectName,
+        elapsedSeconds: Math.max(0, Math.min(targetSeconds, Math.floor((scannedAtMs - new Date(project.stableSince!).getTime()) / 1000))),
+        targetSeconds,
+      }))
+      .sort((left, right) => right.elapsedSeconds - left.elapsedSeconds)
+      .slice(0, 10);
+    return { version: 1, scannedAt, sourceStatus: result.sourceStatus, stabilizing };
   }
 
   private async persist(): Promise<void> {
@@ -559,7 +596,12 @@ export class PhotoStorageWatcher {
 
   async scanOnce(): Promise<PhotoWatcherScanResult> {
     if (this.scanPromise) return this.scanPromise;
-    this.scanPromise = this.performScan().finally(() => { this.scanPromise = null; });
+    this.scanPromise = this.performScan()
+      .then(async (result) => {
+        if (this.reportHeartbeat) await this.reportHeartbeat(this.heartbeat(result));
+        return result;
+      })
+      .finally(() => { this.scanPromise = null; });
     return this.scanPromise;
   }
 

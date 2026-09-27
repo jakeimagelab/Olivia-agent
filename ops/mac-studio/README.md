@@ -56,6 +56,26 @@ OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
 
 `--restart`를 사용하지 않은 경우 OliviaWorker.app LaunchAgent를 한 번 재시작한다.
 
+`ops/mac-studio/OliviaWorker/main.swift`가 바뀐 업데이트는 bin 설치만으로 적용되지 않는다.
+다음처럼 앱을 다시 빌드한 뒤 재시작한다.
+
+```zsh
+cd ~/olivia-worker
+./ops/mac-studio/OliviaWorker/build-and-install.sh
+launchctl kickstart -k "gui/$(id -u)/com.olivia.macstudio.oliviaworker"
+```
+
+2026-09-27의 `remote-bridge.sh` 무한 재시작 오류를 제거한 뒤에는 기존 오류 폭포를 한 번만
+비우고 새 오류만 확인한다.
+
+```zsh
+: > ~/OliviaWorker/logs/bridge.err.log
+: > ~/OliviaWorker/logs/oliviaworker-app.log
+tail -20 ~/OliviaWorker/logs/oliviaworker-app.log
+```
+
+마지막 출력에 `remote-bridge.sh 예기치 않게 종료됨`이 다시 생기지 않아야 한다.
+
 ```zsh
 launchctl kickstart -k "gui/$(id -u)/com.olivia.macstudio.oliviaworker"
 tail -f ~/OliviaWorker/logs/launch.err.log

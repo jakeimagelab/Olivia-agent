@@ -14,9 +14,11 @@
 // 안에 있는 worker.sh/remote-bridge.sh와는 별개 프로세스이며 서로를 대체하지 않는다.
 
 import { readFileSync, existsSync } from "node:fs";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { loadEnvConfig } from "@next/env";
-import { PhotoStorageWatcher, type PhotoWatcherReadyReport } from "@/lib/photo-classifier/node/photoWatcher";
+import { PhotoStorageWatcher, type PhotoWatcherHeartbeat, type PhotoWatcherReadyReport } from "@/lib/photo-classifier/node/photoWatcher";
+import { startPhotoWatcherWithLockRetry } from "@/lib/photo-classifier/node/watcherStartup";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
 
 loadEnvConfig(process.cwd());
@@ -94,13 +96,27 @@ type BackupReadyEventPayload = {
 const args = process.argv.slice(2);
 const once = args.includes("--once");
 
+function reportFatal(message: string): void {
+  const line = `[NAS_WATCHER] ERROR ${message}`;
+  // 운영자가 stdout만 보더라도 치명적 오류를 놓치지 않게 두 스트림에 모두 남긴다.
+  console.error(line);
+  console.log(line);
+}
+
+async function writeHeartbeat(target: string, heartbeat: PhotoWatcherHeartbeat): Promise<void> {
+  await mkdir(path.dirname(target), { recursive: true });
+  const temporary = `${target}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(heartbeat)}\n`, "utf8");
+  await rename(temporary, target);
+}
+
 async function main(): Promise<void> {
   // §5 "worker.env를 읽어 SOURCE_ROOT... 사용한다" — 기존 사진 파이프라인이 쓰는
   // OLIVIA_PHOTO_SOURCE_ROOT를 그대로 재사용할 수 있으면 재사용하되(같은 볼륨), 사용자가 지정한
   // SOURCE_ROOT 변수명을 우선한다.
   const sourceRoot = process.env.SOURCE_ROOT?.trim() || process.env.OLIVIA_PHOTO_SOURCE_ROOT?.trim();
   if (!sourceRoot) {
-    console.error("[NAS_WATCHER] ERROR SOURCE_ROOT(또는 OLIVIA_PHOTO_SOURCE_ROOT) 환경변수가 설정되어 있지 않습니다.");
+    reportFatal("SOURCE_ROOT(또는 OLIVIA_PHOTO_SOURCE_ROOT) 환경변수가 설정되어 있지 않습니다.");
     process.exitCode = 1;
     return;
   }
@@ -113,7 +129,7 @@ async function main(): Promise<void> {
   const eventsUrl = `${remoteApiBase}/api/worker/events`;
   const workerToken = process.env.WORKER_TOKEN?.trim() || process.env.OLIVIA_WORKER_TOKEN?.trim();
   if (!workerToken) {
-    console.error("[NAS_WATCHER] ERROR WORKER_TOKEN(또는 OLIVIA_WORKER_TOKEN)이 설정되어 있지 않습니다.");
+    reportFatal("WORKER_TOKEN(또는 OLIVIA_WORKER_TOKEN)이 설정되어 있지 않습니다.");
     process.exitCode = 1;
     return;
   }
@@ -123,6 +139,9 @@ async function main(): Promise<void> {
   const intervalSeconds = positiveNumber(optionValue(args, "--interval-seconds"), "--interval-seconds")
     ?? positiveNumber(process.env.OLIVIA_NAS_WATCH_INTERVAL_SECONDS, "OLIVIA_NAS_WATCH_INTERVAL_SECONDS")
     ?? 30;
+  const workerHome = process.env.OLIVIA_WORKER_HOME?.trim() || path.join(process.env.HOME || process.cwd(), "OliviaWorker");
+  const heartbeatPath = process.env.OLIVIA_NAS_WATCH_HEARTBEAT_PATH?.trim()
+    || path.join(workerHome, "state", "nas-watcher-heartbeat");
 
   const watcher = new PhotoStorageWatcher({
     roots: { sourceRoot, workRoot },
@@ -138,6 +157,7 @@ async function main(): Promise<void> {
       ?? positiveNumber(process.env.OLIVIA_NAS_STABLE_SECONDS, "OLIVIA_NAS_STABLE_SECONDS")
       ?? 90,
     logger: (message) => console.log(message.replace("[PHOTO_WATCHER]", "[NAS_WATCHER]")),
+    reportHeartbeat: async (heartbeat) => writeHeartbeat(heartbeatPath, heartbeat),
     reportReady: async (report: PhotoWatcherReadyReport) => {
       // REVIEW_REQUIRED는 이 watcher가 쓰지 않는 상태다(§5-4에 그런 판정 없음) — 방어적으로
       // READY만 이벤트로 내보낸다.
@@ -189,14 +209,25 @@ async function main(): Promise<void> {
   try {
     console.log(`[NAS_WATCHER] NAS Watcher started (source=${sourceRoot})`);
     await warnIfPhotoStorageWatcherRunning();
-    if (!once) dualWatcherTimer = setInterval(() => { void warnIfPhotoStorageWatcherRunning(); }, intervalSeconds * 1000);
-    const result = await watcher.start({ once });
+    const result = await startPhotoWatcherWithLockRetry({
+      start: () => watcher.start({ once }),
+      attempts: 4,
+      delayMs: 5_000,
+      onRetry: (attempt) => console.log(`[NAS_WATCHER] Photo Watcher lock 충돌 — 5초 후 재시도합니다 (${attempt}/3).`),
+    });
     if (once) process.stdout.write(`${JSON.stringify(result)}\n`);
-    else await new Promise<void>(() => undefined);
+    else {
+      // start()가 성공한 뒤에만 보조 타이머를 만든다. 시작 실패 시 이벤트 루프에
+      // 타이머가 남아 죽지도 일하지도 않는 좀비 프로세스가 되는 것을 막는다.
+      dualWatcherTimer = setInterval(() => { void warnIfPhotoStorageWatcherRunning(); }, intervalSeconds * 1000);
+      await new Promise<void>(() => undefined);
+    }
   } catch (error) {
+    if (dualWatcherTimer) clearInterval(dualWatcherTimer);
     await watcher.stop().catch(() => undefined);
-    console.error(`[NAS_WATCHER] ERROR ${error instanceof Error ? error.message : String(error)}`);
+    reportFatal(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
+    if (!once) process.exit(1);
   }
 }
 

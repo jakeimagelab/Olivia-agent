@@ -10,6 +10,15 @@ if [[ -f "$ENV_FILE" ]]; then
 fi
 
 export PATH="${PATH:-/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+
+# 구버전 OliviaWorker.app은 이 per-job 스크립트를 인자 없이 상주시킨다. 즉시 종료하면
+# 감시자가 11초마다 재실행해 실제 잡 로그를 덮으므로, 앱을 재빌드하기 전까지만 유휴 상태로
+# 유지한다. worker.sh의 실제 잡 호출은 항상 --job-file을 전달하므로 아래 분기에 들어오지 않는다.
+if (( $# == 0 )); then
+  print -u2 -- "[remote-bridge] 구버전 상주 실행을 감지해 유휴 대기합니다. OliviaWorker.app을 재빌드하세요."
+  while true; do sleep 3600; done
+fi
+
 REPO_ROOT="${OLIVIA_REPO_ROOT:-$HOME/UGnasync/Cloade/Olivia-agent-main}"
 BRIDGE_RUNNER="$REPO_ROOT/scripts/mac-studio-remote-bridge.ts"
 typeset -A PHASE6_RUNNERS=(

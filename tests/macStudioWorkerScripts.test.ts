@@ -115,6 +115,38 @@ describe("Mac Studio Worker repository scripts", () => {
     }
   });
 
+  it("does not supervise the per-job bridge and restarts a stale NAS watcher heartbeat", async () => {
+    const source = await readFile(path.join(repoRoot, "ops/mac-studio/OliviaWorker/main.swift"), "utf8");
+    expect(source).not.toContain("let remoteBridge = ManagedProcess");
+    expect(source).not.toContain("supervisor.addAndStart(remoteBridge)");
+    expect(source).toContain("restartIfHeartbeatStale");
+    expect(source).toContain("nas-watcher-heartbeat");
+    expect(source).toContain("maxAgeSeconds: 5 * 60");
+    expect(source).toContain("gitCloneRepoPath = \"\\(home)/olivia-worker\"");
+  });
+
+  it("keeps old app bridge launches idle and reports watcher/revision diagnostics", async () => {
+    const bridge = await readFile(path.join(repoRoot, "ops/mac-studio/bin/remote-bridge.sh"), "utf8");
+    const worker = await readFile(path.join(repoRoot, "ops/mac-studio/bin/worker.sh"), "utf8");
+    const installer = await readFile(path.join(repoRoot, "ops/mac-studio/install-worker-bin.sh"), "utf8");
+    expect(bridge).toContain("if (( $# == 0 ))");
+    expect(worker).toContain("x-olivia-photo-watcher-last-scan-at");
+    expect(worker).toContain("x-olivia-photo-watcher-progress");
+    expect(worker).toContain("x-olivia-worker-rev");
+    expect(installer).toContain("installed-rev");
+    expect(installer).toContain("git -C \"$REPO_ROOT\" rev-parse HEAD");
+  });
+
+  it("makes resident NAS watcher startup failures visible and terminal", async () => {
+    const source = await readFile(path.join(repoRoot, "scripts/nas-backup-watcher.ts"), "utf8");
+    expect(source).toContain("startPhotoWatcherWithLockRetry");
+    expect(source).toContain("if (dualWatcherTimer) clearInterval(dualWatcherTimer)");
+    expect(source).toContain("console.error(line)");
+    expect(source).toContain("console.log(line)");
+    expect(source).toContain("if (!once) process.exit(1)");
+    expect(source).toContain("reportHeartbeat");
+  });
+
   it("preserves a runner JSON error instead of replacing it with a generic message", () => {
     expect(resolveRunnerError({
       exitCode: 2,

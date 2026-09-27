@@ -116,6 +116,20 @@ if ! cmp -s "$SOURCE_BIN/worker.sh" "$TARGET_BIN/worker.sh" || ! cmp -s "$SOURCE
 fi
 print -- "[install] 설치본 검증 완료: worker.sh / remote-bridge.sh"
 
+# 실제 실행본이 어느 repository revision에서 설치됐는지 서버 진단에 보고한다.
+# zip 복사본처럼 git metadata가 없으면 unknown을 남기되 가짜 revision을 만들지 않는다.
+STATE_DIR="$WORKER_HOME/state"
+mkdir -p "$STATE_DIR"
+INSTALLED_REV="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || print unknown)"
+INSTALLED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+REV_TEMP="$STATE_DIR/.installed-rev.$$.tmp"
+AT_TEMP="$STATE_DIR/.installed-at.$$.tmp"
+print -- "$INSTALLED_REV" > "$REV_TEMP"
+print -- "$INSTALLED_AT" > "$AT_TEMP"
+mv "$REV_TEMP" "$STATE_DIR/installed-rev"
+mv "$AT_TEMP" "$STATE_DIR/installed-at"
+print -- "[install] 설치 revision 기록: ${INSTALLED_REV[1,12]} ($INSTALLED_AT)"
+
 if [[ "$RESTART_WORKER" == "1" ]]; then
   WORKER_SERVICE="gui/$(id -u)/com.olivia.macstudio.oliviaworker"
   if launchctl print "$WORKER_SERVICE" >/dev/null 2>&1; then

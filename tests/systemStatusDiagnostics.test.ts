@@ -14,6 +14,8 @@ type FakeOptions = {
   mcpLastSeen?: string;
   missingTable?: string;
   workerLastSeen?: string;
+  workerRev?: string;
+  workerInstalledAt?: string;
 };
 
 function fakeSupabase(options: FakeOptions): SupabaseClient {
@@ -51,6 +53,9 @@ function fakeSupabase(options: FakeOptions): SupabaseClient {
             if (table === "remote_workers" && columns.includes("openai_api_key_configured")) {
               return { data: { openai_api_key_configured: true }, error: null, count: null };
             }
+            if (table === "remote_workers" && columns.includes("worker_rev")) {
+              return { data: { worker_rev: options.workerRev ?? null, worker_installed_at: options.workerInstalledAt ?? null }, error: null, count: null };
+            }
             if (table === "remote_jobs" && selectOptions?.head) {
               return { data: null, error: null, count: 0 };
             }
@@ -74,7 +79,7 @@ function fakeSupabase(options: FakeOptions): SupabaseClient {
   } as unknown as SupabaseClient;
 }
 
-const ENV_NAMES = ["HERMES_BASE_URL", "HERMES_API_SECRET", "HERMES_TOOL_SHARED_SECRET", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"] as const;
+const ENV_NAMES = ["HERMES_BASE_URL", "HERMES_API_SECRET", "HERMES_TOOL_SHARED_SECRET", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "VERCEL_GIT_COMMIT_SHA"] as const;
 const originalEnv = Object.fromEntries(ENV_NAMES.map((name) => [name, process.env[name]]));
 
 beforeEach(() => {
@@ -83,6 +88,7 @@ beforeEach(() => {
   process.env.HERMES_TOOL_SHARED_SECRET = "mcp-super-secret";
   process.env.OPENAI_API_KEY = "openai-super-secret";
   process.env.ANTHROPIC_API_KEY = "anthropic-super-secret";
+  delete process.env.VERCEL_GIT_COMMIT_SHA;
 });
 
 afterEach(() => {
@@ -111,6 +117,12 @@ describe("Olivia chat 시스템 진단", () => {
   });
 
   it("Worker 진단 헤더를 mount와 access로 분리한다", () => {
+    const watcherProgress = {
+      version: 1,
+      scannedAt: "2026-09-19T01:02:03+09:00",
+      sourceStatus: "ONLINE",
+      stabilizing: [{ projectName: "0927_BLS_TEST", elapsedSeconds: 45, targetSeconds: 90 }],
+    };
     const headers = new Headers({
       "x-olivia-workstation-mounted": "true",
       "x-olivia-workstation-accessible": "false",
@@ -118,6 +130,9 @@ describe("Olivia chat 시스템 진단", () => {
       "x-olivia-agentstation-accessible": "false",
       "x-olivia-photo-watcher-last-scan-at": "2026-09-19T01:02:03+09:00",
       "x-olivia-openai-api-key-configured": "false",
+      "x-olivia-photo-watcher-progress": Buffer.from(JSON.stringify(watcherProgress)).toString("base64"),
+      "x-olivia-worker-rev": "ABCDEF0123456789",
+      "x-olivia-worker-installed-at": "2026-09-19T01:00:00+09:00",
     });
     expect(workerDiagnosticsToRow(readWorkerDiagnostics(headers))).toEqual({
       workstation_mounted: true,
@@ -125,7 +140,31 @@ describe("Olivia chat 시스템 진단", () => {
       agentstation_mounted: false,
       agentstation_accessible: false,
       watcher_last_scan_at: "2026-09-18T16:02:03.000Z",
+      watcher_progress: {
+        ...watcherProgress,
+        scannedAt: "2026-09-18T16:02:03.000Z",
+      },
       openai_api_key_configured: false,
+      worker_rev: "abcdef0123456789",
+      worker_installed_at: "2026-09-18T16:00:00.000Z",
+    });
+  });
+
+  it("서버와 Mac Studio revision이 다르면 설치본 업데이트 경고를 표시한다", async () => {
+    process.env.VERCEL_GIT_COMMIT_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const now = new Date("2026-09-27T12:00:00+09:00");
+    const { collectSystemStatus } = await import("@/lib/system-status/service");
+    const report = await collectSystemStatus({
+      now,
+      db: fakeSupabase({
+        now: now.toISOString(),
+        workerRev: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        workerInstalledAt: "2026-09-23T03:00:00.000Z",
+      }),
+    });
+    expect(report.items.find((item) => item.id === "worker_revision")).toMatchObject({
+      level: "warning",
+      state: "업데이트 필요",
     });
   });
 

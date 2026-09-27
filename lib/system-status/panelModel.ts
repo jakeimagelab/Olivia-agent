@@ -25,6 +25,7 @@ const CONNECTION_IDS = new Set([
   "agentstation_mount",
   "agentstation_access",
   "worker_openai_key",
+  "worker_revision",
   "watcher_scan",
   "queued_jobs",
   "table_worker_events",

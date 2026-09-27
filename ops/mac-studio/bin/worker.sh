@@ -77,6 +77,28 @@ poll_once() {
     -H "x-olivia-worker: $WORKER_ID_VALUE"
     -H "x-olivia-openai-api-key-configured: $([[ -n "${OPENAI_API_KEY:-}" ]] && print true || print false)"
   )
+
+  local heartbeat_path="$WORKER_HOME/state/nas-watcher-heartbeat"
+  local installed_rev_path="$WORKER_HOME/state/installed-rev"
+  local installed_at_path="$WORKER_HOME/state/installed-at"
+  local heartbeat_epoch heartbeat_iso heartbeat_payload worker_rev worker_installed_at
+  if [[ -f "$heartbeat_path" ]]; then
+    heartbeat_epoch="$(stat -f '%m' "$heartbeat_path" 2>/dev/null || true)"
+    if [[ -n "$heartbeat_epoch" ]]; then
+      heartbeat_iso="$(date -u -r "$heartbeat_epoch" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || true)"
+      [[ -n "$heartbeat_iso" ]] && headers+=(-H "x-olivia-photo-watcher-last-scan-at: $heartbeat_iso")
+    fi
+    heartbeat_payload="$(/usr/bin/base64 < "$heartbeat_path" 2>/dev/null | tr -d '\r\n' || true)"
+    [[ -n "$heartbeat_payload" && ${#heartbeat_payload} -le 8192 ]] && headers+=(-H "x-olivia-photo-watcher-progress: $heartbeat_payload")
+  fi
+  if [[ -f "$installed_rev_path" ]]; then
+    worker_rev="$(head -n 1 "$installed_rev_path" 2>/dev/null | tr -cd '0-9a-fA-F' | head -c 64 || true)"
+    [[ -n "$worker_rev" ]] && headers+=(-H "x-olivia-worker-rev: $worker_rev")
+  fi
+  if [[ -f "$installed_at_path" ]]; then
+    worker_installed_at="$(head -n 1 "$installed_at_path" 2>/dev/null | tr -d '\r\n' || true)"
+    [[ -n "$worker_installed_at" ]] && headers+=(-H "x-olivia-worker-installed-at: $worker_installed_at")
+  fi
   if [[ -n "${VERCEL_BYPASS_SECRET:-}" ]]; then
     headers+=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET")
   fi
