@@ -172,13 +172,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   update_quote_payment_terms: async ({ result }) => mutationActions("quote", result),
   apply_quote_discount: async ({ result }) => mutationActions("quote", result),
   update_quote_vat_mode: async ({ result }) => mutationActions("quote", result),
-  rebalance_quote_total: async ({ result }) => {
-    if (!result.success) return [];
-    const resourceId = value(result.data, "resourceId");
-    const discountAmount = result.data?.proposedDiscountAmount;
-    if (!resourceId || typeof discountAmount !== "number") return [];
-    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "견적 조정안을 적용할까요?"), confirmLabel: "적용", toolName: "apply_quote_rebalance", toolInput: { discountAmount } }];
-  },
   preview_quote: async (args) => {
     const { result, context } = args;
     const resourceId = value(result.data, "resourceId");
@@ -204,7 +197,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!result.success) return [];
     return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "견적서를 고객 포털에 공개할까요?"), confirmLabel: "공개", toolName: "publish_quote", toolInput: {} }];
   },
-  apply_quote_rebalance: async ({ result }) => mutationActions("quote", result),
   publish_quote: async ({ result }) => mutationActions("quote", result),
   // 읽기 전용이라 UI 액션이 없다 — QuoteWizardChatCard/QuoteClientRegistrationChatCard가
   // callOliviaTool로 이 도구를 직접 호출해 result.data를 그대로 읽는다. 여기서 카드를 여는

@@ -153,7 +153,7 @@ function serviceCount(value: unknown, current: number | null | undefined) {
 export const QUOTE_TOOL_NAMES = [
   "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
   "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount", "update_quote_vat_mode",
-  "rebalance_quote_total", "apply_quote_rebalance", "preview_quote", "request_quote_publish",
+  "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
 ] as const;
 
@@ -548,36 +548,6 @@ export async function executeQuoteTool(
       data: { resourceId, quoteId: resourceId, vatMode: mode, updatedResource, summary: "VAT 방식을 변경했어요.", totalAmount: amounts.totalAmount },
       verification: createVerification({ executed: true, persisted: true, resourceExists: true }),
     };
-  }
-
-  if (name === "rebalance_quote_total") {
-    const resourceId = activeResource(context, "quote");
-    const quote = await loadQuote(resourceId);
-    const targetTotal = parseKoreanMoney(input.targetTotal as string | number);
-    if (!targetTotal) throw new Error("목표 총액을 확인해주세요.");
-    const currentTotal = Number(quote.total_amount) || 0;
-    const items = Array.isArray(quote.items) ? quote.items as QuoteItem[] : [];
-    const gross = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
-    const formState = quote.form_state && typeof quote.form_state === "object" ? quote.form_state as Record<string, unknown> : {};
-    const desiredSupply = formState.vatMode === "included" || formState.vatMode === "excluded" ? targetTotal : targetTotal / 1.1;
-    const discountAmount = Math.max(0, Math.round(gross - desiredSupply));
-    const projected = recalculateQuote(items, quote, discountAmount);
-    return {
-      tool: name, success: true,
-      data: { resourceId, quoteId: resourceId, currentTotal, targetTotal, projectedTotal: projected.totalAmount, proposedDiscountAmount: discountAmount, approvalRequired: true, summary: `현재 ${currentTotal.toLocaleString("ko-KR")}원에서 ${discountAmount.toLocaleString("ko-KR")}원 할인을 적용하면 총액은 ${projected.totalAmount.toLocaleString("ko-KR")}원입니다. 적용할까요?` },
-      // 계산만 하고 승인 카드를 띄우는 단계다 — 아직 아무것도 저장되지 않았다.
-      verification: createVerification({ executed: true, persisted: false }),
-    };
-  }
-
-  if (name === "apply_quote_rebalance") {
-    let discountAmount = input.discountAmount;
-    if (discountAmount == null && input.targetTotal != null) {
-      const proposal = await executeQuoteTool("rebalance_quote_total", { targetTotal: input.targetTotal }, context);
-      discountAmount = proposal.data?.proposedDiscountAmount;
-    }
-    if (discountAmount == null) throw new Error("승인한 목표 총액 또는 조정 할인액을 확인해주세요.");
-    return executeQuoteTool("apply_quote_discount", { amount: discountAmount, percent: null, remove: false }, context);
   }
 
   if (name === "preview_quote") {

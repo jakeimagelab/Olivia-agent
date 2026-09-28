@@ -12,8 +12,8 @@ import {
 const pending: OliviaPendingAction = {
   id: "approval-1",
   status: "pending",
-  intent: "apply_quote_rebalance",
-  toolName: "apply_quote_rebalance",
+  intent: "apply_quote_discount",
+  toolName: "apply_quote_discount",
   toolInput: { discountAmount: 32000 },
   target: { resourceType: "quote", resourceId: "quote-1", title: "리나클리닉" },
   prompt: "230만 원으로 맞출까요?",

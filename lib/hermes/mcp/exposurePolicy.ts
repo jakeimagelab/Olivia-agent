@@ -30,7 +30,7 @@ export const BLOCKED_TOOLS = new Set([
 
 /** 아래 도구들은 변경을 실행하지 않고 기존 Olivia 승인 카드만 만든다. */
 export const APPROVAL_TOOLS = new Set([
-  "rebalance_quote_total", "request_quote_publish", "request_contract_publish",
+  "request_quote_publish", "request_contract_publish",
   "request_remove_conti_scene_v2", "client_create", "client_archive", "send_mailing",
   // §9 "최종 Rule 승인은 Olivia/User가 한다" — Hermes가 스스로 규칙을 확정할 수 없게 한다.
   "approve_agent_memory_rule",

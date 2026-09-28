@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import { renderOliviaOutcome, renderVerifiedToolRound, toolResultOutcome } from "./response";
 
 describe("Olivia natural response renderer", () => {
-  it("검증된 목표 총액을 짧게 말한다", () => {
+  it("검증된 직접 할인 결과의 총액을 짧게 말한다", () => {
     const outcome = toolResultOutcome({
-      tool: "apply_quote_rebalance", success: true,
+      tool: "apply_quote_discount", success: true,
       data: { summary: "375,000원 할인을 적용했어요.", totalAmount: 2_300_000 },
       verification: { executed: true, persisted: true, details: { totalAmount: 2_300_000 } },
     }, {
-      id: "a", status: "pending", intent: "apply_quote_rebalance", toolName: "apply_quote_rebalance", toolInput: {},
+      id: "a", status: "pending", intent: "apply_quote_discount", toolName: "apply_quote_discount", toolInput: {},
       target: { title: "리나클리닉" }, prompt: "적용할까요?", createdAt: "2026-09-11T00:00:00.000Z",
     });
     expect(renderOliviaOutcome(outcome)).toBe("됐어요. 리나클리닉 건을 2,300,000원으로 맞췄어요.");

@@ -109,18 +109,18 @@ describe("selectOliviaTools", () => {
     expect(resolveToollessActionRetry(0, "create_quote", 1)).toBeUndefined();
   });
 
-  it("총액 조정 승인과 짧은 실행 요청을 apply_quote_rebalance로 복원한다", () => {
-    const availableToolNames = ["rebalance_quote_total", "apply_quote_rebalance"];
+  it("총액 맞추기 후속 요청으로 자동 절삭 도구를 강제하지 않는다", () => {
+    const availableToolNames = ["apply_quote_discount"];
     expect(resolveRequiredFollowupTool({
       message: "맞아 230만원으로 맞추면 돼",
       recentText: "리나 클리닉 견적서 총액 230만원으로 조정",
       availableToolNames,
-    })).toBe("apply_quote_rebalance");
+    })).toBeUndefined();
     expect(resolveRequiredFollowupTool({
       message: "해 줘",
       recentText: "리나 클리닉 견적서 230만원으로 맞추면 돼",
       availableToolNames,
-    })).toBe("apply_quote_rebalance");
+    })).toBeUndefined();
   });
 
   it("Telegram의 빈 화면 context를 최근 assistant 문서 metadata로 복원한다", () => {

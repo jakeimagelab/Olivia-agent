@@ -12,7 +12,7 @@ import { renderOliviaOutcome, toolResultOutcome } from "@/lib/olivia/conversatio
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const APPROVABLE_TOOLS = new Set(["apply_quote_rebalance", "publish_quote", "publish_contract", "apply_remove_conti_shot", "remove_conti_scene_v2", "apply_send_mailing", "apply_feature_record_write", "approve_temporary_document", "link_temporary_document_client", "apply_client_create", "apply_client_archive"]);
+const APPROVABLE_TOOLS = new Set(["publish_quote", "publish_contract", "apply_remove_conti_shot", "remove_conti_scene_v2", "apply_send_mailing", "apply_feature_record_write", "approve_temporary_document", "link_temporary_document_client", "apply_client_create", "apply_client_archive"]);
 const CLIENT_APPROVAL_TOOLS = new Set(["apply_client_create", "apply_client_archive"]);
 
 export async function POST(req: NextRequest) {

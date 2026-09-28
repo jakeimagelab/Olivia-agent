@@ -14,7 +14,7 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
   client: ["client_search","client_get","client_archive","client_create","select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
-  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","rebalance_quote_total","apply_quote_rebalance","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
+  quote: ["start_quote_wizard","create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","update_quote_vat_mode","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   contract: ["create_contract","update_contract_terms","request_contract_signature","complete_contract","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   conti: ["get_conti_status","create_conti","complete_conti_v2","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   workflow: ["get_project_snapshot","get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
@@ -63,8 +63,6 @@ const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
   update_quote_info: "quote.edit",
   update_quote_payment_terms: "quote.edit",
   update_quote_vat_mode: "quote.edit",
-  rebalance_quote_total: "quote.edit",
-  apply_quote_rebalance: "quote.edit",
   add_quote_item: "quote.add_item",
   apply_quote_discount: "quote.discount",
   request_quote_publish: "quote.publish",
@@ -194,14 +192,6 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   if (!domain) return undefined;
 
   if (domain.create === "client_create" && hasClientRegistrationIntent(message) && available.has("client_create")) return "client_create";
-
-  const confirmsPendingAction = /^(맞아|응|그래|네|오케이|좋아|해\s*줘|진행해|적용해)/.test(message)
-    || /(맞추면\s*돼|적용하면\s*돼|그렇게\s*해)/.test(message);
-  const recentTail = recent.split("\n").slice(-3).join("\n");
-  const pendingQuoteRebalance = /(총액|맞추|조정|절삭)/.test(`${recentTail}\n${message}`);
-  if (domain.create === "create_quote" && confirmsPendingAction && pendingQuoteRebalance && available.has("apply_quote_rebalance")) {
-    return "apply_quote_rebalance";
-  }
 
   const followupCreate = /(다시|그대로|그걸로|이대로|한번\s*더)/.test(message)
     && /(만들|생성|작성|진행|해\s*줘|해줘)/.test(message)

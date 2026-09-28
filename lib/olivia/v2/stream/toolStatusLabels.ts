@@ -10,7 +10,6 @@ export function toolStatus(name: string) {
   if (name === "get_conti_status") return "저장된 콘티를 확인하는 중…";
   if (name === "update_quote_item") return "견적을 수정하는 중…";
   if (["add_quote_item", "remove_quote_item", "update_quote_note", "update_quote_info", "apply_quote_discount", "update_quote_vat_mode"].includes(name)) return "견적을 수정하는 중…";
-  if (name === "rebalance_quote_total") return "견적 조정안을 계산하는 중…";
   if (name === "update_contract_terms") return "계약 조건을 수정하는 중…";
   if (name === "request_contract_signature") return "서명 패드를 준비하는 중…";
   if (name === "complete_contract") return "계약서를 내부 최종완료하는 중…";
