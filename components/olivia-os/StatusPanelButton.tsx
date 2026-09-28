@@ -22,12 +22,15 @@ import { logOliviaError } from "@/lib/errors/errorDiagnostics";
 import {
   connectionStatusItems,
   DEFAULT_STATUS_PANEL_SECTIONS,
+  groupStatusPanelEntries,
   hasConnectionProblem,
+  limitStatusPanelEntryGroups,
   normalizeStatusPanelData,
   parseStoredSectionState,
   retryableStatusIssueIds,
   STATUS_PANEL_STORAGE_KEY,
   statusPanelBadge,
+  splitStaleStatusPanelEntries,
   systemAttentionItems,
   type StatusPanelSectionKey,
   type StatusPanelSectionState,
@@ -186,6 +189,80 @@ function EntryRow({
         <p className={feedback.error ? styles.statusPanelActionError : styles.statusPanelActionSuccess}>{feedback.message}</p>
       ) : null}
     </div>
+  );
+}
+
+/** 긴 알림 목록은 최근·중요 항목만 먼저 보이고, 중복 대상과 오래된 기록은 필요할 때 펼친다. */
+function CompactedEntryList({
+  entries,
+  empty,
+  onOpen,
+  onAction,
+  actionStates,
+}: {
+  entries: readonly StatusPanelEntry[];
+  empty: ReactNode;
+  onOpen: (entry: StatusPanelEntry) => void;
+  onAction: (entry: StatusPanelEntry, action: StatusPanelAction) => void;
+  actionStates: Record<string, EntryActionState>;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const [showStale, setShowStale] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+  const { recent, stale } = useMemo(() => splitStaleStatusPanelEntries({ entries }), [entries]);
+  const recentGroups = useMemo(() => groupStatusPanelEntries(recent), [recent]);
+  const staleGroups = useMemo(() => groupStatusPanelEntries(stale), [stale]);
+  const visibleGroups = showAll ? recentGroups : limitStatusPanelEntryGroups(recentGroups);
+  const hiddenCount = recentGroups.slice(visibleGroups.length).reduce((count, group) => count + group.entries.length, 0);
+
+  const renderGroup = (group: ReturnType<typeof groupStatusPanelEntries>[number]) => {
+    if (group.entries.length === 1) {
+      const entry = group.entries[0];
+      return entry ? <EntryRow key={entry.id} entry={entry} onOpen={onOpen} onAction={onAction} actionStates={actionStates} /> : null;
+    }
+    const expanded = expandedGroups.has(group.id);
+    return (
+      <div key={group.id} className={styles.statusPanelEntryGroup}>
+        <button
+          type="button"
+          className={`${styles.statusPanelEntry} ${styles.statusPanelGroupedEntry}`}
+          onClick={() => setExpandedGroups((current) => {
+            const next = new Set(current);
+            if (next.has(group.id)) next.delete(group.id); else next.add(group.id);
+            return next;
+          })}
+          aria-expanded={expanded}
+        >
+          <span className={`${styles.statusPanelSeverity} ${styles[`statusPanelSeverity_${group.level}`]}`} aria-hidden="true" />
+          <span className={styles.statusPanelEntryText}>
+            <strong>{group.title} {group.entries.length}건</strong>
+            <small>대상별로 확인하려면 펼치세요.</small>
+          </span>
+          {expanded ? <ChevronDown size={14} className={styles.statusPanelEntryArrow} /> : <ChevronRight size={14} className={styles.statusPanelEntryArrow} />}
+        </button>
+        {expanded ? group.entries.map((entry) => (
+          <EntryRow key={entry.id} entry={entry} onOpen={onOpen} onAction={onAction} actionStates={actionStates} />
+        )) : null}
+      </div>
+    );
+  };
+
+  if (!recentGroups.length && !staleGroups.length) return <>{empty}</>;
+  return (
+    <>
+      {visibleGroups.map(renderGroup)}
+      {!showAll && hiddenCount > 0 ? (
+        <button type="button" className={styles.statusPanelListDisclosure} onClick={() => setShowAll(true)}>{hiddenCount}건 더 보기</button>
+      ) : null}
+      {staleGroups.length ? (
+        <div className={styles.statusPanelStaleGroup}>
+          <button type="button" className={styles.statusPanelListDisclosure} onClick={() => setShowStale((current) => !current)} aria-expanded={showStale}>
+            {showStale ? <ChevronDown size={13} /> : <ChevronRight size={13} />}14일 지난 것 {stale.length}건 보기
+          </button>
+          {showStale ? staleGroups.map(renderGroup) : null}
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -483,15 +560,13 @@ function StatusPanelButtonContent() {
                   <b>{issues.length}</b>
                 </div>
                 <div className={styles.statusPanelSectionBody}>
-                  {issues.map((entry) => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onOpen={openEntry}
-                      onAction={executeAction}
-                      actionStates={actionStates}
-                    />
-                  ))}
+                  <CompactedEntryList
+                    entries={issues}
+                    empty={null}
+                    onOpen={openEntry}
+                    onAction={executeAction}
+                    actionStates={actionStates}
+                  />
                 </div>
               </section>
             ) : null}
@@ -503,17 +578,13 @@ function StatusPanelButtonContent() {
               open={sections.myTurn}
               onToggle={() => toggleSection("myTurn")}
             >
-              {data.myTurn.length
-                ? data.myTurn.map((entry) => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onOpen={openEntry}
-                      onAction={executeAction}
-                      actionStates={actionStates}
-                    />
-                  ))
-                : <p className={styles.statusPanelEmpty}>지금 직접 확인할 항목이 없습니다.</p>}
+              <CompactedEntryList
+                entries={data.myTurn}
+                empty={<p className={styles.statusPanelEmpty}>지금 직접 확인할 항목이 없습니다.</p>}
+                onOpen={openEntry}
+                onAction={executeAction}
+                actionStates={actionStates}
+              />
             </PanelSection>
 
             <PanelSection
@@ -564,17 +635,13 @@ function StatusPanelButtonContent() {
               open={sections.recent}
               onToggle={() => toggleSection("recent")}
             >
-              {data.recentActivity.length
-                ? data.recentActivity.map((entry) => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onOpen={openEntry}
-                      onAction={executeAction}
-                      actionStates={actionStates}
-                    />
-                  ))
-                : <p className={styles.statusPanelEmpty}>최근 기록이 없습니다.</p>}
+              <CompactedEntryList
+                entries={data.recentActivity}
+                empty={<p className={styles.statusPanelEmpty}>최근 기록이 없습니다.</p>}
+                onOpen={openEntry}
+                onAction={executeAction}
+                actionStates={actionStates}
+              />
               <div className={styles.statusPanelCheckedAt}><Clock3 size={11} />{relativeTime(data.checkedAt)} 확인</div>
             </PanelSection>
           </>

@@ -704,12 +704,35 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
 .statusPanelActionSecondary:disabled { cursor: wait; opacity: .58; }
 .statusPanelActionSuccess,
 .statusPanelActionError {
-  margin: -2px 8px 8px 23px;
-  font-size: 9.5px;
+  margin: 6px 8px 8px 23px;
+  padding: 8px 10px;
+  border-left: 3px solid currentColor;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.4;
 }
-.statusPanelActionSuccess { color: #155855; }
-.statusPanelActionError { color: #a83f1e; }
+.statusPanelActionSuccess { color: #155855; background: #edf8f4; }
+.statusPanelActionError { color: #a83f1e; background: #fff0ed; }
+
+.statusPanelGroupedEntry { width: 100%; cursor: pointer; }
+.statusPanelGroupedEntry:hover { background: #f2f8f6; }
+.statusPanelListDisclosure {
+  width: 100%;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px dashed rgba(21, 88, 85, .2);
+  border-radius: 7px;
+  background: #fbfdfc;
+  color: #47706a;
+  font: 650 10px/1 inherit;
+  cursor: pointer;
+}
+.statusPanelListDisclosure:hover { background: #f2f8f6; color: #155855; }
+.statusPanelStaleGroup { display: grid; gap: 5px; margin-top: 2px; }
 
 .statusPanelConnection {
   display: flex;

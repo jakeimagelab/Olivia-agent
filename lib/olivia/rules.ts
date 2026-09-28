@@ -1,4 +1,5 @@
 import type { OliviaRuleCandidate, OliviaWorkflowContext } from "@/lib/olivia/types";
+import { missingPreparationSummary } from "@/lib/system-status/preparationFields";
 
 const HOUR = 60 * 60 * 1_000;
 const DAY = 24 * HOUR;
@@ -165,7 +166,7 @@ export function evaluateOliviaRules(context: OliviaWorkflowContext): OliviaRuleC
         recommendedAction: {
           actionType: level === 3 ? "create_followup_message" : "request_missing_information",
           title: level === 3 ? "촬영 전일 확인 메시지 초안" : "촬영 준비 정보 확인",
-          description: `누락된 촬영 준비 항목을 확인합니다: ${missing.join(", ")}`,
+          description: missingPreparationSummary(missing),
           permissionLevel: "review_required",
           payload: { missingFields: missing, shootDate: run.shoot_date },
         },

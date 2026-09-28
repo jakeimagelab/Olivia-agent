@@ -2,6 +2,8 @@ import type { SystemStatusItem, SystemStatusReport } from "./types";
 import type { StatusPanelData, StatusPanelEntry, StatusPanelLevel } from "./panelTypes";
 
 export const STATUS_PANEL_STORAGE_KEY = "olivia.status-panel.sections.v1";
+export const STATUS_PANEL_DEFAULT_VISIBLE_LIMIT = 5;
+export const STATUS_PANEL_STALE_AFTER_DAYS = 14;
 
 export type StatusPanelSectionKey = "myTurn" | "progress" | "connections" | "recent";
 export type StatusPanelSectionState = Record<StatusPanelSectionKey, boolean>;
@@ -99,6 +101,69 @@ export function systemAttentionItems(data: StatusPanelData): StatusPanelEntry[] 
   for (const entry of diagnostics) merged.set(entry.id, entry);
   for (const entry of data.panelIssues ?? []) merged.set(entry.id, entry);
   return [...merged.values()];
+}
+
+const STATUS_PANEL_LEVEL_ORDER: Record<StatusPanelLevel, number> = {
+  error: 0,
+  warning: 1,
+  unknown: 2,
+  info: 3,
+};
+
+function entryTime(entry: StatusPanelEntry) {
+  const parsed = Date.parse(entry.createdAt || "");
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/** 급한 항목을 먼저 보여주고, 같은 심각도 안에서는 최신 항목을 우선한다. */
+export function sortStatusPanelEntries(entries: readonly StatusPanelEntry[]): StatusPanelEntry[] {
+  return [...entries].sort((left, right) => {
+    const severity = STATUS_PANEL_LEVEL_ORDER[left.level] - STATUS_PANEL_LEVEL_ORDER[right.level];
+    return severity || entryTime(right) - entryTime(left);
+  });
+}
+
+/** 시각이 없는 항목은 오래됐다고 단정하지 않아 기본 목록에 남긴다. */
+export function splitStaleStatusPanelEntries(input: {
+  entries: readonly StatusPanelEntry[];
+  nowMs?: number;
+  staleAfterDays?: number;
+}) {
+  const cutoff = (input.nowMs ?? Date.now()) - (input.staleAfterDays ?? STATUS_PANEL_STALE_AFTER_DAYS) * 24 * 60 * 60 * 1_000;
+  const recent: StatusPanelEntry[] = [];
+  const stale: StatusPanelEntry[] = [];
+  for (const entry of sortStatusPanelEntries(input.entries)) {
+    const timestamp = entryTime(entry);
+    (timestamp > 0 && timestamp < cutoff ? stale : recent).push(entry);
+  }
+  return { recent, stale };
+}
+
+export type StatusPanelEntryGroup = {
+  id: string;
+  title: string;
+  level: StatusPanelLevel;
+  entries: StatusPanelEntry[];
+};
+
+/** 같은 제목은 하나의 행으로 접고, 필요할 때만 개별 대상까지 펼친다. */
+export function groupStatusPanelEntries(entries: readonly StatusPanelEntry[]): StatusPanelEntryGroup[] {
+  const grouped = new Map<string, StatusPanelEntry[]>();
+  for (const entry of sortStatusPanelEntries(entries)) {
+    const current = grouped.get(entry.title) ?? [];
+    current.push(entry);
+    grouped.set(entry.title, current);
+  }
+  return [...grouped.entries()].map(([title, groupedEntries]) => ({
+    id: `${title}:${groupedEntries.map((entry) => entry.id).join(",")}`,
+    title,
+    level: groupedEntries[0]?.level ?? "info",
+    entries: groupedEntries,
+  }));
+}
+
+export function limitStatusPanelEntryGroups(groups: readonly StatusPanelEntryGroup[], limit = STATUS_PANEL_DEFAULT_VISIBLE_LIMIT) {
+  return groups.slice(0, limit);
 }
 
 export function hasConnectionProblem(items: SystemStatusItem[]) {

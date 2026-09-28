@@ -180,6 +180,28 @@ describe("buildStatusPanelCollections", () => {
     }));
   });
 
+  it("견적서 정합성 이슈에 resourceId가 없어도 workflow 완료 요청에는 단계 키를 보낸다", () => {
+    const result = buildStatusPanelCollections({
+      diagnostics,
+      consistencyIssues: [{
+        kind: "resource_ahead",
+        workflowRunId: "run-quote",
+        clientId: "client-quote",
+        clientName: "뽀빠이마취통증의학과",
+        currentStepKey: "consult_meeting",
+        currentStepName: "상담",
+        foundStepKey: "quote",
+        foundStepName: "견적서 생성/전달",
+        resourceType: "quote",
+        resourceId: null,
+      }],
+    });
+    expect(result.panelIssues[0]?.actions?.[0]).toEqual(expect.objectContaining({
+      endpoint: "/api/workflow-runs/run-quote/complete-step",
+      body: { stepKey: "quote" },
+    }));
+  });
+
   it("진단이 지정한 저장소 migration만 SQL 복사 액션으로 제공한다", async () => {
     const entries = await loadSchemaWarningEntries({
       ...diagnostics,

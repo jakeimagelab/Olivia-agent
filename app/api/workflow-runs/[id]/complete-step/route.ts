@@ -4,6 +4,7 @@ import { getWorkflowRun } from "@/lib/workflowAutomation";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { STEP_NAME } from "@/lib/workflow";
 import { completeStep } from "@/lib/core/commands/workflow";
+import { COMPLETABLE_STEP_KEYS } from "@/lib/workflow/completableSteps";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,14 +21,17 @@ export const dynamic = "force-dynamic";
 // shooting/payment_confirm은 PHASE 3(2026-09-25) 작업 1-B — 홈 채팅 "촬영 완료" 확인이 이미
 // 같은 방식으로 shooting을 완료 처리하고, 고객관리 화면의 "잔금·계산서 확인 완료" 버튼이
 // payment_confirm을 완료 처리한다.
-const COMPLETABLE_STEP_KEYS = new Set(["shooting", "payment_confirm", "contract", "conti", "client_selection", "retouching", "final_delivery"]);
-
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: workflowRunId } = await params;
   const body = await req.json().catch(() => ({} as any));
   const stepKey = typeof body?.stepKey === "string" ? body.stepKey : "";
   if (!COMPLETABLE_STEP_KEYS.has(stepKey)) {
-    return NextResponse.json({ ok: false, error: "완료 처리할 수 없는 단계입니다." }, { status: 400 });
+    return NextResponse.json({
+      ok: false,
+      error: stepKey
+        ? `'${stepKey}'는 완료 처리할 수 있는 단계가 아닙니다.`
+        : "어느 단계를 완료할지 전달되지 않았습니다.",
+    }, { status: 400 });
   }
 
   const db = getSupabaseAdmin();

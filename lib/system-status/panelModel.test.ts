@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_STATUS_PANEL_SECTIONS,
+  groupStatusPanelEntries,
   hasConnectionProblem,
+  limitStatusPanelEntryGroups,
   normalizeStatusPanelData,
   parseStoredSectionState,
   resolveSectionState,
   retryableStatusIssueIds,
+  sortStatusPanelEntries,
+  splitStaleStatusPanelEntries,
   statusPanelBadge,
   systemAttentionItems,
 } from "./panelModel";
@@ -100,5 +104,33 @@ describe("status panel model", () => {
       "diagnostic:mcp_tools",
       "query:workflow-consistency",
     ]);
+  });
+
+  it("급한 항목을 먼저, 같은 심각도에서는 최신 항목을 먼저 정렬한다", () => {
+    const entries = sortStatusPanelEntries([
+      { id: "old-warning", kind: "x", level: "warning", title: "경고", createdAt: "2026-09-01T00:00:00.000Z" },
+      { id: "new-warning", kind: "x", level: "warning", title: "경고 최신", createdAt: "2026-09-28T00:00:00.000Z" },
+      { id: "error", kind: "x", level: "error", title: "오류", createdAt: "2026-09-01T00:00:00.000Z" },
+    ]);
+    expect(entries.map((entry) => entry.id)).toEqual(["error", "new-warning", "old-warning"]);
+  });
+
+  it("14일 지난 항목은 기본 목록에서 분리하고 같은 제목은 한 묶음으로 만든다", () => {
+    const split = splitStaleStatusPanelEntries({
+      nowMs: Date.parse("2026-09-29T00:00:00.000Z"),
+      entries: [
+        { id: "recent-a", kind: "x", level: "info", title: "다음 단계 이동 승인", createdAt: "2026-09-28T00:00:00.000Z" },
+        { id: "recent-b", kind: "x", level: "info", title: "다음 단계 이동 승인", createdAt: "2026-09-27T00:00:00.000Z" },
+        { id: "stale", kind: "x", level: "warning", title: "오래된 승인", createdAt: "2026-09-01T00:00:00.000Z" },
+      ],
+    });
+    expect(split.recent.map((entry) => entry.id)).toEqual(["recent-a", "recent-b"]);
+    expect(split.stale.map((entry) => entry.id)).toEqual(["stale"]);
+    const groups = groupStatusPanelEntries(split.recent);
+    expect(groups).toEqual([expect.objectContaining({
+      title: "다음 단계 이동 승인",
+      entries: expect.arrayContaining([expect.objectContaining({ id: "recent-a" }), expect.objectContaining({ id: "recent-b" })]),
+    })]);
+    expect(limitStatusPanelEntryGroups([...groups, ...groups, ...groups, ...groups, ...groups, ...groups])).toHaveLength(5);
   });
 });
