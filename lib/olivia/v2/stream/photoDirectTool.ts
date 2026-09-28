@@ -25,8 +25,10 @@ export async function executePhotoToolBeforeDeadline(input: {
           error: folderLookup
             ? `${stage} 시간이 초과되었습니다. Mac Studio와 Workstation 연결 상태를 확인해주세요.`
             : `${stage} 응답이 지연됐습니다. 사진 작업 상태에서 실제 실행 여부를 확인해주세요.`,
-          details: { stage },
-          verification: { executed: false },
+          details: { stage, timedOut: true },
+          // executed를 false로 쓰지 않는다. Promise.race는 진 쪽을 취소하지 않으므로
+          // 18초가 지나도 작업은 계속 돌고 있고, 그 사이에 시작될 수 있다(2026-09-27).
+          verification: { details: { stage, timedOut: true } },
         },
         uiActions: [],
       });

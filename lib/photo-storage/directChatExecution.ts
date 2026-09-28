@@ -2,6 +2,11 @@ import type { OliviaAgentToolExecution, OliviaContextSnapshot, OliviaToolVerific
 import { matchPhotoFoldersInMessage } from "@/lib/photo-storage/photoFolderCatalog";
 import type { FolderMatch } from "@/lib/photo-storage/folderMatch";
 import type { RemoteNasDataSource } from "@/lib/remote-nas/types";
+import {
+  buildFailureReport,
+  resolveTimeoutVerdict,
+  type ExecutionVerdict,
+} from "@/lib/photo-storage/executionVerdict";
 
 export type PhotoDirectOperation = "source_prep" | "scene_sort";
 export type PhotoDirectPendingStage = "choose_folder" | "folder_retry" | "scene_settings" | "restart_confirmation";
@@ -24,6 +29,8 @@ export type PhotoDirectWorkItem = {
   selectedDisplayName?: string;
   candidates?: PhotoDirectFolderCandidate[];
   confirmRestart?: boolean;
+  /** 타임아웃 뒤 시작 여부를 끝내 확인하지 못한 폴더. 재실행 전에 한 번 확인받는다. */
+  startVerdictUnknown?: boolean;
 };
 
 export type PhotoDirectPendingState = {
@@ -192,6 +199,7 @@ function itemFromUnknown(value: unknown): PhotoDirectWorkItem | undefined {
     ...(string(raw.selectedDisplayName) ? { selectedDisplayName: string(raw.selectedDisplayName) } : {}),
     ...(candidates?.length ? { candidates } : {}),
     ...(raw.confirmRestart === true ? { confirmRestart: true } : {}),
+    ...(raw.startVerdictUnknown === true ? { startVerdictUnknown: true } : {}),
   };
 }
 
@@ -324,11 +332,61 @@ function cancelPending(state: PhotoDirectPendingState): PhotoDirectExecutionResu
   };
 }
 
+const VERIFICATION_WAIT_MS = 2_000;
+const VERIFICATION_ATTEMPTS = 3;
+
+async function verifyPhotoStart(input: {
+  executeTool: ExecuteTool;
+  context: OliviaContextSnapshot;
+  projectName: string;
+  requestedAt: string;
+  waitMs?: number;
+}): Promise<ExecutionVerdict> {
+  if (!input.projectName) return "unknown";
+  const waitMs = input.waitMs ?? VERIFICATION_WAIT_MS;
+  for (let attempt = 0; attempt < VERIFICATION_ATTEMPTS; attempt += 1) {
+    if (attempt > 0 && waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+    let verdict: ExecutionVerdict;
+    try {
+      const called = await input.executeTool(
+        "get_photo_storage_status",
+        { projectId: null, projectName: input.projectName },
+        input.context,
+      );
+      const { result } = called.execution;
+      if (!result.success) {
+        // "찾지 못했어요"는 조회 실패가 아니라 '없다'는 답이다. 그 둘을 섞으면
+        // 시작 안 된 것을 "모름"으로 보고하게 된다.
+        const missing = /찾지\s*못했|없어요/.test(result.error || "");
+        verdict = missing
+          ? resolveTimeoutVerdict({ requestedAt: input.requestedAt, probe: { found: false }, lookupFailed: false })
+          : "unknown";
+      } else {
+        const project = record(result.data?.project);
+        verdict = resolveTimeoutVerdict({
+          requestedAt: input.requestedAt,
+          probe: {
+            found: Boolean(project),
+            updatedAt: string(project?.updatedAt) ?? string(project?.updated_at) ?? null,
+          },
+          lookupFailed: false,
+        });
+      }
+    } catch {
+      verdict = "unknown";
+    }
+    if (verdict === "started") return verdict;
+    if (attempt === VERIFICATION_ATTEMPTS - 1) return verdict;
+  }
+  return "unknown";
+}
+
 async function runQueue(input: {
   state: PhotoDirectPendingState;
   context: OliviaContextSnapshot;
   executeTool: ExecuteTool;
   toolCalls: PhotoDirectToolCallRecord[];
+  verificationWaitMs?: number;
 }): Promise<PhotoDirectExecutionResult> {
   const { state, context, executeTool, toolCalls } = input;
 
@@ -377,7 +435,11 @@ async function runQueue(input: {
     // MCP bridge와 같은 수정 권한 경계를 직접 실행 경로에도 적용한다. 관리자 인증을 통과했더라도
     // 현재 화면 context가 명시적으로 read-only이면 사진 job을 우회 생성하지 않는다.
     if (context.canEdit === false) {
-      state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — 현재 화면에서는 사진 작업을 실행할 권한이 없어요. 원본은 변경하지 않았어요.`);
+      state.completedReports.push(buildFailureReport({
+        label: item.selectedDisplayName || item.selectedFolder || "사진 작업",
+        error: "현재 화면에서는 사진 작업을 실행할 권한이 없어요.",
+        failure: { kind: "certain" },
+      }));
       state.currentIndex += 1;
       continue;
     }
@@ -388,6 +450,9 @@ async function runQueue(input: {
       confirmRestart: item.confirmRestart === true,
       ...(state.operation === "scene_sort" ? { department: state.department, shootingMode: state.shootingMode } : {}),
     };
+    // 타임아웃 뒤 "이번 요청으로 시작된 것인지"를 가리려면 요청 시각이 필요하다.
+    // 같은 폴더를 예전에 돌린 프로젝트가 남아 있을 수 있다.
+    const startedAt = new Date().toISOString();
     const called = await executeTool(toolName, toolInput, context);
     const { result } = called.execution;
     toolCalls.push({ id: called.id, name: toolName, success: result.success, data: result.data, error: result.error, code: result.code, verification: result.verification });
@@ -402,10 +467,23 @@ async function runQueue(input: {
         reason: "needs_input",
       };
     }
+    const label = item.selectedDisplayName || item.selectedFolder || "사진 작업";
     if (result.success) {
-      state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — ${string(result.data?.summary) || "작업을 시작했습니다. 진행 중입니다."}`);
+      state.completedReports.push(`${label} — ${string(result.data?.summary) || "작업을 시작했습니다. 진행 중입니다."}`);
+    } else if (result.code === "PHOTO_DIRECT_TIMEOUT") {
+      // 시간이 지난 것은 실패가 아니다. 실제로 시작됐는지 서버에서 확인한 뒤에 말한다.
+      // "사진 작업 상태에서 확인해주세요"는 시스템이 할 일을 사용자에게 떠넘기는 것이었다.
+      const verdict = await verifyPhotoStart({
+        executeTool,
+        context,
+        projectName: item.selectedDisplayName || item.selectedFolder || "",
+        requestedAt: startedAt,
+        waitMs: input.verificationWaitMs,
+      });
+      if (verdict === "unknown") item.startVerdictUnknown = true;
+      state.completedReports.push(buildFailureReport({ label, error: result.error, failure: { kind: "timeout", verdict } }));
     } else {
-      state.completedReports.push(`${item.selectedDisplayName || item.selectedFolder} — 실패 (${result.error || "작업을 시작하지 못했어요."}) 원본은 변경하지 않았어요.`);
+      state.completedReports.push(buildFailureReport({ label, error: result.error, failure: { kind: "certain" } }));
     }
     state.currentIndex += 1;
   }
@@ -428,6 +506,8 @@ export async function executePhotoDirectTurn(input: {
   dataSource: RemoteNasDataSource;
   executeTool: ExecuteTool;
   now?: string;
+  /** 타임아웃 뒤 재확인 간격(ms). 테스트에서 0으로 줄인다. */
+  verificationWaitMs?: number;
 }): Promise<PhotoDirectExecutionResult> {
   if (!input.enabled) return { handled: false, toolCalls: [], reason: "disabled" };
   if (input.hermesToolNames.some((name) => PHOTO_TOOL_NAMES.has(normalizeToolName(name)))) {
@@ -467,7 +547,7 @@ export async function executePhotoDirectTurn(input: {
         const current = state.items[state.currentIndex];
         state.completedReports.push(`${current.selectedDisplayName || current.query} — 다시 시작하지 않았어요.`);
         state.currentIndex += 1;
-        return runQueue({ state, context: input.context, executeTool: input.executeTool, toolCalls: [] });
+        return runQueue({ state, context: input.context, executeTool: input.executeTool, toolCalls: [], verificationWaitMs: input.verificationWaitMs });
       }
       return cancelPending(state);
     }
@@ -495,5 +575,5 @@ export async function executePhotoDirectTurn(input: {
     return { handled: false, toolCalls: [], reason: "no_intent" };
   }
 
-  return runQueue({ state, context: input.context, executeTool: input.executeTool, toolCalls: [] });
+  return runQueue({ state, context: input.context, executeTool: input.executeTool, toolCalls: [], verificationWaitMs: input.verificationWaitMs });
 }
