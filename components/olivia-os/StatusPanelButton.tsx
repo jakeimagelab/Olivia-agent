@@ -304,6 +304,7 @@ function StatusPanelButtonContent() {
   const [actionStates, setActionStates] = useState<Record<string, EntryActionState>>({});
   const [deferredIssueIds, setDeferredIssueIds] = useState<Set<string>>(() => new Set());
   const [sections, setSections] = useState<StatusPanelSectionState>(DEFAULT_STATUS_PANEL_SECTIONS);
+  const [showAllProgress, setShowAllProgress] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
   const requestSequenceRef = useRef(0);
@@ -414,6 +415,18 @@ function StatusPanelButtonContent() {
     entry.kind === "remote_job_progress" || !entry.projectId || !shootingProjectIds.has(entry.projectId)
   ));
   const progressCount = visibleShootingProgress.length + serverProgress.length + backgroundJobs.length;
+  const displayedShootingProgress = showAllProgress
+    ? visibleShootingProgress
+    : visibleShootingProgress.slice(0, 5);
+  const remainingProgressSlots = Math.max(0, 5 - displayedShootingProgress.length);
+  const displayedServerProgress = showAllProgress
+    ? serverProgress
+    : serverProgress.slice(0, remainingProgressSlots);
+  const remainingBackgroundSlots = Math.max(0, remainingProgressSlots - displayedServerProgress.length);
+  const displayedBackgroundJobs = showAllProgress
+    ? backgroundJobs
+    : backgroundJobs.slice(0, remainingBackgroundSlots);
+  const hiddenProgressCount = Math.max(0, progressCount - displayedShootingProgress.length - displayedServerProgress.length - displayedBackgroundJobs.length);
   const topBarProgressEntry = useMemo<StatusPanelEntry | null>(() => {
     const remoteEntry = serverProgress.find((entry) => entry.kind === "remote_job_progress") ?? serverProgress[0];
     if (remoteEntry) return remoteEntry;
@@ -594,10 +607,10 @@ function StatusPanelButtonContent() {
               open={sections.progress}
               onToggle={() => toggleSection("progress")}
             >
-              {visibleShootingProgress.length ? (
+              {displayedShootingProgress.length ? (
                 <div className={styles.statusPanelWorkSection}>
                   <ShootingProgressCards
-                    cards={visibleShootingProgress}
+                    cards={displayedShootingProgress}
                     variant="panel"
                     onUpdated={refreshPhotoProjects}
                     onOpenFolder={(card) => launchHref(`/remote-files?path=${encodeURIComponent(card.sourceRelativePath)}`, card.projectName)}
@@ -605,7 +618,7 @@ function StatusPanelButtonContent() {
                   />
                 </div>
               ) : null}
-              {serverProgress.map((entry) => (
+              {displayedServerProgress.map((entry) => (
                 <EntryRow
                   key={entry.id}
                   entry={entry}
@@ -614,7 +627,10 @@ function StatusPanelButtonContent() {
                   actionStates={actionStates}
                 />
               ))}
-              {backgroundJobs.map((job) => <BrowserJobRow key={job.id} job={job} onOpen={(href, title) => { launchHref(href, title); setOpen(false); }} />)}
+              {displayedBackgroundJobs.map((job) => <BrowserJobRow key={job.id} job={job} onOpen={(href, title) => { launchHref(href, title); setOpen(false); }} />)}
+              {!showAllProgress && hiddenProgressCount > 0 ? (
+                <button type="button" className={styles.statusPanelListDisclosure} onClick={() => setShowAllProgress(true)}>{hiddenProgressCount}건 더 보기</button>
+              ) : null}
               {progressCount === 0 ? <p className={styles.statusPanelEmpty}>현재 진행 중인 작업이 없습니다.</p> : null}
             </PanelSection>
 
