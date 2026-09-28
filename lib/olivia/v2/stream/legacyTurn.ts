@@ -335,6 +335,7 @@ export async function runLegacyTurn({
     blocks: [{ type: "text", text: finalText }, ...(approvalBlock ? [approvalBlock] : [])],
     model,
     requestClass,
+    ...(safeRequiredFollowupTool ? { requiredFollowupTool: safeRequiredFollowupTool } : {}),
     toolCalls: cloudToolCalls,
     ...latestResourceMetadata,
   });

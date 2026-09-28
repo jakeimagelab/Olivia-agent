@@ -17,7 +17,7 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
     });
     expect(totals.discountableSubtotal).toBe(1_350_000 + 350_000 + 250_000 + 100_000);
     expect(totals.discountTotal).toBe(0);
-    // 만원 단위 절사 확인: 2,050,000은 이미 만원 단위라 그대로.
+    // 자동 절삭 없이 원금 그대로 공급가로 쓴다.
     expect(totals.supplyAmount).toBe(2_050_000);
     expect(totals.vat).toBe(205_000);
     expect(totals.finalAmount).toBe(2_255_000);
@@ -36,7 +36,7 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
     expect(totals.rateDiscountAmount).toBe(100_000);
     expect(totals.nonDiscountableCustomTotal).toBe(200_000);
     expect(totals.contentSubtotal).toBe(1_000_000 + 200_000);
-    // 공급가 = (1,000,000+200,000 - 100,000) → 1,100,000, 만원 단위 절사라 그대로.
+    // 공급가 = (1,000,000+200,000 - 100,000) → 1,100,000.
     expect(totals.supplyAmount).toBe(1_100_000);
   });
 
@@ -56,7 +56,7 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
     expect(totals.finalAmount).toBe(0);
   });
 
-  it("공급가는 만원 단위로 내림, 부가세는 반올림한다", () => {
+  it("만원 미만을 자동으로 깎지 않는다", () => {
     const totals = computeQuoteTotals({
       packageTotal: 1_234_567,
       singleItemsTotal: 0,
@@ -65,9 +65,20 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
       discountRate: 0,
       extraDiscount: 0,
     });
-    // 1,234,567 → 만원 단위 절사 → 1,230,000
-    expect(totals.supplyAmount).toBe(1_230_000);
-    expect(totals.vat).toBe(123_000);
-    expect(totals.finalAmount).toBe(1_353_000);
+    expect(totals.supplyAmount).toBe(1_234_567);
+    expect(totals.vat).toBe(123_457);
+    expect(totals.finalAmount).toBe(1_358_024);
+  });
+
+  it("절삭이 필요하면 추가할인으로 직접 한다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 1_234_567,
+      singleItemsTotal: 0,
+      optionsTotal: 0,
+      discountRate: 0,
+      extraDiscount: 34_567,
+      customItems: [],
+    });
+    expect(totals.supplyAmount).toBe(1_200_000);
   });
 });

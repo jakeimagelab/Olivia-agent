@@ -15,6 +15,7 @@ const REQUIRED_TABLES = [
   ["remote_workers", "supabase/migrations/20260913_remote_photo_progress.sql"],
   ["remote_jobs", "supabase/migrations/20260913_remote_photo_progress.sql"],
   ["photo_storage_projects", "supabase/migrations/20260914_photo_storage_projects.sql"],
+  ["health_findings", "supabase/migrations/20260928_health_findings.sql"],
 ] as const;
 
 const REQUIRED_ENV = [

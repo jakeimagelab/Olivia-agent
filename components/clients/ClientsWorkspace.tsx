@@ -98,7 +98,16 @@ type ClientsWorkspaceProps = {
   surface?: OliviaUiSurface;
 };
 
-export function resolveClientWorkspaceSelection({
+/**
+ * 선택이 "사람이 고른 것"인지 "화면을 채우려고 고른 것"인지 구분한다.
+ *
+ * 배경(2026-09-27): 고객목록을 그냥 열면 첫 번째 고객이 자동 선택되고, 그게 채팅의
+ * "지금 대상"까지 바꿨다. 그래서 청담스시 견적서를 이야기하다 목록을 한 번 열었더니
+ * "견적서 열어줘"가 엉뚱한 고객을 가리켰다.
+ */
+export type ClientSelectionSource = "explicit" | "fallback" | "none";
+
+export function resolveClientWorkspaceSelectionDetail({
   initialClientId,
   initialClientChanged,
   selectedClientId,
@@ -108,15 +117,28 @@ export function resolveClientWorkspaceSelection({
   initialClientChanged: boolean;
   selectedClientId: string | null;
   availableClientIds: string[];
-}) {
+}): { clientId: string | null; source: ClientSelectionSource } {
   // initialClientId는 창을 열거나 외부 명령으로 고객을 바꾼 순간에만 우선한다. 사용자가 목록에서
   // B를 누른 직후에도 이전 initialClientId(A)를 매 렌더마다 우선하면 A↔B가 반복되며 API 요청과
   // window context 갱신이 무한히 왕복한다.
-  if (initialClientChanged && initialClientId && availableClientIds.includes(initialClientId)) return initialClientId;
-  if (selectedClientId && availableClientIds.includes(selectedClientId)) return selectedClientId;
-  // 목록을 연 것만으로 첫 고객을 선택하면, 전혀 관련 없는 대화의 "지금 대상"까지
-  // 덮어쓴다. 고객 행을 직접 누르거나 clientId 딥링크로 연 경우에만 선택한다.
-  return null;
+  if (initialClientChanged && initialClientId && availableClientIds.includes(initialClientId)) {
+    return { clientId: initialClientId, source: "explicit" };
+  }
+  if (selectedClientId && availableClientIds.includes(selectedClientId)) {
+    return { clientId: selectedClientId, source: "explicit" };
+  }
+  // 목록의 첫 고객으로 떨어지는 것은 화면을 비워두지 않으려는 것일 뿐이다.
+  const first = availableClientIds[0] ?? null;
+  return { clientId: first, source: first ? "fallback" : "none" };
+}
+
+export function resolveClientWorkspaceSelection(input: {
+  initialClientId: string | null;
+  initialClientChanged: boolean;
+  selectedClientId: string | null;
+  availableClientIds: string[];
+}) {
+  return resolveClientWorkspaceSelectionDetail(input).clientId;
 }
 
 export function resolveEmbeddedClientDetailTarget(clientId: string, workflowRunId?: string | null) {
@@ -176,7 +198,7 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     if (loading) return;
     const initialClientChanged = lastAppliedInitialClientIdRef.current !== initialClientId;
     lastAppliedInitialClientIdRef.current = initialClientId;
-    const nextId = resolveClientWorkspaceSelection({
+    const { clientId: nextId, source } = resolveClientWorkspaceSelectionDetail({
       initialClientId,
       initialClientChanged,
       selectedClientId,
@@ -184,15 +206,18 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     });
     if (nextId === selectedClientId) return;
     setSelectedClientId(nextId);
-    // 목록 상태(nextId 없음)는 대화 컨텍스트를 절대 바꾸지 않는다. 실제 선택/명시 딥링크만
-    // 아래 selectClient 또는 유효한 initialClientId 경로에서 화면 대상으로 기록된다.
-    if (nextId) {
-      const selected = filtered.find((client) => client.id === nextId);
+    const selected = filtered.find((client) => client.id === nextId);
+    // 화면을 채우려고 고른 고객은 채팅의 "지금 대상"이 되지 않는다. 목록을 여는 것과
+    // 그 고객으로 작업하겠다는 것은 다르다(2026-09-27). 행을 직접 누르면 selectClient가
+    // 따로 setClient를 부른다.
+    if (source === "explicit") {
       const contextStore = useOliviaContextStore.getState();
       contextStore.setClient(selected?.id, selected?.name, "screen");
       contextStore.setProject(undefined, undefined);
     }
-    if (!embedded && nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
+    // fallback 선택을 URL의 clientId로 승격하면 다음 effect에서 explicit 선택이 되어 다시
+    // 채팅 context를 덮는다. 명시적 선택일 때만 기존 딥링크 동기화를 유지한다.
+    if (!embedded && source === "explicit" && nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
   // filteredClientIds는 선택 가능한 id 집합만 추적해 검색 입력 중 불필요한 effect 재실행을 막는다.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded, filteredClientIds, initialClientId, loading, router, selectedClientId]);

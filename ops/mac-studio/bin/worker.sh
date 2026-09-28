@@ -81,7 +81,7 @@ poll_once() {
   local heartbeat_path="$WORKER_HOME/state/nas-watcher-heartbeat"
   local installed_rev_path="$WORKER_HOME/state/installed-rev"
   local installed_at_path="$WORKER_HOME/state/installed-at"
-  local heartbeat_epoch heartbeat_iso heartbeat_payload worker_rev worker_installed_at
+  local heartbeat_epoch heartbeat_iso heartbeat_payload worker_rev worker_installed_at worker_health_path worker_health_payload
   if [[ -f "$heartbeat_path" ]]; then
     heartbeat_epoch="$(stat -f '%m' "$heartbeat_path" 2>/dev/null || true)"
     if [[ -n "$heartbeat_epoch" ]]; then
@@ -98,6 +98,13 @@ poll_once() {
   if [[ -f "$installed_at_path" ]]; then
     worker_installed_at="$(head -n 1 "$installed_at_path" 2>/dev/null | tr -d '\r\n' || true)"
     [[ -n "$worker_installed_at" ]] && headers+=(-H "x-olivia-worker-installed-at: $worker_installed_at")
+  fi
+  # OliviaWorker.app의 bounded supervisor snapshot. 프로세스 restart storm과 로그
+  # 증가율을 서버 자가 점검에서 판단할 수 있게, 실행 경로나 로그 내용은 보내지 않는다.
+  worker_health_path="$WORKER_HOME/state/oliviaworker_app_status.json"
+  if [[ -f "$worker_health_path" ]]; then
+    worker_health_payload="$(/usr/bin/base64 < "$worker_health_path" 2>/dev/null | tr -d '\r\n' || true)"
+    [[ -n "$worker_health_payload" && ${#worker_health_payload} -le 12000 ]] && headers+=(-H "x-olivia-worker-process-health: $worker_health_payload")
   fi
   if [[ -n "${VERCEL_BYPASS_SECRET:-}" ]]; then
     headers+=(-H "x-vercel-protection-bypass: $VERCEL_BYPASS_SECRET")

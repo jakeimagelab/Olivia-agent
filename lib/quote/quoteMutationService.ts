@@ -78,7 +78,8 @@ export function recalculateQuote(items: QuoteItem[], quote: Record<string, unkno
   const raw = Math.max(0, gross - Math.max(0, discountAmount));
   const formState = quote.form_state && typeof quote.form_state === "object" ? quote.form_state as Record<string, unknown> : {};
   const mode = formState.vatMode === "included" || formState.vatMode === "excluded" ? formState.vatMode : "separate";
-  const supplyAmount = mode === "included" ? Math.round(raw / 1.1) : Math.floor(raw / 10_000) * 10_000;
+  // 만원 미만 자동 절삭 제거(2026-09-29). computeQuoteTotals와 같은 규칙을 쓴다.
+  const supplyAmount = mode === "included" ? Math.round(raw / 1.1) : raw;
   const vat = mode === "excluded" ? 0 : mode === "included" ? raw - supplyAmount : Math.round(supplyAmount * .1);
   const totalAmount = supplyAmount + vat;
   const depositRate = depositRateOf(quote);

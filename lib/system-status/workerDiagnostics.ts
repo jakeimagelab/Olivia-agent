@@ -48,6 +48,20 @@ function optionalWatcherProgress(value: string | null): WorkerWatcherProgress | 
   }
 }
 
+function optionalWorkerProcessHealth(value: string | null): Record<string, unknown> | undefined {
+  if (!value || value.length > 12_000) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64").toString("utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
+    const row = parsed as Record<string, unknown>;
+    if (typeof row.updatedAt !== "string" || !Number.isFinite(new Date(row.updatedAt).getTime())) return undefined;
+    if (!Array.isArray(row.processes)) return undefined;
+    return row;
+  } catch {
+    return undefined;
+  }
+}
+
 export function readWorkerDiagnostics(headers: Headers): Partial<WorkerDiagnosticSnapshot> {
   const workstationMounted = optionalBoolean(headers.get("x-olivia-workstation-mounted"));
   const workstationAccessible = optionalBoolean(headers.get("x-olivia-workstation-accessible"));
@@ -58,6 +72,7 @@ export function readWorkerDiagnostics(headers: Headers): Partial<WorkerDiagnosti
   const openAiApiKeyConfigured = optionalBoolean(headers.get("x-olivia-openai-api-key-configured"));
   const workerRevision = optionalRevision(headers.get("x-olivia-worker-rev"));
   const workerInstalledAt = optionalIsoDate(headers.get("x-olivia-worker-installed-at"));
+  const workerProcessHealth = optionalWorkerProcessHealth(headers.get("x-olivia-worker-process-health"));
 
   return {
     ...(workstationMounted === undefined ? {} : { workstationMounted }),
@@ -69,6 +84,7 @@ export function readWorkerDiagnostics(headers: Headers): Partial<WorkerDiagnosti
     ...(openAiApiKeyConfigured === undefined ? {} : { openAiApiKeyConfigured }),
     ...(workerRevision === undefined ? {} : { workerRevision }),
     ...(workerInstalledAt === undefined ? {} : { workerInstalledAt }),
+    ...(workerProcessHealth === undefined ? {} : { workerProcessHealth }),
   };
 }
 
@@ -83,5 +99,6 @@ export function workerDiagnosticsToRow(snapshot: Partial<WorkerDiagnosticSnapsho
     ...(snapshot.openAiApiKeyConfigured === undefined ? {} : { openai_api_key_configured: snapshot.openAiApiKeyConfigured }),
     ...(snapshot.workerRevision === undefined ? {} : { worker_rev: snapshot.workerRevision }),
     ...(snapshot.workerInstalledAt === undefined ? {} : { worker_installed_at: snapshot.workerInstalledAt }),
+    ...(snapshot.workerProcessHealth === undefined ? {} : { worker_process_health: snapshot.workerProcessHealth }),
   };
 }

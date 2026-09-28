@@ -32,6 +32,7 @@ export type WorkerDiagnosticSnapshot = {
   openAiApiKeyConfigured: boolean | null;
   workerRevision: string | null;
   workerInstalledAt: string | null;
+  workerProcessHealth: Record<string, unknown> | null;
 };
 
 export type WorkerWatcherProgress = {

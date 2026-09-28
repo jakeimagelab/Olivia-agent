@@ -11,6 +11,7 @@ import { getConfiguredWorkerId } from "@/lib/remoteWorkerAuth";
 import { getWorkflowDisplayStepKey, STEP_NAME } from "@/lib/workflow";
 import { findWorkflowConsistencyIssues, type WorkflowConsistencyIssue } from "@/lib/workflowAutomation";
 import { isWorkflowWaitingCustomer } from "@/lib/workflowWaiting";
+import { healthRuleById } from "@/lib/health/rules";
 import type { StatusPanelAction, StatusPanelData, StatusPanelEntry, StatusPanelRecentEntry } from "./panelTypes";
 import type { SystemStatusReport } from "./types";
 import type { WorkerWatcherProgress } from "./types";
@@ -85,6 +86,15 @@ type RemoteJobRow = {
 };
 type FallbackRow = { id: string; metadata: Record<string, unknown> | null; created_at: string | null };
 type WorkerProgressRow = { watcher_progress?: unknown };
+type HealthFindingRow = {
+  id: string;
+  rule_id: string;
+  state: "issue" | "unknown";
+  detail: string | null;
+  remedy: string | null;
+  evidence: Record<string, unknown> | null;
+  last_seen_at: string | null;
+};
 type QueryResult<T> = { data: T[] | null; error: { message?: string } | null };
 
 const JOB_ACTION_LABEL: Record<string, string> = {
@@ -316,6 +326,7 @@ export function buildStatusPanelCollections(input: {
   schemaIssues?: StatusPanelEntry[];
   queryIssues?: StatusPanelEntry[];
   watcherProgress?: WorkerWatcherProgress | null;
+  healthFindings?: HealthFindingRow[];
   nowMs?: number;
 }): StatusPanelData {
   const photoProjects = input.photoProjects ?? [];
@@ -391,6 +402,17 @@ export function buildStatusPanelCollections(input: {
       workflowRunId: issue.workflowRunId,
       createdAt: issue.updatedAt,
       actions: [openAction(`open-client:${issue.workflowRunId}`, "대상 열기", projectHref(runById.get(issue.workflowRunId), issue.clientId))],
+    });
+  }
+  for (const finding of input.healthFindings ?? []) {
+    const rule = healthRuleById(finding.rule_id);
+    panelIssues.push({
+      id: `health:${finding.rule_id}`,
+      kind: "health_finding",
+      level: finding.state === "unknown" ? "unknown" : rule?.severity === "error" ? "error" : "warning",
+      title: `자가 점검 · ${rule?.label || finding.rule_id}`,
+      detail: [finding.detail, finding.remedy].filter(Boolean).join(" · ") || "상세 상태를 확인하세요.",
+      createdAt: finding.last_seen_at || input.diagnostics.checkedAt,
     });
   }
   for (const project of photoProjects) {
@@ -661,7 +683,7 @@ export async function collectStatusPanelData(options: {
   const { db, diagnostics } = options;
   const now = options.now ?? new Date();
   const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1_000).toISOString();
-  const [results, schemaIssues, workerProgressResult] = await Promise.all([
+  const [results, schemaIssues, workerProgressResult, healthResults] = await Promise.all([
     Promise.allSettled([
     // 오래된 운영 DB에는 workflow_run_id가 아직 없을 수 있다. 명시 select로 optional 컬럼을
     // 요구하면 사진 상태 전체가 사라지므로 기존 photo-storage/projects API처럼 행 전체를 읽고,
@@ -688,7 +710,12 @@ export async function collectStatusPanelData(options: {
     ]),
     loadSchemaWarningEntries(diagnostics),
     db.from("remote_workers").select("watcher_progress").eq("worker_id", getConfiguredWorkerId()).maybeSingle(),
+    Promise.allSettled([
+      db.from("health_findings").select("id,rule_id,state,detail,remedy,evidence,last_seen_at").is("resolved_at", null).order("last_seen_at", { ascending: false }).limit(50),
+    ]),
   ]);
+
+  const healthResult = healthResults[0];
 
   const [photoResult, runsResult, approvalsResult, tasksResult, eventsResult, backupsResult, jobsResult, fallbackResult, consistencyResult] = results;
   const queryIssues = [
@@ -700,6 +727,7 @@ export async function collectStatusPanelData(options: {
     queryFailure(backupsResult, "backups", "최근 백업"),
     queryFailure(jobsResult, "remote-jobs", "원격 작업"),
     queryFailure(fallbackResult, "fallbacks", "헤르메스 폴백"),
+    queryFailure(healthResult, "health-findings", "자가 점검"),
     consistencyResult.status === "rejected" ? {
       id: "query:workflow-consistency", kind: "query_error", level: "unknown" as const,
       title: "워크플로 정합성 · 확인 불가",
@@ -725,6 +753,7 @@ export async function collectStatusPanelData(options: {
     schemaIssues,
     queryIssues,
     watcherProgress: normalizeWatcherProgress((workerProgressResult.data as WorkerProgressRow | null)?.watcher_progress),
+    healthFindings: fulfilledRows(healthResult) as HealthFindingRow[],
     nowMs: now.getTime(),
   });
 }

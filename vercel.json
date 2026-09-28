@@ -59,6 +59,14 @@
     {
       "path": "/api/cron/olivia-agent-runs",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/health-live",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/health-audit",
+      "schedule": "0 * * * *"
     }
   ]
 }

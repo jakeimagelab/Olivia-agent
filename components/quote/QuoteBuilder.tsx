@@ -2035,31 +2035,31 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                         aria-pressed={isSelected}
                       >
                         <span>{item.name}</span>
-                        <strong>{isSelected ? "선택됨" : "탭하여 선택"}</strong>
+                        {/* 글자 대신 기호를 쓴다. 선택 여부는 테두리와 배경(single-item-button-active)이
+                            이미 보여주고 있어서, 라벨은 폭만 흔들었다. */}
+                        <strong aria-hidden="true">{isSelected ? "✓" : ""}</strong>
                       </button>
-                      {isSelected ? (
-                        <>
-                          <input
-                            type="text"
-                            value={singleItemNotes[item.id] ?? ""}
-                            onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
-                            placeholder="내용 입력"
-                            className="jake-single-item-note"
-                            aria-label={`${item.name} 내용`}
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            step="1000"
-                            inputMode="numeric"
-                            value={singleItemAmounts[item.id] ?? ""}
-                            onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
-                            placeholder="금액"
-                            className="jake-single-item-amount"
-                            aria-label={`${item.name} 금액`}
-                          />
-                        </>
-                      ) : null}
+                      <input
+                        type="text"
+                        value={singleItemNotes[item.id] ?? ""}
+                        onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
+                        placeholder={isSelected ? "내용 입력" : ""}
+                        className="jake-single-item-note"
+                        disabled={!isSelected}
+                        aria-label={`${item.name} 내용`}
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        step="1000"
+                        inputMode="numeric"
+                        value={singleItemAmounts[item.id] ?? ""}
+                        onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
+                        placeholder={isSelected ? "금액" : ""}
+                        className="jake-single-item-amount"
+                        disabled={!isSelected}
+                        aria-label={`${item.name} 금액`}
+                      />
                     </div>
                   );
                 }

@@ -7,6 +7,7 @@ export type OliviaEngineRouteReason =
   | "configured_legacy"
   | "deterministic_action"
   | "database_fast_path"
+  | "command_direct"
   | "conversation";
 
 export type OliviaEngineRoute = {
@@ -57,6 +58,21 @@ export function resolveOliviaEngineRoute(input: {
       useHermes: false,
       directToolExecutionEnabled: input.directToolExecutionEnabled,
       reason: directReason,
+    };
+  }
+
+  // 명령은 헤르메스로 보내지 않는다. 도구 하나로 끝나는 요청에 코덱스 추론과
+  // 도구 설명 24,000토큰을 매번 태우면 52초 제한에 걸린다(2026-09-28).
+  // legacy 는 이미 헤르메스 폴백 경로라 실행 요청을 다룰 수 있다.
+  if (input.requestClass === "TOOL_ACTION"
+    || input.requestClass === "FAST_COMMAND"
+    || input.uiExecutionIntent) {
+    return {
+      requestedEngine: "hermes",
+      actualEngine: "legacy",
+      useHermes: false,
+      directToolExecutionEnabled: input.directToolExecutionEnabled,
+      reason: "command_direct",
     };
   }
 

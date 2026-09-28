@@ -15,18 +15,23 @@ describe("Olivia Hermes-first 엔진 라우팅", () => {
     expect(isDirectToolExecutionEnabled("0")).toBe(false);
   });
 
-  it.each(["TOOL_ACTION", "FAST_COMMAND", "NORMAL_CHAT", "REASONING"] as const)(
-    "Hermes 설정에서는 %s도 같은 Hermes conversation을 유지한다",
-    (requestClass) => {
+  it.each([
+    ["TOOL_ACTION", "legacy", false, "command_direct"],
+    ["FAST_COMMAND", "legacy", false, "command_direct"],
+    ["NORMAL_CHAT", "hermes", true, "conversation"],
+    ["REASONING", "hermes", true, "conversation"],
+  ] as const)(
+    "Hermes 설정에서 %s는 정책에 맞는 엔진으로 간다",
+    (requestClass, actualEngine, useHermes, reason) => {
       expect(resolveOliviaEngineRoute({
         configuredEngine: "hermes",
         requestClass,
         directToolExecutionEnabled: true,
       })).toMatchObject({
         requestedEngine: "hermes",
-        actualEngine: "hermes",
-        useHermes: true,
-        reason: "conversation",
+        actualEngine,
+        useHermes,
+        reason,
       });
     },
   );
@@ -70,13 +75,39 @@ describe("Olivia Hermes-first 엔진 라우팅", () => {
     "그걸로 해줘",
     "0918 삼칠갈비 원본 분리해줘",
     "삼칠갈비 씬별 분류해줘",
-  ])("실제 실행 요청 '%s'도 Hermes 대화 경로를 유지한다", (message) => {
+  ])("분류된 실행 요청 '%s'은 정책에 맞는 엔진으로 처리한다", (message) => {
     const requestClass = classifyOliviaRequest(message, emptyContext);
-    expect(resolveOliviaEngineRoute({
+    const route = resolveOliviaEngineRoute({
       configuredEngine: "hermes",
       requestClass,
       directToolExecutionEnabled: true,
-    }).useHermes).toBe(true);
+    });
+    if (requestClass === "TOOL_ACTION" || requestClass === "FAST_COMMAND") {
+      expect(route).toMatchObject({ actualEngine: "legacy", useHermes: false, reason: "command_direct" });
+    } else {
+      // "종일로"처럼 문맥 없이 단독으로 온 후속어는 현재 분류 기준상 NORMAL_CHAT이다.
+      // 분류기를 넓히지 않는 이번 범위에서는 대화 엔진을 유지한다.
+      expect(route).toMatchObject({ actualEngine: "hermes", useHermes: true, reason: "conversation" });
+    }
+  });
+
+  it("추론 요청은 헤르메스를 유지한다", () => {
+    for (const message of ["우리 병원 브랜딩 전략 짜줘", "전체 분석해줘", "경쟁 병원 비교해줘"]) {
+      const requestClass = classifyOliviaRequest(message, emptyContext);
+      expect(resolveOliviaEngineRoute({
+        configuredEngine: "hermes",
+        requestClass,
+        directToolExecutionEnabled: true,
+      }).useHermes).toBe(true);
+    }
+  });
+
+  it("설정이 legacy면 여전히 configured_legacy가 먼저다", () => {
+    expect(resolveOliviaEngineRoute({
+      configuredEngine: "legacy",
+      requestClass: "TOOL_ACTION",
+      directToolExecutionEnabled: true,
+    }).reason).toBe("configured_legacy");
   });
 
   it("도구 없이 불가/약속 답변을 내면 legacy 재시도 대상으로 판정한다", () => {

@@ -75,6 +75,7 @@ final class ManagedProcess {
 
     private(set) var process: Process?
     private(set) var restartCount = 0
+    private var restartTimes: [Date] = []
     private(set) var lastExitCode: Int32?
     private(set) var lastStartedAt: Date?
 
@@ -149,7 +150,17 @@ final class ManagedProcess {
     var isRunning: Bool { process?.isRunning ?? false }
     var pid: Int32? { isRunning ? process?.processIdentifier : nil }
 
-    func markRestarted() { restartCount += 1 }
+    func markRestarted() {
+        restartCount += 1
+        let cutoff = Date().addingTimeInterval(-10 * 60)
+        restartTimes = restartTimes.filter { $0 >= cutoff }
+        restartTimes.append(Date())
+    }
+
+    var restartEventsLast10m: Int {
+        let cutoff = Date().addingTimeInterval(-10 * 60)
+        return restartTimes.filter { $0 >= cutoff }.count
+    }
 }
 
 // MARK: - Supervisor (요구사항 3 — health 상태 관리, 요구사항 4 — clean shutdown)
@@ -242,6 +253,7 @@ final class Supervisor {
                     "running": process.isRunning,
                     "pid": process.pid ?? NSNull(),
                     "restartCount": process.restartCount,
+                    "restartEventsLast10m": process.restartEventsLast10m,
                     "lastExitCode": process.lastExitCode ?? NSNull(),
                     "lastStartedAt": process.lastStartedAt.map { ISO8601DateFormatter().string(from: $0) } ?? NSNull(),
                 ]
@@ -249,6 +261,15 @@ final class Supervisor {
             let snapshot: [String: Any] = [
                 "updatedAt": ISO8601DateFormatter().string(from: Date()),
                 "processes": entries,
+                "logBytes": self.managed.reduce(Int64(0)) { total, process in
+                    let paths = [process.stdoutPath, process.stderrPath]
+                    let bytes = paths.reduce(Int64(0)) { sum, path in
+                        let attributes = try? FileManager.default.attributesOfItem(atPath: path)
+                        let size = attributes?[.size] as? NSNumber
+                        return sum + (size?.int64Value ?? 0)
+                    }
+                    return total + bytes
+                },
             ]
             if let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.prettyPrinted]) {
                 try? data.write(to: URL(fileURLWithPath: healthPath))

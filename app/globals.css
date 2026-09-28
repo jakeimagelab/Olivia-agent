@@ -3381,12 +3381,26 @@ main:has(> .pc-header) {
   gap: 8px;
 }
 
-/* 단일항목 버튼이 grid 안에서 width:100%로 늘어나던 것을, 옆에 내용입력칸을 붙일 수 있게
-   내용만큼만 차지하도록 고정폭으로 줄인다 — 나머지 공간은 전부 입력칸이 가져간다. */
+/* 항목명 길이와 선택 상태에 따라 버튼 폭이 흔들리면 줄이 안 맞는다(2026-09-29).
+   왼쪽 열을 고정폭으로 못 박아 모든 행이 같은 자리에서 시작하게 한다. */
 .jake-single-item-row .single-item-button {
+  flex: 0 0 176px;
+  width: 176px;
+  min-width: 0;
+  grid-template-columns: 1fr auto;
+}
+
+/* 선택 표시가 글자 수로 폭을 바꾸지 않게 고정 너비를 준다. */
+.jake-single-item-row .single-item-button strong {
   flex: 0 0 auto;
-  width: auto;
-  min-width: 148px;
+  width: 18px;
+  text-align: right;
+  font-size: 13px;
+  color: var(--teal);
+}
+
+.jake-single-item-row + .jake-single-item-row {
+  margin-top: 8px;
 }
 
 .jake-single-item-note {
@@ -3407,8 +3421,16 @@ main:has(> .pc-header) {
   box-shadow: 0 0 0 3px rgba(22, 34, 56, 0.12);
 }
 
+.jake-single-item-note:disabled,
+.jake-single-item-amount:disabled {
+  background: #f7f4ef;
+  border-color: #ebe5dc;
+  cursor: default;
+}
+
 .jake-single-item-amount {
-  flex: 0 0 132px;
+  flex: 0 0 120px;
+  width: 120px;
   min-width: 0;
   border: 1px solid #ded7cc;
   border-radius: 8px;

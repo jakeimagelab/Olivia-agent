@@ -44,7 +44,9 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
   const extraDiscountAmount = Math.min(Math.max(Number(extraDiscount) || 0, 0), Math.max(discountableSubtotal - rateDiscountAmount, 0));
   const discountTotal = rateDiscountAmount + extraDiscountAmount;
   const rawSupplyAmount = Math.max(contentSubtotal - discountTotal, 0);
-  const supplyAmount = Math.floor(rawSupplyAmount / 10000) * 10000;
+  // 만원 미만 자동 절삭을 하지 않는다(2026-09-29). 절삭이 필요하면 추가할인으로
+  // 직접 넣는다 — 시스템이 대표 대신 금액을 깎지 않는다.
+  const supplyAmount = rawSupplyAmount;
   const vat = Math.round(supplyAmount * 0.1);
   const finalAmount = supplyAmount + vat;
   return {
