@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 export type PenType = "pen" | "marker" | "highlighter" | "brush" | "pencil" | "ballpoint" | "fountain";
 export type DrawShape = "freehand" | "line" | "arrow" | "rectangle" | "ellipse";
@@ -81,6 +81,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
   const redoRef = useRef<string[]>([]);
   const shapeStartRef = useRef<{ x: number; y: number } | null>(null);
   const shapeBaseRef = useRef<ImageData | null>(null);
+  const [cursor, setCursor] = useState<{ visible: boolean; x: number; y: number }>({ visible: false, x: 0, y: 0 });
 
   const pushHistory = () => {
     const canvas = canvasRef.current;
@@ -214,6 +215,15 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
   };
 
+  const updateCursor = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (event.pointerType === "touch") {
+      setCursor((current) => current.visible ? { ...current, visible: false } : current);
+      return;
+    }
+    const rect = event.currentTarget.getBoundingClientRect();
+    setCursor({ visible: true, x: event.clientX - rect.left, y: event.clientY - rect.top });
+  };
+
   const applyPenStyle = (ctx: CanvasRenderingContext2D, speed = 0, pressure = 0.5) => {
     const dpr = dprRef.current;
     if (isEraser) {
@@ -264,6 +274,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
 
   const startDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    updateCursor(e);
     e.currentTarget.setPointerCapture(e.pointerId);
     const pos = getPos(e.clientX, e.clientY);
     if (!pos) return;
@@ -346,6 +357,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
 
   const continueDraw = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
+    updateCursor(e);
     if (!isDrawingRef.current) return;
     const native = e.nativeEvent;
     const coalesced = typeof native.getCoalescedEvents === "function" ? native.getCoalescedEvents() : [native];
@@ -379,16 +391,35 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>(functi
     }
   };
 
+  const cursorSize = isEraser ? eraserSize : penSize;
+
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      style={{ touchAction: "none", cursor: isEraser ? "cell" : "crosshair", ...style }}
-      onPointerDown={startDraw}
-      onPointerMove={continueDraw}
-      onPointerUp={stopDraw}
-      onPointerCancel={stopDraw}
-    />
+    <div className={className} style={{ ...style, position: "relative", touchAction: "none", cursor: "none" }}>
+      <canvas
+        ref={canvasRef}
+        style={{ display: "block", width: "100%", height: "100%" }}
+        onPointerEnter={updateCursor}
+        onPointerDown={startDraw}
+        onPointerMove={continueDraw}
+        onPointerUp={stopDraw}
+        onPointerCancel={stopDraw}
+        onPointerLeave={() => setCursor((current) => current.visible ? { ...current, visible: false } : current)}
+      />
+      {cursor.visible ? <div aria-hidden="true" style={{
+        position: "absolute",
+        left: cursor.x,
+        top: cursor.y,
+        width: cursorSize,
+        height: cursorSize,
+        transform: "translate(-50%, -50%)",
+        borderRadius: "50%",
+        border: "1px solid rgba(70,84,80,.65)",
+        background: isEraser ? "rgba(255,255,255,.8)" : penColor,
+        opacity: isEraser ? .9 : .72,
+        pointerEvents: "none",
+        zIndex: 3,
+      }} /> : null}
+    </div>
   );
 });
 

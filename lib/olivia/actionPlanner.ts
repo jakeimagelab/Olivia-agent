@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { advanceWorkflow, executeWorkflowTask } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { assertWrite } from "@/lib/db/assertWrite";
 import { canRunWithoutApproval, normalizePermission } from "@/lib/olivia/permissions";
 import type { OliviaRecommendedAction, OliviaRuleCandidate, OliviaWorkflowContext } from "@/lib/olivia/types";
 
@@ -140,7 +141,8 @@ export async function runOliviaAction(db: SupabaseClient, action: any, context?:
       const taskId = String(running.action_payload?.taskId || "");
       if (!taskId) throw new Error("재실행할 taskId가 없습니다.");
       const { data: task } = await db.from("agent_tasks").select("retry_count").eq("id", taskId).single();
-      await db.from("agent_tasks").update({ retry_count: Number(task?.retry_count || 0) + 1, status: "pending" }).eq("id", taskId);
+      const retryWrite = await db.from("agent_tasks").update({ retry_count: Number(task?.retry_count || 0) + 1, status: "pending" }).eq("id", taskId);
+      assertWrite(retryWrite, "에이전트 작업 재시도 상태 기록");
       result = await executeWorkflowTask(db, taskId);
     } else if (running.action_type === "update_next_action") {
       const { data: run, error: runError } = await db.from("workflow_runs").select("next_action,next_action_source").eq("id", running.workflow_run_id).single();

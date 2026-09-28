@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,10 +102,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // 갤러리 상태 → mail_draft_created
     const now = new Date().toISOString();
-    await sb
+    const galleryWrite = await sb
       .from("select_galleries")
       .update({ status: "mail_draft_created", updated_at: now })
       .eq("id", id);
+    assertWrite(galleryWrite, "셀렉 갤러리 메일 초안 상태 기록");
 
     return NextResponse.json({
       ok: true,

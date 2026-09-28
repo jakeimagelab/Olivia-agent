@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { getGalleryImages, getLatestSelection } from "@/lib/selectGallery";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,10 +31,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sha
     ]);
 
     if (gallery.status === "draft" || gallery.status === "mail_sent") {
-      await sb
+      const galleryWrite = await sb
         .from("select_galleries")
         .update({ status: "waiting_selection", updated_at: new Date().toISOString() })
         .eq("id", gallery.id);
+      assertWrite(galleryWrite, "고객 셀렉 대기 상태 기록");
       gallery.status = "waiting_selection";
     }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .select()
     .single();
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  if (data.agent_task_id) await db.from("agent_tasks").update({ status: "failed", error_message: body.memo ?? "승인 반려" }).eq("id", data.agent_task_id);
+  if (data.agent_task_id) {
+    const taskWrite = await db.from("agent_tasks").update({ status: "failed", error_message: body.memo ?? "승인 반려" }).eq("id", data.agent_task_id);
+    assertWrite(taskWrite, "반려된 작업 상태 기록");
+  }
   if (data.related_type === "olivia_action" && data.related_id) {
     await db.from("olivia_actions").update({ status: "dismissed", error_message: body.memo ?? "승인 반려" }).eq("id", data.related_id);
     await db.from("olivia_feedback").insert({

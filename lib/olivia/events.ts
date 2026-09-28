@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { OliviaEventInput } from "@/lib/olivia/types";
+import { reportSafelyFailure } from "@/lib/observability/safelyFailure";
 
 const SENSITIVE_KEYS = new Set([
   "email",
@@ -82,11 +83,19 @@ export async function markOliviaEventFailed(db: SupabaseClient, eventId: string,
   return data;
 }
 
-export async function emitOliviaEventSafely(db: SupabaseClient, input: OliviaEventInput) {
+export type SafeOliviaEventResult =
+  | { ok: true; data: Awaited<ReturnType<typeof emitOliviaEvent>> }
+  | { ok: false; error: string };
+
+export async function emitOliviaEventSafely(
+  db: SupabaseClient,
+  input: OliviaEventInput,
+): Promise<SafeOliviaEventResult> {
   try {
-    return await emitOliviaEvent(db, input);
+    return { ok: true, data: await emitOliviaEvent(db, input) };
   } catch (error) {
-    console.error(`[olivia:event] ${input.eventType}`, error instanceof Error ? error.message : String(error));
-    return null;
+    const message = error instanceof Error ? error.message : String(error);
+    reportSafelyFailure("emitOliviaEventSafely", input.eventType, error);
+    return { ok: false, error: message };
   }
 }

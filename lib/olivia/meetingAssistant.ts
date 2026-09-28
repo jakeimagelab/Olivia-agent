@@ -7,6 +7,7 @@ import { getKstDate } from "@/lib/olivia/briefings";
 import { saveMeetingCommitments } from "@/lib/olivia/commitments";
 import { buildWorkflowContext } from "@/lib/olivia/context";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
+import { assertWrite } from "@/lib/db/assertWrite";
 import type { OliviaChatWorkItem } from "@/lib/olivia/chatTypes";
 
 type CalendarTask = Record<string, any>;
@@ -394,7 +395,8 @@ export async function analyzeMeetingMemo(db: SupabaseClient, input: { memoId: st
   const nextAction = String(analysis.nextAction || "").trim();
   const run = context.workflowRun;
   if (nextAction && canApplyAiNextAction(run)) {
-    await db.from("workflow_runs").update({ next_action: nextAction, next_action_source: "ai", next_action_updated_at: new Date().toISOString() }).eq("id", workflowRunId);
+    const nextActionWrite = await db.from("workflow_runs").update({ next_action: nextAction, next_action_source: "ai", next_action_updated_at: new Date().toISOString() }).eq("id", workflowRunId);
+    assertWrite(nextActionWrite, "미팅 분석 다음 작업 기록");
   }
   let createdTasks: any[] = [];
   if (run.current_step_key === "quote") createdTasks = (await createStepTasks(db, workflowRunId, "quote")).created;

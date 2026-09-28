@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { advanceWorkflow } from "@/lib/workflowAutomation";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,10 +58,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const matchedCount = rows.filter(r => r.status === "matched").length;
     const now = new Date().toISOString();
 
-    await sb
+    const galleryWrite = await sb
       .from("select_galleries")
       .update({ status: "raw_matched", updated_at: now })
       .eq("id", id);
+    assertWrite(galleryWrite, "RAW 매칭 완료 상태 기록");
 
     // 워크플로우 자동 진행: client_selection/raw_matching → retouching.
     // 과거 데이터는 client_selection에 머문 채 next_action만 raw_matching인 경우가 있어

@@ -13,6 +13,7 @@ import { createEventDeduplicationKey, emitOliviaEvent, emitOliviaEventSafely } f
 import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredData } from "@/lib/workflowDataContext";
 import { addPoints } from "@/lib/per";
 import { coreCommandFailure, type CoreCommandResult } from "@/lib/core/commands/result";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export type StepAutomation = {
   task_type: string;
@@ -366,18 +367,20 @@ export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_
   if (error) throw new Error(error.message);
 
   // 자동 전진·수동 전진 어느 경로에서든 동일하게 보관 기한을 기록한다.
-  // 마이그레이션 전 DB에서는 업데이트 오류를 무시해 기존 워크플로우를 보호한다.
+  // 보관 기한 기록이 실패하면 전진 성공처럼 보이면 안 되므로 오류를 즉시 전파한다.
   if (fromStep === "client_selection" && toStep === "retouching") {
-    await db.from("workflow_runs").update({
+    const retentionWrite = await db.from("workflow_runs").update({
       original_delivered_at: now,
       original_expires_at: addYearsIso(new Date(now), 1),
     }).eq("id", run.id);
+    assertWrite(retentionWrite, "원본 보관 기한 기록");
   }
   if (fromStep === "final_delivery" && toStep === "revision") {
-    await db.from("workflow_runs").update({
+    const retentionWrite = await db.from("workflow_runs").update({
       retouched_delivered_at: now,
       retouched_expires_at: addYearsIso(new Date(now), 3),
     }).eq("id", run.id);
+    assertWrite(retentionWrite, "완료본 보관 기한 기록");
   }
 
   await ensureStepRun(db, run.id, toStep, "in_progress");
@@ -624,12 +627,13 @@ export async function completeWorkflowRetroactively(
 // 남아있는 pending/failed 작업을 완료 처리해서 전진을 막지 않게 한다.
 export async function completeOpenStepTasksForManualSave(db: SupabaseClient, workflowRunId: string, stepKey: string) {
   const now = new Date().toISOString();
-  await db
+  const write = await db
     .from("agent_tasks")
     .update({ status: "completed", completed_at: now, updated_at: now })
     .eq("workflow_run_id", workflowRunId)
     .eq("workflow_step_key", stepKey)
     .in("status", ["pending", "failed"]);
+  assertWrite(write, "완료 단계의 열린 작업 정리");
 }
 
 export async function maybeAdvanceWorkflow(db: SupabaseClient, workflowRunId: string, stepKey: string) {
@@ -666,7 +670,8 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     : (task.input_data?.registered_data ?? null);
   const now = new Date().toISOString();
 
-  await db.from("agent_tasks").update({ status: "running", started_at: task.started_at ?? now, updated_at: now, error_message: "" }).eq("id", task.id);
+  const startWrite = await db.from("agent_tasks").update({ status: "running", started_at: task.started_at ?? now, updated_at: now, error_message: "" }).eq("id", task.id);
+  assertWrite(startWrite, "에이전트 작업 시작 상태 기록");
   await emitOliviaEventSafely(db, {
     eventType: "agent.task_started",
     eventSource: "workflow_automation",
@@ -683,7 +688,8 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
       input_data: { ...(task.input_data ?? {}), registered_data: registeredData },
     };
     if (registeredData) {
-      await db.from("agent_tasks").update({ input_data: enrichedTask.input_data, updated_at: now }).eq("id", task.id);
+      const enrichWrite = await db.from("agent_tasks").update({ input_data: enrichedTask.input_data, updated_at: now }).eq("id", task.id);
+      assertWrite(enrichWrite, "에이전트 작업 입력값 기록");
     }
     const output = await buildTaskOutput(db, enrichedTask, run);
     let relatedType = task.task_type;
@@ -700,7 +706,8 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     if (automation?.requires_approval) {
       const approval = await ensureApproval(db, enrichedTask, run, automation, output, relatedType, relatedId);
       if (mailingId) {
-        await db.from("mailing_queue").update({ source_id: task.id, approval_id: approval.id, approval_status: "pending" }).eq("id", mailingId);
+        const mailingWrite = await db.from("mailing_queue").update({ source_id: task.id, approval_id: approval.id, approval_status: "pending" }).eq("id", mailingId);
+        assertWrite(mailingWrite, "메일 승인 연결 기록");
       }
       const { data, error } = await db
         .from("agent_tasks")
@@ -748,7 +755,8 @@ export async function executeWorkflowTask(db: SupabaseClient, taskId: string) {
     return { task: data, output };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await db.from("agent_tasks").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("id", task.id);
+    const failedWrite = await db.from("agent_tasks").update({ status: "failed", error_message: message, updated_at: new Date().toISOString() }).eq("id", task.id);
+    assertWrite(failedWrite, "에이전트 작업 실패 상태 기록");
     await logAgent(db, { workflow_run_id: task.workflow_run_id, agent_task_id: task.id, log_type: "task_failed", message: `${task.title} 작업 실패`, success: false, error_message: message });
     await emitOliviaEventSafely(db, {
       eventType: "agent.task_failed",
@@ -774,11 +782,13 @@ export async function approveWorkflowItem(db: SupabaseClient, approvalId: string
   if (error) throw new Error(error.message);
 
   if (approval.agent_task_id) {
-    await db.from("agent_tasks").update({ status: "completed", completed_at: now, updated_at: now }).eq("id", approval.agent_task_id);
+    const taskWrite = await db.from("agent_tasks").update({ status: "completed", completed_at: now, updated_at: now }).eq("id", approval.agent_task_id);
+    assertWrite(taskWrite, "승인된 에이전트 작업 완료 처리");
   }
 
   if (approval.related_type === "mailing_queue" && approval.related_id) {
-    await db.from("mailing_queue").update({ status: "ready", approval_status: "approved", updated_at: now }).eq("id", approval.related_id);
+    const mailingWrite = await db.from("mailing_queue").update({ status: "ready", approval_status: "approved", updated_at: now }).eq("id", approval.related_id);
+    assertWrite(mailingWrite, "승인된 메일 발송 준비 처리");
   }
   if (approval.related_type === "olivia_action" && approval.related_id) {
     await db.from("olivia_actions").update({ status: "approved", updated_at: now }).eq("id", approval.related_id);

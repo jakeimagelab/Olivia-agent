@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { reportSafelyFailure } from "@/lib/observability/safelyFailure";
 import type { PcrmActorType } from "./types";
 
 export async function recordPcrmActivity(
@@ -32,10 +33,17 @@ export async function recordPcrmActivity(
 export async function recordPcrmActivitySafely(
   db: SupabaseClient,
   input: Parameters<typeof recordPcrmActivity>[1],
-) {
+): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await recordPcrmActivity(db, input);
+    return { ok: true };
   } catch (error) {
-    console.error("[pcrm] 활동 기록 실패", error);
+    const message = error instanceof Error
+      ? error.message
+      : error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : String(error);
+    reportSafelyFailure("recordPcrmActivitySafely", input.actionType || input.clientId, error);
+    return { ok: false, error: message };
   }
 }

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 // 캘린더에서 "촬영" 카테고리 일정을 등록/수정하면, location(병원명)이 일치하는 진행 중인
 // 프로젝트(workflow_runs)의 shoot_date도 같이 맞춘다 — 지금까지는 캘린더 일정과 프로젝트의
@@ -21,5 +22,6 @@ export async function syncShootDateToWorkflow(
 
   const run = runs[0];
   if (run.shoot_date === input.date) return;
-  await db.from("workflow_runs").update({ shoot_date: input.date, updated_at: new Date().toISOString() }).eq("id", run.id);
+  const write = await db.from("workflow_runs").update({ shoot_date: input.date, updated_at: new Date().toISOString() }).eq("id", run.id);
+  assertWrite(write, "촬영 일정 워크플로 동기화");
 }

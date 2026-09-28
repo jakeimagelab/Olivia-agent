@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { toAsciiStorageSegment } from "@/lib/storageKey";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,11 +71,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // 업로드 후 상태를 ready로 변경 (draft/uploading_images → ready)
     const now = new Date().toISOString();
-    await sb
+    const galleryWrite = await sb
       .from("select_galleries")
       .update({ total_jpg_count: count ?? 0, status: "ready", updated_at: now })
       .eq("id", id)
       .in("status", ["draft", "uploading_images"]);
+    assertWrite(galleryWrite, "셀렉 갤러리 이미지 업로드 상태 기록");
 
     return NextResponse.json({ ok: true, uploaded: inserted.length, images: inserted });
   } catch (e: any) {

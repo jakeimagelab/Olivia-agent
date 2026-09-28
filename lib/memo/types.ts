@@ -16,6 +16,8 @@ export type MemoTemplateData = {
   contiColumns?: number;
   contiRows?: number;
   contiCaptions?: string[];
+  /** 콘티 칸별 필기 캔버스. 별도 컬럼 없이 기존 template_data에 함께 보관한다. */
+  contiDrawings?: string[];
 };
 export type ConsultationMemo = {
   id: string;
@@ -47,16 +49,19 @@ export const TEMPLATE_OPTIONS: { type: MemoTemplateType; label: string; descript
   { type: "text", label: "일반메모", description: "키보드로 작성하는 텍스트 메모", mark: "Aa" },
   { type: "blank", label: "백지", description: "자유 필기와 스케치", mark: "□" },
   { type: "cornell", label: "코넬형", description: "키워드·노트·요약 필기", mark: "Co" },
-  { type: "todo", label: "To do list", description: "직접 쓰는 할 일 체크리스트", mark: "✓" },
+  { type: "todo", label: "To do list", description: "체크박스로 관리하는 할 일 목록", mark: "✓" },
   { type: "grid", label: "모눈종이", description: "격자 위 아이디어 정리", mark: "#" },
   { type: "conti", label: "콘티", description: "행·열 촬영 프레임", mark: "▦" },
 ];
 
-export const PEN_TEMPLATE_OPTIONS = TEMPLATE_OPTIONS.filter(option => option.type !== "text");
+// todo는 필기 템플릿이 아니라 구조가 있는 입력이다. 펜 도구를 띄우지 않는다.
+export const PEN_TEMPLATE_OPTIONS = TEMPLATE_OPTIONS.filter(
+  option => option.type !== "text" && option.type !== "todo",
+);
 
 export const emptyTemplateData = (type: MemoTemplateType): MemoTemplateData => {
   if (type === "todo") return { todos: [{ id: crypto.randomUUID(), text: "", done: false }] };
-  if (type === "conti") return { contiColumns: 2, contiRows: 3, contiCaptions: Array(6).fill("") };
+  if (type === "conti") return { contiColumns: 2, contiRows: 3, contiCaptions: Array(6).fill(""), contiDrawings: Array(6).fill("") };
   if (type === "cornell") return { cues: "", notes: "", summary: "" };
   return { body: "" };
 };

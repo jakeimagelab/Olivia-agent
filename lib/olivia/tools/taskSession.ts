@@ -2,6 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { computeTaskList, SESSION_TYPE_LABEL, type TaskSessionType } from "@/lib/olivia/taskSession/nextAction";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 async function resolveActiveRun(clientName: string) {
   const db = getSupabaseAdmin();
@@ -25,7 +26,8 @@ async function findOrCreateSession(db: ReturnType<typeof getSupabaseAdmin>, run:
     .maybeSingle();
   if (existing) {
     if (existing.status === "paused") {
-      await db.from("olivia_task_sessions").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", existing.id);
+      const resumeWrite = await db.from("olivia_task_sessions").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", existing.id);
+      assertWrite(resumeWrite, "기존 업무 세션 재개");
     }
     return existing;
   }
@@ -63,7 +65,8 @@ export async function startTaskSession(input: any) {
   const session = await findOrCreateSession(db, run, sessionType, `${run.client_name} ${label}`);
   const { tasks, currentTaskKey } = await computeTaskList(db, run.id, sessionType);
   if (currentTaskKey) {
-    await db.from("olivia_task_sessions").update({ current_task_key: currentTaskKey, updated_at: new Date().toISOString() }).eq("id", session.id);
+    const taskWrite = await db.from("olivia_task_sessions").update({ current_task_key: currentTaskKey, updated_at: new Date().toISOString() }).eq("id", session.id);
+    assertWrite(taskWrite, "업무 세션 현재 작업 기록");
   }
 
   const href = currentTaskKey ? buildStepAppLink({ stepKey: currentTaskKey, clientId: run.client_id, workflowRunId: run.id }) : undefined;
@@ -118,11 +121,13 @@ export async function continueTaskSession(input: any) {
 
   const sessionType = session.session_type as TaskSessionType;
   if (session.status === "paused") {
-    await db.from("olivia_task_sessions").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", session.id);
+    const resumeWrite = await db.from("olivia_task_sessions").update({ status: "active", updated_at: new Date().toISOString() }).eq("id", session.id);
+    assertWrite(resumeWrite, "업무 세션 재개");
   }
   const { tasks, currentTaskKey } = await computeTaskList(db, run.id, sessionType);
   if (currentTaskKey) {
-    await db.from("olivia_task_sessions").update({ current_task_key: currentTaskKey, updated_at: new Date().toISOString() }).eq("id", session.id);
+    const taskWrite = await db.from("olivia_task_sessions").update({ current_task_key: currentTaskKey, updated_at: new Date().toISOString() }).eq("id", session.id);
+    assertWrite(taskWrite, "업무 세션 현재 작업 기록");
   }
   const href = currentTaskKey ? buildStepAppLink({ stepKey: currentTaskKey, clientId: run.client_id, workflowRunId: run.id }) : undefined;
   return { action: "done", message: summarize(run.client_name, sessionType, tasks), sessionId: session.id, href };
@@ -146,6 +151,7 @@ export async function pauseTaskSession(input: any) {
     .maybeSingle();
   if (!session) return { action: "done", message: `${run.client_name}은(는) 지금 진행 중인 Task Session이 없어요.` };
 
-  await db.from("olivia_task_sessions").update({ status: "paused", updated_at: new Date().toISOString() }).eq("id", session.id);
+  const pauseWrite = await db.from("olivia_task_sessions").update({ status: "paused", updated_at: new Date().toISOString() }).eq("id", session.id);
+  assertWrite(pauseWrite, "업무 세션 보류");
   return { action: "done", message: `${run.client_name} 업무를 보류했어요. 나중에 "계속하자"라고 말하면 이어갈게요.` };
 }

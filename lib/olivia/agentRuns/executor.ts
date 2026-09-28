@@ -6,6 +6,7 @@ import { computeTaskList, type TaskSessionType } from "@/lib/olivia/taskSession/
 import { processWorkflowStep } from "@/lib/olivia/tools/workflow";
 import { startTaskSession } from "@/lib/olivia/tools/taskSession";
 import { fuzzyNameSearchOne } from "@/lib/olivia/nameSearch";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 const SESSION_TYPES=new Set<TaskSessionType>(["shoot-prep","quote-prep","contract-prep","delivery","general"]);
 
@@ -71,7 +72,8 @@ export async function executeClaimedAgentRun(db: SupabaseClient, claimed: Olivia
   if(before.tasks.length && doneBefore===before.tasks.length){
     await updateStep(db,run.id,"execute_goal",{status:"completed",completed_at:new Date().toISOString(),output_data:{sessionId,tasks:before.tasks}});
     await updateStep(db,run.id,"verify_result",{status:"completed",started_at:new Date().toISOString(),completed_at:new Date().toISOString(),output_data:{workflowVerified:true,tasks:before.tasks}});
-    await db.from("olivia_task_sessions").update({status:"completed",updated_at:new Date().toISOString()}).eq("id",sessionId);
+    const sessionWrite=await db.from("olivia_task_sessions").update({status:"completed",updated_at:new Date().toISOString()}).eq("id",sessionId);
+    assertWrite(sessionWrite,"업무 세션 완료 처리");
     return transitionAgentRun(db,run.id,"completed",{progress:100,current_step_key:"verify_result",result_summary:`${clientName} ${sessionType} 업무의 실제 워크플로우 상태를 확인하고 완료했어요.`});
   }
 

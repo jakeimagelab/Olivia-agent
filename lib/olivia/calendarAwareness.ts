@@ -31,7 +31,7 @@ function calendarPriority(task: CalendarAwarenessInput) {
 export async function registerCalendarAwareness(db: SupabaseClient, task: CalendarAwarenessInput) {
   const priority = calendarPriority(task);
   const eventKey = createEventDeduplicationKey("calendar.task_created", task.id);
-  const event = await emitOliviaEventSafely(db, {
+  const eventResult = await emitOliviaEventSafely(db, {
     eventType: "calendar.task_created",
     eventSource: "calendar",
     payload: {
@@ -47,7 +47,8 @@ export async function registerCalendarAwareness(db: SupabaseClient, task: Calend
     deduplicationKey: eventKey,
   });
 
-  if (!event) return;
+  if (!eventResult.ok) return;
+  const event = eventResult.data;
   const schedule = [task.date, task.time?.slice(0, 5)].filter(Boolean).join(" ");
   const prep = [task.location ? `장소 ${task.location}` : "", task.memo ? "준비 메모 있음" : ""].filter(Boolean).join(" · ");
   const { error } = await db.rpc("upsert_olivia_insight", {

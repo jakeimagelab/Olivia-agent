@@ -9,6 +9,7 @@ import {
 } from "@/lib/workflowAutomation";
 import { completeShoot } from "@/lib/core/commands/workflow";
 import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
+import { assertWrite } from "@/lib/db/assertWrite";
 import { validatePhotoProjectRelativePath } from "./server";
 
 export type ShootingProgressStage =
@@ -462,10 +463,11 @@ export async function syncClassificationCompletedWorkflow(
       payload: { stepKey: "payment_confirm", waitingFor: "payment_confirm" },
       deduplicationKey: createEventDeduplicationKey("workflow.blocked", run.id, "payment_confirm"),
     });
-    await db.from("workflow_runs").update({
+    const blockedWrite = await db.from("workflow_runs").update({
       next_action: "잔금·계산서 확인 후 분류 단계로 진행",
       updated_at: new Date().toISOString(),
     }).eq("id", run.id);
+    assertWrite(blockedWrite, "잔금 확인 대기 워크플로 상태 기록");
     return;
   }
 
@@ -481,10 +483,11 @@ export async function syncClassificationCompletedWorkflow(
   const latest = await getWorkflowRun(db, project.workflow_run_id);
   if (latest.current_step_key === "client_selection") {
     await ensureStepRun(db, project.workflow_run_id, "original_delivery", "in_progress");
-    await db.from("workflow_runs").update({
+    const nextActionWrite = await db.from("workflow_runs").update({
       next_action: buildNextAction("original_delivery"),
       updated_at: new Date().toISOString(),
     }).eq("id", project.workflow_run_id);
+    assertWrite(nextActionWrite, "원본 전달 다음 작업 기록");
   }
 }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,10 +60,11 @@ export async function POST(req: NextRequest) {
       }
 
       // 갤러리 상태를 files_expired로 변경 (선택 정보는 유지)
-      await sb
+      const statusWrite = await sb
         .from("select_galleries")
         .update({ status: "files_expired", updated_at: now })
         .eq("id", gallery.id);
+      assertWrite(statusWrite, "만료된 셀렉 갤러리 상태 기록");
 
       results.push({
         galleryId: gallery.id,

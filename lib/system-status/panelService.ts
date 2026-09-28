@@ -384,7 +384,9 @@ export function buildStatusPanelCollections(input: {
         actions: [
           apiAction(`repair:${issue.workflowRunId}:${issue.foundStepKey}`, "지금 완료 처리", endpoint, {
             tone: "primary",
-            ...(issue.resourceType === "quote" ? {} : { body: { stepKey: issue.foundStepKey } }),
+            // 견적서 전용 endpoint로 갈 때만 body를 생략한다. resourceId가 없어서
+            // workflow-runs endpoint로 떨어지는 경우에도 stepKey는 반드시 실어야 한다(2026-09-29).
+            ...(endpoint.startsWith("/api/quotes/") ? {} : { body: { stepKey: issue.foundStepKey } }),
           }),
           openAction(`open-client:${issue.workflowRunId}`, "열어보기", projectHref(runById.get(issue.workflowRunId), issue.clientId)),
         ],

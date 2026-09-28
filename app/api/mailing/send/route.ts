@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { assertWrite } from "@/lib/db/assertWrite";
 import tls from "node:tls";
 
 export const dynamic = "force-dynamic";
@@ -177,10 +178,11 @@ export async function POST(req: NextRequest) {
       attachments: item.attachments || [],
     });
 
-    await supabase
+    const sentWrite = await supabase
       .from("mailing_queue")
       .update({ status: "sent", sent_at: new Date().toISOString(), error_message: "" })
       .eq("id", id);
+    assertWrite(sentWrite, "메일 발송 완료 상태 기록");
 
     await supabase.from("mailing_logs").insert({
       queue_id:      id,
@@ -196,10 +198,11 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
 
-    await supabase
+    const failedWrite = await supabase
       .from("mailing_queue")
       .update({ status: "failed", error_message: msg })
       .eq("id", id);
+    assertWrite(failedWrite, "메일 발송 실패 상태 기록");
 
     await supabase.from("mailing_logs").insert({
       queue_id:      id,

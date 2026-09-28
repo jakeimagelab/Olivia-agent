@@ -6,10 +6,12 @@ import { useSearchParams } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import type { CanvasExportOptions, DrawingCanvasHandle } from "@/components/DrawingCanvas";
+import ContiGridPanel from "@/components/memo/ContiGridPanel";
 import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
+import TodoListPanel from "@/components/memo/TodoListPanel";
 import VoiceMemoPanel from "@/components/memo/VoiceMemoPanel";
 import {
-  PEN_TEMPLATE_OPTIONS,
+  TEMPLATE_OPTIONS,
   emptyTemplateData,
   type ConsultationMemo,
   type MemoContextType,
@@ -41,7 +43,8 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
   const requestedMemoId = initialMemoId || searchParams.get("resourceId") || searchParams.get("memoId") || "";
   const [memos, setMemos] = useState<ConsultationMemo[]>([]);
   // 기본 접힘 — 화면을 열자마자 메모 작성 영역에 집중하도록(과거 메모는 필요할 때만 펼침).
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(true);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(true);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [templateType, setTemplateType] = useState<MemoTemplateType>("blank");
@@ -59,6 +62,17 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const canvasRef = useRef<DrawingCanvasHandle>(null);
   const openedRequestedMemoIdRef = useRef<string | null>(null);
+  const statusTimeoutRef = useRef<number | null>(null);
+
+  const showSaved = useCallback(() => {
+    if (statusTimeoutRef.current) window.clearTimeout(statusTimeoutRef.current);
+    setStatus({ ok: true, text: "저장됨 · 방금" });
+    statusTimeoutRef.current = window.setTimeout(() => setStatus(null), 3_000);
+  }, []);
+
+  useEffect(() => () => {
+    if (statusTimeoutRef.current) window.clearTimeout(statusTimeoutRef.current);
+  }, []);
 
   const loadHistory = useCallback(async () => {
     try {
@@ -88,16 +102,22 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
     setAiImage(null);
     setAiText("");
     setStatus(null);
+    setTemplatePickerOpen(true);
   }, []);
 
   const chooseTemplate = (type: MemoTemplateType) => {
-    if (canvasDirty && !window.confirm("양식을 바꾸면 현재 필기가 초기화됩니다. 계속할까요?")) return;
+    const hasStructuredContent = Boolean(
+      templateData.todos?.some((todo) => todo.text.trim())
+      || templateData.contiCaptions?.some((caption) => caption.trim()),
+    );
+    if ((canvasDirty || hasStructuredContent) && !window.confirm("양식을 바꾸면 현재 필기와 입력 내용이 초기화됩니다. 계속할까요?")) return;
     setTemplateType(type);
     setTemplateData(emptyTemplateData(type));
     setInitialCanvas(null);
     setCanvasDirty(null);
     setAiImage(null);
     setAiText("");
+    setTemplatePickerOpen(false);
   };
 
   const openMemo = useCallback((memo: ConsultationMemo) => {
@@ -115,6 +135,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
     setAiImage(memo.ai_image_url);
     setAiText("");
     setStatus(null);
+    setTemplatePickerOpen(false);
     if (!embedded) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [embedded]);
 
@@ -171,7 +192,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
         setCanvasDirty(null);
       }
 
-      setStatus({ ok: true, text: "메모를 저장했습니다." });
+      showSaved();
       void loadHistory();
       return id;
     } catch (error) {
@@ -181,7 +202,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
     } finally {
       setSaving(false);
     }
-  }, [audioSummary, canvasDirty, contextId, contextType, currentId, loadHistory, rawMemo, templateData, templateType, title, transcript]);
+  }, [audioSummary, canvasDirty, contextId, contextType, currentId, loadHistory, rawMemo, showSaved, templateData, templateType, title, transcript]);
 
   useSaveShortcut(() => { void save().catch(() => undefined); });
 
@@ -238,7 +259,22 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
 
   const contiColumns = Math.min(4, Math.max(1, templateData.contiColumns ?? 2));
   const contiRows = Math.min(6, Math.max(1, templateData.contiRows ?? 3));
-  const resizeConti = (columns: number, rows: number) => setTemplateData(current => ({ ...current, contiColumns: columns, contiRows: rows }));
+  const resizeConti = (columns: number, rows: number) => {
+    const count = columns * rows;
+    const removed = Array.from({ length: Math.max(templateData.contiCaptions?.length ?? 0, templateData.contiDrawings?.length ?? 0) - count }, (_, index) => count + index)
+      .filter((index) => Boolean(templateData.contiCaptions?.[index]?.trim() || templateData.contiDrawings?.[index]));
+    if (removed.length && !window.confirm(`칸을 줄이면 ${removed.length}개 칸의 내용이 지워집니다. 계속할까요?`)) return;
+    setTemplateData(current => ({
+      ...current,
+      contiColumns: columns,
+      contiRows: rows,
+      contiCaptions: Array.from({ length: count }, (_, index) => current.contiCaptions?.[index] ?? ""),
+      contiDrawings: Array.from({ length: count }, (_, index) => current.contiDrawings?.[index] ?? ""),
+    }));
+  };
+  const selectedTemplate = TEMPLATE_OPTIONS.find((option) => option.type === templateType);
+  const canDraw = templateType !== "todo" && templateType !== "conti";
+  const hasCanvasContent = canDraw && Boolean(canvasDirty || initialCanvas);
 
   return (
     <main className={`pc-page${embedded ? " olivia-os-embedded-memo" : ""}`} style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
@@ -283,17 +319,27 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
               </div>
               <input className="memo-title-input" value={title} onChange={event => setTitle(event.target.value)} placeholder="메모 제목" />
 
-              <div className="memo-template-picker" aria-label="캔버스 종이 양식 선택">
-                {PEN_TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
+              {templatePickerOpen ? <div className="memo-template-picker" aria-label="메모 양식 선택">
+                {TEMPLATE_OPTIONS.map(option => <button key={option.type} className={templateType === option.type ? "is-active" : ""} onClick={() => chooseTemplate(option.type)}>
                   <span>{option.mark}</span><strong>{option.label}</strong><small>{option.description}</small>
                 </button>)}
-              </div>
+              </div> : <div className="memo-template-summary"><span>✓ {selectedTemplate?.label ?? "메모"}</span><button type="button" onClick={() => setTemplatePickerOpen(true)}>바꾸기</button></div>}
               {templateType === "conti" ? <div className="memo-conti-controls">
                 {[{ c: 2, r: 2 }, { c: 2, r: 3 }, { c: 3, r: 3 }].map(preset => <button key={`${preset.c}x${preset.r}`} className={contiColumns === preset.c && contiRows === preset.r ? "is-active" : ""} onClick={() => resizeConti(preset.c, preset.r)}>{preset.c}×{preset.r}</button>)}
                 <label>열 <input aria-label="콘티 열" type="number" min={1} max={4} value={contiColumns} onChange={event => resizeConti(Math.min(4, Math.max(1, Number(event.target.value))), contiRows)} /></label>
                 <label>행 <input aria-label="콘티 행" type="number" min={1} max={6} value={contiRows} onChange={event => resizeConti(contiColumns, Math.min(6, Math.max(1, Number(event.target.value))))} /></label>
               </div> : null}
-              <NoteCanvasPanel
+              {templateType === "todo" ? <TodoListPanel
+                todos={templateData.todos ?? []}
+                onChange={(todos) => setTemplateData((current) => ({ ...current, todos }))}
+              /> : templateType === "conti" ? <ContiGridPanel
+                columns={contiColumns}
+                rows={contiRows}
+                captions={templateData.contiCaptions ?? []}
+                onChange={(contiCaptions) => setTemplateData((current) => ({ ...current, contiCaptions }))}
+                drawings={templateData.contiDrawings ?? []}
+                onDrawingsChange={(contiDrawings) => setTemplateData((current) => ({ ...current, contiDrawings }))}
+              /> : <NoteCanvasPanel
                 key={`${currentId ?? "new"}-${templateType}`}
                 ref={canvasRef}
                 templateType={templateType}
@@ -303,10 +349,10 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
                 textValue={rawMemo}
                 onTextChange={setRawMemo}
                 voiceButton={<VoiceMemoPanel compact memoId={currentId} existingUrl={audioUrl} transcript={transcript} summary={audioSummary} ensureSaved={save} onTranscriptChange={setTranscript} onProcessed={values => { setAudioUrl(values.audioUrl); setTranscript(values.transcript); setAudioSummary(values.summary); void loadHistory(); }} />}
-              />
+              />}
             </section>
 
-            <section className="pc-card pc-card--padded memo-ai-card">
+            {hasCanvasContent ? <section className="pc-card pc-card--padded memo-ai-card">
               <div><strong>AI 필기 정리</strong><p>원본 필기는 그대로 보존하고 텍스트 또는 정돈된 이미지로 변환합니다.</p></div>
               <div className="memo-ai-actions">
                 <button className="pc-btn pc-btn--primary" onClick={() => void transform("text")} disabled={Boolean(transforming)}>{transforming === "text" ? "정리 중…" : "텍스트로 정리"}</button>
@@ -314,7 +360,7 @@ export function MemoWorkspace({ embedded = false, contextType, contextId, initia
               </div>
               {aiText ? <div className="memo-ai-result"><div>{aiText}</div><button className="pc-btn pc-btn--primary pc-btn--sm" onClick={applyAiText}>메모에 반영</button></div> : null}
               {aiImage ? <figure className="memo-ai-image"><img src={aiImage} alt="AI가 정돈한 펜 메모" /><figcaption>AI 정돈 이미지 · 원본 필기는 보존됩니다.</figcaption></figure> : null}
-            </section>
+            </section> : null}
           </div>
         </div>
       </div>

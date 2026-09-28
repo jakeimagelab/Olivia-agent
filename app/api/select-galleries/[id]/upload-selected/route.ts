@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,10 +68,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (selErr) throw selErr;
 
-    await sb
+    const galleryWrite = await sb
       .from("select_galleries")
       .update({ status: "selection_submitted", selected_count: selectedFiles.length, submitted_at: now, updated_at: now })
       .eq("id", id);
+    assertWrite(galleryWrite, "업로드 셀렉 제출 상태 기록");
 
     try {
       await syncSelectionSubmittedWorkflow(sb, gallery.workflow_run_id);

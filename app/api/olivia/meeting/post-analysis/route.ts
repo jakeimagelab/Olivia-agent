@@ -6,6 +6,7 @@ import { createStepTasks } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { analyzeMeetingMemo } from "@/lib/olivia/meetingAssistant";
 import { getErrorMessage } from "@/lib/errors";
+import { assertWrite } from "@/lib/db/assertWrite";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,8 @@ export async function POST(req: NextRequest) {
     const commitments = await saveMeetingCommitments(db, analysis, { memoId: body.memoId || memo?.id, clientId, projectId: run?.project_id, workflowRunId: run?.id });
     const nextAction = String(analysis.nextAction || analysis.next_action || "").trim();
     if (run?.id && nextAction && (!String(run.next_action || "").trim() || run.next_action_source === "ai")) {
-      await db.from("workflow_runs").update({ next_action: nextAction, next_action_source: "ai", next_action_updated_at: new Date().toISOString() }).eq("id", run.id);
+      const nextActionWrite = await db.from("workflow_runs").update({ next_action: nextAction, next_action_source: "ai", next_action_updated_at: new Date().toISOString() }).eq("id", run.id);
+      assertWrite(nextActionWrite, "미팅 분석 다음 작업 기록");
     }
     let createdTasks: any[] = [];
     if (run?.id && run.current_step_key === "quote") {
