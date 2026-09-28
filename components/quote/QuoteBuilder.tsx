@@ -84,6 +84,7 @@ type ContractQuoteData = {
     selectedPackageId: string | null;
     selectedSingleItemIds: string[];
     singleItemNotes?: Record<string, string>;
+    singleItemAmounts?: Record<string, number>;
     profileCount: number;
     stagedCount: number;
     combinedProfileStagedCount?: number;
@@ -301,6 +302,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setSelectedSingleItemIds = useQuoteStore((state) => state.setSelectedSingleItemIds);
   const singleItemNotes = useQuoteStore((state) => state.singleItemNotes);
   const setSingleItemNotes = useQuoteStore((state) => state.setSingleItemNotes);
+  const singleItemAmounts = useQuoteStore((state) => state.singleItemAmounts);
+  const setSingleItemAmounts = useQuoteStore((state) => state.setSingleItemAmounts);
   const profileCount = useQuoteStore((state) => state.profileCount);
   const setProfileCount = useQuoteStore((state) => state.setProfileCount);
   const stagedCount = useQuoteStore((state) => state.stagedCount);
@@ -562,13 +565,18 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     [selectedSingleItemIds]
   );
 
-  // 제이크이미지연구소는 단일항목이 자유 텍스트 내용칸(견적 총액 계산에서 제외)이므로
-  // 금액은 항상 0이다 — photoclinic만 카탈로그 고정가를 그대로 쓴다.
+  // 제이크이미지연구소 단일항목은 견적마다 직접 금액을 입력한다. 포토클리닉은 기존
+  // 카탈로그 고정가를 그대로 쓴다.
   const singleItemPrice = (item: SingleItem) =>
-    brand === "jakeimage" ? 0 : item.price;
+    brand === "jakeimage" ? Math.max(0, Number(singleItemAmounts[item.id]) || 0) : item.price;
 
   const updateSingleItemNote = (id: string, value: string) => {
     setSingleItemNotes((current) => ({ ...current, [id]: value }));
+  };
+
+  const updateSingleItemAmount = (id: string, value: string) => {
+    const amount = Math.max(0, Number(value) || 0);
+    setSingleItemAmounts((current) => ({ ...current, [id]: amount }));
   };
 
   const optionItems = useMemo(() => {
@@ -734,6 +742,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setSelectedPackageId(brand === "jakeimage" ? null : packages[0].id);
     setSelectedSingleItemIds([]);
     setSingleItemNotes({});
+    setSingleItemAmounts({});
     setProfileCount(0);
     setStagedCount(0);
     setCombinedProfileStagedCount(0);
@@ -837,6 +846,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         selectedPackageId,
         selectedSingleItemIds,
         singleItemNotes,
+        singleItemAmounts,
         profileCount,
         stagedCount,
         combinedProfileStagedCount,
@@ -913,6 +923,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setSelectedPackageId(data.formState.selectedPackageId);
       setSelectedSingleItemIds(data.formState.selectedSingleItemIds);
       setSingleItemNotes(data.formState.singleItemNotes ?? {});
+      setSingleItemAmounts(data.formState.singleItemAmounts ?? {});
       setProfileCount(data.formState.profileCount);
       setStagedCount(data.formState.stagedCount);
       setCombinedProfileStagedCount(data.formState.combinedProfileStagedCount ?? 0);
@@ -940,6 +951,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setSelectedPackageId(null);
       setSelectedSingleItemIds([]);
       setSingleItemNotes({});
+      setSingleItemAmounts({});
       setProfileCount(0);
       setStagedCount(0);
       setCombinedProfileStagedCount(0);
@@ -1269,7 +1281,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDirty(snapshot !== lastSavedFormStateRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes,
+    isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
@@ -1301,7 +1313,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes,
+    isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
@@ -1837,7 +1849,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     },
     removeCustomItem,
     setDepositRate,
-  }), [selectedSingleItemIds, singleItemNotes, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes]);
+  }), [selectedSingleItemIds, singleItemNotes, singleItemAmounts, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes, setSingleItemAmounts]);
 
   return (
     <>
@@ -2026,13 +2038,27 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                         <strong>{isSelected ? "선택됨" : "탭하여 선택"}</strong>
                       </button>
                       {isSelected ? (
-                        <input
-                          type="text"
-                          value={singleItemNotes[item.id] ?? ""}
-                          onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
-                          placeholder="내용 입력"
-                          className="jake-single-item-note"
-                        />
+                        <>
+                          <input
+                            type="text"
+                            value={singleItemNotes[item.id] ?? ""}
+                            onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
+                            placeholder="내용 입력"
+                            className="jake-single-item-note"
+                            aria-label={`${item.name} 내용`}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            inputMode="numeric"
+                            value={singleItemAmounts[item.id] ?? ""}
+                            onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
+                            placeholder="금액"
+                            className="jake-single-item-amount"
+                            aria-label={`${item.name} 금액`}
+                          />
+                        </>
                       ) : null}
                     </div>
                   );

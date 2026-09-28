@@ -34,6 +34,26 @@ describe("canonical quote document data", () => {
       finalAmount: 1_100_000,
     });
   });
+
+  it("keeps manually entered Jakeimage single-item amounts in the saved document", () => {
+    const data = quoteDocumentDataFromRow({
+      id: "quote-jake-single-item",
+      title: "제이크이미지연구소 견적서",
+      hospital_name: "청담스시",
+      items: [],
+      form_state: {
+        brand: "jakeimage",
+        selectedSingleItemIds: ["studio-profile"],
+        singleItemNotes: { "studio-profile": "대표 프로필" },
+        singleItemAmounts: { "studio-profile": 500_000 },
+      },
+    });
+
+    expect(data.singleItems).toEqual([
+      { id: "studio-profile", name: "프로필촬영", detail: "대표 프로필", amount: 500_000 },
+    ]);
+    expect(data.finalAmount).toBe(550_000);
+  });
 });
 
 describe("quote print route authentication", () => {

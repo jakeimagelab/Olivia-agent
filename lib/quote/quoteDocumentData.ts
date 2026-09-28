@@ -59,7 +59,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
   const singleLines = selectedSingles.map((item) => ({
     id: item.id,
     name: item.name,
-    amount: state.brand === "jakeimage" ? 0 : item.price,
+    amount: state.brand === "jakeimage" ? Math.max(0, Number(state.singleItemAmounts[item.id]) || 0) : item.price,
     detail: state.brand === "jakeimage" ? state.singleItemNotes[item.id] : undefined,
   }));
   const options = optionLines(state, cfg.largeScaleLabel);

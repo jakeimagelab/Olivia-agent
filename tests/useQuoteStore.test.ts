@@ -10,7 +10,7 @@ describe("useQuoteStore", () => {
     const state = useQuoteStore.getState();
     for (const key of [
       "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
-      "singleItemNotes", "profileCount", "stagedCount", "combinedProfileStagedCount",
+      "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
       "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
       "discountRate", "extraDiscount", "memo", "depositRate",
     ]) {
@@ -50,5 +50,8 @@ describe("useQuoteStore", () => {
 
     useQuoteStore.getState().setSingleItemNotes({ "studio-profile": "당일 컨셉: 화이트톤" });
     expect(useQuoteStore.getState().singleItemNotes).toEqual({ "studio-profile": "당일 컨셉: 화이트톤" });
+
+    useQuoteStore.getState().setSingleItemAmounts({ "studio-profile": 500000 });
+    expect(useQuoteStore.getState().singleItemAmounts).toEqual({ "studio-profile": 500000 });
   });
 });

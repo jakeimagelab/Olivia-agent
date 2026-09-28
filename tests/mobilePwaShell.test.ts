@@ -39,6 +39,7 @@ describe("Olivia mobile PWA shell", () => {
     expect(shell).toContain('navigation.view === "preview" || navigation.view === "chat" ? null');
     expect(shell).toContain('onClose={() => navigate({ view: "home" }, "replace")}');
     expect(conversation).toContain('variant !== "mobile" && exchanges.length >= 4');
+    expect(conversation).toContain("if (isMobile) return;");
     for (const screen of nonHomeScreens) expect(read(screen)).not.toContain("<MobileHeader");
   });
 

@@ -564,6 +564,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             onCompositionStart={() => { isComposingRef.current = true; }}
             onCompositionEnd={() => { isComposingRef.current = false; }}
             onKeyDown={(event) => {
+              // 모바일은 Enter를 줄바꿈으로 쓴다. 전송은 화면의 화살표 버튼에서만 한다.
+              if (isMobile) return;
               if (event.key !== "Enter" || event.shiftKey) return;
               // 한글 조합 중 Enter는 글자 확정용일 수 있다 — 이때 보내면 마지막 글자가 입력창에 남는다.
               if (isComposingRef.current || event.nativeEvent.isComposing) return;

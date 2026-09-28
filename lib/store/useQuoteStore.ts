@@ -13,10 +13,10 @@ export type QuoteFormState = {
   quoteTitle: string;
   selectedPackageId: string | null;
   selectedSingleItemIds: string[];
-  // 제이크이미지연구소 전용 — 단일항목을 선택하면 뜨는 자유 텍스트 내용칸(금액 아님, 견적
-  // 총액 계산에서 제외된다). 이름은 마이그레이션 이전 그대로 두지 않고 실제 용도에 맞게
-  // singleItemNotes로 바꿨다(예전 이름 singleItemAmounts는 숫자 금액으로 오해하기 쉬웠다).
+  // 제이크이미지연구소 전용 — 단일항목 설명과 직접 입력한 금액. 금액은 선택한 항목의
+  // 견적 합계·저장본·PDF에 모두 반영된다.
   singleItemNotes: Record<string, string>;
+  singleItemAmounts: Record<string, number>;
   profileCount: number;
   stagedCount: number;
   combinedProfileStagedCount: number;
@@ -33,7 +33,7 @@ export type QuoteFormState = {
 
 const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
-  "singleItemNotes", "profileCount", "stagedCount", "combinedProfileStagedCount",
+  "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
   "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
   "discountRate", "extraDiscount", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
@@ -69,6 +69,7 @@ export type QuoteStoreState = QuoteFormState & {
   setSelectedPackageId: (value: Updater<string | null>) => void;
   setSelectedSingleItemIds: (value: Updater<string[]>) => void;
   setSingleItemNotes: (value: Updater<Record<string, string>>) => void;
+  setSingleItemAmounts: (value: Updater<Record<string, number>>) => void;
   setProfileCount: (value: Updater<number>) => void;
   setStagedCount: (value: Updater<number>) => void;
   setCombinedProfileStagedCount: (value: Updater<number>) => void;
@@ -121,6 +122,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     selectedPackageId: null,
     selectedSingleItemIds: [],
     singleItemNotes: {},
+    singleItemAmounts: {},
     profileCount: 0,
     stagedCount: 0,
     combinedProfileStagedCount: 0,
@@ -155,6 +157,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setSelectedPackageId: dirtySetter("selectedPackageId"),
     setSelectedSingleItemIds: dirtySetter("selectedSingleItemIds"),
     setSingleItemNotes: dirtySetter("singleItemNotes"),
+    setSingleItemAmounts: dirtySetter("singleItemAmounts"),
     setProfileCount: dirtySetter("profileCount"),
     setStagedCount: dirtySetter("stagedCount"),
     setCombinedProfileStagedCount: dirtySetter("combinedProfileStagedCount"),
