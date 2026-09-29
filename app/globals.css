@@ -8905,6 +8905,7 @@ main, .pc-console, .pc-page, .pc-page-content {
 .memo-todo-panel > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid rgba(21,88,85,.1); color: var(--teal); }
 .memo-todo-panel > header strong { font-size: 14px; }
 .memo-todo-panel > header span { color: #607873; font-size: 11px; }
+.memo-todo-tool-notice { margin: 10px 0 0; color: #607873; font-size: 11px; line-height: 1.5; }
 .memo-todo-list { display: grid; gap: 5px; padding: 12px 0; }
 .memo-todo-row { display: grid; grid-template-columns: 20px minmax(0,1fr) 30px; align-items: center; gap: 8px; min-height: 40px; border-radius: 8px; padding: 2px 4px; }
 .memo-todo-row:hover { background: rgba(21,88,85,.035); }

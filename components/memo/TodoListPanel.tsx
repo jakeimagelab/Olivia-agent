@@ -51,6 +51,7 @@ export default function TodoListPanel({ todos, onChange }: Props) {
   return (
     <section className="memo-todo-panel" aria-label="할 일 목록">
       <header><strong>To do list</strong><span>{completed} / {rows.length} 완료</span></header>
+      <p className="memo-todo-tool-notice">체크박스 전용 양식입니다. 펜과 음성 필기는 사용할 수 없습니다.</p>
       <div className="memo-todo-list">
         {rows.map((todo) => (
           <div className={`memo-todo-row${todo.done ? " is-done" : ""}`} key={todo.id}>

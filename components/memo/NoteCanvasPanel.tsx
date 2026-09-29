@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ArrowUpRight, Circle, Maximize2, Minimize2, Minus, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react";
+import { ArrowUpRight, Circle, Maximize2, Mic, Minimize2, Minus, PenLine, Redo2, Square, Trash2, Type, Undo2 } from "lucide-react";
 import DrawingCanvas, { DRAW_COLORS, type DrawingCanvasHandle, type DrawShape, type PenType } from "@/components/DrawingCanvas";
 import MemoTextArea from "@/components/memo/MemoTextArea";
 import type { MemoTemplateData, MemoTemplateType } from "@/lib/memo/types";
@@ -40,7 +40,11 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   // 텍스트 입력과 펜 필기가 같은 종이 위에서 도구만 바꿔 쓰이도록 — 텍스트 도구가 켜지면
   // 캔버스는 pointer-events를 꺼서 클릭이 밑의 textarea로 그대로 전달되게 한다.
   const supportsText = Boolean(onTextChange);
-  const [textMode, setTextMode] = useState(supportsText);
+  type MemoInputMode = "text" | "pen" | "voice";
+  const [inputMode, setInputMode] = useState<MemoInputMode>(supportsText ? "text" : "pen");
+  const textMode = inputMode === "text";
+  const penMode = inputMode === "pen";
+  const voiceMode = inputMode === "voice";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [penType, setPenType] = useState<PenType>("ballpoint");
   const [penSize, setPenSize] = useState(3);
@@ -53,8 +57,8 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
   const [isFullscreen, setIsFullscreen] = useState(false);
   const panelRef = useRef<HTMLElement>(null);
 
-  const activateDrawTool = (apply: () => void) => { apply(); setTextMode(false); };
-  const activateTextTool = () => { setTextMode(true); requestAnimationFrame(() => textareaRef.current?.focus()); };
+  const activateDrawTool = (apply: () => void) => { apply(); setInputMode("pen"); };
+  const activateTextTool = () => { setInputMode("text"); requestAnimationFrame(() => textareaRef.current?.focus()); };
 
   useEffect(() => {
     const sync = () => setIsFullscreen(document.fullscreenElement === panelRef.current);
@@ -86,13 +90,15 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
       <div className="memo-draw-toolbar" style={{ display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap", padding: 10, borderRadius: 16, background: "#EDF5F3", marginBottom: 10 }}>
         {supportsText ? (
           <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
-            <button title="텍스트" onClick={activateTextTool} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: textMode ? "#155855" : "transparent", color: textMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Type size={13} />텍스트</button>
+            <button type="button" aria-pressed={textMode} title="텍스트" onClick={activateTextTool} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: textMode ? "#155855" : "transparent", color: textMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Type size={13} />텍스트</button>
+            <button type="button" aria-pressed={penMode} title="펜" onClick={() => setInputMode("pen")} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: penMode ? "#155855" : "transparent", color: penMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><PenLine size={13} />펜</button>
+            <button type="button" aria-pressed={voiceMode} title="음성" onClick={() => setInputMode("voice")} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 12px", display: "flex", alignItems: "center", gap: 5, background: voiceMode ? "#155855" : "transparent", color: voiceMode ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}><Mic size={13} />음성</button>
           </div>
         ) : null}
-        {textMode ? voiceButton : null}
-        {!textMode ? <>
+        {voiceMode ? voiceButton : null}
+        {penMode ? <>
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
-          {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => activateDrawTool(() => { setPenType(pen.key); setEraser(false); setShape("freehand"); })} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !textMode && !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
+          {NOTE_PENS.map(pen => <button key={pen.key} title={pen.label} onClick={() => activateDrawTool(() => { setPenType(pen.key); setEraser(false); setShape("freehand"); })} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 10px", background: !eraser && shape === "freehand" && penType === pen.key ? "#155855" : "transparent", color: !eraser && shape === "freehand" && penType === pen.key ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>{pen.label}</button>)}
         </div>
         <label style={{ display: "flex", alignItems: "center", gap: 7, color: "#607873", fontSize: 10, fontWeight: 800 }}>굵기 <input aria-label="펜 굵기" type="range" min={1} max={18} value={penSize} onChange={event => setPenSize(Number(event.target.value))} style={{ width: 90, accentColor: "#155855" }} /><span>{penSize}</span></label>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
@@ -102,7 +108,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
             <input aria-label="커스텀 색상 선택" type="color" value={penColor} onChange={event => activateDrawTool(() => { setPenColor(event.target.value); setEraser(false); })} style={{ width: 24, height: 24, padding: 0, border: "none", borderRadius: 6, boxShadow: "0 0 0 1px rgba(21,88,85,.25)", cursor: "pointer", background: "none" }} />
           </label>
         </div>
-        <button onClick={() => activateDrawTool(() => setEraser(value => !value))} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: !textMode && eraser ? "#E85D2C" : "#fff", color: !textMode && eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
+        <button onClick={() => activateDrawTool(() => setEraser(value => !value))} style={{ minHeight: 34, border: "none", borderRadius: 99, padding: "0 11px", background: eraser ? "#E85D2C" : "#fff", color: eraser ? "#fff" : "#155855", font: "inherit", fontSize: 11, fontWeight: 900, cursor: "pointer" }}>지우개</button>
         <label style={{ display: "flex", alignItems: "center", gap: 6, color: "#607873", fontSize: 10, opacity: eraser ? 1 : .5 }}>지우개 크기 <input aria-label="지우개 크기" type="range" min={8} max={80} value={eraserSize} onChange={event => activateDrawTool(() => { setEraserSize(Number(event.target.value)); setEraser(true); })} style={{ width: 80, accentColor: "#E85D2C" }} /><span>{eraserSize}</span></label>
         <div style={{ display: "flex", gap: 3 }} aria-label="지우개 크기 프리셋">
           {[[12, "소"], [24, "중"], [48, "대"]].map(([size, label]) => <button key={String(size)} type="button" onClick={() => activateDrawTool(() => { setEraserSize(Number(size)); setEraser(true); })} style={{ border: 0, borderRadius: 6, padding: "5px 7px", background: eraserSize === size ? "#155855" : "#fff", color: eraserSize === size ? "#fff" : "#155855", fontSize: 10, fontWeight: 800, cursor: "pointer" }}>{label}</button>)}
@@ -110,7 +116,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
         <div style={{ display: "flex", gap: 4, padding: 4, borderRadius: 99, background: "#fff" }}>
           {SHAPE_OPTIONS.map(item => {
             const Icon = item.icon;
-            const active = !textMode && shape === item.key;
+            const active = shape === item.key;
             return (
               <button key={item.key} aria-label={item.label} title={item.label} onClick={() => activateDrawTool(() => { setShape(shape === item.key ? "freehand" : item.key); setEraser(false); })} style={{ width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", border: "none", borderRadius: 99, background: active ? "#155855" : "transparent", color: active ? "#fff" : "#155855", cursor: "pointer" }}>
                 <Icon size={15} />
@@ -146,7 +152,7 @@ const NoteCanvasPanel = forwardRef<DrawingCanvasHandle, Props>(function NoteCanv
               }}
             />
           ) : null}
-          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: "100%", position: supportsText ? "relative" : "static", zIndex: 2, pointerEvents: textMode ? "none" : "auto", background: "transparent" }} />
+          <DrawingCanvas ref={setRefs} penType={penType} penSize={penSize} penColor={penColor} isEraser={eraser} eraserSize={eraserSize} shape={shape} initialImage={initialImage} onStrokeEnd={dataUrl => { onChange(dataUrl); forceHistory(v => v + 1); }} style={{ display: "block", width: "100%", height: "100%", position: supportsText ? "relative" : "static", zIndex: 2, pointerEvents: penMode ? "auto" : "none", background: "transparent" }} />
         </div>
       </div>
     </section>
