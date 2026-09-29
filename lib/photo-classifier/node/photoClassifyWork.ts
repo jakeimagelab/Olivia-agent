@@ -90,7 +90,7 @@ async function resolveProjectFolder(relativePath: string, roots: RunnerRoots): P
 async function resolveFlatJpgFolder(projectFolder: string, name: string): Promise<string> {
   const candidate = path.join(projectFolder, name);
   const metadata = await lstat(candidate).catch(() => null);
-  if (!metadata) throw new Error(`${name} 폴더를 찾을 수 없습니다. JPG 통합이 먼저 완료되어야 합니다.`);
+  if (!metadata) throw new Error(`${name} 폴더를 찾을 수 없습니다. JPG정리가 먼저 완료되어야 합니다.`);
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${name}이 안전한 폴더가 아닙니다.`);
   const canonical = await realpath(candidate);
   if (!isInside(projectFolder, canonical)) throw new Error(`${name}이 프로젝트 밖을 가리킵니다.`);

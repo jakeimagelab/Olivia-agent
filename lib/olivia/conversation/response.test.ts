@@ -16,7 +16,7 @@ describe("Olivia natural response renderer", () => {
 
   it("실패 시 기존 상태가 유지됐음을 자연스럽게 알린다", () => {
     const text = renderOliviaOutcome(toolResultOutcome({ tool: "publish_quote", success: false, error: "저장하지 못했어요.", verification: { executed: true, persisted: false } }));
-    expect(text).toBe("저장하지 못했어요. 기존 내용은 그대로예요. 다시 해볼까요?");
+    expect(text).toBe("저장하지 못했어요.");
   });
 
   it("보류와 거절을 내부 용어 없이 답한다", () => {

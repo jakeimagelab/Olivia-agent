@@ -54,10 +54,10 @@ export async function syncPhotoMergeProject(
     const result = record(input.result);
     const mergeCompleted = resultStatus(input.result) !== "REVIEW_REQUIRED";
     // 채팅의 start_photo_scene_sort, 기존 nas_backup_start_sort, 알림 버튼은 모두 같은 helper에서
-    // 후속 분류 승인을 classify_approved_at에 미리 기록한다. 그 승인이 있을 때만 JPG 통합 완료
-    // 직후 기존 COPY claim 상태로 넘긴다. 원본 분리만 승인한 요청은 MERGE_COMPLETED에서 멈춘다.
+    // 후속 분류 진행을 classify_approved_at에 미리 기록한다. 그 진행이 있을 때만 JPG정리 완료
+    // 직후 기존 COPY claim 상태로 넘긴다. JPG정리만 진행한 요청은 MERGE_COMPLETED에서 멈춘다.
     // 전체 분류 요청은 JPG정리 뒤 SSD2 복사·사진별 분류까지 자동으로 이어진다.
-    // department/shootingMode는 사람이 채우는 실행 게이트가 아니다.
+    // 사람에게 추가 촬영 조건을 입력받는 실행 게이트를 두지 않는다.
     const continueFullPipeline = mergeCompleted && Boolean(project.classify_approved_at);
     status = !mergeCompleted ? "REVIEW_REQUIRED" : continueFullPipeline ? "CLASSIFY_APPROVED" : "MERGE_COMPLETED";
     patch.status = status;
@@ -70,7 +70,7 @@ export async function syncPhotoMergeProject(
     } else {
       const conflicts = Array.isArray(result.conflicts) ? result.conflicts : [];
       patch.merge_conflict_count = conflicts.length;
-      patch.merge_error = typeof result.error === "string" ? result.error : "JPG 통합 중 충돌이 발견되었습니다.";
+      patch.merge_error = typeof result.error === "string" ? result.error : "JPG정리 중 충돌이 발견되었습니다.";
       patch.raw_untouched_count = nonNegativeInteger(result.rawUntouched) ?? project.raw_untouched_count ?? 0;
     }
   } else {
@@ -78,7 +78,7 @@ export async function syncPhotoMergeProject(
     status = "MERGE_FAILED";
     patch.status = status;
     patch.merge_completed_at = null;
-    patch.merge_error = input.error || input.message || (typeof result.error === "string" ? result.error : "JPG 통합 중 문제가 발생했습니다. 원본은 변경되지 않았습니다.");
+    patch.merge_error = input.error || input.message || (typeof result.error === "string" ? result.error : "JPG정리 중 문제가 발생했습니다. 원본은 변경되지 않았습니다.");
   }
 
   const { error: updateError } = await db.from("photo_storage_projects").update(patch).eq("id", projectId);

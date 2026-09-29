@@ -32,4 +32,12 @@ describe("quote mutation service", () => {
     const amounts = recalculateQuote([{ id: "x", name: "촬영", unitPrice: 500_000, qty: 1, subtotal: 500_000 }], { deposit_rate: 50 });
     expect(amounts).toMatchObject({ supplyAmount: 500_000, vat: 50_000, totalAmount: 550_000, depositAmount: 275_000 });
   });
+
+  it("정률 할인은 외주 항목을 깎지 않는다", () => {
+    const amounts = recalculateQuote([
+      { id: "package", name: "프리미엄 패키지", unitPrice: 2_000_000, qty: 1, subtotal: 2_000_000 },
+      { id: "makeup", name: "헤어메이크업", unitPrice: 150_000, qty: 1, subtotal: 150_000 },
+    ], { deposit_rate: 50, form_state: { discount: { type: "percent", value: 10 } } });
+    expect(amounts).toMatchObject({ discountAmount: 200_000, supplyAmount: 1_950_000, vat: 195_000, totalAmount: 2_145_000 });
+  });
 });

@@ -14,7 +14,6 @@ export const QUOTE_MUTATION_TOOLS = new Set([
   "update_quote_info",
   "update_quote_payment_terms",
   "apply_quote_discount",
-  "update_quote_vat_mode",
   "publish_quote",
   "download_quote_pdf",
   "link_new_client_to_quote",

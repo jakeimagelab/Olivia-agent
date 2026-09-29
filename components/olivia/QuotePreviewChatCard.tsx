@@ -45,7 +45,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   }, 0);
   const optionsTotal =
     (profileCount ?? 0) * 250000 +
-    (stagedCount ?? 0) * 450000 +
+    (stagedCount ?? 0) * 250000 +
     (combinedProfileStagedCount ?? 0) * 650000 +
     (floorCount ?? 0) * 250000 +
     (largeHospital ? 750000 : 0) +

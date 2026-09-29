@@ -59,9 +59,9 @@ function deferCopy(value: string | null) {
 }
 
 function projectError(project: PhotoStorageProject) {
-  if (project.merge_error) return { stage: "JPG 통합", message: project.merge_error };
+  if (project.merge_error) return { stage: "JPG정리", message: project.merge_error };
   if (project.copy_error) return { stage: "SSD2 복사", message: project.copy_error };
-  if (project.classification_error) return { stage: "씬 분류", message: project.classification_error };
+  if (project.classification_error) return { stage: "분류", message: project.classification_error };
   return null;
 }
 
@@ -77,28 +77,26 @@ function progressOf(project: PhotoStorageProject) {
 function statusCopy(project: PhotoStorageProject) {
   const requirement = sceneClassificationRequirement(project);
   if (project.status === "READY" || project.status === "DEFERRED") {
-    return { label: "원본 확인됨", next: "승인하면 JPG 원본 분리를 시작합니다." };
+    return { label: "촬영본 확인됨", next: "승인하면 JPG정리를 시작합니다." };
   }
   if (project.status === "MERGE_COMPLETED") {
-    if (requirement === "required") return { label: "씬 분류 대기", next: "승인하면 SSD2 복사와 씬 분류를 자동으로 시작합니다." };
-    if (requirement === "not_required") return { label: "원본 분리 완료", next: "씬 분류가 필요 없는 촬영입니다. 완료 처리해주세요." };
-    const missing = project.nas_department ? "촬영모드" : "진료과";
-    return { label: "설정 확인 필요", next: `${missing}가 없어 자동 분류를 시작할 수 없습니다.`, danger: true };
+    if (requirement === "required") return { label: "분류 대기", next: "승인하면 SSD2 복사와 분류를 자동으로 시작합니다." };
+    return { label: "JPG정리 완료", next: "분류가 필요 없는 촬영입니다. 완료 처리해주세요." };
   }
-  if (project.status === "MERGE_APPROVED") return { label: "승인됨", next: "JPG 통합 작업을 기다리고 있습니다." };
-  if (project.status === "MERGING") return { label: "JPG 통합 중", next: `원본 분리 작업 ${progressOf(project)}% 진행 중입니다.` };
+  if (project.status === "MERGE_APPROVED") return { label: "승인됨", next: "JPG정리 작업을 기다리고 있습니다." };
+  if (project.status === "MERGING") return { label: "JPG정리 중", next: `JPG정리 작업 ${progressOf(project)}% 진행 중입니다.` };
   if (project.status === "CLASSIFY_APPROVED" || project.status === "COPY_QUEUED") return { label: "승인됨", next: "SSD2 복사 작업을 기다리고 있습니다." };
   if (project.status === "COPYING" || project.status === "COPY_VERIFYING" || project.status === "COPY_COMPLETED") {
     return { label: "SSD2 복사 중", next: `복사 작업 ${progressOf(project)}% 진행 중입니다.` };
   }
   if (project.status === "CLASSIFY_QUEUED" || project.status === "CLASSIFYING" || project.status === "CLASSIFY_VERIFYING") {
-    return { label: "씬 분류 중", next: `사진 분류 ${progressOf(project)}% 진행 중입니다.` };
+    return { label: "분류 중", next: `분류 작업 ${progressOf(project)}% 진행 중입니다.` };
   }
   if (project.status === "REVIEW_REQUIRED") return { label: "확인 필요", next: "검증 결과를 확인한 뒤 다시 시도해주세요.", danger: true };
   if (project.status === "ERROR") return { label: "오류", next: "오류 내용을 확인해주세요.", danger: true };
-  if (project.status === "MERGE_FAILED") return { label: "JPG 통합 실패", next: "원본은 변경되지 않았습니다.", danger: true };
+  if (project.status === "MERGE_FAILED") return { label: "JPG정리 실패", next: "원본은 변경되지 않았습니다.", danger: true };
   if (project.status === "COPY_FAILED") return { label: "SSD2 복사 실패", next: "원본은 변경되지 않았습니다.", danger: true };
-  return { label: "씬 분류 실패", next: "오류 확인 후 다시 시도할 수 있습니다.", danger: true };
+  return { label: "분류 실패", next: "오류 확인 후 다시 시도할 수 있습니다.", danger: true };
 }
 
 export default function MobilePhotoPending({ onBack }: { onBack: () => void }) {
@@ -212,9 +210,8 @@ export default function MobilePhotoPending({ onBack }: { onBack: () => void }) {
                 <div className={styles.mobilePendingDetail}>
                   <dl>
                     <div><dt>원본</dt><dd>RAW {project.raw_count.toLocaleString("ko-KR")}장 · JPG {project.jpg_count.toLocaleString("ko-KR")}장</dd></div>
-                    <div><dt>JPG 통합</dt><dd>{project.merged_jpg_count.toLocaleString("ko-KR")}장{mergedAt ? ` · ${mergedAt} 완료` : ""}</dd></div>
+                    <div><dt>JPG정리</dt><dd>{project.merged_jpg_count.toLocaleString("ko-KR")}장{mergedAt ? ` · ${mergedAt} 완료` : ""}</dd></div>
                     {project.nas_department ? <div><dt>진료과</dt><dd>{project.nas_department}</dd></div> : null}
-                    {project.nas_shooting_mode ? <div><dt>촬영모드</dt><dd>{project.nas_shooting_mode === "field" ? "현장" : "스튜디오"}</dd></div> : null}
                   </dl>
                   {detail ? <p className={styles.mobilePendingError}><AlertTriangle size={14} /><span><strong>{detail.stage}</strong>{detail.message}</span></p> : null}
                   {actionErrors[project.id] ? <p className={styles.mobilePendingActionError}>{actionErrors[project.id]}</p> : null}
@@ -224,7 +221,7 @@ export default function MobilePhotoPending({ onBack }: { onBack: () => void }) {
                       <button type="button" disabled={projectBusy} onClick={() => void runAction(project, "defer")}><Clock3 size={15} />{busy?.projectId === project.id && busy.action === "defer" ? "처리 중..." : "보류"}</button>
                       {canRetry ? <button type="button" disabled={projectBusy} onClick={() => void runAction(project, "retry")}><RefreshCw size={15} />{busy?.projectId === project.id && busy.action === "retry" ? "재요청 중..." : "다시 시도"}</button> : null}
                       {canComplete ? <button type="button" className={styles.mobilePendingComplete} disabled={projectBusy} onClick={() => void runAction(project, "complete")}><Check size={15} />{busy?.projectId === project.id && busy.action === "complete" ? "처리 중..." : "완료"}</button> : null}
-                      {canApprove ? <button type="button" className={styles.mobilePendingApprove} disabled={projectBusy} onClick={() => void runAction(project, "approve")}><Check size={15} />{busy?.projectId === project.id && busy.action === "approve" ? "승인 중..." : project.status === "MERGE_COMPLETED" ? "분류 승인" : "원본 분리 승인"}</button> : null}
+                      {canApprove ? <button type="button" className={styles.mobilePendingApprove} disabled={projectBusy} onClick={() => void runAction(project, "approve")}><Check size={15} />{busy?.projectId === project.id && busy.action === "approve" ? "승인 중..." : project.status === "MERGE_COMPLETED" ? "분류 진행" : "JPG정리 진행"}</button> : null}
                     </div>
                   ) : <p className={styles.mobilePendingActiveCopy}>자동 작업이 진행 중입니다. 완료되면 목록에서 사라집니다.</p>}
                 </div>

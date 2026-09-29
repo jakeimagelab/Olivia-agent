@@ -132,7 +132,7 @@ export async function startNasBackupClassification(
   }
 
   // 이미 분류 job이 시작됐거나 끝난 프로젝트는 설정과 updated_at조차 다시 쓰지 않는다.
-  // 중복 클릭이 진행 중인 job의 department/shootingMode를 바꾸면 안 된다.
+  // 중복 클릭이 진행 중인 작업의 판정 조건을 다시 쓰면 안 된다.
   if (existing && ["CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED"].includes(existing.status)) {
     return existing;
   }
@@ -159,12 +159,11 @@ export async function startNasBackupClassification(
 
   const patch: Record<string, unknown> = {
     ...countPatch(input),
-    // 실제 출력 판정은 사진 단위 AI가 한다. 기존 worker payload와 migration 호환을 위해
-    // 자동 추출한 진료과만 메타데이터로 보관하고 mode는 더 이상 사용자에게 받지 않는다.
+    // 실제 출력 판정은 사진 단위 AI가 한다. 자동 추출한 진료과만 호환 메타데이터로
+    // 보관한다. 사진별 AI 판정이므로 폴더 단위 촬영모드는 새 작업에 쓰지 않는다.
     nas_department: input.department,
-    nas_shooting_mode: "field",
     photo_sort_only: input.only ?? "all",
-    // JPG 통합이 먼저 필요한 프로젝트도 후속 COPY·분류 승인을 잃지 않도록 미리 기록한다.
+    // JPG정리가 먼저 필요한 프로젝트도 후속 COPY·분류 진행을 잃지 않도록 미리 기록한다.
     classify_approved_at: existing?.classify_approved_at ?? now,
     approved_at: existing?.approved_at ?? now,
     approved_by: existing?.approved_by ?? input.approvedBy ?? "olivia",

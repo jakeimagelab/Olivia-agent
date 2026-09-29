@@ -48,10 +48,8 @@ export async function GET(request: NextRequest) {
       if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
     }
 
-    // 코드 요청서(2026-09-18) 작업 D — NAS 백업 경로(nas_backup_start_sort/알림 카드)로 승인된
-    // 프로젝트는 department/shooting_mode를 이미 사람이 명시적으로 입력했으므로(추측 금지 규칙),
-    // 위 automation 플래그와 무관하게 항상 claim한다. 카메라 임포트 경로의 하드코딩된 claim은
-    // 건드리지 않는다.
+    // NAS 채팅 경로는 폴더·등록 고객에서 진료과를 확인하고, 사진별 AI 판정으로 결과를
+    // 나눈다. 촬영모드는 더 이상 폴더 단위 입력값이 아니므로 위 플래그와 무관하게 claim한다.
     const { error: nasClassifyClaimError } = await supabase.rpc("claim_nas_classify_photo_project", {
       p_worker_id: workerId,
     });

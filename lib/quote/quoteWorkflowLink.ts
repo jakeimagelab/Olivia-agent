@@ -2,13 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { matchClient } from "@/lib/clientMatching";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
 
-// 견적서를 "포털 공개"하거나 "최종완료"할 때 둘 다 똑같이 고객/프로젝트(워크플로우)가 아직
-// 없으면 자동으로 매칭·생성해야 한다 — app/api/quotes/[id]/publish/route.ts에서 쓰던 로직을
-// 그대로 뽑아내서 app/api/quotes/[id]/complete/route.ts와 공유한다(코드 요청서 2차 2번 항목,
-// 2026-08-16). 동작은 기존과 동일, 호출 지점만 두 곳으로 늘었다.
+// 고객 미연결 견적서는 고객을 자동 생성하지 않는다. 고객 등록은 사용자가 "고객등록"을
+// 명시했을 때만 forceCreateNew 경로로 수행한다. 견적서 발행/완료가 고객 생성까지 겸하면
+// 사용자가 보지 못한 고객 레코드가 생긴다(2026-09-30).
 export type QuoteWorkflowLinkResult =
   | { status: "linked"; clientId: string; workflowRunId: string }
-  | { status: "needs_confirmation"; candidate: { id: string; hospital_name: string } };
+  | { status: "needs_confirmation"; candidate: { id: string; hospital_name: string } }
+  | { status: "needs_registration"; hospitalName: string };
 
 async function createClientFromQuote(db: SupabaseClient, quote: any): Promise<string> {
   const { data, error } = await db
@@ -51,7 +51,7 @@ export async function resolveQuoteWorkflowLink(
       } else if (match.status === "needs_confirmation") {
         return { status: "needs_confirmation", candidate: match.candidate };
       } else {
-        clientId = await createClientFromQuote(db, quote);
+        return { status: "needs_registration", hospitalName: String(quote.hospital_name || "").trim() };
       }
     }
   }

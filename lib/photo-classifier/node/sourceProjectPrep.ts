@@ -126,7 +126,7 @@ async function collectSourceJpgs(projectRoot: string): Promise<SourceJpg[]> {
   const visit = async (directory: string, relativeDirectory: string): Promise<void> => {
     for (const entry of await readdir(directory, { withFileTypes: true })) {
       const fullPath = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`JPG 통합 중 심볼릭 링크가 발견되었습니다: ${entry.name}`);
+      if (entry.isSymbolicLink()) throw new Error(`JPG정리 중 심볼릭 링크가 발견되었습니다: ${entry.name}`);
       if (entry.isDirectory()) {
         if (isIntegratedDirectoryName(entry.name)) continue;
         await visit(fullPath, path.posix.join(relativeDirectory, entry.name));
@@ -154,7 +154,7 @@ function conflictResult(projectPath: string, projectRoot: string, conflicts: Sou
   return { projectPath, projectRoot, jpgMoved: 0, jpgAlreadyPrepared: 0, rawUntouched, conflicts, status: "REVIEW_REQUIRED" };
 }
 
-/** 명시적 승인 이후에만 호출하는 SSD1 JPG 통합 guard. */
+/** 명시적 진행 이후에만 호출하는 SSD1 JPG정리 guard. */
 export async function assertSafeSourceJpgRelocation(input: {
   sourceRoot: string;
   projectRoot: string;
@@ -300,12 +300,12 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   } catch (error) {
     for (const item of moved.reverse()) await rename(item.destination, item.source).catch(() => undefined);
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-    if (code === "EXDEV") throw new Error("SSD1 JPG 통합은 동일 볼륨 rename만 허용합니다(EXDEV).");
+  if (code === "EXDEV") throw new Error("SSD1 JPG정리는 동일 볼륨 rename만 허용합니다(EXDEV).");
     throw error;
   }
 
   const rawAfter = await collectRawSnapshot(projectRoot);
-  if (!sameRawSnapshot(rawBefore, rawAfter)) throw new Error("JPG 통합 후 RAW 무결성 검증에 실패했습니다.");
+  if (!sameRawSnapshot(rawBefore, rawAfter)) throw new Error("JPG정리 후 RAW 무결성 검증에 실패했습니다.");
   const remaining = await collectSourceJpgs(projectRoot);
   const destinationAfter = await collectIntegratedJpgs(destinationDirectory);
   const destinationBytes = Array.from(destinationAfter.values()).map((entry) => entry.size);

@@ -138,10 +138,9 @@ describe("photo storage server guards", () => {
 });
 
 describe("mobile photo notification policy", () => {
-  it("requires both department and shooting mode before scene classification", () => {
-    expect(sceneClassificationRequirement({ nas_department: "dermatology", nas_shooting_mode: "field" })).toBe("required");
-    expect(sceneClassificationRequirement({ nas_department: null, nas_shooting_mode: null })).toBe("not_required");
-    expect(sceneClassificationRequirement({ nas_department: "dermatology", nas_shooting_mode: null })).toBe("incomplete");
+  it("does not require a folder-wide shooting mode for photo-by-photo classification", () => {
+    expect(sceneClassificationRequirement({ nas_department: "dermatology" })).toBe("required");
+    expect(sceneClassificationRequirement({ nas_department: null })).toBe("not_required");
   });
 
   it("keeps deferred notifications until the deadline and hides completed notifications", () => {

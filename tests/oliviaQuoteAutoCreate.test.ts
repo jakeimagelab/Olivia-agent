@@ -128,6 +128,22 @@ describe("create_quote — temporary document client approval policy", () => {
     expect(lastCrudCall.data.clientId).toBeUndefined();
   });
 
+  it("행사명에 들어간 치과라는 글자만으로 포토클리닉 고객으로 고쳐 읽지 않는다", async () => {
+    const execution = await callCreateQuote("예방치과교실 60주년 행사", {
+      ...contextWithoutClient,
+      activeClientName: "화면에 열린 다른 병원",
+      currentRequestText: "예방치과교실 60주년 행사",
+    });
+    expect(execution.result.success).toBe(true);
+    expect(lastCrudCall.data).toMatchObject({
+      hospitalName: "예방치과교실 60주년 행사",
+      title: "예방치과교실 60주년 행사 견적서",
+      formState: { brand: "jakeimage" },
+    });
+    expect(lastCrudCall.data.clientId).toBeUndefined();
+    expect(createClientWithWorkflowMock).not.toHaveBeenCalled();
+  });
+
   it("같은 대화의 동일 견적 재전송은 기존 견적을 반환하고 새 행을 만들지 않는다", async () => {
     const context: OliviaContextSnapshot = {
       recentActions: [],

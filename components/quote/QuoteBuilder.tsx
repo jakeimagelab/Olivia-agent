@@ -590,7 +590,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       {
         name: "연출 인원 추가",
         detail: `${stagedCount}인`,
-        amount: stagedCount * 450000,
+        amount: stagedCount * 250000,
         visible: stagedCount > 0
       },
       {
@@ -1335,8 +1335,18 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [isModal, registerRequestClose, dirty]);
 
   const createContractQuoteFromImportedPdf = (parsed: ImportedPdfQuote): ContractQuoteData => {
-    const supply = Math.round(parsed.totalAmount / 1.1);
-    const vatAmount = Math.max(parsed.totalAmount - supply, 0);
+    // 견적서의 모든 금액 경로는 computeQuoteTotals 하나로 계산한다. PDF에서 읽은 금액도
+    // 공급가로 받아 부가세를 별도 10%로 더하며, 포함세 역산 분기를 만들지 않는다.
+    const importedTotals = computeQuoteTotals({
+      packageTotal: 0,
+      singleItemsTotal: 0,
+      optionsTotal: 0,
+      customItems: [{ id: "imported-pdf", name: "기존 견적서 PDF 항목", detail: "", amount: Math.max(0, parsed.totalAmount), discountable: true }],
+      discountRate: 0,
+      extraDiscount: 0,
+      depositRate: 50,
+    });
+    const supply = importedTotals.supplyAmount;
     const itemNames = uniqueQuoteItems(
       [
         "스탠다드",
@@ -1375,10 +1385,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       ],
       supplyAmount: supply,
       discountAmount: 0,
-      vat: vatAmount,
-      totalAmount: parsed.totalAmount,
-      depositAmount: Math.round(parsed.totalAmount * 0.5),
-      balanceAmount: parsed.totalAmount - Math.round(parsed.totalAmount * 0.5),
+      vat: importedTotals.vat,
+      totalAmount: importedTotals.finalAmount,
+      depositAmount: importedTotals.depositAmount,
+      balanceAmount: importedTotals.balanceAmount,
       depositRate: 50,
       memos: "기존 견적서 PDF를 기준으로 생성한 계약서입니다."
     };

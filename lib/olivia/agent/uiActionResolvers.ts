@@ -22,14 +22,21 @@ function workspaceAction(
   const data = args.result.data;
   const resourceId = value(data, "resourceId") || value(data, `${workspace}Id`);
   if (!resourceId) return [];
+  // 견적서는 원문에서 읽은 고객으로만 만든다. 연결되지 않은 견적서를 현재 화면의 고객에
+  // 붙여 Workspace를 여는 순간에도 다른 고객으로 대체하면 안 된다.
+  const mayUseActiveContext = workspace !== "quote";
+  const clientId = value(data, "clientId") || (mayUseActiveContext ? args.context.activeClientId : undefined);
+  const workflowRunId = value(data, "workflowRunId") || (mayUseActiveContext ? args.context.activeProjectId : undefined);
+  const clientName = value(data, "hospitalName") || (mayUseActiveContext ? args.context.activeClientName : undefined);
+  const projectName = mayUseActiveContext ? args.context.activeProjectName : undefined;
   return [{
     type: "OPEN_WORKSPACE",
     workspace,
     resourceId,
-    clientId: value(data, "clientId") || args.context.activeClientId,
-    workflowRunId: value(data, "workflowRunId") || args.context.activeProjectId,
-    clientName: value(data, "hospitalName") || args.context.activeClientName,
-    projectName: args.context.activeProjectName,
+    ...(clientId ? { clientId } : {}),
+    ...(workflowRunId ? { workflowRunId } : {}),
+    ...(clientName ? { clientName } : {}),
+    ...(projectName ? { projectName } : {}),
   }];
 }
 
@@ -135,7 +142,10 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     // 번들에 딸려 들어간다(start_select_match_flow 리졸버에도 같은 이유로 적용된 규칙).
     const resourceId = value(args.result.data, "resourceId") || value(args.result.data, "quoteId");
     if (!resourceId) return opened;
-    return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }, ...temporaryDocumentApproval(args.result)];
+    // 생성 직후에는 먼저 방금 만든 견적서를 연다. 사용자가 내용을 보기도 전에
+    // 승인·고객등록을 묻는 흐름은 만들기 요청의 다음 단계를 앞당긴 것이므로 여기서
+    // 승인 카드를 만들지 않는다(2026-09-30).
+    return [...opened, { type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: resourceId }];
   },
   start_quote_wizard: async ({ result }) => {
     if (!result.success) return [];
@@ -171,7 +181,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
   // 동일한 패턴). 이 매핑이 없으면 DB는 바뀌지만 화면은 예전 값을 계속 보여준다.
   update_quote_payment_terms: async ({ result }) => mutationActions("quote", result),
   apply_quote_discount: async ({ result }) => mutationActions("quote", result),
-  update_quote_vat_mode: async ({ result }) => mutationActions("quote", result),
   preview_quote: async (args) => {
     const { result, context } = args;
     const resourceId = value(result.data, "resourceId");

@@ -76,28 +76,41 @@ export function removeQuoteItem(value: unknown, index: number) {
   return { items, removed };
 }
 
-export function recalculateQuote(items: QuoteItem[], quote: Record<string, unknown>, discountAmount = Number(quote.discount_amount) || 0) {
+export function recalculateQuote(items: QuoteItem[], quote: Record<string, unknown>, fallbackDiscountAmount = Number(quote.discount_amount) || 0) {
   // 수정 경로도 화면·문서와 동일한 계산기만 쓴다. VAT는 언제나 공급가의 10%를 별도 계산한다.
   const customItems: CustomItem[] = items.map((item, index) => ({
     id: item.id || `quote-item:${index}`,
     name: item.name,
     detail: item.detail || "",
     amount: Number(item.subtotal) || 0,
-    discountable: !/할인\s*제외|외주|헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외/i.test(`${item.name} ${item.note || ""}`),
+    // 명시 조정·절삭과 외주는 할인 대상이 아니다. 수정 화면도 원문 파서와 같은
+    // computeQuoteTotals 규칙 하나로만 계산한다.
+    discountable: !/할인\s*제외|외주|헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|특별조정|절삭/i.test(`${item.name} ${item.note || ""}`),
   }));
+  const formState = quote.form_state && typeof quote.form_state === "object" && !Array.isArray(quote.form_state)
+    ? quote.form_state as Record<string, unknown>
+    : {};
+  const discount = formState.discount && typeof formState.discount === "object" && !Array.isArray(formState.discount)
+    ? formState.discount as Record<string, unknown>
+    : null;
+  const discountRate = discount?.type === "percent" ? Math.max(0, Number(discount.value) || 0) : 0;
+  const extraDiscount = discount?.type === "amount"
+    ? Math.max(0, Number(discount.value) || 0)
+    : discountRate > 0 ? 0 : Math.max(0, fallbackDiscountAmount);
   const totals = computeQuoteTotals({
     packageTotal: 0,
     singleItemsTotal: 0,
     optionsTotal: 0,
     customItems,
-    discountRate: 0,
-    extraDiscount: Math.max(0, discountAmount),
+    discountRate,
+    extraDiscount,
     depositRate: depositRateOf(quote),
   });
   return {
     supplyAmount: totals.supplyAmount,
     vat: totals.vat,
     totalAmount: totals.finalAmount,
+    discountAmount: totals.discountTotal,
     depositAmount: totals.depositAmount,
     balanceAmount: totals.balanceAmount,
   };

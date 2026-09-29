@@ -7,14 +7,30 @@ const context: OliviaContextSnapshot = {
 };
 
 describe("shared Olivia document approvals", () => {
-  it("문서 생성 결과를 채널 공통 내용 승인으로 만든다", async () => {
+  it("견적서 생성 직후에는 방금 만든 문서를 열고 승인 카드는 만들지 않는다", async () => {
     const actions = await resolveUiActions({
       toolCall: { id: "call-1", name: "create_quote", arguments: "{}" },
       input: {},
       result: { tool: "create_quote", success: true, data: { resourceId: "quote-1", quoteId: "quote-1", temporaryDocumentId: "temp-1", hospitalName: "리나클리닉" } },
       context,
     });
-    expect(actions).toContainEqual(expect.objectContaining({ type: "REQUEST_APPROVAL", toolName: "approve_temporary_document", toolInput: { temporaryDocumentId: "temp-1" } }));
+    expect(actions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-1" }),
+      expect.objectContaining({ type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: "quote-1" }),
+    ]));
+    expect(actions).not.toContainEqual(expect.objectContaining({ type: "REQUEST_APPROVAL" }));
+  });
+
+  it("고객 미연결 견적서는 화면에 열려 있던 다른 고객으로 대체하지 않는다", async () => {
+    const actions = await resolveUiActions({
+      toolCall: { id: "call-unlinked", name: "create_quote", arguments: "{}" },
+      input: {},
+      result: { tool: "create_quote", success: true, data: { resourceId: "quote-unlinked", quoteId: "quote-unlinked", hospitalName: "1989 삼칠갈비" } },
+      context,
+    });
+    expect(actions[0]).toMatchObject({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-unlinked", clientName: "1989 삼칠갈비" });
+    expect(actions[0]).not.toHaveProperty("clientId");
+    expect(actions[0]).not.toHaveProperty("workflowRunId");
   });
 
   it("내용 승인 뒤 고객등록 승인을 같은 프로토콜로 만든다", async () => {

@@ -70,7 +70,7 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
   if (lastAction) {
     const label = lastAction.action === "DEFERRED"
       ? "나중에 처리하도록 보류됨"
-      : lastAction.project.status === "CLASSIFY_APPROVED" ? "사진 분류 승인됨 · 작업 대기" : "JPG 통합 승인됨 · 작업 대기";
+      : lastAction.project.status === "CLASSIFY_APPROVED" ? "분류 승인됨 · 작업 대기" : "JPG정리 승인됨 · 작업 대기";
     return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {label}</span></div>;
   }
   if (!project) {
@@ -88,7 +88,7 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
     const current = typeof progress.current === "number" ? progress.current : project.merged_jpg_count;
     const total = typeof progress.total === "number" ? progress.total : project.jpg_count;
     const percent = percentOf(current, total);
-    const title = project.status === "MERGE_APPROVED" ? "통합을 준비하고 있습니다." : "SSD1에서 JPG를 통합하고 있습니다.";
+    const title = project.status === "MERGE_APPROVED" ? "JPG정리를 준비하고 있습니다." : "JPG를 작업 폴더로 정리하고 있습니다.";
     return (
       <aside className={`${styles.card} ${variant === "panel" ? styles.panel : ""}`} role="status">
         <button className={styles.close} type="button" aria-label="작업 상태 닫기" onClick={dismissCurrent}><X size={17} /></button>
@@ -111,12 +111,12 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
         <button className={styles.close} type="button" aria-label="알림 닫기" onClick={dismissCurrent}><X size={17} /></button>
         <div className={styles.icon}><Check size={20} /></div>
         <div className={styles.content}>
-          <p className={styles.eyebrow}>원본 통합 완료</p>
-          <h2 className={styles.projectTitle}>원본 통합이 완료되었습니다. 사진 분류를 시작할까요?</h2>
-          <p className={styles.detail}>JPG {project.merged_jpg_count.toLocaleString("ko-KR")}장 통합 · RAW {project.raw_untouched_count.toLocaleString("ko-KR")}장 그대로 · 충돌 {project.merge_conflict_count.toLocaleString("ko-KR")}건</p>
+          <p className={styles.eyebrow}>JPG정리 완료</p>
+          <h2 className={styles.projectTitle}>JPG정리가 완료되었습니다. 분류를 시작할까요?</h2>
+          <p className={styles.detail}>JPG {project.merged_jpg_count.toLocaleString("ko-KR")}장 정리 · RAW {project.raw_untouched_count.toLocaleString("ko-KR")}장 그대로 · 충돌 {project.merge_conflict_count.toLocaleString("ko-KR")}건</p>
           <div className={styles.actions}>
             <button className={styles.secondaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("defer")}><Clock3 size={15} /> 나중에</button>
-            <button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("approve")}>{busy === "approve" ? "처리 중..." : "사진 분류 시작"}</button>
+            <button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("approve")}>{busy === "approve" ? "처리 중..." : "분류 시작"}</button>
           </div>
         </div>
       </aside>
@@ -180,11 +180,11 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
       );
     }
 
-    const stageLabel = stage === "merge" ? "JPG 통합" : stage === "copy" ? "복사" : "분류";
+    const stageLabel = stage === "merge" ? "JPG정리" : stage === "copy" ? "복사" : "분류";
     const errorText = stage === "merge" ? project.merge_error : stage === "copy" ? project.copy_error : project.classification_error;
     const isMergeConflict = project.status === "REVIEW_REQUIRED" && stage === "merge" && project.merge_conflict_count > 0;
     const title = isMergeConflict
-      ? "같은 이름의 JPG가 있어 통합을 중단했습니다."
+      ? "같은 이름의 JPG가 있어 JPG정리를 중단했습니다."
       : project.status === "REVIEW_REQUIRED"
         ? `${stageLabel} 결과를 확인해야 합니다.`
         : `${stageLabel} 중 문제가 발생했습니다.`;
@@ -227,7 +227,7 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
         <p className={styles.detail}>RAW {project.raw_count.toLocaleString("ko-KR")}장 · JPG {project.jpg_count.toLocaleString("ko-KR")}장 · {formatBytes(project.jpg_bytes)}</p>
         <div className={styles.actions}>
           <button className={styles.secondaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("defer")}><Clock3 size={15} /> 나중에</button>
-          <button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("approve")}>{busy === "approve" ? "처리 중..." : "JPG 통합 시작"}</button>
+          <button className={styles.primaryButton} type="button" disabled={Boolean(busy)} onClick={() => void runAction("approve")}>{busy === "approve" ? "처리 중..." : "JPG정리 시작"}</button>
         </div>
       </div>
       {pending.length > 1 ? <span className={styles.queue}>{pending.length}건</span> : null}

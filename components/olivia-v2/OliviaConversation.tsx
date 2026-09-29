@@ -473,16 +473,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
           </div>
         ) : null}
         {messages.map((message, messageIndex) => {
-          const exchange = message.role === "user" ? exchangeByUserMessageId.get(message.id) : undefined;
           return (
             <Fragment key={`${message.id}:${messageIndex}`}>
-              {exchange?.topicChanged ? (
-                <div className="olivia-topic-divider" data-topic={exchange.topicKey}>
-                  <span className="olivia-topic-divider__line" />
-                  <span className="olivia-topic-divider__chip">{exchange.previousTopicLabel} → {exchange.topicLabel}</span>
-                  <span className="olivia-topic-divider__line" />
-                </div>
-              ) : null}
               <article
                 ref={(element) => { if (element) messageRefs.current.set(message.id, element); else messageRefs.current.delete(message.id); }}
                 data-message-id={message.id}

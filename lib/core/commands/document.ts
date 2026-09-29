@@ -91,6 +91,14 @@ export async function completeQuote(
         details: { candidate: link.candidate },
       };
     }
+    if (link.status === "needs_registration") {
+      return {
+        ok: false,
+        reason: "견적서는 고객을 자동으로 등록하지 않습니다. 고객등록을 요청한 뒤 다시 진행해주세요.",
+        code: "CLIENT_REGISTRATION_REQUIRED",
+        details: { hospitalName: link.hospitalName },
+      };
+    }
     const { clientId, workflowRunId } = link;
     await completeOpenStepTasksForManualSave(db, workflowRunId, "quote");
     const advance = await maybeAdvanceWorkflow(db, workflowRunId, "quote");

@@ -149,7 +149,9 @@ export function requireClientTarget(
   explicitName: string | undefined,
   what: string,
 ): { ok: true; clientName: string } | { ok: false; message: string } {
-  const clientName = explicitName?.trim() || context.activeClientName;
+  // 견적서는 이번 요청 원문에서 읽은 고객명으로만 만든다. 화면에 열려 있는 고객을
+  // 대신 쓰면 다른 고객 견적서에 붙는 사고가 난다(2026-09-30).
+  const clientName = explicitName?.trim() || (what === "견적서" ? undefined : context.activeClientName);
   if (clientName) return { ok: true, clientName };
   return { ok: false, message: clientTargetQuestion(context, what) };
 }

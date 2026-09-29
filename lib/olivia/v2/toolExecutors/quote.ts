@@ -70,17 +70,6 @@ function quoteFormState(quote: Record<string, unknown>) {
     : {};
 }
 
-function quoteDiscountAmount(items: QuoteItem[], quote: Record<string, unknown>, formState = quoteFormState(quote)) {
-  const discount = formState.discount && typeof formState.discount === "object"
-    ? formState.discount as Record<string, unknown>
-    : null;
-  if (discount?.type === "percent") {
-    const subtotal = items.reduce((sum, item) => sum + Math.max(0, Number(item.subtotal) || 0), 0);
-    return Math.round(subtotal * Math.min(100, Math.max(0, Number(discount.value) || 0)) / 100);
-  }
-  return Number(quote.discount_amount) || 0;
-}
-
 async function finalizeCreatedQuote(input: {
   db: ReturnType<typeof getSupabaseAdmin>;
   toolName: string;
@@ -153,7 +142,7 @@ function serviceCount(value: unknown, current: number | null | undefined) {
 
 export const QUOTE_TOOL_NAMES = [
   "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
-  "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount", "update_quote_vat_mode",
+  "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount",
   "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
 ] as const;
@@ -173,11 +162,14 @@ async function resolveCreateQuoteContext(input: {
       : input.modelBrand === "jakeimage" || input.modelBrand === "photoclinic"
         ? input.modelBrand
         : null;
+  // "예방치과교실"처럼 치과라는 글자가 있어도 의료기관 고객이 아닌 행사명은 포토클리닉으로
+  // 억지 분류하지 않는다. 이름을 고쳐 쓰지 않고, 그 표현만 판정에서 제외한다.
+  const medicalName = input.clientName.replace(/치과\s*교실/g, "");
   // 단위 테스트나 제한된 오프라인 실행처럼 DB adapter가 없는 경우에는 고객 연결만 생략한다.
   // 실서비스 Supabase에서는 항상 아래 exact lookup을 실행하며, 실패를 무시하지 않는다.
   if (typeof (input.db as unknown as { from?: unknown }).from !== "function") {
     return {
-      brand: explicitBrand || (MEDICAL_CLIENT_PATTERN.test(input.clientName) ? "photoclinic" : "jakeimage"),
+      brand: explicitBrand || (MEDICAL_CLIENT_PATTERN.test(medicalName) ? "photoclinic" : "jakeimage"),
       clientId: undefined,
       workflowRunId: undefined,
     };
@@ -209,7 +201,7 @@ async function resolveCreateQuoteContext(input: {
     if (runError) throw new Error(`고객 프로젝트를 확인하지 못했어요: ${runError.message}`);
     workflowRunId = run?.id ? String(run.id) : undefined;
   }
-  const brand = explicitBrand || previousBrand || (MEDICAL_CLIENT_PATTERN.test(input.clientName) ? "photoclinic" : "jakeimage");
+  const brand = explicitBrand || previousBrand || (MEDICAL_CLIENT_PATTERN.test(medicalName) ? "photoclinic" : "jakeimage");
   return { brand, clientId, workflowRunId };
 }
 
@@ -345,8 +337,8 @@ export async function executeQuoteTool(
         },
       } : {}),
     };
-    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
-    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState });
+    const discountAmount = amounts.discountAmount;
     const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, ...{
       supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount,
       deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount,
@@ -380,8 +372,8 @@ export async function executeQuoteTool(
     if (!quantity) throw new Error("추가할 수량을 확인해주세요.");
     const mutation = addQuoteItem(quote.items, { id: `agent:${crypto.randomUUID()}`, name: text(input, "name"), unitPrice: amount, qty: quantity, detail: text(input, "description"), note: text(input, "note") });
     const formState = { ...quoteFormState(quote), agentOverrideItems: true };
-    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
-    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState });
+    const discountAmount = amounts.discountAmount;
     const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
@@ -396,8 +388,8 @@ export async function executeQuoteTool(
     const target = quoteTarget(quote, input, context);
     const mutation = removeQuoteItem(quote.items, target.index);
     const formState = { ...quoteFormState(quote), agentOverrideItems: true };
-    const discountAmount = quoteDiscountAmount(mutation.items, quote, formState);
-    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState }, discountAmount);
+    const amounts = recalculateQuote(mutation.items, { ...quote, form_state: formState });
+    const discountAmount = amounts.discountAmount;
     const updatedResource = await saveQuote(resourceId, { items: mutation.items, discount_amount: discountAmount, form_state: formState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
@@ -595,35 +587,20 @@ export async function executeQuoteTool(
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
     const items = Array.isArray(quote.items) ? quote.items as QuoteItem[] : [];
-    const subtotal = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
     const percent = input.percent == null ? undefined : parseKoreanPercent(input.percent as string | number);
     if (input.percent != null && percent === undefined) throw new Error("할인율은 0~100 사이로 알려주세요.");
-    const amount = input.remove ? 0 : percent != null ? Math.round(subtotal * percent / 100) : parseKoreanMoney(input.amount as string | number);
-    if (amount === undefined || amount < 0) throw new Error("할인 금액을 확인해주세요.");
-    const discount = input.remove ? null : percent != null ? { type: "percent", value: percent } : { type: "amount", value: amount };
-    const nextFormState = { ...quoteFormState(quote), discount, discountRate: percent || 0, extraDiscount: percent == null ? amount : 0 };
-    const amounts = recalculateQuote(items, { ...quote, form_state: nextFormState }, amount);
-    const updatedResource = await saveQuote(resourceId, { discount_amount: amount, form_state: nextFormState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
+    const amount = input.remove ? 0 : percent != null ? undefined : parseKoreanMoney(input.amount as string | number);
+    if (percent == null && (amount === undefined || amount < 0)) throw new Error("할인 금액을 확인해주세요.");
+    const discount = input.remove ? null : percent != null ? { type: "percent", value: percent } : { type: "amount", value: amount! };
+    const nextFormState = { ...quoteFormState(quote), discount, discountRate: percent || 0, extraDiscount: percent == null ? amount! : 0 };
+    const amounts = recalculateQuote(items, { ...quote, form_state: nextFormState });
+    const updatedResource = await saveQuote(resourceId, { discount_amount: amounts.discountAmount, form_state: nextFormState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
     return {
       tool: name, success: true,
-      data: { resourceId, quoteId: resourceId, discountAmount: amount, updatedResource, summary: amount ? `${amount.toLocaleString("ko-KR")}원 할인을 적용했어요.` : "할인을 제거했어요.", totalAmount: amounts.totalAmount },
+      data: { resourceId, quoteId: resourceId, discountAmount: amounts.discountAmount, updatedResource, summary: amounts.discountAmount ? `${amounts.discountAmount.toLocaleString("ko-KR")}원 할인을 적용했어요.` : "할인을 제거했어요.", totalAmount: amounts.totalAmount },
       // discountAmount는 요청 파라미터가 아니라 updatedResource.discount_amount(실제 저장값)로
       // 확인한다(스펙 §14 "LLM이 계산한 값을 verification으로 사용하지 않는다").
       verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { discountAmount: Number(updatedResource.discount_amount) || 0, totalAmount: Number(updatedResource.total_amount) } }),
-    };
-  }
-
-  if (name === "update_quote_vat_mode") {
-    const resourceId = activeResource(context, "quote");
-    const quote = await loadQuote(resourceId);
-    const mode = text(input, "mode");
-    const formState = { ...((quote.form_state && typeof quote.form_state === "object") ? quote.form_state as Record<string, unknown> : {}), vatMode: mode };
-    const amounts = recalculateQuote(Array.isArray(quote.items) ? quote.items as QuoteItem[] : [], { ...quote, form_state: formState });
-    const updatedResource = await saveQuote(resourceId, { form_state: formState, supply_amount: amounts.supplyAmount, vat: amounts.vat, total_amount: amounts.totalAmount, deposit_amount: amounts.depositAmount, balance_amount: amounts.balanceAmount });
-    return {
-      tool: name, success: true,
-      data: { resourceId, quoteId: resourceId, vatMode: mode, updatedResource, summary: "VAT 방식을 변경했어요.", totalAmount: amounts.totalAmount },
-      verification: createVerification({ executed: true, persisted: true, resourceExists: true }),
     };
   }
 
@@ -685,19 +662,14 @@ export async function executeQuoteTool(
 
   if (name === "publish_quote") {
     const resourceId = activeResource(context, "quote");
-    // 공용 publishQuote Core Command는 API Route와 Agent가 함께 사용하며
-    // resolveQuoteWorkflowLink()로 고객을 자동 매칭·생성까지 전부 마친 뒤에야 성공 결과를
-    // 준다 — "등록할까요?"라고 물어볼 시점이 이미 지나 있다(결정은 서버가 동기적으로 이미
-    // 내렸다). 대신 발행 전/후 client_id를 비교해 "이번에 새로 연결/생성됐는지"만 판단하고,
-    // 이미 벌어진 일을 정확히 보고한다("DON'T SAY IT. DO IT. THEN SAY IT" 원칙 — 아직 안
-    // 일어난 일을 버튼으로 미리 묻지 않는다).
+    // 공개는 이미 연결된 고객 또는 정확히 하나로 매칭된 고객에만 한다. 고객 미연결 견적서를
+    // 공개하면서 새 고객을 만드는 동작은 resolveQuoteWorkflowLink가 차단한다.
     const quoteBeforePublish = await loadQuote(resourceId);
     const hadClientBefore = Boolean(quoteBeforePublish.client_id);
     const baseUrl = resolveServerBaseUrl();
     const publishResult = await publishQuote(resourceId, {}, db);
     if (!publishResult.ok) throw new OliviaToolError(publishResult.reason, publishResult.code ?? "PUBLISH_FAILED", publishResult.details);
     const payload = publishResult.value;
-    const newlyLinkedClientId = !hadClientBefore && payload.clientId ? (payload.clientId as string) : undefined;
 
     // 최종 승인 시 PDF를 원본 보관함(workflow_artifacts)에 아카이브한다(스펙 M5). 공개 후
     // 아카이브가 실패하면 PARTIAL_SUCCESS로 반환해 전체 성공으로 숨기지 않는다.
@@ -720,15 +692,12 @@ export async function executeQuoteTool(
       pdfArchiveError = archiveError instanceof Error ? archiveError.message : "PDF 원본 보관 실패";
       console.error("[publish_quote] PDF 아카이브 실패", pdfArchiveError);
     }
-    // publish_quote는 QUOTE_MUTATION_TOOLS(lib/olivia/output/quoteConfirmations.ts)에 있어서
-    // 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다 — 신규 고객 등록 여부를 여기서
-    // 바로 알려주면 별도 승인 카드 없이도 스펙 §31이 요구하는 "발행 직후 정확히 한 번" 안내를
-    // 만족한다. 완료 문구도 "완료됐습니다"로 뭉뚱그리지 않고 실제 구성을 반영한다(스펙 §22).
+    // publish_quote는 QUOTE_MUTATION_TOOLS에 있으므로 이 서버 작성 결과가 모델 자유 텍스트
+    // 대신 그대로 채팅에 나간다. 고객을 새로 만들었다고 추측해 말하지 않는다.
     const summary = [
       `${quoteBeforePublish.hospital_name || "현재 고객"} 견적서가 완성되었습니다.`,
       "",
       ...buildQuoteBreakdownLines(quoteBeforePublish),
-      newlyLinkedClientId ? `\n${quoteBeforePublish.hospital_name || "해당 병원"}을 신규 고객으로 등록했어요.` : null,
       !pdfArchived ? "\n⚠️ PDF 원본 보관에 실패했어요." : null,
     ].filter((line): line is string => line !== null).join("\n");
     const data = {
@@ -736,7 +705,6 @@ export async function executeQuoteTool(
       quoteId: resourceId,
       ...payload,
       hospitalName: quoteBeforePublish.hospital_name,
-      newlyLinkedClientId,
       pdfArchived,
       workflowArtifactId,
       summary,
@@ -760,7 +728,7 @@ export async function executeQuoteTool(
         persisted: true,
         resourceExists: true,
         linked: Boolean(payload.clientId || hadClientBefore),
-        details: { newlyLinkedClient: Boolean(newlyLinkedClientId), pdfArchived, workflowArtifactId: workflowArtifactId ?? null },
+        details: { pdfArchived, workflowArtifactId: workflowArtifactId ?? null },
       }),
     };
   }

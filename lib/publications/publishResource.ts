@@ -73,6 +73,9 @@ export async function publishQuoteService(
   if (link.status === "needs_confirmation") {
     throw new OliviaToolError("연결할 고객을 확인해주세요.", "AMBIGUOUS", { candidate: link.candidate });
   }
+  if (link.status === "needs_registration") {
+    throw new OliviaToolError("견적서는 고객을 자동으로 등록하지 않습니다. 고객등록을 요청한 뒤 공개해주세요.", "CLIENT_REGISTRATION_REQUIRED", { hospitalName: link.hospitalName });
+  }
   const { clientId, workflowRunId } = link;
   const { data: publishedQuote, error: updateError } = await db
     .from("quotes").update({ status: "published" }).eq("id", quoteId).select("*").single();

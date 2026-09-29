@@ -26,7 +26,6 @@ export const OliviaConversationNavigator = memo(function OliviaConversationNavig
             <h3>{group.dateLabel}</h3>
             {group.topicGroups.map((topicGroup, topicIndex) => (
               <div key={`${group.dateKey}:${topicGroup.topicKey}:${topicIndex}`}>
-                {group.topicGroups.length > 1 ? <h4 data-topic={topicGroup.topicKey}>{topicGroup.topicLabel}</h4> : null}
                 {topicGroup.exchanges.map((exchange) => (
                   <button
                     key={exchange.id}
@@ -123,7 +122,7 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
             type="button"
             data-topic={exchange.topicKey}
             className={activeId === exchange.userMessageId ? "is-active" : ""}
-            aria-label={`${exchange.timeLabel} ${exchange.topicLabel} · ${exchange.userText}`}
+            aria-label={`${exchange.timeLabel} · ${exchange.userText}`}
             aria-pressed={selectedId === exchange.userMessageId}
             aria-haspopup="dialog"
             onMouseEnter={mobile ? undefined : (event) => selectFromTick(event, exchange.userMessageId)}
@@ -136,7 +135,6 @@ export const OliviaConversationGuide = memo(function OliviaConversationGuide({ e
         <div className="olivia-message-guide__popover" role="dialog" aria-modal="false" aria-label="대화 내용 미리보기" onMouseEnter={mobile ? undefined : cancelClose}>
           <button className="olivia-message-guide__close" type="button" onClick={() => onSelect(undefined)} aria-label="닫기"><X size={13} /></button>
           <time><Clock3 size={11} /> {selected.dateLabel} {selected.timeLabel}</time>
-          <span className="olivia-message-guide__topic" data-topic={selected.topicKey}>{selected.topicLabel}</span>
           <strong>{selected.userText}</strong>
           <p>{selected.assistantText}</p>
           <button className="olivia-message-guide__jump" type="button" onClick={() => { onNavigate(selected.userMessageId); onSelect(undefined); }}>이 대화로 이동</button>

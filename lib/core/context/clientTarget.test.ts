@@ -133,6 +133,8 @@ describe("client target policy", () => {
 
   it("명시 이름과 active 이름을 사용하고 없으면 최근 후보와 함께 되묻는다", () => {
     expect(requireClientTarget(emptyContext, " 기통찬의원 ", "견적서")).toEqual({ ok: true, clientName: "기통찬의원" });
+    expect(requireClientTarget({ ...emptyContext, activeClientName: "화면에 열린 다른 고객" }, undefined, "견적서"))
+      .toEqual({ ok: false, message: "어떤 고객의 견적서인가요?" });
     expect(requireClientTarget({ ...emptyContext, activeClientName: "연세라이프구강내과" }, undefined, "계약서"))
       .toEqual({ ok: true, clientName: "연세라이프구강내과" });
 

@@ -1,5 +1,5 @@
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
-import { packages, singleItems } from "@/lib/quote/quoteCatalog";
+import { packageOptions, packages, singleItems } from "@/lib/quote/quoteCatalog";
 import type { Brand, CustomItem } from "@/lib/quote/quoteFormTypes";
 import type { ParsedQuoteItem, ParsedQuoteRequest } from "@/lib/quote/quoteRequestParser";
 
@@ -61,7 +61,8 @@ function titleTopic(item: ParsedQuoteItem | undefined) {
 }
 
 export function titleForParsedQuote(request: ParsedQuoteRequest, brand: Brand) {
-  const client = request.clientName || "고객";
+  const client = request.clientName?.trim();
+  if (!client) throw new Error("견적서 제목을 만들 고객명을 원문에서 찾지 못했어요.");
   if (request.isEvent) return `${client}${request.titleSuffix ? ` ${request.titleSuffix}` : ""} 견적서`;
   if (brand === "jakeimage") {
     const topic = titleTopic(request.items[0]);
@@ -89,6 +90,17 @@ function packageIdFor(items: ParsedQuoteItem[]) {
   return items
     .map((item) => packages.find((entry) => normalize(item.name).includes(normalize(entry.name)))?.id)
     .find((value): value is string => Boolean(value)) ?? null;
+}
+
+function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
+  const normalizedName = normalize(item.name);
+  // 포인트영상은 단독 판매가와 패키지 옵션가가 다르다. 패키지에 함께 적혔을 때만
+  // 옵션 정가를 보여주고, 그 외에는 단일항목 정가를 보여준다.
+  const catalog = hasPackage && normalizedName.includes(normalize("포인트영상"))
+    ? packageOptions.find((entry) => entry.id === "point-video-option")
+    : [...singleItems, ...packageOptions, ...packages].find((entry) => normalizedName.includes(normalize(entry.name)));
+  const suffix = catalog ? `정가 ${catalog.price.toLocaleString("ko-KR")}원 → 서비스` : "서비스";
+  return [item.name, detailOf(item), suffix].filter(Boolean).join(" · ");
 }
 
 /**
@@ -129,7 +141,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     });
 
     if (item.free) {
-      benefitItems.push({ id: `parsed:benefit:${index}`, name: [item.name, detail].filter(Boolean).join(" · ") });
+      benefitItems.push({ id: `parsed:benefit:${index}`, name: benefitLabel(item, Boolean(selectedPackageId)) });
       return;
     }
     if (isPackage) return;

@@ -42,7 +42,9 @@ export function renderOliviaOutcome(outcome: OliviaResponseOutcome): string {
   if (outcome.status === "rejected") return "알겠어요. 이 작업은 진행하지 않을게요.";
   if (outcome.status === "failed") {
     const reason = outcome.reason ? cleanSummary(outcome.reason) : "지금은 작업을 완료하지 못했어요.";
-    return outcome.unchanged ? `${reason} 기존 내용은 그대로예요. 다시 해볼까요?` : reason;
+    // success:false는 재실행해도 같은 결과가 날 수 있다. 실제 DB 상태를 다시 읽지 않은 채
+    // "그대로"라고 단정하거나 같은 조건의 재시도를 권하지 않는다.
+    return reason;
   }
   if (outcome.totalAmount && outcome.targetTitle) {
     return `됐어요. ${outcome.targetTitle} 건을 ${outcome.totalAmount.toLocaleString("ko-KR")}원으로 맞췄어요.`;

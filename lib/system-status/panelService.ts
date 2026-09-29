@@ -100,7 +100,7 @@ type QueryResult<T> = { data: T[] | null; error: { message?: string } | null };
 const JOB_ACTION_LABEL: Record<string, string> = {
   PHOTO_SORT: "사진 분류",
   LIST_FOLDER: "폴더 조회",
-  PHOTO_PREPARE_SOURCE: "JPG 통합",
+  PHOTO_PREPARE_SOURCE: "JPG정리",
   PHOTO_STAGE_JPG: "JPG 복사",
   PHOTO_CLASSIFY_WORK: "사진 정리",
   COPY_TEST: "복사 테스트",
@@ -116,15 +116,15 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   FAILED: "실패",
 };
 const PHOTO_STATUS_LABEL: Record<string, string> = {
-  MERGE_APPROVED: "JPG 통합 대기",
-  MERGING: "JPG 통합 중",
+  MERGE_APPROVED: "JPG정리 대기",
+  MERGING: "JPG정리 중",
   CLASSIFY_APPROVED: "분류 준비 중",
   COPY_QUEUED: "JPG 복사 대기",
   COPYING: "JPG 복사 중",
   COPY_VERIFYING: "JPG 복사 검증 중",
-  CLASSIFY_QUEUED: "씬별 분류 대기",
-  CLASSIFYING: "씬별 분류 중",
-  CLASSIFY_VERIFYING: "씬별 분류 검증 중",
+  CLASSIFY_QUEUED: "분류 대기",
+  CLASSIFYING: "분류 중",
+  CLASSIFY_VERIFYING: "분류 검증 중",
 };
 
 function projectHref(run: WorkflowRunRow | undefined, fallbackClientId?: string | null) {
@@ -466,7 +466,7 @@ export function buildStatusPanelCollections(input: {
       level: "info",
       title: `${project.project_name || "이름 없는 폴더"} · ${firstApproval ? "JPG정리 승인 대기" : "JPG정리 완료"}`,
       detail: firstApproval
-        ? `JPG ${(project.jpg_count ?? 0).toLocaleString("ko-KR")}장 · 승인하면 원본 분리를 시작합니다.`
+        ? `JPG ${(project.jpg_count ?? 0).toLocaleString("ko-KR")}장 · 진행하면 JPG정리를 시작합니다.`
         : `씬 분류를 시작할 차례입니다. ${STEP_INFO.backup_sorting?.desc ?? "사진 분류 단계를 진행합니다."}`,
       href,
       workflowRunId: project.workflow_run_id,

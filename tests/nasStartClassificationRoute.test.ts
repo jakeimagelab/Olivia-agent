@@ -116,7 +116,6 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
       source_relative_path: "0917_청담스시",
       status: "MERGE_APPROVED",
       nas_department: "general",
-      nas_shooting_mode: "field",
       classify_approved_at: expect.any(String),
     }]);
     expect(store.events).toMatchObject([{ id: EVENT_ID, status: "STARTED" }]);

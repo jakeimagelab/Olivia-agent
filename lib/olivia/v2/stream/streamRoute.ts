@@ -538,7 +538,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         if (pendingResult.handled) return;
 
         // 사진 명령은 기존 결정론적 오케스트레이터를 Hermes보다 먼저 실행한다. 복수 폴더,
-        // 재시작 확인, 진료과/촬영모드 확인 상태를 그대로 보존하면서 최종 파일 작업은 여전히
+        // 재시작 확인과 진료과 확인 상태를 그대로 보존하면서 최종 파일 작업은 여전히
         // executeAgentTool()이 기존 remote worker job으로 주문한다.
         if (photoDirectTurn) {
           const directCommand = parsePhotoDirectCommand(rawMessage);

@@ -100,10 +100,13 @@ function itemFromLine(line: string): ParsedQuoteItem | null {
   const profileAddition = /(?:의료진\s*)?프로필\s*(\d+)\s*(?:명|인)?\s*추가/.exec(withoutFree);
   if (profileAddition) {
     const count = Math.max(1, Number(profileAddition[1]) || 1);
-    return { name: "프로필 인원 추가", note: null, details: [], amount: free ? 0 : 250000, quantity: count, free };
+    // 사람이 쓴 항목명은 보존한다. 수량/카탈로그 단가만 구조화하며, 임의로 "프로필 인원
+    // 추가"처럼 다시 이름 붙이지 않는다.
+    return { name: withoutFree, note: null, details: [], amount: free ? 0 : 250000, quantity: count, free };
   }
   const entry = catalogMatch(withoutFree);
-  if (entry) return { name: entry.name, note: null, details: [], amount: free ? 0 : entry.price, quantity, free };
+  // 카탈로그는 가격을 찾는 데만 쓴다. 결과 name은 언제나 사용자가 적은 원문이다.
+  if (entry) return { name: withoutFree, note: null, details: [], amount: free ? 0 : entry.price, quantity, free };
   if (free || EXTERNAL_ITEM.test(withoutFree)) {
     return { name: withoutFree, note: null, details: [], amount: free ? 0 : null, quantity, free };
   }
@@ -120,7 +123,7 @@ function correctedEmail(raw: string) {
   const corrections: Record<string, string> = {
     gamil: "gmail.com", "gamil.com": "gmail.com", gmial: "gmail.com", "gmial.com": "gmail.com", gmai: "gmail.com", "gmai.com": "gmail.com", "gmail.co": "gmail.com", "gmail.con": "gmail.com",
     "naver.con": "naver.com", "nver.com": "naver.com", "daum.ent": "daum.net", "hanmail.ent": "hanmail.net",
-    hotmial: "hotmail", "yahoo.co": "yahoo.com",
+    hotmial: "hotmail", "hotmial.com": "hotmail.com", "yahoo.co": "yahoo.com",
   };
   const correctedDomain = corrections[domain] ?? domain;
   const email = `${local}@${correctedDomain}`;
@@ -210,7 +213,10 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   }
 
   const source = meaningfulLines.join(" ");
+  const eventLine = meaningfulLines.find((line) => EVENT_PATTERN.test(line));
   result.isEvent = EVENT_PATTERN.test(source) || result.items.some((item) => /스케치\s*촬영/.test(item.name));
-  result.titleSuffix = result.isEvent ? eventSuffix(result.clientName, source) : null;
+  // 행사 제목은 사용자가 행사라고 적은 그 줄만 쓴다. 뒤의 담당자·항목 설명을 제목에
+  // 덧붙여 고쳐 읽지 않는다.
+  result.titleSuffix = result.isEvent ? eventSuffix(result.clientName, eventLine || source) : null;
   return result;
 }

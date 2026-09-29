@@ -71,13 +71,13 @@ async function resolvePhotoFolderForStart(folderName: string, dataSource: Remote
 
 type NasBackupToolDependencies = { dataSource?: RemoteNasDataSource };
 
-// 폴더명에 드러난 진료과는 자동으로 쓴다. 목록에 없으면 기존 고객 메타데이터가 없는
-// 독립 촬영도 안전하게 처리할 수 있도록 general로 둔다. 촬영 방식은 폴더 전체가 아니라
-// 사진별 AI 판정이므로 사용자에게 더 이상 받지 않는다.
+// 폴더명에 드러난 진료과를 먼저 쓰고, 없으면 정확히 같은 이름의 등록 고객 정보만 본다.
+// 둘 다 없을 때 general 같은 기본값을 넣지 않는다. 어떤 분류 기준을 쓸지 정해지지 않았다는
+// 사실을 드러내고 멈춘다. 촬영 방식은 폴더 전체 값이 아니라 사진별 AI가 판정한다.
 async function departmentFromFolderOrRegisteredClient(
   db: ReturnType<typeof getSupabaseAdmin>,
   folderName: string,
-): Promise<MedicalDepartment> {
+): Promise<MedicalDepartment | null> {
   const fromFolder = departmentFromPhotoText(folderName);
   if (fromFolder) return fromFolder;
   // 날짜 접두어만 제거한 정확한 고객명으로만 보완한다. 화면에 남아 있는 다른 고객을
@@ -95,10 +95,10 @@ async function departmentFromFolderOrRegisteredClient(
         : null;
       if (fromClient) return fromClient;
     } catch {
-      // 고객 정보가 없는 비의료 촬영은 general 시각 판정으로 계속한다.
+      // 조회 실패는 진료과를 알았다는 근거가 아니다.
     }
   }
-  return "general";
+  return null;
 }
 
 /** Worker가 명시적으로 AI 키 없음이라고 보고한 경우에는 분류 job 자체를 만들지 않는다. */
@@ -254,6 +254,13 @@ export async function executeNasBackupTool(
     const existing = await readProjectByPath(db, candidate.sourceRelativePath);
     const only = input.only === "연출" || input.only === "프로필" || input.only === "인테리어" ? input.only : "all";
     const department = await departmentFromFolderOrRegisteredClient(db, candidate.displayName);
+    if (!department) {
+      throw new PhotoPipelineStartError(
+        "로직에 없어서 임의로 정하지 않았어요 — 진료과를 알려주세요.",
+        "PHOTO_DEPARTMENT_REQUIRED",
+        { folderName: candidate.displayName },
+      );
+    }
     await assertPhotoAiAvailable(db);
     let project;
     try {

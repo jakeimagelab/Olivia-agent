@@ -3104,7 +3104,7 @@ function PhotoSortingInner({
                         : <>🔍 정밀 분류 모드: 하이브리드 Scene 계획 → 검토 → 승인 후 이동<br/></>
                       }
                       RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
-                      JPG/Scene01/, Scene02/... — JPG 씬별 분류<br/>
+                      JPG/Scene01/, Scene02/... — JPG 분류 결과<br/>
                       PROFILE/ — 프로필 사진 (1인·정면·정지 포즈만)<br/>
                       SELECT/JPG_SELECT/ — 선택한 JPG<br/>
                       SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>

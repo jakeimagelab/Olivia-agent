@@ -68,7 +68,7 @@ export async function approveSourceSeparation(
       return { ok: true, value: { project }, idempotent: true };
     }
     if (!['READY', 'DEFERRED'].includes(project.status)) {
-      return { ok: false, reason: "READY 또는 DEFERRED 상태에서만 원본 분리를 승인할 수 있습니다.", code: "INVALID_STATE" };
+      return { ok: false, reason: "READY 또는 DEFERRED 상태에서만 JPG정리를 진행할 수 있습니다.", code: "INVALID_STATE" };
     }
     const now = new Date().toISOString();
     const { data, error } = await db.from("photo_storage_projects")
@@ -83,7 +83,7 @@ export async function approveSourceSeparation(
     await finishApprovalSideEffects(db, updated, "PHOTO_PROJECT_APPROVED");
     return { ok: true, value: { project: updated }, idempotent: false };
   } catch (error) {
-    return coreCommandFailure(error, "원본 분리 승인을 처리하지 못했습니다.");
+    return coreCommandFailure(error, "JPG정리 진행을 처리하지 못했습니다.");
   }
 }
 
@@ -101,10 +101,10 @@ export async function approveClassification(
     if (project.status !== "MERGE_COMPLETED") {
       return { ok: false, reason: "MERGE_COMPLETED 상태에서만 사진 분류를 승인할 수 있습니다.", code: "INVALID_STATE" };
     }
-    if (!project.nas_department || !project.nas_shooting_mode) {
+    if (!project.nas_department) {
       return {
         ok: false,
-        reason: "진료과와 촬영모드가 모두 설정된 프로젝트만 사진 분류를 승인할 수 있습니다.",
+        reason: "진료과를 확인하지 못한 프로젝트는 사진 분류를 승인할 수 없습니다.",
         code: "CLASSIFICATION_CONTEXT_REQUIRED",
       };
     }

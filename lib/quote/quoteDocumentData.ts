@@ -37,7 +37,7 @@ function optionLines(
 ): QuoteDocumentLine[] {
   return [
     { id: "profile_shoot", name: "프로필 인원 추가", detail: `${state.profileCount}인`, amount: state.profileCount * 250000, visible: state.profileCount > 0 },
-    { id: "staged_shoot", name: "연출 인원 추가", detail: `${state.stagedCount}인`, amount: state.stagedCount * 450000, visible: state.stagedCount > 0 },
+    { id: "staged_shoot", name: "연출 인원 추가", detail: `${state.stagedCount}인`, amount: state.stagedCount * 250000, visible: state.stagedCount > 0 },
     { id: "combined_profile_staged", name: "프로필/연출 추가", detail: `${state.combinedProfileStagedCount}인`, amount: state.combinedProfileStagedCount * 650000, visible: state.combinedProfileStagedCount > 0 },
     { id: "floor_shoot", name: "인테리어 층수 추가", detail: `${state.floorCount}층`, amount: state.floorCount * 250000, visible: state.floorCount > 0 },
     { id: "large_hospital", name: largeScaleLabel, detail: "적용", amount: 750000, visible: state.largeHospital },

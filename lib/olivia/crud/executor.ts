@@ -237,17 +237,16 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
     if (existingQuoteError) dbError(existingQuoteError, "견적번호 중복 확인에 실패했습니다.");
     if (existingQuote) throw new OliviaCrudError(`견적번호 ${number}이 이미 존재합니다. 기존 견적을 수정해주세요.`, "INVALID_INPUT", { id: existingQuote.id });
     const explicitlyProvided = (key: string) => Object.prototype.hasOwnProperty.call(data, key);
-    const { data: row, error } = await db.from("quotes").insert({
+    // validateOliviaCrudRequest 전에 omitNonNullableQuoteCreateNulls가 제거한 값은 여기서도
+    // 다시 null로 되살리지 않는다. DB insert payload까지 키 자체를 생략해야 "값 없음"과
+    // "명시적으로 null"을 구분할 수 있다.
+    const quoteInsert: Row = {
       quote_number: number,
-      title: data.title || "",
       hospital_name: client?.hospital_name || data.hospitalName,
-      client_id: client?.id || null,
       contact_name: explicitlyProvided("contactName") ? data.contactName : client?.contact_name || null,
       phone: explicitlyProvided("phone") ? data.phone : client?.phone || null,
       email: explicitlyProvided("email") ? data.email : client?.email || null,
       quote_date: data.quoteDate || new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date()),
-      shoot_date: data.shootDate || null,
-      valid_until: data.validUntil || "",
       items: data.items || [],
       supply_amount: data.supplyAmount || 0,
       discount_amount: data.discountAmount || 0,
@@ -257,10 +256,15 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       balance_amount: data.balanceAmount || 0,
       deposit_rate: data.depositRate ?? 50,
       package_id: data.packageId ?? null,
-      memos: data.memos || null,
-      form_state: data.formState || null,
-      workflow_run_id: data.workflowRunId || null,
-    }).select("*").single();
+      ...(data.title === undefined ? {} : { title: data.title }),
+      ...(client?.id ? { client_id: client.id } : {}),
+      ...(data.shootDate === undefined ? {} : { shoot_date: data.shootDate }),
+      ...(data.validUntil === undefined ? {} : { valid_until: data.validUntil }),
+      ...(data.memos === undefined ? {} : { memos: data.memos }),
+      ...(data.formState === undefined ? {} : { form_state: data.formState }),
+      ...(data.workflowRunId === undefined ? {} : { workflow_run_id: data.workflowRunId }),
+    };
+    const { data: row, error } = await db.from("quotes").insert(quoteInsert).select("*").single();
     if (error || !row) dbError(error, "견적서 생성에 실패했습니다.");
     return { row: row as Row, clientId: row.client_id, workflowRunId: row.workflow_run_id };
   }

@@ -23,16 +23,15 @@ export const ACTIONABLE_PHOTO_PROJECT_STATUSES = new Set<PhotoStorageProject["st
   "CLASSIFY_FAILED",
 ]);
 
-export type SceneClassificationRequirement = "required" | "not_required" | "incomplete";
+export type SceneClassificationRequirement = "required" | "not_required";
 
 export function sceneClassificationRequirement(
-  project: Pick<PhotoStorageProject, "nas_department" | "nas_shooting_mode">,
+  project: Pick<PhotoStorageProject, "nas_department">,
 ): SceneClassificationRequirement {
   const hasDepartment = Boolean(project.nas_department?.trim());
-  const hasShootingMode = Boolean(project.nas_shooting_mode);
-  if (hasDepartment && hasShootingMode) return "required";
-  if (!hasDepartment && !hasShootingMode) return "not_required";
-  return "incomplete";
+  // 촬영모드는 한 폴더에 하나라는 전제가 틀렸다. 사진별 AI 판정으로 바뀐 뒤에는
+  // 이 레거시 컬럼 유무가 실행 게이트가 되지 않는다.
+  return hasDepartment ? "required" : "not_required";
 }
 
 export function isPhotoProjectActive(project: Pick<PhotoStorageProject, "status">): boolean {

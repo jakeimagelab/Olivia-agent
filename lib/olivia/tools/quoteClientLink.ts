@@ -7,11 +7,8 @@ import { logActivity } from "@/lib/activityLogger";
 export type QuoteClientCandidate = { id: string; hospital_name: string };
 export type QuoteClientMatchStatus = "already_linked" | "no_match" | "match" | "ambiguous";
 
-// 견적서 마법사 STEP 6-7(스펙 §23-29) — publish_quote가 이미 갖고 있는 발행 시점 자동
-// 매칭/생성(lib/quote/quoteWorkflowLink.ts의 resolveQuoteWorkflowLink→matchClient)과는
-// 별개의, 승인 직후 채팅에서 선제적으로 보여주는 카드용 검색이다. 그 자동 매칭 로직은
-// 건드리지 않고 그대로 최종 안전망으로 둔다 — 이 함수는 사람이 버튼으로 직접 확인하는
-// 용도라 normalizeSearchText/resolveClientId의 엄격한 안전장치를 쓰지 않고 느슨하게 찾는다.
+// 등록 고객을 견적서에 연결하기 위한 읽기 전용 검색이다. 고객이 없다는 사실은 고객 생성
+// 권한이 아니다. 새 고객은 사용자가 고객등록을 명시한 뒤에만 linkNewClientToQuote로 만든다.
 export async function resolveQuoteClient(db: SupabaseClient, quote: Record<string, any>) {
   const resourceId = String(quote.id || "");
   if (quote.client_id) {

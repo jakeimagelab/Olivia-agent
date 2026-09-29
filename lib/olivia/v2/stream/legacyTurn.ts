@@ -295,16 +295,14 @@ export async function runLegacyTurn({
     const roundText = verifiedRoundText ?? response.text;
     const roundOnlyFailed = executions.length > 0
       && executions.every(({ result: { execution } }) => !execution.result.success);
-    if (roundOnlyFailed && !nextPendingAction && round + 1 < maxToolRounds(requestClass)) {
-      deferredFailureText = roundText;
-      request = {
-        instructions,
-        previous_response_id: response.responseId,
-        input: outputs,
-        tools: selectedTools,
-        parallel_tool_calls: true,
-      };
-      continue;
+    // 실패한 실행을 같은 입력으로 자동 재시도하지 않는다. 특히 사진·견적 생성은 앞선
+    // Promise/DB 작업이 아직 진행 중일 수 있어 중복 실행 위험이 있다. 서버 오류를 그대로
+    // 한 번 보고하고 이번 턴을 끝낸다.
+    if (roundOnlyFailed && !nextPendingAction) {
+      const guardedRoundText = guardCompletionText(roundText, round);
+      finalText += guardedRoundText;
+      await flushTextAsDeltas(guardedRoundText, send, messageId);
+      break;
     }
     if (executions.some(({ result: { execution } }) => execution.result.success)) {
       deferredFailureText = "";

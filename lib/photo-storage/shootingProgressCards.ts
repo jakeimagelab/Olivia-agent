@@ -153,19 +153,19 @@ function projectStatusSummary(project: PhotoStorageProject): { summary: string; 
     return { summary: "사진 작업 결과를 확인해야 합니다.", tone: "attention", actionRequired: true };
   }
   if (project.status === "READY") {
-    return { summary: "원본 분리 승인이 필요합니다.", tone: "attention", actionRequired: true };
+    return { summary: "JPG정리 승인이 필요합니다.", tone: "attention", actionRequired: true };
   }
   if (project.status === "DEFERRED") {
-    return { summary: "원본 분리가 보류되어 있습니다.", tone: "waiting", actionRequired: false };
+    return { summary: "JPG정리가 보류되어 있습니다.", tone: "waiting", actionRequired: false };
   }
   if (project.status === "MERGE_COMPLETED") {
-    return { summary: "원본 분리가 끝났습니다. 씬 분류 여부를 확인해주세요.", tone: "attention", actionRequired: true };
+    return { summary: "JPG정리가 끝났습니다. 분류 여부를 확인해주세요.", tone: "attention", actionRequired: true };
   }
-  if (project.status === "MERGE_APPROVED") return { summary: "원본 분리 작업을 기다리고 있습니다.", tone: "progress", actionRequired: false };
-  if (project.status === "MERGING") return { summary: `JPG 원본을 분리하고 있습니다. ${projectProgress(project)}%`, tone: "progress", actionRequired: false };
+  if (project.status === "MERGE_APPROVED") return { summary: "JPG정리 작업을 기다리고 있습니다.", tone: "progress", actionRequired: false };
+  if (project.status === "MERGING") return { summary: `JPG정리를 진행하고 있습니다. ${projectProgress(project)}%`, tone: "progress", actionRequired: false };
   if (["CLASSIFY_APPROVED", "COPY_QUEUED"].includes(project.status)) return { summary: "작업 SSD 복사를 준비하고 있습니다.", tone: "progress", actionRequired: false };
   if (["COPYING", "COPY_VERIFYING", "COPY_COMPLETED"].includes(project.status)) return { summary: `작업 SSD로 복사하고 있습니다. ${projectProgress(project)}%`, tone: "progress", actionRequired: false };
-  return { summary: `씬 분류를 진행하고 있습니다. ${projectProgress(project)}%`, tone: "progress", actionRequired: false };
+  return { summary: `분류를 진행하고 있습니다. ${projectProgress(project)}%`, tone: "progress", actionRequired: false };
 }
 
 function daysSince(value: string | null | undefined, nowMs: number): number {
@@ -189,7 +189,7 @@ function stagePresentation(input: {
       : null;
     return {
       stageLabel: "1차 전달",
-      summary: warning ?? "씬 분류가 끝났습니다. 유그린 링크를 등록하면 1차 전달로 넘어갑니다.",
+      summary: warning ?? "분류가 끝났습니다. 유그린 링크를 등록하면 1차 전달로 넘어갑니다.",
       tone: "attention",
       actionRequired: true,
     };

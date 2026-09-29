@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// publish_quote(app/api/quotes/[id]/publish/route.ts를 통해)는 resolveQuoteWorkflowLink()로
-// 고객 매칭/자동생성을 이미 동기적으로 끝낸 뒤에야 성공 응답을 준다 — "등록할까요?"라고 물어볼
-// 시점이 없다(PHASE 2 스펙 §31이 기대한 승인 카드를 붙일 지점이 없음을 조사로 확인). 대신
-// 발행 전/후 client_id를 비교해 이번 발행에서 새로 연결/생성됐는지 판단하고, 그 결과를
-// data.summary에 담아 정확히 한 번 알려준다 — publish_quote는 QUOTE_MUTATION_TOOLS에 있어서
-// 이 summary가 모델 자유 텍스트 대신 그대로 채팅에 나간다(lib/olivia/output/quoteConfirmations.ts).
+// publish_quote는 고객을 자동 등록하지 않는다. resolveQuoteWorkflowLink가 기존 고객을
+// 정확히 매칭할 때만 공개를 계속하고, 미연결 고객은 명시적 고객등록 요청에서만 만든다.
 
 let quoteRow: { id: string; hospital_name: string; client_id: string | null; items?: unknown; discount_amount?: number; total_amount?: number };
 const publishQuoteServiceMock = vi.hoisted(() => vi.fn());
@@ -35,7 +31,7 @@ function callPublishQuote() {
   return executeAgentTool({ id: "publish-call", name: "publish_quote", arguments: "{}" }, context);
 }
 
-describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", () => {
+describe("publish_quote — 고객 자동 등록 금지", () => {
   const originalFetch = global.fetch;
 
   beforeEach(() => {
@@ -53,16 +49,15 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
     global.fetch = originalFetch;
   });
 
-  it("발행 전 client_id가 없었고 발행 후 새로 생겼으면 신규 등록 사실을 summary에 포함한다", async () => {
+  it("발행 전 연결이 없더라도 고객을 새로 등록했다고 추측해 보고하지 않는다", async () => {
     publishQuoteServiceMock.mockResolvedValueOnce({ ok: true, clientId: "new-client-1", workflowRunId: "run-1", portalUrl: "https://example.com/portal/abc", publicationId: "pub-1", resource: quoteRow });
 
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
-    expect(execution.result.data?.newlyLinkedClientId).toBe("new-client-1");
     const summary = String(execution.result.data?.summary);
     expect(summary).toContain("유진스의원 견적서가 완성되었습니다.");
     expect(summary).toContain("스탠다드 패키지");
-    expect(summary).toContain("유진스의원을 신규 고객으로 등록했어요.");
+    expect(summary).not.toMatch(/신규 고객으로 등록했어요/);
   });
 
   it("발행 전에 이미 client_id가 연결돼 있었으면 신규 등록 문구를 붙이지 않는다", async () => {
@@ -75,14 +70,13 @@ describe("publish_quote — 발행 직후 신규 고객 등록 여부 보고", (
 
     const execution = await callPublishQuote();
     expect(execution.result.success).toBe(true);
-    expect(execution.result.data?.newlyLinkedClientId).toBeUndefined();
     const summary = String(execution.result.data?.summary);
     expect(summary).not.toMatch(/신규 고객으로 등록했어요/);
     expect(summary).toContain("유진스의원 견적서가 완성되었습니다.");
     expect(summary).toContain("최종 금액: 1,350,000원");
   });
 
-  it("발행 자체가 실패하면(ok:false) success:false로 실패를 그대로 보고한다 — 신규 등록 판단 로직이 실패를 가리지 않는다", async () => {
+  it("발행 자체가 실패하면 success:false로 서버 사유를 그대로 보고한다", async () => {
     publishQuoteServiceMock.mockRejectedValueOnce(new Error("이미 처리 중인 견적입니다."));
 
     const execution = await callPublishQuote();
