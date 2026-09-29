@@ -1,19 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { documentStage, type DocumentStage } from "@/lib/documents/status";
 import type { OliviaDocumentType } from "@/lib/olivia/documents/types";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
-import { DocumentsSidebar, type DocumentCategory } from "./DocumentsSidebar";
+import { DocumentsSidebar, type DocumentCategory, type DocumentStageFilter } from "./DocumentsSidebar";
 import { DocumentsGrid, type DocumentRow } from "./DocumentsGrid";
 import styles from "./DocumentsWindowContent.module.css";
 
 // 실제 폴더/파일 시스템은 이 코드베이스에 없다 — /api/documents/search가 주는 건 고객/프로젝트
 // 태그가 붙은 평평한(flat) 문서 목록뿐이다. 가짜 폴더 백엔드를 만드는 대신, 이 평평한 데이터를
-// 프로젝트별로 그룹핑해서 파인더처럼 "보이게"만 한다(DocumentsGrid.tsx의 groupBy).
+// 고객별로 그룹핑하고 같은 제목의 버전은 한 카드로 접어서 파인더처럼 "보이게"만 한다.
 // DocumentSearchPanel.tsx와 같은 엔드포인트/디바운스 패턴을 그대로 재사용한다 — 새 API 없음.
 export function DocumentsWindowContent({ surface = "desktop" }: { context?: WindowContext; surface?: "desktop" | "tablet" }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<DocumentCategory>("all");
+  const [stage, setStage] = useState<DocumentStageFilter>("all");
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,10 +39,16 @@ export function DocumentsWindowContent({ surface = "desktop" }: { context?: Wind
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, category]);
 
+  const stageCounts = useMemo(() => documents.reduce<Record<DocumentStage, number>>((counts, document) => {
+    counts[documentStage(document.status)] += 1;
+    return counts;
+  }, { draft: 0, review: 0, final: 0 }), [documents]);
+  const visibleDocuments = stage === "all" ? documents : documents.filter((document) => documentStage(document.status) === stage);
+
   return (
     <div className={styles.root} data-documents-surface={surface}>
-      <DocumentsSidebar query={query} onQueryChange={setQuery} category={category} onCategoryChange={setCategory} />
-      <DocumentsGrid documents={documents} loading={loading} surface={surface} />
+      <DocumentsSidebar query={query} onQueryChange={setQuery} category={category} onCategoryChange={setCategory} stage={stage} onStageChange={setStage} stageCounts={stageCounts} />
+      <DocumentsGrid documents={visibleDocuments} loading={loading} surface={surface} />
     </div>
   );
 }

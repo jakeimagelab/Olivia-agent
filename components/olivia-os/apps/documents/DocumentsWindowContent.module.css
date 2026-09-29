@@ -48,6 +48,30 @@
   gap: 2px;
 }
 
+.stageFilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid rgba(21, 88, 85, .1);
+}
+
+.stageFilter {
+  min-height: 28px;
+  border: 1px solid rgba(21, 88, 85, .12);
+  border-radius: 999px;
+  padding: 0 8px;
+  background: #FFFFFF;
+  color: #5A7470;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.stageFilter span { margin-left: 2px; color: #8EA5A1; font-size: 9px; }
+.stageFilterActive { border-color: #155855; background: #155855; color: #FFFFFF; }
+.stageFilterActive span { color: rgba(255,255,255,.78); }
+
 .categoryItem {
   display: block;
   width: 100%;
@@ -104,7 +128,10 @@
   gap: 10px;
 }
 
+.documentStack { position: relative; display: grid; align-content: start; gap: 5px; min-width: 0; }
+
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -117,6 +144,25 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.cardFinal { border: 2px solid #155855; box-shadow: 0 6px 16px rgba(21, 88, 85, .11); }
+.cardFinal .cardTitle { font-weight: 800; }
+.cardReview { border-color: #E85D2C; }
+.cardDraft { opacity: .75; }
+.cardDraft:hover { opacity: 1; }
+
+.finalRibbon {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 0 9px 0 9px;
+  background: #155855;
+  color: #FFFFFF;
 }
 
 .card:hover {
@@ -175,10 +221,35 @@
   margin-top: auto;
 }
 
+.stageBadge { display: inline-flex; align-items: center; gap: 3px; }
+.finalBadge { background: #155855 !important; color: #FFFFFF !important; }
+.reviewBadge { border: 1px solid #E85D2C; background: #FFF7F3 !important; color: #C24A20 !important; }
+.draftBadge { background: #F0F2F4 !important; color: #737D84 !important; }
+
 .cardDate {
   font-size: 9.5px;
   color: #9BB5B0;
 }
+
+.connectClient, .versionToggle, .versionCard {
+  min-height: 26px;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 8px;
+  background: #EDF5F3;
+  color: #155855;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.connectClient { justify-self: start; }
+.versionToggle { justify-self: start; background: transparent; color: #5A7470; text-decoration: underline; }
+.versionList { display: flex; flex-wrap: wrap; gap: 4px; }
+.versionCard { min-width: 54px; background: #F7FAF9; color: #607873; font-size: 9px; }
+.versionCard:hover { background: #EDF5F3; color: #155855; }
+.versionCardDisabled { opacity: .58; cursor: not-allowed; }
 
 /* Document type visual language: these tiles identify the file kind; they are
    intentionally not clickable app icons. */
@@ -214,6 +285,8 @@
 .root[data-documents-surface="tablet"] .searchBox { min-height: 42px; border-radius: 11px; }
 .root[data-documents-surface="tablet"] .searchInput { font-size: 13px; font-weight: 300; }
 .root[data-documents-surface="tablet"] .categoryList { gap: 4px; }
+.root[data-documents-surface="tablet"] .stageFilters { gap: 6px; padding-bottom: 10px; }
+.root[data-documents-surface="tablet"] .stageFilter { min-height: 32px; font-size: 11px; }
 .root[data-documents-surface="tablet"] .categoryItem { min-height: 44px; padding: 0 12px; border-radius: 10px; font-size: 12px; font-weight: 450; }
 .root[data-documents-surface="tablet"] .categoryItemActive { background: #eff7f5; font-weight: 650; }
 
@@ -226,6 +299,7 @@
 .root[data-documents-surface="tablet"] .cardSubtitle { color: #5a7470; font-size: 11px; font-weight: 300; }
 .root[data-documents-surface="tablet"] .cardDate { font-size: 10px; font-weight: 300; }
 .root[data-documents-surface="tablet"] .cardFooter { min-height: 24px; }
+.root[data-documents-surface="tablet"] .cardFinal { border-width: 2px; }
 
 @media (max-width: 720px) {
   .root[data-documents-surface="tablet"] { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }

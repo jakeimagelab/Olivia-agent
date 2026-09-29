@@ -1,4 +1,5 @@
 import type { MobileResourceType } from "./navigation";
+import { documentStatusLabel } from "@/lib/documents/status";
 
 export type MobileResource = {
   id: string;
@@ -15,23 +16,6 @@ export type MobileResource = {
 
 const FINAL_STATUSES = new Set(["published", "final", "completed", "contracted", "cancelled", "canceled", "archived"]);
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "작성 중",
-  pending_review: "검토 중",
-  content_approved: "검토 완료",
-  pending_client: "고객등록 대기",
-  linked: "작성 중",
-  published: "발송 완료",
-  final: "계약 완료",
-  completed: "계약 완료",
-  signed: "계약 완료",
-  "서명완료": "계약 완료",
-  "서명대기": "검토 중",
-  failed: "확인 필요",
-  paused: "보류",
-  deferred: "보류",
-};
-
 function stringValue(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
@@ -42,8 +26,7 @@ function numberValue(value: unknown) {
 }
 
 export function mobileResourceStatusLabel(status?: string | null) {
-  if (!status) return "작성 중";
-  return STATUS_LABELS[status] || status;
+  return documentStatusLabel(status);
 }
 
 export function isOpenMobileResourceStatus(status?: string | null) {
@@ -151,4 +134,3 @@ export function resourceReferenceFromToolResult(toolName: string, value: unknown
 export function formatMobileWon(value?: number) {
   return value == null ? "" : `₩ ${value.toLocaleString("ko-KR")}`;
 }
-
