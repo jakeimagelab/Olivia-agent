@@ -1,10 +1,11 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
-import { buildAgentQuoteData, formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
+import { formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
+import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
+import { buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
 import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
-import { requireClientTarget } from "@/lib/core/context/clientTarget";
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
@@ -157,6 +158,84 @@ export const QUOTE_TOOL_NAMES = [
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
 ] as const;
 
+const MEDICAL_CLIENT_PATTERN = /(병원|의원|클리닉|메디컬|의료재단|검진센터|요양병원|한의원|한방|내과|외과|정형외과|신경외과|성형외과|흉부외과|피부과|안과|이비인후과|산부인과|소아과|소아청소년과|비뇨기과|비뇨의학과|정신건강의학과|신경과|재활의학과|영상의학과|마취통증의학과|가정의학과|응급의학과|치과|교정과|구강내과|구강외과|치주과|보철과|헬스|health|메디|medical|medi|닥터|doctor|\bdr\b|의료|의학|웰니스|재활|통증|임플란트|약국|제약|바이오)/i;
+
+async function resolveCreateQuoteContext(input: {
+  db: ReturnType<typeof getSupabaseAdmin>;
+  requestText: string;
+  clientName: string;
+  modelBrand: unknown;
+}) {
+  const explicitBrand: "photoclinic" | "jakeimage" | null = /포토\s*클리닉(?:으로|로)?/.test(input.requestText)
+    ? "photoclinic"
+    : /제이크\s*이미지(?:연구소)?(?:으로|로)?/i.test(input.requestText)
+      ? "jakeimage"
+      : input.modelBrand === "jakeimage" || input.modelBrand === "photoclinic"
+        ? input.modelBrand
+        : null;
+  // 단위 테스트나 제한된 오프라인 실행처럼 DB adapter가 없는 경우에는 고객 연결만 생략한다.
+  // 실서비스 Supabase에서는 항상 아래 exact lookup을 실행하며, 실패를 무시하지 않는다.
+  if (typeof (input.db as unknown as { from?: unknown }).from !== "function") {
+    return {
+      brand: explicitBrand || (MEDICAL_CLIENT_PATTERN.test(input.clientName) ? "photoclinic" : "jakeimage"),
+      clientId: undefined,
+      workflowRunId: undefined,
+    };
+  }
+  const { data: client, error } = await input.db
+    .from("clients")
+    .select("id,hospital_name")
+    .eq("hospital_name", input.clientName)
+    .maybeSingle();
+  if (error) throw new Error(`고객 연결 정보를 확인하지 못했어요: ${error.message}`);
+  const clientId = client?.id ? String(client.id) : undefined;
+  let previousBrand: "photoclinic" | "jakeimage" | null = null;
+  if (clientId) {
+    const { data: previous, error: previousError } = await input.db
+      .from("quotes")
+      .select("form_state")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (previousError) throw new Error(`이전 견적서 브랜드를 확인하지 못했어요: ${previousError.message}`);
+    const state = previous?.form_state && typeof previous.form_state === "object" ? previous.form_state as Record<string, unknown> : {};
+    previousBrand = state.brand === "jakeimage" || state.brand === "photoclinic" ? state.brand : null;
+  }
+  let workflowRunId: string | undefined;
+  if (clientId) {
+    const { data: run, error: runError } = await input.db.from("workflow_runs")
+      .select("id").eq("client_id", clientId).eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    if (runError) throw new Error(`고객 프로젝트를 확인하지 못했어요: ${runError.message}`);
+    workflowRunId = run?.id ? String(run.id) : undefined;
+  }
+  const brand = explicitBrand || previousBrand || (MEDICAL_CLIENT_PATTERN.test(input.clientName) ? "photoclinic" : "jakeimage");
+  return { brand, clientId, workflowRunId };
+}
+
+function quoteParseNotices(input: {
+  parsed: ReturnType<typeof parseQuoteRequest>;
+  brand: "photoclinic" | "jakeimage";
+}) {
+  const notices = [`${input.brand === "photoclinic" ? "포토클리닉" : "제이크이미지연구소"}로 만들었어요.`];
+  if (input.parsed.emailCorrectedFrom && input.parsed.email) {
+    notices.push(`이메일을 ${input.parsed.email.split("@")[1]}으로 고쳤어요.`);
+  }
+  for (const item of input.parsed.items.filter((item) => item.amount === null && !item.free)) {
+    notices.push(`${item.name} — 금액 입력 필요`);
+  }
+  for (const line of input.parsed.unparsedLines) {
+    notices.push(`이 줄은 못 읽었어요 — "${line}" / 어디에 넣을지 알려주세요`);
+  }
+  return notices;
+}
+
+function addQuoteParseNotices(result: OliviaToolResult, notices: string[]) {
+  if (!result.success || !result.data) return result;
+  const summary = typeof result.data.summary === "string" ? result.data.summary : "견적서를 만들었어요.";
+  return { ...result, data: { ...result.data, parserNotices: notices, summary: [summary, ...notices].join("\n") } };
+}
+
 export async function executeQuoteTool(
   name: string,
   input: Record<string, unknown>,
@@ -185,30 +264,28 @@ export async function executeQuoteTool(
   }
 
   if (name === "create_quote") {
-    const clientTarget = requireClientTarget(context, text(input, "hospitalName"), "견적서");
-    if (!clientTarget.ok) throw new Error(clientTarget.message);
-    const hospitalName = clientTarget.clientName;
-
-    // 새 고객은 문서 내용 승인 뒤에만 등록한다. 현재 컨텍스트에 이미 확정된 고객이 있으면
-    // 그대로 연결하고, 그렇지 않으면 원본 견적부터 만든 뒤 공통 임시문서 등록기가 정확 일치
-    // 고객만 자동 연결한다.
-    const clientId = context.activeClientId;
-    const workflowRunId = context.activeProjectId;
-
-    // 요청 초입에서 확정한 실제 Context 브랜드가 모델 인자보다 우선한다. Context가 없을 때만
-    // create_quote가 직접 받은 brand를 사용하고, 둘 다 없으면 기존 기본값(photoclinic)을 유지한다.
-    let quoteData: Record<string, unknown> = buildAgentQuoteData({
-      ...input,
-      brand: isKnownDocumentBrand(context.brand) ? context.brand : input.brand,
-      hospitalName,
-    }, workflowRunId, context.currentRequestText);
-    if (clientId) quoteData.clientId = clientId;
+    const requestText = context.currentRequestText?.trim();
+    if (!requestText) throw new Error("이번 견적 요청 원문을 찾지 못했어요. 다시 한 번 보내주세요.");
+    const parsed = parseQuoteRequest(requestText);
+    if (!parsed.clientName) throw new Error("견적서를 만들 고객명을 원문에서 찾지 못했어요.");
+    const createContext = await resolveCreateQuoteContext({
+      db, requestText, clientName: parsed.clientName, modelBrand: input.brand,
+    });
+    const hospitalName = parsed.clientName;
+    const clientId = createContext.clientId;
+    const workflowRunId = createContext.workflowRunId;
+    let quoteData: Record<string, unknown> = buildQuoteDataFromParsedRequest({
+      request: parsed,
+      brand: createContext.brand,
+      clientId,
+      workflowRunId,
+    });
     const createRequestKey = buildQuoteCreateRequestKey(context, quoteData);
     if (createRequestKey) {
       quoteData = stampQuoteCreateRequestKey(quoteData, createRequestKey);
       const existing = await findRecentQuoteByCreateRequestKey(db, createRequestKey);
       if (existing?.id) {
-        return finalizeCreatedQuote({
+        return addQuoteParseNotices(await finalizeCreatedQuote({
           db,
           toolName: name,
           quoteId: String(existing.id),
@@ -217,7 +294,7 @@ export async function executeQuoteTool(
           fallbackClientId: clientId,
           fallbackWorkflowRunId: workflowRunId,
           reused: true,
-        });
+        }), quoteParseNotices({ parsed, brand: createContext.brand }));
       }
     }
     const execution = await executeOliviaCrud(db, {
@@ -228,7 +305,7 @@ export async function executeQuoteTool(
     });
     const record = execution.record || {};
     // executeOliviaCrud의 create는 insert().select().single()로 실제 저장된 row를 돌려받는다.
-    return finalizeCreatedQuote({
+    return addQuoteParseNotices(await finalizeCreatedQuote({
       db,
       toolName: name,
       quoteId: execution.recordId,
@@ -237,7 +314,7 @@ export async function executeQuoteTool(
       fallbackClientId: clientId,
       fallbackWorkflowRunId: workflowRunId,
       reused: false,
-    });
+    }), quoteParseNotices({ parsed, brand: createContext.brand }));
   }
 
   if (name === "update_quote_item") {
@@ -573,7 +650,7 @@ export async function executeQuoteTool(
     const quote = await loadQuote(resourceId);
     // 승인 카드 요약을 항목별로 보강한다(스펙 §19-21) — 새 카드 타입을 만들지 않고 기존
     // REQUEST_APPROVAL(approval 블록)의 summary 문자열만 여러 줄로 조립한다(결정 A). 금액은
-    // 전부 이미 DB에 저장된 실제 값(quotes 테이블, computeQuoteTotals/calculateQuoteAmounts가
+    // 전부 이미 DB에 저장된 실제 값(quotes 테이블, computeQuoteTotals가
     // 계산해 저장한 것)이고 여기서 새로 계산하지 않는다.
     const summary = [
       `${quote.hospital_name || "현재 고객"} 견적 ${quote.quote_number || ""}`.trim(),

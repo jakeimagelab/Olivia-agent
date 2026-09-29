@@ -7,6 +7,10 @@ export type QuoteTotalsInput = {
   customItems: CustomItem[];
   discountRate: number;
   extraDiscount: number;
+  /** 대표가 총액/절삭을 지시했을 때만 넣는 공급가 기준 조정값. */
+  fixedTotal?: number | null;
+  roundDownUnit?: number | null;
+  depositRate?: number;
 };
 
 export type QuoteTotals = {
@@ -22,6 +26,10 @@ export type QuoteTotals = {
   supplyAmount: number;
   vat: number;
   finalAmount: number;
+  specialAdjustmentAmount: number;
+  roundDownAmount: number;
+  depositAmount: number;
+  balanceAmount: number;
 };
 
 // components/quote/QuoteBuilder.tsx의 실시간 미리보기가 쓰던 계산을 그대로 옮긴 순수 함수다
@@ -44,11 +52,21 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
   const extraDiscountAmount = Math.min(Math.max(Number(extraDiscount) || 0, 0), Math.max(discountableSubtotal - rateDiscountAmount, 0));
   const discountTotal = rateDiscountAmount + extraDiscountAmount;
   const rawSupplyAmount = Math.max(contentSubtotal - discountTotal, 0);
+  // 총액 확정과 절삭은 항목 단가를 바꾸지 않는다. 계산 결과에만 명시적 조정으로 적용한다.
+  const fixedTotal = input.fixedTotal == null ? NaN : Number(input.fixedTotal);
+  const specialAdjustmentAmount = Number.isFinite(fixedTotal) && fixedTotal >= 0
+    ? fixedTotal - rawSupplyAmount
+    : 0;
+  const beforeRoundDown = Math.max(rawSupplyAmount + specialAdjustmentAmount, 0);
+  const roundDownUnit = Math.floor(Number(input.roundDownUnit) || 0);
+  const roundDownAmount = roundDownUnit > 1 ? beforeRoundDown % roundDownUnit : 0;
   // 만원 미만 자동 절삭을 하지 않는다(2026-09-29). 절삭이 필요하면 추가할인으로
   // 직접 넣는다 — 시스템이 대표 대신 금액을 깎지 않는다.
-  const supplyAmount = rawSupplyAmount;
+  const supplyAmount = beforeRoundDown - roundDownAmount;
   const vat = Math.round(supplyAmount * 0.1);
   const finalAmount = supplyAmount + vat;
+  const depositRate = Math.min(100, Math.max(0, Number(input.depositRate) || 50));
+  const depositAmount = Math.round(finalAmount * depositRate / 100);
   return {
     customTotal,
     discountableCustomTotal,
@@ -62,5 +80,9 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
     supplyAmount,
     vat,
     finalAmount,
+    specialAdjustmentAmount,
+    roundDownAmount,
+    depositAmount,
+    balanceAmount: finalAmount - depositAmount,
   };
 }

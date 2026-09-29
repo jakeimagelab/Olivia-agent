@@ -40,10 +40,25 @@ vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: () => ({
     from: (table: string) => {
       if (table === "quotes") {
+        const brandQuery = {
+          eq: () => brandQuery,
+          order: () => brandQuery,
+          limit: () => brandQuery,
+          maybeSingle: async () => ({ data: null, error: null }),
+        };
         return {
-          select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: quoteRow, error: null }) }) }),
+          select: (columns?: string) => columns === "form_state"
+            ? brandQuery
+            : { eq: () => ({ maybeSingle: async () => ({ data: quoteRow, error: null }) }) },
           update: () => ({ eq: () => ({ select: () => ({ single: async () => quoteUpdateResult }) }) }),
         };
+      }
+      if (table === "clients") {
+        return { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }) };
+      }
+      if (table === "workflow_runs") {
+        const query = { eq: () => query, order: () => query, limit: () => query, maybeSingle: async () => ({ data: null, error: null }) };
+        return { select: () => query };
       }
       if (table === "contracts") {
         const query = {
@@ -121,7 +136,7 @@ import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { fromLegacyResult } from "@/lib/olivia/v2/toolExecutors/common";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
-const baseContext: OliviaContextSnapshot = { recentActions: [], revision: 0 };
+const baseContext: OliviaContextSnapshot = { recentActions: [], revision: 0, currentRequestText: "유진스의원 견적서\n프로필촬영 35만원" };
 const quoteWorkspaceContext: OliviaContextSnapshot = { ...baseContext, activeWorkspace: "quote", activeResourceId: "quote-1" };
 
 function call(name: string, input: Record<string, unknown>, context: OliviaContextSnapshot = baseContext) {
@@ -137,10 +152,7 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
   });
 
   it("A. create_quote 성공 시 verification.persisted/resourceExists가 실제 DB round-trip 결과를 반영한다", async () => {
-    const execution = await call("create_quote", {
-      hospitalName: "유진스의원", packageId: "standard", contactName: null, phone: null, email: null,
-      shootDate: null, profileCount: null, stagedCount: null, memo: null, brand: null,
-    });
+    const execution = await call("create_quote", { brand: null });
     expect(execution.result.success).toBe(true);
     expect(execution.result.data?.quoteId).toBe("quote-real-1");
     expect(execution.result.verification?.persisted).toBe(true);
@@ -236,10 +248,7 @@ describe("Tool Dispatch — 이름→domain executor 연결이 분리 후에도 
   });
 
   it('"create_quote"는 quote executor로 라우팅된다(quoteId/totalAmount를 반환)', async () => {
-    const execution = await call("create_quote", {
-      hospitalName: "유진스의원", packageId: "standard", contactName: null, phone: null, email: null,
-      shootDate: null, profileCount: null, stagedCount: null, memo: null, brand: null,
-    });
+    const execution = await call("create_quote", { brand: null });
     expect(execution.result.data?.quoteId).toBe("quote-real-1");
     expect(execution.result.data?.totalAmount).toBe(1_350_000);
   });

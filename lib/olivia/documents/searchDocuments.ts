@@ -21,6 +21,16 @@ const DEFAULT_LIMIT = 10;
 
 type Row = Record<string, any>;
 
+// 제목은 "고객명 브랜드촬영 견적서"처럼 정규화되지만, 사용자는 고객명만 기억한다.
+// 공통 단어를 제거해 고객명(hospital_name)을 먼저 대조하도록 한다.
+function normalizeQuoteSearchQuery(value: string) {
+  const normalized = value
+    .replace(/브랜드\s*촬영|브랜딩\s*촬영|견적서|견적|특별/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return normalized;
+}
+
 function pick(row: Row, key: string): string | undefined {
   const value = row?.[key];
   return typeof value === "string" && value ? value : undefined;
@@ -274,7 +284,8 @@ function scoreDocument(doc: OliviaDocumentRef, params: {
 // 6·48절 — "가능한 경우 기존 DB 그대로 사용", 마이그레이션/백필 없이 진행).
 export async function searchDocuments(input: SearchDocumentsInput): Promise<OliviaDocumentRef[]> {
   const db = getSupabaseAdmin();
-  const query = String(input.query || "").trim();
+  const rawQuery = String(input.query || "").trim();
+  const query = normalizeQuoteSearchQuery(rawQuery);
   const limit = Math.min(50, Math.max(1, input.limit || DEFAULT_LIMIT));
   const types = input.types?.length ? input.types : ALL_SEARCHABLE_TYPES;
 

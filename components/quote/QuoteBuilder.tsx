@@ -2017,6 +2017,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           )}
 
           <Panel title="단일항목 선택">
+            {brand === "jakeimage" ? (
+              <div className="jake-single-item-headings" aria-hidden="true">
+                <span>항목</span><span>내용</span><span>금액</span>
+              </div>
+            ) : null}
             <div className="single-item-grid">
               {singleItems.map((item) => {
                 const isSelected = selectedSingleItemIds.includes(item.id);
@@ -2039,14 +2044,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                             이미 보여주고 있어서, 라벨은 폭만 흔들었다. */}
                         <strong aria-hidden="true">{isSelected ? "✓" : ""}</strong>
                       </button>
-                      <input
-                        type="text"
+                      <textarea
                         value={singleItemNotes[item.id] ?? ""}
                         onChange={(event) => updateSingleItemNote(item.id, event.target.value)}
-                        placeholder={isSelected ? "내용 입력" : ""}
+                        placeholder="내용 입력"
                         className="jake-single-item-note"
                         disabled={!isSelected}
                         aria-label={`${item.name} 내용`}
+                        rows={2}
                       />
                       <input
                         type="number"
@@ -2055,7 +2060,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                         inputMode="numeric"
                         value={singleItemAmounts[item.id] ?? ""}
                         onChange={(event) => updateSingleItemAmount(item.id, event.target.value)}
-                        placeholder={isSelected ? "금액" : ""}
+                        placeholder="금액"
                         className="jake-single-item-amount"
                         disabled={!isSelected}
                         aria-label={`${item.name} 금액`}

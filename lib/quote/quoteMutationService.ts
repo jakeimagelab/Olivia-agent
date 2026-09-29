@@ -1,3 +1,6 @@
+import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
+import type { CustomItem } from "@/lib/quote/quoteFormTypes";
+
 export type QuoteItem = {
   id?: string;
   name: string;
@@ -74,15 +77,28 @@ export function removeQuoteItem(value: unknown, index: number) {
 }
 
 export function recalculateQuote(items: QuoteItem[], quote: Record<string, unknown>, discountAmount = Number(quote.discount_amount) || 0) {
-  const gross = items.reduce((sum, item) => sum + Math.max(0, Number(item.subtotal) || 0), 0);
-  const raw = Math.max(0, gross - Math.max(0, discountAmount));
-  const formState = quote.form_state && typeof quote.form_state === "object" ? quote.form_state as Record<string, unknown> : {};
-  const mode = formState.vatMode === "included" || formState.vatMode === "excluded" ? formState.vatMode : "separate";
-  // 만원 미만 자동 절삭 제거(2026-09-29). computeQuoteTotals와 같은 규칙을 쓴다.
-  const supplyAmount = mode === "included" ? Math.round(raw / 1.1) : raw;
-  const vat = mode === "excluded" ? 0 : mode === "included" ? raw - supplyAmount : Math.round(supplyAmount * .1);
-  const totalAmount = supplyAmount + vat;
-  const depositRate = depositRateOf(quote);
-  const depositAmount = Math.round(totalAmount * depositRate / 100);
-  return { supplyAmount, vat, totalAmount, depositAmount, balanceAmount: totalAmount - depositAmount };
+  // 수정 경로도 화면·문서와 동일한 계산기만 쓴다. VAT는 언제나 공급가의 10%를 별도 계산한다.
+  const customItems: CustomItem[] = items.map((item, index) => ({
+    id: item.id || `quote-item:${index}`,
+    name: item.name,
+    detail: item.detail || "",
+    amount: Number(item.subtotal) || 0,
+    discountable: !/할인\s*제외|외주|헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외/i.test(`${item.name} ${item.note || ""}`),
+  }));
+  const totals = computeQuoteTotals({
+    packageTotal: 0,
+    singleItemsTotal: 0,
+    optionsTotal: 0,
+    customItems,
+    discountRate: 0,
+    extraDiscount: Math.max(0, discountAmount),
+    depositRate: depositRateOf(quote),
+  });
+  return {
+    supplyAmount: totals.supplyAmount,
+    vat: totals.vat,
+    totalAmount: totals.finalAmount,
+    depositAmount: totals.depositAmount,
+    balanceAmount: totals.balanceAmount,
+  };
 }

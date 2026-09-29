@@ -3381,6 +3381,17 @@ main:has(> .pc-header) {
   gap: 8px;
 }
 
+.jake-single-item-headings {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr) 120px;
+  gap: 8px;
+  margin: 0 0 6px;
+  padding: 0 2px;
+  color: var(--muted, #69736f);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* 항목명 길이와 선택 상태에 따라 버튼 폭이 흔들리면 줄이 안 맞는다(2026-09-29).
    왼쪽 열을 고정폭으로 못 박아 모든 행이 같은 자리에서 시작하게 한다. */
 .jake-single-item-row .single-item-button {
@@ -3413,6 +3424,8 @@ main:has(> .pc-header) {
   font: inherit;
   font-size: 13px;
   color: #222222;
+  resize: vertical;
+  min-height: 42px;
 }
 
 .jake-single-item-note:focus {

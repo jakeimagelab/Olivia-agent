@@ -104,13 +104,9 @@ function createLegacyOliviaHermesMcpServer() {
     "create_quote",
     {
       title: "견적서 생성",
-      description: "Create a new Olivia quote (견적서) for a hospital/client. Always call this before adding or editing items. Returns quoteId — remember it in this conversation and pass it as quoteId to every subsequent quote tool call.",
+      description: "Create a new Olivia quote. Do not transcribe prices, line items, contact details, or client name: Olivia parses the original user message on the server. Provide brand only if the conversation explicitly established it.",
       inputSchema: {
-        hospitalName: z.string().trim().min(1).max(120).describe("Hospital or client name the quote is for"),
-        contactName: z.string().trim().max(60).optional(),
-        phone: z.string().trim().max(40).optional(),
-        email: z.string().trim().max(120).optional(),
-        brand: z.enum(["photoclinic", "jakeimage"]).optional().describe("Document brand, defaults to photoclinic"),
+        brand: z.enum(["photoclinic", "jakeimage"]).nullable().describe("Set only when explicitly established; otherwise null"),
         requestId: z.string().uuid().optional().describe("Opaque Olivia request correlation id supplied in the system instruction"),
       },
     },

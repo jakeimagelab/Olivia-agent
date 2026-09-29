@@ -110,6 +110,7 @@ const context: OliviaContextSnapshot = {
   activeProjectName: "브랜드 촬영",
   recentActions: [],
   revision: 1,
+  currentRequestText: "히어산부인과 견적서\n프로필촬영 35만원",
 };
 
 function call(name: string, input: Record<string, unknown>) {
@@ -124,17 +125,7 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
   });
 
   it("create_quote DB 결과의 실제 quoteId로만 Workspace를 연다", async () => {
-    const execution = await call("create_quote", {
-      hospitalName: "히어산부인과",
-      packageId: "standard",
-      contactName: null,
-      phone: null,
-      email: null,
-      shootDate: null,
-      profileCount: 1,
-      stagedCount: 0,
-      memo: null,
-    });
+    const execution = await call("create_quote", { brand: null });
 
     expect(executionLog).toEqual(["db:quote"]);
     expect(execution.result).toMatchObject({ success: true, data: { quoteId: "quote-real-123" } });
@@ -143,27 +134,16 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     ]));
   });
 
-  it("확정된 PageContext 브랜드가 모델이 보낸 값보다 우선해 실제 견적 데이터에 저장된다", async () => {
+  it("원문에서 직접 지정한 브랜드가 실제 견적 데이터에 저장된다", async () => {
     await executeAgentTool({
       id: "create-quote-brand-context",
       name: "create_quote",
-      arguments: JSON.stringify({
-        brand: "photoclinic",
-        hospitalName: "제이크컴퍼니",
-        packageId: "standard",
-        contactName: null,
-        phone: null,
-        email: null,
-        shootDate: null,
-        profileCount: 0,
-        stagedCount: 0,
-        memo: null,
-      }),
-    }, { ...context, brand: "jakeimage" });
+      arguments: JSON.stringify({ brand: null }),
+    }, { ...context, currentRequestText: "제이크컴퍼니 견적서\n제품촬영 50만원\n제이크이미지연구소로 만들어줘" });
 
     const createRequest = vi.mocked(executeOliviaCrud).mock.calls.at(-1)?.[1];
     expect(createRequest?.data).toMatchObject({
-      title: "제이크이미지연구소 브랜드사진 견적서",
+      title: "제이크컴퍼니 브랜드촬영(제품) 견적서",
       formState: { brand: "jakeimage" },
     });
   });
@@ -179,17 +159,7 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
 
   it("DB Tool 실패 시 UI Action을 만들지 않는다", async () => {
     vi.mocked(executeOliviaCrud).mockRejectedValueOnce(new Error("견적서 생성에 실패했어요."));
-    const execution = await call("create_quote", {
-      hospitalName: "히어산부인과",
-      packageId: "standard",
-      contactName: null,
-      phone: null,
-      email: null,
-      shootDate: null,
-      profileCount: 0,
-      stagedCount: 0,
-      memo: null,
-    });
+    const execution = await call("create_quote", { brand: null });
 
     expect(execution.result.success).toBe(false);
     expect(execution.uiActions).toEqual([]);

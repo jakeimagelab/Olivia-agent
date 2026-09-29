@@ -19,6 +19,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   const brand = useQuoteStore((state) => state.brand);
   const selectedPackageId = useQuoteStore((state) => state.selectedPackageId);
   const selectedSingleItemIds = useQuoteStore((state) => state.selectedSingleItemIds);
+  const singleItemAmounts = useQuoteStore((state) => state.singleItemAmounts);
   const profileCount = useQuoteStore((state) => state.profileCount);
   const stagedCount = useQuoteStore((state) => state.stagedCount);
   const combinedProfileStagedCount = useQuoteStore((state) => state.combinedProfileStagedCount);
@@ -36,11 +37,11 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   const selectedPackage = packages.find((item) => item.id === selectedPackageId) ?? null;
   const packageTotal = selectedPackage?.price ?? 0;
   const singleItems = getSingleItems(brand);
-  // 제이크이미지연구소는 단일항목이 자유 텍스트 내용칸이라 견적 총액 계산에서 제외된다.
+  // 제이크이미지연구소 단일항목은 견적별 직접 입력 금액을 같은 계산기에 넘긴다.
   const singleItemsTotal = (selectedSingleItemIds ?? []).reduce((sum, id) => {
     const item = singleItems.find((candidate) => candidate.id === id);
     if (!item) return sum;
-    return sum + (brand === "jakeimage" ? 0 : item.price);
+    return sum + (brand === "jakeimage" ? Math.max(0, Number(singleItemAmounts?.[id]) || 0) : item.price);
   }, 0);
   const optionsTotal =
     (profileCount ?? 0) * 250000 +

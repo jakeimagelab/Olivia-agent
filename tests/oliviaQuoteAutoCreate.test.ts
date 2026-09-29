@@ -66,8 +66,8 @@ const contextWithoutClient: OliviaContextSnapshot = { recentActions: [], revisio
 
 function callCreateQuote(hospitalName: string, context: OliviaContextSnapshot = contextWithoutClient) {
   return executeAgentTool(
-    { id: "create-quote-call", name: "create_quote", arguments: JSON.stringify({ hospitalName, packageId: "standard", customTotalPrice: 1_566_500, contactName: null, phone: null, email: null, shootDate: null, profileCount: 0, stagedCount: 0, memo: null }) },
-    context,
+    { id: "create-quote-call", name: "create_quote", arguments: JSON.stringify({ brand: null }) },
+    { ...context, currentRequestText: context.currentRequestText ?? `${hospitalName} 견적서\n프로필촬영 35만원` },
   );
 }
 

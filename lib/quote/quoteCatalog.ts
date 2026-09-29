@@ -33,7 +33,7 @@ export const packages: PackageOption[] = [
   {
     id: "premium-plus-1",
     name: "프리미엄 플러스 1",
-    price: 3600000,
+    price: 2800000,
     composition: "프로필 + 연출사진 + 인테리어 + 포인트영상"
   },
   {
@@ -71,6 +71,13 @@ export const singleItems: SingleItem[] = [
     name: "포인트영상",
     price: 1800000
   }
+];
+
+/** 패키지에 추가하는 옵션 단가다. 단일 판매가와 혼동하지 않는다. */
+export const packageOptions: SingleItem[] = [
+  { id: "point-video-option", name: "포인트영상 옵션", price: 800000 },
+  { id: "profile-person-addition", name: "프로필 인원 추가", price: 250000 },
+  { id: "staged-person-addition", name: "연출 인원 추가", price: 250000 },
 ];
 
 // 제이크이미지연구소 단일항목 — 가격은 카탈로그 고정값이 아니라 견적마다 직접 입력한다.

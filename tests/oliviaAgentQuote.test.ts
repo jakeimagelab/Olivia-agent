@@ -1,65 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentQuoteData, calculateQuoteAmounts, updateQuoteItemPrice } from "@/lib/quote/agentQuote";
+import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
+import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
+import { buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
 
 describe("Olivia Agent quote domain", () => {
-  it("builds a real premium quote payload with calculated totals", () => {
-    const quote = buildAgentQuoteData({ hospitalName: "히어산부인과", packageId: "premium", profileCount: 2 });
+  it("모델이 전달한 가격이 아니라 원문 가격으로 견적 payload를 만든다", () => {
+    const request = parseQuoteRequest("히어산부인과 견적서\n프로필촬영 35만원\n연출 촬영 120만원");
+    const quote = buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" });
     expect(quote.hospitalName).toBe("히어산부인과");
-    expect(quote.items).toHaveLength(2);
-    expect(quote.totalAmount).toBe(2_500_000);
+    expect(quote.items.map((item) => item.subtotal)).toEqual([350_000, 1_200_000]);
+    expect(quote.totalAmount).toBe(1_705_000);
     expect(quote.depositAmount + quote.balanceAmount).toBe(quote.totalAmount);
   });
 
-  it("applies a percentage discount and keeps complimentary work as a zero-price line", () => {
-    const quote = buildAgentQuoteData({
-      hospitalName: "연세라이프구강내과치과의원",
-      packageId: "premium",
-      discountRate: 10,
-      serviceItems: ["작품사진 별도 촬영"],
-      shootDate: null,
+  it("만원 미만을 자동 절삭하지 않고 VAT를 항상 별도로 계산한다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 0, singleItemsTotal: 28_750, optionsTotal: 0, customItems: [], discountRate: 0, extraDiscount: 0,
     });
-    expect(quote.items).toHaveLength(2);
-    expect(quote.items[1]).toMatchObject({ name: "작품사진 별도 촬영", subtotal: 0, note: "서비스" });
-    expect(quote.discountAmount).toBe(200_000);
-    expect(quote.totalAmount).toBe(1_800_000);
-    expect(quote).not.toHaveProperty("shootDate");
+    expect(totals).toMatchObject({ supplyAmount: 28_750, vat: 2_875, finalAmount: 31_625 });
   });
 
-  it("interprets 50 as 500,000 won and recalculates an exact profile item", () => {
-    const source = [{ id: "profile_shoot", name: "프로필촬영", unitPrice: 350_000, qty: 1, subtotal: 350_000 }];
-    const updated = updateQuoteItemPrice(source, "프로필", 50);
-    expect(updated.amount).toBe(500_000);
-    expect(updated.items[0].subtotal).toBe(500_000);
-    expect(calculateQuoteAmounts(updated.items).totalAmount).toBe(500_000);
-  });
-
-  it("does not mutate when multiple profile candidates exist", () => {
-    const source = [
-      { id: "profile_a", name: "프로필촬영 A", unitPrice: 100_000, qty: 1, subtotal: 100_000 },
-      { id: "profile_b", name: "프로필촬영 B", unitPrice: 200_000, qty: 1, subtotal: 200_000 },
-    ];
-    const updated = updateQuoteItemPrice(source, "프로필", 50);
-    expect(updated.matches).toHaveLength(2);
-    expect(updated.items.map((item) => item.subtotal)).toEqual([100_000, 200_000]);
-  });
-
-  // 견적서 UX 개편(2026-08-31) — 채팅 마법사가 브랜드를 넘기면 그 브랜드의 실제 기본 타이틀을
-  // 쓰고, brand가 없으면(기존 호출부와의 하위호환) photoclinic 기본값으로 동작해야 한다.
-  it("defaults to photoclinic title when brand is omitted", () => {
-    const quote = buildAgentQuoteData({ hospitalName: "히어산부인과", packageId: "standard" });
-    expect(quote.title).toBe("포토클리닉 브랜드사진 견적서");
-    expect(quote.formState.brand).toBe("photoclinic");
-  });
-
-  it("uses the jakeimage default title and threads brand into formState when brand=jakeimage", () => {
-    const quote = buildAgentQuoteData({ hospitalName: "제이크컴퍼니", packageId: "standard", brand: "jakeimage" });
-    expect(quote.title).toBe("제이크이미지연구소 브랜드사진 견적서");
-    expect(quote.formState.brand).toBe("jakeimage");
-  });
-
-  it("falls back to photoclinic for an unrecognized brand value", () => {
-    const quote = buildAgentQuoteData({ hospitalName: "히어산부인과", packageId: "standard", brand: "not-a-brand" });
-    expect(quote.title).toBe("포토클리닉 브랜드사진 견적서");
-    expect(quote.formState.brand).toBe("photoclinic");
+  it("사용자가 지정한 절삭만 공급가 조정 행으로 적용한다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 0, singleItemsTotal: 28_750, optionsTotal: 0, customItems: [], discountRate: 0, extraDiscount: 0, roundDownUnit: 1_000,
+    });
+    expect(totals).toMatchObject({ roundDownAmount: 750, supplyAmount: 28_000, vat: 2_800, finalAmount: 30_800 });
   });
 });

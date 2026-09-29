@@ -189,13 +189,13 @@ describe("Olivia Hermes MCP registry", () => {
     expect(description("start_photo_scene_sort")).toMatch(/2차 분류/);
   });
 
-  it("create_quote MCP schema가 자연어 견적 V2 필드와 서비스 수정 도구를 노출한다", () => {
+  it("create_quote MCP schema는 원문 파서용 brand만 노출하고 서비스 수정 도구는 유지한다", () => {
     const createQuote = listHermesOliviaTools().find((tool) => tool.name === "create_quote")!;
     const properties = createQuote.inputSchema.properties as Record<string, unknown>;
-    expect(properties).toHaveProperty("pricingMode");
-    expect(properties).toHaveProperty("customUnitPrice");
-    expect(properties).toHaveProperty("customTotalPrice");
-    expect(properties).toHaveProperty("includedServices");
+    expect(properties).toHaveProperty("brand");
+    expect(properties).not.toHaveProperty("pricingMode");
+    expect(properties).not.toHaveProperty("customUnitPrice");
+    expect(properties).not.toHaveProperty("includedServices");
     expect(listHermesOliviaTools().map((tool) => tool.name)).toContain("update_quote_service");
   });
 
