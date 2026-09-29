@@ -11,6 +11,7 @@ import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
+import { PhotoTaskStatusBar } from "./PhotoTaskStatusBar";
 import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 import styles from "./OliviaDesktop.module.css";
 
@@ -176,6 +177,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
         <DesktopDock onOpenOverlay={setOverlay} />
       </div>
       <DesktopGlobalSearch />
+      <PhotoTaskStatusBar />
       {contextMenu ? (
         <div className={styles.desktopContextMenuBackdrop} onPointerDown={() => setContextMenu(undefined)} onContextMenu={(event) => event.preventDefault()}>
           <div className={styles.desktopContextMenu} style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>

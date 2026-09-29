@@ -189,7 +189,6 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       }
       addString(args, sourceFolder ? "--source-folder" : "--work-folder", sourceFolder ?? workFolder);
       addString(args, "--department", stringValue(payload, "department"));
-      addString(args, "--shooting-mode", stringValue(payload, "shooting_mode"));
       addNumber(args, "--gap-minutes", numberValue(payload, "gap_minutes"));
       addString(args, "--classification-ui-mode", stringValue(payload, "classification_ui_mode"));
       addBoolean(args, "--fast-analyze-mode", booleanValue(payload, "fast_analyze_mode"));
@@ -208,8 +207,8 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       return runner(repoRoot, "photo-stage-jpg-runner.ts", args);
     case "PHOTO_CLASSIFY_WORK":
       addString(args, "--work-relative-path", stringValue(payload, "work_relative_path", true));
+      addString(args, "--only", stringValue(payload, "only"));
       addString(args, "--department", stringValue(payload, "department"));
-      addString(args, "--shooting-mode", stringValue(payload, "shooting_mode"));
       addNumber(args, "--gap-minutes", numberValue(payload, "gap_minutes"));
       addString(args, "--classification-ui-mode", stringValue(payload, "classification_ui_mode"));
       addBoolean(args, "--fast-analyze-mode", booleanValue(payload, "fast_analyze_mode"));

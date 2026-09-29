@@ -92,6 +92,8 @@ export type RemotePhotoSortRunnerDependencies = {
    * 기존 RAW/JPG/<scene>/SELECT/REPORT 이동식 출력을 그대로 유지한다.
    */
   outputMode?: "move" | "copy";
+  /** 하위 촬영 묶음별 출력 위치. 지정하지 않으면 기존 씬별분류 위치를 쓴다. */
+  sceneOutputFolder?: string;
 };
 
 // Olivia OS 2.0 — 요청서 §14: Hermes(PRIMARY) -> OpenAI Vision(TOOL/FALLBACK) -> Local.
@@ -893,7 +895,9 @@ async function organizeSceneCopy(input: {
 }): Promise<void> {
   const reportDirectory = path.join(input.sceneOutputFolder, "_REPORT");
   await assertSafeWorkMutation(input.sceneOutputFolder, input.roots);
-  await mkdir(input.sceneOutputFolder, { recursive: false });
+  // 하위 촬영 묶음은 씬별분류/<묶음>/에 쓰므로 상위 씬별분류는 먼저 만들어질 수 있다.
+  // runPhotoClassifyWork가 기존 결과를 사전에 검증하므로 여기서는 같은 작업을 덮어쓰지 않는다.
+  await mkdir(input.sceneOutputFolder, { recursive: true });
   await assertSafeWorkMutation(reportDirectory, input.roots);
   await mkdir(reportDirectory, { recursive: false });
 
@@ -972,14 +976,112 @@ async function countPhotosRecursively(directory: string): Promise<number> {
   return total;
 }
 
+function scenesForRequestedOnly(scenes: NodePhotoScene[], only: RemotePhotoSortRunnerInput["only"]): NodePhotoScene[] {
+  if (!only || only === "all") return scenes;
+  return scenes.filter((scene) => {
+    if (only === "프로필") return scene.sceneType === "profile";
+    if (only === "인테리어") return scene.sceneType === "interior";
+    // 연출은 사람을 포함한 현장 컷의 기존 sceneType(상담/시술/피부관리)을 묶는다.
+    return scene.sceneType === "consultation" || scene.sceneType === "treatment" || scene.sceneType === "skin_care";
+  });
+}
+
+type PhotoKind = "연출" | "프로필" | "인테리어" | "기타";
+
+function photoKindFromSceneType(sceneType: NodePhotoScene["sceneType"]): PhotoKind | null {
+  if (sceneType === "profile") return "프로필";
+  if (sceneType === "interior") return "인테리어";
+  if (sceneType === "consultation" || sceneType === "treatment" || sceneType === "skin_care") return "연출";
+  return null;
+}
+
+function sceneTypeForPhotoKind(kind: PhotoKind): NodePhotoScene["sceneType"] {
+  if (kind === "프로필") return "profile";
+  if (kind === "인테리어") return "interior";
+  if (kind === "연출") return "treatment";
+  return "etc";
+}
+
+/**
+ * 새 Agentstation 출력은 사진 한 장씩 배경·인물 단서로 판정한다. 여기서 폴더명은
+ * 절대 분류 근거가 아니며, 이 함수는 한 JPG전체 하위 묶음에 대해 한 번씩 호출된다.
+ * AI가 애매하다고 한 사진만 같은 묶음의 다수 결과를 따라간다.
+ */
+async function classifyPhotosIndividually(
+  entries: NodePhotoEntry[],
+  input: RemotePhotoSortRunnerInput,
+  ai: AiAdapter,
+  warnings: RunnerWarning[],
+  onProgress?: (progress: RunnerProgress) => void,
+): Promise<NodePhotoScene[]> {
+  const verdicts = await mapWithConcurrency(entries, 3, async (entry, index) => {
+    onProgress?.({
+      stage: "SCENE_ANALYSIS",
+      current: index + 1,
+      total: entries.length,
+      message: `사진 판정: ${entry.name}`,
+    });
+    try {
+      const analysis = await ai.scene({
+        department: input.department,
+        sceneId: `photo-${String(index + 1).padStart(4, "0")}`,
+        images: [{ fileName: entry.name, base64: await createNodeApiImage(entry.path) }],
+        useHighModel: false,
+      });
+      return {
+        entry,
+        kind: photoKindFromSceneType(analysis.sceneType as NodePhotoScene["sceneType"]),
+        analysis,
+      };
+    } catch (error) {
+      warnings.push({
+        stage: "SCENE_ANALYSIS",
+        fileName: entry.name,
+        message: error instanceof Error ? error.message : String(error),
+        userVisible: true,
+      });
+      return { entry, kind: null, analysis: null };
+    }
+  });
+
+  const counts = new Map<PhotoKind, number>();
+  for (const verdict of verdicts) {
+    if (verdict.kind) counts.set(verdict.kind, (counts.get(verdict.kind) ?? 0) + 1);
+  }
+  if (counts.size === 0) {
+    // 키가 없거나 Scene AI가 전부 실패한 결과를 "기타" 성공으로 저장하면 사용자는
+    // 정상 분류가 된 줄 안다. 이 경우에는 안전하게 실패로 남겨 수동 작업으로 돌린다.
+    throw new Error("사진 내용을 자동으로 판정하지 못했습니다. 사진작업실에서 수동으로 정리해주세요.");
+  }
+  const majority = Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ko-KR"))[0]?.[0] ?? "기타";
+  const groups = new Map<PhotoKind, typeof verdicts>();
+  for (const verdict of verdicts) {
+    const kind = verdict.kind ?? majority;
+    const group = groups.get(kind) ?? [];
+    group.push(verdict);
+    groups.set(kind, group);
+  }
+
+  return Array.from(groups.entries()).map(([kind, group], index) => ({
+    index: index + 1,
+    folderName: kind,
+    editedName: kind,
+    startTime: group[0].entry.mtime,
+    endTime: group[group.length - 1].entry.mtime,
+    files: group.map((value) => value.entry),
+    sceneType: sceneTypeForPhotoKind(kind),
+    classificationOrigin: kind === "기타" ? "ai_unresolved" : "ai",
+    aiConfidence: group.reduce((sum, value) => sum + (value.analysis?.confidence ?? 0), 0) / group.length || null,
+    aiReason: kind === "기타" ? "판정이 애매해 같은 하위 폴더의 다수 결과를 정하지 못했습니다." : "사진별 배경·인물 판정",
+  }));
+}
+
 export async function runRemotePhotoSortRunner(
   input: RemotePhotoSortRunnerInput,
   dependencies: RemotePhotoSortRunnerDependencies = {},
 ): Promise<RemotePhotoSortSuccess> {
   const startedAt = Date.now();
-  if (input.shootingMode !== "field") {
-    throw new Error("현재 Headless Runner는 shooting_mode=field만 지원합니다.");
-  }
   if (!Number.isFinite(input.gapMinutes) || input.gapMinutes <= 0) {
     throw new Error("gap_minutes는 0보다 큰 숫자여야 합니다.");
   }
@@ -994,14 +1096,12 @@ export async function runRemotePhotoSortRunner(
     sourceFolder: "sourceFolder" in input ? input.sourceFolder : undefined,
     workFolder: "workFolder" in input ? input.workFolder : undefined,
   }, roots, dependencies.onProgress);
-  const warnings: RunnerWarning[] = [];
   if (!sceneAnalysisAvailable) {
-    warnings.push({
-      stage: "SCENE_ANALYSIS",
-      message: "AI 씬 분석이 실행되지 않아 씬 종류를 판별하지 못했습니다 (Worker에 OPENAI_API_KEY 없음). 경계는 시간 규칙과 로컬 특징으로만 나눴습니다.",
-      userVisible: true,
-    });
+    // 키 없이 계속하면 모든 사진이 "기타"로 끝나도 성공처럼 보고됐다. 사진 작업은
+    // 결과가 더 위험하므로 시작 전에 확실히 실패시켜 수동 작업으로 돌린다.
+    throw new Error("자동 기능이 꺼져 있습니다. Worker에 OPENAI_API_KEY가 필요합니다.");
   }
+  const warnings: RunnerWarning[] = [];
 
   const scanned = await scanWorkFolder(prepared.workFolder, input.fastAnalyzeMode, dependencies.onProgress);
   if (!scanned.jpg.length) throw new Error("분류할 JPG/JPEG 파일이 없습니다.");
@@ -1011,7 +1111,12 @@ export async function runRemotePhotoSortRunner(
 
   let scenes: NodePhotoScene[];
   let decisions: SceneBoundaryDecision[];
-  if (input.fastAnalyzeMode) {
+  if (dependencies.outputMode === "copy") {
+    // PHOTO_CLASSIFY_WORK는 JPG전체의 하위 폴더 단위로 이 runner를 호출한다. 따라서
+    // 다수결도 이 배열 안에서만 계산되고 다른 촬영 묶음은 섞일 수 없다.
+    scenes = await classifyPhotosIndividually(scanned.jpg, input, ai, warnings, dependencies.onProgress);
+    decisions = [];
+  } else if (input.fastAnalyzeMode) {
     scenes = buildFastScenes(scanned.jpg, input.gapMinutes);
     decisions = [];
     if (sceneAnalysisAvailable) {
@@ -1031,14 +1136,17 @@ export async function runRemotePhotoSortRunner(
 
   const expectedPhotoCount = scanned.raw.length + scanned.jpg.length;
 
+  const outputScenes = scenesForRequestedOnly(scenes, input.only);
+  if (!outputScenes.length) throw new Error(`${input.only ?? "요청한"} 사진을 찾지 못했습니다.`);
+
   if (dependencies.outputMode === "copy") {
     // PHASE 6: workFolder(JPG전체)는 읽기 전용으로 두고, 나란한 씬별분류/에 복사한다.
     // 파일 수·이름·용량 무결성 검증은 호출부(photoClassifyWork.ts)가 수행한다.
-    const sceneOutputFolder = path.join(path.dirname(prepared.workFolder), SCENE_CLASSIFIED_DIRECTORY);
+    const sceneOutputFolder = dependencies.sceneOutputFolder ?? path.join(path.dirname(prepared.workFolder), SCENE_CLASSIFIED_DIRECTORY);
     await organizeSceneCopy({
       jpgInputFolder: prepared.workFolder,
       sceneOutputFolder,
-      scenes,
+      scenes: outputScenes,
       decisions,
       options: input,
       warnings,
@@ -1049,7 +1157,7 @@ export async function runRemotePhotoSortRunner(
     await organizeWorkCopy({
       workFolder: prepared.workFolder,
       raw: scanned.raw,
-      scenes,
+      scenes: outputScenes,
       decisions,
       options: input,
       warnings,
@@ -1073,8 +1181,8 @@ export async function runRemotePhotoSortRunner(
     workFolder: prepared.workFolder,
     fileCount: expectedPhotoCount,
     rawCount: scanned.raw.length,
-    jpgCount: scanned.jpg.length,
-    sceneCount: scenes.length,
+    jpgCount: outputScenes.reduce((count, scene) => count + scene.files.length, 0),
+    sceneCount: outputScenes.length,
     reviewBoundaryCount: decisions.filter((decision) => decision.needsReview).length,
     durationMs: Date.now() - startedAt,
     warnings,

@@ -79,38 +79,34 @@ beforeEach(() => {
   currentDb = createFakeSupabase(store);
 });
 
-// 코드 요청서(2026-09-18) 작업 D — 알림 카드의 "[분류 시작]" 버튼이 부르는 경량 API.
-// nas_backup_start_sort와 같은 헬퍼(startNasBackupClassification)를 쓰므로 PHASE 6
-// 파이프라인(씬별분류/)에 연결되는지, department/shootingMode 없이는 절대 시작하지 않는지를
-// 검증한다.
+// 알림 카드의 "[전체 분류 시작]" 버튼이 부르는 경량 API. 진료과는 폴더명/고객에서
+// 자동으로 정하고, 현장·스튜디오는 사진별로 판정하므로 입력 파라미터로 받지 않는다.
 describe("POST /api/worker/events/[id]/start-classification", () => {
   it("관리자 세션이 아니면 401", async () => {
     adminSession = false;
-    const response = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field" });
+    const response = await postStart(EVENT_ID, {});
     expect(response.status).toBe(401);
   });
 
-  it("department가 없으면(추측 금지) 400", async () => {
-    const response = await postStart(EVENT_ID, { shootingMode: "field" });
-    expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body.error).toMatch(/진료과/);
+  it("진료과와 촬영방식 없이도 전체 분류를 시작한다", async () => {
+    const response = await postStart(EVENT_ID, { only: "all" });
+    expect(response.status).toBe(200);
   });
 
-  it("shootingMode가 field/studio가 아니면(추측 금지) 400", async () => {
-    const response = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "outdoor" });
-    expect(response.status).toBe(400);
-    const body = await response.json();
-    expect(body.error).toMatch(/촬영 모드/);
+  it("옛 shootingMode 값은 작업 판정에 사용하지 않는다", async () => {
+    const response = await postStart(EVENT_ID, { shootingMode: "outdoor", only: "연출" });
+    // 연출정리는 JPG정리 전에는 막힌다. 409의 원인은 shootingMode가 아니라 JPG정리 선행 조건이다.
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "PHOTO_JPG_PREP_REQUIRED" });
   });
 
   it("존재하지 않는 이벤트면 404", async () => {
-    const response = await postStart("22222222-2222-4222-8222-222222222222", { department: "dermatology", shootingMode: "field" });
+    const response = await postStart("22222222-2222-4222-8222-222222222222", {});
     expect(response.status).toBe(404);
   });
 
   it("정상 요청이면 photo_storage_projects를 MERGE_APPROVED로 만들고 worker_events를 STARTED로 표시한다", async () => {
-    const response = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field" });
+    const response = await postStart(EVENT_ID, {});
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.ok).toBe(true);
@@ -119,7 +115,7 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
     expect(store.projects).toMatchObject([{
       source_relative_path: "0917_청담스시",
       status: "MERGE_APPROVED",
-      nas_department: "dermatology",
+      nas_department: "general",
       nas_shooting_mode: "field",
       classify_approved_at: expect.any(String),
     }]);
@@ -134,12 +130,12 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
       status: "MERGE_FAILED",
     });
 
-    const first = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field", confirmRestart: false });
+    const first = await postStart(EVENT_ID, { confirmRestart: false });
     expect(first.status).toBe(409);
     expect(await first.json()).toMatchObject({ code: "PHOTO_PROJECT_RESTART_CONFIRMATION_REQUIRED" });
     expect(store.projects[0].status).toBe("MERGE_FAILED");
 
-    const confirmed = await postStart(EVENT_ID, { department: "dermatology", shootingMode: "field", confirmRestart: true });
+    const confirmed = await postStart(EVENT_ID, { confirmRestart: true });
     expect(confirmed.status).toBe(200);
     expect(await confirmed.json()).toMatchObject({ ok: true, status: "MERGE_APPROVED" });
     expect(store.projects[0]).toMatchObject({ status: "MERGE_APPROVED", classify_approved_at: expect.any(String) });

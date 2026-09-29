@@ -15,6 +15,9 @@ import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { text } from "./common";
 import { internalFetcher } from "./http";
 import { createVerification } from "./verification";
+import type { MedicalDepartment } from "@/lib/photo-classifier/types";
+import { departmentFromPhotoText } from "@/lib/photo-classifier/departmentResolver";
+import { isPhotoAutomationAvailable } from "@/lib/photo-storage/photoAutomation";
 
 // NAS Backup Watcher — Phase 2 §5. Watcher 자체(Mac Studio nas-backup-watcher.ts)는 건드리지
 // 않는다 — 여기는 조회 + 승인된 후속 작업(분류 시작)만 제공한다.
@@ -67,6 +70,46 @@ async function resolvePhotoFolderForStart(folderName: string, dataSource: Remote
 }
 
 type NasBackupToolDependencies = { dataSource?: RemoteNasDataSource };
+
+// 폴더명에 드러난 진료과는 자동으로 쓴다. 목록에 없으면 기존 고객 메타데이터가 없는
+// 독립 촬영도 안전하게 처리할 수 있도록 general로 둔다. 촬영 방식은 폴더 전체가 아니라
+// 사진별 AI 판정이므로 사용자에게 더 이상 받지 않는다.
+async function departmentFromFolderOrRegisteredClient(
+  db: ReturnType<typeof getSupabaseAdmin>,
+  folderName: string,
+): Promise<MedicalDepartment> {
+  const fromFolder = departmentFromPhotoText(folderName);
+  if (fromFolder) return fromFolder;
+  // 날짜 접두어만 제거한 정확한 고객명으로만 보완한다. 화면에 남아 있는 다른 고객을
+  // 사진 폴더 대상으로 대체하지 않는다.
+  const clientName = folderName.replace(/^\d{2,8}[\s._-]*/, "").trim();
+  if (clientName) {
+    try {
+      const { data, error } = await db
+        .from("clients")
+        .select("specialty,department")
+        .eq("hospital_name", clientName)
+        .maybeSingle();
+      const fromClient = !error && data
+        ? departmentFromPhotoText(String(data.specialty || data.department || ""))
+        : null;
+      if (fromClient) return fromClient;
+    } catch {
+      // 고객 정보가 없는 비의료 촬영은 general 시각 판정으로 계속한다.
+    }
+  }
+  return "general";
+}
+
+/** Worker가 명시적으로 AI 키 없음이라고 보고한 경우에는 분류 job 자체를 만들지 않는다. */
+async function assertPhotoAiAvailable(db: ReturnType<typeof getSupabaseAdmin>): Promise<void> {
+  if (!await isPhotoAutomationAvailable(db)) {
+    throw new OliviaToolError(
+      "자동 기능이 꺼져 있습니다. 수동으로 직접하시겠습니까?",
+      "PHOTO_AI_UNAVAILABLE",
+    );
+  }
+}
 
 async function readProjectByPath(db: ReturnType<typeof getSupabaseAdmin>, sourceRelativePath: string) {
   const { data, error } = await db
@@ -189,8 +232,8 @@ export async function executeNasBackupTool(
           status: project.status,
           createdProject: !existing,
           summary: project.status === "MERGE_COMPLETED"
-            ? `"${candidate.displayName}"은(는) 이미 JPG 통합이 완료되어 있어요.`
-            : "작업을 시작했습니다. 진행 중입니다.",
+            ? `"${candidate.displayName}"은(는) 이미 JPG정리가 완료되어 있어요.`
+            : `JPG정리를 시작했습니다. RAW는 원래 자리에 그대로 둡니다.`,
         },
         verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { projectId: project.id } }),
       };
@@ -202,14 +245,6 @@ export async function executeNasBackupTool(
   if (name === "nas_backup_start_sort" || name === "start_photo_scene_sort") {
     const folderName = text(input, "folderName");
     if (!folderName) throw new Error("분류를 시작할 폴더 이름이 필요해요.");
-    // department/shootingMode는 절대 추측하지 않는다 — BackupReadyNotifications.tsx의 "분류 시작"
-    // 버튼도 같은 이유로 자동 채우지 않는다(잘못된 진료과/촬영모드로 분류가 실행되면 되돌리기
-    // 어렵다). add_quote_item의 unitPrice와 동일한 원칙: 대화에 없으면 Hermes가 사용자에게
-    // 반드시 물어보게 한다(스키마에서 required로 강제).
-    const department = text(input, "department");
-    const shootingMode = text(input, "shootingMode");
-    if (!department) throw new Error("진료과(department)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
-    if (shootingMode !== "field" && shootingMode !== "studio") throw new Error("촬영 모드(field 또는 studio)를 알려주세요 — 추측해서 분류를 시작하지 않아요.");
 
     // 방금 find에서 검증한 정확한 후보를 재사용하고, 없으면 live NAS 후보를 다시 확인한다.
     // 부분 이름이 여러 폴더에 걸리면 프로젝트 행과 job을 만들지 않는다. NFD raw path는
@@ -217,12 +252,15 @@ export async function executeNasBackupTool(
     const candidate = await resolvePhotoFolderForStart(folderName, dataSource);
     const db = getSupabaseAdmin();
     const existing = await readProjectByPath(db, candidate.sourceRelativePath);
+    const only = input.only === "연출" || input.only === "프로필" || input.only === "인테리어" ? input.only : "all";
+    const department = await departmentFromFolderOrRegisteredClient(db, candidate.displayName);
+    await assertPhotoAiAvailable(db);
     let project;
     try {
       project = await startNasBackupClassification(db, {
         folderName: candidate.sourceRelativePath,
         department,
-        shootingMode,
+        only,
         rawCount: candidate.rawCount,
         jpgCount: candidate.jpgCount,
         jpgBytes: candidate.jpgBytes,
@@ -250,12 +288,12 @@ export async function executeNasBackupTool(
         folderName: candidate.displayName,
         sourceRelativePath: candidate.sourceRelativePath,
         department,
-        shootingMode,
+        only,
         status: project.status,
         createdProject: !existing,
         summary: project.status === "CLASSIFY_COMPLETED"
-          ? `"${candidate.displayName}"은(는) 이미 사진 분류가 완료되어 있어요.`
-          : "작업을 시작했습니다. 진행 중입니다.",
+          ? `"${candidate.displayName}"은(는) 이미 분류가 완료되어 있어요.`
+          : only === "all" ? "JPG정리와 전체 분류를 시작했습니다. 진행 중입니다." : `${only}정리를 시작했습니다. 진행 중입니다.`,
       },
       verification: createVerification({ executed: true, persisted: true, resourceExists: true, details: { projectId: project.id } }),
     };

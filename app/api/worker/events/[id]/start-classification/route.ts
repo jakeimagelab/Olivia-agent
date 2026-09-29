@@ -2,18 +2,15 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { PhotoPipelineStartError, startNasBackupClassification } from "@/lib/photo-storage/nasClassifyHandoff";
-import { DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
+import { isPhotoAutomationAvailable } from "@/lib/photo-storage/photoAutomation";
+import { departmentFromPhotoText } from "@/lib/photo-classifier/departmentResolver";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DEPARTMENTS = new Set(Object.keys(DEPARTMENT_DISPLAY));
-
-// 코드 요청서(2026-09-18) 작업 D — BackupReadyNotifications.tsx의 "[분류 시작]" 버튼이 부르는
-// 경량 API. nas_backup_start_sort(Hermes 도구)와 같은 헬퍼(startNasBackupClassification)를
-// 써서 PHASE 6 파이프라인(씬별분류/)으로 연결한다 — department/shooting_mode는 이 요청 body에서
-// 명시적으로 받은 값만 쓴다(추측 금지, nas_backup_start_sort와 동일 규칙).
+// NAS 알림의 "분류 시작"은 전체 분류를 바로 시작한다. 진료과는 폴더/고객 정보에서,
+// 현장·스튜디오 구분은 사진별 AI가 판정하므로 두 값을 화면에서 받지 않는다.
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!isAdminSession(request)) {
     return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
@@ -25,17 +22,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   const body = await request.json().catch(() => ({}));
-  const department = typeof body.department === "string" ? body.department : "";
-  const shootingMode = body.shootingMode;
-  if (!DEPARTMENTS.has(department)) {
-    return Response.json({ ok: false, error: "진료과(department)를 선택해주세요 — 추측해서 분류를 시작하지 않습니다." }, { status: 400 });
-  }
-  if (shootingMode !== "field" && shootingMode !== "studio") {
-    return Response.json({ ok: false, error: "촬영 모드(field 또는 studio)를 선택해주세요 — 추측해서 분류를 시작하지 않습니다." }, { status: 400 });
-  }
+  const only = body.only === "연출" || body.only === "프로필" || body.only === "인테리어" ? body.only : "all";
 
   try {
     const db = getSupabaseAdmin();
+    if (!await isPhotoAutomationAvailable(db)) {
+      return Response.json({ ok: false, code: "PHOTO_AI_UNAVAILABLE", error: "자동 기능이 꺼져 있습니다. 수동으로 직접하시겠습니까?" }, { status: 409 });
+    }
     const { data: event, error: eventError } = await db
       .from("worker_events")
       .select("id,folder_name")
@@ -46,8 +39,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const project = await startNasBackupClassification(db, {
       folderName: event.folder_name as string,
-      department: department as MedicalDepartment,
-      shootingMode,
+      department: departmentFromPhotoText(String(event.folder_name || "")) ?? "general",
+      only,
       confirmRestart: body.confirmRestart === true,
       approvedBy: "olivia-notification",
     });

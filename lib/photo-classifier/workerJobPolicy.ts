@@ -22,7 +22,7 @@ export function applyPhotoWorkerJobPolicy(job: ClaimedWorkerJob): WorkerJobPaylo
   return {
     ...payload,
     ai_naming_enabled: true,
-    profile_classification_enabled: false,
+    profile_classification_enabled: true,
   };
 }
 

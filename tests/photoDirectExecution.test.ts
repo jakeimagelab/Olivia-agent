@@ -100,7 +100,8 @@ describe("사진 작업 직접 실행 명령 파서", () => {
     ["0911_WINF JPG만 줄래", "source_prep"],
     ["르셀청담이랑 세무사회 두 개 분리해줘", "source_prep"],
     ["삼칠갈비 씬별 분류해줘", "scene_sort"],
-    ["삼칠갈비 2차 분류해줘", "scene_sort"],
+    ["삼칠갈비 연출정리해줘", "scene_sort"],
+    ["삼칠갈비 프로필분류해줘", "scene_sort"],
   ])("'%s'를 %s로 안전하게 식별한다", (message, operation) => {
     expect(parsePhotoDirectCommand(message)).toMatchObject({ operation });
   });
@@ -111,6 +112,7 @@ describe("사진 작업 직접 실행 명령 파서", () => {
     expect(parsePhotoDirectCommand("삼칠갈비 Scene을 분리해줘")).toBeNull();
     expect(parsePhotoDirectCommand("삼칠갈비 사진을 둘로 분리해줘")).toBeNull();
     expect(parsePhotoDirectCommand("사진 분류와 원본 분리를 둘 다 해줘")).toBeNull();
+    expect(parsePhotoDirectCommand("0923 연세라이프구강내과 2차 해줘")).toBeNull();
   });
 
   it("환경변수는 값이 정확히 1일 때만 켜진다", () => {
@@ -163,13 +165,13 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(executeTool.mock.calls[0][1]).toEqual({ folderName: "0918_삼칠갈비", confirmRestart: false });
   });
 
-  it("연세라이프구강내과라는 자연어에서 실제 폴더를 찾아 1차 분류를 시작한다", async () => {
+  it("연세라이프구강내과라는 자연어에서 실제 폴더를 찾아 전체 분류를 시작한다", async () => {
     const executeTool = executor({
       folders: { 연세라이프구강: [candidate("0923_연세라이프구강")] },
     });
     const result = await executePhotoDirectTurn({
       enabled: true,
-      userMessage: "연세라이프구강내과 1차 분류 좀 해줘",
+      userMessage: "연세라이프구강내과 분류 좀 해줘",
       hermesToolNames: [],
       context,
       executeTool,
@@ -177,10 +179,11 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
 
     expect(result).toMatchObject({ handled: true, reason: "executed", pendingState: null });
     expect(result.text).toContain("0923_연세라이프구강");
-    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["start_photo_source_prep"]);
+    expect(executeTool.mock.calls.map(([name]) => name)).toEqual(["start_photo_scene_sort"]);
     expect(executeTool.mock.calls[0][1]).toEqual({
       folderName: "0923_연세라이프구강",
       confirmRestart: false,
+      only: "all",
     });
   });
 
@@ -291,29 +294,40 @@ describe("사진 작업 직접 실행 오케스트레이터", () => {
     expect(executeTool.mock.calls[0]?.[1]).toEqual({ folderName: "0911_WINF", confirmRestart: false });
   });
 
-  it("Scene 분류는 폴더를 확정해도 진료과와 촬영모드 전에는 시작하지 않는다", async () => {
+  it("사진 분류는 진료과·촬영모드를 묻지 않고 바로 시작한다", async () => {
     const executeTool = executor({ folders: { 삼칠갈비: [candidate("0918_삼칠갈비")] } });
     const first = await executePhotoDirectTurn({ enabled: true, userMessage: "삼칠갈비 씬 분류해줘", hermesToolNames: [], context, executeTool });
-    expect(first).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "scene_settings" } });
-    expect(first.text).toContain("진료과");
-    expect(first.text).toContain("현장/스튜디오");
-    expect(executeTool).not.toHaveBeenCalled();
+    expect(first).toMatchObject({ handled: true, reason: "executed", pendingState: null });
+    expect(first.text).not.toMatch(/진료과|현장\/스튜디오/);
+    expect(executeTool.mock.calls.at(-1)?.[1]).toEqual({
+      folderName: "0918_삼칠갈비",
+      confirmRestart: false,
+      only: "all",
+    });
+  });
+
+  it("AI가 꺼져 있으면 자동 작업을 만들지 않고 수긍 후 사진작업실을 연다", async () => {
+    const executeTool = executor({
+      folders: { 삼칠갈비: [candidate("0918_삼칠갈비")] },
+      start: (name) => name === "start_photo_scene_sort"
+        ? failure(name, "자동 기능이 꺼져 있습니다.", "PHOTO_AI_UNAVAILABLE")
+        : success(name, { matched: true, href: "/photo-sorting" }),
+    });
+    const first = await executePhotoDirectTurn({ enabled: true, userMessage: "삼칠갈비 분류해줘", hermesToolNames: [], context, executeTool });
+    expect(first).toMatchObject({ handled: true, reason: "needs_input", pendingState: { stage: "manual_workspace" } });
+    expect(first.text).toBe("자동 기능이 꺼져 있습니다. 수동으로 직접하시겠습니까?");
 
     const second = await executePhotoDirectTurn({
       enabled: true,
-      userMessage: "피부과 현장",
+      userMessage: "네",
       hermesToolNames: [],
       pendingState: first.pendingState ?? undefined,
       context,
       executeTool,
     });
     expect(second).toMatchObject({ handled: true, reason: "executed", pendingState: null });
-    expect(executeTool.mock.calls.at(-1)?.[1]).toEqual({
-      folderName: "0918_삼칠갈비",
-      confirmRestart: false,
-      department: "dermatology",
-      shootingMode: "field",
-    });
+    expect(second.text).toContain("사진작업실을 열었어요");
+    expect(executeTool.mock.calls.at(-1)?.[0]).toBe("open_feature");
   });
 
   it("완료 작업은 재시작 동의 전에는 다시 주문하지 않는다", async () => {

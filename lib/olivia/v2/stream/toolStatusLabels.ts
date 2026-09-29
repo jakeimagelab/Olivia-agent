@@ -1,8 +1,8 @@
 // PHASE 4 작업 5(2026-09-25) — app/api/olivia/v2/stream/route.ts에서 그대로 옮겼다. 동작 변경 없음.
 export function toolStatus(name: string) {
   if (name === "find_photo_folder") return "Workstation 촬영 폴더를 찾는 중…";
-  if (name === "start_photo_source_prep") return "RAW는 그대로 두고 JPG 통합 작업을 주문하는 중…";
-  if (name === "start_photo_scene_sort") return "JPG 통합·복사·Scene 분류 작업을 주문하는 중…";
+  if (name === "start_photo_source_prep") return "RAW는 그대로 두고 JPG정리를 주문하는 중…";
+  if (name === "start_photo_scene_sort") return "JPG정리·복사·사진 정리 작업을 주문하는 중…";
   if (name === "select_project") return "고객과 프로젝트를 확인하는 중…";
   if (name === "create_quote") return "견적 초안을 생성하는 중…";
   if (name === "create_contract") return "계약서 초안을 생성하는 중…";

@@ -51,7 +51,7 @@ describe("SSD1 primary JPG preparation", () => {
     await expect(readFile(path.join(project, "notes.txt"), "utf8")).resolves.toBe("keep");
   });
 
-  it("flattens nested JPG files into JPG전체 while preserving nested RAW", async () => {
+  it("keeps nested JPG groups inside JPG전체 while preserving nested RAW", async () => {
     const { roots } = await testRoots();
     const project = path.join(roots.sourceRoot, "nested");
     await mkdir(path.join(project, "A"), { recursive: true });
@@ -61,11 +61,12 @@ describe("SSD1 primary JPG preparation", () => {
     await writeFile(path.join(project, "B", "DSC002.JPG"), "jpg-b");
     const result = await preparePrimaryPhotoProject("nested", { roots });
     expect(result).toMatchObject({ jpgMoved: 2, status: "JPG_MERGE_COMPLETED" });
-    expect(await readdir(path.join(project, "JPG전체"))).toEqual(expect.arrayContaining(["DSC001.JPG", "DSC002.JPG"]));
+    await expect(readFile(path.join(project, "JPG전체", "A", "DSC001.JPG"), "utf8")).resolves.toBe("jpg-a");
+    await expect(readFile(path.join(project, "JPG전체", "B", "DSC002.JPG"), "utf8")).resolves.toBe("jpg-b");
     await expect(readFile(path.join(project, "A", "DSC001.ARW"), "utf8")).resolves.toBe("raw-a");
   });
 
-  it("preflights duplicate basenames before creating JPG전체 or moving a file", async () => {
+  it("keeps same basenames from different subfolders separate", async () => {
     const { roots } = await testRoots();
     const project = path.join(roots.sourceRoot, "duplicates");
     await mkdir(path.join(project, "A"), { recursive: true });
@@ -73,11 +74,9 @@ describe("SSD1 primary JPG preparation", () => {
     await writeFile(path.join(project, "A", "same.JPG"), "one");
     await writeFile(path.join(project, "B", "same.JPG"), "two");
     const result = await preparePrimaryPhotoProject("duplicates", { roots });
-    expect(result.status).toBe("REVIEW_REQUIRED");
-    expect(result.conflicts[0]?.reason).toBe("duplicate_filename");
-    await expect(stat(path.join(project, "JPG전체"))).rejects.toThrow();
-    await expect(readFile(path.join(project, "A", "same.JPG"), "utf8")).resolves.toBe("one");
-    await expect(readFile(path.join(project, "B", "same.JPG"), "utf8")).resolves.toBe("two");
+    expect(result).toMatchObject({ status: "JPG_MERGE_COMPLETED", jpgMoved: 2 });
+    await expect(readFile(path.join(project, "JPG전체", "A", "same.JPG"), "utf8")).resolves.toBe("one");
+    await expect(readFile(path.join(project, "JPG전체", "B", "same.JPG"), "utf8")).resolves.toBe("two");
   });
 
   it("preserves RAW filename, size, and mtime", async () => {
@@ -122,6 +121,18 @@ describe("SSD1 primary JPG preparation", () => {
     const second = await preparePrimaryPhotoProject("shoot", { roots });
     expect(second).toMatchObject({ jpgMoved: 1, jpgAlreadyPrepared: 1, rawUntouched: 1, status: "JPG_MERGE_COMPLETED" });
     expect(await readdir(path.join(project, "JPG전체"))).toEqual(expect.arrayContaining(["A001.JPG", "A002.JPG"]));
+  });
+
+  it("이미 있는 동일 JPG 때문에 실패하지 않고 남은 JPG만 이어서 정리한다", async () => {
+    const { roots } = await testRoots();
+    const project = path.join(roots.sourceRoot, "resume");
+    await mkdir(path.join(project, "JPG전체"), { recursive: true });
+    await writeFile(path.join(project, "JPG전체", "A001.JPG"), "one");
+    await writeFile(path.join(project, "A001.JPG"), "one");
+    await writeFile(path.join(project, "A002.JPG"), "two");
+    const result = await preparePrimaryPhotoProject("resume", { roots });
+    expect(result).toMatchObject({ status: "JPG_MERGE_COMPLETED", jpgMoved: 1 });
+    await expect(readFile(path.join(project, "JPG전체", "A002.JPG"), "utf8")).resolves.toBe("two");
   });
 
   it("recognizes an existing decomposed-Unicode JPG전체 directory", async () => {

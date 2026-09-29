@@ -69,6 +69,7 @@ export type PhotoStorageProject = {
   classify_approved_at: string | null;
   nas_department: string | null;
   nas_shooting_mode: "field" | "studio" | null;
+  photo_sort_only?: "all" | "연출" | "프로필" | "인테리어";
   workflow_run_id: string | null;
   calendar_task_id: string | null;
   notification_deferred_until: string | null;

@@ -102,7 +102,7 @@ const JOB_ACTION_LABEL: Record<string, string> = {
   LIST_FOLDER: "폴더 조회",
   PHOTO_PREPARE_SOURCE: "JPG 통합",
   PHOTO_STAGE_JPG: "JPG 복사",
-  PHOTO_CLASSIFY_WORK: "씬별 분류",
+  PHOTO_CLASSIFY_WORK: "사진 정리",
   COPY_TEST: "복사 테스트",
   PHOTO_RAW_MATCH: "RAW 매칭",
   PHOTO_RESIZE: "사진 리사이즈",
@@ -464,7 +464,7 @@ export function buildStatusPanelCollections(input: {
       id: `photo-action:${project.id}`,
       kind: firstApproval ? "photo_first_approval" : "photo_second_approval",
       level: "info",
-      title: `${project.project_name || "이름 없는 폴더"} · ${firstApproval ? "원본 분리 승인 대기" : "1차 분류 완료"}`,
+      title: `${project.project_name || "이름 없는 폴더"} · ${firstApproval ? "JPG정리 승인 대기" : "JPG정리 완료"}`,
       detail: firstApproval
         ? `JPG ${(project.jpg_count ?? 0).toLocaleString("ko-KR")}장 · 승인하면 원본 분리를 시작합니다.`
         : `씬 분류를 시작할 차례입니다. ${STEP_INFO.backup_sorting?.desc ?? "사진 분류 단계를 진행합니다."}`,

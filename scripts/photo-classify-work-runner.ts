@@ -44,7 +44,6 @@ async function main(): Promise<void> {
   if (!workRelativePath) throw new Error("--work-relative-path가 필요합니다.");
   const payload = {
     department: values.department,
-    shooting_mode: values["shooting-mode"],
     gap_minutes: values["gap-minutes"] === undefined ? undefined : Number(values["gap-minutes"]),
     classification_ui_mode: values["classification-ui-mode"],
     fast_analyze_mode: booleanValue(values, "fast-analyze-mode", false),
@@ -52,6 +51,7 @@ async function main(): Promise<void> {
     ai_naming_enabled: booleanValue(values, "ai-naming-enabled", false),
     quality_analysis_enabled: booleanValue(values, "quality-analysis-enabled", false),
     profile_classification_enabled: booleanValue(values, "profile-classification-enabled", true),
+    only: values.only,
   };
   const options = parseClassificationOptions(payload);
   const result = await runPhotoClassifyWork({

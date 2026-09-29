@@ -10,7 +10,6 @@ import type { RemotePhotoSortRunnerOptions, RunnerProgress, RunnerRoots } from "
 import type { RunnerWarning } from "./types";
 
 export const PHOTO_CLASSIFY_DEFAULT_OPTIONS: RemotePhotoSortRunnerOptions = {
-  shootingMode: "field",
   department: "dermatology",
   gapMinutes: 3.5,
   classificationUiMode: "ai-auto",
@@ -51,7 +50,8 @@ export type PhotoClassifyWorkFailure = {
 
 export type PhotoClassifyWorkResult = PhotoClassifyWorkSuccess | PhotoClassifyWorkFailure;
 
-type PhotoSnapshot = { name: string; size: number };
+type PhotoSnapshot = { name: string; relativePath: string; size: number };
+type JpgBundle = { relativePath: string; folder: string; files: PhotoSnapshot[] };
 
 const DEFAULT_MIN_FREE_BYTES = 30 * 1024 ** 3;
 const MIN_SAFETY_MARGIN_BYTES = 1024 ** 3;
@@ -97,22 +97,32 @@ async function resolveFlatJpgFolder(projectFolder: string, name: string): Promis
   return canonical;
 }
 
-/** JPG전체는 평면 구조여야 한다 — 하위 폴더가 있으면 REVIEW_REQUIRED로 처리한다. */
-async function collectFlatJpgSnapshot(folder: string): Promise<{ files: PhotoSnapshot[]; hasSubdirectory: boolean }> {
-  const files: PhotoSnapshot[] = [];
-  let hasSubdirectory = false;
-  for (const entry of await readdir(folder, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`분류 대상에 심볼릭 링크가 있습니다: ${entry.name}`);
-    if (entry.isDirectory()) {
-      hasSubdirectory = true;
-      continue;
+/**
+ * JPG전체의 각 하위 폴더는 서로 섞으면 안 되는 독립 촬영 묶음이다.
+ * 폴더명은 분류 근거로 쓰지 않고, 단지 AI 판정·다수결의 경계를 만드는 데만 쓴다.
+ */
+async function collectJpgBundles(folder: string): Promise<JpgBundle[]> {
+  const bundles: JpgBundle[] = [];
+  const visit = async (current: string, relativePath: string): Promise<void> => {
+    const files: PhotoSnapshot[] = [];
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      if (entry.isSymbolicLink()) throw new Error(`분류 대상에 심볼릭 링크가 있습니다: ${relativePath ? `${relativePath}/` : ""}${entry.name}`);
+      if (entry.isDirectory()) {
+        await visit(fullPath, relativePath ? path.posix.join(relativePath, entry.name) : entry.name);
+        continue;
+      }
+      if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
+      const metadata = await stat(fullPath);
+      files.push({ name: entry.name, relativePath: relativePath ? path.posix.join(relativePath, entry.name) : entry.name, size: metadata.size });
     }
-    if (!entry.isFile() || !JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
-    const metadata = await stat(path.join(folder, entry.name));
-    files.push({ name: entry.name, size: metadata.size });
-  }
-  files.sort((left, right) => left.name.localeCompare(right.name, "en", { numeric: true, sensitivity: "base" }));
-  return { files, hasSubdirectory };
+    if (files.length) {
+      files.sort((left, right) => left.name.localeCompare(right.name, "en", { numeric: true, sensitivity: "base" }));
+      bundles.push({ relativePath, folder: current, files });
+    }
+  };
+  await visit(folder, "");
+  return bundles.sort((left, right) => left.relativePath.localeCompare(right.relativePath, "en", { numeric: true, sensitivity: "base" }));
 }
 
 function totalBytes(files: PhotoSnapshot[]): number {
@@ -123,56 +133,65 @@ function isTempFileName(name: string): boolean {
   return name.startsWith(".") && name.endsWith(".olivia-part");
 }
 
-type ClassifiedOutput = { files: PhotoSnapshot[]; sceneCount: number; duplicateNames: string[]; tempFileCount: number };
+type ClassifiedOutput = { files: PhotoSnapshot[]; sceneCount: number; duplicateKeys: string[]; tempFileCount: number };
 
 /** 씬별분류/ 하위를 재귀 스캔해 파일 목록·Scene 폴더 수·중복 배치·임시 파일 잔존 여부를 모은다. */
 async function collectClassifiedOutput(sceneRoot: string): Promise<ClassifiedOutput> {
   const files: PhotoSnapshot[] = [];
-  const nameCounts = new Map<string, number>();
+  const keyCounts = new Map<string, number>();
   let tempFileCount = 0;
   let sceneCount = 0;
-  for (const sceneEntry of await readdir(sceneRoot, { withFileTypes: true })) {
-    if (sceneEntry.name === "_REPORT") continue;
-    if (sceneEntry.isSymbolicLink()) throw new Error(`씬별분류에 심볼릭 링크가 있습니다: ${sceneEntry.name}`);
-    if (!sceneEntry.isDirectory()) continue;
-    sceneCount += 1;
-    const sceneDirectory = path.join(sceneRoot, sceneEntry.name);
-    for (const fileEntry of await readdir(sceneDirectory, { withFileTypes: true })) {
-      if (fileEntry.isSymbolicLink()) throw new Error(`씬별분류에 심볼릭 링크가 있습니다: ${sceneEntry.name}/${fileEntry.name}`);
-      if (!fileEntry.isFile()) continue;
-      if (isTempFileName(fileEntry.name)) {
+  const visit = async (directory: string, relativePath: string): Promise<void> => {
+    let directPhotoCount = 0;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      const relativeFilePath = relativePath ? path.posix.join(relativePath, entry.name) : entry.name;
+      if (entry.isSymbolicLink()) throw new Error(`씬별분류에 심볼릭 링크가 있습니다: ${relativeFilePath}`);
+      if (entry.isDirectory()) {
+        if (entry.name !== "_REPORT") await visit(fullPath, relativeFilePath);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (isTempFileName(entry.name)) {
         tempFileCount += 1;
         continue;
       }
-      if (!JPG_PHOTO_EXTENSIONS.has(extension(fileEntry.name))) continue;
-      const metadata = await stat(path.join(sceneDirectory, fileEntry.name));
-      files.push({ name: fileEntry.name, size: metadata.size });
-      nameCounts.set(fileEntry.name, (nameCounts.get(fileEntry.name) ?? 0) + 1);
+      if (!JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
+      const metadata = await stat(fullPath);
+      files.push({ name: entry.name, relativePath: relativeFilePath, size: metadata.size });
+      // 같은 하위 촬영 묶음 안에서만 이름 충돌을 본다. 다른 하위 폴더의 IMG_0001은 정상이다.
+      const bundleAndName = `${path.posix.dirname(path.posix.dirname(relativeFilePath))}/${entry.name}`;
+      keyCounts.set(bundleAndName, (keyCounts.get(bundleAndName) ?? 0) + 1);
+      directPhotoCount += 1;
     }
-  }
-  const duplicateNames = Array.from(nameCounts.entries()).filter(([, count]) => count > 1).map(([name]) => name);
-  return { files, sceneCount, duplicateNames, tempFileCount };
+    if (directPhotoCount) sceneCount += 1;
+  };
+  await visit(sceneRoot, "");
+  const duplicateKeys = Array.from(keyCounts.entries()).filter(([, count]) => count > 1).map(([key]) => key);
+  return { files, sceneCount, duplicateKeys, tempFileCount };
 }
 
 /** 분류 완료 전 모두 통과해야 하는 무결성 검증. 실패해도 씬별분류는 지우지 않는다. */
-function verifyClassifiedOutput(inputBefore: PhotoSnapshot[], output: ClassifiedOutput): string | null {
+function verifyClassifiedOutput(inputBefore: PhotoSnapshot[], output: ClassifiedOutput, expectedCount = inputBefore.length): string | null {
   if (output.tempFileCount > 0) return "씬별분류에 완료되지 않은 임시 파일이 남아 있습니다.";
-  if (output.duplicateNames.length > 0) return `일부 파일이 두 Scene에 중복 배치되었습니다: ${output.duplicateNames.slice(0, 5).join(", ")}`;
-  if (output.files.length !== inputBefore.length) {
-    return `씬별분류 파일 수가 JPG전체와 다릅니다 (JPG전체 ${inputBefore.length}장 · 씬별분류 ${output.files.length}장).`;
+  if (output.duplicateKeys.length > 0) return `일부 파일이 두 Scene에 중복 배치되었습니다: ${output.duplicateKeys.slice(0, 5).join(", ")}`;
+  if (output.files.length !== expectedCount) {
+    return `씬별분류 파일 수가 요청 결과와 다릅니다 (예상 ${expectedCount}장 · 씬별분류 ${output.files.length}장).`;
   }
-  const inputByName = new Map(inputBefore.map((file) => [file.name, file.size]));
+  const inputByName = new Map(inputBefore.map((file) => [`${file.name}:${file.size}`, (inputBefore.filter((candidate) => candidate.name === file.name && candidate.size === file.size).length)]));
+  const outputCounts = new Map<string, number>();
   for (const file of output.files) {
-    const expectedSize = inputByName.get(file.name);
-    if (expectedSize === undefined) return `씬별분류에 JPG전체에 없는 파일이 있습니다: ${file.name}`;
-    if (expectedSize !== file.size) return `${file.name}의 크기가 JPG전체와 다릅니다.`;
+    const key = `${file.name}:${file.size}`;
+    if (!inputByName.has(key)) return `씬별분류에 JPG전체에 없는 파일이 있습니다: ${file.name}`;
+    outputCounts.set(key, (outputCounts.get(key) ?? 0) + 1);
   }
+  for (const [key, count] of inputByName) if (outputCounts.get(key) !== count) return `씬별분류 파일 구성이 JPG전체와 다릅니다: ${key}`;
   return null;
 }
 
-function sameFlatSnapshot(before: PhotoSnapshot[], after: PhotoSnapshot[]): boolean {
+function sameJpgSnapshot(before: PhotoSnapshot[], after: PhotoSnapshot[]): boolean {
   if (before.length !== after.length) return false;
-  return before.every((file, index) => after[index]?.name === file.name && after[index]?.size === file.size);
+  return before.every((file, index) => after[index]?.relativePath === file.relativePath && after[index]?.name === file.name && after[index]?.size === file.size);
 }
 
 function configuredMinFreeBytes(): number {
@@ -206,8 +225,8 @@ export async function runPhotoClassifyWork(
     return fail("CLASSIFY_FAILED", 0, error instanceof Error ? error.message : String(error));
   }
 
-  const { files: before, hasSubdirectory } = await collectFlatJpgSnapshot(jpgInputFolder);
-  if (hasSubdirectory) return fail("REVIEW_REQUIRED", before.length, "JPG전체 하위에 폴더가 있습니다. JPG전체는 평면 구조여야 합니다.");
+  const bundles = await collectJpgBundles(jpgInputFolder);
+  const before = bundles.flatMap((bundle) => bundle.files);
   if (!before.length) return fail("CLASSIFY_FAILED", 0, "SSD2 JPG전체에 분류할 JPG/JPEG가 없습니다.");
 
   const sceneOutputFolder = path.join(projectFolder, SCENE_CLASSIFIED_DIRECTORY);
@@ -254,32 +273,40 @@ export async function runPhotoClassifyWork(
   const isolatedRoots: RunnerRoots = { sourceRoot: root, workRoot: root };
   const startedAt = Date.now();
   try {
-    const result = await runRemotePhotoSortRunner({
-      shootingMode: input.shootingMode,
-      department: input.department,
-      gapMinutes: input.gapMinutes,
-      classificationUiMode: input.classificationUiMode,
-      fastAnalyzeMode: input.fastAnalyzeMode,
-      departmentLogicEnabled: input.departmentLogicEnabled,
-      aiNamingEnabled: input.aiNamingEnabled,
-      qualityAnalysisEnabled: input.qualityAnalysisEnabled,
-      profileClassificationEnabled: input.profileClassificationEnabled,
-      workFolder: jpgInputFolder,
-    }, {
-      ...dependencies,
-      roots: isolatedRoots,
-      preserveRaw: true,
-      outputMode: "copy",
-    });
+    const results = [];
+    for (const bundle of bundles) {
+      const bundleOutput = bundle.relativePath
+        ? path.join(sceneOutputFolder, ...bundle.relativePath.split("/"))
+        : sceneOutputFolder;
+      results.push(await runRemotePhotoSortRunner({
+        department: input.department,
+        gapMinutes: input.gapMinutes,
+        classificationUiMode: input.classificationUiMode,
+        fastAnalyzeMode: input.fastAnalyzeMode,
+        departmentLogicEnabled: input.departmentLogicEnabled,
+        aiNamingEnabled: input.aiNamingEnabled,
+        qualityAnalysisEnabled: input.qualityAnalysisEnabled,
+        profileClassificationEnabled: input.profileClassificationEnabled,
+        only: input.only,
+        workFolder: bundle.folder,
+      }, {
+        ...dependencies,
+        roots: isolatedRoots,
+        preserveRaw: true,
+        outputMode: "copy",
+        sceneOutputFolder: bundleOutput,
+      }));
+    }
 
     // JPG전체가 분류 도중 한 장도 이동·삭제되지 않았는지 먼저 확인한다(읽기 전용 불변식).
-    const { files: after, hasSubdirectory: afterHasSubdirectory } = await collectFlatJpgSnapshot(jpgInputFolder);
-    if (afterHasSubdirectory || !sameFlatSnapshot(before, after)) {
+    const after = (await collectJpgBundles(jpgInputFolder)).flatMap((bundle) => bundle.files);
+    if (!sameJpgSnapshot(before, after)) {
       return fail("REVIEW_REQUIRED", before.length, "분류 후 JPG전체의 파일 수·이름·용량이 분류 전과 다릅니다.");
     }
 
     const output = await collectClassifiedOutput(sceneOutputFolder);
-    const verificationError = verifyClassifiedOutput(before, output);
+    const resultJpgCount = results.reduce((sum, result) => sum + result.jpgCount, 0);
+    const verificationError = verifyClassifiedOutput(before, output, resultJpgCount);
     if (verificationError) return fail("REVIEW_REQUIRED", before.length, verificationError);
 
     return {
@@ -287,10 +314,10 @@ export async function runPhotoClassifyWork(
       status: "CLASSIFY_COMPLETED",
       projectPath: workRelativePath,
       workRelativePath,
-      jpgCount: before.length,
-      sceneCount: result.sceneCount,
+      jpgCount: resultJpgCount,
+      sceneCount: results.reduce((sum, result) => sum + result.sceneCount, 0),
       durationMs: Date.now() - startedAt,
-      warnings: result.warnings,
+      warnings: results.flatMap((result) => result.warnings),
     };
   } catch (error) {
     return fail("CLASSIFY_FAILED", before.length, error instanceof Error ? error.message : String(error));
@@ -303,14 +330,13 @@ export function parseClassificationOptions(payload: Record<string, unknown>): Re
     "dermatology", "dentistry", "ophthalmology", "orthopedics_neurosurgery", "pediatrics",
     "korean_medicine", "plastic_surgery", "obgyn", "internal_medicine_checkup", "general",
   ];
-  const shootingMode = payload.shooting_mode === "studio" ? "studio" : "field";
   const classificationUiMode = payload.classification_ui_mode === "advanced" ? "advanced" : "ai-auto";
+  const only = payload.only === "연출" || payload.only === "프로필" || payload.only === "인테리어" ? payload.only : "all";
   const gapMinutes = typeof payload.gap_minutes === "number" && Number.isFinite(payload.gap_minutes) && payload.gap_minutes > 0
     ? payload.gap_minutes
     : PHOTO_CLASSIFY_DEFAULT_OPTIONS.gapMinutes;
   return {
     ...PHOTO_CLASSIFY_DEFAULT_OPTIONS,
-    shootingMode,
     department: allowedDepartments.includes(department as MedicalDepartment) ? department as MedicalDepartment : PHOTO_CLASSIFY_DEFAULT_OPTIONS.department,
     classificationUiMode,
     gapMinutes,
@@ -319,6 +345,7 @@ export function parseClassificationOptions(payload: Record<string, unknown>): Re
     aiNamingEnabled: typeof payload.ai_naming_enabled === "boolean" ? payload.ai_naming_enabled : PHOTO_CLASSIFY_DEFAULT_OPTIONS.aiNamingEnabled,
     qualityAnalysisEnabled: typeof payload.quality_analysis_enabled === "boolean" ? payload.quality_analysis_enabled : PHOTO_CLASSIFY_DEFAULT_OPTIONS.qualityAnalysisEnabled,
     profileClassificationEnabled: typeof payload.profile_classification_enabled === "boolean" ? payload.profile_classification_enabled : PHOTO_CLASSIFY_DEFAULT_OPTIONS.profileClassificationEnabled,
+    only,
   };
 }
 

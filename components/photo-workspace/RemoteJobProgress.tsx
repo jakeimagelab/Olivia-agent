@@ -7,11 +7,14 @@ import styles from "./RemoteJobProgress.module.css";
 
 const STAGES = [
   ["STAGING", "작업 폴더 복사"],
-  ["PREPARING", "원본 준비"],
+  ["PREPARING", "JPG정리"],
   ["COPYING", "파일 복사"],
   ["SCANNING", "사진 확인"],
   ["ANALYZING", "사진 분석"],
-  ["ORGANIZING", "Scene 분류·파일 정리"],
+  ["SCENE_ANALYSIS", "장면 분석"],
+  ["FEATURE_EXTRACTION", "특징 추출"],
+  ["BOUNDARY_ANALYSIS", "경계 분석"],
+  ["ORGANIZING", "사진 정리"],
   ["VERIFYING", "결과 검증"],
 ] as const;
 

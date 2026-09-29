@@ -9,7 +9,8 @@ import {
 } from "@/lib/photo-storage/executionVerdict";
 
 export type PhotoDirectOperation = "source_prep" | "scene_sort";
-export type PhotoDirectPendingStage = "choose_folder" | "folder_retry" | "scene_settings" | "restart_confirmation";
+export type PhotoSortOnly = "all" | "연출" | "프로필" | "인테리어";
+export type PhotoDirectPendingStage = "choose_folder" | "folder_retry" | "restart_confirmation" | "manual_workspace";
 
 export type PhotoDirectFolderCandidate = {
   displayName: string;
@@ -40,8 +41,8 @@ export type PhotoDirectPendingState = {
   items: PhotoDirectWorkItem[];
   currentIndex: number;
   completedReports: string[];
-  department?: string;
-  shootingMode?: "field" | "studio";
+  /** 전체/연출/프로필/인테리어 중 사용자가 요청한 결과만 정리한다. */
+  only?: PhotoSortOnly;
   createdAt: string;
 };
 
@@ -69,27 +70,14 @@ type ExecuteTool = (
   context: OliviaContextSnapshot,
 ) => Promise<{ id: string; execution: OliviaAgentToolExecution }>;
 
-const SOURCE_PREP_PATTERN = /(?:원본(?:을|를)?\s*(?:분리|분류)|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:만|를|을)?\s*(?:로\s*)?(?:분리|통합|(?:줘|줄래))|1\s*차\s*분류)(?:\s*(?:해\s*줄래|해줄래|해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
-const SCENE_SORT_PATTERN = /(?:(?:씬|scene)(?:\s*별)?(?:로|을|를)?\s*분류|사진(?:을|를)?\s*분류|2\s*차\s*분류)(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
+// "정리"와 "분류"는 같은 말이다. 1차/2차는 실제 하위 폴더명에도 들어가므로
+// 더 이상 작업 명령으로 해석하지 않는다(2026-09-30).
+const SOURCE_PREP_PATTERN = /(?:jpg\s*(?:정리|분류|통합)|원본(?:을|를)?\s*(?:분리|분류)|raw\s*(?:[·/&+]|와|과)?\s*jpg(?:를|을)?\s*(?:로\s*)?분리|jpg(?:만|를|을)?\s*(?:로\s*)?(?:분리|통합|(?:줘|줄래)))(?:\s*(?:해\s*줄래|해줄래|해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
+const SCENE_SORT_PATTERN = /(?:(?:연출|프로필|인테리어)\s*(?:정리|분류)|(?:씬|scene)(?:\s*별)?(?:로|을|를)?\s*분류|사진(?:을|를)?\s*분류|(?<!원본\s)분류(?:\s*(?:좀|바로|전체))?(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?)/i;
 const MULTI_FOLDER_SPLIT_PATTERN = /분리(?:\s*(?:해\s*줘|해주세요|해줘|해|시작해|실행해|진행해))?/i;
 const PHOTO_TOOL_NAMES = new Set(["find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort"]);
 const APPROVE_PATTERN = /^(?:응|네|예|그래|맞아|좋아|오케이|ok|ㅇㅇ|해\s*줘|진행해|다시\s*(?:해|시작해)|재시도)(?:[.!~\s]|$)/i;
 const REJECT_PATTERN = /^(?:아니|아니야|취소|하지\s*마|안\s*할래|됐어|그만)(?:[.!~\s]|$)/i;
-
-const DEPARTMENT_LABELS: Array<[RegExp, string]> = [
-  [/정형외과\s*(?:\/|·|및|와|과)?\s*신경외과|신경외과\s*(?:\/|·|및|와|과)?\s*정형외과/i, "orthopedics_neurosurgery"],
-  [/내과\s*(?:\/|·|및|와|과)?\s*검진센터|검진센터/i, "internal_medicine_checkup"],
-  [/피부과/i, "dermatology"],
-  [/치과/i, "dentistry"],
-  [/안과/i, "ophthalmology"],
-  [/정형외과|신경외과/i, "orthopedics_neurosurgery"],
-  [/소아과/i, "pediatrics"],
-  [/한의원|한방/i, "korean_medicine"],
-  [/성형외과/i, "plastic_surgery"],
-  [/산부인과/i, "obgyn"],
-  [/내과/i, "internal_medicine_checkup"],
-  [/기타|일반/i, "general"],
-];
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
@@ -111,12 +99,21 @@ function normalizeToolName(name: string): string {
   return name.replace(/^mcp_olivia_/, "").replaceAll(".", "_");
 }
 
-function parseOperation(message: string): { operation: PhotoDirectOperation } | null {
+function parseOperation(message: string): { operation: PhotoDirectOperation; only?: PhotoSortOnly } | null {
   const source = message.match(SOURCE_PREP_PATTERN);
   const scene = message.match(SCENE_SORT_PATTERN);
   if (source && scene) return null;
   if (source) return { operation: "source_prep" };
-  if (scene) return { operation: "scene_sort" };
+  if (scene) {
+    const only: PhotoSortOnly = /연출\s*(?:정리|분류)/i.test(message)
+      ? "연출"
+      : /프로필\s*(?:정리|분류)/i.test(message)
+        ? "프로필"
+        : /인테리어\s*(?:정리|분류)/i.test(message)
+          ? "인테리어"
+          : "all";
+    return { operation: "scene_sort", only };
+  }
   // "르셀청담이랑 세무사회 두 개 분리해줘"처럼 대상이 명백히 여러 개인 축약 표현만 원본
   // 분리로 허용한다. 단일 "Scene을 분리해줘"를 JPG 통합으로 오인하면 실제 job이 생기므로,
   // 일반적인 '분리' 한 단어만으로는 절대 실행하지 않는다.
@@ -127,33 +124,13 @@ function parseOperation(message: string): { operation: PhotoDirectOperation } | 
   return null;
 }
 
-function parseExplicitSceneSettings(message: string, allowBareDepartment: boolean): {
-  department?: string;
-  shootingMode?: "field" | "studio";
-} {
-  const field = /(?:현장|출장|로케이션)(?:\s*촬영)?|\bfield\b/i.test(message);
-  const studio = /스튜디오(?:\s*촬영)?|\bstudio\b/i.test(message);
-  const shootingMode = field === studio ? undefined : field ? "field" as const : "studio" as const;
-  const departmentContext = allowBareDepartment
-    || /진료과\s*(?:는|은|:)?\s*[가-힣_a-z/·\s]+/i.test(message)
-    || (Boolean(shootingMode) && DEPARTMENT_LABELS.some(([pattern]) => pattern.test(message)));
-  const department = departmentContext
-    ? DEPARTMENT_LABELS.find(([pattern]) => pattern.test(message))?.[1]
-    : undefined;
-  return { department, shootingMode };
-}
-
 export function parsePhotoDirectCommand(message: string): {
   operation: PhotoDirectOperation;
-  department?: string;
-  shootingMode?: "field" | "studio";
+  only?: PhotoSortOnly;
 } | null {
   const parsed = parseOperation(message);
   if (!parsed) return null;
-  const settings = parsed.operation === "scene_sort"
-    ? parseExplicitSceneSettings(message, false)
-    : {};
-  return { operation: parsed.operation, ...settings };
+  return parsed;
 }
 
 function candidateFromUnknown(value: unknown): PhotoDirectFolderCandidate | undefined {
@@ -206,7 +183,7 @@ function itemFromUnknown(value: unknown): PhotoDirectWorkItem | undefined {
 export function readPendingPhotoDirectExecution(metadata: unknown): PhotoDirectPendingState | undefined {
   const raw = record(record(metadata)?.pendingPhotoDirectExecution);
   if (!raw || raw.version !== 1 || (raw.operation !== "source_prep" && raw.operation !== "scene_sort")) return undefined;
-  if (!(["choose_folder", "folder_retry", "scene_settings", "restart_confirmation"] as unknown[]).includes(raw.stage)) return undefined;
+  if (!(["choose_folder", "folder_retry", "restart_confirmation", "manual_workspace"] as unknown[]).includes(raw.stage)) return undefined;
   if (!Array.isArray(raw.items)) return undefined;
   const items = raw.items.flatMap((item) => {
     const parsed = itemFromUnknown(item);
@@ -221,8 +198,7 @@ export function readPendingPhotoDirectExecution(metadata: unknown): PhotoDirectP
     items,
     currentIndex,
     completedReports: Array.isArray(raw.completedReports) ? raw.completedReports.filter((value): value is string => typeof value === "string") : [],
-    ...(string(raw.department) ? { department: string(raw.department) } : {}),
-    ...(raw.shootingMode === "field" || raw.shootingMode === "studio" ? { shootingMode: raw.shootingMode } : {}),
+    ...(raw.only === "all" || raw.only === "연출" || raw.only === "프로필" || raw.only === "인테리어" ? { only: raw.only } : {}),
     createdAt: string(raw.createdAt) ?? new Date(0).toISOString(),
   };
 }
@@ -245,10 +221,7 @@ function canConsumePending(message: string, pending: PhotoDirectPendingState): b
   // 실제 폴더 목록과의 대조는 async라 executePhotoDirectTurn에서 한다. 여기서는 대기 중인
   // 사용자의 답을 한 번 확인 대상으로만 올리고, 목록 매치가 없으면 일반 대화로 되돌려보낸다.
   if (pending.stage === "folder_retry") return Boolean(message.trim());
-  if (pending.stage === "scene_settings") {
-    const settings = parseExplicitSceneSettings(message, true);
-    return Boolean(settings.department || settings.shootingMode);
-  }
+  if (pending.stage === "manual_workspace") return APPROVE_PATTERN.test(message);
   return APPROVE_PATTERN.test(message);
 }
 
@@ -309,11 +282,6 @@ function candidatePrompt(query: string, candidates: PhotoDirectFolderCandidate[]
     return `${index + 1}. ${candidate.displayName} (${count.toLocaleString("ko-KR")}장 · JPG ${candidate.jpgCount.toLocaleString("ko-KR")} · RAW ${candidate.rawCount.toLocaleString("ko-KR")} · ${formatBytes(candidate.totalBytes)} · ${formatModifiedAt(candidate.modifiedAt)})`;
   });
   return [...reports, `"${query}"와 비슷한 촬영 폴더가 ${candidates.length}개 있어요.`, ...lines, "어느 폴더인가요? 번호나 정확한 폴더명으로 알려주세요."].filter(Boolean).join("\n");
-}
-
-function sceneSettingsPrompt(folderName: string, state: PhotoDirectPendingState): string {
-  const missing = [!state.department ? "진료과" : null, !state.shootingMode ? "촬영 방식(현장/스튜디오)" : null].filter(Boolean);
-  return [...state.completedReports, `"${folderName}"의 Scene 분류 전에 ${missing.join("와 ")}를 알려주세요.`].filter(Boolean).join("\n");
 }
 
 function restartPrompt(folderName: string, status: string | undefined, reports: string[]): string {
@@ -421,17 +389,6 @@ async function runQueue(input: {
       item.selectedDisplayName = candidates[0].displayName;
     }
 
-    if (state.operation === "scene_sort" && (!state.department || !state.shootingMode)) {
-      state.stage = "scene_settings";
-      return {
-        handled: true,
-        text: sceneSettingsPrompt(item.selectedDisplayName || item.selectedFolder, state),
-        pendingState: state,
-        toolCalls,
-        reason: "needs_input",
-      };
-    }
-
     // MCP bridge와 같은 수정 권한 경계를 직접 실행 경로에도 적용한다. 관리자 인증을 통과했더라도
     // 현재 화면 context가 명시적으로 read-only이면 사진 job을 우회 생성하지 않는다.
     if (context.canEdit === false) {
@@ -448,7 +405,7 @@ async function runQueue(input: {
     const toolInput: Record<string, unknown> = {
       folderName: item.selectedFolder,
       confirmRestart: item.confirmRestart === true,
-      ...(state.operation === "scene_sort" ? { department: state.department, shootingMode: state.shootingMode } : {}),
+      ...(state.operation === "scene_sort" ? { only: state.only ?? "all" } : {}),
     };
     // 타임아웃 뒤 "이번 요청으로 시작된 것인지"를 가리려면 요청 시각이 필요하다.
     // 같은 폴더를 예전에 돌린 프로젝트가 남아 있을 수 있다.
@@ -463,6 +420,24 @@ async function runQueue(input: {
         handled: true,
         text: restartPrompt(item.selectedDisplayName || item.selectedFolder, status, state.completedReports),
         pendingState: state,
+        toolCalls,
+        reason: "needs_input",
+      };
+    }
+    if (!result.success && result.code === "PHOTO_JPG_PREP_REQUIRED") {
+      return {
+        handled: true,
+        text: [...state.completedReports, `"${item.selectedDisplayName || item.selectedFolder}"은(는) JPG정리가 안 됐어요. 먼저 할까요?`].join("\n"),
+        pendingState: { ...state, operation: "source_prep", stage: "restart_confirmation" },
+        toolCalls,
+        reason: "needs_input",
+      };
+    }
+    if (!result.success && result.code === "PHOTO_AI_UNAVAILABLE") {
+      return {
+        handled: true,
+        text: "자동 기능이 꺼져 있습니다. 수동으로 직접하시겠습니까?",
+        pendingState: { ...state, stage: "manual_workspace" },
         toolCalls,
         reason: "needs_input",
       };
@@ -527,8 +502,7 @@ export async function executePhotoDirectTurn(input: {
         : [{ query: input.userMessage }],
       currentIndex: 0,
       completedReports: [],
-      ...(command.department ? { department: command.department } : {}),
-      ...(command.shootingMode ? { shootingMode: command.shootingMode } : {}),
+      ...(command.only ? { only: command.only } : {}),
       createdAt: input.now ?? new Date().toISOString(),
     };
     if (!matchGroups.length) {
@@ -563,10 +537,28 @@ export async function executePhotoDirectTurn(input: {
       if (!matchGroups.length) return { handled: false, toolCalls: [], reason: "no_intent" };
       state.items.splice(state.currentIndex, 1, ...workItemsFromMatchGroups(matchGroups));
       state.stage = "choose_folder";
-    } else if (state.stage === "scene_settings") {
-      const settings = parseExplicitSceneSettings(input.userMessage, true);
-      state.department = settings.department ?? state.department;
-      state.shootingMode = settings.shootingMode ?? state.shootingMode;
+    } else if (state.stage === "manual_workspace") {
+      // 자동 분류를 시작하지 못한 경우에도 사용자가 수긍하면 같은 open_feature 도구를
+      // 호출해 사진작업실을 연다. 도구 성공과 UI action이 확인되기 전에는 "열었다"고
+      // 말하지 않는다.
+      const called = await input.executeTool(
+        "open_feature",
+        { featureQuery: "사진작업실", hospitalName: null },
+        input.context,
+      );
+      const { result } = called.execution;
+      const toolCall: PhotoDirectToolCallRecord = {
+        id: called.id,
+        name: "open_feature",
+        success: result.success,
+        data: result.data,
+        error: result.error,
+        code: result.code,
+        verification: result.verification,
+      };
+      return result.success && result.data?.matched !== false
+        ? { handled: true, text: "사진작업실을 열었어요. 수동으로 사진을 정리할 수 있습니다.", pendingState: null, toolCalls: [toolCall], reason: "executed" }
+        : { handled: true, text: "사진작업실을 열지 못했어요. 화면에서 사진작업실을 선택해주세요.", pendingState: null, toolCalls: [toolCall], reason: "executed" };
     } else if (state.stage === "restart_confirmation") {
       if (!APPROVE_PATTERN.test(input.userMessage)) return { handled: false, toolCalls: [], reason: "no_intent" };
       current.confirmRestart = true;

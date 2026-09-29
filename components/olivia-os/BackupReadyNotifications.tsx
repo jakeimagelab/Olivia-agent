@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import styles from "./BackupReadyNotifications.module.css";
 
 type WorkerEvent = {
@@ -32,9 +31,6 @@ function formatBytes(bytes: number): string {
 export function BackupReadyNotifications({ variant = "floating" }: { variant?: "floating" | "panel" }) {
   const [events, setEvents] = useState<WorkerEvent[]>([]);
   const [startingId, setStartingId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [department, setDepartment] = useState<MedicalDepartment | "">("");
-  const [shootingMode, setShootingMode] = useState<"field" | "studio" | "">("");
   const [startError, setStartError] = useState<string | null>(null);
   const [restartConfirmationId, setRestartConfirmationId] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -78,35 +74,14 @@ export function BackupReadyNotifications({ variant = "floating" }: { variant?: "
     void updateStatus(event.id, "ACKNOWLEDGED");
   }, [updateStatus]);
 
-  // 코드 요청서(2026-09-18) 작업 D — 예전에는 여기서 기존 사진작업실(수동 분류 화면)로
-  // 딥링크해 그 화면의 "AI 자동 분류 시작"이 만드는 구식 PHOTO_SORT job으로 이어졌다. 이제는
-  // PHASE 6 파이프라인(씬별분류/)으로 바로 연결한다 — "새 분류 엔진을 만들지 말 것"은 여전히
-  // 지킨다(PHASE 6는 이미 있는 엔진, nas_backup_start_sort 도구와 같은 헬퍼를 재사용한다).
-  // department/shootingMode는 이 카드에서 추측하지 않고 아래 인라인 선택 UI로 사람이 직접
-  // 고른 값만 쓴다.
-  const openPicker = useCallback((event: WorkerEvent) => {
-    setStartError(null);
-    setDepartment("");
-    setShootingMode("");
-    setRestartConfirmationId(null);
-    setExpandedId(event.id);
-  }, []);
-
-  const cancelPicker = useCallback(() => {
-    setExpandedId(null);
-    setStartError(null);
-    setRestartConfirmationId(null);
-  }, []);
-
   const confirmStart = useCallback(async (event: WorkerEvent, confirmRestart = false) => {
-    if (!department || !shootingMode) return;
     setStartingId(event.id);
     setStartError(null);
     try {
       const response = await fetch(`/api/worker/events/${event.id}/start-classification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ department, shootingMode, confirmRestart }),
+        body: JSON.stringify({ only: "all", confirmRestart }),
       });
       const body = await response.json().catch(() => ({ ok: false }));
       if (response.status === 409 && body.code === "PHOTO_PROJECT_RESTART_CONFIRMATION_REQUIRED") {
@@ -116,14 +91,13 @@ export function BackupReadyNotifications({ variant = "floating" }: { variant?: "
       }
       if (!response.ok || !body.ok) throw new Error(body.error || "분류 시작에 실패했습니다.");
       setEvents((current) => current.filter((entry) => entry.id !== event.id));
-      setExpandedId(null);
       setRestartConfirmationId(null);
     } catch (cause) {
       setStartError(cause instanceof Error ? cause.message : "분류 시작에 실패했습니다.");
     } finally {
       setStartingId(null);
     }
-  }, [department, shootingMode]);
+  }, []);
 
   if (!events.length) return null;
 
@@ -134,47 +108,16 @@ export function BackupReadyNotifications({ variant = "floating" }: { variant?: "
           <div className={styles.title}><span className={styles.dot} aria-hidden="true" /> 새 촬영 데이터가 백업되었습니다</div>
           <div className={styles.folder}>{event.folder_name}</div>
           <div className={styles.meta}>{event.file_count.toLocaleString("ko-KR")}개 파일 · {formatBytes(event.total_bytes)}</div>
-          {expandedId === event.id ? (
-            <div className={styles.picker}>
-              <select
-                className={styles.select}
-                value={department}
-                onChange={(e) => setDepartment(e.target.value as MedicalDepartment)}
-              >
-                <option value="">진료과 선택</option>
-                {Object.entries(DEPARTMENT_DISPLAY).map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-              <div className={styles.modeToggle}>
-                <button
-                  type="button"
-                  className={shootingMode === "field" ? styles.modeActive : styles.mode}
-                  onClick={() => setShootingMode("field")}
-                >출장</button>
-                <button
-                  type="button"
-                  className={shootingMode === "studio" ? styles.modeActive : styles.mode}
-                  onClick={() => setShootingMode("studio")}
-                >스튜디오</button>
-              </div>
-              {startError ? <div className={styles.error}>{startError}</div> : null}
-              <div className={styles.actions}>
-                <button type="button" className={styles.later} onClick={cancelPicker}>취소</button>
-                <button
-                  type="button"
-                  className={styles.start}
-                  disabled={!department || !shootingMode || startingId === event.id}
-                  onClick={() => void confirmStart(event, restartConfirmationId === event.id)}
-                >{startingId === event.id ? "시작 중..." : restartConfirmationId === event.id ? "다시 시작 확인" : "확인"}</button>
-              </div>
-            </div>
-          ) : (
-            <div className={styles.actions}>
-              <button type="button" className={styles.later} onClick={() => handleLater(event)}>나중에</button>
-              <button type="button" className={styles.start} onClick={() => openPicker(event)}>분류 시작</button>
-            </div>
-          )}
+          {startError ? <div className={styles.error}>{startError}</div> : null}
+          <div className={styles.actions}>
+            <button type="button" className={styles.later} onClick={() => handleLater(event)}>나중에</button>
+            <button
+              type="button"
+              className={styles.start}
+              disabled={startingId === event.id}
+              onClick={() => void confirmStart(event, restartConfirmationId === event.id)}
+            >{startingId === event.id ? "시작 중..." : restartConfirmationId === event.id ? "다시 시작 확인" : "전체 분류 시작"}</button>
+          </div>
         </div>
       ))}
     </div>

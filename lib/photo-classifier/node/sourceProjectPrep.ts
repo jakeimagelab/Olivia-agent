@@ -171,8 +171,11 @@ export async function assertSafeSourceJpgRelocation(input: {
   const sourceSegments = path.relative(projectRoot, source).split(path.sep);
   if (sourceSegments.some((segment) => isIntegratedDirectoryName(segment))) throw new Error("JPG전체 내부 파일은 다시 통합할 수 없습니다.");
   const destinationDirectory = path.dirname(destination);
-  if (path.dirname(destinationDirectory) !== projectRoot || !isIntegratedDirectoryName(path.basename(destinationDirectory))) {
-    throw new Error("JPG 목적지는 JPG전체 폴더여야 합니다.");
+  const destinationSegments = path.relative(projectRoot, destinationDirectory).split(path.sep).filter(Boolean);
+  // JPG전체 아래의 원래 상대경로를 보존한다. 하위 폴더 하나가 독립 촬영 묶음이므로
+  // 파일명을 한 곳에 평면화하면 서로 다른 날/카메라 촬영이 한 결과로 섞인다.
+  if (!destinationSegments.length || !isIntegratedDirectoryName(destinationSegments[0]) || !isWithin(projectRoot, destinationDirectory)) {
+    throw new Error("JPG 목적지는 JPG전체 폴더 안이어야 합니다.");
   }
   if (path.basename(source) !== path.basename(destination)) throw new Error("JPG 파일명 변경은 허용하지 않습니다.");
   const fileExtension = extension(path.basename(source));
@@ -181,7 +184,10 @@ export async function assertSafeSourceJpgRelocation(input: {
   if (!sourceMetadata?.isFile() || sourceMetadata.isSymbolicLink()) throw new Error("JPG 원본이 안전한 일반 파일이 아닙니다.");
   const destinationMetadata = await lstat(destination).catch(() => null);
   if (destinationMetadata?.isSymbolicLink()) throw new Error("JPG 목적지에 심볼릭 링크를 사용할 수 없습니다.");
-  if (destinationMetadata) throw new Error("JPG 목적지가 이미 존재합니다. 덮어쓰지 않습니다.");
+  // 작업이 중간에 끊겨도 이미 옮겨진 JPG는 그대로 두고, 남은 파일만 이어서 처리한다.
+  // 목적지 존재만으로 전체 작업을 실패시키면 photoJpgCopy의 안전한 skip/retry가 영영
+  // 실행되지 않는다(2026-09-30).
+  if (destinationMetadata && !destinationMetadata.isFile()) throw new Error("JPG 목적지가 안전한 일반 파일이 아닙니다.");
 }
 
 async function resolveIntegratedDirectory(projectRoot: string): Promise<string> {
@@ -197,8 +203,33 @@ async function prepareDirectory(directory: string): Promise<string> {
     if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error("JPG전체가 안전한 폴더가 아닙니다.");
     return directory;
   }
-  await mkdir(directory);
+  await mkdir(directory, { recursive: true });
   return directory;
+}
+
+/** JPG전체 아래 상대경로별 파일을 읽는다. 재시작 시 같은 상대경로·같은 크기만 이어하기로 인정한다. */
+async function collectIntegratedJpgs(directory: string): Promise<Map<string, SourceJpg>> {
+  const files = new Map<string, SourceJpg>();
+  const visit = async (current: string, relativeDirectory: string): Promise<void> => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const fullPath = path.join(current, entry.name);
+      const relativePath = relativeDirectory ? path.posix.join(relativeDirectory, entry.name) : entry.name;
+      if (entry.isSymbolicLink()) throw new Error(`JPG전체에 심볼릭 링크를 사용할 수 없습니다: ${relativePath}`);
+      if (entry.isDirectory()) {
+        await visit(fullPath, relativePath);
+        continue;
+      }
+      if (!entry.isFile()) throw new Error(`JPG전체에 안전하지 않은 항목이 있습니다: ${relativePath}`);
+      if (!JPG_PHOTO_EXTENSIONS.has(extension(entry.name))) throw new Error(`JPG전체에 JPG/JPEG가 아닌 파일이 있습니다: ${relativePath}`);
+      const metadata = await stat(fullPath);
+      files.set(relativePath, { source: fullPath, relativePath, name: entry.name, size: metadata.size, mtimeMs: metadata.mtimeMs });
+    }
+  };
+  const metadata = await lstat(directory).catch(() => null);
+  if (!metadata) return files;
+  if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error("JPG전체가 안전한 폴더가 아닙니다.");
+  await visit(directory, "");
+  return files;
 }
 
 /** 승인 후 JPG/JPEG만 같은 프로젝트의 JPG전체로 rename한다. */
@@ -215,29 +246,34 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   const rawBefore = await collectRawSnapshot(projectRoot);
   const sourceJpgs = await collectSourceJpgs(projectRoot);
   const integratedDirectory = await resolveIntegratedDirectory(projectRoot);
-  const existingDestinationEntries = await readdir(integratedDirectory, { withFileTypes: true }).catch((error: unknown) => {
-    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") return [];
-    throw error;
-  });
-  if (existingDestinationEntries.some((entry) => entry.isSymbolicLink())) {
+  let existingDestinations: Map<string, SourceJpg>;
+  try {
+    existingDestinations = await collectIntegratedJpgs(integratedDirectory);
+  } catch {
     return conflictResult(relativeProject.split(path.sep).join("/"), projectRoot, [{ source: integratedDirectory, destination: integratedDirectory, reason: "unsafe_destination" }], rawBefore.size);
   }
 
   const conflicts: SourceJpgConflict[] = [];
-  const destinationNames = new Set(existingDestinationEntries.filter((entry) => entry.isFile()).map((entry) => entry.name));
-  const plannedNames = new Set<string>();
+  let alreadyPrepared = existingDestinations.size;
   for (const file of sourceJpgs) {
-    if (plannedNames.has(file.name)) conflicts.push({ source: relativeDisplayPath(sourceRoot, file.source), destination: relativeDisplayPath(sourceRoot, path.join(integratedDirectory, file.name)), reason: "duplicate_filename" });
-    plannedNames.add(file.name);
-    if (destinationNames.has(file.name)) conflicts.push({ source: relativeDisplayPath(sourceRoot, file.source), destination: relativeDisplayPath(sourceRoot, path.join(integratedDirectory, file.name)), reason: "destination_exists" });
+    const existing = existingDestinations.get(file.relativePath);
+    if (existing) {
+      // 같은 파일은 이미 준비된 것으로 보고 source의 중복만 제거하지 않는다. 사람이
+      // 파일을 바꿔 끼운 경우에만 검토로 올린다.
+      if (existing.size !== file.size) {
+        conflicts.push({ source: relativeDisplayPath(sourceRoot, file.source), destination: relativeDisplayPath(sourceRoot, path.join(integratedDirectory, ...file.relativePath.split("/"))), reason: "destination_exists" });
+      }
+    }
   }
   if (conflicts.length > 0) return conflictResult(relativeProject.split(path.sep).join("/"), projectRoot, conflicts, rawBefore.size);
 
-  // 모든 rename 계획을 확인한 뒤에만 JPG전체를 만들거나 파일을 움직인다.
-  for (const file of sourceJpgs) await assertSafeSourceJpgRelocation({ sourceRoot, projectRoot, source: file.source, destination: path.join(integratedDirectory, file.name) });
+  const pendingJpgs = sourceJpgs.filter((file) => !existingDestinations.has(file.relativePath));
 
-  if (sourceJpgs.length === 0) {
-    return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: 0, jpgAlreadyPrepared: destinationNames.size, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
+  // 모든 rename 계획을 확인한 뒤에만 JPG전체를 만들거나 파일을 움직인다.
+  for (const file of pendingJpgs) await assertSafeSourceJpgRelocation({ sourceRoot, projectRoot, source: file.source, destination: path.join(integratedDirectory, ...file.relativePath.split("/")) });
+
+  if (pendingJpgs.length === 0) {
+    return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: 0, jpgAlreadyPrepared: alreadyPrepared, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
   }
 
   const destinationDirectory = await prepareDirectory(integratedDirectory);
@@ -246,18 +282,19 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
     options.onProgress?.({
       stage: "PREPARING",
       current: 0,
-      total: sourceJpgs.length,
-      message: `JPG 통합 시작: ${relativeProject}`,
+      total: pendingJpgs.length,
+      message: `JPG정리 이어하기 시작: ${relativeProject}`,
     });
-    for (const [index, file] of sourceJpgs.entries()) {
-      const destination = path.join(destinationDirectory, file.name);
+    for (const [index, file] of pendingJpgs.entries()) {
+      const destination = path.join(destinationDirectory, ...file.relativePath.split("/"));
+      await prepareDirectory(path.dirname(destination));
       await rename(file.source, destination); // SSD1은 rename만 허용, EXDEV fallback 금지
       moved.push({ source: file.source, destination });
       options.onProgress?.({
         stage: "PREPARING",
         current: index + 1,
-        total: sourceJpgs.length,
-        message: `JPG전체로 이동: ${file.name}`,
+        total: pendingJpgs.length,
+        message: `JPG전체로 정리: ${file.name}`,
       });
     }
   } catch (error) {
@@ -270,12 +307,12 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   const rawAfter = await collectRawSnapshot(projectRoot);
   if (!sameRawSnapshot(rawBefore, rawAfter)) throw new Error("JPG 통합 후 RAW 무결성 검증에 실패했습니다.");
   const remaining = await collectSourceJpgs(projectRoot);
-  const destinationAfter = (await readdir(destinationDirectory, { withFileTypes: true })).filter((entry) => entry.isFile() && JPG_PHOTO_EXTENSIONS.has(extension(entry.name)));
-  const destinationBytes = await Promise.all(destinationAfter.map(async (entry) => (await stat(path.join(destinationDirectory, entry.name))).size));
-  const sourceBytes = sourceJpgs.reduce((sum, file) => sum + file.size, 0);
-  if (remaining.length !== 0 || destinationAfter.length < sourceJpgs.length || destinationBytes.reduce((sum, size) => sum + size, 0) < sourceBytes) throw new Error("JPG전체 통합 결과 검증에 실패했습니다.");
+  const destinationAfter = await collectIntegratedJpgs(destinationDirectory);
+  const destinationBytes = Array.from(destinationAfter.values()).map((entry) => entry.size);
+  const sourceBytes = pendingJpgs.reduce((sum, file) => sum + file.size, 0);
+  if (remaining.length !== sourceJpgs.length - pendingJpgs.length || destinationAfter.size < pendingJpgs.length || destinationBytes.reduce((sum, size) => sum + size, 0) < sourceBytes) throw new Error("JPG전체 정리 결과 검증에 실패했습니다.");
 
-  return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: sourceJpgs.length, jpgAlreadyPrepared: destinationNames.size, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
+  return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: pendingJpgs.length, jpgAlreadyPrepared: alreadyPrepared, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
 }
 
 export { JPG_INTEGRATED_DIRECTORY } from "./storageLayout";

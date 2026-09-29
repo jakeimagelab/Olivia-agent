@@ -14,7 +14,6 @@ export type RunnerWarning = {
 };
 
 export type RemotePhotoSortRunnerOptions = {
-  shootingMode: "field" | "studio";
   department: MedicalDepartment;
   gapMinutes: number;
   classificationUiMode: "ai-auto" | "advanced";
@@ -23,6 +22,7 @@ export type RemotePhotoSortRunnerOptions = {
   aiNamingEnabled: boolean;
   qualityAnalysisEnabled: boolean;
   profileClassificationEnabled: boolean;
+  only?: "all" | "연출" | "프로필" | "인테리어";
 };
 
 export type RemotePhotoSortRunnerInput = RemotePhotoSortRunnerOptions & ({
@@ -56,7 +56,7 @@ export type RemotePhotoSortFailure = {
 export type RemotePhotoSortResult = RemotePhotoSortSuccess | RemotePhotoSortFailure;
 
 export type RunnerProgress = {
-  stage: "STAGING" | "PREPARING" | "COPYING" | "SCANNING" | "ANALYZING" | "ORGANIZING" | "VERIFYING";
+  stage: "STAGING" | "PREPARING" | "COPYING" | "SCANNING" | "ANALYZING" | "SCENE_ANALYSIS" | "FEATURE_EXTRACTION" | "BOUNDARY_ANALYSIS" | "ORGANIZING" | "VERIFYING";
   copiedBytes?: number;
   totalBytes?: number;
   current?: number;

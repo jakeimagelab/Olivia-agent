@@ -13,7 +13,7 @@ describe("photo worker job delivery policy", () => {
     })).toEqual({
       project_id: "project-1",
       ai_naming_enabled: true,
-      profile_classification_enabled: false,
+      profile_classification_enabled: true,
     });
   });
 

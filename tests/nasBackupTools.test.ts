@@ -128,9 +128,10 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     await expect(executeNasBackupTool("nas_backup_get", { id: "no-such" }, context)).rejects.toThrow();
   });
 
-  it("nas_backup_start_sort는 department/shootingMode 없이는 실행되지 않는다(추측 금지)", async () => {
-    await expect(executeNasBackupTool("nas_backup_start_sort", { folderName: "0917_청담스시" }, context, defaultDependencies())).rejects.toThrow(/진료과/);
-    await expect(executeNasBackupTool("nas_backup_start_sort", { folderName: "0917_청담스시", department: "dermatology" }, context, defaultDependencies())).rejects.toThrow(/촬영 모드/);
+  it("nas_backup_start_sort는 진료과·촬영모드를 묻지 않고 전체 분류를 시작한다", async () => {
+    state.projects.length = 0;
+    await expect(executeNasBackupTool("nas_backup_start_sort", { folderName: "0917_청담스시", only: "all", confirmRestart: false }, context, defaultDependencies()))
+      .resolves.toMatchObject({ success: true, data: { only: "all", department: "general" } });
   });
 
   it("find_photo_folder는 행 없는 옛날 폴더를 UNREGISTERED로 보여주지만 행은 만들지 않는다", async () => {
@@ -147,7 +148,7 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     }, context, defaultDependencies());
     expect(result).toMatchObject({
       success: true,
-      data: { createdProject: true, status: "MERGE_APPROVED", summary: "작업을 시작했습니다. 진행 중입니다." },
+      data: { createdProject: true, status: "MERGE_APPROVED", summary: "JPG정리를 시작했습니다. RAW는 원래 자리에 그대로 둡니다." },
     });
     expect(state.projects).toMatchObject([{
       source_relative_path: "0917_청담스시", status: "MERGE_APPROVED", raw_count: 1, jpg_count: 1, jpg_bytes: 100,
@@ -208,13 +209,13 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
   it("nas_backup_start_sort는 photo_storage_projects를 MERGE_APPROVED로 만들고 nas_department/nas_shooting_mode를 채운다(씬별분류 파이프라인, 새 분류 엔진 아님)", async () => {
     state.projects.length = 0;
     const result = await executeNasBackupTool("nas_backup_start_sort", {
-      folderName: "0917_청담스시", department: "dermatology", shootingMode: "field", confirmRestart: false,
+      folderName: "0917_청담스시", only: "all", confirmRestart: false,
     }, context, defaultDependencies());
     expect(result).toMatchObject({ success: true, data: { projectId: "project-1" }, verification: { persisted: true } });
     expect(state.projects).toMatchObject([{
       source_relative_path: "0917_청담스시",
       status: "MERGE_APPROVED",
-      nas_department: "dermatology",
+      nas_department: "general",
       nas_shooting_mode: "field",
       classify_approved_at: expect.any(String),
     }]);
@@ -224,20 +225,20 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     state.projects.length = 0;
     state.projects.push({ id: "existing-1", source_relative_path: "0917_청담스시", status: "READY" });
     const result = await executeNasBackupTool("nas_backup_start_sort", {
-      folderName: "0917_청담스시", department: "dermatology", shootingMode: "studio", confirmRestart: false,
+      folderName: "0917_청담스시", only: "all", confirmRestart: false,
     }, context, defaultDependencies());
     expect((result.data as any).projectId).toBe("existing-1");
     expect(state.projects).toHaveLength(1);
-    expect(state.projects[0]).toMatchObject({ status: "MERGE_APPROVED", nas_department: "dermatology", nas_shooting_mode: "studio" });
+    expect(state.projects[0]).toMatchObject({ status: "MERGE_APPROVED", nas_department: "general", nas_shooting_mode: "field" });
   });
 
   it("nas_backup_start_sort는 이미 진행 중/완료된 row는 상태를 되돌리지 않는다(중복 실행 방지)", async () => {
     state.projects.length = 0;
     state.projects.push({ id: "existing-2", source_relative_path: "0917_청담스시", status: "COPYING" });
     await executeNasBackupTool("nas_backup_start_sort", {
-      folderName: "0917_청담스시", department: "dermatology", shootingMode: "field", confirmRestart: false,
+      folderName: "0917_청담스시", only: "all", confirmRestart: false,
     }, context, defaultDependencies());
-    expect(state.projects[0]).toMatchObject({ status: "COPYING", nas_department: "dermatology" });
+    expect(state.projects[0]).toMatchObject({ status: "COPYING", nas_department: "general" });
   });
 
   it("nas_backup_start_sort는 eventId가 있으면 worker_events를 STARTED로 표시한다(watcher 자체는 안 건드림, 상태 컬럼만)", async () => {
@@ -245,7 +246,7 @@ describe("NAS Backup Watcher 신규 tool — watcher 자체는 안 건드리고 
     state.events.length = 0;
     state.events.push({ id: "evt-9", status: "PENDING" });
     await executeNasBackupTool("nas_backup_start_sort", {
-      folderName: "0917_청담스시", department: "dermatology", shootingMode: "field", eventId: "evt-9", confirmRestart: false,
+      folderName: "0917_청담스시", only: "all", eventId: "evt-9", confirmRestart: false,
     }, context, defaultDependencies());
     expect(state.events[0]).toMatchObject({ id: "evt-9", status: "STARTED" });
   });

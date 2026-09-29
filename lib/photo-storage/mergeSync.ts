@@ -56,10 +56,9 @@ export async function syncPhotoMergeProject(
     // 채팅의 start_photo_scene_sort, 기존 nas_backup_start_sort, 알림 버튼은 모두 같은 helper에서
     // 후속 분류 승인을 classify_approved_at에 미리 기록한다. 그 승인이 있을 때만 JPG 통합 완료
     // 직후 기존 COPY claim 상태로 넘긴다. 원본 분리만 승인한 요청은 MERGE_COMPLETED에서 멈춘다.
-    const continueFullPipeline = mergeCompleted
-      && Boolean(project.classify_approved_at)
-      && Boolean(project.nas_department)
-      && Boolean(project.nas_shooting_mode);
+    // 전체 분류 요청은 JPG정리 뒤 SSD2 복사·사진별 분류까지 자동으로 이어진다.
+    // department/shootingMode는 사람이 채우는 실행 게이트가 아니다.
+    const continueFullPipeline = mergeCompleted && Boolean(project.classify_approved_at);
     status = !mergeCompleted ? "REVIEW_REQUIRED" : continueFullPipeline ? "CLASSIFY_APPROVED" : "MERGE_COMPLETED";
     patch.status = status;
     patch.merge_completed_at = now;

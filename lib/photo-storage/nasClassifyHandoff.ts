@@ -33,7 +33,8 @@ type PhotoProjectStartBase = {
 
 export type StartNasBackupClassificationInput = PhotoProjectStartBase & {
   department: string;
-  shootingMode: "field" | "studio";
+  /** 결과를 제한하는 요청. Worker는 사진마다 판정하며 folderName으로 추측하지 않는다. */
+  only?: "all" | "연출" | "프로필" | "인테리어";
 };
 
 export type StartPhotoSourcePreparationInput = PhotoProjectStartBase;
@@ -120,14 +121,22 @@ export async function startNasBackupClassification(
   const now = new Date().toISOString();
   const existing = await readExistingPhotoProject(db, sourceRelativePath);
 
+  // 특정 결과만 정리하는 요청은 JPG정리(COPY_COMPLETED) 뒤에만 허용한다. 전체 분류는
+  // JPG정리부터 자동으로 이어 가므로 사용자에게 중간 단계를 묻지 않는다.
+  if (input.only && input.only !== "all" && !existing?.work_relative_path) {
+    throw new PhotoPipelineStartError(
+      "JPG정리가 안 됐어요. 먼저 할까요?",
+      "PHOTO_JPG_PREP_REQUIRED",
+      { projectId: existing?.id, projectName: existing?.project_name },
+    );
+  }
+
   // 이미 분류 job이 시작됐거나 끝난 프로젝트는 설정과 updated_at조차 다시 쓰지 않는다.
   // 중복 클릭이 진행 중인 job의 department/shootingMode를 바꾸면 안 된다.
   if (existing && ["CLASSIFY_QUEUED", "CLASSIFYING", "CLASSIFY_VERIFYING", "CLASSIFY_COMPLETED"].includes(existing.status)) {
     return existing;
   }
-  const alreadyApprovedForFullPipeline = Boolean(
-    existing?.classify_approved_at && existing.nas_department && existing.nas_shooting_mode,
-  );
+  const alreadyApprovedForFullPipeline = Boolean(existing?.classify_approved_at);
   if (existing && alreadyApprovedForFullPipeline && [
     "MERGE_APPROVED", "MERGING", "CLASSIFY_APPROVED", "COPY_QUEUED", "COPYING", "COPY_VERIFYING", "COPY_COMPLETED",
   ].includes(existing.status)) {
@@ -150,8 +159,11 @@ export async function startNasBackupClassification(
 
   const patch: Record<string, unknown> = {
     ...countPatch(input),
+    // 실제 출력 판정은 사진 단위 AI가 한다. 기존 worker payload와 migration 호환을 위해
+    // 자동 추출한 진료과만 메타데이터로 보관하고 mode는 더 이상 사용자에게 받지 않는다.
     nas_department: input.department,
-    nas_shooting_mode: input.shootingMode,
+    nas_shooting_mode: "field",
+    photo_sort_only: input.only ?? "all",
     // JPG 통합이 먼저 필요한 프로젝트도 후속 COPY·분류 승인을 잃지 않도록 미리 기록한다.
     classify_approved_at: existing?.classify_approved_at ?? now,
     approved_at: existing?.approved_at ?? now,

@@ -13,9 +13,9 @@ describe("Hermes 사진 스토리지 도구 라우팅 prompt", () => {
     expect(prompt).toMatch(/activeResource.*activeWorkspace.*사진 작업이 항상 우선/);
   });
 
-  it("원본 분리와 씬별 분류를 정확한 도구 순서에 연결한다", () => {
-    expect(prompt).toMatch(/원본 분리[\s\S]*find_photo_folder[\s\S]*start_photo_source_prep/);
-    expect(prompt).toMatch(/씬별 분류[\s\S]*find_photo_folder[\s\S]*start_photo_scene_sort/);
+  it("JPG정리와 사진 정리를 정확한 도구 순서에 연결한다", () => {
+    expect(prompt).toMatch(/JPG정리[\s\S]*find_photo_folder[\s\S]*start_photo_source_prep/);
+    expect(prompt).toMatch(/분류[\s\S]*find_photo_folder[\s\S]*start_photo_scene_sort/);
   });
 
   it("도구를 못 고르거나 폴더 검색이 0건이어도 파일 업로드를 제안하지 않는다", () => {

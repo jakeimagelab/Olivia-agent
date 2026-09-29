@@ -48,6 +48,28 @@ function runnerOptions() {
   };
 }
 
+// 자동 분류가 가능한 Worker를 표현하는 최소 adapter. fast/precise 기본 테스트는
+// 외부 API를 호출하지 않고도 "키 없음이면 시작하지 않는다" guard를 통과해야 한다.
+const availableAi = {
+  scene: async (input: { department: import("@/lib/photo-classifier/types").MedicalDepartment; sceneId: string }) => ({
+    department: input.department,
+    sceneId: input.sceneId,
+    sceneType: "treatment" as const,
+    displayName: "연출",
+    suggestedFolderName: "연출",
+    confidence: 0.95,
+    detectedCues: ["인물"],
+    negativeCues: [],
+    reason: "테스트 판정",
+    needsReview: false,
+    patientPosture: "standing" as const,
+    hasHandpiece: false,
+    hasTreatmentDevice: false,
+    hasTreatmentBed: false,
+    hasConsultationDesk: false,
+  }),
+};
+
 afterEach(async () => {
   await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
@@ -119,6 +141,23 @@ describe("remote photo sort runner", () => {
     expect(features.brightness).toBeGreaterThan(0);
   });
 
+  it("does not start classification when the AI key and analyzer are both unavailable", async () => {
+    const { roots } = await testRoots();
+    const workShoot = path.join(roots.workRoot, "no-ai");
+    await mkdir(workShoot);
+    await jpg(path.join(workShoot, "A001.jpg"), "#155855", new Date("2026-09-13T01:00:00Z"));
+    const original = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    try {
+      await expect(runRemotePhotoSortRunner({ ...runnerOptions(), workFolder: workShoot }, { roots }))
+        .rejects.toThrow("자동 기능이 꺼져 있습니다");
+      await expect(stat(path.join(workShoot, "JPG"))).rejects.toThrow();
+    } finally {
+      if (original === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = original;
+    }
+  });
+
   it("stages from a read-only source copy and organizes only the work tree", async () => {
     const { roots } = await testRoots();
     const sourceShoot = path.join(roots.sourceRoot, "0913_BLS_GN2");
@@ -132,7 +171,7 @@ describe("remote photo sort runner", () => {
     const result = await runRemotePhotoSortRunner({
       ...runnerOptions(),
       sourceFolder: "0913_BLS_GN2",
-    }, { roots });
+    }, { roots, ai: availableAi });
 
     expect(result).toMatchObject({
       ok: true,
@@ -149,8 +188,8 @@ describe("remote photo sort runner", () => {
 
     const workShoot = path.join(roots.workRoot, "0913_BLS_GN2");
     await expect(stat(path.join(workShoot, "RAW", "A001.CR2"))).resolves.toBeTruthy();
-    await expect(stat(path.join(workShoot, "JPG", "01_미분류", "A001.jpg"))).resolves.toBeTruthy();
-    await expect(stat(path.join(workShoot, "JPG", "02_미분류", "A002.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "Scene01", "A001.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "Scene02", "A002.jpg"))).resolves.toBeTruthy();
     await expect(stat(path.join(workShoot, "SELECT", "JPG_SELECT"))).resolves.toBeTruthy();
     const summary = JSON.parse(await readFile(path.join(workShoot, "REPORT", "summary.json"), "utf8"));
     expect(summary).toMatchObject({ totalJpg: 2, totalRaw: 1, totalScenes: 2 });
@@ -165,10 +204,10 @@ describe("remote photo sort runner", () => {
     const result = await runRemotePhotoSortRunner({
       ...runnerOptions(),
       workFolder: workShoot,
-    }, { roots });
+    }, { roots, ai: availableAi });
 
     expect(result.sceneCount).toBe(1);
-    await expect(stat(path.join(workShoot, "JPG", "01_미분류", "B001.jpg"))).resolves.toBeTruthy();
+    await expect(stat(path.join(workShoot, "JPG", "Scene01", "B001.jpg"))).resolves.toBeTruthy();
   });
 
   it("runs the precise local-feature path without browser Image, Canvas, or Worker APIs", async () => {
@@ -186,7 +225,7 @@ describe("remote photo sort runner", () => {
         ...runnerOptions(),
         fastAnalyzeMode: false,
         workFolder: workShoot,
-      }, { roots });
+      }, { roots, ai: availableAi });
 
       expect(result).toMatchObject({ ok: true, jpgCount: 3, sceneCount: 2 });
       await expect(stat(path.join(workShoot, "JPG", "01_미분류", "C001.jpg"))).resolves.toBeTruthy();
@@ -274,16 +313,15 @@ describe("remote photo sort runner", () => {
     }
   });
 
-  it("fails unsupported studio mode before creating output folders", async () => {
+  it("does not accept a folder-wide shooting mode: photos are classified individually", async () => {
     const { roots } = await testRoots();
     const workShoot = path.join(roots.workRoot, "studio");
     await mkdir(workShoot);
 
     await expect(runRemotePhotoSortRunner({
       ...runnerOptions(),
-      shootingMode: "studio",
       workFolder: workShoot,
-    }, { roots })).rejects.toThrow(/field만 지원/);
+    }, { roots })).rejects.toThrow(/자동 기능이 꺼져/);
     await expect(stat(path.join(workShoot, "JPG"))).rejects.toThrow();
   });
 });

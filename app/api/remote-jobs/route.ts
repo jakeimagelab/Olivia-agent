@@ -229,8 +229,6 @@ export async function POST(request: NextRequest) {
       payload = {
         project_id: projectId,
         work_relative_path: safeWorkPath,
-        ...(requestedPayload.shooting_mode === "studio" || requestedPayload.shooting_mode === "field"
-          ? { shooting_mode: requestedPayload.shooting_mode } : {}),
         ...(typeof requestedPayload.department === "string" ? { department: requestedPayload.department } : {}),
         ...(typeof requestedPayload.gap_minutes === "number" ? { gap_minutes: requestedPayload.gap_minutes } : {}),
         ...(requestedPayload.classification_ui_mode === "advanced" || requestedPayload.classification_ui_mode === "ai-auto"
@@ -383,7 +381,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("remote_jobs")
       .select(
-        "id,action,target_worker,status,progress,message,error,created_at,started_at,completed_at"
+        "id,action,payload,target_worker,status,progress,message,error,created_at,started_at,completed_at"
       )
       .order("created_at", { ascending: false })
       .limit(30);

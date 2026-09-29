@@ -43,7 +43,7 @@ describe("photo folder catalog", () => {
       "0918_삼칠갈비": [],
     });
 
-    const groups = await matchPhotoFoldersInMessage("연세라이프구강내과 1차 분류 좀 해줘", source);
+    const groups = await matchPhotoFoldersInMessage("연세라이프구강내과 분류 좀 해줘", source);
 
     expect(groups).toMatchObject([[{
       displayName: "0923_연세라이프구강",

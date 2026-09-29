@@ -15,6 +15,36 @@
   cursor: default;
 }
 
+.photoTaskStatusBar {
+  position: fixed;
+  z-index: 90;
+  top: 54px;
+  right: 18px;
+  width: min(370px, calc(100vw - 36px));
+  display: grid;
+  gap: 7px;
+  pointer-events: none;
+}
+.photoTaskStatusRow {
+  min-width: 0;
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid rgba(21, 88, 85, .18);
+  border-radius: 10px;
+  color: #155855;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 8px 24px rgba(4, 46, 43, .16);
+}
+.photoTaskStatusRow[data-state="failed"] { color: #a83f1e; border-color: #e4a08b; background: #fff4ef; pointer-events: auto; }
+.photoTaskStatusRow[data-state="done"] { color: #167b56; }
+.photoTaskStatusRow > span { min-width: 0; display: grid; gap: 2px; }
+.photoTaskStatusRow strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.photoTaskStatusRow small { color: #5e7671; font-size: 11px; line-height: 1.35; }
+.photoTaskStatusRow[data-state="failed"] small { color: #a83f1e; }
+.photoTaskStatusSpin { animation: widget-spin .8s linear infinite; }
+
 .wallpaperLayer,
 .overlayLayer,
 .vignetteLayer {

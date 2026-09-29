@@ -24,7 +24,7 @@ Hermes API Server가 Olivia MCP 도구를 실행 목록에 탑재하지 못하�
 
 - 원본 분리
 - RAW/JPG 분리와 이에 준하는 구분 표기
-- 1차 분류
+- JPG정리
 - JPG 통합
 
 실행 순서:
@@ -39,7 +39,7 @@ Hermes API Server가 Olivia MCP 도구를 실행 목록에 탑재하지 못하�
 - Scene 분류
 - 사진 분류
 - Scene별 분류
-- 2차 분류
+- 전체 분류
 
 실행 순서:
 

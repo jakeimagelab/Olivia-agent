@@ -72,17 +72,12 @@ function inputFromArguments(values: CliValues): RemotePhotoSortRunnerInput {
   if (!DEPARTMENTS.has(departmentValue as MedicalDepartment)) {
     throw new Error(`지원하지 않는 진료과입니다: ${departmentValue}`);
   }
-  const shootingMode = values["shooting-mode"] ?? "field";
-  if (shootingMode !== "field" && shootingMode !== "studio") {
-    throw new Error("--shooting-mode은 field 또는 studio여야 합니다.");
-  }
   const classificationUiMode = values["classification-ui-mode"] ?? "ai-auto";
   if (classificationUiMode !== "ai-auto" && classificationUiMode !== "advanced") {
     throw new Error("--classification-ui-mode은 ai-auto 또는 advanced여야 합니다.");
   }
   const gapMinutes = Number(values["gap-minutes"] ?? "3.5");
   const options = {
-    shootingMode,
     department: departmentValue as MedicalDepartment,
     gapMinutes,
     classificationUiMode,

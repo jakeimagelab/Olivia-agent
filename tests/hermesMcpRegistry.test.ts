@@ -150,12 +150,13 @@ describe("Olivia Hermes MCP registry", () => {
     }
   });
 
-  it("nas_backup_start_sort는 approval이 아니라 open이지만(비파괴적 job enqueue), department/shootingMode를 요구하는 schema다", () => {
+  it("nas_backup_start_sort는 approval이 아니라 open이며 사진별 자동 판정 only를 받는다", () => {
     expect(getHermesToolPolicy("nas_backup_start_sort")).toBe("open");
     const tool = listHermesOliviaTools().find((t) => t.name === "nas_backup_start_sort")!;
     const properties = tool.inputSchema.properties as Record<string, unknown>;
-    expect(properties).toHaveProperty("department");
-    expect(properties).toHaveProperty("shootingMode");
+    expect(properties).toHaveProperty("only");
+    expect(properties).not.toHaveProperty("department");
+    expect(properties).not.toHaveProperty("shootingMode");
     expect(properties).toHaveProperty("confirmRestart");
   });
 
@@ -170,23 +171,19 @@ describe("Olivia Hermes MCP registry", () => {
     }
   });
 
-  it("사진 도구 description이 실제 사용 표현을 모두 포함한다", () => {
+  it("사진 도구 description이 새 작업 용어와 자동 판정을 설명한다", () => {
     const tools = listHermesOliviaTools();
     const description = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
 
-    expect(description("find_photo_folder")).toMatch(/NAS 폴더/);
-    expect(description("find_photo_folder")).toMatch(/백업 폴더/);
     expect(description("find_photo_folder")).toMatch(/촬영 폴더/);
     expect(description("find_photo_folder")).toMatch(/Workstation/);
 
-    expect(description("start_photo_source_prep")).toMatch(/원본 분리/);
-    expect(description("start_photo_source_prep")).toMatch(/RAW\/JPG 분리/);
-    expect(description("start_photo_source_prep")).toMatch(/1차 분류/);
-    expect(description("start_photo_source_prep")).toMatch(/JPG 통합/);
+    expect(description("start_photo_source_prep")).toMatch(/JPG정리/);
+    expect(description("start_photo_source_prep")).toMatch(/RAW/);
 
-    expect(description("start_photo_scene_sort")).toMatch(/씬별 분류/);
-    expect(description("start_photo_scene_sort")).toMatch(/사진 분류/);
-    expect(description("start_photo_scene_sort")).toMatch(/2차 분류/);
+    expect(description("start_photo_scene_sort")).toMatch(/연출정리/);
+    expect(description("start_photo_scene_sort")).toMatch(/프로필정리/);
+    expect(description("start_photo_scene_sort")).toMatch(/사진별/);
   });
 
   it("create_quote MCP schema는 원문 파서용 brand만 노출하고 서비스 수정 도구는 유지한다", () => {

@@ -50,7 +50,7 @@ async function runWithStatus(status: () => OliviaAgentToolExecution) {
   });
   const result = await executePhotoDirectTurn({
     enabled: true,
-    userMessage: "연세라이프구강내과 1차 분류 좀 해줘",
+    userMessage: "연세라이프구강내과 JPG정리 좀 해줘",
     hermesToolNames: [],
     context,
     dataSource: dataSource(),
@@ -111,7 +111,7 @@ describe("photo direct timeout verification", () => {
     });
     const result = await executePhotoDirectTurn({
       enabled: true,
-      userMessage: "연세라이프구강내과 1차 분류 좀 해줘",
+      userMessage: "연세라이프구강내과 JPG정리 좀 해줘",
       hermesToolNames: [],
       context,
       dataSource: dataSource(),
