@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getOliviaCrudCapabilities } from "@/lib/olivia/crud/registry";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
-import { getOliviaCrudNavigation } from "@/lib/olivia/crud/executor";
+import { getOliviaCrudNavigation, omitNonNullableQuoteCreateNulls } from "@/lib/olivia/crud/executor";
 import { isAutoExecutableClientCreate } from "@/lib/olivia/crud/autoExecution";
 
 describe("Olivia 기능별 생성·수정 검증", () => {
@@ -55,6 +55,39 @@ describe("Olivia 기능별 생성·수정 검증", () => {
       data: { hospitalName: "BGN성형외과", contactName: null, phone: null, email: null, packageId: null },
     });
     expect(result.data).toMatchObject({ contactName: null, phone: null, email: null, packageId: null });
+  });
+
+  it("견적 생성의 비-nullable null은 저장 전에 생략하고 nullable null은 보존한다", () => {
+    const prepared = omitNonNullableQuoteCreateNulls({
+      operation: "create",
+      domain: "quote",
+      data: {
+        hospitalName: "테스트의원",
+        title: null,
+        shootDate: null,
+        quoteNumber: null,
+        memos: null,
+        workflowRunId: null,
+        clientId: null,
+        contactName: null,
+        phone: null,
+        email: null,
+        packageId: null,
+      },
+    });
+    expect(prepared.data).not.toHaveProperty("title");
+    expect(prepared.data).not.toHaveProperty("shootDate");
+    expect(prepared.data).not.toHaveProperty("quoteNumber");
+    expect(prepared.data).not.toHaveProperty("memos");
+    expect(prepared.data).not.toHaveProperty("workflowRunId");
+    expect(prepared.data).not.toHaveProperty("clientId");
+    expect(validateOliviaCrudRequest(prepared).data).toMatchObject({
+      hospitalName: "테스트의원",
+      contactName: null,
+      phone: null,
+      email: null,
+      packageId: null,
+    });
   });
 
   it("일반 메모와 일정은 별도 도메인 필드를 가진다", () => {

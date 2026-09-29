@@ -4,6 +4,7 @@ import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
 import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
+import { getOliviaCrudDefinition } from "@/lib/olivia/crud/registry";
 import { createUnifiedReview } from "@/lib/reviews/createReview";
 import {
   OliviaCrudError,
@@ -15,6 +16,26 @@ import {
 } from "@/lib/olivia/crud/types";
 
 type Row = Record<string, any>;
+
+/**
+ * 견적서 생성 payload의 null을 저장 검증 직전에 정리한다.
+ *
+ * nullable로 선언된 null은 사용자가 값을 지우겠다는 유효한 의도이므로 보존한다. 반면
+ * nullable이 아닌 필드의 null은 값 미지정일 뿐인데, 그대로 검증기에 들어가면
+ * "형식이 올바르지 않습니다"로 생성 전체가 거절된다(2026-09-30). undefined와 같은
+ * 의미로 키를 생략해 기존 기본값/필수값 규칙이 판단하도록 한다.
+ */
+export function omitNonNullableQuoteCreateNulls(input: OliviaCrudRequest): OliviaCrudRequest {
+  if (input.domain !== "quote" || input.operation !== "create") return input;
+  const definition = getOliviaCrudDefinition("quote");
+  if (!definition) return input;
+
+  const data = Object.fromEntries(Object.entries(input.data).filter(([key, value]) => {
+    if (value !== null) return true;
+    return definition.fields[key]?.nullable === true;
+  }));
+  return { ...input, data };
+}
 
 const TARGETS: Record<OliviaCrudDomain, { table: string; nameColumns: string[]; naturalColumns?: string[] }> = {
   client: { table: "clients", nameColumns: ["hospital_name"] },
@@ -430,35 +451,36 @@ export async function executeOliviaCrud(
   db: SupabaseClient,
   input: OliviaCrudRequest,
 ): Promise<OliviaCrudExecutionResult> {
-  const validated = validateOliviaCrudRequest(input);
-  const result = input.operation === "create"
-    ? await createRecord(db, input.domain, validated.data)
-    : await updateRecord(db, input.domain, validated.data, input.target);
+  const saveInput = omitNonNullableQuoteCreateNulls(input);
+  const validated = validateOliviaCrudRequest(saveInput);
+  const result = saveInput.operation === "create"
+    ? await createRecord(db, saveInput.domain, validated.data)
+    : await updateRecord(db, saveInput.domain, validated.data, saveInput.target);
 
   const row = result.row;
   const recordId = String(row.id);
   await emitOliviaEventSafely(db, {
-    eventType: `record.${input.operation}d`,
+    eventType: `record.${saveInput.operation}d`,
     eventSource: "olivia_chat_crud",
     clientId: result.clientId || null,
     workflowRunId: result.workflowRunId || null,
     actorType: "admin",
     payload: {
-      domain: input.domain,
+      domain: saveInput.domain,
       recordId,
       changedFields: Object.keys(validated.data),
       permission: validated.permission,
     },
-    deduplicationKey: createEventDeduplicationKey(`record.${input.operation}d`, input.domain, recordId, Date.now()),
+    deduplicationKey: createEventDeduplicationKey(`record.${saveInput.operation}d`, saveInput.domain, recordId, Date.now()),
   });
 
-  const verb = input.operation === "create" ? "생성" : "수정";
-  const url = getOliviaCrudNavigation(input.domain, input.operation, recordId);
+  const verb = saveInput.operation === "create" ? "생성" : "수정";
+  const url = getOliviaCrudNavigation(saveInput.domain, saveInput.operation, recordId);
   return {
     action: url ? "navigate" : "done",
     message: `✅ ${validated.definition.label} ${verb}이 완료되었습니다.\nID: ${recordId}`,
-    domain: input.domain,
-    operation: input.operation,
+    domain: saveInput.domain,
+    operation: saveInput.operation,
     recordId,
     url: url || undefined,
     record: row,
