@@ -1,29 +1,32 @@
-import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
+import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
 
 export type PhotoWorkspaceToolId =
   | "select-raw"
   | "metadata-match"
   | "ai-cull"
+  | "t-cut"
   | "ai-search"
   | "classification"
+  | "resize"
   | "rename"
   | "retouch";
 
 export type PhotoWorkspaceToolState = {
   mode: PhotoWorkspaceMode;
   selectMode: PhotoSelectMode;
-  rawMatchView?: RawMatchView;
+  rawMatchMethod?: "filename" | "metadata";
 };
 
-// 2026-09-10 수정 지시서 2번 — metadata-select/retouch가 tool 파라미터 우회 없이 정식 탭이 됐다.
-// 옛 ?tool= 딥링크(lib/workspaceGroups.ts, Olivia 자연어 라우팅)는 새 mode 체계로 매핑해서
-// 그대로 계속 동작하게 유지한다. conversion(파일 변환)은 기능 자체를 삭제했으므로 제거.
+// 옛 딥링크는 역할이 같은 독립 탭으로만 정규화한다. AI 컷 정리와 RAW 매칭을 한 화면에
+// 다시 합치지 않는다.
 const TOOL_STATES: Record<PhotoWorkspaceToolId, PhotoWorkspaceToolState> = {
   "select-raw": { mode: "select", selectMode: "client" },
-  "metadata-match": { mode: "metadata-select", selectMode: "client" },
-  "ai-cull": { mode: "raw-match", selectMode: "manual", rawMatchView: "ai-cull" },
+  "metadata-match": { mode: "raw-match", selectMode: "client", rawMatchMethod: "metadata" },
+  "ai-cull": { mode: "t-cut", selectMode: "manual" },
+  "t-cut": { mode: "t-cut", selectMode: "manual" },
   "ai-search": { mode: "select", selectMode: "ai" },
   classification: { mode: "classification", selectMode: "ai" },
+  resize: { mode: "resize", selectMode: "manual" },
   rename: { mode: "rename", selectMode: "manual" },
   retouch: { mode: "retouch", selectMode: "manual" },
 };

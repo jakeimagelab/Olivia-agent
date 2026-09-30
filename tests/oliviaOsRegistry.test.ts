@@ -51,9 +51,9 @@ describe("OLIVIA OS app registry navigation", () => {
 
   it("normalizes user-facing workspace aliases before using the legacy iframe", () => {
     const cases = [
-      ["/select-match", "photo-workspace", "/photo-sorting?tool=select-raw"],
+      ["/select-match", "photo-workspace", "/photo-sorting?mode=raw-match"],
       ["/metadata-select?clientId=client-1", "metadata-select", "/metadata-select?clientId=client-1"],
-      ["/raw-select", "photo-workspace", "/photo-sorting?tool=ai-cull"],
+      ["/raw-select", "photo-workspace", "/photo-sorting?tool=t-cut"],
       ["/photo-retouching", "photo-workspace", "/photo-sorting?tool=retouch"],
       ["/diagnosis", "hospital-brand-image-diagnosis", "/hospital-brand-image-diagnosis"],
       ["/clients/reviews", "review-studio", "/review-studio"],

@@ -29,11 +29,14 @@ const FEATURE_GROUPS: FeatureGroup[] = [
   {
     group: "사진 작업실",
     items: [
+      { path: "/photo-sorting?mode=select", label: "사진 셀렉" },
+      { path: "/photo-sorting?mode=raw-match", label: "RAW 매칭" },
       { path: "/photo-sorting?mode=classification", label: "사진 분류" },
+      { path: "/photo-sorting?mode=t-cut", label: "T컷 정리" },
+      { path: "/photo-sorting?mode=resize", label: "사진 리사이즈" },
+      { path: "/photo-sorting?mode=rename", label: "이름변경" },
+      { path: "/photo-sorting?mode=retouch", label: "사진 보정" },
       { path: "/video-sorting", label: "영상 분류" },
-      { path: "/raw-select", label: "AI 컷 정리 & RAW" },
-      { path: "/select-match", label: "셀렉 & 매칭" },
-      { path: "/photo-retouching", label: "색감·보정" },
     ],
   },
   {

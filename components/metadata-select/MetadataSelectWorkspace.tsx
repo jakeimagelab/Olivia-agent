@@ -116,6 +116,10 @@ function normalizedLeafKey(name: string): string {
   return leafName(name).normalize("NFC").toLocaleLowerCase("en-US");
 }
 
+function normalizedBasenameKey(name: string): string {
+  return leafName(name).replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US");
+}
+
 function toTransfer(file: ScannedFile): MetadataFileTransfer {
   return { name: leafName(file.name), sourceDirectory: file.parent, sourceHandle: file.handle };
 }
@@ -190,8 +194,8 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
   );
 }
 
-export default function MetadataSelectWorkspace() {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
+export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { selectedJpgNames?: readonly string[] }) {
+  const { currentLocalFolder, setCurrentLocalFolder } = usePhotoStudioExecution();
   const desktopWindowMode = useDesktopWindowMode();
   const [hasFS, setHasFS] = useState(false);
   const [excludeCompleted, setExcludeCompleted] = useState(false);
@@ -199,10 +203,15 @@ export default function MetadataSelectWorkspace() {
   const [selectionDir, setSelectionDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [sourceDir, setSourceDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [rawDir, setRawDir] = useState<FileSystemDirectoryHandle | null>(null);
+  // The selected JPG folder is the shared photo-workspace folder.  A separate
+  // original-JPG folder belongs only to this matching operation and must not
+  // replace the user's active workspace folder.
   useEffect(() => {
-    const current = sourceDir ?? selectionDir;
-    if (current) setCurrentLocalFolder(current);
-  }, [selectionDir, setCurrentLocalFolder, sourceDir]);
+    if (!selectionDir && currentLocalFolder) setSelectionDir(currentLocalFolder);
+  }, [currentLocalFolder, selectionDir]);
+  useEffect(() => {
+    if (selectionDir) setCurrentLocalFolder(selectionDir);
+  }, [selectionDir, setCurrentLocalFolder]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [phaseDetail, setPhaseDetail] = useState("");
   const [rows, setRows] = useState<MetadataSelectRow[]>([]);
@@ -282,7 +291,11 @@ export default function MetadataSelectWorkspace() {
       const rawIndex = buildRawIndexByBasename(rawFiles, SELECT_MATCH_RAW_EXTENSIONS);
 
       setPhaseDetail(sourceDir ? "선택본의 EXIF와 원본 JPG를 대조하고 있습니다." : "선택본과 RAW 파일명을 대조하고 있습니다.");
-      const selectionFiles = await scanJpgFiles(selectionDir);
+      const scannedSelectionFiles = await scanJpgFiles(selectionDir);
+      const selectedNameKeys = new Set(selectedJpgNames.map(normalizedBasenameKey));
+      const selectionFiles = selectedNameKeys.size > 0
+        ? scannedSelectionFiles.filter((file) => selectedNameKeys.has(normalizedBasenameKey(file.name)))
+        : scannedSelectionFiles;
       if (selectionFiles.length === 0) throw new Error("선택본 폴더에서 JPG를 찾지 못했습니다.");
 
       const nextRows: MetadataSelectRow[] = [];

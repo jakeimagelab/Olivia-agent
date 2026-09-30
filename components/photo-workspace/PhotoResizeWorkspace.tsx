@@ -84,8 +84,7 @@ function StatBox({ label, value, tone }: { label: string; value: number; tone: "
 }
 
 export default function PhotoResizeWorkspace() {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
-  const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle | null>(null);
+  const { currentLocalFolder: rootDir, setCurrentLocalFolder } = usePhotoStudioExecution();
   const [longEdge, setLongEdge] = useState<number>(4000);
   const [quality, setQuality] = useState<number>(95);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -106,7 +105,6 @@ export default function PhotoResizeWorkspace() {
       const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
       if (!picker) { setNotice("Chrome 또는 Edge에서 폴더를 선택할 수 있습니다."); return; }
       const handle = await picker({ mode: "readwrite" });
-      setRootDir(handle);
       setCurrentLocalFolder(handle);
       setNotice("");
     } catch (error) {

@@ -1,6 +1,7 @@
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
 
-const SELECT_MATCH_HREFS = new Set(["/select-match", "/photo-sorting?tool=select-raw"]);
+const SELECT_MATCH_HREFS = new Set(["/select-match", "/photo-sorting?mode=raw-match"]);
+const SELECT_THEN_RAW_PATTERN = /(사진\s*셀렉|직접\s*셀렉|고객\s*셀렉).*(RAW\s*매칭|원본\s*매칭)|(RAW\s*매칭|원본\s*매칭).*(사진\s*셀렉|직접\s*셀렉|고객\s*셀렉)/i;
 // "페이지"/"화면"을 명시하면 OPEN 의도이므로 이 결정론적 RUN 경로를 건너뛰고 기존
 // resolveNavigationCapability(화면 이동) 쪽으로 넘긴다.
 const OPEN_QUALIFIER = /(페이지|화면)/;
@@ -13,6 +14,10 @@ const OPEN_QUALIFIER = /(페이지|화면)/;
 export function isSelectMatchRunIntent(message: string): boolean {
   const trimmed = message.trim();
   if (!trimmed || OPEN_QUALIFIER.test(trimmed)) return false;
+  // This is a clear two-stage request (JPG selection first, RAW matching
+  // second), not a request to merge the two workspace screens.  The existing
+  // chat task keeps that sequence and asks for the actual JPG choice first.
+  if (SELECT_THEN_RAW_PATTERN.test(trimmed)) return true;
   const resolution = resolveFeatureIntent(trimmed);
   // ambiguous(다른 "셀렉" 계열 기능과 겹침)면 여기서 단정하지 않고 기존 경로(GPT/후보 제시)로
   // 넘긴다 — select-match로 확실히 좁혀진 경우만 결정론적으로 가로챈다.

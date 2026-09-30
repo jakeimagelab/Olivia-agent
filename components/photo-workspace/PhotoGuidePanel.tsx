@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { CheckSquare2, Clock, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, PenLine, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
-import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
+import { CheckSquare2, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, PenLine, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
+import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
 import styles from "./PhotoWorkspace.module.css";
 
-type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "metadata_match" | "ai_cull" | "retouch" | "resize" | "rename";
+type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "t_cut" | "retouch" | "resize" | "rename";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
@@ -37,17 +37,11 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: FolderTree, title: "Scene 분류", description: "장면과 유형 기준으로 폴더를 구성합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "분류 결과를 검토하고 저장합니다." },
   ],
-  metadata_match: [
-    { icon: Images, title: "고객 선택본", description: "파일명이 변경된 고객 선택본 폴더를 고릅니다." },
-    { icon: Clock, title: "촬영시간 확인", description: "EXIF 촬영시간으로 원본 JPG를 찾습니다." },
-    { icon: FolderOpen, title: "RAW 원본 선택", description: "연결할 RAW 원본 폴더를 선택합니다." },
-    { icon: FileCheck2, title: "결과 확인", description: "매칭 성공과 확인 필요 항목을 검토합니다." },
-  ],
-  ai_cull: [
-    { icon: FolderOpen, title: "촬영 폴더 선택", description: "정리할 JPG와 RAW 폴더를 선택합니다." },
-    { icon: Scissors, title: "컷 분석", description: "품질과 중복 기준으로 후보를 정리합니다." },
-    { icon: CheckSquare2, title: "후보 검토", description: "남길 사진과 제외할 사진을 확인합니다." },
-    { icon: Link2, title: "RAW 정리", description: "선택한 JPG의 RAW 원본을 결과 폴더에 모읍니다." },
+  t_cut: [
+    { icon: FolderOpen, title: "현재 작업 폴더", description: "사진 작업실에서 선택한 JPG 폴더를 그대로 사용합니다." },
+    { icon: Scissors, title: "T컷 분석", description: "눈 감음·흔들림·얼굴 식별 불가 조명만 검사합니다." },
+    { icon: CheckSquare2, title: "후보 검토", description: "후보를 직접 확인하고 이동할 사진만 선택합니다." },
+    { icon: FolderTree, title: "Trash_JPG 이동", description: "삭제하지 않고 현재 작업 폴더의 Trash_JPG로 옮깁니다." },
   ],
   retouch: [
     { icon: Images, title: "사진 업로드", description: "색감을 확인할 사진을 선택합니다." },
@@ -69,17 +63,17 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
   ],
 };
 
-function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, rawMatchView?: RawMatchView | null): GuideKey {
+function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode): GuideKey {
   if (mode === "select") return `select_${selectMode}` as GuideKey;
-  if (mode === "metadata-select") return "metadata_match";
+  if (mode === "raw-match") return "raw_match";
+  if (mode === "t-cut") return "t_cut";
   if (mode === "retouch") return "retouch";
   if (mode === "resize") return "resize";
   if (mode === "rename") return "rename";
-  if (mode === "raw-match") return rawMatchView === "match" ? "raw_match" : "ai_cull";
   return "classification";
 }
-export default function PhotoGuidePanel({ mode, selectMode, rawMatchView }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode; rawMatchView?: RawMatchView | null }) {
-  const key = guideKey(mode, selectMode, rawMatchView);
+export default function PhotoGuidePanel({ mode, selectMode }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode }) {
+  const key = guideKey(mode, selectMode);
   const steps = GUIDES[key];
   return (
     <aside id="photo-workspace-guide" className={styles.guide} aria-label="사용 가이드">

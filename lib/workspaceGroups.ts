@@ -28,17 +28,19 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "photo",
     title: "사진작업실",
-    description: "RAW 매칭부터 셀렉, 정리, 검색까지 한 번에.",
+    description: "사진 셀렉부터 RAW 매칭, 분류, T컷과 후반 작업까지 한 곳에서.",
     href: "/photo-sorting",
     icon: Camera,
     accent: "mint",
     aliases: ["사진 작업실", "포토 작업실", "사진 도구"],
     tools: [
-      { id: "select-raw", title: "셀렉 & RAW 매칭", href: "/photo-sorting?tool=select-raw", aliases: ["셀렉매칭", "셀렉 매칭", "사진 셀렉", "고객 셀렉", "고객셀렉", "RAW 매칭", "원본 매칭", "매칭"], sourceHrefs: ["/select-match"] },
-      { id: "metadata-match", title: "메타데이터 매칭", href: "/photo-sorting?tool=metadata-match", aliases: ["메타데이터 셀렉", "EXIF 매칭", "촬영시간 매칭"], sourceHrefs: ["/metadata-select"] },
-      { id: "ai-cull", title: "AI 컷 정리", href: "/photo-sorting?tool=ai-cull", aliases: ["AI 컷 정리", "RAW 셀렉", "컷 정리"], sourceHrefs: ["/raw-select"] },
-      { id: "ai-search", title: "AI 사진검색", href: "/photo-sorting?tool=ai-search", aliases: ["AI 사진 검색", "사진 검색", "의미 검색"], sourceHrefs: [] },
+      { id: "photo-select", title: "사진 셀렉", href: "/photo-sorting?mode=select", aliases: ["사진 셀렉", "AI 사진 셀렉", "AI 사진 검색", "사진 검색", "직접 셀렉", "고객 셀렉", "고객셀렉"], sourceHrefs: [] },
+      { id: "raw-match", title: "RAW 매칭", href: "/photo-sorting?mode=raw-match", aliases: ["셀렉매칭", "셀렉 매칭", "RAW 매칭", "원본 매칭", "RAW 셀렉", "매칭"], sourceHrefs: ["/select-match", "/metadata-select"] },
+      { id: "metadata-match", title: "촬영시간 RAW 매칭", href: "/photo-sorting?tool=metadata-match", aliases: ["메타데이터 셀렉", "EXIF 매칭", "촬영시간 매칭"], sourceHrefs: [] },
       { id: "classification", title: "사진 분류", href: "/photo-sorting?tool=classification", aliases: ["사진분류", "Scene 분류", "씬 분류"], sourceHrefs: ["/photo-sorting"] },
+      { id: "t-cut", title: "T컷 정리", href: "/photo-sorting?tool=t-cut", aliases: ["T컷", "T컷 정리", "AI T컷", "AI 컷 정리", "컷정리", "컷 정리", "실패컷"], sourceHrefs: ["/raw-select"] },
+      { id: "resize", title: "사진 리사이즈", href: "/photo-sorting?tool=resize", aliases: ["사진 리사이즈", "이미지 리사이즈", "사진 크기 변경"], sourceHrefs: [] },
+      { id: "rename", title: "이름변경", href: "/photo-sorting?tool=rename", aliases: ["이름변경", "파일명 변경", "사진 이름 변경"], sourceHrefs: [] },
       { id: "retouch", title: "사진 보정", href: "/photo-sorting?tool=retouch", aliases: ["사진보정", "색감 보정", "리터칭"], sourceHrefs: ["/photo-retouching"] },
     ],
   },
@@ -111,13 +113,18 @@ const integratedHrefs = new Set(
 );
 
 const canonicalHrefBySource = new Map<string, string>();
+// EXIF matching is a method inside the RAW matching tab. Its legacy route
+// opens that method directly instead of the filename-matching default.
+const PHOTO_SOURCE_OVERRIDES = new Map<string, string>([
+  ["/metadata-select", "/photo-sorting?tool=metadata-match"],
+]);
 for (const group of WORKSPACE_GROUPS) {
   for (const tool of group.tools) {
     for (const sourceHref of tool.sourceHrefs) {
       // 한 기존 기능이 두 그룹에서 보조 기능으로 보일 수 있다. 먼저 선언된 primary 업무 그룹을
       // Olivia의 canonical 목적지로 사용한다.
       if (!canonicalHrefBySource.has(sourceHref)) {
-        canonicalHrefBySource.set(sourceHref, sourceHref === group.href ? group.href : tool.href);
+        canonicalHrefBySource.set(sourceHref, PHOTO_SOURCE_OVERRIDES.get(sourceHref) ?? (sourceHref === group.href ? group.href : tool.href));
       }
     }
   }

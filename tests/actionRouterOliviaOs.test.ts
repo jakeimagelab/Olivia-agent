@@ -72,7 +72,7 @@ describe("actionRouter — OLIVIA OS routing", () => {
     executeOliviaAction({ type: "OPEN_FEATURE", href: "/select-match?clientId=client-1" });
     let win = useOliviaDesktopStore.getState().windows["photo-workspace"];
     expect(win).toBeDefined();
-    expect(win.context?.routeHref).toBe("/photo-sorting?tool=select-raw&clientId=client-1");
+    expect(win.context?.routeHref).toBe("/photo-sorting?mode=raw-match&clientId=client-1");
     expect(useOliviaDesktopStore.getState().windows["legacy-route"]).toBeUndefined();
 
     executeOliviaAction({ type: "OPEN_FEATURE", href: "/diagnosis" });

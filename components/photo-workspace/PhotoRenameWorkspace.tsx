@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Copy, FolderOpen, FolderOutput, Loader2, PencilLine, ShieldCheck, TriangleAlert } from "lucide-react";
 import { executeRenamePlan } from "@/lib/photoRename/executeRenamePlan";
+import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import {
   buildRenamePlan,
   type RenamePlan,
@@ -62,6 +63,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "rea
 }
 
 export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemDirectoryHandle | null }) {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   const [transferMode, setTransferMode] = useState<RenameTransferMode>("same-folder");
   const [renameMode, setRenameMode] = useState<RenameMode>("template");
   const [templateText, setTemplateText] = useState("");
@@ -105,6 +107,21 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
       const next = await picker({ mode: "readwrite" });
       setDestination(next);
       invalidate();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setMessage(errorMessage(error));
+      setPhase("failed");
+    }
+  };
+
+  const chooseSource = async () => {
+    try {
+      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
+      if (!picker) throw new Error("Chrome 또는 Edge에서 작업 폴더를 선택할 수 있습니다.");
+      const next = await picker({ mode: "readwrite" });
+      setCurrentLocalFolder(next);
+      setMessage("");
+      setPhase("idle");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setMessage(errorMessage(error));
@@ -165,7 +182,8 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
       <section className={styles.empty}>
         <FolderOpen size={28} aria-hidden="true" />
         <strong>현재 작업 폴더가 없습니다.</strong>
-        <p>사진 작업실의 다른 작업에서 로컬 작업 폴더를 선택하면, 그 폴더를 이름변경에 그대로 사용합니다.</p>
+        <p>사진 작업실의 다른 작업에서 선택한 폴더를 그대로 사용하거나, 여기서 바로 시작할 수 있습니다.</p>
+        <button type="button" className={styles.emptyAction} onClick={chooseSource}>폴더 선택</button>
       </section>
     );
   }

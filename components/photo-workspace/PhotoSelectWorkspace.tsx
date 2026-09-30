@@ -28,7 +28,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   onStartRawMatch: () => void;
   remote?: boolean;
 }) {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
+  const { setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
   if (remote) return <RemotePhotoSelectWorkspace />;
 
   return (
@@ -48,9 +48,9 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         ))}
       </div>
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
-        {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onStartRawMatch={onStartRawMatch} /> : null}
-        {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" /> : null}
-        {value === "client" ? <SelectMatchWorkspace embedded initialView="client" /> : null}
+        {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
+        {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
+        {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
       </div>
     </div>
   );

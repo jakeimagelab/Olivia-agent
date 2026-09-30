@@ -9,7 +9,7 @@ import styles from "./OliviaTabletShell.module.css";
 
 const REMOTE_TOOLS: Array<{ id: string; title: string; description: string; icon: IconName }> = [
   { id: "metadata-select", title: "메타데이터 셀렉", description: "촬영 시간과 EXIF 기준으로 후보를 정리합니다.", icon: "metadata-select" },
-  { id: "raw-match", title: "AI 컷 정리 / RAW 매칭", description: "기존 AI 컷 정리와 RAW 원본 연결 작업입니다.", icon: "raw-select" },
+  { id: "t-cut", title: "T컷 정리", description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 정리합니다.", icon: "raw-select" },
   { id: "classification", title: "사진 분류", description: "Scene과 촬영 유형 기준으로 분류합니다.", icon: "photo-studio" },
   { id: "retouch", title: "사진 보정", description: "기존 색감·톤 보정 작업을 요청합니다.", icon: "retouch" },
   { id: "resize", title: "사진 리사이즈", description: "기존 일괄 해상도·품질 변환 작업입니다.", icon: "resolution-convert" },

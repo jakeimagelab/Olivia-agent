@@ -42,6 +42,9 @@ type PhotoStudioExecutionValue = {
   /** File System Access handles cannot be serialized. Keep the active local work folder only while this workspace is open. */
   currentLocalFolder: FileSystemDirectoryHandle | null;
   setCurrentLocalFolder: (folder: FileSystemDirectoryHandle | null) => void;
+  /** JPG selection is deliberately separate from a folder: RAW matching consumes it, other tools do not. */
+  selectedJpgNames: string[];
+  setSelectedJpgNames: (names: readonly string[]) => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -83,6 +86,18 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [workerPollingState, setWorkerPollingState] = useState<RemotePollingState>("idle");
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
   const [currentLocalFolder, setCurrentLocalFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
+
+  const setSelectedJpgNames = useCallback((names: readonly string[]) => {
+    const unique = new Map<string, string>();
+    for (const name of names) {
+      const trimmed = name.trim();
+      if (!trimmed) continue;
+      const key = trimmed.normalize("NFC").toLocaleLowerCase("en-US");
+      if (!unique.has(key)) unique.set(key, trimmed);
+    }
+    setSelectedJpgNamesState([...unique.values()]);
+  }, []);
 
   useEffect(() => {
     try {
@@ -165,6 +180,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     refreshWorkerPresence: () => setWorkerRefreshKey((key) => key + 1),
     currentLocalFolder,
     setCurrentLocalFolder,
+    selectedJpgNames,
+    setSelectedJpgNames,
   }), [
     availableModes,
     clearRemoteJob,
@@ -177,6 +194,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     currentLocalFolder,
     workerPollingState,
     workerPresence,
+    selectedJpgNames,
+    setSelectedJpgNames,
   ]);
 
   return (

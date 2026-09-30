@@ -215,12 +215,12 @@ describe("Deterministic Router — Select/RAW Match RUN 의도 우선(GPT 미호
   it("셀렉매칭 페이지 열어줘 → \"페이지\" 명시 시 여전히 OPEN(페이지 이동)", () => {
     const result = resolveDeterministicResponse("셀렉매칭 페이지 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=select-raw" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?mode=raw-match" }]);
   });
   it("RAW 매칭 화면 보여줘 → \"화면\" 명시 시 여전히 OPEN", () => {
     const result = resolveDeterministicResponse("RAW 매칭 화면 보여줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?tool=select-raw" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/photo-sorting?mode=raw-match" }]);
   });
 });
 

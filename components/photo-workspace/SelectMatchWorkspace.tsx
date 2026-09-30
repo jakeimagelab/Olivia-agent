@@ -45,7 +45,7 @@ const PROGRAM_ARCHIVE_ITEMS = [
 /* ── Types ── */
 type SceneFolder = SelectMatchFolderGroup;
 
-type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick";
+type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
 
 interface Preflight {
   rawFound: number;
@@ -190,16 +190,27 @@ export type SelectMatchInitialView = "raw" | "manual" | "client";
 export function SelectMatchWorkspace({
   embedded = false,
   initialView = "raw",
+  selectionOnly = false,
+  selectedJpgNames = [],
+  onSelectionComplete,
 }: {
   embedded?: boolean;
   initialView?: SelectMatchInitialView;
+  /** 사진 셀렉 탭에서는 JPG 목록만 저장하고 RAW 탐색 UI를 렌더하지 않는다. */
+  selectionOnly?: boolean;
+  /** 사진 셀렉에서 확정한 JPG 이름. RAW 매칭 탭에서만 자동으로 이어받는다. */
+  selectedJpgNames?: readonly string[];
+  onSelectionComplete?: (names: string[]) => void;
 } = {}) {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
+  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
   const [step,       setStep]       = useState<Step>("idle");
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   useEffect(() => {
     if (rootDir) setCurrentLocalFolder(rootDir);
   }, [rootDir, setCurrentLocalFolder]);
+  useEffect(() => {
+    if (!rootDir && currentLocalFolder) setRootDir(currentLocalFolder);
+  }, [currentLocalFolder, rootDir]);
   const [scenes,     setScenes]     = useState<SceneFolder[]>([]);
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
@@ -257,12 +268,36 @@ export function SelectMatchWorkspace({
   const [fmOcrMessage, setFmOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const fmOcrFileRef = useRef<HTMLInputElement>(null);
 
-  /* ── 클라이언트 선택 확정 → raw_pick 단계로 ── */
+  const completeSelection = useCallback((names: Set<string>) => {
+    const selectedNames = Array.from(names);
+    setSelectedJpgNames(selectedNames);
+    onSelectionComplete?.(selectedNames);
+    setStep("selection_done");
+  }, [onSelectionComplete, setSelectedJpgNames]);
+
+  /* ── 클라이언트 선택 확정 → RAW 탭에서만 raw_pick 단계로 ── */
   const confirmClientInput = (names: Set<string>) => {
     if (names.size === 0) { alert("파일명을 찾지 못했습니다. 파일명(DSC_0142.jpg 형태)이 포함된 텍스트를 붙여넣어 주세요."); return; }
     setSelected(names);
+    if (selectionOnly) {
+      completeSelection(names);
+      return;
+    }
     setStep("raw_pick");
   };
+
+  useEffect(() => {
+    if (selectionOnly || initialView !== "raw" || step !== "idle" || selectedJpgNames.length === 0) return;
+    // The photo-select store keeps JPG basenames (the RAW matcher uses the
+    // basename too), while pasted text may include extensions. Do not route
+    // the stored list back through the text-only parser.
+    const names = new Set(selectedJpgNames
+      .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
+      .filter(Boolean));
+    if (!names.size) return;
+    setSelected(names);
+    setStep("raw_pick");
+  }, [initialView, selectedJpgNames, selectionOnly, step]);
 
   /* ── RAW 폴더 별도 선택 ── */
   const pickRawFolder = useCallback(async () => {
@@ -908,7 +943,7 @@ export function SelectMatchWorkspace({
       <FeatureTabs />
       {!embedded ? <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 30, marginBottom: 8 }}>🎯</div>
-        <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>셀렉 & RAW 매칭</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>RAW 매칭</div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>고객 선택 정보를 어떻게 받으셨나요?</div>
       </div> : null}
 
@@ -943,10 +978,14 @@ export function SelectMatchWorkspace({
             <div style={{ textAlign: "center" }}><Btn onClick={loadFolder}>📂 폴더 선택</Btn></div>
           )}
           <div style={{ marginTop: 16, background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
-            촬영폴더/<br />
-            &nbsp;&nbsp;├ <strong>JPG/분류폴더들/</strong> ← JPG 또는 촬영폴더 선택<br />
-            &nbsp;&nbsp;├ <strong>RAW/</strong> — 전체 RAW<br />
-            &nbsp;&nbsp;└ <strong>Selected_RAW/</strong> — 결과물 자동 생성
+            {selectionOnly ? (
+              <>JPG 또는 분류된 사진 폴더를 선택하세요.<br />선택 결과는 사진 작업실의 JPG 선택 목록에만 저장됩니다.</>
+            ) : (
+              <>촬영폴더/<br />
+                &nbsp;&nbsp;├ <strong>JPG/분류폴더들/</strong> ← JPG 또는 촬영폴더 선택<br />
+                &nbsp;&nbsp;├ <strong>RAW/</strong> — 전체 RAW<br />
+                &nbsp;&nbsp;└ <strong>Selected_RAW/</strong> — 결과물 자동 생성</>
+            )}
           </div>
         </div>
       )}
@@ -980,7 +1019,7 @@ export function SelectMatchWorkspace({
           })()}
           <div style={{ marginTop: 14, textAlign: "center" }}>
             <Btn onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
-              다음 — RAW 폴더 선택 →
+              {selectionOnly ? "선택 목록 저장" : "다음 — RAW 폴더 선택 →"}
             </Btn>
           </div>
         </div>
@@ -1041,6 +1080,17 @@ export function SelectMatchWorkspace({
             } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
           }}>RAW 폴더 선택 →</Btn>
         </div>
+      </div>
+    </div>
+  );
+
+  if (step === "selection_done") return (
+    <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28, textAlign: "center" }}>
+        <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
+        <div style={{ fontSize: 16, fontWeight: 900, color: C.teal }}>사진 셀렉 완료</div>
+        <p style={{ margin: "8px 0 20px", color: C.muted, fontSize: 12, lineHeight: 1.7 }}>선택한 JPG {selected.size.toLocaleString("ko-KR")}장을 사진 작업실에 저장했습니다. RAW 매칭 탭에서 이 목록만 사용합니다.</p>
+        <Btn onClick={() => { setStep("idle"); setSelected(new Set()); }}>다시 선택하기</Btn>
       </div>
     </div>
   );
@@ -1265,19 +1315,27 @@ export function SelectMatchWorkspace({
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Btn onClick={runPreflight} disabled={selected.size === 0}>
-            {selected.size > 0 ? `${selected.size}장 → RAW 매칭 확인` : "사진을 선택하세요"}
-          </Btn>
-          <button
-            onClick={pickRawFolder}
-            style={{
-              padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
-              background: rawRootDir ? "#DCFCE7" : "#FEF9C3",
-              border: `1px solid ${rawRootDir ? "#86EFAC" : "#FDE68A"}`,
-              borderRadius: 8, color: rawRootDir ? "#166534" : "#92400E",
-            }}
-            title={rawRootDir ? `RAW 폴더: ${rawRootDir.name}` : "RAW 파일이 있는 폴더를 별도로 선택"}
-          >{rawRootDir ? `📁 ${rawRootDir.name}` : "📂 RAW 폴더 선택"}</button>
+          {selectionOnly ? (
+            <Btn onClick={() => completeSelection(selected)} disabled={selected.size === 0}>
+              {selected.size > 0 ? `선택 ${selected.size}장 저장` : "사진을 선택하세요"}
+            </Btn>
+          ) : (
+            <>
+              <Btn onClick={runPreflight} disabled={selected.size === 0}>
+                {selected.size > 0 ? `${selected.size}장 → RAW 매칭 확인` : "사진을 선택하세요"}
+              </Btn>
+              <button
+                onClick={pickRawFolder}
+                style={{
+                  padding: "6px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+                  background: rawRootDir ? "#DCFCE7" : "#FEF9C3",
+                  border: `1px solid ${rawRootDir ? "#86EFAC" : "#FDE68A"}`,
+                  borderRadius: 8, color: rawRootDir ? "#166534" : "#92400E",
+                }}
+                title={rawRootDir ? `RAW 폴더: ${rawRootDir.name}` : "RAW 파일이 있는 폴더를 별도로 선택"}
+              >{rawRootDir ? `📁 ${rawRootDir.name}` : "📂 RAW 폴더 선택"}</button>
+            </>
+          )}
           <button
             onClick={() => { setStep("idle"); setRootDir(null); setRawRootDir(null); setScenes([]); setSelected(new Set()); }}
             style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}

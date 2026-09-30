@@ -27,9 +27,9 @@ type PhotoOperationJob = {
 };
 
 const OPERATION_PRESENTATION: Record<string, { label: string; mode: string; extra?: string }> = {
-  PHOTO_RAW_MATCH: { label: "Mac Studio RAW 매칭", mode: "raw-match", extra: "&rawMatchView=match" },
+  PHOTO_RAW_MATCH: { label: "Mac Studio RAW 매칭", mode: "raw-match" },
   PHOTO_RESIZE: { label: "Mac Studio 사진 리사이즈", mode: "resize" },
-  PHOTO_AI_SELECT: { label: "Mac Studio AI 컷 정리", mode: "raw-match", extra: "&rawMatchView=ai-cull" },
+  PHOTO_AI_SELECT: { label: "Mac Studio AI 사진 셀렉", mode: "select", extra: "&selectMode=ai" },
   PHOTO_RETOUCH: { label: "Mac Studio 사진 보정 분석", mode: "retouch" },
 };
 

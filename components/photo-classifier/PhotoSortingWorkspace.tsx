@@ -137,7 +137,9 @@ const EMPTY_BOUNDARY_FEATURES = {
   poseChangeScore: 0, sceneTypeChangeScore: 0, visualChangeScore: 0, shotDistanceChangeScore: 0,
 };
 
-const FIELD_STEPS  = ["설정","파일 분류","씬 검토","분석 중","선택 안내","RAW SELECT","완료"];
+// 사진 분류는 Scene/촬영 카테고리 정리까지만 담당한다. JPG 셀렉과 RAW 매칭은
+// 각각 사진 셀렉/RAW 매칭 워크스페이스의 독립 단계다.
+const FIELD_STEPS  = ["설정","파일 분류","씬 검토","정리 중","완료"];
 const STUDIO_STEPS       = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
 const STUDIO_GROUP_STEPS = ["폴더 선택","파일 분류","AI 분석","인물 검토","인물 확인","파일 정리","완료"];
 
@@ -640,16 +642,18 @@ export default function PhotoSortingWorkspace({
   mode = "page",
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
+  onOpenPhotoSelect,
 }: {
   mode?: "page" | "modal" | "embedded";
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
   onClose?: () => void;
+  onOpenPhotoSelect?: () => void;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} />
+      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} onOpenPhotoSelect={onOpenPhotoSelect} />
     </Suspense>
   );
 }
@@ -658,10 +662,12 @@ function PhotoSortingInner({
   mode = "page",
   modalClientId,
   modalWorkflowRunId,
+  onOpenPhotoSelect,
 }: {
   mode?: "page" | "modal" | "embedded";
   modalClientId?: string;
   modalWorkflowRunId?: string;
+  onOpenPhotoSelect?: () => void;
 }) {
   const isModal = mode === "modal";
   const isEmbedded = mode === "embedded";
@@ -679,6 +685,7 @@ function PhotoSortingInner({
     trackRemoteJob,
     clearRemoteJob,
     workerPresence,
+    currentLocalFolder,
     setCurrentLocalFolder,
   } = usePhotoStudioExecution();
 
@@ -689,6 +696,11 @@ function PhotoSortingInner({
   useEffect(() => {
     if (rootDir) setCurrentLocalFolder(rootDir);
   }, [rootDir, setCurrentLocalFolder]);
+  // A folder chosen by 사진 셀렉/RAW 매칭/T컷 is the same active work folder.
+  // Do not replace a folder this classifier already owns during an in-progress session.
+  useEffect(() => {
+    if (!rootDir && currentLocalFolder) setRootDir(currentLocalFolder);
+  }, [currentLocalFolder, rootDir]);
   const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
   // 사진 분류(handleFieldSort)가 다른 페이지로 이동해도 우상단 팝업에 계속 보이게
@@ -813,7 +825,9 @@ function PhotoSortingInner({
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return;
       const data = JSON.parse(raw) as SavedSortingSession;
-      if ((data.version === 1 || data.version === 2) && data.step >= 2) setSavedSession(data);
+      // 이전 버전의 5/6단계는 분류 화면 안의 RAW 셀렉 단계였다. 현재는 RAW
+      // 매칭 탭이 담당하므로, 저장된 세션도 분류 완료(4)까지만 복원한다.
+      if ((data.version === 1 || data.version === 2) && data.step >= 2) setSavedSession({ ...data, step: Math.min(data.step, 4) });
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
@@ -3085,38 +3099,6 @@ function PhotoSortingInner({
                   </div>
                 </Card>
 
-                {/* RAW SELECT 방식 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:900,color:C.teal}}>RAW SELECT 처리 방식</div>
-                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:10}}>
-                    <div className="ps-btn-row">
-                      {(["move","copy"] as const).map(m => (
-                        <button key={m} onClick={()=>setRawSelectMode(m)} style={{flex:1,padding:"12px 0",borderRadius:8,border:`1.5px solid ${rawSelectMode===m?C.teal:C.border}`,background:rawSelectMode===m?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:rawSelectMode===m?900:600,color:rawSelectMode===m?C.teal:C.muted,fontFamily:"inherit"}}>
-                          {m === "move" ? "이동 (권장)" : "복사"}
-                        </button>
-                      ))}
-                    </div>
-                    {rawSelectMode === "copy" && (
-                      <div style={{padding:"10px 14px",background:"#FFF3CD",borderRadius:8,fontSize:11,color:"#856404",border:"1px solid #FFD980"}}>
-                        ⚠️ RAW 파일을 복사하면 저장 용량이 크게 증가할 수 있습니다. 기본 권장 방식은 이동입니다.
-                      </div>
-                    )}
-                    <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.9}}>
-                      <strong>결과 폴더 구조</strong><br/>
-                      {fastAnalyzeMode
-                        ? <>⚡ 빠른 분석 모드: 씬 계획 생성 → 검토 → [폴더 정리 실행] 시 실제 이동<br/></>
-                        : <>🔍 정밀 분류 모드: 하이브리드 Scene 계획 → 검토 → 승인 후 이동<br/></>
-                      }
-                      RAW/ — 전체 RAW 파일{fastAnalyzeMode ? " (정리 실행 후 이동)" : " (이동)"}<br/>
-                      JPG/Scene01/, Scene02/... — JPG 분류 결과<br/>
-                      PROFILE/ — 프로필 사진 (1인·정면·정지 포즈만)<br/>
-                      SELECT/JPG_SELECT/ — 선택한 JPG<br/>
-                      SELECT/RAW_SELECT/ — 선택 RAW ({rawSelectMode === "move" ? "이동" : "복사"})<br/>
-                      REPORT/ — 분류 리포트 (summary.json, profile_report.csv)
-                    </div>
-                  </div>
-                </Card>
-
                 {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                 <Btn
                   onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
@@ -3583,7 +3565,9 @@ function PhotoSortingInner({
     </div>
   );
 
-  const FieldStep4 = () => {
+  // Kept only so pre-existing browser sessions can finish their in-memory state;
+  // it is not rendered from the separated Photo Workspace any longer.
+  const LegacyFieldSelectionStep = () => {
     if (!fieldStats) return null;
 
     /* ── 셀렉 탭: 썸네일 그리드 + 선택 UI ── */
@@ -3748,6 +3732,35 @@ function PhotoSortingInner({
         </div>
 
         {selectTabView==="guide" ? <GuideTab/> : <SelectTab/>}
+      </div>
+    );
+  };
+
+  const FieldStep4 = () => {
+    if (!fieldStats) return null;
+    return (
+      <div style={{maxWidth:640,display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{fontSize:14,fontWeight:800,color:C.green}}>사진 분류 완료</div>
+        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[
+            {label:"씬", value:fieldStats.totalScenes, color:C.teal},
+            {label:"전체 JPG", value:fieldStats.totalJpg, color:C.txt},
+            {label:"프로필", value:fieldStats.totalProfile, color:C.purple},
+          ].concat(fieldStats.totalQualityReject > 0 ? [{label:"품질 제외", value:fieldStats.totalQualityReject, color:C.red}] : []).map(({label,value,color}) => (
+            <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
+              <div style={{fontSize:22,fontWeight:900,color}}>{value}</div>
+              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{background:C.light,border:`1px solid ${C.border}`,borderRadius:10,padding:"14px 16px",fontSize:12,color:C.muted,lineHeight:1.7}}>
+          Scene 폴더 정리가 완료되었습니다. 사용할 JPG 선택은 <strong style={{color:C.teal}}>사진 셀렉</strong>에서,
+          대응 RAW 처리는 <strong style={{color:C.teal}}>RAW 매칭</strong>에서 이어서 진행합니다.
+        </div>
+        <div className="ps-btn-row">
+          <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
+          {onOpenPhotoSelect ? <Btn onClick={onOpenPhotoSelect}>사진 셀렉으로 이동 →</Btn> : null}
+        </div>
       </div>
     );
   };
@@ -4223,8 +4236,6 @@ function PhotoSortingInner({
           {photoMode==="field" && step===2 && <FieldStep2/>}
           {photoMode==="field" && step===3 && <FieldStep3/>}
           {photoMode==="field" && step===4 && <FieldStep4/>}
-          {photoMode==="field" && step===5 && <FieldStep5/>}
-          {photoMode==="field" && step===6 && <FieldStep6/>}
 
           {photoMode==="studio" && step===1 && <StudioStep1/>}
           {photoMode==="studio" && step===2 && <StudioStep2/>}

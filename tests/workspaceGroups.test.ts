@@ -29,7 +29,7 @@ describe("integrated workspace registry", () => {
 
   it("normalizes legacy photo routes and preserves their context query", () => {
     expect(getCanonicalWorkspaceHref("/select-match?clientId=client-1")).toBe(
-      "/photo-sorting?tool=select-raw&clientId=client-1",
+      "/photo-sorting?mode=raw-match&clientId=client-1",
     );
     expect(getCanonicalWorkspaceHref("/metadata-select")).toBe("/photo-sorting?tool=metadata-match");
     expect(getCanonicalWorkspaceHref("/photo-retouching")).toBe("/photo-sorting?tool=retouch");
@@ -45,9 +45,9 @@ describe("photo workspace tool deep links", () => {
     expect(resolvePhotoWorkspaceToolState("retouch")).toMatchObject({ mode: "retouch", selectMode: "manual" });
   });
 
-  it("keeps metadata matching and AI culling inside the photo workspace shell", () => {
-    expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "metadata-select", selectMode: "client" });
-    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "raw-match", selectMode: "manual", rawMatchView: "ai-cull" });
+  it("keeps metadata matching and T컷 cleanup inside the photo workspace shell", () => {
+    expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "raw-match", selectMode: "client", rawMatchMethod: "metadata" });
+    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "t-cut", selectMode: "manual" });
   });
 });
 
