@@ -65,7 +65,11 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
   const supplyAmount = beforeRoundDown - roundDownAmount;
   const vat = Math.round(supplyAmount * 0.1);
   const finalAmount = supplyAmount + vat;
-  const depositRate = Math.min(100, Math.max(0, Number(input.depositRate) || 50));
+  // 0%도 정상 결제조건이다(잔금 100%). 값이 없을 때만 기본 50%를 쓴다.
+  const requestedDepositRate = Number(input.depositRate);
+  const depositRate = Number.isFinite(requestedDepositRate)
+    ? Math.min(100, Math.max(0, requestedDepositRate))
+    : 50;
   const depositAmount = Math.round(finalAmount * depositRate / 100);
   return {
     customTotal,

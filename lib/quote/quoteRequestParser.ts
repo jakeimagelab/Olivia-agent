@@ -21,6 +21,8 @@ export type ParsedQuoteRequest = {
   discount: { label: string | null; type: "percent" | "amount"; value: number } | null;
   fixedTotal: number | null;
   roundDownUnit: number | null;
+  /** null이면 기존 기본 결제조건을 유지하고, 0은 잔금 100%라는 명시적 값이다. */
+  depositRate: number | null;
   memo: string | null;
   unparsedLines: string[];
 };
@@ -28,8 +30,9 @@ export type ParsedQuoteRequest = {
 type CatalogEntry = { id: string; name: string; price: number; package?: boolean };
 
 const EVENT_PATTERN = /(행사|이벤트|기념|주년|세미나|학회|심포지엄|학술대회|개원식|창립|워크숍|오픈식)/i;
-const COMMAND_ENDING = /(?:만들어줘|만들자|해줘|해주세요|부탁해|결정|적용)\s*$/;
+const COMMAND_ENDING = /(?:만들어줘|만들자|해줘|해주세요|부탁해|결정|적용)(?:[.!…]+)?\s*$/;
 const CONTENT_HEADING = /^(?:내용은?|아래와 같이|다음과 같이)$/;
+const GENERIC_QUOTE_REQUEST = /^견적서\s*(?:하나|한\s*개|좀)?\s*(?:만들어줘|만들자|해줘|해주세요|부탁해)(?:[.!…]+)?\s*$/;
 const PHONE = /^0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}$/;
 const CONTACT = /^[^\n]{1,20}(?:[가-힣]{2,}|[A-Za-z]{2,})(?:\s*(?:대표|원장|팀장|실장|매니저|담당자|이사|부장|과장))?님$/;
 const EXTERNAL_ITEM = /(헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|푸드\s*스타일링|재료\s*구입)/i;
@@ -164,10 +167,24 @@ function eventSuffix(clientName: string | null, source: string) {
   return trimmed || null;
 }
 
+function roundDownUnitFromDirective(line: string) {
+  const numbered = /(\d[\d,]*)\s*원?\s*미만\s*절삭/.exec(line);
+  if (numbered) return Number(numbered[1].replaceAll(",", ""));
+  // "만원"은 임의 기본값이 아니라 10,000원을 뜻하는 사용자의 명시적 단위 표현이다.
+  return /만원\s*미만\s*절삭/.test(line) ? 10_000 : null;
+}
+
+function depositRateFromDirective(line: string) {
+  const balance = /잔금(?:은|이)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:로\s*)?(?:진행|기준)?/.exec(line);
+  if (balance) return 100 - Number(balance[1]);
+  const deposit = /(?:선금|계약금)(?:은|이)?\s*(\d+(?:\.\d+)?)\s*%\s*(?:로\s*)?(?:진행|기준)?/.exec(line);
+  return deposit ? Number(deposit[1]) : null;
+}
+
 export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   const result: ParsedQuoteRequest = {
     clientName: null, titleSuffix: null, isEvent: false, contactName: null, phone: null, email: null,
-    emailCorrectedFrom: null, items: [], discount: null, fixedTotal: null, roundDownUnit: null,
+    emailCorrectedFrom: null, items: [], discount: null, fixedTotal: null, roundDownUnit: null, depositRate: null,
     memo: null, unparsedLines: [],
   };
   const meaningfulLines: string[] = [];
@@ -178,12 +195,16 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     meaningfulLines.push(line);
 
     const isDiscountDirective = /(?:\d+(?:\.\d+)?\s*%\s*할인|\d[\d,]*(?:만원|만|원)\s*할인)/.test(line);
-    if (COMMAND_ENDING.test(line) || isDiscountDirective || /\d[\d,]*\s*원?\s*미만\s*절삭/.test(line)) {
-      if (!result.clientName && /견적서/.test(line)) result.clientName = deriveClientName(line);
+    const roundDownUnit = roundDownUnitFromDirective(line);
+    const depositRate = depositRateFromDirective(line);
+    if (COMMAND_ENDING.test(line) || isDiscountDirective || roundDownUnit !== null || depositRate !== null) {
+      // "견적서 하나 만들어줘"는 작업 지시이지 고객명이 아니다. 실제 고객명이 함께
+      // 적힌 "강남스마트치과의원 견적서 만들어줘"만 여기서 고객명으로 읽는다.
+      if (!result.clientName && /견적서/.test(line) && !GENERIC_QUOTE_REQUEST.test(line)) result.clientName = deriveClientName(line);
       const fixed = /총\s*금액/.test(line) ? priceInDirective(line) : null;
       if (fixed !== null) result.fixedTotal = fixed;
-      const round = /(\d[\d,]*)\s*원?\s*미만\s*절삭/.exec(line);
-      if (round) result.roundDownUnit = Number(round[1].replaceAll(",", ""));
+      if (roundDownUnit !== null) result.roundDownUnit = roundDownUnit;
+      if (depositRate !== null && Number.isFinite(depositRate) && depositRate >= 0 && depositRate <= 100) result.depositRate = depositRate;
       const percent = /(.*?)\s*(\d+(?:\.\d+)?)\s*%\s*할인/.exec(line);
       if (percent) result.discount = { label: percent[1].trim().replace(/(?:으로|로)$/, "") || null, type: "percent", value: Number(percent[2]) };
       else if (/할인/.test(line)) {

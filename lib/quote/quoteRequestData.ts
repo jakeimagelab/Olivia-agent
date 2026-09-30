@@ -109,6 +109,9 @@ function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
  */
 export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
   const { request, brand } = input;
+  // 0% 선금은 "잔금 100%"라는 명시적 결제조건이다. || 50을 쓰면 그 값을 조용히
+  // 기본값으로 덮어쓰므로 null일 때만 기존 기본 결제조건을 쓴다.
+  const depositRate = request.depositRate ?? 50;
   const title = titleForParsedQuote(request, brand);
   const requestHasPackage = request.items.some((item) => /패키지/.test(item.name));
   const selectedPackageId = requestHasPackage ? packageIdFor(request.items) : null;
@@ -177,7 +180,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     extraDiscount: requestedExtraDiscount,
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
-    depositRate: 50,
+    depositRate,
   });
   const fixedTotalIsDiscount = adjustmentProbe.specialAdjustmentAmount <= 0;
   const extraDiscount = fixedTotalIsDiscount
@@ -194,7 +197,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     // 대표가 지정한 금액을 조용히 다른 값으로 바꾸지 않는다.
     fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
     roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
-    depositRate: 50,
+    depositRate,
   });
 
   const formState = {
@@ -218,7 +221,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
     roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
     memo: request.memo || "",
-    depositRate: 50,
+    depositRate,
     // 구조화된 단일항목/내용칸도 함께 채운다. 사람이 열어 수정해도 같은 폼 계산기로 이어진다.
     agentOverrideItems: false,
     source: "quote-request-parser",
@@ -242,7 +245,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     totalAmount: totals.finalAmount,
     depositAmount: totals.depositAmount,
     balanceAmount: totals.balanceAmount,
-    depositRate: 50,
+    depositRate,
     memos: request.memo,
     formState,
     totals,

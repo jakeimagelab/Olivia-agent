@@ -44,6 +44,20 @@ smartdentalgn@gamil.com
 
 >> 총 금액 250으로 결정`;
 
+const HEADERED_PHOTOCLINIC_REQUEST = `견적서 하나 만들어줘!
+강남스마트치과의원
+정연호원장님
+010-5554-2859
+smartdentalgn@gamil.com
+프리미엄패키지
+의료진프로필 2명 추가
+포인트영상 서비스
+헤어메이크업 156000원
+모델섭외152000원
+소개할인으로 10%할인적용하고
+만원 미만 절삭
+잔금은 100%로 진행`;
+
 describe("quoteRequestParser", () => {
   it("대표의 제이크이미지 원문을 금액과 설명을 잃지 않고 읽고 절삭한다", () => {
     const request = parseQuoteRequest(JAKE_REQUEST);
@@ -142,6 +156,30 @@ describe("quoteRequestParser", () => {
       supplyAmount: 2_500_000,
       vat: 250_000,
       finalAmount: 2_750_000,
+    });
+  });
+
+  it("생성 지시 첫 줄은 고객명이 아니며 만원 절삭과 잔금 100%를 지시로 읽는다", () => {
+    const request = parseQuoteRequest(HEADERED_PHOTOCLINIC_REQUEST);
+    expect(request).toMatchObject({
+      clientName: "강남스마트치과의원",
+      roundDownUnit: 10_000,
+      depositRate: 0,
+      unparsedLines: [],
+    });
+    expect(request.items).toHaveLength(5);
+    expect(request.items.find((item) => item.name === "모델섭외")?.details).toEqual([]);
+
+    const quote = buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" });
+    expect(titleForParsedQuote(request, "photoclinic")).toBe("강남스마트치과의원 브랜드촬영 견적서");
+    // 절삭은 재계산 시 두 번 적용하지 않도록 form_state의 추가할인으로만 저장한다.
+    expect(quote.formState).toMatchObject({ depositRate: 0, roundDownUnit: null, extraDiscount: 8_000 });
+    expect(quote.totals).toMatchObject({
+      supplyAmount: 2_550_000,
+      vat: 255_000,
+      finalAmount: 2_805_000,
+      depositAmount: 0,
+      balanceAmount: 2_805_000,
     });
   });
 

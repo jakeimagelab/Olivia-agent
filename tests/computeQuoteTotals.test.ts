@@ -81,4 +81,18 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
     });
     expect(totals.supplyAmount).toBe(1_200_000);
   });
+
+  it("잔금 100%를 뜻하는 선금 0%를 50%로 바꾸지 않는다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 1_000_000,
+      singleItemsTotal: 0,
+      optionsTotal: 0,
+      customItems: [],
+      discountRate: 0,
+      extraDiscount: 0,
+      depositRate: 0,
+    });
+    expect(totals.depositAmount).toBe(0);
+    expect(totals.balanceAmount).toBe(totals.finalAmount);
+  });
 });
