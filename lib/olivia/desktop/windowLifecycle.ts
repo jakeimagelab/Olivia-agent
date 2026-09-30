@@ -1,8 +1,7 @@
 import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry";
 import { WINDOW_DOCK_GAP, resolveDockLayout } from "@/components/olivia-os/window/windowDocking";
 import { DESKTOP_DOCK_SAFE_AREA, useOliviaDesktopStore, type OliviaWindowState } from "@/lib/store/useOliviaDesktopStore";
-import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
-import { useWorkspaceStore } from "@/lib/store/workspaceStore";
+import { clearOliviaChatContextLink } from "@/lib/store/oliviaContextStore";
 
 /** 이 셋은 채팅으로 만든 뒤 바로 함께 보여 주는 문서 창이다. */
 export const CHAT_LINKED_DOCUMENT_APP_IDS = new Set(["quote", "contract", "conti"]);
@@ -26,8 +25,7 @@ export function closeOliviaDesktopWindow(windowId: string): void {
 
   // 대화 메시지 기록은 건드리지 않는다. 화면에서 생긴 대상 캐시만 비워, 다음 새 요청이
   // 닫은 문서/고객/금액을 암묵적으로 재사용하지 않게 한다.
-  useOliviaContextStore.getState().clearWindowLink();
-  useWorkspaceStore.getState().closeWorkspace();
+  clearOliviaChatContextLink();
 }
 
 /** 채팅창을 문서창의 자식으로 붙인다. 작은 화면에서도 채팅 최소폭을 먼저 보장한다. */

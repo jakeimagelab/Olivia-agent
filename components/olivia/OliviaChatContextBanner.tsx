@@ -4,7 +4,7 @@ import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { workspaceRegistry } from "@/components/workspace/WorkspaceRegistry";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
-import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { clearOliviaChatContextLink, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaDesktopEffectiveActiveApp } from "@/components/olivia-os/useOliviaDesktopEffectiveActiveApp";
 
 const CLIENT_TARGET_SOURCE_LABEL = {
@@ -40,7 +40,8 @@ export default function OliviaChatContextBanner() {
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientSource = useOliviaContextStore((state) => state.activeClientSource);
-  const clearClientTarget = useOliviaContextStore((state) => state.clearClientTarget);
+  const activeWorkspace = useOliviaContextStore((state) => state.activeWorkspace);
+  const currentDocumentId = useOliviaContextStore((state) => state.currentDocumentId);
 
   const type = useWorkspaceStore((state) => state.type);
   const mode = useWorkspaceStore((state) => state.mode);
@@ -51,7 +52,7 @@ export default function OliviaChatContextBanner() {
   const targetSourceLabel = activeClientSource ? CLIENT_TARGET_SOURCE_LABEL[activeClientSource] : undefined;
   const targetText = `${targetLabel}${targetSourceLabel ? ` (${targetSourceLabel})` : ""}`;
   const clearTargetButton = hasClientTarget ? (
-    <button type="button" onClick={clearClientTarget} aria-label="현재 고객 대상 해제">
+    <button type="button" onClick={clearOliviaChatContextLink} aria-label="현재 고객 대상 해제">
       대상 해제
     </button>
   ) : null;
@@ -64,7 +65,10 @@ export default function OliviaChatContextBanner() {
         ? "콘티"
         : undefined;
 
-  if (effective && windowTitle) {
+  // 문서 창 자체는 닫지 않고 대상만 해제할 수 있다. 이때 남아 있는 창을 다시 "현재 작업"으로
+  // 표시하면 배너가 두 스토어와 어긋난다. 문서 연결이 살아 있을 때만 문서 창을 채팅 상단에 싣는다.
+  const hasDocumentLink = Boolean(activeWorkspace || currentDocumentId);
+  if (effective && windowTitle && (!documentTypeLabel || hasDocumentLink)) {
     const currentWindowLabel = documentTypeLabel
       ? `${documentTypeLabel} · ${windowDocumentTitle || windowTitle}`
       : windowTitle;

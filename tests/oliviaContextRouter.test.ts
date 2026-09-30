@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildOliviaPageContext, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { classifyOliviaRequest } from "@/lib/olivia/v2/modelRouter";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
 describe("Olivia Context와 Model Router", () => {
-  beforeEach(() => useOliviaContextStore.getState().clearContext());
+  beforeEach(() => {
+    useOliviaContextStore.getState().clearContext();
+    useWorkspaceStore.getState().closeWorkspace();
+  });
 
   it("동적 Page Context에 고객·프로젝트·Workspace·선택 항목을 구조화한다", () => {
     const store = useOliviaContextStore.getState();
@@ -23,7 +27,7 @@ describe("Olivia Context와 Model Router", () => {
     });
   });
 
-  it("대화가 확정한 대상의 근거를 보존하고 사용자가 대상만 해제할 수 있다", () => {
+  it("대화가 확정한 대상의 근거를 보존하고 사용자가 대상과 현재 작업을 함께 해제할 수 있다", () => {
     const store = useOliviaContextStore.getState();
     store.setClient("screen-client", "화면 고객", "screen");
     store.setContextLink({
@@ -32,6 +36,11 @@ describe("Olivia Context와 Model Router", () => {
       clientSelectedAt: "2026-09-27T10:00:00.000Z",
       clientSource: "conversation",
       projectId: "project-1",
+    });
+    useWorkspaceStore.getState().openWorkspace("quote", {
+      clientId: "chat-client",
+      clientName: "청담스시",
+      workspaceTitle: "청담스시 브랜드촬영 견적서",
     });
 
     expect(useOliviaContextStore.getState()).toMatchObject({
@@ -47,6 +56,13 @@ describe("Olivia Context와 Model Router", () => {
       activeClientName: undefined,
       activeProjectId: undefined,
       activeClientSource: undefined,
+    });
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      type: null,
+      mode: "home",
+      clientId: undefined,
+      clientName: undefined,
+      workspaceTitle: undefined,
     });
   });
 

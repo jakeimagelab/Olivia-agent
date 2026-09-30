@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { deriveAlias } from "@/lib/olivia/intelligence/aliasResolver";
+import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 
 export type OliviaRecentAction = {
   type: string;
@@ -46,6 +47,18 @@ export type OliviaPageContext = {
   canPublish?: boolean;
   canFinalize?: boolean;
 };
+
+/**
+ * 채팅 상단의 대상과 작업 연결을 함께 해제한다.
+ *
+ * 대상은 Olivia context store, 현재 작업은 workspace store가 각각 소유한다. 둘 중 하나만
+ * 비우면 배너와 다음 요청의 실행 대상이 갈라지므로, 창 닫기·대상 해제·새 대화는 모두 이
+ * 함수만 사용한다.
+ */
+export function clearOliviaChatContextLink(): void {
+  useOliviaContextStore.getState().clearWindowLink();
+  useWorkspaceStore.getState().closeWorkspace();
+}
 
 export type OliviaContextState = {
   // Context Store는 사용자가 지금 보고 있는 위치를 나타낸다. 실제 workflow 단계, 완료 여부,
@@ -416,7 +429,7 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
   })),
   // 수동 "대상 해제"와 창 닫기는 같은 의미여야 한다. 둘 중 하나만 약하게 지우면 상단 표시와
   // 실제 실행 대상이 다시 어긋난다.
-  clearClientTarget: () => useOliviaContextStore.getState().clearWindowLink(),
+  clearClientTarget: () => clearOliviaChatContextLink(),
   clearContext: () => set((state) => ({
     activeClientId: undefined,
     activeClientName: undefined,

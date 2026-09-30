@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
-import { buildOliviaPageContext, getOliviaContextSnapshot, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { buildOliviaPageContext, clearOliviaChatContextLink, getOliviaContextSnapshot, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
 import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
 import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
@@ -408,6 +408,9 @@ export const useOliviaConversationStore = create<OliviaConversationState>((set, 
     const data = await response.json();
     if (!response.ok || !data.ok) throw new Error(data.error || "새 대화를 만들지 못했어요.");
     get().clearConversation();
+    // 새 대화는 메시지뿐 아니라 화면에서 이어진 고객/문서/작업 연결도 끝낸다. 이전 문서가
+    // 다음 요청의 암묵적 대상으로 남으면 안 된다.
+    clearOliviaChatContextLink();
     set({ conversationId: data.conversationId });
   },
 

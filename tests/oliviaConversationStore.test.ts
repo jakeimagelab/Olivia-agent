@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type { OliviaMessage } from "@/lib/olivia/v2/types";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 
 const message: OliviaMessage = {
   id: "message-1",
@@ -13,6 +15,8 @@ const message: OliviaMessage = {
 
 describe("Olivia conversation store", () => {
   beforeEach(() => {
+    useOliviaContextStore.getState().clearWindowLink();
+    useWorkspaceStore.getState().closeWorkspace();
     useOliviaConversationStore.setState({
       conversationId: undefined,
       messages: [],
@@ -24,6 +28,8 @@ describe("Olivia conversation store", () => {
       lastFailedContent: undefined,
     });
   });
+
+  afterEach(() => vi.unstubAllGlobals());
 
   it("keeps one runtime messages array for every subscriber", () => {
     const firstSubscriber = useOliviaConversationStore.getState;
@@ -48,5 +54,41 @@ describe("Olivia conversation store", () => {
     expect(next.isSending).toBe(true);
     expect(next.isStreaming).toBe(true);
     expect(next.agentStatus).toBe("확인 중…");
+  });
+
+  it("새 대화는 이전 대화와 화면의 고객·문서·작업 연결을 함께 초기화한다", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, conversationId: "conversation-new" }),
+    }));
+    useOliviaContextStore.getState().setClient("client-old", "1989 청담 스시", "conversation");
+    useOliviaContextStore.getState().setWorkspace("quote", "quote-old");
+    useOliviaContextStore.getState().setCurrentDocument("quote-old", "quote", "1989 청담 스시 견적서");
+    useWorkspaceStore.getState().openWorkspace("quote", {
+      clientId: "client-old",
+      clientName: "1989 청담 스시",
+      resourceId: "quote-old",
+      workspaceTitle: "1989 청담 스시 견적서",
+    });
+    useOliviaConversationStore.getState().appendMessage(message);
+
+    await useOliviaConversationStore.getState().startNewConversation();
+
+    expect(useOliviaConversationStore.getState()).toMatchObject({
+      conversationId: "conversation-new",
+      messages: [],
+    });
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: undefined,
+      activeWorkspace: undefined,
+      currentDocumentId: undefined,
+      recentEntities: [],
+    });
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      type: null,
+      mode: "home",
+      clientName: undefined,
+      workspaceTitle: undefined,
+    });
   });
 });

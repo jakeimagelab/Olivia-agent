@@ -131,7 +131,12 @@ describe("actionRouter — OLIVIA OS routing", () => {
       currentDocumentId: undefined,
       recentEntities: [],
     });
-    expect(useWorkspaceStore.getState().mode).toBe("home");
+    expect(useWorkspaceStore.getState()).toMatchObject({
+      mode: "home",
+      type: null,
+      clientName: undefined,
+      workspaceTitle: undefined,
+    });
   });
 
   it("ENTER_FULLSCREEN/EXIT_FULLSCREEN은 OS 라우트에서 legacy fullscreen으로 전환하지 않는다", () => {

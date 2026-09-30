@@ -1,5 +1,5 @@
 import { useWorkspaceStore, type WorkspaceType } from "@/lib/store/workspaceStore";
-import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { clearOliviaChatContextLink, useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import type { OliviaUiAction } from "@/lib/olivia/agent/actionTypes";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
 import { navigateToFeature, syncCanonicalWorkspaceUrl } from "@/lib/olivia/features/navigationBridge";
@@ -143,9 +143,8 @@ export function executeOliviaAction(action: OliviaUiAction) {
       return;
     }
     case "CLOSE_WORKSPACE": {
-      workspace.closeWorkspace();
-      context.setWorkspace(undefined, undefined);
-      context.clearSelection();
+      // Legacy workspace도 문서를 닫는 경로다. 고객 대상과 현재 작업은 언제나 같이 해제한다.
+      clearOliviaChatContextLink();
       // OLIVIA OS(P0): legacy layout.closeWorkspaceMode()는 Desktop 레이아웃에 영향을 주지
       // 않지만(OliviaWorkspaceShell은 OS route에서 항상 chatPortal만 반환), 실제 AppWindow를
       // 닫는 건 Desktop Window Manager(Dock/헤더의 닫기 버튼)가 담당 — 이번 P0은 full-page
