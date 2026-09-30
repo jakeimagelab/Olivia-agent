@@ -30,6 +30,12 @@ export default function OliviaChatContextBanner() {
   const windowTitle = useOliviaDesktopStore((state) => (
     effective ? state.windows[effective.windowId]?.title : undefined
   ));
+  const windowDocumentType = useOliviaDesktopStore((state) => (
+    effective ? state.windows[effective.windowId]?.context?.documentType : undefined
+  ));
+  const windowDocumentTitle = useOliviaDesktopStore((state) => (
+    effective ? state.windows[effective.windowId]?.context?.documentTitle : undefined
+  ));
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
@@ -50,10 +56,21 @@ export default function OliviaChatContextBanner() {
     </button>
   ) : null;
 
+  const documentTypeLabel = windowDocumentType === "quote"
+    ? "견적서"
+    : windowDocumentType === "contract"
+      ? "계약서"
+      : windowDocumentType === "conti"
+        ? "콘티"
+        : undefined;
+
   if (effective && windowTitle) {
+    const currentWindowLabel = documentTypeLabel
+      ? `${documentTypeLabel} · ${windowDocumentTitle || windowTitle}`
+      : windowTitle;
     return (
       <div className="olivia-chat-context-banner">
-        <span>지금 대상: {targetText} · 현재 창: {windowTitle}</span>
+        <span>지금 대상: {targetText} · 현재 창: {currentWindowLabel}</span>
         {clearTargetButton}
         <button type="button" onClick={() => focusWindow(effective.windowId)}>
           창 보기

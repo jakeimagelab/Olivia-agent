@@ -6,6 +6,7 @@ import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
 import { StatusPanelButton } from "./StatusPanelButton";
+import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import styles from "./OliviaDesktop.module.css";
 
 type MenuKey = "파일" | "편집" | "보기" | "이동" | "도구" | "도움말";
@@ -20,7 +21,6 @@ export function DesktopTopBar({ onOpenOverlay }: {
   const menuRef = useRef<HTMLDivElement>(null);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
-  const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function DesktopTopBar({ onOpenOverlay }: {
     if (openMenu === "파일") return <>
       <button type="button" onClick={() => launch("all-apps")}>모든 앱 열기</button>
       <span className={styles.menuDivider} />
-      <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기 <kbd>⌘W</kbd></button>
+      <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeOliviaDesktopWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기 <kbd>⌘W</kbd></button>
     </>;
     if (openMenu === "편집") return <button type="button" disabled>편집 명령은 활성 앱에서 사용</button>;
     if (openMenu === "보기") return <>

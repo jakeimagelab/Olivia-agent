@@ -8,6 +8,7 @@ import { useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA, type OpenAppInput } from
 import { getOliviaApp, resolveOliviaAppRoute } from "@/components/olivia-os/registry/oliviaAppRegistry";
 import { resolveSnapBounds } from "@/components/olivia-os/window/snapZones";
 import { contextFromHref } from "@/lib/olivia/desktop/windowContext";
+import { attachOliviaChatToDocumentWindow, closeOliviaDesktopWindow, isChatLinkedDocumentWindow } from "@/lib/olivia/desktop/windowLifecycle";
 
 const HOME_PREFIX = "/admin/dashboard/home";
 
@@ -41,6 +42,9 @@ const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, 
 function openOrFocusDesktopApp(input: OpenAppInput) {
   const store = useOliviaDesktopStore.getState();
   store.openApp(input);
+  if (isChatLinkedDocumentWindow(useOliviaDesktopStore.getState().windows[input.appId])) {
+    attachOliviaChatToDocumentWindow(input.appId);
+  }
 }
 
 // Olivia 2.0 Phase 1 — 채팅/카드로 워크스페이스를 열거나 바꿀 때, 지금 홈이 아니면 주소창도
@@ -94,6 +98,10 @@ export function executeOliviaAction(action: OliviaUiAction) {
           clientId: action.clientId, clientName: action.clientName,
           projectId: action.workflowRunId, projectName: action.projectName,
           resourceId: action.resourceId, resourceType: action.workspace,
+          ...( ["quote", "contract", "conti"].includes(appId) ? {
+            documentId: action.resourceId,
+            documentType: appId,
+          } : {}),
         }) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
@@ -123,6 +131,10 @@ export function executeOliviaAction(action: OliviaUiAction) {
           clientId: action.clientId, clientName: action.clientName,
           projectId: action.workflowRunId, projectName: action.projectName,
           resourceId: action.resourceId, resourceType: action.workspace,
+          ...( ["quote", "contract", "conti"].includes(appId) ? {
+            documentId: action.resourceId,
+            documentType: appId,
+          } : {}),
         }) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
@@ -231,6 +243,10 @@ export function executeOliviaAction(action: OliviaUiAction) {
         const nativeContext = appId && routeContext ? {
           ...routeContext,
           resourceType: ["quote", "contract", "conti"].includes(appId) ? appId : routeContext.resourceType,
+          ...( ["quote", "contract", "conti"].includes(appId) ? {
+            documentId: routeContext.resourceId,
+            documentType: appId,
+          } : {}),
         } : undefined;
         const input = appId ? desktopAppInputFor(appId, nativeContext) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
@@ -263,7 +279,7 @@ export function executeOliviaAction(action: OliviaUiAction) {
     case "CLOSE_ACTIVE_WINDOW": {
       if (!isOliviaOsRoute()) return;
       const desktop = useOliviaDesktopStore.getState();
-      if (desktop.activeWindowId) desktop.closeWindow(desktop.activeWindowId);
+      if (desktop.activeWindowId) closeOliviaDesktopWindow(desktop.activeWindowId);
       return;
     }
     case "MINIMIZE_ACTIVE_WINDOW": {

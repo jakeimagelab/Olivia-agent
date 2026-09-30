@@ -48,12 +48,16 @@ export function useOliviaDesktopContextBridge() {
   const windowResourceId = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.resourceId : undefined);
   const windowDocumentId = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentId : undefined);
   const windowDocumentType = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentType : undefined);
+  const windowDocumentTitle = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentTitle : undefined);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const activeProjectId = useOliviaContextStore((state) => state.activeProjectId);
   const activeProjectName = useOliviaContextStore((state) => state.activeProjectName);
   const activeWorkspace = useOliviaContextStore((state) => state.activeWorkspace);
   const activeResourceId = useOliviaContextStore((state) => state.activeResourceId);
+  const currentDocumentId = useOliviaContextStore((state) => state.currentDocumentId);
+  const currentDocumentType = useOliviaContextStore((state) => state.currentDocumentType);
+  const currentDocumentTitle = useOliviaContextStore((state) => state.currentDocumentTitle);
 
   // Workspace/resource sync. 이 effect는 app 또는 window resource가 바뀔 때만 실행된다.
   useEffect(() => {
@@ -96,11 +100,11 @@ export function useOliviaDesktopContextBridge() {
     const context = useOliviaContextStore.getState();
     const seed = resolveDocumentContextSeed({
       windowId: effectiveWindowId,
-      windowValue: { id: windowDocumentId, type: windowDocumentType },
-      activeValue: { id: context.currentDocumentId, type: context.currentDocumentType },
+      windowValue: { id: windowDocumentId, type: windowDocumentType, title: windowDocumentTitle },
+      activeValue: { id: context.currentDocumentId, type: context.currentDocumentType, title: context.currentDocumentTitle },
     });
-    if (seed) context.setCurrentDocument(seed.id, seed.type);
-  }, [effectiveWindowId, windowDocumentId, windowDocumentType]);
+    if (seed) context.setCurrentDocument(seed.id, seed.type, seed.title);
+  }, [effectiveWindowId, windowDocumentId, windowDocumentType, windowDocumentTitle]);
 
   // 기존 feature가 Olivia context store에 기록한 실제 선택을 활성 Window에도 되돌려 적는다.
   // 동일 값이면 쓰지 않는다. 앞의 seed effect가 같은 commit에서 store를 바꿀 수 있으므로
@@ -123,9 +127,12 @@ export function useOliviaDesktopContextBridge() {
         projectName: latest.activeProjectName,
         workspace: latest.activeWorkspace,
         resourceId: latest.activeResourceId,
+        documentId: latest.currentDocumentId,
+        documentType: latest.currentDocumentType,
+        documentTitle: latest.currentDocumentTitle,
       },
     });
     if (areWindowContextsEqual(win.context, next)) return;
     desktop.updateWindowContext(effectiveWindowId, next);
-  }, [activeClientId, activeClientName, activeProjectId, activeProjectName, activeResourceId, activeWorkspace, effectiveAppId, effectiveWindowId]);
+  }, [activeClientId, activeClientName, activeProjectId, activeProjectName, activeResourceId, activeWorkspace, currentDocumentId, currentDocumentType, currentDocumentTitle, effectiveAppId, effectiveWindowId]);
 }

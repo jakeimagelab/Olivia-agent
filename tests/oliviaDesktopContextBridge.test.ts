@@ -4,6 +4,7 @@ import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry"
 import {
   buildWindowContextFromOlivia,
   getWindowClientSyncKey,
+  resolveDocumentContextSeed,
   resolveNamedContextSeed,
 } from "@/lib/olivia/desktopContextBridgeSync";
 import { areWindowContextsEqual, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
@@ -97,5 +98,34 @@ describe("useOliviaDesktopContextBridge — customer source ownership", () => {
     expect(getWindowClientSyncKey("customer", nextWindow)).toEqual(getWindowClientSyncKey("customer", customerWindow));
     expect(areWindowContextsEqual(customerWindow, nextWindow)).toBe(true);
     expect(namedSeed(nextWindow, { id: "client-b", name: "고객 B" })).toBeNull();
+  });
+});
+
+describe("useOliviaDesktopContextBridge — 문서 창 제목", () => {
+  it("문서 제목이 바뀌면 id가 같아도 채팅 상단으로 다시 동기화한다", () => {
+    expect(resolveDocumentContextSeed({
+      windowId: "quote",
+      windowValue: { id: "quote-1", type: "quote", title: "청담스시 브랜드촬영 견적서" },
+      activeValue: { id: "quote-1", type: "quote", title: "견적서" },
+    })).toEqual({ id: "quote-1", type: "quote", title: "청담스시 브랜드촬영 견적서" });
+  });
+
+  it("견적서 창의 실제 제목을 WindowContext에도 보관한다", () => {
+    expect(buildWindowContextFromOlivia({
+      appId: "quote",
+      mappedWorkspace: "quote",
+      windowContext: { resourceId: "quote-1", documentType: "quote" },
+      oliviaContext: {
+        workspace: "quote",
+        resourceId: "quote-1",
+        documentId: "quote-1",
+        documentType: "quote",
+        documentTitle: "청담스시 브랜드촬영 견적서",
+      },
+    })).toMatchObject({
+      documentId: "quote-1",
+      documentType: "quote",
+      documentTitle: "청담스시 브랜드촬영 견적서",
+    });
   });
 });

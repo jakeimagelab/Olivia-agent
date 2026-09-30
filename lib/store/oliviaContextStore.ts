@@ -113,6 +113,8 @@ export type OliviaContextState = {
   setSelectedScene: (id?: string) => void;
   clearPageContext: () => void;
   clearSelection: () => void;
+  /** 창을 닫았을 때의 연결 해제. 채팅 기록은 남기되, 다음 요청에 쓸 대상 캐시는 비운다. */
+  clearWindowLink: () => void;
   clearClientTarget: () => void;
   clearContext: () => void;
 };
@@ -375,22 +377,46 @@ export const useOliviaContextStore = create<OliviaContextState>((set) => ({
     lastAction: "clearSelection",
     revision: state.revision + 1,
   })),
-  clearClientTarget: () => set((state) => ({
+  clearWindowLink: () => set((state) => ({
     activeClientId: undefined,
     activeClientName: undefined,
     activeClientSelectedAt: undefined,
     activeClientSource: undefined,
     activeProjectId: undefined,
     activeProjectName: undefined,
+    activeWorkspace: undefined,
     activeResourceId: undefined,
+    selectedEntityId: undefined,
+    selectedEntityType: undefined,
+    selectedScheduleId: undefined,
+    selectedRowId: undefined,
+    selectedSceneId: undefined,
+    pageMode: undefined,
+    capabilities: undefined,
+    documentStatus: undefined,
+    brand: undefined,
+    canEdit: undefined,
+    canComplete: undefined,
+    canPublish: undefined,
+    canFinalize: undefined,
     currentDocumentId: undefined,
     currentDocumentType: undefined,
     currentDocumentTitle: undefined,
     currentDocumentTotal: undefined,
     currentDocumentDirty: undefined,
-    lastAction: "clearClientTarget",
+    // 대화 메시지 자체는 별도 저장소에 남는다. 다만 닫은 문서를 새 요청의 암묵적 대상으로
+    // 다시 쓰지 않도록, 화면 연결에서 생긴 최근 대상/도구 캐시만 비운다.
+    recentActions: [],
+    recentEntities: [],
+    aliases: {},
+    lastTool: undefined,
+    lastIntent: undefined,
+    lastAction: "clearWindowLink",
     revision: state.revision + 1,
   })),
+  // 수동 "대상 해제"와 창 닫기는 같은 의미여야 한다. 둘 중 하나만 약하게 지우면 상단 표시와
+  // 실제 실행 대상이 다시 어긋난다.
+  clearClientTarget: () => useOliviaContextStore.getState().clearWindowLink(),
   clearContext: () => set((state) => ({
     activeClientId: undefined,
     activeClientName: undefined,

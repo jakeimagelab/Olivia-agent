@@ -50,6 +50,28 @@ describe("Olivia Context와 Model Router", () => {
     });
   });
 
+  it("문서 창을 닫으면 메시지는 남기고 실행 대상 캐시만 전부 해제한다", () => {
+    const store = useOliviaContextStore.getState();
+    store.setClient("client-1", "청담스시", "screen");
+    store.setWorkspace("quote", "quote-1");
+    store.setCurrentDocument("quote-1", "quote", "청담스시 브랜드촬영 견적서");
+    store.setLastToolIntent("open_document", "open");
+    store.rememberEntity({ type: "quote", id: "quote-1", name: "청담스시 견적서" });
+
+    store.clearWindowLink();
+
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: undefined,
+      activeWorkspace: undefined,
+      activeResourceId: undefined,
+      currentDocumentId: undefined,
+      lastTool: undefined,
+      lastIntent: undefined,
+      recentActions: [],
+      recentEntities: [],
+    });
+  });
+
   it("E. Workspace와 문서가 바뀌면 row/scene transient context를 정리한다", () => {
     const store = useOliviaContextStore.getState();
     store.setWorkspace("conti", "conti-1");

@@ -13,6 +13,7 @@ export type WorkspaceContextValue = {
 export type DocumentContextValue = {
   id?: string;
   type?: string;
+  title?: string;
 };
 
 export type OliviaBridgeContext = {
@@ -22,6 +23,9 @@ export type OliviaBridgeContext = {
   projectName?: string;
   workspace?: string;
   resourceId?: string;
+  documentId?: string;
+  documentType?: string;
+  documentTitle?: string;
 };
 
 /**
@@ -69,7 +73,7 @@ export function resolveDocumentContextSeed({
   activeValue: DocumentContextValue;
 }): DocumentContextValue | null {
   if (!windowId) return null;
-  if (windowValue.id === activeValue.id && windowValue.type === activeValue.type) return null;
+  if (windowValue.id === activeValue.id && windowValue.type === activeValue.type && windowValue.title === activeValue.title) return null;
   return windowValue;
 }
 
@@ -108,6 +112,15 @@ export function buildWindowContextFromOlivia({
       ? oliviaContext.resourceId
       : windowContext?.resourceId,
     resourceType: mappedWorkspace ?? windowContext?.resourceType,
+    documentId: mappedWorkspace && oliviaContext.workspace === mappedWorkspace
+      ? oliviaContext.documentId
+      : windowContext?.documentId,
+    documentType: mappedWorkspace && oliviaContext.workspace === mappedWorkspace
+      ? oliviaContext.documentType
+      : windowContext?.documentType,
+    documentTitle: mappedWorkspace && oliviaContext.workspace === mappedWorkspace
+      ? oliviaContext.documentTitle
+      : windowContext?.documentTitle,
   };
 }
 

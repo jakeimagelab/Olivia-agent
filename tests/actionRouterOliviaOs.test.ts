@@ -3,6 +3,7 @@ import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { useOliviaDesktopStore, resetDesktopSession } from "@/lib/store/useOliviaDesktopStore";
 import { useWorkspaceStore } from "@/lib/store/workspaceStore";
 import { useOliviaLayoutStore } from "@/lib/store/useOliviaLayoutStore";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 // OLIVIA OS Chat → Desktop Window Routing Fix(P0) — OS canonical route("/", "/desktop")에서는
 // 채팅 명령이 절대 legacy full-page route로 이동하면 안 된다(대신 AppWindow open/focus).
@@ -16,6 +17,7 @@ describe("actionRouter — OLIVIA OS routing", () => {
     resetDesktopSession();
     useWorkspaceStore.setState({ type: null, mode: "home" });
     useOliviaLayoutStore.setState({ mode: "idle", previousMode: undefined });
+    useOliviaContextStore.getState().clearContext();
   });
 
   afterEach(() => {
@@ -44,7 +46,8 @@ describe("actionRouter — OLIVIA OS routing", () => {
     const firstId = useOliviaDesktopStore.getState().windows["conti"].zIndex;
     executeOliviaAction({ type: "SWITCH_WORKSPACE", workspace: "conti" });
 
-    expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(1);
+    // 문서 창은 채팅창과 한 묶음으로 연다. 두 번째 요청도 새 창을 더 만들지 않는다.
+    expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(2);
     expect(useOliviaDesktopStore.getState().activeWindowId).toBe("conti");
     expect(useOliviaDesktopStore.getState().windows["conti"].zIndex).toBeGreaterThanOrEqual(firstId);
   });
@@ -97,6 +100,38 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(win.context?.resourceId).toBe("quote-2");
     expect(win.context?.clientName).toBe("글로리의원");
     expect(win.title).toContain("글로리의원");
+  });
+
+  it("문서 창은 채팅창에 붙어서 열리고, 닫으면 채팅 연결 대상도 함께 해제한다", () => {
+    stubPathname("/");
+    useOliviaDesktopStore.setState({ workspaceWidth: 1600, workspaceHeight: 1000 });
+    executeOliviaAction({
+      type: "OPEN_WORKSPACE",
+      workspace: "quote",
+      clientId: "client-1",
+      clientName: "청담스시",
+      resourceId: "quote-1",
+    });
+
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"]?.parentWindowId).toBe("quote");
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: "client-1",
+      activeWorkspace: "quote",
+      activeResourceId: "quote-1",
+    });
+
+    executeOliviaAction({ type: "CLOSE_ACTIVE_WINDOW" });
+
+    expect(useOliviaDesktopStore.getState().windows.quote).toBeUndefined();
+    expect(useOliviaDesktopStore.getState().windows["olivia-chat"]?.parentWindowId).toBeUndefined();
+    expect(useOliviaContextStore.getState()).toMatchObject({
+      activeClientId: undefined,
+      activeWorkspace: undefined,
+      activeResourceId: undefined,
+      currentDocumentId: undefined,
+      recentEntities: [],
+    });
+    expect(useWorkspaceStore.getState().mode).toBe("home");
   });
 
   it("ENTER_FULLSCREEN/EXIT_FULLSCREEN은 OS 라우트에서 legacy fullscreen으로 전환하지 않는다", () => {

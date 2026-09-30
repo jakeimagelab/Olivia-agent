@@ -32,6 +32,7 @@
 .saveState > span { width: 6px; height: 6px; border-radius: 50%; background: #43b986; box-shadow: 0 0 0 3px rgba(67,185,134,.1); }
 .saveStateFailed { color: #b74e32; cursor: pointer; }
 .saveStateFailed > span { background: #e85d2c; }
+.saveStateFailed small { display: block; color: #8d5b50; font-size: 8.5px; font-weight: 750; white-space: normal; }
 .actionMenu { position: relative; }
 .actionPopover { position: absolute; z-index: 30; top: calc(100% + 7px); right: 0; min-width: 150px; overflow: hidden; border: 1px solid rgba(21,88,85,.12); border-radius: 12px; background: #fff; box-shadow: 0 16px 38px rgba(21,58,52,.14); }
 .actionPopover button { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid rgba(21,88,85,.07); padding: 0 13px; background: #fff; color: #315f59; font-size: 11px; font-weight: 800; cursor: pointer; }
@@ -43,7 +44,7 @@
 .editorToolbar button:hover:not(:disabled) { background: #eaf3f0; color: #155855; }
 .editorToolbar button:disabled { opacity: .35; cursor: default; }
 .editorToolbar span { color: #617c76; font-size: 10px; font-weight: 750; }
-.workspaceError { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #f1c8b8; padding: 9px 13px; background: #fff6f1; color: #a7462c; font-size: 10.5px; font-weight: 750; }
+.workspaceError { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #f1c8b8; border-left: 4px solid #c43c2a; padding: 9px 13px; background: #fff6f1; color: #a7462c; font-size: 10.5px; font-weight: 750; }.workspaceError span { display: grid; gap: 3px; }.workspaceError small { color: #8d5b50; font-size: 9px; font-weight: 750; }
 .workspaceError button { border: 0; border-radius: 8px; padding: 5px 9px; background: #e85d2c; color: #fff; font-size: 9.5px; font-weight: 850; cursor: pointer; }
 
 .tableSection { min-width: 0; border: 1px solid rgba(21,88,85,.1); background: #fff; box-shadow: 0 14px 36px rgba(24,62,57,.055); }

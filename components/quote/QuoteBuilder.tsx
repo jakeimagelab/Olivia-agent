@@ -418,7 +418,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const lastKnownUpdatedAtRef = useRef<string | undefined>(undefined);
   const [dirty, setDirty] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const saveFailureNotice = saveFailureReason
+    ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
+    : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
 
   useEffect(() => {
     const date = todayValue().replaceAll("-", "");
@@ -900,6 +904,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         lastSavedFormStateRef.current = JSON.stringify(savedData.formState ?? null);
         setDirty(false);
       }
+      setSaveFailureReason("");
       // 저장이 실제로 성공한 지금이 새 기준선이다 — dirtyFields를 비워서 Agent가 이후 이
       // 필드들을 다시 patch할 수 있게 한다(모드에 상관없이 적용, page 모드는 지금까지
       // dirty 추적 자체가 없었다).
@@ -914,7 +919,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       }
       return savedData;
     } catch (error) {
-      setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${error instanceof Error ? error.message : "네트워크 오류"}`);
+      const reason = error instanceof Error ? error.message : "네트워크 오류";
+      setSaveFailureReason(reason);
+      setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${reason}`);
       return null;
     }
   };
@@ -1101,7 +1108,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setRecentQuoteMessage("");
     const data = buildContractQuoteData();
     const saved = await saveRecentQuote(data);
-    if (saved) setRecentQuoteMessage("현재 입력 내용을 DB에 저장했습니다.");
+    if (saved) {
+      setAutosaveStatus("saved");
+      setRecentQuoteMessage("현재 입력 내용을 DB에 저장했습니다.");
+    } else {
+      setAutosaveStatus("error");
+    }
     setManualSaving(false);
   };
   useSaveShortcut(handleManualSave);
@@ -1878,7 +1890,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       {isModal && !isDesktopWindow ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 20px", borderBottom: "1px solid rgba(21,88,85,.1)", background: "#fafaf8" }}>
           <span style={{ fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
-            {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+            {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
           </span>
         </div>
       ) : null}
@@ -2646,6 +2658,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           (showDownloadMenu)와 로직을 그대로 재사용하고, 바 바로 위에 뜨도록 자리만 옮겼다. */}
       {isDesktopWindow && (
         <div style={{ position: "sticky", bottom: 0, zIndex: 20 }}>
+          {autosaveStatus === "error" ? (
+            <div role="alert" style={{ margin: "0 20px 8px", border: "1px solid #efb7aa", borderLeft: "4px solid #c43c2a", borderRadius: 8, padding: "9px 12px", background: "#fff4f1", color: "#9e321f", fontSize: 12, fontWeight: 700, lineHeight: 1.55 }}>
+              {saveFailureNotice}
+            </div>
+          ) : null}
           {showDownloadMenu && (
             <div style={{
               position: "absolute", bottom: "100%", right: 20, marginBottom: 4, zIndex: 30,
@@ -2669,7 +2686,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           )}
           <ActionBar
-            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
             actions={[
               { key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> },
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },

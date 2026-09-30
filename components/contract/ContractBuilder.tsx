@@ -90,7 +90,11 @@ export default function ContractBuilder({
   const pendingSaveRef = useRef<Promise<string | null> | null>(null);
   const [dirty, setDirty] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const saveFailureNotice = saveFailureReason
+    ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
+    : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
 
   // QuoteBuilder.tsx는 이 4줄을 이미 갖고 있지만 ContractBuilder.tsx엔 없었다 — 채팅 경유로
   // 열릴 때는 actionRouter.ts의 OPEN_WORKSPACE 케이스가 대신 context.setWorkspace()를 호출해
@@ -734,6 +738,8 @@ export default function ContractBuilder({
         savedId = d.id;
       }
       setSaveState("saved");
+      setSaveFailureReason("");
+      setAutosaveStatus("saved");
       setTimeout(() => setSaveState("idle"), 2000);
       if (isModal) {
         lastSavedSnapshotRef.current = JSON.stringify({ quote, signatureDataUrl });
@@ -741,8 +747,11 @@ export default function ContractBuilder({
       }
       return savedId;
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "계약서를 저장하지 못했습니다.");
+      const reason = saveError instanceof Error ? saveError.message : "계약서를 저장하지 못했습니다.";
+      setError(reason);
+      setSaveFailureReason(reason);
       setSaveState("error");
+      setAutosaveStatus("error");
       setTimeout(() => setSaveState("idle"), 3000);
       return null;
     }
@@ -822,7 +831,7 @@ export default function ContractBuilder({
 
       {isModal ? (
         <div style={{ padding: "8px 20px", fontSize: 11.5, fontWeight: 700, color: autosaveStatus === "error" ? "#DC2626" : "#5a7470" }}>
-          {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+          {autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
         </div>
       ) : null}
 
@@ -1052,6 +1061,11 @@ export default function ContractBuilder({
       </div>
       {isDesktopWindow ? (
         <div style={{ position: "sticky", bottom: 0, zIndex: 20 }}>
+          {autosaveStatus === "error" ? (
+            <div role="alert" style={{ margin: "0 20px 8px", border: "1px solid #efb7aa", borderLeft: "4px solid #c43c2a", borderRadius: 8, padding: "9px 12px", background: "#fff4f1", color: "#9e321f", fontSize: 12, fontWeight: 700, lineHeight: 1.55 }}>
+              {saveFailureNotice}
+            </div>
+          ) : null}
           {showDownloadMenu ? (
             <div style={{
               position: "absolute", bottom: "100%", right: 20, marginBottom: 4, zIndex: 30,
@@ -1069,7 +1083,7 @@ export default function ContractBuilder({
             </div>
           ) : null}
           <ActionBar
-            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? "저장 실패" : dirty ? "저장 안 된 변경사항 있음" : ""}
+            status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
             actions={[
               { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" },
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },

@@ -20,6 +20,8 @@ export type WindowContext = {
   resourceType?: string;
   documentId?: string;
   documentType?: string;
+  /** 사람이 읽는 문서 제목. 채팅 상단의 현재 창 표시도 이 값을 쓴다. */
+  documentTitle?: string;
   /** Canonical route (including query) used to initialize native window adapters. */
   routeHref?: string;
 };

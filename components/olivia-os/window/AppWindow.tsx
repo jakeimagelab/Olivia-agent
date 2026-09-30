@@ -10,6 +10,7 @@ import { useWindowInteractions } from "./useWindowInteractions";
 import { resolveSnapBounds } from "./snapZones";
 import { WindowHeader } from "./WindowHeader";
 import { AppWindowErrorBoundary } from "./AppWindowErrorBoundary";
+import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import styles from "./AppWindow.module.css";
 
 export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 320, children }: {
@@ -21,7 +22,6 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
 }) {
   const win = useOliviaDesktopStore((state) => state.windows[windowId]);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
   const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
@@ -72,7 +72,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           compatibilityMode={win.appId === "legacy-route"}
           onPointerDown={beginDrag}
           onDoubleClick={toggleMaximize}
-          onClose={win.appId === "olivia-chat" ? undefined : () => closeWindow(windowId)}
+          onClose={win.appId === "olivia-chat" ? undefined : () => closeOliviaDesktopWindow(windowId)}
           onMinimize={() => minimizeWindow(windowId)}
           onToggleMaximize={toggleMaximize}
         />

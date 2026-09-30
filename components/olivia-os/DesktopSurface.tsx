@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
+import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
   const windows = useOliviaDesktopStore((state) => state.windows);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const closeWindow = useOliviaDesktopStore((state) => state.closeWindow);
   const minimizeWindow = useOliviaDesktopStore((state) => state.minimizeWindow);
   const setWorkspaceSize = useOliviaDesktopStore((state) => state.setWorkspaceSize);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -34,7 +34,7 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
         event.preventDefault();
         const activeWindow = useOliviaDesktopStore.getState().windows[activeWindowId];
         if (activeWindow?.appId === "olivia-chat") minimizeWindow(activeWindowId);
-        else closeWindow(activeWindowId);
+        else closeOliviaDesktopWindow(activeWindowId);
       } else if (meta && event.key.toLowerCase() === "m" && activeWindowId) {
         event.preventDefault();
         minimizeWindow(activeWindowId);
@@ -42,7 +42,7 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeWindowId, closeWindow, minimizeWindow]);
+  }, [activeWindowId, minimizeWindow]);
 
   return (
     <main

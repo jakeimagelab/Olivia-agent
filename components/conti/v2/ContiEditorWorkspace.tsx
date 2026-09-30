@@ -186,7 +186,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
           </div>
         )}
         <div className={styles.editorActions}>
-          <SaveState status={controller.saveStatus} lastSavedAt={controller.lastSavedAt} onRetry={() => void controller.flushSave()} />
+          <SaveState status={controller.saveStatus} error={controller.error} lastSavedAt={controller.lastSavedAt} onRetry={() => void controller.flushSave()} />
           <button type="button" className={styles.secondaryAction} onClick={() => void downloadExcel()}><FileSpreadsheet size={14} />Excel</button>
           <button type="button" className={styles.secondaryAction} onClick={() => window.print()}><Download size={14} />PDF</button>
           <div className={styles.actionMenu}>
@@ -204,7 +204,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
         <div><button type="button" onClick={() => setPreviousOpen(true)}><History size={15} />이전 콘티</button>{shareStatus ? <span role="status">{shareStatus}</span> : null}</div>
       </div>
 
-      {controller.error || completeError ? <div className={styles.workspaceError} role="alert">{completeError || controller.error}<button type="button" onClick={completeError ? () => void completeWorkflowStep() : () => void controller.flushSave()}>다시 시도</button></div> : null}
+      {controller.error || completeError ? <div className={styles.workspaceError} role="alert"><span>{completeError || controller.error}<small>{completeError ? "서버 메시지를 확인한 뒤 완료 조건을 고치고 다시 시도해주세요." : "서버 메시지를 확인한 뒤 입력 내용을 고치고 다시 저장해주세요."}</small></span><button type="button" onClick={completeError ? () => void completeWorkflowStep() : () => void controller.flushSave()}>다시 시도</button></div> : null}
       <ContiResultTable controller={controller} />
       <div className={styles.compactGrid}>
         <ContiCompactChecklist items={controller.checklist} onToggle={controller.toggleChecklistItem} onAdd={controller.addChecklistItem} />
@@ -217,9 +217,9 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   );
 }
 
-function SaveState({ status, lastSavedAt, onRetry }: { status: ContiStudioController["saveStatus"]; lastSavedAt: Date | null; onRetry: () => void }) {
-  const content = status === "saving" ? "저장 중…" : status === "dirty" ? "변경사항 저장 대기" : status === "failed" ? "저장 실패" : status === "saved" ? `자동저장됨${lastSavedAt ? " · 방금 전" : ""}` : "자동저장 준비됨";
-  return <button type="button" className={`${styles.saveState} ${status === "failed" ? styles.saveStateFailed : ""}`} onClick={status === "failed" ? onRetry : undefined}><span />{content}</button>;
+function SaveState({ status, error, lastSavedAt, onRetry }: { status: ContiStudioController["saveStatus"]; error: string; lastSavedAt: Date | null; onRetry: () => void }) {
+  const content = status === "saving" ? "저장 중…" : status === "dirty" ? "변경사항 저장 대기" : status === "failed" ? `저장 실패 — ${error || "서버가 사유를 보내지 않았습니다."}` : status === "saved" ? `자동저장됨${lastSavedAt ? " · 방금 전" : ""}` : "자동저장 준비됨";
+  return <button type="button" className={`${styles.saveState} ${status === "failed" ? styles.saveStateFailed : ""}`} onClick={status === "failed" ? onRetry : undefined}><span />{content}{status === "failed" ? <small>입력 내용을 고친 뒤 다시 저장</small> : null}</button>;
 }
 
 function specialtyLabel(value?: string | null) {
