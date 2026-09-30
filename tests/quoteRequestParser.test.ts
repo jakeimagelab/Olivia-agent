@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
+import { parseQuoteRequest, quoteCreationTargetFromRequest } from "@/lib/quote/quoteRequestParser";
 import { buildQuoteDataFromParsedRequest, titleForParsedQuote } from "@/lib/quote/quoteRequestData";
 
 const JAKE_REQUEST = `1989 삼칠갈비 견적서
@@ -164,6 +164,11 @@ describe("quoteRequestParser", () => {
       expect.objectContaining({ name: "음식사진촬영", amount: 1_500_000, details: ["상추, 무순, 레몬 등"] }),
     ]);
     expect(titleForParsedQuote(request, "jakeimage")).toBe("1989 청담 스시 브랜드촬영(음식) 견적서");
+  });
+
+  it("여러 줄 견적 원문의 고객·항목은 고객 선택 가드보다 먼저 확인한다", () => {
+    expect(quoteCreationTargetFromRequest(PHOTOCLINIC_REQUEST)).toBe("강남스마트치과의원");
+    expect(quoteCreationTargetFromRequest("강남스마트치과의원 견적서 열어줘")).toBeNull();
   });
 
   it("어디에도 넣을 수 없는 줄은 버리지 않는다", () => {

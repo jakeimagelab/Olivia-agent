@@ -233,3 +233,12 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   result.titleSuffix = result.isEvent ? eventSuffix(result.clientName, eventLine || source) : null;
   return result;
 }
+
+/**
+ * 여러 줄 견적 원문에서 이미 확인된 고객명을 돌려준다. 채팅의 화면 선택이나 추정값을
+ * 쓰지 않고, 원문에 고객명과 적어도 한 항목이 함께 있을 때만 유효한 생성 대상으로 본다.
+ */
+export function quoteCreationTargetFromRequest(text: string): string | null {
+  const request = parseQuoteRequest(text);
+  return request.clientName && request.items.length > 0 ? request.clientName : null;
+}

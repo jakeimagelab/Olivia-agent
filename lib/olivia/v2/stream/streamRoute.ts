@@ -9,6 +9,7 @@ import {
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
+import { quoteCreationTargetFromRequest } from "@/lib/quote/quoteRequestParser";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
 import type { OliviaStreamEvent } from "@/lib/olivia/v2/types";
@@ -145,6 +146,11 @@ export async function handleOliviaStreamPost(req: NextRequest) {
   const deterministic = resolveDeterministicResponse(message, oliviaRuntime, context);
 
   const requestClass = classifyOliviaRequest(message, context);
+  // 화면 선택보다 원문에 적힌 고객명·항목이 우선이다. 여러 줄 견적 원문은 파서가
+  // 이미 직접 읽을 수 있으므로, 고객 선택 가드가 이를 "대상 없음"으로 막으면 안 된다.
+  const quoteCreationTarget = requestClass === "TOOL_ACTION"
+    ? quoteCreationTargetFromRequest(rawMessage)
+    : null;
   const model = routeOliviaModel(requestClass);
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
   const recentUserText = optionalString(body.recentUserText);
@@ -393,9 +399,13 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
         selectedTools = selectOliviaTools({ requestClass, message, context: effectiveContext, recentText: effectiveRecentUserText });
-        const requiredFollowupTool = requestClass === "TOOL_ACTION"
-          ? resolveRequiredFollowupTool({ message, recentText: effectiveRecentUserText, availableToolNames: selectedTools.map((tool) => tool.name) })
-          : undefined;
+        const requiredFollowupTool = quoteCreationTarget && selectedTools.some((tool) => tool.name === "create_quote")
+          // 원문에 고객과 항목이 모두 있으면 create_quote가 실제로 실행돼야 한다. 자유
+          // 텍스트가 "고객을 골라주세요"나 확인되지 않은 실패를 대신 말하지 못하게 한다.
+          ? "create_quote"
+          : requestClass === "TOOL_ACTION"
+            ? resolveRequiredFollowupTool({ message, recentText: effectiveRecentUserText, availableToolNames: selectedTools.map((tool) => tool.name) })
+            : undefined;
         if (requiredFollowupTool || canonicalRecentUserText) {
           console.info("[OliviaContext] canonical history restored", {
             requestId,
@@ -486,7 +496,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return;
         }
-        if (shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
+        if (!quoteCreationTarget && shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
           const text = clientTargetQuestion(context, "작업");
           send({ type: "text_delta", messageId, delta: text });
           await saveTurnAssistant(text, {

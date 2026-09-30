@@ -126,5 +126,10 @@ describe("Olivia Hermes-first 엔진 라우팅", () => {
       responseText: "일정을 등록했습니다.",
       toolCallCount: 1,
     })).toBe(false);
+    expect(isToolExecutionMiss({
+      message: "강남스마트치과의원 견적서 만들어줘",
+      responseText: "견적서 생성 중 오류가 나서 아직 저장되지 않았어요.",
+      toolCallCount: 0,
+    })).toBe(true);
   });
 });

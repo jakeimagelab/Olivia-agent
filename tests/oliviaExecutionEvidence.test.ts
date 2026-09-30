@@ -47,6 +47,13 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     expect(legacySource).toContain("[olivia/completion-claim]");
   });
 
+  it("구조화된 견적 원문은 고객 선택 질문보다 먼저 create_quote 경로로 보낸다", () => {
+    const streamSource = readFileSync("lib/olivia/v2/stream/streamRoute.ts", "utf8");
+    expect(streamSource).toContain("quoteCreationTargetFromRequest(rawMessage)");
+    expect(streamSource).toContain('!quoteCreationTarget && shouldRequireClientSelection');
+    expect(streamSource).toContain('? "create_quote"');
+  });
+
   it("도구 0회 폴백 배지는 완료라고 표현하지 않는다", () => {
     const source = readFileSync("components/olivia-v2/OliviaConversation.tsx", "utf8");
     const zeroToolText = "대체 경로로 답했지만 실행된 작업은 없습니다 · 실행된 도구: 0개";

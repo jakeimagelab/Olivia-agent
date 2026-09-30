@@ -74,4 +74,19 @@ describe("completion claim guard", () => {
     const text = "고객 관리 화면을 열었어요.";
     expect(enforceCompletionClaims({ text, executedTools: [{ name: "open_feature", success: true }] })).toEqual({ text, unsupported: [] });
   });
+
+  it("도구 기록 없이 저장 오류를 지어내는 문장을 차단한다", () => {
+    expect(enforceCompletionClaims({
+      text: "견적서 생성 중 오류가 나서 아직 저장되지 않았어요.",
+      executedTools: [],
+    })).toEqual({
+      text: "실행 결과를 확인하지 못했어요.",
+      unsupported: ["failure"],
+    });
+  });
+
+  it("실제 실패 도구 기록이 있으면 서버 실패 문구는 보존한다", () => {
+    const text = "견적서 생성 중 오류가 나서 아직 저장되지 않았어요.";
+    expect(enforceCompletionClaims({ text, executedTools: [{ name: "create_quote", success: false }] })).toEqual({ text, unsupported: [] });
+  });
 });
