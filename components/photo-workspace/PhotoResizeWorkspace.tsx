@@ -10,6 +10,7 @@ import {
   type PhotoResizeStats,
 } from "@/lib/photoResize/resizePhotos";
 import styles from "./PhotoWorkspace.module.css";
+import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 
 type Phase = "idle" | "counting" | "running" | "stopping" | "completed";
 const PREVIEW_LIMIT = 24;
@@ -83,6 +84,7 @@ function StatBox({ label, value, tone }: { label: string; value: number; tone: "
 }
 
 export default function PhotoResizeWorkspace() {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   const [rootDir, setRootDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [longEdge, setLongEdge] = useState<number>(4000);
   const [quality, setQuality] = useState<number>(95);
@@ -105,6 +107,7 @@ export default function PhotoResizeWorkspace() {
       if (!picker) { setNotice("Chrome 또는 Edge에서 폴더를 선택할 수 있습니다."); return; }
       const handle = await picker({ mode: "readwrite" });
       setRootDir(handle);
+      setCurrentLocalFolder(handle);
       setNotice("");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;

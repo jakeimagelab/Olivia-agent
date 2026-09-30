@@ -40,6 +40,7 @@ describe("photo workspace tool deep links", () => {
   it("selects integrated photo modes directly", () => {
     expect(resolvePhotoWorkspaceToolState("ai-search")).toMatchObject({ mode: "select", selectMode: "ai" });
     expect(resolvePhotoWorkspaceToolState("classification")).toMatchObject({ mode: "classification" });
+    expect(resolvePhotoWorkspaceToolState("rename")).toMatchObject({ mode: "rename" });
     expect(resolvePhotoWorkspaceToolState("conversion")).toBeUndefined();
     expect(resolvePhotoWorkspaceToolState("retouch")).toMatchObject({ mode: "retouch", selectMode: "manual" });
   });

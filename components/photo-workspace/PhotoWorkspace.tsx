@@ -41,8 +41,12 @@ const PhotoResizeWorkspace = dynamic(() => import("./PhotoResizeWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 리사이즈 도구를 불러오는 중...</div>,
 });
+const PhotoRenameWorkspace = dynamic(() => import("./PhotoRenameWorkspace"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>이름변경 도구를 불러오는 중...</div>,
+});
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select", "raw-match", "classification", "retouch", "resize"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "metadata-select", "raw-match", "classification", "retouch", "resize", "rename"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
 const RAW_MATCH_VIEWS = new Set<RawMatchView>(["ai-cull", "match"]);
 
@@ -70,7 +74,7 @@ function PhotoWorkspaceContent({
   const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? "ai");
   const rawMatchView = toolState?.rawMatchView ?? (rawRawMatchView && RAW_MATCH_VIEWS.has(rawRawMatchView) ? rawRawMatchView : initialToolState?.rawMatchView ?? "ai-cull");
-  const { executionMode } = usePhotoStudioExecution();
+  const { executionMode, currentLocalFolder } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
   const remoteUnavailable = remote && mode !== "classification" && mode !== "select";
 
@@ -129,7 +133,7 @@ function PhotoWorkspaceContent({
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
-            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "metadata-select" ? "메타데이터 셀렉" : mode === "raw-match" ? "AI 컷 정리 / RAW 매칭" : mode === "retouch" ? "사진 보정" : "사진 리사이즈"} /> : null}
+            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "metadata-select" ? "RAW 매칭" : mode === "raw-match" ? "T컷 정리" : mode === "retouch" ? "사진 보정" : mode === "rename" ? "이름변경" : "사진 리사이즈"} /> : null}
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
@@ -158,6 +162,7 @@ function PhotoWorkspaceContent({
             {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" /> : null}
             {!remoteUnavailable && mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
             {!remoteUnavailable && mode === "resize" ? <PhotoResizeWorkspace /> : null}
+            {!remoteUnavailable && mode === "rename" ? <PhotoRenameWorkspace rootDir={currentLocalFolder} /> : null}
           </section>
           {!remoteUnavailable && (!compact || guideOpen) ? <PhotoGuidePanel mode={mode} selectMode={selectMode} rawMatchView={rawMatchView} /> : null}
         </div>

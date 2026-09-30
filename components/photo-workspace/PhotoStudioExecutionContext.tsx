@@ -39,6 +39,9 @@ type PhotoStudioExecutionValue = {
   workerPresence: RemoteWorkerPresence;
   workerPollingState: RemotePollingState;
   refreshWorkerPresence: () => void;
+  /** File System Access handles cannot be serialized. Keep the active local work folder only while this workspace is open. */
+  currentLocalFolder: FileSystemDirectoryHandle | null;
+  setCurrentLocalFolder: (folder: FileSystemDirectoryHandle | null) => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -79,6 +82,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [workerPresence, setWorkerPresence] = useState<RemoteWorkerPresence>(EMPTY_WORKER);
   const [workerPollingState, setWorkerPollingState] = useState<RemotePollingState>("idle");
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
+  const [currentLocalFolder, setCurrentLocalFolder] = useState<FileSystemDirectoryHandle | null>(null);
 
   useEffect(() => {
     try {
@@ -159,6 +163,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     workerPresence,
     workerPollingState,
     refreshWorkerPresence: () => setWorkerRefreshKey((key) => key + 1),
+    currentLocalFolder,
+    setCurrentLocalFolder,
   }), [
     availableModes,
     clearRemoteJob,
@@ -168,6 +174,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     remotePollingState,
     setExecutionMode,
     trackRemoteJob,
+    currentLocalFolder,
     workerPollingState,
     workerPresence,
   ]);

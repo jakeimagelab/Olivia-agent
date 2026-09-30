@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { applyPhotoDuplicates } from "@/lib/photoSelect/analysis";
+import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 
 /* ── Types ──────────────────────────────────────────────── */
 
@@ -266,11 +267,15 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 /* ── Main Component ─────────────────────────────────────── */
 
 export default function RawSelectPage() {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   const embedded = usePathname() === "/photo-sorting";
   const [step, setStep] = useState(0);
   const [jpgDir, setJpgDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [rawDir, setRawDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [outputDir, setOutputDir] = useState<FileSystemDirectoryHandle | null>(null);
+  useEffect(() => {
+    if (jpgDir) setCurrentLocalFolder(jpgDir);
+  }, [jpgDir, setCurrentLocalFolder]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [options, setOptions] = useState<Options>(DEFAULT_OPTIONS);
   const [progress, setProgress] = useState({ cur: 0, total: 0, msg: "" });

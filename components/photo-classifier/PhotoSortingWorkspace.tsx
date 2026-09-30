@@ -679,12 +679,16 @@ function PhotoSortingInner({
     trackRemoteJob,
     clearRemoteJob,
     workerPresence,
+    setCurrentLocalFolder,
   } = usePhotoStudioExecution();
 
   /* ── shared state ── */
   const [photoMode,  setPhotoMode]  = useState<PhotoMode>("field");
   const [step,       setStep]       = useState(0);
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
+  useEffect(() => {
+    if (rootDir) setCurrentLocalFolder(rootDir);
+  }, [rootDir, setCurrentLocalFolder]);
   const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
   // 사진 분류(handleFieldSort)가 다른 페이지로 이동해도 우상단 팝업에 계속 보이게

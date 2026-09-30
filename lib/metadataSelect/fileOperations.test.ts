@@ -5,6 +5,7 @@ import {
   transferFilesSafely,
   type MetadataFileTransfer,
 } from "@/lib/metadataSelect/fileOperations";
+import { copyFileStreamedAndVerify } from "@/lib/metadataSelect/copy";
 import { JPG_RETOUCHED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 
 function notFound(name: string): Error {
@@ -13,7 +14,7 @@ function notFound(name: string): Error {
 
 class MemoryFileHandle {
   readonly kind = "file" as const;
-  constructor(public name: string, public bytes: Uint8Array, private failWrite = false) {}
+  constructor(public name: string, public bytes: Uint8Array, private failWrite = false, private corruptWrite = false) {}
 
   async getFile() {
     const copy = new Uint8Array(this.bytes.byteLength);
@@ -38,6 +39,7 @@ class MemoryFileHandle {
           offset += chunk.byteLength;
         }
         owner.bytes = merged;
+        if (owner.corruptWrite && owner.bytes.byteLength > 0) owner.bytes[0] ^= 0xff;
       },
     });
   }
@@ -47,6 +49,7 @@ class MemoryDirectoryHandle {
   readonly kind = "directory" as const;
   readonly files = new Map<string, MemoryFileHandle>();
   failWriteName: string | null = null;
+  corruptWriteName: string | null = null;
   failDeleteName: string | null = null;
 
   constructor(public name: string) {}
@@ -55,7 +58,7 @@ class MemoryDirectoryHandle {
     const existing = this.files.get(name);
     if (existing) return existing;
     if (!options?.create) throw notFound(name);
-    const handle = new MemoryFileHandle(name, new Uint8Array(), this.failWriteName === name);
+    const handle = new MemoryFileHandle(name, new Uint8Array(), this.failWriteName === name, this.corruptWriteName === name);
     this.files.set(name, handle);
     return handle;
   }
@@ -145,5 +148,59 @@ describe("metadata select safe file transfers", () => {
     expect(Array.from(source.files.keys())).toEqual([]);
     expect(new TextDecoder().decode(destination.files.get("A.jpg")?.bytes)).toBe("aaa");
     expect(new TextDecoder().decode(destination.files.get("B.jpg")?.bytes)).toBe("bbb");
+  });
+
+  it("rejects equal-size corrupted copies by SHA-256 and leaves the original untouched", async () => {
+    const source = new MemoryDirectoryHandle("JPG전체");
+    const destination = new MemoryDirectoryHandle("Selected_RAW");
+    addFile(source, "A.jpg", "same-size bytes");
+    destination.corruptWriteName = "A.jpg";
+
+    await expect(copyFileStreamedAndVerify(
+      source.files.get("A.jpg") as unknown as FileSystemFileHandle,
+      destination as unknown as FileSystemDirectoryHandle,
+      "A.jpg",
+    )).rejects.toThrow("SHA-256");
+
+    expect(new TextDecoder().decode(source.files.get("A.jpg")?.bytes)).toBe("same-size bytes");
+  });
+
+  it("rolls back a SHA-256 failure and keeps every original in a batch", async () => {
+    const source = new MemoryDirectoryHandle("JPG전체");
+    const destination = new MemoryDirectoryHandle("Selected_RAW");
+    addFile(source, "A.jpg", "first");
+    addFile(source, "B.jpg", "second");
+    destination.corruptWriteName = "B.jpg";
+
+    await expect(transferFilesSafely({
+      transfers: [transfer(source, "A.jpg"), transfer(source, "B.jpg")],
+      destination: destination as unknown as FileSystemDirectoryHandle,
+      deleteSources: true,
+    })).rejects.toThrow("SHA-256");
+
+    expect(Array.from(source.files.keys())).toEqual(["A.jpg", "B.jpg"]);
+    expect(Array.from(destination.files.keys())).toEqual([]);
+  });
+
+  it("supports a same-folder safe rename without deleting the source before verification", async () => {
+    const directory = new MemoryDirectoryHandle("학생");
+    addFile(directory, "IMG_1001.JPG", "source-bytes");
+    const source = directory.files.get("IMG_1001.JPG") as MemoryFileHandle;
+
+    await transferFilesSafely({
+      transfers: [{
+        name: "학생_IMG_1001.JPG",
+        sourceName: "IMG_1001.JPG",
+        destinationName: "학생_IMG_1001.JPG",
+        sourceDirectory: directory as unknown as FileSystemDirectoryHandle,
+        sourceHandle: source as unknown as FileSystemFileHandle,
+        destinationDirectory: directory as unknown as FileSystemDirectoryHandle,
+      }],
+      destination: directory as unknown as FileSystemDirectoryHandle,
+      deleteSources: true,
+    });
+
+    expect(directory.files.has("IMG_1001.JPG")).toBe(false);
+    expect(new TextDecoder().decode(directory.files.get("학생_IMG_1001.JPG")?.bytes)).toBe("source-bytes");
   });
 });

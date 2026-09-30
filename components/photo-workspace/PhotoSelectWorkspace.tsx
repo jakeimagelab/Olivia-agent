@@ -5,6 +5,7 @@ import { MousePointer2, Sparkles, Users } from "lucide-react";
 import AiPhotoSelectPanel from "./AiPhotoSelectPanel";
 import type { PhotoSelectMode } from "./types";
 import styles from "./PhotoWorkspace.module.css";
+import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 
 const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then((module) => module.SelectMatchWorkspace), {
   ssr: false,
@@ -27,6 +28,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   onStartRawMatch: () => void;
   remote?: boolean;
 }) {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   if (remote) return <RemotePhotoSelectWorkspace />;
 
   return (
@@ -46,7 +48,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         ))}
       </div>
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
-        {value === "ai" ? <AiPhotoSelectPanel onStartRawMatch={onStartRawMatch} /> : null}
+        {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onStartRawMatch={onStartRawMatch} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" /> : null}
         {value === "client" ? <SelectMatchWorkspace embedded initialView="client" /> : null}
       </div>

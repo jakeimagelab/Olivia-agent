@@ -19,6 +19,7 @@ import {
 } from "@/lib/selectMatch/rawIndex";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
+import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 
 /* ── 색상 ── */
 const C = {
@@ -193,8 +194,12 @@ export function SelectMatchWorkspace({
   embedded?: boolean;
   initialView?: SelectMatchInitialView;
 } = {}) {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   const [step,       setStep]       = useState<Step>("idle");
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
+  useEffect(() => {
+    if (rootDir) setCurrentLocalFolder(rootDir);
+  }, [rootDir, setCurrentLocalFolder]);
   const [scenes,     setScenes]     = useState<SceneFolder[]>([]);
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());

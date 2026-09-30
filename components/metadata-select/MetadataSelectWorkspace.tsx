@@ -37,6 +37,7 @@ import {
 } from "@/lib/photo-classifier/node/storageLayout";
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
 import { C, R } from "@/lib/theme";
+import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 
 type Phase =
   | "idle"
@@ -190,6 +191,7 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
 }
 
 export default function MetadataSelectWorkspace() {
+  const { setCurrentLocalFolder } = usePhotoStudioExecution();
   const desktopWindowMode = useDesktopWindowMode();
   const [hasFS, setHasFS] = useState(false);
   const [excludeCompleted, setExcludeCompleted] = useState(false);
@@ -197,6 +199,10 @@ export default function MetadataSelectWorkspace() {
   const [selectionDir, setSelectionDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [sourceDir, setSourceDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [rawDir, setRawDir] = useState<FileSystemDirectoryHandle | null>(null);
+  useEffect(() => {
+    const current = sourceDir ?? selectionDir;
+    if (current) setCurrentLocalFolder(current);
+  }, [selectionDir, setCurrentLocalFolder, sourceDir]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [phaseDetail, setPhaseDetail] = useState("");
   const [rows, setRows] = useState<MetadataSelectRow[]>([]);

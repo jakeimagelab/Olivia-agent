@@ -6,6 +6,7 @@ export type PhotoWorkspaceToolId =
   | "ai-cull"
   | "ai-search"
   | "classification"
+  | "rename"
   | "retouch";
 
 export type PhotoWorkspaceToolState = {
@@ -23,6 +24,7 @@ const TOOL_STATES: Record<PhotoWorkspaceToolId, PhotoWorkspaceToolState> = {
   "ai-cull": { mode: "raw-match", selectMode: "manual", rawMatchView: "ai-cull" },
   "ai-search": { mode: "select", selectMode: "ai" },
   classification: { mode: "classification", selectMode: "ai" },
+  rename: { mode: "rename", selectMode: "manual" },
   retouch: { mode: "retouch", selectMode: "manual" },
 };
 

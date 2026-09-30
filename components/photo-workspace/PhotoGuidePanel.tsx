@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
-import { CheckSquare2, Clock, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
+import { CheckSquare2, Clock, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, PenLine, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
 import type { PhotoSelectMode, PhotoWorkspaceMode, RawMatchView } from "./types";
 import styles from "./PhotoWorkspace.module.css";
 
-type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "metadata_match" | "ai_cull" | "retouch" | "resize";
+type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "metadata_match" | "ai_cull" | "retouch" | "resize" | "rename";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
@@ -61,6 +61,12 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: FolderTree, title: "일괄 변환", description: "하위 폴더까지 찾아 결과 폴더에 같은 구조로 저장합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "완료·건너뜀·실패 건수와 실패 사유를 확인합니다." },
   ],
+  rename: [
+    { icon: FolderOpen, title: "현재 작업 폴더", description: "사진 작업실에서 이미 선택한 로컬 폴더를 그대로 사용합니다." },
+    { icon: PenLine, title: "이름 규칙 선택", description: "일반 시퀀스, 직속 부모 폴더명, 직접 텍스트 중 하나를 고릅니다." },
+    { icon: CheckSquare2, title: "변경 미리보기", description: "중복·건너뜀을 먼저 확인하고 오류가 없을 때만 실행합니다." },
+    { icon: FileCheck2, title: "안전한 이름변경", description: "복사 후 SHA-256을 검증하고, 전체 검증 뒤 원본을 정리합니다." },
+  ],
 };
 
 function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, rawMatchView?: RawMatchView | null): GuideKey {
@@ -68,6 +74,7 @@ function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, rawMatc
   if (mode === "metadata-select") return "metadata_match";
   if (mode === "retouch") return "retouch";
   if (mode === "resize") return "resize";
+  if (mode === "rename") return "rename";
   if (mode === "raw-match") return rawMatchView === "match" ? "raw_match" : "ai_cull";
   return "classification";
 }
