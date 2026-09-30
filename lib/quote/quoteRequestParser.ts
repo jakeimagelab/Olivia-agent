@@ -7,6 +7,8 @@ export type ParsedQuoteItem = {
   amount: number | null;
   quantity: number;
   free: boolean;
+  /** 서비스/혜택 묶음에 사용자가 적은 안내 항목. 정가·서비스 문구를 덧붙이지 않는다. */
+  benefitOnly?: boolean;
 };
 
 export type ParsedQuoteRequest = {
@@ -32,6 +34,7 @@ type CatalogEntry = { id: string; name: string; price: number; package?: boolean
 const EVENT_PATTERN = /(행사|이벤트|기념|주년|세미나|학회|심포지엄|학술대회|개원식|창립|워크숍|오픈식)/i;
 const COMMAND_ENDING = /(?:만들어줘|만들자|해줘|해주세요|부탁해|결정|적용)(?:[.!…]+)?\s*$/;
 const CONTENT_HEADING = /^(?:내용은?|아래와 같이|다음과 같이)$/;
+const BENEFIT_HEADING = /^서비스s*(?:\/|및)?s*혜택$/;
 const GENERIC_QUOTE_REQUEST = /^견적서\s*(?:하나|한\s*개|좀)?\s*(?:만들어줘|만들자|해줘|해주세요|부탁해)(?:[.!…]+)?\s*$/;
 const PHONE = /^0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}$/;
 const CONTACT = /^[^\n]{1,20}(?:[가-힣]{2,}|[A-Za-z]{2,})(?:\s*(?:대표|원장|팀장|실장|매니저|담당자|이사|부장|과장))?님$/;
@@ -181,6 +184,31 @@ function depositRateFromDirective(line: string) {
   return deposit ? Number(deposit[1]) : null;
 }
 
+function perPersonTotalFromLine(line: string): { perPersonLabel: string; totalAmount: number } | null {
+  const match = /^인당\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(만원|만|원)\s*(?:으로|로)?\s*총\s*금액\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(만원|만|원)\s*$/.exec(line);
+  if (!match) return null;
+  const totalAmount = moneyFromToken(match[3], match[4]);
+  if (totalAmount === null) return null;
+  return { perPersonLabel: `인당 ${match[1]}${match[2]}으로 책정`, totalAmount };
+}
+
+function applyPerPersonTotal(item: ParsedQuoteItem, pricing: { perPersonLabel: string; totalAmount: number }) {
+  // "프로필 및 연출촬영 + 인당 ... 총금액 ..."은 둘을 따로 산정하는 카탈로그 항목이 아니라,
+  // 사용자가 총액으로 정한 의료진 촬영 한 건이다. 이 형식에서만 화면 표기를 연출/프로필로 통일한다.
+  if (/프로필/.test(item.name) && /연출\s*촬영/.test(item.name)) item.name = "연출/프로필";
+  item.amount = pricing.totalAmount;
+  item.quantity = 1;
+  item.details.push(pricing.perPersonLabel);
+}
+
+function serviceBenefitFromLine(line: string): ParsedQuoteItem {
+  const percent = /^(\d+(?:\.\d+)?)\s*%\s*할인$/.exec(line);
+  const name = percent
+    ? `${percent[1]}% 금액할인`
+    : line.replace(/헤어\s*메이크업\s*포함/g, "헤어메이크업 포함");
+  return { name, note: null, details: [], amount: 0, quantity: 1, free: true, benefitOnly: true };
+}
+
 export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   const result: ParsedQuoteRequest = {
     clientName: null, titleSuffix: null, isEvent: false, contactName: null, phone: null, email: null,
@@ -188,12 +216,31 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     memo: null, unparsedLines: [],
   };
   const meaningfulLines: string[] = [];
+  let inBenefitSection = false;
 
   for (const rawLine of text.replace(/\r\n?/g, "\n").split("\n")) {
     const line = stripLeader(rawLine);
     if (!line) continue;
     meaningfulLines.push(line);
 
+    if (BENEFIT_HEADING.test(line)) {
+      inBenefitSection = true;
+      continue;
+    }
+    const perPersonTotal = perPersonTotalFromLine(line);
+    if (perPersonTotal && result.items.length > 0) {
+      applyPerPersonTotal(result.items[result.items.length - 1], perPersonTotal);
+      continue;
+    }
+    // 서비스/혜택 아래의 할인은 혜택 문구로도 남기되, 실제 할인율도 함께 적용한다.
+    // 이후 생성 지시는 혜택으로 오인하지 않도록 지시줄 판정보다 먼저 넓히지 않는다.
+    if (inBenefitSection && !COMMAND_ENDING.test(line)) {
+      const benefit = serviceBenefitFromLine(line);
+      result.items.push(benefit);
+      const percent = /^(\d+(?:\.\d+)?)\s*%\s*할인$/.exec(line);
+      if (percent) result.discount = { label: null, type: "percent", value: Number(percent[1]) };
+      continue;
+    }
     const isDiscountDirective = /(?:\d+(?:\.\d+)?\s*%\s*할인|\d[\d,]*(?:만원|만|원)\s*할인)/.test(line);
     const roundDownUnit = roundDownUnitFromDirective(line);
     const depositRate = depositRateFromDirective(line);

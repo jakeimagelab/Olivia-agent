@@ -93,6 +93,9 @@ function packageIdFor(items: ParsedQuoteItem[]) {
 }
 
 function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
+  // 서비스/혜택 섹션의 문구는 이미 서비스라는 맥락 안에 있으므로 "· 서비스"나 정가를
+  // 덧붙이지 않는다. 사용자가 적은 혜택 이름을 그대로 문서에 보인다.
+  if (item.benefitOnly) return [item.name, detailOf(item)].filter(Boolean).join(" · ");
   const normalizedName = normalize(item.name);
   // 포인트영상은 단독 판매가와 패키지 옵션가가 다르다. 패키지에 함께 적혔을 때만
   // 옵션 정가를 보여주고, 그 외에는 단일항목 정가를 보여준다.

@@ -58,6 +58,15 @@ smartdentalgn@gamil.com
 만원 미만 절삭
 잔금은 100%로 진행`;
 
+const DAEJEON_SESANG_REQUEST = `대전세상안과
+대표원장님
+의료진 7명이고, 프로필 및 연출촬영
+인당 50만원으로 총금액 350만원
+서비스/혜택
+•10% 할인
+•또는 헤어메이크업포함
+이렇게 견적 만들어줘`;
+
 describe("quoteRequestParser", () => {
   it("대표의 제이크이미지 원문을 금액과 설명을 잃지 않고 읽고 절삭한다", () => {
     const request = parseQuoteRequest(JAKE_REQUEST);
@@ -180,6 +189,44 @@ describe("quoteRequestParser", () => {
       finalAmount: 2_805_000,
       depositAmount: 0,
       balanceAmount: 2_805_000,
+    });
+  });
+
+  it("의료진 인당 총액은 한 촬영 항목으로 합치고 서비스/혜택 아래 할인은 둘 다 남긴다", () => {
+    const request = parseQuoteRequest(DAEJEON_SESANG_REQUEST);
+    expect(request).toMatchObject({
+      clientName: "대전세상안과",
+      contactName: "대표원장님",
+      discount: { label: null, type: "percent", value: 10 },
+      unparsedLines: [],
+    });
+    expect(request.items).toEqual([
+      expect.objectContaining({
+        name: "연출/프로필",
+        amount: 3_500_000,
+        quantity: 1,
+        details: ["인당 50만원으로 책정"],
+      }),
+      expect.objectContaining({ name: "10% 금액할인", amount: 0, free: true, benefitOnly: true }),
+      expect.objectContaining({ name: "또는 헤어메이크업 포함", amount: 0, free: true, benefitOnly: true }),
+    ]);
+
+    const quote = buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" });
+    expect(quote.formState.customItems).toEqual([
+      expect.objectContaining({ name: "연출/프로필", detail: "인당 50만원으로 책정", amount: 3_500_000 }),
+    ]);
+    expect(quote.formState.benefitItems).toEqual([
+      { id: "parsed:benefit:1", name: "10% 금액할인" },
+      { id: "parsed:benefit:2", name: "또는 헤어메이크업 포함" },
+    ]);
+    expect(quote.totals).toMatchObject({
+      contentSubtotal: 3_500_000,
+      discountTotal: 350_000,
+      supplyAmount: 3_150_000,
+      vat: 315_000,
+      finalAmount: 3_465_000,
+      depositAmount: 1_732_500,
+      balanceAmount: 1_732_500,
     });
   });
 
