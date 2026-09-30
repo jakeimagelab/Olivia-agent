@@ -44,6 +44,14 @@ describe("quoteRowToFormState", () => {
     expect(state.customer.hospitalName).toBe("히어산부인과");
   });
 
+  it("명시된 선금 0%는 견적서 창으로 복원할 때도 유지한다", () => {
+    const state = quoteRowToFormState(structuredRow({
+      deposit_rate: 0,
+      form_state: { ...structuredRow().form_state, depositRate: 0 },
+    }));
+    expect(state.depositRate).toBe(0);
+  });
+
   it("Agent가 저장한 부분 formState도 안전한 전체 폼으로 복원한다", () => {
     const state = quoteRowToFormState(structuredRow({
       contact_name: "유지원 원장님",

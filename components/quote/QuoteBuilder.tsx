@@ -948,6 +948,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setDiscountRate(data.formState.discountRate);
       setExtraDiscount(data.formState.extraDiscount);
       setMemo(data.formState.memo);
+      // 선금 0%는 잔금 100%라는 실제 저장값이다. 이 호출이 빠져 있으면 새 폼의
+      // 초기값 50%가 그대로 남아, DB에는 0%인데 화면·자동저장은 50/50으로 보인다.
+      setDepositRate(data.formState.depositRate ?? data.depositRate);
     } else {
       setBrand("photoclinic");
       setCustomer({
@@ -990,6 +993,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setDiscountRate(0);
       setExtraDiscount(data.discountAmount || 0);
       setMemo(data.memos || "");
+      setDepositRate(data.depositRate ?? 50);
     }
 
     setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
