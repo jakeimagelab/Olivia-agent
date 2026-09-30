@@ -10,7 +10,13 @@ export interface MetadataSelectRow {
   status: MetadataSelectStatus;
   normalizedDateTime: string | null;
   matchedOriginalName?: string;
+  /** 같은 촬영시간에 원본 JPG가 여러 장인 연사 그룹을 보존한다. */
+  matchedOriginalNames?: string[];
   rawName?: string;
+  /** rawName은 단일 매칭 소비자 호환용이며, 실제 처리 대상은 이 배열을 사용한다. */
+  rawNames?: string[];
+  /** 같은 촬영시간 연사 그룹의 반복 참조는 정상으로 판정하기 위한 내부 키. */
+  matchGroupKey?: string;
   candidateNames?: string[];
   message: string;
 }
@@ -55,7 +61,7 @@ export function buildRawIndexByBasename(entries: { name: string }[], rawExtensio
   return index;
 }
 
-/** 고객 선택본 1장을 원본 JPG → RAW 순서로 매칭한다. 동일 초 후보가 여럿이면 자동 확정하지 않고 확인 필요로 분류한다. */
+/** 고객 선택본 1장을 원본 JPG → RAW 순서로 매칭한다. 같은 초 후보는 연사 그룹으로 모두 선택한다. */
 export function matchSelectionToRaw(
   selectionName: string,
   normalizedDateTime: string | null,
@@ -70,21 +76,57 @@ export function matchSelectionToRaw(
   if (originals.length === 0) {
     return { selectionName, status: "needs_review", normalizedDateTime, candidateNames: [], message: "동일 촬영시간의 원본 JPG를 찾지 못했습니다." };
   }
-  if (originals.length > 1) {
-    return { selectionName, status: "needs_review", normalizedDateTime, candidateNames: originals, message: `동일 촬영시간 후보 ${originals.length}개` };
+  const rawNames: string[] = [];
+  let missingRawCount = 0;
+  for (const originalName of originals) {
+    const raws = rawIndexByBasename.get(basenameOf(originalName).toLowerCase()) ?? [];
+    if (raws.length === 0) {
+      missingRawCount += 1;
+      continue;
+    }
+    // 한 원본 basename에 서로 다른 경로의 같은 RAW가 여러 개면 연사 그룹이 아니라 여전히 모호하다.
+    if (raws.length > 1) {
+      return {
+        selectionName,
+        status: "needs_review",
+        normalizedDateTime,
+        matchedOriginalName: originals[0],
+        matchedOriginalNames: originals,
+        candidateNames: raws,
+        message: `RAW 후보 중복 (${raws.length}개)`,
+      };
+    }
+    rawNames.push(raws[0]);
   }
 
-  const matchedOriginalName = originals[0];
-  const basename = basenameOf(matchedOriginalName).toLowerCase();
-  const raws = rawIndexByBasename.get(basename) ?? [];
-  if (raws.length === 0) {
-    return { selectionName, status: "raw_missing", normalizedDateTime, matchedOriginalName, message: "RAW 파일을 찾지 못했습니다." };
-  }
-  if (raws.length > 1) {
-    return { selectionName, status: "needs_review", normalizedDateTime, matchedOriginalName, candidateNames: raws, message: `RAW 후보 중복 (${raws.length}개)` };
+  const matchedRawNames = uniqueRawNames(rawNames);
+  if (matchedRawNames.length === 0) {
+    return {
+      selectionName,
+      status: "raw_missing",
+      normalizedDateTime,
+      matchedOriginalName: originals[0],
+      matchedOriginalNames: originals,
+      message: "RAW 파일을 찾지 못했습니다.",
+    };
   }
 
-  return { selectionName, status: "success", normalizedDateTime, matchedOriginalName, rawName: raws[0], message: "매칭 성공" };
+  const message = originals.length === 1
+    ? "매칭 성공"
+    : missingRawCount > 0
+      ? `동일 촬영시간 ${originals.length}장 중 RAW ${matchedRawNames.length}장 매칭 · ${missingRawCount}장 미발견`
+      : `동일 촬영시간 RAW ${matchedRawNames.length}장 모두 선택`;
+  return {
+    selectionName,
+    status: "success",
+    normalizedDateTime,
+    matchedOriginalName: originals[0],
+    matchedOriginalNames: originals,
+    rawName: matchedRawNames[0],
+    rawNames: matchedRawNames,
+    matchGroupKey: `datetime:${normalizedDateTime}`,
+    message,
+  };
 }
 
 /** 파일명이 유지된 선택본은 원본 JPG를 거치지 않고 같은 basename의 RAW와 직접 연결한다. */
@@ -118,6 +160,8 @@ export function matchSelectionNameToRaw(
     normalizedDateTime: null,
     matchedOriginalName: selectionName,
     rawName: raws[0],
+    rawNames: [raws[0]],
+    matchGroupKey: `name:${rawIdentityKey(selectionName)}`,
     message: "파일명 직접 매칭 성공",
   };
 }
@@ -146,22 +190,14 @@ export function matchSelectionDateTimeToRaw(
       message: "동일 촬영시간의 RAW를 찾지 못했습니다.",
     };
   }
-  if (raws.length > 1) {
-    return {
-      selectionName,
-      status: "needs_review",
-      normalizedDateTime,
-      candidateNames: raws,
-      message: `동일 촬영시간의 RAW 후보 ${raws.length}개`,
-    };
-  }
-
   return {
     selectionName,
     status: "success",
     normalizedDateTime,
     rawName: raws[0],
-    message: "촬영시간 직접 매칭 성공",
+    rawNames: uniqueRawNames(raws),
+    matchGroupKey: `datetime:${normalizedDateTime}`,
+    message: raws.length === 1 ? "촬영시간 직접 매칭 성공" : `동일 촬영시간 RAW ${raws.length}장 모두 선택`,
   };
 }
 
@@ -169,25 +205,61 @@ function rawOutputKey(name: string): string {
   return (name.split("/").pop() ?? name).normalize("NFC").toLocaleLowerCase("en-US");
 }
 
+function rawIdentityKey(name: string): string {
+  return name.normalize("NFC").replaceAll("\\", "/").toLocaleLowerCase("en-US");
+}
+
+/** 단일 매칭 시절의 rawName과 다중 연사 매칭을 한 방식으로 읽는다. */
+export function rawNamesOf(row: Pick<MetadataSelectRow, "rawName" | "rawNames">): string[] {
+  if (row.rawNames?.length) return row.rawNames;
+  return row.rawName ? [row.rawName] : [];
+}
+
+/** 같은 RAW 경로를 여러 선택본이 참조해도 실제 파일 작업은 한 번만 한다. */
+export function uniqueRawNames(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  return names.filter((name) => {
+    const key = rawIdentityKey(name);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /**
- * 여러 선택본이 같은 RAW(또는 평면 출력에서 같은 파일명)에 매칭되면 해당 행들만
- * 자동 처리 대상에서 제외한다. 나머지 확정 행은 계속 처리할 수 있다.
+ * 같은 연사 그룹의 반복 참조는 정상이다. 서로 다른 촬영시간 그룹이 같은 RAW를 참조할 때만
+ * 해당 행을 검토 대상으로 바꿔 파일을 잘못 처리하지 않게 한다.
  */
 export function markDuplicateRawMatches(rows: readonly MetadataSelectRow[]): MetadataSelectRow[] {
-  const counts = new Map<string, number>();
-  for (const row of rows) {
-    if (row.status !== "success" || !row.rawName) continue;
-    const key = rawOutputKey(row.rawName);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+  const groupsByRaw = new Map<string, Set<string>>();
+  const rowsByRaw = new Map<string, Set<number>>();
+  for (const [index, row] of rows.entries()) {
+    if (row.status !== "success") continue;
+    const group = row.matchGroupKey ?? `legacy:${index}`;
+    for (const rawName of rawNamesOf(row)) {
+      const key = rawOutputKey(rawName);
+      const groups = groupsByRaw.get(key) ?? new Set<string>();
+      groups.add(group);
+      groupsByRaw.set(key, groups);
+      const indices = rowsByRaw.get(key) ?? new Set<number>();
+      indices.add(index);
+      rowsByRaw.set(key, indices);
+    }
   }
 
-  return rows.map((row) => {
-    if (row.status !== "success" || !row.rawName) return row;
-    if ((counts.get(rawOutputKey(row.rawName)) ?? 0) < 2) return row;
-    return {
-      ...row,
-      status: "needs_review",
-      message: "같은 RAW 또는 출력 파일명에 여러 선택본이 매칭되어 건너뜁니다.",
-    };
-  });
+  const reviewIndexes = new Set<number>();
+  for (const [key, groups] of groupsByRaw) {
+    if (groups.size < 2) continue;
+    for (const index of rowsByRaw.get(key) ?? []) reviewIndexes.add(index);
+  }
+
+  return rows.map((row, index) => (
+    reviewIndexes.has(index)
+      ? {
+          ...row,
+          status: "needs_review",
+          message: "서로 다른 촬영시간이 같은 RAW 또는 출력 파일명을 가리켜 건너뜁니다.",
+        }
+      : row
+  ));
 }
