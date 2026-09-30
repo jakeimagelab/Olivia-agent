@@ -45,8 +45,21 @@ function normalized(value: string) {
   return value.normalize("NFC").toLocaleLowerCase("ko-KR").replace(/[\s_\-]+/g, "");
 }
 
+/**
+ * 사용자는 연결어·번호·불릿을 한 줄에 겹쳐 쓴다. 항목명과 설명 모두에서 같은
+ * 규칙으로, 더 이상 뗄 것이 없을 때까지 앞부분만 반복 제거한다.
+ */
 function stripLeader(line: string) {
-  return line.replace(/^\s*(?:(?:[*•\-·>]+)|(?:\d+[.)]))\s*/, "").trim();
+  let rest = line;
+  let previous = "";
+  while (rest !== previous) {
+    previous = rest;
+    rest = rest.replace(/^\s+/, "");
+    rest = rest.replace(/^(?:[*•\-·>]+)\s*/, "");
+    rest = rest.replace(/^(?:\d+[.)]|[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳])\s*/, "");
+    rest = rest.replace(/^(?:내용은|내용|아래와\s*같이|아래는|다음과\s*같이)\s*/, "");
+  }
+  return rest.trim();
 }
 
 function moneyFromToken(raw: string, unit: string | undefined) {

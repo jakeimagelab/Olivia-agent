@@ -165,7 +165,24 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
       .filter((item) => Boolean(photoclinicSingleId(item.name)) && !item.free)
       .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0) * Math.max(1, item.quantity), 0);
   const discountRate = request.discount?.type === "percent" ? request.discount.value : 0;
-  const extraDiscount = request.discount?.type === "amount" ? request.discount.value : 0;
+  const requestedExtraDiscount = request.discount?.type === "amount" ? request.discount.value : 0;
+  // 총액 확정·절삭은 항목이 아니라 할인이다. 먼저 원문 지시가 만든 차액을 계산한 뒤,
+  // 할인으로 표현 가능한 음수 조정만 extraDiscount에 합친다. 항목 배열에는 절대 넣지 않는다.
+  const adjustmentProbe = computeQuoteTotals({
+    packageTotal,
+    singleItemsTotal,
+    optionsTotal: 0,
+    customItems,
+    discountRate,
+    extraDiscount: requestedExtraDiscount,
+    fixedTotal: request.fixedTotal,
+    roundDownUnit: request.roundDownUnit,
+    depositRate: 50,
+  });
+  const fixedTotalIsDiscount = adjustmentProbe.specialAdjustmentAmount <= 0;
+  const extraDiscount = fixedTotalIsDiscount
+    ? requestedExtraDiscount + Math.abs(adjustmentProbe.specialAdjustmentAmount) + adjustmentProbe.roundDownAmount
+    : requestedExtraDiscount;
   const totals = computeQuoteTotals({
     packageTotal,
     singleItemsTotal,
@@ -173,22 +190,12 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     customItems,
     discountRate,
     extraDiscount,
-    fixedTotal: request.fixedTotal,
-    roundDownUnit: request.roundDownUnit,
+    // 공급가를 올리는 지정총액은 할인으로 표현할 수 없으므로 기존 명시 조정으로만 남긴다.
+    // 대표가 지정한 금액을 조용히 다른 값으로 바꾸지 않는다.
+    fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
+    roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
     depositRate: 50,
   });
-
-  // 조정은 항목 단가를 손대지 않고 별도 행으로 남긴다. 화면 구조도 같은 customItems를 읽는다.
-  if (totals.specialAdjustmentAmount) {
-    const amount = totals.specialAdjustmentAmount;
-    customItems.push({ id: "parsed:special-adjustment", name: "특별조정", detail: `${amount >= 0 ? "+" : "−"}${Math.abs(amount).toLocaleString("ko-KR")}원`, amount, discountable: false });
-    canonicalItems.push({ id: "parsed:special-adjustment", name: "특별조정", detail: "", unitPrice: amount, qty: 1, subtotal: amount, note: "공급가 조정" });
-  }
-  if (totals.roundDownAmount) {
-    const amount = -totals.roundDownAmount;
-    customItems.push({ id: "parsed:round-down", name: "절삭", detail: `−${totals.roundDownAmount.toLocaleString("ko-KR")}원`, amount, discountable: false });
-    canonicalItems.push({ id: "parsed:round-down", name: "절삭", detail: "", unitPrice: amount, qty: 1, subtotal: amount, note: "공급가 절삭" });
-  }
 
   const formState = {
     brand,
@@ -205,10 +212,11 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     customItems,
     benefitItems,
     discount: request.discount ? { type: request.discount.type, value: request.discount.value } : null,
+    discountLabel: request.discount?.label || "",
     discountRate,
     extraDiscount,
-    fixedTotal: request.fixedTotal,
-    roundDownUnit: request.roundDownUnit,
+    fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
+    roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
     memo: request.memo || "",
     depositRate: 50,
     // 구조화된 단일항목/내용칸도 함께 채운다. 사람이 열어 수정해도 같은 폼 계산기로 이어진다.

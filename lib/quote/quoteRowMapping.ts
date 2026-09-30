@@ -27,7 +27,13 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
         quoteNumber: row.quote_number || "",
       };
     return {
-      customer: { ...fallbackCustomer, ...(formState.customer ?? {}) },
+      customer: {
+        ...fallbackCustomer,
+        ...(formState.customer ?? {}),
+        // 구 저장본의 form_state에는 빈 quoteNumber가 남아 있을 수 있다. DB의 실제
+        // quote_number가 화면에서 항상 우선하도록 해 임시저장/문서함 등록을 막지 않는다.
+        quoteNumber: formState.customer?.quoteNumber || row.quote_number || "",
+      },
       brand: (formState.brand ?? "photoclinic") as Brand,
       quoteTitle: formState.quoteTitle ?? "",
       selectedPackageId: formState.selectedPackageId ?? null,
@@ -42,6 +48,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
       droneCount: formState.droneCount ?? 0,
       customItems: formState.customItems ?? [],
       benefitItems: formState.benefitItems ?? [],
+      discountLabel: formState.discountLabel ?? "",
       discountRate: formState.discountRate ?? 0,
       extraDiscount: formState.extraDiscount ?? 0,
       memo: formState.memo ?? "",
@@ -83,6 +90,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
     droneCount: 0,
     customItems,
     benefitItems,
+    discountLabel: formState?.discountLabel ?? "",
     discountRate: 0,
     extraDiscount: Number(row.discount_amount) || 0,
     memo: row.memos || "",

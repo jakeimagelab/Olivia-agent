@@ -69,7 +69,13 @@ describe("quoteRequestParser", () => {
       expect.objectContaining({ name: "푸드스타일링", amount: 500_000 }),
       expect.objectContaining({ name: "재료구입비", amount: 28_750 }),
     ]));
-    expect(quote.totals).toMatchObject({ supplyAmount: 2_028_000, vat: 202_800, finalAmount: 2_230_800, roundDownAmount: 750 });
+    expect(quote.formState.customItems).toHaveLength(2);
+    expect(quote.formState.customItems).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "절삭" }),
+    ]));
+    expect(quote.formState.extraDiscount).toBe(750);
+    expect(quote.totals.discountTotal).toBe(750);
+    expect(quote.totals).toMatchObject({ supplyAmount: 2_028_000, vat: 202_800, finalAmount: 2_230_800, extraDiscountAmount: 750 });
   });
 
   it("알려진 이메일 도메인 오타만 고치고 원본을 보존한다", () => {
@@ -118,18 +124,21 @@ describe("quoteRequestParser", () => {
     });
   });
 
-  it("지정 총액은 원 항목을 고치지 않고 특별조정 한 줄로 남긴다", () => {
+  it("지정 총액 차액은 항목이 아니라 추가할인으로 남긴다", () => {
     const request = parseQuoteRequest(FIXED_TOTAL_REQUEST);
     expect(request.fixedTotal).toBe(2_500_000);
     const quote = buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" });
     expect(quote.items).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "프리미엄패키지", subtotal: 2_000_000 }),
       expect.objectContaining({ name: "의료진프로필 3명 추가", subtotal: 750_000 }),
-      expect.objectContaining({ name: "특별조정", subtotal: -250_000 }),
     ]));
+    expect(quote.items).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "특별조정" }),
+    ]));
+    expect(quote.formState.extraDiscount).toBe(250_000);
     expect(quote.totals).toMatchObject({
-      rawSupplyAmount: 2_750_000,
-      specialAdjustmentAmount: -250_000,
+      contentSubtotal: 2_750_000,
+      discountTotal: 250_000,
       supplyAmount: 2_500_000,
       vat: 250_000,
       finalAmount: 2_750_000,
@@ -147,6 +156,14 @@ describe("quoteRequestParser", () => {
     expect(parseQuoteRequest("고객\n인테리어(외관) 50만원").items[0]).toMatchObject({ name: "인테리어(외관)", amount: 500_000, note: null });
     expect(parseQuoteRequest("고객\n모델섭외15만원").items[0]).toMatchObject({ name: "모델섭외", amount: 150_000 });
     expect(parseQuoteRequest("고객\n재료구입비 28750원").items[0]).toMatchObject({ name: "재료구입비", amount: 28_750 });
+  });
+
+  it("연결어·번호·불릿이 같은 줄에 겹쳐도 항목명과 설명 앞에서 모두 제거한다", () => {
+    const request = parseQuoteRequest("1989 청담 스시 견적서\n내용은 1. 음식사진촬영 150만원\n - - 상추, 무순, 레몬 등");
+    expect(request.items).toEqual([
+      expect.objectContaining({ name: "음식사진촬영", amount: 1_500_000, details: ["상추, 무순, 레몬 등"] }),
+    ]);
+    expect(titleForParsedQuote(request, "jakeimage")).toBe("1989 청담 스시 브랜드촬영(음식) 견적서");
   });
 
   it("어디에도 넣을 수 없는 줄은 버리지 않는다", () => {

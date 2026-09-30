@@ -93,6 +93,7 @@ type ContractQuoteData = {
     droneCount: number;
     customItems: CustomItem[];
     benefitItems: BenefitItem[];
+    discountLabel?: string;
     discountRate: number;
     extraDiscount: number;
     memo: string;
@@ -320,6 +321,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setCustomItems = useQuoteStore((state) => state.setCustomItems);
   const benefitItems = useQuoteStore((state) => state.benefitItems);
   const setBenefitItems = useQuoteStore((state) => state.setBenefitItems);
+  const discountLabel = useQuoteStore((state) => state.discountLabel);
+  const setDiscountLabel = useQuoteStore((state) => state.setDiscountLabel);
   const discountRate = useQuoteStore((state) => state.discountRate);
   const setDiscountRate = useQuoteStore((state) => state.setDiscountRate);
   const extraDiscount = useQuoteStore((state) => state.extraDiscount);
@@ -751,6 +754,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDroneCount(0);
     setCustomItems([]);
     setBenefitItems([]);
+    setDiscountLabel("");
     setDiscountRate(0);
     setExtraDiscount(0);
     setMemo(cfg.defaultMemo);
@@ -855,6 +859,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         droneCount,
         customItems,
         benefitItems,
+        discountLabel,
         discountRate,
         extraDiscount,
         memo,
@@ -932,6 +937,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setDroneCount(data.formState.droneCount);
       setCustomItems(data.formState.customItems);
       setBenefitItems(data.formState.benefitItems);
+      setDiscountLabel(data.formState.discountLabel ?? "");
       setDiscountRate(data.formState.discountRate);
       setExtraDiscount(data.formState.extraDiscount);
       setMemo(data.formState.memo);
@@ -973,6 +979,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           .filter((item) => item.subtotal === 0)
           .map((item) => ({ id: item.id || crypto.randomUUID(), name: item.name }))
       );
+      setDiscountLabel("");
       setDiscountRate(0);
       setExtraDiscount(data.discountAmount || 0);
       setMemo(data.memos || "");
@@ -1283,7 +1290,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [
     isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
-    customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
+    customItems, benefitItems, discountLabel, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
 
   // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
@@ -1315,7 +1322,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [
     isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
-    customItems, benefitItems, discountRate, extraDiscount, memo, depositRate, brand,
+    customItems, benefitItems, discountLabel, discountRate, extraDiscount, memo, depositRate, brand,
   ]);
 
   // 4) 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
@@ -1786,6 +1793,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     optionItems: optionItems.map((item) => ({ id: item.name, name: item.name, detail: item.detail, amount: item.amount })),
     customItems: visibleCustomItems,
     benefitItems: visibleBenefitItems,
+    discountLabel,
     discountRate,
     rateDiscountAmount,
     extraDiscountAmount,
@@ -2317,7 +2325,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                 <button
                   key={rate}
                   type="button"
-                  onClick={() => setDiscountRate(rate)}
+                  onClick={() => {
+                    setDiscountLabel("");
+                    setDiscountRate(rate);
+                  }}
                   className={`discount-rate-button ${discountRate === rate ? "discount-rate-button-active" : ""}`}
                 >
                   <span>{rate === 0 ? "할인 없음" : `${rate}% 할인`}</span>

@@ -21,7 +21,7 @@ function Info({ icon, label, value }: { icon?: ReactNode; label: string; value: 
 export default function QuoteDocument({ data, scale = 1, pageRef }: { data: QuoteDocumentData; scale?: number; pageRef?: Ref<HTMLDivElement> }) {
   const {
     brand, customer, quoteTitle, packageItem, singleItems: selectedSingleItems, optionItems,
-    customItems: visibleCustomItems, benefitItems: visibleBenefitItems, discountRate,
+    customItems: visibleCustomItems, benefitItems: visibleBenefitItems, discountLabel, discountRate,
     rateDiscountAmount, extraDiscountAmount, discountTotal, contentSubtotal, supplyAmount,
     vat, finalAmount, depositRate, memo,
   } = data;
@@ -79,7 +79,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
               {visibleCustomItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{item.detail ? <small style={{ whiteSpace: "pre-line" }}>- {item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>기타</td></tr>)}
               {visibleBenefitItems.length ? <tr className="category-row"><td colSpan={5}>서비스 및 혜택</td></tr> : null}
               {visibleBenefitItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + visibleCustomItems.length + index + 1}. {item.name}</td><td></td><td>-</td><td>-</td><td>서비스 및 혜택</td></tr>)}
-              {discountRate > 0 ? <tr className="discount-row"><td>{discountRate}% 할인</td><td>-</td><td>-{amount(rateDiscountAmount)}</td><td>-{amount(rateDiscountAmount)}</td><td>촬영콘텐츠 합계 기준</td></tr> : null}
+              {discountRate > 0 ? <tr className="discount-row"><td>{discountLabel ? `${discountLabel} ${discountRate}% 할인` : `${discountRate}% 할인`}</td><td>-</td><td>-{amount(rateDiscountAmount)}</td><td>-{amount(rateDiscountAmount)}</td><td>촬영콘텐츠 합계 기준</td></tr> : null}
               {extraDiscountAmount > 0 ? <tr className="discount-row"><td>추가할인(절삭)</td><td>-</td><td>-{amount(extraDiscountAmount)}</td><td>-{amount(extraDiscountAmount)}</td><td>최종금액 조정</td></tr> : null}
               {contentSubtotal === 0 ? <tr><td>선택된 촬영 항목 없음</td><td>-</td><td>0</td><td>0</td><td>-</td></tr> : null}
               <tr className="blank-row"><td colSpan={5}></td></tr>

@@ -56,6 +56,9 @@ describe("견적서 생성 null 저장", () => {
         phone: null,
         email: null,
         packageId: null,
+        formState: {
+          customer: { quoteNumber: "" },
+        },
       },
     });
 
@@ -72,5 +75,7 @@ describe("견적서 생성 null 저장", () => {
     expect(inserted).not.toHaveProperty("memos");
     expect(inserted).not.toHaveProperty("workflow_run_id");
     expect(inserted).not.toHaveProperty("client_id");
+    expect((inserted?.form_state as { customer?: { quoteNumber?: string } }).customer?.quoteNumber)
+      .toBe(inserted?.quote_number);
   });
 });

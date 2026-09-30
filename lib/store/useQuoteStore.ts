@@ -25,6 +25,8 @@ export type QuoteFormState = {
   droneCount: number;
   customItems: CustomItem[];
   benefitItems: BenefitItem[];
+  /** 원문에 있던 할인 이름(예: 소개할인). 없으면 빈 문자열이다. */
+  discountLabel: string;
   discountRate: number;
   extraDiscount: number;
   memo: string;
@@ -34,7 +36,7 @@ export type QuoteFormState = {
 const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
   "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
-  "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems",
+  "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems", "discountLabel",
   "discountRate", "extraDiscount", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
 
@@ -78,6 +80,7 @@ export type QuoteStoreState = QuoteFormState & {
   setDroneCount: (value: Updater<number>) => void;
   setCustomItems: (value: Updater<CustomItem[]>) => void;
   setBenefitItems: (value: Updater<BenefitItem[]>) => void;
+  setDiscountLabel: (value: Updater<string>) => void;
   setDiscountRate: (value: Updater<number>) => void;
   setExtraDiscount: (value: Updater<number>) => void;
   setMemo: (value: Updater<string>) => void;
@@ -131,6 +134,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     droneCount: 0,
     customItems: [],
     benefitItems: [],
+    discountLabel: "",
     discountRate: 0,
     extraDiscount: 0,
     memo: "",
@@ -166,6 +170,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setDroneCount: dirtySetter("droneCount"),
     setCustomItems: dirtySetter("customItems"),
     setBenefitItems: dirtySetter("benefitItems"),
+    setDiscountLabel: dirtySetter("discountLabel"),
     setDiscountRate: dirtySetter("discountRate"),
     setExtraDiscount: dirtySetter("extraDiscount"),
     setMemo: dirtySetter("memo"),

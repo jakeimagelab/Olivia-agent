@@ -19,6 +19,7 @@ export type QuoteDocumentData = {
   optionItems: QuoteDocumentLine[];
   customItems: CustomItem[];
   benefitItems: BenefitItem[];
+  discountLabel: string;
   discountRate: number;
   rateDiscountAmount: number;
   extraDiscountAmount: number;
@@ -85,6 +86,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     optionItems: options,
     customItems,
     benefitItems,
+    discountLabel: state.discountLabel,
     discountRate: state.discountRate,
     rateDiscountAmount: totals.rateDiscountAmount,
     extraDiscountAmount: totals.extraDiscountAmount,

@@ -240,6 +240,17 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
     // validateOliviaCrudRequest 전에 omitNonNullableQuoteCreateNulls가 제거한 값은 여기서도
     // 다시 null로 되살리지 않는다. DB insert payload까지 키 자체를 생략해야 "값 없음"과
     // "명시적으로 null"을 구분할 수 있다.
+    // 견적번호는 DB 행과 화면 form_state가 같은 값을 봐야 한다. DB에서 방금 만든 번호를
+    // form_state에도 주입해, 화면을 연 직후 임시저장이 빈 견적번호 때문에 막히지 않게 한다.
+    const formState = data.formState && typeof data.formState === "object" && !Array.isArray(data.formState)
+      ? {
+        ...data.formState,
+        customer: {
+          ...((data.formState as Record<string, any>).customer || {}),
+          quoteNumber: number,
+        },
+      }
+      : data.formState;
     const quoteInsert: Row = {
       quote_number: number,
       hospital_name: client?.hospital_name || data.hospitalName,
@@ -261,7 +272,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
       ...(data.shootDate === undefined ? {} : { shoot_date: data.shootDate }),
       ...(data.validUntil === undefined ? {} : { valid_until: data.validUntil }),
       ...(data.memos === undefined ? {} : { memos: data.memos }),
-      ...(data.formState === undefined ? {} : { form_state: data.formState }),
+      ...(formState === undefined ? {} : { form_state: formState }),
       ...(data.workflowRunId === undefined ? {} : { workflow_run_id: data.workflowRunId }),
     };
     const { data: row, error } = await db.from("quotes").insert(quoteInsert).select("*").single();
