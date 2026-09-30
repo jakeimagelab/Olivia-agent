@@ -42,6 +42,16 @@ export type VoiceRecording = {
   created_at?: string;
   updated_at?: string;
   audio_url?: string | null;
+  recording_mode?: "general" | "interview";
+  audio_status?: "recording" | "uploading" | "stored" | "incomplete" | null;
+  analysis_status?: "pending" | "transcribing" | "summarizing" | "completed" | "failed" | null;
+  interviewee_name?: string | null;
+  selected_questions?: Array<{ id: string; number: number; sectionTitle: string; text: string; order: number; type: "brand" | "feedback" }>;
+  question_markers?: Array<{ eventId: string; questionId: string; atSeconds: number }>;
+  highlight_markers?: Array<{ eventId: string; questionId: string; atSeconds: number }>;
+  field_notes?: Array<{ eventId: string; questionId: string; atSeconds: number; text: string }>;
+  interview_result?: Record<string, unknown> | null;
+  audio_chunks?: Array<{ sequence: number; start_seconds: number; end_seconds: number; audio_url: string | null }>;
 };
 
 export type VoiceSummary = {

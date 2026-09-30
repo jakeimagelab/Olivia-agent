@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import OliviaRecorder from "@/components/voice/OliviaRecorder";
+import VoiceInterviewHub from "@/components/voice/VoiceInterviewHub";
 import VoiceRecordingDetail from "@/components/voice/VoiceRecordingDetail";
 import styles from "./OliviaMobileShell.module.css";
 
@@ -14,7 +14,7 @@ export default function MobileVoice() {
         {recordingId ? (
           <VoiceRecordingDetail id={recordingId} embedded />
         ) : (
-          <OliviaRecorder embedded mobileShell onOpenResult={setRecordingId} />
+          <VoiceInterviewHub embedded mobileShell onOpenResult={setRecordingId} />
         )}
       </div>
     </section>

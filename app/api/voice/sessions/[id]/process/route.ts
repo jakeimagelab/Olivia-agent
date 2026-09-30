@@ -7,6 +7,8 @@ import {
 } from "@/lib/voice/config";
 import { buildTranscriptText, normalizeTranscriptSegments } from "@/lib/voice/processing";
 import { summarizeVoiceRecording } from "@/lib/voice/summarizer";
+import { selectedInterviewQuestions, transcribeInterviewChunks } from "@/lib/voice/interview/processing";
+import { summarizeInterviewRecording } from "@/lib/voice/interview/summarizer";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import type { TranscriptSegment, VoiceStatus } from "@/lib/voice/types";
 
@@ -25,6 +27,77 @@ async function markError(id: string, message: string) {
     }).eq("id", id);
   } catch (updateError) {
     console.error("[VOICE STATUS ERROR]", updateError);
+  }
+}
+
+async function markInterviewAnalysisError(id: string, message: string) {
+  try {
+    await getSupabaseAdmin().from("voice_recordings").update({
+      // 오디오 저장 상태는 AI 실패와 별개다. 이 값 때문에 원본이 "실패"로 보이면 안 된다.
+      status: "transcribed",
+      analysis_status: "failed",
+      error_message: message.slice(0, 4_000),
+    }).eq("id", id);
+  } catch (updateError) {
+    console.error("[VOICE INTERVIEW ANALYSIS ERROR]", updateError);
+  }
+}
+
+async function processInterviewRecording(recording: Record<string, unknown>) {
+  const id = typeof recording.id === "string" ? recording.id : "";
+  if (!id) throw new Error("인터뷰 녹음 ID가 없습니다.");
+  const supabase = getSupabaseAdmin();
+  const selectedQuestions = selectedInterviewQuestions(recording.selected_questions);
+  if (selectedQuestions.length === 0) throw new Error("인터뷰 질문 Snapshot이 없습니다.");
+  const markerValue = Array.isArray(recording.question_markers) ? recording.question_markers : [];
+  const markers = markerValue.flatMap((marker) => {
+    if (!marker || typeof marker !== "object" || Array.isArray(marker)) return [];
+    const row = marker as Record<string, unknown>;
+    return typeof row.eventId === "string" && typeof row.questionId === "string" && typeof row.atSeconds === "number"
+      ? [{ eventId: row.eventId, questionId: row.questionId, atSeconds: row.atSeconds }]
+      : [];
+  });
+  if (markers.length === 0) throw new Error("질문 시작 표시가 없어 질문별 답변을 정리할 수 없습니다.");
+
+  let segments = normalizeTranscriptSegments(recording.transcript_segments);
+  let transcriptText = typeof recording.transcript_text === "string" ? recording.transcript_text.trim() : "";
+  if (!transcriptText) {
+    await supabase.from("voice_recordings").update({ status: "diarizing", analysis_status: "transcribing", error_message: null }).eq("id", id);
+    const transcript = await transcribeInterviewChunks(id);
+    segments = transcript.segments;
+    transcriptText = transcript.transcriptText;
+    await supabase.from("voice_recordings").update({
+      status: "summarizing", analysis_status: "summarizing", transcript_text: transcriptText,
+      transcript_segments: segments, error_message: null,
+    }).eq("id", id);
+  } else {
+    await supabase.from("voice_recordings").update({ status: "summarizing", analysis_status: "summarizing", error_message: null }).eq("id", id);
+  }
+  if (!transcriptText) {
+    await supabase.from("voice_recordings").update({
+      status: "transcribed", analysis_status: "completed", processed_at: new Date().toISOString(),
+      error_message: "인식 가능한 음성이 없습니다.",
+    }).eq("id", id);
+    return { success: true, id, status: "transcribed", noSpeech: true };
+  }
+  try {
+    const summary = await summarizeInterviewRecording({
+      recordingId: id, selectedQuestions, markers, transcriptSegments: segments,
+      durationSeconds: typeof recording.duration_seconds === "number" ? recording.duration_seconds : 0,
+    });
+    const { error } = await supabase.from("voice_recordings").update({
+      status: "completed", analysis_status: "completed", interview_result: {
+        ...summary.result,
+        question_groups: summary.questionGroups,
+      },
+      processed_at: new Date().toISOString(), error_message: null,
+    }).eq("id", id);
+    if (error) throw error;
+    return { success: true, id, status: "completed" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "인터뷰 AI 정리에 실패했습니다.";
+    await markInterviewAnalysisError(id, message);
+    return { success: true, id, status: "transcribed", summaryPending: true };
   }
 }
 
@@ -99,6 +172,12 @@ export async function POST(_request: Request, context: RouteContext) {
       .eq("id", id)
       .maybeSingle();
     if (error || !recording) throw error || new Error("음성 기록을 찾을 수 없습니다.");
+    if (recording.recording_mode === "interview") {
+      if (recording.audio_status !== "stored") {
+        return NextResponse.json({ error: "인터뷰 원본 저장이 아직 확인되지 않았습니다." }, { status: 409 });
+      }
+      return NextResponse.json(await processInterviewRecording(recording));
+    }
     if (recording.status === "completed") {
       return NextResponse.json({ success: true, id, status: "completed" });
     }
@@ -171,7 +250,9 @@ export async function POST(_request: Request, context: RouteContext) {
   } catch (error) {
     console.error("[VOICE PROCESS]", error);
     const message = error instanceof Error ? error.message : "음성 처리 실패";
-    await markError(id, message);
+    const { data: failedRecording } = await supabase.from("voice_recordings").select("recording_mode").eq("id", id).maybeSingle();
+    if (failedRecording?.recording_mode === "interview") await markInterviewAnalysisError(id, message);
+    else await markError(id, message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

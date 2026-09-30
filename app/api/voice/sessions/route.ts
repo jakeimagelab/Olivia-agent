@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { baseAudioMimeType, extensionFromMime, VOICE_RECORDINGS_BUCKET } from "@/lib/voice/config";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { isUuid } from "@/lib/voice/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,8 +42,53 @@ export async function POST(request: Request) {
       : "unknown";
     const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
     const now = new Date();
-    const path = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${id}.${extension}`;
     const supabase = getSupabaseAdmin();
+
+    // 기존 일반 녹음은 아래의 단일 Blob 업로드 경로를 그대로 쓴다. 인터뷰 모드만
+    // 준비 완료 Snapshot을 검증한 뒤 chunk API로 분할 업로드한다.
+    if (body.mode === "interview") {
+      const preparationId = typeof body.preparationId === "string" ? body.preparationId : "";
+      const versionId = typeof body.versionId === "string" ? body.versionId : "";
+      if (!isUuid(preparationId) || !isUuid(versionId)) {
+        return NextResponse.json({ error: "준비 완료된 인터뷰를 먼저 선택해주세요." }, { status: 400 });
+      }
+      const [{ data: preparation, error: preparationError }, { data: version, error: versionError }] = await Promise.all([
+        supabase.from("voice_interview_preparations").select("*").eq("id", preparationId).maybeSingle(),
+        supabase.from("voice_interview_preparation_versions").select("*").eq("id", versionId).eq("preparation_id", preparationId).maybeSingle(),
+      ]);
+      if (preparationError) throw preparationError;
+      if (versionError) throw versionError;
+      if (!preparation || preparation.status !== "ready" || preparation.current_version_id !== versionId || !version) {
+        return NextResponse.json({ error: "현재 준비 완료된 인터뷰 질문 Snapshot을 찾을 수 없습니다." }, { status: 409 });
+      }
+      const { error: insertError } = await supabase.from("voice_recordings").insert({
+        id,
+        title: `${version.hospital_name} 인터뷰`,
+        status: "recording",
+        recording_mode: "interview",
+        audio_status: "recording",
+        analysis_status: "pending",
+        device_type: deviceType,
+        mime_type: mimeType,
+        recorded_at: now.toISOString(),
+        interview_preparation_id: preparationId,
+        interview_version_id: versionId,
+        client_id: preparation.client_id ?? null,
+        workflow_run_id: preparation.workflow_run_id ?? null,
+        interviewee_name: version.interviewee_name,
+        selected_questions: version.selected_questions,
+      });
+      if (insertError) throw insertError;
+      const { error: preparationUpdateError } = await supabase.from("voice_interview_preparations").update({
+        status: "recording",
+        recording_id: id,
+        ready_error: null,
+      }).eq("id", preparationId);
+      if (preparationUpdateError) throw preparationUpdateError;
+      return NextResponse.json({ id, mode: "interview", mimeType, selectedQuestions: version.selected_questions });
+    }
+
+    const path = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${id}.${extension}`;
 
     const { error: insertError } = await supabase.from("voice_recordings").insert({
       id,

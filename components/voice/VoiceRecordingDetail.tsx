@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, ArrowLeft, Check, CheckSquare, Clock3, ListChecks, Pencil, RefreshCw, Sparkles, UserRound } from "lucide-react";
+import { AlertCircle, ArrowLeft, Check, CheckSquare, Clock3, ListChecks, Pencil, Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { defaultSpeakerName } from "@/lib/voice/processing";
 import type { VoiceRecording, VoiceStatus } from "@/lib/voice/types";
@@ -29,6 +29,48 @@ function statusCopy(status: VoiceStatus) {
   return "정리가 완료됐어요.";
 }
 
+type InterviewTab = "answers" | "brand" | "full" | "notes";
+
+type StoredQuestionGroup = {
+  question?: { id?: unknown; text?: unknown; sectionTitle?: unknown; order?: unknown };
+  startSeconds?: unknown;
+  endSeconds?: unknown;
+  transcript?: unknown;
+};
+
+function interviewQuestionGroups(recording: VoiceRecording): Array<{
+  id: string; text: string; sectionTitle: string; startSeconds: number; endSeconds: number; transcript: string;
+}> {
+  const source = recording.interview_result && Array.isArray(recording.interview_result.question_groups)
+    ? recording.interview_result.question_groups as StoredQuestionGroup[] : [];
+  return source.flatMap((group) => {
+    const question = group.question;
+    if (!question || typeof question.id !== "string" || typeof question.text !== "string") return [];
+    return [{
+      id: question.id,
+      text: question.text,
+      sectionTitle: typeof question.sectionTitle === "string" ? question.sectionTitle : "",
+      startSeconds: typeof group.startSeconds === "number" ? group.startSeconds : 0,
+      endSeconds: typeof group.endSeconds === "number" ? group.endSeconds : 0,
+      transcript: typeof group.transcript === "string" ? group.transcript : "",
+    }];
+  });
+}
+
+function interviewAnswers(recording: VoiceRecording) {
+  const source = recording.interview_result && Array.isArray(recording.interview_result.question_answers)
+    ? recording.interview_result.question_answers : [];
+  return new Map(source.flatMap((answer) => {
+    if (!answer || typeof answer !== "object" || Array.isArray(answer)) return [];
+    const row = answer as { question_id?: unknown; answer_summary?: unknown; key_quotes?: unknown };
+    if (typeof row.question_id !== "string") return [];
+    return [[row.question_id, {
+      summary: typeof row.answer_summary === "string" ? row.answer_summary : "",
+      quotes: Array.isArray(row.key_quotes) ? row.key_quotes.filter((quote): quote is string => typeof quote === "string") : [],
+    }] as const];
+  }));
+}
+
 export default function VoiceRecordingDetail({ id, embedded = false }: { id: string; embedded?: boolean }) {
   const [recording, setRecording] = useState<VoiceRecording | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +79,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
   const [speakerName, setSpeakerName] = useState("");
   const [savingSpeaker, setSavingSpeaker] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [interviewTab, setInterviewTab] = useState<InterviewTab>("answers");
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +147,19 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
     }
   }, [id, load]);
 
+  const playInterviewAt = useCallback((atSeconds: number) => {
+    if (!recording?.audio_chunks?.length) return;
+    const chunk = recording.audio_chunks.find((item) => atSeconds >= item.start_seconds && atSeconds < item.end_seconds)
+      ?? recording.audio_chunks.at(-1);
+    if (!chunk?.audio_url) {
+      setError("이 구간의 원본 녹음 파일을 열지 못했습니다.");
+      return;
+    }
+    const audio = new Audio(chunk.audio_url);
+    audio.currentTime = Math.max(0, atSeconds - chunk.start_seconds);
+    void audio.play().catch(() => setError("이 구간을 재생하지 못했습니다."));
+  }, [recording?.audio_chunks]);
+
   if (loading) {
     return <main className={`${styles.loading} ${embedded ? styles.embeddedLoading : ""}`}><span /><p>음성 기록을 불러오고 있어요.</p></main>;
   }
@@ -145,7 +201,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
 
         <section className={styles.audioCard}>
           <div><span><Clock3 size={18} /></span><div><strong>원본 음성</strong><small>AI 결과와 별도로 보존됩니다.</small></div></div>
-          {recording.audio_url ? <audio controls preload="metadata" src={recording.audio_url} /> : <span>원본 음성을 준비하고 있어요.</span>}
+          {recording.recording_mode === "interview" ? <span>인터뷰 원본을 연속 시간대로 안전하게 보존합니다.</span> : recording.audio_url ? <audio controls preload="metadata" src={recording.audio_url} /> : <span>원본 음성을 준비하고 있어요.</span>}
         </section>
 
         {processing || recording.status === "error" || recording.status === "transcribed" ? (
@@ -158,14 +214,18 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
           </section>
         ) : null}
 
-        {recording.summary ? (
+        {recording.recording_mode === "interview" ? (
+          <InterviewPanels recording={recording} activeTab={interviewTab} onTabChange={setInterviewTab} onPlayAt={playInterviewAt} />
+        ) : null}
+
+        {recording.summary && recording.recording_mode !== "interview" ? (
           <section className={`${styles.section} ${styles.summary}`}>
             <header><span><Sparkles size={19} /></span><div><small>{embedded ? "내용 정리" : "AI SUMMARY"}</small><h2>AI 요약</h2></div></header>
             <p>{recording.summary}</p>
           </section>
         ) : null}
 
-        <div className={styles.insightGrid}>
+        {recording.recording_mode !== "interview" ? <div className={styles.insightGrid}>
           {recording.key_points?.length > 0 ? (
             <section className={styles.section}>
               <header><span><ListChecks size={19} /></span><div><small>{embedded ? "주요 내용" : "KEY POINTS"}</small><h2>핵심 내용</h2></div></header>
@@ -180,7 +240,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
               <ul>{recording.action_items.map((item, index) => <li key={`${item}-${index}`}><i aria-hidden="true" /><span>{item}</span></li>)}</ul>
             </section>
           ) : null}
-        </div>
+        </div> : null}
 
         {speakers.length > 0 ? (
           <section className={styles.speakerSection}>
@@ -208,7 +268,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
           </section>
         ) : null}
 
-        <section className={styles.transcriptSection}>
+        {recording.recording_mode !== "interview" ? <section className={styles.transcriptSection}>
           <header><div><small>{embedded ? "화자별 기록" : "FULL TRANSCRIPT"}</small><h2>전체 대화</h2></div><span>{recording.transcript_segments?.length ?? 0}개 구간</span></header>
           <div className={styles.transcriptList}>
             {recording.transcript_segments?.length > 0 ? recording.transcript_segments.map((segment, index) => {
@@ -221,8 +281,42 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
               );
             }) : <p className={styles.emptyTranscript}>{processing ? "전사가 끝나면 화자별 대화가 여기에 표시됩니다." : "인식된 대화가 없습니다."}</p>}
           </div>
-        </section>
+        </section> : null}
       </div>
     </main>
+  );
+}
+
+function InterviewPanels({
+  recording,
+  activeTab,
+  onTabChange,
+  onPlayAt,
+}: {
+  recording: VoiceRecording;
+  activeTab: InterviewTab;
+  onTabChange: (tab: InterviewTab) => void;
+  onPlayAt: (seconds: number) => void;
+}) {
+  const groups = interviewQuestionGroups(recording);
+  const answers = interviewAnswers(recording);
+  const result = recording.interview_result ?? {};
+  const brandCore = result.brand_core && typeof result.brand_core === "object" && !Array.isArray(result.brand_core)
+    ? Object.entries(result.brand_core).filter((entry): entry is [string, string] => typeof entry[1] === "string" && Boolean(entry[1].trim())) : [];
+  const transcript = recording.transcript_segments ?? [];
+  return (
+    <section className={styles.interviewPanel}>
+      <header><div><small>BRAND INTERVIEW</small><h2>인터뷰 결과</h2></div><span>{recording.interviewee_name || "인터뷰"}</span></header>
+      <nav className={styles.interviewTabs} aria-label="인터뷰 결과 보기">
+        {(["answers", "brand", "full", "notes"] as const).map((tab) => <button key={tab} type="button" className={activeTab === tab ? styles.interviewTabActive : undefined} onClick={() => onTabChange(tab)}>{({ answers: "질문별 답변", brand: "브랜드 핵심", full: "전체 대화", notes: "현장 메모" })[tab]}</button>)}
+      </nav>
+      {activeTab === "answers" ? <div className={styles.answerList}>{groups.length ? groups.map((group, index) => {
+        const answer = answers.get(group.id);
+        return <article key={group.id}><header><span>Q{index + 1}</span><div><small>{group.sectionTitle}</small><h3>{group.text}</h3><time>{formatSegmentTime(group.startSeconds)}–{formatSegmentTime(group.endSeconds)}</time></div><button type="button" onClick={() => onPlayAt(group.startSeconds)}><Play size={14} />이 구간 듣기</button></header><div className={styles.answerBody}><strong>답변 요약</strong><p>{answer?.summary || "답변을 정리하지 못했어요."}</p>{answer?.quotes.length ? <><strong>핵심 발언</strong>{answer.quotes.map((quote, quoteIndex) => <blockquote key={`${quote}-${quoteIndex}`}>“{quote}”</blockquote>)}</> : null}<details><summary>원문 보기</summary><p>{group.transcript || "이 구간에는 인식된 대화가 없습니다."}</p></details></div></article>;
+      }) : <p className={styles.emptyTranscript}>질문 시작 표시와 전사가 완료되면 질문별 답변이 표시됩니다.</p>}</div> : null}
+      {activeTab === "brand" ? <div className={styles.brandCore}>{typeof result.brand_summary === "string" && result.brand_summary ? <p className={styles.brandSummary}>{result.brand_summary}</p> : <p className={styles.emptyTranscript}>AI 정리가 완료되면 병원 브랜드 핵심이 표시됩니다.</p>}{brandCore.map(([key, value]) => <article key={key}><small>{key.replaceAll("_", " ")}</small><p>{value}</p></article>)}</div> : null}
+      {activeTab === "full" ? <div className={styles.interviewTranscript}>{transcript.length ? transcript.map((segment, index) => <article key={`${segment.start}-${index}`}><button type="button" onClick={() => onPlayAt(segment.start)}><Play size={13} /></button><div><time>{formatSegmentTime(segment.start)}–{formatSegmentTime(segment.end)}</time><p>{segment.text}</p></div></article>) : <p className={styles.emptyTranscript}>전사를 준비하고 있어요.</p>}</div> : null}
+      {activeTab === "notes" ? <div className={styles.noteList}>{recording.field_notes?.length ? recording.field_notes.map((note) => <article key={note.eventId}><button type="button" onClick={() => onPlayAt(note.atSeconds)}>{formatSegmentTime(note.atSeconds)}</button><p>{note.text}</p></article>) : <p className={styles.emptyTranscript}>현장 메모가 없습니다.</p>}</div> : null}
+    </section>
   );
 }

@@ -9,6 +9,7 @@ const nextConfig = {
     ],
     "/api/quotes/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/contracts/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/voice/interviews/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/olivia-os/status-panel": ["./supabase/migrations/*.sql"],
   },
   // Quote 서버사이드 프리뷰 렌더링(app/api/quotes/[id]/render)이 @sparticuz/chromium의 네이티브

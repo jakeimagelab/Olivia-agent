@@ -1,12 +1,12 @@
 "use client";
 
-import OliviaRecorder from "@/components/voice/OliviaRecorder";
 import VoiceRecordingHistory from "@/components/voice/VoiceRecordingHistory";
+import VoiceInterviewHub from "@/components/voice/VoiceInterviewHub";
 
 export default function TabletVoice() {
   return (
     <>
-      <OliviaRecorder embedded />
+      <VoiceInterviewHub embedded />
       <VoiceRecordingHistory />
     </>
   );

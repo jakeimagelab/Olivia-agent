@@ -84,12 +84,20 @@ describe("Olivia voice integration guardrails", () => {
     const mobileVoice = readFileSync("components/olivia-mobile/MobileVoice.tsx", "utf8");
     expect(mobileHome).toContain('{ id: "voice", label: "음성 기록"');
     expect(mobileShell).toContain("<MobileVoice />");
-    expect(mobileVoice).toContain("<OliviaRecorder embedded mobileShell");
+    expect(mobileVoice).toContain("<VoiceInterviewHub embedded mobileShell");
     expect(mobileVoice).not.toContain("<MobileHeader");
 
     const recorder = readFileSync("components/voice/OliviaRecorder.tsx", "utf8");
     expect(recorder).toContain("지금 대화를 기록해보세요");
     expect(recorder).toContain("mobileStartButton");
+    const interviewHub = readFileSync("components/voice/VoiceInterviewHub.tsx", "utf8");
+    const interviewRecorder = readFileSync("components/voice/OliviaInterviewRecorder.tsx", "utf8");
+    expect(interviewHub).toContain("일반 녹음");
+    expect(interviewHub).toContain("인터뷰 모드");
+    expect(interviewHub).toContain("준비 완료");
+    expect(interviewHub).toContain("PDF 미리보기");
+    expect(interviewRecorder).toContain("INTERVIEW STANDBY");
+    expect(interviewRecorder).toContain("CHUNK_MS");
   });
 
   it("keeps Hermes read-only and preserves transcribed fallback", () => {

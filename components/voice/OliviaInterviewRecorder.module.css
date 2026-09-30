@@ -1,0 +1,22 @@
+.start, .recorder {
+  --green: #155855; --mint: #eff8f5; --orange: #ef7146;
+  width: min(100%, 760px); min-height: 560px; margin: 0 auto; padding: clamp(22px, 5vw, 52px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 1px solid rgba(21, 88, 85, .12); border-radius: 28px; color: #183f3c; background: #fff;
+  box-shadow: 0 24px 70px rgba(21, 88, 85, .08); text-align: center;
+}
+.startIcon, .completeIcon, .errorIcon { width: 70px; height: 70px; display: grid; place-items: center; border-radius: 23px; color: #fff; background: var(--green); }
+.completeIcon { background: #219272; }.errorIcon { color: #a54337; background: #fff0ed; }
+.start > p { margin: 18px 0 7px; color: #66817d; font-size: 10px; font-weight: 850; letter-spacing: .14em; }
+.start h1 { margin: 0; font-size: clamp(27px, 5vw, 40px); letter-spacing: -.06em; }.start strong { margin-top: 8px; font-size: 17px; }
+.start > span { max-width: 440px; margin-top: 18px; color: #718985; font-size: 13px; line-height: 1.65; }
+.startActions { margin-top: 30px; display: flex; gap: 9px; }.startActions button, .recorder button { min-height: 44px; padding: 0 16px; border: 1px solid rgba(21,88,85,.17); border-radius: 13px; color: var(--green); background: #fff; font: 700 12px/1 inherit; cursor: pointer; }
+.startActions .primary { border-color: var(--green); color: #fff; background: var(--green); }.startActions button:disabled, .recorder button:disabled { opacity: .45; cursor: default; }
+.error { max-width: 530px; margin-top: 18px; padding: 10px 12px; display: flex; align-items: flex-start; gap: 7px; border-left: 3px solid #d75442; border-radius: 8px; color: #934333; background: #fff2ef; font-size: 12px; line-height: 1.55; text-align: left; }
+.recorder { align-items: stretch; justify-content: flex-start; text-align: left; }.recorder header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.recorder header > button { width: 38px; min-height: 38px; padding: 0; display: grid; place-items: center; }
+.recorder header span { min-height: 28px; padding: 0 9px; display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; color: #b34338; background: #fff1ef; font-size: 10px; font-weight: 850; }.recorder header span i { width: 7px; height: 7px; border-radius: 50%; background: #df5044; animation: pulse 1.4s ease-in-out infinite; }.recorder header .paused { color: #83612f; background: #fff8e8; }.recorder header .paused i { background: #d29a3c; animation: none; }
+.recorder time { font-size: 22px; font-weight: 760; font-variant-numeric: tabular-nums; }.questionProgress { margin-top: 38px; color: #728a86; font-size: 12px; font-weight: 750; }.recorder h1 { max-width: 620px; margin: 9px 0 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.35; letter-spacing: -.055em; }.section { margin: 10px 0 0; color: #ea7049; font-size: 12px; font-weight: 750; }
+.waveform { height: 125px; margin-top: 27px; padding: 20px; display: flex; align-items: center; gap: 3px; border-radius: 20px; background: var(--mint); }.waveform i { min-height: 5px; flex: 1; border-radius: 999px; background: #3b9e82; transition: height 90ms linear; }.notice { margin: 12px 0 0; display: flex; align-items: flex-start; gap: 5px; color: #8b6135; font-size: 11px; line-height: 1.5; }
+.questionActions, .markerActions, .recorder footer { display: flex; gap: 8px; flex-wrap: wrap; }.questionActions { margin-top: 20px; }.questionActions button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }.markerActions { margin-top: 10px; }.markerActions button { display: inline-flex; align-items: center; gap: 5px; background: #f7fbfa; }.recorder footer { margin-top: auto; padding-top: 30px; justify-content: center; }.recorder footer button { display: inline-flex; align-items: center; gap: 6px; }.recorder footer .stop { border-color: var(--orange); color: #fff; background: var(--orange); }
+@keyframes pulse { 50% { opacity: .35; transform: scale(.75); } }
+@media (max-width: 600px) { .start, .recorder { min-height: calc(100dvh - 144px); padding: 22px 17px; border-radius: 18px; }.recorder h1 { font-size: 26px; }.waveform { height: 106px; padding: 15px; }.markerActions { display: grid; grid-template-columns: 1fr 1fr; }.markerActions button:last-child { grid-column: 1 / -1; }.questionActions button { min-height: 48px; }.startActions { width: 100%; }.startActions button { flex: 1; } }

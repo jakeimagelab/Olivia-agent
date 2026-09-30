@@ -41,7 +41,25 @@ export async function GET(_request: Request, context: RouteContext) {
     audioUrl = signed?.signedUrl ?? null;
   }
 
-  return NextResponse.json({ ...data, audio_url: audioUrl }, {
+  const audioChunks = data.recording_mode === "interview"
+    ? await (async () => {
+      const { data: chunks, error: chunksError } = await supabase.from("voice_recording_chunks")
+        .select("sequence,storage_path,start_seconds,end_seconds,status")
+        .eq("recording_id", id).eq("status", "uploaded").order("sequence", { ascending: true });
+      if (chunksError) throw chunksError;
+      return Promise.all((chunks ?? []).map(async (chunk) => {
+        const { data: signed } = await supabase.storage.from(VOICE_RECORDINGS_BUCKET).createSignedUrl(chunk.storage_path, 60 * 60);
+        return {
+          sequence: chunk.sequence,
+          start_seconds: Number(chunk.start_seconds),
+          end_seconds: Number(chunk.end_seconds),
+          audio_url: signed?.signedUrl ?? null,
+        };
+      }));
+    })()
+    : [];
+
+  return NextResponse.json({ ...data, audio_url: audioUrl, audio_chunks: audioChunks }, {
     headers: { "Cache-Control": "private, no-store, max-age=0" },
   });
 }
