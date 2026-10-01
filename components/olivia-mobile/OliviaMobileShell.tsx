@@ -23,6 +23,7 @@ import {
 } from "@/lib/olivia/mobile/navigation";
 import styles from "./OliviaMobileShell.module.css";
 import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
+import GlobalRecordingBar from "@/components/voice/GlobalRecordingBar";
 
 const MobileVoice = dynamic(() => import("./MobileVoice"), {
   loading: () => <div className={styles.mobileFeatureLoading}>음성 기록을 준비하고 있어요...</div>,
@@ -269,6 +270,12 @@ export default function OliviaMobileShell({ initialLaunch }: { initialLaunch?: O
         {navigation.view === "preview" || navigation.view === "chat" ? null : (
           <MobileBottomNav activeView={primaryViewForNavigation(navigation)} onNavigate={navigatePrimary} />
         )}
+        <GlobalRecordingBar
+          surface="mobile"
+          dockVisible={navigation.view !== "preview" && navigation.view !== "chat"}
+          bottomOffset={navigation.view === "preview" ? 62 : 0}
+          onOpenRecording={() => navigate({ view: "voice" })}
+        />
       </main>
     </OliviaUiSurfaceProvider>
   );

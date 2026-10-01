@@ -41,16 +41,16 @@ describe("tablet voice interview layout", () => {
     expect(css).toContain("@media (max-width: 899px)");
   });
 
-  it("makes the active interview recording question primary without changing its engine", () => {
+  it("makes the active interview recording question primary through the shared runtime", () => {
     const recorder = read("components/voice/OliviaInterviewRecorder.tsx");
     const css = read("components/voice/OliviaInterviewRecorder.module.css");
 
     expect(recorder).toContain("tabletShell = false");
-    expect(recorder).toContain("styles.tabletStart");
-    expect(recorder).toContain("질문 {questionIndex + 1} / {questions.length}");
-    expect(recorder).toContain("녹음 중");
-    expect(recorder).toContain("인터뷰 종료");
-    expect(recorder).toContain("addTextEvent");
+    expect(recorder).toContain("styles.tabletRecorder");
+    expect(recorder).toContain("실제 녹음 질문");
+    expect(recorder).toContain("인터뷰 녹음 중");
+    expect(recorder).toContain("이 질문으로 진행");
+    expect(recorder).toContain("useVoiceSession");
     expect(css).toContain("grid-template-columns: minmax(0, 1fr) minmax(150px, 1.15fr) minmax(0, 1fr)");
     expect(css).toContain("var(--olivia-visual-viewport-height, 100dvh)");
   });

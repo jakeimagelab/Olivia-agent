@@ -143,7 +143,7 @@ function ReadyScreen({ preparation, onBack, onStart }: {
       <div className={styles.readyActions}>
         <a href={`/api/voice/interviews/preparations/${preparation.id}/pdf?preview=html`} target="_blank" rel="noreferrer">PDF 미리보기</a>
         <a href={`/api/voice/interviews/preparations/${preparation.id}/pdf`} target="_blank" rel="noreferrer"><FileDown size={17} />PDF 다운로드</a>
-        <button type="button" onClick={onStart}><Mic size={18} />인터뷰 시작</button>
+        <button type="button" onClick={onStart}><Mic size={18} />인터뷰 열기</button>
       </div>
       <small className={styles.readyNotice}>준비 완료 후 내용을 수정하면 초안으로 돌아갑니다.</small>
     </div>

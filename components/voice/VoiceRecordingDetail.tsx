@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, Check, CheckSquare, Clock3, ListChecks, Pencil, Play, RefreshCw, Sparkles, UserRound } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { defaultSpeakerName } from "@/lib/voice/processing";
 import type { VoiceRecording, VoiceStatus } from "@/lib/voice/types";
 import styles from "./VoiceRecordingDetail.module.css";
@@ -80,6 +80,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
   const [savingSpeaker, setSavingSpeaker] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [interviewTab, setInterviewTab] = useState<InterviewTab>("answers");
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -147,18 +148,47 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
     }
   }, [id, load]);
 
-  const playInterviewAt = useCallback((atSeconds: number) => {
+  const stopInterviewPlayback = useCallback(() => {
+    const active = activeAudioRef.current;
+    if (active) {
+      active.pause();
+      active.src = "";
+      activeAudioRef.current = null;
+    }
+  }, []);
+  useEffect(() => () => stopInterviewPlayback(), [stopInterviewPlayback]);
+
+  const playInterviewRange = useCallback((startSeconds: number, endSeconds = Number.POSITIVE_INFINITY) => {
     if (!recording?.audio_chunks?.length) return;
-    const chunk = recording.audio_chunks.find((item) => atSeconds >= item.start_seconds && atSeconds < item.end_seconds)
-      ?? recording.audio_chunks.at(-1);
-    if (!chunk?.audio_url) {
+    stopInterviewPlayback();
+    const chunks = recording.audio_chunks;
+    const firstIndex = Math.max(0, chunks.findIndex((item) => startSeconds >= item.start_seconds && startSeconds < item.end_seconds));
+    const playChunk = (index: number, offset: number) => {
+      const chunk = chunks[index];
+      if (!chunk?.audio_url) {
+        setError("이 구간의 원본 녹음 파일을 열지 못했습니다.");
+        return;
+      }
+      const audio = new Audio(chunk.audio_url);
+      activeAudioRef.current = audio;
+      audio.currentTime = Math.max(0, offset);
+      audio.ontimeupdate = () => {
+        if (chunk.start_seconds + audio.currentTime >= endSeconds) stopInterviewPlayback();
+      };
+      audio.onended = () => {
+        if (activeAudioRef.current !== audio) return;
+        const next = chunks[index + 1];
+        if (next && next.start_seconds < endSeconds) playChunk(index + 1, 0);
+      };
+      void audio.play().catch(() => setError("이 구간을 재생하지 못했습니다."));
+    };
+    const first = chunks[firstIndex];
+    if (!first) {
       setError("이 구간의 원본 녹음 파일을 열지 못했습니다.");
       return;
     }
-    const audio = new Audio(chunk.audio_url);
-    audio.currentTime = Math.max(0, atSeconds - chunk.start_seconds);
-    void audio.play().catch(() => setError("이 구간을 재생하지 못했습니다."));
-  }, [recording?.audio_chunks]);
+    playChunk(firstIndex, Math.max(0, startSeconds - first.start_seconds));
+  }, [recording?.audio_chunks, stopInterviewPlayback]);
 
   if (loading) {
     return <main className={`${styles.loading} ${embedded ? styles.embeddedLoading : ""}`}><span /><p>음성 기록을 불러오고 있어요.</p></main>;
@@ -215,7 +245,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
         ) : null}
 
         {recording.recording_mode === "interview" ? (
-          <InterviewPanels recording={recording} activeTab={interviewTab} onTabChange={setInterviewTab} onPlayAt={playInterviewAt} />
+          <InterviewPanels recording={recording} activeTab={interviewTab} onTabChange={setInterviewTab} onPlayRange={playInterviewRange} />
         ) : null}
 
         {recording.summary && recording.recording_mode !== "interview" ? (
@@ -291,12 +321,12 @@ function InterviewPanels({
   recording,
   activeTab,
   onTabChange,
-  onPlayAt,
+  onPlayRange,
 }: {
   recording: VoiceRecording;
   activeTab: InterviewTab;
   onTabChange: (tab: InterviewTab) => void;
-  onPlayAt: (seconds: number) => void;
+  onPlayRange: (startSeconds: number, endSeconds?: number) => void;
 }) {
   const groups = interviewQuestionGroups(recording);
   const answers = interviewAnswers(recording);
@@ -312,11 +342,11 @@ function InterviewPanels({
       </nav>
       {activeTab === "answers" ? <div className={styles.answerList}>{groups.length ? groups.map((group, index) => {
         const answer = answers.get(group.id);
-        return <article key={group.id}><header><span>Q{index + 1}</span><div><small>{group.sectionTitle}</small><h3>{group.text}</h3><time>{formatSegmentTime(group.startSeconds)}–{formatSegmentTime(group.endSeconds)}</time></div><button type="button" onClick={() => onPlayAt(group.startSeconds)}><Play size={14} />이 구간 듣기</button></header><div className={styles.answerBody}><strong>답변 요약</strong><p>{answer?.summary || "답변을 정리하지 못했어요."}</p>{answer?.quotes.length ? <><strong>핵심 발언</strong>{answer.quotes.map((quote, quoteIndex) => <blockquote key={`${quote}-${quoteIndex}`}>“{quote}”</blockquote>)}</> : null}<details><summary>원문 보기</summary><p>{group.transcript || "이 구간에는 인식된 대화가 없습니다."}</p></details></div></article>;
+        return <article key={`${group.id}-${group.startSeconds}-${index}`}><header><span>Q{index + 1}</span><div><small>{group.sectionTitle}</small><h3>{group.text}</h3><time>{formatSegmentTime(group.startSeconds)}–{formatSegmentTime(group.endSeconds)}</time></div><button type="button" onClick={() => onPlayRange(group.startSeconds, group.endSeconds)}><Play size={14} />이 구간 듣기</button></header><div className={styles.answerBody}><strong>답변 요약</strong><p>{answer?.summary || "답변을 정리하지 못했어요."}</p>{answer?.quotes.length ? <><strong>핵심 발언</strong>{answer.quotes.map((quote, quoteIndex) => <blockquote key={`${quote}-${quoteIndex}`}>“{quote}”</blockquote>)}</> : null}<details><summary>원문 보기</summary><p>{group.transcript || "이 구간에는 인식된 대화가 없습니다."}</p></details></div></article>;
       }) : <p className={styles.emptyTranscript}>질문 시작 표시와 전사가 완료되면 질문별 답변이 표시됩니다.</p>}</div> : null}
       {activeTab === "brand" ? <div className={styles.brandCore}>{typeof result.brand_summary === "string" && result.brand_summary ? <p className={styles.brandSummary}>{result.brand_summary}</p> : <p className={styles.emptyTranscript}>AI 정리가 완료되면 병원 브랜드 핵심이 표시됩니다.</p>}{brandCore.map(([key, value]) => <article key={key}><small>{key.replaceAll("_", " ")}</small><p>{value}</p></article>)}</div> : null}
-      {activeTab === "full" ? <div className={styles.interviewTranscript}>{transcript.length ? transcript.map((segment, index) => <article key={`${segment.start}-${index}`}><button type="button" onClick={() => onPlayAt(segment.start)}><Play size={13} /></button><div><time>{formatSegmentTime(segment.start)}–{formatSegmentTime(segment.end)}</time><p>{segment.text}</p></div></article>) : <p className={styles.emptyTranscript}>전사를 준비하고 있어요.</p>}</div> : null}
-      {activeTab === "notes" ? <div className={styles.noteList}>{recording.field_notes?.length ? recording.field_notes.map((note) => <article key={note.eventId}><button type="button" onClick={() => onPlayAt(note.atSeconds)}>{formatSegmentTime(note.atSeconds)}</button><p>{note.text}</p></article>) : <p className={styles.emptyTranscript}>현장 메모가 없습니다.</p>}</div> : null}
+      {activeTab === "full" ? <div className={styles.interviewTranscript}>{transcript.length ? transcript.map((segment, index) => <article key={`${segment.start}-${index}`}><button type="button" onClick={() => onPlayRange(segment.start, segment.end)}><Play size={13} /></button><div><time>{formatSegmentTime(segment.start)}–{formatSegmentTime(segment.end)}</time><p>{segment.text}</p></div></article>) : <p className={styles.emptyTranscript}>전사를 준비하고 있어요.</p>}</div> : null}
+      {activeTab === "notes" ? <div className={styles.noteList}>{recording.field_notes?.length ? recording.field_notes.map((note) => <article key={note.eventId}><button type="button" onClick={() => onPlayRange(note.atSeconds)}>{formatSegmentTime(note.atSeconds)}</button><p>{note.text}</p></article>) : <p className={styles.emptyTranscript}>현장 메모가 없습니다.</p>}</div> : null}
     </section>
   );
 }

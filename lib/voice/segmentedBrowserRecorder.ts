@@ -1,4 +1,4 @@
-import { analyzeWaveformFrame, preferredMimeType, type RecorderCallbacks } from "@/lib/voice/browserRecorder";
+import { analyzeWaveformFrame, preferredMimeType, type RecorderCallbacks, type RecorderQuality } from "@/lib/voice/browserRecorder";
 
 type Segment = { blob: Blob; mimeType: string };
 
@@ -17,8 +17,17 @@ export class OliviaSegmentedBrowserRecorder {
   private waveformCeiling = 0.025;
   private waveform = Array(48).fill(0.05);
   public mimeType = "";
+  public quality: RecorderQuality = {
+    requestedSampleRate: 48_000,
+    requestedChannelCount: 1,
+    requestedBitsPerSecond: 128_000,
+    actualSampleRate: null,
+    actualChannelCount: null,
+    actualBitsPerSecond: null,
+    mimeType: "",
+  };
 
-  constructor(private callbacks: Pick<RecorderCallbacks, "onWaveform" | "onStateWarning"> = {}) {}
+  constructor(private callbacks: Pick<RecorderCallbacks, "onWaveform" | "onStateWarning" | "onInterrupted"> = {}) {}
 
   get state(): RecordingState | "idle" {
     return this.recorder?.state ?? "idle";
@@ -45,6 +54,9 @@ export class OliviaSegmentedBrowserRecorder {
       this.analyser.fftSize = 512;
       this.analyser.smoothingTimeConstant = .72;
       source.connect(this.analyser);
+      this.stream.getAudioTracks().forEach((track) => {
+        track.addEventListener("ended", () => this.callbacks.onInterrupted?.("마이크 입력이 중단되었습니다. 저장된 구간을 확인해주세요."), { once: true });
+      });
       this.startSegment();
       this.renderAudioState();
     } catch (error) {
@@ -89,7 +101,17 @@ export class OliviaSegmentedBrowserRecorder {
   private startSegment() {
     if (!this.stream) throw new Error("마이크 스트림이 없습니다.");
     this.chunks = [];
-    const recorder = new MediaRecorder(this.stream, { ...(this.mimeType ? { mimeType: this.mimeType } : {}), audioBitsPerSecond: 48_000 });
+    const recorder = new MediaRecorder(this.stream, { ...(this.mimeType ? { mimeType: this.mimeType } : {}), audioBitsPerSecond: 128_000 });
+    const settings = this.stream.getAudioTracks()[0]?.getSettings();
+    this.quality = {
+      requestedSampleRate: 48_000,
+      requestedChannelCount: 1,
+      requestedBitsPerSecond: 128_000,
+      actualSampleRate: typeof settings?.sampleRate === "number" ? settings.sampleRate : null,
+      actualChannelCount: typeof settings?.channelCount === "number" ? settings.channelCount : null,
+      actualBitsPerSecond: typeof recorder.audioBitsPerSecond === "number" ? recorder.audioBitsPerSecond : null,
+      mimeType: recorder.mimeType || this.mimeType,
+    };
     recorder.ondataavailable = (event) => { if (event.data.size > 0) this.chunks.push(event.data); };
     recorder.onerror = () => this.callbacks.onStateWarning?.("브라우저 녹음기에 문제가 발생했습니다. 녹음을 종료해 저장해주세요.");
     recorder.start();

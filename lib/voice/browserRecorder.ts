@@ -2,6 +2,17 @@ export type RecorderCallbacks = {
   onWaveform?: (values: number[]) => void;
   onSpeakerHint?: (speaker: string, confidence: number) => void;
   onStateWarning?: (message: string) => void;
+  onInterrupted?: (message: string) => void;
+};
+
+export type RecorderQuality = {
+  requestedSampleRate: 48_000;
+  requestedChannelCount: 1;
+  requestedBitsPerSecond: 128_000;
+  actualSampleRate: number | null;
+  actualChannelCount: number | null;
+  actualBitsPerSecond: number | null;
+  mimeType: string;
 };
 
 export const RECORDER_MIME_CANDIDATES = [
@@ -77,6 +88,15 @@ export class OliviaBrowserRecorder {
   private waveformCeiling = 0.025;
   private smoothedWaveform: number[] = Array(48).fill(0.05);
   public mimeType = "";
+  public quality: RecorderQuality = {
+    requestedSampleRate: 48_000,
+    requestedChannelCount: 1,
+    requestedBitsPerSecond: 128_000,
+    actualSampleRate: null,
+    actualChannelCount: null,
+    actualBitsPerSecond: null,
+    mimeType: "",
+  };
 
   constructor(private callbacks: RecorderCallbacks = {}) {}
 
@@ -111,8 +131,18 @@ export class OliviaBrowserRecorder {
       this.mimeType = preferredMimeType();
       this.recorder = new MediaRecorder(this.stream, {
         ...(this.mimeType ? { mimeType: this.mimeType } : {}),
-        audioBitsPerSecond: 48_000,
+        audioBitsPerSecond: 128_000,
       });
+      const settings = this.stream.getAudioTracks()[0]?.getSettings();
+      this.quality = {
+        requestedSampleRate: 48_000,
+        requestedChannelCount: 1,
+        requestedBitsPerSecond: 128_000,
+        actualSampleRate: typeof settings?.sampleRate === "number" ? settings.sampleRate : null,
+        actualChannelCount: typeof settings?.channelCount === "number" ? settings.channelCount : null,
+        actualBitsPerSecond: typeof this.recorder.audioBitsPerSecond === "number" ? this.recorder.audioBitsPerSecond : null,
+        mimeType: this.recorder.mimeType || this.mimeType,
+      };
 
       this.context = new AudioContext();
       if (this.context.state === "suspended") await this.context.resume();
@@ -135,6 +165,9 @@ export class OliviaBrowserRecorder {
       this.recorder.onerror = () => {
         this.callbacks.onStateWarning?.("브라우저 녹음기에 문제가 발생했습니다. 녹음을 종료해 저장해주세요.");
       };
+      this.stream.getAudioTracks().forEach((track) => {
+        track.addEventListener("ended", () => this.callbacks.onInterrupted?.("마이크 입력이 중단되었습니다. 저장된 구간을 확인해주세요."), { once: true });
+      });
       this.recorder.start(1_000);
       this.renderAudioState();
     } catch (error) {

@@ -9,7 +9,7 @@
   --mobile-line: rgba(21, 88, 85, .11);
   --mobile-dock-height: 62px;
   --mobile-dock-space: calc(var(--mobile-dock-height) + env(safe-area-inset-bottom, 0px));
-  --mobile-dock-content-padding: calc(var(--mobile-dock-space) + 18px);
+  --mobile-dock-content-padding: calc(var(--mobile-dock-space) + var(--olivia-global-recording-bar-height, 0px) + 26px);
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -814,8 +814,8 @@
 .chatScreen {
   position: relative;
   top: var(--mobile-chat-offset-top, 0px);
-  height: var(--mobile-chat-height, 100dvh);
-  max-height: 100dvh;
+  height: calc(var(--mobile-chat-height, 100dvh) - var(--olivia-global-recording-bar-height, 0px) - 12px);
+  max-height: calc(100dvh - var(--olivia-global-recording-bar-height, 0px) - 12px);
   background: #f7fbfa;
 }
 .chatDock {

@@ -10,6 +10,7 @@ import PhotoProjectNotification from "@/components/photo-storage/PhotoProjectNot
 import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
 import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
 import { BackupReadyNotifications } from "@/components/olivia-os/BackupReadyNotifications";
+import { VoiceSessionProvider } from "@/components/voice/VoiceSessionProvider";
 import styles from "./OliviaAdaptiveRoot.module.css";
 
 const OliviaDesktop = dynamic(() => import("@/components/olivia-os/OliviaDesktop"), {
@@ -77,20 +78,22 @@ export default function OliviaAdaptiveRoot() {
   if (!surface) return <SurfaceLoading />;
   return (
     <PhotoProjectNotificationProvider>
-      <PhotoStudioBackgroundJobBridge />
-      {surface !== "desktop" ? <PhotoProjectNotification /> : null}
-      {surface !== "desktop" ? <BackgroundJobsWidget /> : null}
+      <VoiceSessionProvider>
+        <PhotoStudioBackgroundJobBridge />
+        {surface !== "desktop" ? <PhotoProjectNotification /> : null}
+        {surface !== "desktop" ? <BackgroundJobsWidget /> : null}
       {/* 코드 요청서(2026-09-19) 작업 A — OliviaDesktop 안에서만 마운트되면 mobile/tablet
           surface에서는 아예 렌더링되지 않는다. PhotoProjectNotification과 같은 레벨(surface
           분기 밖)로 올려서 로그인한 사용자가 어떤 화면에 있든 뜨게 한다. */}
-      <Suspense fallback={null}>
-        {surface !== "desktop" ? <BackupReadyNotifications /> : null}
-      </Suspense>
-      {surface === "mobile"
-        ? <OliviaMobileShell initialLaunch={initialLaunch} />
-        : surface === "tablet"
-          ? <OliviaTabletShell initialLaunch={initialLaunch} />
-          : <OliviaDesktop initialLaunch={initialLaunch} />}
+        <Suspense fallback={null}>
+          {surface !== "desktop" ? <BackupReadyNotifications /> : null}
+        </Suspense>
+        {surface === "mobile"
+          ? <OliviaMobileShell initialLaunch={initialLaunch} />
+          : surface === "tablet"
+            ? <OliviaTabletShell initialLaunch={initialLaunch} />
+            : <OliviaDesktop initialLaunch={initialLaunch} />}
+      </VoiceSessionProvider>
     </PhotoProjectNotificationProvider>
   );
 }

@@ -55,12 +55,16 @@ export type InterviewMarker = {
   eventId: string;
   questionId: string;
   atSeconds: number;
+  clientSequence?: number;
+  audioEpochId?: string;
 };
 
 export type InterviewHighlight = {
   eventId: string;
   questionId: string;
   atSeconds: number;
+  clientSequence?: number;
+  audioEpochId?: string;
 };
 
 export type InterviewFieldNote = {
@@ -68,6 +72,8 @@ export type InterviewFieldNote = {
   questionId: string;
   atSeconds: number;
   text: string;
+  clientSequence?: number;
+  audioEpochId?: string;
 };
 
 export type InterviewFollowUp = {
@@ -75,6 +81,8 @@ export type InterviewFollowUp = {
   questionId: string;
   atSeconds: number;
   text: string;
+  clientSequence?: number;
+  audioEpochId?: string;
 };
 
 export type InterviewAudioChunk = {

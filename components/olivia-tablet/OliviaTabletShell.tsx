@@ -14,6 +14,7 @@ import TabletDock from "./TabletDock";
 import TabletTopBar from "./TabletTopBar";
 import { getTabletApp } from "./tabletApps";
 import styles from "./OliviaTabletShell.module.css";
+import GlobalRecordingBar from "@/components/voice/GlobalRecordingBar";
 import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
 
 function currentNavigation(): TabletNavigationState {
@@ -82,6 +83,7 @@ export default function OliviaTabletShell({ initialLaunch }: { initialLaunch?: O
         <TabletTopBar app={app} onHome={() => navigate("home")} />
         <TabletAppContent activeApp={activeApp} navigation={navigation} onNavigate={navigate} />
         <TabletDock activeApp={activeApp} onNavigate={navigate} />
+        <GlobalRecordingBar surface="tablet" onOpenRecording={() => navigate("voice")} />
       </main>
     </OliviaUiSurfaceProvider>
   );

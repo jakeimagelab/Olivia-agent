@@ -76,7 +76,7 @@
   z-index: 1;
   top: calc(var(--olivia-tablet-topbar-height) + env(safe-area-inset-top, 0px));
   right: env(safe-area-inset-right, 0px);
-  bottom: calc(var(--olivia-tablet-dock-height) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--olivia-tablet-dock-height) + var(--olivia-global-recording-bar-height, 0px) + 16px + env(safe-area-inset-bottom, 0px));
   left: env(safe-area-inset-left, 0px);
   min-width: 0;
   min-height: 0;

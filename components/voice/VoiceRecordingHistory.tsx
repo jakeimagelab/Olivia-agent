@@ -14,6 +14,7 @@ type HistoryItem = {
   summary: string | null;
   recorded_at: string;
   processed_at: string | null;
+  recording_mode?: "general" | "interview" | null;
 };
 
 function formatDuration(totalSeconds: number): string {
@@ -36,7 +37,7 @@ function statusLabel(status: VoiceStatus): { text: string; tone: "done" | "progr
 
 // docs/tablet-ipad-home-memo-voice-spec.md §7-1 — "목록 화면 신설(최우선)". OliviaRecorder(녹음)와
 // VoiceRecordingDetail(상세)은 그대로 두고, 그 사이를 잇는 목록만 새로 추가한다.
-export default function VoiceRecordingHistory() {
+export default function VoiceRecordingHistory({ mode }: { mode?: "general" | "interview" }) {
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -44,7 +45,7 @@ export default function VoiceRecordingHistory() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/voice/sessions", { cache: "no-store" });
+      const response = await fetch(`/api/voice/sessions${mode ? `?mode=${mode}` : ""}`, { cache: "no-store" });
       const body = await response.json().catch(() => ({})) as { recordings?: HistoryItem[]; error?: string };
       if (!response.ok) throw new Error(body.error || "음성 기록 목록을 불러오지 못했습니다.");
       setItems(body.recordings ?? []);
@@ -54,14 +55,14 @@ export default function VoiceRecordingHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mode]);
 
   useEffect(() => { void load(); }, [load]);
 
   return (
     <section className={styles.root} aria-label="최근 음성 기록">
       <div className={styles.header}>
-        <h2>최근 음성 기록</h2>
+        <h2>{mode === "interview" ? "인터뷰 음성기록" : mode === "general" ? "일반 음성기록" : "최근 음성 기록"}</h2>
         <button type="button" className={styles.refresh} onClick={() => void load()} aria-label="새로고침" disabled={loading}>
           <RefreshCw size={13} className={loading ? styles.spin : undefined} />
         </button>

@@ -17,13 +17,20 @@ export async function POST(request: Request, context: RouteContext) {
     const eventType = typeof body.eventType === "string" ? body.eventType : "";
     const atSeconds = typeof body.atSeconds === "number" && Number.isFinite(body.atSeconds) ? Math.max(0, body.atSeconds) : null;
     if (!eventId || !EVENT_TYPES.has(eventType) || atSeconds === null) return NextResponse.json({ error: "인터뷰 이벤트 형식이 올바르지 않습니다." }, { status: 400 });
+    const questionId = typeof body.questionId === "string" ? body.questionId.slice(0, 100) : null;
+    const clientSequence = typeof body.clientSequence === "number" && Number.isInteger(body.clientSequence) && body.clientSequence >= 0
+      ? body.clientSequence : 0;
+    const audioEpochId = typeof body.audioEpochId === "string" ? body.audioEpochId.trim().slice(0, 120) || "legacy" : "legacy";
     const supabase = getSupabaseAdmin();
-    const { data: recording, error: recordingError } = await supabase.from("voice_recordings").select("recording_mode").eq("id", id).maybeSingle();
+    const { data: recording, error: recordingError } = await supabase.from("voice_recordings").select("recording_mode,selected_questions").eq("id", id).maybeSingle();
     if (recordingError) throw recordingError;
     if (!recording || recording.recording_mode !== "interview") return NextResponse.json({ error: "인터뷰 녹음 세션을 찾을 수 없습니다." }, { status: 404 });
+    const selected = Array.isArray(recording.selected_questions) ? recording.selected_questions : [];
+    const validQuestionIds = new Set(selected.flatMap((question) => question && typeof question === "object" && typeof (question as { id?: unknown }).id === "string" ? [(question as { id: string }).id] : []));
+    if (!questionId || !validQuestionIds.has(questionId)) return NextResponse.json({ error: "확정된 인터뷰 질문에 없는 표시입니다." }, { status: 400 });
     const event = {
       recording_id: id, event_id: eventId, event_type: eventType, at_seconds: atSeconds,
-      question_id: typeof body.questionId === "string" ? body.questionId.slice(0, 100) : null,
+      question_id: questionId, client_sequence: clientSequence, audio_epoch_id: audioEpochId,
       payload: body.payload && typeof body.payload === "object" && !Array.isArray(body.payload) ? body.payload : {},
     };
     const { data, error } = await supabase.from("voice_recording_events").upsert(event, {

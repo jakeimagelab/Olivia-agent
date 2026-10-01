@@ -70,6 +70,32 @@ describe("interview marker grouping", () => {
       [280, 400, "셋 답"],
     ]);
   });
+
+  it("keeps a later answer to the same question as its own timeline segment", () => {
+    const selectedQuestions = buildInterviewQuestionSnapshot(["q01", "q06", "q13"]);
+    const groups = groupTranscriptByQuestion({
+      selectedQuestions,
+      markers: [
+        { eventId: "e1", questionId: "q01", atSeconds: 0, clientSequence: 1 },
+        { eventId: "e2", questionId: "q06", atSeconds: 90, clientSequence: 2 },
+        { eventId: "e3", questionId: "q01", atSeconds: 150, clientSequence: 3 },
+        { eventId: "e4", questionId: "q13", atSeconds: 210, clientSequence: 4 },
+      ],
+      transcriptSegments: [
+        { speaker: "speaker_0", text: "첫 번째 답", start: 5, end: 40 },
+        { speaker: "speaker_1", text: "두 번째 답", start: 100, end: 120 },
+        { speaker: "speaker_0", text: "추가 답", start: 160, end: 180 },
+        { speaker: "speaker_1", text: "세 번째 답", start: 220, end: 230 },
+      ],
+      durationSeconds: 270,
+    });
+    expect(groups.map((group) => [group.question.id, group.startSeconds, group.endSeconds, group.transcript])).toEqual([
+      ["q01", 0, 90, "첫 번째 답"],
+      ["q06", 90, 150, "두 번째 답"],
+      ["q01", 150, 210, "추가 답"],
+      ["q13", 210, 270, "세 번째 답"],
+    ]);
+  });
 });
 
 describe("interview recovery", () => {

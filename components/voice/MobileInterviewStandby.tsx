@@ -61,7 +61,7 @@ export default function MobileInterviewStandby({
               <span>{preparation.interviewee_name} · {shortDate(preparation.interview_date)}</span>
               <em>질문 {preparation.selected_questions.length}개 <ChevronRight size={15} /></em>
             </button>
-            <button type="button" className={styles.start} onClick={() => onStart(preparation)} aria-label={`${preparation.hospital_name} 인터뷰 시작`}><Mic size={16} /></button>
+            <button type="button" className={styles.start} onClick={() => onStart(preparation)} aria-label={`${preparation.hospital_name} 인터뷰 열기`}><Mic size={16} /></button>
           </article>
         ))}</div> : <p className={styles.empty}>아직 준비된 인터뷰가 없습니다.</p>}
       </section>

@@ -27,6 +27,15 @@ export type VoiceRecording = {
   status: VoiceStatus;
   device_type: string | null;
   mime_type: string | null;
+  capture_quality?: {
+    requestedSampleRate: number;
+    requestedChannelCount: number;
+    requestedBitsPerSecond: number;
+    actualSampleRate: number | null;
+    actualChannelCount: number | null;
+    actualBitsPerSecond: number | null;
+    mimeType: string | null;
+  } | null;
   audio_path: string | null;
   duration_seconds: number;
   live_speaker_hints: SpeakerHint[];

@@ -7,7 +7,30 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const DEVICE_TYPES = new Set(["iphone", "ipad", "android-mobile", "android-tablet", "desktop", "unknown"]);
-const LIST_COLUMNS = "id,title,status,duration_seconds,summary,recorded_at,processed_at";
+const LIST_COLUMNS = "id,title,status,recording_mode,duration_seconds,summary,recorded_at,processed_at";
+
+function normalizeCaptureQuality(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  const requestedSampleRate = source.requestedSampleRate === 48_000 ? 48_000 : null;
+  const requestedChannelCount = source.requestedChannelCount === 1 ? 1 : null;
+  const requestedBitsPerSecond = source.requestedBitsPerSecond === 128_000 ? 128_000 : null;
+  if (!requestedSampleRate || !requestedChannelCount || !requestedBitsPerSecond) return null;
+  const actualNumber = (key: "actualSampleRate" | "actualChannelCount" | "actualBitsPerSecond") => (
+    typeof source[key] === "number" && Number.isFinite(source[key]) && source[key] >= 0
+      ? Math.floor(source[key] as number)
+      : null
+  );
+  return {
+    requestedSampleRate,
+    requestedChannelCount,
+    requestedBitsPerSecond,
+    actualSampleRate: actualNumber("actualSampleRate"),
+    actualChannelCount: actualNumber("actualChannelCount"),
+    actualBitsPerSecond: actualNumber("actualBitsPerSecond"),
+    mimeType: typeof source.mimeType === "string" ? baseAudioMimeType(source.mimeType) : null,
+  };
+}
 
 // docs/tablet-ipad-home-memo-voice-spec.md §6-7 — 지금까지 지난 녹음을 다시 찾아볼 방법이
 // 없었다(조회 API 자체가 없었음). 목록은 가벼운 컬럼만 돌려주고(transcript_segments 등 큰
@@ -15,14 +38,17 @@ const LIST_COLUMNS = "id,title,status,duration_seconds,summary,recorded_at,proce
 export async function GET(request: NextRequest) {
   const limitParam = Number(request.nextUrl.searchParams.get("limit"));
   const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(Math.floor(limitParam), 100) : 50;
+  const mode = request.nextUrl.searchParams.get("mode");
 
   try {
     const supabase = getSupabaseAdmin();
-    const { data, error } = await supabase
+    let query = supabase
       .from("voice_recordings")
       .select(LIST_COLUMNS)
       .order("recorded_at", { ascending: false })
       .limit(limit);
+    if (mode === "interview" || mode === "general") query = query.eq("recording_mode", mode);
+    const { data, error } = await query;
     if (error) throw error;
     return NextResponse.json({ recordings: data ?? [] });
   } catch (error) {
@@ -41,6 +67,7 @@ export async function POST(request: Request) {
       ? body.deviceType
       : "unknown";
     const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
+    const captureQuality = normalizeCaptureQuality(body.captureQuality);
     const now = new Date();
     const supabase = getSupabaseAdmin();
 
@@ -70,6 +97,7 @@ export async function POST(request: Request) {
         analysis_status: "pending",
         device_type: deviceType,
         mime_type: mimeType,
+        capture_quality: captureQuality,
         recorded_at: now.toISOString(),
         interview_preparation_id: preparationId,
         interview_version_id: versionId,
@@ -97,6 +125,7 @@ export async function POST(request: Request) {
       device_type: deviceType,
       mime_type: mimeType,
       audio_path: path,
+      capture_quality: captureQuality,
       recorded_at: now.toISOString(),
     });
     if (insertError) throw insertError;

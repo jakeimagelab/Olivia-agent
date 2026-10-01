@@ -89,7 +89,11 @@ describe("Olivia voice integration guardrails", () => {
 
     const recorder = readFileSync("components/voice/OliviaRecorder.tsx", "utf8");
     expect(recorder).toContain("지금 대화를 기록해보세요");
-    expect(recorder).toContain("mobileStartButton");
+    expect(recorder).toContain("하단 녹음바");
+    expect(recorder).toContain("useVoiceSession");
+    const globalBar = readFileSync("components/voice/GlobalRecordingBar.tsx", "utf8");
+    expect(globalBar).toContain("녹음 시작");
+    expect(globalBar).toContain("일시정지");
     const interviewHub = readFileSync("components/voice/VoiceInterviewHub.tsx", "utf8");
     const interviewRecorder = readFileSync("components/voice/OliviaInterviewRecorder.tsx", "utf8");
     expect(interviewHub).toContain("일반 녹음");
@@ -97,7 +101,8 @@ describe("Olivia voice integration guardrails", () => {
     expect(interviewHub).toContain("준비 완료");
     expect(interviewHub).toContain("PDF 미리보기");
     expect(interviewRecorder).toContain("INTERVIEW STANDBY");
-    expect(interviewRecorder).toContain("CHUNK_MS");
+    expect(interviewRecorder).toContain("이 질문으로 진행");
+    expect(interviewRecorder).toContain("질문 미리보기");
   });
 
   it("keeps Hermes read-only and preserves transcribed fallback", () => {

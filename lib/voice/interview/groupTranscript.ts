@@ -12,20 +12,21 @@ export function groupTranscriptByQuestion(input: {
   durationSeconds: number;
 }): InterviewQuestionAnswer[] {
   const duration = Math.max(0, input.durationSeconds);
-  const markerByQuestion = new Map<string, InterviewMarker>();
-  for (const marker of input.markers) {
-    if (!markerByQuestion.has(marker.questionId) && Number.isFinite(marker.atSeconds)) {
-      markerByQuestion.set(marker.questionId, marker);
-    }
-  }
-  const ordered = [...input.selectedQuestions].sort((left, right) => left.order - right.order);
-  return ordered.flatMap((question, index) => {
-    const marker = markerByQuestion.get(question.id);
-    if (!marker) return [{ question, startSeconds: 0, endSeconds: 0, transcript: "" }];
+  const questionById = new Map(input.selectedQuestions.map((question) => [question.id, question]));
+  // Event time, not questionnaire order, is the recording timeline. Repeated
+  // question markers deliberately produce separate answer segments.
+  const markers = input.markers
+    .filter((marker) => questionById.has(marker.questionId) && Number.isFinite(marker.atSeconds) && marker.atSeconds >= 0)
+    .map((marker, index) => ({ marker, index }))
+    .sort((left, right) => left.marker.atSeconds - right.marker.atSeconds
+      || (left.marker.clientSequence ?? left.index) - (right.marker.clientSequence ?? right.index)
+      || left.index - right.index)
+    .map(({ marker }) => marker);
+  return markers.flatMap((marker, index) => {
+    const question = questionById.get(marker.questionId);
+    if (!question) return [];
     const startSeconds = clampTime(marker.atSeconds, duration);
-    const next = ordered.slice(index + 1)
-      .map((candidate) => markerByQuestion.get(candidate.id))
-      .find((candidate): candidate is InterviewMarker => Boolean(candidate));
+    const next = markers[index + 1];
     const endSeconds = next ? Math.max(startSeconds, clampTime(next.atSeconds, duration)) : duration;
     const transcript = input.transcriptSegments
       .filter((segment) => segment.end > startSeconds && segment.start < endSeconds)
