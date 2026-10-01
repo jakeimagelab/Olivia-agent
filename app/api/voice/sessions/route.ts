@@ -32,6 +32,26 @@ function normalizeCaptureQuality(value: unknown) {
   };
 }
 
+async function insertVoiceRecording(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  values: Record<string, unknown>,
+  captureQuality: ReturnType<typeof normalizeCaptureQuality>,
+) {
+  const withQuality = captureQuality ? { ...values, capture_quality: captureQuality } : values;
+  let { error } = await supabase.from("voice_recordings").insert(withQuality);
+
+  // The client rollout must not block recording when the code reaches an
+  // environment before its additive migration. PostgREST rejects an unknown
+  // column before inserting anything, so retrying once without metadata cannot
+  // create a duplicate source recording. The next migration-enabled request
+  // will retain the requested/actual capture settings as intended.
+  if (error && captureQuality && (error.code === "PGRST204" || error.message.includes("capture_quality"))) {
+    console.warn("[VOICE SESSION CREATE] capture_quality migration is not applied; recording without quality metadata.");
+    ({ error } = await supabase.from("voice_recordings").insert(values));
+  }
+  if (error) throw error;
+}
+
 // docs/tablet-ipad-home-memo-voice-spec.md §6-7 — 지금까지 지난 녹음을 다시 찾아볼 방법이
 // 없었다(조회 API 자체가 없었음). 목록은 가벼운 컬럼만 돌려주고(transcript_segments 등 큰
 // 필드는 상세 조회(GET /api/voice/sessions/[id])에서만 가져온다), 최신순으로 최대 50건.
@@ -88,7 +108,7 @@ export async function POST(request: Request) {
       if (!preparation || preparation.status !== "ready" || preparation.current_version_id !== versionId || !version) {
         return NextResponse.json({ error: "현재 준비 완료된 인터뷰 질문 Snapshot을 찾을 수 없습니다." }, { status: 409 });
       }
-      const { error: insertError } = await supabase.from("voice_recordings").insert({
+      await insertVoiceRecording(supabase, {
         id,
         title: `${version.hospital_name} 인터뷰`,
         status: "recording",
@@ -97,7 +117,6 @@ export async function POST(request: Request) {
         analysis_status: "pending",
         device_type: deviceType,
         mime_type: mimeType,
-        capture_quality: captureQuality,
         recorded_at: now.toISOString(),
         interview_preparation_id: preparationId,
         interview_version_id: versionId,
@@ -105,8 +124,7 @@ export async function POST(request: Request) {
         workflow_run_id: preparation.workflow_run_id ?? null,
         interviewee_name: version.interviewee_name,
         selected_questions: version.selected_questions,
-      });
-      if (insertError) throw insertError;
+      }, captureQuality);
       const { error: preparationUpdateError } = await supabase.from("voice_interview_preparations").update({
         status: "recording",
         recording_id: id,
@@ -118,17 +136,15 @@ export async function POST(request: Request) {
 
     const path = `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${id}.${extension}`;
 
-    const { error: insertError } = await supabase.from("voice_recordings").insert({
+    await insertVoiceRecording(supabase, {
       id,
       title: title || null,
       status: "recording",
       device_type: deviceType,
       mime_type: mimeType,
       audio_path: path,
-      capture_quality: captureQuality,
       recorded_at: now.toISOString(),
-    });
-    if (insertError) throw insertError;
+    }, captureQuality);
 
     const { data, error } = await supabase.storage
       .from(VOICE_RECORDINGS_BUCKET)

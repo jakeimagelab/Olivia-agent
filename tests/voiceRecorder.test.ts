@@ -129,4 +129,11 @@ describe("Olivia voice integration guardrails", () => {
     expect(tabletApps).toContain('{ id: "voice", title: "음성 기록", fallbackIcon: "prompter" }');
     expect(tabletApps).not.toContain('id: "voice", title: "AI 음성"');
   });
+
+  it("does not block a new session before the additive capture-quality migration is applied", () => {
+    const sessions = readFileSync("app/api/voice/sessions/route.ts", "utf8");
+    expect(sessions).toContain("capture_quality migration is not applied");
+    expect(sessions).toContain('error.code === "PGRST204"');
+    expect(sessions).toContain('supabase.from("voice_recordings").insert(values)');
+  });
 });
