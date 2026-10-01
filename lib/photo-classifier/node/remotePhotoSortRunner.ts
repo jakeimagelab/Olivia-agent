@@ -26,6 +26,7 @@ import {
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
+import { resolveDermatologyProcedure } from "@/lib/photo-classifier/departments/dermatologyEquipment";
 import { computeFolderStats, type SceneWeightProfile } from "@/lib/photo-classifier/pattern-analysis";
 import type {
   LocalVisualFeatures,
@@ -270,9 +271,9 @@ function usesDermatologyBaseNaming(input: RemotePhotoSortRunnerInput): boolean {
 }
 
 function namedSceneFolder(scene: NodePhotoScene, label: string): string {
-  const prefix = /^\d{2}_/.test(scene.folderName)
-    ? String(scene.index).padStart(2, "0")
-    : `Scene${String(scene.index).padStart(2, "0")}`;
+  // 빠른 분석의 임시 Scene01 이름도 최종 출력에는 촬영 순서 NN_을 쓴다.
+  // 정확/빠른 모드가 서로 다른 폴더 표기법을 만들면 재분류·검토가 어려워진다.
+  const prefix = String(scene.index).padStart(2, "0");
   return `${prefix}_${label}`;
 }
 
@@ -286,6 +287,7 @@ async function enrichScenes(
 ): Promise<void> {
   if (!input.aiNamingEnabled && !input.departmentLogicEnabled) return;
   const targets = options.unresolvedOnly ? scenes.filter(needsSceneLabelResolution) : scenes;
+  let resolvedCount = 0;
 
   await mapWithConcurrency(targets, 2, async (scene, index) => {
     onProgress?.({
@@ -305,6 +307,13 @@ async function enrichScenes(
         images,
         useHighModel: false,
       });
+      // Scene AI는 대표컷 묶음을 한 번에 보고 장비 단서를 반환한다. 피부과에서는
+      // suggestedFolderName만 믿지 않고, 이미 감지된 장비/핸드피스/시술 단서를
+      // 표준 사전에 다시 연결한다. 이 경계는 Scene 단위이므로 개별 JPG의 추측이나
+      // 파일명 규칙을 섞지 않는다.
+      const dermatologyProcedure = usesDermatologyBaseNaming(input)
+        ? resolveDermatologyProcedure([result])
+        : null;
       scene.sceneType = result.sceneType as NodePhotoScene["sceneType"];
       scene.classificationOrigin = result.sceneType === "etc" ? "ai_unresolved" : "ai";
       scene.aiConfidence = result.confidence;
@@ -317,14 +326,20 @@ async function enrichScenes(
       scene.equipmentName = result.equipmentName ?? null;
       scene.equipmentBrand = result.equipmentBrand ?? null;
       scene.handpieceName = result.handpieceName ?? null;
-      scene.procedureName = result.procedureName ?? null;
-      scene.procedureCategory = result.procedureCategory ?? null;
-      scene.procedureConfidence = result.procedureConfidence ?? null;
-      scene.namingEvidence = result.namingEvidence ?? [];
-      if ((input.aiNamingEnabled || usesDermatologyBaseNaming(input)) && result.suggestedFolderName) {
-        const suggested = namedSceneFolder(scene, result.suggestedFolderName);
+      scene.procedureName = dermatologyProcedure?.procedureName ?? result.procedureName ?? null;
+      scene.procedureCategory = dermatologyProcedure?.procedureCategory ?? result.procedureCategory ?? null;
+      scene.procedureConfidence = dermatologyProcedure?.confidence
+        ? dermatologyProcedure.confidence
+        : result.procedureConfidence ?? null;
+      scene.namingEvidence = dermatologyProcedure?.evidence.length
+        ? dermatologyProcedure.evidence
+        : result.namingEvidence ?? [];
+      const resolvedLabel = dermatologyProcedure?.label ?? result.suggestedFolderName;
+      if ((input.aiNamingEnabled || usesDermatologyBaseNaming(input)) && resolvedLabel) {
+        const suggested = namedSceneFolder(scene, resolvedLabel);
         scene.editedName = safeSceneFolderName(suggested, scene.folderName);
       }
+      resolvedCount += 1;
     } catch (error) {
       scene.sceneType = "etc";
       scene.classificationOrigin = "ai_unresolved";
@@ -339,6 +354,11 @@ async function enrichScenes(
       });
     }
   });
+  // 모든 Scene 대표컷 분석이 실패했는데 "시술"·"기타" 같은 기본 폴더를
+  // 성공 결과로 저장하면 실제 장비/시술 단서가 없어진다. 이 경우 출력 전 중단한다.
+  if (usesDermatologyBaseNaming(input) && targets.length > 0 && resolvedCount === 0) {
+    throw new Error("Scene 대표컷 분석을 완료하지 못했습니다. 구체 시술명 없이 분류 결과를 만들지 않았습니다.");
+  }
 }
 
 async function classifyPrecise(
@@ -859,6 +879,13 @@ async function organizeWorkCopy(input: {
         classificationOrigin: scene.classificationOrigin,
         aiConfidence: scene.aiConfidence,
         aiReason: scene.aiReason,
+        equipmentName: scene.equipmentName ?? null,
+        equipmentBrand: scene.equipmentBrand ?? null,
+        handpieceName: scene.handpieceName ?? null,
+        procedureName: scene.procedureName ?? null,
+        procedureCategory: scene.procedureCategory ?? null,
+        procedureConfidence: scene.procedureConfidence ?? null,
+        namingEvidence: scene.namingEvidence ?? [],
         files: scene.files.map((entry) => entry.name),
       })),
       createdAt: new Date().toISOString(),
@@ -956,6 +983,13 @@ async function organizeSceneCopy(input: {
         classificationOrigin: scene.classificationOrigin,
         aiConfidence: scene.aiConfidence,
         aiReason: scene.aiReason,
+        equipmentName: scene.equipmentName ?? null,
+        equipmentBrand: scene.equipmentBrand ?? null,
+        handpieceName: scene.handpieceName ?? null,
+        procedureName: scene.procedureName ?? null,
+        procedureCategory: scene.procedureCategory ?? null,
+        procedureConfidence: scene.procedureConfidence ?? null,
+        namingEvidence: scene.namingEvidence ?? [],
         files: scene.files.map((entry) => entry.name),
       })),
       createdAt: new Date().toISOString(),
@@ -997,97 +1031,6 @@ function scenesForRequestedOnly(scenes: NodePhotoScene[], only: RemotePhotoSortR
   });
 }
 
-type PhotoKind = "연출" | "프로필" | "인테리어" | "기타";
-
-function photoKindFromSceneType(sceneType: NodePhotoScene["sceneType"]): PhotoKind | null {
-  if (sceneType === "profile") return "프로필";
-  if (sceneType === "interior") return "인테리어";
-  if (sceneType === "consultation" || sceneType === "treatment" || sceneType === "skin_care") return "연출";
-  return null;
-}
-
-function sceneTypeForPhotoKind(kind: PhotoKind): NodePhotoScene["sceneType"] {
-  if (kind === "프로필") return "profile";
-  if (kind === "인테리어") return "interior";
-  if (kind === "연출") return "treatment";
-  return "etc";
-}
-
-/**
- * 새 Agentstation 출력은 사진 한 장씩 배경·인물 단서로 판정한다. 여기서 폴더명은
- * 절대 분류 근거가 아니며, 이 함수는 한 JPG전체 하위 묶음에 대해 한 번씩 호출된다.
- * AI가 애매하다고 한 사진만 같은 묶음의 다수 결과를 따라간다.
- */
-async function classifyPhotosIndividually(
-  entries: NodePhotoEntry[],
-  input: RemotePhotoSortRunnerInput,
-  ai: AiAdapter,
-  warnings: RunnerWarning[],
-  onProgress?: (progress: RunnerProgress) => void,
-): Promise<NodePhotoScene[]> {
-  const verdicts = await mapWithConcurrency(entries, 3, async (entry, index) => {
-    onProgress?.({
-      stage: "SCENE_ANALYSIS",
-      current: index + 1,
-      total: entries.length,
-      message: `사진 판정: ${entry.name}`,
-    });
-    try {
-      const analysis = await ai.scene({
-        department: input.department,
-        sceneId: `photo-${String(index + 1).padStart(4, "0")}`,
-        images: [{ fileName: entry.name, base64: await createNodeApiImage(entry.path) }],
-        useHighModel: false,
-      });
-      return {
-        entry,
-        kind: photoKindFromSceneType(analysis.sceneType as NodePhotoScene["sceneType"]),
-        analysis,
-      };
-    } catch (error) {
-      warnings.push({
-        stage: "SCENE_ANALYSIS",
-        fileName: entry.name,
-        message: error instanceof Error ? error.message : String(error),
-        userVisible: true,
-      });
-      return { entry, kind: null, analysis: null };
-    }
-  });
-
-  const counts = new Map<PhotoKind, number>();
-  for (const verdict of verdicts) {
-    if (verdict.kind) counts.set(verdict.kind, (counts.get(verdict.kind) ?? 0) + 1);
-  }
-  if (counts.size === 0) {
-    // 키가 없거나 Scene AI가 전부 실패한 결과를 "기타" 성공으로 저장하면 사용자는
-    // 정상 분류가 된 줄 안다. 이 경우에는 안전하게 실패로 남겨 수동 작업으로 돌린다.
-    throw new Error("사진 내용을 자동으로 판정하지 못했습니다. 사진작업실에서 수동으로 정리해주세요.");
-  }
-  const majority = Array.from(counts.entries())
-    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0], "ko-KR"))[0]?.[0] ?? "기타";
-  const groups = new Map<PhotoKind, typeof verdicts>();
-  for (const verdict of verdicts) {
-    const kind = verdict.kind ?? majority;
-    const group = groups.get(kind) ?? [];
-    group.push(verdict);
-    groups.set(kind, group);
-  }
-
-  return Array.from(groups.entries()).map(([kind, group], index) => ({
-    index: index + 1,
-    folderName: kind,
-    editedName: kind,
-    startTime: group[0].entry.mtime,
-    endTime: group[group.length - 1].entry.mtime,
-    files: group.map((value) => value.entry),
-    sceneType: sceneTypeForPhotoKind(kind),
-    classificationOrigin: kind === "기타" ? "ai_unresolved" : "ai",
-    aiConfidence: group.reduce((sum, value) => sum + (value.analysis?.confidence ?? 0), 0) / group.length || null,
-    aiReason: kind === "기타" ? "판정이 애매해 같은 하위 폴더의 다수 결과를 정하지 못했습니다." : "사진별 배경·인물 판정",
-  }));
-}
-
 export async function runRemotePhotoSortRunner(
   input: RemotePhotoSortRunnerInput,
   dependencies: RemotePhotoSortRunnerDependencies = {},
@@ -1122,12 +1065,7 @@ export async function runRemotePhotoSortRunner(
 
   let scenes: NodePhotoScene[];
   let decisions: SceneBoundaryDecision[];
-  if (dependencies.outputMode === "copy") {
-    // PHOTO_CLASSIFY_WORK는 JPG전체의 하위 폴더 단위로 이 runner를 호출한다. 따라서
-    // 다수결도 이 배열 안에서만 계산되고 다른 촬영 묶음은 섞일 수 없다.
-    scenes = await classifyPhotosIndividually(scanned.jpg, input, ai, warnings, dependencies.onProgress);
-    decisions = [];
-  } else if (input.fastAnalyzeMode) {
+  if (input.fastAnalyzeMode) {
     scenes = buildFastScenes(scanned.jpg, input.gapMinutes);
     decisions = [];
     if (sceneAnalysisAvailable) {

@@ -1,4 +1,4 @@
-import { lstat, readdir, realpath, stat, statfs } from "node:fs/promises";
+import { lstat, readdir, realpath, rename, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
 import { runRemotePhotoSortRunner, type RemotePhotoSortRunnerDependencies } from "./remotePhotoSortRunner";
@@ -194,6 +194,45 @@ function sameJpgSnapshot(before: PhotoSnapshot[], after: PhotoSnapshot[]): boole
   return before.every((file, index) => after[index]?.relativePath === file.relativePath && after[index]?.name === file.name && after[index]?.size === file.size);
 }
 
+function isLegacyGenericTreatmentFolderName(name: string): boolean {
+  return /^(?:\d{2}_)?시술$/u.test(name.normalize("NFC"));
+}
+
+/**
+ * 이전 Agentstation 전용 경로는 장면 분석 결과를 버리고 "시술"로 축약했다.
+ * 검증까지 완료된 그 결과는 삭제하지 않고, 사용자가 다시 분류를 시작했을 때만
+ * 보관 대상으로 판별한다. 다른 시술명(주사시술·울쎄라시술 등)은 절대 해당하지 않는다.
+ */
+async function hasLegacyGenericTreatmentOutput(sceneRoot: string): Promise<boolean> {
+  const visit = async (directory: string): Promise<boolean> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name === "_REPORT") continue;
+      if (isLegacyGenericTreatmentFolderName(entry.name)) return true;
+      if (await visit(path.join(directory, entry.name))) return true;
+    }
+    return false;
+  };
+  return visit(sceneRoot);
+}
+
+function reclassificationArchiveName(): string {
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  return `${SCENE_CLASSIFIED_DIRECTORY}_이전_일반시술_${stamp}`;
+}
+
+async function archiveLegacyGenericTreatmentOutput(projectFolder: string, sceneRoot: string): Promise<string> {
+  let suffix = 0;
+  let destination = path.join(projectFolder, reclassificationArchiveName());
+  while (await lstat(destination).catch(() => null)) {
+    suffix += 1;
+    destination = path.join(projectFolder, `${reclassificationArchiveName()}_${suffix}`);
+  }
+  // 같은 Agentstation 프로젝트 안에서의 atomic rename이다. JPG전체와 기존 결과는
+  // 건드리지 않으며, 새 분류가 실패해도 보관본은 그대로 남는다.
+  await rename(sceneRoot, destination);
+  return destination;
+}
+
 function configuredMinFreeBytes(): number {
   const configured = process.env.OLIVIA_WORK_MIN_FREE_GB?.trim();
   if (!configured) return DEFAULT_MIN_FREE_BYTES;
@@ -231,6 +270,7 @@ export async function runPhotoClassifyWork(
 
   const sceneOutputFolder = path.join(projectFolder, SCENE_CLASSIFIED_DIRECTORY);
   const sceneOutputExists = Boolean(await lstat(sceneOutputFolder).catch(() => null));
+  const recoveryWarnings: RunnerWarning[] = [];
 
   if (sceneOutputExists) {
     // Worker 재시작 후 이미 출력이 있는 경우: 다시 분류하지 않고 결과를 검증해
@@ -238,16 +278,24 @@ export async function runPhotoClassifyWork(
     const output = await collectClassifiedOutput(sceneOutputFolder);
     const verificationError = verifyClassifiedOutput(before, output);
     if (verificationError) return fail("REVIEW_REQUIRED", before.length, verificationError);
-    return {
-      ok: true,
-      status: "CLASSIFY_COMPLETED",
-      projectPath: workRelativePath,
-      workRelativePath,
-      jpgCount: before.length,
-      sceneCount: output.sceneCount,
-      durationMs: 0,
-      warnings: [],
-    };
+    if (!(input.department === "dermatology" && input.departmentLogicEnabled && await hasLegacyGenericTreatmentOutput(sceneOutputFolder))) {
+      return {
+        ok: true,
+        status: "CLASSIFY_COMPLETED",
+        projectPath: workRelativePath,
+        workRelativePath,
+        jpgCount: before.length,
+        sceneCount: output.sceneCount,
+        durationMs: 0,
+        warnings: [],
+      };
+    }
+
+    const archiveFolder = await archiveLegacyGenericTreatmentOutput(projectFolder, sceneOutputFolder);
+    const archiveName = path.basename(archiveFolder);
+    const message = `기존 일반 시술 결과를 ${archiveName}에 보관하고, 장면별 시술명으로 다시 분류합니다.`;
+    dependencies.onProgress?.({ stage: "PREPARING", message });
+    recoveryWarnings.push({ stage: "RECLASSIFICATION", message, userVisible: true });
   }
 
   // 씬별분류는 JPG전체를 복사로 복제하므로 프로젝트당 SSD2 사용량이 약 2배가 된다.
@@ -317,7 +365,7 @@ export async function runPhotoClassifyWork(
       jpgCount: resultJpgCount,
       sceneCount: results.reduce((sum, result) => sum + result.sceneCount, 0),
       durationMs: Date.now() - startedAt,
-      warnings: results.flatMap((result) => result.warnings),
+      warnings: [...recoveryWarnings, ...results.flatMap((result) => result.warnings)],
     };
   } catch (error) {
     return fail("CLASSIFY_FAILED", before.length, error instanceof Error ? error.message : String(error));

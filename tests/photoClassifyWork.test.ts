@@ -131,7 +131,7 @@ describe("SSD2 PHOTO_CLASSIFY_WORK adapter", () => {
     await expect(stat(path.join(roots.workRoot, "0914_nested", "씬별분류", "sub"))).resolves.toBeTruthy();
   });
 
-  it("판정은 사진별로 하고 하위 폴더 결과를 서로 섞지 않는다", async () => {
+  it("하위 JPG전체 묶음은 서로 섞지 않고 Scene 단위 이름으로 복사한다", async () => {
     const { roots, project, jpgIntegrated } = await setup("0923_연세라이프구강내과");
     await mkdir(path.join(jpgIntegrated, "1차촬영"), { recursive: true });
     await mkdir(path.join(jpgIntegrated, "2차(프로필)"), { recursive: true });
@@ -141,31 +141,150 @@ describe("SSD2 PHOTO_CLASSIFY_WORK adapter", () => {
     const ai = {
       scene: async (input: { department: MedicalDepartment; sceneId: string; images: Array<{ fileName: string }> }) => {
         const name = input.images[0]?.fileName ?? "";
-        const kind = name.includes("PROFILE") ? "profile" : name.includes("INTERIOR") ? "interior" : "treatment";
+        const kind = name.includes("PROFILE") ? "profile" : "treatment";
+        const label = kind === "profile" ? "프로필" : "시술";
         return {
           department: input.department, sceneId: input.sceneId, sceneType: kind as "profile" | "interior" | "treatment",
-          displayName: kind, suggestedFolderName: kind, confidence: 0.95, detectedCues: [], negativeCues: [], reason: "테스트", needsReview: false,
+          displayName: label, suggestedFolderName: label, confidence: 0.95, detectedCues: [], negativeCues: [], reason: "테스트", needsReview: false,
           patientPosture: "unclear" as const, hasHandpiece: false, hasTreatmentDevice: false, hasTreatmentBed: false, hasConsultationDesk: false,
         };
       },
     };
 
-    const result = await runPhotoClassifyWork({ roots, workRelativePath: "0923_연세라이프구강내과", ...baseOptions }, { ai });
+    const result = await runPhotoClassifyWork({
+      roots,
+      workRelativePath: "0923_연세라이프구강내과",
+      ...baseOptions,
+      departmentLogicEnabled: true,
+    }, { ai });
     expect(result).toMatchObject({ ok: true, jpgCount: 5 });
     const output = path.join(project, "씬별분류");
-    await expect(stat(path.join(output, "1차촬영", "연출", "DIRECTED.JPG"))).resolves.toBeTruthy();
-    await expect(stat(path.join(output, "1차촬영", "인테리어", "INTERIOR.JPG"))).resolves.toBeTruthy();
-    await expect(stat(path.join(output, "2차(프로필)", "프로필", "PROFILE.JPG"))).resolves.toBeTruthy();
-    await expect(stat(path.join(output, "1차촬영", "프로필", "PROFILE.JPG"))).rejects.toThrow();
+    await expect(stat(path.join(output, "1차촬영", "01_시술", "DIRECTED.JPG"))).resolves.toBeTruthy();
+    await expect(stat(path.join(output, "1차촬영", "01_시술", "INTERIOR.JPG"))).resolves.toBeTruthy();
+    await expect(stat(path.join(output, "2차(프로필)", "01_프로필", "PROFILE.JPG"))).resolves.toBeTruthy();
+    await expect(stat(path.join(output, "1차촬영", "01_프로필", "PROFILE.JPG"))).rejects.toThrow();
+  });
+
+  it("Agentstation 복사 출력도 감지된 피부과 장비명을 Scene 폴더와 리포트에 보존한다", async () => {
+    const { roots, project, jpgIntegrated } = await setup("0923_울쎄라");
+    for (let index = 3; index <= 8; index++) {
+      await writeJpg(path.join(jpgIntegrated, `A${String(index).padStart(3, "0")}.JPG`));
+    }
+    const result = await runPhotoClassifyWork({
+      roots,
+      workRelativePath: "0923_울쎄라",
+      ...baseOptions,
+      departmentLogicEnabled: true,
+    }, {
+      ai: {
+        scene: async (input) => ({
+          department: input.department,
+          sceneId: input.sceneId,
+          sceneType: "treatment" as const,
+          // 이 값이 과거처럼 그대로 쓰이면 01_시술이 된다. Runner가 장비 단서로
+          // 다시 해석해서 01_울쎄라시술을 만들어야 한다.
+          displayName: "시술",
+          suggestedFolderName: "시술",
+          confidence: 0.95,
+          detectedCues: ["환자 얼굴에 핸드피스 접촉"],
+          negativeCues: [],
+          reason: "울쎄라 시술 장면",
+          needsReview: false,
+          patientPosture: "lying_down" as const,
+          hasHandpiece: true,
+          hasTreatmentDevice: true,
+          hasTreatmentBed: true,
+          hasConsultationDesk: false,
+          hasDoctor: true,
+          hasPatient: true,
+          equipmentPresent: true,
+          equipmentName: "Ultherapy",
+          handpieceName: "Ultherapy transducer",
+          procedureName: "울쎄라",
+          procedureCategory: "lifting",
+          procedureConfidence: 0.94,
+          namingEvidence: ["울쎄라 장비와 트랜스듀서 확인"],
+        }),
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, jpgCount: 8, sceneCount: 1 });
+    const sceneRoot = path.join(project, "씬별분류", "01_울쎄라시술");
+    await expect(stat(path.join(sceneRoot, "A001.JPG"))).resolves.toBeTruthy();
+    const report = JSON.parse(await readFile(path.join(project, "씬별분류", "_REPORT", "scene_report.json"), "utf8"));
+    expect(report.scenes[0]).toMatchObject({
+      folderName: "01_울쎄라시술",
+      equipmentName: "Ultherapy",
+      handpieceName: "Ultherapy transducer",
+      procedureName: "울쎄라",
+      procedureCategory: "lifting",
+    });
   });
 
   it("AI가 모든 사진을 판정하지 못하면 기타 성공으로 끝내지 않는다", async () => {
     const { roots } = await setup("all-unknown");
-    const result = await runPhotoClassifyWork({ roots, workRelativePath: "all-unknown", ...baseOptions }, {
+    const result = await runPhotoClassifyWork({
+      roots,
+      workRelativePath: "all-unknown",
+      ...baseOptions,
+      departmentLogicEnabled: true,
+    }, {
       ai: { scene: async () => { throw new Error("AI unavailable"); } },
     });
     expect(result).toMatchObject({ ok: false, status: "CLASSIFY_FAILED" });
-    expect(result.ok ? "" : result.error).toContain("자동으로 판정하지 못했습니다");
+    expect(result.ok ? "" : result.error).toContain("Scene 대표컷 분석을 완료하지 못했습니다");
+  });
+
+  it("기존 일반 시술 결과는 삭제하지 않고 보관한 뒤 정확한 피부과 시술명으로 재분류한다", async () => {
+    const { roots, project, jpgIntegrated } = await setup("legacy-generic-treatment");
+    const legacyScene = path.join(project, "씬별분류", "01_시술");
+    await mkdir(legacyScene, { recursive: true });
+    for (const name of ["A001.JPG", "A002.JPG"]) {
+      await writeFile(path.join(legacyScene, name), await readFile(path.join(jpgIntegrated, name)));
+    }
+
+    const result = await runPhotoClassifyWork({
+      roots,
+      workRelativePath: "legacy-generic-treatment",
+      ...baseOptions,
+      departmentLogicEnabled: true,
+    }, {
+      ai: {
+        scene: async (input) => ({
+          department: input.department,
+          sceneId: input.sceneId,
+          sceneType: "treatment" as const,
+          displayName: "시술",
+          suggestedFolderName: "시술",
+          confidence: 0.95,
+          detectedCues: ["울쎄라 핸드피스"],
+          negativeCues: [],
+          reason: "울쎄라 시술 장면",
+          needsReview: false,
+          patientPosture: "lying_down" as const,
+          hasHandpiece: true,
+          hasTreatmentDevice: true,
+          hasTreatmentBed: true,
+          hasConsultationDesk: false,
+          hasDoctor: true,
+          hasPatient: true,
+          equipmentPresent: true,
+          equipmentName: "Ultherapy",
+          procedureConfidence: 0.93,
+          namingEvidence: ["장비와 핸드피스 확인"],
+        }),
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true, status: "CLASSIFY_COMPLETED", sceneCount: 1 });
+    await expect(stat(path.join(project, "씬별분류", "01_울쎄라시술", "A001.JPG"))).resolves.toBeTruthy();
+    const projectEntries = await readdir(project);
+    const archived = projectEntries.find((name) => name.startsWith("씬별분류_이전_일반시술_"));
+    expect(archived).toBeTruthy();
+    await expect(stat(path.join(project, archived!, "01_시술", "A001.JPG"))).resolves.toBeTruthy();
+    expect(result.ok ? result.warnings : []).toEqual(expect.arrayContaining([
+      expect.objectContaining({ stage: "RECLASSIFICATION" }),
+    ]));
   });
 
   it("fails clearly when JPG전체 does not exist yet (merge not completed)", async () => {
