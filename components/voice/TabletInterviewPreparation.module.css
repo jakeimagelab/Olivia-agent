@@ -1,0 +1,246 @@
+.frame,
+.readyFrame {
+  --green: #155855;
+  --mint: #eef8f5;
+  --line: rgba(21, 88, 85, .13);
+  width: min(100%, 1180px);
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 20px 20px 106px;
+  box-sizing: border-box;
+  color: #193e3a;
+}
+
+.toolbar {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.toolbar > button,
+.readyContent article button,
+.actionBar button,
+.readyActions a,
+.readyActions button {
+  min-height: 42px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--green);
+  background: #fff;
+  font: 750 12px/1 inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.toolbar > div { text-align: center; }
+.toolbar p,
+.questionHeader p,
+.orderCard header p {
+  margin: 0;
+  color: #718d87;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .13em;
+}
+.toolbar h1 { margin: 3px 0 0; font-size: 19px; letter-spacing: -.045em; }
+.toolbar > span { justify-self: end; color: #44736b; font-size: 11px; font-weight: 800; }
+
+.selectionLayout {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: minmax(280px, .34fr) minmax(0, .66fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.infoCard,
+.questionPicker,
+.orderCard {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 7px 20px rgba(20, 63, 57, .025);
+}
+
+.infoCard {
+  position: sticky;
+  top: 16px;
+  padding: 20px;
+}
+
+.infoCard h2 { margin: 0 0 17px; font-size: 18px; letter-spacing: -.045em; }
+.infoCard label { margin-top: 12px; display: grid; gap: 6px; color: #4c716a; font-size: 11px; font-weight: 800; }
+.infoCard label small { color: #9aacaa; font-size: 10px; font-weight: 650; }
+.infoCard input,
+.infoCard select {
+  width: 100%;
+  min-height: 43px;
+  padding: 0 11px;
+  box-sizing: border-box;
+  border: 1px solid #d8e7e3;
+  border-radius: 10px;
+  color: #193e3a;
+  background: #fff;
+  font: 500 13px/1 inherit;
+}
+.infoCard > p { margin: 17px 0 0; color: #859a95; font-size: 10px; line-height: 1.5; }
+
+.questionPicker { min-width: 0; padding: 18px; }
+.questionHeader {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -2px -2px 10px;
+  padding: 4px 2px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(21, 88, 85, .09);
+  background: #fff;
+}
+.questionHeader h2,
+.orderCard h2 { margin: 4px 0 0; font-size: 20px; letter-spacing: -.05em; }
+.questionHeader > span,
+.orderCard header > span {
+  min-height: 27px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  color: var(--green);
+  background: var(--mint);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sectionAccordion { margin-top: 9px; overflow: hidden; border: 1px solid #dfebe8; border-radius: 13px; }
+.sectionAccordion > button {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 13px;
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  color: #285c55;
+  background: #f7fbfa;
+  font: 750 13px/1 inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sectionAccordion > button b {
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  color: #fff;
+  background: #397169;
+  font-size: 10px;
+}
+.sectionAccordion > button small { color: #e66639; font-size: 10px; }
+.questionList { padding: 5px 11px 10px; display: grid; gap: 3px; background: #fff; }
+.questionList label {
+  min-height: 44px;
+  padding: 8px 5px;
+  display: grid;
+  grid-template-columns: 22px 28px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  border-radius: 9px;
+  color: #315d57;
+  font-size: 13px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.questionList label[data-selected] { background: rgba(21, 88, 85, .055); }
+.questionList input { width: 20px; height: 20px; margin: 0; accent-color: var(--green); }
+.questionList i { width: 23px; height: 23px; display: grid; place-items: center; border-radius: 7px; color: #fff; background: #397169; font-size: 10px; font-style: normal; }
+
+.orderCard { max-width: 980px; margin: 22px auto 0; padding: 20px; }
+.orderCard header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.orderCard ol { margin: 15px 0 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.orderCard li {
+  min-height: 62px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 88px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(21, 88, 85, .08);
+  border-radius: 12px;
+  background: #f9fcfb;
+}
+.orderCard li > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--green); font-size: 11px; font-weight: 800; }
+.orderCard li p { margin: 0; color: #214f49; font-size: 13px; line-height: 1.45; }
+.orderCard li div { display: grid; grid-template-columns: 40px 40px; gap: 4px; }
+.orderCard li button { width: 40px; height: 40px; border: 1px solid #dbe9e5; border-radius: 9px; color: var(--green); background: #fff; font: 800 16px/1 inherit; cursor: pointer; }
+.orderCard li button:disabled { opacity: .32; cursor: default; }
+.empty { margin: 22px 0 4px; color: #7e948f; font-size: 12px; }
+
+.actionBar {
+  position: sticky;
+  z-index: 4;
+  bottom: 0;
+  min-height: 68px;
+  margin: 22px -2px -106px;
+  padding: 12px 2px max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid rgba(21, 88, 85, .1);
+  background: rgba(250, 253, 252, .96);
+  backdrop-filter: blur(14px);
+}
+.actionBar > span { margin-right: auto; color: #37675f; font-size: 12px; font-weight: 800; }
+.actionBar .primary,
+.readyActions button { border-color: var(--green); color: #fff; background: var(--green); }
+.actionBar button:disabled { opacity: .5; cursor: default; }
+.error { margin: 14px 0 -6px; padding: 10px 12px; border-left: 3px solid #d65743; border-radius: 8px; color: #913f34; background: #fff2ef; font-size: 12px; line-height: 1.5; }
+
+.readyContent { width: min(100%, 800px); margin: 34px auto 0; text-align: center; }
+.readyContent > i { width: 58px; height: 58px; margin: 0 auto; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #1e9473; }
+.readyContent h2 { margin: 15px 0 0; font-size: 25px; letter-spacing: -.06em; }
+.readyContent > p { margin: 9px 0 20px; color: #66817c; font-size: 13px; }
+.readyContent article { padding: 13px; display: grid; grid-template-columns: 90px 1fr auto; align-items: center; gap: 14px; border: 1px solid var(--line); border-radius: 15px; text-align: left; background: #fff; }
+.readyThumbnail { width: 90px; height: 64px; display: grid; place-items: center; border-radius: 10px; color: var(--green); background: #eaf5f1; }
+.readyContent article strong,.readyContent article span,.readyContent article small { display: block; }
+.readyContent article strong { font-size: 15px; }
+.readyContent article span { margin-top: 4px; color: #315d57; font-size: 12px; }
+.readyContent article small { margin-top: 3px; color: #849a95; font-size: 11px; }
+.readyContent article button { min-height: 36px; font-size: 11px; }
+.readyActions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 9px; }
+.readyActions > * { min-height: 50px; font-size: 13px; }
+.readyNotice { display: block; margin-top: 15px; color: #869a95; font-size: 11px; }
+
+@media (max-width: 899px) {
+  .frame,.readyFrame { padding: 14px 14px 98px; }
+  .selectionLayout { grid-template-columns: 1fr; }
+  .infoCard { position: static; }
+  .toolbar h1 { font-size: 16px; }
+  .orderCard { margin-top: 14px; }
+}
+
+@media (max-width: 600px) {
+  .toolbar { grid-template-columns: auto 1fr auto; }
+  .toolbar > div { text-align: left; }
+  .toolbar > div p { display: none; }
+  .toolbar > span { font-size: 10px; }
+  .actionBar { margin-bottom: -98px; }
+  .readyContent article { grid-template-columns: 64px 1fr; }
+  .readyThumbnail { width: 64px; height: 54px; }
+  .readyContent article button { grid-column: 1 / -1; width: 100%; }
+  .readyActions { grid-template-columns: 1fr; }
+}
