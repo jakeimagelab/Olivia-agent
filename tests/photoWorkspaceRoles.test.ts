@@ -62,5 +62,7 @@ describe("사진 작업실 역할 분리", () => {
     expect(rename).toContain('const transferMode: RenameTransferMode = "same-folder"');
     expect(rename).not.toContain("showDirectoryPicker");
     expect(rename).not.toContain("setCurrentLocalFolder");
+    expect(rename).not.toContain("if (!rootDir) {\n    return");
+    expect(rename).toContain("사진 셀렉 또는 사진 분류에서 작업 폴더를 지정하면");
   });
 });

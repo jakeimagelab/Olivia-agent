@@ -139,26 +139,17 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
 
   const visibleRows = plan?.rows.slice(0, 16) ?? [];
 
-  if (!rootDir) {
-    return (
-      <section className={styles.empty}>
-        <FolderOpen size={28} aria-hidden="true" />
-        <strong>현재 작업 폴더가 없습니다.</strong>
-        <p>사진 셀렉 또는 사진 분류에서 작업 폴더를 선택한 뒤 이름변경을 열어주세요.</p>
-      </section>
-    );
-  }
-
   return (
     <section className={styles.surface} aria-label="사진 이름변경">
       <header className={styles.header}>
         <span className={styles.headerIcon}><PencilLine size={22} aria-hidden="true" /></span>
         <div><h2>이름변경</h2><p>원하는 규칙으로 사진 파일 이름을 일괄 변경합니다.</p></div>
-        <span className={styles.folder}><FolderOpen size={14} aria-hidden="true" />현재 작업 폴더: <strong>{rootDir.name}</strong></span>
+        <span className={styles.folder}><FolderOpen size={14} aria-hidden="true" />현재 작업 폴더: <strong>{rootDir?.name ?? "선택 안 됨"}</strong></span>
       </header>
 
       <div className={styles.layout}>
         <div className={styles.controls}>
+          {!rootDir ? <div className={styles.noFolderNotice}><FolderOpen size={16} /><span>사진 셀렉 또는 사진 분류에서 작업 폴더를 지정하면 미리보기와 이름 변경을 실행할 수 있습니다.</span></div> : null}
           <section className={styles.section}>
             <h3>1. 이름 변경 방식</h3>
             <div className={styles.cardGrid}>
@@ -203,8 +194,8 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
       </div>
 
       <footer className={styles.actions}>
-        <span>{plan ? `${plan.discoveredCount.toLocaleString("ko-KR")}개 파일을 확인했습니다.` : "미리보기로 변경 대상과 중복을 확인하세요."}</span>
-        <div><button type="button" className={styles.secondary} onClick={preview} disabled={running}>{phase === "previewing" ? "미리보기 중…" : "미리보기"}</button><button type="button" className={styles.primary} onClick={execute} disabled={!plan || plan.blocked || plan.readyCount === 0 || running}>{phase === "running" ? "이름 변경 중…" : `이름 변경 (${plan?.readyCount ?? 0}개)`}</button></div>
+        <span>{!rootDir ? "작업 폴더를 지정하면 파일 미리보기를 시작할 수 있습니다." : plan ? `${plan.discoveredCount.toLocaleString("ko-KR")}개 파일을 확인했습니다.` : "미리보기로 변경 대상과 중복을 확인하세요."}</span>
+        <div><button type="button" className={styles.secondary} onClick={preview} disabled={!rootDir || running}>{phase === "previewing" ? "미리보기 중…" : "미리보기"}</button><button type="button" className={styles.primary} onClick={execute} disabled={!rootDir || !plan || plan.blocked || plan.readyCount === 0 || running}>{phase === "running" ? "이름 변경 중…" : `이름 변경 (${plan?.readyCount ?? 0}개)`}</button></div>
       </footer>
     </section>
   );

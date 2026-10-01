@@ -7,6 +7,8 @@
 .folder strong { color:#d8f7ee; font-weight:700; }
 .layout { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(340px,.82fr); min-height:618px; }
 .controls { padding:22px 24px; border-right:1px solid rgba(255,255,255,.1); }
+.noFolderNotice { display:flex; align-items:flex-start; gap:8px; margin:0 0 16px; padding:10px 11px; border:1px solid rgba(232,93,44,.34); border-radius:8px; background:rgba(232,93,44,.10); color:#ffc3ad; font-size:11px; line-height:1.55; }
+.noFolderNotice svg { flex:0 0 auto; margin-top:1px; color:#ff9e7c; }
 .section { padding-bottom:21px; margin-bottom:19px; border-bottom:1px solid rgba(255,255,255,.1); }
 .section h3,.optionRow h3,.previewHeading h3 { margin:0 0 13px; color:#f6fffc; font-size:15px; letter-spacing:-.025em; }
 .cardGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; }
