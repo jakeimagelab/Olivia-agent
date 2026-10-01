@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, EyeOff, FolderOpen, Loader2, MoveRight, ScanSearch, Sparkles, Undo2 } from "lucide-react";
 import { METADATA_SELECT_JPG_EXTENSIONS } from "@/lib/metadataSelect/matcher";
 import { transferFilesSafely, type MetadataFileTransfer } from "@/lib/metadataSelect/fileOperations";
@@ -12,7 +13,6 @@ import {
   type TcutReason,
   type TcutVisualAssessment,
 } from "@/lib/photoTcut/analysis";
-import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import styles from "./PhotoTcutWorkspace.module.css";
 
 type TcutTab = "ai" | "manual";
@@ -134,25 +134,37 @@ function checkLabel(check: keyof TcutChecks): string {
 }
 
 export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDirectoryHandle | null }) {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
+  // T컷에서 바꾼 폴더는 이 작업 안에서만 사용한다. 이름변경 등 다른 작업의
+  // 현재 폴더를 바꾸지 않는다.
+  const [activeRoot, setActiveRoot] = useState<FileSystemDirectoryHandle | null>(rootDir);
   const [tab, setTab] = useState<TcutTab>("ai");
   const [checks, setChecks] = useState<TcutChecks>(ALL_CHECKS);
   const [photos, setPhotos] = useState<TcutPhoto[]>([]);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState({ current: 0, total: 0, name: "" });
+  const [preview, setPreview] = useState<{ name: string; source: string } | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (rootDir) setActiveRoot(rootDir);
+  }, [rootDir]);
 
   useEffect(() => {
     setPhotos([]);
     setPhase("idle");
     setMessage("");
-  }, [rootDir, tab]);
+  }, [activeRoot, tab]);
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+  }, []);
 
   const chooseFolder = async () => {
     try {
       const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
       if (!picker) throw new Error("Chrome 또는 Edge에서 작업 폴더를 선택할 수 있습니다.");
-      setCurrentLocalFolder(await picker({ mode: "readwrite" }));
+      setActiveRoot(await picker({ mode: "readwrite" }));
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       setMessage(error instanceof Error ? error.message : "폴더를 선택하지 못했습니다.");
@@ -161,11 +173,11 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
   };
 
   const scan = async () => {
-    if (!rootDir || phase === "scanning" || phase === "moving") return;
+    if (!activeRoot || phase === "scanning" || phase === "moving") return;
     setPhase("scanning");
     setMessage("");
     try {
-      const source = await readPhotos(rootDir);
+      const source = await readPhotos(activeRoot);
       if (tab === "manual") {
         setPhotos(source);
         setPhase("ready");
@@ -197,7 +209,7 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
   };
 
   const moveToTrash = async () => {
-    if (!rootDir || !selectedCount || phase === "moving") return;
+    if (!activeRoot || !selectedCount || phase === "moving") return;
     const selected = candidates.filter((photo) => photo.selected);
     const confirmed = window.confirm(`${selected.length.toLocaleString("ko-KR")}장 JPG를 Trash_JPG로 이동합니다.\n\n파일은 삭제하지 않고 복사 → size·SHA-256 검증 → 검증 성공 후 원본 정리 방식으로 이동합니다.\n\n계속하시겠습니까?`);
     if (!confirmed) return;
@@ -205,11 +217,11 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
     setMessage("");
     setProgress({ current: 0, total: selected.length, name: "" });
     try {
-      await ensureWritePermission(rootDir);
-      const trash = await (rootDir as any).getDirectoryHandle("Trash_JPG", { create: true }) as FileSystemDirectoryHandle;
+      await ensureWritePermission(activeRoot);
+      const trash = await (activeRoot as any).getDirectoryHandle("Trash_JPG", { create: true }) as FileSystemDirectoryHandle;
       const transfers: MetadataFileTransfer[] = selected.map((photo) => ({
         name: photo.name,
-        sourceDirectory: rootDir,
+        sourceDirectory: activeRoot,
         sourceHandle: photo.handle,
       }));
       await transferFilesSafely({
@@ -228,16 +240,30 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
     }
   };
 
-  if (!rootDir) {
-    return <section className={styles.empty}><FolderOpen size={28} /><strong>현재 작업 폴더가 없습니다.</strong><p>사진 작업실에서 선택한 폴더를 그대로 사용하거나, 여기서 T컷 작업을 시작하세요.</p><button type="button" onClick={chooseFolder}>폴더 선택</button></section>;
-  }
+  const openPreview = async (photo: TcutPhoto) => {
+    try {
+      const source = URL.createObjectURL(await photo.handle.getFile());
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = source;
+      setPreview({ name: photo.name, source });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "사진을 확대하지 못했습니다.");
+      setPhase("failed");
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    previewUrlRef.current = null;
+    setPreview(null);
+  };
 
   return (
     <section className={styles.surface} aria-label="T컷 정리">
       <header className={styles.header}>
         <span className={styles.headerIcon}><EyeOff size={21} /></span>
         <div><h2>T컷 정리</h2><p>촬영 실패컷을 확인한 뒤 Trash_JPG로 정리합니다.</p></div>
-        <span className={styles.folder}><FolderOpen size={14} />현재 작업 폴더: <strong>{rootDir.name}</strong></span>
+        <span className={styles.folder}><FolderOpen size={14} />현재 작업 폴더: <strong>{activeRoot?.name ?? "선택 안 됨"}</strong><button type="button" onClick={() => void chooseFolder()} disabled={phase === "scanning" || phase === "moving"}>{activeRoot ? "폴더 변경" : "폴더 선택"}</button></span>
       </header>
 
       <nav className={styles.tabs} role="tablist" aria-label="T컷 정리 방식">
@@ -247,24 +273,25 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
 
       <div className={styles.body}>
         <section className={styles.controls}>
-          <div className={styles.folderRow}><span><FolderOpen size={16} />{rootDir.name}</span><button type="button" onClick={chooseFolder} disabled={phase === "scanning" || phase === "moving"}>폴더 변경</button></div>
+          {activeRoot ? <div className={styles.folderRow}><span><FolderOpen size={16} />{activeRoot.name}</span></div> : <p className={styles.folderHint}>오른쪽 상단의 <strong>폴더 선택</strong>에서 T컷을 확인할 JPG 폴더를 열어주세요.</p>}
           {tab === "ai" ? (
             <fieldset className={styles.checks}>
               <legend>검사 항목</legend>
               {(Object.keys(checks) as Array<keyof TcutChecks>).map((check) => <label key={check}><input type="checkbox" checked={checks[check]} onChange={(event) => setChecks((current) => ({ ...current, [check]: event.target.checked }))} disabled={phase === "scanning" || phase === "moving"} />{checkLabel(check)}</label>)}
             </fieldset>
           ) : <p className={styles.manualNote}>현재 폴더의 JPG를 직접 확인해 T컷 목록에 넣습니다. 사진은 이동 전까지 바뀌지 않습니다.</p>}
-          <button type="button" className={styles.scanButton} onClick={() => void scan()} disabled={phase === "scanning" || phase === "moving"}>{phase === "scanning" ? <><Loader2 size={16} className="spin-icon" />분석 중…</> : tab === "ai" ? <><Sparkles size={16} />T컷 분석 시작</> : <><ScanSearch size={16} />사진 불러오기</>}</button>
+          <button type="button" className={styles.scanButton} onClick={() => void scan()} disabled={!activeRoot || phase === "scanning" || phase === "moving"}>{phase === "scanning" ? <><Loader2 size={16} className="spin-icon" />분석 중…</> : tab === "ai" ? <><Sparkles size={16} />T컷 분석 시작</> : <><ScanSearch size={16} />사진 불러오기</>}</button>
           {message ? <div className={`${styles.message} ${phase === "failed" ? styles.error : phase === "done" ? styles.done : ""}`}>{phase === "failed" ? <Undo2 size={15} /> : phase === "done" ? <CheckCircle2 size={15} /> : <Sparkles size={15} />}<span>{message}</span></div> : null}
         </section>
 
         <section className={styles.results}>
           <div className={styles.resultHeading}><div><h3>{tab === "ai" ? "T컷 후보" : "폴더 사진"}</h3><p>{phase === "ready" || phase === "done" ? `${candidates.length.toLocaleString("ko-KR")}장 · 선택 ${selectedCount.toLocaleString("ko-KR")}장` : "분석을 시작하면 후보를 표시합니다."}</p></div>{candidates.length ? <div><button type="button" onClick={() => setAll(true)}>전체 선택</button><button type="button" onClick={() => setAll(false)}>전체 해제</button></div> : null}</div>
           {phase === "moving" ? <div className={styles.progress}><Loader2 size={16} className="spin-icon" /><span>Trash_JPG 이동 및 무결성 검사 {progress.current} / {progress.total}</span><small>{progress.name}</small></div> : null}
-          {candidates.length ? <div className={styles.grid}>{candidates.map((photo) => <button type="button" key={photo.name} className={`${styles.card} ${photo.selected ? styles.cardSelected : ""}`} onClick={() => toggle(photo.name)} aria-pressed={photo.selected}><span className={styles.thumbnail}>{/* eslint-disable-next-line @next/next/no-img-element */}<img src={photo.thumbnail} alt="" /></span><span className={styles.cardBody}><span className={styles.cardTitle}>{photo.name}</span><span className={styles.reasons}>{photo.reasons.length ? photo.reasons.map((reason) => <i key={reason}>{tcutReasonLabel(reason)}</i>) : <i>직접 선택</i>}</span></span><span className={styles.check}>{photo.selected ? <Check size={14} strokeWidth={3} /> : null}</span></button>)}</div> : <div className={styles.emptyResults}>검사 대상 사진이 없습니다.</div>}
+          {candidates.length ? <div className={styles.grid}>{candidates.map((photo) => <article key={photo.name} className={`${styles.card} ${photo.selected ? styles.cardSelected : ""}`}><button type="button" className={styles.previewButton} onClick={() => void openPreview(photo)} aria-label={`${photo.name} 크게 보기`}><span className={styles.thumbnail}><img src={photo.thumbnail} alt={`${photo.name} 미리보기`} /></span></button><div className={styles.cardBody}><span className={styles.cardTitle}>{photo.name}</span><span className={styles.reasons}>{photo.reasons.length ? photo.reasons.map((reason) => <i key={reason}>{tcutReasonLabel(reason)}</i>) : <i>직접 선택</i>}</span></div><button type="button" className={styles.check} onClick={() => toggle(photo.name)} aria-pressed={photo.selected} aria-label={`${photo.name} ${photo.selected ? "T컷 이동 대상 해제" : "T컷 이동 대상으로 선택"}`}>{photo.selected ? <Check size={14} strokeWidth={3} /> : null}</button></article>)}</div> : <div className={styles.emptyResults}>{activeRoot ? "검사 대상 사진이 없습니다." : "폴더를 선택하면 사진을 바로 확인할 수 있습니다."}</div>}
         </section>
       </div>
       <footer className={styles.footer}><span>{selectedCount ? `선택한 ${selectedCount.toLocaleString("ko-KR")}장은 삭제하지 않고 Trash_JPG로 이동합니다.` : "이동할 사진을 선택하세요."}</span><button type="button" onClick={() => void moveToTrash()} disabled={!selectedCount || phase === "moving"}><MoveRight size={16} />선택 {selectedCount.toLocaleString("ko-KR")}장 Trash_JPG로 이동</button></footer>
+      {preview ? <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={`${preview.name} 크게 보기`} onClick={closePreview}><div className={styles.lightboxContent} onClick={(event) => event.stopPropagation()}><button type="button" className={styles.lightboxClose} onClick={closePreview}>닫기</button><img src={preview.source} alt={preview.name} /><strong>{preview.name}</strong></div></div> : null}
     </section>
   );
 }

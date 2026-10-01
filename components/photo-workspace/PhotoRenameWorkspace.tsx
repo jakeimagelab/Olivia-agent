@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Copy, FolderOpen, FolderOutput, Loader2, PencilLine, ShieldCheck, TriangleAlert } from "lucide-react";
+import { CheckCircle2, FolderOpen, Loader2, PencilLine, ShieldCheck, TriangleAlert } from "lucide-react";
 import { executeRenamePlan } from "@/lib/photoRename/executeRenamePlan";
-import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import {
   buildRenamePlan,
   type RenamePlan,
@@ -63,15 +62,15 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: "rea
 }
 
 export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemDirectoryHandle | null }) {
-  const { setCurrentLocalFolder } = usePhotoStudioExecution();
-  const [transferMode, setTransferMode] = useState<RenameTransferMode>("same-folder");
+  // 이름변경은 항상 현재 작업 폴더 안에서만 안전하게 처리한다. T컷에서 임시로
+  // 고른 폴더를 이 화면의 대상 폴더로 전파하지 않는다.
+  const transferMode: RenameTransferMode = "same-folder";
   const [renameMode, setRenameMode] = useState<RenameMode>("template");
   const [templateText, setTemplateText] = useState("");
   const [startNumber, setStartNumber] = useState(1);
   const [digits, setDigits] = useState(3);
   const [customText, setCustomText] = useState("");
   const [includeSubdirectories, setIncludeSubdirectories] = useState(true);
-  const [destination, setDestination] = useState<FileSystemDirectoryHandle | null>(null);
   const [plan, setPlan] = useState<RenamePlan | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState("");
@@ -83,9 +82,8 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
     customText,
     includeSubdirectories,
     transferMode,
-  }), [customText, digits, includeSubdirectories, renameMode, startNumber, templateText, transferMode]);
+  }), [customText, digits, includeSubdirectories, renameMode, startNumber, templateText]);
   const running = phase === "previewing" || phase === "running";
-  const needDestination = transferMode !== "same-folder";
 
   const invalidate = () => {
     if (running) return;
@@ -100,50 +98,16 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
     setPhase("idle");
   }, [rootDir]);
 
-  const chooseDestination = async () => {
-    try {
-      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) throw new Error("Chrome 또는 Edge에서 목적지 폴더를 선택할 수 있습니다.");
-      const next = await picker({ mode: "readwrite" });
-      setDestination(next);
-      invalidate();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage(errorMessage(error));
-      setPhase("failed");
-    }
-  };
-
-  const chooseSource = async () => {
-    try {
-      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) throw new Error("Chrome 또는 Edge에서 작업 폴더를 선택할 수 있습니다.");
-      const next = await picker({ mode: "readwrite" });
-      setCurrentLocalFolder(next);
-      setMessage("");
-      setPhase("idle");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage(errorMessage(error));
-      setPhase("failed");
-    }
-  };
-
   const preview = async () => {
     if (!rootDir) {
       setMessage("사진 작업실에서 먼저 작업 폴더를 선택해주세요.");
       setPhase("failed");
       return;
     }
-    if (needDestination && !destination) {
-      setMessage("이동 또는 복사 방식에서는 목적지 폴더를 선택해주세요.");
-      setPhase("failed");
-      return;
-    }
     setPhase("previewing");
     setMessage("");
     try {
-      const nextPlan = await buildRenamePlan({ root: rootDir, destination, settings });
+      const nextPlan = await buildRenamePlan({ root: rootDir, destination: null, settings });
       setPlan(nextPlan);
       setPhase("ready");
       if (nextPlan.blocked) setMessage("중복 또는 오류가 있어 실행할 수 없습니다. 목록을 확인해주세요.");
@@ -156,8 +120,7 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
 
   const execute = async () => {
     if (!rootDir || !plan || plan.blocked || running) return;
-    const modeDescription = transferMode === "same-folder" ? "같은 폴더에서" : transferMode === "move" ? "목적지로 이동하면서" : "목적지에 복사하면서";
-    const confirmed = window.confirm(`${plan.readyCount.toLocaleString("ko-KR")}개 파일의 이름을 ${modeDescription} 변경합니다.\n\n원본을 직접 바꾸지 않고 복사 → size·SHA-256 검증 → 전체 검증 성공 후 원본 정리 방식으로 처리합니다.\n\n계속하시겠습니까?`);
+    const confirmed = window.confirm(`${plan.readyCount.toLocaleString("ko-KR")}개 파일의 이름을 같은 폴더에서 변경합니다.\n\n원본을 직접 바꾸지 않고 복사 → size·SHA-256 검증 → 전체 검증 성공 후 기존 이름을 정리하는 방식으로 처리합니다.\n\n계속하시겠습니까?`);
     if (!confirmed) return;
 
     setPhase("running");
@@ -165,7 +128,6 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
     setProgress({ current: 0, total: plan.readyCount, name: "" });
     try {
       await ensureWritePermission(rootDir);
-      if (destination) await ensureWritePermission(destination);
       const result = await executeRenamePlan(plan, transferMode, (current, total, name) => setProgress({ current, total, name }));
       setMessage(`${result.changedCount.toLocaleString("ko-KR")}개 파일 이름 변경 완료 · SHA-256 무결성 검사 성공`);
       setPhase("done");
@@ -182,8 +144,7 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
       <section className={styles.empty}>
         <FolderOpen size={28} aria-hidden="true" />
         <strong>현재 작업 폴더가 없습니다.</strong>
-        <p>사진 작업실의 다른 작업에서 선택한 폴더를 그대로 사용하거나, 여기서 바로 시작할 수 있습니다.</p>
-        <button type="button" className={styles.emptyAction} onClick={chooseSource}>폴더 선택</button>
+        <p>사진 셀렉 또는 사진 분류에서 작업 폴더를 선택한 뒤 이름변경을 열어주세요.</p>
       </section>
     );
   }
@@ -199,17 +160,7 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
       <div className={styles.layout}>
         <div className={styles.controls}>
           <section className={styles.section}>
-            <h3>1. 처리 방식</h3>
-            <div className={styles.cardGrid}>
-              <ModeCard active={transferMode === "same-folder"} title="같은 폴더에서 이름 변경" description="검증 뒤 기존 파일명을 정리합니다." icon={<FolderOpen size={17} />} onClick={() => { setTransferMode("same-folder"); invalidate(); }} />
-              <ModeCard active={transferMode === "move"} title="다른 폴더로 이동하면서 이름 변경" description="검증 뒤 원본 파일을 정리합니다." icon={<FolderOutput size={17} />} onClick={() => { setTransferMode("move"); invalidate(); }} />
-              <ModeCard active={transferMode === "copy"} title="다른 폴더로 복사하면서 이름 변경" description="원본 파일은 그대로 유지합니다." icon={<Copy size={17} />} onClick={() => { setTransferMode("copy"); invalidate(); }} />
-            </div>
-            {needDestination ? <div className={styles.destination}><span><FolderOutput size={16} />{destination?.name ?? "목적지 폴더를 선택해주세요."}</span><button type="button" onClick={chooseDestination} disabled={running}>{destination ? "폴더 변경" : "목적지 선택"}</button></div> : null}
-          </section>
-
-          <section className={styles.section}>
-            <h3>2. 이름 변경 방식</h3>
+            <h3>1. 이름 변경 방식</h3>
             <div className={styles.cardGrid}>
               <ModeCard active={renameMode === "template"} title="일반 이름 변경" description="Lightroom / Bridge 방식" icon={<PencilLine size={17} />} onClick={() => { setRenameMode("template"); invalidate(); }} />
               <ModeCard active={renameMode === "parent-prefix"} title="상위 폴더명 붙이기" description="직속 폴더명_기존파일명" icon={<FolderOpen size={17} />} onClick={() => { setRenameMode("parent-prefix"); invalidate(); }} />
@@ -228,13 +179,13 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
           </section>
 
           <section className={styles.optionRow}>
-            <h3>3. 추가 옵션</h3>
+            <h3>2. 추가 옵션</h3>
             <label><input type="checkbox" checked={includeSubdirectories} onChange={(event) => { setIncludeSubdirectories(event.target.checked); invalidate(); }} disabled={running} />하위 폴더까지 모두 처리 <small>각 사진은 언제나 자신의 직속 부모 폴더명을 사용합니다.</small></label>
           </section>
         </div>
 
         <aside className={styles.preview}>
-          <div className={styles.previewHeading}><h3>4. 변경 미리보기</h3><span>총 {plan?.discoveredCount ?? 0}개 파일</span></div>
+          <div className={styles.previewHeading}><h3>3. 변경 미리보기</h3><span>총 {plan?.discoveredCount ?? 0}개 파일</span></div>
           <div className={styles.stats}>
             <Stat label="변경 예정" value={plan?.readyCount ?? 0} tone="ready" />
             <Stat label="건너뜀" value={plan?.skipCount ?? 0} tone="skip" />

@@ -123,9 +123,7 @@ function PhotoWorkspaceContent({
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
-            {!remoteUnavailable && mode === "raw-match" ? (
-              <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} onOpenPhotoSelect={() => updateQuery("select", "manual")} />
-            ) : null}
+            {!remoteUnavailable && mode === "raw-match" ? <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} /> : null}
             {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
             {!remoteUnavailable && mode === "t-cut" ? <PhotoTcutWorkspace rootDir={currentLocalFolder} /> : null}
             {!remoteUnavailable && mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}

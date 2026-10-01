@@ -9,3 +9,21 @@
 .footer { min-height:66px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:0 22px; border-top:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.48); font-size:11px; }.footer button { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:7px; border:1px solid #e85d2c; border-radius:9px; padding:0 14px; background:#e85d2c; color:#fff; font:800 11.5px/1 inherit; cursor:pointer; }.footer button:disabled { opacity:.45; cursor:not-allowed; }
 .empty { min-height:300px; display:grid; place-items:center; align-content:center; gap:10px; padding:32px; color:rgba(255,255,255,.65); text-align:center; }.empty svg { color:#70d5bc; }.empty strong { color:#fff; font-size:16px; }.empty p { max-width:390px; margin:0; color:rgba(255,255,255,.48); font-size:12px; line-height:1.65; }.empty button { min-height:40px; border:1px solid #37c39d; border-radius:9px; padding:0 16px; background:#37c39d; color:#103e36; font:800 12px/1 inherit; cursor:pointer; }
 @media (max-width:760px) { .header { min-height:62px; padding:0 15px; }.header h2 { font-size:19px; }.header p,.folder { display:none; }.body { grid-template-columns:1fr; }.controls { border-right:0; border-bottom:1px solid rgba(255,255,255,.1); }.results { padding:15px; }.grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.footer { align-items:stretch; flex-direction:column; padding:13px 15px; }.footer button { width:100%; }.tabs { padding:10px 12px 0; } }
+
+/* Folder selection belongs in the header. Photo clicks only preview; the round
+   check button is the explicit Trash_JPG selection control. */
+.folder { padding:5px 6px 5px 10px; }
+.folder button { min-height:29px; border:1px solid rgba(255,255,255,.18); border-radius:6px; padding:0 8px; background:rgba(255,255,255,.06); color:#d9f6ee; font:700 10px/1 inherit; cursor:pointer; }
+.folder button:disabled { cursor:not-allowed; opacity:.45; }
+.folderHint { margin:0; padding:11px; border:1px dashed rgba(79,216,184,.35); border-radius:9px; color:rgba(255,255,255,.56); font-size:11px; line-height:1.65; }
+.folderHint strong { color:#a8f1dc; }
+.card { cursor:default; }
+.previewButton { display:block; width:100%; padding:0; border:0; background:transparent; cursor:zoom-in; }
+.previewButton:focus-visible,.check:focus-visible { outline:2px solid #a8f1dc; outline-offset:2px; }
+.check { width:24px; height:24px; padding:0; background:rgba(0,0,0,.54); cursor:pointer; }
+.lightbox { position:fixed; z-index:60; inset:0; display:grid; place-items:center; padding:24px; background:rgba(5,12,11,.82); backdrop-filter:blur(9px); }
+.lightboxContent { position:relative; display:grid; gap:10px; max-width:min(92vw,1200px); max-height:92vh; padding:14px; border:1px solid rgba(255,255,255,.16); border-radius:12px; background:#182221; color:#fff; }
+.lightboxContent img { display:block; max-width:calc(92vw - 28px); max-height:calc(92vh - 86px); object-fit:contain; }
+.lightboxContent strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.78); font-size:12px; }
+.lightboxClose { position:absolute; z-index:1; top:22px; right:22px; min-height:32px; border:1px solid rgba(255,255,255,.22); border-radius:7px; padding:0 10px; background:rgba(0,0,0,.56); color:#fff; font:700 11px/1 inherit; cursor:pointer; }
+@media (max-width:760px) { .header p { display:none; }.folder { display:inline-flex; margin-left:auto; max-width:52%; }.folder > svg { display:none; }.lightbox { padding:12px; }.lightboxContent img { max-width:calc(100vw - 52px); max-height:calc(100vh - 84px); } }

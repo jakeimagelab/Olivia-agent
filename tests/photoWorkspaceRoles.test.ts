@@ -41,4 +41,26 @@ describe("사진 작업실 역할 분리", () => {
     expect(select).toContain("setSelectedJpgNames");
     expect(raw).toContain("selectedJpgNames");
   });
+
+  it("allows RAW matching to start directly when no photo selection is stored", () => {
+    const raw = source("components/photo-workspace/PhotoRawMatchWorkspace.tsx");
+    expect(raw).toContain("사진 셀렉을 거치지 않아도 됩니다");
+    expect(raw).not.toContain("선택된 JPG 목록이 없습니다");
+  });
+
+  it("keeps a T컷-picked folder local and separates previewing from Trash selection", () => {
+    const tcut = source("components/photo-workspace/PhotoTcutWorkspace.tsx");
+    expect(tcut).toContain("const [activeRoot, setActiveRoot]");
+    expect(tcut).not.toContain("setCurrentLocalFolder");
+    expect(tcut).toContain("className={styles.previewButton}");
+    expect(tcut).toContain("aria-label={`${photo.name} 크게 보기`}");
+    expect(tcut).toContain("T컷 이동 대상으로 선택");
+  });
+
+  it("limits rename to the shared current folder, without another folder picker", () => {
+    const rename = source("components/photo-workspace/PhotoRenameWorkspace.tsx");
+    expect(rename).toContain('const transferMode: RenameTransferMode = "same-folder"');
+    expect(rename).not.toContain("showDirectoryPicker");
+    expect(rename).not.toContain("setCurrentLocalFolder");
+  });
 });
