@@ -38,6 +38,7 @@ export const COMMON_SYSTEM_PROMPT = `당신은 병원 홍보/홈페이지용 사
   보이는 대로 정확히 판단하세요 (확실하지 않으면 patientPosture는 "unclear", boolean 값들은
   false로 반환).
 - suggestedFolderName은 진료과 config의 folderName 형식을 따르세요 (예: "시술", "상담", "프로필").
+- 피부과 Scene에서는 장비/핸드피스/주사·시술 행동을 함께 확인하세요. 정확한 장비명은 로고·화면·본체·핸드피스 등 근거가 충분할 때만 procedureName에 쓰고, 불확실하면 null로 두세요. 주사기는 실제 환자 시술 행동이 확인된 경우에만 syringePresent/procedureActionConfirmed를 true로 설정하세요.
 - 응답은 반드시 지정된 JSON Schema를 따르세요.`;
 
 const SCHEMA_BODY: Record<string, unknown> = {
@@ -59,6 +60,19 @@ const SCHEMA_BODY: Record<string, unknown> = {
     "hasTreatmentDevice",
     "hasTreatmentBed",
     "hasConsultationDesk",
+    "hasDoctor",
+    "hasPatient",
+    "equipmentPresent",
+    "equipmentCategory",
+    "equipmentName",
+    "equipmentBrand",
+    "handpieceName",
+    "syringePresent",
+    "procedureActionConfirmed",
+    "procedureName",
+    "procedureCategory",
+    "procedureConfidence",
+    "namingEvidence",
   ],
   properties: {
     department: {
@@ -92,6 +106,19 @@ const SCHEMA_BODY: Record<string, unknown> = {
     hasTreatmentDevice:  { type: "boolean" },
     hasTreatmentBed:     { type: "boolean" },
     hasConsultationDesk: { type: "boolean" },
+    hasDoctor:           { type: "boolean" },
+    hasPatient:          { type: "boolean" },
+    equipmentPresent:    { type: "boolean" },
+    equipmentCategory:   { type: ["string", "null"] },
+    equipmentName:       { type: ["string", "null"] },
+    equipmentBrand:      { type: ["string", "null"] },
+    handpieceName:       { type: ["string", "null"] },
+    syringePresent:      { type: "boolean" },
+    procedureActionConfirmed: { type: "boolean" },
+    procedureName:       { type: ["string", "null"] },
+    procedureCategory:   { type: ["string", "null"] },
+    procedureConfidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
+    namingEvidence:      { type: "array", items: { type: "string" }, maxItems: 6 },
   },
 };
 
@@ -121,6 +148,19 @@ export type PhotoSceneAnalysisOutput = {
   hasTreatmentDevice: boolean;
   hasTreatmentBed: boolean;
   hasConsultationDesk: boolean;
+  hasDoctor?: boolean;
+  hasPatient?: boolean;
+  equipmentPresent?: boolean;
+  equipmentCategory?: string | null;
+  equipmentName?: string | null;
+  equipmentBrand?: string | null;
+  handpieceName?: string | null;
+  syringePresent?: boolean;
+  procedureActionConfirmed?: boolean;
+  procedureName?: string | null;
+  procedureCategory?: string | null;
+  procedureConfidence?: number | null;
+  namingEvidence?: string[];
 };
 
 const NEEDS_HIGH_MODEL_TYPES = new Set([

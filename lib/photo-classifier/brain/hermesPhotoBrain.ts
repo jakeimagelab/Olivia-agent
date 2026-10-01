@@ -210,7 +210,13 @@ function applySceneRefinement(
     ...base,
     sceneType: rule.sceneType,
     displayName: rule.displayName,
-    suggestedFolderName: rule.folderName,
+    // Hermes는 SceneType만 보정한다. 피부과에서 Vision이 확인한 장비 이름을
+    // 일반 "시술" 폴더명으로 다시 덮어쓰지 않는다.
+    suggestedFolderName: department === "dermatology"
+      && Boolean(base.procedureName)
+      && (rule.sceneType === "treatment" || rule.sceneType === "skin_care")
+      ? base.suggestedFolderName
+      : rule.folderName,
     confidence,
     reason: hermesReason ? `${base.reason} · [Hermes] ${hermesReason}` : base.reason,
     needsReview: rule.sceneType === "etc",

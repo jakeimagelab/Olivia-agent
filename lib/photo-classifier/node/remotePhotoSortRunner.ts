@@ -265,6 +265,10 @@ function needsSceneLabelResolution(scene: NodePhotoScene): boolean {
   return scene.sceneType == null || scene.sceneType === "etc" || /(?:^|_)기타$/.test(scene.editedName);
 }
 
+function usesDermatologyBaseNaming(input: RemotePhotoSortRunnerInput): boolean {
+  return input.department === "dermatology" && input.departmentLogicEnabled;
+}
+
 function namedSceneFolder(scene: NodePhotoScene, label: string): string {
   const prefix = /^\d{2}_/.test(scene.folderName)
     ? String(scene.index).padStart(2, "0")
@@ -310,7 +314,14 @@ async function enrichScenes(
       scene.hasTreatmentDevice = result.hasTreatmentDevice;
       scene.hasTreatmentBed = result.hasTreatmentBed;
       scene.hasConsultationDesk = result.hasConsultationDesk;
-      if (input.aiNamingEnabled && result.suggestedFolderName) {
+      scene.equipmentName = result.equipmentName ?? null;
+      scene.equipmentBrand = result.equipmentBrand ?? null;
+      scene.handpieceName = result.handpieceName ?? null;
+      scene.procedureName = result.procedureName ?? null;
+      scene.procedureCategory = result.procedureCategory ?? null;
+      scene.procedureConfidence = result.procedureConfidence ?? null;
+      scene.namingEvidence = result.namingEvidence ?? [];
+      if ((input.aiNamingEnabled || usesDermatologyBaseNaming(input)) && result.suggestedFolderName) {
         const suggested = namedSceneFolder(scene, result.suggestedFolderName);
         scene.editedName = safeSceneFolderName(suggested, scene.folderName);
       }
@@ -1128,8 +1139,10 @@ export async function runRemotePhotoSortRunner(
     const precise = await classifyPrecise(scanned.jpg, input, ai, warnings, dependencies.onProgress);
     scenes = precise.scenes;
     decisions = precise.decisions;
-    if (input.aiNamingEnabled && sceneAnalysisAvailable) {
-      await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress, { unresolvedOnly: true });
+    if ((input.aiNamingEnabled || usesDermatologyBaseNaming(input)) && sceneAnalysisAvailable) {
+      await enrichScenes(scenes, input, ai, warnings, dependencies.onProgress, {
+        unresolvedOnly: !usesDermatologyBaseNaming(input),
+      });
     }
   }
   if (!scenes.length) throw new Error("Scene 계획을 생성하지 못했습니다.");

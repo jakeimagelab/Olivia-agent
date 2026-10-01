@@ -100,6 +100,14 @@ export type SceneFrameAnalysis = {
   primaryHandpieceIdAfter?: string | null;
   handpiecePresent: boolean;
   syringePresent: boolean;
+  /** Optional naming evidence from the boundary observer. It never changes split scoring. */
+  equipmentName?: string | null;
+  equipmentBrand?: string | null;
+  handpieceName?: string | null;
+  procedureName?: string | null;
+  procedureCategory?: string | null;
+  procedureConfidence?: number | null;
+  namingEvidence?: string[];
   treatmentBedPresent: boolean;
   consultationDeskPresent: boolean;
   patientPose: PatientPose;

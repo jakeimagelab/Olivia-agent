@@ -61,6 +61,13 @@ export type PhotoSceneAnalysisResult = {
   hasHandpiece?: boolean;
   hasTreatmentBed?: boolean;
   hasConsultationDesk?: boolean;
+  equipmentName?: string | null;
+  equipmentBrand?: string | null;
+  handpieceName?: string | null;
+  procedureName?: string | null;
+  procedureCategory?: string | null;
+  procedureConfidence?: number | null;
+  namingEvidence?: string[];
 };
 
 export interface DepartmentSceneRule {
@@ -147,6 +154,13 @@ export interface FieldScene {
   aiHasTreatmentDevice?: boolean | null;
   aiHasTreatmentBed?: boolean | null;
   aiHasConsultationDesk?: boolean | null;
+  aiEquipmentName?: string | null;
+  aiEquipmentBrand?: string | null;
+  aiHandpieceName?: string | null;
+  aiProcedureName?: string | null;
+  aiProcedureCategory?: string | null;
+  aiProcedureConfidence?: number | null;
+  aiNamingEvidence?: string[];
   boundaryBefore?: import("./hybrid-types").SceneBoundaryDecision;
   approved?: boolean;
 }

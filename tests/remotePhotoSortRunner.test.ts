@@ -90,7 +90,7 @@ describe("remote photo sort path safety", () => {
     await mkdir(existing);
     await writeFile(path.join(existing, "keep.txt"), "keep");
 
-    await expect(prepareRemotePhotoWorkFolder({ sourceFolder: "shoot" }, roots)).rejects.toThrow(/이미 존재/);
+    await expect(prepareRemotePhotoWorkFolder({ sourceFolder: "shoot" }, roots)).rejects.toThrow(/작업본 폴더가 이미 생성/);
     await expect(readFile(path.join(existing, "keep.txt"), "utf8")).resolves.toBe("keep");
   });
 
@@ -236,7 +236,7 @@ describe("remote photo sort runner", () => {
     }
   });
 
-  it("labels only an unresolved precise Scene through the existing representative Scene analyzer", async () => {
+  it("uses representative Scene analysis for dermatology detail naming even when AI naming is off", async () => {
     const { roots } = await testRoots();
     const workShoot = path.join(roots.workRoot, "precise-scene-name");
     await mkdir(workShoot);
@@ -254,7 +254,8 @@ describe("remote photo sort runner", () => {
       const result = await runRemotePhotoSortRunner({
         ...runnerOptions(),
         fastAnalyzeMode: false,
-        aiNamingEnabled: true,
+        departmentLogicEnabled: true,
+        aiNamingEnabled: false,
         workFolder: workShoot,
       }, {
         roots,
@@ -263,9 +264,11 @@ describe("remote photo sort runner", () => {
             representativeCount = input.images.length;
             return {
               department: "dermatology", sceneId: input.sceneId, sceneType: "treatment", displayName: "시술",
-              suggestedFolderName: "시술", confidence: 0.95, detectedCues: ["핸드피스"], negativeCues: [],
+              suggestedFolderName: "울쎄라시술", confidence: 0.95, detectedCues: ["핸드피스"], negativeCues: [],
               reason: "시술 장면", needsReview: false, patientPosture: "lying_down", hasHandpiece: true,
               hasTreatmentDevice: true, hasTreatmentBed: true, hasConsultationDesk: false,
+              equipmentName: "Ultherapy", procedureName: "울쎄라", procedureCategory: "lifting",
+              procedureConfidence: 0.95, namingEvidence: ["울쎄라 핸드피스"],
             };
           },
         },
@@ -273,9 +276,9 @@ describe("remote photo sort runner", () => {
 
       expect(result).toMatchObject({ ok: true, sceneCount: 1 });
       expect(representativeCount).toBe(6);
-      await expect(stat(path.join(workShoot, "JPG", "01_시술", "D001.jpg"))).resolves.toBeTruthy();
+      await expect(stat(path.join(workShoot, "JPG", "01_울쎄라시술", "D001.jpg"))).resolves.toBeTruthy();
       const report = JSON.parse(await readFile(path.join(workShoot, "REPORT", "scene_report.json"), "utf8"));
-      expect(report.scenes[0]).toMatchObject({ folderName: "01_시술", sceneType: "treatment" });
+      expect(report.scenes[0]).toMatchObject({ folderName: "01_울쎄라시술", sceneType: "treatment" });
     } finally {
       if (originalOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = originalOpenAiKey;

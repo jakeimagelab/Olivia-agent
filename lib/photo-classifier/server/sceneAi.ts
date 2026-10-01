@@ -14,6 +14,7 @@ import {
   type PhotoSceneAnalysisOutput,
 } from "@/lib/ai/openai";
 import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
+import { resolveDermatologyProcedure } from "@/lib/photo-classifier/departments/dermatologyEquipment";
 import type {
   HybridSceneType,
   SceneFrameAnalysis,
@@ -61,7 +62,8 @@ const boundarySchema = {
       "handpiecePresent", "syringePresent", "treatmentBedPresent",
       "consultationDeskPresent", "patientPose", "beforePatientPose", "afterPatientPose", "shotDistance",
       "beforeShotDistance", "afterShotDistance", "sceneType", "beforeSceneType", "afterSceneType",
-      "sceneTypeChanged", "confidence", "reasons",
+      "sceneTypeChanged", "confidence", "reasons", "equipmentName", "equipmentBrand", "handpieceName",
+      "procedureName", "procedureCategory", "procedureConfidence", "namingEvidence",
     ],
     properties: {
       peopleCount: { type: "integer", minimum: 0, maximum: 20 },
@@ -91,6 +93,13 @@ const boundarySchema = {
       primaryHandpieceIdAfter: { type: ["string", "null"] },
       handpiecePresent: { type: "boolean" },
       syringePresent: { type: "boolean" },
+      equipmentName: { type: ["string", "null"] },
+      equipmentBrand: { type: ["string", "null"] },
+      handpieceName: { type: ["string", "null"] },
+      procedureName: { type: ["string", "null"] },
+      procedureCategory: { type: ["string", "null"] },
+      procedureConfidence: { type: ["number", "null"], minimum: 0, maximum: 1 },
+      namingEvidence: { type: "array", items: { type: "string" }, maxItems: 6 },
       treatmentBedPresent: { type: "boolean" },
       consultationDeskPresent: { type: "boolean" },
       patientPose: { type: "string", enum: boundaryEnums.pose },
@@ -160,6 +169,7 @@ Camera viewpoint changes are NOT room changes. 카메라 위치·각도·줌·�
 사람 이름이나 신원을 추측하지 마세요. 화자/의료진은 익명 ID로만 비교하세요.
 primaryClinicianChanged는 주체 원장/의료진이 바뀐 경우에만 true로 설정하세요.
 같은 주체 의료진·장소·주요 장비에서 구도만 바뀌었으면 changed 필드를 false로 유지하세요.
+피부과 장비·핸드피스가 AFTER 묶음에서 명확히 확인되면 equipmentName/equipmentBrand/handpieceName과 procedureName을 적고 namingEvidence에 관찰 근거를 적으세요. 확실하지 않은 장비명은 null로 두세요. 이 필드는 경계 점수에 쓰이지 않고 Scene 이름 검토 근거로만 쓰입니다.
 reasons는 경계 판단 이유를 짧은 한국어로 반환하세요.`;
 }
 
@@ -309,6 +319,16 @@ function scenePrompt(department: MedicalDepartment, sceneId: string): string {
     .map((rule) => rule.displayName)
     .join(" > ");
   const exampleFolder = config.sceneTypes[0]?.folderName ?? "Scene";
+  const dermatologyNamingGuide = department === "dermatology" ? `
+
+[피부과 Scene 이름 근거]
+- 대표 이미지는 촬영 시간순입니다. 한 장만 보고 장비명을 단정하지 말고, 최소 3장의 공통 단서(본체·화면·로고·카트·케이블·핸드피스·시술 행동)를 종합하세요.
+- equipmentName/equipmentBrand/handpieceName/procedureName은 실제로 확인된 경우만 적고, 불확실하면 null로 두세요.
+- 울쎄라/Ultherapy, 써마지/Thermage, 인모드/InMode, 슈링크/Shurink, LDM, 실펌X/Sylfirm X, 온다/Onda만 정확한 이름으로 쓸 수 있습니다. 다른 장비를 이 이름으로 추측하지 마세요.
+- procedureConfidence는 시술·장비 이름 근거의 확신도입니다. 0.80 미만이면 exact 장비명이 아니라 장비 카테고리만 적으세요.
+- syringePresent는 테이블 위 주사기가 아니라 의사·환자와 실제 주사 행동이 함께 보일 때만 true입니다. procedureActionConfirmed도 같은 기준입니다.
+- namingEvidence에는 이름을 뒷받침하는 관찰 근거만 최대 6개로 적으세요.
+` : "";
   return `진료과: ${config.displayName}
 Scene ID: ${sceneId}
 
@@ -321,7 +341,7 @@ ${priorityOrder} > ETC
 
 응답 시 sceneType 값은 반드시 위 목록의 영문 key 중 하나를 사용하세요.
 suggestedFolderName은 한국어 폴더명만 반환하세요 (예: "${exampleFolder}").
-판단이 어려우면 needsReview=true 또는 sceneType="etc"로 반환하세요.`;
+판단이 어려우면 needsReview=true 또는 sceneType="etc"로 반환하세요.${dermatologyNamingGuide}`;
 }
 
 async function analyzeSceneWithModel(input: {
@@ -352,7 +372,7 @@ async function analyzeSceneWithModel(input: {
   const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}") as Partial<PhotoSceneAnalysisOutput>;
   const sceneType = parsed.sceneType || "etc";
   const rule = config.sceneTypes.find((candidate) => candidate.sceneType === sceneType);
-  return {
+  const base: PhotoSceneAnalysisOutput = {
     department: input.department,
     sceneId: input.sceneId,
     sceneType,
@@ -370,6 +390,32 @@ async function analyzeSceneWithModel(input: {
     hasTreatmentDevice: parsed.hasTreatmentDevice === true,
     hasTreatmentBed: parsed.hasTreatmentBed === true,
     hasConsultationDesk: parsed.hasConsultationDesk === true,
+    hasDoctor: parsed.hasDoctor === true,
+    hasPatient: parsed.hasPatient === true,
+    equipmentPresent: parsed.equipmentPresent === true,
+    equipmentCategory: typeof parsed.equipmentCategory === "string" ? parsed.equipmentCategory : null,
+    equipmentName: typeof parsed.equipmentName === "string" ? parsed.equipmentName : null,
+    equipmentBrand: typeof parsed.equipmentBrand === "string" ? parsed.equipmentBrand : null,
+    handpieceName: typeof parsed.handpieceName === "string" ? parsed.handpieceName : null,
+    syringePresent: parsed.syringePresent === true,
+    procedureActionConfirmed: parsed.procedureActionConfirmed === true,
+    procedureName: typeof parsed.procedureName === "string" ? parsed.procedureName : null,
+    procedureCategory: typeof parsed.procedureCategory === "string" ? parsed.procedureCategory : null,
+    procedureConfidence: typeof parsed.procedureConfidence === "number" ? parsed.procedureConfidence : null,
+    namingEvidence: Array.isArray(parsed.namingEvidence)
+      ? parsed.namingEvidence.filter((item): item is string => typeof item === "string")
+      : [],
+  };
+  if (input.department !== "dermatology") return base;
+
+  const procedure = resolveDermatologyProcedure([base]);
+  return {
+    ...base,
+    suggestedFolderName: procedure.label ?? base.suggestedFolderName,
+    procedureName: procedure.procedureName ?? base.procedureName ?? null,
+    procedureCategory: procedure.procedureCategory ?? base.procedureCategory ?? null,
+    procedureConfidence: procedure.confidence || base.procedureConfidence || null,
+    namingEvidence: procedure.evidence.length ? procedure.evidence : base.namingEvidence,
   };
 }
 

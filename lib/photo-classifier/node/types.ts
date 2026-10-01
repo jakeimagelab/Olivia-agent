@@ -90,6 +90,13 @@ export type NodePhotoScene = {
   hasTreatmentDevice?: boolean | null;
   hasTreatmentBed?: boolean | null;
   hasConsultationDesk?: boolean | null;
+  equipmentName?: string | null;
+  equipmentBrand?: string | null;
+  handpieceName?: string | null;
+  procedureName?: string | null;
+  procedureCategory?: string | null;
+  procedureConfidence?: number | null;
+  namingEvidence?: string[];
   boundaryBefore?: SceneBoundaryDecision;
 };
 

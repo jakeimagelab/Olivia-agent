@@ -2,6 +2,7 @@
 
 import { Check, LoaderCircle, RotateCw, TriangleAlert } from "lucide-react";
 import type { RemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
+import { describeRemotePhotoFailure } from "@/lib/photo-classifier/remotePhotoFailure";
 import type { RemotePollingState } from "./PhotoStudioExecutionContext";
 import styles from "./RemoteJobProgress.module.css";
 
@@ -43,13 +44,14 @@ export default function RemoteJobProgress({
   const isQueued = job.status === "QUEUED";
   const isFailed = job.status === "FAILED";
   const isComplete = job.status === "COMPLETED";
+  const failure = isFailed ? describeRemotePhotoFailure(job.error || job.message) : null;
 
   return (
     <section className={`${styles.panel} ${compact ? styles.compact : ""}`} aria-live="polite">
       <div className={styles.heading}>
         <span>
           {isFailed ? <TriangleAlert size={16} /> : isComplete ? <Check size={16} /> : <LoaderCircle className={styles.spin} size={16} />}
-          <strong>{label || (isFailed ? "작업 실패" : isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중")}</strong>
+          <strong>{isFailed ? failure!.title : label || (isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중")}</strong>
         </span>
         {percent !== null ? <b>{percent}%</b> : null}
       </div>
@@ -79,7 +81,7 @@ export default function RemoteJobProgress({
         </ol>
       ) : null}
 
-      <p>{isFailed ? (job.error || job.message || "Mac Studio 작업에 실패했습니다.") : progress?.message || job.message || pollingMessage || "작업 상태를 확인하고 있습니다."}</p>
+      <p>{isFailed ? failure!.detail : progress?.message || job.message || pollingMessage || "작업 상태를 확인하고 있습니다."}</p>
     </section>
   );
 }

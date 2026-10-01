@@ -195,7 +195,7 @@ export async function prepareRemotePhotoWorkFolder(
   const destination = path.resolve(workRoot, relativeSource);
   assertWithin(workRoot, destination, "작업 목적지");
   if (await pathExists(destination)) {
-    throw new Error(`작업 목적지가 이미 존재합니다. 덮어쓰지 않습니다: ${destination}`);
+    throw new Error(`작업본 폴더가 이미 생성되어 있어 새 복사를 시작하지 않았습니다: ${destination}`);
   }
 
   onProgress?.({ stage: "STAGING", message: "NAS 원본을 안전한 작업 폴더로 복사하기 전 검사 중입니다." });

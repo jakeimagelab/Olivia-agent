@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { isAuthorizedWorker } from "@/lib/remoteWorkerAuth";
 import { hermesPhotoBrain } from "@/lib/photo-classifier/brain/hermesPhotoBrain";
-import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { SceneAiImage } from "@/lib/photo-classifier/server/sceneAi";
 
@@ -77,18 +76,13 @@ export async function POST(request: NextRequest) {
       images,
       useHighModel: body.useHighModel === true,
     });
-    const config = getDepartmentConfig(department as MedicalDepartment);
-    const rule = config.sceneTypes.find((candidate) => candidate.sceneType === analysis.sceneType)
-      ?? config.sceneTypes.find((candidate) => candidate.sceneType === "etc");
-    if (!rule) throw new Error("진료과 Scene 규칙을 찾을 수 없습니다.");
     return Response.json({
       ok: true,
       analysis: {
         ...analysis,
-        sceneType: rule.sceneType,
-        displayName: rule.displayName,
-        suggestedFolderName: rule.folderName,
-        needsReview: rule.sceneType === "etc" || analysis.needsReview,
+        // analyzePhotoScene()이 피부과 장비명을 포함한 Scene 이름을 이미 정규화한다.
+        // 여기서 진료과 기본 폴더명으로 다시 덮어쓰면 "울쎄라시술"이 "시술"로 사라진다.
+        needsReview: analysis.sceneType === "etc" || analysis.needsReview,
       },
     });
   } catch (error) {

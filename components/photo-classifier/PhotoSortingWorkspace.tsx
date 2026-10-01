@@ -1499,7 +1499,12 @@ function PhotoSortingInner({
     }
 
     // ⑤ 백그라운드: AI 씬 분석 (옵션)
-    if (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled) && newScenes.length > 0) {
+    // 피부과 기본 Naming은 AI 씬 이름 추천 토글과 별개다. 이 토글은 고급 보정만 제어하고,
+    // 장비·핸드피스·시술 행동으로 이름을 붙이는 기본 단계는 항상 실행한다.
+    if (newScenes.length > 0 && (
+      (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled))
+      || (department === "dermatology" && departmentLogicEnabled)
+    )) {
       runSceneAiAnalysis(newScenes);
     }
     } catch (error) {
@@ -1557,21 +1562,29 @@ function PhotoSortingInner({
         })(), 45000, "AI 씬 분석");
         if (data.ok) {
           const num = String(updated[i].index).padStart(2,"0");
-          const suggested = aiNamingEnabled && data.suggestedFolderName
-            ? `Scene${num}_${data.suggestedFolderName}` : null;
+          const dermatologyBaseNaming = department === "dermatology" && departmentLogicEnabled;
+          const suggested = (aiNamingEnabled || dermatologyBaseNaming) && data.suggestedFolderName
+            ? `${num}_${data.suggestedFolderName}` : null;
           updated[i] = {
             ...updated[i],
             sceneType: data.sceneType ?? null,
             suggestedName: suggested,
             aiConfidence: data.confidence ?? null,
             aiReason: data.reason ?? null,
-            editedName: aiNamingEnabled && suggested ? suggested : updated[i].editedName,
+            editedName: (aiNamingEnabled || dermatologyBaseNaming) && suggested ? suggested : updated[i].editedName,
             nameLoading: false,
             aiPatientPosture: data.patientPosture ?? null,
             aiHasHandpiece: data.hasHandpiece ?? null,
             aiHasTreatmentDevice: data.hasTreatmentDevice ?? null,
             aiHasTreatmentBed: data.hasTreatmentBed ?? null,
             aiHasConsultationDesk: data.hasConsultationDesk ?? null,
+            aiEquipmentName: data.equipmentName ?? null,
+            aiEquipmentBrand: data.equipmentBrand ?? null,
+            aiHandpieceName: data.handpieceName ?? null,
+            aiProcedureName: data.procedureName ?? null,
+            aiProcedureCategory: data.procedureCategory ?? null,
+            aiProcedureConfidence: data.procedureConfidence ?? null,
+            aiNamingEvidence: Array.isArray(data.namingEvidence) ? data.namingEvidence : [],
           };
           aiResults[i] = {
             sceneType: data.sceneType ?? "etc",
@@ -3395,6 +3408,17 @@ function PhotoSortingInner({
                           <div style={{fontSize:9,background:C.light,color:C.teal,display:"inline-block",padding:"1px 8px",borderRadius:4,width:"fit-content"}}>
                             {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
                           </div>
+                        )}
+                        {(sc.aiProcedureName || sc.aiEquipmentName || sc.aiHandpieceName || (sc.aiNamingEvidence?.length ?? 0) > 0) && !sc.nameLoading && (
+                          <details style={{fontSize:9,color:C.muted,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 7px",background:C.white}}>
+                            <summary style={{cursor:"pointer",color:C.teal,fontWeight:800}}>이름 분석 보기</summary>
+                            <div style={{display:"grid",gap:2,marginTop:5,lineHeight:1.45}}>
+                              {sc.aiEquipmentName && <span>장비: {sc.aiEquipmentName}{sc.aiEquipmentBrand ? ` · ${sc.aiEquipmentBrand}` : ""}</span>}
+                              {sc.aiHandpieceName && <span>핸드피스: {sc.aiHandpieceName}</span>}
+                              {sc.aiProcedureName && <span>시술: {sc.aiProcedureName}{sc.aiProcedureConfidence != null ? ` · ${Math.round(sc.aiProcedureConfidence * 100)}%` : ""}</span>}
+                              {(sc.aiNamingEvidence ?? []).map((evidence, evidenceIndex) => <span key={`${evidence}-${evidenceIndex}`}>근거: {evidence}</span>)}
+                            </div>
+                          </details>
                         )}
                         {!sc.sceneDir && sc.files.length > 1 && (
                           <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4}}>
