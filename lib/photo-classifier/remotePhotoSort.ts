@@ -4,7 +4,7 @@ import {
   type RemoteJobProgress,
 } from "@/lib/remote-jobs/progress";
 
-export type RemotePhotoSortJobStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+export type RemotePhotoSortJobStatus = "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELED";
 
 export type RemotePhotoSortPayload = {
   source_folder: string;
@@ -27,6 +27,7 @@ export type RemotePhotoSortJob = {
   message: string | null;
   error: string | null;
   progress: RemoteJobProgress | null;
+  cancelRequested: boolean;
 };
 
 type JsonRecord = Record<string, unknown>;
@@ -86,7 +87,7 @@ export function parseRemotePhotoSortJob(body: JsonRecord): RemotePhotoSortJob {
   if (!isRecord(value)) throw new Error("Mac Studio 작업 정보를 읽지 못했습니다.");
 
   const status = typeof value.status === "string" ? value.status.toUpperCase() : "";
-  if (!["QUEUED", "RUNNING", "COMPLETED", "FAILED"].includes(status)) {
+  if (!["QUEUED", "RUNNING", "COMPLETED", "FAILED", "CANCELED"].includes(status)) {
     throw new Error("Mac Studio 작업 상태를 읽지 못했습니다.");
   }
   if (typeof value.id !== "string" || !value.id) {
@@ -104,7 +105,25 @@ export function parseRemotePhotoSortJob(body: JsonRecord): RemotePhotoSortJob {
     message: typeof value.message === "string" ? value.message : null,
     error: typeof value.error === "string" ? value.error : null,
     progress: parseRemoteJobProgress(value.progress),
+    cancelRequested: typeof value.cancel_requested_at === "string" && Boolean(value.cancel_requested_at),
   };
+}
+
+/** 작업 중인 원격 분류를 안전하게 취소 요청한다. 원본 NAS 파일은 이 요청으로 변경되지 않는다. */
+export async function cancelRemotePhotoSortJob(
+  jobId: string,
+  options: RemotePhotoSortRequestOptions = {},
+): Promise<RemotePhotoSortJob> {
+  const fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
+  throwIfAborted(options.signal);
+  const response = await fetcher(`/api/remote-jobs?id=${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+    cache: "no-store",
+    signal: options.signal,
+  });
+  const body = await readJsonResponse(response);
+  if (!response.ok) throw new Error(apiErrorMessage(body, "Mac Studio 작업 취소를 요청하지 못했습니다."));
+  return parseRemotePhotoSortJob(body);
 }
 
 export type RemotePhotoSortRequestOptions = {
@@ -182,6 +201,9 @@ export async function runRemotePhotoSort(
     if (job.status === "COMPLETED") return job;
     if (job.status === "FAILED") {
       throw new Error(job.error || job.message || "Mac Studio 사진 분류 작업에 실패했습니다.");
+    }
+    if (job.status === "CANCELED") {
+      throw new Error(job.message || "Mac Studio 사진 분류 작업을 취소했습니다.");
     }
 
     await waitForPolling(Math.max(0, pollIntervalMs), signal);

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, LoaderCircle, RotateCw, TriangleAlert } from "lucide-react";
+import { Ban, Check, LoaderCircle, RotateCw, Square, TriangleAlert } from "lucide-react";
 import type { RemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
 import { describeRemotePhotoFailure } from "@/lib/photo-classifier/remotePhotoFailure";
 import type { RemotePollingState } from "./PhotoStudioExecutionContext";
@@ -25,12 +25,14 @@ export default function RemoteJobProgress({
   pollingMessage,
   compact = false,
   label,
+  onCancel,
 }: {
-  job: Pick<RemotePhotoSortJob, "id" | "status" | "message" | "error" | "progress"> | null;
+  job: (Pick<RemotePhotoSortJob, "id" | "status" | "message" | "error" | "progress"> & { cancelRequested?: boolean }) | null;
   pollingState: RemotePollingState;
   pollingMessage?: string;
   compact?: boolean;
   label?: string;
+  onCancel?: () => void;
 }) {
   if (!job) return null;
 
@@ -44,16 +46,22 @@ export default function RemoteJobProgress({
   const isQueued = job.status === "QUEUED";
   const isFailed = job.status === "FAILED";
   const isComplete = job.status === "COMPLETED";
+  const isCanceled = job.status === "CANCELED";
+  const cancellable = Boolean(onCancel) && !isFailed && !isComplete && !isCanceled && !job.cancelRequested;
   const failure = isFailed ? describeRemotePhotoFailure(job.error || job.message) : null;
 
   return (
     <section className={`${styles.panel} ${compact ? styles.compact : ""}`} aria-live="polite">
       <div className={styles.heading}>
         <span>
-          {isFailed ? <TriangleAlert size={16} /> : isComplete ? <Check size={16} /> : <LoaderCircle className={styles.spin} size={16} />}
-          <strong>{isFailed ? failure!.title : label || (isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중")}</strong>
+          {isFailed ? <TriangleAlert size={16} /> : isCanceled ? <Ban size={16} /> : isComplete ? <Check size={16} /> : <LoaderCircle className={styles.spin} size={16} />}
+          <strong>{isFailed ? failure!.title : isCanceled ? "작업 취소됨" : label || (isComplete ? "작업 완료" : isQueued ? "Mac Studio 작업 대기 중" : "Mac Studio 작업 중")}</strong>
         </span>
-        {percent !== null ? <b>{percent}%</b> : null}
+        <span className={styles.actions}>
+          {percent !== null ? <b>{percent}%</b> : null}
+          {cancellable ? <button type="button" className={styles.cancel} onClick={onCancel}><Square size={11} fill="currentColor" /> 취소</button> : null}
+          {job.cancelRequested && !isCanceled ? <em>취소 요청됨</em> : null}
+        </span>
       </div>
 
       {pollingState === "reconnecting" && !isFailed ? (
@@ -67,7 +75,7 @@ export default function RemoteJobProgress({
         <ol className={styles.steps}>
           {STAGES.map(([stage, label], index) => {
             const complete = isComplete || currentStageIndex > index;
-            const active = !isComplete && !isFailed && currentStageIndex === index;
+            const active = !isComplete && !isFailed && !isCanceled && currentStageIndex === index;
             return (
               <li key={stage} data-state={complete ? "complete" : active ? "active" : "waiting"}>
                 <i>{complete ? <Check size={11} /> : index + 1}</i>
@@ -81,7 +89,7 @@ export default function RemoteJobProgress({
         </ol>
       ) : null}
 
-      <p>{isFailed ? failure!.detail : progress?.message || job.message || pollingMessage || "작업 상태를 확인하고 있습니다."}</p>
+      <p>{isFailed ? failure!.detail : isCanceled ? job.message || "작업을 취소했습니다. NAS 원본은 변경되지 않았습니다." : progress?.message || job.message || pollingMessage || "작업 상태를 확인하고 있습니다."}</p>
     </section>
   );
 }

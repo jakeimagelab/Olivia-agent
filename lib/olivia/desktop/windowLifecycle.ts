@@ -2,6 +2,7 @@ import { getOliviaApp } from "@/components/olivia-os/registry/oliviaAppRegistry"
 import { WINDOW_DOCK_GAP, resolveDockLayout } from "@/components/olivia-os/window/windowDocking";
 import { DESKTOP_DOCK_SAFE_AREA, useOliviaDesktopStore, type OliviaWindowState } from "@/lib/store/useOliviaDesktopStore";
 import { clearOliviaChatContextLink } from "@/lib/store/oliviaContextStore";
+import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
 
 /** 이 셋은 채팅으로 만든 뒤 바로 함께 보여 주는 문서 창이다. */
 export const CHAT_LINKED_DOCUMENT_APP_IDS = new Set(["quote", "contract", "conti"]);
@@ -20,6 +21,17 @@ export function closeOliviaDesktopWindow(windowId: string): void {
   const desktop = useOliviaDesktopStore.getState();
   const closing = desktop.windows[windowId];
   if (!closing) return;
+
+  // 사진 분류는 Mac Studio에서 계속 실행되는 동안 창 안의 선택 폴더·설정·진행 화면을
+  // 유지해야 한다. X/⌘W는 삭제가 아니라 최소화로 처리하고, 상태바를 누르면 같은 창을
+  // 그대로 복원한다. 작업이 끝난 뒤에는 기존처럼 실제 닫기다.
+  const remoteJob = useRemotePhotoJobStore.getState().job;
+  const photoClassificationActive = closing.appId === "photo-workspace"
+    && (remoteJob?.status === "QUEUED" || remoteJob?.status === "RUNNING");
+  if (photoClassificationActive) {
+    desktop.minimizeWindow(windowId);
+    return;
+  }
   desktop.closeWindow(windowId);
   if (!isChatLinkedDocumentWindow(closing)) return;
 

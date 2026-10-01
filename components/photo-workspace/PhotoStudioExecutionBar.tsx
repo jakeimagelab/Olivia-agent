@@ -21,6 +21,7 @@ export default function PhotoStudioExecutionBar() {
     remoteJobActive,
     remotePollingState,
     remotePollingMessage,
+    cancelRemoteJob,
     workerPresence,
     workerPollingState,
     refreshWorkerPresence,
@@ -59,12 +60,13 @@ export default function PhotoStudioExecutionBar() {
           </div>
         ) : null}
 
-        {remote && (remoteJobActive || remoteJob?.status === "COMPLETED" || remoteJob?.status === "FAILED") ? (
+        {remote && remoteJobActive ? (
           <RemoteJobProgress
             compact
             job={remoteJob}
             pollingState={remotePollingState}
             pollingMessage={remotePollingMessage}
+            onCancel={() => { void cancelRemoteJob().catch((error) => console.error("[photo workspace] remote cancel failed", error)); }}
           />
         ) : null}
       </div>

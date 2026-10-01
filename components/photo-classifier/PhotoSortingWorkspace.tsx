@@ -47,6 +47,10 @@ import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/re
 import {
   createRemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
+import {
+  checkRemotePhotoWorkFolder,
+  type RemotePhotoWorkFolderCheck,
+} from "@/lib/photo-classifier/remotePhotoWorkFolderCheck";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import {
@@ -59,6 +63,13 @@ import {
    SHARED TYPES
 ═══════════════════════════════════════════════ */
 type PhotoMode = "field" | "studio";
+
+type RemoteWorkFolderCheckState =
+  | { status: "idle" }
+  | { status: "checking"; sourceFolder: string }
+  | { status: "available"; result: RemotePhotoWorkFolderCheck }
+  | { status: "resume"; result: RemotePhotoWorkFolderCheck }
+  | { status: "error"; sourceFolder: string; message: string };
 
 function isSimulatedRemoteResult(result: unknown): boolean {
   if (!result) return false;
@@ -684,6 +695,7 @@ function PhotoSortingInner({
     remotePollingMessage,
     trackRemoteJob,
     clearRemoteJob,
+    cancelRemoteJob,
     workerPresence,
     currentLocalFolder,
     setCurrentLocalFolder,
@@ -739,13 +751,58 @@ function PhotoSortingInner({
   const [remotePhotoSortError, setRemotePhotoSortError] = useState("");
   const [remotePhotoSortSubmitting, setRemotePhotoSortSubmitting] = useState(false);
   const remotePhotoSortAbortRef = useRef<AbortController | null>(null);
+  const [remoteWorkFolderCheck, setRemoteWorkFolderCheck] = useState<RemoteWorkFolderCheckState>({ status: "idle" });
+  const remoteWorkFolderCheckAbortRef = useRef<AbortController | null>(null);
   const remotePhotoSortActive = remotePhotoSortSubmitting || remoteJobActive;
   const remoteWorkerOffline = workerPresence.online === false;
+  const remoteWorkFolderReady = (remoteWorkFolderCheck.status === "available" || remoteWorkFolderCheck.status === "resume")
+    && remoteWorkFolderCheck.result.sourceFolder === remoteSelection?.path;
+
+  const requestRemoteWorkFolderCheck = useCallback(async (sourceFolder: string) => {
+    remoteWorkFolderCheckAbortRef.current?.abort();
+    const controller = new AbortController();
+    remoteWorkFolderCheckAbortRef.current = controller;
+    setRemoteWorkFolderCheck({ status: "checking", sourceFolder });
+
+    try {
+      const result = await checkRemotePhotoWorkFolder(sourceFolder, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setRemoteWorkFolderCheck(
+        result.jpgWorkFolderExists
+          ? { status: "resume", result }
+          : { status: "available", result },
+      );
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setRemoteWorkFolderCheck({
+        status: "error",
+        sourceFolder,
+        message: error instanceof Error ? error.message : "Agentstation 작업본을 확인하지 못했습니다.",
+      });
+    } finally {
+      if (remoteWorkFolderCheckAbortRef.current === controller) {
+        remoteWorkFolderCheckAbortRef.current = null;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (executionMode !== "REMOTE_WORKER" || !remoteSelection?.path) {
+      remoteWorkFolderCheckAbortRef.current?.abort();
+      remoteWorkFolderCheckAbortRef.current = null;
+      setRemoteWorkFolderCheck({ status: "idle" });
+      return;
+    }
+    void requestRemoteWorkFolderCheck(remoteSelection.path);
+  }, [executionMode, remoteSelection?.path, requestRemoteWorkFolderCheck]);
 
   useEffect(() => () => {
     const controller = remotePhotoSortAbortRef.current;
     remotePhotoSortAbortRef.current = null;
     controller?.abort();
+    const workFolderController = remoteWorkFolderCheckAbortRef.current;
+    remoteWorkFolderCheckAbortRef.current = null;
+    workFolderController?.abort();
   }, []);
 
   /* ── field state ── */
@@ -1019,6 +1076,21 @@ function PhotoSortingInner({
       return;
     }
 
+    if (remoteWorkFolderCheck.status === "checking" || remoteWorkFolderCheck.status === "idle") {
+      setRemotePhotoSortError("Agentstation 작업본을 확인 중입니다. 확인이 끝난 뒤 시작해주세요.");
+      return;
+    }
+
+    if (remoteWorkFolderCheck.status === "error") {
+      setRemotePhotoSortError(`Agentstation 작업본을 확인하지 못했습니다 — ${remoteWorkFolderCheck.message}`);
+      return;
+    }
+
+    if (!remoteWorkFolderReady) {
+      setRemotePhotoSortError("선택한 NAS 폴더의 Agentstation 작업본 확인이 필요합니다.");
+      return;
+    }
+
     if (remoteJobActive) return;
 
     remotePhotoSortAbortRef.current?.abort();
@@ -1069,6 +1141,8 @@ function PhotoSortingInner({
     profileClassificationEnabled,
     remoteJobActive,
     remoteWorkerOffline,
+    remoteWorkFolderCheck,
+    remoteWorkFolderReady,
     trackRemoteJob,
   ]);
 
@@ -2906,25 +2980,57 @@ function PhotoSortingInner({
           </div>
         ) : null}
 
+        {executionMode === "REMOTE_WORKER" && remoteSelection && remoteWorkFolderCheck.status === "checking" ? (
+          <div aria-live="polite" style={{marginTop:8,padding:"10px 12px",background:"#EFF7F5",borderRadius:8,fontSize:11,color:C.teal,border:`1px solid ${C.border}`,lineHeight:1.55}}>
+            <strong>Agentstation 작업본을 확인하고 있습니다.</strong><div>선택한 폴더와 같은 작업본 경로만 읽기 전용으로 확인합니다.</div>
+          </div>
+        ) : null}
+
+        {executionMode === "REMOTE_WORKER" && remoteWorkFolderCheck.status === "available" ? (
+          <div aria-live="polite" style={{marginTop:8,padding:"10px 12px",background:"#EFFAF5",borderRadius:8,fontSize:11,color:"#146C5A",border:"1px solid #B9E4D6",lineHeight:1.55}}>
+            <strong>작업본 확인 완료 — 새 JPG 복사와 분류를 시작할 수 있습니다.</strong><div>Agentstation JPG전체 작업본이 없습니다.</div><div style={{wordBreak:"break-all"}}>작업본: {remoteWorkFolderCheck.result.jpgWorkFolder}</div>
+          </div>
+        ) : null}
+
+        {executionMode === "REMOTE_WORKER" && remoteWorkFolderCheck.status === "resume" ? (
+          <div aria-live="polite" style={{marginTop:8,padding:"10px 12px",background:"#EFFAF5",borderRadius:8,fontSize:11,color:"#146C5A",border:"1px solid #B9E4D6",lineHeight:1.55}}>
+            <strong>기존 JPG 작업본 확인 완료 — 빠진 파일만 확인해 이어서 복사합니다.</strong><div>같은 파일명은 SHA-256이 일치할 때만 재사용합니다.</div><div style={{wordBreak:"break-all"}}>작업본: {remoteWorkFolderCheck.result.jpgWorkFolder}</div>
+          </div>
+        ) : null}
+
+        {executionMode === "REMOTE_WORKER" && remoteWorkFolderCheck.status === "error" ? (
+          <div aria-live="polite" style={{marginTop:8,padding:"10px 12px",background:"#FFF3F0",borderRadius:8,fontSize:11,color:"#B42318",border:"1px solid #FFD1C7",lineHeight:1.55}}>
+            <strong>Agentstation 작업본을 확인하지 못했습니다.</strong><div>{remoteWorkFolderCheck.message}</div>
+            <button type="button" onClick={() => void requestRemoteWorkFolderCheck(remoteWorkFolderCheck.sourceFolder)} style={{marginTop:7,border:0,borderRadius:6,padding:"5px 8px",fontSize:11,fontWeight:700,color:C.teal,background:C.white,cursor:"pointer",fontFamily:"inherit"}}>다시 확인</button>
+          </div>
+        ) : null}
+
         {executionMode === "REMOTE_WORKER" && remoteWorkerOffline ? (
           <div style={{marginTop:8,padding:"9px 12px",background:"#FFF3F0",borderRadius:8,fontSize:11,color:"#B42318",border:"1px solid #FFD1C7"}}>
             Mac Studio 연결을 확인해주세요.
           </div>
         ) : null}
 
-        {executionMode === "REMOTE_WORKER" && (remotePhotoSortSubmitting || remotePhotoSortJob || remotePhotoSortError) ? (
+        {executionMode === "REMOTE_WORKER" && (remotePhotoSortSubmitting || remoteJobActive || remotePhotoSortError) ? (
           <>
             {remotePhotoSortSubmitting && !remotePhotoSortJob ? (
               <div style={{marginTop:8,padding:"10px 12px",borderRadius:8,fontSize:11,background:"#EFF7F5",color:C.teal,border:`1px solid ${C.border}`}}>
                 <strong>Mac Studio에 작업을 요청하고 있습니다.</strong>
               </div>
             ) : null}
-            <RemoteJobProgress
-              job={remotePhotoSortJob}
-              pollingState={remotePollingState}
-              pollingMessage={remotePollingMessage}
-            />
-            {simulated ? <div style={{marginTop:5,fontSize:10,color:C.hint}}>DRY RUN 결과입니다.</div> : null}
+            {remoteJobActive ? <>
+              <RemoteJobProgress
+                job={remotePhotoSortJob}
+                pollingState={remotePollingState}
+                pollingMessage={remotePollingMessage}
+                onCancel={() => {
+                  void cancelRemoteJob().catch((error) => {
+                    setRemotePhotoSortError(error instanceof Error ? error.message : "작업 취소 요청을 보내지 못했습니다.");
+                  });
+                }}
+              />
+              {simulated ? <div style={{marginTop:5,fontSize:10,color:C.hint}}>DRY RUN 결과입니다.</div> : null}
+            </> : null}
             {remotePhotoSortError ? (
               <div style={{marginTop:8,padding:"10px 12px",borderRadius:8,fontSize:11,background:"#FFF3F0",color:"#B42318",border:"1px solid #FFD1C7"}}>
                 <strong>작업 요청을 보내지 못했습니다.</strong><div>{remotePhotoSortError}</div>
@@ -3031,7 +3137,7 @@ function PhotoSortingInner({
                   {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                   <Btn
                     onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing) : (!remoteSelection?.path||remotePhotoSortActive||remoteWorkerOffline)}
+                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
                   >
                     {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작 →"}
                   </Btn>
@@ -3115,7 +3221,7 @@ function PhotoSortingInner({
                 {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"#FFF3CD",borderRadius:10,fontSize:12,color:"#856404",border:"1px solid #FFD980"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                 <Btn
                   onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||remotePhotoSortActive||remoteWorkerOffline)}
+                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
                 >
                   {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작 →"}
                 </Btn>
@@ -3219,7 +3325,7 @@ function PhotoSortingInner({
             <Btn
               style={{background:C.purple}}
               onClick={executionMode === "LOCAL_DIRECT" ? handleStudioSort : handleRemotePhotoSort}
-              disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||remotePhotoSortActive||remoteWorkerOffline)}
+              disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
             >
               {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작 →"}
             </Btn>

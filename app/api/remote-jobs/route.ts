@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 const ALLOWED_ACTIONS = new Set([
   "PING",
   "PHOTO_SORT",
+  "PHOTO_CHECK_WORK_FOLDER",
   "COPY_TEST",
   "LIST_FOLDER",
   "PHOTO_PREPARE_SOURCE",
@@ -142,12 +143,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (action === "PHOTO_SORT") {
+  if (action === "PHOTO_SORT" || action === "PHOTO_CHECK_WORK_FOLDER") {
     const sourceFolder = requestedPayload.source_folder;
 
     if (typeof sourceFolder !== "string") {
       return Response.json(
-        { ok: false, error: "PHOTO_SORT에는 source_folder 상대경로가 필요합니다." },
+        { ok: false, error: `${action}에는 source_folder 상대경로가 필요합니다.` },
         { status: 400 }
       );
     }
@@ -163,10 +164,9 @@ export async function POST(request: NextRequest) {
 
       // Worker가 반환한 NFD 상대경로는 그대로 유지한다. 브라우저에서 절대경로를
       // 보내거나 NAS Root 밖으로 이동하는 path segment만 차단한다.
-      payload = {
-        ...requestedPayload,
-        source_folder: safeSourceFolder,
-      };
+      payload = action === "PHOTO_SORT"
+        ? { ...requestedPayload, source_folder: safeSourceFolder }
+        : { source_folder: safeSourceFolder };
     } catch (error) {
       return Response.json(
         {
@@ -358,7 +358,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabase
         .from("remote_jobs")
         .select(
-          "id,action,target_worker,status,result,progress,message,error,created_at,started_at,completed_at"
+          "id,action,target_worker,status,result,progress,message,error,cancel_requested_at,created_at,started_at,completed_at"
         )
         .eq("id", jobId)
         .maybeSingle();
@@ -381,7 +381,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("remote_jobs")
       .select(
-        "id,action,payload,target_worker,status,progress,message,error,created_at,started_at,completed_at"
+        "id,action,payload,target_worker,status,progress,message,error,cancel_requested_at,created_at,started_at,completed_at"
       )
       .order("created_at", { ascending: false })
       .limit(30);
@@ -400,5 +400,53 @@ export async function GET(request: NextRequest) {
       { ok: false, error: message },
       { status: 500 }
     );
+  }
+}
+
+/**
+ * QUEUED 작업은 즉시 취소하고, 이미 RUNNING이면 Worker가 현재 안전 단위를 마친 뒤
+ * 중단하도록 취소 요청만 기록한다. 원본 스토리지는 이 API가 직접 만지지 않는다.
+ */
+export async function DELETE(request: NextRequest) {
+  if (!isAuthorized(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
+
+  const jobId = request.nextUrl.searchParams.get("id")?.trim() || "";
+  if (!UUID_PATTERN.test(jobId)) return Response.json({ ok: false, error: "올바른 작업 ID가 아닙니다." }, { status: 400 });
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const now = new Date().toISOString();
+    const select = "id,action,target_worker,status,result,progress,message,error,cancel_requested_at,created_at,started_at,completed_at";
+
+    const { data: queued, error: queuedError } = await supabase
+      .from("remote_jobs")
+      .update({ status: "CANCELED", message: "사용자가 작업을 취소했습니다.", completed_at: now, updated_at: now, cancel_requested_at: now })
+      .eq("id", jobId)
+      .eq("status", "QUEUED")
+      .select(select)
+      .maybeSingle();
+    if (queuedError) throw queuedError;
+    if (queued) return Response.json({ ok: true, job: queued });
+
+    const { data: running, error: runningError } = await supabase
+      .from("remote_jobs")
+      .update({ cancel_requested_at: now, message: "취소 요청됨 — 현재 파일 작업을 안전하게 멈추는 중입니다.", updated_at: now })
+      .eq("id", jobId)
+      .eq("status", "RUNNING")
+      .select(select)
+      .maybeSingle();
+    if (runningError) throw runningError;
+    if (running) return Response.json({ ok: true, job: running });
+
+    const { data: existing, error: existingError } = await supabase
+      .from("remote_jobs")
+      .select(select)
+      .eq("id", jobId)
+      .maybeSingle();
+    if (existingError) throw existingError;
+    if (!existing) return Response.json({ ok: false, error: "작업을 찾을 수 없습니다." }, { status: 404 });
+    return Response.json({ ok: false, error: "이미 끝난 작업은 취소할 수 없습니다.", job: existing }, { status: 409 });
+  } catch (error) {
+    return Response.json({ ok: false, error: error instanceof Error ? error.message : "작업 취소 요청에 실패했습니다." }, { status: 500 });
   }
 }

@@ -43,6 +43,20 @@ describe("SSD1 JPG전체 → SSD2 Agentstation COPY", () => {
     expect(await readdir(project)).toEqual(expect.arrayContaining(["JPG전체", "A003.ARW"]));
   });
 
+  it("does not scan sibling RAW folders while staging JPG전체", async () => {
+    const { roots, project, sourceJpg, destination } = await setup();
+    await writeFile(path.join(sourceJpg, "A001.JPG"), "jpg");
+    // JPG 복사 단계는 프로젝트 전체 RAW를 순회하지 않는다. 예전 RAW snapshot 경로였다면
+    // 이 심볼릭 링크를 만나 REVIEW_REQUIRED가 됐지만, 이제 JPG전체만 읽는다.
+    await mkdir(path.join(project, "RAW"));
+    await symlink(path.join(sourceJpg, "A001.JPG"), path.join(project, "RAW", "camera-link.ARW"));
+
+    const result = await stageProjectJpgToWorkStorage({ roots, sourceRelativePath: "0914_test", minFreeBytes: 0 });
+
+    expect(result).toMatchObject({ ok: true, sourceCount: 1, rawCopiedCount: 0 });
+    await expect(readFile(path.join(destination, "A001.JPG"), "utf8")).resolves.toBe("jpg");
+  });
+
   it("preserves nested JPG paths and byte-level metadata payloads", async () => {
     const { roots, sourceJpg, destination } = await setup();
     const metadataJpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe1, 0x00, 0x1a, ...Buffer.from("Exif\\0\\0DateTimeOriginal=2026:09:15 10:20:30"), 0xff, 0xd9]);

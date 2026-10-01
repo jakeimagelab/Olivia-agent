@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!["RUNNING", "COMPLETED", "FAILED"].includes(status)) {
+  if (!["RUNNING", "COMPLETED", "FAILED", "CANCELED"].includes(status)) {
     return Response.json(
       { ok: false, error: "Invalid status" },
       { status: 400 }
@@ -172,7 +172,7 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
-      if (PHOTO_WORKFLOW_ACTIONS.has(runningJob.action)) {
+      if (PHOTO_WORKFLOW_ACTIONS.has(runningJob.action) && status !== "CANCELED") {
         await syncPhotoWorkflow(supabase, runningJob as RemoteJobRecord, {
           status: status as "COMPLETED" | "FAILED",
           progress,
@@ -202,7 +202,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (PHOTO_WORKFLOW_ACTIONS.has(data.action) && !lifecycleSyncedBeforeTerminalUpdate) {
+    if (PHOTO_WORKFLOW_ACTIONS.has(data.action) && !lifecycleSyncedBeforeTerminalUpdate && status !== "CANCELED") {
       try {
         await syncPhotoWorkflow(supabase, data as RemoteJobRecord, {
           status: status as "RUNNING" | "COMPLETED" | "FAILED",

@@ -18,10 +18,11 @@ export type StatusPanelAction = {
 
 export type StatusPanelRemoteJob = {
   id: string;
-  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELED";
   message: string | null;
   error: string | null;
   progress: RemoteJobProgress | null;
+  cancelRequested?: boolean;
 };
 
 export type StatusPanelEntry = {

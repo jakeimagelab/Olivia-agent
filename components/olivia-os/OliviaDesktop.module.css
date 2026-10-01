@@ -36,14 +36,22 @@
   color: #155855;
   background: rgba(255,255,255,.96);
   box-shadow: 0 8px 24px rgba(4, 46, 43, .16);
+  pointer-events: auto;
+  cursor: pointer;
 }
 .photoTaskStatusRow[data-state="failed"] { color: #a83f1e; border-color: #e4a08b; background: #fff4ef; pointer-events: auto; }
 .photoTaskStatusRow[data-state="done"] { color: #167b56; }
+.photoTaskStatusRow[data-state="cancelled"] { color: #667b76; background: #f4f7f6; }
 .photoTaskStatusRow > span { min-width: 0; display: grid; gap: 2px; }
 .photoTaskStatusRow strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
 .photoTaskStatusRow small { color: #5e7671; font-size: 11px; line-height: 1.35; }
 .photoTaskStatusRow[data-state="failed"] small { color: #a83f1e; }
 .photoTaskStatusSpin { animation: widget-spin .8s linear infinite; }
+.photoTaskGauge { display: block; width: 100%; height: 3px; overflow: hidden; border-radius: 99px; background: rgba(21,88,85,.12); }
+.photoTaskGauge > i { display: block; height: 100%; border-radius: inherit; background: #2ebd9d; transition: width .22s ease; }
+.photoTaskCancel { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; border: 1px solid rgba(180,55,35,.28); border-radius: 7px; background: #fff; color: #b42318; padding: 5px 7px; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
+.photoTaskCancel:hover { background: #fff3f0; }
+.photoTaskCancelPending { flex: 0 0 auto; color: #9a4b2b; font-size: 10px; font-style: normal; }
 
 .wallpaperLayer,
 .overlayLayer,
@@ -332,7 +340,9 @@
 
 /* 코드 요청서(2026-09-19) 상단바 상태표시 팝업 */
 .statusPanelGroup { position: relative; display: flex; align-items: center; gap: 4px; }
+.statusPanelActiveGroup { display: flex; align-items: center; gap: 4px; }
 .statusPanelActiveChip {
+  position: relative;
   width: min(270px, 25vw);
   height: 25px;
   padding: 0 8px;
@@ -356,6 +366,11 @@
   white-space: nowrap;
 }
 .statusPanelActiveChip b { flex: 0 0 auto; font-size: 9px; font-variant-numeric: tabular-nums; }
+.statusPanelActiveGauge { position: absolute; left: 9px; right: 9px; bottom: 3px; height: 2px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.22); }
+.statusPanelActiveGauge > i { display: block; height: 100%; border-radius: inherit; background: #5be0bd; transition: width .24s ease; }
+.statusPanelActiveCancel { display: inline-flex; align-items: center; gap: 3px; height: 25px; padding: 0 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(166,54,34,.44); color: #fff; font: inherit; font-size: 9px; font-weight: 750; cursor: pointer; }
+.statusPanelActiveCancel:hover { background: rgba(189,68,42,.64); }
+.statusPanelCancelPending { color: #ffd3a6; font-size: 9px; white-space: nowrap; }
 
 .statusPanelWarningDot {
   position: absolute;

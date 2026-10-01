@@ -13,6 +13,7 @@ import {
   History,
   RefreshCw,
   Server,
+  Square,
   UserRoundCheck,
 } from "lucide-react";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
@@ -38,6 +39,8 @@ import {
 import type { StatusPanelAction, StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import type { SystemStatusItem } from "@/lib/system-status/types";
 import { useBackgroundJobsStore, type BackgroundJob } from "@/lib/store/useBackgroundJobsStore";
+import { cancelRemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
+import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
@@ -463,6 +466,20 @@ function StatusPanelButtonContent() {
     setOpen(false);
   }, [launchHref]);
 
+  const cancelTopBarJob = useCallback(async (entry: StatusPanelEntry) => {
+    if (!entry.remoteJob || entry.remoteJob.status === "COMPLETED" || entry.remoteJob.status === "FAILED" || entry.remoteJob.status === "CANCELED") return;
+    try {
+      const updated = await cancelRemotePhotoSortJob(entry.remoteJob.id);
+      useRemotePhotoJobStore.getState().setTrackedJob(updated);
+      await load();
+    } catch (cause) {
+      setActionStates((current) => ({
+        ...current,
+        [`cancel:${entry.remoteJob!.id}`]: { message: cause instanceof Error ? cause.message : "취소 요청을 보내지 못했습니다.", error: true },
+      }));
+    }
+  }, [load]);
+
   const refreshAll = useCallback(async () => {
     await Promise.all([load(), refreshPhotoProjects()]);
   }, [load, refreshPhotoProjects]);
@@ -523,16 +540,22 @@ function StatusPanelButtonContent() {
   return (
     <div className={styles.statusPanelGroup} ref={panelRef}>
       {topBarProgressEntry ? (
-        <button
-          type="button"
-          className={styles.statusPanelActiveChip}
-          onClick={() => openEntry(topBarProgressEntry)}
-          title={`${topBarProgressEntry.title}${topBarProgressEntry.detail ? ` · ${topBarProgressEntry.detail}` : ""}`}
-        >
-          <RefreshCw size={11} className={styles.statusPanelSpin} />
-          <span>{topBarProgressEntry.title}</span>
-          {typeof topBarProgressEntry.progressPercent === "number" ? <b>{topBarProgressEntry.progressPercent}%</b> : null}
-        </button>
+        <div className={styles.statusPanelActiveGroup}>
+          <button
+            type="button"
+            className={styles.statusPanelActiveChip}
+            onClick={() => openEntry(topBarProgressEntry)}
+            title={`${topBarProgressEntry.title}${topBarProgressEntry.detail ? ` · ${topBarProgressEntry.detail}` : ""}`}
+          >
+            <RefreshCw size={11} className={styles.statusPanelSpin} />
+            <span>{topBarProgressEntry.title}</span>
+            {typeof topBarProgressEntry.progressPercent === "number" ? <b>{topBarProgressEntry.progressPercent}%</b> : null}
+            {typeof topBarProgressEntry.progressPercent === "number" ? <i className={styles.statusPanelActiveGauge}><i style={{ width: `${topBarProgressEntry.progressPercent}%` }} /></i> : null}
+          </button>
+          {topBarProgressEntry.remoteJob && !topBarProgressEntry.remoteJob.cancelRequested ? (
+            <button type="button" className={styles.statusPanelActiveCancel} onClick={() => void cancelTopBarJob(topBarProgressEntry)} title="작업 취소" aria-label="사진 분류 작업 취소"><Square size={10} fill="currentColor" /> 취소</button>
+          ) : topBarProgressEntry.remoteJob?.cancelRequested ? <small className={styles.statusPanelCancelPending}>취소 요청됨</small> : null}
+        </div>
       ) : null}
       <button
         type="button"

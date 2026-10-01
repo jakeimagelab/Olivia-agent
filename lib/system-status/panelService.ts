@@ -81,6 +81,7 @@ type RemoteJobRow = {
   progress: Record<string, unknown> | null;
   message: string | null;
   error: string | null;
+  cancel_requested_at?: string | null;
   created_at: string | null;
   completed_at: string | null;
 };
@@ -114,6 +115,7 @@ const JOB_STATUS_LABEL: Record<string, string> = {
   RUNNING: "진행 중",
   COMPLETED: "완료",
   FAILED: "실패",
+  CANCELED: "취소됨",
 };
 const PHOTO_STATUS_LABEL: Record<string, string> = {
   MERGE_APPROVED: "JPG정리 대기",
@@ -622,6 +624,7 @@ export function buildStatusPanelCollections(input: {
         message: job.message,
         error: job.error,
         progress: safeRemoteProgress(job.progress),
+        cancelRequested: Boolean(job.cancel_requested_at),
       },
     });
   }
@@ -647,7 +650,7 @@ export function buildStatusPanelCollections(input: {
       actions,
     });
   }
-  for (const job of remoteJobs.filter((row) => ["COMPLETED", "FAILED"].includes(row.status ?? "")).slice(0, RECENT_LIMIT)) {
+  for (const job of remoteJobs.filter((row) => ["COMPLETED", "FAILED", "CANCELED"].includes(row.status ?? "")).slice(0, RECENT_LIMIT)) {
     const projectId = projectIdFromJob(job);
     const project = projectId ? projectById.get(projectId) : undefined;
     const folder = jobFolder(job, project);
@@ -703,7 +706,7 @@ export async function collectStatusPanelData(options: {
       .eq("event_type", "workflow.blocked").order("occurred_at", { ascending: false }).limit(30),
     db.from("worker_events").select("id,event_type,folder_name,file_count,total_bytes,status,created_at")
       .order("created_at", { ascending: false }).limit(RECENT_LIMIT),
-    db.from("remote_jobs").select("id,action,status,payload,progress,message,error,created_at,completed_at")
+    db.from("remote_jobs").select("id,action,status,payload,progress,message,error,cancel_requested_at,created_at,completed_at")
       .neq("action", "PING").order("created_at", { ascending: false }).limit(200),
     db.from("olivia_chat_messages").select("id,metadata,created_at")
       .eq("role", "assistant").not("metadata->>fallbackReason", "is", null).gte("created_at", since24h)

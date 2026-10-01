@@ -8,6 +8,7 @@ create table if not exists public.remote_jobs (
   progress jsonb not null default '{}'::jsonb,
   message text,
   error text,
+  cancel_requested_at timestamptz,
   claimed_at timestamptz,
   started_at timestamptz,
   completed_at timestamptz,
@@ -15,7 +16,7 @@ create table if not exists public.remote_jobs (
   updated_at timestamptz not null default now(),
 
   constraint remote_jobs_status_check
-    check (status in ('QUEUED','RUNNING','COMPLETED','FAILED'))
+    check (status in ('QUEUED','RUNNING','COMPLETED','FAILED','CANCELED'))
 );
 
 create index if not exists remote_jobs_queue_idx

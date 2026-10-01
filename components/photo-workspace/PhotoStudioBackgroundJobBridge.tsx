@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { getRemotePhotoSortJob, type RemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
+import { cancelRemotePhotoSortJob, getRemotePhotoSortJob, type RemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
 import { PHOTO_STUDIO_REMOTE_JOB_STORAGE_KEY } from "@/lib/photo-classifier/photoSource";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
@@ -113,7 +113,12 @@ export default function PhotoStudioBackgroundJobBridge() {
       const values = progressValues(job);
       const store = useBackgroundJobsStore.getState();
       const existing = store.jobs[job.id];
-      const isTerminal = job.status === "COMPLETED" || job.status === "FAILED";
+      const isTerminal = job.status === "COMPLETED" || job.status === "FAILED" || job.status === "CANCELED";
+      const cancel = () => {
+        void cancelRemotePhotoSortJob(job.id)
+          .then((updated) => useRemotePhotoJobStore.getState().setTrackedJob(updated))
+          .catch((error) => store.updateJob(job.id, { cur: values.current, total: values.total, msg: error instanceof Error ? error.message : "취소 요청을 보내지 못했습니다." }));
+      };
 
       if (!existing) {
         store.startJob({
@@ -122,14 +127,15 @@ export default function PhotoStudioBackgroundJobBridge() {
           cur: values.current,
           total: values.total,
           msg: values.message,
-          status: isTerminal ? (job.status === "FAILED" ? "error" : "done") : "running",
+          status: isTerminal ? (job.status === "FAILED" ? "error" : job.status === "CANCELED" ? "cancelled" : "done") : "running",
           returnPath: "/photo-sorting?mode=classification",
           cancelRef: { current: false },
-          cancelable: false,
+          cancelable: true,
+          onCancel: cancel,
         });
       } else {
         store.updateJob(job.id, { cur: values.current, total: values.total, msg: values.message });
-        if (isTerminal) store.finishJob(job.id, job.status === "FAILED" ? "error" : "done");
+        if (isTerminal) store.finishJob(job.id, job.status === "FAILED" ? "error" : job.status === "CANCELED" ? "cancelled" : "done");
       }
 
       if (isTerminal) terminalJobId = job.id;
@@ -145,7 +151,7 @@ export default function PhotoStudioBackgroundJobBridge() {
         if (disposed) return;
         failureCount = 0;
         mirrorJob(job);
-        if (job.status !== "COMPLETED" && job.status !== "FAILED") {
+        if (job.status !== "COMPLETED" && job.status !== "FAILED" && job.status !== "CANCELED") {
           schedule(document.visibilityState === "hidden" ? HIDDEN_POLL_INTERVAL_MS : POLL_INTERVAL_MS);
         }
       } catch (error) {

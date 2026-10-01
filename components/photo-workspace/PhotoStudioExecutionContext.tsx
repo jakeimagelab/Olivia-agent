@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  cancelRemotePhotoSortJob,
   type RemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
 import {
@@ -36,6 +37,7 @@ type PhotoStudioExecutionValue = {
   remotePollingMessage: string;
   trackRemoteJob: (job: RemotePhotoSortJob) => void;
   clearRemoteJob: () => void;
+  cancelRemoteJob: () => Promise<void>;
   workerPresence: RemoteWorkerPresence;
   workerPollingState: RemotePollingState;
   refreshWorkerPresence: () => void;
@@ -132,6 +134,13 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
+  const cancelRemoteJob = useCallback(async () => {
+    const current = useRemotePhotoJobStore.getState().job;
+    if (!current) throw new Error("취소할 Mac Studio 작업이 없습니다.");
+    const updated = await cancelRemotePhotoSortJob(current.id);
+    useRemotePhotoJobStore.getState().setTrackedJob(updated);
+  }, []);
+
   useEffect(() => {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -175,6 +184,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     remotePollingMessage,
     trackRemoteJob,
     clearRemoteJob,
+    cancelRemoteJob,
     workerPresence,
     workerPollingState,
     refreshWorkerPresence: () => setWorkerRefreshKey((key) => key + 1),
@@ -185,6 +195,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   }), [
     availableModes,
     clearRemoteJob,
+    cancelRemoteJob,
     executionMode,
     remoteJob,
     remotePollingMessage,

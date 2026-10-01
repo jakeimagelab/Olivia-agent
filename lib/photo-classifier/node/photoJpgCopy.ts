@@ -77,7 +77,6 @@ export type PhotoStageJpgFailure = {
 export type PhotoStageJpgResult = PhotoStageJpgSuccess | PhotoStageJpgFailure;
 
 type FileSnapshot = { relativePath: string; name: string; sourcePath: string; size: number; mtimeMs: number };
-type RawSnapshot = Map<string, { name: string; size: number; mtimeMs: number }>;
 type Summary = { count: number; bytes: number };
 
 class StageValidationError extends Error {
@@ -144,27 +143,6 @@ async function collectSourceJpgs(directory: string): Promise<FileSnapshot[]> {
   return files.sort((left, right) => left.relativePath.localeCompare(right.relativePath, "en", { numeric: true, sensitivity: "base" }));
 }
 
-async function collectRawSnapshot(projectRoot: string): Promise<RawSnapshot> {
-  const snapshot: RawSnapshot = new Map();
-  const visit = async (current: string, relativeDirectory: string): Promise<void> => {
-    for (const entry of await readdir(current, { withFileTypes: true })) {
-      const fullPath = path.join(current, entry.name);
-      const relativePath = relativeDirectory ? path.posix.join(relativeDirectory, entry.name) : entry.name;
-      if (entry.isSymbolicLink()) throw new StageValidationError("REVIEW_REQUIRED", `RAW 검사 중 심볼릭 링크가 있습니다: ${relativePath}`);
-      if (entry.isDirectory()) {
-        if (!relativeDirectory && entry.name === JPG_DIRECTORY) continue;
-        await visit(fullPath, relativePath);
-        continue;
-      }
-      if (!entry.isFile() || !RAW_PHOTO_EXTENSIONS.has(extension(entry.name))) continue;
-      const metadata = await stat(fullPath);
-      snapshot.set(relativePath, { name: entry.name, size: metadata.size, mtimeMs: metadata.mtimeMs });
-    }
-  };
-  await visit(projectRoot, "");
-  return snapshot;
-}
-
 function summary(files: FileSnapshot[]): Summary {
   return { count: files.length, bytes: files.reduce((total, file) => total + file.size, 0) };
 }
@@ -175,15 +153,6 @@ function sameFileSnapshots(before: FileSnapshot[], after: FileSnapshot[]): boole
     const current = after[index];
     return Boolean(current) && current.relativePath === file.relativePath && current.name === file.name && current.size === file.size && current.mtimeMs === file.mtimeMs;
   });
-}
-
-function sameRawSnapshot(before: RawSnapshot, after: RawSnapshot): boolean {
-  if (before.size !== after.size) return false;
-  for (const [relativePath, value] of before) {
-    const current = after.get(relativePath);
-    if (!current || current.name !== value.name || current.size !== value.size || current.mtimeMs !== value.mtimeMs) return false;
-  }
-  return true;
 }
 
 function totalBytes(files: Iterable<{ size: number }>): number {
@@ -268,9 +237,41 @@ async function ensureDirectoryTree(root: string, target: string): Promise<void> 
     const existing = await lstat(cursor).catch(() => null);
     if (existing) {
       if (existing.isSymbolicLink() || !existing.isDirectory()) throw new StageValidationError("REVIEW_REQUIRED", `SSD2 경로가 안전한 폴더가 아닙니다: ${segment}`);
-    } else await mkdir(cursor);
+    } else {
+      // JPG 파일을 제한 병렬 복사할 때 형제 파일들이 같은 하위 폴더를 동시에
+      // 만들 수 있다. EEXIST는 다른 작업자가 안전하게 만든 같은 폴더이므로
+      // 다시 lstat/realpath 검증을 거쳐 계속한다.
+      await mkdir(cursor).catch((error: unknown) => {
+        const code = error && typeof error === "object" && "code" in error
+          ? (error as NodeJS.ErrnoException).code
+          : undefined;
+        if (code !== "EEXIST") throw error;
+      });
+    }
     if (!isInside(root, await realpath(cursor))) throw new StageValidationError("REVIEW_REQUIRED", "SSD2 경로가 WORK_ROOT 밖을 가리킵니다.");
   }
+}
+
+const DEFAULT_COPY_CONCURRENCY = 4;
+
+function copyConcurrency(): number {
+  const configured = Number(process.env.OLIVIA_JPG_COPY_CONCURRENCY ?? DEFAULT_COPY_CONCURRENCY);
+  if (!Number.isFinite(configured)) return DEFAULT_COPY_CONCURRENCY;
+  // NAS와 Agentstation SSD를 동시에 과점유하지 않도록 상한을 둔다.
+  return Math.max(1, Math.min(6, Math.floor(configured)));
+}
+
+async function mapWithConcurrency<T>(items: readonly T[], concurrency: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let nextIndex = 0;
+  const consume = async () => {
+    while (true) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= items.length) return;
+      await worker(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), Math.max(1, items.length)) }, consume));
 }
 
 function configuredMinFreeBytes(): number {
@@ -333,7 +334,6 @@ export async function stageProjectJpgToWorkStorage(input: PhotoStageJpgInput): P
     const sourceSummary = summary(sourceFiles);
     if (sourceSummary.count === 0) throw new StageValidationError("REVIEW_REQUIRED", "SSD1 JPG전체에 복사할 JPG 파일이 없습니다.");
     const sourceMap = new Map(sourceFiles.map((file) => [file.relativePath, file]));
-    const rawBefore = await collectRawSnapshot(sourceProjectCanonical);
     const destinationDirectory = path.join(destinationProject, JPG_DIRECTORY);
     const inspection = await inspectDestination(destinationDirectory, sourceMap);
     if (inspection.conflicts.length) return makeFailure({ status: "REVIEW_REQUIRED", sourceRelativePath, destinationRelativePath, sourceFiles, destinationCount: inspection.files.size, destinationBytes: totalBytes(inspection.files.values()), copiedCount, copiedBytes, skippedCount, warnings, startedAt, error: inspection.conflicts.join("; ") });
@@ -353,10 +353,10 @@ export async function stageProjectJpgToWorkStorage(input: PhotoStageJpgInput): P
     for (const temporaryRelativePath of inspection.tempFiles) await unlink(path.join(destinationDirectory, ...temporaryRelativePath.split("/")));
     await ensureDirectoryTree(workRoot, destinationDirectory);
     const currentSourceFiles = await collectSourceJpgs(sourceJpgDirectory);
-    if (!sameFileSnapshots(sourceFiles, currentSourceFiles) || !sameRawSnapshot(rawBefore, await collectRawSnapshot(sourceProjectCanonical))) throw new StageValidationError("REVIEW_REQUIRED", "복사 시작 전 SSD1 원본이 변경되었습니다.");
+    if (!sameFileSnapshots(sourceFiles, currentSourceFiles)) throw new StageValidationError("REVIEW_REQUIRED", "복사 시작 전 SSD1 JPG전체 원본이 변경되었습니다.");
     let copiedBytesForProgress = totalBytes(sourceFiles.filter((file) => inspection.files.has(file.relativePath)));
     if (pending.length > 0) input.onProgress?.({ stage: "COPYING", current: skippedCount, total: sourceSummary.count, copiedBytes: copiedBytesForProgress, totalBytes: sourceSummary.bytes, message: "Agentstation으로 JPG 복사 중입니다." });
-    for (const file of pending) {
+    await mapWithConcurrency(pending, copyConcurrency(), async (file) => {
       const destinationPath = path.join(destinationDirectory, ...file.relativePath.split("/"));
       const destinationParent = path.dirname(destinationPath);
       await ensureDirectoryTree(workRoot, destinationParent);
@@ -377,11 +377,10 @@ export async function stageProjectJpgToWorkStorage(input: PhotoStageJpgInput): P
       copiedBytes += file.size;
       copiedBytesForProgress += file.size;
       input.onProgress?.({ stage: "COPYING", current: skippedCount + copiedCount, total: sourceSummary.count, copiedBytes: copiedBytesForProgress, totalBytes: sourceSummary.bytes, message: `JPG 복사: ${file.relativePath}` });
-    }
+    });
     input.onProgress?.({ stage: "VERIFYING", current: 0, total: sourceSummary.count, copiedBytes: sourceSummary.bytes, totalBytes: sourceSummary.bytes, message: "SSD1 원본과 Agentstation 복사 결과를 검증 중입니다." });
-    const rawAfter = await collectRawSnapshot(sourceProjectCanonical);
     const latestSourceFiles = await collectSourceJpgs(sourceJpgDirectory);
-    if (!sameFileSnapshots(sourceFiles, latestSourceFiles) || !sameRawSnapshot(rawBefore, rawAfter)) throw new StageValidationError("REVIEW_REQUIRED", "COPY 후 SSD1 JPG 또는 RAW 원본이 변경되었습니다.");
+    if (!sameFileSnapshots(sourceFiles, latestSourceFiles)) throw new StageValidationError("REVIEW_REQUIRED", "COPY 후 SSD1 JPG전체 원본이 변경되었습니다.");
     const finalInspection = await inspectDestination(destinationDirectory, sourceMap);
     if (finalInspection.conflicts.length) throw new StageValidationError("COPY_FAILED", finalInspection.conflicts.join("; "));
     if (finalInspection.tempFiles.length) throw new StageValidationError("COPY_FAILED", "Agentstation에 Olivia 임시 파일이 남아 있습니다.");

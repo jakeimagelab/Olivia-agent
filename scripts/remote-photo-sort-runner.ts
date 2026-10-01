@@ -2,12 +2,9 @@
 
 import { loadEnvConfig } from "@next/env";
 import {
-  runRemotePhotoSortRunner,
-} from "@/lib/photo-classifier/node/remotePhotoSortRunner";
-import type {
-  RemotePhotoSortFailure,
-  RemotePhotoSortRunnerInput,
-} from "@/lib/photo-classifier/node/types";
+  runRemoteJpgClassificationPipeline,
+} from "@/lib/photo-classifier/node/remoteJpgClassificationPipeline";
+import type { RemotePhotoSortRunnerOptions } from "@/lib/photo-classifier/node/types";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 
 loadEnvConfig(process.cwd());
@@ -61,12 +58,9 @@ function booleanValue(values: CliValues, key: string, fallback: boolean): boolea
   throw new Error(`--${key} 값은 true 또는 false여야 합니다.`);
 }
 
-function inputFromArguments(values: CliValues): RemotePhotoSortRunnerInput {
+function inputFromArguments(values: CliValues): RemotePhotoSortRunnerOptions & { sourceFolder: string } {
   const sourceFolder = values["source-folder"];
-  const workFolder = values["work-folder"] ?? values.source;
-  if (Boolean(sourceFolder) === Boolean(workFolder)) {
-    throw new Error("--source-folder 또는 --work-folder 중 하나만 지정해야 합니다.");
-  }
+  if (!sourceFolder) throw new Error("--source-folder가 필요합니다.");
 
   const departmentValue = values.department ?? "dermatology";
   if (!DEPARTMENTS.has(departmentValue as MedicalDepartment)) {
@@ -88,14 +82,12 @@ function inputFromArguments(values: CliValues): RemotePhotoSortRunnerInput {
     profileClassificationEnabled: booleanValue(values, "profile-classification-enabled", true),
   } as const;
 
-  return sourceFolder
-    ? { ...options, sourceFolder }
-    : { ...options, workFolder: workFolder as string };
+  return { ...options, sourceFolder };
 }
 
 async function main(): Promise<void> {
   const values = parseArguments(process.argv.slice(2));
-  const result = await runRemotePhotoSortRunner(inputFromArguments(values), {
+  const result = await runRemoteJpgClassificationPipeline(inputFromArguments(values), {
     onProgress: (progress) => {
       process.stderr.write(`${REMOTE_PHOTO_PROGRESS_PREFIX}${JSON.stringify(progress)}\n`);
     },
@@ -104,9 +96,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  const failure: RemotePhotoSortFailure = {
+  const failure = {
     ok: false,
-    status: "FAILED",
+    status: "CLASSIFY_FAILED",
     error: error instanceof Error ? error.message : String(error),
   };
   process.stdout.write(`${JSON.stringify(failure)}\n`);

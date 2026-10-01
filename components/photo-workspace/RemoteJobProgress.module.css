@@ -14,6 +14,10 @@
 .heading > span { gap: 7px; }
 .heading strong { font-size: 12px; }
 .heading b { font-size: 12px; font-variant-numeric: tabular-nums; }
+.actions { justify-content: flex-end; }
+.heading em { color: #9a4b2b; font-size: 10.5px; font-style: normal; white-space: nowrap; }
+.cancel { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(180,55,35,.28); border-radius: 7px; background: #fff; color: #b42318; padding: 4px 7px; font: inherit; font-size: 10.5px; font-weight: 800; cursor: pointer; }
+.cancel:hover { background: #fff3f0; }
 .spin { animation: remote-job-spin 1s linear infinite; }
 
 .reconnecting {

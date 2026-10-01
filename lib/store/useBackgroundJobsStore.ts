@@ -22,6 +22,8 @@ export type BackgroundJob = {
   cancelRef: { current: boolean };
   /** 서버에서 실행되어 브라우저가 직접 중단할 수 없는 작업은 false로 표시한다. */
   cancelable?: boolean;
+  /** 원격 작업은 취소 요청 API를 연결한다. 없으면 기존 cancelRef 동작을 유지한다. */
+  onCancel?: () => void;
 };
 
 type BackgroundJobsState = {
@@ -52,6 +54,8 @@ export const useBackgroundJobsStore = create<BackgroundJobsState>((set, get) => 
   }),
   cancelJob: (id) => {
     const job = get().jobs[id];
-    if (job) job.cancelRef.current = true;
+    if (!job) return;
+    job.cancelRef.current = true;
+    job.onCancel?.();
   },
 }));

@@ -21,6 +21,7 @@ import {
   toRemoteNasDisplayPath,
 } from "@/lib/remote-nas/path";
 import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
+import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
@@ -44,6 +45,7 @@ type RunnerOutcome = {
   result: JsonRecord | null;
   stdout: string;
   stderr: string;
+  cancellationRequested?: boolean;
 };
 
 type CoalescedProgressReporter = {
@@ -183,11 +185,8 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
   switch (job.action) {
     case "PHOTO_SORT": {
       const sourceFolder = stringValue(payload, "source_folder");
-      const workFolder = stringValue(payload, "work_folder");
-      if (Boolean(sourceFolder) === Boolean(workFolder)) {
-        throw new Error("PHOTO_SORT에는 source_folder 또는 work_folder 중 하나가 필요합니다.");
-      }
-      addString(args, sourceFolder ? "--source-folder" : "--work-folder", sourceFolder ?? workFolder);
+      if (!sourceFolder) throw new Error("PHOTO_SORT에는 source_folder가 필요합니다.");
+      addString(args, "--source-folder", sourceFolder);
       addString(args, "--department", stringValue(payload, "department"));
       addNumber(args, "--gap-minutes", numberValue(payload, "gap_minutes"));
       addString(args, "--classification-ui-mode", stringValue(payload, "classification_ui_mode"));
@@ -252,6 +251,7 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     case "PING":
     case "COPY_TEST":
     case "LIST_FOLDER":
+    case "PHOTO_CHECK_WORK_FOLDER":
       return null;
     default:
       throw new Error(`지원하지 않는 Worker action입니다: ${job.action}`);
@@ -312,6 +312,7 @@ function captureWithLimit(current: string, chunk: Buffer): string {
 async function executeRunner(
   invocation: RunnerInvocation,
   onProgress: (progress: JsonRecord) => Promise<void>,
+  options: { shouldCancel?: () => Promise<boolean> } = {},
 ): Promise<RunnerOutcome> {
   return new Promise((resolve, reject) => {
     const child = spawn(invocation.command, invocation.args, {
@@ -322,6 +323,9 @@ async function executeRunner(
     let stdout = "";
     let stderr = "";
     let stderrBuffer = "";
+    let cancellationRequested = false;
+    let cancelCheckRunning = false;
+    let cancelTimer: ReturnType<typeof setInterval> | null = null;
     const progressReporter = createCoalescedProgressReporter(onProgress, {
       onError: (error) => {
         console.error(`[remote-bridge] 진행 상태 보고 실패: ${error instanceof Error ? error.message : String(error)}`);
@@ -341,6 +345,26 @@ async function executeRunner(
       }
       if (line) console.error(line);
     };
+
+    const checkCancellation = async () => {
+      if (cancelCheckRunning || cancellationRequested || !options.shouldCancel) return;
+      cancelCheckRunning = true;
+      try {
+        if (await options.shouldCancel()) {
+          cancellationRequested = true;
+          child.kill("SIGTERM");
+        }
+      } catch (error) {
+        // 취소 상태 조회 실패는 작업 실패가 아니다. 다음 500ms polling에서 다시 확인한다.
+        console.warn(`[remote-bridge] 취소 상태 확인 실패: ${error instanceof Error ? error.message : String(error)}`);
+      } finally {
+        cancelCheckRunning = false;
+      }
+    };
+    if (options.shouldCancel) {
+      cancelTimer = setInterval(() => { void checkCancellation(); }, 500);
+      void checkCancellation();
+    }
 
     child.stdout.on("data", (chunk: Buffer) => {
       try {
@@ -364,6 +388,7 @@ async function executeRunner(
     });
     child.once("error", reject);
     child.once("close", (code) => {
+      if (cancelTimer) clearInterval(cancelTimer);
       if (stderrBuffer) processStderrLine(stderrBuffer);
       void progressReporter.flush().then(() => {
         resolve({
@@ -371,6 +396,7 @@ async function executeRunner(
           result: parseLastJsonObject(stdout),
           stdout,
           stderr,
+          cancellationRequested,
         });
       });
     });
@@ -426,6 +452,40 @@ async function listFolder(payload: JsonRecord): Promise<JsonRecord> {
   return result;
 }
 
+/** 선택한 NAS 촬영 폴더에 대응하는 Agentstation JPG 작업본을 읽기 전용으로만 확인한다. */
+async function checkPhotoWorkFolder(payload: JsonRecord): Promise<JsonRecord> {
+  const sourceFolderInput = stringValue(payload, "source_folder", true);
+  if (!sourceFolderInput) throw new Error("NAS Root가 아닌 촬영 폴더를 선택해주세요.");
+  const sourceFolder = normalizeRemoteNasRelativePath(sourceFolderInput);
+  if (!sourceFolder) throw new Error("NAS Root가 아닌 촬영 폴더를 선택해주세요.");
+
+  const roots = getStorageRoots();
+  const workRoot = path.resolve(roots.workRoot);
+  const workFolder = path.resolve(workRoot, ...sourceFolder.split("/").filter(Boolean));
+  if (!isInside(workRoot, workFolder)) throw new Error("Agentstation 작업 폴더 경로가 안전하지 않습니다.");
+  const jpgWorkFolder = path.join(workFolder, "JPG전체");
+
+  let jpgWorkFolderExists = false;
+  try {
+    const metadata = await lstat(jpgWorkFolder);
+    if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+      throw new Error(`Agentstation JPG 작업 경로가 안전한 폴더가 아닙니다: ${jpgWorkFolder}`);
+    }
+    jpgWorkFolderExists = true;
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? (error as { code?: unknown }).code : null;
+    if (code !== "ENOENT") throw error;
+  }
+
+  return {
+    ok: true,
+    sourceFolder,
+    workFolder,
+    jpgWorkFolder,
+    jpgWorkFolderExists,
+  };
+}
+
 async function copyTest(): Promise<JsonRecord> {
   const workerHome = process.env.OLIVIA_WORKER_HOME?.trim() || path.join(homedir(), "OliviaWorker");
   const stateDirectory = process.env.OLIVIA_WORKER_STATE_DIR?.trim() || path.join(workerHome, "state");
@@ -451,6 +511,7 @@ async function executeBuiltIn(job: ClaimedRemoteJob): Promise<JsonRecord> {
   }
   if (job.action === "COPY_TEST") return copyTest();
   if (job.action === "LIST_FOLDER") return listFolder(job.payload);
+  if (job.action === "PHOTO_CHECK_WORK_FOLDER") return checkPhotoWorkFolder(job.payload);
   throw new Error(`내장 실행기가 없는 action입니다: ${job.action}`);
 }
 
@@ -489,7 +550,31 @@ async function reportJob(jobId: string, body: JsonRecord): Promise<void> {
   }
 }
 
+/** Worker가 실행 중인 자기 job의 취소 요청만 읽는다. */
+async function isCancellationRequested(jobId: string): Promise<boolean> {
+  const response = await fetch(`${configuredBaseUrl()}/api/worker/cancel-request?job_id=${encodeURIComponent(jobId)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${configuredWorkerToken()}`,
+      "x-olivia-worker": configuredWorkerId(),
+      ...(process.env.VERCEL_BYPASS_SECRET?.trim()
+        ? { "x-vercel-protection-bypass": process.env.VERCEL_BYPASS_SECRET.trim() }
+        : {}),
+    },
+  });
+  if (!response.ok) return false;
+  const body: unknown = await response.json().catch(() => ({}));
+  return Boolean(body && typeof body === "object" && (body as { cancelRequested?: unknown }).cancelRequested === true);
+}
+
 export async function runClaimedJob(job: ClaimedRemoteJob, repoRoot: string): Promise<boolean> {
+  // 이 UI에서 안전 취소를 제공하는 장기 작업은 JPG 복사+분류 단일 pipeline(PHOTO_SORT)다.
+  // 기존 Worker action의 HTTP 계약에는 추가 요청을 끼워 넣지 않아 회귀를 막는다.
+  const supportsSafeCancellation = job.action === "PHOTO_SORT";
+  if (supportsSafeCancellation && await isCancellationRequested(job.job_id)) {
+    await reportJob(job.job_id, { status: "CANCELED", message: "사용자 취소 요청으로 작업을 시작하지 않았습니다." });
+    return true;
+  }
   await reportJob(job.job_id, { status: "RUNNING", message: `${job.action} 실행 중` });
   try {
     const invocation = createRunnerInvocation(job, repoRoot);
@@ -501,7 +586,14 @@ export async function runClaimedJob(job: ClaimedRemoteJob, repoRoot: string): Pr
 
     const outcome = await executeRunner(invocation, async (progress) => {
       await reportJob(job.job_id, { status: "RUNNING", progress });
-    });
+    }, supportsSafeCancellation ? { shouldCancel: () => isCancellationRequested(job.job_id) } : undefined);
+    if (outcome.cancellationRequested) {
+      await reportJob(job.job_id, {
+        status: "CANCELED",
+        message: "작업을 안전하게 취소했습니다. NAS 원본은 변경되지 않았습니다.",
+      });
+      return true;
+    }
     const successful = outcome.exitCode === 0 && outcome.result?.ok !== false;
     if (!successful) {
       const error = resolveRunnerError(outcome);
