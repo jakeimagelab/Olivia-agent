@@ -11,7 +11,10 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null) as { contentType?: unknown } | null;
   try {
     const ticket = await createVideoUploadTicket(body?.contentType);
-    return NextResponse.json({ ok: true, ticket }, { headers: { "Cache-Control": "no-store" } });
+    // The official app-template uploader validates this ticket object directly.
+    // Do not wrap it in an Olivia envelope, or the browser cannot find the
+    // signed upload URL and rejects an otherwise valid Higgsfield response.
+    return NextResponse.json(ticket, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const normalized = publicHiggsfieldError(error);
     const status = normalized.code === "not_configured" ? 503 : normalized.code === "validation" ? 400 : 502;

@@ -68,10 +68,13 @@ describe("Higgsfield video production integration", () => {
 
   it("uses the official upload and polling core through Olivia's server routes", () => {
     const upload = readFileSync("lib/higgsfield/vendor/template/upload.ts", "utf8");
+    const uploadRoute = readFileSync("app/api/higgsfield/upload/route.ts", "utf8");
     const poll = readFileSync("lib/higgsfield/vendor/template/poll.ts", "utf8");
     const adapter = readFileSync("lib/higgsfield/adapter.ts", "utf8");
 
     expect(upload).toContain('fetch("/api/higgsfield/upload"');
+    expect(uploadRoute).toContain("NextResponse.json(ticket");
+    expect(uploadRoute).not.toContain("{ ok: true, ticket }");
     expect(poll).toContain("POLL_INTERVAL_MS = 4000");
     expect(adapter).toContain("createOfficialPlatformClient().submit(path, body)");
   });
