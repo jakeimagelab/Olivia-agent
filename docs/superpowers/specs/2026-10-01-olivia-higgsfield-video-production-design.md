@@ -1,7 +1,7 @@
 # Olivia OS Higgsfield 영상제작 통합 설계
 
 작성일: 2026-10-01  
-상태: 구현 승인 전 설계 확정
+상태: 구현 완료 — API 자격증명 등록 대기
 
 ## 목적
 
@@ -11,12 +11,12 @@ Higgsfield의 생성 기능은 공식 `higgsfield-js` SDK와 `app-templates`의 
 
 ## 확인한 공식 소스
 
-제공된 압축 파일은 구현 시 아래 경로로 원본 그대로 풀어 통합 기준 소스로 둔다.
+제공된 압축 파일은 아래 경로로 원본 그대로 풀어 통합 기준 소스로 둔다. 이 폴더는 분석·업데이트 비교용 로컬 참조이며, 실제 제품은 필요한 공식 Generation Core만 `lib/higgsfield/vendor/template`에 보존한다.
 
 - `external/higgsfield-js-main` — 공식 SDK V2. 서버 전용 `createHiggsfieldClient`, `subscribe`, 인증 형식, SDK 오류 타입을 제공한다.
 - `external/app-templates-main` — 공식 모델 카탈로그, 옵션 schema, 입력 media 검증, request mapper, presigned upload, status, cancel, browser polling 패턴을 제공한다.
 
-현재 작업 저장소에는 위 `external/` 경로가 아직 없으며, 압축 파일만 `/Users/jakembpm2/Downloads/`에 있다.
+제공 압축 파일은 `/Users/jakembpm2/Downloads/`에도 보관되어 있다.
 
 ## 재사용 경계
 
@@ -78,7 +78,7 @@ lib/higgsfield/
 
 ## 인증과 보안
 
-- 서버 환경변수: `HIGGSFIELD_API_CREDENTIALS=KEY_ID:KEY_SECRET`
+- 서버 환경변수: `HIGGSFIELD_API_CREDENTIALS=KEY_ID:KEY_SECRET`를 표준으로 사용한다. 공식 SDK의 `HF_CREDENTIALS`/`HF_KEY` 또는 `HF_API_KEY` + `HF_API_SECRET`도 호환한다.
 - 공식 template 기준 base URL: `HF_API_BASE_URL=https://api.higgsfield.ai`
 - 키는 서버 Adapter에서만 읽는다. `NEXT_PUBLIC_*`, localStorage, API 응답, 로그에는 포함하지 않는다.
 - 모든 API route는 현행 Olivia 관리자 세션 규칙을 적용한다.

@@ -29,6 +29,7 @@ export const APP_ICON_BG: Record<IconName, string> = {
   'metadata-select': '#3D8FB8',
   'raw-select': '#155855',
   'video-sort': '#6B4E96',
+  'video-production': '#155855',
   'resolution-convert': '#2E6F9E',
   'retouch': '#E85D2C',
   'broll-prompt': '#1C7268',
@@ -209,6 +210,13 @@ const glyphs: Record<IconName, ReactElement> = {
       <rect x="4.2" y="13.6" width="2.6" height="3.4" rx="1.1" fill="#6B4E96"/>
       <rect x="17.2" y="7" width="2.6" height="3.4" rx="1.1" fill="#6B4E96"/>
       <rect x="17.2" y="13.6" width="2.6" height="3.4" rx="1.1" fill="#6B4E96"/>
+    </>
+  ),
+  'video-production': (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="4" fill="#fff"/>
+      <path d="M10 8l6 4-6 4z" fill="#155855"/>
+      <path d="M4.5 7.3v2.2M4.5 14.5v2.2M19.5 7.3v2.2M19.5 14.5v2.2" stroke="#5BD2B8" strokeWidth="1.8" strokeLinecap="round"/>
     </>
   ),
   'resolution-convert': (

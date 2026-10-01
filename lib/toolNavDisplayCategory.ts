@@ -34,6 +34,7 @@ const HREF_TO_DISPLAY_CATEGORY: Record<string, DisplayCategory> = {
   "/metadata-select": "media",
   "/raw-select": "media",
   "/video-sorting": "media",
+  "/video-production": "media",
   "/video-convert": "media",
   "/photo-retouching": "media",
   "/youtube-editing-conti": "media",

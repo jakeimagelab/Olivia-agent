@@ -33,6 +33,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/photo-sorting": "photo-studio", "/select-match": "select-match",
   "/metadata-select": "metadata-select", "/raw-select": "raw-select",
   "/video-sorting": "video-sort", "/video-convert": "resolution-convert",
+  "/video-production": "video-production",
   "/photo-retouching": "retouch", "/broll-prompt": "broll-prompt",
   "/youtube-editing-conti": "youtube-storyboard", "/prompter": "prompter",
   "/report": "work-report", "/link-generator": "share-link", "/trash": "trash",

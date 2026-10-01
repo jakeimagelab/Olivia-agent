@@ -4,7 +4,7 @@ import {
   BarChart2, Share2, Lightbulb, CalendarCheck, Sparkles, ScanSearch, ShieldCheck,
   ImageDown, Activity, TrendingUp, Globe2, Search, Trash2, Images, Trophy, MessageCircle, Mic,
   Fingerprint, Library, ImagePlus, PenTool, LayoutGrid, Megaphone,
-  Target, Scissors, Film, Palette, Clock, FileSignature,
+  Target, Scissors, Film, Palette, Clock, FileSignature, Clapperboard,
 } from "lucide-react";
 
 /* /admin 콘솔의 3개 카테고리(관리자 대시보드 / 고객관리 CRM / 개별 기능)와 동일한 분류 —
@@ -56,6 +56,7 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "메타데이터 셀렉", desc: "파일명이 바뀐 선택본을 촬영시간(EXIF)으로 원본 JPG·RAW와 매칭합니다.", href: "/metadata-select", icon: Clock, meta: "Metadata Select", orange: false, category: "tools", aliases: ["메타데이터셀렉", "메타데이터 셀렉", "촬영시간매칭", "촬영시간 매칭", "EXIF매칭", "EXIF 매칭", "파일명 변경 매칭"] },
   { title: "T컷 정리", desc: "눈 감음·흔들림·얼굴 식별 불가 조명 JPG 후보를 확인한 뒤 Trash_JPG로 이동합니다.", href: "/raw-select", icon: Scissors, meta: "T-Cut", orange: false, category: "tools", aliases: ["T컷", "T컷 정리", "컷정리", "컷 정리", "AI T컷", "실패컷"] },
   { title: "영상 분류", desc: "영상 파일을 AI가 카테고리별로 자동 분류하거나 촬영 시간 간격으로 Scene 폴더로 나누어 정리합니다.", href: "/video-sorting", icon: Film, meta: "Video Sorting", orange: false, category: "tools", aliases: ["영상분류", "영상 분류", "비디오 분류", "AI 영상 분류", "시간차 분류", "영상 정렬"] },
+  { title: "영상제작", desc: "Higgsfield 영상 모델로 촬영 이미지와 프롬프트를 영상으로 제작합니다.", href: "/video-production", icon: Clapperboard, meta: "Video Production", orange: false, category: "tools", aliases: ["영상제작", "영상 제작", "AI 영상", "이미지 투 비디오", "image to video", "text to video"] },
   { title: "사진 보정", desc: "사진을 업로드해 AI로 피부톤 또는 가운 색을 기준과 비교하고 Photoshop·Camera Raw 보정값을 제공합니다.", href: "/photo-retouching", icon: Palette, meta: "Photo Retouching", orange: false, category: "tools", aliases: ["사진보정", "색감보정", "리터칭", "포토샵 보정", "색감 체크", "피부톤 분석", "가운 색 보정", "색감 동기화"] },
   { title: "B롤 이미지 프롬프트", desc: "유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다.", href: "/broll-prompt", icon: ImagePlus, meta: "B-roll Prompt", orange: false, category: "tools", aliases: ["B롤", "비롤"] },
   { title: "유튜브 편집 콘티", desc: "대본을 장면별로 나누고 손글씨로 카메라, 자막, 자료화면과 편집 효과를 설계합니다.", href: "/youtube-editing-conti", icon: PenTool, meta: "Editing Storyboard", orange: false, category: "tools", aliases: ["유튜브 편집 콘티", "편집 콘티"] },
