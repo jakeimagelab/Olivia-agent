@@ -78,7 +78,7 @@ lib/higgsfield/
 
 ## 인증과 보안
 
-- 서버 환경변수: `HIGGSFIELD_API_CREDENTIALS=KEY_ID:KEY_SECRET`를 표준으로 사용한다. 공식 SDK의 `HF_CREDENTIALS`/`HF_KEY` 또는 `HF_API_KEY` + `HF_API_SECRET`도 호환한다.
+- 서버 환경변수: Open Higgsfield 콘솔에서 복사한 단일 키를 `HF_API_KEY`에 그대로 등록한다. 이 값은 서버가 `Authorization: Key <complete-api-key>`로만 사용한다. 기존 `HIGGSFIELD_API_KEY`·`HIGGSFIELD_API_CREDENTIALS`·`HF_CREDENTIALS`·`HF_KEY`와 과거 분리 키(`HF_API_KEY_ID` + `HF_API_SECRET`)는 호환한다.
 - 공식 template 기준 base URL: `HF_API_BASE_URL=https://api.higgsfield.ai`
 - 키는 서버 Adapter에서만 읽는다. `NEXT_PUBLIC_*`, localStorage, API 응답, 로그에는 포함하지 않는다.
 - 모든 API route는 현행 Olivia 관리자 세션 규칙을 적용한다.

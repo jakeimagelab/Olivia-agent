@@ -1,6 +1,5 @@
 import "server-only";
 
-import { createHiggsfieldClient } from "@higgsfield/client/v2";
 import { getHiggsfieldServerConfig, hasHiggsfieldCredentials } from "./config";
 import { normalizeVideoGenerationStatus, parseVideoGenerationRequest } from "./normalize";
 import type { VideoGenerationStatus, VideoModelCapability, VideoUploadTicket } from "./types";
@@ -62,12 +61,12 @@ export async function submitVideoGeneration(value: unknown): Promise<{ requestId
   };
   validateMedia(model, plane.media, plane.inputMode);
   const { path, body } = toPlatform(plane);
-  const config = getHiggsfieldServerConfig();
-  const client = createHiggsfieldClient({ credentials: config.credentials, baseURL: config.baseUrl });
-  const result = await client.subscribe(path, { input: body, withPolling: false });
-  if (!result.request_id) throw new Error("Higgsfield가 생성 작업 ID를 반환하지 않았습니다.");
+  // Open Higgsfield's current API-key console issues one complete key. The
+  // official app-template platform client preserves it and applies the `Key`
+  // authorization scheme server-side for submit, upload, status, and cancel.
+  const result = await createOfficialPlatformClient().submit(path, body);
   return {
-    requestId: result.request_id,
+    requestId: result.requestId,
     status: normalizeVideoGenerationStatus(result.status),
     model: {
       id: model.id,

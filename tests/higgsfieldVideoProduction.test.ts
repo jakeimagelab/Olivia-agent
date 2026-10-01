@@ -41,13 +41,14 @@ describe("Higgsfield video production integration", () => {
     expect(defaultSettings(capability(seedance!))).toMatchObject({ aspectRatio: "16:9", duration: 5 });
   });
 
-  it("keeps official SDK credential formats in the server-only configuration", () => {
+  it("accepts the complete Open Higgsfield API key only on the server", () => {
     const config = readFileSync("lib/higgsfield/config.ts", "utf8");
 
     expect(config).toContain('import "server-only"');
-    expect(config).toContain("HIGGSFIELD_API_CREDENTIALS");
-    expect(config).toContain("HF_CREDENTIALS");
+    expect(config).toContain("process.env.HF_API_KEY");
+    expect(config).toContain("process.env.HIGGSFIELD_API_KEY");
     expect(config).toContain("HF_API_SECRET");
+    expect(config).not.toContain("credentials.split");
     expect(config).not.toContain("NEXT_PUBLIC_HIGGSFIELD");
   });
 
@@ -72,8 +73,7 @@ describe("Higgsfield video production integration", () => {
 
     expect(upload).toContain('fetch("/api/higgsfield/upload"');
     expect(poll).toContain("POLL_INTERVAL_MS = 4000");
-    expect(adapter).toContain('from "@higgsfield/client/v2"');
-    expect(adapter).toContain("withPolling: false");
+    expect(adapter).toContain("createOfficialPlatformClient().submit(path, body)");
   });
 
   it("opens as a native Olivia OS window instead of a legacy iframe", () => {

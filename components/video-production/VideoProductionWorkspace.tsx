@@ -294,7 +294,7 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
               <VideoOptionsPanel model={selectedModel} settings={settings} onChange={(key, value) => setSettings((current) => ({ ...current, [key]: value }))} />
               {error ? <div className={styles.inlineError}><AlertTriangle size={15} /><span>{error}</span></div> : null}
               <button type="button" className={styles.generateButton} onClick={() => void createGeneration()} disabled={isWorking || !configured || !selectedModel}><Sparkles size={18} /> {stage === "uploading" ? "입력 파일 업로드 중" : stage === "submitting" ? "영상 생성 요청 중" : "영상 생성하기"}</button>
-              {!configured ? <p className={styles.configHint}>환경변수 <code>HIGGSFIELD_API_CREDENTIALS</code> 등록 후 생성 버튼이 활성화됩니다.</p> : null}
+              {!configured ? <p className={styles.configHint}>서버 환경변수 <code>HF_API_KEY</code> 등록 후 생성 버튼이 활성화됩니다.</p> : null}
             </section>
             <VideoResultViewer record={currentRecord} configured={configured} onCancel={() => void cancelCurrent()} onRetry={retryGeneration} onReference={useAsReference} onNew={newGeneration} />
           </div>

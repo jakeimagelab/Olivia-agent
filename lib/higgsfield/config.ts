@@ -15,16 +15,22 @@ export class HiggsfieldConfigurationError extends Error {
 }
 
 function credentialsFromEnvironment(): string | undefined {
-  const combined = [
+  // Open Higgsfield currently issues one complete API key. It must be passed
+  // through unchanged after the `Authorization: Key` scheme is added by the
+  // official platform client. Keep the former split-key variants only for
+  // installations created before the single-key flow.
+  const singleKey = [
+    process.env.HF_API_KEY,
+    process.env.HIGGSFIELD_API_KEY,
     process.env.HIGGSFIELD_API_CREDENTIALS,
     process.env.HF_CREDENTIALS,
     process.env.HF_KEY,
   ].find((value) => Boolean(value?.trim()))?.trim();
-  if (combined) return combined;
+  if (singleKey) return singleKey;
 
-  const apiKey = process.env.HF_API_KEY?.trim();
-  const apiSecret = process.env.HF_API_SECRET?.trim();
-  return apiKey && apiSecret ? `${apiKey}:${apiSecret}` : undefined;
+  const legacyKey = process.env.HF_API_KEY_ID?.trim();
+  const legacySecret = process.env.HF_API_SECRET?.trim();
+  return legacyKey && legacySecret ? `${legacyKey}:${legacySecret}` : undefined;
 }
 
 export function hasHiggsfieldCredentials(): boolean {
@@ -35,9 +41,6 @@ export function getHiggsfieldServerConfig(): HiggsfieldServerConfig {
   const credentials = credentialsFromEnvironment();
   if (!credentials) {
     throw new HiggsfieldConfigurationError("Higgsfield API 연결이 필요합니다.");
-  }
-  if (credentials.split(":").length !== 2) {
-    throw new HiggsfieldConfigurationError("Higgsfield API 자격증명 형식을 확인해주세요.");
   }
   return {
     credentials,
