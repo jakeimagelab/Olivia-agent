@@ -35,6 +35,8 @@ export type StatusPanelEntry = {
   clientId?: string | null;
   workflowRunId?: string | null;
   projectId?: string | null;
+  /** 원격 사진 작업의 NAS 상대경로. 상세 상태 UI에서만 표시한다. */
+  sourceFolder?: string | null;
   createdAt?: string | null;
   progressPercent?: number | null;
   actions?: StatusPanelAction[];

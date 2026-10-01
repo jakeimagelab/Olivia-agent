@@ -1180,7 +1180,7 @@ export async function runRemotePhotoSortRunner(
       preserveRaw: dependencies.preserveRaw,
     });
 
-    dependencies.onProgress?.({ stage: "VERIFYING", message: "분류 결과의 파일 수를 검증하고 있습니다." });
+    dependencies.onProgress?.({ stage: "FINAL_VERIFYING", message: "씬별분류 결과의 파일 수와 원본 구성을 검증하고 있습니다." });
     const actualPhotoCount = await countPhotosRecursively(prepared.workFolder);
     if (expectedPhotoCount !== actualPhotoCount) {
       throw new Error(`최종 파일 수 검증에 실패했습니다 (${expectedPhotoCount} → ${actualPhotoCount}).`);

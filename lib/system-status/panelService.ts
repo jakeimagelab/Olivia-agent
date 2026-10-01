@@ -616,6 +616,7 @@ export function buildStatusPanelCollections(input: {
       detail: job.message || (typeof job.progress?.message === "string" ? job.progress.message : "Mac Studio에서 처리 중입니다."),
       href: photoSortingHref(folder),
       projectId,
+      sourceFolder: folder,
       createdAt: job.created_at,
       progressPercent,
       remoteJob: {

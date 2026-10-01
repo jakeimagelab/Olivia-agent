@@ -378,7 +378,7 @@ export async function stageProjectJpgToWorkStorage(input: PhotoStageJpgInput): P
       copiedBytesForProgress += file.size;
       input.onProgress?.({ stage: "COPYING", current: skippedCount + copiedCount, total: sourceSummary.count, copiedBytes: copiedBytesForProgress, totalBytes: sourceSummary.bytes, message: `JPG 복사: ${file.relativePath}` });
     });
-    input.onProgress?.({ stage: "VERIFYING", current: 0, total: sourceSummary.count, copiedBytes: sourceSummary.bytes, totalBytes: sourceSummary.bytes, message: "SSD1 원본과 Agentstation 복사 결과를 검증 중입니다." });
+    input.onProgress?.({ stage: "COPY_VERIFYING", current: 0, total: sourceSummary.count, copiedBytes: sourceSummary.bytes, totalBytes: sourceSummary.bytes, message: "NAS 원본과 Agentstation JPG 복사본을 검증 중입니다." });
     const latestSourceFiles = await collectSourceJpgs(sourceJpgDirectory);
     if (!sameFileSnapshots(sourceFiles, latestSourceFiles)) throw new StageValidationError("REVIEW_REQUIRED", "COPY 후 SSD1 JPG전체 원본이 변경되었습니다.");
     const finalInspection = await inspectDestination(destinationDirectory, sourceMap);
@@ -392,7 +392,7 @@ export async function stageProjectJpgToWorkStorage(input: PhotoStageJpgInput): P
     destinationCount = finalInspection.files.size;
     destinationBytes = totalBytes(finalInspection.files.values());
     if (destinationBytes !== sourceSummary.bytes) throw new StageValidationError("COPY_FAILED", "Agentstation 전체 용량 검증에 실패했습니다.");
-    input.onProgress?.({ stage: "VERIFYING", current: sourceSummary.count, total: sourceSummary.count, copiedBytes: sourceSummary.bytes, totalBytes: sourceSummary.bytes, message: "JPG 복사 검증이 완료되었습니다." });
+    input.onProgress?.({ stage: "COPY_VERIFYING", current: sourceSummary.count, total: sourceSummary.count, copiedBytes: sourceSummary.bytes, totalBytes: sourceSummary.bytes, message: "JPG 복사본 검증이 완료되었습니다." });
     const manifestPath = await writeManifest(destinationProject, { projectRelativePath: destinationRelativePath, sourceJpgCount: sourceSummary.count, sourceBytes: sourceSummary.bytes, destinationJpgCount: destinationCount, destinationBytes, copiedCount, alreadyCopiedCount: skippedCount, rawCopiedCount: 0, startedAt: new Date(startedAt).toISOString(), completedAt: new Date().toISOString(), status: "COPY_COMPLETED" });
     return { ok: true, status: "COPY_COMPLETED", sourceRelativePath, projectRelativePath: sourceRelativePath, destinationRelativePath, sourceCount: sourceSummary.count, sourceBytes: sourceSummary.bytes, destinationJpgCount: destinationCount, destinationJpgBytes: destinationBytes, destinationBytes, copiedCount, copiedBytes, skippedCount, alreadyCopiedCount: skippedCount, rawCopiedCount: 0, durationMs: Date.now() - startedAt, warnings, manifestPath: path.posix.join(destinationRelativePath, manifestPath) };
   } catch (error) {

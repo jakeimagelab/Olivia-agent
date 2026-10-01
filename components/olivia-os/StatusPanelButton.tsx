@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
+import RemotePhotoProgressDetails from "@/components/photo-workspace/RemotePhotoProgressDetails";
 import { ShootingProgressCards } from "@/components/shooting-progress/ShootingProgressCards";
 import { logOliviaError } from "@/lib/errors/errorDiagnostics";
 import {
@@ -46,6 +47,7 @@ import styles from "./OliviaDesktop.module.css";
 
 const CLOSED_POLL_MS = 60_000;
 const OPEN_POLL_MS = 25_000;
+const ACTIVE_PHOTO_POLL_MS = 5_000;
 const TRANSIENT_RECHECK_MS = 30_000;
 
 type EntryActionState = { loading?: boolean; message?: string; error?: boolean };
@@ -308,6 +310,7 @@ function StatusPanelButtonContent() {
   const [deferredIssueIds, setDeferredIssueIds] = useState<Set<string>>(() => new Set());
   const [sections, setSections] = useState<StatusPanelSectionState>(DEFAULT_STATUS_PANEL_SECTIONS);
   const [showAllProgress, setShowAllProgress] = useState(false);
+  const [selectedRemoteProgress, setSelectedRemoteProgress] = useState<StatusPanelEntry | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
   const requestSequenceRef = useRef(0);
@@ -319,6 +322,7 @@ function StatusPanelButtonContent() {
   const backgroundJobMap = useBackgroundJobsStore((state) => state.jobs);
   const backgroundJobs = useMemo(() => Object.values(backgroundJobMap), [backgroundJobMap]);
   const launchHref = useDesktopAppLauncher();
+  const hasActiveRemotePhotoProgress = Boolean(data?.progress.some((entry) => entry.kind === "remote_job_progress" && entry.remoteJob && ["QUEUED", "RUNNING"].includes(entry.remoteJob.status)));
 
   const load = useCallback(async () => {
     const requestSequence = ++requestSequenceRef.current;
@@ -351,9 +355,10 @@ function StatusPanelButtonContent() {
 
   useEffect(() => {
     void load();
-    const timer = window.setInterval(() => void load(), open ? OPEN_POLL_MS : CLOSED_POLL_MS);
+    const pollInterval = hasActiveRemotePhotoProgress ? ACTIVE_PHOTO_POLL_MS : open ? OPEN_POLL_MS : CLOSED_POLL_MS;
+    const timer = window.setInterval(() => void load(), pollInterval);
     return () => window.clearInterval(timer);
-  }, [open, load]);
+  }, [open, load, hasActiveRemotePhotoProgress]);
 
   useEffect(() => () => {
     requestControllerRef.current?.abort();
@@ -447,6 +452,19 @@ function StatusPanelButtonContent() {
       progressPercent: shooting.progressPercent,
     };
   }, [serverProgress, visibleShootingProgress]);
+
+  useEffect(() => {
+    if (!selectedRemoteProgress?.remoteJob) return;
+    const updated = serverProgress.find((entry) => entry.id === selectedRemoteProgress.id);
+    if (updated) setSelectedRemoteProgress(updated);
+  }, [selectedRemoteProgress?.id, selectedRemoteProgress?.remoteJob, serverProgress]);
+
+  const showRemoteProgress = useCallback((entry: StatusPanelEntry) => {
+    if (!entry.remoteJob) return;
+    setSelectedRemoteProgress(entry);
+    setSections((current) => current.progress ? current : { ...current, progress: true });
+    setOpen(true);
+  }, []);
 
   const toggleSection = useCallback((key: StatusPanelSectionKey) => {
     setSections((current) => {
@@ -544,7 +562,7 @@ function StatusPanelButtonContent() {
           <button
             type="button"
             className={styles.statusPanelActiveChip}
-            onClick={() => openEntry(topBarProgressEntry)}
+            onClick={() => topBarProgressEntry.remoteJob ? showRemoteProgress(topBarProgressEntry) : openEntry(topBarProgressEntry)}
             title={`${topBarProgressEntry.title}${topBarProgressEntry.detail ? ` · ${topBarProgressEntry.detail}` : ""}`}
           >
             <RefreshCw size={11} className={styles.statusPanelSpin} />
@@ -589,6 +607,18 @@ function StatusPanelButtonContent() {
           </div>
         ) : !data ? <div className={styles.statusPanelSkeleton} /> : (
           <>
+            {selectedRemoteProgress?.remoteJob ? (
+              <section className={styles.statusPanelPhotoProgressDetail} aria-label="사진 분류 상세 진행 상황">
+                <div className={styles.statusPanelPhotoProgressDetailHeader}>
+                  <span>현재 사진 작업</span>
+                  <button type="button" onClick={() => setSelectedRemoteProgress(null)}>상세 닫기</button>
+                </div>
+                <RemotePhotoProgressDetails
+                  job={selectedRemoteProgress.remoteJob}
+                  sourceFolder={selectedRemoteProgress.sourceFolder}
+                />
+              </section>
+            ) : null}
             {issues.length ? (
               <section className={`${styles.statusPanelSection} ${styles.statusPanelUrgent}`} aria-label="지금 확인할 것">
                 <div className={styles.statusPanelUrgentTitle}>

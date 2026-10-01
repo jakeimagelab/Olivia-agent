@@ -1,0 +1,35 @@
+.details {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid rgba(21, 88, 85, .14);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #f7fcfa, #edf7f3);
+  color: #173a34;
+}
+
+.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.header > span { min-width: 0; display: grid; gap: 2px; }
+.header strong { font-size: 13px; }
+.header small { overflow: hidden; color: #63817a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.header b { flex: 0 0 auto; color: #0e7964; font-size: 13px; font-variant-numeric: tabular-nums; }
+.gauge { display: block; height: 5px; overflow: hidden; border-radius: 99px; background: rgba(21,88,85,.12); }
+.gauge > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #0f8a73, #37caac); transition: width .25s ease; }
+.current { margin: 0; color: #345b53; font-size: 11px; line-height: 1.5; }
+.metrics { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; color: #346b60; font-size: 10px; }
+.metrics span { padding: 3px 6px; border-radius: 99px; background: rgba(21, 88, 85, .08); }
+.steps { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.steps li { min-width: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 7px; align-items: start; padding: 6px 2px; color: #95aaa4; }
+.steps li[data-state="completed"] { color: #168064; }
+.steps li[data-state="current"] { color: #124f45; border-radius: 7px; background: rgba(45, 188, 155, .1); }
+.steps li[data-state="failed"] { color: #ad4428; }
+.steps li[data-state="cancelled"] { color: #778985; }
+.stepIcon { width: 22px; height: 22px; display: grid; place-items: center; margin-top: 1px; border-radius: 50%; background: currentColor; color: #fff; }
+.steps li[data-state="pending"] .stepIcon { border: 1px solid currentColor; background: transparent; }
+.steps li > span:last-child { min-width: 0; display: grid; gap: 1px; }
+.steps strong { font-size: 11px; line-height: 1.35; }
+.steps small { color: color-mix(in srgb, currentColor 72%, #5f7771); font-size: 10px; line-height: 1.4; }
+.spin { animation: remote-photo-detail-spin .8s linear infinite; }
+.safety { margin: 1px 0 0; padding-top: 8px; border-top: 1px solid rgba(21,88,85,.1); color: #54746d; font-size: 10px; line-height: 1.45; }
+
+@keyframes remote-photo-detail-spin { to { transform: rotate(360deg); } }

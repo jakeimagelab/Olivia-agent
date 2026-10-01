@@ -25,6 +25,7 @@
   gap: 7px;
   pointer-events: none;
 }
+.photoTaskStatusItem { pointer-events: auto; }
 .photoTaskStatusRow {
   min-width: 0;
   display: flex;
@@ -52,6 +53,7 @@
 .photoTaskCancel { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; border: 1px solid rgba(180,55,35,.28); border-radius: 7px; background: #fff; color: #b42318; padding: 5px 7px; font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; }
 .photoTaskCancel:hover { background: #fff3f0; }
 .photoTaskCancelPending { flex: 0 0 auto; color: #9a4b2b; font-size: 10px; font-style: normal; }
+.photoTaskStatusDetail { padding: 5px 2px 2px; pointer-events: auto; }
 
 .wallpaperLayer,
 .overlayLayer,
@@ -370,6 +372,10 @@
 .statusPanelActiveGauge > i { display: block; height: 100%; border-radius: inherit; background: #5be0bd; transition: width .24s ease; }
 .statusPanelActiveCancel { display: inline-flex; align-items: center; gap: 3px; height: 25px; padding: 0 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(166,54,34,.44); color: #fff; font: inherit; font-size: 9px; font-weight: 750; cursor: pointer; }
 .statusPanelActiveCancel:hover { background: rgba(189,68,42,.64); }
+.statusPanelPhotoProgressDetail { margin: 8px; padding: 10px; border: 1px solid rgba(21,88,85,.14); border-radius: 12px; background: rgba(235,248,243,.94); }
+.statusPanelPhotoProgressDetailHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; color: #1c5d52; font-size: 11px; font-weight: 800; }
+.statusPanelPhotoProgressDetailHeader button { border: 0; border-radius: 6px; background: transparent; color: #55756d; padding: 3px 5px; font: inherit; font-size: 10px; cursor: pointer; }
+.statusPanelPhotoProgressDetailHeader button:hover { background: rgba(21,88,85,.09); color: #155855; }
 .statusPanelCancelPending { color: #ffd3a6; font-size: 9px; white-space: nowrap; }
 
 .statusPanelWarningDot {
