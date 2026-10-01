@@ -13,6 +13,23 @@
 .card { width: min(100%, 820px); min-height: min(720px, calc(100dvh - 48px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(21, 88, 85, 0.1); border-radius: 28px; background: #fff; box-shadow: 0 24px 70px rgba(21, 88, 85, 0.1); }
 .embedded .card { min-height: 100%; box-shadow: 0 12px 36px rgba(21, 88, 85, 0.07); }
 
+/* TabletAppFramePage is the only vertical scroll owner in the tablet shell. */
+.tabletEmbedded {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+.tabletEmbedded .card {
+  min-height: calc(
+    var(--olivia-visual-viewport-height, 100dvh)
+    - var(--olivia-tablet-topbar-height, 64px)
+    - var(--olivia-tablet-dock-height, 88px)
+    - 28px
+    - env(safe-area-inset-top, 0px)
+    - env(safe-area-inset-bottom, 0px)
+  );
+}
+
 .header { min-height: 72px; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid rgba(21, 88, 85, 0.08); }
 .header > div { display: flex; align-items: center; gap: 11px; }
 .header > div > div { display: grid; gap: 1px; }

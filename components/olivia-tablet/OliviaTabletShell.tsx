@@ -41,6 +41,26 @@ export default function OliviaTabletShell({ initialLaunch }: { initialLaunch?: O
   }, []);
 
   useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = document.documentElement;
+    const syncViewportHeight = () => {
+      root.style.setProperty("--olivia-visual-viewport-height", `${Math.round(viewport?.height ?? window.innerHeight)}px`);
+    };
+
+    syncViewportHeight();
+    viewport?.addEventListener("resize", syncViewportHeight);
+    viewport?.addEventListener("scroll", syncViewportHeight);
+    window.addEventListener("orientationchange", syncViewportHeight);
+
+    return () => {
+      viewport?.removeEventListener("resize", syncViewportHeight);
+      viewport?.removeEventListener("scroll", syncViewportHeight);
+      window.removeEventListener("orientationchange", syncViewportHeight);
+      root.style.removeProperty("--olivia-visual-viewport-height");
+    };
+  }, []);
+
+  useEffect(() => {
     if (initialLaunch?.appId !== "customer") return;
     const url = new URL(clearOliviaRootLaunchParams(window.location.href, { keepClientId: true }), window.location.origin);
     url.searchParams.set("tabletApp", "customer");

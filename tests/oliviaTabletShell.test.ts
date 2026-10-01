@@ -104,8 +104,8 @@ describe("Olivia Tablet Shell", () => {
     expect(frame).toContain("data-tablet-app-frame");
     expect(frame).not.toContain("unifiedHero");
     expect(frame).not.toContain("OLIVIA TABLET");
-    expect(css).toMatch(/\.appViewport\s*\{[^}]*top:\s*calc\(64px/);
-    expect(css).toMatch(/\.appViewport\s*\{[^}]*bottom:\s*calc\(88px/);
+    expect(css).toMatch(/\.appViewport\s*\{[^}]*top:\s*calc\(var\(--olivia-tablet-topbar-height\)/);
+    expect(css).toMatch(/\.appViewport\s*\{[^}]*bottom:\s*calc\(var\(--olivia-tablet-dock-height\)/);
     expect(css).toMatch(/\.appViewport\s*\{[^}]*border-radius:\s*0/);
   });
 
@@ -135,5 +135,16 @@ describe("Olivia Tablet Shell", () => {
     expect(css).toMatch(/\.segmentContent\s*\{[^}]*overflow-y:\s*auto/);
     expect(review).toContain("useOliviaUiSurface");
     expect(review).toContain("node.parentElement?.clientHeight");
+  });
+
+  it("uses the visual viewport and shared chrome measurements for Tablet height", () => {
+    const shell = readFileSync("components/olivia-tablet/OliviaTabletShell.tsx", "utf8");
+    const css = readFileSync("components/olivia-tablet/OliviaTabletShell.module.css", "utf8");
+    expect(shell).toContain("window.visualViewport");
+    expect(shell).toContain('"--olivia-visual-viewport-height"');
+    expect(shell).toContain('"orientationchange"');
+    expect(css).toContain("--olivia-tablet-topbar-height: 64px");
+    expect(css).toContain("--olivia-tablet-dock-height: 88px");
+    expect(css).toContain("height: var(--olivia-visual-viewport-height, 100dvh)");
   });
 });

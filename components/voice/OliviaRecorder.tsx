@@ -46,10 +46,12 @@ async function readError(response: Response, fallback: string) {
 export default function OliviaRecorder({
   embedded = false,
   mobileShell = false,
+  tabletShell = false,
   onOpenResult,
 }: {
   embedded?: boolean;
   mobileShell?: boolean;
+  tabletShell?: boolean;
   onOpenResult?: (id: string) => void;
 }) {
   const engineRef = useRef<OliviaBrowserRecorder | null>(null);
@@ -560,7 +562,7 @@ export default function OliviaRecorder({
   }
 
   return (
-    <main className={`${styles.root} ${embedded ? styles.embedded : ""}`} data-voice-stage={stage}>
+    <main className={`${styles.root} ${embedded ? styles.embedded : ""} ${tabletShell ? styles.tabletEmbedded : ""}`} data-voice-stage={stage}>
       <section className={styles.card} aria-live="polite">
         {!embedded ? (
           <header className={styles.header}>

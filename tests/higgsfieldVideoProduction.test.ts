@@ -88,4 +88,14 @@ describe("Higgsfield video production integration", () => {
     expect(adapter).toContain("VideoProductionWorkspace embedded");
     expect(adapter).not.toContain("LegacyRouteWindowContent");
   });
+
+  it("keeps focused video settings readable in the dark production panel", () => {
+    const css = readFileSync("components/video-production/VideoProductionWorkspace.module.css", "utf8");
+
+    expect(css).toContain(".settingsPanel .select:focus");
+    expect(css).toContain("background: #274542");
+    expect(css).toContain("color: #ffffff");
+    expect(css).toContain("caret-color: #ffffff");
+    expect(css).toContain("color: #a8cbc4");
+  });
 });

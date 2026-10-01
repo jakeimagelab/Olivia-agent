@@ -40,6 +40,18 @@
 .select, .prompt, .optionControl { width: 100%; border: 1px solid rgb(209 238 232 / .22); border-radius: 9px; outline: none; background: rgb(255 255 255 / .08); color: #ecf9f5; font: inherit; }
 .select { height: 42px; padding: 0 12px; font-size: 13px; }
 .select option { color: #173c3a; background: #fff; }
+.settingsPanel .select:focus,
+.settingsPanel .prompt:focus,
+.settingsPanel .optionControl:focus {
+  border-color: #63dfc4;
+  background: #274542;
+  color: #ffffff;
+  caret-color: #ffffff;
+  box-shadow: 0 0 0 3px rgb(99 223 196 / .22);
+}
+.settingsPanel .select:focus::placeholder,
+.settingsPanel .prompt:focus::placeholder,
+.settingsPanel .optionControl:focus::placeholder { color: #a8cbc4; }
 .modelDetail { margin-top: 10px; padding: 11px 12px; border-radius: 10px; background: rgb(93 220 189 / .09); color: #b9d5cf; font-size: 11px; }
 .modelDetail div { display: flex; gap: 6px; align-items: center; color: #f0fbf8; font-size: 12px; }
 .modelDetail div svg { color: #5edcc1; }
