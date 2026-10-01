@@ -246,6 +246,11 @@ export function SelectMatchWorkspace({
   const [clientText,    setClientText]    = useState("");
   const [clientDragging,setClientDragging]= useState(false);
   const clientFileRef = useRef<HTMLInputElement>(null);
+  const [uploadedClientFiles, setUploadedClientFiles] = useState<File[]>([]);
+  const [uploadOcrLoading, setUploadOcrLoading] = useState(false);
+  const [uploadOcrNames, setUploadOcrNames] = useState<string[]>([]);
+  const [selectedUploadOcrNames, setSelectedUploadOcrNames] = useState<Set<string>>(() => new Set());
+  const [uploadOcrMessage, setUploadOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
   /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 vs 프로그램 아카이브 ── */
   const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check" | "program_archive">("raw_match");
@@ -285,6 +290,53 @@ export function SelectMatchWorkspace({
     }
     setStep("raw_pick");
   };
+
+  const setUploadedFiles = useCallback((fileList: FileList | File[]) => {
+    const files = Array.from(fileList).filter((file) => file.size > 0);
+    setUploadedClientFiles(files);
+    setUploadOcrNames([]);
+    setSelectedUploadOcrNames(new Set());
+    setUploadOcrMessage(files.length
+      ? { text: `${files.length}개 파일을 준비했습니다. 사진 파일명 그대로 사용하거나, 셀렉 리포트라면 이미지 속 파일명을 분석하세요.`, ok: true }
+      : { text: "선택한 파일을 읽지 못했습니다.", ok: false });
+    if (clientFileRef.current) clientFileRef.current.value = "";
+  }, []);
+
+  const analyzeUploadedFileNames = useCallback(async () => {
+    if (!uploadedClientFiles.length || uploadOcrLoading) return;
+    setUploadOcrLoading(true);
+    setUploadOcrMessage(null);
+    try {
+      const recognized: string[] = [];
+      for (const file of uploadedClientFiles.slice(0, 4)) {
+        const imageBase64 = await prepareScreenshotForOcr(file);
+        const response = await fetch("/api/select-match/ocr-filenames", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64 }),
+        });
+        const data = await response.json().catch(() => null) as { ok?: boolean; filenames?: unknown; error?: unknown } | null;
+        if (!response.ok || !data?.ok || !Array.isArray(data.filenames)) {
+          throw new Error(typeof data?.error === "string" ? data.error : "이미지 속 파일명 분석에 실패했습니다.");
+        }
+        recognized.push(...data.filenames.filter((name): name is string => typeof name === "string"));
+      }
+      const names = Array.from(new Map(recognized.map((name) => {
+        const normalized = name.trim().normalize("NFC").toLocaleLowerCase("en-US");
+        return [normalized, normalized] as const;
+      })).values()).filter(Boolean);
+      if (!names.length) throw new Error("이미지에서 확장자가 포함된 파일명을 찾지 못했습니다.");
+      setUploadOcrNames(names);
+      setSelectedUploadOcrNames(new Set(names));
+      setUploadOcrMessage({ text: `이미지에서 파일명 ${names.length}개를 찾았습니다. 아래 목록을 확인한 뒤 RAW 매칭으로 진행하세요.`, ok: true });
+    } catch (error) {
+      setUploadOcrNames([]);
+      setSelectedUploadOcrNames(new Set());
+      setUploadOcrMessage({ text: error instanceof Error ? error.message : "이미지 속 파일명 분석에 실패했습니다.", ok: false });
+    } finally {
+      setUploadOcrLoading(false);
+    }
+  }, [uploadOcrLoading, uploadedClientFiles]);
 
   useEffect(() => {
     if (selectionOnly || initialView !== "raw" || step !== "idle" || selectedJpgNames.length === 0) return;
@@ -1029,16 +1081,16 @@ export function SelectMatchWorkspace({
       {inputMode === "upload" && (
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
-            고객이 선택해서 보낸 JPG 파일들을 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
-            <span style={{ color: C.hint }}>파일 내용은 읽지 않고 파일명만 추출합니다.</span>
+            고객이 선택해서 보낸 JPG 파일 또는 셀렉 리포트 스크린샷을 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
+            <span style={{ color: C.hint }}>일반 JPG는 파일명 그대로, 리포트 이미지는 화면 안의 파일명을 분석해 RAW 매칭에 사용합니다.</span>
           </div>
           <input ref={clientFileRef} type="file" multiple accept="image/*,.jpg,.jpeg,.heic,.png,.tif"
             style={{ display: "none" }}
-            onChange={e => { if (e.target.files) confirmClientInput(parseNamesFromFiles(e.target.files)); }} />
+            onChange={e => { if (e.target.files) setUploadedFiles(e.target.files); }} />
           <div
             onDragOver={e => { e.preventDefault(); setClientDragging(true); }}
             onDragLeave={() => setClientDragging(false)}
-            onDrop={e => { e.preventDefault(); setClientDragging(false); confirmClientInput(parseNamesFromFiles(e.dataTransfer.files)); }}
+            onDrop={e => { e.preventDefault(); setClientDragging(false); setUploadedFiles(e.dataTransfer.files); }}
             onClick={() => clientFileRef.current?.click()}
             style={{
               border: `2px dashed ${clientDragging ? C.teal : C.border}`,
@@ -1047,8 +1099,60 @@ export function SelectMatchWorkspace({
             }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📁</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.teal, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
-            <div style={{ fontSize: 11, color: C.hint }}>파일 내용은 업로드되지 않습니다 — 파일명만 사용</div>
+            <div style={{ fontSize: 11, color: C.hint }}>선택 후 파일명 그대로 사용하거나 이미지 안 파일명을 분석할 수 있습니다.</div>
           </div>
+          {uploadedClientFiles.length > 0 && (
+            <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: C.bg }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: C.teal }}>업로드한 파일 {uploadedClientFiles.length}개</div>
+              <div style={{ marginTop: 5, maxHeight: 52, overflowY: "auto", fontSize: 10, color: C.muted, lineHeight: 1.65 }}>
+                {uploadedClientFiles.map((file) => file.name).join(", ")}
+              </div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+                <Btn variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>
+                  파일명 그대로 사용
+                </Btn>
+                <Btn variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>
+                  {uploadOcrLoading ? "🔎 이미지 분석 중..." : "🔎 이미지 속 파일명 분석"}
+                </Btn>
+              </div>
+            </div>
+          )}
+          {uploadOcrMessage && (
+            <div style={{ marginTop: 12, borderRadius: 9, padding: "10px 12px", fontSize: 11, fontWeight: 700, color: uploadOcrMessage.ok ? C.green : C.red, background: uploadOcrMessage.ok ? C.light : "#FEF2F2" }}>
+              {uploadOcrMessage.text}
+            </div>
+          )}
+          {uploadOcrNames.length > 0 && (
+            <div style={{ marginTop: 12, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 12px", background: C.light, color: C.teal, fontSize: 11, fontWeight: 800 }}>
+                <span>인식된 파일명 {uploadOcrNames.length}개</span>
+                <span>{selectedUploadOcrNames.size}개 선택</span>
+              </div>
+              <div style={{ maxHeight: 162, overflowY: "auto", padding: "7px 12px" }}>
+                {uploadOcrNames.map((name) => {
+                  const checked = selectedUploadOcrNames.has(name);
+                  return (
+                    <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", color: C.txt, fontSize: 11, fontFamily: "monospace", lineHeight: 1.5 }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => setSelectedUploadOcrNames((current) => {
+                          const next = new Set(current);
+                          if (next.has(name)) next.delete(name);
+                          else next.add(name);
+                          return next;
+                        })}
+                      />
+                      {name}
+                    </label>
+                  );
+                })}
+              </div>
+              <div style={{ padding: "0 12px 12px", textAlign: "right" }}>
+                <Btn disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭 →`}</Btn>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

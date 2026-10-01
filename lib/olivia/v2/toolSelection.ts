@@ -54,6 +54,26 @@ const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
 
 const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_project_snapshot","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
 
+// "6일 10시 미팅, 6일 14시 촬영, 10~14일 여행 … 등록"처럼 사용자가
+// '일정'이라는 단어 없이 날짜 목록과 등록 동사만 적는 실제 업무 입력을 캘린더로
+// 분류한다. 날짜와 업무 단서가 모두 있어야 하므로 일반 고객/문서 등록에는 적용되지 않는다.
+const CALENDAR_DATE_PATTERN = /(?:\d{4}\s*년\s*)?(?:\d{1,2}\s*월\s*)?\d{1,2}\s*일/g;
+const CALENDAR_REGISTRATION_PATTERN = /(?:일정\s*)?(?:등록|추가|잡아\s*줘|잡아줘|넣어\s*줘|넣어줘|예약)/i;
+const CALENDAR_EVENT_HINT_PATTERN = /(일정|캘린더|스케줄|미팅|회의|촬영|여행|출장|방문)/i;
+
+function calendarDateCount(text: string): number {
+  return new Set(Array.from(text.matchAll(CALENDAR_DATE_PATTERN), (match) => match[0].replace(/\s+/g, ""))).size;
+}
+
+function calendarRegistrationTool(message: string, recentText: string, available: Set<string>): string | undefined {
+  const combined = [recentText, message].filter(Boolean).join("\n");
+  if (!CALENDAR_REGISTRATION_PATTERN.test(combined) || !CALENDAR_EVENT_HINT_PATTERN.test(combined)) return undefined;
+  const dateCount = calendarDateCount(combined);
+  if (dateCount === 0) return undefined;
+  if (dateCount > 1 && available.has("calendar_add_bulk")) return "calendar_add_bulk";
+  return available.has("calendar_add") ? "calendar_add" : undefined;
+}
+
 // PageContext가 명시된 경우에만 적용한다. 페이지와 무관한 조회/탐색/DB 도구는 이 표에 넣지
 // 않아 기존 전역 동작을 유지하고, 현재 UI가 실제 제공하는 mutation만 후보에서 제한한다.
 const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
@@ -97,6 +117,11 @@ export function getOliviaToolDomains(message:string, context:OliviaContextSnapsh
   const combined = recentText ? `${recentText} ${message}` : message;
   const domains=new Set<ToolDomain>();
   for(const [domain,pattern] of DOMAIN_PATTERNS) if(pattern.test(combined)) domains.add(domain);
+  if (CALENDAR_REGISTRATION_PATTERN.test(combined)
+    && CALENDAR_EVENT_HINT_PATTERN.test(combined)
+    && calendarDateCount(combined) > 0) {
+    domains.add("calendar");
+  }
   const workspace=String(context.activeWorkspace||"").toLowerCase();
   if(workspace.includes("quote")) domains.add("quote");
   if(workspace.includes("conti")) domains.add("conti");
@@ -177,6 +202,8 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   // 명사가 섞여 있어도 client_create를 tool_choice로 강제하지 않는다. 보관은 모델이 공개
   // client_archive를 고르되, 실행 직전 mutation guard가 반대 mutation을 다시 차단한다.
   if (NEGATIVE_MUTATION_PATTERN.test(message)) return undefined;
+  const calendarTool = calendarRegistrationTool(message, recent, available);
+  if (calendarTool) return calendarTool;
   const candidates = [
     { pattern: /(고객\s*등록|고객으로\s*등록|신규\s*고객|거래처\s*등록)/gi, create: "client_create", source: message },
     { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote", source: recent },

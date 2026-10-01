@@ -1,7 +1,7 @@
-import path from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
 import { enqueuePhotoOperationJob, ensurePhotoOperationProject } from "./remoteJobService";
+import { normalizeSelectionReportFileName } from "./selectionReportFileNames";
 
 const MAX_SELECTED_FILES = 10_000;
 const JPG_EXTENSIONS = new Set(["jpg", "jpeg"]);
@@ -14,12 +14,10 @@ export function parseRemoteSelectedFileNames(value: unknown): string[] {
   const unique = new Map<string, string>();
   for (const item of value) {
     if (typeof item !== "string") throw new Error("선택 JPG 파일명은 문자열이어야 합니다.");
-    const fileName = item.trim().normalize("NFC");
-    if (!fileName || fileName.includes("\0") || fileName.includes("/") || fileName.includes("\\") || path.basename(fileName) !== fileName) {
-      throw new Error("선택 JPG 파일명에 경로를 포함할 수 없습니다.");
-    }
-    const extension = path.extname(fileName).slice(1).toLocaleLowerCase("en-US");
-    if (!JPG_EXTENSIONS.has(extension)) throw new Error(`JPG/JPEG 파일만 RAW 매칭에 사용할 수 있습니다: ${fileName}`);
+    const fileName = normalizeSelectionReportFileName(item);
+    if (!fileName) throw new Error(`JPG/JPEG basename만 RAW 매칭에 사용할 수 있습니다: ${item}`);
+    const extension = fileName.split(".").at(-1)?.toLocaleLowerCase("en-US");
+    if (!extension || !JPG_EXTENSIONS.has(extension)) throw new Error(`JPG/JPEG 파일만 RAW 매칭에 사용할 수 있습니다: ${fileName}`);
     const key = fileName.toLocaleLowerCase("en-US");
     if (!unique.has(key)) unique.set(key, fileName);
   }

@@ -131,5 +131,10 @@ describe("Olivia Hermes-first 엔진 라우팅", () => {
       responseText: "견적서 생성 중 오류가 나서 아직 저장되지 않았어요.",
       toolCallCount: 0,
     })).toBe(true);
+    expect(isToolExecutionMiss({
+      message: "6일 10시 미팅, 6일 14시 사진촬영, 10일부터 14일까지 중국여행 등록",
+      responseText: "일정을 등록하지 못했어요. 현재 이 대화에서는 일정 저장이 실행되지 않았습니다.",
+      toolCallCount: 0,
+    })).toBe(true);
   });
 });

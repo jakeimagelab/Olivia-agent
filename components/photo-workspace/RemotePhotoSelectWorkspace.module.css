@@ -262,6 +262,115 @@
   font-weight: 900;
 }
 
+.ocrBadge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  background: #e85d2c;
+  color: #fff;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.sectionHeading em {
+  margin-left: 6px;
+  color: #5a7470;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.reportFiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 11px;
+}
+
+.reportFiles span {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: #eef7f5;
+  color: #155855;
+  font-size: 11px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocrResults {
+  margin-top: 14px;
+  border: 1px solid rgba(21, 88, 85, 0.14);
+  border-radius: 12px;
+  background: #f7fbfa;
+}
+
+.ocrHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(21, 88, 85, 0.1);
+}
+
+.ocrHeading strong {
+  color: #0d4743;
+  font-size: 12px;
+}
+
+.ocrHeading span {
+  color: #5a7470;
+  font-size: 10px;
+  text-align: right;
+}
+
+.ocrNameList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 10px 12px;
+}
+
+.ocrName {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 2px;
+  min-height: 42px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: #fff;
+  color: #17332e;
+  cursor: pointer;
+}
+
+.ocrName input {
+  grid-row: span 2;
+  width: 15px;
+  height: 15px;
+  accent-color: #155855;
+}
+
+.ocrName span {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ocrName small {
+  color: #5a7470;
+  font-size: 9px;
+}
+
 .targetRow {
   justify-content: space-between;
   padding: 13px 14px;
@@ -380,5 +489,18 @@
   .secondaryButton,
   .dangerButton {
     min-height: 44px;
+  }
+
+  .ocrHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ocrHeading span {
+    text-align: left;
+  }
+
+  .ocrNameList {
+    grid-template-columns: 1fr;
   }
 }

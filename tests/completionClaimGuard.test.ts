@@ -85,6 +85,16 @@ describe("completion claim guard", () => {
     });
   });
 
+  it("도구 없이 일정 등록 실패를 지어내는 문장도 차단한다", () => {
+    expect(enforceCompletionClaims({
+      text: "일정을 등록하지 못했어요. 현재 이 대화에서는 일정 저장이 실행되지 않았습니다.",
+      executedTools: [],
+    })).toEqual({
+      text: "실행 결과를 확인하지 못했어요.",
+      unsupported: ["failure"],
+    });
+  });
+
   it("실제 실패 도구 기록이 있으면 서버 실패 문구는 보존한다", () => {
     const text = "견적서 생성 중 오류가 나서 아직 저장되지 않았어요.";
     expect(enforceCompletionClaims({ text, executedTools: [{ name: "create_quote", success: false }] })).toEqual({ text, unsupported: [] });

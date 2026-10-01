@@ -68,6 +68,21 @@ describe("selectOliviaTools", () => {
     expect(isRequiredToolChoiceCompatible(message, "client_create")).toBe(true);
   });
 
+  it("날짜·미팅·촬영 목록 끝의 등록은 캘린더 일괄 추가를 강제한다", () => {
+    const message = [
+      "6일 10시 유호현 대표님 미팅",
+      "6일 14시 사진촬영 하버그린",
+      "10일부터 14일까지 중국여행",
+      "18일 이동현 원장님 촬영",
+      "21일 기통찬의원 메인촬영",
+      "26일 전주푸른안과 촬영",
+      "등록",
+    ].join(", ");
+    const names = selectOliviaTools({ requestClass: "TOOL_ACTION", message, context: baseContext }).map((tool) => tool.name);
+    expect(names).toContain("calendar_add_bulk");
+    expect(resolveRequiredFollowupTool({ message, availableToolNames: names })).toBe("calendar_add_bulk");
+  });
+
   it.each(["취소", "해지", "되돌려", "롤백", "중단", "하지 마", "안 할래"])("부정 표현 '%s'이 있으면 생성 도구를 강제하지 않는다", (negative) => {
     const message = `여의도기통찬의원 고객 등록 ${negative}`;
     expect(resolveRequiredFollowupTool({ message, availableToolNames: ["client_create"] })).toBeUndefined();
