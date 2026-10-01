@@ -18,6 +18,11 @@ import styles from "./VideoProductionWorkspace.module.css";
 
 type WorkspaceTab = "generate" | "history";
 type GenerationStage = "idle" | "uploading" | "submitting";
+// Higgsfield의 공식 JS 클라이언트 기본 상태 확인 한도와 맞춘다.
+// 생성 요청을 자동으로 다시 보내면 이중 과금/중복 영상이 생길 수 있으므로,
+// 한도를 넘으면 사용자가 취소 또는 재생성을 선택하게 한다.
+const HIGGSFIELD_POLL_DEADLINE_MS = 5 * 60_000;
+const HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE = "Higgsfield가 5분 안에 작업을 시작하지 않았습니다. 이 요청은 아직 대기열에 남아 있을 수 있습니다. 자동 재생성은 하지 않았으니, 먼저 기존 요청을 취소하거나 다시 생성해주세요.";
 
 type ModelResponse = {
   ok?: boolean;
@@ -38,7 +43,7 @@ function draftId(): string {
 }
 
 function isTerminal(status: VideoGenerationStatus): boolean {
-  return status === "completed" || status === "failed" || status === "nsfw" || status === "canceled";
+  return status === "completed" || status === "failed" || status === "nsfw" || status === "canceled" || status === "queue_timeout";
 }
 
 function messageFromResponse(payload: unknown, fallback: string): string {
@@ -47,10 +52,15 @@ function messageFromResponse(payload: unknown, fallback: string): string {
 }
 
 function statusPatch(record: VideoGenerationRecord, status: GenerationStatus): VideoGenerationRecord {
-  const providerError = typeof status.error === "string" ? status.error : status.error === undefined ? undefined : JSON.stringify(status.error) || "영상 생성에 실패했습니다.";
+  const isKnownStatus = ["queued", "in_progress", "completed", "failed", "nsfw", "canceled"].includes(status.status);
+  const providerError = typeof status.error === "string"
+    ? status.error
+    : status.error === undefined
+      ? (isKnownStatus ? undefined : `Higgsfield가 알 수 없는 작업 상태(${JSON.stringify(status.status)})를 반환했습니다.`)
+      : JSON.stringify(status.error) || "영상 생성에 실패했습니다.";
   const normalizedStatus: VideoGenerationStatus = ["queued", "in_progress", "completed", "failed", "nsfw", "canceled"].includes(status.status)
     ? status.status as VideoGenerationStatus
-    : "queued";
+    : "failed";
   return {
     ...record,
     status: normalizedStatus,
@@ -62,6 +72,13 @@ function statusPatch(record: VideoGenerationRecord, status: GenerationStatus): V
 
 function defaultInputMode(model: VideoModelCapability | undefined): string | undefined {
   return model?.mediaModes?.[0]?.id;
+}
+
+function pollDeadline(record: VideoGenerationRecord): number {
+  const createdAt = Date.parse(record.createdAt);
+  return Number.isFinite(createdAt)
+    ? Math.max(Date.now(), createdAt + HIGGSFIELD_POLL_DEADLINE_MS)
+    : Date.now() + HIGGSFIELD_POLL_DEADLINE_MS;
 }
 
 export function VideoProductionWorkspace({ embedded = false }: { embedded?: boolean }) {
@@ -95,14 +112,17 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
     if (isTerminal(record.status) || restoredRequestIds.current.has(record.requestId)) return;
     restoredRequestIds.current.add(record.requestId);
     void watchRequest(record.requestId, {
+      deadline: pollDeadline(record),
       onUpdate: (status) => updateRecord(statusPatch(record, status)),
     })
       .then((status) => updateRecord(statusPatch(record, status)))
       .catch((caught) => updateRecord({
         ...record,
-        status: "failed",
+        status: caught instanceof Error && caught.message === "timed out waiting for the platform" ? "queue_timeout" : "failed",
         updatedAt: new Date().toISOString(),
-        providerError: caught instanceof Error ? caught.message : "생성 상태를 확인하지 못했습니다.",
+        providerError: caught instanceof Error && caught.message === "timed out waiting for the platform"
+          ? HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE
+          : caught instanceof Error ? caught.message : "생성 상태를 확인하지 못했습니다.",
       }));
   }, [updateRecord]);
 

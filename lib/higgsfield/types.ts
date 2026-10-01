@@ -1,6 +1,6 @@
 import type { MediaKind, MediaRole, ModelEntry, SettingField } from "./vendor/template/catalog/types";
 
-export type VideoGenerationStatus = "idle" | "uploading" | "submitting" | "queued" | "in_progress" | "completed" | "failed" | "nsfw" | "canceled";
+export type VideoGenerationStatus = "idle" | "uploading" | "submitting" | "queued" | "in_progress" | "queue_timeout" | "completed" | "failed" | "nsfw" | "canceled";
 
 export type VideoModelCapability = Pick<ModelEntry, "id" | "label" | "surface" | "roles" | "mediaModes" | "requiredRoles" | "requirePrompt" | "settings" | "icon">;
 

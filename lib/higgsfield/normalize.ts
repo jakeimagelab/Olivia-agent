@@ -23,7 +23,10 @@ export function parseVideoGenerationRequest(value: unknown): VideoGenerationRequ
   return generationRequestSchema.parse(value);
 }
 
-export function normalizeVideoGenerationStatus(status: unknown): VideoGenerationStatus {
+export function normalizeVideoGenerationStatus(
+  status: unknown,
+  fallback: VideoGenerationStatus = "queued",
+): VideoGenerationStatus {
   switch (status) {
     case "queued":
     case "in_progress":
@@ -33,7 +36,7 @@ export function normalizeVideoGenerationStatus(status: unknown): VideoGeneration
     case "canceled":
       return status;
     default:
-      return "queued";
+      return fallback;
   }
 }
 

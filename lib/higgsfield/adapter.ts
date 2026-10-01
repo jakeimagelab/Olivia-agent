@@ -90,11 +90,17 @@ function normalizeStatus(status: GenerationStatus): {
   providerError?: string;
 } {
   const videoUrl = status.video?.url;
+  const normalizedStatus = normalizeVideoGenerationStatus(status.status, "failed");
+  const providerError = status.error !== undefined
+    ? (typeof status.error === "string" ? status.error : JSON.stringify(status.error))
+    : normalizedStatus === "failed" && status.status !== "failed"
+      ? `Higgsfield가 알 수 없는 작업 상태(${JSON.stringify(status.status)})를 반환했습니다.`
+      : undefined;
   return {
     requestId: status.requestId,
-    status: normalizeVideoGenerationStatus(status.status),
+    status: normalizedStatus,
     ...(videoUrl ? { videoUrl, thumbnailUrl: videoUrl } : {}),
-    ...(status.error !== undefined ? { providerError: typeof status.error === "string" ? status.error : JSON.stringify(status.error) } : {}),
+    ...(providerError ? { providerError } : {}),
   };
 }
 

@@ -52,6 +52,14 @@ describe("Higgsfield video production integration", () => {
     expect(config).not.toContain("NEXT_PUBLIC_HIGGSFIELD");
   });
 
+  it("does not misrepresent an unknown provider status as an endless queued request", () => {
+    const normalize = readFileSync("lib/higgsfield/normalize.ts", "utf8");
+
+    expect(normalize).toContain("fallback: VideoGenerationStatus = \"queued\"");
+    expect(normalize).toContain("return fallback;");
+    expect(normalize).not.toContain('default:\n      return "queued";');
+  });
+
   it("keeps generation history idempotent while placing the newest status first", () => {
     const older = record("req-older", "2026-10-01T00:00:00.000Z");
     const newer = { ...record("req-newer", "2026-10-01T01:00:00.000Z"), status: "completed" as const };
@@ -97,5 +105,18 @@ describe("Higgsfield video production integration", () => {
     expect(css).toContain("color: #ffffff");
     expect(css).toContain("caret-color: #ffffff");
     expect(css).toContain("color: #a8cbc4");
+  });
+
+  it("makes long Higgsfield queues visible and keeps cancellation available", () => {
+    const workspace = readFileSync("components/video-production/VideoProductionWorkspace.tsx", "utf8");
+    const viewer = readFileSync("components/video-production/VideoResultViewer.tsx", "utf8");
+
+    expect(workspace).toContain("HIGGSFIELD_POLL_DEADLINE_MS = 5 * 60_000");
+    expect(workspace).toContain("HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE");
+    expect(workspace).toContain('"queue_timeout"');
+    expect(viewer).toContain("Higgsfield 대기열 지연");
+    expect(viewer).toContain("Higgsfield 대기열 확인 한도 초과");
+    expect(viewer).toContain("최근 상태 확인");
+    expect(viewer).toContain("기존 요청 취소");
   });
 });
