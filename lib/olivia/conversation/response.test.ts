@@ -30,4 +30,17 @@ describe("Olivia natural response renderer", () => {
     ])).toBe("내일 오후 2시 일정을 추가했어요.");
     expect(renderVerifiedToolRound([{ result: { tool: "calendar_list", success: true, data: { items: [] } } }])).toBeNull();
   });
+
+  it("일정 일괄 등록의 저장 검증 결과를 모델 문장보다 우선할 수 있다", () => {
+    expect(renderVerifiedToolRound([
+      {
+        result: {
+          tool: "calendar_add_bulk",
+          success: true,
+          data: { summary: "일정 1건을 추가했어요." },
+          verification: { executed: true, persisted: true },
+        },
+      },
+    ])).toBe("일정 1건을 추가했어요.");
+  });
 });

@@ -136,6 +136,9 @@ export async function runLegacyTurn({
   let nextPendingAction: OliviaPendingAction | undefined;
   let hasRenderedVerifiedOutcome = false;
   let deferredFailureText = "";
+  // 모델이 도구 호출 뒤에도 "못 했어요"처럼 사실과 다른 자유 문장을 낼 수 있다.
+  // 저장까지 검증된 write 결과는 마지막 응답에서 반드시 모델 문장보다 우선한다.
+  let verifiedWriteConfirmation = "";
   const executedToolCalls = new Set<string>();
   const cloudToolCalls: Array<{
     id: string;
@@ -292,6 +295,15 @@ export async function runLegacyTurn({
       ?? quoteConfirmation
       ?? contractConfirmation
       ?? generalConfirmation;
+    const persistedWriteSucceeded = executions.some(({ call, result: { execution } }) =>
+      !isReadOnlyOliviaTool(call.name)
+      && execution.result.success
+      && execution.result.verification?.executed === true
+      && execution.result.verification?.persisted === true,
+    );
+    if (persistedWriteSucceeded && verifiedRoundText) {
+      verifiedWriteConfirmation = verifiedRoundText;
+    }
     const roundText = verifiedRoundText ?? response.text;
     const roundOnlyFailed = executions.length > 0
       && executions.every(({ result: { execution } }) => !execution.result.success);
@@ -322,7 +334,9 @@ export async function runLegacyTurn({
     };
   }
 
-  if (!finalText.trim()) {
+  if (verifiedWriteConfirmation) {
+    finalText = verifiedWriteConfirmation;
+  } else if (!finalText.trim()) {
     finalText = deferredFailureText || OLIVIA_FALLBACK_MESSAGES.emptyResponseFallback;
   }
   // 스트리밍 전 모든 라운드에 가드를 적용하지만, 향후 분기에서 finalText를 합치는 코드가

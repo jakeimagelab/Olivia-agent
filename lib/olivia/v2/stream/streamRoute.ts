@@ -18,7 +18,7 @@ import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRe
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
 import { applyAliasRewrite } from "@/lib/olivia/intelligence/aliasResolver";
 import { applyReferentRewrite } from "@/lib/olivia/intelligence/referentResolver";
-import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, resolveRequiredFollowupTool, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, resolveCompletedActionAcknowledgement, resolveRequiredFollowupTool, restoreDocumentContextFromHistory, selectOliviaTools } from "@/lib/olivia/v2/toolSelection";
 import { listActiveMemories } from "@/lib/olivia/memory/repository";
 import { inferPersistentRunClientName, inferPersistentRunType, shouldCreatePersistentAgentRun } from "@/lib/olivia/v2/persistentRunClassifier";
 import { createAgentRun } from "@/lib/olivia/agentRuns/service";
@@ -461,6 +461,20 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return saved.message;
         };
+        // 직전 assistant turn이 DB 저장까지 검증한 작업을 가진 경우, "응/엉/그래"는 새
+        // 요청이 아니다. Hermes/OpenAI에 다시 보내면 같은 일정을 중복 저장하거나, 모델의
+        // 불필요한 연결 실패 문장이 실제 완료 결과를 덮을 수 있다.
+        const completedActionAcknowledgement = resolveCompletedActionAcknowledgement(rawMessage, history);
+        if (completedActionAcknowledgement) {
+          activeAgentEngine = "legacy";
+          chatRouteLabel = "DIRECT_TOOL";
+          send({ type: "text_delta", messageId, delta: completedActionAcknowledgement });
+          await saveTurnAssistant(completedActionAcknowledgement, {
+            blocks: [{ type: "text", text: completedActionAcknowledgement }],
+            routeDecision: "COMPLETED_ACTION_ACKNOWLEDGEMENT",
+          });
+          return;
+        }
         const compactSummary=typeof conversationMetadata.compactSummary==="string"
           ? conversationMetadata.compactSummary
           : undefined;

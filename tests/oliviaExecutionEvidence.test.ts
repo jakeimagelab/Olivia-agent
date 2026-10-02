@@ -61,6 +61,13 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     expect(zeroToolText).not.toContain("완료");
   });
 
+  it("저장 검증 write 결과는 legacy 모델의 자유 문장보다 최종 답변에서 우선한다", () => {
+    const legacySource = readFileSync("lib/olivia/v2/stream/legacyTurn.ts", "utf8");
+    expect(legacySource).toContain("verifiedWriteConfirmation");
+    expect(legacySource).toContain("execution.result.verification?.persisted === true");
+    expect(legacySource).toContain("finalText = verifiedWriteConfirmation");
+  });
+
   it("시스템 상태 팝업은 공통 진단 결과와 내 차례를 계층형으로 표시한다", () => {
     const source = readFileSync("components/olivia-os/StatusPanelButton.tsx", "utf8");
     const routeSource = readFileSync("app/api/olivia-os/status-panel/route.ts", "utf8");

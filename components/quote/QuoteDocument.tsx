@@ -5,6 +5,7 @@
 import type { ReactNode, Ref } from "react";
 import { Building2, Mail, MapPin, Phone, Quote, Receipt, UserRound } from "lucide-react";
 import { BRAND_CONFIG } from "@/lib/quote/quoteCatalog";
+import { formatCustomItemDetail } from "@/lib/quote/formatQuoteDetail";
 import type { QuoteDocumentData } from "@/lib/quote/quoteDocumentData";
 import { getQuoteRailNameSize } from "@/lib/quote/quoteTypography";
 
@@ -76,7 +77,10 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
               {selectedSingleItems.length ? <tr className="category-row"><td colSpan={5}>단일 항목</td></tr> : null}
               {selectedSingleItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 2 : 1) + index}. {item.name}{item.detail ? <small style={{ whiteSpace: "pre-line" }}>{item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>단일 콘텐츠</td></tr>)}
               {optionItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}{item.detail ? <small>{item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>-</td></tr>)}
-              {visibleCustomItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{item.detail ? <small style={{ whiteSpace: "pre-line" }}>- {item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>기타</td></tr>)}
+              {visibleCustomItems.map((item, index) => {
+                const formattedDetail = formatCustomItemDetail(item.detail);
+                return <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{formattedDetail ? <small style={{ whiteSpace: "pre-line" }}>{formattedDetail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>기타</td></tr>;
+              })}
               {visibleBenefitItems.length ? <tr className="category-row"><td colSpan={5}>서비스 및 혜택</td></tr> : null}
               {visibleBenefitItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + visibleCustomItems.length + index + 1}. {item.name}</td><td></td><td>-</td><td>-</td><td>서비스 및 혜택</td></tr>)}
               {discountRate > 0 ? <tr className="discount-row"><td>{discountLabel ? `${discountLabel} ${discountRate}% 할인` : `${discountRate}% 할인`}</td><td>-</td><td>-{amount(rateDiscountAmount)}</td><td>-{amount(rateDiscountAmount)}</td><td>촬영콘텐츠 합계 기준</td></tr> : null}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isFollowupComplaint, isRequiredToolChoiceCompatible, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
+import { buildCanonicalRecentUserText, buildLastActionFollowupHint, getOliviaToolDomains, isFollowupComplaint, isRequiredToolChoiceCompatible, resolveCompletedActionAcknowledgement, resolveRequiredFollowupTool, resolveToollessActionRetry, restoreDocumentContextFromHistory, selectOliviaTools } from "./toolSelection";
 import type { OliviaContextSnapshot } from "./types";
 import { getSelectedContiSceneId } from "./toolExecutors/conti";
 
@@ -235,5 +235,23 @@ describe("isFollowupComplaint / buildLastActionFollowupHint", () => {
     const hint = buildLastActionFollowupHint("진짜 조회했어?", rows);
     expect(hint).toContain("실제로 실행된 Tool은 0개");
     expect(hint).toContain("조회·등록·수정 작업을 하지 않았다");
+  });
+});
+
+describe("resolveCompletedActionAcknowledgement", () => {
+  it("저장 검증을 마친 일정 뒤의 '엉'은 Hermes 재시도나 중복 등록으로 보내지 않는다", () => {
+    const rows = [{
+      role: "assistant",
+      metadata: {
+        executedTools: [{ name: "calendar_add_bulk", success: true }],
+      },
+    }];
+
+    expect(resolveCompletedActionAcknowledgement("엉", rows))
+      .toBe("방금 일정은 이미 저장되어 있어요. 같은 일정을 다시 등록하지 않았습니다.");
+  });
+
+  it("저장된 작업이 없는 짧은 답변은 기존 승인 흐름에 맡긴다", () => {
+    expect(resolveCompletedActionAcknowledgement("응", [{ role: "assistant", metadata: {} }])).toBeNull();
   });
 });

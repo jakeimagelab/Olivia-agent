@@ -33,12 +33,17 @@ type CatalogEntry = { id: string; name: string; price: number; package?: boolean
 
 const EVENT_PATTERN = /(행사|이벤트|기념|주년|세미나|학회|심포지엄|학술대회|개원식|창립|워크숍|오픈식)/i;
 const COMMAND_ENDING = /(?:만들어줘|만들자|해줘|해주세요|부탁해|결정|적용)(?:[.!…]+)?\s*$/;
+// 채팅에서는 "견적서 만들어줘, 행사명…"처럼 생성 지시와 원문을 같은 줄에 적는
+// 경우가 많다. 이 지시는 고객명/행사명보다 먼저 제거해야 한다.
+const LEADING_QUOTE_REQUEST = /^견적서\s*(?:하나|한\s*개|좀)?\s*(?:를|을)?\s*(?:만들어줘|만들자|해줘|해주세요|부탁해)\s*(?:[,，:：.!…\-–—]\s*)?/i;
 const CONTENT_HEADING = /^(?:내용은?|아래와 같이|다음과 같이)$/;
 const BENEFIT_HEADING = /^서비스s*(?:\/|및)?s*혜택$/;
 const GENERIC_QUOTE_REQUEST = /^견적서\s*(?:하나|한\s*개|좀)?\s*(?:만들어줘|만들자|해줘|해주세요|부탁해)(?:[.!…]+)?\s*$/;
+const TOTAL_AMOUNT_DIRECTIVE = /^(?:총\s*금액|총액|합계)(?:\s*(?:은|이|는|:|：))?\s*/;
 const PHONE = /^0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}$/;
 const CONTACT = /^[^\n]{1,20}(?:[가-힣]{2,}|[A-Za-z]{2,})(?:\s*(?:대표|원장|팀장|실장|매니저|담당자|이사|부장|과장))?님$/;
 const EXTERNAL_ITEM = /(헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|푸드\s*스타일링|재료\s*구입)/i;
+const WORK_SCOPE = /(촬영|스케치|영상|콘텐츠|행사|이벤트|세미나|학회|프로필|인테리어|브랜드필름)/i;
 
 const CATALOG: CatalogEntry[] = [
   ...packages.map((entry) => ({ ...entry, package: true })),
@@ -66,6 +71,10 @@ function stripLeader(line: string) {
     rest = rest.replace(/^(?:내용은|내용|아래와\s*같이|아래는|다음과\s*같이)\s*/, "");
   }
   return rest.trim();
+}
+
+function stripLeadingQuoteRequest(line: string) {
+  return line.replace(LEADING_QUOTE_REQUEST, "").trim();
 }
 
 function moneyFromToken(raw: string, unit: string | undefined) {
@@ -157,10 +166,43 @@ function priceInDirective(value: string) {
 }
 
 function deriveClientName(line: string) {
-  return line
+  return stripLeadingQuoteRequest(line)
     .replace(/\s*견적서(?:를|을)?\s*(?:만들어줘|만들자|해줘|해주세요|부탁해)?\s*$/i, "")
     .replace(/\s*견적서\s*$/i, "")
     .trim() || null;
+}
+
+/**
+ * 총액만 제시된 행사 견적에서는 "행사스케치 15:30 - 20:30" 같은 작업 범위가
+ * 금액 없이 먼저 올 수 있다. 이 범위는 총액이 이어질 때만 실제 견적 항목이 된다.
+ * 고객명/행사 제목을 항목으로 오인하지 않도록 촬영 관련 단어가 있는 줄만 받는다.
+ */
+function unpricedWorkScopeFromLine(line: string): ParsedQuoteItem | null {
+  if (!WORK_SCOPE.test(line)) return null;
+  const timeRange = /\b\d{1,2}:\d{2}\s*(?:[-~–—]\s*)\d{1,2}:\d{2}\b/.exec(line);
+  const name = timeRange
+    ? line.replace(timeRange[0], "").replace(/[|,·•\-–—]+\s*$/, "").trim()
+    : line.trim();
+  if (!name) return null;
+  return {
+    name,
+    note: null,
+    details: timeRange ? [`촬영 시간 ${timeRange[0]}`] : [],
+    amount: null,
+    quantity: 1,
+    free: false,
+  };
+}
+
+function applyTotalToSingleUnpricedScope(result: ParsedQuoteRequest, total: number) {
+  const unpricedScopes = result.items.filter((item) => !item.free && item.amount === null);
+  // 여러 작업 범위의 합계라면 어느 하나에 임의 배분하지 않고, 기존 총액 조정 로직으로
+  // 넘긴다. 단일 범위만 있을 때는 그 범위의 견적 금액으로 확정할 수 있다.
+  if (unpricedScopes.length === 1) {
+    unpricedScopes[0].amount = total;
+    return;
+  }
+  result.fixedTotal = total;
 }
 
 function eventSuffix(clientName: string | null, source: string) {
@@ -219,7 +261,7 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   let inBenefitSection = false;
 
   for (const rawLine of text.replace(/\r\n?/g, "\n").split("\n")) {
-    const line = stripLeader(rawLine);
+    const line = stripLeadingQuoteRequest(stripLeader(rawLine));
     if (!line) continue;
     meaningfulLines.push(line);
 
@@ -230,6 +272,11 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     const perPersonTotal = perPersonTotalFromLine(line);
     if (perPersonTotal && result.items.length > 0) {
       applyPerPersonTotal(result.items[result.items.length - 1], perPersonTotal);
+      continue;
+    }
+    if (TOTAL_AMOUNT_DIRECTIVE.test(line)) {
+      const total = priceInDirective(line);
+      if (total !== null) applyTotalToSingleUnpricedScope(result, total);
       continue;
     }
     // 서비스/혜택 아래의 할인은 혜택 문구로도 남기되, 실제 할인율도 함께 적용한다.
@@ -276,6 +323,15 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     const item = itemFromLine(line);
     if (item) {
       result.items.push(item);
+      continue;
+    }
+    // 기존 항목에 딸린 설명("메뉴촬영, 단품촬영…")을 새 항목으로 만들지 않는다.
+    // 고객이 먼저 확정되고 아직 항목이 하나도 없을 때의 첫 작업 범위만 받는다.
+    const workScope = result.clientName && result.items.length === 0
+      ? unpricedWorkScopeFromLine(line)
+      : null;
+    if (workScope) {
+      result.items.push(workScope);
       continue;
     }
     if (result.items.length > 0) {

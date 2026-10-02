@@ -67,6 +67,12 @@ const DAEJEON_SESANG_REQUEST = `대전세상안과
 •또는 헤어메이크업포함
 이렇게 견적 만들어줘`;
 
+const INLINE_EVENT_REQUEST = `견적서 만들어줘, 세계여성이사업회(WCD) 10주년 기념포럼
+행사스케치 15:30 - 20:30
+1부, 2부 진행
+작가 2명으로 진행
+총 금액 135만원`;
+
 describe("quoteRequestParser", () => {
   it("대표의 제이크이미지 원문을 금액과 설명을 잃지 않고 읽고 절삭한다", () => {
     const request = parseQuoteRequest(JAKE_REQUEST);
@@ -234,6 +240,30 @@ describe("quoteRequestParser", () => {
     const request = parseQuoteRequest("예방치과교실 60주년 행사");
     expect(request).toMatchObject({ clientName: "예방치과교실 60주년 행사", isEvent: true });
     expect(titleForParsedQuote(request, "jakeimage")).toBe("예방치과교실 60주년 행사 견적서");
+  });
+
+  it("문장 앞 생성 지시를 고객명으로 쓰지 않고 행사 작업 범위와 총액을 연결한다", () => {
+    const request = parseQuoteRequest(INLINE_EVENT_REQUEST);
+    expect(request).toMatchObject({
+      clientName: "세계여성이사업회(WCD) 10주년 기념포럼",
+      isEvent: true,
+      fixedTotal: null,
+    });
+    expect(request.clientName).not.toContain("견적서 만들어줘");
+    expect(request.items).toEqual([
+      expect.objectContaining({
+        name: "행사스케치",
+        amount: 1_350_000,
+        details: ["촬영 시간 15:30 - 20:30", "1부, 2부 진행", "작가 2명으로 진행"],
+      }),
+    ]);
+
+    const quote = buildQuoteDataFromParsedRequest({ request, brand: "jakeimage" });
+    expect(titleForParsedQuote(request, "jakeimage")).toBe("세계여성이사업회(WCD) 10주년 기념포럼 견적서");
+    expect(quote.formState.customer.hospitalName).toBe("세계여성이사업회(WCD) 10주년 기념포럼");
+    expect(quote.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "행사스케치", subtotal: 1_350_000 }),
+    ]));
   });
 
   it("금액·수량·괄호를 바꿔 읽지 않는다", () => {

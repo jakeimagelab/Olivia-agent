@@ -4,6 +4,7 @@ import type { OliviaContextSnapshot } from "./types";
 import type { OliviaRequestClass } from "./modelRouter";
 import { executedToolsFromMetadata } from "./executionEvidence";
 import { hasClientDestructiveIntent, hasClientPermanentDeleteIntent, hasClientRegistrationIntent, NEGATIVE_MUTATION_PATTERN } from "./mutationIntentGuard";
+import { isOliviaShortConfirmation } from "./executionIntent";
 
 type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"photo_storage"|"window";
 
@@ -164,6 +165,26 @@ export function buildLastActionFollowupHint(
   return `[직전 작업 기록] 바로 전 turn에서 실행된 Tool: ${summaries.join(", ")}. `
     + `지금 메시지는 그 결과에 대한 후속 항의로 보인다 — 새 Intent로 처음부터 다시 분류하지 말고, `
     + `직전에 어떤 필드를 바꾸려 했는지부터 확인해서 올바른 Tool로 다시 시도하거나 실제 반영 여부를 확인한다.`;
+}
+
+/**
+ * 저장이 검증된 직후의 "응/엉/그래"는 새 요청이 아니다. 이를 다시 모델에 보내면 같은
+ * 일정을 중복 생성하거나, 정상적인 저장 결과와 무관하게 Hermes 연결 오류를 답하게 된다.
+ */
+export function resolveCompletedActionAcknowledgement(
+  message: string,
+  rows: Array<{ role?: string; metadata?: unknown }>,
+): string | null {
+  if (!isOliviaShortConfirmation(message)) return null;
+  const lastAssistant = [...rows].reverse().find((row) => row.role === "assistant");
+  if (!lastAssistant) return null;
+  const successfulTools = executedToolsFromMetadata(lastAssistant.metadata).filter((tool) => tool.success);
+  if (!successfulTools.length) return null;
+
+  if (successfulTools.some((tool) => ["calendar_add", "calendar_add_bulk", "calendar_update", "calendar_complete", "calendar_delete"].includes(tool.name))) {
+    return "방금 일정은 이미 저장되어 있어요. 같은 일정을 다시 등록하지 않았습니다.";
+  }
+  return "방금 요청은 이미 처리되어 있어요. 같은 작업을 다시 실행하지 않았습니다.";
 }
 
 export function restoreDocumentContextFromHistory(
