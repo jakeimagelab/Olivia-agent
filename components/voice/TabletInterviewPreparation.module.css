@@ -221,6 +221,17 @@
 .readyContent article span { margin-top: 4px; color: #315d57; font-size: 12px; }
 .readyContent article small { margin-top: 3px; color: #849a95; font-size: 11px; }
 .readyContent article button { min-height: 36px; font-size: 11px; }
+.questionSheet { margin-top: 14px; overflow: hidden; border: 1px solid var(--line); border-radius: 15px; text-align: left; background: #fff; }
+.questionSheet header { min-height: 70px; padding: 13px 15px; display: flex; align-items: center; justify-content: space-between; gap: 14px; background: #f7fbfa; }
+.questionSheet header p { margin: 0; color: #6d8983; font-size: 9px; font-weight: 850; letter-spacing: .13em; }
+.questionSheet header h3 { margin: 4px 0 0; color: #214f49; font-size: 16px; letter-spacing: -.04em; }
+.questionSheet header span { margin-top: 3px; display: block; color: #78918c; font-size: 10px; line-height: 1.45; }
+.questionSheet header button { min-width: 88px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 10px; color: var(--green); background: #fff; font: 750 11px/1 inherit; cursor: pointer; }
+.questionSheet ol { margin: 0; padding: 8px 12px 12px; display: grid; gap: 6px; list-style: none; }
+.questionSheet li { min-height: 52px; padding: 9px; display: grid; grid-template-columns: 29px minmax(0, 1fr); align-items: start; gap: 9px; border: 1px solid rgba(21, 88, 85, .08); border-radius: 10px; background: #fbfefd; }
+.questionSheet li > b { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--green); font-size: 10px; }
+.questionSheet li small { display: block; color: #77918c; font-size: 9px; font-weight: 750; }
+.questionSheet li p { margin: 3px 0 0; color: #28554f; font-size: 12px; line-height: 1.48; }
 .readyActions { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 9px; }
 .readyActions > * { min-height: 50px; font-size: 13px; }
 .readyNotice { display: block; margin-top: 15px; color: #869a95; font-size: 11px; }
@@ -242,5 +253,7 @@
   .readyContent article { grid-template-columns: 64px 1fr; }
   .readyThumbnail { width: 64px; height: 54px; }
   .readyContent article button { grid-column: 1 / -1; width: 100%; }
+  .questionSheet header { align-items: flex-start; }
+  .questionSheet header span { display: none; }
   .readyActions { grid-template-columns: 1fr; }
 }

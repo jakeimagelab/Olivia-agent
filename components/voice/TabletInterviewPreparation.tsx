@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, Check, ChevronDown, ChevronUp, FileDown, ListChecks, Mic } from "lucide-react";
+import { useState } from "react";
 import type { InterviewPreparation, InterviewQuestion } from "@/lib/voice/interview/types";
 import styles from "./TabletInterviewPreparation.module.css";
 
@@ -121,6 +122,7 @@ function ReadyScreen({ preparation, onBack, onStart }: {
   onBack: () => void;
   onStart: () => void;
 }) {
+  const [showQuestionSheet, setShowQuestionSheet] = useState(true);
   return <section className={styles.readyFrame}>
     <header className={styles.toolbar}>
       <button type="button" onClick={onBack}><ArrowLeft size={17} />준비 목록</button>
@@ -140,6 +142,30 @@ function ReadyScreen({ preparation, onBack, onStart }: {
         </div>
         <button type="button" onClick={onBack}>정보 수정</button>
       </article>
+      <section className={styles.questionSheet} aria-label="선택 질문 전체 확인">
+        <header>
+          <div>
+            <p>QUESTION SHEET</p>
+            <h3>선택 질문 전체 확인</h3>
+            <span>현장에서 사용할 순서와 질문 전문을 한 번에 검토합니다.</span>
+          </div>
+          <button type="button" onClick={() => setShowQuestionSheet((current) => !current)} aria-expanded={showQuestionSheet}>
+            {showQuestionSheet ? <ChevronUp size={17} /> : <ChevronDown size={17} />}
+            {showQuestionSheet ? "접기" : "전체 보기"}
+          </button>
+        </header>
+        {showQuestionSheet ? <ol>
+          {[...preparation.selected_questions]
+            .sort((left, right) => left.order - right.order)
+            .map((question, index) => <li key={question.id}>
+              <b>{index + 1}</b>
+              <div>
+                <small>{question.sectionTitle}</small>
+                <p>{question.text}</p>
+              </div>
+            </li>)}
+        </ol> : null}
+      </section>
       <div className={styles.readyActions}>
         <a href={`/api/voice/interviews/preparations/${preparation.id}/pdf?preview=html`} target="_blank" rel="noreferrer">PDF 미리보기</a>
         <a href={`/api/voice/interviews/preparations/${preparation.id}/pdf`} target="_blank" rel="noreferrer"><FileDown size={17} />PDF 다운로드</a>

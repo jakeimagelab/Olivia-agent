@@ -54,4 +54,15 @@ describe("tablet voice interview layout", () => {
     expect(css).toContain("grid-template-columns: minmax(0, 1fr) minmax(150px, 1.15fr) minmax(0, 1fr)");
     expect(css).toContain("var(--olivia-visual-viewport-height, 100dvh)");
   });
+
+  it("lets a ready tablet interview review every prepared question before recording", () => {
+    const preparation = read("components/voice/TabletInterviewPreparation.tsx");
+    const css = read("components/voice/TabletInterviewPreparation.module.css");
+
+    expect(preparation).toContain("선택 질문 전체 확인");
+    expect(preparation).toContain("QUESTION SHEET");
+    expect(preparation).toContain("preparation.selected_questions");
+    expect(preparation).toContain("question.sectionTitle");
+    expect(css).toContain(".questionSheet");
+  });
 });
