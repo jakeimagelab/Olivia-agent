@@ -274,6 +274,7 @@ export default function OliviaMobileShell({ initialLaunch }: { initialLaunch?: O
           surface="mobile"
           dockVisible={navigation.view !== "preview" && navigation.view !== "chat"}
           bottomOffset={navigation.view === "preview" ? 62 : 0}
+          showWhenIdle={navigation.view === "voice"}
           onOpenRecording={() => navigate({ view: "voice" })}
         />
       </main>

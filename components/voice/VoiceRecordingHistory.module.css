@@ -38,7 +38,8 @@
 .error button { margin-top: 8px; min-height: 30px; padding: 0 12px; border: 1px solid rgba(21, 88, 85, 0.16); border-radius: 8px; background: #fff; color: var(--voice-green); font: 650 11px/1 inherit; cursor: pointer; }
 
 .list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
-.list a {
+.list a, .itemButton {
+  width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
@@ -48,9 +49,12 @@
   border-radius: 13px;
   background: #fafcfb;
   color: inherit;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
-.list a:hover { background: #eff7f5; border-color: rgba(21, 88, 85, 0.16); }
+.list a:hover, .itemButton:hover { background: #eff7f5; border-color: rgba(21, 88, 85, 0.16); }
 
 .itemBody { min-width: 0; display: grid; gap: 3px; }
 .itemTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 700; }

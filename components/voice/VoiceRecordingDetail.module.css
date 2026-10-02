@@ -1,7 +1,7 @@
 .root { min-height: 100dvh; padding: max(24px, env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) max(44px, env(safe-area-inset-bottom, 0px)) max(18px, env(safe-area-inset-left, 0px)); color: #17312d; background: #f7faf8; }
 .container { width: min(100%, 940px); margin: 0 auto; }
 .header { min-height: 108px; display: grid; grid-template-columns: 46px minmax(0,1fr) auto; align-items: center; gap: 14px; }
-.header > a { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(21,88,85,.1); border-radius: 14px; color: #155855; background: #fff; }
+.header > a, .header > button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(21,88,85,.1); border-radius: 14px; color: #155855; background: #fff; cursor: pointer; }
 .header > div:nth-child(2) { min-width: 0; }
 .header p, .section header small, .speakerSection header small, .transcriptSection header small { margin: 0 0 4px; color: #829792; font-size: 9px; font-weight: 850; letter-spacing: .15em; }
 .header h1 { margin: 0; overflow: hidden; font-size: clamp(25px, 4vw, 36px); letter-spacing: -.05em; text-overflow: ellipsis; white-space: nowrap; }
@@ -63,13 +63,13 @@
 .brandCore { margin-top:15px; display:grid; gap:8px; }.brandSummary { margin:0 0 5px; padding:13px; border-radius:12px; color:#254f49; background:#eef8f5; font-size:13px; line-height:1.7; white-space:pre-wrap; }.brandCore article { padding:11px 12px; border:1px solid #e0ece8; border-radius:11px; }.brandCore small { color:#df714f; font-size:9px; font-weight:850; letter-spacing:.06em; text-transform:uppercase; }.brandCore article p { margin:4px 0 0; color:#355954; font-size:12px; line-height:1.6; white-space:pre-wrap; }
 .interviewTranscript { margin-top:15px; display:grid; gap:8px; }.interviewTranscript article { padding:11px; display:grid; grid-template-columns:auto 1fr; gap:8px; border-radius:12px; background:#f8fbfa; }.interviewTranscript article time { color:#91a39f; font-size:9px; }.interviewTranscript article p { margin:4px 0 0; color:#305752; font-size:12px; line-height:1.65; white-space:pre-wrap; }.noteList { margin-top:15px; display:grid; gap:7px; }.noteList article { padding:10px; display:grid; grid-template-columns:auto 1fr; gap:9px; align-items:start; border-left:3px solid #e36d49; border-radius:8px; background:#fff8f4; }.noteList article p { margin:0; color:#5b554c; font-size:12px; line-height:1.55; }
 .loading { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; color: #6e8681; background: #f7faf8; font-size: 12px; }
-.loading a { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; border-radius: 12px; color: #fff; background: #155855; text-decoration: none; }
+.loading a, .loading button { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; border: 0; border-radius: 12px; color: #fff; background: #155855; font: inherit; text-decoration: none; cursor: pointer; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 700px) {
   .root { padding: 0 14px max(30px,env(safe-area-inset-bottom,0px)); background: #f7faf8; }
   .header { min-height: calc(96px + env(safe-area-inset-top,0px)); padding-top: env(safe-area-inset-top,0px); grid-template-columns: 42px minmax(0,1fr); gap: 10px; }
-  .header > a { width: 40px; height: 40px; }
+  .header > a, .header > button { width: 40px; height: 40px; }
   .header h1 { font-size: 23px; }
   .header > div:nth-child(2) > span { font-size: 9px; }
   .statusBadge { grid-column: 2; width: max-content; min-height: 30px; margin-top: -7px; padding-inline: 10px; font-size: 9px; }
@@ -99,6 +99,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     padding: 12px 2px 14px;
   }
+  .embedded .header.embeddedWithBack { grid-template-columns: 42px minmax(0, 1fr) auto; }
   .embedded .header h1 { font-size: 21px; }
   .embeddedLoading { height: 100%; min-height: 0; padding-bottom: 82px; }
 }

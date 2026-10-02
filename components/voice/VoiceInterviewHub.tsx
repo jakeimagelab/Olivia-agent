@@ -31,11 +31,12 @@ async function readError(response: Response, fallback: string) {
   return typeof body.error === "string" ? body.error : fallback;
 }
 
-export default function VoiceInterviewHub({ embedded = false, mobileShell = false, tabletShell = false, onOpenResult }: {
+export default function VoiceInterviewHub({ embedded = false, mobileShell = false, tabletShell = false, onOpenResult, onOpenRecording }: {
   embedded?: boolean;
   mobileShell?: boolean;
   tabletShell?: boolean;
   onOpenResult?: (id: string) => void;
+  onOpenRecording?: (id: string) => void;
 }) {
   const rootRef = useRef<HTMLElement>(null);
   const { state: voiceSession } = useVoiceSession();
@@ -211,7 +212,7 @@ export default function VoiceInterviewHub({ embedded = false, mobileShell = fals
     setTabletStep(next);
   }, [form.hospitalName, form.intervieweeName, selectedQuestions.length]);
 
-  if (mode === "general") return <section ref={rootRef} className={`${styles.general} ${tabletShell ? styles.tabletVoiceGeneral : ""}`}><div className={styles.modeBar}><button type="button" className={styles.active} onClick={() => setMode("general")}><Volume2 size={16} />일반 녹음</button><button type="button" onClick={() => setMode("interview")}><Mic size={16} />인터뷰 모드</button></div><OliviaRecorder embedded={embedded} mobileShell={mobileShell} tabletShell={tabletShell} onOpenResult={onOpenResult} /></section>;
+  if (mode === "general") return <section ref={rootRef} className={`${styles.general} ${mobileShell ? styles.mobileVoiceGeneral : ""} ${tabletShell ? styles.tabletVoiceGeneral : ""}`}><div className={styles.modeBar}><button type="button" className={styles.active} onClick={() => setMode("general")}><Volume2 size={16} />일반 녹음</button><button type="button" onClick={() => setMode("interview")}><Mic size={16} />인터뷰 모드</button></div><OliviaRecorder embedded={embedded} mobileShell={mobileShell} tabletShell={tabletShell} onOpenResult={onOpenResult} />{mobileShell ? <VoiceRecordingHistory mode="general" onOpenRecording={onOpenRecording} /> : null}</section>;
   if (recordingPreparation) return <section ref={rootRef} className={`${styles.interviewFrame} ${mobileShell ? styles.mobileInterviewFrame : ""} ${tabletShell ? styles.tabletInterviewFrame : ""}`}><OliviaInterviewRecorder preparation={recordingPreparation} recovery={recordingRecovery} tabletShell={tabletShell} onClose={() => { setRecordingPreparation(null); setRecordingRecovery(null); void load(); }} onComplete={(id) => { setRecordingPreparation(null); setRecordingRecovery(null); onOpenResult?.(id); }} /></section>;
   if ((editing || creating) && mobileShell) return <section className={`${styles.interviewFrame} ${styles.mobileInterviewFrame}`}><MobileInterviewPreparation preparation={editing} form={form} clients={clients} groups={groupedQuestions} selectedQuestions={selectedQuestions} step={mobileStep} infoExpanded={mobileInfoExpanded} openSections={openSections} saving={saving} error={error} onBack={() => { if (mobileStep === "order") { setMobileStep("questions"); return; } if (mobileStep === "questions") { setMobileStep("info"); setMobileInfoExpanded(true); return; } setEditing(null); setCreating(false); setForm(initialForm); setMobileStep("info"); }} onChangeForm={updateMobileForm} onToggleQuestion={toggleQuestion} onToggleSection={toggleSection} onReorder={reorder} onStep={setMobilePreparationStep} onInfoExpanded={setMobileInfoExpanded} onSave={() => void save()} onReady={() => void ready()} onStart={() => editing && setRecordingPreparation(editing)} /></section>;
   if (mobileShell) return <section className={`${styles.interviewFrame} ${styles.mobileInterviewFrame}`}><MobileInterviewStandby preparations={preparations} loading={loading} error={error} onBack={() => setMode("general")} onRefresh={() => void load()} onCreate={beginNew} onOpen={openEditor} onStart={(preparation) => setRecordingPreparation(preparation)} /></section>;

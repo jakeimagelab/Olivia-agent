@@ -71,7 +71,7 @@ function interviewAnswers(recording: VoiceRecording) {
   }));
 }
 
-export default function VoiceRecordingDetail({ id, embedded = false }: { id: string; embedded?: boolean }) {
+export default function VoiceRecordingDetail({ id, embedded = false, onBack }: { id: string; embedded?: boolean; onBack?: () => void }) {
   const [recording, setRecording] = useState<VoiceRecording | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -199,7 +199,7 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
       <main className={`${styles.loading} ${embedded ? styles.embeddedLoading : ""}`}>
         <AlertCircle size={36} />
         <p>{error || "기록을 찾을 수 없습니다."}</p>
-        <Link href="/voice-recorder">음성 기록으로 돌아가기</Link>
+        {onBack ? <button type="button" onClick={onBack}>음성 기록으로 돌아가기</button> : <Link href="/voice-recorder">음성 기록으로 돌아가기</Link>}
       </main>
     );
   }
@@ -210,8 +210,10 @@ export default function VoiceRecordingDetail({ id, embedded = false }: { id: str
   return (
     <main className={`${styles.root} ${embedded ? styles.embedded : ""}`}>
       <div className={styles.container}>
-        <header className={styles.header}>
-          {embedded ? null : <Link href="/voice-recorder" aria-label="음성 기록으로 돌아가기"><ArrowLeft size={20} /></Link>}
+        <header className={`${styles.header} ${embedded && onBack ? styles.embeddedWithBack : ""}`}>
+          {embedded
+            ? onBack ? <button type="button" onClick={onBack} aria-label="음성 기록 목록으로 돌아가기"><ArrowLeft size={20} /></button> : null
+            : <Link href="/voice-recorder" aria-label="음성 기록으로 돌아가기"><ArrowLeft size={20} /></Link>}
           <div>
             <p>{embedded ? "음성 기록 결과" : "OLIVIA VOICE RECORD"}</p>
             <h1>{recording.title || "음성 기록"}</h1>

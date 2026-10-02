@@ -37,7 +37,11 @@ function statusLabel(status: VoiceStatus): { text: string; tone: "done" | "progr
 
 // docs/tablet-ipad-home-memo-voice-spec.md §7-1 — "목록 화면 신설(최우선)". OliviaRecorder(녹음)와
 // VoiceRecordingDetail(상세)은 그대로 두고, 그 사이를 잇는 목록만 새로 추가한다.
-export default function VoiceRecordingHistory({ mode }: { mode?: "general" | "interview" }) {
+export default function VoiceRecordingHistory({ mode, onOpenRecording }: {
+  mode?: "general" | "interview";
+  /** 모바일 Shell에서는 전체 페이지 이동 없이 같은 음성 화면에서 상세를 연다. */
+  onOpenRecording?: (id: string) => void;
+}) {
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -81,18 +85,21 @@ export default function VoiceRecordingHistory({ mode }: { mode?: "general" | "in
         <ul className={styles.list}>
           {items.map((item) => {
             const status = statusLabel(item.status);
+            const content = <>
+              <span className={styles.itemBody}>
+                <span className={styles.itemTitle}>{item.title || item.summary || "제목 없는 기록"}</span>
+                <span className={styles.itemMeta}>{formatDate(item.recorded_at)}</span>
+              </span>
+              <span className={styles.duration}>{formatDuration(item.duration_seconds)}</span>
+              <span className={`${styles.status} ${status.tone === "done" ? styles.statusDone : status.tone === "error" ? styles.statusError : styles.statusProgress}`}>
+                {status.text}
+              </span>
+            </>;
             return (
               <li key={item.id}>
-                <Link href={`/voice-recorder/${item.id}`}>
-                  <span className={styles.itemBody}>
-                    <span className={styles.itemTitle}>{item.title || item.summary || "제목 없는 기록"}</span>
-                    <span className={styles.itemMeta}>{formatDate(item.recorded_at)}</span>
-                  </span>
-                  <span className={styles.duration}>{formatDuration(item.duration_seconds)}</span>
-                  <span className={`${styles.status} ${status.tone === "done" ? styles.statusDone : status.tone === "error" ? styles.statusError : styles.statusProgress}`}>
-                    {status.text}
-                  </span>
-                </Link>
+                {onOpenRecording
+                  ? <button type="button" className={styles.itemButton} onClick={() => onOpenRecording(item.id)}>{content}</button>
+                  : <Link href={`/voice-recorder/${item.id}`}>{content}</Link>}
               </li>
             );
           })}

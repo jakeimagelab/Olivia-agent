@@ -12,9 +12,9 @@ export default function MobileVoice() {
     <section className={styles.screenWithHeader} aria-label="모바일 음성 기록">
       <div className={styles.mobileVoiceBody}>
         {recordingId ? (
-          <VoiceRecordingDetail id={recordingId} embedded />
+          <VoiceRecordingDetail id={recordingId} embedded onBack={() => setRecordingId(null)} />
         ) : (
-          <VoiceInterviewHub embedded mobileShell onOpenResult={setRecordingId} />
+          <VoiceInterviewHub embedded mobileShell onOpenResult={setRecordingId} onOpenRecording={setRecordingId} />
         )}
       </div>
     </section>
