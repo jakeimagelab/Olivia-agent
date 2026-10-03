@@ -202,4 +202,3 @@ export async function runVideoAudioExtract(input: {
   onProgress({ stage: "done", percent: 100, message: `${files.length}개 파일 저장` });
   return { ok: true, status: "VIDEO_AUDIO_EXTRACTED", sourceRelativePath: folders.relativePath, outputRelativePath: folders.outputRelativePath, files };
 }
-
