@@ -7,10 +7,11 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
 import { StatusPanelButton } from "./StatusPanelButton";
 import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
+import { DesktopTopBarActions } from "./DesktopTopBarActions";
 import styles from "./OliviaDesktop.module.css";
 
-type MenuKey = "파일" | "편집" | "보기" | "이동" | "도구" | "도움말";
-const MENU_LABELS: MenuKey[] = ["파일", "편집", "보기", "이동", "도구", "도움말"];
+type MenuKey = "파일" | "보기" | "이동" | "도움말";
+const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "도움말"];
 
 export function DesktopTopBar({ onOpenOverlay }: {
   onOpenOverlay: (kind: DesktopOverlayKind) => void;
@@ -70,7 +71,6 @@ export function DesktopTopBar({ onOpenOverlay }: {
       <span className={styles.menuDivider} />
       <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeOliviaDesktopWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기 <kbd>⌘W</kbd></button>
     </>;
-    if (openMenu === "편집") return <button type="button" disabled>편집 명령은 활성 앱에서 사용</button>;
     if (openMenu === "보기") return <>
       <button type="button" onClick={() => { toggleShowDesktop(); setOpenMenu(null); }}>바탕화면 보기</button>
       <button type="button" onClick={() => overlay("wallpaper")}>배경화면 변경</button>
@@ -79,12 +79,6 @@ export function DesktopTopBar({ onOpenOverlay }: {
       {getDockApps().map((app) => (
         <button type="button" key={app.id} onClick={() => launch(app.id)}>{app.title}</button>
       ))}
-    </>;
-    if (openMenu === "도구") return <>
-      <button type="button" onClick={() => launch("memo")}>메모 열기</button>
-      <button type="button" onClick={() => launch("today")}>오늘 열기</button>
-      <button type="button" onClick={() => launch("olivia-chat")}>Olivia 열기</button>
-      <button type="button" onClick={() => launch("all-apps")}>모든 앱</button>
     </>;
     return <button type="button" onClick={() => overlay("help")}>Olivia OS 사용법</button>;
   };
@@ -105,6 +99,7 @@ export function DesktopTopBar({ onOpenOverlay }: {
           ))}
         </div>
       </div>
+      <DesktopTopBarActions />
       <div className={styles.topBarRight}>
         <StatusPanelButton />
         {online !== null ? <span className={styles.topBarStatus} role="status" aria-label={online ? "온라인" : "오프라인"} title={online ? "온라인" : "오프라인"}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} /></span> : null}

@@ -8,6 +8,8 @@ import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
+import { OliviaMiniChat } from "./OliviaMiniChat";
+import { DesktopUtilityToast } from "./DesktopUtilityToast";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
@@ -160,7 +162,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   }, []);
 
   return (
-    <div className={styles.desktop} data-wallpaper={wallpaper}>
+    <div className={styles.desktop} data-wallpaper={wallpaper} data-olivia-desktop-root>
       {/* Wallpaper Asset Integration §24 — pseudo-element(::before/::after)는 stacking
           규칙상 다른 static 요소보다 위로 그려지는 버그를 한 번 만든 적이 있어서(Visual Polish
           Pass), 실제 배경 이미지 레이어부터는 진짜 DOM 엘리먼트로 분리해 그 문제 자체를 없앤다. */}
@@ -177,6 +179,8 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
         <DesktopDock onOpenOverlay={setOverlay} />
       </div>
       <DesktopGlobalSearch />
+      <OliviaMiniChat />
+      <DesktopUtilityToast />
       <PhotoTaskStatusBar />
       {contextMenu ? (
         <div className={styles.desktopContextMenuBackdrop} onPointerDown={() => setContextMenu(undefined)} onContextMenu={(event) => event.preventDefault()}>

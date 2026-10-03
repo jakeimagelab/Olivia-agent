@@ -7,6 +7,7 @@ import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { useOliviaChatModeStore } from "@/lib/store/useOliviaChatModeStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 
 // Olivia Agent 2.0 Phase 1 — OliviaPersistentChat.tsx에서 순수 추출한 플로팅 토글+드로어.
 // 워크스페이스로 등록되지 않은 일반 페이지(고객관리/일정 등)와 photo-sorting에서 쓴다. 어떤
@@ -19,6 +20,7 @@ export default function OliviaFloatingChatToggle() {
   const markUnread = useOliviaChatModeStore((state) => state.markUnread);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
   const messageCount = useOliviaConversationStore((state) => state.messages.length);
+  const desktopMiniChatOpen = useOliviaDesktopUtilityStore((state) => state.miniChatOpen);
   const wasStreamingRef = useRef(isStreaming);
 
   // 최소화된 상태에서 스트리밍이 끝나(=새 답변 도착) rail의 주황 점을 켠다.
@@ -36,6 +38,8 @@ export default function OliviaFloatingChatToggle() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isOpen, minimizeChat]);
+
+  if (desktopMiniChatOpen) return null;
 
   return (
     <>

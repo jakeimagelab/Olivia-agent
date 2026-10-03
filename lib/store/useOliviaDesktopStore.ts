@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { resolveSnapBounds, type SnapMode } from "@/components/olivia-os/window/snapZones";
 import { followDockedParent, type WindowDockLayout } from "@/components/olivia-os/window/windowDocking";
+import { calculateWindowTileBounds } from "@/lib/olivia/desktop/windowTiling";
 
 // OLIVIA OS Phase 0/1/2 — Desktop Shell의 Window Manager 상태. 기존 lib/store/*.ts 컨벤션(순수
 // zustand 싱글턴, 하위 폴더 없음)을 그대로 따른다. 기존 lib/store/workspaceStore.ts(Olivia Chat
@@ -73,6 +74,7 @@ export type OpenAppInput = {
 };
 
 type SnapBounds = { x: number; y: number; width: number; height: number };
+export type TiledWindowSnapshot = Record<string, { x: number; y: number; width: number; height: number }>;
 
 export function areWindowContextsEqual(left?: WindowContext, right?: WindowContext) {
   const leftContext = left ?? {};
@@ -95,6 +97,9 @@ type OliviaDesktopState = {
   // Show Desktop이 임시로 minimize한 창 id 목록 — 다시 누르면 정확히 이것만 복원한다(사용자가
   // 그 사이 개별적으로 최소화한 창까지 잘못 복원하지 않기 위해, 스펙 2-11).
   showDesktopStash: string[] | null;
+  // 바둑판 정리 전 자유 배치. 의도적으로 영속화하지 않는다: 새 세션에서 과거 화면을
+  // "되돌리기"로 복원하는 것은 현재 작업 영역과 충돌할 수 있다.
+  tiledSnapshot: TiledWindowSnapshot | null;
   workspaceWidth: number;
   workspaceHeight: number;
   openApp: (input: OpenAppInput) => void;
@@ -113,6 +118,8 @@ type OliviaDesktopState = {
   dockWindow: (childId: string, parentId: string, layout: WindowDockLayout) => void;
   undockWindow: (childId: string) => void;
   toggleShowDesktop: () => void;
+  tileWindows: () => void;
+  untileWindows: () => void;
   setWorkspaceSize: (width: number, height: number) => void;
   reconcileWorkspace: (width: number, height: number) => void;
 };
@@ -125,6 +132,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
   dragHint: null,
   dockHint: null,
   showDesktopStash: null,
+  tiledSnapshot: null,
   workspaceWidth: 0,
   workspaceHeight: 0,
 
@@ -175,6 +183,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
       activeWindowId: win.id,
       openCount: state.openCount + 1,
       nextZIndex: zIndex,
+      tiledSnapshot: null,
     }));
   },
 
@@ -191,7 +200,11 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     for (const [windowId, win] of Object.entries(rest)) {
       if (win.parentWindowId === id) rest[windowId] = { ...win, parentWindowId: undefined };
     }
-    return { windows: rest, activeWindowId: state.activeWindowId === id ? null : state.activeWindowId };
+    return {
+      windows: rest,
+      activeWindowId: state.activeWindowId === id ? null : state.activeWindowId,
+      tiledSnapshot: null,
+    };
   }),
 
   bringToFront: (id) => set((state) => {
@@ -220,7 +233,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const windows = { ...state.windows, [id]: { ...win, x, y } };
     const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
     if (child) windows[child.id] = { ...child, x: child.x + (x - win.x), y: child.y + (y - win.y) };
-    return { windows };
+    return { windows, tiledSnapshot: null };
   }),
 
   resizeWindow: (id, width, height) => set((state) => {
@@ -230,7 +243,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const windows = { ...state.windows, [id]: nextParent };
     const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
     if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
-    return { windows };
+    return { windows, tiledSnapshot: null };
   }),
 
   minimizeWindow: (id) => set((state) => {
@@ -270,7 +283,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const windows = { ...state.windows, [id]: nextParent };
     const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
     if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
-    return { windows };
+    return { windows, tiledSnapshot: null };
   }),
 
   unsnapWindow: (id) => set((state) => {
@@ -280,7 +293,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const windows = { ...state.windows, [id]: nextParent };
     const child = Object.values(state.windows).find((candidate) => candidate.parentWindowId === id);
     if (child) windows[child.id] = { ...child, ...followDockedParent(nextParent, child) };
-    return { windows };
+    return { windows, tiledSnapshot: null };
   }),
 
   setDragHint: (hint) => set({ dragHint: hint }),
@@ -298,13 +311,18 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
       },
       dockHint: null,
       dragHint: null,
+      tiledSnapshot: null,
     };
   }),
 
   undockWindow: (childId) => set((state) => {
     const child = state.windows[childId];
     if (!child?.parentWindowId) return state;
-    return { windows: { ...state.windows, [childId]: { ...child, parentWindowId: undefined } }, dockHint: null };
+    return {
+      windows: { ...state.windows, [childId]: { ...child, parentWindowId: undefined } },
+      dockHint: null,
+      tiledSnapshot: null,
+    };
   }),
 
   // Dock 첫 버튼(Home/Desktop) — 토글. 처음 누르면 지금 떠 있는 창들만 minimize하고 그 id를
@@ -324,15 +342,66 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     return { windows, showDesktopStash: idsToHide, activeWindowId: null };
   }),
 
+  // The public move/resize actions intentionally clear tiledSnapshot, so tiling and
+  // restoring update every window in one transaction. This prevents the layout
+  // operation itself from being mistaken for a user's manual adjustment.
+  tileWindows: () => {
+    const targets = Object.values(get().windows)
+      .filter((win) => !win.minimized)
+      .sort((left, right) => left.zIndex - right.zIndex);
+    if (targets.length === 0 || get().tiledSnapshot) return;
+
+    const snapshot: TiledWindowSnapshot = Object.fromEntries(targets.map((win) => [win.id, {
+      x: win.x,
+      y: win.y,
+      width: win.width,
+      height: win.height,
+    }]));
+
+    // A snapped window's previousBounds must be discarded before it participates
+    // in the grid. Calling the existing action keeps snap semantics centralized.
+    targets.forEach((win) => get().unsnapWindow(win.id));
+
+    const state = get();
+    const usableWidth = Math.max(320, state.workspaceWidth);
+    // DesktopSurface already starts below the top bar. Only the dock overlaps it.
+    const usableHeight = Math.max(240, state.workspaceHeight - DESKTOP_DOCK_SAFE_AREA);
+    const bounds = calculateWindowTileBounds(targets.length, usableWidth, usableHeight);
+    set((current) => {
+      const windows = { ...current.windows };
+      targets.forEach((target, index) => {
+        const currentWindow = windows[target.id];
+        const nextBounds = bounds[index];
+        if (!currentWindow || !nextBounds) return;
+        windows[target.id] = {
+          ...currentWindow,
+          ...nextBounds,
+          snapMode: "none",
+          previousBounds: undefined,
+        };
+      });
+      return { windows, tiledSnapshot: snapshot };
+    });
+  },
+
+  untileWindows: () => set((state) => {
+    if (!state.tiledSnapshot) return state;
+    const windows = { ...state.windows };
+    for (const [id, bounds] of Object.entries(state.tiledSnapshot)) {
+      const win = windows[id];
+      if (!win) continue;
+      windows[id] = { ...win, ...bounds, snapMode: "none", previousBounds: undefined };
+    }
+    return { windows, tiledSnapshot: null };
+  }),
+
   // DesktopSurface 크기가 바뀌어도(외부 모니터 해제, 맥북 화면 복귀 등) 창이 밖에 남지 않게
   // 한다. snap/maximize된 창은 저장된 픽셀을 못 믿고 새 WindowLayer 기준으로
   // 다시 계산하고, 떠 있는 창은 위치/크기만 clamp한다.
-  setWorkspaceSize: (width, height) => {
-    set({ workspaceWidth: width, workspaceHeight: height });
-    get().reconcileWorkspace(width, height);
-  },
+  setWorkspaceSize: (width, height) => get().reconcileWorkspace(width, height),
 
   reconcileWorkspace: (workspaceWidth, workspaceHeight) => set((state) => {
+    const workspaceChanged = state.workspaceWidth !== workspaceWidth || state.workspaceHeight !== workspaceHeight;
     let changed = false;
     const windows = { ...state.windows };
     for (const [id, win] of Object.entries(windows)) {
@@ -363,7 +432,13 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
       windows[id] = { ...win, ...followDockedParent(parent, win) };
       changed = true;
     }
-    return changed ? { windows } : state;
+    if (!changed && !workspaceChanged) return state;
+    return {
+      ...(changed ? { windows } : {}),
+      workspaceWidth,
+      workspaceHeight,
+      tiledSnapshot: workspaceChanged ? null : state.tiledSnapshot,
+    };
   }),
 }));
 
@@ -450,7 +525,7 @@ export function loadDesktopState(knownAppIds: Set<string>) {
 export function resetDesktopSession() {
   useOliviaDesktopStore.setState({
     windows: {}, activeWindowId: null, openCount: 0, nextZIndex: Z_BASE,
-    dragHint: null, dockHint: null, showDesktopStash: null,
+    dragHint: null, dockHint: null, showDesktopStash: null, tiledSnapshot: null,
   });
   if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
 }

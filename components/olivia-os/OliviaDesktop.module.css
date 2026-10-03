@@ -108,6 +108,7 @@
 
 .topBarLeft,
 .topBarRight,
+.topBarCenter,
 .menuBar,
 .topBarSearch,
 .topBarStatus {
@@ -119,6 +120,66 @@
   gap: 8px;
   min-width: 0;
 }
+
+.topBarCenter {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: center;
+  gap: 5px;
+}
+.topBarCenter[data-capturing] { visibility: hidden; }
+
+.topBarAction {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, .82);
+  cursor: pointer;
+}
+.topBarAction:hover:not(:disabled),
+.topBarAction:focus-visible {
+  border-color: rgba(255,255,255,.18);
+  background: rgba(255,255,255,.13);
+  color: #fff;
+  outline: 0;
+}
+.topBarActionActive {
+  border-color: rgba(106, 236, 203, .42);
+  background: rgba(80, 220, 181, .18);
+  color: #86f1cf;
+}
+.topBarAction:disabled { cursor: wait; opacity: .58; }
+.topBarActionTooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 2;
+  width: max-content;
+  max-width: 190px;
+  padding: 5px 7px;
+  border: 1px solid rgba(255,255,255,.6);
+  border-radius: 6px;
+  background: rgba(18, 49, 45, .96);
+  box-shadow: 0 8px 18px rgba(3, 30, 27, .22);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -4px);
+  transition: opacity .14s ease, transform .14s ease;
+  white-space: nowrap;
+}
+.topBarAction:hover .topBarActionTooltip,
+.topBarAction:focus-visible .topBarActionTooltip { opacity: 1; transform: translate(-50%, 0); }
 
 .topBarBrand {
   flex: 0 0 auto;
@@ -220,6 +281,149 @@
   flex: 0 0 auto;
   gap: 8px;
 }
+
+.desktopUtilityToast {
+  position: fixed;
+  z-index: 10100;
+  top: 68px;
+  left: 50%;
+  width: min(440px, calc(100vw - 32px));
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px 9px 12px;
+  border: 1px solid rgba(255,255,255,.72);
+  border-radius: 11px;
+  background: rgba(250,252,251,.98);
+  box-shadow: 0 14px 32px rgba(2,31,28,.24);
+  color: #1d4f47;
+  font-size: 12px;
+  font-weight: 650;
+  transform: translateX(-50%);
+}
+.desktopUtilityToast[data-tone="error"] { border-color: rgba(190,69,40,.35); background: #fff4ef; color: #9d3b28; }
+.desktopUtilityToast > span { min-width: 0; flex: 1; }
+.desktopUtilityToast > button { border: 0; border-radius: 6px; background: transparent; color: inherit; padding: 4px 5px; font: 700 10px/1 inherit; cursor: pointer; }
+.desktopUtilityToast > button:hover { background: rgba(21,88,85,.08); }
+
+.miniChat {
+  position: fixed;
+  z-index: 8500;
+  top: min(62dvh, calc(100dvh - 170px));
+  right: 18px;
+  width: 360px;
+  max-width: calc(100vw - 36px);
+  display: grid;
+  gap: 9px;
+  animation: mini-chat-in .18s cubic-bezier(.22, 1, .36, 1) both;
+}
+.miniChatResponse {
+  position: relative;
+  min-height: 52px;
+  padding: 13px 38px 10px 14px;
+  border: 1px solid rgba(255,255,255,.84);
+  border-radius: 14px;
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 14px 36px rgba(2,31,28,.22), inset 0 1px 0 #fff;
+  color: #1b3f38;
+}
+.miniChatResponse::after {
+  position: absolute;
+  right: 20px;
+  bottom: -6px;
+  width: 11px;
+  height: 11px;
+  border-right: 1px solid rgba(255,255,255,.84);
+  border-bottom: 1px solid rgba(255,255,255,.84);
+  background: #fff;
+  content: "";
+  transform: rotate(45deg);
+}
+.miniChatResponse p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.52;
+  overflow-wrap: anywhere;
+}
+.miniChatPromote {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #4f726b;
+  cursor: pointer;
+}
+.miniChatPromote:hover { background: #edf6f3; color: #155855; }
+.miniChatResponseMore {
+  position: relative;
+  z-index: 1;
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #177063;
+  font: 700 10px/1.3 inherit;
+  cursor: pointer;
+}
+.miniChatResponseMore:hover { color: #0d544b; text-decoration: underline; }
+.miniChatComposer {
+  min-height: 48px;
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  padding: 7px 8px 7px 13px;
+  border: 1px solid rgba(255,255,255,.62);
+  border-radius: 14px;
+  background: rgba(17,70,65,.94);
+  box-shadow: 0 16px 38px rgba(2,31,28,.28), inset 0 1px 0 rgba(255,255,255,.12);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+.miniChatComposer textarea {
+  min-width: 0;
+  max-height: 86px;
+  flex: 1;
+  resize: none;
+  padding: 8px 0;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #fff;
+  font: 520 12px/1.45 var(--font-sans);
+}
+.miniChatComposer textarea::placeholder { color: rgba(235,255,249,.64); }
+.miniChatSend {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: #72dfbd;
+  color: #0b4a43;
+  cursor: pointer;
+}
+.miniChatSend:hover:not(:disabled) { background: #9aefd3; }
+.miniChatSend:disabled { cursor: default; opacity: .45; }
+.miniChatSpinner { flex: 0 0 auto; margin: 0 1px 8px 0; color: #7ce2c3; animation: widget-spin .8s linear infinite; }
+@keyframes mini-chat-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: translateX(0); } }
 
 .desktopSearchOverlay {
   position: fixed;

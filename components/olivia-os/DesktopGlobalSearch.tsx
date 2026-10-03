@@ -8,6 +8,7 @@ import type { OliviaDocumentRef } from "@/lib/olivia/documents/types";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import styles from "./OliviaDesktop.module.css";
 
 type SearchPayload = {
@@ -19,9 +20,15 @@ type SearchPayload = {
 
 const EMPTY_RESULTS: SearchPayload = { customers: [], projects: [], tools: [], documents: [] };
 
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || Boolean(target.closest("input, textarea, [contenteditable='true']"));
+}
+
 export function DesktopGlobalSearch() {
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+  const open = useOliviaDesktopUtilityStore((state) => state.globalSearchOpen);
+  const setOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchPayload>(EMPTY_RESULTS);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -40,20 +47,27 @@ export function DesktopGlobalSearch() {
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (isEditableKeyboardTarget(event.target)) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
         setOpen(true);
-        window.requestAnimationFrame(() => {
-          inputRef.current?.focus();
-          inputRef.current?.select();
-        });
       } else if (event.key === "Escape") {
         setOpen(false);
       }
     };
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
-  }, []);
+  }, [setOpen]);
+
+  // The icon and the existing ⌘F listener both use the same open state. Focusing
+  // here means opening from either entry point behaves identically.
+  useEffect(() => {
+    if (!open) return;
+    window.requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
+  }, [open]);
 
   useEffect(() => {
     if (deferredQuery.length < 2) {
