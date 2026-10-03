@@ -57,9 +57,13 @@ node --import tsx scripts/video-interview-runner.ts --action analyze \
 - 출력: `OLIVIA_PHOTO_WORK_ROOT/<경로>/인터뷰분석/` — `analysis.json`, `전체자막.srt`, `대본.txt`, `Q&A정리.md`
 - 음성 분리: `--action extract-audio` → `OLIVIA_PHOTO_WORK_ROOT/<경로>/음성분리/*.wav` (24bit, 원본 샘플레이트)
 
-## 처리 시간 (M2 Ultra 기준 예상)
+## 처리 시간 (예상치)
 
-| 촬영 길이 | 음성 추출 | 음성 인식 | Claude 분석 |
-|---|---|---|---|
-| 30분 | ~1분 | 3~5분 | 1~2분 |
-| 1시간 | ~2분 | 6~10분 | 2~3분 |
+아래 수치는 촬영 음질, 파일 수, Whisper 모델 캐시와 네트워크 상태에 따라 달라지는 예상 범위다. 실측 보장값이 아니다.
+
+| 작업 컴퓨터 | 촬영 길이 | 음성 추출 | 음성 인식 | Claude 분석 |
+|---|---:|---:|---:|---:|
+| Mac Studio · M1 Max 64GB | 30분 | 약 1분 | 약 4~7분 | 약 1~2분 |
+| Mac Studio · M1 Max 64GB | 1시간 | 약 2분 | 약 8~14분 | 약 2~3분 |
+| MacBook Pro · M2 Max 32GB | 30분 | 약 1분 | 약 3~6분 | 약 1~2분 |
+| MacBook Pro · M2 Max 32GB | 1시간 | 약 2분 | 약 7~12분 | 약 2~3분 |

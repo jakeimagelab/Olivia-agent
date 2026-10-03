@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await getSupabaseAdmin()
       .from("remote_jobs")
-      .select("id,action,payload,status,progress,message,error,created_at,started_at,completed_at")
+      .select("id,action,payload,target_worker,status,progress,message,error,created_at,started_at,completed_at")
       .in("action", actions)
       .order("created_at", { ascending: false })
       .limit(40);

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { isAuthorizedWorker } from "@/lib/remoteWorkerAuth";
+import { authorizeWorker } from "@/lib/remoteWorkerAuth";
 import {
   ensurePhotoStorageEvent,
   isInternalPhotoStorageRequest,
@@ -18,7 +18,7 @@ const REPORTABLE_STATUSES = new Set<PhotoProjectStatus>(["READY", "REVIEW_REQUIR
 export async function POST(request: NextRequest) {
   // Mac Studio Watcher는 기존 Worker Token 인증을 사용한다.
   // 구버전 Watcher와의 점진적 전환을 위해 기존 internal-key 헤더도 fallback으로 허용한다.
-  if (!isAuthorizedWorker(request) && !isInternalPhotoStorageRequest(request)) {
+  if (!authorizeWorker(request) && !isInternalPhotoStorageRequest(request)) {
     return Response.json({ ok: false, error: "Unauthorized photo watcher" }, { status: 401 });
   }
 

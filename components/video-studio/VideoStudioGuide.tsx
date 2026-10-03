@@ -10,7 +10,7 @@ type Step = { icon: LucideIcon; title: string; description: string };
 const SETUP: Step[] = [
   { icon: FolderOpen, title: "촬영 폴더 선택", description: "NAS에서 인터뷰 촬영본이 있는 폴더를 고릅니다." },
   { icon: MessageCircle, title: "촬영 정보 입력", description: "병원명·인물·주제를 적으면 인식과 정리가 정확해집니다." },
-  { icon: Sparkles, title: "자동 분석", description: "전사 → Q&A 분리 → 핵심 정리 → 릴스 추천까지 Mac Studio가 처리합니다." },
+  { icon: Sparkles, title: "자동 분석", description: "전사 → Q&A 분리 → 핵심 정리 → 릴스 추천까지 선택한 작업 컴퓨터가 처리합니다." },
   { icon: FileDown, title: "프리미어로 보내기", description: "Q&A 마커가 찍힌 시퀀스를 프리미어에서 엽니다." },
 ];
 const RESULT: Step[] = [
@@ -70,7 +70,7 @@ export default function VideoStudioGuide({
             onChange={(event) => onEditRootChange(event.target.value)}
             placeholder={result?.sourceAbsoluteRoot ?? "/Volumes/Workstation(M.2SSD)"}
           />
-          <small>Mac Studio가 아닌 다른 맥에서 편집하면, 그 맥에 마운트된 같은 NAS 경로를 적어주세요. 비워두면 Mac Studio 경로({result?.sourceAbsoluteRoot ?? "SOURCE_ROOT"})를 씁니다. 경로가 달라도 프리미어에서 파일 하나만 다시 연결하면 나머지는 자동으로 찾습니다.</small>
+          <small>Mac Studio가 아닌 다른 맥에서 편집하면, 그 맥에 마운트된 같은 NAS 경로를 적어주세요. 맥북에서 분석한 경우 비워두세요. 비워두면 분석한 컴퓨터의 경로({result?.sourceAbsoluteRoot ?? "SOURCE_ROOT"})를 씁니다. 경로가 달라도 프리미어에서 파일 하나만 다시 연결하면 나머지는 자동으로 찾습니다.</small>
         </div>
       ) : null}
       {tab === "interview" && !result ? (

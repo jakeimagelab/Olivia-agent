@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
-import { AudioLines, MessagesSquare, Newspaper, PanelRightClose, PanelRightOpen, Server, Smartphone } from "lucide-react";
+import { AudioLines, Laptop, MessagesSquare, Newspaper, PanelRightClose, PanelRightOpen, Server, Smartphone } from "lucide-react";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import photoStyles from "@/components/photo-workspace/PhotoWorkspace.module.css";
 import tabStyles from "@/components/photo-workspace/PhotoWorkspaceTabs.module.css";
@@ -12,7 +12,18 @@ import InterviewAnalysisPanel from "./InterviewAnalysisPanel";
 import ReelsPanel from "./ReelsPanel";
 import VideoStudioGuide, { type VideoStudioTab } from "./VideoStudioGuide";
 import WebzinePanel from "./WebzinePanel";
-import { EDIT_ROOT_KEY, useReelEdits, useStoredText, useVideoStudioJobs } from "./useVideoStudio";
+import {
+  EDIT_ROOT_KEY,
+  MACBOOK_PRO_WORKER_ID,
+  MAC_STUDIO_WORKER_ID,
+  useReelEdits,
+  useStoredText,
+  useVideoStudioJobs,
+  useVideoStudioWorkers,
+  videoStudioWorkerLabel,
+  type VideoStudioWorkerId,
+  type VideoStudioWorkerPresence,
+} from "./useVideoStudio";
 import styles from "./VideoStudio.module.css";
 
 const TABS: Array<{ value: VideoStudioTab; label: string; title: string; icon: ReactElement }> = [
@@ -24,6 +35,45 @@ const TABS: Array<{ value: VideoStudioTab; label: string; title: string; icon: R
 
 const SELECTED_KEY = "olivia.video-studio.selected-job";
 
+function WorkerSelector({
+  value,
+  workers,
+  onChange,
+}: {
+  value: VideoStudioWorkerId;
+  workers: Record<string, VideoStudioWorkerPresence>;
+  onChange: (workerId: VideoStudioWorkerId) => void;
+}) {
+  const options: Array<{ id: VideoStudioWorkerId; icon: ReactElement }> = [
+    { id: MAC_STUDIO_WORKER_ID, icon: <Server size={15} aria-hidden="true" /> },
+    { id: MACBOOK_PRO_WORKER_ID, icon: <Laptop size={15} aria-hidden="true" /> },
+  ];
+  return (
+    <div className={styles.workerChooser}>
+      <span className={styles.workerChooserLabel}>실행할 컴퓨터</span>
+      <div className={styles.workerSegments} role="radiogroup" aria-label="영상 작업 실행 컴퓨터">
+        {options.map((option) => {
+          const online = workers[option.id]?.online;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={value === option.id}
+              className={styles.workerSegment}
+              onClick={() => onChange(option.id)}
+            >
+              {option.icon}
+              {videoStudioWorkerLabel(option.id)}
+              <i data-state={online === true ? "online" : online === false ? "offline" : "unknown"} aria-label={online === true ? "온라인" : online === false ? "오프라인" : "상태 확인 중"} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function VideoStudio() {
   const contentRef = useRef<HTMLElement>(null);
   const [compact, setCompact] = useState(false);
@@ -31,8 +81,9 @@ export default function VideoStudio() {
   const [tab, setTab] = useState<VideoStudioTab>("interview");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const { executionMode, setExecutionMode, workerPresence } = usePhotoStudioExecution();
+  const { executionMode, setExecutionMode } = usePhotoStudioExecution();
   const { jobs, error, results, loadResult, startJob } = useVideoStudioJobs();
+  const { workerId, selectWorker, workers, selectedPresence } = useVideoStudioWorkers();
   const [editRoot, setEditRoot] = useStoredText(EDIT_ROOT_KEY);
   const { edits, update: updateEdits } = useReelEdits(selectedId);
 
@@ -84,9 +135,9 @@ export default function VideoStudio() {
         <div className={styles.notice}>
           <Server size={16} style={{ flex: "none", marginTop: 2 }} />
           <span>
-            영상작업실은 음성 인식과 분석을 Mac Studio에서 실행합니다. 촬영본이 NAS에 있으면 이 기기에는 아무것도 내려받지 않아요.
+            영상작업실은 음성 인식과 분석을 선택한 작업 컴퓨터에서 실행합니다. 촬영본은 브라우저로 전송하지 않아요.
             <br />
-            <button type="button" className={photoStyles.secondaryButton} style={{ marginTop: 12 }} onClick={() => setExecutionMode("REMOTE_WORKER")}>Mac Studio 원격 작업으로 전환</button>
+            <button type="button" className={photoStyles.secondaryButton} style={{ marginTop: 12 }} onClick={() => setExecutionMode("REMOTE_WORKER")}>원격 작업으로 전환</button>
           </span>
         </div>
       </div>
@@ -111,7 +162,8 @@ export default function VideoStudio() {
         jobs={audioJobs}
         results={results}
         loadResult={loadResult}
-        onStart={(payload) => startJob("VIDEO_AUDIO_EXTRACT", payload)}
+        targetWorker={workerId}
+        onStart={(payload) => startJob("VIDEO_AUDIO_EXTRACT", payload, workerId)}
       />
     );
   } else {
@@ -122,8 +174,9 @@ export default function VideoStudio() {
         result={result}
         edits={edits}
         editRoot={editRoot}
+        targetWorker={workerId}
         onSelect={select}
-        onStart={async (payload) => select(await startJob("VIDEO_INTERVIEW_ANALYZE", payload))}
+        onStart={async (payload) => select(await startJob("VIDEO_INTERVIEW_ANALYZE", payload, workerId))}
         notify={notify}
       />
     );
@@ -141,8 +194,8 @@ export default function VideoStudio() {
           />
         </div>
         {error ? <p className={styles.error} style={{ marginBottom: 12 }}>{error}</p> : null}
-        {remote && workerPresence.online === false ? (
-          <p className={styles.error} style={{ marginBottom: 12 }}>Mac Studio가 오프라인입니다. 분석 요청은 대기열에 들어가고, Mac Studio가 켜지면 시작됩니다.</p>
+        {remote && selectedPresence?.online === false ? (
+          <p className={styles.error} style={{ marginBottom: 12 }}>{videoStudioWorkerLabel(workerId)}가 오프라인입니다. 분석 요청은 대기열에 들어가고, 해당 컴퓨터가 켜지면 시작됩니다.</p>
         ) : null}
         {compact ? (
           <button type="button" className={photoStyles.guideToggle} aria-expanded={guideOpen} onClick={() => setGuideOpen((open) => !open)}>
@@ -152,6 +205,9 @@ export default function VideoStudio() {
         ) : null}
         <div className={`${photoStyles.workspaceGrid} ${compact ? photoStyles.workspaceGridCompact : ""}`}>
           <section className={photoStyles.workPanel} role="tabpanel" id={`video-studio-panel-${tab}`} aria-labelledby={`video-studio-tab-${tab}`}>
+            {remote && (tab === "interview" || tab === "audio") ? (
+              <WorkerSelector value={workerId} workers={workers} onChange={selectWorker} />
+            ) : null}
             {body}
           </section>
           {!compact || guideOpen ? <VideoStudioGuide tab={tab} result={tab === "interview" || tab === "reels" ? result : null} editRoot={editRoot} onEditRootChange={setEditRoot} /> : null}

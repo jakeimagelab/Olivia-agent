@@ -7,7 +7,7 @@ import photoStyles from "@/components/photo-workspace/PhotoWorkspace.module.css"
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import type { VideoAudioExtractResult } from "@/lib/video-interview/types";
 import { JobList, JobProgress } from "./InterviewAnalysisPanel";
-import type { VideoStudioJob } from "./useVideoStudio";
+import { videoStudioWorkerLabel, type VideoStudioJob } from "./useVideoStudio";
 import styles from "./VideoStudio.module.css";
 
 const formatSize = (bytes: number) => (bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(2)}GB` : `${Math.round(bytes / 1024 ** 2)}MB`);
@@ -16,11 +16,13 @@ export default function AudioExtractPanel({
   jobs,
   results,
   loadResult,
+  targetWorker,
   onStart,
 }: {
   jobs: VideoStudioJob[];
   results: Record<string, unknown>;
   loadResult: (jobId: string) => Promise<void>;
+  targetWorker: string;
   onStart: (payload: { source_relative_path: string }) => Promise<string>;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -34,6 +36,11 @@ export default function AudioExtractPanel({
   useEffect(() => {
     if (open?.status === "COMPLETED" && !result) void loadResult(open.id).catch(() => undefined);
   }, [open, result, loadResult]);
+
+  useEffect(() => {
+    setSelection(null);
+    setPickerOpen(false);
+  }, [targetWorker]);
 
   const start = async () => {
     if (!selection?.path) return;
@@ -53,7 +60,7 @@ export default function AudioExtractPanel({
       <p className={styles.panelIntro}>촬영 폴더의 영상마다 음성만 원음 그대로(WAV 24bit) 뽑아 작업 디스크의 <b>음성분리</b> 폴더에 저장합니다. 노이즈 제거·음성 보정용으로 쓰세요.</p>
       <h3 className={styles.sectionTitle}><span>1.</span>촬영 폴더 선택</h3>
       <div className={photoStyles.folderRow}>
-        <span className={photoStyles.folderState}><FolderOpen size={18} />{selection ? selection.displayPath || "Workstation 최상위" : "폴더가 선택되지 않았습니다."}</span>
+        <span className={photoStyles.folderState}><FolderOpen size={18} />{selection ? selection.displayPath || `${videoStudioWorkerLabel(targetWorker)} 최상위` : "폴더가 선택되지 않았습니다."}</span>
         <button type="button" className={photoStyles.secondaryButton} onClick={() => setPickerOpen(true)}>폴더 선택</button>
       </div>
       {error ? <p className={styles.error}>{error}</p> : null}
@@ -80,7 +87,7 @@ export default function AudioExtractPanel({
 
       <h3 className={styles.sectionTitle}>최근 음성 분리</h3>
       <JobList jobs={jobs} onOpen={(job) => setOpenId(job.id)} empty="아직 음성 분리 작업이 없습니다." />
-      {pickerOpen ? <PhotoSourcePicker onCancel={() => setPickerOpen(false)} onSelectRemote={(next) => { setSelection(next); setPickerOpen(false); }} /> : null}
+      {pickerOpen ? <PhotoSourcePicker targetWorker={targetWorker} onCancel={() => setPickerOpen(false)} onSelectRemote={(next) => { setSelection(next); setPickerOpen(false); }} /> : null}
     </div>
   );
 }

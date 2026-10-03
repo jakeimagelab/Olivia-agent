@@ -63,6 +63,36 @@ describe("Remote Worker NAS data source", () => {
     expect(result.entries[0]?.path).not.toBe(result.entries[0]?.displayPath);
   });
 
+  it("routes LIST_FOLDER through the selected worker", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: { id: "018e2f30-92af-78b1-8f21-67f4404f5027", action: "LIST_FOLDER", status: "QUEUED" },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: {
+          id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+          action: "LIST_FOLDER",
+          status: "COMPLETED",
+          result: { ok: true, root: "Workstation(M.2SSD)", path: "", entries: [] },
+        },
+      }));
+    const source = createRemoteWorkerNasDataSource({
+      fetcher,
+      pollIntervalMs: 0,
+      targetWorker: "jake-macbookpro-01",
+    });
+
+    await source.listRoot({ foldersOnly: true });
+
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      action: "LIST_FOLDER",
+      payload: { root: true, folders_only: true },
+      target_worker: "jake-macbookpro-01",
+    });
+  });
+
   it("stops before creating a job when already aborted", async () => {
     const fetcher = vi.fn<typeof fetch>();
     const source = createRemoteWorkerNasDataSource({ fetcher });

@@ -177,6 +177,16 @@ function runner(repoRoot: string, scriptName: string, args: string[]): RunnerInv
   };
 }
 
+function videoRunner(repoRoot: string, args: string[]): RunnerInvocation {
+  const invocation = runner(repoRoot, "video-interview-runner.ts", args);
+  if (process.platform !== "darwin") return invocation;
+  return {
+    command: "/usr/bin/caffeinate",
+    args: ["-i", invocation.command, ...invocation.args],
+    cwd: invocation.cwd,
+  };
+}
+
 /** 서버 job payload를 검증된 기존 runner CLI 인자로만 변환한다. */
 export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string): RunnerInvocation | null {
   const payload = job.payload;
@@ -252,11 +262,11 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       addString(args, "--action", "analyze");
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
       addString(args, "--context", stringValue(payload, "context"));
-      return runner(repoRoot, "video-interview-runner.ts", args);
+      return videoRunner(repoRoot, args);
     case "VIDEO_AUDIO_EXTRACT":
       addString(args, "--action", "extract-audio");
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
-      return runner(repoRoot, "video-interview-runner.ts", args);
+      return videoRunner(repoRoot, args);
     case "PING":
     case "COPY_TEST":
     case "LIST_FOLDER":

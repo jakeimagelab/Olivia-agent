@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, Copy, FileDown, FolderOpen, Play, Search, Sparkles } from "lucide-react";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import photoStyles from "@/components/photo-workspace/PhotoWorkspace.module.css";
@@ -9,7 +9,7 @@ import { formatClock, locateInClip, secondsToTimecode } from "@/lib/video-interv
 import { BLOG_CATEGORY_LABEL, CONTENT_TYPE_LABEL, type QaBlock, type VideoInterviewResult } from "@/lib/video-interview/types";
 import type { MarkerKind, MarkerOptions } from "@/lib/video-interview/exporters";
 import { exportInterview, type ExportKind } from "./exportPlan";
-import { copyText, isActiveJob, jobFolderName, jobPercent, type ReelEdits, type VideoStudioJob } from "./useVideoStudio";
+import { copyText, isActiveJob, jobFolderName, jobPercent, videoStudioWorkerLabel, type ReelEdits, type VideoStudioJob } from "./useVideoStudio";
 import styles from "./VideoStudio.module.css";
 
 const STATUS_LABEL: Record<string, string> = { QUEUED: "대기 중", RUNNING: "분석 중", COMPLETED: "완료", FAILED: "실패", CANCELLED: "취소됨" };
@@ -26,7 +26,10 @@ export function JobList({ jobs, onOpen, empty }: { jobs: VideoStudioJob[]; onOpe
             <strong>{jobFolderName(job)}</strong>
             <small>{dateFormat.format(new Date(job.created_at))}{job.payload?.context ? ` · ${job.payload.context}` : ""}{isActiveJob(job) ? ` · ${jobPercent(job)}%` : ""}</small>
           </span>
-          <span className={styles.status} data-state={job.status}>{STATUS_LABEL[job.status] ?? job.status}</span>
+          <span className={styles.jobMeta}>
+            <span className={styles.workerBadge}>{videoStudioWorkerLabel(job.target_worker)}</span>
+            <span className={styles.status} data-state={job.status}>{STATUS_LABEL[job.status] ?? job.status}</span>
+          </span>
         </button>
       ))}
     </div>
@@ -40,11 +43,11 @@ export function JobProgress({ job }: { job: VideoStudioJob }) {
     <div className={`${styles.card} ${styles.progressCard}`}>
       <div className={styles.progressTop}>
         <strong>{jobFolderName(job)}</strong>
-        <span>{failed ? STATUS_LABEL[job.status] : `${percent}%`}</span>
+        <span>{videoStudioWorkerLabel(job.target_worker)} · {failed ? STATUS_LABEL[job.status] : `${percent}%`}</span>
       </div>
       {!failed ? <div className={styles.progressBar}><i style={{ width: `${percent}%` }} /></div> : null}
       <p className={styles.progressMessage}>
-        {failed ? job.error || job.message || "작업이 실패했습니다." : job.progress?.message || (job.status === "QUEUED" ? "Mac Studio가 작업을 받기를 기다리는 중입니다." : "준비 중")}
+        {failed ? job.error || job.message || "작업이 실패했습니다." : job.progress?.message || (job.status === "QUEUED" ? `${videoStudioWorkerLabel(job.target_worker)}가 작업을 받기를 기다리는 중입니다.` : "준비 중")}
       </p>
     </div>
   );
@@ -56,6 +59,7 @@ export default function InterviewAnalysisPanel({
   result,
   edits,
   editRoot,
+  targetWorker,
   onSelect,
   onStart,
   notify,
@@ -65,6 +69,7 @@ export default function InterviewAnalysisPanel({
   result: VideoInterviewResult | null;
   edits: ReelEdits;
   editRoot: string;
+  targetWorker: string;
   onSelect: (jobId: string | null) => void;
   onStart: (payload: { source_relative_path: string; context: string }) => Promise<void>;
   notify: (message: string) => void;
@@ -76,19 +81,24 @@ export default function InterviewAnalysisPanel({
         <button type="button" className={styles.backLink} onClick={() => onSelect(null)}><ChevronLeft size={13} style={{ verticalAlign: -2 }} /> 새 분석 · 최근 목록</button>
         <JobProgress job={selectedJob} />
         {selectedJob.status === "COMPLETED" ? <p className={styles.hint}>결과를 불러오는 중…</p> : null}
-        {isActiveJob(selectedJob) ? <p className={styles.hint}>창을 닫아도 Mac Studio에서 계속 진행됩니다. 1시간 촬영 기준 10~15분 정도 걸립니다.</p> : null}
+        {isActiveJob(selectedJob) ? <p className={styles.hint}>창을 닫아도 {videoStudioWorkerLabel(selectedJob.target_worker)}에서 계속 진행됩니다. 처리 시간은 촬영 길이와 컴퓨터 상태에 따라 달라집니다.</p> : null}
       </div>
     );
   }
-  return <SetupView jobs={jobs} onOpen={(job) => onSelect(job.id)} onStart={onStart} />;
+  return <SetupView jobs={jobs} targetWorker={targetWorker} onOpen={(job) => onSelect(job.id)} onStart={onStart} />;
 }
 
-function SetupView({ jobs, onOpen, onStart }: { jobs: VideoStudioJob[]; onOpen: (job: VideoStudioJob) => void; onStart: (payload: { source_relative_path: string; context: string }) => Promise<void> }) {
+function SetupView({ jobs, targetWorker, onOpen, onStart }: { jobs: VideoStudioJob[]; targetWorker: string; onOpen: (job: VideoStudioJob) => void; onStart: (payload: { source_relative_path: string; context: string }) => Promise<void> }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selection, setSelection] = useState<RemoteNasSelection | null>(null);
   const [context, setContext] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelection(null);
+    setPickerOpen(false);
+  }, [targetWorker]);
 
   const start = async () => {
     if (!selection?.path) return setError("촬영 폴더를 먼저 선택해 주세요.");
@@ -109,7 +119,7 @@ function SetupView({ jobs, onOpen, onStart }: { jobs: VideoStudioJob[]; onOpen: 
 
       <h3 className={styles.sectionTitle}><span>1.</span>촬영 폴더 선택</h3>
       <div className={photoStyles.folderRow}>
-        <span className={photoStyles.folderState}><FolderOpen size={18} />{selection ? selection.displayPath || "Workstation 최상위" : "폴더가 선택되지 않았습니다."}</span>
+        <span className={photoStyles.folderState}><FolderOpen size={18} />{selection ? selection.displayPath || `${videoStudioWorkerLabel(targetWorker)} 최상위` : "폴더가 선택되지 않았습니다."}</span>
         <button type="button" className={photoStyles.secondaryButton} onClick={() => setPickerOpen(true)}>폴더 선택</button>
       </div>
       <p className={styles.hint}>여러 파일로 나뉜 촬영본(C0001, C0002…)은 파일명 순서대로 이어서 하나의 인터뷰로 분석합니다.</p>
@@ -134,7 +144,7 @@ function SetupView({ jobs, onOpen, onStart }: { jobs: VideoStudioJob[]; onOpen: 
       <h3 className={styles.sectionTitle}>최근 분석</h3>
       <JobList jobs={jobs} onOpen={onOpen} empty="아직 분석한 촬영이 없습니다." />
 
-      {pickerOpen ? <PhotoSourcePicker onCancel={() => setPickerOpen(false)} onSelectRemote={(next) => { setSelection(next); setPickerOpen(false); }} /> : null}
+      {pickerOpen ? <PhotoSourcePicker targetWorker={targetWorker} onCancel={() => setPickerOpen(false)} onSelectRemote={(next) => { setSelection(next); setPickerOpen(false); }} /> : null}
     </div>
   );
 }

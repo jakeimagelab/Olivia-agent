@@ -1,8 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
-  getConfiguredWorkerId,
-  isAuthorizedWorker,
+  authorizeWorker,
 } from "@/lib/remoteWorkerAuth";
 import { parseRemoteJobProgress } from "@/lib/remote-jobs/progress";
 import { syncPhotoMergeProject } from "@/lib/photo-storage/mergeSync";
@@ -80,7 +79,8 @@ async function syncPhotoLifecycle(
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorizedWorker(request)) {
+  const workerId = authorizeWorker(request);
+  if (!workerId) {
     return Response.json(
       { ok: false, error: "Unauthorized worker" },
       { status: 401 }
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
         .from("remote_jobs")
         .select("id,status,action,payload")
         .eq("id", jobId)
-        .eq("target_worker", getConfiguredWorkerId())
+        .eq("target_worker", workerId)
         .eq("status", "RUNNING")
         .maybeSingle();
       if (runningJobError) throw runningJobError;
@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
       .from("remote_jobs")
       .update(updateData)
       .eq("id", jobId)
-      .eq("target_worker", getConfiguredWorkerId())
+      .eq("target_worker", workerId)
       .eq("status", "RUNNING")
         .select("id,status,action,payload")
       .maybeSingle();
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
     const { error: heartbeatError } = await supabase
       .from("remote_workers")
       .upsert({
-        worker_id: getConfiguredWorkerId(),
+        worker_id: workerId,
         last_seen_at: now,
         worker_status: status === "RUNNING" ? "busy" : "idle",
         updated_at: now,

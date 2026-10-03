@@ -47,6 +47,7 @@ required_runners=(
   scripts/photo-resize-runner.ts
   scripts/photo-ai-select-runner.ts
   scripts/photo-retouch-runner.ts
+  scripts/video-interview-runner.ts
 )
 for runner in "${required_runners[@]}"; do
   if [[ ! -f "$REPO_ROOT/$runner" ]]; then

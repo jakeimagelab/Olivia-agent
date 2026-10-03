@@ -106,6 +106,21 @@ describe("Mac Studio Worker repository scripts", () => {
     ]));
   });
 
+  it("keeps macOS awake while the video interview runner is active", () => {
+    const invocation = createRunnerInvocation(job("VIDEO_INTERVIEW_ANALYZE", {
+      source_relative_path: "1004_인터뷰",
+      context: "원장 인터뷰",
+    }), repoRoot);
+
+    expect(invocation?.args).toContain(path.join(repoRoot, "scripts/video-interview-runner.ts"));
+    if (process.platform === "darwin") {
+      expect(invocation?.command).toBe("/usr/bin/caffeinate");
+      expect(invocation?.args.slice(0, 2)).toEqual(["-i", process.execPath]);
+    } else {
+      expect(invocation?.command).toBe(process.execPath);
+    }
+  });
+
   it("keeps the PHASE 6 action contract visible in both installed shell entrypoints", async () => {
     for (const script of ["worker.sh", "remote-bridge.sh"]) {
       const source = await readFile(path.join(repoRoot, "ops/mac-studio/bin", script), "utf8");
@@ -135,6 +150,7 @@ describe("Mac Studio Worker repository scripts", () => {
     expect(worker).toContain("x-olivia-worker-rev");
     expect(installer).toContain("installed-rev");
     expect(installer).toContain("git -C \"$REPO_ROOT\" rev-parse HEAD");
+    expect(installer).toContain("scripts/video-interview-runner.ts");
   });
 
   it("makes resident NAS watcher startup failures visible and terminal", async () => {

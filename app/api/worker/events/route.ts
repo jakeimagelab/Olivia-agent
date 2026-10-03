@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
-import { isAuthorizedWorker } from "@/lib/remoteWorkerAuth";
+import { authorizeWorker } from "@/lib/remoteWorkerAuth";
 import { registerDetectedPhotoProject } from "@/lib/photo-storage/shootingProgress";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,8 @@ function optionalString(value: unknown): string | undefined {
 
 // Mac Studio nas-backup-watcher.ts가 감지한 BACKUP_READY 이벤트를 기록한다(§8).
 export async function POST(request: NextRequest) {
-  if (!isAuthorizedWorker(request)) {
+  const authenticatedWorkerId = authorizeWorker(request);
+  if (!authenticatedWorkerId) {
     return Response.json({ ok: false, error: "Unauthorized worker" }, { status: 401 });
   }
 
@@ -40,6 +41,9 @@ export async function POST(request: NextRequest) {
   }
   if (!ALLOWED_SOURCES.has(source)) {
     return Response.json({ ok: false, error: "지원하지 않는 source입니다." }, { status: 400 });
+  }
+  if (workerId !== authenticatedWorkerId) {
+    return Response.json({ ok: false, error: "인증된 Worker와 workerId가 일치하지 않습니다." }, { status: 403 });
   }
 
   // §8 "중복 이벤트가 생성되지 않도록 eventKey 또는 idempotency key를 적용" — workerId+folderName+

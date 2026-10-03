@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { isAuthorizedWorker } from "@/lib/remoteWorkerAuth";
+import { authorizeWorker } from "@/lib/remoteWorkerAuth";
 import { hermesPhotoBrain } from "@/lib/photo-classifier/brain/hermesPhotoBrain";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { SceneAiImage } from "@/lib/photo-classifier/server/sceneAi";
@@ -55,7 +55,7 @@ function parseImages(value: unknown): SceneAiImage[] {
 }
 
 export async function POST(request: NextRequest) {
-  if (!isAuthorizedWorker(request)) {
+  if (!authorizeWorker(request)) {
     return Response.json({ ok: false, error: "Unauthorized worker" }, { status: 401 });
   }
 

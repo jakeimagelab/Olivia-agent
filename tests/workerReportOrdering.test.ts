@@ -5,6 +5,8 @@ const state = vi.hoisted(() => ({
   operations: [] as string[],
   action: "PHOTO_CLASSIFY_WORK",
   syncError: false,
+  authorizedWorker: "test-worker",
+  jobWorker: "test-worker",
 }));
 
 async function recordProjectSync() {
@@ -13,17 +15,20 @@ async function recordProjectSync() {
 }
 
 function filterResult(row: Record<string, unknown>) {
+  let targetWorker: string | null = null;
   const filter = {
-    eq: () => filter,
+    eq: (column: string, value: unknown) => {
+      if (column === "target_worker" && typeof value === "string") targetWorker = value;
+      return filter;
+    },
     select: () => filter,
-    maybeSingle: async () => ({ data: row, error: null }),
+    maybeSingle: async () => ({ data: targetWorker && targetWorker !== state.jobWorker ? null : row, error: null }),
   };
   return filter;
 }
 
 vi.mock("@/lib/remoteWorkerAuth", () => ({
-  isAuthorizedWorker: () => true,
-  getConfiguredWorkerId: () => "test-worker",
+  authorizeWorker: () => state.authorizedWorker,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -90,6 +95,8 @@ beforeEach(() => {
   state.operations.length = 0;
   state.action = "PHOTO_CLASSIFY_WORK";
   state.syncError = false;
+  state.authorizedWorker = "test-worker";
+  state.jobWorker = "test-worker";
 });
 
 describe("POST /api/worker/report photo lifecycle ordering", () => {
@@ -125,5 +132,14 @@ describe("POST /api/worker/report photo lifecycle ordering", () => {
 
     expect(response.status).toBe(500);
     expect(state.operations).toEqual(["photo-project-sync"]);
+  });
+
+  it("rejects a report for a job owned by another worker", async () => {
+    state.authorizedWorker = "other-worker";
+
+    const response = await report("COMPLETED");
+
+    expect(response.status).toBe(404);
+    expect(state.operations).toEqual([]);
   });
 });

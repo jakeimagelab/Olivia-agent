@@ -4,11 +4,32 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { VideoAudioExtractResult, VideoInterviewResult } from "@/lib/video-interview/types";
 
 export type VideoStudioAction = "VIDEO_INTERVIEW_ANALYZE" | "VIDEO_AUDIO_EXTRACT";
+export const MAC_STUDIO_WORKER_ID = "jake-macstudio-01";
+export const MACBOOK_PRO_WORKER_ID = "jake-macbookpro-01";
+export const VIDEO_STUDIO_WORKER_KEY = "olivia.video-studio.worker";
+export type VideoStudioWorkerId = typeof MAC_STUDIO_WORKER_ID | typeof MACBOOK_PRO_WORKER_ID;
+
+export type VideoStudioWorkerPresence = {
+  id: string;
+  online: boolean | null;
+  last_seen_at: string | null;
+  worker_status: string | null;
+  nas_connected: boolean | null;
+};
+
+export function videoStudioWorkerLabel(workerId: string): string {
+  return workerId === MACBOOK_PRO_WORKER_ID ? "MacBook Pro" : "Mac Studio";
+}
+
+function isVideoStudioWorkerId(value: string | null): value is VideoStudioWorkerId {
+  return value === MAC_STUDIO_WORKER_ID || value === MACBOOK_PRO_WORKER_ID;
+}
 
 export type VideoStudioJob = {
   id: string;
   action: VideoStudioAction;
   payload: { source_relative_path?: string; context?: string } | null;
+  target_worker: string;
   status: string;
   progress: { stage?: string; current?: number; total?: number; message?: string } | null;
   message: string | null;
@@ -18,6 +39,49 @@ export type VideoStudioJob = {
 };
 
 export const isActiveJob = (job: Pick<VideoStudioJob, "status"> | null | undefined) => job?.status === "QUEUED" || job?.status === "RUNNING";
+
+export function useVideoStudioWorkers() {
+  const [workerId, setWorkerId] = useState<VideoStudioWorkerId>(MAC_STUDIO_WORKER_ID);
+  const [workers, setWorkers] = useState<Record<string, VideoStudioWorkerPresence>>({});
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(VIDEO_STUDIO_WORKER_KEY);
+      if (isVideoStudioWorkerId(stored)) setWorkerId(stored);
+    } catch (error) {
+      console.error("[OLIVIA] Suppressed error", error);
+    }
+  }, []);
+
+  const selectWorker = useCallback((nextWorkerId: VideoStudioWorkerId) => {
+    setWorkerId(nextWorkerId);
+    try {
+      localStorage.setItem(VIDEO_STUDIO_WORKER_KEY, nextWorkerId);
+    } catch (error) {
+      console.error("[OLIVIA] Suppressed error", error);
+    }
+  }, []);
+
+  const refreshWorkers = useCallback(async () => {
+    try {
+      const body = await readJson(await fetch("/api/remote-workers/status?all=1", { cache: "no-store" }));
+      const rows = Array.isArray(body.workers) ? body.workers as VideoStudioWorkerPresence[] : [];
+      setWorkers(Object.fromEntries(rows.map((worker) => [worker.id, worker])));
+    } catch {
+      setWorkers({});
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshWorkers();
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshWorkers();
+    }, 10_000);
+    return () => window.clearInterval(timer);
+  }, [refreshWorkers]);
+
+  return { workerId, selectWorker, workers, selectedPresence: workers[workerId] };
+}
 
 export function jobPercent(job: VideoStudioJob): number {
   if (job.status === "COMPLETED") return 100;
@@ -78,11 +142,11 @@ export function useVideoStudioJobs() {
     }
   }, [results]);
 
-  const startJob = useCallback(async (action: VideoStudioAction, payload: Record<string, unknown>) => {
+  const startJob = useCallback(async (action: VideoStudioAction, payload: Record<string, unknown>, targetWorker?: string) => {
     const body = await readJson(await fetch("/api/remote-jobs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, payload }),
+      body: JSON.stringify({ action, payload, ...(targetWorker ? { target_worker: targetWorker } : {}) }),
     }));
     const job = body.job as VideoStudioJob;
     setJobs((current) => [{ ...job, progress: null, message: null, error: null, completed_at: null }, ...current.filter((item) => item.id !== job.id)]);

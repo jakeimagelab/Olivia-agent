@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
 import { validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
+import { getConfiguredWorkerId, isKnownWorkerId } from "@/lib/remoteWorkerAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,6 +23,12 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_RETOUCH",
   "VIDEO_INTERVIEW_ANALYZE",
   "VIDEO_AUDIO_EXTRACT",
+]);
+const NON_PRIMARY_WORKER_ACTIONS = new Set([
+  "VIDEO_INTERVIEW_ANALYZE",
+  "VIDEO_AUDIO_EXTRACT",
+  "LIST_FOLDER",
+  "PING",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -319,7 +326,13 @@ export async function POST(request: NextRequest) {
     typeof body.target_worker === "string" &&
     body.target_worker.trim()
       ? body.target_worker.trim()
-      : process.env.OLIVIA_WORKER_ID || "jake-macstudio-01";
+      : getConfiguredWorkerId();
+  if (!isKnownWorkerId(targetWorker)) {
+    return Response.json({ ok: false, error: "등록되지 않은 Worker입니다." }, { status: 400 });
+  }
+  if (targetWorker !== getConfiguredWorkerId() && !NON_PRIMARY_WORKER_ACTIONS.has(action)) {
+    return Response.json({ ok: false, error: "선택한 Worker에서는 이 작업을 실행할 수 없습니다." }, { status: 400 });
+  }
 
   try {
     const supabase = getSupabaseAdmin();
