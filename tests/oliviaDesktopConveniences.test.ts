@@ -75,15 +75,24 @@ describe("Olivia desktop convenience controls", () => {
     expect(useOliviaDesktopStore.getState().tiledSnapshot).toBeNull();
   });
 
-  it("keeps the original global search shortcut and shares the conversation store in mini chat", () => {
+  it("keeps the original search shortcut and compacts the existing Olivia chat window", () => {
     const root = process.cwd();
     const search = readFileSync(resolve(root, "components/olivia-os/DesktopGlobalSearch.tsx"), "utf8");
-    const miniChat = readFileSync(resolve(root, "components/olivia-os/OliviaMiniChat.tsx"), "utf8");
+    const desktop = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.tsx"), "utf8");
+    const appWindow = readFileSync(resolve(root, "components/olivia-os/window/AppWindow.tsx"), "utf8");
+    const appWindowCss = readFileSync(resolve(root, "components/olivia-os/window/AppWindow.module.css"), "utf8");
+    const actions = readFileSync(resolve(root, "components/olivia-os/DesktopTopBarActions.tsx"), "utf8");
+    const utilityStore = readFileSync(resolve(root, "lib/store/useOliviaDesktopUtilityStore.ts"), "utf8");
     const topBar = readFileSync(resolve(root, "components/olivia-os/DesktopTopBar.tsx"), "utf8");
     expect(search).toContain("(event.metaKey || event.ctrlKey) && event.key.toLowerCase() === \"f\"");
     expect(search).toContain("useOliviaDesktopUtilityStore");
-    expect(miniChat).toContain("useOliviaConversationStore");
-    expect(miniChat).toContain("sendMessage(content)");
+    expect(desktop).not.toContain("OliviaMiniChat");
+    expect(appWindow).toContain("data-chat-compact");
+    expect(appWindowCss).toContain(":global(.olivia-composer-shell)");
+    expect(actions).toContain("toggleCompactChat");
+    expect(actions).toContain("useOliviaConversationStore");
+    expect(utilityStore).toContain("chatCompact");
+    expect(utilityStore).not.toContain("messages:");
     expect(topBar).toContain('const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "도움말"]');
   });
 });

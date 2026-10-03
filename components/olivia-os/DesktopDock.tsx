@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { AppIcon as ColorAppIcon } from "@/components/AppIcon";
 import { AppIcon } from "./AppIcon";
 import { resolveDockLayout, type DockIconSize } from "./dockLayout";
@@ -27,6 +28,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
+  const setChatCompact = useOliviaDesktopUtilityStore((state) => state.setChatCompact);
   const launchHref = useDesktopAppLauncher();
 
   const fixedDockApps = getDockApps();
@@ -66,6 +68,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
 
   // Dock 클릭 규칙: 닫힘→open, minimized→restore, 열림→focus.
   const handleDockClick = (appId: string, title: string, width: number, height: number) => {
+    if (appId === "olivia-chat") setChatCompact(false);
     const win = windows[appId];
     if (!win) { openApp({ appId, title, width, height }); return; }
     if (win.minimized) { restoreWindow(appId); return; }

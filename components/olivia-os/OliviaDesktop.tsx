@@ -8,7 +8,6 @@ import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
-import { OliviaMiniChat } from "./OliviaMiniChat";
 import { DesktopUtilityToast } from "./DesktopUtilityToast";
 import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
@@ -179,7 +178,6 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
         <DesktopDock onOpenOverlay={setOverlay} />
       </div>
       <DesktopGlobalSearch />
-      <OliviaMiniChat />
       <DesktopUtilityToast />
       <PhotoTaskStatusBar />
       {contextMenu ? (

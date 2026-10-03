@@ -3,6 +3,8 @@
 import { useCallback, useEffect } from "react";
 import html2canvas from "html2canvas";
 import { Camera, LayoutGrid, MessageSquare, Monitor, Search } from "lucide-react";
+import { getOliviaApp } from "./registry/oliviaAppRegistry";
+import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import styles from "./OliviaDesktop.module.css";
@@ -26,14 +28,43 @@ export function DesktopTopBarActions() {
   const tileWindows = useOliviaDesktopStore((state) => state.tileWindows);
   const untileWindows = useOliviaDesktopStore((state) => state.untileWindows);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
-  const miniChatOpen = useOliviaDesktopUtilityStore((state) => state.miniChatOpen);
-  const toggleMiniChat = useOliviaDesktopUtilityStore((state) => state.toggleMiniChat);
+  const openApp = useOliviaDesktopStore((state) => state.openApp);
+  const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
+  const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
+  const chatCompact = useOliviaDesktopUtilityStore((state) => state.chatCompact);
+  const setChatCompact = useOliviaDesktopUtilityStore((state) => state.setChatCompact);
   const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const captureInProgress = useOliviaDesktopUtilityStore((state) => state.captureInProgress);
   const setCaptureInProgress = useOliviaDesktopUtilityStore((state) => state.setCaptureInProgress);
   const showNotice = useOliviaDesktopUtilityStore((state) => state.showNotice);
+  const isSending = useOliviaConversationStore((state) => state.isSending);
+
+  const toggleCompactChat = useCallback(() => {
+    const app = getOliviaApp("olivia-chat");
+    if (!app) {
+      showNotice("Olivia 채팅 창을 찾지 못했습니다.", "error");
+      return;
+    }
+
+    const chatWindow = windows[app.id];
+    setChatCompact(!chatCompact);
+    if (!chatWindow) {
+      openApp({
+        appId: app.id,
+        title: app.title,
+        width: app.defaultSize.width,
+        height: app.defaultSize.height,
+        placement: "right",
+      });
+    } else if (chatWindow.minimized) {
+      restoreWindow(chatWindow.id);
+    } else {
+      focusWindow(chatWindow.id);
+    }
+  }, [chatCompact, focusWindow, openApp, restoreWindow, setChatCompact, showNotice, windows]);
 
   const toggleTiling = useCallback(() => {
+    if (chatCompact) setChatCompact(false);
     if (tiledSnapshot) {
       untileWindows();
       return;
@@ -43,7 +74,11 @@ export function DesktopTopBarActions() {
       return;
     }
     tileWindows();
-  }, [tileWindows, tiledSnapshot, untileWindows, windows, showNotice]);
+  }, [chatCompact, setChatCompact, tileWindows, tiledSnapshot, untileWindows, windows, showNotice]);
+
+  useEffect(() => {
+    if (chatCompact && isSending) setChatCompact(false);
+  }, [chatCompact, isSending, setChatCompact]);
 
   const captureDesktop = async () => {
     if (captureInProgress) return;
@@ -84,7 +119,7 @@ export function DesktopTopBarActions() {
       const key = event.key.toLowerCase();
       if (key === "/" && !event.shiftKey) {
         event.preventDefault();
-        toggleMiniChat();
+        toggleCompactChat();
       } else if (key === "f" && !event.shiftKey) {
         event.preventDefault();
         setGlobalSearchOpen(true);
@@ -98,21 +133,21 @@ export function DesktopTopBarActions() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [setGlobalSearchOpen, toggleMiniChat, toggleShowDesktop, toggleTiling]);
+  }, [setGlobalSearchOpen, toggleCompactChat, toggleShowDesktop, toggleTiling]);
 
   const actions = [
-    { label: "채팅", shortcut: "⌘/", Icon: MessageSquare, active: miniChatOpen, onClick: toggleMiniChat },
-    { label: "찾기", shortcut: "⌘F", Icon: Search, active: false, onClick: () => setGlobalSearchOpen(true) },
-    { label: tiledSnapshot ? "창 정리 되돌리기" : "창 정리", shortcut: "⌘⇧T", Icon: LayoutGrid, active: Boolean(tiledSnapshot), onClick: toggleTiling },
-    { label: "바탕화면", shortcut: "⌘⇧D", Icon: Monitor, active: Boolean(showDesktopStash), onClick: toggleShowDesktop },
-    { label: "화면 캡처", shortcut: "", Icon: Camera, active: false, onClick: () => void captureDesktop(), disabled: captureInProgress },
+    { id: "chat", label: chatCompact ? "채팅 펼치기" : "채팅 한 줄로 접기", shortcut: "⌘/", Icon: MessageSquare, active: chatCompact, onClick: toggleCompactChat },
+    { id: "search", label: "찾기", shortcut: "⌘F", Icon: Search, active: false, onClick: () => setGlobalSearchOpen(true) },
+    { id: "tile", label: tiledSnapshot ? "창 정리 되돌리기" : "창 정리", shortcut: "⌘⇧T", Icon: LayoutGrid, active: Boolean(tiledSnapshot), onClick: toggleTiling },
+    { id: "desktop", label: "바탕화면", shortcut: "⌘⇧D", Icon: Monitor, active: Boolean(showDesktopStash), onClick: toggleShowDesktop },
+    { id: "capture", label: "화면 캡처", shortcut: "", Icon: Camera, active: false, onClick: () => void captureDesktop(), disabled: captureInProgress },
   ];
 
   return (
     <div className={styles.topBarCenter} data-capturing={captureInProgress || undefined} aria-label="빠른 기능">
-      {actions.map(({ label, shortcut, Icon, active, onClick, disabled }) => (
+      {actions.map(({ id, label, shortcut, Icon, active, onClick, disabled }) => (
         <button
-          key={label}
+          key={id}
           type="button"
           className={`${styles.topBarAction} ${active ? styles.topBarActionActive : ""}`}
           onClick={onClick}

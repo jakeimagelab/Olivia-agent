@@ -6,6 +6,7 @@ import { oliviaMotion } from "@/lib/motion/presets";
 import {
   useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA,
 } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { useWindowInteractions } from "./useWindowInteractions";
 import { resolveSnapBounds } from "./snapZones";
 import { WindowHeader } from "./WindowHeader";
@@ -26,6 +27,9 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   const snapWindow = useOliviaDesktopStore((state) => state.snapWindow);
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
+  const workspaceWidth = useOliviaDesktopStore((state) => state.workspaceWidth);
+  const workspaceHeight = useOliviaDesktopStore((state) => state.workspaceHeight);
+  const chatCompact = useOliviaDesktopUtilityStore((state) => state.chatCompact);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
   const [interacting, setInteracting] = useState(false);
   const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight, workspaceRef, setInteracting);
@@ -33,6 +37,17 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   if (!win) return null;
 
   const isActive = activeWindowId === windowId;
+  const isChatCompact = win.appId === "olivia-chat" && chatCompact;
+  const compactWidth = Math.min(420, Math.max(320, workspaceWidth - 24));
+  const compactHeight = 70;
+  const renderedBounds = isChatCompact
+    ? {
+        x: workspaceWidth > 0 ? Math.max(12, workspaceWidth - compactWidth - 18) : win.x,
+        y: workspaceHeight > 0 ? Math.max(12, workspaceHeight - DESKTOP_DOCK_SAFE_AREA - compactHeight - 12) : win.y,
+        width: compactWidth,
+        height: compactHeight,
+      }
+    : win;
   const errorBoundaryResetKey = [win.appId, win.context?.resourceId, win.context?.clientId, win.context?.projectId].filter(Boolean).join(":");
 
   const toggleMaximize = () => {
@@ -48,9 +63,9 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
 
   return (
     <motion.div
-      className={`${styles.window} ${isActive ? styles.active : ""}`}
+      className={`${styles.window} ${isActive ? styles.active : ""} ${isChatCompact ? styles.chatCompact : ""}`}
       style={{
-        left: win.x, top: win.y, width: win.width, height: win.height,
+        left: renderedBounds.x, top: renderedBounds.y, width: renderedBounds.width, height: renderedBounds.height,
         zIndex: win.zIndex, display: win.minimized ? "none" : "flex",
         transition: interacting ? "none" : "left 220ms cubic-bezier(.22,1,.36,1), top 220ms cubic-bezier(.22,1,.36,1), width 220ms cubic-bezier(.22,1,.36,1), height 220ms cubic-bezier(.22,1,.36,1)",
       }}
@@ -63,8 +78,9 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
       // 포커스할 때만 store를 갱신한다.
       onPointerDownCapture={() => { if (!isActive) focusWindow(windowId); }}
       data-app-window={win.appId}
+      data-chat-compact={isChatCompact || undefined}
       role="region"
-      aria-label={win.title}
+      aria-label={isChatCompact ? "Olivia 한 줄 채팅" : win.title}
     >
       <div className={styles.body}>
         <WindowHeader
@@ -82,7 +98,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           </AppWindowErrorBoundary>
         </div>
       </div>
-      {win.snapMode === "none" && (
+      {!isChatCompact && win.snapMode === "none" && (
         <>
           <div className={styles.resizeHandleE} onPointerDown={(event) => beginResize(event, "e")} />
           <div className={styles.resizeHandleS} onPointerDown={(event) => beginResize(event, "s")} />
