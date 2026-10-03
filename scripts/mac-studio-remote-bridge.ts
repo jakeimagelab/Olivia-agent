@@ -248,6 +248,15 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       addString(args, "--check-type", stringValue(payload, "check_type"));
       return runner(repoRoot, "photo-retouch-runner.ts", args);
     }
+    case "VIDEO_INTERVIEW_ANALYZE":
+      addString(args, "--action", "analyze");
+      addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
+      addString(args, "--context", stringValue(payload, "context"));
+      return runner(repoRoot, "video-interview-runner.ts", args);
+    case "VIDEO_AUDIO_EXTRACT":
+      addString(args, "--action", "extract-audio");
+      addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
+      return runner(repoRoot, "video-interview-runner.ts", args);
     case "PING":
     case "COPY_TEST":
     case "LIST_FOLDER":

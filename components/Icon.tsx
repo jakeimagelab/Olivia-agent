@@ -25,6 +25,7 @@ export const ICON_NAMES = [
   'raw-select',
   'video-sort',
   'video-production',
+  'video-studio',
   'resolution-convert',
   'retouch',
   'broll-prompt',
@@ -73,6 +74,7 @@ export const ICON_LABELS: Record<IconName, string> = {
   'raw-select': 'T컷 정리',
   'video-sort': '영상 분류',
   'video-production': '영상제작',
+  'video-studio': '영상작업실',
   'resolution-convert': '4K→FHD 변환',
   'retouch': '사진 보정',
   'broll-prompt': 'B롤 이미지 프롬프트',
@@ -98,7 +100,7 @@ export const ICON_GROUPS: Record<string, IconName[]> = {
   'Desktop': ['today', 'olivia'],
   '관리자 대시보드': ['memo', 'team-chat', 'work-calendar', 'work-log', 'workspace', 'mailing', 'share-link', 'trash'],
   '고객관리 CRM': ['clients', 'select-gallery', 'per-reward', 'client-portal'],
-  'AI Assistant': ['marketing-dashboard', 'quote', 'contract', 'storyboard', 'photo-studio', 'select-match', 'metadata-select', 'raw-select', 'video-sort', 'video-production', 'resolution-convert', 'retouch', 'broll-prompt', 'youtube-storyboard', 'prompter', 'work-report', 'idea', 'promo-content', 'review-content', 'brand-audit', 'reverse-analysis', 'image-diagnosis', 'brand-image-diagnosis', 'channel-analysis', 'trend-analysis', 'image-director', 'website-build', 'seo', 'library'],
+  'AI Assistant': ['marketing-dashboard', 'quote', 'contract', 'storyboard', 'photo-studio', 'select-match', 'metadata-select', 'raw-select', 'video-sort', 'video-production', 'video-studio', 'resolution-convert', 'retouch', 'broll-prompt', 'youtube-storyboard', 'prompter', 'work-report', 'idea', 'promo-content', 'review-content', 'brand-audit', 'reverse-analysis', 'image-diagnosis', 'brand-image-diagnosis', 'channel-analysis', 'trend-analysis', 'image-director', 'website-build', 'seo', 'library'],
 };
 
 const paths: Record<IconName, ReactElement> = {
@@ -268,6 +270,13 @@ const paths: Record<IconName, ReactElement> = {
       <rect x="2" y="4" width="20" height="16" rx="4" fill="#155855"/>
       <path d="M10 8l6 4-6 4z" fill="#fff"/>
       <path d="M4.5 7.3v2.2M4.5 14.5v2.2M19.5 7.3v2.2M19.5 14.5v2.2" stroke="#56D2B6" strokeWidth="1.8" strokeLinecap="round"/>
+    </>
+  ),
+  'video-studio': (
+    <>
+      <rect x="2" y="4" width="20" height="16" rx="4" fill="#1C7268"/>
+      <path d="M7 10v4M10 8v8M13 9.5v5M16 11v2" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
+      <circle cx="18.6" cy="7.4" r="1.6" fill="#E85D2C"/>
     </>
   ),
   'resolution-convert': (

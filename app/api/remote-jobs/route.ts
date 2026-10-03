@@ -20,6 +20,8 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_RESIZE",
   "PHOTO_AI_SELECT",
   "PHOTO_RETOUCH",
+  "VIDEO_INTERVIEW_ANALYZE",
+  "VIDEO_AUDIO_EXTRACT",
 ]);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -291,6 +293,25 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다." }, { status: 400 });
+    }
+  }
+
+  if (action === "VIDEO_INTERVIEW_ANALYZE" || action === "VIDEO_AUDIO_EXTRACT") {
+    // 영상작업실: 촬영 폴더는 원격 NAS 브라우저(SOURCE_ROOT 기준)에서 고른 상대 경로다.
+    try {
+      const sourceRelativePath = normalizeRemoteNasRelativePath(
+        typeof requestedPayload.source_relative_path === "string" ? requestedPayload.source_relative_path : "",
+      );
+      if (!sourceRelativePath) throw new Error("촬영 폴더를 선택해 주세요.");
+      const context = typeof requestedPayload.context === "string"
+        ? requestedPayload.context.replace(/[\u0000-\u001f]/g, " ").replace(/^-+/, "").trim().slice(0, 500)
+        : "";
+      payload = {
+        source_relative_path: sourceRelativePath,
+        ...(action === "VIDEO_INTERVIEW_ANALYZE" && context ? { context } : {}),
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 촬영 폴더입니다." }, { status: 400 });
     }
   }
 
