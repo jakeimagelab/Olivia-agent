@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { analyzeWaveformFrame, preferredMimeType } from "@/lib/voice/browserRecorder";
-import { baseAudioMimeType, extensionFromMime, VOICE_TRANSCRIPTION_MAX_BYTES } from "@/lib/voice/config";
+import { baseAudioMimeType, extensionFromMime, mimeTypeFromAudioFile, VOICE_ORIGINAL_UPLOAD_MAX_BYTES, VOICE_TRANSCRIPTION_MAX_BYTES } from "@/lib/voice/config";
 import { buildTranscriptText, defaultSpeakerName, extractVoiceSummary, normalizeTranscriptSegments } from "@/lib/voice/processing";
 import { extractOpenAIResponseText, VOICE_SUMMARY_SCHEMA } from "@/lib/voice/summarizer";
 import { resolveFeatureIntent } from "@/lib/olivia/features/resolver";
@@ -25,6 +25,9 @@ describe("Olivia voice recorder format selection", () => {
     expect(baseAudioMimeType("audio/webm;codecs=opus")).toBe("audio/webm");
     expect(extensionFromMime("audio/mpeg")).toBe("mp3");
     expect(VOICE_TRANSCRIPTION_MAX_BYTES).toBe(25 * 1024 * 1024);
+    expect(VOICE_ORIGINAL_UPLOAD_MAX_BYTES).toBe(512 * 1024 * 1024);
+    expect(mimeTypeFromAudioFile({ name: "Voice Memo.m4a", type: "" })).toBe("audio/mp4");
+    expect(mimeTypeFromAudioFile({ name: "interview.unknown", type: "" })).toBe("");
   });
 
   it("keeps silence calm while making quiet iPhone speech visibly responsive", () => {
@@ -88,11 +91,12 @@ describe("Olivia voice integration guardrails", () => {
     expect(mobileVoice).not.toContain("<MobileHeader");
 
     const recorder = readFileSync("components/voice/OliviaRecorder.tsx", "utf8");
-    expect(recorder).toContain("지금 대화를 기록해보세요");
-    expect(recorder).toContain("하단 녹음바");
+    expect(recorder).toContain("아이폰 음성 원본을 정리해보세요");
+    expect(recorder).toContain("브라우저에서 녹음하지 않습니다");
     expect(recorder).toContain("useVoiceSession");
     const globalBar = readFileSync("components/voice/GlobalRecordingBar.tsx", "utf8");
-    expect(globalBar).toContain("녹음 시작");
+    expect(globalBar).toContain("아이폰 파일 선택");
+    expect(globalBar).toContain("인터뷰 진행 시작");
     expect(globalBar).toContain("일시정지");
     const interviewHub = readFileSync("components/voice/VoiceInterviewHub.tsx", "utf8");
     const interviewRecorder = readFileSync("components/voice/OliviaInterviewRecorder.tsx", "utf8");
@@ -107,9 +111,12 @@ describe("Olivia voice integration guardrails", () => {
 
   it("keeps Hermes read-only and preserves transcribed fallback", () => {
     const processRoute = readFileSync("app/api/voice/sessions/[id]/process/route.ts", "utf8");
-    expect(processRoute).toContain('form.append("model", "gpt-4o-transcribe-diarize")');
-    expect(processRoute).toContain('form.append("response_format", "diarized_json")');
-    expect(processRoute).toContain('form.append("chunking_strategy", "auto")');
+    const transcription = readFileSync("lib/voice/openaiTranscription.ts", "utf8");
+    expect(processRoute).toContain("transcribeStoredAudio");
+    expect(transcription).toContain('"gpt-4o-transcribe-diarize"');
+    expect(transcription).toContain('"gpt-transcribe"');
+    expect(transcription).toContain('form.append("response_format", "diarized_json")');
+    expect(transcription).toContain('form.append("chunking_strategy", "auto")');
     const summarizer = readFileSync("lib/voice/summarizer.ts", "utf8");
     expect(summarizer).toContain("canEdit: false");
     expect(summarizer).toContain("canFinalize: false");
@@ -132,8 +139,8 @@ describe("Olivia voice integration guardrails", () => {
 
   it("does not block a new session before the additive capture-quality migration is applied", () => {
     const sessions = readFileSync("app/api/voice/sessions/route.ts", "utf8");
-    expect(sessions).toContain("capture_quality migration is not applied");
+    expect(sessions).toContain("additive voice metadata migration is not applied");
     expect(sessions).toContain('error.code === "PGRST204"');
-    expect(sessions).toContain('supabase.from("voice_recordings").insert(values)');
+    expect(sessions).toContain('supabase.from("voice_recordings").insert(compatibilityValues)');
   });
 });

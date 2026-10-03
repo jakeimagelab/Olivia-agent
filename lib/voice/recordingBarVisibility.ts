@@ -1,8 +1,8 @@
-type CaptureState = "idle" | "starting" | "recording" | "paused" | "interrupted" | "stopping" | "stopped" | "error";
-type StorageState = "none" | "local" | "uploading" | "stored" | "partial" | "failed";
+type CaptureState = "idle" | "starting" | "tracking" | "recording" | "paused" | "interrupted" | "stopping" | "stopped" | "error";
+type StorageState = "none" | "awaiting_upload" | "local" | "uploading" | "stored" | "partial" | "failed";
 
-const CAPTURE_IN_PROGRESS = new Set<CaptureState>(["starting", "recording", "paused", "interrupted", "stopping"]);
-const STORAGE_IN_PROGRESS = new Set<StorageState>(["local", "uploading", "partial", "failed"]);
+const CAPTURE_IN_PROGRESS = new Set<CaptureState>(["starting", "tracking", "recording", "paused", "interrupted", "stopping"]);
+const STORAGE_IN_PROGRESS = new Set<StorageState>(["awaiting_upload", "local", "uploading", "partial", "failed"]);
 
 /**
  * 유휴 준비 상태는 음성기록 화면 안에서만 보인다. 실제 녹음·저장·복구가 진행 중인

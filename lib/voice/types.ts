@@ -61,6 +61,14 @@ export type VoiceRecording = {
   field_notes?: Array<{ eventId: string; questionId: string; atSeconds: number; text: string }>;
   interview_result?: Record<string, unknown> | null;
   audio_chunks?: Array<{ sequence: number; start_seconds: number; end_seconds: number; audio_url: string | null }>;
+  source_metadata?: {
+    source?: "iphone_import" | "browser_legacy";
+    originalFilename?: string;
+    originalSizeBytes?: number;
+    sourceDurationSeconds?: number;
+    timelineDurationSeconds?: number;
+    markerAlignment?: "reference" | "unverified";
+  } | null;
 };
 
 export type VoiceSummary = {

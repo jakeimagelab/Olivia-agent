@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { baseAudioMimeType, extensionFromMime, isUuid, VOICE_RECORDINGS_BUCKET } from "@/lib/voice/config";
+import { baseAudioMimeType, extensionFromMime, isUuid, VOICE_ORIGINAL_UPLOAD_MAX_BYTES, VOICE_RECORDINGS_BUCKET } from "@/lib/voice/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
       const { data, error } = await supabase.from("voice_recording_chunks").update({
         status: "uploaded",
         uploaded_at: new Date().toISOString(),
-        size_bytes: numberInRange(body.sizeBytes, 0, 25 * 1024 * 1024) ?? existing.size_bytes,
+        size_bytes: numberInRange(body.sizeBytes, 0, VOICE_ORIGINAL_UPLOAD_MAX_BYTES) ?? existing.size_bytes,
         checksum: typeof body.checksum === "string" ? body.checksum.slice(0, 200) : existing.checksum,
       }).eq("id", existing.id).select("*").single();
       if (error) throw error;
@@ -62,11 +62,11 @@ export async function POST(request: Request, context: RouteContext) {
     const { data: chunk, error: chunkError } = existing
       ? await supabase.from("voice_recording_chunks").update({
         storage_path: storagePath, mime_type: mimeType, start_seconds: startSeconds, end_seconds: endSeconds,
-        size_bytes: numberInRange(body.sizeBytes, 0, 25 * 1024 * 1024) ?? 0, status: "uploading",
+        size_bytes: numberInRange(body.sizeBytes, 0, VOICE_ORIGINAL_UPLOAD_MAX_BYTES) ?? 0, status: "uploading",
       }).eq("id", existing.id).select("*").single()
       : await supabase.from("voice_recording_chunks").insert({
         recording_id: id, sequence, storage_path: storagePath, mime_type: mimeType, start_seconds: startSeconds,
-        end_seconds: endSeconds, size_bytes: numberInRange(body.sizeBytes, 0, 25 * 1024 * 1024) ?? 0, status: "uploading",
+        end_seconds: endSeconds, size_bytes: numberInRange(body.sizeBytes, 0, VOICE_ORIGINAL_UPLOAD_MAX_BYTES) ?? 0, status: "uploading",
       }).select("*").single();
     if (chunkError || !chunk) throw chunkError || new Error("녹음 조각을 준비하지 못했습니다.");
     const { data: signed, error: signedError } = await supabase.storage.from(VOICE_RECORDINGS_BUCKET).createSignedUploadUrl(storagePath, { upsert: true });

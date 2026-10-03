@@ -21,8 +21,9 @@ export default function GlobalRecordingBar({ surface, dockVisible = true, bottom
   showWhenIdle?: boolean;
   onOpenRecording?: () => void;
 }) {
-  const { state, start, pause, resume, stop, retryStorage, dismissResult } = useVoiceSession();
+  const { state, importAudioFile, start, pause, resume, stop, retryStorage, dismissResult } = useVoiceSession();
   const barRef = useRef<HTMLElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const visible = shouldShowRecordingBar({
     kind: state.kind,
     capture: state.capture,
@@ -30,16 +31,18 @@ export default function GlobalRecordingBar({ surface, dockVisible = true, bottom
     isVoiceScreen: showWhenIdle,
   });
   const status = useMemo(() => {
-    if (state.capture === "starting") return "마이크 준비 중…";
-    if (state.capture === "recording") return state.kind === "interview" ? "인터뷰 녹음 중" : "녹음 중";
-    if (state.capture === "paused") return "일시정지";
-    if (state.capture === "interrupted") return "녹음 중단 · 확인 필요";
-    if (state.capture === "stopping") return "녹음 종료됨 · 저장 중";
-    if (state.capture === "stopped" && ["local", "uploading"].includes(state.storage)) return "녹음 종료됨 · 저장 중";
+    if (state.capture === "starting") return "인터뷰 진행 준비 중…";
+    if (state.capture === "tracking") return "인터뷰 진행 중";
+    if (state.capture === "recording") return "기존 녹음 세션 처리 중";
+    if (state.capture === "paused") return "인터뷰 진행 일시정지";
+    if (state.capture === "interrupted") return "진행 중단 · 확인 필요";
+    if (state.capture === "stopping") return "인터뷰 진행 종료 중";
+    if (state.storage === "awaiting_upload") return "아이폰 원본 파일 추가";
+    if (state.capture === "stopped" && ["local", "uploading"].includes(state.storage)) return "원본 업로드 중";
     if (state.storage === "partial" || state.storage === "failed") return "기기 저장 완료 · 업로드 대기";
     if (state.storage === "stored") return "녹음 저장 완료";
     if (state.kind === "interview" && !state.target) return "인터뷰를 선택해주세요";
-    return state.kind === "interview" ? "인터뷰 녹음 준비" : "새 음성기록";
+    return state.kind === "interview" ? "인터뷰 진행 준비" : "아이폰 음성 메모 가져오기";
   }, [state.capture, state.kind, state.storage, state.target]);
 
   useLayoutEffect(() => {
@@ -56,12 +59,15 @@ export default function GlobalRecordingBar({ surface, dockVisible = true, bottom
   useEffect(() => () => document.documentElement.style.setProperty("--olivia-global-recording-bar-height", "0px"), []);
 
   if (!visible) return null;
-  const recording = state.capture === "recording";
+  const tracking = state.capture === "tracking";
   const paused = state.capture === "paused";
-  const canEnd = recording || paused || state.capture === "interrupted";
+  const canEnd = tracking || paused || state.capture === "interrupted";
   const canStart = canStartNewRecording(state.kind, state.capture);
   const pendingStorage = state.storage === "partial" || state.storage === "failed";
+  const canImportGeneral = state.kind === "general" && ["idle", "stopped", "error"].includes(state.capture) && !["uploading", "local"].includes(state.storage);
+  const canImportInterview = state.kind === "interview" && state.capture === "stopped" && state.storage === "awaiting_upload";
   const questionNumber = state.target?.questions.findIndex((question) => question.id === state.activeQuestionId);
+  const chooseFile = () => fileInputRef.current?.click();
 
   return (
     <section
@@ -69,30 +75,42 @@ export default function GlobalRecordingBar({ surface, dockVisible = true, bottom
       className={`${styles.bar} ${styles[surface]} ${dockVisible ? styles.aboveDock : styles.withoutDock}`}
       style={{ "--global-recording-offset": `${bottomOffset ?? 0}px` } as CSSProperties}
       data-global-recording-bar
-      aria-label="현재 녹음 상태"
+      aria-label="현재 음성 처리 상태"
     >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="audio/mp4,audio/m4a,audio/x-m4a,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/webm,audio/aac,.m4a,.mp3,.wav,.webm,.aac"
+        hidden
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) void importAudioFile(file);
+        }}
+      />
       <div className={styles.summary}>
-        <span className={`${styles.statusDot} ${recording ? styles.live : ""}`} aria-hidden="true"><Mic size={16} /></span>
+        <span className={`${styles.statusDot} ${tracking ? styles.live : ""}`} aria-hidden="true"><Mic size={16} /></span>
         <div>
-          <strong>{status}{recording || paused ? ` ${formatElapsed(state.elapsedMilliseconds)}` : ""}</strong>
+          <strong>{status}{tracking || paused ? ` ${formatElapsed(state.elapsedMilliseconds)}` : ""}</strong>
           {state.kind === "interview" && state.target ? <small>{state.target.hospitalName} · {state.target.intervieweeName}{questionNumber !== undefined && questionNumber >= 0 ? ` · 질문 ${questionNumber + 1} / ${state.target.questions.length}` : ""}</small> : null}
           {!state.target && state.notice ? <small>{state.notice}</small> : null}
         </div>
       </div>
       <div className={styles.actions}>
-        {(recording || paused || state.capture === "interrupted") ? <button type="button" onClick={onOpenRecording} className={styles.quiet}>녹음 화면으로</button> : null}
-        {recording ? <button type="button" onClick={pause} aria-label="녹음 일시정지"><Pause size={18} />일시정지</button> : null}
-        {paused ? <button type="button" onClick={resume} aria-label="녹음 계속"><Play size={18} />계속</button> : null}
-        {canEnd ? <button type="button" className={styles.stop} onClick={() => { if (window.confirm("녹음을 종료하고 저장할까요?")) void stop(); }} aria-label="녹음 종료"><Square size={16} />종료</button> : null}
-        {canStart ? <button type="button" className={styles.start} onClick={() => void start()} disabled={state.capture === "error" && !state.kind}><Mic size={18} />{state.capture === "stopped" ? "새 녹음 시작" : "녹음 시작"}</button> : null}
+        {(tracking || paused || state.capture === "interrupted") ? <button type="button" onClick={onOpenRecording} className={styles.quiet}>인터뷰 화면으로</button> : null}
+        {tracking ? <button type="button" onClick={pause} aria-label="인터뷰 진행 일시정지"><Pause size={18} />일시정지</button> : null}
+        {paused ? <button type="button" onClick={resume} aria-label="인터뷰 진행 계속"><Play size={18} />계속</button> : null}
+        {canEnd ? <button type="button" className={styles.stop} onClick={() => { if (window.confirm("인터뷰 진행을 마치고 아이폰 원본을 추가할까요?")) void stop(); }} aria-label="인터뷰 진행 종료"><Square size={16} />인터뷰 마침</button> : null}
+        {canImportGeneral || canImportInterview ? <button type="button" className={styles.start} onClick={chooseFile}><UploadCloud size={18} />{canImportInterview ? "원본 파일 추가" : "아이폰 파일 선택"}</button> : null}
+        {state.kind === "interview" && state.capture === "idle" && canStart ? <button type="button" className={styles.start} onClick={() => void start()}><Mic size={18} />인터뷰 진행 시작</button> : null}
         {state.capture === "interrupted" ? <button type="button" onClick={() => void retryStorage()}><RotateCcw size={17} />확인/업로드</button> : null}
         {pendingStorage ? <button type="button" onClick={() => void retryStorage()}><UploadCloud size={17} />다시 시도</button> : null}
         {state.storage === "stored" ? <button type="button" onClick={onOpenRecording}><Volume2 size={17} />음성기록 보기</button> : null}
-        {state.storage === "stored" && !recording && !paused ? <button type="button" className={styles.dismiss} onClick={dismissResult} aria-label="저장 완료 알림 닫기"><X size={18} /></button> : null}
+        {state.storage === "stored" && !tracking && !paused ? <button type="button" className={styles.dismiss} onClick={dismissResult} aria-label="저장 완료 알림 닫기"><X size={18} /></button> : null}
       </div>
       {state.notice && state.target ? <p className={styles.notice}>{state.notice}</p> : null}
       {state.error ? <p className={styles.error}>{state.error}</p> : null}
-      {state.storage === "stored" && state.analysis !== "completed" ? <span className={styles.analysis}>{state.analysis === "failed" ? "AI 정리 실패 · 원본은 안전하게 저장됨" : "AI 정리 중"}</span> : null}
+      {state.storage === "stored" && state.analysis !== "completed" ? <span className={styles.analysis}>{state.analysis === "failed" ? "AI 분석 실패 · 아이폰 원본은 안전하게 저장됨" : "AI 정리 중"}</span> : null}
       {state.storage === "stored" && state.analysis === "completed" ? <span className={styles.analysis}><Check size={14} />AI 정리 완료</span> : null}
     </section>
   );

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 type RouteContext = { params: Promise<{ id: string }> };
 const CLIENT_STATUSES = new Set<VoiceStatus>(["recording", "uploading", "uploaded", "error"]);
+const AUDIO_STATUSES = new Set(["recording", "uploading", "stored", "incomplete"]);
 
 function normalizeHints(value: unknown): SpeakerHint[] {
   if (!Array.isArray(value)) return [];
@@ -77,6 +78,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     if (body.liveSpeakerHints !== undefined) patch.live_speaker_hints = normalizeHints(body.liveSpeakerHints);
     if (body.mimeType !== undefined) patch.mime_type = baseAudioMimeType(body.mimeType);
+    if (typeof body.audioStatus === "string" && AUDIO_STATUSES.has(body.audioStatus)) patch.audio_status = body.audioStatus;
     if (typeof body.errorMessage === "string") patch.error_message = body.errorMessage.trim().slice(0, 2_000) || null;
     if (body.status === "uploaded") patch.error_message = null;
     if (Object.keys(patch).length === 0) {

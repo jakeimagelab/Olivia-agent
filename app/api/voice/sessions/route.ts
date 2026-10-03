@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { baseAudioMimeType, extensionFromMime, VOICE_RECORDINGS_BUCKET } from "@/lib/voice/config";
+import { baseAudioMimeType, extensionFromMime, VOICE_ORIGINAL_UPLOAD_MAX_BYTES, VOICE_RECORDINGS_BUCKET } from "@/lib/voice/config";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isUuid } from "@/lib/voice/config";
 
@@ -32,22 +32,38 @@ function normalizeCaptureQuality(value: unknown) {
   };
 }
 
+function normalizeSourceMetadata(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  const originalFilename = typeof source.originalFilename === "string" ? source.originalFilename.trim().slice(0, 240) : "";
+  const originalSizeBytes = typeof source.originalSizeBytes === "number" && Number.isFinite(source.originalSizeBytes)
+    ? Math.max(0, Math.min(VOICE_ORIGINAL_UPLOAD_MAX_BYTES, Math.floor(source.originalSizeBytes)))
+    : null;
+  const sourceDurationSeconds = typeof source.sourceDurationSeconds === "number" && Number.isFinite(source.sourceDurationSeconds)
+    ? Math.max(0, Math.min(24 * 60 * 60, source.sourceDurationSeconds))
+    : null;
+  if (!originalFilename || originalSizeBytes === null) return null;
+  return { source: "iphone_import" as const, originalFilename, originalSizeBytes, sourceDurationSeconds };
+}
+
 async function insertVoiceRecording(
   supabase: ReturnType<typeof getSupabaseAdmin>,
   values: Record<string, unknown>,
   captureQuality: ReturnType<typeof normalizeCaptureQuality>,
 ) {
-  const withQuality = captureQuality ? { ...values, capture_quality: captureQuality } : values;
-  let { error } = await supabase.from("voice_recordings").insert(withQuality);
+  const withMetadata = captureQuality ? { ...values, capture_quality: captureQuality } : values;
+  let { error } = await supabase.from("voice_recordings").insert(withMetadata);
 
   // The client rollout must not block recording when the code reaches an
   // environment before its additive migration. PostgREST rejects an unknown
   // column before inserting anything, so retrying once without metadata cannot
   // create a duplicate source recording. The next migration-enabled request
   // will retain the requested/actual capture settings as intended.
-  if (error && captureQuality && (error.code === "PGRST204" || error.message.includes("capture_quality"))) {
-    console.warn("[VOICE SESSION CREATE] capture_quality migration is not applied; recording without quality metadata.");
-    ({ error } = await supabase.from("voice_recordings").insert(values));
+  if (error && (captureQuality || "source_metadata" in values) && (error.code === "PGRST204" || error.message.includes("capture_quality") || error.message.includes("source_metadata"))) {
+    console.warn("[VOICE SESSION CREATE] additive voice metadata migration is not applied; recording without optional metadata.");
+    const compatibilityValues = { ...values };
+    delete compatibilityValues.source_metadata;
+    ({ error } = await supabase.from("voice_recordings").insert(compatibilityValues));
   }
   if (error) throw error;
 }
@@ -88,6 +104,7 @@ export async function POST(request: Request) {
       : "unknown";
     const title = typeof body.title === "string" ? body.title.trim().slice(0, 200) : "";
     const captureQuality = normalizeCaptureQuality(body.captureQuality);
+    const sourceMetadata = normalizeSourceMetadata(body.sourceMetadata);
     const now = new Date();
     const supabase = getSupabaseAdmin();
 
@@ -117,6 +134,7 @@ export async function POST(request: Request) {
         analysis_status: "pending",
         device_type: deviceType,
         mime_type: mimeType,
+        ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
         recorded_at: now.toISOString(),
         interview_preparation_id: preparationId,
         interview_version_id: versionId,
@@ -143,6 +161,8 @@ export async function POST(request: Request) {
       device_type: deviceType,
       mime_type: mimeType,
       audio_path: path,
+      audio_status: sourceMetadata ? "uploading" : null,
+      ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
       recorded_at: now.toISOString(),
     }, captureQuality);
 

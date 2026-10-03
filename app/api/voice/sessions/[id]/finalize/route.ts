@@ -8,6 +8,25 @@ export const maxDuration = 120;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+function importedSourceMetadata(value: unknown, durationSeconds: number, timelineDurationSeconds: number | null) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const source = value as Record<string, unknown>;
+  const originalFilename = typeof source.originalFilename === "string" ? source.originalFilename.trim().slice(0, 240) : "";
+  const originalSizeBytes = typeof source.originalSizeBytes === "number" && Number.isFinite(source.originalSizeBytes)
+    ? Math.max(0, Math.floor(source.originalSizeBytes))
+    : null;
+  if (!originalFilename || originalSizeBytes === null) return null;
+  const differsMaterially = timelineDurationSeconds !== null && Math.abs(timelineDurationSeconds - durationSeconds) > Math.max(15, durationSeconds * 0.05);
+  return {
+    source: "iphone_import",
+    originalFilename,
+    originalSizeBytes,
+    sourceDurationSeconds: durationSeconds,
+    timelineDurationSeconds,
+    markerAlignment: differsMaterially ? "unverified" : "reference",
+  };
+}
+
 function validateContinuousSequences(chunks: Array<{ sequence: number; status: string }>) {
   if (chunks.length === 0) return "저장된 녹음 조각이 없습니다.";
   for (let index = 0; index < chunks.length; index += 1) {
@@ -47,11 +66,17 @@ export async function POST(request: Request, context: RouteContext) {
       await supabase.from("voice_recordings").update({ audio_status: "incomplete", error_message: message }).eq("id", id);
       return NextResponse.json({ error: message }, { status: 409 });
     }
-    const questionMarkers = questionStarts.map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: Number(event.at_seconds) }));
-    const highlightMarkers = (rawEvents ?? []).filter((event) => event.event_type === "highlight").map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: Number(event.at_seconds) }));
-    const fieldNotes = (rawEvents ?? []).filter((event) => event.event_type === "field_note").map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: Number(event.at_seconds), text: typeof event.payload?.text === "string" ? event.payload.text : "" }));
+    // The question companion has its own clock. It is useful context, but it
+    // must never create a marker outside the uploaded source audio timeline.
+    const audioTime = (value: unknown) => Math.max(0, Math.min(durationSeconds, Number(value) || 0));
+    const questionMarkers = questionStarts.map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: audioTime(event.at_seconds) }));
+    const highlightMarkers = (rawEvents ?? []).filter((event) => event.event_type === "highlight").map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: audioTime(event.at_seconds) }));
+    const fieldNotes = (rawEvents ?? []).filter((event) => event.event_type === "field_note").map((event) => ({ eventId: event.event_id, questionId: event.question_id, atSeconds: audioTime(event.at_seconds), text: typeof event.payload?.text === "string" ? event.payload.text : "" }));
+    const timelineDurationSeconds = typeof body.timelineDurationSeconds === "number" && Number.isFinite(body.timelineDurationSeconds)
+      ? Math.max(0, Math.min(24 * 60 * 60, body.timelineDurationSeconds)) : null;
+    const sourceMetadata = importedSourceMetadata(body.sourceMetadata, durationSeconds, timelineDurationSeconds);
     const now = new Date().toISOString();
-    const { error: updateError } = await supabase.from("voice_recordings").update({
+    const updateValues: Record<string, unknown> = {
       status: "uploaded",
       audio_status: "stored",
       analysis_status: "pending",
@@ -59,9 +84,17 @@ export async function POST(request: Request, context: RouteContext) {
       question_markers: questionMarkers,
       highlight_markers: highlightMarkers,
       field_notes: fieldNotes,
+      ...(sourceMetadata ? { source_metadata: sourceMetadata } : {}),
       finalized_at: now,
       error_message: null,
-    }).eq("id", id);
+    };
+    let { error: updateError } = await supabase.from("voice_recordings").update(updateValues).eq("id", id);
+    // The new source metadata is additive. A deployment that reaches an older
+    // database must still retain and finalize the original audio successfully.
+    if (updateError && sourceMetadata && (updateError.code === "PGRST204" || updateError.message.includes("source_metadata"))) {
+      delete updateValues.source_metadata;
+      ({ error: updateError } = await supabase.from("voice_recordings").update(updateValues).eq("id", id));
+    }
     if (updateError) throw updateError;
     if (recording.interview_preparation_id) {
       const { error: preparationError } = await supabase.from("voice_interview_preparations").update({

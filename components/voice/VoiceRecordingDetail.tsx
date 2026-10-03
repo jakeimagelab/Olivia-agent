@@ -206,6 +206,8 @@ export default function VoiceRecordingDetail({ id, embedded = false, onBack }: {
 
   const speakerNames = recording.speaker_names || {};
   const processing = ["recording", "uploading", "uploaded", "diarizing", "summarizing"].includes(recording.status);
+  const importedFromIPhone = recording.source_metadata?.source === "iphone_import";
+  const markerNeedsReview = recording.source_metadata?.markerAlignment === "unverified";
 
   return (
     <main className={`${styles.root} ${embedded ? styles.embedded : ""}`}>
@@ -232,9 +234,11 @@ export default function VoiceRecordingDetail({ id, embedded = false, onBack }: {
         {error ? <div className={styles.errorBanner}><AlertCircle size={17} /><span>{error}</span><button type="button" onClick={() => setError("")}>닫기</button></div> : null}
 
         <section className={styles.audioCard}>
-          <div><span><Clock3 size={18} /></span><div><strong>원본 음성</strong><small>AI 결과와 별도로 보존됩니다.</small></div></div>
+          <div><span><Clock3 size={18} /></span><div><strong>{importedFromIPhone ? "아이폰 원본 음성" : "원본 음성"}</strong><small>{importedFromIPhone ? "변환·재압축 없이 보관됩니다." : "AI 결과와 별도로 보존됩니다."}</small></div></div>
           {recording.recording_mode === "interview" ? <span>인터뷰 원본을 연속 시간대로 안전하게 보존합니다.</span> : recording.audio_url ? <audio controls preload="metadata" src={recording.audio_url} /> : <span>원본 음성을 준비하고 있어요.</span>}
         </section>
+
+        {markerNeedsReview ? <div className={styles.errorBanner}><AlertCircle size={17} /><span>아이폰 원본 길이와 Olivia 질문 진행 시간이 달라, 질문별 구간은 참고용으로 표시됩니다.</span></div> : null}
 
         {processing || recording.status === "error" || recording.status === "transcribed" ? (
           <section className={styles.progressCard}>

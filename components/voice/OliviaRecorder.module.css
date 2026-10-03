@@ -399,6 +399,7 @@
 .statusCard { min-height: 118px; display: grid; grid-template-columns: minmax(110px, .75fr) minmax(0, 1fr); align-items: center; gap: 16px; padding: 16px; border: 1px solid rgba(21,88,85,.08); border-radius: 18px; background: #eff8f5; }
 .statusCard .waveform { width: 100%; height: 62px; margin: 0; padding: 0; display: flex; align-items: center; gap: 3px; border-radius: 0; background: transparent; }
 .statusCard .waveform i { min-height: 4px; flex: 1; border-radius: 99px; background: #3b9e82; }
+.importIcon { width: 62px; height: 62px; display: grid; place-items: center; border-radius: 18px; color: #177c70; background: rgba(65, 193, 167, .14); }
 .statusCard strong { font-size: 15px; letter-spacing: -.025em; }
 .statusCard p { margin: 6px 0 0; color: #68827d; font-size: 11px; line-height: 1.5; }
 .infoGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }

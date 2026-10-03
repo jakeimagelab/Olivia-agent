@@ -5,11 +5,12 @@ import {
   VOICE_RECORDINGS_BUCKET,
   VOICE_TRANSCRIPTION_MAX_BYTES,
 } from "@/lib/voice/config";
-import { buildTranscriptText, normalizeTranscriptSegments } from "@/lib/voice/processing";
+import { normalizeTranscriptSegments } from "@/lib/voice/processing";
 import { summarizeVoiceRecording } from "@/lib/voice/summarizer";
 import { selectedInterviewQuestions, transcribeInterviewChunks } from "@/lib/voice/interview/processing";
 import { summarizeInterviewRecording } from "@/lib/voice/interview/summarizer";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { transcribeStoredAudio } from "@/lib/voice/openaiTranscription";
 import type { TranscriptSegment, VoiceStatus } from "@/lib/voice/types";
 
 export const runtime = "nodejs";
@@ -17,12 +18,14 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 type RouteContext = { params: Promise<{ id: string }> };
-type DiarizedResult = { text?: string; segments?: unknown };
-
 async function markError(id: string, message: string) {
   try {
     await getSupabaseAdmin().from("voice_recordings").update({
+      // The original file was confirmed before this asynchronous step. Do not
+      // let an AI error imply that the recording itself was lost.
       status: "error",
+      audio_status: "stored",
+      analysis_status: "failed",
       error_message: message.slice(0, 4_000),
     }).eq("id", id);
   } catch (updateError) {
@@ -114,51 +117,14 @@ async function transcribeRecording(recording: Record<string, unknown>): Promise<
     .download(recording.audio_path);
   if (downloadError || !audio) throw downloadError || new Error("녹음파일 다운로드 실패");
   if (audio.size > VOICE_TRANSCRIPTION_MAX_BYTES) {
-    throw new Error("원본은 안전하게 저장됐지만 현재 버전의 AI 화자분리 한도(25MB)를 초과했습니다.");
+    throw new Error("원본은 안전하게 저장됐지만 현재 버전의 AI 음성 전사 한도(25MB)를 초과했습니다.");
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error("OPENAI_API_KEY가 설정되어 있지 않습니다.");
-  const form = new FormData();
-  form.append("file", audio, recording.audio_path.split("/").pop() || "meeting.m4a");
-  form.append("model", "gpt-4o-transcribe-diarize");
-  form.append("response_format", "diarized_json");
-  form.append("chunking_strategy", "auto");
-
-  const speakerRefPath = process.env.OLIVIA_PRIMARY_SPEAKER_REF_PATH?.trim();
-  if (speakerRefPath && !speakerRefPath.includes("..") && !speakerRefPath.startsWith("/")) {
-    const { data: speakerAudio } = await supabase.storage.from(VOICE_RECORDINGS_BUCKET).download(speakerRefPath);
-    if (speakerAudio && speakerAudio.size > 0) {
-      const buffer = Buffer.from(await speakerAudio.arrayBuffer());
-      const mime = speakerAudio.type || "audio/mp4";
-      form.append("known_speaker_names[]", "정연호");
-      form.append("known_speaker_references[]", `data:${mime};base64,${buffer.toString("base64")}`);
-    }
-  }
-
-  const openAIResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-    signal: AbortSignal.timeout(240_000),
+  return transcribeStoredAudio({
+    audio,
+    filename: recording.audio_path.split("/").pop() || "meeting.m4a",
+    durationSeconds: typeof recording.duration_seconds === "number" ? recording.duration_seconds : 0,
   });
-  if (!openAIResponse.ok) {
-    const detail = (await openAIResponse.text()).slice(0, 2_000);
-    throw new Error(`OpenAI 음성 분석 실패 (${openAIResponse.status}): ${detail}`);
-  }
-
-  const transcription = await openAIResponse.json() as DiarizedResult;
-  let segments = normalizeTranscriptSegments(transcription.segments);
-  const fallbackText = typeof transcription.text === "string" ? transcription.text.trim() : "";
-  if (segments.length === 0 && fallbackText) {
-    segments = [{
-      speaker: "speaker_0",
-      text: fallbackText,
-      start: 0,
-      end: typeof recording.duration_seconds === "number" ? recording.duration_seconds : 0,
-    }];
-  }
-  return { segments, transcriptText: buildTranscriptText(segments, fallbackText) };
 }
 
 export async function POST(_request: Request, context: RouteContext) {
