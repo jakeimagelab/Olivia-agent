@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises"
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
+import { parse as parseExif } from "exifr";
 import { runPhotoRawMatch } from "@/lib/photo-operations/node/photoRawMatch";
 import { runPhotoResizeNode } from "@/lib/photo-operations/node/photoResize";
 import { runPhotoAiSelect } from "@/lib/photo-operations/node/photoAiSelect";
@@ -140,6 +141,58 @@ describe("Mac Studio 사진 후속 작업", () => {
     expect(extractJpegMetadataSegments(outputBytes)).toEqual(extractJpegMetadataSegments(sourceBytes));
     const after = await stat(sourcePath);
     expect({ size: after.size, mtimeMs: after.mtimeMs }).toEqual({ size: before.size, mtimeMs: before.mtimeMs });
+  });
+
+  it("Orientation 8 세로 사진은 픽셀을 바로 세우고 Orientation만 1로 정규화한다", async () => {
+    const { roots, workProject } = await setup();
+    const scene = path.join(workProject, "씬별분류", "Portraits");
+    await mkdir(scene, { recursive: true });
+    const sourcePath = path.join(scene, "CANON_0001.JPG");
+    const sourceBytes = await sharp({
+      create: { width: 1200, height: 800, channels: 3, background: { r: 190, g: 150, b: 130 } },
+    })
+      .jpeg({ quality: 92 })
+      .withMetadata({
+        orientation: 8,
+        exif: {
+          IFD0: {
+            Make: "Canon",
+            Model: "Canon EOS 5D Mark IV",
+            Copyright: "Jake Image Lab",
+          },
+          IFD2: {
+            DateTimeOriginal: "2026:10:04 10:20:30",
+            LensModel: "EF24-70mm f/2.8L II USM",
+          },
+        },
+      })
+      .toBuffer();
+    await writeFile(sourcePath, sourceBytes);
+
+    expect((await sharp(sourceBytes).metadata()).orientation).toBe(8);
+    const sourceExif = await parseExif(sourceBytes, {
+      pick: ["Make", "Model", "LensModel", "DateTimeOriginal", "Copyright"],
+      reviveValues: false,
+    });
+    expect(sourceExif).toMatchObject({
+      Make: "Canon",
+      Model: "Canon EOS 5D Mark IV",
+      LensModel: "EF24-70mm f/2.8L II USM",
+      DateTimeOriginal: "2026:10:04 10:20:30",
+      Copyright: "Jake Image Lab",
+    });
+
+    const result = await runPhotoResizeNode({ roots, projectRelativePath: "0919_test", longEdge: 600, quality: 88 });
+    expect(result).toMatchObject({ ok: true, status: "RESIZE_COMPLETED", metadataPreserved: true });
+
+    const outputBytes = await readFile(path.join(workProject, "씬별분류", "600px_Q88", "Portraits", "CANON_0001.JPG"));
+    const outputMetadata = await sharp(outputBytes).metadata();
+    expect(outputMetadata).toMatchObject({ width: 400, height: 600, orientation: 1 });
+    const outputExif = await parseExif(outputBytes, {
+      pick: ["Make", "Model", "LensModel", "DateTimeOriginal", "Copyright"],
+      reviveValues: false,
+    });
+    expect(outputExif).toEqual(sourceExif);
   });
 
   it("AI 셀렉은 기존 품질·중복 규칙으로 manifest만 만들고 JPG를 이동하지 않는다", async () => {

@@ -3,7 +3,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { JPG_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
 import type { RunnerProgress, RunnerRoots } from "@/lib/photo-classifier/node/types";
-import { extractJpegMetadataSegments, preserveJpegMetadata } from "@/lib/photoResize/jpegMetadata";
+import { preserveJpegMetadata } from "@/lib/photoResize/jpegMetadata";
 import { resultFolderName } from "@/lib/photoResize/resizePhotos";
 import { ensureSafeDirectory, extension, isInside, posixRelative, requireSafeDirectory, resolvePhotoWorkProjectDirectory } from "./common";
 
@@ -84,9 +84,10 @@ function sameSnapshot(before: SourcePhoto[], after: SourcePhoto[]): boolean {
 }
 
 function metadataSegmentsEqual(source: Uint8Array, output: Uint8Array): boolean {
-  const sourceSegments = extractJpegMetadataSegments(source);
-  const outputSegments = extractJpegMetadataSegments(output);
-  return sourceSegments.every((segment) => outputSegments.some((candidate) => Buffer.from(candidate).equals(Buffer.from(segment))));
+  // Re-applying preservation must be a no-op. This validates that every
+  // source segment is present after Orientation normalization without
+  // requiring the normalized EXIF segment to equal the source byte-for-byte.
+  return Buffer.from(preserveJpegMetadata(source, output)).equals(Buffer.from(output));
 }
 
 async function writeManifest(projectRoot: string, outputName: string, data: Record<string, unknown>): Promise<string> {
