@@ -46,7 +46,7 @@ export default function OliviaInterviewRecorder({ preparation, recovery, tabletS
       <header>
         <button type="button" aria-label="인터뷰 준비로" onClick={onClose}><ArrowLeft size={18} /></button>
         <div className={styles.recorderIdentity}><strong>{target.hospitalName}</strong><span>{target.intervieweeName} · 확정 질문 {questions.length}개</span></div>
-        <span className={state.capture === "paused" ? styles.paused : ""}><i />{isTracking ? "인터뷰 진행 중" : state.capture === "paused" ? "일시정지" : state.storage === "awaiting_upload" ? "아이폰 원본 추가 대기" : "질문 미리보기"}</span>
+        <span className={state.capture === "paused" ? styles.paused : ""}><i />{isTracking ? "인터뷰 녹음 중" : state.capture === "paused" ? "일시정지" : state.storage === "awaiting_upload" ? "아이폰 원본 추가 대기" : "질문 미리보기"}</span>
       </header>
       <p className={styles.questionProgress}>보고 있는 질문 {viewedIndex + 1} / {questions.length}{activeIndex >= 0 ? ` · 실제 녹음 질문 ${activeIndex + 1}` : ""}</p>
       <p className={styles.section}>{viewed.sectionTitle}</p>
