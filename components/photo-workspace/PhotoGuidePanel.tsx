@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { CheckSquare2, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, PenLine, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
+import { GuidePanel } from "@/components/workspace-shell/GuidePanel";
 import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
-import styles from "./PhotoWorkspace.module.css";
 
 type GuideKey = "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "t_cut" | "retouch" | "resize" | "rename";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
@@ -76,23 +76,14 @@ export default function PhotoGuidePanel({ mode, selectMode }: { mode: PhotoWorks
   const key = guideKey(mode, selectMode);
   const steps = GUIDES[key];
   return (
-    <aside id="photo-workspace-guide" className={styles.guide} aria-label="사용 가이드">
-      <h2>사용 가이드</h2>
-      <ol className={styles.guideSteps}>
-        {steps.map(({ icon: Icon, title, description }, index) => (
-          <li key={title} className={styles.guideStep}>
-            <span className={styles.guideIcon} aria-hidden="true"><Icon size={19} strokeWidth={1.7} /></span>
-            <span className={styles.guideNumber}>{index + 1}</span>
-            <span className={styles.guideCopy}><strong>{title}</strong><small>{description}</small></span>
-          </li>
-        ))}
-      </ol>
-      {key === "select_ai" ? (
-        <div className={styles.tip}>
+    <GuidePanel
+      steps={steps}
+      tip={key === "select_ai" ? (
+        <>
           <Sparkles size={16} aria-hidden="true" />
           <p><strong>TIP</strong><span>정확한 키워드가 아니어도 괜찮아요.<br />AI가 의미를 이해하고 관련 사진을 찾아드립니다.</span></p>
-        </div>
-      ) : null}
-    </aside>
+        </>
+      ) : undefined}
+    />
   );
 }

@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { FolderTree, Images, PencilLine, Scaling } from "lucide-react";
 import { AppIcon } from "@/components/AppIcon";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { WorkspaceTabs } from "@/components/workspace-shell/WorkspaceTabs";
 import type { PhotoWorkspaceMode } from "./types";
-import styles from "./PhotoWorkspaceTabs.module.css";
 
 export const PHOTO_WORKSPACE_TABS: Array<{
   mode: PhotoWorkspaceMode;
@@ -33,46 +32,19 @@ export default function PhotoWorkspaceTabs({
   value: PhotoWorkspaceMode;
   onChange: (mode: PhotoWorkspaceMode) => void;
 }) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  const fullWidthRef = useRef(0);
-  const [iconsOnly, setIconsOnly] = useState(false);
-
-  useEffect(() => {
-    const shell = shellRef.current;
-    const tabList = shell?.querySelector<HTMLElement>('[role="tablist"]');
-    if (!shell || !tabList) return;
-
-    const measure = () => {
-      if (!iconsOnly) {
-        fullWidthRef.current = Math.max(fullWidthRef.current, tabList.scrollWidth);
-        if (tabList.scrollWidth > shell.clientWidth) setIconsOnly(true);
-        return;
-      }
-      if (shell.clientWidth >= fullWidthRef.current) setIconsOnly(false);
-    };
-
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(shell);
-    observer.observe(tabList);
-    return () => observer.disconnect();
-  }, [iconsOnly]);
-
   return (
-    <div ref={shellRef} className={styles.shell} data-icons-only={iconsOnly}>
-      <SegmentedTabs
-        ariaLabel="사진 작업 선택"
-        value={value}
-        onChange={onChange}
-        items={PHOTO_WORKSPACE_TABS.map(({ mode, title, description, icon }) => ({
-          value: mode,
-          label: title,
-          title: description,
-          id: `photo-workspace-tab-${mode}`,
-          panelId: `photo-workspace-panel-${mode}`,
-          icon,
-        }))}
-      />
-    </div>
+    <WorkspaceTabs
+      ariaLabel="사진 작업 선택"
+      value={value}
+      onChange={onChange}
+      items={PHOTO_WORKSPACE_TABS.map(({ mode, title, description, icon }) => ({
+        value: mode,
+        label: title,
+        title: description,
+        id: `photo-workspace-tab-${mode}`,
+        panelId: `photo-workspace-panel-${mode}`,
+        icon,
+      }))}
+    />
   );
 }

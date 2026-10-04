@@ -2,8 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { PanelRightClose, PanelRightOpen } from "lucide-react";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense } from "react";
+import { WorkPanel } from "@/components/workspace-shell/WorkPanel";
+import { WorkspaceGrid } from "@/components/workspace-shell/WorkspaceGrid";
+import { WorkspaceContent, WorkspaceShell } from "@/components/workspace-shell/WorkspaceShell";
 import PhotoGuidePanel from "./PhotoGuidePanel";
 import PhotoSelectWorkspace from "./PhotoSelectWorkspace";
 import PhotoWorkspaceHeader from "./PhotoWorkspaceHeader";
@@ -52,9 +54,6 @@ function PhotoWorkspaceContent({
   initialMode?: PhotoWorkspaceMode;
   initialTool?: string;
 }) {
-  const contentRef = useRef<HTMLElement>(null);
-  const [compact, setCompact] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -71,20 +70,6 @@ function PhotoWorkspaceContent({
   const remote = executionMode === "REMOTE_WORKER";
   const remoteUnavailable = remote && mode !== "classification" && mode !== "select";
 
-  useEffect(() => {
-    const content = contentRef.current;
-    if (!content) return;
-    const measure = () => {
-      const nextCompact = content.clientWidth < 900;
-      setCompact((current) => current === nextCompact ? current : nextCompact);
-      if (!nextCompact) setGuideOpen(false);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, []);
-
   const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode) => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("tool");
@@ -95,26 +80,17 @@ function PhotoWorkspaceContent({
   };
 
   return (
-    <div className={styles.page}>
-      <main ref={contentRef} className={styles.content}>
+    <WorkspaceShell>
+      <WorkspaceContent>
         {hideHeader ? null : <PhotoWorkspaceHeader />}
         <PhotoWorkspaceTabs value={mode} onChange={updateQuery} />
         <RemotePhotoOperationResultBanner jobId={remoteJobId} />
-        {compact ? (
-          <button
-            type="button"
-            className={styles.guideToggle}
-            aria-expanded={guideOpen}
-            aria-controls="photo-workspace-guide"
-            onClick={() => setGuideOpen((open) => !open)}
-          >
-            {guideOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-            {guideOpen ? "사용 가이드 닫기" : "사용 가이드 보기"}
-          </button>
-        ) : null}
-        <div className={`${styles.workspaceGrid} ${compact || remoteUnavailable ? styles.workspaceGridCompact : ""}`}>
-          <section
-            className={styles.workPanel}
+        <WorkspaceGrid
+          forceSingleColumn={remoteUnavailable}
+          guide={remoteUnavailable ? undefined : <PhotoGuidePanel mode={mode} selectMode={selectMode} />}
+        >
+          <WorkPanel
+            tone="dark"
             role="tabpanel"
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
@@ -129,11 +105,10 @@ function PhotoWorkspaceContent({
             {!remoteUnavailable && mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
             {!remoteUnavailable && mode === "resize" ? <PhotoResizeWorkspace /> : null}
             {!remoteUnavailable && mode === "rename" ? <PhotoRenameWorkspace rootDir={currentLocalFolder} /> : null}
-          </section>
-          {!remoteUnavailable && (!compact || guideOpen) ? <PhotoGuidePanel mode={mode} selectMode={selectMode} /> : null}
-        </div>
-      </main>
-    </div>
+          </WorkPanel>
+        </WorkspaceGrid>
+      </WorkspaceContent>
+    </WorkspaceShell>
   );
 }
 
