@@ -36,7 +36,7 @@ const QUICK_ITEMS = [
   { id: "voice", label: "음성 기록", description: "현장 음성 메모", iconName: "work-log" },
   { id: "clients", label: "고객관리", description: "고객과 진행 상황", iconName: "clients" },
   { id: "quote-contract", label: "견적/계약", description: "문서 확인" },
-  { id: "conti", label: "콘티", description: "현장 촬영 순서", iconName: "storyboard" },
+  { id: "conti", label: "촬영 콘티", description: "사진작업실 · 기획", iconName: "photo-studio" },
   { id: "photo-workspace", label: "사진작업실", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
   { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
 ] as const;

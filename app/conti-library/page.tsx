@@ -94,7 +94,7 @@ export default function ContiLibraryPage() {
       <div className="pc-content pc-content--wide">
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
           <div>
-            <Link href="/conti" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none", marginBottom: 10 }}>
+            <Link href="/photo-sorting?tab=plan&tool=conti" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, color: C.muted, textDecoration: "none", marginBottom: 10 }}>
               <ArrowLeft size={14} />콘티 작성으로
             </Link>
             <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0, marginBottom: 6 }}>콘티 학습 자료</h1>

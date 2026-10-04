@@ -317,7 +317,8 @@ const TOOLS: Anthropic.Tool[] = [
                  "per-orders", "per-products", "per-reports", "per-settings",
                  "photoclinic", "portal-admin", "raw-select", "select-galleries",
                  "select-match", "seo-delivery", "shooting", "sns-design", "trash",
-                 "trend-dashboard", "variation", "video-conti", "video-convert", "video-sorting", "library"],
+                 "trend-dashboard", "variation", "video-conti", "youtube-editing-conti", "broll-prompt",
+                 "prompter", "video-production", "portrait-consent", "video-convert", "video-sorting", "library"],
         },
       },
       required: ["page"],
@@ -1174,7 +1175,7 @@ async function executeTool(
     Object.entries(input).forEach(([k, v]) => { if (v) params.set(k, String(v)); });
     return {
       action: "navigate",
-      url: "/conti?" + params.toString(),
+      url: `/photo-sorting?tab=plan&tool=conti${params.size ? `&${params.toString()}` : ""}`,
       message: input.hospitalName + " 콘티 페이지를 열었어요!",
     };
   }
@@ -1242,6 +1243,14 @@ async function executeTool(
       "per-products": "/per/products",
       "per-reports": "/per/reports",
       "per-settings": "/per/settings",
+      conti: "/photo-sorting?tab=plan&tool=conti",
+      "video-conti": "/video-studio?tab=plan&tool=video-conti",
+      "youtube-editing-conti": "/video-studio?tab=plan&tool=youtube-conti",
+      "broll-prompt": "/video-studio?tab=plan&tool=broll",
+      prompter: "/video-studio?tab=shoot&tool=prompter",
+      "video-sorting": "/video-studio?tab=post&tool=sorting",
+      "video-production": "/video-studio?tab=publish&tool=ai-video",
+      "portrait-consent": "/clients?tab=documents&document=portrait-consent",
     };
 
     return {

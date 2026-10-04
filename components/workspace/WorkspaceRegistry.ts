@@ -38,6 +38,8 @@ export type WorkspaceRegistryEntry = {
   // shouldAutoCloseWorkspace가 이 목록 하나만 보고 판단하므로, 새 direct route를 추가할 땐
   // 여기 한 줄만 늘리면 된다.
   directRoutes: string[];
+  /** URL synchronization target when this legacy workspace now lives inside a parent workspace. */
+  canonicalRoute?: string;
 };
 
 export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, WorkspaceRegistryEntry>> = {
@@ -48,7 +50,14 @@ export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, Wor
   // 지우지 않았으므로 채팅에서 "견적서 열어줘"처럼 workspace로 띄우는 기능은 그대로 쓸 수 있다.
   quote: { label: "견적서 작성", icon: FileText, component: QuoteBuilder, preload: loadQuoteBuilder, directRoutes: [] },
   contract: { label: "계약서 작성", icon: FileSignature, component: ContractBuilder, preload: loadContractBuilder, directRoutes: ["/contract"] },
-  conti: { label: "콘티", icon: Clapperboard, component: ContiWorkspace, preload: loadConti, directRoutes: ["/conti"] },
+  conti: {
+    label: "촬영 콘티",
+    icon: Clapperboard,
+    component: ContiWorkspace,
+    preload: loadConti,
+    directRoutes: [],
+    canonicalRoute: "/photo-sorting?tab=plan&tool=conti",
+  },
   // photo-sort의 실제 direct route(/photo-sorting)는 PhotoWorkspace(자체 탭/URL 체계를 가진
   // 상위 셸)가 그려서 70/30 스플릿을 쓰지 않는다 — directRoutes는 "이 경로는 등록된
   // 워크스페이스에 속한다"는 판정에만 쓰이고, OliviaWorkspaceShell은 photo-sort일 때 스플릿

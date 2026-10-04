@@ -10,8 +10,6 @@ import { OliviaChatWindowContent } from "../adapters/OliviaChatWindowContent";
 import { DocumentsWindowContent } from "../apps/documents/DocumentsWindowContent";
 import { QuoteBuilderWindowContent } from "../adapters/QuoteBuilderWindowContent";
 import { ContractBuilderWindowContent } from "../adapters/ContractBuilderWindowContent";
-import { ContiWindowContent } from "../adapters/ContiWindowContent";
-import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowContent";
 import { TodayWindowContent } from "../adapters/TodayWindowContent";
 import { AllAppsWindowContent } from "../apps/all-apps/AllAppsWindowContent";
 import { LegacyRouteWindowContent } from "../adapters/LegacyRouteWindowContent";
@@ -27,7 +25,6 @@ import { SeoDeliveryWindowContent } from "../adapters/SeoDeliveryWindowContent";
 import { MailingWindowContent } from "../adapters/MailingWindowContent";
 import { WorkJournalWindowContent } from "../adapters/WorkJournalWindowContent";
 import { ReportWindowContent } from "../adapters/ReportWindowContent";
-import { VideoProductionWindowContent } from "../adapters/VideoProductionWindowContent";
 import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
@@ -171,16 +168,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: VideoStudioWindowContent,
   },
   {
-    id: "video-production",
-    title: "영상제작",
-    icon: appIcon("video-production"),
-    route: "/video-production",
-    defaultSize: { width: 1220, height: 780 },
-    minSize: { width: 700, height: 500 },
-    singleton: true,
-    component: VideoProductionWindowContent,
-  },
-  {
     id: "quote",
     title: "견적서",
     icon: appIcon("quote"),
@@ -199,26 +186,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 640, height: 420 },
     singleton: true,
     component: ContractBuilderWindowContent,
-  },
-  {
-    id: "conti",
-    title: "콘티",
-    icon: appIcon("storyboard"),
-    route: "/conti",
-    defaultSize: { width: 1100, height: 760 },
-    minSize: { width: 720, height: 440 },
-    singleton: true,
-    component: ContiWindowContent,
-  },
-  {
-    id: "portrait-consent",
-    title: "초상권 동의서",
-    icon: appIcon("contract"),
-    route: "/portrait-consent",
-    defaultSize: { width: 1000, height: 720 },
-    minSize: { width: 640, height: 420 },
-    singleton: true,
-    component: PortraitConsentWindowContent,
   },
   {
     id: "documents",
@@ -321,8 +288,15 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   },
 ];
 
+const LEGACY_APP_ID_ALIASES: Readonly<Record<string, string>> = {
+  conti: "photo-workspace",
+  "video-production": "video-studio",
+  "portrait-consent": "customer",
+};
+
 export function getOliviaApp(appId: string): OliviaAppDefinition | undefined {
-  return oliviaAppRegistry.find((app) => app.id === appId);
+  const canonicalAppId = LEGACY_APP_ID_ALIASES[appId] ?? appId;
+  return oliviaAppRegistry.find((app) => app.id === canonicalAppId);
 }
 
 const NATIVE_ROUTE_ALIASES: Readonly<Record<string, string>> = {

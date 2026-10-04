@@ -17,7 +17,14 @@ describe("clientRoute", () => {
       appId: "customer",
       clientId: "client-2",
       workflowRunId: "run-1",
+      routeHref: "/clients?clientId=client-2&workflowRunId=run-1",
     });
+  });
+
+  it("preserves the requested customer detail tab", () => {
+    const href = buildClientOliviaRootHref({ clientId: "client-2", tab: "documents", document: "portrait-consent" });
+    expect(parseOliviaRootLaunch(new URL(href, "https://olivia.local").search)?.routeHref)
+      .toBe("/clients?clientId=client-2&tab=documents&document=portrait-consent");
   });
 
   it("ignores unknown root app values", () => {

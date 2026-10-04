@@ -123,7 +123,7 @@ async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: str
     createdAt: row.saved_at ?? null,
     updatedAt: row.saved_at ?? null,
     searchableText: [row.title, row.hospital_name].filter(Boolean).join(" "),
-    route: `/conti?resourceId=${row.id}`,
+    route: `/photo-sorting?tab=plan&tool=conti&resourceId=${row.id}`,
   }));
   const canonical = (canonicalResult.data || []).map((row: Row): OliviaDocumentRef => ({
     id: `conti_run:${row.id}`,
@@ -138,7 +138,7 @@ async function fetchConti(db: SupabaseClient, clientId?: string, projectId?: str
     createdAt: row.created_at ?? null,
     updatedAt: row.updated_at ?? row.created_at ?? null,
     searchableText: [row.hospital_name, row.specialty].filter(Boolean).join(" "),
-    route: `/conti?resourceId=${row.id}`,
+    route: `/photo-sorting?tab=plan&tool=conti&resourceId=${row.id}`,
   }));
   return [...canonical, ...legacy];
 }

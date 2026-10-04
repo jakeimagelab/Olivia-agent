@@ -13,7 +13,6 @@ describe("integrated workspace registry", () => {
     expect(WORKSPACE_GROUPS.map((group) => group.title)).toEqual([
       "사진작업실",
       "영상작업실",
-      "콘티 스튜디오",
       "브랜드 진단센터",
       "콘텐츠 스튜디오",
       "리포트 · 인사이트",
@@ -38,7 +37,17 @@ describe("integrated workspace registry", () => {
 
   it("moves video sorting out of the photo workspace into 영상작업실", () => {
     expect(isIntegratedToolHref("/video-sorting")).toBe(true);
-    expect(getCanonicalWorkspaceHref("/video-sorting")).toBe("/video-studio?tab=sorting");
+    expect(getCanonicalWorkspaceHref("/video-sorting")).toBe("/video-studio?tab=post&tool=sorting");
+  });
+
+  it("maps former standalone production tools to their exact workspace tabs", () => {
+    expect(getCanonicalWorkspaceHref("/conti?clientId=c1")).toBe("/photo-sorting?tab=plan&tool=conti&clientId=c1");
+    expect(getCanonicalWorkspaceHref("/video-conti")).toBe("/video-studio?tab=plan&tool=video-conti");
+    expect(getCanonicalWorkspaceHref("/youtube-editing-conti")).toBe("/video-studio?tab=plan&tool=youtube-conti");
+    expect(getCanonicalWorkspaceHref("/broll-prompt")).toBe("/video-studio?tab=plan&tool=broll");
+    expect(getCanonicalWorkspaceHref("/prompter")).toBe("/video-studio?tab=shoot&tool=prompter");
+    expect(getCanonicalWorkspaceHref("/video-production")).toBe("/video-studio?tab=publish&tool=ai-video");
+    expect(getCanonicalWorkspaceHref("/portrait-consent")).toBe("/clients?tab=documents&document=portrait-consent");
   });
 });
 
@@ -60,7 +69,9 @@ describe("photo workspace tool deep links", () => {
 describe("Olivia resolves detailed feature names through the workspace registry", () => {
   const cases: Array<[string, string]> = [
     ["메타데이터 셀렉", "/photo-sorting?tool=metadata-match"],
-    ["유튜브 편집 콘티", "/youtube-editing-conti"],
+    ["유튜브 편집 콘티", "/video-studio?tab=plan&tool=youtube-conti"],
+    ["프롬프터", "/video-studio?tab=shoot&tool=prompter"],
+    ["초상권 동의서", "/clients?tab=documents&document=portrait-consent"],
     ["병원 채널 분석", "/channel-analyzer"],
     ["리뷰 콘텐츠", "/clients/reviews"],
   ];
@@ -82,6 +93,6 @@ describe("영상작업실 routing in Olivia OS", () => {
     const { resolveOliviaAppRoute } = await import("@/components/olivia-os/registry/oliviaAppRegistry");
     const resolved = resolveOliviaAppRoute("/video-sorting");
     expect(resolved?.app.id).toBe("video-studio");
-    expect(resolved?.href).toBe("/video-studio?tab=sorting");
+    expect(resolved?.href).toBe("/video-studio?tab=post&tool=sorting");
   });
 });

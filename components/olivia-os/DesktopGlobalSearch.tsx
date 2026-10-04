@@ -3,7 +3,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { FileText, FolderKanban, LoaderCircle, Search, Sparkles, UserRound, X } from "lucide-react";
 import { filterAdminTools, type AdminSearchResult } from "@/lib/adminSearch";
-import { ALL_TOOLS } from "@/lib/toolNav";
+import { getWorkspaceAwareTools } from "@/lib/olivia/features/registry";
 import type { OliviaDocumentRef } from "@/lib/olivia/documents/types";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
@@ -36,7 +36,7 @@ export function DesktopGlobalSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const launchHref = useDesktopAppLauncher();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
-  const localTools = useMemo(() => filterAdminTools(ALL_TOOLS, deferredQuery).slice(0, 8), [deferredQuery]);
+  const localTools = useMemo(() => filterAdminTools(getWorkspaceAwareTools(), deferredQuery).slice(0, 8), [deferredQuery]);
   const groups = [
     { key: "customer", label: "고객", icon: UserRound, items: results.customers },
     { key: "project", label: "프로젝트", icon: FolderKanban, items: results.projects },
@@ -100,30 +100,17 @@ export function DesktopGlobalSearch() {
   }, [deferredQuery, localTools]);
 
   const launchDocument = (document: OliviaDocumentRef) => {
-    const appId = document.type === "quote" ? "quote"
-      : document.type === "contract" ? "contract"
-      : document.type === "storyboard" ? "conti"
-      : document.type === "memo" ? "memo" : undefined;
-    const app = appId ? getOliviaApp(appId) : undefined;
-    if (app) {
-      openApp({
-        appId: app.id,
-        title: `${app.title} · ${document.title}`,
-        width: app.defaultSize.width,
-        height: app.defaultSize.height,
-        context: {
-          clientId: document.clientId ?? undefined,
-          clientName: document.clientName ?? undefined,
-          projectId: document.projectId ?? undefined,
-          projectName: document.projectName ?? undefined,
-          resourceId: document.sourceId,
-          resourceType: document.type,
-          documentId: document.sourceId,
-          documentType: document.type,
-        },
+    if (document.route) {
+      launchHref(document.route, document.title, {
+        clientId: document.clientId ?? undefined,
+        clientName: document.clientName ?? undefined,
+        projectId: document.projectId ?? undefined,
+        projectName: document.projectName ?? undefined,
+        resourceId: document.sourceId,
+        resourceType: document.type,
+        documentId: document.sourceId,
+        documentType: document.type,
       });
-    } else if (document.route) {
-      launchHref(document.route, document.title);
     } else {
       const documentsApp = getOliviaApp("documents");
       if (documentsApp) openApp({ appId: documentsApp.id, title: documentsApp.title, width: documentsApp.defaultSize.width, height: documentsApp.defaultSize.height });

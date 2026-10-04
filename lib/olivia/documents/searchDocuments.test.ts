@@ -117,8 +117,8 @@ describe("searchDocuments", () => {
 
     expect(routes.get("q1")).toBe("/quote?resourceId=q1");
     expect(routes.get("contract-1")).toBe("/contract?resourceId=contract-1");
-    expect(routes.get("c1")).toBe("/conti?resourceId=c1");
-    expect(routes.get("run-1")).toBe("/conti?resourceId=run-1");
+    expect(routes.get("c1")).toBe("/photo-sorting?tab=plan&tool=conti&resourceId=c1");
+    expect(routes.get("run-1")).toBe("/photo-sorting?tab=plan&tool=conti&resourceId=run-1");
     expect(routes.get("memo-1")).toBe("/memo?resourceId=memo-1");
     expect(routes.get("review-1")).toBe("/review-studio?reviewId=review-1");
     expect(routes.get("gallery-1")).toBe("/gallery?galleryId=gallery-1");

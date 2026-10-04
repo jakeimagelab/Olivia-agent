@@ -6,7 +6,7 @@ describe("document opening", () => {
   it.each([
     ["견적서", "quote", "/quote?resourceId=quote-1", "quote-1"],
     ["계약서", "contract", "/contract?resourceId=contract-1", "contract-1"],
-    ["콘티", "storyboard", "/conti?resourceId=conti-1", "conti-1"],
+    ["콘티", "storyboard", "/photo-sorting?tab=plan&tool=conti&resourceId=conti-1", "conti-1"],
     ["메모", "memo", "/memo?resourceId=memo-1", "memo-1"],
     ["갤러리", "gallery", "/gallery?galleryId=gallery-1", "gallery-1"],
     ["셀렉갤러리", "gallery", "/select-galleries/select-1", "select-1"],

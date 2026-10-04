@@ -24,6 +24,10 @@ export function ClientsWindowContent({
 }) {
   const inheritedSurface = useOliviaUiSurface();
   const resolvedSurface = surface ?? inheritedSurface;
+  const routeHref = context?.routeHref;
+  const initialTab = routeHref
+    ? new URL(routeHref, "https://olivia.local").searchParams.get("tab") ?? undefined
+    : undefined;
 
   return (
     <DesktopWindowProvider value={resolvedSurface === "desktop"}>
@@ -32,6 +36,7 @@ export function ClientsWindowContent({
           <ClientsWorkspace
             initialClientId={context?.clientId}
             initialWorkflowRunId={context?.projectId}
+            initialTab={initialTab}
             surface={resolvedSurface}
           />
         </div>

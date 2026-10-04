@@ -27,7 +27,6 @@ export const DESKTOP_APP_TO_WORKSPACE: Partial<Record<string, string>> = {
   "select-galleries": "photo-sort",
   quote: "quote",
   contract: "contract",
-  conti: "conti",
   calendar: "calendar",
 };
 

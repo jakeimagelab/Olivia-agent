@@ -118,7 +118,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
         clientId: initialLaunch.clientId,
         projectId: initialLaunch.workflowRunId,
         workflowRunId: initialLaunch.workflowRunId,
-        routeHref: "/clients",
+        routeHref: initialLaunch.routeHref ?? "/clients",
       },
     });
     window.history.replaceState(window.history.state, "", clearOliviaRootLaunchParams(window.location.href));

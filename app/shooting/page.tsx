@@ -245,7 +245,7 @@ function ShootingInner() {
               <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.6, flex: 1 }}>
                 인터뷰·멘트 촬영 시 대본을 띄웁니다.
               </div>
-              <Link href="/prompter" target="_blank" className="pc-btn pc-btn--secondary pc-btn--sm" style={{ textDecoration: "none", textAlign: "center" }}>
+              <Link href="/video-studio?tab=shoot&tool=prompter" target="_blank" className="pc-btn pc-btn--secondary pc-btn--sm" style={{ textDecoration: "none", textAlign: "center" }}>
                 프롬프터 열기
               </Link>
             </div>

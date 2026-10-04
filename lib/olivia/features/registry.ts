@@ -1,6 +1,6 @@
 import { Grid2X2, House } from "lucide-react";
 import { ALL_TOOLS, type ToolDef } from "@/lib/toolNav";
-import { WORKSPACE_GROUPS, isIntegratedToolHref } from "@/lib/workspaceGroups";
+import { WORKSPACE_GROUPS, getCanonicalWorkspaceHref, isIntegratedToolHref } from "@/lib/workspaceGroups";
 
 // 기존 ALL_TOOLS는 Sidebar/기존 route 호환성을 유지하고, 통합 대상은 WORKSPACE_GROUPS의
 // canonical 목적지와 별칭을 사용한다. 독립 기능은 계속 ALL_TOOLS를 그대로 쓴다.
@@ -45,7 +45,10 @@ function getWorkspaceFeatures(): ToolDef[] {
 
 export function getWorkspaceAwareTools(): ToolDef[] {
   const standaloneFeatures = ALL_TOOLS.filter((tool) => !isIntegratedToolHref(tool.href));
-  return [...getWorkspaceFeatures(), ...standaloneFeatures];
+  const movedFeatures = ALL_TOOLS
+    .filter((tool) => tool.href === "/portrait-consent")
+    .map((tool) => ({ ...tool, href: getCanonicalWorkspaceHref(tool.href) }));
+  return [...getWorkspaceFeatures(), ...movedFeatures, ...standaloneFeatures];
 }
 
 export function getOliviaFeatures(): ToolDef[] {

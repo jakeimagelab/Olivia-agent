@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Star } from "lucide-react";
 import { ALL_TOOLS, groupToolsByCategory, type NavCategory, type ToolDef } from "@/lib/toolNav";
+import { WORKSPACE_GROUPS, isIntegratedToolHref } from "@/lib/workspaceGroups";
 import type { IconName } from "@/components/Icon";
 import { AppIcon as ColorAppIcon } from "@/components/AppIcon";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
@@ -27,15 +28,12 @@ import styles from "./AllAppsWindowContent.module.css";
 const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/memo": "memo", "/team-chat": "team-chat", "/calendar": "work-calendar",
   "/work-journal": "work-log", "/team": "workspace", "/marketing": "marketing-dashboard",
-  "/quote": "quote", "/contract": "contract", "/conti": "storyboard",
-  "/portrait-consent": "contract", "/clients": "clients", "/select-galleries": "select-gallery",
+  "/quote": "quote", "/contract": "contract", "/clients": "clients", "/select-galleries": "select-gallery",
   "/per": "per-reward", "/portal-admin": "client-portal", "/mailing": "mailing",
   "/photo-sorting": "photo-studio", "/select-match": "select-match",
   "/metadata-select": "metadata-select", "/raw-select": "raw-select",
-  "/video-sorting": "video-sort", "/video-convert": "resolution-convert",
-  "/video-production": "video-production",
-  "/photo-retouching": "retouch", "/broll-prompt": "broll-prompt",
-  "/youtube-editing-conti": "youtube-storyboard", "/prompter": "prompter",
+  "/video-studio": "video-studio", "/video-convert": "resolution-convert",
+  "/photo-retouching": "retouch",
   "/report": "work-report", "/link-generator": "share-link", "/trash": "trash",
   "/daily-ideas": "idea", "/sns-manager": "promo-content", "/review-studio": "review-content",
   "/brand-analysis": "brand-audit", "/ai-trust-gap": "reverse-analysis",
@@ -48,13 +46,27 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
 const FAVORITE_LABEL_BY_KEY: Record<string, string> = {
   "/calendar": "일정",
   "/quote": "견적서 생성",
-  "/conti": "콘티",
-  "/photo-sorting": "사진 작업실",
+  "/photo-sorting": "사진작업실",
+  "/video-studio": "영상작업실",
   "/memo": "메모",
   "/clients": "고객 관리",
 };
 
-const TOOL_BY_HREF = new Map(ALL_TOOLS.map((tool) => [tool.href, tool]));
+const WORKSPACE_APP_TOOLS: ToolDef[] = WORKSPACE_GROUPS.map((group) => ({
+  title: group.title,
+  desc: group.description,
+  href: group.href,
+  icon: group.icon,
+  meta: "Workspace",
+  orange: false,
+  category: "tools",
+  aliases: group.aliases,
+}));
+const APP_TOOLS: ToolDef[] = [
+  ...WORKSPACE_APP_TOOLS,
+  ...ALL_TOOLS.filter((tool) => !isIntegratedToolHref(tool.href)),
+];
+const TOOL_BY_HREF = new Map(APP_TOOLS.map((tool) => [tool.href, tool]));
 const DESKTOP_APP_IDS = ["today", "olivia-chat"] as const;
 
 type AppTab = "favorites" | "all" | "desktop" | NavCategory;
@@ -167,7 +179,7 @@ export function AllAppsWindowContent() {
   const rootRef = useRef<HTMLDivElement>(null);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
   const launchHref = useDesktopAppLauncher();
-  const groups = useMemo(() => groupToolsByCategory(ALL_TOOLS).filter((group) => group.items.length > 0), []);
+  const groups = useMemo(() => groupToolsByCategory(APP_TOOLS).filter((group) => group.items.length > 0), []);
   const desktop = useMemo(desktopEntries, []);
   const desktopByKey = useMemo(() => new Map(desktop.map((entry) => [entry.key, entry])), [desktop]);
   const [activeCategory, setActiveCategory] = useState<AppTab>("favorites");
@@ -209,7 +221,7 @@ export function AllAppsWindowContent() {
         return tool ? [toolEntry(tool, FAVORITE_LABEL_BY_KEY[key] ?? tool.title)] : [];
       });
     }
-    if (activeCategory === "all") return [...desktop, ...ALL_TOOLS.map((tool) => toolEntry(tool))];
+    if (activeCategory === "all") return [...desktop, ...APP_TOOLS.map((tool) => toolEntry(tool))];
     if (activeCategory === "desktop") return desktop;
     const group = groups.find((candidate) => candidate.category === activeCategory);
     return group?.items.map((tool) => toolEntry(tool)) ?? [];

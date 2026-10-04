@@ -21,7 +21,13 @@ export function PhotoWorkspaceWindowContent({ context }: { context?: WindowConte
     <DesktopWindowProvider value={true}>
       <PhotoStudioExecutionProvider>
         <PhotoStudioExecutionBar />
-        <PhotoWorkspace hideHeader initialTool={initialTool} />
+        <PhotoWorkspace
+          hideHeader
+          initialTool={initialTool}
+          clientId={context?.clientId}
+          workflowRunId={context?.projectId ?? context?.workflowRunId}
+          resourceId={context?.resourceId ?? context?.documentId}
+        />
       </PhotoStudioExecutionProvider>
     </DesktopWindowProvider>
   );

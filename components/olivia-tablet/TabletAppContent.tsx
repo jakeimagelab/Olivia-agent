@@ -10,6 +10,8 @@ import TabletQuoteContract from "./TabletQuoteContract";
 import TabletVoice from "./TabletVoice";
 import styles from "./OliviaTabletShell.module.css";
 import { AnalysisHostProvider } from "@/components/analysis-workspace/AnalysisHostContext";
+import { PhotoStudioExecutionProvider } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import PhotoStudioExecutionBar from "@/components/photo-workspace/PhotoStudioExecutionBar";
 
 function createLoadingComponent(label: string) {
   function TabletAppLoading() {
@@ -40,9 +42,9 @@ const TabletMemo = dynamic(
   () => import("@/components/olivia-os/adapters/MemoWindowContent").then((module) => module.MemoWindowContent),
   { ssr: false, loading: createLoadingComponent("메모") },
 );
-const TabletConti = dynamic(
-  () => import("@/components/conti/v2/ContiWorkspaceAdapter"),
-  { ssr: false, loading: createLoadingComponent("콘티") },
+const TabletPhotoWorkspace = dynamic(
+  () => import("@/components/photo-workspace/PhotoWorkspace"),
+  { ssr: false, loading: createLoadingComponent("사진작업실") },
 );
 const TabletChannelAnalysis = dynamic(
   () => import("@/app/channel-analyzer/page"),
@@ -73,13 +75,18 @@ export default function TabletAppContent({ activeApp, navigation, onNavigate }: 
     case "calendar": content = <TabletAppFrame><TabletCalendar /></TabletAppFrame>; break;
     case "conti": content = (
       <TabletAppFrame compact scroll="page">
-        <TabletConti
-          key={navigation.resourceId ?? "new-conti"}
-          surface="tablet"
-          initialRunId={navigation.resourceId}
-          clientId={navigation.clientId}
-          workflowRunId={navigation.workflowRunId}
-        />
+        <PhotoStudioExecutionProvider>
+          <PhotoStudioExecutionBar />
+          <TabletPhotoWorkspace
+            key={navigation.resourceId ?? "new-conti"}
+            hideHeader
+            initialMode="plan"
+            initialTool="conti"
+            clientId={navigation.clientId}
+            workflowRunId={navigation.workflowRunId}
+            resourceId={navigation.resourceId}
+          />
+        </PhotoStudioExecutionProvider>
       </TabletAppFrame>
     ); break;
     case "documents": content = <TabletAppFrame><TabletDocuments surface="tablet" /></TabletAppFrame>; break;

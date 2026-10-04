@@ -96,6 +96,7 @@ const MAIL_COLOR: Record<string, string> = {
 type ClientsWorkspaceProps = {
   initialClientId?: string;
   initialWorkflowRunId?: string;
+  initialTab?: string;
   surface?: OliviaUiSurface;
 };
 
@@ -146,10 +147,10 @@ export function resolveEmbeddedClientDetailTarget(clientId: string, workflowRunI
   return { clientId, workflowRunId: workflowRunId ?? null };
 }
 
-export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId, surface = "desktop" }: ClientsWorkspaceProps = {}) {
+export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId, initialTab, surface = "desktop" }: ClientsWorkspaceProps = {}) {
   return (
     <Suspense fallback={<SpinBox />}>
-      <ClientsInner initialClientId={initialClientId} initialWorkflowRunId={initialWorkflowRunId} surface={surface} />
+      <ClientsInner initialClientId={initialClientId} initialWorkflowRunId={initialWorkflowRunId} initialTab={initialTab} surface={surface} />
     </Suspense>
   );
 }
@@ -163,22 +164,51 @@ function SpinBox() {
   );
 }
 
-function ClientsInner({ initialClientId, initialWorkflowRunId, surface }: ClientsWorkspaceProps) {
+function ClientsInner({ initialClientId, initialWorkflowRunId, initialTab, surface }: ClientsWorkspaceProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const embedded = useDesktopWindowMode() || surface === "tablet";
-  if (embedded) return <ClientWorkspaceView embedded openNewOnLoad={false} initialClientId={initialClientId ?? null} />;
+  if (embedded) return (
+    <ClientWorkspaceView
+      embedded
+      openNewOnLoad={false}
+      initialClientId={initialClientId ?? null}
+      initialWorkflowRunId={initialWorkflowRunId}
+      initialTab={initialTab}
+    />
+  );
   const id = searchParams.get("id");
   const workflowRunId = initialWorkflowRunId ?? searchParams.get("workflowRunId");
   // 기존 8탭 상세 화면은 그대로 둔다(?id=) — 이번 개편으로 아직 안 옮긴 기능(문서/갤러리 상세관리 등)의
   // 도피처. 새 3단 워크스페이스는 기본 진입(/clients, ?clientId=) 경로로 붙인다.
-  if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
-  if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} onBack={() => router.push("/clients")} />;
-  return <ClientWorkspaceView embedded={false} openNewOnLoad={searchParams.get("new") === "1"} initialClientId={searchParams.get("clientId")} />;
+  const resolvedInitialTab = initialTab ?? searchParams.get("tab") ?? undefined;
+  if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} initialTab={resolvedInitialTab} onBack={() => router.push("/clients")} />;
+  if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} initialTab={resolvedInitialTab} onBack={() => router.push("/clients")} />;
+  return (
+    <ClientWorkspaceView
+      embedded={false}
+      openNewOnLoad={searchParams.get("new") === "1"}
+      initialClientId={searchParams.get("clientId")}
+      initialWorkflowRunId={workflowRunId}
+      initialTab={resolvedInitialTab}
+    />
+  );
 }
 
 /* ── 2열 워크스페이스 — 왼쪽 고객 목록 | 오른쪽 선택 고객 프로젝트 ── */
-function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId }: { embedded: boolean; openNewOnLoad?: boolean; initialClientId: string | null }) {
+function ClientWorkspaceView({
+  embedded,
+  openNewOnLoad = false,
+  initialClientId,
+  initialWorkflowRunId,
+  initialTab,
+}: {
+  embedded: boolean;
+  openNewOnLoad?: boolean;
+  initialClientId: string | null;
+  initialWorkflowRunId?: string | null;
+  initialTab?: string;
+}) {
   const router = useRouter();
   const {
     filtered, loading, search, setSearch,
@@ -186,7 +216,11 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     deletingId, deleteClient, load,
   } = useClientRoster();
   const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
-  const [detailTarget, setDetailTarget] = useState<{ clientId: string; workflowRunId: string | null } | null>(null);
+  const [detailTarget, setDetailTarget] = useState<{ clientId: string; workflowRunId: string | null } | null>(() => (
+    initialClientId && initialTab === "documents"
+      ? resolveEmbeddedClientDetailTarget(initialClientId, initialWorkflowRunId)
+      : null
+  ));
   const filteredClientIds = filtered.map((client) => client.id).join("|");
   const lastAppliedInitialClientIdRef = useRef<string | null | undefined>(undefined);
 
@@ -258,6 +292,7 @@ function ClientWorkspaceView({ embedded, openNewOnLoad = false, initialClientId 
     <DetailView
       clientId={detailTarget.clientId}
       workflowRunId={detailTarget.workflowRunId}
+      initialTab={initialTab}
       onBack={() => setDetailTarget(null)}
       onWorkflowRunChange={(workflowRunId) => setDetailTarget((current) => current ? { ...current, workflowRunId } : current)}
       embedded={embedded}
@@ -577,11 +612,13 @@ function InlineClientProjectPanel({
 function DetailView({
   clientId,
   workflowRunId,
+  initialTab,
   onBack,
   onWorkflowRunChange,
 }: {
   clientId: string;
   workflowRunId: string | null;
+  initialTab?: string;
   onBack: () => void;
   onWorkflowRunChange?: (workflowRunId: string) => void;
   embedded?: boolean;
@@ -597,7 +634,9 @@ function DetailView({
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showEditProjectDialog, setShowEditProjectDialog] = useState(false);
   const [progressModalOpen, setProgressModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => (
+    DETAIL_TABS.some((tab) => tab.key === initialTab) ? initialTab as string : "overview"
+  ));
   const [infoEditSignal, setInfoEditSignal] = useState(0);
   const detailTabsRef = useRef<HTMLElement>(null);
   const [linkCopyBusy, setLinkCopyBusy] = useState(false);

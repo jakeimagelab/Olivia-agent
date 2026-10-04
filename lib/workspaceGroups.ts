@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, Camera, Clapperboard, Film, Lightbulb, ScanSearch } from "lucide-react";
+import { BarChart3, Camera, Film, Lightbulb, ScanSearch } from "lucide-react";
 
-export type WorkspaceGroupId = "photo" | "video" | "conti" | "brand" | "content" | "insights";
+export type WorkspaceGroupId = "photo" | "video" | "brand" | "content" | "insights";
 export type WorkspaceAccent = "mint" | "blue" | "purple" | "orange" | "green";
 
 export type WorkspaceSubTool = {
@@ -28,12 +28,13 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "photo",
     title: "사진작업실",
-    description: "사진 셀렉부터 RAW 매칭, 분류, T컷과 후반 작업까지 한 곳에서.",
+    description: "촬영 콘티부터 사진 셀렉, RAW 매칭, 분류와 후반 작업까지 한 곳에서.",
     href: "/photo-sorting",
     icon: Camera,
     accent: "mint",
     aliases: ["사진 작업실", "포토 작업실", "사진 도구"],
     tools: [
+      { id: "plan", title: "촬영 콘티", href: "/photo-sorting?tab=plan&tool=conti", aliases: ["콘티", "촬영 콘티", "사진 콘티", "콘티 만들기", "촬영계획", "촬영 계획", "콘티 작업실", "스토리보드 스튜디오"], sourceHrefs: ["/conti"] },
       { id: "photo-select", title: "사진 셀렉", href: "/photo-sorting?mode=select", aliases: ["사진 셀렉", "AI 사진 셀렉", "AI 사진 검색", "사진 검색", "직접 셀렉", "고객 셀렉", "고객셀렉"], sourceHrefs: [] },
       { id: "raw-match", title: "RAW 매칭", href: "/photo-sorting?mode=raw-match", aliases: ["셀렉매칭", "셀렉 매칭", "RAW 매칭", "원본 매칭", "RAW 셀렉", "매칭"], sourceHrefs: ["/select-match", "/metadata-select"] },
       { id: "metadata-match", title: "촬영시간 RAW 매칭", href: "/photo-sorting?tool=metadata-match", aliases: ["메타데이터 셀렉", "EXIF 매칭", "촬영시간 매칭"], sourceHrefs: [] },
@@ -47,33 +48,22 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "video",
     title: "영상작업실",
-    description: "인터뷰 분석부터 릴스·웹진 초안, 영상 분류와 음성 분리까지 촬영 영상 후반 작업을 한 곳에서.",
+    description: "영상 기획과 촬영부터 인터뷰 분석, 분류, 제작·발행까지 한 곳에서.",
     href: "/video-studio",
     icon: Film,
     accent: "blue",
-    aliases: ["영상 작업실", "비디오 작업실", "영상 도구", "영상 후반"],
+    aliases: ["영상 작업실", "비디오 작업실", "영상 도구", "영상 기획", "영상 촬영", "영상 후반"],
     tools: [
-      { id: "interview", title: "인터뷰 분석", href: "/video-studio?tab=interview", aliases: ["인터뷰 분석", "영상 분석", "전사", "녹취", "Q&A 분리", "영상 내용 정리"], sourceHrefs: [] },
-      { id: "reels", title: "릴스", href: "/video-studio?tab=reels", aliases: ["릴스 추천", "릴스 구간", "쇼츠 구간"], sourceHrefs: [] },
-      { id: "webzine", title: "웹진 초안", href: "/video-studio?tab=webzine", aliases: ["웹진 초안", "인터뷰 웹진"], sourceHrefs: [] },
-      { id: "sorting", title: "영상 분류", href: "/video-studio?tab=sorting", aliases: ["영상분류", "영상 분류", "비디오 분류", "AI 영상 분류", "시간차 분류", "영상 정렬"], sourceHrefs: ["/video-sorting"] },
-      { id: "audio", title: "음성 분리", href: "/video-studio?tab=audio", aliases: ["음성 분리", "오디오 추출", "음성 추출", "wav 추출"], sourceHrefs: [] },
-    ],
-  },
-  {
-    id: "conti",
-    title: "콘티 스튜디오",
-    description: "촬영과 영상 기획을 한 흐름으로.",
-    href: "/conti",
-    icon: Clapperboard,
-    accent: "blue",
-    aliases: ["콘티", "촬영 콘티", "콘티 만들기", "촬영계획", "촬영 계획", "콘티 작업실", "스토리보드 스튜디오"],
-    tools: [
-      { id: "shooting", title: "촬영 콘티", href: "/conti", aliases: ["촬영 콘티", "사진 콘티"], sourceHrefs: ["/conti"] },
-      { id: "video", title: "영상 콘티", href: "/video-conti", aliases: ["영상 콘티", "브랜드 영상 콘티"], sourceHrefs: ["/video-conti"] },
-      { id: "youtube", title: "유튜브 편집", href: "/youtube-editing-conti", aliases: ["유튜브 편집 콘티", "편집 콘티"], sourceHrefs: ["/youtube-editing-conti"] },
-      { id: "broll", title: "B-roll 프롬프트", href: "/broll-prompt", aliases: ["B롤", "비롤", "B-roll"], sourceHrefs: ["/broll-prompt"] },
-      { id: "portrait", title: "초상권 동의서", href: "/portrait-consent", aliases: ["초상권", "초상권 동의서", "촬영 동의서"], sourceHrefs: ["/portrait-consent"] },
+      { id: "video-conti", title: "영상 콘티", href: "/video-studio?tab=plan&tool=video-conti", aliases: ["영상 콘티", "브랜드 영상 콘티"], sourceHrefs: ["/video-conti"] },
+      { id: "youtube-conti", title: "유튜브 편집 콘티", href: "/video-studio?tab=plan&tool=youtube-conti", aliases: ["유튜브 편집 콘티", "유튜브 편집", "편집 콘티"], sourceHrefs: ["/youtube-editing-conti"] },
+      { id: "broll", title: "B-roll 프롬프트", href: "/video-studio?tab=plan&tool=broll", aliases: ["B롤", "비롤", "B-roll", "B-roll 프롬프트"], sourceHrefs: ["/broll-prompt"] },
+      { id: "prompter", title: "프롬프터", href: "/video-studio?tab=shoot&tool=prompter", aliases: ["프롬프터", "텔레프롬프터", "대본 띄워줘", "프롬프터 실행", "프롬프터 열어줘"], sourceHrefs: ["/prompter"] },
+      { id: "interview", title: "인터뷰 분석", href: "/video-studio?tab=post&tool=interview", aliases: ["인터뷰 분석", "영상 분석", "전사", "녹취", "Q&A 분리", "영상 내용 정리"], sourceHrefs: [] },
+      { id: "reels", title: "릴스", href: "/video-studio?tab=post&tool=reels", aliases: ["릴스 추천", "릴스 구간", "쇼츠 구간"], sourceHrefs: [] },
+      { id: "sorting", title: "영상 분류", href: "/video-studio?tab=post&tool=sorting", aliases: ["영상분류", "영상 분류", "비디오 분류", "AI 영상 분류", "시간차 분류", "영상 정렬"], sourceHrefs: ["/video-sorting"] },
+      { id: "audio", title: "음성 분리", href: "/video-studio?tab=post&tool=audio", aliases: ["음성 분리", "오디오 추출", "음성 추출", "wav 추출"], sourceHrefs: [] },
+      { id: "magazine", title: "매거진 원고", href: "/video-studio?tab=publish&tool=magazine", aliases: ["매거진 원고", "웹진 초안", "인터뷰 웹진"], sourceHrefs: [] },
+      { id: "ai-video", title: "AI 영상제작", href: "/video-studio?tab=publish&tool=ai-video", aliases: ["영상제작", "영상 제작", "AI 영상", "이미지 투 비디오", "image to video", "text to video"], sourceHrefs: ["/video-production"] },
     ],
   },
   {
@@ -127,6 +117,7 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
 const integratedHrefs = new Set(
   WORKSPACE_GROUPS.flatMap((group) => group.tools.flatMap((tool) => tool.sourceHrefs)),
 );
+integratedHrefs.add("/portrait-consent");
 
 const canonicalHrefBySource = new Map<string, string>();
 // EXIF matching is a method inside the RAW matching tab. Its legacy route
@@ -145,6 +136,8 @@ for (const group of WORKSPACE_GROUPS) {
     }
   }
 }
+
+canonicalHrefBySource.set("/portrait-consent", "/clients?tab=documents&document=portrait-consent");
 
 export function isIntegratedToolHref(href: string): boolean {
   return integratedHrefs.has(href);

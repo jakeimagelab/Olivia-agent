@@ -53,6 +53,15 @@ export function buildClientAppLink({
   }
   if (workflowRunId) params.set("workflowRunId", workflowRunId);
   if (stepKey) params.set("stepKey", stepKey);
+  if (app === "conti") {
+    params.set("tab", "plan");
+    params.set("tool", "conti");
+    return `/photo-sorting?${params.toString()}`;
+  }
+  if (app === "photo-retouching") {
+    params.set("tool", "retouch");
+    return `/photo-sorting?${params.toString()}`;
+  }
   return `/${app}?${params.toString()}`;
 }
 

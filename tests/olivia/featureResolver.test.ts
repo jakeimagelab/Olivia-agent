@@ -8,7 +8,7 @@ import { resolveNavigationCapability } from "@/lib/olivia/capabilities/resolver"
 
 describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 match, confidence 1", () => {
   const exactCases: Array<[string, string]> = [
-    ["콘티", "/conti"],
+    ["콘티", "/photo-sorting?tab=plan&tool=conti"],
     ["견적", "/quote"],
     ["사진분류", "/photo-sorting?tool=classification"],
     ["사진 분류", "/photo-sorting?tool=classification"],
@@ -19,9 +19,9 @@ describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 mat
     ["사진셀렉", "/photo-sorting?mode=select"],
     ["고객셀렉", "/photo-sorting?mode=select"],
     ["RAW셀렉", "/photo-sorting?mode=raw-match"],
-    ["영상분류", "/video-studio?tab=sorting"],
-    ["인터뷰 분석", "/video-studio?tab=interview"],
-    ["음성 분리", "/video-studio?tab=audio"],
+    ["영상분류", "/video-studio?tab=post&tool=sorting"],
+    ["인터뷰 분석", "/video-studio?tab=post&tool=interview"],
+    ["음성 분리", "/video-studio?tab=post&tool=audio"],
     ["색감보정", "/photo-sorting?tool=retouch"],
   ];
   for (const [query, expectedHref] of exactCases) {
@@ -102,7 +102,7 @@ describe("resolveNavigationCapability — confidence===1 게이트가 새 알고
     expect(result.kind).toBe("match");
     if (result.kind === "match") {
       expect(result.confidence).toBe(1);
-      expect(result.tool.href).toBe("/conti");
+      expect(result.tool.href).toBe("/photo-sorting?tab=plan&tool=conti");
     }
   });
 

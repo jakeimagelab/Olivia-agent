@@ -53,10 +53,16 @@ function PhotoWorkspaceContent({
   hideHeader = false,
   initialMode = "select",
   initialTool,
+  clientId,
+  workflowRunId,
+  resourceId,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
   initialTool?: string;
+  clientId?: string;
+  workflowRunId?: string;
+  resourceId?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -108,7 +114,9 @@ function PhotoWorkspaceContent({
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
             {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "raw-match" ? "RAW 매칭" : mode === "t-cut" ? "T컷 정리" : mode === "retouch" ? "사진 보정" : mode === "rename" ? "이름변경" : "사진 리사이즈"} /> : null}
-            {!remoteUnavailable && mode === "plan" ? <PhotoContiWorkspace /> : null}
+            {!remoteUnavailable && mode === "plan" ? (
+              <PhotoContiWorkspace clientId={clientId} workflowRunId={workflowRunId} resourceId={resourceId} />
+            ) : null}
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
@@ -129,14 +137,27 @@ export default function PhotoWorkspace({
   hideHeader = false,
   initialMode = "select",
   initialTool,
+  clientId,
+  workflowRunId,
+  resourceId,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
   initialTool?: string;
+  clientId?: string;
+  workflowRunId?: string;
+  resourceId?: string;
 } = {}) {
   return (
     <Suspense fallback={<div className={styles.workspaceLoading}>사진작업실을 준비하는 중...</div>}>
-      <PhotoWorkspaceContent hideHeader={hideHeader} initialMode={initialMode} initialTool={initialTool} />
+      <PhotoWorkspaceContent
+        hideHeader={hideHeader}
+        initialMode={initialMode}
+        initialTool={initialTool}
+        clientId={clientId}
+        workflowRunId={workflowRunId}
+        resourceId={resourceId}
+      />
     </Suspense>
   );
 }

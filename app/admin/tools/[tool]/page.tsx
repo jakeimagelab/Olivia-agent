@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 const TOOL_ROUTES: Record<string, string> = {
   quote: "/quote",
   contract: "/contract",
-  conti: "/conti",
+  conti: "/photo-sorting?tab=plan&tool=conti",
   "photo-sorting": "/photo-sorting",
   "select-galleries": "/select-galleries",
   "raw-matching": "/select-match",

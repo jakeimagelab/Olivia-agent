@@ -22,4 +22,14 @@ describe("Olivia Desktop favorites", () => {
   it("allows an intentionally empty favorites list", () => {
     expect(normalizeDesktopFavoriteKeys([])).toEqual([]);
   });
+
+  it("migrates removed standalone apps to their parent workspaces", () => {
+    expect(normalizeDesktopFavoriteKeys([
+      "/conti",
+      "app:conti",
+      "/video-production",
+      "/prompter",
+      "/portrait-consent",
+    ])).toEqual(["/photo-sorting", "/video-studio", "/clients"]);
+  });
 });

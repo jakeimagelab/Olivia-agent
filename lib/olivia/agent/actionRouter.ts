@@ -33,9 +33,32 @@ function desktopAppInputFor(appId: string, context?: OpenAppInput["context"]): O
 const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, string>> = {
   quote: "quote",
   contract: "contract",
-  conti: "conti",
+  conti: "photo-workspace",
   "photo-sort": "photo-workspace",
 };
+
+function workspaceWindowContext(
+  workspace: Exclude<WorkspaceType, null>,
+  action: {
+    clientId?: string;
+    clientName?: string;
+    workflowRunId?: string;
+    projectName?: string;
+    resourceId?: string;
+  },
+): OpenAppInput["context"] {
+  const documentType = ["quote", "contract", "conti"].includes(workspace) ? workspace : undefined;
+  return {
+    clientId: action.clientId,
+    clientName: action.clientName,
+    projectId: action.workflowRunId,
+    projectName: action.projectName,
+    resourceId: action.resourceId,
+    resourceType: workspace,
+    ...(workspace === "conti" ? { routeHref: "/photo-sorting?tab=plan&tool=conti" } : {}),
+    ...(documentType ? { documentId: action.resourceId, documentType } : {}),
+  };
+}
 
 // Desktop의 singleton 모델(창 id === appId) 그대로 open/focus/restore를 재사용한다 —
 // components/olivia-os/DesktopDock.tsx의 handleDockClick과 동일한 규칙.
@@ -59,7 +82,8 @@ function openOrFocusDesktopApp(input: OpenAppInput) {
 function syncUrlIfNotHome(workspace: Exclude<WorkspaceType, null>) {
   if (isOliviaOsRoute()) return;
   if (typeof window !== "undefined" && window.location.pathname.startsWith(HOME_PREFIX)) return;
-  const canonical = workspaceRegistry[workspace]?.directRoutes?.[0];
+  const entry = workspaceRegistry[workspace];
+  const canonical = entry?.canonicalRoute ?? entry?.directRoutes?.[0];
   if (!canonical) return;
   const context = useOliviaContextStore.getState();
   syncCanonicalWorkspaceUrl(canonical, { clientId: context.activeClientId, workflowRunId: context.activeProjectId });
@@ -94,15 +118,7 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // 갱신은 legacy 호환을 위해 그대로 둔다(다른 코드가 이 store를 계속 읽을 수 있으므로).
       if (isOliviaOsRoute()) {
         const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
-        const input = appId ? desktopAppInputFor(appId, {
-          clientId: action.clientId, clientName: action.clientName,
-          projectId: action.workflowRunId, projectName: action.projectName,
-          resourceId: action.resourceId, resourceType: action.workspace,
-          ...( ["quote", "contract", "conti"].includes(appId) ? {
-            documentId: action.resourceId,
-            documentType: appId,
-          } : {}),
-        }) : undefined;
+        const input = appId ? desktopAppInputFor(appId, workspaceWindowContext(action.workspace, action)) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
       layout.openWorkspaceMode();
@@ -127,15 +143,7 @@ export function executeOliviaAction(action: OliviaUiAction) {
       // focus/restore만 하고, route는 그대로 "/"에 남는다.
       if (isOliviaOsRoute()) {
         const appId = WORKSPACE_TO_DESKTOP_APP_ID[action.workspace];
-        const input = appId ? desktopAppInputFor(appId, {
-          clientId: action.clientId, clientName: action.clientName,
-          projectId: action.workflowRunId, projectName: action.projectName,
-          resourceId: action.resourceId, resourceType: action.workspace,
-          ...( ["quote", "contract", "conti"].includes(appId) ? {
-            documentId: action.resourceId,
-            documentType: appId,
-          } : {}),
-        }) : undefined;
+        const input = appId ? desktopAppInputFor(appId, workspaceWindowContext(action.workspace, action)) : undefined;
         if (input) { openOrFocusDesktopApp(input); return; }
       }
       layout.openWorkspaceMode();
@@ -239,12 +247,18 @@ export function executeOliviaAction(action: OliviaUiAction) {
         const resolved = resolveOliviaAppRoute(action.href);
         const appId = resolved?.app.id;
         const routeContext = resolved ? { ...contextFromHref(resolved.href), routeHref: resolved.href } : undefined;
+        const resolvedUrl = resolved ? new URL(resolved.href, "https://olivia.local") : undefined;
+        const documentType = appId && (["quote", "contract", "conti"].includes(appId)
+          ? appId
+          : appId === "photo-workspace" && resolvedUrl?.searchParams.get("tool") === "conti"
+            ? "conti"
+            : undefined);
         const nativeContext = appId && routeContext ? {
           ...routeContext,
-          resourceType: ["quote", "contract", "conti"].includes(appId) ? appId : routeContext.resourceType,
-          ...( ["quote", "contract", "conti"].includes(appId) ? {
+          resourceType: documentType ?? routeContext.resourceType,
+          ...(documentType ? {
             documentId: routeContext.resourceId,
-            documentType: appId,
+            documentType,
           } : {}),
         } : undefined;
         const input = appId ? desktopAppInputFor(appId, nativeContext) : undefined;

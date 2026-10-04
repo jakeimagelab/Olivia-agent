@@ -13,7 +13,7 @@ export const TABLET_APPS: TabletAppDefinition[] = [
   { id: "home", title: "홈", fallbackIcon: "today" },
   { id: "customer", title: "고객관리", registryAppId: "customer", fallbackIcon: "clients" },
   { id: "calendar", title: "일정", registryAppId: "calendar", fallbackIcon: "work-calendar" },
-  { id: "conti", title: "콘티", registryAppId: "conti", fallbackIcon: "storyboard" },
+  { id: "conti", title: "촬영 콘티", registryAppId: "photo-workspace", fallbackIcon: "photo-studio" },
   { id: "documents", title: "문서함", registryAppId: "documents", fallbackIcon: "library" },
   { id: "olivia-chat", title: "Olivia 채팅", registryAppId: "olivia-chat", fallbackIcon: "olivia" },
   { id: "review-studio", title: "리뷰콘텐츠", registryAppId: "review-studio", fallbackIcon: "review-content" },
