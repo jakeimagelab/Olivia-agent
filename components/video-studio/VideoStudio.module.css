@@ -22,6 +22,18 @@
 .workerSegment i { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: #82918e; }
 .workerSegment i[data-state="online"] { background: #35c88d; box-shadow: 0 0 0 3px rgba(53, 200, 141, .12); }
 .workerSegment i[data-state="offline"] { background: #e56d55; }
+.workerChooser[data-tone="light"] { border-color: rgba(21, 88, 85, .12); background: #f7faf9; }
+.workerChooser[data-tone="light"] .workerChooserLabel { color: #526964; }
+.workerChooser[data-tone="light"] .workerSegments { background: #eaf1ef; }
+.workerChooser[data-tone="light"] .workerSegment { color: #617873; }
+.workerChooser[data-tone="light"] .workerSegment[aria-checked="true"] { color: #155855; }
+
+:global([data-tone="light"]) .panel { color: #263b37; }
+:global([data-tone="light"]) .panelIntro,
+:global([data-tone="light"]) .hint,
+:global([data-tone="light"]) .empty { color: #667b76; }
+:global([data-tone="light"]) .sectionTitle { color: #1c2b28; }
+:global([data-tone="light"]) .notice { background: #edf7f4; color: #285b52; }
 
 /* 최근 작업 */
 .jobList { display: grid; gap: 7px; }
@@ -127,6 +139,7 @@ details.reelDetails p { margin: 6px 0 0; padding: 9px 11px; border-radius: 9px; 
 
 /* 가이드 패널 추가 요소 */
 .guideSummary { margin: -10px 0 22px; color: #4f6661; font-size: 12px; line-height: 1.7; }
+.guideSubheading { margin: 0 !important; font-size: 14px !important; }
 .guideField { margin-top: 18px; display: grid; gap: 6px; }
 .guideField label { color: #243733; font-size: 11.5px; font-weight: 800; }
 .guideField input { min-height: 36px; border: 1px solid rgba(21, 88, 85, .16); border-radius: 9px; padding: 0 10px; font: inherit; font-size: 11.5px; color: #1c2b28; }

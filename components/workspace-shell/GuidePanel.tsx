@@ -4,11 +4,12 @@ import styles from "./WorkspaceShell.module.css";
 
 export type GuideStep = { icon: LucideIcon; title: string; description: string };
 
-export function GuidePanel({ title = "사용 가이드", intro, steps, tip, ariaLabel = "사용 가이드" }: {
+export function GuidePanel({ title = "사용 가이드", intro, steps, tip, children, ariaLabel = "사용 가이드" }: {
   title?: string;
   intro?: ReactNode;
   steps: GuideStep[];
   tip?: ReactNode;
+  children?: ReactNode;
   ariaLabel?: string;
 }) {
   return (
@@ -24,6 +25,7 @@ export function GuidePanel({ title = "사용 가이드", intro, steps, tip, aria
           </li>
         ))}
       </ol>
+      {children}
       {tip ? <div className={styles.tip}>{tip}</div> : null}
     </aside>
   );

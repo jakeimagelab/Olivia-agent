@@ -1,18 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import dynamic from "next/dynamic";
-import { AudioLines, Film, Laptop, MessagesSquare, Newspaper, PanelRightClose, PanelRightOpen, Server, Smartphone } from "lucide-react";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  AudioLines,
+  Clapperboard,
+  Film,
+  Laptop,
+  MessagesSquare,
+  Newspaper,
+  PenLine,
+  ScrollText,
+  Scissors,
+  Send,
+  Server,
+  Sparkles,
+  Smartphone,
+  Video,
+  WandSparkles,
+  type LucideIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import photoStyles from "@/components/photo-workspace/PhotoWorkspace.module.css";
-import tabStyles from "@/components/photo-workspace/PhotoWorkspaceTabs.module.css";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import { ExecutionBar } from "@/components/workspace-shell/ExecutionBar";
+import { EmptyState } from "@/components/workspace-shell/Feedback";
+import { WorkPanel } from "@/components/workspace-shell/WorkPanel";
+import { WorkspaceGrid } from "@/components/workspace-shell/WorkspaceGrid";
+import { WorkspaceContent, WorkspaceShell } from "@/components/workspace-shell/WorkspaceShell";
+import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
+import { WorkspaceTabs } from "@/components/workspace-shell/WorkspaceTabs";
 import type { VideoInterviewResult } from "@/lib/video-interview/types";
 import AudioExtractPanel from "./AudioExtractPanel";
 import InterviewAnalysisPanel from "./InterviewAnalysisPanel";
 import ReelsPanel from "./ReelsPanel";
-import VideoStudioGuide, { type VideoStudioTab } from "./VideoStudioGuide";
+import VideoStudioGuide from "./VideoStudioGuide";
 import WebzinePanel from "./WebzinePanel";
+import {
+  DEFAULT_VIDEO_STUDIO_TOOL,
+  VIDEO_STUDIO_TOOLS,
+  resolveVideoStudioRoute,
+  videoStudioHref,
+  type VideoStudioSection,
+  type VideoStudioTool,
+} from "./videoStudioNavigation";
 import {
   EDIT_ROOT_KEY,
   MACBOOK_PRO_WORKER_ID,
@@ -27,42 +58,57 @@ import {
 } from "./useVideoStudio";
 import styles from "./VideoStudio.module.css";
 
-// 영상 분류는 브라우저에서 로컬 폴더(File System Access)를 직접 다루는 큰 화면이라 탭을 열 때만 불러온다.
 const VideoSortingWorkspace = dynamic(() => import("./VideoSortingWorkspace"), {
   ssr: false,
   loading: () => <div className={photoStyles.workspaceLoading}>영상 분류 도구를 불러오는 중...</div>,
 });
 
-const TABS: Array<{ value: VideoStudioTab; label: string; title: string; icon: ReactElement }> = [
-  { value: "interview", label: "인터뷰 분석", title: "전사 · Q&A 분리 · 핵심 정리 · 릴스 추천", icon: <MessagesSquare size={15} strokeWidth={2} aria-hidden="true" /> },
-  { value: "reels", label: "릴스", title: "릴스 후보 채택과 구간 다듬기", icon: <Smartphone size={15} strokeWidth={2} aria-hidden="true" /> },
-  { value: "webzine", label: "웹진 초안", title: "블로그 웹진 초안", icon: <Newspaper size={15} strokeWidth={2} aria-hidden="true" /> },
-  { value: "sorting", label: "영상 분류", title: "영상 파일을 AI 카테고리·촬영 시간 기준으로 폴더 정리", icon: <Film size={15} strokeWidth={2} aria-hidden="true" /> },
-  { value: "audio", label: "음성 분리", title: "영상에서 음성만 WAV로 분리", icon: <AudioLines size={15} strokeWidth={2} aria-hidden="true" /> },
+const SECTION_TABS: Array<{ value: VideoStudioSection; label: string; title: string; icon: ReactElement }> = [
+  { value: "plan", label: "기획", title: "콘티와 촬영 프롬프트를 준비합니다.", icon: <PenLine size={15} aria-hidden="true" /> },
+  { value: "shoot", label: "촬영", title: "현장 촬영 도구를 엽니다.", icon: <Video size={15} aria-hidden="true" /> },
+  { value: "post", label: "후반", title: "촬영본을 분석하고 정리합니다.", icon: <Scissors size={15} aria-hidden="true" /> },
+  { value: "publish", label: "제작·발행", title: "콘텐츠를 제작하고 발행합니다.", icon: <Send size={15} aria-hidden="true" /> },
 ];
 
-const SELECTED_KEY = "olivia.video-studio.selected-job";
+const TOOL_META: Record<VideoStudioTool, { label: string; title: string; icon: LucideIcon }> = {
+  "video-conti": { label: "영상 콘티", title: "4단계 영상 콘티를 작성합니다.", icon: Clapperboard },
+  "youtube-conti": { label: "유튜브 편집 콘티", title: "유튜브 편집 구성을 준비합니다.", icon: ScrollText },
+  broll: { label: "B-roll 프롬프트", title: "B-roll 생성 프롬프트를 작성합니다.", icon: WandSparkles },
+  prompter: { label: "프롬프터", title: "촬영 대본과 읽기 화면을 준비합니다.", icon: Video },
+  interview: { label: "인터뷰 분석", title: "전사 · Q&A 분리 · 핵심 정리 · 릴스 추천", icon: MessagesSquare },
+  reels: { label: "릴스", title: "릴스 후보 채택과 구간 다듬기", icon: Smartphone },
+  sorting: { label: "영상 분류", title: "영상 파일을 카테고리와 촬영 시간 기준으로 정리", icon: Film },
+  audio: { label: "음성 분리", title: "영상에서 음성만 WAV로 분리", icon: AudioLines },
+  magazine: { label: "매거진 원고", title: "인터뷰 분석 결과로 원고 초안을 확인합니다.", icon: Newspaper },
+  "ai-video": { label: "AI 영상제작", title: "AI 영상 제작 작업을 진행합니다.", icon: Sparkles },
+};
 
-const TAB_VALUES = new Set<VideoStudioTab>(["interview", "reels", "webzine", "sorting", "audio"]);
-
-export function resolveVideoStudioTab(value: string | null | undefined): VideoStudioTab {
-  return value && TAB_VALUES.has(value as VideoStudioTab) ? (value as VideoStudioTab) : "interview";
-}
-
-/** 탭마다 실행 위치가 다르다: 분석·음성 분리는 선택한 원격 Worker, 영상 분류는 이 기기. */
-const TAB_EXECUTION: Partial<Record<VideoStudioTab, "LOCAL_DIRECT" | "REMOTE_WORKER">> = {
+const TOOL_EXECUTION: Partial<Record<VideoStudioTool, "LOCAL_DIRECT" | "REMOTE_WORKER">> = {
   interview: "REMOTE_WORKER",
   audio: "REMOTE_WORKER",
   sorting: "LOCAL_DIRECT",
 };
 
+const LIGHT_TOOLS = new Set<VideoStudioTool>([
+  "video-conti",
+  "youtube-conti",
+  "broll",
+  "prompter",
+  "magazine",
+  "audio",
+]);
+
+const SELECTED_KEY = "olivia.video-studio.selected-job";
+
 function WorkerSelector({
   value,
   workers,
+  tone,
   onChange,
 }: {
   value: VideoStudioWorkerId;
   workers: Record<string, VideoStudioWorkerPresence>;
+  tone: "dark" | "light";
   onChange: (workerId: VideoStudioWorkerId) => void;
 }) {
   const options: Array<{ id: VideoStudioWorkerId; icon: ReactElement }> = [
@@ -70,7 +116,7 @@ function WorkerSelector({
     { id: MACBOOK_PRO_WORKER_ID, icon: <Laptop size={15} aria-hidden="true" /> },
   ];
   return (
-    <div className={styles.workerChooser}>
+    <div className={styles.workerChooser} data-tone={tone}>
       <span className={styles.workerChooserLabel}>실행할 컴퓨터</span>
       <div className={styles.workerSegments} role="radiogroup" aria-label="영상 작업 실행 컴퓨터">
         {options.map((option) => {
@@ -95,11 +141,35 @@ function WorkerSelector({
   );
 }
 
-export default function VideoStudio({ initialTab }: { initialTab?: string | null } = {}) {
-  const contentRef = useRef<HTMLElement>(null);
-  const [compact, setCompact] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [tab, setTab] = useState<VideoStudioTab>(() => resolveVideoStudioTab(initialTab));
+function PendingWorkspace({ tool }: { tool: VideoStudioTool }) {
+  const { icon: Icon, label } = TOOL_META[tool];
+  return (
+    <EmptyState
+      icon={<Icon size={26} aria-hidden="true" />}
+      title={`${label} 화면을 연결하는 중입니다.`}
+      description="기존 기능과 데이터는 유지한 채 작업실 안으로 이동합니다."
+    />
+  );
+}
+
+export default function VideoStudio({
+  initialTab,
+  initialTool,
+  onRouteChange,
+}: {
+  initialTab?: string | null;
+  initialTool?: string | null;
+  onRouteChange?: (href: string) => void;
+} = {}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const toolParam = searchParams.get("tool");
+  const queryString = searchParams.toString();
+  const initialRoute = resolveVideoStudioRoute(initialTab, initialTool);
+  const [section, setSection] = useState<VideoStudioSection>(initialRoute.section);
+  const [tool, setTool] = useState<VideoStudioTool>(initialRoute.tool);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const { executionMode, availableModes, setExecutionMode } = usePhotoStudioExecution();
@@ -114,57 +184,64 @@ export default function VideoStudio({ initialTab }: { initialTab?: string | null
   const result = selectedId ? ((results[selectedId] as VideoInterviewResult | undefined) ?? null) : null;
 
   useEffect(() => {
-    try { setSelectedId(localStorage.getItem(SELECTED_KEY)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+    try { setSelectedId(localStorage.getItem(SELECTED_KEY)); } catch (storageError) { console.error("[OLIVIA] Unable to restore selected video job", storageError); }
   }, []);
+
   const select = useCallback((jobId: string | null) => {
     setSelectedId(jobId);
     try {
       if (jobId) localStorage.setItem(SELECTED_KEY, jobId);
       else localStorage.removeItem(SELECTED_KEY);
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+    } catch (storageError) { console.error("[OLIVIA] Unable to persist selected video job", storageError); }
   }, []);
+
   useEffect(() => {
     if (selectedJob?.status === "COMPLETED" && !result) void loadResult(selectedJob.id).catch(() => undefined);
   }, [selectedJob, result, loadResult]);
 
   useEffect(() => {
-    const content = contentRef.current;
-    if (!content) return;
-    const measure = () => {
-      const next = content.clientWidth < 900;
-      setCompact(next);
-      if (!next) setGuideOpen(false);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(content);
-    return () => observer.disconnect();
-  }, []);
+    const route = pathname === "/video-studio"
+      ? resolveVideoStudioRoute(tabParam, toolParam)
+      : resolveVideoStudioRoute(initialTab, initialTool);
+    setSection(route.section);
+    setTool(route.tool);
+  }, [initialTab, initialTool, pathname, tabParam, toolParam]);
+
+  const navigate = useCallback((nextSection: VideoStudioSection, nextTool: VideoStudioTool) => {
+    setSection(nextSection);
+    setTool(nextTool);
+    const href = videoStudioHref(nextSection, nextTool);
+    if (pathname === "/video-studio") {
+      const params = new URLSearchParams(queryString);
+      params.set("tab", nextSection);
+      params.set("tool", nextTool);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+    onRouteChange?.(href);
+  }, [onRouteChange, pathname, queryString, router]);
 
   const notify = useCallback((message: string) => {
     setToast(message);
     window.setTimeout(() => setToast((current) => (current === message ? null : current)), 1800);
   }, []);
 
+  const requiredMode = TOOL_EXECUTION[tool];
   const remote = executionMode === "REMOTE_WORKER";
-  const needsResult = (tab === "reels" || tab === "webzine") && !result;
-  const requiredMode = TAB_EXECUTION[tab];
   const wrongMode = requiredMode !== undefined && requiredMode !== executionMode;
-
-  useEffect(() => {
-    setTab(resolveVideoStudioTab(initialTab));
-  }, [initialTab]);
+  const needsResult = (tool === "reels" || tool === "magazine") && !result;
+  const tone = LIGHT_TOOLS.has(tool) ? "light" : "dark";
+  const sectionTools = VIDEO_STUDIO_TOOLS[section];
 
   let body: ReactElement;
   if (wrongMode && requiredMode === "REMOTE_WORKER") {
     body = (
       <div className={styles.panel}>
         <div className={styles.notice}>
-          <Server size={16} style={{ flex: "none", marginTop: 2 }} />
+          <Server size={16} aria-hidden="true" />
           <span>
-            영상작업실은 음성 인식과 분석을 선택한 작업 컴퓨터에서 실행합니다. 촬영본은 브라우저로 전송하지 않아요.
+            이 작업은 선택한 작업 컴퓨터에서 실행합니다. 촬영본은 브라우저로 전송하지 않아요.
             <br />
-            <button type="button" className={photoStyles.secondaryButton} style={{ marginTop: 12 }} onClick={() => setExecutionMode("REMOTE_WORKER")}>원격 작업으로 전환</button>
+            <button type="button" className={photoStyles.secondaryButton} onClick={() => setExecutionMode("REMOTE_WORKER")}>원격 작업으로 전환</button>
           </span>
         </div>
       </div>
@@ -173,12 +250,12 @@ export default function VideoStudio({ initialTab }: { initialTab?: string | null
     body = (
       <div className={styles.panel}>
         <div className={styles.notice}>
-          <Laptop size={16} style={{ flex: "none", marginTop: 2 }} />
+          <Laptop size={16} aria-hidden="true" />
           <span>
             영상 분류는 이 기기에서 영상 폴더를 직접 열어 정리합니다. (Chrome·Edge 데스크톱)
             <br />
             {availableModes.includes("LOCAL_DIRECT") ? (
-              <button type="button" className={photoStyles.secondaryButton} style={{ marginTop: 12 }} onClick={() => setExecutionMode("LOCAL_DIRECT")}>이 기기에서 작업으로 전환</button>
+              <button type="button" className={photoStyles.secondaryButton} onClick={() => setExecutionMode("LOCAL_DIRECT")}>이 기기에서 작업으로 전환</button>
             ) : <small>이 화면(모바일·태블릿)에서는 영상 분류를 쓸 수 없습니다.</small>}
           </span>
         </div>
@@ -188,19 +265,19 @@ export default function VideoStudio({ initialTab }: { initialTab?: string | null
     body = (
       <div className={styles.panel}>
         <div className={styles.empty}>
-          인터뷰 분석 탭에서 완료된 분석을 먼저 열어주세요.
+          인터뷰 분석에서 완료된 분석을 먼저 열어주세요.
           <br />
-          <button type="button" className={photoStyles.secondaryButton} style={{ marginTop: 14 }} onClick={() => setTab("interview")}>인터뷰 분석으로</button>
+          <button type="button" className={photoStyles.secondaryButton} onClick={() => navigate("post", "interview")}>인터뷰 분석으로</button>
         </div>
       </div>
     );
-  } else if (tab === "reels" && result) {
+  } else if (tool === "reels" && result) {
     body = <ReelsPanel result={result} edits={edits} updateEdits={updateEdits} editRoot={editRoot} notify={notify} />;
-  } else if (tab === "webzine" && result) {
+  } else if (tool === "magazine" && result) {
     body = <WebzinePanel result={result} notify={notify} />;
-  } else if (tab === "sorting") {
+  } else if (tool === "sorting") {
     body = <VideoSortingWorkspace />;
-  } else if (tab === "audio") {
+  } else if (tool === "audio") {
     body = (
       <AudioExtractPanel
         jobs={audioJobs}
@@ -210,7 +287,7 @@ export default function VideoStudio({ initialTab }: { initialTab?: string | null
         onStart={(payload) => startJob("VIDEO_AUDIO_EXTRACT", payload, workerId)}
       />
     );
-  } else {
+  } else if (tool === "interview") {
     body = (
       <InterviewAnalysisPanel
         jobs={interviewJobs}
@@ -224,44 +301,52 @@ export default function VideoStudio({ initialTab }: { initialTab?: string | null
         notify={notify}
       />
     );
+  } else {
+    body = <PendingWorkspace tool={tool} />;
   }
 
   return (
-    <div className={photoStyles.page}>
-      <main ref={contentRef} className={photoStyles.content}>
-        <div className={tabStyles.shell}>
-          <SegmentedTabs
-            ariaLabel="영상 작업 선택"
-            value={tab}
-            onChange={setTab}
-            items={TABS.map((item) => ({ ...item, id: `video-studio-tab-${item.value}`, panelId: `video-studio-panel-${item.value}` }))}
-          />
-        </div>
-        {error ? <p className={styles.error} style={{ marginBottom: 12 }}>{error}</p> : null}
+    <WorkspaceShell>
+      <ExecutionBar visible={requiredMode !== undefined} />
+      <WorkspaceContent>
+        <WorkspaceTabs
+          ariaLabel="영상작업실 단계"
+          value={section}
+          onChange={(nextSection) => navigate(nextSection, DEFAULT_VIDEO_STUDIO_TOOL[nextSection])}
+          items={SECTION_TABS.map((item) => ({ ...item, id: `video-studio-section-${item.value}` }))}
+        />
+        {error ? <p className={styles.error}>{error}</p> : null}
         {remote && requiredMode === "REMOTE_WORKER" && selectedPresence?.online === false ? (
-          <p className={styles.error} style={{ marginBottom: 12 }}>{videoStudioWorkerLabel(workerId)}가 오프라인입니다. 분석 요청은 대기열에 들어가고, 해당 컴퓨터가 켜지면 시작됩니다.</p>
+          <p className={styles.error}>{videoStudioWorkerLabel(workerId)}가 오프라인입니다. 분석 요청은 대기열에 들어가고, 해당 컴퓨터가 켜지면 시작됩니다.</p>
         ) : null}
-        {compact && tab !== "sorting" ? (
-          <button type="button" className={photoStyles.guideToggle} aria-expanded={guideOpen} onClick={() => setGuideOpen((open) => !open)}>
-            {guideOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
-            {guideOpen ? "사용 가이드 닫기" : "사용 가이드 보기"}
-          </button>
-        ) : null}
-        {tab === "sorting" && !wrongMode ? (
-          <section role="tabpanel" id="video-studio-panel-sorting" aria-labelledby="video-studio-tab-sorting">{body}</section>
-        ) : (
-        <div className={`${photoStyles.workspaceGrid} ${compact ? photoStyles.workspaceGridCompact : ""}`}>
-          <section className={photoStyles.workPanel} role="tabpanel" id={`video-studio-panel-${tab}`} aria-labelledby={`video-studio-tab-${tab}`}>
-            {remote && (tab === "interview" || tab === "audio") ? (
-              <WorkerSelector value={workerId} workers={workers} onChange={selectWorker} />
+        <WorkspaceGrid guide={<VideoStudioGuide tool={tool} result={tool === "interview" || tool === "reels" ? result : null} editRoot={editRoot} onEditRootChange={setEditRoot} />}>
+          <WorkPanel
+            tone={tone}
+            role="tabpanel"
+            id={`video-studio-panel-${tool}`}
+            aria-labelledby={`video-studio-section-${section}`}
+          >
+            {sectionTools.length > 1 ? (
+              <WorkspaceSubTabs
+                ariaLabel={`${SECTION_TABS.find((item) => item.value === section)?.label ?? section} 세부 작업`}
+                tone={tone}
+                value={tool}
+                onChange={(nextTool) => navigate(section, nextTool)}
+                items={sectionTools.map((value) => {
+                  const meta = TOOL_META[value];
+                  const Icon = meta.icon;
+                  return { value, label: meta.label, title: meta.title, icon: <Icon size={15} aria-hidden="true" /> };
+                })}
+              />
+            ) : null}
+            {remote && (tool === "interview" || tool === "audio") ? (
+              <WorkerSelector value={workerId} workers={workers} tone={tone} onChange={selectWorker} />
             ) : null}
             {body}
-          </section>
-          {!compact || guideOpen ? <VideoStudioGuide tab={tab} result={tab === "interview" || tab === "reels" ? result : null} editRoot={editRoot} onEditRootChange={setEditRoot} /> : null}
-        </div>
-        )}
-      </main>
+          </WorkPanel>
+        </WorkspaceGrid>
+      </WorkspaceContent>
       {toast ? <div className={styles.toast} role="status">{toast}</div> : null}
-    </div>
+    </WorkspaceShell>
   );
 }

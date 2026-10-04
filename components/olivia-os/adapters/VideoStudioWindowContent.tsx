@@ -1,9 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import PhotoStudioExecutionBar from "@/components/photo-workspace/PhotoStudioExecutionBar";
 import { PhotoStudioExecutionProvider } from "@/components/photo-workspace/PhotoStudioExecutionContext";
-import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 
 // 영상작업실은 사진작업실과 같은 "작업 위치" 막대(Mac Studio 상태 표시)를 그대로 쓴다.
@@ -14,12 +13,18 @@ const VideoStudio = dynamic(() => import("@/components/video-studio/VideoStudio"
 
 export function VideoStudioWindowContent({ context }: { context?: WindowContext }) {
   const routeHref = context?.routeHref;
-  const initialTab = routeHref ? new URL(routeHref, "https://olivia.local").searchParams.get("tab") : null;
+  const routeUrl = routeHref ? new URL(routeHref, "https://olivia.local") : null;
+  const initialTab = routeUrl?.searchParams.get("tab");
+  const initialTool = routeUrl?.searchParams.get("tool");
+  const updateWindowContext = useOliviaDesktopStore((state) => state.updateWindowContext);
   return (
     <DesktopWindowProvider value={true}>
       <PhotoStudioExecutionProvider>
-        <PhotoStudioExecutionBar />
-        <VideoStudio initialTab={initialTab} />
+        <VideoStudio
+          initialTab={initialTab}
+          initialTool={initialTool}
+          onRouteChange={(href) => updateWindowContext("video-studio", { ...context, routeHref: href })}
+        />
       </PhotoStudioExecutionProvider>
     </DesktopWindowProvider>
   );
