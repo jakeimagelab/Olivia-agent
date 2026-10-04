@@ -88,6 +88,7 @@ describe("Olivia desktop convenience controls", () => {
     expect(search).toContain("useOliviaDesktopUtilityStore");
     expect(desktop).not.toContain("OliviaMiniChat");
     expect(appWindow).toContain("data-chat-compact");
+    expect(appWindow).toContain('win.appId === "olivia-chat" ? () => setChatCompact(true)');
     expect(appWindowCss).toContain(":global(.olivia-composer-shell)");
     expect(actions).toContain("toggleCompactChat");
     expect(actions).toContain("useOliviaConversationStore");
