@@ -4,7 +4,7 @@ import { getWorkspaceTypeForPathname, shouldAutoCloseWorkspace, workspaceRegistr
 describe("getWorkspaceTypeForPathname", () => {
   it("resolves every registered direct route to its workspace type", () => {
     expect(getWorkspaceTypeForPathname("/contract")).toBe("contract");
-    expect(getWorkspaceTypeForPathname("/conti")).toBe("conti");
+    expect(getWorkspaceTypeForPathname("/conti")).toBeUndefined();
     expect(getWorkspaceTypeForPathname("/photo-sorting")).toBe("photo-sort");
   });
 
@@ -27,6 +27,11 @@ describe("getWorkspaceTypeForPathname", () => {
   it("quote stays registered (for chat-driven opens) even with no direct routes", () => {
     expect(workspaceRegistry.quote).toBeDefined();
     expect(workspaceRegistry.quote?.directRoutes).toEqual([]);
+  });
+
+  it("keeps the legacy conti workspace command but sends it to the photo workspace route", () => {
+    expect(workspaceRegistry.conti?.directRoutes).toEqual([]);
+    expect(workspaceRegistry.conti?.canonicalRoute).toBe("/photo-sorting?tab=plan&tool=conti");
   });
 });
 

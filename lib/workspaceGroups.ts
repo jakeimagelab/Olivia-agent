@@ -57,7 +57,7 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       { id: "video-conti", title: "영상 콘티", href: "/video-studio?tab=plan&tool=video-conti", aliases: ["영상 콘티", "브랜드 영상 콘티"], sourceHrefs: ["/video-conti"] },
       { id: "youtube-conti", title: "유튜브 편집 콘티", href: "/video-studio?tab=plan&tool=youtube-conti", aliases: ["유튜브 편집 콘티", "유튜브 편집", "편집 콘티"], sourceHrefs: ["/youtube-editing-conti"] },
       { id: "broll", title: "B-roll 프롬프트", href: "/video-studio?tab=plan&tool=broll", aliases: ["B롤", "비롤", "B-roll", "B-roll 프롬프트"], sourceHrefs: ["/broll-prompt"] },
-      { id: "prompter", title: "프롬프터", href: "/video-studio?tab=shoot&tool=prompter", aliases: ["프롬프터", "텔레프롬프터", "대본 띄워줘", "프롬프터 실행", "프롬프터 열어줘"], sourceHrefs: ["/prompter"] },
+      { id: "prompter", title: "프롬프터", href: "/video-studio?tab=shoot&tool=prompter", aliases: ["프롬프터", "텔레프롬프터", "대본 띄워줘", "대본 화면", "대본 화면 띄워줘", "프롬프터 실행", "프롬프터 열어줘"], sourceHrefs: ["/prompter"] },
       { id: "interview", title: "인터뷰 분석", href: "/video-studio?tab=post&tool=interview", aliases: ["인터뷰 분석", "영상 분석", "전사", "녹취", "Q&A 분리", "영상 내용 정리"], sourceHrefs: [] },
       { id: "reels", title: "릴스", href: "/video-studio?tab=post&tool=reels", aliases: ["릴스 추천", "릴스 구간", "쇼츠 구간"], sourceHrefs: [] },
       { id: "sorting", title: "영상 분류", href: "/video-studio?tab=post&tool=sorting", aliases: ["영상분류", "영상 분류", "비디오 분류", "AI 영상 분류", "시간차 분류", "영상 정렬"], sourceHrefs: ["/video-sorting"] },

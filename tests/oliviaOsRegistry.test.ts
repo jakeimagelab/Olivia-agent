@@ -31,7 +31,7 @@ describe("OLIVIA OS app registry navigation", () => {
 
   it("keeps non-Dock apps registered for All Apps", () => {
     for (const appId of [
-      "quote", "contract", "conti", "memo", "today", "all-apps", "legacy-route", "metadata-select",
+      "quote", "contract", "memo", "today", "all-apps", "legacy-route", "metadata-select",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
     ]) {
@@ -40,6 +40,12 @@ describe("OLIVIA OS app registry navigation", () => {
       expect(app?.desktopShortcutOrder).toBeUndefined();
       expect(app?.dockOrder).toBeUndefined();
     }
+  });
+
+  it("maps removed standalone app ids to their parent workspaces", () => {
+    expect(getOliviaApp("conti")?.id).toBe("photo-workspace");
+    expect(getOliviaApp("video-production")?.id).toBe("video-studio");
+    expect(getOliviaApp("portrait-consent")?.id).toBe("customer");
   });
 
   it("routes the four analysis workspaces to native adapters", () => {

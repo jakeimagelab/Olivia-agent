@@ -457,6 +457,52 @@ type PersistedWindow = {
 };
 type PersistedState = { version: number; windows: PersistedWindow[]; activeAppId: string | null };
 
+const LEGACY_WORKSPACE_WINDOWS: Readonly<Record<string, {
+  appId: string;
+  title: string;
+  context: WindowContext;
+}>> = {
+  conti: {
+    appId: "photo-workspace",
+    title: "사진작업실",
+    context: {
+      routeHref: "/photo-sorting?tab=plan&tool=conti",
+      documentType: "conti",
+    },
+  },
+  "video-production": {
+    appId: "video-studio",
+    title: "영상작업실",
+    context: { routeHref: "/video-studio?tab=publish&tool=ai-video" },
+  },
+  "portrait-consent": {
+    appId: "customer",
+    title: "고객관리",
+    context: {
+      routeHref: "/clients?tab=documents&document=portrait-consent",
+      documentType: "portrait-consent",
+    },
+  },
+};
+
+function migratePersistedWindow(win: PersistedWindow): PersistedWindow {
+  const replacement = LEGACY_WORKSPACE_WINDOWS[win.appId];
+  const parentWindowId = migratePersistedAppId(win.parentWindowId) ?? undefined;
+  if (!replacement) return parentWindowId === win.parentWindowId ? win : { ...win, parentWindowId };
+  return {
+    ...win,
+    appId: replacement.appId,
+    title: replacement.title,
+    context: { ...win.context, ...replacement.context },
+    parentWindowId,
+  };
+}
+
+function migratePersistedAppId(appId: string | null | undefined) {
+  if (!appId) return null;
+  return LEGACY_WORKSPACE_WINDOWS[appId]?.appId ?? appId;
+}
+
 function isPersistedWindow(value: unknown): value is PersistedWindow {
   if (!value || typeof value !== "object") return false;
   const w = value as Record<string, unknown>;
@@ -497,7 +543,13 @@ export function loadDesktopState(knownAppIds: Set<string>) {
     // 버전이 다르거나 형태가 깨져 있으면 통째로 버리고 빈 Desktop으로 시작한다(스펙 2-37) —
     // Desktop 전체가 깨지는 것보다 낫다.
     if (parsed.version !== DESKTOP_STATE_VERSION || !Array.isArray(parsed.windows)) return;
-    const valid = parsed.windows.filter((win) => isPersistedWindow(win) && knownAppIds.has(win.appId));
+    // 삭제된 단독 앱은 창 자체를 버리지 않고 통합 작업실의 정확한 탭으로 옮긴다. 같은 통합
+    // 작업실 창이 여러 개 남는 경우에는 z-order상 마지막 창의 위치/문맥을 사용한다.
+    const migrated = parsed.windows
+      .filter(isPersistedWindow)
+      .map(migratePersistedWindow)
+      .filter((win) => knownAppIds.has(win.appId));
+    const valid = [...new Map(migrated.map((win) => [win.appId, win])).values()];
     if (valid.length === 0) return;
 
     let zIndex = Z_BASE;
@@ -513,7 +565,8 @@ export function loadDesktopState(knownAppIds: Set<string>) {
         zIndex,
       };
     }
-    const activeAppId = typeof parsed.activeAppId === "string" && windows[parsed.activeAppId] ? parsed.activeAppId : null;
+    const migratedActiveAppId = migratePersistedAppId(parsed.activeAppId);
+    const activeAppId = migratedActiveAppId && windows[migratedActiveAppId] ? migratedActiveAppId : null;
     useOliviaDesktopStore.setState({
       windows, activeWindowId: activeAppId, nextZIndex: zIndex, openCount: valid.length,
     });

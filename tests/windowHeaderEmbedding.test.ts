@@ -25,7 +25,8 @@ describe("Olivia AppWindow header ownership", () => {
     const workJournalPage = source("app/work-journal/page.tsx");
     const reportPage = source("app/report/page.tsx");
 
-    expect(photoAdapter).toContain("<PhotoWorkspace hideHeader");
+    expect(photoAdapter).toContain("<DesktopWindowProvider value={true}>");
+    expect(photoAdapter).toContain("hideHeader");
     expect(analysisShell).toContain('surface === "window" ? null');
     expect(contract).toContain("const isDesktopWindow = isModal && useDesktopWindowMode()");
     expect(contract).toContain("return isDesktopWindow ? null : isModal ?");

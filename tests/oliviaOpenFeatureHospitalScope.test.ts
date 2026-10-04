@@ -50,6 +50,6 @@ describe("open_feature — 고객명이 있으면 고객관리 화면을 그 고
     const execution = await call({ featureQuery: "콘티/초상권 작성", hospitalName: "미소로한의원" });
     expect(fuzzyNameSearchOne).not.toHaveBeenCalled();
     expect(execution.result).toMatchObject({ success: true, data: { matched: false, ambiguous: true } });
-    expect(execution.result.data?.candidates).toEqual(expect.arrayContaining(["콘티 스튜디오", "초상권 동의서"]));
+    expect(execution.result.data?.candidates).toEqual(expect.arrayContaining(["촬영 콘티", "초상권 동의서"]));
   });
 });

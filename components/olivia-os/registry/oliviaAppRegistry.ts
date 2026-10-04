@@ -28,10 +28,9 @@ import { ReportWindowContent } from "../adapters/ReportWindowContent";
 import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
-// OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
-// conti는 Phase 3에서 레거시 70/30 시스템이 이미 쓰던 mode="modal" 빌더(QuoteBuilder 등)를
-// 그대로 연결했다(ComingSoonPlaceholder였던 상태에서 전환, §41 no fake completion) — 단
-// clientId/resourceId를 포함한 WindowContext도 같은 registry 경로로 전달한다.
+// OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 단독 앱에서
+// 작업실로 통합된 기능은 registry 항목을 새로 만들지 않고 route/context로 부모 작업실의
+// 정확한 탭을 연다. clientId/resourceId를 포함한 WindowContext도 같은 경로로 전달한다.
 export type OliviaAppDefinition = {
   id: string;
   title: string;

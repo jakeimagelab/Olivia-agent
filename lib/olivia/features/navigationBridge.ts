@@ -32,8 +32,8 @@ export function syncCanonicalWorkspaceUrl(
   ctx: { clientId?: string; workflowRunId?: string },
 ) {
   if (!registeredRouter) return;
-  const params = new URLSearchParams();
-  if (ctx.clientId) params.set("clientId", ctx.clientId);
-  if (ctx.workflowRunId) params.set("workflowRunId", ctx.workflowRunId);
-  registeredRouter.replace(params.size ? `${canonicalPath}?${params.toString()}` : canonicalPath);
+  const target = new URL(canonicalPath, "https://olivia.local");
+  if (ctx.clientId) target.searchParams.set("clientId", ctx.clientId);
+  if (ctx.workflowRunId) target.searchParams.set("workflowRunId", ctx.workflowRunId);
+  registeredRouter.replace(`${target.pathname}${target.search}`);
 }

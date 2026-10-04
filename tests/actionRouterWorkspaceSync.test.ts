@@ -22,7 +22,7 @@ describe("actionRouter workspace open/switch URL sync", () => {
     expect(useWorkspaceStore.getState().type).toBe("conti");
     expect(useWorkspaceStore.getState().openedBy).toBe("chat");
     expect(replace).toHaveBeenCalledTimes(1);
-    expect(replace).toHaveBeenCalledWith("/conti?clientId=c1");
+    expect(replace).toHaveBeenCalledWith("/photo-sorting?tab=plan&tool=conti&clientId=c1");
     expect(push).not.toHaveBeenCalled();
   });
 

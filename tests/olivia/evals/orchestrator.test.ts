@@ -138,20 +138,20 @@ describe("Deterministic Router — Runtime Query (T1-T5, GPT 미호출)", () => 
 });
 
 describe("Deterministic Router — Navigation (N1-N5, GPT 미호출)", () => {
-  it("N1: 프롬프터 열어줘 → /prompter 즉시 실행", () => {
+  it("N1: 프롬프터 열어줘 → 영상작업실 촬영 탭 즉시 실행", () => {
     const result = resolveDeterministicResponse("프롬프터 열어줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/prompter" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/video-studio?tab=shoot&tool=prompter" }]);
   });
   it("N2: 텔레프롬프터 실행 → 동일 기능", () => {
     const result = resolveDeterministicResponse("텔레프롬프터 실행", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/prompter" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/video-studio?tab=shoot&tool=prompter" }]);
   });
   it("N2b: 대본 화면 띄워줘 → 동일 기능", () => {
     const result = resolveDeterministicResponse("대본 화면 띄워줘", runtime, emptyContext);
     expect(result?.routeDecision).toBe("NAVIGATION_MATCH");
-    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/prompter" }]);
+    expect(result?.uiActions).toEqual([{ type: "OPEN_FEATURE", href: "/video-studio?tab=shoot&tool=prompter" }]);
   });
   it("N3: 고객관리 보여줘 → /clients open", () => {
     const result = resolveDeterministicResponse("고객관리 보여줘", runtime, emptyContext);

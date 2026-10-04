@@ -87,14 +87,14 @@ describe("Higgsfield video production integration", () => {
     expect(adapter).toContain("createOfficialPlatformClient().submit(path, body)");
   });
 
-  it("opens as a native Olivia OS window instead of a legacy iframe", () => {
+  it("opens inside the native video studio window instead of a standalone app", () => {
     const registry = readFileSync("components/olivia-os/registry/oliviaAppRegistry.ts", "utf8");
-    const adapter = readFileSync("components/olivia-os/adapters/VideoProductionWindowContent.tsx", "utf8");
+    const studio = readFileSync("components/video-studio/VideoStudio.tsx", "utf8");
 
-    expect(registry).toContain('id: "video-production"');
-    expect(registry).toContain("component: VideoProductionWindowContent");
-    expect(adapter).toContain("VideoProductionWorkspace embedded");
-    expect(adapter).not.toContain("LegacyRouteWindowContent");
+    expect(registry).not.toContain('id: "video-production"');
+    expect(registry).toContain('\"video-production\": \"video-studio\"');
+    expect(studio).toContain("<VideoProductionWorkspace embedded />");
+    expect(studio).not.toContain("LegacyRouteWindowContent");
   });
 
   it("keeps focused video settings readable in the dark production panel", () => {

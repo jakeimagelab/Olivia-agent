@@ -62,7 +62,7 @@ describe("Olivia Tablet Shell", () => {
 
   it("uses registry icons where the Desktop app exists and shared Olivia icons otherwise", () => {
     expect(resolveTabletAppIconSource("calendar")).toEqual({ kind: "registry", appId: "calendar" });
-    expect(resolveTabletAppIconSource("conti")).toEqual({ kind: "registry", appId: "conti" });
+    expect(resolveTabletAppIconSource("conti")).toEqual({ kind: "registry", appId: "photo-workspace" });
     expect(resolveTabletAppIconSource("customer")).toEqual({ kind: "registry", appId: "customer" });
     expect(resolveTabletAppIconSource("channel-analysis")).toEqual({ kind: "shared", iconName: "channel-analysis" });
     expect(TABLET_APPS.map((app) => app.id)).toEqual([

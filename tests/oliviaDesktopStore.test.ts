@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DESKTOP_STATE_VERSION,
+  loadDesktopState,
   resetDesktopSession,
   useOliviaDesktopStore,
 } from "@/lib/store/useOliviaDesktopStore";
@@ -97,5 +98,47 @@ describe("OLIVIA OS desktop store", () => {
     const before = useOliviaDesktopStore.getState();
     store.updateWindowContext("customer", { ...context });
     expect(useOliviaDesktopStore.getState()).toBe(before);
+  });
+});
+
+describe("OLIVIA OS persisted workspace migration", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    resetDesktopSession();
+  });
+
+  it("moves removed standalone windows into their exact integrated workspace tabs", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    values.set("olivia-os-desktop-state", JSON.stringify({
+      version: DESKTOP_STATE_VERSION,
+      activeAppId: "video-production",
+      windows: [
+        { appId: "conti", title: "콘티 스튜디오", x: 10, y: 20, width: 900, height: 600, minimized: false, snapMode: "none" },
+        { appId: "video-production", title: "영상제작", x: 30, y: 40, width: 980, height: 640, minimized: false, snapMode: "none" },
+        { appId: "portrait-consent", title: "초상권 동의서", x: 50, y: 60, width: 800, height: 620, minimized: true, snapMode: "none" },
+      ],
+    }));
+
+    loadDesktopState(new Set(["photo-workspace", "video-studio", "customer"]));
+
+    const state = useOliviaDesktopStore.getState();
+    expect(Object.keys(state.windows)).toEqual(["photo-workspace", "video-studio", "customer"]);
+    expect(state.windows["photo-workspace"].context).toMatchObject({
+      routeHref: "/photo-sorting?tab=plan&tool=conti",
+      documentType: "conti",
+    });
+    expect(state.windows["video-studio"].context?.routeHref).toBe("/video-studio?tab=publish&tool=ai-video");
+    expect(state.windows.customer.context).toMatchObject({
+      routeHref: "/clients?tab=documents&document=portrait-consent",
+      documentType: "portrait-consent",
+    });
+    expect(state.activeWindowId).toBe("video-studio");
   });
 });
