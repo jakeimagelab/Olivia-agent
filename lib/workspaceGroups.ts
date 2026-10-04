@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
-import { BarChart3, Camera, Clapperboard, Lightbulb, ScanSearch } from "lucide-react";
+import { BarChart3, Camera, Clapperboard, Film, Lightbulb, ScanSearch } from "lucide-react";
 
-export type WorkspaceGroupId = "photo" | "conti" | "brand" | "content" | "insights";
+export type WorkspaceGroupId = "photo" | "video" | "conti" | "brand" | "content" | "insights";
 export type WorkspaceAccent = "mint" | "blue" | "purple" | "orange" | "green";
 
 export type WorkspaceSubTool = {
@@ -42,6 +42,22 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       { id: "resize", title: "사진 리사이즈", href: "/photo-sorting?tool=resize", aliases: ["사진 리사이즈", "이미지 리사이즈", "사진 크기 변경"], sourceHrefs: [] },
       { id: "rename", title: "이름변경", href: "/photo-sorting?tool=rename", aliases: ["이름변경", "파일명 변경", "사진 이름 변경"], sourceHrefs: [] },
       { id: "retouch", title: "사진 보정", href: "/photo-sorting?tool=retouch", aliases: ["사진보정", "색감 보정", "리터칭"], sourceHrefs: ["/photo-retouching"] },
+    ],
+  },
+  {
+    id: "video",
+    title: "영상작업실",
+    description: "인터뷰 분석부터 릴스·웹진 초안, 영상 분류와 음성 분리까지 촬영 영상 후반 작업을 한 곳에서.",
+    href: "/video-studio",
+    icon: Film,
+    accent: "blue",
+    aliases: ["영상 작업실", "비디오 작업실", "영상 도구", "영상 후반"],
+    tools: [
+      { id: "interview", title: "인터뷰 분석", href: "/video-studio?tab=interview", aliases: ["인터뷰 분석", "영상 분석", "전사", "녹취", "Q&A 분리", "영상 내용 정리"], sourceHrefs: [] },
+      { id: "reels", title: "릴스", href: "/video-studio?tab=reels", aliases: ["릴스 추천", "릴스 구간", "쇼츠 구간"], sourceHrefs: [] },
+      { id: "webzine", title: "웹진 초안", href: "/video-studio?tab=webzine", aliases: ["웹진 초안", "인터뷰 웹진"], sourceHrefs: [] },
+      { id: "sorting", title: "영상 분류", href: "/video-studio?tab=sorting", aliases: ["영상분류", "영상 분류", "비디오 분류", "AI 영상 분류", "시간차 분류", "영상 정렬"], sourceHrefs: ["/video-sorting"] },
+      { id: "audio", title: "음성 분리", href: "/video-studio?tab=audio", aliases: ["음성 분리", "오디오 추출", "음성 추출", "wav 추출"], sourceHrefs: [] },
     ],
   },
   {

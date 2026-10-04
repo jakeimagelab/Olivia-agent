@@ -15,8 +15,6 @@ function readCookie(name: string): string | null {
 
 const PHOTO_TABS = [
   { href: "/photo-sorting?mode=classification", label: "📁 사진 분류", matches: ["/photo-sorting"] },
-  { href: "/video-sorting",    label: "🎥 영상 분류",         matches: ["/video-sorting"] },
-  { href: "/video-convert",    label: "🔄 4K→FHD 변환",       matches: ["/video-convert"] },
   { href: "/raw-select",       label: "✂️ T컷 정리",          matches: ["/raw-select"] },
   { href: "/select-match",     label: "🎯 RAW 매칭",          matches: ["/select-match"] },
   { href: "/photo-retouching", label: "🎨 색감·보정",         matches: ["/photo-retouching"] },
@@ -24,8 +22,6 @@ const PHOTO_TABS = [
 
 const TITLE: Record<string, { title: string; description: string }> = {
   "/photo-sorting":    { title: "사진 분류",         description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." },
-  "/video-sorting":    { title: "영상 분류",         description: "영상 파일을 AI가 카테고리별로 자동 분류하거나 촬영 시간 간격으로 Scene 폴더로 나누어 정리합니다." },
-  "/video-convert":    { title: "4K→FHD 변환",       description: "4K·고해상도 영상을 브라우저 내에서 FHD(1920×1080)로 변환하고 결과를 폴더에 저장합니다." },
   "/photo-retouching": { title: "사진 보정",         description: "사진을 업로드해 AI로 피부톤 또는 가운 색을 기준과 비교하고 Photoshop·Camera Raw 보정값을 제공합니다." },
   "/raw-select":       { title: "T컷 정리",          description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 안전하게 이동합니다." },
   "/select-match":     { title: "RAW 매칭",          description: "선택된 JPG와 대응하는 RAW 원본을 매칭해 복사하거나 이동합니다." },

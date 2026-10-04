@@ -19,7 +19,9 @@ describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 mat
     ["사진셀렉", "/photo-sorting?mode=select"],
     ["고객셀렉", "/photo-sorting?mode=select"],
     ["RAW셀렉", "/photo-sorting?mode=raw-match"],
-    ["영상분류", "/video-sorting"],
+    ["영상분류", "/video-studio?tab=sorting"],
+    ["인터뷰 분석", "/video-studio?tab=interview"],
+    ["음성 분리", "/video-studio?tab=audio"],
     ["색감보정", "/photo-sorting?tool=retouch"],
   ];
   for (const [query, expectedHref] of exactCases) {

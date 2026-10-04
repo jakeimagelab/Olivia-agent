@@ -256,7 +256,7 @@ function ModeGrid<T extends string | number>({ options, value, onChange }: { opt
 /* ════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════ */
-export default function VideoSortingPage() {
+export default function VideoSortingWorkspace() {
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
 
@@ -524,13 +524,13 @@ export default function VideoSortingPage() {
 
       {/* OLIVIA OS Desktop UI 제안서 유형 D — 촬영 영상 분류 화면도 미디어 워크벤치라 중성
           회색. 스텝 인디케이터/카드는 전부 자체 흰 배경이라 영향 없다. */}
-      <div style={{ background: "#2A2A2A", minHeight: "100vh", color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      <div style={{ background: "#2A2A2A", minHeight: "70vh", borderRadius: 16, overflow: "hidden", paddingBottom: 32, color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{ maxWidth: 960, margin: "0 auto" }}>
 
           {step === "setup" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 700 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: C.txt }}>🎥 영상 분류 설정</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>🎥 영상 분류 설정</h2>
 
               {!hasFS && (
                 <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980" }}>
@@ -806,7 +806,7 @@ export default function VideoSortingPage() {
                     </div>
                   ))}
                 </div>
-                <Link href="/photo-sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>사진작업실로 돌아가기 →</Link>
+                <Link href="/video-studio?tab=sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>영상작업실로 돌아가기 →</Link>
               </SectionCard>
             </div>
           )}

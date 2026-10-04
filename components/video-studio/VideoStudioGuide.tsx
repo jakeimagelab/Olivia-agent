@@ -4,7 +4,7 @@ import photoStyles from "@/components/photo-workspace/PhotoWorkspace.module.css"
 import type { VideoInterviewResult } from "@/lib/video-interview/types";
 import styles from "./VideoStudio.module.css";
 
-export type VideoStudioTab = "interview" | "reels" | "webzine" | "audio";
+export type VideoStudioTab = "interview" | "reels" | "webzine" | "sorting" | "audio";
 type Step = { icon: LucideIcon; title: string; description: string };
 
 const SETUP: Step[] = [
@@ -28,6 +28,11 @@ const WEBZINE: Step[] = [
   { icon: Copy, title: "블로그용 HTML 복사", description: "블로그 에디터에 붙여넣으면 웹진 스타일이 적용됩니다." },
   { icon: CheckSquare2, title: "사실 확인 후 발행", description: "병원명·수치·표현을 확인하고 발행하세요." },
 ];
+const SORTING: Step[] = [
+  { icon: FolderOpen, title: "영상 폴더 선택", description: "이 기기에서 정리할 영상 폴더를 엽니다." },
+  { icon: Sparkles, title: "AI 분류 또는 시간 간격", description: "장면 유형별 AI 분류나 촬영 시간 간격으로 묶습니다." },
+  { icon: CheckSquare2, title: "검토 후 폴더 정리", description: "결과를 확인하고 카테고리 폴더로 정리합니다." },
+];
 const AUDIO: Step[] = [
   { icon: FolderOpen, title: "촬영 폴더 선택", description: "음성을 뽑을 영상이 있는 폴더를 고릅니다." },
   { icon: AudioLines, title: "음성 분리", description: "영상마다 원음 그대로 WAV 파일을 만듭니다." },
@@ -45,7 +50,7 @@ export default function VideoStudioGuide({
   editRoot: string;
   onEditRootChange: (value: string) => void;
 }) {
-  const steps = tab === "interview" ? (result ? RESULT : SETUP) : tab === "reels" ? REELS : tab === "webzine" ? WEBZINE : AUDIO;
+  const steps = tab === "interview" ? (result ? RESULT : SETUP) : tab === "reels" ? REELS : tab === "webzine" ? WEBZINE : tab === "sorting" ? SORTING : AUDIO;
   const showSummary = tab === "interview" && result;
   return (
     <aside className={photoStyles.guide} aria-label="사용 가이드">

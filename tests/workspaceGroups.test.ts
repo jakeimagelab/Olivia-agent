@@ -9,9 +9,10 @@ import {
 } from "@/lib/workspaceGroups";
 
 describe("integrated workspace registry", () => {
-  it("exposes the five approved primary workspaces in order", () => {
+  it("exposes the approved primary workspaces in order", () => {
     expect(WORKSPACE_GROUPS.map((group) => group.title)).toEqual([
       "사진작업실",
+      "영상작업실",
       "콘티 스튜디오",
       "브랜드 진단센터",
       "콘텐츠 스튜디오",
@@ -33,6 +34,11 @@ describe("integrated workspace registry", () => {
     );
     expect(getCanonicalWorkspaceHref("/metadata-select")).toBe("/photo-sorting?tool=metadata-match");
     expect(getCanonicalWorkspaceHref("/photo-retouching")).toBe("/photo-sorting?tool=retouch");
+  });
+
+  it("moves video sorting out of the photo workspace into 영상작업실", () => {
+    expect(isIntegratedToolHref("/video-sorting")).toBe(true);
+    expect(getCanonicalWorkspaceHref("/video-sorting")).toBe("/video-studio?tab=sorting");
   });
 });
 
@@ -69,4 +75,13 @@ describe("Olivia resolves detailed feature names through the workspace registry"
       }
     });
   }
+});
+
+describe("영상작업실 routing in Olivia OS", () => {
+  it("opens legacy /video-sorting inside the 영상작업실 window on the sorting tab", async () => {
+    const { resolveOliviaAppRoute } = await import("@/components/olivia-os/registry/oliviaAppRegistry");
+    const resolved = resolveOliviaAppRoute("/video-sorting");
+    expect(resolved?.app.id).toBe("video-studio");
+    expect(resolved?.href).toBe("/video-studio?tab=sorting");
+  });
 });
