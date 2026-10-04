@@ -1,7 +1,7 @@
 # 작업실 재구성 및 공통 UI 설계
 
-작성일: 2026-10-04  
-기준 브랜치: `main` (`video-studio-v2` 및 다중 Worker 지원 포함)  
+작성일: 2026-10-04
+기준 브랜치: `main` (`video-studio-v2` 및 다중 Worker 지원 포함)
 구현 브랜치: `feature/workspace-shell-restructure`
 
 ## 1. 목표와 범위
