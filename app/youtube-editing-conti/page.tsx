@@ -44,12 +44,16 @@ function useDebouncedSaver() {
   }, []);
 }
 
-export default function YoutubeEditingContiPage() {
+export function YoutubeEditingContiWorkspace() {
   return (
     <Suspense fallback={<main className="pc-page" style={{ display: "grid", placeItems: "center", minHeight: "60vh", color: C.muted }}>불러오는 중...</main>}>
       <YoutubeEditingContiInner />
     </Suspense>
   );
+}
+
+export default function YoutubeEditingContiPage() {
+  return <YoutubeEditingContiWorkspace />;
 }
 
 function YoutubeEditingContiInner() {

@@ -35,6 +35,13 @@
 :global([data-tone="light"]) .sectionTitle { color: #1c2b28; }
 :global([data-tone="light"]) .notice { background: #edf7f4; color: #285b52; }
 
+.embeddedWorkspace { min-width: 0; background: #fff; color: #1c2b28; }
+.embeddedWorkspace > :global(main),
+.embeddedWorkspace > :global(div) { min-height: 0 !important; }
+.embeddedWorkspace :global(.pc-content) { max-width: none; }
+.canvasWorkspace > :global(main) { height: min(760px, calc(100dvh - 210px)) !important; min-height: 560px !important; }
+.aiVideoWorkspace { background: #2a2a2a; color: #fff; }
+
 /* 최근 작업 */
 .jobList { display: grid; gap: 7px; }
 .jobRow { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 11px 14px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 11px; background: #fbfcfc; color: #1c2b28; font: inherit; text-align: left; cursor: pointer; }

@@ -77,7 +77,7 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("ko-KR");
 }
 
-export default function PrompterPage() {
+export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) {
   const [mode, setMode] = useState<"projects" | "scenes" | "prompt">("projects");
 
   // 프로젝트(병원/기업 단위)
@@ -1055,7 +1055,7 @@ export default function PrompterPage() {
   if (mode === "projects") {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />
+        {embedded ? null : <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />}
         <div className="oa-page pt-projects-page">
           <button onClick={() => openProjectModal("create")} className="pt-new-project-btn"><Plus size={20} /> 새 프로젝트 만들기</button>
 
@@ -1089,7 +1089,7 @@ export default function PrompterPage() {
   if (mode === "scenes") {
     return (
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
-        <GlobalHeader
+        {embedded ? null : <GlobalHeader
           title="프롬프터"
           description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다."
           pageActions={<>
@@ -1121,7 +1121,7 @@ export default function PrompterPage() {
               </button>
             )}
           </>}
-        />
+        />}
         <div className="oa-page">
           <div className="pt-scene-project-banner">
             <Building2 size={16} />
@@ -1658,3 +1658,5 @@ export default function PrompterPage() {
     </div>
   );
 }
+
+export default PrompterWorkspace;

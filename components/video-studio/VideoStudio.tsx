@@ -63,6 +63,27 @@ const VideoSortingWorkspace = dynamic(() => import("./VideoSortingWorkspace"), {
   loading: () => <div className={photoStyles.workspaceLoading}>영상 분류 도구를 불러오는 중...</div>,
 });
 
+const VideoContiWorkspace = dynamic(
+  () => import("@/app/(conti-studio)/video-conti/page").then((module) => module.VideoContiWorkspace),
+  { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>영상 콘티를 불러오는 중...</div> },
+);
+const YoutubeEditingContiWorkspace = dynamic(
+  () => import("@/app/youtube-editing-conti/page").then((module) => module.YoutubeEditingContiWorkspace),
+  { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>유튜브 편집 콘티를 불러오는 중...</div> },
+);
+const BrollPromptWorkspace = dynamic(
+  () => import("@/app/broll-prompt/page").then((module) => module.BrollPromptWorkspace),
+  { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>B-roll 프롬프트를 불러오는 중...</div> },
+);
+const PrompterWorkspace = dynamic(
+  () => import("@/app/prompter/PrompterClient").then((module) => module.PrompterWorkspace),
+  { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>프롬프터를 불러오는 중...</div> },
+);
+const VideoProductionWorkspace = dynamic(
+  () => import("@/components/video-production/VideoProductionWorkspace").then((module) => module.VideoProductionWorkspace),
+  { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>AI 영상제작을 불러오는 중...</div> },
+);
+
 const SECTION_TABS: Array<{ value: VideoStudioSection; label: string; title: string; icon: ReactElement }> = [
   { value: "plan", label: "기획", title: "콘티와 촬영 프롬프트를 준비합니다.", icon: <PenLine size={15} aria-hidden="true" /> },
   { value: "shoot", label: "촬영", title: "현장 촬영 도구를 엽니다.", icon: <Video size={15} aria-hidden="true" /> },
@@ -301,6 +322,16 @@ export default function VideoStudio({
         notify={notify}
       />
     );
+  } else if (tool === "video-conti") {
+    body = <div className={styles.embeddedWorkspace}><VideoContiWorkspace /></div>;
+  } else if (tool === "youtube-conti") {
+    body = <div className={`${styles.embeddedWorkspace} ${styles.canvasWorkspace}`}><YoutubeEditingContiWorkspace /></div>;
+  } else if (tool === "broll") {
+    body = <div className={styles.embeddedWorkspace}><BrollPromptWorkspace embedded /></div>;
+  } else if (tool === "prompter") {
+    body = <div className={styles.embeddedWorkspace}><PrompterWorkspace embedded /></div>;
+  } else if (tool === "ai-video") {
+    body = <div className={`${styles.embeddedWorkspace} ${styles.aiVideoWorkspace}`}><VideoProductionWorkspace embedded /></div>;
   } else {
     body = <PendingWorkspace tool={tool} />;
   }

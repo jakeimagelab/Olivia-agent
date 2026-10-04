@@ -1126,10 +1126,14 @@ function VideoContiInner() {
   );
 }
 
-export default function VideoContiPage() {
+export function VideoContiWorkspace() {
   return (
     <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#9BB5B0" }}>로딩 중...</div>}>
       <VideoContiInner />
     </Suspense>
   );
+}
+
+export default function VideoContiPage() {
+  return <VideoContiWorkspace />;
 }
