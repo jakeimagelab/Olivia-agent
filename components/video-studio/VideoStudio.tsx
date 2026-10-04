@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AudioLines,
@@ -64,15 +65,15 @@ const VideoSortingWorkspace = dynamic(() => import("./VideoSortingWorkspace"), {
 });
 
 const VideoContiWorkspace = dynamic(
-  () => import("@/app/(conti-studio)/video-conti/page").then((module) => module.VideoContiWorkspace),
+  () => import("@/app/(conti-studio)/video-conti/page"),
   { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>영상 콘티를 불러오는 중...</div> },
 );
 const YoutubeEditingContiWorkspace = dynamic(
-  () => import("@/app/youtube-editing-conti/page").then((module) => module.YoutubeEditingContiWorkspace),
+  () => import("@/app/youtube-editing-conti/page"),
   { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>유튜브 편집 콘티를 불러오는 중...</div> },
 );
 const BrollPromptWorkspace = dynamic(
-  () => import("@/app/broll-prompt/page").then((module) => module.BrollPromptWorkspace),
+  () => import("@/app/broll-prompt/page"),
   { ssr: false, loading: () => <div className={photoStyles.workspaceLoading}>B-roll 프롬프트를 불러오는 중...</div> },
 );
 const PrompterWorkspace = dynamic(
@@ -323,11 +324,11 @@ export default function VideoStudio({
       />
     );
   } else if (tool === "video-conti") {
-    body = <div className={styles.embeddedWorkspace}><VideoContiWorkspace embedded /></div>;
+    body = <div className={styles.embeddedWorkspace}><VideoContiWorkspace /></div>;
   } else if (tool === "youtube-conti") {
     body = <div className={`${styles.embeddedWorkspace} ${styles.canvasWorkspace}`}><YoutubeEditingContiWorkspace /></div>;
   } else if (tool === "broll") {
-    body = <div className={styles.embeddedWorkspace}><BrollPromptWorkspace embedded /></div>;
+    body = <div className={styles.embeddedWorkspace}><BrollPromptWorkspace /></div>;
   } else if (tool === "prompter") {
     body = <div className={styles.embeddedWorkspace}><PrompterWorkspace embedded /></div>;
   } else if (tool === "ai-video") {
@@ -373,7 +374,7 @@ export default function VideoStudio({
             {remote && (tool === "interview" || tool === "audio") ? (
               <WorkerSelector value={workerId} workers={workers} tone={tone} onChange={selectWorker} />
             ) : null}
-            {body}
+            <DesktopWindowProvider value={true}>{body}</DesktopWindowProvider>
           </WorkPanel>
         </WorkspaceGrid>
       </WorkspaceContent>

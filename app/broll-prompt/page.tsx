@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Check, Copy, Plus, RefreshCw, Sparkles, X } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { C, R } from "@/lib/theme";
 
 const FIXED_STYLE_SUFFIX =
@@ -48,7 +49,8 @@ async function requestPrompt(fullScript: string, targetSnippet: string): Promise
   return data.prompt as string;
 }
 
-export function BrollPromptWorkspace({ embedded = false }: { embedded?: boolean }) {
+function BrollPromptWorkspace() {
+  const embedded = useDesktopWindowMode();
   const [fullScript, setFullScript] = useState("");
   const [targetSnippet, setTargetSnippet] = useState("");
   const [queue, setQueue] = useState<QueuedSnippet[]>([]);

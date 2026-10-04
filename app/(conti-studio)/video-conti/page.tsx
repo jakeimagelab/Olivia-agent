@@ -6,6 +6,7 @@ import DrawingCanvas, { DrawingCanvasHandle, PenType, PEN_TYPES, DRAW_COLORS, ER
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { C } from "@/lib/theme";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 
 /* ─── types ──────────────────────────────────────────────── */
 interface BgmSection {
@@ -1096,7 +1097,7 @@ function VideoContiInner({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-export function VideoContiWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
+function VideoContiWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#9BB5B0" }}>로딩 중...</div>}>
       <VideoContiInner embedded={embedded} />
@@ -1105,5 +1106,6 @@ export function VideoContiWorkspace({ embedded = false }: { embedded?: boolean }
 }
 
 export default function VideoContiPage() {
-  return <VideoContiWorkspace />;
+  const embedded = useDesktopWindowMode();
+  return <VideoContiWorkspace embedded={embedded} />;
 }
