@@ -323,7 +323,7 @@ export default function VideoStudio({
       />
     );
   } else if (tool === "video-conti") {
-    body = <div className={styles.embeddedWorkspace}><VideoContiWorkspace /></div>;
+    body = <div className={styles.embeddedWorkspace}><VideoContiWorkspace embedded /></div>;
   } else if (tool === "youtube-conti") {
     body = <div className={`${styles.embeddedWorkspace} ${styles.canvasWorkspace}`}><YoutubeEditingContiWorkspace /></div>;
   } else if (tool === "broll") {

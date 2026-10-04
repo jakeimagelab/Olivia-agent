@@ -3,7 +3,9 @@
 import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import DrawingCanvas, { DrawingCanvasHandle, PenType, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
+import { Stepper } from "@/components/workspace-shell/Stepper";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
+import { C } from "@/lib/theme";
 
 /* ─── types ──────────────────────────────────────────────── */
 interface BgmSection {
@@ -39,13 +41,6 @@ interface Scene {
 
 interface Client { id: string; name: string; website_url?: string; }
 
-/* ─── colors ─────────────────────────────────────────────── */
-const C = {
-  teal: "#155855", orange: "#E85D2C", green: "#22876A",
-  white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2",
-};
-
 const energyColor = (level: string) => {
   if (level === "high") return C.teal;
   if (level === "mid") return C.green;
@@ -65,34 +60,9 @@ function Msg({ msg }: { msg: { text: string; ok: boolean } | null }) {
   );
 }
 
-function StepBadge({ n, active, done }: { n: number; active: boolean; done: boolean }) {
-  return (
-    <div style={{
-      width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 12, fontWeight: 800,
-      background: done ? C.green : active ? C.teal : C.light,
-      color: done || active ? C.white : C.hint,
-      border: `2px solid ${done ? C.green : active ? C.teal : C.border}`,
-      flexShrink: 0,
-    }}>{done ? "✓" : n}</div>
-  );
-}
-
 function StepHeader({ step }: { step: number }) {
   const labels = ["홈페이지 분석", "BGM 업로드", "콘티 자동 생성", "편집 & 완료"];
-  return (
-    <div className="pc-workflow-bar pc-workflow-track pc-workflow-track--fluid" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-      {labels.map((l, i) => (
-        <React.Fragment key={i}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <StepBadge n={i + 1} active={step === i + 1} done={step > i + 1} />
-            <span style={{ fontSize: 13, fontWeight: step === i + 1 ? 700 : 400, color: step === i + 1 ? C.teal : C.muted }}>{l}</span>
-          </div>
-          {i < labels.length - 1 && <div style={{ flex: 1, height: 1, minWidth: 16, background: C.border }} />}
-        </React.Fragment>
-      ))}
-    </div>
-  );
+  return <Stepper items={labels.map((label, index) => ({ id: `video-conti-${index + 1}`, label }))} activeIndex={step - 1} ariaLabel="영상 콘티 작성 단계" />;
 }
 
 function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
@@ -132,8 +102,8 @@ type ContiMode = "ai" | "storyboard";
 
 function ModeToggle({ mode, onChange }: { mode: ContiMode; onChange: (m: ContiMode) => void }) {
   const opts: { key: ContiMode; label: string }[] = [
-    { key: "ai", label: "🤖 AI 콘티 생성" },
-    { key: "storyboard", label: "✏️ 손그림 콘티" },
+    { key: "ai", label: "AI 콘티 생성" },
+    { key: "storyboard", label: "손그림 콘티" },
   ];
   return (
     <div style={{
@@ -1025,7 +995,7 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
 }
 
 /* ─── Main Page ──────────────────────────────────────────── */
-function VideoContiInner() {
+function VideoContiInner({ embedded = false }: { embedded?: boolean }) {
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<ContiMode>("ai");
   const [step, setStep] = useState(1);
@@ -1066,7 +1036,7 @@ function VideoContiInner() {
   }, [mode, videoContiId]);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fbfa" }}>
+    <div style={{ minHeight: embedded ? 0 : "100vh", background: embedded ? "#fff" : "#f8fbfa" }}>
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
         <ModeToggle mode={mode} onChange={setMode} />
 
@@ -1126,10 +1096,10 @@ function VideoContiInner() {
   );
 }
 
-export function VideoContiWorkspace() {
+export function VideoContiWorkspace({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <Suspense fallback={<div style={{ padding: 40, textAlign: "center", color: "#9BB5B0" }}>로딩 중...</div>}>
-      <VideoContiInner />
+      <VideoContiInner embedded={embedded} />
     </Suspense>
   );
 }

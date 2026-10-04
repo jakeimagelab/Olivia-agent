@@ -1,24 +1,10 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import PhotoStudioExecutionBar from "@/components/photo-workspace/PhotoStudioExecutionBar";
 import { PhotoStudioExecutionProvider, usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "@/components/photo-workspace/RemoteUnsupportedNotice";
-
-function readCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-const PHOTO_TABS = [
-  { href: "/photo-sorting?mode=classification", label: "📁 사진 분류", matches: ["/photo-sorting"] },
-  { href: "/raw-select",       label: "✂️ T컷 정리",          matches: ["/raw-select"] },
-  { href: "/select-match",     label: "🎯 RAW 매칭",          matches: ["/select-match"] },
-  { href: "/photo-retouching", label: "🎨 색감·보정",         matches: ["/photo-retouching"] },
-];
 
 const TITLE: Record<string, { title: string; description: string }> = {
   "/photo-sorting":    { title: "사진 분류",         description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." },
@@ -44,25 +30,10 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
   const unifiedWorkspace = pathname === "/photo-sorting";
   const meta = TITLE[pathname] ?? { title: "사진 작업실", description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." };
 
-  // 공유 링크로 들어온 외부 세션이면 자신에게 허용된 탭 하나만 보여준다.
-  // (실제 접근 제한은 middleware에서 처리 — 여기서는 혼란을 줄이기 위한 화면 정리일 뿐)
-  const [shareScope, setShareScope] = useState<string | null>(null);
-  useEffect(() => { setShareScope(readCookie("pc_share_scope")); }, []);
-  const visibleTabs = shareScope ? PHOTO_TABS.filter((t) => t.matches.includes(shareScope)) : PHOTO_TABS;
-
   return (
     <PhotoStudioExecutionProvider>
       <div style={{ minHeight: "100vh", background: MESH_BG, fontFamily: "var(--font-sans)" }}>
         {!unifiedWorkspace ? <GlobalHeader title={meta.title} description={meta.description} /> : null}
-
-        {!unifiedWorkspace ? <div style={{ padding: "20px 24px 0" }}>
-          <SegmentedTabs
-            ariaLabel="사진 작업 기능"
-            value={pathname}
-            onChange={() => {}}
-            items={visibleTabs.map(t => ({ value: t.matches[0] ?? t.href, label: t.label, href: t.href }))}
-          />
-        </div> : null}
 
         <PhotoStudioExecutionBar />
         <div className={unifiedWorkspace ? undefined : "pc-page-content"}>

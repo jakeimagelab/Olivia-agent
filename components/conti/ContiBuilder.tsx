@@ -25,7 +25,7 @@ import ContiScheduleBlock from "@/components/conti/ContiScheduleBlock";
 import { getContiCategoryColor } from "@/components/conti/contiColors";
 import type { ChecklistRow, ContiFormState, ContiResult, ContiRow, LocationItem, PatientItem, SavedConti, ScheduleRow, StaffItem } from "@/components/conti/types";
 import {
-  CheckSquare, ClipboardList, Image as ImageIcon,
+  CalendarClock, CheckSquare, Clapperboard, ClipboardCheck, ClipboardList, Image as ImageIcon,
   Clock, FileText, Link2, Minus, Pencil, Plus, Trash2
 } from "lucide-react";
 
@@ -2385,10 +2385,10 @@ ${header("타임테이블")}
               boxShadow: "0 -2px 12px rgba(21,88,85,0.07)",
             }}>
               {([
-                { key: "conti",     label: "콘티",   icon: "🎬", count: result.conti.length },
-                { key: "checklist", label: "체크",   icon: "✅", count: result.checklist.length },
-                { key: "schedule",  label: "일정",   icon: "⏰", count: result.schedule.length },
-              ] as const).map(({ key, label, icon, count }) => (
+                { key: "conti",     label: "콘티",   Icon: Clapperboard, count: result.conti.length },
+                { key: "checklist", label: "체크",   Icon: ClipboardCheck, count: result.checklist.length },
+                { key: "schedule",  label: "일정",   Icon: CalendarClock, count: result.schedule.length },
+              ] as const).map(({ key, label, Icon, count }) => (
                 <button key={key} onClick={() => setFieldViewTab(key)} style={{
                   flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
                   justifyContent: "center", gap: 3, border: "none", cursor: "pointer",
@@ -2396,7 +2396,7 @@ ${header("타임테이블")}
                   borderTop: `3px solid ${fieldViewTab === key ? "#155855" : "transparent"}`,
                   transition: "all 150ms",
                 }}>
-                  <span style={{ fontSize: 20 }}>{icon}</span>
+                  <Icon size={20} aria-hidden="true" />
                   <span style={{ color: fieldViewTab === key ? "#155855" : "#9BB5B0", fontSize: 11, fontWeight: 800 }}>
                     {label} {count}
                   </span>

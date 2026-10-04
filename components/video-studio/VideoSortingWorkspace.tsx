@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Stepper } from "@/components/workspace-shell/Stepper";
+import { C } from "@/lib/theme";
 import type {
   ClassifiedVideo,
   TimeScene,
@@ -36,12 +38,6 @@ const CATEGORY_LABELS: Record<VideoCategory, string> = {
   TREATMENT_SCENE: "진료시술·연출영상",
   CLOSEUP_DETAIL: "얼굴손장비·클로즈업",
   NEED_CHECK: "확인필요",
-};
-
-const C = {
-  teal: "#155855", orange: "#E85D2C", green: "#22876A", red: "#DC2626",
-  white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3",
 };
 
 /* ════════════════════════════════════════════════
@@ -493,22 +489,11 @@ export default function VideoSortingWorkspace() {
      STEP INDICATOR — photo-sorting의 renderStepIndicator와 동일한 구조
   ═══════════════════════════════════════════════ */
   const renderStepIndicator = () => (
-    <div className="pc-workflow-bar" style={{ background: C.white, borderBottom: `1px solid ${C.border}`, padding: "10px 24px", overflowX: "auto" }}>
-      <div className="pc-workflow-track" style={{ display: "flex", gap: 4, alignItems: "center" }}>
-        {stepLabels.map((lbl, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-            <div style={{
-              width: 22, height: 22, borderRadius: "50%", fontSize: 9, fontWeight: 900,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: i < stepPos ? C.green : i === stepPos ? C.teal : C.border,
-              color: i <= stepPos ? "#fff" : C.muted,
-            }}>{i < stepPos ? "✓" : i + 1}</div>
-            <span className="ps-step-lbl" style={{ fontWeight: i === stepPos ? 800 : 500, color: i === stepPos ? C.teal : C.hint }}>{lbl}</span>
-            {i < stepLabels.length - 1 && <span style={{ color: C.border, fontSize: 10 }}>›</span>}
-          </div>
-        ))}
-      </div>
-    </div>
+    <Stepper
+      items={stepLabels.map((label, index) => ({ id: `${mode}-${stepOrder[index]}`, label }))}
+      activeIndex={Math.max(0, stepPos)}
+      ariaLabel="영상 분류 진행 단계"
+    />
   );
 
   /* ════════════════════════════════════════════════
@@ -524,13 +509,13 @@ export default function VideoSortingWorkspace() {
 
       {/* OLIVIA OS Desktop UI 제안서 유형 D — 촬영 영상 분류 화면도 미디어 워크벤치라 중성
           회색. 스텝 인디케이터/카드는 전부 자체 흰 배경이라 영향 없다. */}
-      <div style={{ background: "#2A2A2A", minHeight: "70vh", borderRadius: 16, overflow: "hidden", paddingBottom: 32, color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+      <div style={{ minHeight: "70vh", overflow: "hidden", paddingBottom: 32, color: "rgba(255,255,255,.85)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
         {renderStepIndicator()}
         <div className="ps-wrap" style={{ maxWidth: 960, margin: "0 auto" }}>
 
           {step === "setup" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 700 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>🎥 영상 분류 설정</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>영상 분류 설정</h2>
 
               {!hasFS && (
                 <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980" }}>
@@ -806,7 +791,7 @@ export default function VideoSortingWorkspace() {
                     </div>
                   ))}
                 </div>
-                <Link href="/video-studio?tab=sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>영상작업실로 돌아가기 →</Link>
+                <Link href="/video-studio?tab=post&tool=sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>영상작업실로 돌아가기 →</Link>
               </SectionCard>
             </div>
           )}

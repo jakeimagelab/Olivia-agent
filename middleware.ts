@@ -161,10 +161,34 @@ async function resolveShareScope(token: string): Promise<string | null> {
 // Vercel/프로덕션 빌드는 NODE_ENV가 항상 "production"이라 이 분기를 절대 타지 않는다.
 const IS_LOCAL_DEV = process.env.NODE_ENV !== "production";
 
+const LEGACY_WORKSPACE_REDIRECTS: Readonly<Record<string, string>> = {
+  "/conti": "/photo-sorting?tab=plan&tool=conti",
+  "/video-conti": "/video-studio?tab=plan&tool=video-conti",
+  "/youtube-editing-conti": "/video-studio?tab=plan&tool=youtube-conti",
+  "/broll-prompt": "/video-studio?tab=plan&tool=broll",
+  "/prompter": "/video-studio?tab=shoot&tool=prompter",
+  "/video-sorting": "/video-studio?tab=post&tool=sorting",
+  "/video-production": "/video-studio?tab=publish&tool=ai-video",
+  "/portrait-consent": "/clients?tab=documents&document=portrait-consent",
+};
+
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const isAdminSession = IS_LOCAL_DEV || req.cookies.get("pc_admin_session")?.value === "active";
   const shareToken = req.cookies.get("pc_share_token")?.value;
+
+  // 내부 관리자는 옛 단독 앱 주소에서도 통합 작업실의 정확한 탭으로 이동한다. 외부 공유
+  // 세션은 기존 feature_path 화면을 그대로 써야 하므로 share token이 있을 때는 리다이렉트하지
+  // 않는다. /conti/view/[token], /prompter/remote/[code] 같은 하위 공개 경로도 exact match가
+  // 아니어서 영향을 받지 않는다.
+  const workspaceTarget = LEGACY_WORKSPACE_REDIRECTS[pathname];
+  if (isAdminSession && !shareToken && workspaceTarget) {
+    const target = new URL(workspaceTarget, req.url);
+    req.nextUrl.searchParams.forEach((value, key) => {
+      if (!target.searchParams.has(key)) target.searchParams.set(key, value);
+    });
+    return NextResponse.redirect(target);
+  }
 
   // OLIVIA OS Phase 1.1 — 예전엔 여기서 인증된 세션을 /admin/dashboard/home(기존 Dashboard)으로
   // 즉시 돌려보냈다. 이제 "/" 자체가 로그인 후 기본 화면(Olivia OS Desktop)이라 더 이상 리다이렉트하지

@@ -147,6 +147,15 @@
 .step[data-state="complete"] i { background: #22876a; color: #fff; }
 .stepConnector { width: clamp(18px, 3vw, 54px); height: 1px; flex: 0 0 auto; background: rgba(21, 88, 85, .14); }
 
+.workPanel[data-tone="dark"] .stepper { border-bottom-color: rgba(255, 255, 255, .09); }
+.workPanel[data-tone="dark"] .step { color: rgba(255, 255, 255, .55); }
+.workPanel[data-tone="dark"] .step i { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .7); }
+.workPanel[data-tone="dark"] .step[data-state="active"] { color: #fff; }
+.workPanel[data-tone="dark"] .step[data-state="active"] i,
+.workPanel[data-tone="dark"] .step[data-state="complete"] i { background: #2fb99a; color: #fff; }
+.workPanel[data-tone="dark"] .step[data-state="complete"] { color: #a9e3d5; }
+.workPanel[data-tone="dark"] .stepConnector { background: rgba(255, 255, 255, .14); }
+
 .emptyState { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 12px; padding: 24px; color: #61736f; text-align: center; }
 .emptyState svg { color: #9aaca8; }
 .emptyState strong { color: #304440; font-size: 13px; }

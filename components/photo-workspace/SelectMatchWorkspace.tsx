@@ -19,14 +19,8 @@ import {
 } from "@/lib/selectMatch/rawIndex";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
+import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
-
-/* ── 색상 ── */
-const C = {
-  teal: "#155855", green: "#22876A", white: "#FFFFFF",
-  border: "rgba(21,88,85,.12)", muted: "#5A7470", hint: "#9BB5B0",
-  txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3", red: "#DC2626",
-};
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.

@@ -3,13 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
-
-const C = {
-  teal: "#155855", orange: "#E85D2C", green: "#22876A",
-  white: "#FFFFFF", border: "rgba(21,88,85,.12)", muted: "#5A7470",
-  hint: "#9BB5B0", txt: "#1C2B28", light: "#EAF4F2", bg: "#EDF5F3",
-  mint: "#EAF4F2", dark: "#1C2B28",
-};
+import { C } from "@/lib/theme";
 
 // 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
 // Vercel 서버리스 함수의 요청 본문 한도(약 4.5MB)를 넘어 "Request Entity Too Large"로
@@ -322,7 +316,7 @@ function SyncTab() {
 
           {/* 결과 탭 */}
           <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
-            {([["swatch","🎨 피부톤 비교"],["ps","🖥 Photoshop"],["cameraraw","🎛 Camera Raw"]] as const).map(([id, lbl]) => (
+            {([["swatch","피부톤 비교"],["ps","Photoshop"],["cameraraw","Camera Raw"]] as const).map(([id, lbl]) => (
               <button key={id} onClick={() => setResTab(id)} style={{
                 flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
                 fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 900 : 500,
@@ -681,8 +675,8 @@ export default function PhotoRetouchingPage() {
                     {/* 결과 탭 */}
                     <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
                       {((checkType === "gown"
-                        ? [["compare","📊 컬러 비교"],["ps","🖥 Photoshop 보정"]]
-                        : [["compare","📊 피부톤 비교"],["ps","🖥 Photoshop 보정"],["cameraraw","🎛 Camera Raw"]]
+                        ? [["compare","컬러 비교"],["ps","Photoshop 보정"]]
+                        : [["compare","피부톤 비교"],["ps","Photoshop 보정"],["cameraraw","Camera Raw"]]
                       ) as [string, string][]).map(([id, lbl]) => (
                         <button key={id} onClick={() => setResTab(id as "compare" | "ps" | "cameraraw")} style={{
                           flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
