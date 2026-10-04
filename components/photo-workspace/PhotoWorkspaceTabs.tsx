@@ -12,6 +12,7 @@ export const PHOTO_WORKSPACE_TABS: Array<{
   description: string;
   icon: ReactNode;
 }> = [
+  { mode: "plan", title: "기획", description: "촬영 콘티를 준비합니다.", icon: <PencilLine size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "select", title: "사진 셀렉", description: "원하는 사진을 빠르게 선택합니다.", icon: <Images size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "raw-match", title: "RAW 매칭", description: "선택된 JPG와 대응하는 RAW 원본을 매칭합니다.", icon: <AppIcon name="metadata-select" size={15} aria-hidden="true" /> },
   { mode: "classification", title: "사진 분류", description: "촬영 사진을 Scene과 유형 기준으로 자동 분류합니다.", icon: <FolderTree size={15} strokeWidth={2} aria-hidden="true" /> },

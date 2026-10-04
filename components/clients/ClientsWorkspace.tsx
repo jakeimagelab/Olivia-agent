@@ -48,6 +48,7 @@ const ProgressDetailModal = dynamic(() => import("@/components/client-workspace/
 const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), { ssr: false, loading: modalLoading });
 const ContractBuilder = dynamic(() => import("@/components/contract/ContractBuilder"), { ssr: false, loading: modalLoading });
 const ContiWorkspace = dynamic(() => import("@/components/conti/v2/ContiWorkspaceAdapter"), { ssr: false, loading: modalLoading });
+const PortraitConsentApp = dynamic(() => import("@/components/portrait-consent/PortraitConsentApp"), { ssr: false, loading: modalLoading });
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { usePcrmHeaderActions } from "@/components/pcrm/PcrmHeaderActionsSlot";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
@@ -893,6 +894,13 @@ function DetailView({
               contracts={contracts}
               artifacts={artifacts}
             />
+            <section className="pc-card" aria-labelledby="client-portrait-consent-title" style={{ overflow: "hidden" }}>
+              <header style={{ padding: "16px 18px 0" }}>
+                <h2 id="client-portrait-consent-title" style={{ margin: 0, color: C.ink, fontSize: 16 }}>초상권 동의서</h2>
+                <p style={{ margin: "6px 0 0", color: C.muted, fontSize: 12 }}>이 촬영 건의 사진·영상 활용 동의서를 작성하고 서명 링크를 관리합니다.</p>
+              </header>
+              <PortraitConsentApp clientId={clientId} workflowRunId={workflowRun?.id} />
+            </section>
             <ClientMailHistorySection clientId={clientId} />
           </div>
         )}

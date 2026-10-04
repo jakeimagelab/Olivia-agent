@@ -1,6 +1,7 @@
 import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
 
 export type PhotoWorkspaceToolId =
+  | "conti"
   | "select-raw"
   | "metadata-match"
   | "ai-cull"
@@ -20,6 +21,7 @@ export type PhotoWorkspaceToolState = {
 // 옛 딥링크는 역할이 같은 독립 탭으로만 정규화한다. AI 컷 정리와 RAW 매칭을 한 화면에
 // 다시 합치지 않는다.
 const TOOL_STATES: Record<PhotoWorkspaceToolId, PhotoWorkspaceToolState> = {
+  conti: { mode: "plan", selectMode: "manual" },
   "select-raw": { mode: "select", selectMode: "client" },
   "metadata-match": { mode: "raw-match", selectMode: "client", rawMatchMethod: "metadata" },
   "ai-cull": { mode: "t-cut", selectMode: "manual" },

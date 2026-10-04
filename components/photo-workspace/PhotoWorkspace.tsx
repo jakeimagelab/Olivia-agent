@@ -21,6 +21,10 @@ const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"),
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>RAW 매칭 도구를 불러오는 중...</div>,
 });
+const PhotoContiWorkspace = dynamic(() => import("@/components/conti/v2/ContiWorkspaceAdapter"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>촬영 콘티를 불러오는 중...</div>,
+});
 const PhotoSortingWorkspace = dynamic(() => import("@/components/photo-classifier/PhotoSortingWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 분류 도구를 불러오는 중...</div>,
@@ -42,7 +46,7 @@ const PhotoRenameWorkspace = dynamic(() => import("./PhotoRenameWorkspace"), {
   loading: () => <div className={styles.workspaceLoading}>이름변경 도구를 불러오는 중...</div>,
 });
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["select", "raw-match", "classification", "t-cut", "retouch", "resize", "rename"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["plan", "select", "raw-match", "classification", "t-cut", "retouch", "resize", "rename"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
 
 function PhotoWorkspaceContent({
@@ -60,21 +64,29 @@ function PhotoWorkspaceContent({
   const toolState = resolvePhotoWorkspaceToolState(searchParams.get("tool"));
   const initialToolState = resolvePhotoWorkspaceToolState(initialTool);
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
+  const rawTab = searchParams.get("tab");
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
   const rawMatchMethodParam = searchParams.get("rawMatchMethod");
   const remoteJobId = searchParams.get("remoteJobId");
-  const mode = toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
+  const mode = rawTab === "plan" ? "plan" : toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? "ai");
   const rawMatchMethod = toolState?.rawMatchMethod ?? (rawMatchMethodParam === "metadata" ? "metadata" : initialToolState?.rawMatchMethod ?? "filename");
   const { executionMode, currentLocalFolder, selectedJpgNames } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
-  const remoteUnavailable = remote && mode !== "classification" && mode !== "select";
+  const remoteUnavailable = remote && mode !== "plan" && mode !== "classification" && mode !== "select";
 
   const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("tool");
+    if (nextMode === "plan") {
+      params.set("tab", "plan");
+      params.set("tool", "conti");
+      params.delete("mode");
+    } else {
+      params.delete("tab");
+      params.delete("tool");
+      params.set("mode", nextMode);
+    }
     if (nextMode !== "raw-match") params.delete("rawMatchMethod");
-    params.set("mode", nextMode);
     params.set("selectMode", nextSelectMode);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
@@ -90,12 +102,13 @@ function PhotoWorkspaceContent({
           guide={remoteUnavailable ? undefined : <PhotoGuidePanel mode={mode} selectMode={selectMode} />}
         >
           <WorkPanel
-            tone="dark"
+            tone={mode === "plan" ? "light" : "dark"}
             role="tabpanel"
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
             {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "raw-match" ? "RAW 매칭" : mode === "t-cut" ? "T컷 정리" : mode === "retouch" ? "사진 보정" : mode === "rename" ? "이름변경" : "사진 리사이즈"} /> : null}
+            {!remoteUnavailable && mode === "plan" ? <PhotoContiWorkspace /> : null}
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
