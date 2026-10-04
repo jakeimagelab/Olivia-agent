@@ -37,8 +37,53 @@ async function postListFolder(payload: Record<string, unknown>) {
   }));
 }
 
+async function postJob(action: string, targetWorker: string) {
+  const { POST } = await import("@/app/api/remote-jobs/route");
+  return POST(new NextRequest("http://localhost/api/remote-jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action,
+      target_worker: targetWorker,
+      payload: action === "VIDEO_INTERVIEW_ANALYZE"
+        ? { source_relative_path: "촬영/인터뷰" }
+        : action === "PHOTO_SORT"
+          ? { source_folder: "촬영/프로젝트" }
+          : {},
+    }),
+  }));
+}
+
 beforeEach(() => {
   state.inserted.length = 0;
+  vi.stubEnv("OLIVIA_WORKER_ID", "jake-macstudio-01");
+  vi.stubEnv("OLIVIA_WORKER_IDS", "jake-macstudio-01,jake-macbookpro-01");
+});
+
+describe("POST /api/remote-jobs worker targeting", () => {
+  it("queues an allowed video job for MacBook Pro", async () => {
+    const response = await postJob("VIDEO_INTERVIEW_ANALYZE", "jake-macbookpro-01");
+
+    expect(response.status).toBe(200);
+    expect(state.inserted[0]).toMatchObject({
+      action: "VIDEO_INTERVIEW_ANALYZE",
+      target_worker: "jake-macbookpro-01",
+    });
+  });
+
+  it("rejects an unknown target worker", async () => {
+    const response = await postJob("VIDEO_INTERVIEW_ANALYZE", "unknown-worker");
+
+    expect(response.status).toBe(400);
+    expect(state.inserted).toHaveLength(0);
+  });
+
+  it("rejects a photo pipeline action for MacBook Pro", async () => {
+    const response = await postJob("PHOTO_SORT", "jake-macbookpro-01");
+
+    expect(response.status).toBe(400);
+    expect(state.inserted).toHaveLength(0);
+  });
 });
 
 describe("POST /api/remote-jobs LIST_FOLDER root contract", () => {

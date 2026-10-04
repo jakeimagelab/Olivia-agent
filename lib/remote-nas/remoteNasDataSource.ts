@@ -39,6 +39,7 @@ type RemoteWorkerNasDataSourceOptions = {
   fetcher?: typeof fetch;
   pollIntervalMs?: number;
   timeoutMs?: number;
+  targetWorker?: string;
 };
 
 export type RemoteNasFailureStage =
@@ -258,6 +259,7 @@ export function createRemoteWorkerNasDataSource(
   const fetcher = options.fetcher ?? globalThis.fetch.bind(globalThis);
   const pollIntervalMs = options.pollIntervalMs ?? REMOTE_WORKER_NAS_POLL_INTERVAL_MS;
   const timeoutMs = options.timeoutMs ?? REMOTE_WORKER_NAS_TIMEOUT_MS;
+  const targetWorker = options.targetWorker?.trim() || undefined;
 
   const fetchFolder = async (
     relativePath: string,
@@ -285,6 +287,7 @@ export function createRemoteWorkerNasDataSource(
               ...(path ? { remote_path: path } : { root: true }),
               ...(foldersOnly ? { folders_only: true } : {}),
             },
+            ...(targetWorker ? { target_worker: targetWorker } : {}),
           }),
           signal,
         });

@@ -28,6 +28,7 @@ import { MailingWindowContent } from "../adapters/MailingWindowContent";
 import { WorkJournalWindowContent } from "../adapters/WorkJournalWindowContent";
 import { ReportWindowContent } from "../adapters/ReportWindowContent";
 import { VideoProductionWindowContent } from "../adapters/VideoProductionWindowContent";
+import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. quote/contract/
@@ -158,6 +159,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 580, height: 420 },
     singleton: true,
     component: ReportWindowContent,
+  },
+  {
+    id: "video-studio",
+    title: "영상작업실",
+    icon: appIcon("video-studio"),
+    route: "/video-studio",
+    defaultSize: { width: 1200, height: 760 },
+    minSize: { width: 420, height: 440 },
+    singleton: true,
+    component: VideoStudioWindowContent,
   },
   {
     id: "video-production",

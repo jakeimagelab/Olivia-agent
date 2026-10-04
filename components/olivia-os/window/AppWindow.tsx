@@ -30,6 +30,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   const workspaceWidth = useOliviaDesktopStore((state) => state.workspaceWidth);
   const workspaceHeight = useOliviaDesktopStore((state) => state.workspaceHeight);
   const chatCompact = useOliviaDesktopUtilityStore((state) => state.chatCompact);
+  const setChatCompact = useOliviaDesktopUtilityStore((state) => state.setChatCompact);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
   const [interacting, setInteracting] = useState(false);
   const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight, workspaceRef, setInteracting);
@@ -88,7 +89,7 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           compatibilityMode={win.appId === "legacy-route"}
           onPointerDown={beginDrag}
           onDoubleClick={toggleMaximize}
-          onClose={win.appId === "olivia-chat" ? undefined : () => closeOliviaDesktopWindow(windowId)}
+          onClose={win.appId === "olivia-chat" ? () => setChatCompact(true) : () => closeOliviaDesktopWindow(windowId)}
           onMinimize={() => minimizeWindow(windowId)}
           onToggleMaximize={toggleMaximize}
         />

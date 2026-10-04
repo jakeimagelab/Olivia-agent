@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
+  authorizeWorker,
   getConfiguredWorkerId,
-  isAuthorizedWorker,
 } from "@/lib/remoteWorkerAuth";
 import { readWorkerDiagnostics, workerDiagnosticsToRow } from "@/lib/system-status/workerDiagnostics";
 import { applyPhotoWorkerJobPolicy } from "@/lib/photo-classifier/workerJobPolicy";
@@ -11,7 +11,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  if (!isAuthorizedWorker(request)) {
+  const workerId = authorizeWorker(request);
+  if (!workerId) {
     return Response.json(
       { ok: false, error: "Unauthorized worker" },
       { status: 401 }
@@ -20,7 +21,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getSupabaseAdmin();
-    const workerId = getConfiguredWorkerId();
     const now = new Date().toISOString();
     const nasHeader = request.headers.get("x-olivia-nas-connected")?.trim().toLowerCase();
     const nasConnected = nasHeader === "true" ? true : nasHeader === "false" ? false : undefined;
@@ -29,31 +29,33 @@ export async function GET(request: NextRequest) {
     // 승인된 촬영 프로젝트를 원격 실행 큐로 넘기는 claim은 DB 함수가 원자적으로 수행한다.
     // migration이 아직 적용되지 않은 환경에서도 기존 job polling은 계속 동작해야 한다.
     // 순서: 1차 승인(JPG 통합) → 2차 승인(SSD1→SSD2 복사) → 분류.
-    const { error: mergeClaimError } = await supabase.rpc("claim_merge_approved_photo_project", {
-      p_worker_id: workerId,
-    });
-    if (mergeClaimError) console.warn("[worker/next photo-merge claim]", mergeClaimError.message);
-
-    const { error: stageClaimError } = await supabase.rpc("claim_approved_photo_project", {
-      p_worker_id: workerId,
-    });
-    if (stageClaimError) console.warn("[worker/next photo-stage claim]", stageClaimError.message);
-
-    // PHASE 3에서는 SSD1 JPG전체 → SSD2 JPG전체 COPY까지만 수행한다.
-    // Scene 분류 자동 연결은 다음 PHASE에서 명시적으로 opt-in한다.
-    if (process.env.OLIVIA_ENABLE_PHOTO_CLASSIFICATION_AUTOMATION === "1") {
-      const { error: classifyClaimError } = await supabase.rpc("claim_copy_completed_photo_project", {
+    if (workerId === getConfiguredWorkerId()) {
+      const { error: mergeClaimError } = await supabase.rpc("claim_merge_approved_photo_project", {
         p_worker_id: workerId,
       });
-      if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
-    }
+      if (mergeClaimError) console.warn("[worker/next photo-merge claim]", mergeClaimError.message);
 
-    // NAS 채팅 경로는 폴더·등록 고객에서 진료과를 확인하고, 사진별 AI 판정으로 결과를
-    // 나눈다. 촬영모드는 더 이상 폴더 단위 입력값이 아니므로 위 플래그와 무관하게 claim한다.
-    const { error: nasClassifyClaimError } = await supabase.rpc("claim_nas_classify_photo_project", {
-      p_worker_id: workerId,
-    });
-    if (nasClassifyClaimError) console.warn("[worker/next nas-classify claim]", nasClassifyClaimError.message);
+      const { error: stageClaimError } = await supabase.rpc("claim_approved_photo_project", {
+        p_worker_id: workerId,
+      });
+      if (stageClaimError) console.warn("[worker/next photo-stage claim]", stageClaimError.message);
+
+      // PHASE 3에서는 SSD1 JPG전체 → SSD2 JPG전체 COPY까지만 수행한다.
+      // Scene 분류 자동 연결은 다음 PHASE에서 명시적으로 opt-in한다.
+      if (process.env.OLIVIA_ENABLE_PHOTO_CLASSIFICATION_AUTOMATION === "1") {
+        const { error: classifyClaimError } = await supabase.rpc("claim_copy_completed_photo_project", {
+          p_worker_id: workerId,
+        });
+        if (classifyClaimError) console.warn("[worker/next photo-classify claim]", classifyClaimError.message);
+      }
+
+      // NAS 채팅 경로는 폴더·등록 고객에서 진료과를 확인하고, 사진별 AI 판정으로 결과를
+      // 나눈다. 촬영모드는 더 이상 폴더 단위 입력값이 아니므로 위 플래그와 무관하게 claim한다.
+      const { error: nasClassifyClaimError } = await supabase.rpc("claim_nas_classify_photo_project", {
+        p_worker_id: workerId,
+      });
+      if (nasClassifyClaimError) console.warn("[worker/next nas-classify claim]", nasClassifyClaimError.message);
+    }
 
     let { error: heartbeatError } = await supabase
       .from("remote_workers")

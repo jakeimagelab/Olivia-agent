@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({ authorized: true }));
 const analyzeSceneMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/remoteWorkerAuth", () => ({
-  isAuthorizedWorker: () => state.authorized,
+  authorizeWorker: () => state.authorized ? "test-worker" : null,
 }));
 
 vi.mock("@/lib/photo-classifier/brain/hermesPhotoBrain", () => ({

@@ -43,6 +43,8 @@ export type RemoteNasBrowserProps = {
   onSelect?: (path: string, selection: RemoteNasSelection) => void;
   onCancel?: () => void;
   foldersOnly?: boolean;
+  rootLabel?: string;
+  workerLabel?: string;
 };
 
 const REMOTE_NAS_DATE_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
@@ -103,6 +105,8 @@ export default function RemoteNasBrowser({
   onSelect,
   onCancel,
   foldersOnly = false,
+  rootLabel,
+  workerLabel = "Mac Studio",
 }: RemoteNasBrowserProps) {
   const [currentPath, setCurrentPath] = useState(() => normalizeRemoteNasRelativePath(initialPath));
   const [result, setResult] = useState<RemoteNasFolderResult | null>(null);
@@ -192,7 +196,7 @@ export default function RemoteNasBrowser({
 
   const totalEntries = result?.path === currentPath ? result.entries.length : 0;
   const visibleFolderCount = visibleEntries.filter((entry) => entry.kind === "directory").length;
-  const displayLocation = currentPath ? toRemoteNasDisplayPath(currentPath) : "NAS Root";
+  const displayLocation = currentPath ? toRemoteNasDisplayPath(currentPath) : rootLabel || "NAS Root";
   const connection = errorConnection ?? result?.connection;
   const sourceIsMock = connection?.source === "mock";
   const macStudioState = connection?.macStudio ?? "unknown";
@@ -212,16 +216,16 @@ export default function RemoteNasBrowser({
           <span className={styles.identityIcon}><HardDrive size={22} strokeWidth={1.6} aria-hidden="true" /></span>
           <span>
             <small>OLIVIA REMOTE FILES</small>
-            <strong>Workstation(M.2SSD)</strong>
+            <strong>{rootLabel || "Workstation(M.2SSD)"}</strong>
           </span>
         </div>
 
         <div className={styles.connectionStates} aria-label="연결 상태">
           {sourceIsMock ? <span className={styles.previewBadge}>미리보기 데이터</span> : null}
-          <span className={styles.statusBadge} aria-label={`Mac Studio ${macStudioLabel}`}>
+          <span className={styles.statusBadge} aria-label={`${workerLabel} ${macStudioLabel}`}>
             <i className={macStudioState === "unknown" ? styles.unknownDot : macStudioState === "offline" ? styles.offlineDot : styles.onlineDot} />
-            <span className={styles.statusLong}>Mac Studio {macStudioLabel}</span>
-            <span className={styles.statusShort} aria-hidden="true">MAC</span>
+            <span className={styles.statusLong}>{workerLabel} {macStudioLabel}</span>
+            <span className={styles.statusShort} aria-hidden="true">{workerLabel === "MacBook Pro" ? "MBP" : "MAC"}</span>
           </span>
           <span className={styles.statusBadge} aria-label={`NAS ${nasLabel}`}>
             <i className={nasState === "unknown" ? styles.unknownDot : nasState === "disconnected" ? styles.offlineDot : styles.onlineDot} />
@@ -243,7 +247,7 @@ export default function RemoteNasBrowser({
                 title={crumb.label}
               >
                 {crumb.root ? <HardDrive size={15} strokeWidth={1.6} aria-hidden="true" /> : null}
-                {crumb.label}
+                {crumb.root && rootLabel ? rootLabel : crumb.label}
               </button>
             </span>
           ))}
