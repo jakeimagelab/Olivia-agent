@@ -31,6 +31,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
   const extraDiscount = useQuoteStore((state) => state.extraDiscount);
   const fixedTotal = useQuoteStore((state) => state.fixedTotal);
   const roundDownUnit = useQuoteStore((state) => state.roundDownUnit);
+  const taxMode = useQuoteStore((state) => state.taxMode);
 
   // 이 카드는 QuoteBuilder.tsx와 별개로 채팅 패널 쪽 트리에서 useQuoteStore(전역 싱글턴)를
   // 직접 구독한다 — QuoteBuilder는 자기 마운트 시 useLayoutEffect로 항상 resetForm()을 먼저
@@ -62,6 +63,7 @@ export default function QuotePreviewChatCard({ flowId }: { flowId: string }) {
     extraDiscount: extraDiscount ?? 0,
     fixedTotal,
     roundDownUnit,
+    taxMode,
   });
 
   return (

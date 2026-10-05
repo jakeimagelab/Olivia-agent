@@ -1,4 +1,5 @@
 import type { Brand } from "@/lib/quote/quoteFormTypes";
+import { quoteNumberPrefixForBrand } from "@/lib/quote/quoteNumber";
 
 // components/quote/QuoteBuilder.tsx(사람이 쓰는 폼)와 lib/quote/computeQuoteTotals.ts(Agent가
 // 채팅 Preview Card 등에서 같은 합계를 계산할 때) 둘 다 정확히 같은 패키지/단가/브랜드 설정을
@@ -149,7 +150,7 @@ export const BRAND_CONFIG: Record<Brand, {
     railNoticeSub: "제이크이미지연구소",
     railNoticeDetail: "병원 전문 브랜드 촬영",
     popupBg: "#f0f4f2",
-    quoteNumberPrefix: "PC-",
+    quoteNumberPrefix: quoteNumberPrefixForBrand("photoclinic"),
   },
   jakeimage: {
     label: "제이크이미지연구소",
@@ -167,6 +168,6 @@ export const BRAND_CONFIG: Record<Brand, {
     railNoticeSub: "기업과 개인 브랜드의",
     railNoticeDetail: "이미지를 설계합니다.",
     popupBg: "#eef1f5",
-    quoteNumberPrefix: "JI-",
+    quoteNumberPrefix: quoteNumberPrefixForBrand("jakeimage"),
   }
 };

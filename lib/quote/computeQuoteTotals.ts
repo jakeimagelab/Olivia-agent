@@ -1,4 +1,4 @@
-import type { CustomItem } from "@/lib/quote/quoteFormTypes";
+import type { CustomItem, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
 
 export type QuoteTotalsInput = {
   packageTotal: number;
@@ -11,6 +11,7 @@ export type QuoteTotalsInput = {
   fixedTotal?: number | null;
   roundDownUnit?: number | null;
   depositRate?: number;
+  taxMode?: QuoteTaxMode;
 };
 
 export type QuoteTotals = {
@@ -30,6 +31,7 @@ export type QuoteTotals = {
   roundDownAmount: number;
   depositAmount: number;
   balanceAmount: number;
+  taxMode: QuoteTaxMode;
 };
 
 // components/quote/QuoteBuilder.tsx의 실시간 미리보기가 쓰던 계산을 그대로 옮긴 순수 함수다
@@ -62,9 +64,21 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
   const roundDownAmount = roundDownUnit > 1 ? beforeRoundDown % roundDownUnit : 0;
   // 만원 미만 자동 절삭을 하지 않는다(2026-09-29). 절삭이 필요하면 추가할인으로
   // 직접 넣는다 — 시스템이 대표 대신 금액을 깎지 않는다.
-  const supplyAmount = beforeRoundDown - roundDownAmount;
-  const vat = Math.round(supplyAmount * 0.1);
-  const finalAmount = supplyAmount + vat;
+  const amountAfterAdjustment = beforeRoundDown - roundDownAmount;
+  const taxMode: QuoteTaxMode = input.taxMode === "excluded" || input.taxMode === "included"
+    ? input.taxMode
+    : "separate";
+  // 포함세는 사용자가 넣은 항목/조정 후 금액 자체가 최종 합계다. 공급가와 VAT만 그
+  // 합계에서 역산한다. 별도/제외 모드의 항목 금액 해석은 기존과 같다.
+  const supplyAmount = taxMode === "included"
+    ? Math.round(amountAfterAdjustment / 1.1)
+    : amountAfterAdjustment;
+  const vat = taxMode === "separate"
+    ? Math.round(supplyAmount * 0.1)
+    : taxMode === "included"
+      ? amountAfterAdjustment - supplyAmount
+      : 0;
+  const finalAmount = taxMode === "separate" ? supplyAmount + vat : amountAfterAdjustment;
   // 0%도 정상 결제조건이다(잔금 100%). 값이 없을 때만 기본 50%를 쓴다.
   const requestedDepositRate = Number(input.depositRate);
   const depositRate = Number.isFinite(requestedDepositRate)
@@ -88,5 +102,6 @@ export function computeQuoteTotals(input: QuoteTotalsInput): QuoteTotals {
     roundDownAmount,
     depositAmount,
     balanceAmount: finalAmount - depositAmount,
+    taxMode,
   };
 }

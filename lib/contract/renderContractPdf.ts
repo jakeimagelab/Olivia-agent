@@ -31,7 +31,7 @@ export async function renderContractPdfBuffer(
   const quote = normalizeContractQuoteData(contract.quote_data, contract);
   if (!quote) throw new Error("계약서에 PDF로 만들 계약 데이터가 없습니다.");
 
-  const brand: ContractBrand = quote.quoteNumber.startsWith("JI-") ? "jakeimage" : "photoclinic";
+  const brand: ContractBrand = quote.quoteNumber.startsWith("JKQ-") || quote.quoteNumber.startsWith("JI-") ? "jakeimage" : "photoclinic";
   const html = buildContractHtml(
     quote,
     String(contract.signature_data_url ?? ""),

@@ -14,6 +14,7 @@ export interface ContractQuoteData {
   supplyAmount: number;
   discountAmount: number;
   vat: number;
+  taxMode?: "separate" | "excluded" | "included";
   totalAmount: number;
   depositAmount: number;
   balanceAmount: number;
@@ -88,6 +89,12 @@ const fmt = (value: number) => (value || 0).toLocaleString("ko-KR");
 export function normalizeContractQuoteData(raw: unknown, contract: Record<string, unknown>): ContractQuoteData | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as Record<string, unknown>;
+  const formState = data.form_state && typeof data.form_state === "object" ? data.form_state as Record<string, unknown> : {};
+  const taxMode = data.taxMode === "excluded" || data.taxMode === "included"
+    ? data.taxMode
+    : formState.taxMode === "excluded" || formState.taxMode === "included"
+      ? formState.taxMode
+      : "separate";
   const stringValue = (camel: string, snake: string, fallback = "") => {
     const value = data[camel] ?? data[snake] ?? fallback;
     return typeof value === "string" ? value : String(value ?? "");
@@ -119,7 +126,7 @@ export function normalizeContractQuoteData(raw: unknown, contract: Record<string
     quoteDate: stringValue("quoteDate", "quote_date"), shootDate: stringValue("shootDate", "shoot_date") || null,
     validUntil: stringValue("validUntil", "valid_until"), items,
     supplyAmount: numberValue("supplyAmount", "supply_amount"), discountAmount: numberValue("discountAmount", "discount_amount"),
-    vat: numberValue("vat", "vat"), totalAmount: numberValue("totalAmount", "total_amount"),
+    vat: numberValue("vat", "vat"), taxMode, totalAmount: numberValue("totalAmount", "total_amount"),
     depositAmount: numberValue("depositAmount", "deposit_amount"), balanceAmount: numberValue("balanceAmount", "balance_amount"),
     memos: data.memos == null ? null : String(data.memos),
     depositRate: contract.deposit_rate == null ? undefined : Number(contract.deposit_rate),
@@ -140,7 +147,8 @@ export function buildContractHtml(
   const accent = brand === "jakeimage" ? "#2f4a73" : "#E85D2C";
   const tint = brand === "jakeimage" ? "#EEF2F7" : "#FFF6F1";
   const tintBorder = brand === "jakeimage" ? "#CDDAEA" : "#F3C6B1";
-  const quoteNumberPrefix = brand === "jakeimage" ? "JI-" : "PC-";
+  const quoteNumberPrefix = brand === "jakeimage" ? "JKQ-" : "PCQ-";
+  const taxLabel = q.taxMode === "excluded" ? "부가세 제외" : q.taxMode === "included" ? "부가세 포함(10%)" : "부가세 (10%)";
   const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
   const runtimeBaseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const baseHref = (options.baseUrl ?? runtimeBaseUrl).replace(/\/+$/, "");
@@ -171,7 +179,7 @@ export function buildContractHtml(
 </style></head><body>
 <div class="contract-page"><div class="top-accent"></div><div class="header"><div><img class="brand-logo" src="${cfg.logo}" alt="${cfg.logoAlt}"><div class="brand-sub">${cfg.brandSub}</div><div class="brand-sub">사업자번호: 190-16-00212 · 제이크이미지연구소</div></div><div><div class="doc-title">${cfg.docTitle}</div><div class="doc-meta"><strong>계약일: ${today}</strong><br>견적번호: ${q.quoteNumber || quoteNumberPrefix + new Date().toISOString().slice(0,10).replace(/-/g,"")}</div></div></div>
 <div class="parties"><div class="party party-client"><h3>${cfg.clientPartyTitle}</h3><div class="row"><span class="k">${cfg.entityLabel}</span><span class="v">${q.hospitalName || "-"}</span></div><div class="row"><span class="k">${cfg.directorLabel}</span><span class="v">${q.contactName || "-"}</span></div><div class="row"><span class="k">사업자번호</span><span class="v">${q.businessNumber || "-"}</span></div><div class="row"><span class="k">연락처</span><span class="v">${q.phone || "-"}</span></div><div class="row"><span class="k">이메일</span><span class="v">${q.email || "-"}</span></div></div><div class="party"><h3>${cfg.companyDisplayName}</h3><div class="row"><span class="k">상호</span><span class="v">${cfg.companyDisplayName}</span></div><div class="row"><span class="k">대표자</span><span class="v">정연호</span></div><div class="row"><span class="k">사업자번호</span><span class="v">190-16-00212</span></div><div class="row"><span class="k">연락처</span><span class="v">010-8556-2988</span></div><div class="row"><span class="k">계좌</span><span class="v">1002-754-988962 (우리은행 / 제이크이미지연구소)</span></div></div></div>
-${section("제1조", "계약 목적 및 촬영 범위", scope)}<div class="section"><h3><span class="art">제2조</span>촬영 항목 및 계약 금액</h3><div class="quote-list">${itemCards}</div><div class="amount-panel"><p class="amount-note">상기 금액은 견적서 기준으로 산정되며, 촬영 범위 또는 납품 범위가 변경되는 경우 상호 협의에 따라 조정될 수 있습니다.</p><div class="amt-box"><div class="amt-row"><span class="l">공급가액</span><span>${fmt(q.supplyAmount)}원</span></div>${q.discountAmount > 0 ? `<div class="amt-row"><span class="l">할인금액</span><span style="color:#E85D2C;">-${fmt(q.discountAmount)}원</span></div>` : ""}<div class="amt-row"><span class="l">부가세 (10%)</span><span>${fmt(q.vat)}원</span></div><div class="amt-total"><span>최종 계약금액</span><span>${fmt(q.totalAmount)}원</span></div></div></div></div>
+${section("제1조", "계약 목적 및 촬영 범위", scope)}<div class="section"><h3><span class="art">제2조</span>촬영 항목 및 계약 금액</h3><div class="quote-list">${itemCards}</div><div class="amount-panel"><p class="amount-note">상기 금액은 견적서 기준으로 산정되며, 촬영 범위 또는 납품 범위가 변경되는 경우 상호 협의에 따라 조정될 수 있습니다.</p><div class="amt-box"><div class="amt-row"><span class="l">공급가액</span><span>${fmt(q.supplyAmount)}원</span></div>${q.discountAmount > 0 ? `<div class="amt-row"><span class="l">할인금액</span><span style="color:#E85D2C;">-${fmt(q.discountAmount)}원</span></div>` : ""}<div class="amt-row"><span class="l">${taxLabel}</span><span>${fmt(q.vat)}원</span></div><div class="amt-total"><span>최종 계약금액</span><span>${fmt(q.totalAmount)}원</span></div></div></div></div>
 <div class="section"><h3><span class="art">제3조</span>결제 조건</h3><div class="clause">${payment}</div><div class="pay-boxes"><div class="pay-box"><div class="pt">계약금 (선금 ${effectiveDepositRate}%)</div><div class="pa">${fmt(effectiveDeposit)}원</div><div class="ps">계약 체결 시 납부</div></div><div class="pay-box"><div class="pt">잔금 (${100 - effectiveDepositRate}%)</div><div class="pa">${fmt(effectiveBalance)}원</div><div class="ps">${q.paymentTerms || "마지막 촬영 직후"} 납부</div></div></div></div></div>
 <div class="contract-page">${section("제4조", "납품물 및 전달 방식", deliverables)}${section("제5조", "촬영 일정 및 납품 기한", schedule)}${section("제6조", "저작권 및 사용권", cfg.copyrightClause)}${section("제7조", "수정 요청", retake)}${section("제8조", "비밀유지 및 결과물 공개", cfg.confidentialClause)}</div>
 <div class="contract-page final-page">${section("제9조", "분쟁 해결", dispute)}${section("제10조", "특약사항", special)}<div class="final-spacer"></div><div class="effect-box"><span class="effect-line">위 계약의 성립을 증명하기 위하여 본 계약서를 2부 작성하고, 각 1부씩 보관합니다.</span><br><strong>${today}</strong></div><div class="sign-area"><div class="sign-box"><h4>${cfg.clientPartyTitle}</h4><div class="sl"><span class="sk">${cfg.entityLabel}</span><span class="sv">${q.hospitalName || ""}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">${q.businessNumber || ""}</span></div><div class="sl"><span class="sk">${cfg.directorLabel}</span><span class="sv">${q.contactName || ""}</span></div><div class="sl"><span class="sk">서명일</span><span class="sv"></span></div><div class="sl"><span class="sk">서명</span><span class="sv"></span></div><div class="stamp">직인 / 서명</div></div><div class="sign-box"><h4>${cfg.companyDisplayName}</h4><div class="sl"><span class="sk">상호</span><span class="sv">${cfg.companyDisplayName}</span></div><div class="sl"><span class="sk">사업자번호</span><span class="sv">190-16-00212</span></div><div class="sl"><span class="sk">대표자</span><span class="sv">정연호</span></div><div class="sl"><span class="sk">서명일</span><span class="sv">${today}</span></div><div class="sl"><span class="sk">서명</span><span class="sv">${signatureHtml}</span></div><div class="stamp">직인 / 서명</div></div></div><div class="footer">${cfg.footerTagline}<br>본 계약서는 양 당사자가 서명한 시점부터 법적 효력이 발생합니다.</div></div></body></html>`;
@@ -183,6 +191,6 @@ export function buildContractHtmlFromRow(
 ): string {
   const quote = normalizeContractQuoteData(contract.quote_data, contract);
   if (!quote) return "";
-  const brand: ContractBrand = quote.quoteNumber.startsWith("JI-") ? "jakeimage" : "photoclinic";
+  const brand: ContractBrand = quote.quoteNumber.startsWith("JKQ-") || quote.quoteNumber.startsWith("JI-") ? "jakeimage" : "photoclinic";
   return buildContractHtml(quote, String(contract.signature_data_url ?? ""), brand, options);
 }

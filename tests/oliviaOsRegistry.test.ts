@@ -17,21 +17,20 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("keeps Olivia in the Dock as a movable singleton window", () => {
+  it("uses the requested Dock app sequence and keeps Olivia as its utility button", () => {
     expect(getDockApps().map((app) => app.id)).toEqual([
-      "customer",
       "calendar",
-      "photo-workspace",
+      "customer",
       "documents",
-      "review-studio",
-      "olivia-chat",
+      "photo-workspace",
+      "video-studio",
     ]);
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });
 
   it("keeps non-Dock apps registered for All Apps", () => {
     for (const appId of [
-      "quote", "contract", "memo", "today", "all-apps", "legacy-route", "metadata-select",
+      "quote", "contract", "memo", "today", "all-apps", "legacy-route", "metadata-select", "review-studio",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
     ]) {

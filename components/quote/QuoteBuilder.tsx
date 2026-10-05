@@ -15,9 +15,10 @@ import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLaunc
 import { useQuoteStore } from "@/lib/store/useQuoteStore";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
-import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
+import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
 import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
+import { createQuoteNumber, nextQuoteNumber, quoteNumberDate } from "@/lib/quote/quoteNumber";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import QuoteDocument from "@/components/quote/QuoteDocument";
 import type { QuoteDocumentData } from "@/lib/quote/quoteDocumentData";
@@ -68,6 +69,7 @@ type ContractQuoteData = {
   supplyAmount: number;
   discountAmount: number;
   vat: number;
+  taxMode: QuoteTaxMode;
   totalAmount: number;
   depositAmount: number;
   balanceAmount: number;
@@ -99,6 +101,7 @@ type ContractQuoteData = {
     extraDiscount: number;
     fixedTotal?: number | null;
     roundDownUnit?: number | null;
+    taxMode?: QuoteTaxMode;
     memo: string;
     depositRate: number;
     brand?: Brand;
@@ -131,11 +134,6 @@ const addDays = (date: string, days: number) => {
   return toDateInputValue(next);
 };
 
-const createQuoteNumber = (sequence = 1, prefix = "PC-") => {
-  const date = todayValue().replaceAll("-", "");
-  return `${prefix}${date}-${String(sequence).padStart(3, "0")}`;
-};
-
 const initialCustomer = (): CustomerInfo => {
   const quoteDate = todayValue();
 
@@ -147,7 +145,7 @@ const initialCustomer = (): CustomerInfo => {
     quoteDate,
     validUntil: addDays(quoteDate, 14),
     shootDate: "",
-    quoteNumber: createQuoteNumber()
+    quoteNumber: createQuoteNumber("photoclinic")
   };
 };
 
@@ -183,6 +181,7 @@ const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => 
   supplyAmount: row.supply_amount ?? 0,
   discountAmount: row.discount_amount ?? 0,
   vat: row.vat ?? 0,
+  taxMode: row.form_state?.taxMode === "excluded" || row.form_state?.taxMode === "included" ? row.form_state.taxMode : "separate",
   totalAmount: row.total_amount ?? 0,
   depositAmount: row.deposit_amount ?? 0,
   balanceAmount: row.balance_amount ?? 0,
@@ -198,7 +197,7 @@ const uniqueQuoteItems = (items: string[]) => Array.from(new Set(items.map((item
 const parseQuotePdfText = (text: string): ImportedPdfQuote => {
   const normalized = text.replace(/\r/g, "\n").replace(/[ \t]+/g, " ").trim();
   const compact = normalized.replace(/\s+/g, " ");
-  const quoteNumber = compact.match(/PC-\d{8}-\d{3}/)?.[0] || createQuoteNumber();
+  const quoteNumber = compact.match(/(?:PCQ|JKQ)-\d{8}-\d{4}|(?:PC|JI)-\d{8}-\d{3}/)?.[0] || createQuoteNumber("photoclinic");
   const quoteDate = compact.match(/\d{4}-\d{2}-\d{2}/)?.[0] || todayValue();
   const amounts = Array.from(compact.matchAll(/([\d,]{4,})\s*원?/g))
     .map((match) => Number(match[1].replace(/,/g, "")))
@@ -334,6 +333,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setFixedTotal = useQuoteStore((state) => state.setFixedTotal);
   const roundDownUnit = useQuoteStore((state) => state.roundDownUnit);
   const setRoundDownUnit = useQuoteStore((state) => state.setRoundDownUnit);
+  const taxMode = useQuoteStore((state) => state.taxMode);
+  const setTaxMode = useQuoteStore((state) => state.setTaxMode);
   const memo = useQuoteStore((state) => state.memo);
   const setMemo = useQuoteStore((state) => state.setMemo);
   const depositRate = useQuoteStore((state) => state.depositRate);
@@ -432,12 +433,12 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
 
   useEffect(() => {
-    const date = todayValue().replaceAll("-", "");
-    const defaultQuoteNumber = createQuoteNumber();
+    const date = quoteNumberDate();
+    const defaultQuoteNumber = createQuoteNumber("photoclinic", date);
     Promise.all([
       fetch(`/api/quotes?limit=${RECENT_QUOTES_DISPLAY_LIMIT}`).then((res) => res.json()),
-      fetch(`/api/quotes?prefix=${encodeURIComponent(`PC-${date}-`)}`).then((res) => res.json()),
-      fetch(`/api/quotes?prefix=${encodeURIComponent(`JI-${date}-`)}`).then((res) => res.json()),
+      fetch(`/api/quotes?prefix=${encodeURIComponent(`PCQ-${date}-`)}`).then((res) => res.json()),
+      fetch(`/api/quotes?prefix=${encodeURIComponent(`JKQ-${date}-`)}`).then((res) => res.json()),
     ])
       .then(([recentRes, todayPcRes, todayJiRes]) => {
         if (recentRes?.ok) setRecentQuotes((recentRes.quotes ?? []).map(rowToContractQuoteData));
@@ -446,19 +447,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         const allTodayNumbers = [...pcNumbers, ...jiNumbers];
         setTodayQuoteNumbers(allTodayNumbers);
 
-        // 마운트 시 quoteNumber는 항상 순번 "-001"로 초기화되는데, 오늘 이미 그 번호로 저장된
-        // 견적이 있으면(다른 고객 세션 등) 저장/자동저장이 번호 충돌로 그 견적을 덮어써 다른
-        // 고객에게 재할당해버린다. 사용자가 번호를 아직 직접 건드리지 않았을 때만 보정한다.
-        if (allTodayNumbers.includes(defaultQuoteNumber)) {
-          const prefix = `${cfg.quoteNumberPrefix}${date}-`;
-          const usedNumbers = allTodayNumbers
-            .filter((num) => num.startsWith(prefix))
-            .map((num) => Number(num.replace(prefix, "")))
-            .filter((value) => Number.isFinite(value));
-          const nextSequence = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
-          const safeNumber = createQuoteNumber(nextSequence, cfg.quoteNumberPrefix);
-          setCustomer((prev) => (prev.quoteNumber === defaultQuoteNumber ? { ...prev, quoteNumber: safeNumber } : prev));
-        }
+        // 새 견적 번호는 브랜드별 일련번호 0002부터 시작한다. 사용자가 아직 번호를 직접
+        // 바꾸지 않은 경우에만 오늘 포토클리닉의 다음 번호로 보정한다.
+        const safeNumber = nextQuoteNumber("photoclinic", allTodayNumbers, date);
+        setCustomer((prev) => (prev.quoteNumber === defaultQuoteNumber ? { ...prev, quoteNumber: safeNumber } : prev));
       })
       .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -558,16 +550,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
 
   const createNextQuoteNumber = () => {
-    const date = todayValue().replaceAll("-", "");
-    const todayPrefix = `${cfg.quoteNumberPrefix}${date}-`;
-    const usedNumbers = todayQuoteNumbers
-      .filter((quoteNumber) => quoteNumber.startsWith(todayPrefix))
-      .map((quoteNumber) => Number(quoteNumber.replace(todayPrefix, "")))
-      .filter((value) => Number.isFinite(value));
-    const nextSequence = usedNumbers.length ? Math.max(...usedNumbers) + 1 : 1;
-
-    return createQuoteNumber(nextSequence, cfg.quoteNumberPrefix);
+    return nextQuoteNumber(brand, todayQuoteNumbers);
   };
+
+  const createNextQuoteNumberForBrand = (nextBrand: Brand) => nextQuoteNumber(nextBrand, todayQuoteNumbers);
 
   const selectedPackage = useMemo(
     () => packages.find((item) => item.id === selectedPackageId) ?? null,
@@ -659,7 +645,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     balanceAmount,
   } = computeQuoteTotals({
     packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount,
-    fixedTotal, roundDownUnit, depositRate,
+    fixedTotal, roundDownUnit, depositRate, taxMode,
   });
 
   // Agent가 총액을 스스로 계산해서 말하지 않고 지금 화면의 실제 값을 그대로 전달하게 한다
@@ -729,13 +715,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   const toggleBrand = () => {
     const nextBrand: Brand = brand === "photoclinic" ? "jakeimage" : "photoclinic";
-    const fromCfg = BRAND_CONFIG[brand];
-    const toCfg = BRAND_CONFIG[nextBrand];
     setCustomer((current) => ({
       ...current,
-      quoteNumber: current.quoteNumber.startsWith(fromCfg.quoteNumberPrefix)
-        ? toCfg.quoteNumberPrefix + current.quoteNumber.slice(fromCfg.quoteNumberPrefix.length)
-        : current.quoteNumber
+      quoteNumber: createNextQuoteNumberForBrand(nextBrand),
     }));
     if (nextBrand === "jakeimage") {
       // 제이크이미지연구소 견적서에는 패키지/추가옵션 UI가 없으므로
@@ -774,6 +756,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setExtraDiscount(0);
     setFixedTotal(null);
     setRoundDownUnit(null);
+    setTaxMode("separate");
     setMemo("");
     // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
     // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
@@ -859,6 +842,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       supplyAmount,
       discountAmount: discountTotal,
       vat,
+      taxMode,
       totalAmount:  finalAmount,
       depositAmount,
       balanceAmount,
@@ -884,6 +868,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         extraDiscount,
         fixedTotal,
         roundDownUnit,
+        taxMode,
         memo,
         depositRate,
         brand
@@ -914,7 +899,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         ...current.filter((quote) => quote.quoteNumber !== savedData.quoteNumber),
       ].slice(0, RECENT_QUOTES_DISPLAY_LIMIT));
 
-      const todayPrefix = `PC-${todayValue().replaceAll("-", "")}-`;
+      const todayPrefix = `${BRAND_CONFIG[brand].quoteNumberPrefix}${quoteNumberDate()}-`;
       if (data.quoteNumber.startsWith(todayPrefix)) {
         setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
       }
@@ -967,6 +952,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setExtraDiscount(data.formState.extraDiscount);
       setFixedTotal(data.formState.fixedTotal ?? null);
       setRoundDownUnit(data.formState.roundDownUnit ?? null);
+      setTaxMode(data.formState.taxMode === "excluded" || data.formState.taxMode === "included" ? data.formState.taxMode : "separate");
       setMemo(data.formState.memo);
       // 선금 0%는 잔금 100%라는 실제 저장값이다. 이 호출이 빠져 있으면 새 폼의
       // 초기값 50%가 그대로 남아, DB에는 0%인데 화면·자동저장은 50/50으로 보인다.
@@ -981,7 +967,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         quoteDate: data.quoteDate || todayValue(),
         validUntil: data.validUntil || addDays(todayValue(), 14),
         shootDate: data.shootDate || "",
-        quoteNumber: data.quoteNumber || createQuoteNumber()
+        quoteNumber: data.quoteNumber || createQuoteNumber("photoclinic")
       });
       setQuoteTitle(data.title || "");
       setSelectedPackageId(null);
@@ -1014,6 +1000,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setExtraDiscount(data.discountAmount || 0);
       setFixedTotal(null);
       setRoundDownUnit(null);
+      setTaxMode("separate");
       setMemo(data.memos || "");
       setDepositRate(data.depositRate ?? 50);
     }
@@ -1374,8 +1361,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [isModal, registerRequestClose, dirty]);
 
   const createContractQuoteFromImportedPdf = (parsed: ImportedPdfQuote): ContractQuoteData => {
-    // 견적서의 모든 금액 경로는 computeQuoteTotals 하나로 계산한다. PDF에서 읽은 금액도
-    // 공급가로 받아 부가세를 별도 10%로 더하며, 포함세 역산 분기를 만들지 않는다.
+    // 견적서의 모든 금액 경로는 computeQuoteTotals 하나로 계산한다. PDF에서 읽은 금액은
+    // 기본 부가세 별도 방식의 공급가로 처리한다.
     const importedTotals = computeQuoteTotals({
       packageTotal: 0,
       singleItemsTotal: 0,
@@ -1384,6 +1371,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       discountRate: 0,
       extraDiscount: 0,
       depositRate: 50,
+      taxMode: "separate",
     });
     const supply = importedTotals.supplyAmount;
     const itemNames = uniqueQuoteItems(
@@ -1425,6 +1413,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       supplyAmount: supply,
       discountAmount: 0,
       vat: importedTotals.vat,
+      taxMode: "separate",
       totalAmount: importedTotals.finalAmount,
       depositAmount: importedTotals.depositAmount,
       balanceAmount: importedTotals.balanceAmount,
@@ -1438,7 +1427,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
     return {
       hospitalName: "",
-      quoteNumber: createQuoteNumber(),
+      quoteNumber: createQuoteNumber("photoclinic"),
       quoteDate: dateFromName,
       totalAmount: 0,
       rawText: ""
@@ -1799,7 +1788,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       ...(specialAdjustmentAmount !== 0 ? [["특별조정", "", "", "", specialAdjustmentAmount, ""]] : []),
       ...(roundDownAmount > 0 ? [["절삭", "", "", "", -roundDownAmount, ""]] : []),
       ["공급가액", "", "", "", snapshot.supplyAmount, ""],
-      ["부가세", "", "", "", snapshot.vat, ""],
+      [snapshot.taxMode === "excluded" ? "부가세 제외" : snapshot.taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)", "", "", "", snapshot.vat, ""],
       ["합계", "", "", "", snapshot.totalAmount, ""],
       [`선금 (${snapshot.depositRate}%)`, "", "", "", snapshot.depositAmount, ""],
       [`잔금 (${100 - snapshot.depositRate}%)`, "", "", "", snapshot.balanceAmount, ""],
@@ -1843,6 +1832,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     roundDownAmount,
     supplyAmount,
     vat,
+    taxMode,
     finalAmount,
     depositAmount,
     balanceAmount,
@@ -2382,6 +2372,27 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
+          <Panel title="부가세 방식">
+            <div className="discount-rate-grid">
+              {([
+                { value: "separate", label: "부가세 별도", description: "공급가에 10%를 더합니다." },
+                { value: "excluded", label: "부가세 제외", description: "부가세를 추가하지 않습니다." },
+                { value: "included", label: "부가세 포함", description: "현재 합계에서 공급가와 부가세를 나눕니다." },
+              ] as const).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setTaxMode(option.value)}
+                  className={`discount-rate-button ${taxMode === option.value ? "discount-rate-button-active" : ""}`}
+                  aria-pressed={taxMode === option.value}
+                >
+                  <span>{option.label}</span>
+                  <strong>{option.description}</strong>
+                </button>
+              ))}
+            </div>
+          </Panel>
+
           <Panel
             title="추가할인(절삭)"
             collapsible={isDesktopWindow}
@@ -2472,7 +2483,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       <input
                         value={manualPdfQuote.quoteNumber}
                         onChange={(event) => updateManualPdfQuote("quoteNumber", event.target.value)}
-                        placeholder="PC-20260531-001"
+                        placeholder="PCQ-20260531-0002"
                       />
                     </Field>
                     <Field label="견적일">

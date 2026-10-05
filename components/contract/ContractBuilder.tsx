@@ -40,6 +40,9 @@ const THEME: Record<ContractBrand, {
 };
 
 const fmt = (n: number) => (n || 0).toLocaleString("ko-KR");
+const quoteTaxLabel = (taxMode: QuoteData["taxMode"]) => (
+  taxMode === "excluded" ? "부가세 제외" : taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"
+);
 
 export default function ContractBuilder({
   mode = "page",
@@ -317,6 +320,7 @@ export default function ContractBuilder({
               supplyAmount: q.supply_amount || 0,
               discountAmount: q.discount_amount || 0,
               vat: q.vat || 0,
+              taxMode: q.form_state?.taxMode === "excluded" || q.form_state?.taxMode === "included" ? q.form_state.taxMode : "separate",
               totalAmount: q.total_amount || 0,
               depositAmount: q.deposit_amount || 0,
               balanceAmount: q.balance_amount || 0,
@@ -338,7 +342,7 @@ export default function ContractBuilder({
           shootDate: null,
           validUntil: today,
           items: [],
-          supplyAmount: 0, discountAmount: 0, vat: 0,
+          supplyAmount: 0, discountAmount: 0, vat: 0, taxMode: "separate",
           totalAmount: 0, depositAmount: 0, balanceAmount: 0,
           memos: null,
         });
@@ -377,7 +381,7 @@ export default function ContractBuilder({
             shootDate: null,
             validUntil: today,
             items: [],
-            supplyAmount: 0, discountAmount: 0, vat: 0,
+            supplyAmount: 0, discountAmount: 0, vat: 0, taxMode: "separate",
             totalAmount: 0, depositAmount: 0, balanceAmount: 0,
             memos: null,
           });
@@ -593,7 +597,7 @@ export default function ContractBuilder({
       [],
       ["공급가액", "", "", "", quote.supplyAmount, ""],
       ["할인", "", "", "", -quote.discountAmount, ""],
-      ["부가세", "", "", "", quote.vat, ""],
+      [quoteTaxLabel(quote.taxMode), "", "", "", quote.vat, ""],
       ["합계", "", "", "", quote.totalAmount, ""],
       ["선금", "", "", "", quote.depositAmount, ""],
       ["잔금", "", "", "", quote.balanceAmount, ""],

@@ -95,4 +95,20 @@ describe("computeQuoteTotals — QuoteBuilder.tsx 인라인 계산 이동 회귀
     expect(totals.depositAmount).toBe(0);
     expect(totals.balanceAmount).toBe(totals.finalAmount);
   });
+
+  it("부가세 제외는 공급가를 최종 합계로 유지하고 VAT를 청구하지 않는다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 1_800_000, singleItemsTotal: 0, optionsTotal: 0, customItems: [],
+      discountRate: 0, extraDiscount: 0, taxMode: "excluded",
+    });
+    expect(totals).toMatchObject({ taxMode: "excluded", supplyAmount: 1_800_000, vat: 0, finalAmount: 1_800_000 });
+  });
+
+  it("부가세 포함은 현재 합계를 보존한 채 공급가와 VAT를 역산한다", () => {
+    const totals = computeQuoteTotals({
+      packageTotal: 1_800_000, singleItemsTotal: 0, optionsTotal: 0, customItems: [],
+      discountRate: 0, extraDiscount: 0, taxMode: "included",
+    });
+    expect(totals).toMatchObject({ taxMode: "included", supplyAmount: 1_636_364, vat: 163_636, finalAmount: 1_800_000 });
+  });
 });

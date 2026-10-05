@@ -39,7 +39,7 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
     .map(getOliviaApp)
     .filter((app) => app !== undefined);
   const dockApps = [...fixedDockApps, ...runningExtraApps];
-  const dockButtonCount = dockApps.length + 5;
+  const dockButtonCount = dockApps.length + 6;
 
   useEffect(() => {
     const dock = dockRef.current;
@@ -85,6 +85,11 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
     if (app) handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height);
   };
 
+  const openChat = () => {
+    const app = getOliviaApp("olivia-chat");
+    if (app) handleDockClick(app.id, app.title, app.defaultSize.width, app.defaultSize.height);
+  };
+
   return (
     <div
       ref={dockRef}
@@ -94,11 +99,11 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
       role="toolbar"
       aria-label="Dock"
     >
-      <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기" data-tooltip="바탕화면 보기">
-        <DockTooltip>바탕화면 보기</DockTooltip>
-        <AppIcon icon={<ColorAppIcon name="today" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} />
+      <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱" data-tooltip="모든 앱">
+        <DockTooltip>모든 앱</DockTooltip>
+        <AppIcon icon={<ColorAppIcon name="workspace" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} active={activeWindowId === "all-apps"} />
+        {windows["all-apps"] ? <span className={styles.dockIndicator} /> : null}
       </button>
-      <div className={styles.dockDivider} />
       {dockApps.map((app) => {
         const win = windows[app.id];
         const running = Boolean(win);
@@ -123,11 +128,14 @@ export function DesktopDock({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOv
         <AppIcon icon={<ColorAppIcon name="memo" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} active={activeWindowId === "memo"} />
         {windows.memo ? <span className={styles.dockIndicator} /> : null}
       </button>
-      <div className={styles.dockDivider} />
-      <button type="button" className={styles.dockButton} onClick={openAllApps} aria-label="모든 앱" data-tooltip="모든 앱">
-        <DockTooltip>모든 앱</DockTooltip>
-        <AppIcon icon={<ColorAppIcon name="workspace" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} active={activeWindowId === "all-apps"} />
-        {windows["all-apps"] ? <span className={styles.dockIndicator} /> : null}
+      <button type="button" className={styles.dockButton} onClick={openChat} aria-label="Olivia" data-tooltip="Olivia">
+        <DockTooltip>Olivia</DockTooltip>
+        <AppIcon icon={<ColorAppIcon name="olivia" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} active={activeWindowId === "olivia-chat"} />
+        {windows["olivia-chat"] ? <span className={styles.dockIndicator} /> : null}
+      </button>
+      <button type="button" className={styles.dockButton} onClick={toggleShowDesktop} aria-label="바탕화면 보기" data-tooltip="바탕화면 보기">
+        <DockTooltip>바탕화면 보기</DockTooltip>
+        <AppIcon icon={<ColorAppIcon name="today" size={26} aria-hidden focusable={false} />} size={dockLayout.iconSize} />
       </button>
       <button type="button" className={styles.dockButton} onClick={() => onOpenOverlay("wallpaper")} aria-label="배경화면" data-tooltip="배경화면">
         <DockTooltip>배경화면</DockTooltip>

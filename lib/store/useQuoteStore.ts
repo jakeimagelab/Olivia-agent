@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Brand, BenefitItem, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
+import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 
 // 현재 열려 있는 견적서 하나의 폼 상태 — QuoteBuilder.tsx(Form/Preview, 같은 상태 트리를
@@ -33,6 +33,7 @@ export type QuoteFormState = {
   fixedTotal: number | null;
   /** 원문에 지정된 절삭 단위. 지정된 경우에만 공급가에서 절삭한다. */
   roundDownUnit: number | null;
+  taxMode: QuoteTaxMode;
   memo: string;
   depositRate: number;
 };
@@ -41,7 +42,7 @@ const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
   "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
   "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems", "discountLabel",
-  "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "memo", "depositRate",
+  "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "taxMode", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
 
 type Updater<T> = T | ((prev: T) => T);
@@ -89,6 +90,7 @@ export type QuoteStoreState = QuoteFormState & {
   setExtraDiscount: (value: Updater<number>) => void;
   setFixedTotal: (value: Updater<number | null>) => void;
   setRoundDownUnit: (value: Updater<number | null>) => void;
+  setTaxMode: (value: Updater<QuoteTaxMode>) => void;
   setMemo: (value: Updater<string>) => void;
   setDepositRate: (value: Updater<number>) => void;
 };
@@ -145,6 +147,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     extraDiscount: 0,
     fixedTotal: null,
     roundDownUnit: null,
+    taxMode: "separate",
     memo: "",
     depositRate: 50,
     dirtyFields: new Set(),
@@ -183,6 +186,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setExtraDiscount: dirtySetter("extraDiscount"),
     setFixedTotal: dirtySetter("fixedTotal"),
     setRoundDownUnit: dirtySetter("roundDownUnit"),
+    setTaxMode: dirtySetter("taxMode"),
     setMemo: dirtySetter("memo"),
     setDepositRate: dirtySetter("depositRate"),
   };

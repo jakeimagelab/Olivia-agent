@@ -53,6 +53,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
       extraDiscount: formState.extraDiscount ?? 0,
       fixedTotal: formState.fixedTotal ?? null,
       roundDownUnit: formState.roundDownUnit ?? null,
+      taxMode: formState.taxMode === "excluded" || formState.taxMode === "included" ? formState.taxMode : "separate",
       memo: formState.memo ?? "",
       depositRate: formState.depositRate ?? 50,
     };
@@ -105,6 +106,7 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
     extraDiscount: Number(row.discount_amount) || 0,
     fixedTotal: formState?.fixedTotal ?? null,
     roundDownUnit: formState?.roundDownUnit ?? null,
+    taxMode: formState?.taxMode === "excluded" || formState?.taxMode === "included" ? formState.taxMode : "separate",
     memo: row.memos || "",
     depositRate: formState?.depositRate ?? 50,
   };

@@ -22,6 +22,7 @@ function toPreviewQuote(quote: Record<string, unknown>): PreviewQuote {
     depositAmount: Number(quote.deposit_amount) || 0,
     balanceAmount: Number(quote.balance_amount) || 0,
     depositRate: depositRateOf(quote),
+    taxMode: formState.taxMode === "excluded" || formState.taxMode === "included" ? formState.taxMode : "separate",
     memos: (quote.memos as string) || "",
     status: String(quote.status || "draft"),
     brand: formState.brand === "jakeimage" ? "jakeimage" : "photoclinic",

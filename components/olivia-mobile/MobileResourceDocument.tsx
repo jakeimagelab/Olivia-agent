@@ -15,6 +15,9 @@ function won(value: unknown) {
 
 export function MobileQuoteDocument({ quote }: { quote: Row }) {
   const items = Array.isArray(quote.items) ? quote.items as Row[] : [];
+  const formState = quote.form_state && typeof quote.form_state === "object" ? quote.form_state as Row : {};
+  const taxMode = formState.taxMode === "excluded" || formState.taxMode === "included" ? formState.taxMode : "separate";
+  const taxLabel = taxMode === "excluded" ? "부가세 제외" : taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)";
   return (
     <article className={styles.previewPaper} data-mobile-resource-document="quote">
       <header className={styles.documentHero}>
@@ -38,7 +41,7 @@ export function MobileQuoteDocument({ quote }: { quote: Row }) {
       <section className={styles.documentTotals}>
         <div><span>공급가액</span><strong>{won(quote.supply_amount)}</strong></div>
         {number(quote.discount_amount) ? <div className={styles.documentDiscount}><span>할인</span><strong>-{won(quote.discount_amount)}</strong></div> : null}
-        <div><span>부가세</span><strong>{won(quote.vat)}</strong></div>
+        <div><span>{taxLabel}</span><strong>{won(quote.vat)}</strong></div>
         <div className={styles.documentGrandTotal}><span>최종 금액</span><strong>{won(quote.total_amount)}</strong></div>
       </section>
       {quote.memos ? <section className={styles.documentMemo}><h3>안내</h3><p>{String(quote.memos)}</p></section> : null}

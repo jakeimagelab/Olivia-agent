@@ -207,6 +207,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
     depositRate,
+    taxMode: "separate",
   });
 
   if (request.checkTotal !== null) {
@@ -241,6 +242,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     extraDiscount,
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
+    taxMode: "separate",
     checkTotal: request.checkTotal,
     specialAdjustmentAmount: totals.specialAdjustmentAmount,
     roundDownAmount: totals.roundDownAmount,

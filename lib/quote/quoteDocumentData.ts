@@ -1,6 +1,6 @@
 import { BRAND_CONFIG, getSingleItems, packages } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
-import type { BenefitItem, Brand, CustomItem, CustomerInfo } from "@/lib/quote/quoteFormTypes";
+import type { BenefitItem, Brand, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 
 export type QuoteDocumentLine = {
@@ -30,6 +30,7 @@ export type QuoteDocumentData = {
   roundDownAmount: number;
   supplyAmount: number;
   vat: number;
+  taxMode: QuoteTaxMode;
   finalAmount: number;
   depositAmount: number;
   balanceAmount: number;
@@ -85,6 +86,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     extraDiscount: state.extraDiscount,
     fixedTotal: state.fixedTotal,
     roundDownUnit: state.roundDownUnit,
+    taxMode: state.taxMode,
   });
 
   return {
@@ -108,6 +110,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     roundDownAmount: totals.roundDownAmount,
     supplyAmount: totals.supplyAmount,
     vat: totals.vat,
+    taxMode: totals.taxMode,
     finalAmount: totals.finalAmount,
     depositAmount: totals.depositAmount,
     balanceAmount: totals.balanceAmount,

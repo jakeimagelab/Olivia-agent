@@ -66,7 +66,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 640, height: 420 },
     singleton: true,
     desktopShortcutOrder: 1,
-    dockOrder: 1,
+    dockOrder: 2,
     component: ClientsWindowContent,
   },
   {
@@ -81,7 +81,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 640, height: 420 },
     singleton: true,
     desktopShortcutOrder: 2,
-    dockOrder: 2,
+    dockOrder: 1,
     component: CalendarWindowContent,
   },
   {
@@ -93,7 +93,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 420, height: 440 },
     singleton: true,
     desktopShortcutOrder: 3,
-    dockOrder: 3,
+    dockOrder: 4,
     component: PhotoWorkspaceWindowContent,
   },
   {
@@ -164,6 +164,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1200, height: 760 },
     minSize: { width: 420, height: 440 },
     singleton: true,
+    dockOrder: 5,
     component: VideoStudioWindowContent,
   },
   {
@@ -194,7 +195,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 640, height: 420 },
     singleton: true,
     desktopShortcutOrder: 4,
-    dockOrder: 4,
+    dockOrder: 3,
     component: DocumentsWindowContent,
   },
   {
@@ -204,7 +205,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     route: "/review-studio",
     defaultSize: { width: 1100, height: 740 },
     singleton: true,
-    dockOrder: 5,
     component: ReviewStudioWindowContent,
   },
   {
@@ -224,7 +224,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 420, height: 640 },
     minSize: { width: 340, height: 420 },
     singleton: true,
-    dockOrder: 6,
     component: OliviaChatWindowContent,
   },
   {

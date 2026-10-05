@@ -6,6 +6,7 @@ import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { validateOliviaCrudRequest } from "@/lib/olivia/crud/validation";
 import { getOliviaCrudDefinition } from "@/lib/olivia/crud/registry";
 import { createUnifiedReview } from "@/lib/reviews/createReview";
+import { nextQuoteNumber, quoteBrandFromFormState, quoteNumberDate, quoteNumberPrefixForBrand } from "@/lib/quote/quoteNumber";
 import {
   OliviaCrudError,
   type OliviaCrudDomain,
@@ -123,11 +124,13 @@ async function resolveClient(
   return null;
 }
 
-function quoteNumber() {
-  const now = new Date();
-  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(now).replaceAll("-", "");
-  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).format(now).replaceAll(":", "");
-  return `Q-${date}-${time}`;
+async function allocateQuoteNumber(db: SupabaseClient, formState: unknown) {
+  const brand = quoteBrandFromFormState(formState);
+  const date = quoteNumberDate();
+  const prefix = `${quoteNumberPrefixForBrand(brand)}${date}-`;
+  const { data, error } = await db.from("quotes").select("quote_number").ilike("quote_number", `${prefix}%`);
+  if (error) dbError(error, "견적번호 순번 조회에 실패했습니다.");
+  return nextQuoteNumber(brand, (data ?? []).map((row) => String(row.quote_number || "")), date);
 }
 
 async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: Row) {
@@ -232,7 +235,7 @@ async function createRecord(db: SupabaseClient, domain: OliviaCrudDomain, data: 
     // quote executor가 정확히 일치하는 고객만 clientId로 전달한다. 없으면 hospital_name 텍스트만
     // 저장한다(2026-09-30: 화면에 열려 있던 다른 고객으로 붙던 사고 방지).
     const client = data.clientId ? await resolveClient(db, data.clientId) : null;
-    const number = data.quoteNumber || quoteNumber();
+    const number = data.quoteNumber || await allocateQuoteNumber(db, data.formState);
     const { data: existingQuote, error: existingQuoteError } = await db.from("quotes").select("id").eq("quote_number", number).limit(1).maybeSingle();
     if (existingQuoteError) dbError(existingQuoteError, "견적번호 중복 확인에 실패했습니다.");
     if (existingQuote) throw new OliviaCrudError(`견적번호 ${number}이 이미 존재합니다. 기존 견적을 수정해주세요.`, "INVALID_INPUT", { id: existingQuote.id });

@@ -18,6 +18,9 @@ describe("견적서 생성 null 저장", () => {
         return {
           select() {
             return {
+              ilike() {
+                return Promise.resolve({ data: [], error: null });
+              },
               eq() {
                 return {
                   limit() {

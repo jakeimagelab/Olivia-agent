@@ -107,6 +107,7 @@ export function recalculateQuote(items: QuoteItem[], quote: Record<string, unkno
     fixedTotal: typeof formState.fixedTotal === "number" ? formState.fixedTotal : null,
     roundDownUnit: typeof formState.roundDownUnit === "number" ? formState.roundDownUnit : null,
     depositRate: depositRateOf(quote),
+    taxMode: formState.taxMode === "excluded" || formState.taxMode === "included" ? formState.taxMode : "separate",
   });
   return {
     supplyAmount: totals.supplyAmount,

@@ -28,6 +28,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
   const formState = quote.form_state && typeof quote.form_state === "object" ? quote.form_state as Record<string, unknown> : {};
   const brand = formState.brand === "jakeimage" ? "jakeimage" : "photoclinic";
+  const taxMode = formState.taxMode === "excluded" || formState.taxMode === "included" ? formState.taxMode : "separate";
 
   return NextResponse.json({
     ok: true,
@@ -46,6 +47,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       depositAmount: quote.deposit_amount,
       balanceAmount: quote.balance_amount,
       depositRate: quote.deposit_rate,
+      taxMode,
       memos: quote.memos,
       status: quote.status,
       brand,

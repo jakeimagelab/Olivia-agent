@@ -3,6 +3,13 @@
 // shape을 봐야 해서 컴포넌트 밖으로 분리했다.
 export type Brand = "photoclinic" | "jakeimage";
 
+/**
+ * separate: 공급가에 VAT를 더한다(기존 기본값).
+ * excluded: VAT를 청구하지 않는다.
+ * included: 항목 합계가 VAT 포함 최종 금액이며, 공급가/VAT를 역산한다.
+ */
+export type QuoteTaxMode = "separate" | "excluded" | "included";
+
 export type CustomerInfo = {
   hospitalName: string;
   managerName: string;
