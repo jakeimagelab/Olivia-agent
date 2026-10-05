@@ -78,7 +78,7 @@ function StatBox({ label, value, tone }: { label: string; value: number; tone: "
   return (
     <div style={{ background: "rgba(255,255,255,.04)", border: "1px solid rgba(255,255,255,.1)", borderRadius: 11, padding: "16px 18px" }}>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color }}>{value.toLocaleString("ko-KR")}</div>
+      <div style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-.02em", color }}>{value.toLocaleString("ko-KR")}</div>
     </div>
   );
 }
@@ -229,7 +229,7 @@ export default function PhotoResizeWorkspace() {
           }}>
             {stopped ? <OctagonMinus size={24} /> : <CheckCircle2 size={24} />}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: "#fff" }}>{stopped ? "작업이 중지되었습니다" : "변환 완료"}</div>
+          <div style={{ fontSize: 20, fontWeight: 500, color: "#fff" }}>{stopped ? "작업이 중지되었습니다" : "변환 완료"}</div>
           <div style={{ fontSize: 12.5, color: "rgba(255,255,255,.5)", marginTop: 6 }}>{longEdge}px · 품질 {quality}%</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>

@@ -189,13 +189,16 @@ function groupClipsByGap(clips: VideoClipFile[], gapMs: number): TimeScene[] {
 function Btn({ onClick, disabled, children, variant = "primary", style: s }: {
   onClick?: () => void; disabled?: boolean; children: React.ReactNode; variant?: "primary" | "secondary" | "ghost"; style?: React.CSSProperties;
 }) {
-  const base: React.CSSProperties = { height: 42, padding: "0 22px", border: "none", borderRadius: 10, fontFamily: "inherit", fontSize: 13, fontWeight: 800, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, transition: "opacity .15s" };
+  const base: React.CSSProperties = { height: 42, padding: "0 22px", border: "1px solid transparent", borderRadius: 10, fontFamily: "inherit", fontSize: 13, fontWeight: 600, cursor: disabled ? "not-allowed" : "pointer", transition: "background .15s, border-color .15s, color .15s" };
   const variants: Record<string, React.CSSProperties> = {
-    primary: { background: C.teal, color: "#fff" },
-    secondary: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
-    ghost: { background: C.white, color: C.teal, border: `1.5px solid ${C.border}` },
+    primary: { background: "#37C39D", color: "#103E36" },
+    secondary: { background: "#fff", color: "#155855", borderColor: "rgba(21,88,85,.28)" },
+    ghost: { background: "transparent", color: "rgba(255,255,255,.60)" },
   };
-  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...s }}>{children}</button>;
+  const disabledStyle: React.CSSProperties = disabled
+    ? { background: "transparent", borderColor: "rgba(255,255,255,.14)", color: "rgba(255,255,255,.30)", opacity: 1 }
+    : {};
+  return <button onClick={onClick} disabled={disabled} style={{ ...base, ...variants[variant], ...s, ...disabledStyle }}>{children}</button>;
 }
 
 // photo-sorting의 Card와 동일 — padding은 안에 두지 않고, 섹션 헤더 바가 카드 모서리까지 꽉 차게 한다
@@ -207,7 +210,7 @@ function Card({ children, style: s }: { children: React.ReactNode; style?: React
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 900, color: C.teal }}>{title}</div>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.teal }}>{title}</div>
       <div style={{ padding: "14px 20px" }}>{children}</div>
     </Card>
   );
@@ -219,8 +222,8 @@ function ProgressBar({ cur, total, msg }: { cur: number; total: number; msg: str
     <Card>
       <div style={{ padding: 24 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 700 }}>{cur} / {total}</span>
-          <span style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>{pct}%</span>
+          <span style={{ fontSize: 13, fontWeight: 500 }}>{cur} / {total}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: C.teal }}>{pct}%</span>
         </div>
         <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden", marginBottom: 12 }}>
           <div style={{ height: "100%", width: `${pct}%`, background: C.teal, borderRadius: 4, transition: "width .2s" }} />
@@ -241,7 +244,7 @@ function ModeGrid<T extends string | number>({ options, value, onChange }: { opt
           borderRight: i < options.length - 1 ? `1px solid ${C.border}` : "none",
           background: value === opt.value ? C.light : "transparent", cursor: "pointer", fontFamily: "inherit",
         }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: value === opt.value ? C.teal : C.muted, marginBottom: 4 }}>{opt.title}{value === opt.value && " ✓"}</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: value === opt.value ? C.teal : C.muted, marginBottom: 4 }}>{opt.title}{value === opt.value && " ✓"}</div>
           <div style={{ fontSize: 11, color: C.hint, lineHeight: 1.6 }}>{opt.desc}</div>
         </button>
       ))}
@@ -515,7 +518,7 @@ export default function VideoSortingWorkspace() {
 
           {step === "setup" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 700 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 900, color: "#fff" }}>영상 분류 설정</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#fff" }}>영상 분류 설정</h2>
 
               {!hasFS && (
                 <div style={{ padding: 14, background: "#FFF3CD", borderRadius: 10, fontSize: 12, color: "#856404", border: "1px solid #FFD980" }}>
@@ -535,7 +538,7 @@ export default function VideoSortingWorkspace() {
               </SectionCard>
 
               <SectionCard title="영상 폴더 선택">
-                <button onClick={pickDir} disabled={!hasFS} style={{ width: "100%", height: 52, border: `1.5px dashed ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 13, fontWeight: 700, color: rootDir ? C.green : C.teal, display: "flex", alignItems: "center", gap: 10, padding: "0 18px", fontFamily: "inherit" }}>
+                <button onClick={pickDir} disabled={!hasFS} style={{ width: "100%", height: 52, border: `1.5px dashed ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 13, fontWeight: 500, color: rootDir ? C.green : C.teal, display: "flex", alignItems: "center", gap: 10, padding: "0 18px", fontFamily: "inherit" }}>
                   {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>폴더 선택</>}
                 </button>
               </SectionCard>
@@ -580,7 +583,7 @@ export default function VideoSortingWorkspace() {
                 />
               </SectionCard>
 
-              <Btn onClick={handleScan} disabled={!rootDir}>시작하기 →</Btn>
+              <Btn onClick={handleScan} disabled={!rootDir}>시작하기</Btn>
             </div>
           )}
 
@@ -593,7 +596,7 @@ export default function VideoSortingWorkspace() {
           {step === "ai_ready" && (
             <div style={{ maxWidth: 600 }}>
               <SectionCard title="스캔 완료">
-                <div style={{ fontSize: 14, fontWeight: 700, color: C.txt, marginBottom: 4 }}>
+                <div style={{ fontSize: 14, fontWeight: 500, color: C.txt, marginBottom: 4 }}>
                   영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
                 </div>
                 <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>
@@ -604,12 +607,12 @@ export default function VideoSortingWorkspace() {
                     {failedClips.map((f) => (
                       <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
                         <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                        <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                        <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 500, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
                       </div>
                     ))}
                   </div>
                 )}
-                <Btn onClick={handleStartAiAnalysis} disabled={classified.length === 0}>AI 분류 시작 →</Btn>
+                <Btn onClick={handleStartAiAnalysis} disabled={classified.length === 0}>AI 분류 시작</Btn>
               </SectionCard>
             </div>
           )}
@@ -637,17 +640,17 @@ export default function VideoSortingWorkspace() {
                 <div className="ps-btn-row">
                   <Btn variant="secondary" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
                   {/* 1.2 — 파일을 실제로 이동·복사하는 유일한 오렌지 버튼(final_review와 동일). */}
-                  <Btn onClick={handleExportTime} disabled={timeScenes.length === 0} style={{ background: C.orange }}>폴더 정리 실행 →</Btn>
+                  <Btn onClick={handleExportTime} disabled={timeScenes.length === 0} style={{ background: "#C94A1E", color: "#fff" }}>폴더 정리 실행</Btn>
                 </div>
               </SectionCard>
 
               {failedClips.length > 0 && (
                 <Card style={{ padding: 18 }}>
-                  <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
+                  <div style={{ fontWeight: 500, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
                   {failedClips.map((f) => (
                     <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
                       <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 500, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
                     </div>
                   ))}
                 </Card>
@@ -657,7 +660,7 @@ export default function VideoSortingWorkspace() {
                 {timeScenes.map((scene) => (
                   <Card key={scene.folderName} style={{ padding: 18 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ fontWeight: 800, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
+                      <span style={{ fontWeight: 500, fontSize: 13, color: C.txt }}>{scene.folderName}</span>
                       <span style={{ fontSize: 12, color: C.muted }}>영상 {scene.clips.length}개</span>
                     </div>
                   </Card>
@@ -681,8 +684,8 @@ export default function VideoSortingWorkspace() {
                     const count = classified.filter((c) => (c.category ?? "NEED_CHECK") === cat).length;
                     return (
                       <div key={cat} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
-                        <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
-                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{CATEGORY_LABELS[cat]}</div>
+                        <div style={{ fontSize: 18, fontWeight: 600, color: C.teal }}>{count}</div>
+                        <div style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>{CATEGORY_LABELS[cat]}</div>
                       </div>
                     );
                   })}
@@ -691,11 +694,11 @@ export default function VideoSortingWorkspace() {
 
               {failedClips.length > 0 && (
                 <Card style={{ padding: 18 }}>
-                  <div style={{ fontWeight: 800, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
+                  <div style={{ fontWeight: 500, color: C.red, marginBottom: 8 }}>⚠️ 읽기 실패한 파일</div>
                   {failedClips.map((f) => (
                     <div key={f.name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0" }}>
                       <span style={{ fontSize: 13, color: C.txt }}>{f.name} — {f.reason}</span>
-                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
+                      <button onClick={() => retryFailedClip(f.name)} style={{ fontSize: 12, fontWeight: 500, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재시도</button>
                     </div>
                   ))}
                 </Card>
@@ -724,16 +727,16 @@ export default function VideoSortingWorkspace() {
                               <select
                                 value={item.category ?? "NEED_CHECK"}
                                 onChange={(e) => overrideCategory(i, e.target.value as VideoCategory)}
-                                style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}
+                                style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 13, fontWeight: 500, fontFamily: "inherit" }}
                               >
                                 {VIDEO_CATEGORY_ORDER.map((cat) => (
                                   <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
                                 ))}
                               </select>
                               {item.status === "error" && (
-                                <span style={{ fontSize: 11, fontWeight: 800, color: C.orange, background: "#FFF3E8", padding: "2px 8px", borderRadius: 99 }}>확인 필요</span>
+                                <span style={{ fontSize: 11, fontWeight: 500, color: C.orange, background: "#FFF3E8", padding: "2px 8px", borderRadius: 99 }}>확인 필요</span>
                               )}
-                              <button onClick={() => retryOne(i)} style={{ fontSize: 12, fontWeight: 700, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
+                              <button onClick={() => retryOne(i)} style={{ fontSize: 12, fontWeight: 500, color: C.teal, background: "none", border: "none", cursor: "pointer" }}>재분석</button>
                             </div>
                             <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
                               신뢰도 {item.confidence != null ? `${Math.round(item.confidence * 100)}%` : "-"}
@@ -757,14 +760,14 @@ export default function VideoSortingWorkspace() {
                   padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14,
                   boxShadow: "0 4px 20px rgba(0,0,0,.35)",
                 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" }}>
                     영상 {classified.length}개{failedClips.length > 0 && ` · 실패 ${failedClips.length}개`}
                   </span>
                   <Btn
                     onClick={handleExportAi}
                     disabled={!allAnalyzed || classified.length === 0}
-                    style={{ background: C.orange, borderRadius: 999, height: 36 }}
-                  >폴더 정리 실행 →</Btn>
+                    style={{ background: "#C94A1E", color: "#fff", borderRadius: 999, height: 36 }}
+                  >폴더 정리 실행</Btn>
                 </div>
               </div>
             </div>
@@ -786,12 +789,12 @@ export default function VideoSortingWorkspace() {
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
                   {Object.entries(stats.categoryCounts).map(([label, count]) => (
                     <div key={label} style={{ flex: "1 1 140px", padding: 10, borderRadius: 8, background: C.light, textAlign: "center" }}>
-                      <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{count}</div>
-                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>{label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: C.teal }}>{count}</div>
+                      <div style={{ fontSize: 11, color: C.muted, fontWeight: 500 }}>{label}</div>
                     </div>
                   ))}
                 </div>
-                <Link href="/video-studio?tab=post&tool=sorting" style={{ fontSize: 13, fontWeight: 700, color: C.teal }}>영상작업실로 돌아가기 →</Link>
+                <Link href="/video-studio?tab=post&tool=sorting" style={{ fontSize: 13, fontWeight: 500, color: C.teal }}>영상작업실로 돌아가기 →</Link>
               </SectionCard>
             </div>
           )}

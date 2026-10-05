@@ -72,7 +72,7 @@ export default function RemotePhotoOperationResultBanner({ jobId }: { jobId: str
   const guides = job ? retouchGuides(job) : [];
   return (
     <section style={{ margin: "0 0 14px", padding: "12px 14px", borderRadius: 14, border: `1px solid ${color}22`, background: job?.status === "FAILED" || error ? "#FFF4F2" : "#EFF7F5", color }} aria-live="polite">
-      <div style={{ fontSize: 13, fontWeight: 700 }}>{job ? `${LABELS[job.action] || "Mac Studio 사진 작업"} · ${job.status === "COMPLETED" ? "완료" : job.status === "FAILED" ? "확인 필요" : "진행 중"}` : "Mac Studio 작업 결과 확인"}</div>
+      <div style={{ fontSize: 13, fontWeight: 500 }}>{job ? `${LABELS[job.action] || "Mac Studio 사진 작업"} · ${job.status === "COMPLETED" ? "완료" : job.status === "FAILED" ? "확인 필요" : "진행 중"}` : "Mac Studio 작업 결과 확인"}</div>
       <div style={{ marginTop: 4, fontSize: 12, lineHeight: 1.55, color: "#526B67" }}>{error || (job ? resultSummary(job) : "작업 결과를 불러오는 중입니다.")}</div>
       {guides.length ? (
         <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 11.5, lineHeight: 1.6, color: "#526B67" }}>

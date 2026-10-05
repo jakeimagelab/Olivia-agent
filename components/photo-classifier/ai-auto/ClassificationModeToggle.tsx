@@ -1,7 +1,7 @@
 "use client";
 
 import { Settings2, Sparkles } from "lucide-react";
-import { C } from "../PhotoSortingWorkspace";
+import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
 
 export type ClassificationUiMode = "ai-auto" | "advanced";
 

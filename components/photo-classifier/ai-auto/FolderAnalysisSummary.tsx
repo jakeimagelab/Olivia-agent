@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, C } from "../PhotoSortingWorkspace";
+import { Card } from "../PhotoSortingWorkspace";
+import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
 import type { FolderShootingPattern } from "@/lib/photo-classifier/pattern-analysis";
 
 export default function FolderAnalysisSummary({ analyzing, pattern, fileCount }: { analyzing: boolean; pattern: FolderShootingPattern | null; fileCount: number }) {
@@ -8,7 +9,7 @@ export default function FolderAnalysisSummary({ analyzing, pattern, fileCount }:
     return (
       <Card>
         <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: C.teal }}>폴더 분석 중…</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.teal }}>폴더 분석 중…</div>
           <div style={{ fontSize: 11, color: C.hint }}>시간 간격과 사진 변화를 살펴보는 중이에요.</div>
         </div>
       </Card>
@@ -26,7 +27,7 @@ export default function FolderAnalysisSummary({ analyzing, pattern, fileCount }:
   return (
     <Card>
       <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ fontSize: 14, fontWeight: 900, color: C.teal, lineHeight: 1.5 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, lineHeight: 1.5 }}>
           {pattern.recommendedSceneCountHint
             ? `AI가 약 ${pattern.recommendedSceneCountHint}개 Scene으로 분류하는 것을 추천합니다.`
             : "AI가 이번 촬영 패턴을 분석했습니다."}

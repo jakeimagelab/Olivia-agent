@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, C } from "../PhotoSortingWorkspace";
+import { Card } from "../PhotoSortingWorkspace";
+import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
 import type { SceneProposal } from "@/lib/photo-classifier/pattern-analysis";
 
 function formatTimeRange(start?: string, end?: string) {
@@ -32,12 +33,12 @@ export default function SceneProposalList({ proposals }: { proposals: ScenePropo
               )) : <div style={{ width: 44, height: 44, borderRadius: 6, background: C.bg }} />}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12.5, fontWeight: 900, color: C.txt }}>Scene {String(index + 1).padStart(2, "0")} · {proposal.fileCount}장</div>
+              <div style={{ fontSize: 12.5, fontWeight: 600, color: C.txt }}>Scene {String(index + 1).padStart(2, "0")} · {proposal.fileCount}장</div>
               <div style={{ fontSize: 10.5, color: C.hint, marginTop: 2 }}>{formatTimeRange(proposal.startTime, proposal.endTime)}</div>
               {proposal.reasons.length > 0 && (
                 <div style={{ marginTop: 6, display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {proposal.reasons.slice(0, 3).map((reason, reasonIndex) => (
-                    <span key={reasonIndex} style={{ fontSize: 9.5, fontWeight: 700, color: C.teal, background: C.light, borderRadius: 999, padding: "2px 8px" }}>{reason}</span>
+                    <span key={reasonIndex} style={{ fontSize: 9.5, fontWeight: 500, color: C.teal, background: C.light, borderRadius: 999, padding: "2px 8px" }}>{reason}</span>
                   ))}
                 </div>
               )}

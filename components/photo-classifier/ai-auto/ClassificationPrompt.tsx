@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Btn, C } from "../PhotoSortingWorkspace";
+import { Card, Btn } from "../PhotoSortingWorkspace";
+import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
 
 const QUICK_CHIPS = ["시간차 우선", "모델 변경 감지", "장소 변화 감지"];
 
@@ -15,7 +16,7 @@ export default function ClassificationPrompt({ onSubmit, busy, history }: { onSu
   };
   return (
     <Card>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 900, color: C.teal }}>AI에게 요청</div>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 12, fontWeight: 600, color: C.teal }}>AI에게 요청</div>
       <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
         <textarea
           value={value}
@@ -31,7 +32,7 @@ export default function ClassificationPrompt({ onSubmit, busy, history }: { onSu
               key={chip}
               type="button"
               onClick={() => setValue((current) => (current ? `${current} ${chip}` : chip))}
-              style={{ padding: "5px 10px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.light, color: C.teal, fontSize: 10.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+              style={{ padding: "5px 10px", borderRadius: 999, border: `1px solid ${C.border}`, background: C.light, color: C.teal, fontSize: 10.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
             >
               {chip}
             </button>
@@ -40,7 +41,7 @@ export default function ClassificationPrompt({ onSubmit, busy, history }: { onSu
         <Btn onClick={submit} disabled={busy || !value.trim()} style={{ width: "100%" }}>{busy ? "적용 중…" : "요청 반영"}</Btn>
         {history.length > 0 && (
           <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ fontSize: 10, fontWeight: 800, color: C.hint }}>이전 요청</div>
+            <div style={{ fontSize: 10, fontWeight: 500, color: C.hint }}>이전 요청</div>
             {history.map((item, index) => (
               <div key={index} style={{ fontSize: 10.5, color: C.muted, background: C.bg, borderRadius: 6, padding: "5px 8px" }}>{item}</div>
             ))}

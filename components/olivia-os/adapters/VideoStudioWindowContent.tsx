@@ -21,6 +21,7 @@ export function VideoStudioWindowContent({ context }: { context?: WindowContext 
     <DesktopWindowProvider value={true}>
       <PhotoStudioExecutionProvider>
         <VideoStudio
+          hideHeader
           initialTab={initialTab}
           initialTool={initialTool}
           onRouteChange={(href) => updateWindowContext("video-studio", { ...context, routeHref: href })}

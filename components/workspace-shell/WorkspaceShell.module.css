@@ -1,7 +1,7 @@
 .page {
   min-height: 100%;
   color: var(--ink, #1c2b28);
-  background: #f5f8f7;
+  background: #fdfcfa;
 }
 
 .content {
@@ -52,7 +52,7 @@
   color: #6b817c;
   font: inherit;
   font-size: 12.5px;
-  font-weight: 750;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
 }
@@ -84,7 +84,7 @@
   border-radius: 9px;
   background: #fff;
   color: var(--deep-green, #155855);
-  font: 750 11.5px/1 inherit;
+  font: 600 11.5px/1 inherit;
   cursor: pointer;
 }
 
@@ -116,21 +116,21 @@
   padding: 26px 24px 24px;
   border: 1px solid rgba(21, 88, 85, .12);
   border-radius: 16px;
-  background: rgba(255, 255, 255, .96);
+  background: #fff;
   box-shadow: 0 16px 42px rgba(21, 58, 52, .025);
   overflow: hidden;
 }
 
 .gridCompact .guide { position: static; }
-.guide h2 { margin: 0 0 26px; color: #1c2b28; font-size: 16px; letter-spacing: -.02em; }
+.guide h2 { margin: 0 0 26px; color: #1c2b28; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
 .guideIntro { margin: -14px 0 22px; color: #677a76; font-size: 11.5px; line-height: 1.65; }
 .guideSteps { margin: 0; padding: 0; list-style: none; }
 .guideStep { position: relative; min-height: 106px; display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; padding-bottom: 18px; }
 .guideStep:not(:last-child)::after { content: ""; position: absolute; top: 49px; bottom: 0; left: 23px; border-left: 1px dashed rgba(21, 88, 85, .18); }
 .guideIcon { grid-row: 1 / span 2; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: var(--deep-green, #155855); background: #edf7f4; }
-.guideNumber { position: absolute; top: -3px; left: 39px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #22876a; color: #fff; font-size: 9px; font-weight: 900; box-shadow: 0 0 0 3px #fff; }
+.guideNumber { position: absolute; top: -3px; left: 39px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #155855; color: #fff; font-size: 9px; font-weight: 600; box-shadow: 0 0 0 3px #fff; }
 .guideCopy { min-width: 0; display: grid; align-content: start; gap: 6px; padding-top: 3px; }
-.guideCopy strong { color: #243733; font-size: 12.5px; }
+.guideCopy strong { color: #243733; font-size: 12.5px; font-weight: 600; }
 .guideCopy small { color: #677a76; font-size: 11px; line-height: 1.65; }
 .tip { display: flex; gap: 10px; border: 1px solid rgba(34, 135, 106, .16); border-radius: 12px; padding: 13px 14px; background: #eff9f6; color: var(--deep-green, #155855); }
 .tip svg { flex: 0 0 auto; margin-top: 2px; }
@@ -139,12 +139,12 @@
 .tip strong { margin-bottom: 3px; font-size: 10px; letter-spacing: .05em; }
 
 .stepper { display: flex; align-items: center; gap: 8px; padding: 16px 20px; border-bottom: 1px solid rgba(21, 88, 85, .1); overflow-x: auto; }
-.step { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; color: #80918d; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.step i { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #e8f0ee; color: #78908a; font-style: normal; font-size: 11px; font-weight: 900; }
+.step { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; color: #80918d; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.step i { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #e8f0ee; color: #78908a; font-style: normal; font-size: 11px; font-weight: 600; }
 .step[data-state="active"] { color: var(--deep-green, #155855); }
 .step[data-state="active"] i { background: var(--deep-green, #155855); color: #fff; }
 .step[data-state="complete"] { color: #3f6e63; }
-.step[data-state="complete"] i { background: #22876a; color: #fff; }
+.step[data-state="complete"] i { background: #155855; color: #fff; }
 .stepConnector { width: clamp(18px, 3vw, 54px); height: 1px; flex: 0 0 auto; background: rgba(21, 88, 85, .14); }
 
 .workPanel[data-tone="dark"] .stepper { border-bottom-color: rgba(255, 255, 255, .09); }
@@ -152,7 +152,7 @@
 .workPanel[data-tone="dark"] .step i { background: rgba(255, 255, 255, .1); color: rgba(255, 255, 255, .7); }
 .workPanel[data-tone="dark"] .step[data-state="active"] { color: #fff; }
 .workPanel[data-tone="dark"] .step[data-state="active"] i,
-.workPanel[data-tone="dark"] .step[data-state="complete"] i { background: #2fb99a; color: #fff; }
+.workPanel[data-tone="dark"] .step[data-state="complete"] i { background: #4fd8b8; color: #103e36; }
 .workPanel[data-tone="dark"] .step[data-state="complete"] { color: #a9e3d5; }
 .workPanel[data-tone="dark"] .stepConnector { background: rgba(255, 255, 255, .14); }
 

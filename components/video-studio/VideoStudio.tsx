@@ -178,10 +178,12 @@ export default function VideoStudio({
   initialTab,
   initialTool,
   onRouteChange,
+  hideHeader = false,
 }: {
   initialTab?: string | null;
   initialTool?: string | null;
   onRouteChange?: (href: string) => void;
+  hideHeader?: boolean;
 } = {}) {
   const pathname = usePathname();
   const router = useRouter();
@@ -341,6 +343,12 @@ export default function VideoStudio({
     <WorkspaceShell>
       <ExecutionBar visible={requiredMode !== undefined} />
       <WorkspaceContent>
+        {hideHeader ? null : (
+          <header className={photoStyles.workspaceHeader}>
+            <h1>영상작업실</h1>
+            <p>기획과 촬영부터 인터뷰 분석, 영상 분류, 음성 분리와 제작·발행까지 한 곳에서 작업합니다.</p>
+          </header>
+        )}
         <WorkspaceTabs
           ariaLabel="영상작업실 단계"
           value={section}

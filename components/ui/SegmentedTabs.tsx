@@ -39,7 +39,7 @@ const trackStyle: CSSProperties = {
   overflowX: "auto",
   padding: 3,
   borderRadius: 10,
-  background: "rgba(21, 88, 85, .07)",
+  background: "#EDF0EE",
 };
 
 function tabStyle(active: boolean, unavailable = false): CSSProperties {
@@ -52,10 +52,10 @@ function tabStyle(active: boolean, unavailable = false): CSSProperties {
     borderRadius: 8,
     padding: "7px 14px",
     background: active ? "#fff" : "transparent",
-    color: unavailable ? "rgba(0, 0, 0, .28)" : active ? "var(--teal)" : "var(--muted)",
+    color: unavailable ? "rgba(0, 0, 0, .28)" : active ? "#155855" : "#5A7470",
     fontFamily: "inherit",
     fontSize: 12.5,
-    fontWeight: 700,
+    fontWeight: active ? 600 : 500,
     whiteSpace: "nowrap",
     cursor: "pointer",
     boxShadow: active ? "0 1px 4px rgba(21, 88, 85, .18)" : "none",
