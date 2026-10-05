@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type ReactNode, type RefObject } from "react";
 import { motion } from "framer-motion";
 import { Maximize2 } from "lucide-react";
 import { oliviaMotion } from "@/lib/motion/presets";
@@ -12,6 +12,10 @@ import { useWindowInteractions } from "./useWindowInteractions";
 import { resolveSnapBounds } from "./snapZones";
 import { WindowHeader } from "./WindowHeader";
 import { AppWindowErrorBoundary } from "./AppWindowErrorBoundary";
+import {
+  calculateCompactChatWidth,
+  COMPACT_CHAT_EDGE_INSET,
+} from "./compactChatLayout";
 import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import styles from "./AppWindow.module.css";
 
@@ -33,17 +37,31 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   const setChatCompact = useOliviaDesktopUtilityStore((state) => state.setChatCompact);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
   const [interacting, setInteracting] = useState(false);
+  const [dockWidth, setDockWidth] = useState(0);
   const { beginDrag, beginResize } = useWindowInteractions(windowId, minWidth, minHeight, workspaceRef, setInteracting);
+
+  const isChatCompact = win?.appId === "olivia-chat" && chatCompact;
+
+  useEffect(() => {
+    if (!isChatCompact) return;
+    const dock = document.querySelector<HTMLElement>('[aria-label="Dock"]');
+    if (!dock) return;
+
+    const measureDock = () => setDockWidth(dock.getBoundingClientRect().width);
+    measureDock();
+    const observer = new ResizeObserver(measureDock);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [isChatCompact]);
 
   if (!win) return null;
 
   const isActive = activeWindowId === windowId;
-  const isChatCompact = win.appId === "olivia-chat" && chatCompact;
-  const compactWidth = workspaceWidth > 0 ? Math.min(420, Math.max(0, workspaceWidth - 24)) : 420;
+  const compactWidth = calculateCompactChatWidth(workspaceWidth, dockWidth);
   const compactHeight = 70;
   const renderedBounds = isChatCompact
     ? {
-        x: workspaceWidth > 0 ? Math.max(12, workspaceWidth - compactWidth - 18) : win.x,
+        x: workspaceWidth > 0 ? Math.max(12, workspaceWidth - compactWidth - COMPACT_CHAT_EDGE_INSET) : win.x,
         y: 0,
         width: compactWidth,
         height: compactHeight,

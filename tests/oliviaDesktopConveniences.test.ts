@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { calculateWindowTileBounds } from "@/lib/olivia/desktop/windowTiling";
 import { resetDesktopSession, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { calculateCompactChatWidth } from "@/components/olivia-os/window/compactChatLayout";
 
 function open(id: string, zSize = 400) {
   useOliviaDesktopStore.getState().openApp({ appId: id, title: id, width: zSize, height: 300 });
@@ -92,6 +93,7 @@ describe("Olivia desktop convenience controls", () => {
     expect(appWindow).toContain('win.appId === "olivia-chat" ? () => setChatCompact(true)');
     expect(appWindow).toContain('aria-label="채팅창 다시 키우기"');
     expect(appWindow).toContain('bottom: isChatCompact ? "var(--desktop-dock-bottom)" : "auto"');
+    expect(appWindow).toContain("new ResizeObserver(measureDock)");
     expect(appWindowCss).toContain(":global(.olivia-composer-shell)");
     expect(appWindowCss).toContain(".chatCompactRestore");
     expect(actions).toContain("toggleCompactChat");
@@ -100,7 +102,13 @@ describe("Olivia desktop convenience controls", () => {
     expect(utilityStore).not.toContain("messages:");
     expect(topBar).toContain('const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "도움말"]');
     expect(desktopCss).toContain("--desktop-dock-bottom: 18px");
-    expect(desktopCss).toContain(".desktop:has([data-chat-compact]) .dockArea");
+    expect(desktopCss).not.toContain(".desktop:has([data-chat-compact]) .dockArea");
     expect(desktopCss).toMatch(/\.topBarCenter\s*\{[\s\S]*?left:\s*50%[\s\S]*?transform:\s*translateX\(-50%\)/);
+  });
+
+  it("fits compact chat beside the centered Dock without moving the Dock", () => {
+    expect(calculateCompactChatWidth(1440, 680)).toBe(350);
+    expect(calculateCompactChatWidth(1024, 524)).toBe(220);
+    expect(calculateCompactChatWidth(1920, 680)).toBe(420);
   });
 });

@@ -2,7 +2,6 @@
   --desktop-edge: 22px;
   --desktop-gap: 20px;
   --desktop-dock-bottom: 18px;
-  --desktop-compact-chat-width: 420px;
   --left-rail-width: 248px;
   --assistant-width: 380px;
   position: fixed;
@@ -1254,7 +1253,6 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   transition: right 260ms cubic-bezier(.22, 1, .36, 1);
 }
 .desktop:has(.assistantCollapsed) .dockArea { right: calc(var(--desktop-edge) + 58px + var(--desktop-gap)); }
-.desktop:has([data-chat-compact]) .dockArea { right: calc(var(--desktop-compact-chat-width) + 30px); }
 
 .dock {
   --dock-icon-size: 48px;

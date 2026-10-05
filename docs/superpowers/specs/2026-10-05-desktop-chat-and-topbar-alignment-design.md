@@ -28,8 +28,10 @@ Correct three desktop-shell usability issues without creating a second chat UI o
 
 - Keep the compact bar on the right edge.
 - Replace the extra Dock-safe-area offset with the Dock's desktop bottom inset, so both surfaces share the same bottom line (`18px` on the normal desktop layout).
+- Keep the Dock at its normal screen-centered position in every chat state.
+- Measure the rendered Dock width and reduce the compact chat width to fit the free space on the Dock's right, preserving a 12px gap when space allows.
 - Preserve a small viewport edge fallback for narrow workspaces and ensure the compact width cannot overflow the workspace.
-- The Dock remains above ordinary windows according to the existing stacking model; no Dock behavior changes.
+- The Dock's position, stacking, and interaction behavior do not change.
 
 ### Exact top-bar centering
 
