@@ -710,6 +710,61 @@
 .appShell[data-conti-surface="workspace"] .resultMetric { background: #edf7f4; box-shadow: none; }
 .appShell[data-conti-surface="workspace"] .resultMetric small { color: #5a7470; }
 
+/* 사진작업실 안의 기획은 독립 콘티 페이지가 아니라 사진을 판단하는 중성 다크 패널이다.
+   생성·가져오기·미리보기의 상태와 핸들러는 그대로 두고, 이 surface에서만 표면 색을 바꾼다. */
+.appShell[data-conti-surface="workspace"] { background:#2A2A2A; color:rgba(255,255,255,.88); }
+.appShell[data-conti-surface="workspace"] .formShell,
+.appShell[data-conti-surface="workspace"] .previewShell { border-color:rgba(255,255,255,.10); background:#2A2A2A; }
+.appShell[data-conti-surface="workspace"] .formPanel,
+.appShell[data-conti-surface="workspace"] .previewPanel { background:#2A2A2A; color:rgba(255,255,255,.88); }
+.appShell[data-conti-surface="workspace"] .formHero { min-height:70px; align-items:center; padding:0 24px; color:rgba(255,255,255,.88); background:#2A2A2A; border-bottom-color:rgba(255,255,255,.10); }
+.appShell[data-conti-surface="workspace"] .formHero h2 { color:#fff; font-size:18px; font-weight:600; }
+.appShell[data-conti-surface="workspace"] .formHero p { color:rgba(255,255,255,.52); }
+.appShell[data-conti-surface="workspace"] .eyebrow { color:#a8f1dc; font-weight:500; }
+.appShell[data-conti-surface="workspace"] .previousButton { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#d9f6ee; font-weight:500; }
+.appShell[data-conti-surface="workspace"] .formBody { padding:4px 24px 0; }
+.appShell[data-conti-surface="workspace"] .fieldSection { box-shadow:inset 0 -1px rgba(255,255,255,.10); }
+.appShell[data-conti-surface="workspace"] .fieldLabel,
+.appShell[data-conti-surface="workspace"] .categoryButton { color:rgba(255,255,255,.88); font-weight:600; }
+.appShell[data-conti-surface="workspace"] .stepNumber { color:#103e36; background:#4fd8b8; font-weight:500; }
+.appShell[data-conti-surface="workspace"] .optional,
+.appShell[data-conti-surface="workspace"] .hint,
+.appShell[data-conti-surface="workspace"] .selectionSummary { color:rgba(255,255,255,.52); }
+.appShell[data-conti-surface="workspace"] .control { color:#fff !important; background:rgba(0,0,0,.16) !important; box-shadow:inset 0 0 0 1px rgba(255,255,255,.15) !important; }
+.appShell[data-conti-surface="workspace"] .control:focus-visible { background:rgba(0,0,0,.16) !important; box-shadow:inset 0 0 0 1.5px #4fd8b8,0 0 0 3px rgba(79,216,184,.10) !important; }
+.appShell[data-conti-surface="workspace"] .stepper,
+.appShell[data-conti-surface="workspace"] .choice span,
+.appShell[data-conti-surface="workspace"] .detailChoice span,
+.appShell[data-conti-surface="workspace"] .category,
+.appShell[data-conti-surface="workspace"] .extraTag { color:rgba(255,255,255,.78); background:rgba(255,255,255,.045); box-shadow:inset 0 0 0 1px rgba(255,255,255,.13); }
+.appShell[data-conti-surface="workspace"] .stepper button,
+.appShell[data-conti-surface="workspace"] .smallButton,
+.appShell[data-conti-surface="workspace"] .categoryCheck { color:#d9f6ee; background:rgba(255,255,255,.06); box-shadow:inset 0 0 0 1px rgba(255,255,255,.18); }
+.appShell[data-conti-surface="workspace"] .choice input:checked + span,
+.appShell[data-conti-surface="workspace"] .detailChoice input:checked + span,
+.appShell[data-conti-surface="workspace"] .categorySelected { color:#fff; background:rgba(48,174,146,.14); box-shadow:inset 0 0 0 1px #4fd8b8; }
+.appShell[data-conti-surface="workspace"] .choice input:checked + span::before,
+.appShell[data-conti-surface="workspace"] .detailChoice input:checked + span::before { background:#4fd8b8; box-shadow:none; }
+.appShell[data-conti-surface="workspace"] .categoryMeta { color:rgba(255,255,255,.42); font-weight:500; }
+.appShell[data-conti-surface="workspace"] .previewPanel { background:rgba(0,0,0,.12); }
+.appShell[data-conti-surface="workspace"] .previewHead { border-bottom-color:rgba(255,255,255,.10); }
+.appShell[data-conti-surface="workspace"] .previewTitle h3,
+.appShell[data-conti-surface="workspace"] .sceneInfo strong { color:#fff; font-weight:600; }
+.appShell[data-conti-surface="workspace"] .liveBadge { background:rgba(53,173,147,.12); color:#a8f1dc; }
+.appShell[data-conti-surface="workspace"] .liveBadge::before { background:#37c39d; box-shadow:none; }
+.appShell[data-conti-surface="workspace"] .previewStats strong { color:#fff; }
+.appShell[data-conti-surface="workspace"] .previewStats span,
+.appShell[data-conti-surface="workspace"] .sceneInfo span,
+.appShell[data-conti-surface="workspace"] .sceneTime,
+.appShell[data-conti-surface="workspace"] .emptyPreview { color:rgba(255,255,255,.52); }
+.appShell[data-conti-surface="workspace"] .sceneRow { box-shadow:inset 0 1px rgba(255,255,255,.08); }
+.appShell[data-conti-surface="workspace"] .sceneNumber { color:#103e36; background:#4fd8b8; font-weight:500; }
+.appShell[data-conti-surface="workspace"] .primaryButton { background:#37c39d; color:#103e36; box-shadow:none; font-weight:500; }
+.appShell[data-conti-surface="workspace"] .primaryButton:disabled { background:transparent; color:rgba(255,255,255,.30); box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); opacity:1; }
+.appShell[data-conti-surface="workspace"] .formFooter { min-height:70px; padding:0 24px; border-top:1px solid rgba(255,255,255,.10); }
+.appShell[data-conti-surface="workspace"] :where(button, label, p, span, strong, small, td, th) { font-weight:500 !important; }
+.appShell[data-conti-surface="workspace"] :where(h1, h2, h3) { font-weight:600 !important; }
+
 @container (max-width: 900px) {
   .appShell[data-conti-surface="workspace"] .createLayout { grid-template-columns: 1fr; }
   .appShell[data-conti-surface="workspace"] .previewShell { position: static; }

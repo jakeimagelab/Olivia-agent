@@ -3,6 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
 import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
+import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { C } from "@/lib/theme";
 
 // 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
@@ -153,10 +154,11 @@ function SyncSlider({ label, value }: { label: string; value: number }) {
 }
 
 // ── 동기화 업로드 존 ───────────────────────────────────────
-function SyncUpload({ label, preview, onFile, onClear, badge }: {
+function SyncUpload({ label, preview, onFile, onClear, badge, embedded = false }: {
   label: string; preview: string;
   onFile: (f: File) => void; onClear: () => void;
   badge: string;
+  embedded?: boolean;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   return (
@@ -171,7 +173,7 @@ function SyncUpload({ label, preview, onFile, onClear, badge }: {
           onClick={() => ref.current?.click()}
           onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if(f) onFile(f); }}
           onDragOver={e => e.preventDefault()}
-          style={{ border: `2px dashed ${C.border}`, borderRadius: 14, background: C.white,
+          style={{ border: `2px dashed ${embedded ? "rgba(255,255,255,.18)" : C.border}`, borderRadius: 14, background: embedded ? "rgba(255,255,255,.03)" : C.white,
             aspectRatio: "4/3", display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", cursor: "pointer", gap: 8 }}>
           <div style={{ fontSize: 28 }}>{badge === "기준" ? "📌" : "🔄"}</div>
@@ -193,7 +195,7 @@ function SyncUpload({ label, preview, onFile, onClear, badge }: {
 }
 
 // ── 동기화 탭 ──────────────────────────────────────────────
-function SyncTab() {
+function SyncTab({ embedded = false }: { embedded?: boolean }) {
   const [refPreview,  setRefPreview]  = useState("");
   const [refB64,      setRefB64]      = useState("");
   const [refMime,     setRefMime]     = useState("image/jpeg");
@@ -257,11 +259,11 @@ function SyncTab() {
 
       {/* 두 장 업로드 */}
       <div style={{ display: "flex", gap: 16 }}>
-        <SyncUpload label="기준 사진" badge="기준" preview={refPreview}
+        <SyncUpload embedded={embedded} label="기준 사진" badge="기준" preview={refPreview}
           onFile={f => { setResult(null); loadImg(f, setRefPreview, setRefB64, setRefMime); }}
           onClear={() => { setRefPreview(""); setRefB64(""); setResult(null); }}/>
         <div style={{ display: "flex", alignItems: "center", color: C.hint, fontSize: 20, flexShrink: 0 }}>→</div>
-        <SyncUpload label="동기화할 사진" badge="대상" preview={tgtPreview}
+        <SyncUpload embedded={embedded} label="동기화할 사진" badge="대상" preview={tgtPreview}
           onFile={f => { setResult(null); loadImg(f, setTgtPreview, setTgtB64, setTgtMime); }}
           onClear={() => { setTgtPreview(""); setTgtB64(""); setResult(null); }}/>
       </div>
@@ -285,7 +287,7 @@ function SyncTab() {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* 점수 카드 */}
-          <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px 22px", display: "flex", gap: 20, alignItems: "center" }}>
+          <div style={{ background: embedded ? "rgba(255,255,255,.03)" : C.white, borderRadius: 14, border: `1px solid ${embedded ? "rgba(255,255,255,.13)" : C.border}`, padding: "18px 22px", display: "flex", gap: 20, alignItems: "center" }}>
             <div style={{
               width: 76, height: 76, borderRadius: "50%", flexShrink: 0,
               background: `conic-gradient(${scoreColor} ${sc}%, #E5E7EB ${sc}%)`,
@@ -315,7 +317,7 @@ function SyncTab() {
           </div>
 
           {/* 결과 탭 */}
-          <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
+          <div className="pc-inline-tabs" style={{ display: "flex", background: embedded ? "rgba(255,255,255,.03)" : C.white, borderRadius: 12, border: `1px solid ${embedded ? "rgba(255,255,255,.13)" : C.border}`, padding: 3, gap: 2 }}>
             {([["swatch","피부톤 비교"],["ps","Photoshop"],["cameraraw","Camera Raw"]] as const).map(([id, lbl]) => (
               <button key={id} onClick={() => setResTab(id)} style={{
                 flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
@@ -328,7 +330,7 @@ function SyncTab() {
 
           {/* 피부톤 비교 */}
           {resTab === "swatch" && (
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
+            <div style={{ background: embedded ? "rgba(255,255,255,.03)" : C.white, borderRadius: 14, border: `1px solid ${embedded ? "rgba(255,255,255,.13)" : C.border}`, padding: "20px" }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 8 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: C.teal, textAlign: "center" }}>기준 사진</div>
                 <div/>
@@ -404,7 +406,7 @@ function SyncTab() {
 
           {/* Camera Raw */}
           {resTab === "cameraraw" && (
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
+            <div style={{ background: embedded ? "rgba(255,255,255,.03)" : C.white, borderRadius: 14, border: `1px solid ${embedded ? "rgba(255,255,255,.13)" : C.border}`, padding: "20px" }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
@@ -431,7 +433,8 @@ function SyncTab() {
   );
 }
 
-export default function PhotoRetouchingPage() {
+function PhotoRetouchingWorkspace({ embedded: embeddedOverride }: { embedded?: boolean }) {
+  const embedded = embeddedOverride ?? useDesktopWindowMode();
   const inputRef   = useRef<HTMLInputElement>(null);
   const [tab,      setTab]      = useState<"check" | "sync" | "recipe">("check");
   const [preview,  setPreview]  = useState("");
@@ -494,6 +497,18 @@ export default function PhotoRetouchingPage() {
 
   const sc = result?.matchScore ?? 0;
   const scoreColor = sc >= 80 ? "#059669" : sc >= 60 ? "#D97706" : C.orange;
+  const card = embedded ? "rgba(255,255,255,.03)" : C.white;
+  const cardBorder = embedded ? "rgba(255,255,255,.13)" : C.border;
+  const bodyText = embedded ? "rgba(255,255,255,.82)" : C.txt;
+  const mutedText = embedded ? "rgba(255,255,255,.52)" : C.muted;
+  const panelTitle = tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피";
+  const panelDescription = tab === "check"
+    ? checkType === "gown"
+      ? "가운은 순백색이 아니라 살짝 미색(웜톤 화이트)에 가까워야 합니다. 사진을 올리면 AI가 가운 색을 분석해 Photoshop 색상균형 보정 가이드를 드려요."
+      : "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
+    : tab === "sync"
+      ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
+      : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다.";
 
   return (
     <main
@@ -501,6 +516,15 @@ export default function PhotoRetouchingPage() {
       style={{ background: "#2A2A2A", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "rgba(255,255,255,.85)" }}
       onPaste={handleGlobalPaste}
     >
+      {embedded ? (
+        <header style={{ height: 70, padding: "0 20px", borderBottom: "1px solid rgba(255,255,255,.10)", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(79,216,184,.12)", color: "#4FD8B8", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Camera size={18} aria-hidden="true" /></span>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 18, lineHeight: 1.2, fontWeight: 600, color: "rgba(255,255,255,.88)" }}>{panelTitle}</span>
+            <span style={{ display: "block", marginTop: 3, fontSize: 12, color: "rgba(255,255,255,.52)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{panelDescription}</span>
+          </span>
+        </header>
+      ) : null}
       <div style={{ padding: "12px 20px 0" }}>
         <WorkspaceSubTabs
           ariaLabel="색감 작업 선택"
@@ -515,24 +539,18 @@ export default function PhotoRetouchingPage() {
         />
       </div>
 
-      <div style={{ background: "#2A2A2A", minHeight: "100vh", color: "rgba(255,255,255,.85)" }}>
+      <div style={{ background: "#2A2A2A", minHeight: embedded ? 0 : "100vh", color: "rgba(255,255,255,.85)" }}>
         <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 20px 80px" }}>
         {/* 페이지 안내 — 1.1: 화면 이름을 다시 말하지 않는다(타이틀바가 이미 보여준다).
             기존에 있던 "PHOTO RETOUCHING" 영문 이터브로우는 제거했다. */}
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
-          <div style={{ fontSize: 20, fontWeight: 600, color: C.teal, marginBottom: 6 }}>
-            {tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피"}
+        {!embedded && <div style={{ background: card, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
+          <div style={{ fontSize: 20, fontWeight: 600, color: embedded ? "#d9f6ee" : C.teal, marginBottom: 6 }}>
+            {panelTitle}
           </div>
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
-            {tab === "check"
-              ? checkType === "gown"
-                ? "가운은 순백색이 아니라 살짝 미색(웜톤 화이트)에 가까워야 합니다. 사진을 올리면 AI가 가운 색을 분석해 Photoshop 색상균형 보정 가이드를 드려요."
-                : "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
-              : tab === "sync"
-                ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
-                : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다."}
+          <div style={{ fontSize: 12, color: mutedText, lineHeight: 1.7 }}>
+            {panelDescription}
           </div>
-        </div>
+        </div>}
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (
@@ -541,12 +559,12 @@ export default function PhotoRetouchingPage() {
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* 체크 대상 선택 */}
-              <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: card, borderRadius: 12, border: `1px solid ${cardBorder}`, color: mutedText, fontSize: 12 }}>
                 <span>분석 기준</span>
                 <select
                   value={checkType}
                   onChange={(event) => { setCheckType(event.target.value as "skin" | "gown"); setPreview(""); setImgB64(""); setResult(null); setError(""); }}
-                  style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
+                  style={{ flex: 1, minHeight: 34, border: `1px solid ${embedded ? "rgba(255,255,255,.15)" : C.border}`, borderRadius: 8, padding: "0 10px", background: embedded ? "rgba(0,0,0,.16)" : "#fff", color: embedded ? "#fff" : C.teal, font: "inherit", fontWeight: 600 }}
                 >
                   <option value="skin">피부톤</option>
                   <option value="gown">가운 컬러</option>
@@ -560,14 +578,14 @@ export default function PhotoRetouchingPage() {
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   style={{
-                    border: `1.5px dashed ${dragging ? C.teal : C.border}`, borderRadius: 14,
-                    background: dragging ? C.light : C.white, padding: "52px 24px",
+                    border: `1.5px dashed ${dragging ? "#4FD8B8" : embedded ? "rgba(255,255,255,.18)" : C.border}`, borderRadius: 14,
+                    background: dragging ? (embedded ? "rgba(48,174,146,.14)" : C.light) : card, padding: "52px 24px",
                     textAlign: "center", cursor: "pointer", transition: "all .15s",
                     boxShadow: "0 8px 24px rgba(21,88,85,.04)",
                   }}>
                   <Camera size={34} strokeWidth={1.5} style={{ marginBottom: 14, color: C.teal }} aria-hidden="true" />
-                  <div style={{ fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 8 }}>사진 업로드</div>
-                  <div style={{ fontSize: 12, color: C.hint, lineHeight: 2 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: embedded ? "#d9f6ee" : C.teal, marginBottom: 8 }}>사진 업로드</div>
+                  <div style={{ fontSize: 12, color: embedded ? "rgba(255,255,255,.52)" : C.hint, lineHeight: 2 }}>
                     클릭하거나 드래그&드롭<br/>
                     포토샵·Preview에서 복사 후 <strong style={{ color: C.orange }}>Ctrl+V</strong> 붙여넣기<br/>
                     <span style={{ fontSize: 11 }}>JPG · PNG · WEBP</span>
@@ -576,7 +594,7 @@ export default function PhotoRetouchingPage() {
                     onChange={e => { const f = e.target.files?.[0]; if(f) processFile(f); }}/>
                 </div>
               ) : (
-                <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, overflow: "hidden" }}>
                   <img src={preview} alt="" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }}/>
                   <div style={{ padding: "12px 14px", display: "flex", gap: 8 }}>
                     <button onClick={analyze} disabled={loading} style={{
@@ -590,7 +608,7 @@ export default function PhotoRetouchingPage() {
                         : <><Camera size={15}/> AI 색감 분석</>}
                     </button>
                     <button onClick={() => { setPreview(""); setImgB64(""); setResult(null); setError(""); }}
-                      style={{ width: 44, height: 44, border: `1.5px solid ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 18, color: C.muted }}>↺</button>
+                      style={{ width: 44, height: 44, border: `1.5px solid ${cardBorder}`, borderRadius: 10, background: card, cursor: "pointer", fontSize: 18, color: mutedText }}>↺</button>
                   </div>
                 </div>
               )}
@@ -600,7 +618,7 @@ export default function PhotoRetouchingPage() {
               )}
 
               {/* DNA 미니카드 */}
-              <div style={{ background: C.white, borderRadius: 14, padding: "18px", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(21,88,85,.04)" }}>
+              <div style={{ background: card, borderRadius: 14, padding: "18px", border: `1px solid ${cardBorder}`, boxShadow: "none" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 2 }}>
                   {checkType === "gown" ? "가운 컬러 목표 · 웜 아이보리" : "컬러 DNA v1"}
@@ -628,7 +646,7 @@ export default function PhotoRetouchingPage() {
             {result && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {!result.detected ? (
-                  <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "48px", textAlign: "center" }}>
+                <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "48px", textAlign: "center" }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
                     <div style={{ fontSize: 15, fontWeight: 600, color: C.teal }}>
                       {checkType === "gown" ? "가운을 찾지 못했어요" : "피부를 찾지 못했어요"}
@@ -640,7 +658,7 @@ export default function PhotoRetouchingPage() {
                 ) : (
                   <>
                     {/* 점수 */}
-                    <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px 22px", display: "flex", gap: 18, alignItems: "center" }}>
+                    <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "18px 22px", display: "flex", gap: 18, alignItems: "center" }}>
                       <div style={{
                         width: 72, height: 72, borderRadius: "50%", flexShrink: 0,
                         background: `conic-gradient(${scoreColor} ${sc}%, #E5E7EB ${sc}%)`,
@@ -653,10 +671,10 @@ export default function PhotoRetouchingPage() {
                         </div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: C.txt, lineHeight: 1.5, marginBottom: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: bodyText, lineHeight: 1.5, marginBottom: 4 }}>
                           {checkType === "gown" ? result.gownNote : result.skinNote}
                         </div>
-                        <div style={{ fontSize: 11, color: C.hint }}>
+                        <div style={{ fontSize: 11, color: embedded ? "rgba(255,255,255,.42)" : C.hint }}>
                           {checkType === "gown"
                             ? <>{result.colorCast} · 신뢰도 {result.confidence}%</>
                             : <>{result.colorTemp} · 채도 {result.saturation} · 신뢰도 {result.confidence}%</>}
@@ -675,12 +693,12 @@ export default function PhotoRetouchingPage() {
                     </div>
 
                     {/* 결과 보기는 편집 상태가 아니라 표시 방식 선택이라 탭 대신 필드로 둔다. */}
-                    <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: card, borderRadius: 12, border: `1px solid ${cardBorder}`, color: mutedText, fontSize: 12 }}>
                       <span>결과 보기</span>
                       <select
                         value={resTab}
                         onChange={(event) => setResTab(event.target.value as "compare" | "ps" | "cameraraw")}
-                        style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
+                        style={{ flex: 1, minHeight: 34, border: `1px solid ${embedded ? "rgba(255,255,255,.15)" : C.border}`, borderRadius: 8, padding: "0 10px", background: embedded ? "rgba(0,0,0,.16)" : "#fff", color: embedded ? "#fff" : C.teal, font: "inherit", fontWeight: 600 }}
                       >
                         <option value="compare">{checkType === "gown" ? "컬러 비교" : "피부톤 비교"}</option>
                         <option value="ps">Photoshop 보정</option>
@@ -690,7 +708,7 @@ export default function PhotoRetouchingPage() {
 
                     {/* 피부톤/가운 비교 */}
                     {resTab === "compare" && (
-                      <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
+                      <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.hint, marginBottom: 12 }}>
                           <span style={{ fontWeight: 600, color: C.muted }}>
                             현재 사진 vs {checkType === "gown" ? "가운 목표색" : "DNA 타겟"}
@@ -745,7 +763,7 @@ export default function PhotoRetouchingPage() {
                           </div>
                         )}
 
-                        <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "14px 16px" }}>
+                        <div style={{ background: card, borderRadius: 12, border: `1px solid ${cardBorder}`, padding: "14px 16px" }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 8 }}>핵심 원칙</div>
                           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9 }}>
                             {checkType === "gown" ? (
@@ -791,7 +809,7 @@ export default function PhotoRetouchingPage() {
                             ))}
                           </div>
                         </div>
-                        <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                        <div style={{ background: card, borderRadius: 12, border: `1px solid ${cardBorder}`, overflow: "hidden" }}>
                           <div style={{ padding: "12px 16px", background: C.mint, fontSize: 12, fontWeight: 600, color: C.teal, borderBottom: `1px solid ${C.border}` }}>HSL 피부톤 보정</div>
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
@@ -825,7 +843,7 @@ export default function PhotoRetouchingPage() {
         )}
 
         {/* ── 색감 동기화 탭 ── */}
-        {tab === "sync" && <SyncTab />}
+        {tab === "sync" && <SyncTab embedded={embedded} />}
 
         {/* ── 보정 레시피 탭 ── */}
         {tab === "recipe" && (
@@ -846,7 +864,7 @@ export default function PhotoRetouchingPage() {
             </div>
 
             <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
+              <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "18px" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Camera Raw 기준값</div>
                 {[["색온도","5900K"],["색조 Tint","+3"],["노출","+0.2"],["하이라이트","-30"],["섀도우","+20"],["화이트","+8"],["블랙","+12"],["선명도","+8"],["Vibrance","-5"]].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
@@ -856,7 +874,7 @@ export default function PhotoRetouchingPage() {
                 ))}
               </div>
 
-              <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
+              <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "18px" }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Photoshop 색상균형 기본</div>
                 <div style={{ fontSize: 12, color: C.muted, lineHeight: 2, marginBottom: 12 }}>이미지 → 조정 → 색상 균형<br/>단축키: Shift+Ctrl+B</div>
                 {[["녹청↔빨강","0 (기본)"],["마젠타↔녹색","0 (기본)"],["노랑↔파랑","0 (기본)"]].map(([k, v]) => (
@@ -871,7 +889,7 @@ export default function PhotoRetouchingPage() {
               </div>
             </div>
 
-            <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
+            <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, padding: "20px" }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 14 }}>권장 편집 순서</div>
               {[
                 { n:1, step:"Camera Raw / ACR", desc:"위 기준값 적용", sub:"XMP 프리셋 드래그&드롭으로 한 번에" },
@@ -890,8 +908,15 @@ export default function PhotoRetouchingPage() {
           </div>
         )}
       </div>
+      {embedded ? <footer style={{ minHeight:70, display:"flex", alignItems:"center", padding:"0 20px", borderTop:"1px solid rgba(255,255,255,.10)", color:"rgba(255,255,255,.48)", fontSize:11 }}>
+        {tab === "check" ? "사진을 업로드하면 색감 분석을 시작할 수 있습니다." : tab === "sync" ? "기준 사진과 대상 사진을 올리면 색감 동기화를 시작할 수 있습니다." : "보정 기준을 확인하고 편집 프로그램에 적용하세요."}
+      </footer> : null}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </main>
   );
+}
+
+export default function PhotoRetouchingPage() {
+  return <PhotoRetouchingWorkspace />;
 }

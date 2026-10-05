@@ -146,55 +146,62 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
   const selectedNames = selectedCandidates.map((candidate) => candidate.basename.toLocaleLowerCase("en-US"));
 
   return (
-    <div className={styles.aiPanel}>
-      <div className={styles.aiIntro}>
-        <p>원하는 사진을 자연어로 설명하면 AI가 JPG 후보를 찾습니다. 후보는 자동 확정하지 않으며, 마지막 선택은 직접 합니다.</p>
-      </div>
-
-      <section className={styles.aiSection}>
-        <h3><span>1.</span> 사진 폴더 선택</h3>
-        <div className={styles.folderRow}>
-          <span className={styles.folderState}><FolderOpen size={19} aria-hidden="true" />{folder?.name || "폴더가 선택되지 않았습니다."}</span>
-          <button type="button" className={styles.secondaryButton} onClick={() => void selectFolder()} disabled={loading}>폴더 선택</button>
-        </div>
-      </section>
-
-      <section className={styles.aiSection}>
-        <h3><span>2.</span> 원하는 사진 설명</h3>
-        <div className={styles.searchRow}>
-          <label className={styles.searchInput}>
-            <MessageCircle size={17} aria-hidden="true" />
-            <span className="sr-only">원하는 사진 설명</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} placeholder="예) 상반신 사진 골라줘, 상담하는 장면 찾아줘" />
-          </label>
-          <button type="button" className={styles.primaryButton} disabled={!query.trim() || !folder || loading} onClick={() => void search()}>{loading ? <Loader2 size={16} className="spin-icon" /> : <Search size={16} />}찾기</button>
-        </div>
-        {!loading && !folder ? <p className={styles.searchHint}>폴더를 먼저 선택하세요.</p> : null}
-        {!loading && folder && !query.trim() ? <p className={styles.searchHint}>찾을 사진을 설명해 주세요.</p> : null}
-        {status ? <p className={styles.inlineNotice} role="status">{status}</p> : null}
-      </section>
-
-      <section className={styles.aiSection}>
-        <div className={styles.sectionHeading}><h3><span>3.</span> 후보 사진</h3><small>{sourceCount}장 중 관련 후보 {candidates.length}장 · {selected.size}장 선택됨</small></div>
-        {candidates.length ? (
-          <div className={styles.aiCandidateGrid}>
-            {candidates.map((candidate) => (
-              <button key={candidate.id} type="button" className={`${styles.aiCandidate} ${selected.has(candidate.id) ? styles.aiCandidateSelected : ""}`} onClick={() => toggleCandidate(candidate.id)} aria-pressed={selected.has(candidate.id)}>
-                {/* The thumbnail is a read-only visual preview; no source image data is changed. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={candidate.thumbnail} alt="" />
-                <span><strong>{candidate.name}</strong><small>{candidate.reason}</small></span>
-                <i>{selected.has(candidate.id) ? <Check size={14} strokeWidth={3} /> : `관련도 ${candidate.score}`}</i>
-              </button>
-            ))}
+    <section className={styles.aiSurface} aria-label="AI 사진 셀렉">
+      <header className={styles.aiHeader}>
+        <span className={styles.aiHeaderIcon}><ImageIcon size={21} aria-hidden="true" /></span>
+        <div><h2>AI 사진 셀렉</h2><p>원하는 장면을 설명하면 JPG 후보를 찾아 최종 선택을 돕습니다.</p></div>
+        <span className={styles.aiFolderChip}><FolderOpen size={14} aria-hidden="true" />현재 작업 폴더: <strong>{folder?.name ?? "선택 안 됨"}</strong></span>
+      </header>
+      <div className={styles.aiLayout}>
+        <div className={styles.aiControls}>
+          <div className={styles.aiIntro}>
+            <p>원하는 사진을 자연어로 설명하면 AI가 JPG 후보를 찾습니다. 후보는 자동 확정하지 않으며, 마지막 선택은 직접 합니다.</p>
           </div>
-        ) : <div className={styles.emptyState}><ImageIcon size={46} strokeWidth={1.35} aria-hidden="true" /><p>{loading ? "AI가 사진을 분석하고 있습니다." : "사진 폴더를 선택하고 검색을 시작하세요."}</p></div>}
-      </section>
-
-      <div className={styles.aiActions}>
+          <section className={styles.aiSection}>
+            <h3><span>1.</span> 사진 폴더 선택</h3>
+            <div className={styles.folderRow}>
+              <span className={styles.folderState}><FolderOpen size={19} aria-hidden="true" />{folder?.name || "폴더가 선택되지 않았습니다."}</span>
+              <button type="button" className={styles.secondaryButton} onClick={() => void selectFolder()} disabled={loading}>폴더 선택</button>
+            </div>
+          </section>
+          <section className={styles.aiSection}>
+            <h3><span>2.</span> 원하는 사진 설명</h3>
+            <div className={styles.searchRow}>
+              <label className={styles.searchInput}>
+                <MessageCircle size={17} aria-hidden="true" />
+                <span className="sr-only">원하는 사진 설명</span>
+                <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} placeholder="예) 상반신 사진 골라줘, 상담하는 장면 찾아줘" />
+              </label>
+              <button type="button" className={styles.primaryButton} disabled={!query.trim() || !folder || loading} onClick={() => void search()}>{loading ? <Loader2 size={16} className="spin-icon" /> : <Search size={16} />}찾기</button>
+            </div>
+            {!loading && !folder ? <p className={styles.searchHint}>폴더를 먼저 선택하세요.</p> : null}
+            {!loading && folder && !query.trim() ? <p className={styles.searchHint}>찾을 사진을 설명해 주세요.</p> : null}
+            {status ? <p className={styles.inlineNotice} role="status">{status}</p> : null}
+          </section>
+        </div>
+        <aside className={styles.aiPreview}>
+          <section className={styles.aiSection}>
+            <div className={styles.sectionHeading}><h3><span>3.</span> 후보 사진</h3><small>{sourceCount}장 중 관련 후보 {candidates.length}장 · {selected.size}장 선택됨</small></div>
+            {candidates.length ? (
+              <div className={styles.aiCandidateGrid}>
+                {candidates.map((candidate) => (
+                  <button key={candidate.id} type="button" className={`${styles.aiCandidate} ${selected.has(candidate.id) ? styles.aiCandidateSelected : ""}`} onClick={() => toggleCandidate(candidate.id)} aria-pressed={selected.has(candidate.id)}>
+                    {/* The thumbnail is a read-only visual preview; no source image data is changed. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={candidate.thumbnail} alt="" />
+                    <span><strong>{candidate.name}</strong><small>{candidate.reason}</small></span>
+                    <i>{selected.has(candidate.id) ? <Check size={14} strokeWidth={3} /> : `관련도 ${candidate.score}`}</i>
+                  </button>
+                ))}
+              </div>
+            ) : <div className={styles.emptyState}><ImageIcon size={46} strokeWidth={1.35} aria-hidden="true" /><p>{loading ? "AI가 사진을 분석하고 있습니다." : "사진 폴더를 선택하고 검색을 시작하세요."}</p></div>}
+          </section>
+        </aside>
+      </div>
+      <footer className={styles.aiActions}>
         <button type="button" className={styles.mutedButton} disabled={!selected.size || loading} onClick={() => setSelected(new Set())}>선택 초기화</button>
         <div><button type="button" className={styles.secondaryButton} disabled={!selected.size || loading} onClick={() => callbacks.onConfirmSelection?.(selectedNames)}>선택만 저장 ({selected.size}장)</button><button type="button" className={styles.primaryButton} disabled={!selected.size || loading} onClick={() => callbacks.onStartRawMatch?.(selectedNames)}>저장하고 RAW 매칭으로</button></div>
-      </div>
-    </div>
+      </footer>
+    </section>
   );
 }

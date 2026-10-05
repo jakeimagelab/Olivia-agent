@@ -2,7 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, type ComponentType } from "react";
+import { Link2 } from "lucide-react";
 import { WorkPanel } from "@/components/workspace-shell/WorkPanel";
 import { WorkspaceGrid } from "@/components/workspace-shell/WorkspaceGrid";
 import { WorkspaceContent, WorkspaceShell } from "@/components/workspace-shell/WorkspaceShell";
@@ -16,6 +17,7 @@ import styles from "./PhotoWorkspace.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
 import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner";
+import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 
 const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"), {
   ssr: false,
@@ -33,10 +35,13 @@ const PhotoTcutWorkspace = dynamic(() => import("./PhotoTcutWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>T컷 정리 도구를 불러오는 중...</div>,
 });
-const PhotoRetouchingWorkspace = dynamic(() => import("@/app/(photo-studio)/photo-retouching/page"), {
-  ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
-});
+const PhotoRetouchingWorkspace = dynamic(
+  () => import("@/app/(photo-studio)/photo-retouching/page"),
+  {
+    ssr: false,
+    loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
+  },
+) as ComponentType<{ embedded?: boolean }>;
 const PhotoResizeWorkspace = dynamic(() => import("./PhotoResizeWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 리사이즈 도구를 불러오는 중...</div>,
@@ -120,10 +125,23 @@ function PhotoWorkspaceContent({
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
-            {!remoteUnavailable && mode === "raw-match" ? <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} /> : null}
+            {!remoteUnavailable && mode === "raw-match" ? (
+              <div className={styles.workspaceToolSurface}>
+                <header className={styles.workspaceToolHeader}>
+                  <span className={styles.workspaceToolHeaderIcon}><Link2 size={18} aria-hidden="true" /></span>
+                  <span>
+                    <strong>RAW 매칭</strong>
+                    <small>선택한 JPG와 RAW 원본을 파일명 또는 촬영시간으로 연결합니다.</small>
+                  </span>
+                  <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
+                </header>
+                <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
+                <footer className={styles.workspaceToolActions}>JPG 선택 방식과 RAW 원본 위치를 지정하면 매칭을 시작할 수 있습니다.</footer>
+              </div>
+            ) : null}
             {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
             {!remoteUnavailable && mode === "t-cut" ? <PhotoTcutWorkspace rootDir={currentLocalFolder} /> : null}
-            {!remoteUnavailable && mode === "retouch" ? <PhotoRetouchingWorkspace /> : null}
+            {!remoteUnavailable && mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
             {!remoteUnavailable && mode === "resize" ? <PhotoResizeWorkspace /> : null}
             {!remoteUnavailable && mode === "rename" ? <PhotoRenameWorkspace rootDir={currentLocalFolder} /> : null}
           </WorkPanel>

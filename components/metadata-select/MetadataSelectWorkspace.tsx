@@ -160,7 +160,7 @@ function Btn({ children, onClick, disabled, style }: {
   );
 }
 
-function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: {
+function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled, dark = false }: {
   step: number;
   label: string;
   hint?: string;
@@ -168,15 +168,21 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
   onPick: () => void;
   onClear?: () => void;
   disabled: boolean;
+  dark?: boolean;
 }) {
+  const border = dark ? "rgba(255,255,255,.10)" : C.border;
+  const text = dark ? "rgba(255,255,255,.88)" : C.ink;
+  const muted = dark ? "rgba(255,255,255,.52)" : C.muted;
+  const secondaryBackground = dark ? "rgba(255,255,255,.06)" : C.white;
+  const secondaryColor = dark ? "#D9F6EE" : C.teal;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${C.border}` }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: `1px solid ${border}` }}>
       <span style={{
         width: 24,
         height: 24,
         borderRadius: "50%",
-        background: C.teal,
-        color: C.white,
+        background: dark ? "#37C39D" : C.teal,
+        color: dark ? "#103E36" : C.white,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -187,12 +193,12 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
         {step}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{label}</div>
-        {dir || hint ? <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{dir?.name ?? hint}</div> : null}
+        <div style={{ fontSize: 13, fontWeight: 600, color: text }}>{label}</div>
+        {dir || hint ? <div style={{ fontSize: 11, color: muted, marginTop: 2 }}>{dir?.name ?? hint}</div> : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {dir && onClear ? <Btn onClick={onClear} disabled={disabled} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}`, paddingInline: 12 }}>선택 해제</Btn> : null}
-        <Btn onClick={onPick} disabled={disabled} style={{ background: C.white, color: C.teal, border: `1px solid ${C.border}` }}>
+        {dir && onClear ? <Btn onClick={onClear} disabled={disabled} style={{ background: secondaryBackground, color: muted, border: `1px solid ${border}`, paddingInline: 12 }}>선택 해제</Btn> : null}
+        <Btn onClick={onPick} disabled={disabled} style={{ background: secondaryBackground, color: secondaryColor, border: `1px solid ${dark ? "rgba(255,255,255,.18)" : C.border}` }}>
           {dir ? <><CheckCircle2 size={16} aria-hidden="true" />{dir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}
         </Btn>
       </div>
@@ -203,6 +209,11 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
 export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { selectedJpgNames?: readonly string[] }) {
   const { currentLocalFolder, setCurrentLocalFolder } = usePhotoStudioExecution();
   const desktopWindowMode = useDesktopWindowMode();
+  const panelCard = desktopWindowMode ? "rgba(255,255,255,.025)" : C.white;
+  const panelGroup = desktopWindowMode ? "rgba(255,255,255,.045)" : C.light;
+  const panelBorder = desktopWindowMode ? "rgba(255,255,255,.13)" : C.border;
+  const panelText = desktopWindowMode ? "rgba(255,255,255,.88)" : C.ink;
+  const panelMuted = desktopWindowMode ? "rgba(255,255,255,.52)" : C.muted;
   const [hasFS, setHasFS] = useState(false);
   const [excludeCompleted, setExcludeCompleted] = useState(false);
   const [transferMode, setTransferMode] = useState<MetadataRawTransferMode>("copy");
@@ -487,19 +498,19 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
         {!hasFS ? (
           <div className="pc-card pc-card--padded" style={{ fontSize: 12, color: C.danger, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
         ) : (
-          <section className="pc-card pc-card--padded">
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0 0 12px", borderBottom: `1px solid ${C.border}`, color: C.ink }}>
+          <section className="pc-card pc-card--padded" style={{ background: panelCard, borderColor: panelBorder, color: panelText }}>
+            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "0 0 12px", borderBottom: `1px solid ${panelBorder}`, color: panelText }}>
               <span>
                 <strong style={{ display: "block", fontSize: 13 }}>이미 작업한 사진 제외</strong>
-                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>선택한 RAW 작업본에서 매칭된 파일을 {FINISHED_RAW_DIRECTORY}/로 옮깁니다.</small>
+                <small style={{ display: "block", marginTop: 4, color: panelMuted, lineHeight: 1.5 }}>선택한 RAW 작업본에서 매칭된 파일을 {FINISHED_RAW_DIRECTORY}/로 옮깁니다.</small>
               </span>
-              <input type="checkbox" checked={excludeCompleted} disabled={running} onChange={(event) => toggleExclude(event.target.checked)} aria-label="이미 작업한 사진 제외" style={{ width: 20, height: 20, accentColor: C.orange }} />
+              <input type="checkbox" checked={excludeCompleted} disabled={running} onChange={(event) => toggleExclude(event.target.checked)} aria-label="이미 작업한 사진 제외" style={{ width: 20, height: 20, accentColor: C.orange, colorScheme: desktopWindowMode ? "dark" : "light", background: desktopWindowMode ? "rgba(0,0,0,.16)" : undefined, border: desktopWindowMode ? "1px solid rgba(255,255,255,.3)" : undefined }} />
             </label>
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 0", borderBottom: `1px solid ${C.border}`, color: C.ink }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "12px 0", borderBottom: `1px solid ${panelBorder}`, color: panelText }}>
               <span>
                 <strong style={{ display: "block", fontSize: 13 }}>처리 방식</strong>
-                <small style={{ display: "block", marginTop: 4, color: C.muted, lineHeight: 1.5 }}>
+                <small style={{ display: "block", marginTop: 4, color: panelMuted, lineHeight: 1.5 }}>
                   {excludeCompleted
                     ? `완료 RAW로 이동 · ${FINISHED_RAW_DIRECTORY}/`
                     : transferMode === "copy"
@@ -525,9 +536,9 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
                           minHeight: 34,
                           padding: "6px 11px",
                           borderRadius: R.sm,
-                          border: `1px solid ${active ? "#37C39D" : C.border}`,
-                          background: active ? "#37C39D" : C.white,
-                          color: active ? "#103E36" : C.muted,
+                          border: `1px solid ${active ? "#37C39D" : panelBorder}`,
+                          background: active ? "#37C39D" : panelCard,
+                          color: active ? "#103E36" : panelMuted,
                           fontFamily: "inherit",
                           fontSize: 12,
                           fontWeight: 600,
@@ -542,8 +553,9 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
               )}
             </div>
 
-            <FolderPickerRow step={1} label="선택본" dir={selectionDir} disabled={running} onPick={() => pick(setSelectionDir, "read")} />
+            <FolderPickerRow dark={desktopWindowMode} step={1} label="선택본" dir={selectionDir} disabled={running} onPick={() => pick(setSelectionDir, "read")} />
             <FolderPickerRow
+              dark={desktopWindowMode}
               step={2}
               label="원본 JPG"
               hint="선택 사항 · 선택본 파일명이 바뀐 경우에만 지정"
@@ -552,7 +564,7 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
               onPick={() => pick(setSourceDir, "read")}
               onClear={() => { setSourceDir(null); resetAnalysis(); }}
             />
-            <FolderPickerRow step={3} label={excludeCompleted ? "RAW 작업본" : "RAW 원본"} dir={rawDir} disabled={running} onPick={() => pick(setRawDir, "readwrite")} />
+            <FolderPickerRow dark={desktopWindowMode} step={3} label={excludeCompleted ? "RAW 작업본" : "RAW 원본"} dir={rawDir} disabled={running} onPick={() => pick(setRawDir, "readwrite")} />
 
             <div style={{ marginTop: 16, display: "grid", gap: 6 }} aria-live="polite">
               {missingRequirements.map((message) => <div key={message} style={{ fontSize: 11, color: C.orange }}>• {message}</div>)}
@@ -569,9 +581,9 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
             {error ? <div style={{ marginTop: 12, whiteSpace: "pre-wrap", fontSize: 12, color: C.danger, textAlign: "center", lineHeight: 1.7 }}>{error}</div> : null}
 
             {phase === "awaiting_confirmation" && plan ? (
-              <div style={{ marginTop: 18, border: `1px solid ${C.border}`, borderRadius: R.md, background: C.light, padding: 16, color: C.ink }}>
+              <div style={{ marginTop: 18, border: `1px solid ${panelBorder}`, borderRadius: R.md, background: panelGroup, padding: 16, color: panelText }}>
                 <strong style={{ display: "block", fontSize: 14 }}>파일을 변경하기 전에 확인해주세요.</strong>
-                <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.9, color: C.muted }}>
+                <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.9, color: panelMuted }}>
                   선택본 {plan.selectionCount}장
                   <br />매칭 RAW {plan.matchedRawCount}장
                   {plan.burstExtraCount > 0 ? <> · 동일 촬영시간 추가 RAW {plan.burstExtraCount}장</> : null}
@@ -589,19 +601,19 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
                       ? `RAW ${plan.rawCopyTransfers.length}장 복사`
                       : `RAW ${plan.rawMoveTransfers.length}장 이동`}
                   </Btn>
-                  <Btn onClick={resetAnalysis} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}` }}>취소</Btn>
+                  <Btn onClick={resetAnalysis} style={{ background: panelCard, color: panelMuted, border: `1px solid ${panelBorder}` }}>취소</Btn>
                 </div>
               </div>
             ) : null}
 
-            <div style={{ marginTop: 16, background: C.light, borderRadius: R.sm, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
+            <div style={{ marginTop: 16, background: panelGroup, borderRadius: R.sm, padding: "12px 14px", fontSize: 11, color: panelMuted, lineHeight: 1.9 }}>
               <Clock size={12} style={{ verticalAlign: -1, marginRight: 4 }} />원본 JPG가 없어도 파일명을 먼저 비교하고, 이름이 바뀐 선택본은 EXIF 촬영시간으로 RAW를 직접 찾습니다. 같은 촬영시간의 RAW는 연사 그룹으로 모두 선택합니다. 완료 제외 모드는 매칭된 RAW 작업본을 이동하며, 일반 모드에서는 복사 또는 안전 이동을 고를 수 있습니다.
             </div>
           </section>
         )}
 
         {rows.length > 0 ? (
-          <section className="pc-card pc-card--padded" style={{ marginTop: 18 }}>
+          <section className="pc-card pc-card--padded" style={{ marginTop: 18, background: panelCard, borderColor: panelBorder, color: panelText }}>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginBottom: 18, fontSize: 13 }}>
               <div><span style={{ color: C.muted }}>총 선택본</span> <strong>{rows.length}</strong></div>
               {plan ? <div><span style={{ color: C.muted }}>매칭 RAW</span> <strong style={{ color: C.teal }}>{plan.matchedRawCount}</strong></div> : null}

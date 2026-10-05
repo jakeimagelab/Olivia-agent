@@ -42,9 +42,9 @@ export default function ClassificationProfilePanel({ profile, onOpenAdvanced }: 
         <button
           type="button"
           onClick={onOpenAdvanced}
-          style={{ marginTop: 4, padding: "9px 0", borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.white, color: C.muted, fontSize: 11.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
+          style={{ marginTop: 4, padding: "9px 0", borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.surface, color: C.muted, fontSize: 11.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}
         >
-          고급 설정 열기 →
+          고급 설정 열기
         </button>
       </div>
     </Card>

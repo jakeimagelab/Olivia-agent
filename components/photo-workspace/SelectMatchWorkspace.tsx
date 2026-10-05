@@ -161,9 +161,9 @@ function checkFileSequence(fileNames: string[]): SequenceCheckResult {
 }
 
 /* ── Component ── */
-function Btn({ children, onClick, disabled, variant, style: s }: {
+function Btn({ children, onClick, disabled, variant, dark = false, style: s }: {
   children: React.ReactNode; onClick?: () => void;
-  disabled?: boolean; variant?: "secondary"; style?: React.CSSProperties;
+  disabled?: boolean; variant?: "secondary"; dark?: boolean; style?: React.CSSProperties;
 }) {
   return (
     <button
@@ -171,10 +171,10 @@ function Btn({ children, onClick, disabled, variant, style: s }: {
       style={{
         display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
         padding: "9px 20px", fontSize: 13, fontWeight: 500, borderRadius: 10,
-        border: variant === "secondary" ? `1px solid ${C.border}` : "none",
+        border: variant === "secondary" ? `1px solid ${dark ? "rgba(255,255,255,.18)" : C.border}` : "none",
         cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
-        background: disabled ? C.border : variant === "secondary" ? C.white : C.teal,
-        color: disabled ? C.hint : variant === "secondary" ? C.teal : C.white,
+        background: disabled ? "transparent" : variant === "secondary" ? "rgba(255,255,255,.06)" : "#37C39D",
+        color: disabled ? "rgba(255,255,255,.30)" : variant === "secondary" ? "#D9F6EE" : "#103E36",
         opacity: disabled ? 0.6 : 1, transition: "opacity .15s", ...s,
       } as React.CSSProperties}
     >{children}</button>
@@ -236,6 +236,17 @@ export function SelectMatchWorkspace({
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
   useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
+
+  // 같은 도구가 단독 화면에서도 쓰이므로, 사진작업실 안에서만 중성 다크 토큰을 켠다.
+  // 선택·파일 처리·매칭 상태에는 관여하지 않는 표시 전용 값이다.
+  const surfaceCard = "rgba(255,255,255,.025)";
+  const groupedSurface = embedded ? "rgba(255,255,255,.045)" : C.light;
+  const inputSurface = embedded ? "rgba(0,0,0,.16)" : C.bg;
+  const uiBorder = embedded ? "rgba(255,255,255,.13)" : C.border;
+  const uiText = embedded ? "rgba(255,255,255,.88)" : C.txt;
+  const uiMuted = embedded ? "rgba(255,255,255,.52)" : C.muted;
+  const uiHint = embedded ? "rgba(255,255,255,.42)" : C.hint;
+  const uiAccent = embedded ? "#4FD8B8" : C.teal;
 
   /* ── 클라이언트 입력 모드 상태 ── */
   const [inputMode,     setInputMode]     = useState<"folder" | "text" | "upload">(() => initialView === "client" ? "text" : "folder");
@@ -697,27 +708,27 @@ export function SelectMatchWorkspace({
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 20 }}>
       <button onClick={() => setFeature("raw_match")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "raw_match" ? C.teal : C.border}`,
-        background: feature === "raw_match" ? C.light : C.white,
-        color: feature === "raw_match" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
+        border: `1.5px solid ${feature === "raw_match" ? uiAccent : uiBorder}`,
+        background: feature === "raw_match" ? groupedSurface : surfaceCard,
+        color: feature === "raw_match" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
       }}>셀렉 &amp; RAW 매칭</button>
       <button onClick={() => setFeature("find_move")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "find_move" ? C.teal : C.border}`,
-        background: feature === "find_move" ? C.light : C.white,
-        color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
+        border: `1.5px solid ${feature === "find_move" ? uiAccent : uiBorder}`,
+        background: feature === "find_move" ? groupedSurface : surfaceCard,
+        color: feature === "find_move" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
       }}>파일명으로 찾기</button>
       <button onClick={() => setFeature("seq_check")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "seq_check" ? C.teal : C.border}`,
-        background: feature === "seq_check" ? C.light : C.white,
-        color: feature === "seq_check" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
+        border: `1.5px solid ${feature === "seq_check" ? uiAccent : uiBorder}`,
+        background: feature === "seq_check" ? groupedSurface : surfaceCard,
+        color: feature === "seq_check" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
       }}>파일 순서 검토</button>
       <button onClick={() => setFeature("program_archive")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "program_archive" ? C.teal : C.border}`,
-        background: feature === "program_archive" ? C.light : C.white,
-        color: feature === "program_archive" ? C.teal : C.muted, fontSize: 11, fontWeight: 500,
+        border: `1.5px solid ${feature === "program_archive" ? uiAccent : uiBorder}`,
+        background: feature === "program_archive" ? groupedSurface : surfaceCard,
+        color: feature === "program_archive" ? uiAccent : uiMuted, fontSize: 11, fontWeight: 500,
       }}>모바일 자동화 &gt; 프로그램 아카이브</button>
     </div>
   );
@@ -727,26 +738,26 @@ export function SelectMatchWorkspace({
     <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
       <FeatureTabs />
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <Smartphone size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
-        <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>모바일 자동화 &gt; 프로그램 아카이브</div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>사진 작업실에서 사용하는 자동화 프로그램을 모아둔 자료실입니다.</div>
+        <Smartphone size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
+        <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>모바일 자동화 &gt; 프로그램 아카이브</div>
+        <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>사진 작업실에서 사용하는 자동화 프로그램을 모아둔 자료실입니다.</div>
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
         {PROGRAM_ARCHIVE_ITEMS.map((item) => (
           <div key={item.href} style={{
-            background: C.white, border: `1px solid ${C.border}`, borderRadius: 14,
+            background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14,
             padding: 18, display: "grid", gridTemplateColumns: "1fr auto", gap: 16,
             alignItems: "center",
           }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: C.hint, marginBottom: 5 }}>{item.meta}</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: C.txt, marginBottom: 6 }}>{item.title}</div>
-              <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>{item.desc}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: uiHint, marginBottom: 5 }}>{item.meta}</div>
+              <div style={{ fontSize: 15, fontWeight: 600, color: uiText, marginBottom: 6 }}>{item.title}</div>
+              <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7 }}>{item.desc}</div>
             </div>
             <a href={item.href} download style={{
               display: "inline-block", padding: "9px 16px", borderRadius: 10,
-              background: C.teal, color: C.white, fontSize: 12, fontWeight: 500,
+              background: uiAccent, color: surfaceCard, fontSize: 12, fontWeight: 500,
               textDecoration: "none", whiteSpace: "nowrap",
             }}>다운로드</a>
           </div>
@@ -761,14 +772,14 @@ export function SelectMatchWorkspace({
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
         <FeatureTabs />
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <FileText size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>파일명으로 찾기</div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
+          <FileText size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
+          <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일명으로 찾기</div>
+          <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
         </div>
 
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24 }}>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: C.txt, marginBottom: 8 }}>1. 검색할 폴더 선택 (하위 폴더까지 검색)</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>1. 검색할 폴더 선택 (하위 폴더까지 검색)</div>
             {!hasFS ? (
               <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
             ) : (
@@ -777,7 +788,7 @@ export function SelectMatchWorkspace({
           </div>
 
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: C.txt, marginBottom: 8 }}>2. 파일명 목록 (한 줄에 하나씩, 또는 쉼표로 구분)</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>2. 파일명 목록 (한 줄에 하나씩, 또는 쉼표로 구분)</div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
               <input
                 ref={fmOcrFileRef}
@@ -794,13 +805,13 @@ export function SelectMatchWorkspace({
               >
                 {fmOcrLoading ? "이미지 읽는 중..." : <><ScanSearch size={15} aria-hidden="true" />스크린샷에서 파일명 추출</>}
               </Btn>
-              <span style={{ fontSize: 11, color: C.hint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
+              <span style={{ fontSize: 11, color: uiHint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
             </div>
             {fmOcrMessage && (
               <div style={{
                 marginBottom: 10, borderRadius: 8, padding: "9px 12px", fontSize: 11, fontWeight: 500,
                 color: fmOcrMessage.ok ? C.green : C.red,
-                background: fmOcrMessage.ok ? C.light : "#FEF2F2",
+                background: fmOcrMessage.ok ? groupedSurface : "#FEF2F2",
               }}>
                 {fmOcrMessage.text}
               </div>
@@ -810,23 +821,23 @@ export function SelectMatchWorkspace({
               onChange={(e) => setFmText(e.target.value)}
               placeholder={"예시:\nDSC_0142.jpg\nDSC_0145.mp4\nDSC_0148  ← 확장자 생략 시 모든 확장자 파일을 찾습니다"}
               rows={7}
-              style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: C.bg, color: C.txt, boxSizing: "border-box" }}
+              style={{ width: "100%", border: `1px solid ${uiBorder}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: inputSurface, color: uiText, boxSizing: "border-box" }}
             />
             {fmText.trim() && (
-              <div style={{ marginTop: 10, background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted }}>
-                파일명 <strong style={{ color: C.teal }}>{parseFileNameQueries(fmText).length}개</strong> 입력됨
+              <div style={{ marginTop: 10, background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted }}>
+                파일명 <strong style={{ color: uiAccent }}>{parseFileNameQueries(fmText).length}개</strong> 입력됨
               </div>
             )}
           </div>
 
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: C.txt, marginBottom: 8 }}>3. 이동할 선택 폴더 이름</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>3. 이동할 선택 폴더 이름</div>
             <input
               value={fmFolderName}
               onChange={(e) => setFmFolderName(e.target.value || "선택")}
-              style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }}
+              style={{ width: "100%", border: `1px solid ${uiBorder}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }}
             />
-            <div style={{ fontSize: 11, color: C.hint, marginTop: 6 }}>선택한 폴더 안에 이 이름으로 폴더가 생성되고, 찾은 파일이 그 안으로 이동합니다.</div>
+            <div style={{ fontSize: 11, color: uiHint, marginTop: 6 }}>선택한 폴더 안에 이 이름으로 폴더가 생성되고, 찾은 파일이 그 안으로 이동합니다.</div>
           </div>
 
           <div style={{ textAlign: "center" }}>
@@ -838,24 +849,24 @@ export function SelectMatchWorkspace({
 
     if (fmStep === "scanning") return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <ScanSearch size={28} aria-hidden="true" style={{ marginBottom: 12, color: C.teal }} />
-        <div style={{ fontSize: 13, color: C.muted }}>폴더를 검색하는 중입니다...</div>
+        <ScanSearch size={28} aria-hidden="true" style={{ marginBottom: 12, color: uiAccent }} />
+        <div style={{ fontSize: 13, color: uiMuted }}>폴더를 검색하는 중입니다...</div>
       </div>
     );
 
     if (fmStep === "result") return (
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-          <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.teal }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+          <div style={{ padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
             검색 결과 — 찾음 {fmMatches.length}개 · 못 찾음 {fmMissing.length}개
           </div>
           <div style={{ padding: 20 }}>
             {fmMatches.length > 0 && (
               <div style={{ maxHeight: 220, overflowY: "auto", marginBottom: fmMissing.length > 0 ? 14 : 0 }}>
                 {fmMatches.map((m) => (
-                  <div key={m.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, color: C.txt, borderBottom: `1px solid ${C.border}` }}>
+                  <div key={m.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, color: uiText, borderBottom: `1px solid ${uiBorder}` }}>
                     <span>{m.name}</span>
-                    <span style={{ color: C.hint }}>{m.query}</span>
+                    <span style={{ color: uiHint }}>{m.query}</span>
                   </div>
                 ))}
               </div>
@@ -878,9 +889,9 @@ export function SelectMatchWorkspace({
       const pct = fmProgress.total > 0 ? Math.round((fmProgress.cur / fmProgress.total) * 100) : 0;
       return (
         <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px" }}>
-          <div style={{ fontSize: 13, color: C.muted, marginBottom: 8, textAlign: "center" }}>{fmProgress.cur} / {fmProgress.total} 이동 중...</div>
-          <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: C.teal, transition: "width .2s" }} />
+          <div style={{ fontSize: 13, color: uiMuted, marginBottom: 8, textAlign: "center" }}>{fmProgress.cur} / {fmProgress.total} 이동 중...</div>
+          <div style={{ height: 8, background: uiBorder, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: uiAccent, transition: "width .2s" }} />
           </div>
         </div>
       );
@@ -889,8 +900,8 @@ export function SelectMatchWorkspace({
     if (fmStep === "done") return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
         <CheckCircle2 size={28} aria-hidden="true" style={{ marginBottom: 12, color: C.green }} />
-        <div style={{ fontSize: 14, fontWeight: 500, color: C.txt, marginBottom: 20 }}>
-          {fmMovedCount}개 파일을 <strong style={{ color: C.teal }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
+        <div style={{ fontSize: 14, fontWeight: 500, color: uiText, marginBottom: 20 }}>
+          {fmMovedCount}개 파일을 <strong style={{ color: uiAccent }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
         </div>
         <Btn onClick={resetFindByName}>새로 검색하기</Btn>
       </div>
@@ -903,18 +914,18 @@ export function SelectMatchWorkspace({
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
         <FeatureTabs />
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <ListOrdered size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
-          <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>파일 순서 검토</div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>폴더를 지정하면 파일명 끝자리 번호(예: DSC03532 → 3532)로 넘버링이 끊긴 곳(누락 파일)이 있는지 검사합니다.</div>
+          <ListOrdered size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
+          <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일 순서 검토</div>
+          <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>폴더를 지정하면 파일명 끝자리 번호(예: DSC03532 → 3532)로 넘버링이 끊긴 곳(누락 파일)이 있는지 검사합니다.</div>
         </div>
 
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, textAlign: "center" }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24, textAlign: "center" }}>
           {!hasFS ? (
             <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
           ) : (
             <>
               <Btn onClick={pickScFolder}>{scRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{scRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</Btn>
-              <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
+              <div style={{ fontSize: 11, color: uiHint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
               {scRootDir && (
                 <div style={{ marginTop: 16 }}>
                   <Btn onClick={runSequenceCheck}>순서 검토 시작</Btn>
@@ -928,7 +939,7 @@ export function SelectMatchWorkspace({
 
     if (scStep === "scanning") return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 13, color: C.muted }}>폴더를 스캔하는 중...</div>
+        <div style={{ fontSize: 13, color: uiMuted }}>폴더를 스캔하는 중...</div>
       </div>
     );
 
@@ -937,14 +948,14 @@ export function SelectMatchWorkspace({
       return (
         <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
           <FeatureTabs />
-          <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: C.txt, marginBottom: 4 }}>
+          <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 4 }}>
               총 {scResult.totalFiles}개 파일
               {scResult.min !== null && scResult.max !== null && ` · 번호 범위 ${scResult.min}~${scResult.max}`}
             </div>
 
             {scResult.recognizedNumbers.length === 0 ? (
-              <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.muted, marginTop: 12 }}>
+              <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", fontSize: 12, color: uiMuted, marginTop: 12 }}>
                 번호를 인식할 수 있는 파일이 없습니다.
               </div>
             ) : scResult.rangeTooLarge ? (
@@ -952,9 +963,9 @@ export function SelectMatchWorkspace({
                 ⚠️ 번호 범위가 비정상적으로 커서({scResult.min}~{scResult.max}) 검사할 수 없습니다. 파일명에 날짜·시간 등 다른 숫자가 섞여 잘못 인식됐을 가능성이 있습니다.
               </div>
             ) : hasMissing ? (
-              <div style={{ background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+              <div style={{ background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: "#C2410C", marginBottom: 6 }}>⚠️ 누락 {scResult.missingRanges.length}건</div>
-                <div style={{ fontSize: 12, color: C.txt, lineHeight: 1.8 }}>
+                <div style={{ fontSize: 12, color: uiText, lineHeight: 1.8 }}>
                   {scResult.missingRanges.map(formatMissingRange).join(", ")}
                 </div>
               </div>
@@ -965,9 +976,9 @@ export function SelectMatchWorkspace({
             )}
 
             {scResult.unrecognizedFiles.length > 0 && (
-              <div style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: 6 }}>번호 인식 불가 (검사에서 제외됨) {scResult.unrecognizedFiles.length}개</div>
-                <div style={{ fontSize: 11, color: C.hint, maxHeight: 120, overflowY: "auto" }}>{scResult.unrecognizedFiles.join(", ")}</div>
+              <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, color: uiMuted, marginBottom: 6 }}>번호 인식 불가 (검사에서 제외됨) {scResult.unrecognizedFiles.length}개</div>
+                <div style={{ fontSize: 11, color: uiHint, maxHeight: 120, overflowY: "auto" }}>{scResult.unrecognizedFiles.join(", ")}</div>
               </div>
             )}
           </div>
@@ -991,8 +1002,8 @@ export function SelectMatchWorkspace({
       <FeatureTabs />
       {!embedded ? <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 30, marginBottom: 8 }}>🎯</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>RAW 매칭</div>
-        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>고객 선택 정보를 어떻게 받으셨나요?</div>
+        <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>RAW 매칭</div>
+        <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>고객 선택 정보를 어떻게 받으셨나요?</div>
       </div> : null}
 
       {/* 3가지 진입 모드 */}
@@ -1001,31 +1012,31 @@ export function SelectMatchWorkspace({
           <button type="button" key={m.key} onClick={() => setInputMode(m.key)}
             aria-pressed={inputMode === m.key}
             style={{
-              background: inputMode === m.key ? C.light : C.white,
-              border: `1.5px solid ${inputMode === m.key ? C.teal : C.border}`,
+              background: inputMode === m.key ? (embedded ? "rgba(48,174,146,.14)" : groupedSurface) : surfaceCard,
+              border: `1.5px solid ${inputMode === m.key ? uiAccent : uiBorder}`,
               borderRadius: 12, padding: "18px 14px", textAlign: "center", cursor: "pointer",
               transition: "background .2s cubic-bezier(.32,.72,0,1), border-color .2s cubic-bezier(.32,.72,0,1)", fontFamily: "inherit",
             }}>
-            <div style={{ minHeight: 22, display: "grid", placeItems: "center", marginBottom: 8, color: inputMode === m.key ? C.teal : C.muted }}>{m.icon}</div>
-            <div style={{ fontSize: 12, fontWeight: 500, color: inputMode === m.key ? C.teal : C.txt, marginBottom: 4 }}>{m.title}</div>
-            <div style={{ fontSize: 10, color: C.hint, lineHeight: 1.6, whiteSpace: "pre-line" }}>{m.desc}</div>
+            <div style={{ minHeight: 22, display: "grid", placeItems: "center", marginBottom: 8, color: inputMode === m.key ? uiAccent : uiMuted }}>{m.icon}</div>
+            <div style={{ fontSize: 12, fontWeight: 500, color: inputMode === m.key ? uiAccent : uiText, marginBottom: 4 }}>{m.title}</div>
+            <div style={{ fontSize: 10, color: uiHint, lineHeight: 1.6, whiteSpace: "pre-line" }}>{m.desc}</div>
           </button>
         ))}
       </div> : null}
 
       {/* 폴더 선택 모드 */}
       {inputMode === "folder" && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.8, marginBottom: 18, textAlign: "center" }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.8, marginBottom: 18, textAlign: "center" }}>
             분류된 JPG 폴더를 선택하면 폴더 이름과 관계없이<br />
             하위 사진을 찾아 그룹별로 베스트컷을 선택할 수 있습니다.
           </div>
           {!hasFS ? (
             <div style={{ fontSize: 12, color: C.red, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
           ) : (
-            <div style={{ textAlign: "center" }}><Btn onClick={loadFolder}><FolderOpen size={16} aria-hidden="true" />폴더 선택</Btn></div>
+            <div style={{ textAlign: "center" }}><Btn dark={embedded} onClick={loadFolder}><FolderOpen size={16} aria-hidden="true" />폴더 선택</Btn></div>
           )}
-          <div style={{ marginTop: 16, background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
+          <div style={{ marginTop: 16, background: groupedSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiMuted, lineHeight: 1.9 }}>
             {selectionOnly ? (
               <>JPG 또는 분류된 사진 폴더를 선택하세요.<br />선택 결과는 사진 작업실의 JPG 선택 목록에만 저장됩니다.</>
             ) : (
@@ -1040,25 +1051,25 @@ export function SelectMatchWorkspace({
 
       {/* 텍스트 붙여넣기 모드 */}
       {inputMode === "text" && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 14 }}>
             카카오톡 대화, 이메일, 메모 등에서 파일명이 담긴 텍스트를 그대로 붙여넣으세요.<br />
-            <span style={{ color: C.hint }}>DSC_0142.jpg 형태의 파일명을 자동 추출합니다.</span>
+            <span style={{ color: uiHint }}>DSC_0142.jpg 형태의 파일명을 자동 추출합니다.</span>
           </div>
           <textarea
             value={clientText}
             onChange={e => setClientText(e.target.value)}
             placeholder={"예시:\nDSC_0142.jpg, DSC_0145.jpg\nDSC_0148.jpg\nDSC_0151.jpg ..."}
             rows={7}
-            style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: C.bg, color: C.txt, boxSizing: "border-box" }}
+            style={{ width: "100%", border: `1px solid ${uiBorder}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: inputSurface, color: uiText, boxSizing: "border-box" }}
           />
           {clientText.trim() && (() => {
             const names = parseNamesFromText(clientText);
             return (
-              <div style={{ marginTop: 10, background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted }}>
-                파일명 <strong style={{ color: C.teal }}>{names.size}개</strong> 추출됨
+              <div style={{ marginTop: 10, background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted }}>
+                파일명 <strong style={{ color: uiAccent }}>{names.size}개</strong> 추출됨
                 {names.size > 0 && (
-                  <span style={{ marginLeft: 8, color: C.hint }}>
+                  <span style={{ marginLeft: 8, color: uiHint }}>
                     {Array.from(names).slice(0, 3).join(", ")}{names.size > 3 ? ` 외 ${names.size - 3}개` : ""}
                   </span>
                 )}
@@ -1066,7 +1077,7 @@ export function SelectMatchWorkspace({
             );
           })()}
           <div style={{ marginTop: 14, textAlign: "center" }}>
-            <Btn onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
+            <Btn dark={embedded} onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
               {selectionOnly ? "선택 목록 저장" : "다음 — RAW 폴더 선택"}
             </Btn>
           </div>
@@ -1075,10 +1086,10 @@ export function SelectMatchWorkspace({
 
       {/* 파일 업로드 모드 */}
       {inputMode === "upload" && (
-        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24 }}>
-          <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 14 }}>
+        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24 }}>
+          <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 14 }}>
             고객이 선택해서 보낸 JPG 파일 또는 셀렉 리포트 스크린샷을 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
-            <span style={{ color: C.hint }}>일반 JPG는 파일명 그대로, 리포트 이미지는 화면 안의 파일명을 분석해 RAW 매칭에 사용합니다.</span>
+            <span style={{ color: uiHint }}>일반 JPG는 파일명 그대로, 리포트 이미지는 화면 안의 파일명을 분석해 RAW 매칭에 사용합니다.</span>
           </div>
           <input ref={clientFileRef} type="file" multiple accept="image/*,.jpg,.jpeg,.heic,.png,.tif"
             style={{ display: "none" }}
@@ -1089,38 +1100,38 @@ export function SelectMatchWorkspace({
             onDrop={e => { e.preventDefault(); setClientDragging(false); setUploadedFiles(e.dataTransfer.files); }}
             onClick={() => clientFileRef.current?.click()}
             style={{
-              border: `2px dashed ${clientDragging ? C.teal : C.border}`,
+              border: `2px dashed ${clientDragging ? uiAccent : uiBorder}`,
               borderRadius: 12, padding: "48px 24px", textAlign: "center", cursor: "pointer",
-              background: clientDragging ? C.light : C.bg, transition: "all .2s",
+              background: clientDragging ? groupedSurface : inputSurface, transition: "all .2s",
             }}>
-            <FolderOpen size={32} aria-hidden="true" style={{ marginBottom: 10, color: C.teal }} />
-            <div style={{ fontSize: 13, fontWeight: 500, color: C.teal, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
-            <div style={{ fontSize: 11, color: C.hint }}>선택 후 파일명 그대로 사용하거나 이미지 안 파일명을 분석할 수 있습니다.</div>
+            <FolderOpen size={32} aria-hidden="true" style={{ marginBottom: 10, color: uiAccent }} />
+            <div style={{ fontSize: 13, fontWeight: 500, color: uiAccent, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
+            <div style={{ fontSize: 11, color: uiHint }}>선택 후 파일명 그대로 사용하거나 이미지 안 파일명을 분석할 수 있습니다.</div>
           </div>
           {uploadedClientFiles.length > 0 && (
-            <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: C.bg }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: C.teal }}>업로드한 파일 {uploadedClientFiles.length}개</div>
-              <div style={{ marginTop: 5, maxHeight: 52, overflowY: "auto", fontSize: 10, color: C.muted, lineHeight: 1.65 }}>
+            <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: inputSurface }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: uiAccent }}>업로드한 파일 {uploadedClientFiles.length}개</div>
+              <div style={{ marginTop: 5, maxHeight: 52, overflowY: "auto", fontSize: 10, color: uiMuted, lineHeight: 1.65 }}>
                 {uploadedClientFiles.map((file) => file.name).join(", ")}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <Btn variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>
+                <Btn dark={embedded} variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>
                   파일명 그대로 사용
                 </Btn>
-                <Btn variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>
+                <Btn dark={embedded} variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>
                   {uploadOcrLoading ? "🔎 이미지 분석 중..." : "🔎 이미지 속 파일명 분석"}
                 </Btn>
               </div>
             </div>
           )}
           {uploadOcrMessage && (
-            <div style={{ marginTop: 12, borderRadius: 9, padding: "10px 12px", fontSize: 11, fontWeight: 500, color: uploadOcrMessage.ok ? C.green : C.red, background: uploadOcrMessage.ok ? C.light : "#FEF2F2" }}>
+            <div style={{ marginTop: 12, borderRadius: 9, padding: "10px 12px", fontSize: 11, fontWeight: 500, color: uploadOcrMessage.ok ? (embedded ? "#A8F1DC" : C.green) : C.red, background: uploadOcrMessage.ok ? groupedSurface : (embedded ? "rgba(232,93,44,.10)" : "#FEF2F2") }}>
               {uploadOcrMessage.text}
             </div>
           )}
           {uploadOcrNames.length > 0 && (
-            <div style={{ marginTop: 12, border: `1px solid ${C.border}`, borderRadius: 10, overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 12px", background: C.light, color: C.teal, fontSize: 11, fontWeight: 500 }}>
+            <div style={{ marginTop: 12, border: `1px solid ${uiBorder}`, borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "9px 12px", background: groupedSurface, color: uiAccent, fontSize: 11, fontWeight: 500 }}>
                 <span>인식된 파일명 {uploadOcrNames.length}개</span>
                 <span>{selectedUploadOcrNames.size}개 선택</span>
               </div>
@@ -1128,7 +1139,7 @@ export function SelectMatchWorkspace({
                 {uploadOcrNames.map((name) => {
                   const checked = selectedUploadOcrNames.has(name);
                   return (
-                    <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", color: C.txt, fontSize: 11, fontFamily: "monospace", lineHeight: 1.5 }}>
+                    <label key={name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", cursor: "pointer", color: uiText, fontSize: 11, fontFamily: "monospace", lineHeight: 1.5 }}>
                       <input
                         type="checkbox"
                         checked={checked}
@@ -1145,7 +1156,7 @@ export function SelectMatchWorkspace({
                 })}
               </div>
               <div style={{ padding: "0 12px 12px", textAlign: "right" }}>
-                <Btn disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭`}</Btn>
+                <Btn dark={embedded} disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭`}</Btn>
               </div>
             </div>
           )}
@@ -1157,19 +1168,19 @@ export function SelectMatchWorkspace({
   /* ── RAW 폴더 선택 (client_input 이후) ── */
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
-      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />RAW 폴더를 선택하세요</div>
-        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 20 }}>
-          고객 선택 파일명 <strong style={{ color: C.teal }}>{selected.size}개</strong>를 확인했습니다.<br />
+      <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />RAW 폴더를 선택하세요</div>
+        <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
+          고객 선택 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
           이제 RAW 파일이 들어있는 폴더를 선택하세요.<br />
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
-        <div style={{ background: C.light, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: C.muted, marginBottom: 18 }}>
-          <div style={{ fontWeight: 500, color: C.teal, marginBottom: 4 }}>추출된 파일명 샘플</div>
+        <div style={{ background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted, marginBottom: 18 }}>
+          <div style={{ fontWeight: 500, color: uiAccent, marginBottom: 4 }}>추출된 파일명 샘플</div>
           {Array.from(selected).slice(0, 5).map(n => (
             <div key={n} style={{ fontFamily: "monospace", fontSize: 11 }}>{n}</div>
           ))}
-          {selected.size > 5 && <div style={{ color: C.hint }}>... 외 {selected.size - 5}개</div>}
+          {selected.size > 5 && <div style={{ color: uiHint }}>... 외 {selected.size - 5}개</div>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
@@ -1186,10 +1197,10 @@ export function SelectMatchWorkspace({
 
   if (step === "selection_done") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
-      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28, textAlign: "center" }}>
+      <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28, textAlign: "center" }}>
         <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-        <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>사진 셀렉 완료</div>
-        <p style={{ margin: "8px 0 20px", color: C.muted, fontSize: 12, lineHeight: 1.7 }}>선택한 JPG {selected.size.toLocaleString("ko-KR")}장을 사진 작업실에 저장했습니다. RAW 매칭 탭에서 이 목록만 사용합니다.</p>
+        <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>사진 셀렉 완료</div>
+        <p style={{ margin: "8px 0 20px", color: uiMuted, fontSize: 12, lineHeight: 1.7 }}>선택한 JPG {selected.size.toLocaleString("ko-KR")}장을 사진 작업실에 저장했습니다. RAW 매칭 탭에서 이 목록만 사용합니다.</p>
         <Btn onClick={() => { setStep("idle"); setSelected(new Set()); }}>다시 선택하기</Btn>
       </div>
     </div>
@@ -1198,27 +1209,27 @@ export function SelectMatchWorkspace({
   /* ── Loading ── */
   if (step === "loading") return (
     <div style={{ maxWidth: 500, margin: "60px auto", padding: "0 24px", textAlign: "center" }}>
-      <div style={{ fontSize: 13, color: C.teal, fontWeight: 500, marginBottom: 12 }}>씬 폴더 스캔 중...</div>
-      <div style={{ fontSize: 11, color: C.hint }}>{progress.msg}</div>
+      <div style={{ fontSize: 13, color: uiAccent, fontWeight: 500, marginBottom: 12 }}>씬 폴더 스캔 중...</div>
+      <div style={{ fontSize: 11, color: uiHint }}>{progress.msg}</div>
     </div>
   );
 
   /* ── Preflight ── */
   if (step === "preflight") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
-      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.teal }}>
+      <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
+        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
           🔍 매칭 사전 확인
         </div>
         {!preflight ? (
           <div style={{ padding: 32, textAlign: "center" }}>
-            <div style={{ height: 6, background: C.border, borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+            <div style={{ height: 6, background: uiBorder, borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
               <div style={{
-                height: "100%", width: "40%", borderRadius: 3, background: C.teal,
+                height: "100%", width: "40%", borderRadius: 3, background: uiAccent,
                 animation: "select-match-scan-bar 1.1s ease-in-out infinite",
               }} />
             </div>
-            <div style={{ fontSize: 12, color: C.hint }}>
+            <div style={{ fontSize: 12, color: uiHint }}>
               RAW 파일 탐색 중{rawScanCount > 0 ? ` — ${rawScanCount.toLocaleString()}개 확인` : "..."}
             </div>
             <style>{`@keyframes select-match-scan-bar { 0% { margin-left: 0%; } 50% { margin-left: 60%; } 100% { margin-left: 0%; } }`}</style>
@@ -1227,30 +1238,30 @@ export function SelectMatchWorkspace({
           <div style={{ padding: 20 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
               {[
-                { label: "RAW 파일 발견", value: preflight.rawFound, color: C.teal },
+                { label: "RAW 파일 발견", value: preflight.rawFound, color: uiAccent },
                 { label: "매칭 예상", value: preflight.willMatch, color: C.green },
-                { label: "누락 예상", value: preflight.willMiss, color: preflight.willMiss > 0 ? C.red : C.hint },
+                { label: "누락 예상", value: preflight.willMiss, color: preflight.willMiss > 0 ? C.red : uiHint },
               ].map(({ label, value, color }) => (
-                <div key={label} style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
+                <div key={label} style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
                   <div style={{ fontSize: 24, fontWeight: 600, color }}>{value}</div>
-                  <div style={{ fontSize: 10, color: C.hint, marginTop: 2 }}>{label}</div>
+                  <div style={{ fontSize: 10, color: uiHint, marginTop: 2 }}>{label}</div>
                 </div>
               ))}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-              <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 500, color: C.hint, marginBottom: 6 }}>선택 JPG 샘플</div>
+              <div style={{ background: inputSurface, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>선택 JPG 샘플</div>
                 {preflight.jpgSamples.map(s => (
-                  <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: C.txt, marginBottom: 2 }}>{s}</div>
+                  <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: uiText, marginBottom: 2 }}>{s}</div>
                 ))}
               </div>
-              <div style={{ background: C.bg, borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 500, color: C.hint, marginBottom: 6 }}>발견된 RAW 샘플</div>
+              <div style={{ background: inputSurface, borderRadius: 8, padding: "10px 12px" }}>
+                <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>발견된 RAW 샘플</div>
                 {preflight.rawFound === 0
                   ? <div style={{ fontSize: 11, color: C.red }}>RAW 파일 없음</div>
                   : preflight.rawSamples.map(s => (
-                    <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: C.txt, marginBottom: 2 }}>{s}</div>
+                    <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: uiText, marginBottom: 2 }}>{s}</div>
                   ))
                 }
               </div>
@@ -1269,20 +1280,20 @@ export function SelectMatchWorkspace({
 
             {preflight.willMatch > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 10, fontWeight: 500, color: C.hint, marginBottom: 6 }}>매칭된 RAW 처리 방식</div>
+                <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>매칭된 RAW 처리 방식</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   {([["copy", "복사 (원본 유지)"], ["move", "이동 (원본 삭제)"]] as const).map(([mode, label]) => (
                     <button key={mode} onClick={() => setRawSelectMode(mode)} style={{
                       flex: 1, padding: "10px 0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                      border: `1.5px solid ${rawSelectMode === mode ? C.teal : C.border}`,
-                      background: rawSelectMode === mode ? C.light : C.white,
-                      color: rawSelectMode === mode ? C.teal : C.muted,
+                      border: `1.5px solid ${rawSelectMode === mode ? uiAccent : uiBorder}`,
+                      background: rawSelectMode === mode ? groupedSurface : surfaceCard,
+                      color: rawSelectMode === mode ? uiAccent : uiMuted,
                       fontSize: 12, fontWeight: 600,
                     }}>{label}</button>
                   ))}
                 </div>
                 {rawSelectMode === "move" && (
-                  <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFF3CD", borderRadius: 8, fontSize: 11, color: "#856404", border: "1px solid #FFD980" }}>
+                  <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(214,188,125,.12)", borderRadius: 8, fontSize: 11, color: "#D6BC7D", border: "1px solid rgba(214,188,125,.36)" }}>
                     ⚠️ 이동을 선택하면 원본 RAW 파일이 원래 위치에서 삭제됩니다.
                   </div>
                 )}
@@ -1304,41 +1315,41 @@ export function SelectMatchWorkspace({
   /* ── Matching ── */
   if (step === "matching") return (
     <div style={{ maxWidth: 680, margin: "32px auto", padding: "0 24px" }}>
-      <div style={{ fontSize: 13, fontWeight: 500, color: C.teal, marginBottom: 12 }}>RAW 매칭 진행 중...</div>
-      <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ height: "100%", width: `${progress.total > 0 ? Math.round(progress.cur / progress.total * 100) : 0}%`, background: C.teal, borderRadius: 4, transition: "width .2s" }} />
+      <div style={{ fontSize: 13, fontWeight: 500, color: uiAccent, marginBottom: 12 }}>RAW 매칭 진행 중...</div>
+      <div style={{ height: 8, background: uiBorder, borderRadius: 4, overflow: "hidden", marginBottom: 16 }}>
+        <div style={{ height: "100%", width: `${progress.total > 0 ? Math.round(progress.cur / progress.total * 100) : 0}%`, background: uiAccent, borderRadius: 4, transition: "width .2s" }} />
       </div>
-      <div style={{ fontSize: 11, color: C.hint, marginBottom: 16 }}>{progress.msg}</div>
-      <div style={{ maxHeight: 300, overflowY: "auto", fontSize: 11, fontFamily: "monospace", background: "#F8FFFE", borderRadius: 8, padding: 12, border: `1px solid ${C.border}` }}>
+      <div style={{ fontSize: 11, color: uiHint, marginBottom: 16 }}>{progress.msg}</div>
+      <div style={{ maxHeight: 300, overflowY: "auto", fontSize: 11, fontFamily: "monospace", background: "#F8FFFE", borderRadius: 8, padding: 12, border: `1px solid ${uiBorder}` }}>
         {log.slice(-60).map((l, i) => (
-          <div key={i} style={{ color: l.startsWith("✅") ? C.green : l.startsWith("❌") ? C.red : C.muted }}>{l}</div>
+          <div key={i} style={{ color: l.startsWith("✅") ? C.green : l.startsWith("❌") ? C.red : uiMuted }}>{l}</div>
         ))}
       </div>
-      <button onClick={() => { cancelRef.current = true; }} style={{ marginTop: 12, padding: "6px 16px", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 12, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}>중단</button>
+      <button onClick={() => { cancelRef.current = true; }} style={{ marginTop: 12, padding: "6px 16px", background: "transparent", border: `1px solid ${uiBorder}`, borderRadius: 8, fontSize: 12, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}>중단</button>
     </div>
   );
 
   /* ── Done ── */
   if (step === "done") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
-      <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.green }}><CheckCircle2 size={17} aria-hidden="true" />매칭 완료</div>
+      <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: C.green }}><CheckCircle2 size={17} aria-hidden="true" />매칭 완료</div>
         <div style={{ padding: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
             {[
-              { label: "선택 JPG", value: result.selected, color: C.teal },
+              { label: "선택 JPG", value: result.selected, color: uiAccent },
               { label: "RAW 매칭", value: result.matched, color: C.green },
-              { label: "RAW 누락", value: result.missing, color: result.missing > 0 ? C.red : C.hint },
+              { label: "RAW 누락", value: result.missing, color: result.missing > 0 ? C.red : uiHint },
             ].map(({ label, value, color }) => (
-              <div key={label} style={{ background: C.bg, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
+              <div key={label} style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 24, fontWeight: 600, color }}>{value}</div>
-                <div style={{ fontSize: 10, color: C.hint, marginTop: 2 }}>{label}</div>
+                <div style={{ fontSize: 10, color: uiHint, marginTop: 2 }}>{label}</div>
               </div>
             ))}
           </div>
-          <div style={{ background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9, marginBottom: 16 }}>
-            <FolderOpen size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 5 }} /><strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
-            <span style={{ color: C.hint }}>{rawSelectMode === "move" ? "원본 RAW 파일은 삭제되었습니다." : "원본 RAW 파일은 삭제되지 않았습니다."}</span>
+          <div style={{ background: groupedSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiMuted, lineHeight: 1.9, marginBottom: 16 }}>
+            <FolderOpen size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 5 }} /><strong style={{ color: uiAccent }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
+            <span style={{ color: uiHint }}>{rawSelectMode === "move" ? "원본 RAW 파일은 삭제되었습니다." : "원본 RAW 파일은 삭제되지 않았습니다."}</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <Btn variant="secondary" onClick={() => { setStep("ready"); setLog([]); }}>← 다시 선택</Btn>
@@ -1360,7 +1371,7 @@ export function SelectMatchWorkspace({
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "20px 16px" }}>
 
       {/* Bridge 별점 자동 선택 바 */}
-      <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "12px 18px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+      <div style={{ background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", borderRadius: 12, padding: "12px 18px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <div style={{ fontSize: 12, fontWeight: 500, color: "#92400E" }}>
           ⭐ Bridge 별점으로 자동 선택
           {ratingLoading && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: "#B45309" }}>읽는 중...</span>}
@@ -1397,20 +1408,20 @@ export function SelectMatchWorkspace({
       </div>
 
       {/* 상단 액션바 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "12px 18px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, padding: "12px 18px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: C.teal }}>{selected.size}장 선택됨</span>
-            <span style={{ fontSize: 11, color: C.hint, marginLeft: 8 }}>/ 전체 {totalPhotos}장 ({scenes.length}씬)</span>
+            <span style={{ fontSize: 15, fontWeight: 600, color: uiAccent }}>{selected.size}장 선택됨</span>
+            <span style={{ fontSize: 11, color: uiHint, marginLeft: 8 }}>/ 전체 {totalPhotos}장 ({scenes.length}씬)</span>
           </div>
           <div style={{ display: "flex", gap: 6 }}>
             <button
               onClick={() => setSelected(new Set(scenes.flatMap(s => s.photos.map(p => p.basename.toLowerCase()))))}
-              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: C.light, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", color: C.teal, fontFamily: "inherit" }}
+              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit" }}
             >전체 선택</button>
             <button
               onClick={() => setSelected(new Set())}
-              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: C.white, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}
+              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
             >전체 해제</button>
           </div>
         </div>
@@ -1439,14 +1450,14 @@ export function SelectMatchWorkspace({
           )}
           <button
             onClick={() => { setStep("idle"); setRootDir(null); setRawRootDir(null); setScenes([]); setSelected(new Set()); }}
-            style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8, cursor: "pointer", color: C.muted, fontFamily: "inherit" }}
+            style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${uiBorder}`, borderRadius: 8, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
           >폴더 변경</button>
         </div>
       </div>
 
       {/* 씬별 패널 */}
       {scenes.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: C.hint, fontSize: 13 }}>
+        <div style={{ textAlign: "center", padding: "60px 0", color: uiHint, fontSize: 13 }}>
           JPG 파일을 찾지 못했습니다. 폴더를 다시 확인해주세요.
         </div>
       ) : (
@@ -1454,7 +1465,7 @@ export function SelectMatchWorkspace({
           const sceneSelCount = scene.photos.filter(p => selected.has(p.basename.toLowerCase())).length;
           const isExpanded = expanded.has(si);
           return (
-            <div key={si} style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden", marginBottom: 10 }}>
+            <div key={si} style={{ background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, overflow: "hidden", marginBottom: 10 }}>
               {/* 씬 헤더 */}
               <div
                 onClick={() => {
@@ -1469,17 +1480,17 @@ export function SelectMatchWorkspace({
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{
-                    width: 32, height: 32, borderRadius: 8, background: sceneSelCount > 0 ? C.teal : C.border,
-                    display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: 12, fontWeight: 500, transition: "background .2s", flexShrink: 0,
+                    width: 32, height: 32, borderRadius: 8, background: sceneSelCount > 0 ? uiAccent : uiBorder,
+                    display: "flex", alignItems: "center", justifyContent: "center", color: sceneSelCount > 0 ? "#103E36" : uiMuted, fontSize: 12, fontWeight: 500, transition: "background .2s", flexShrink: 0,
                   }}>{si + 1}</div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: C.txt }}>{scene.name}</div>
-                    <div style={{ fontSize: 10, color: C.hint }}>{scene.photos.length}장</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: uiText }}>{scene.name}</div>
+                    <div style={{ fontSize: 10, color: uiHint }}>{scene.photos.length}장</div>
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   {sceneSelCount > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 500, color: C.teal, background: C.light, padding: "3px 10px", borderRadius: 12 }}>✓ {sceneSelCount}장</span>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: uiAccent, background: groupedSurface, padding: "3px 10px", borderRadius: 12 }}>✓ {sceneSelCount}장</span>
                   )}
                   {/* 빠른 전체선택 */}
                   <button
@@ -1494,15 +1505,15 @@ export function SelectMatchWorkspace({
                         return next;
                       });
                     }}
-                    style={{ padding: "3px 8px", fontSize: 10, fontWeight: 500, background: C.light, border: `1px solid ${C.border}`, borderRadius: 6, cursor: "pointer", color: C.teal, fontFamily: "inherit" }}
+                    style={{ padding: "3px 8px", fontSize: 10, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit" }}
                   >{scene.photos.every(p => selected.has(p.basename.toLowerCase())) ? "해제" : "씬 전체"}</button>
-                  <span style={{ fontSize: 10, color: C.hint, width: 12 }}>{isExpanded ? "▲" : "▼"}</span>
+                  <span style={{ fontSize: 10, color: uiHint, width: 12 }}>{isExpanded ? "▲" : "▼"}</span>
                 </div>
               </div>
 
               {/* 썸네일 그리드 */}
               {isExpanded && (
-                <div style={{ borderTop: `1px solid ${C.border}`, padding: 12 }}>
+                <div style={{ borderTop: `1px solid ${uiBorder}`, padding: 12 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 6 }}>
                     {scene.photos.map(p => {
                       const k = p.basename.toLowerCase();
@@ -1517,7 +1528,7 @@ export function SelectMatchWorkspace({
                             // 없앤다). 테두리를 선택 여부와 무관하게 고정해서 사진 색 판단에
                             // 방해되는 색 테두리 대비를 없앤다.
                             position: "relative", cursor: "pointer", borderRadius: 7, overflow: "hidden",
-                            border: `1.5px solid ${C.border}`,
+                            border: `1.5px solid ${uiBorder}`,
                             aspectRatio: "3/2", background: "#e5eeec",
                           }}
                         >
@@ -1526,7 +1537,7 @@ export function SelectMatchWorkspace({
                             : <div style={{ width: "100%", height: "100%", background: "#dde8e6" }} />
                           }
                           {isSel && (
-                            <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: C.teal, boxShadow: "0 0 0 2px #fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "white", fontWeight: 600 }}>✓</div>
+                            <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: uiAccent, boxShadow: "0 0 0 2px rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#103E36", fontWeight: 600 }}>✓</div>
                           )}
                           {p.rating !== null && (
                             <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 4px", fontSize: 8, color: "#FBBF24", letterSpacing: -1 }}>
@@ -1551,15 +1562,15 @@ export function SelectMatchWorkspace({
           전체 해제 / 다음 단계를 한 알약 안에 모은다. borderRadius를 완전한 캡슐 모양으로. */}
       {selected.size > 0 && (
         <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "all", background: C.teal, color: "white", borderRadius: 999, padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
+          <div style={{ pointerEvents: "all", background: uiAccent, color: "#103E36", borderRadius: 999, padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
             <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" }}>{selected.size}장 선택됨</span>
             <button
               onClick={() => setSelected(new Set())}
-              style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "white", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(16,62,54,.4)", borderRadius: 999, color: "#103E36", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
             >전체 해제</button>
             <button
               onClick={() => runPreflight()}
-              style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "white", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
+              style={{ padding: "7px 18px", background: "rgba(16,62,54,.12)", border: "1px solid rgba(16,62,54,.4)", borderRadius: 999, color: "#103E36", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily:"inherit", whiteSpace: "nowrap" }}
             >RAW 매칭 확인</button>
           </div>
         </div>

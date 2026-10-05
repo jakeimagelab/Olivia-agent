@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, FolderOpen, Loader2, OctagonMinus, Square } from "lucide-react";
+import { CheckCircle2, FolderOpen, Loader2, OctagonMinus, Scaling, Square } from "lucide-react";
 import {
   countSourcePhotos,
   listResultPhotos,
@@ -10,6 +10,7 @@ import {
   type PhotoResizeStats,
 } from "@/lib/photoResize/resizePhotos";
 import styles from "./PhotoWorkspace.module.css";
+import surfaceStyles from "./WorkspaceSurface.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 
 type Phase = "idle" | "counting" | "running" | "stopping" | "completed";
@@ -169,14 +170,25 @@ export default function PhotoResizeWorkspace() {
     }
   };
 
+  const header = (
+    <header className={surfaceStyles.header}>
+      <span className={surfaceStyles.headerIcon}><Scaling size={21} aria-hidden="true" /></span>
+      <div><h2>사진 리사이즈</h2><p>해상도와 품질을 정해 폴더 전체 사진을 일괄 변환합니다.</p></div>
+      <span className={surfaceStyles.folder}><FolderOpen size={14} aria-hidden="true" />현재 작업 폴더: <strong>{rootDir?.name ?? "선택 안 됨"}</strong></span>
+    </header>
+  );
+
   if (phase === "counting") {
     return (
-      <div className={styles.aiPanel}>
+      <section className={surfaceStyles.surface}>
+        {header}
+        <div className={styles.aiPanel}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "40px 0", justifyContent: "center", color: "rgba(255,255,255,.6)" }}>
           <Loader2 size={18} className="spin-icon" />
           <span style={{ fontSize: 13 }}>폴더를 살펴보는 중…</span>
         </div>
-      </div>
+        </div>
+      </section>
     );
   }
 
@@ -184,7 +196,9 @@ export default function PhotoResizeWorkspace() {
     const done = stats.completed + stats.skipped + stats.failed;
     const percent = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
     return (
-      <div className={styles.aiPanel}>
+      <section className={surfaceStyles.surface}>
+        {header}
+        <div className={styles.aiPanel}>
         <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.5)", marginBottom: 14 }}>
           {phase === "stopping" ? "중지하는 중…" : `변환 중 · ${percent}%${total ? ` (${done.toLocaleString("ko-KR")}/${total.toLocaleString("ko-KR")})` : ""}`}
         </div>
@@ -214,13 +228,16 @@ export default function PhotoResizeWorkspace() {
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      </section>
     );
   }
 
   if (phase === "completed") {
     return (
-      <div className={styles.aiPanel}>
+      <section className={surfaceStyles.surface}>
+        {header}
+        <div className={styles.aiPanel}>
         <div style={{ textAlign: "center", padding: "16px 0 20px" }}>
           <div style={{
             width: 52, height: 52, borderRadius: "50%", margin: "0 auto 14px", display: "flex",
@@ -300,45 +317,49 @@ export default function PhotoResizeWorkspace() {
           <span />
           <div><button type="button" className={styles.primaryButton} onClick={reset}>설정으로</button></div>
         </div>
-      </div>
+        </div>
+      </section>
     );
   }
 
   return (
-    <div className={styles.aiPanel}>
-      <div className={styles.aiIntro}>
-        <p>폴더를 고르면 하위 폴더까지 전부 찾아 지정한 해상도·품질로 한 번에 변환합니다.</p>
-      </div>
-
-      <section className={styles.aiSection}>
-        <h3><span>1.</span> 폴더 선택</h3>
-        <div className={styles.folderRow}>
-          <span className={styles.folderState}><FolderOpen size={19} aria-hidden="true" />{rootDir?.name || "폴더가 선택되지 않았습니다."}</span>
-          <button type="button" className={styles.secondaryButton} onClick={selectFolder}>폴더 선택</button>
+    <section className={surfaceStyles.surface} aria-label="사진 리사이즈">
+      {header}
+      <div className={surfaceStyles.layout}>
+        <div className={surfaceStyles.controls}>
+          <section className={surfaceStyles.section}>
+            <h3>1. 폴더 선택</h3>
+            <div className={styles.folderRow}>
+              <span className={styles.folderState}><FolderOpen size={19} aria-hidden="true" />{rootDir?.name || "폴더가 선택되지 않았습니다."}</span>
+              <button type="button" className={styles.secondaryButton} onClick={selectFolder}>폴더 선택</button>
+            </div>
+            {notice ? <p className={styles.inlineNotice} role="status">{notice}</p> : null}
+          </section>
+          <section className={surfaceStyles.section}>
+            <h3>2. 옵션</h3>
+            <ChipRow label="해상도" hint="긴 변 기준" value={longEdge} options={RESOLUTIONS} custom onSelect={setLongEdge} onCustom={setLongEdge} />
+            <ChipRow label="JPEG 품질" value={quality} options={QUALITIES} onSelect={setQuality} />
+          </section>
+          <p style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", lineHeight: 1.8, margin: 0 }}>
+            하위 폴더의 사진도 자동으로 처리합니다. 원본 사진은 변경되지 않습니다.<br />
+            원본보다 작은 사진은 확대하지 않고 품질만 적용합니다.<br />
+            이미 변환된 사진은 건너뜁니다.
+          </p>
         </div>
-        {notice ? <p className={styles.inlineNotice} role="status">{notice}</p> : null}
-      </section>
-
-      <section className={styles.aiSection}>
-        <h3><span>2.</span> 옵션</h3>
-        <ChipRow label="해상도" hint="긴 변 기준" value={longEdge} options={RESOLUTIONS} custom onSelect={setLongEdge} onCustom={setLongEdge} />
-        <ChipRow label="JPEG 품질" value={quality} options={QUALITIES} onSelect={setQuality} />
-      </section>
-
-      <p style={{ fontSize: 11.5, color: "rgba(255,255,255,.4)", lineHeight: 1.8, borderTop: "1px solid rgba(255,255,255,.08)", paddingTop: 14, marginBottom: 20 }}>
-        하위 폴더의 사진도 자동으로 처리합니다. 원본 사진은 변경되지 않습니다.<br />
-        원본보다 작은 사진은 확대하지 않고 품질만 적용합니다.<br />
-        이미 변환된 사진은 건너뜁니다.
-      </p>
-
-      <div className={styles.aiActions}>
-        <span />
-        <div>
-          <button type="button" className={styles.primaryButton} disabled={!rootDir} onClick={() => void start()}>
-            <Loader2 size={15} style={{ display: "none" }} />변환 시작
-          </button>
-        </div>
+        <aside className={surfaceStyles.preview}>
+          <div className={surfaceStyles.previewHeading}><h3>3. 결과</h3><span>변환 전</span></div>
+          <div className={surfaceStyles.stats}>
+            <div className={surfaceStyles.stat}><small>완료</small><strong>0</strong></div>
+            <div className={`${surfaceStyles.stat} ${surfaceStyles.statSkip}`}><small>건너뜀</small><strong>0</strong></div>
+            <div className={`${surfaceStyles.stat} ${surfaceStyles.statDanger}`}><small>실패</small><strong>0</strong></div>
+            <div className={surfaceStyles.stat}><small>예정</small><strong>—</strong></div>
+          </div>
+        </aside>
       </div>
-    </div>
+      <footer className={surfaceStyles.actions}>
+        <span>{rootDir ? "설정을 확인한 뒤 변환을 시작하세요." : "작업 폴더를 먼저 선택하세요."}</span>
+        <div><button type="button" className={surfaceStyles.primary} disabled={!rootDir} onClick={() => void start()}>변환 시작</button></div>
+      </footer>
+    </section>
   );
 }
