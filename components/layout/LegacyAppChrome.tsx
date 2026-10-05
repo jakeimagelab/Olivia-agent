@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
 import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoStudioBackgroundJobBridge";
-import CursorEffect from "@/components/CursorEffect";
 import GlobalClientContextBridge from "@/components/GlobalClientContextBridge";
 import GlobalFeatureSidebar from "@/components/GlobalFeatureSidebar";
 import OliviaPageTransition from "@/components/olivia/OliviaPageTransition";
@@ -43,7 +42,6 @@ export default function LegacyAppChrome({ children }: { children: ReactNode }) {
   return (
     <>
       <OliviaSplash />
-      <CursorEffect />
       <div className="olivia-app-row">
         <div className="olivia-app-main">
           <GlobalFeatureSidebar>

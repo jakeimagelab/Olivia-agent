@@ -8353,13 +8353,12 @@ main:has(> .pc-header) {
    포토클리닉 어드민 — 전역 인터랙션 이펙트
    ═══════════════════════════════════════════════════════════ */
 
-/* LegacyAppChrome이 실제 커스텀 커서를 마운트한 동안에만 native cursor를 숨긴다.
-   OLIVIA OS는 이 class를 사용하지 않으므로 항상 OS cursor가 보인다. */
+/* 데스크톱 공통 오렌지 원형 커서. 글자 입력·그림·드래그 대상은 native cursor를 유지한다. */
 @media (pointer: fine) {
   .pc-custom-cursor-active,
   .pc-custom-cursor-active * { cursor: none !important; }
-  .pc-custom-cursor-active input,
-  .pc-custom-cursor-active textarea { cursor: text !important; }
+  .pc-custom-cursor-active.pc-custom-cursor-suspended,
+  .pc-custom-cursor-active.pc-custom-cursor-suspended * { cursor: var(--pc-native-cursor, auto) !important; }
 }
 
 

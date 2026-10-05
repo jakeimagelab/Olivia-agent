@@ -56,14 +56,9 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
-    const previousHtmlCursor = document.documentElement.style.cursor;
-    const previousBodyCursor = document.body.style.cursor;
     if (document.pointerLockElement) document.exitPointerLock?.();
-    document.documentElement.classList.remove("pc-custom-cursor-active");
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    document.documentElement.style.cursor = "default";
-    document.body.style.cursor = "default";
     loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)));
     try {
       // localStorage를 먼저 읽어 화면을 바로 그린다(깜빡임 방지) — DB 조회가 끝나면 그 값으로
@@ -99,8 +94,6 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
       window.cancelAnimationFrame(ensureOliviaFrame);
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
-      document.documentElement.style.cursor = previousHtmlCursor;
-      document.body.style.cursor = previousBodyCursor;
     };
   }, []);
 

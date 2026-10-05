@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import CursorEffect from "@/components/CursorEffect";
 import OliviaWorkspaceShell from "@/components/olivia/OliviaWorkspaceShell";
 
 const LegacyAppChrome = dynamic(() => import("./LegacyAppChrome"));
@@ -52,12 +53,12 @@ export default function RootExperienceShell({ children }: { children: ReactNode 
   // 외부 공개 페이지는 embedded 여부와 무관하게 항상 chrome 없이 그린다.
   if (isBarePage) return <>{children}</>;
 
-  // OS 루트는 사이드바/커서이펙트/스플래시 등 나머지 Legacy chrome은 다 건너뛰지만,
+  // OS 루트는 사이드바/스플래시 등 나머지 Legacy chrome은 다 건너뛰지만,
   // OliviaWorkspaceShell만은 항상 마운트돼야 한다 — 앱 전체에 단 하나뿐인 <OliviaConversation>
   // 인스턴스를 소유하는 곳이 여기라서, 이게 없으면 OLIVIA OS의 Olivia AppWindow가
   // 등록만 되고 받아줄 대화 대상이 없어 빈 화면이 된다.
   if (pathname && OS_ROUTE_PATHS.has(pathname)) {
-    return <>{children}<OliviaWorkspaceShell /></>;
+    return <><CursorEffect />{children}<OliviaWorkspaceShell /></>;
   }
-  return <LegacyAppChrome>{children}</LegacyAppChrome>;
+  return <><CursorEffect /><LegacyAppChrome>{children}</LegacyAppChrome></>;
 }
