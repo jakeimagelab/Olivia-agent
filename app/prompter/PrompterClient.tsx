@@ -77,6 +77,16 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleString("ko-KR");
 }
 
+function fmtRelativeSavedTime(iso: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(iso).getTime());
+  const days = Math.floor(elapsed / 86_400_000);
+  if (days > 0) return `${days}일 전 저장됨`;
+  const hours = Math.floor(elapsed / 3_600_000);
+  if (hours > 0) return `${hours}시간 전 저장됨`;
+  const minutes = Math.floor(elapsed / 60_000);
+  return minutes > 0 ? `${minutes}분 전 저장됨` : "방금 전 저장됨";
+}
+
 export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) {
   const [mode, setMode] = useState<"projects" | "scenes" | "prompt">("projects");
 
@@ -1057,7 +1067,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
       <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
         {embedded ? null : <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />}
         <div className="oa-page pt-projects-page">
-          <button onClick={() => openProjectModal("create")} className="pt-new-project-btn"><Plus size={20} /> 새 프로젝트 만들기</button>
+          <button onClick={() => openProjectModal("create")} className="pt-new-project-btn">새 프로젝트</button>
 
           <div className="pt-section-label">최근 프로젝트</div>
           {projectsLoading ? (
@@ -1065,16 +1075,16 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
           ) : projects.length === 0 ? (
             <p style={{ color: "#8aa39f", fontSize: 13 }}>아직 프로젝트가 없어요. 병원/기업 단위로 새 프로젝트를 만들어보세요.</p>
           ) : (
-            <div className="admin-menu-grid pt-project-grid-v2">
+            <div className="pt-project-list-v2">
               {projects.map((p) => (
-                <div key={p.id} className="admin-menu-card pt-project-card-v2" onClick={() => openProject(p)}>
-                  <div className="admin-menu-icon"><Building2 size={24} /></div>
-                  <div className="admin-menu-copy">
-                    <span>{p.sceneCount}개 씬</span>
+                <div key={p.id} className="pt-project-card-v2" onClick={() => openProject(p)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) openProject(p); }}>
+                  <div className="pt-project-card-icon"><Building2 size={20} /></div>
+                  <div className="pt-project-card-copy">
                     <h2>{p.name}</h2>
-                    <p>최근 업데이트: {fmtDate(p.lastActivity)}</p>
+                    <p title={fmtDate(p.lastActivity)}>{p.sceneCount}개 씬 · {fmtRelativeSavedTime(p.lastActivity)}</p>
                   </div>
                   <button className="pt-project-card-delete" onClick={(e) => deleteProject(p, e)} title="삭제"><Trash2 size={14} /></button>
+                  <ChevronRight className="pt-project-card-chevron" size={19} aria-hidden="true" />
                 </div>
               ))}
             </div>
@@ -1113,7 +1123,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
                 {!saving && lastAutoSavedAt ? (
                   <span style={{ fontSize: 11, color: "#8aa39f", alignSelf: "center" }}>저장됨 · 방금 전</span>
                 ) : null}
-                <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행 →</button>
+                <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행</button>
               </>
             ) : (
               <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>

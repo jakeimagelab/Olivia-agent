@@ -19,7 +19,7 @@
   margin: 0;
   color: #17201e;
   font-size: clamp(27px, 2vw, 34px);
-  font-weight: 900;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -.045em;
 }
@@ -129,14 +129,20 @@
 .searchInput:focus-within { border-color: #22876a; box-shadow: 0 0 0 3px rgba(34, 135, 106, .09); }
 .searchInput input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #1c2b28; font: inherit; font-size: 12.5px; }
 .searchInput input::placeholder { color: #9bada9; }
-.inlineNotice { margin: 9px 0 0 !important; color: #667a75 !important; font-size: 11px !important; }
+.inlineNotice, .searchHint { margin: 9px 0 0 !important; color: rgba(255, 255, 255, .55) !important; font-size: 11px !important; }
 
-.primaryButton, .secondaryButton, .mutedButton { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 10px; padding: 0 18px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; transition: transform 220ms cubic-bezier(.32, .72, 0, 1), background 220ms cubic-bezier(.32, .72, 0, 1); }
-.primaryButton { border: 1px solid #155855; background: #155855; color: #fff; }
-.secondaryButton { border: 1px solid rgba(21, 88, 85, .16); background: #fff; color: #155855; }
-.mutedButton { border: 1px solid rgba(21, 88, 85, .12); background: #edf3f1; color: #4f6661; }
+.primaryButton, .secondaryButton, .mutedButton { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; border-radius: 10px; padding: 0 18px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: transform 220ms cubic-bezier(.32, .72, 0, 1), background 220ms cubic-bezier(.32, .72, 0, 1); }
+.primaryButton { border: 1px solid #37c39d; background: #37c39d; color: #103e36; }
+.secondaryButton { border: 1px solid rgba(255, 255, 255, .28); background: transparent; color: #fff; }
+.mutedButton { border: 0; background: transparent; color: rgba(255, 255, 255, .6); }
 .primaryButton:active:not(:disabled), .secondaryButton:active:not(:disabled), .mutedButton:active:not(:disabled) { transform: scale(.98); }
-.primaryButton:disabled, .secondaryButton:disabled, .mutedButton:disabled { cursor: not-allowed; opacity: .46; }
+.primaryButton:disabled, .secondaryButton:disabled, .mutedButton:disabled {
+  cursor: not-allowed;
+  background: transparent;
+  border-color: rgba(255, 255, 255, .14);
+  color: rgba(255, 255, 255, .30);
+  opacity: 1;
+}
 
 .aiSection { padding-top: 22px; }
 .aiSection h3 { margin: 0 0 13px; color: #fff; font-size: 13px; }
@@ -144,6 +150,7 @@
 .folderRow { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 11px; padding: 8px 11px 8px 15px; background: #fbfcfc; }
 .folderState { min-width: 0; display: flex; align-items: center; gap: 10px; color: #667a75; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .folderState svg { flex: 0 0 auto; color: #79908a; }
+.folderRow .secondaryButton { border-color: rgba(21, 88, 85, .18); color: #155855; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sectionHeading small { color: rgba(255, 255, 255, .45); font-size: 11px; }
 .emptyState { min-height: 220px; display: grid; place-items: center; align-content: center; gap: 14px; border: 1px solid rgba(21, 88, 85, .11); border-radius: 12px; background: #fbfcfc; color: #bec9c6; }
@@ -158,7 +165,7 @@
 .aiCandidate > span { min-width: 0; display: grid; align-content: center; gap: 4px; padding-right: 18px; }
 .aiCandidate strong { overflow: hidden; color: #243733; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .aiCandidate small { display: -webkit-box; overflow: hidden; color: #677a76; font-size: 10px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.aiCandidate i { position: absolute; top: 7px; right: 7px; min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #edf3f1; color: #155855; font-size: 9px; font-style: normal; font-weight: 900; }
+.aiCandidate i { position: absolute; top: 7px; right: 7px; min-width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; background: #edf3f1; color: #155855; font-size: 9px; font-style: normal; font-weight: 600; }
 .aiCandidateSelected i { background: #22876a; color: #fff; }
 
 .guide { position: sticky; top: 18px; padding: 26px 24px 24px; }
@@ -167,7 +174,7 @@
 .guideStep { position: relative; min-height: 106px; display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; padding-bottom: 18px; }
 .guideStep:not(:last-child)::after { content: ""; position: absolute; top: 49px; bottom: 0; left: 23px; border-left: 1px dashed rgba(21, 88, 85, .18); }
 .guideIcon { grid-row: 1 / span 2; width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; color: #155855; background: #edf7f4; }
-.guideNumber { position: absolute; top: -3px; left: 39px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #22876a; color: #fff; font-size: 9px; font-weight: 900; box-shadow: 0 0 0 3px #fff; }
+.guideNumber { position: absolute; top: -3px; left: 39px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #22876a; color: #fff; font-size: 9px; font-weight: 600; box-shadow: 0 0 0 3px #fff; }
 .guideCopy { min-width: 0; display: grid; align-content: start; gap: 6px; padding-top: 3px; }
 .guideCopy strong { color: #243733; font-size: 12.5px; }
 .guideCopy small { color: #677a76; font-size: 11px; line-height: 1.65; }

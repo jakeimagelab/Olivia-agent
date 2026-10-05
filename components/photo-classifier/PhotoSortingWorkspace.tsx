@@ -3062,18 +3062,18 @@ function PhotoSortingInner({
 
         {/* 이전 작업 복원 배너 */}
         {savedSession && photoSourceSurface === "desktop" && (
-          <div style={{background:"#E8F0F5",border:"1.5px solid #B8CBD8",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{background:"#EAF4F2",border:"1.5px solid #B8CBD8",borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <span style={{fontSize:18}}>💾</span>
               <div>
-                <div style={{fontSize:13,fontWeight:900,color:"#103A62"}}>이전 작업이 저장되어 있습니다</div>
+                <div style={{fontSize:13,fontWeight:900,color:"#155855"}}>이전 작업이 저장되어 있습니다</div>
                 <div style={{fontSize:11,color:"#315F7F",marginTop:2}}>
                   {DEPARTMENT_DISPLAY[savedSession.department]} · {savedSession.rootDirName || "폴더"} · {savedSession.sceneSummary.length}개 씬 · {new Date(savedSession.savedAt).toLocaleDateString("ko-KR",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
                 </div>
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#103A62",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>
+              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#155855",color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}>
                 📂 폴더 선택 후 이어서 하기
               </button>
               <button onClick={clearSession} style={{padding:"10px 16px",background:"transparent",color:"#6B7280",border:"1px solid #D1D5DB",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
@@ -3139,7 +3139,7 @@ function PhotoSortingInner({
                     onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
                     disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
                   >
-                    {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작 →"}
+                    {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작"}
                   </Btn>
                 </div>
 
@@ -3223,7 +3223,7 @@ function PhotoSortingInner({
                   onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
                   disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
                 >
-                  {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작 →"}
+                  {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작"}
                 </Btn>
               </>
             )}
@@ -3327,7 +3327,7 @@ function PhotoSortingInner({
               onClick={executionMode === "LOCAL_DIRECT" ? handleStudioSort : handleRemotePhotoSort}
               disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
             >
-              {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작 →"}
+              {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작"}
             </Btn>
           </>
         )}
@@ -3365,7 +3365,7 @@ function PhotoSortingInner({
     const allFieldFiles = fieldScenes.flatMap((scene) => scene.files);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <div style={{padding:14,background: fastAnalyzeMode ? "#E8F0F5" : "#ECFDF5",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#103A62" : "#166534",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#A7F3D0"}`}}>
+        <div style={{padding:14,background: fastAnalyzeMode ? "#EAF4F2" : "#ECFDF5",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#155855" : "#166534",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#A7F3D0"}`}}>
           {fastAnalyzeMode
             ? <><strong>⚡ 빠른 분석 완료</strong> — 파일이 이동되지 않았습니다. 씬 이름을 확인·수정하고 <strong>폴더 정리 실행</strong>을 눌러 실제로 파일을 이동하세요.</>
             : <><strong>🔍 하이브리드 분류 완료</strong> — 원본은 아직 이동되지 않았습니다. 경계 이유를 검토하고 Scene을 승인한 뒤 폴더 정리를 실행하세요. {boundaryReviewCount > 0 && <span style={{color:"#B45309"}}>검토 필요 {boundaryReviewCount}건</span>}</>
@@ -3397,7 +3397,7 @@ function PhotoSortingInner({
                 {groundTruthBoundaries.map((boundary)=><button key={boundary} onClick={()=>setGroundTruthBoundaries((previous)=>previous.filter((item)=>item!==boundary))} style={{border:"1px solid #BBF7D0",borderRadius:5,background:"#F0FDF4",color:"#166534",fontSize:9,padding:"3px 6px",cursor:"pointer"}}>{allFieldFiles[boundary]?.name ?? boundary} ×</button>)}
                 {groundTruthBoundaries.length===0&&<span style={{fontSize:10,color:C.hint}}>정답 경계가 아직 없습니다.</span>}
               </div>
-              <button disabled={groundTruthBoundaries.length===0} onClick={()=>setAccuracyReport(evaluateSceneBoundaries({predictedBoundaries:boundaryDecisions.filter((decision)=>decision.decision!=="merge").map((decision)=>decision.boundaryIndex),groundTruthBoundaries,totalImages:allFieldFiles.length,tolerance:1}))} style={{alignSelf:"flex-start",padding:"6px 10px",border:"none",borderRadius:6,background:groundTruthBoundaries.length?"#103A62":"#D1D5DB",color:"#fff",fontSize:10,fontWeight:800,cursor:groundTruthBoundaries.length?"pointer":"default",fontFamily:"inherit"}}>평가 계산</button>
+              <button disabled={groundTruthBoundaries.length===0} onClick={()=>setAccuracyReport(evaluateSceneBoundaries({predictedBoundaries:boundaryDecisions.filter((decision)=>decision.decision!=="merge").map((decision)=>decision.boundaryIndex),groundTruthBoundaries,totalImages:allFieldFiles.length,tolerance:1}))} style={{alignSelf:"flex-start",padding:"6px 10px",border:"none",borderRadius:6,background:groundTruthBoundaries.length?"#155855":"#D1D5DB",color:"#fff",fontSize:10,fontWeight:800,cursor:groundTruthBoundaries.length?"pointer":"default",fontFamily:"inherit"}}>평가 계산</button>
               {accuracyReport && (
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:6}}>
                   {[["Precision",accuracyReport.boundaryPrecision],["Recall",accuracyReport.boundaryRecall],["Boundary F1",accuracyReport.boundaryF1],["Scene Purity",accuracyReport.scenePurity],["과분할률",accuracyReport.overSegmentationRate],["미분할률",accuracyReport.underSegmentationRate]].map(([label,value])=><div key={String(label)} style={{padding:8,borderRadius:6,background:C.bg,fontSize:9,color:C.muted}}><strong style={{display:"block",fontSize:13,color:C.teal}}>{Math.round(Number(value)*100)}%</strong>{label}</div>)}
@@ -3416,7 +3416,7 @@ function PhotoSortingInner({
             <div style={{padding:"10px 14px",background:"#F8FAFC",borderRadius:10,border:`1px solid ${C.border}`,fontSize:11,color:C.muted,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
               <span style={{fontWeight:800,color:C.txt}}>AI 씬 분석 결과</span>
               {activeMerge.length > 0 && (
-                <span style={{background:"#E8F0F5",color:"#103A62",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
+                <span style={{background:"#EAF4F2",color:"#155855",borderRadius:5,padding:"2px 8px",fontWeight:700}}>
                   🔗 병합 후보 {activeMerge.length}건
                 </span>
               )}
@@ -3554,7 +3554,7 @@ function PhotoSortingInner({
                         ? "1.5px solid #B8CBD8"
                         : "1.5px solid #FED7AA",
                       background: candidate.recommendedAction === "merge"
-                        ? "#E8F0F5"
+                        ? "#EAF4F2"
                         : "#FFF7ED",
                       display:"flex",flexDirection:"column",gap:6,
                     }}>
@@ -3564,12 +3564,12 @@ function PhotoSortingInner({
                             {candidate.recommendedAction === "merge" ? "🔗" : "✂️"}
                           </span>
                           <span style={{fontSize:11,fontWeight:900,
-                            color: candidate.recommendedAction === "merge" ? "#103A62" : "#C2410C",
+                            color: candidate.recommendedAction === "merge" ? "#155855" : "#C2410C",
                           }}>
                             {candidate.recommendedAction === "merge" ? "병합 후보" : "분리 유지 추천"}
                           </span>
                           {candidate.recommendedAction === "merge" && (
-                            <span style={{fontSize:10,color:"#315F7F",background:"#E8F0F5",borderRadius:4,padding:"1px 6px"}}>
+                            <span style={{fontSize:10,color:"#315F7F",background:"#EAF4F2",borderRadius:4,padding:"1px 6px"}}>
                               유사도 {Math.round(candidate.mergeScore * 100)}%
                             </span>
                           )}
@@ -3607,7 +3607,7 @@ function PhotoSortingInner({
                       )}
 
                       <div style={{fontSize:10,
-                        color: candidate.recommendedAction === "merge" ? "#103A62" : "#9A3412",
+                        color: candidate.recommendedAction === "merge" ? "#155855" : "#9A3412",
                         lineHeight:1.6,
                       }}>
                         {candidate.reason}
@@ -3616,7 +3616,7 @@ function PhotoSortingInner({
                       {candidate.matchedSignals.length > 0 && candidate.recommendedAction === "merge" && (
                         <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                           {candidate.matchedSignals.map((s,si)=>(
-                            <span key={si} style={{fontSize:9,background:"#E8F0F5",color:"#103A62",borderRadius:4,padding:"1px 6px"}}>{s}</span>
+                            <span key={si} style={{fontSize:9,background:"#EAF4F2",color:"#155855",borderRadius:4,padding:"1px 6px"}}>{s}</span>
                           ))}
                         </div>
                       )}
@@ -3634,7 +3634,7 @@ function PhotoSortingInner({
                           <>
                             <button
                               onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
-                              style={{padding:"5px 12px",background:"#103A62",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
+                              style={{padding:"5px 12px",background:"#155855",color:"#fff",border:"none",borderRadius:6,fontSize:10,fontWeight:900,cursor:"pointer",fontFamily:"inherit"}}
                             >
                               병합하기
                             </button>
@@ -3673,7 +3673,7 @@ function PhotoSortingInner({
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
           <Btn onClick={handleConfirmScenes} disabled={!allLoaded || !allApproved}>
-            {!allLoaded ? "AI 분석 중..." : !allApproved ? "Scene 승인 필요" : "📁 승인 결과로 폴더 정리 →"}
+            {!allLoaded ? "AI 분석 중..." : !allApproved ? "Scene 승인 필요" : "승인 결과로 폴더 정리"}
           </Btn>
         </div>
       </div>
@@ -3783,7 +3783,7 @@ function PhotoSortingInner({
           <div className="ps-btn-row" style={{paddingTop:4}}>
             <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
             <Btn onClick={runInAppRawMatch} style={{opacity:totalSelected===0?0.4:1}} disabled={totalSelected===0}>
-              {totalSelected>0?`${totalSelected}장 선택 → RAW 매칭`:"사진을 선택하세요"}
+              {totalSelected>0?`${totalSelected}장 선택 후 RAW 매칭`:"사진을 선택하세요"}
             </Btn>
           </div>
         </div>
@@ -3819,7 +3819,7 @@ function PhotoSortingInner({
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
           <Btn variant="secondary" onClick={()=>{ const a=document.createElement("a"); a.href="bridge://"; a.click(); }}>Bridge 열기</Btn>
-          <Btn onClick={runRawSelect}>RAW SELECT 시작 →</Btn>
+          <Btn onClick={runRawSelect}>RAW SELECT 시작</Btn>
         </div>
       </div>
     );
@@ -3889,7 +3889,7 @@ function PhotoSortingInner({
         </div>
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
-          {onOpenPhotoSelect ? <Btn onClick={onOpenPhotoSelect}>사진 셀렉으로 이동 →</Btn> : null}
+          {onOpenPhotoSelect ? <Btn onClick={onOpenPhotoSelect}>사진 셀렉으로 이동</Btn> : null}
         </div>
       </div>
     );
@@ -4038,7 +4038,7 @@ function PhotoSortingInner({
                 }
                 setCreatingGallery(false);
               }}>
-                {creatingGallery ? "업로드 중..." : "📸 고객 셀렉 갤러리 자동 생성 →"}
+                {creatingGallery ? "업로드 중..." : "고객 셀렉 갤러리 자동 생성"}
               </Btn>
             </div>
           )}
@@ -4118,7 +4118,7 @@ function PhotoSortingInner({
         </Card>
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 →</Btn>
+          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>승인</Btn>
         </div>
       </div>
     );
@@ -4194,7 +4194,7 @@ function PhotoSortingInner({
         </Card>
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>✅ 승인 →</Btn>
+          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>승인</Btn>
         </div>
       </div>
     );
@@ -4244,7 +4244,7 @@ function PhotoSortingInner({
         )}
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
-          <Btn style={{background:C.purple}} onClick={runGroupOutput}>파일 정리 시작 →</Btn>
+          <Btn style={{background:C.purple}} onClick={runGroupOutput}>파일 정리 시작</Btn>
         </div>
       </div>
     );
@@ -4290,7 +4290,7 @@ function PhotoSortingInner({
         )}
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
-          <Btn style={{background:C.purple}} onClick={runStudioOutput}>파일 정리 시작 →</Btn>
+          <Btn style={{background:C.purple}} onClick={runStudioOutput}>파일 정리 시작</Btn>
         </div>
       </div>
     );

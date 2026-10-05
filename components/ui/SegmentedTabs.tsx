@@ -7,6 +7,8 @@ export type SegmentedTabsItem<T extends string = string> = {
   value: T;
   label: string;
   icon?: ReactNode;
+  trailingIcon?: ReactNode;
+  unavailable?: boolean;
   /* 탭 옆에 보조 설명이 필요하면 title(hover 툴팁)로만 — 세그먼트 컨트롤은 본문에
      설명 문구를 안 보여준다(제안서 1.3 "탭 위아래에 정체불명의 띠를 두지 않는다"와 같은 맥락:
      탭 자체도 크게 만들지 않는다). */
@@ -40,7 +42,7 @@ const trackStyle: CSSProperties = {
   background: "rgba(21, 88, 85, .07)",
 };
 
-function tabStyle(active: boolean): CSSProperties {
+function tabStyle(active: boolean, unavailable = false): CSSProperties {
   return {
     flex: "0 0 auto",
     display: "inline-flex",
@@ -50,7 +52,7 @@ function tabStyle(active: boolean): CSSProperties {
     borderRadius: 8,
     padding: "7px 14px",
     background: active ? "#fff" : "transparent",
-    color: active ? "var(--teal)" : "var(--muted)",
+    color: unavailable ? "rgba(0, 0, 0, .28)" : active ? "var(--teal)" : "var(--muted)",
     fontFamily: "inherit",
     fontSize: 12.5,
     fontWeight: 700,
@@ -80,10 +82,12 @@ export default function SegmentedTabs<T extends string>({ items, value, onChange
               aria-selected={active}
               aria-controls={item.panelId}
               title={item.title}
-              style={tabStyle(active)}
+              style={tabStyle(active, item.unavailable)}
+              data-unavailable={item.unavailable || undefined}
             >
               {item.icon}
               <span>{item.label}</span>
+              {item.trailingIcon}
             </Link>
           );
         }
@@ -96,11 +100,13 @@ export default function SegmentedTabs<T extends string>({ items, value, onChange
             aria-selected={active}
             aria-controls={item.panelId}
             title={item.title}
-            style={tabStyle(active)}
+            style={tabStyle(active, item.unavailable)}
+            data-unavailable={item.unavailable || undefined}
             onClick={() => onChange(item.value)}
           >
             {item.icon}
             <span>{item.label}</span>
+            {item.trailingIcon}
           </button>
         );
       })}

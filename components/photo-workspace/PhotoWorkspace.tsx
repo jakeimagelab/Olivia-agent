@@ -101,7 +101,7 @@ function PhotoWorkspaceContent({
     <WorkspaceShell>
       <WorkspaceContent>
         {hideHeader ? null : <PhotoWorkspaceHeader />}
-        <PhotoWorkspaceTabs value={mode} onChange={updateQuery} />
+        <PhotoWorkspaceTabs value={mode} onChange={updateQuery} remote={remote} />
         <RemotePhotoOperationResultBanner jobId={remoteJobId} />
         <WorkspaceGrid
           forceSingleColumn={remoteUnavailable}

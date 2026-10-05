@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FolderOpen, MessageSquare, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
   SELECT_MATCH_JPG_EXTENSIONS as JPG_EXTS,
@@ -828,7 +829,7 @@ export function SelectMatchWorkspace({
           </div>
 
           <div style={{ textAlign: "center" }}>
-            <Btn onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>🔍 폴더에서 찾기 →</Btn>
+            <Btn onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>폴더에서 찾기</Btn>
           </div>
         </div>
       </div>
@@ -867,7 +868,7 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
           <Btn variant="secondary" onClick={resetFindByName}>← 다시 검색</Btn>
-          <Btn onClick={runMoveMatched} disabled={fmMatches.length === 0}>📁 {fmFolderName}/ 폴더로 이동 →</Btn>
+          <Btn onClick={runMoveMatched} disabled={fmMatches.length === 0}>{fmFolderName}/ 폴더로 이동</Btn>
         </div>
       </div>
     );
@@ -915,7 +916,7 @@ export function SelectMatchWorkspace({
               <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
               {scRootDir && (
                 <div style={{ marginTop: 16 }}>
-                  <Btn onClick={runSequenceCheck}>🔍 순서 검토 시작 →</Btn>
+                  <Btn onClick={runSequenceCheck}>순서 검토 시작</Btn>
                 </div>
               )}
             </>
@@ -979,9 +980,9 @@ export function SelectMatchWorkspace({
 
   /* ── Idle ── */
   const entryModes = ([
-    { key: "folder", icon: "📂", title: "폴더 직접 선택", desc: "JPG 폴더를 열어서\n시각적으로 베스트컷 선택" },
-    { key: "text",   icon: "💬", title: "텍스트 붙여넣기", desc: "카카오톡·메모 등\n파일명 목록을 붙여넣기" },
-    { key: "upload", icon: "⬆",  title: "파일 업로드",    desc: "고객이 보낸 JPG 파일을\n직접 드래그 & 드롭" },
+    { key: "folder", icon: <FolderOpen size={15} strokeWidth={2} aria-hidden="true" />, title: "폴더 직접 선택", desc: "JPG 폴더를 열어서\n시각적으로 베스트컷 선택" },
+    { key: "text",   icon: <MessageSquare size={15} strokeWidth={2} aria-hidden="true" />, title: "텍스트 붙여넣기", desc: "카카오톡·메모 등\n파일명 목록을 붙여넣기" },
+    { key: "upload", icon: <Upload size={15} strokeWidth={2} aria-hidden="true" />, title: "파일 업로드", desc: "고객이 보낸 JPG 파일을\n직접 드래그 & 드롭" },
   ] as const).filter((item) => initialView === "raw" || (initialView === "manual" ? item.key === "folder" : item.key !== "folder"));
 
   if (step === "idle") return (
@@ -1004,7 +1005,7 @@ export function SelectMatchWorkspace({
               borderRadius: 12, padding: "18px 14px", textAlign: "center", cursor: "pointer",
               transition: "background .2s cubic-bezier(.32,.72,0,1), border-color .2s cubic-bezier(.32,.72,0,1)", fontFamily: "inherit",
             }}>
-            <div style={{ fontSize: 26, marginBottom: 8 }}>{m.icon}</div>
+            <div style={{ minHeight: 22, display: "grid", placeItems: "center", marginBottom: 8, color: inputMode === m.key ? C.teal : C.muted }}>{m.icon}</div>
             <div style={{ fontSize: 12, fontWeight: 800, color: inputMode === m.key ? C.teal : C.txt, marginBottom: 4 }}>{m.title}</div>
             <div style={{ fontSize: 10, color: C.hint, lineHeight: 1.6, whiteSpace: "pre-line" }}>{m.desc}</div>
           </button>
@@ -1065,7 +1066,7 @@ export function SelectMatchWorkspace({
           })()}
           <div style={{ marginTop: 14, textAlign: "center" }}>
             <Btn onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
-              {selectionOnly ? "선택 목록 저장" : "다음 — RAW 폴더 선택 →"}
+              {selectionOnly ? "선택 목록 저장" : "다음 — RAW 폴더 선택"}
             </Btn>
           </div>
         </div>
@@ -1143,7 +1144,7 @@ export function SelectMatchWorkspace({
                 })}
               </div>
               <div style={{ padding: "0 12px 12px", textAlign: "right" }}>
-                <Btn disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭 →`}</Btn>
+                <Btn disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭`}</Btn>
               </div>
             </div>
           )}
@@ -1176,7 +1177,7 @@ export function SelectMatchWorkspace({
               const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
               await runPreflight(dir);
             } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
-          }}>RAW 폴더 선택 →</Btn>
+          }}>RAW 폴더 선택</Btn>
         </div>
       </div>
     </div>
@@ -1290,7 +1291,7 @@ export function SelectMatchWorkspace({
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="secondary" onClick={() => setStep("ready")}>← 취소</Btn>
               {preflight.willMatch > 0 && (
-                <Btn onClick={runMatch}>{rawSelectMode === "move" ? "이동" : "복사"} 시작 ({preflight.willMatch}개) →</Btn>
+                <Btn onClick={runMatch}>{rawSelectMode === "move" ? "이동" : "복사"} 시작 ({preflight.willMatch}개)</Btn>
               )}
             </div>
           </div>
@@ -1420,7 +1421,7 @@ export function SelectMatchWorkspace({
           ) : (
             <>
               <Btn onClick={runPreflight} disabled={selected.size === 0}>
-                {selected.size > 0 ? `${selected.size}장 → RAW 매칭 확인` : "사진을 선택하세요"}
+                {selected.size > 0 ? `${selected.size}장 RAW 매칭 확인` : "사진을 선택하세요"}
               </Btn>
               <button
                 onClick={pickRawFolder}
@@ -1557,7 +1558,7 @@ export function SelectMatchWorkspace({
             <button
               onClick={() => runPreflight()}
               style={{ padding: "7px 18px", background: "rgba(255,255,255,.2)", border: "1px solid rgba(255,255,255,.4)", borderRadius: 999, color: "white", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-            >RAW 매칭 확인 →</button>
+            >RAW 매칭 확인</button>
           </div>
         </div>
       )}

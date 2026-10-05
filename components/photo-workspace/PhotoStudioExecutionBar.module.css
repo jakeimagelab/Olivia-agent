@@ -16,7 +16,7 @@
 
 .modeGroup, .modes, .remoteState, .remoteState > span, .remoteState button { display: flex; align-items: center; }
 .modeGroup { gap: 11px; flex: 0 0 auto; }
-.label { color: #60736f; font-size: 11px; font-weight: 800; }
+.label { color: #60736f; font-size: 11px; font-weight: 500; }
 .modes { gap: 5px; padding: 3px; border: 1px solid rgba(21, 88, 85, .12); border-radius: 11px; background: #fff; }
 .modes button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 0 12px; background: transparent; color: #70837e; font: 750 11px/1 inherit; cursor: pointer; }
 .modes button[aria-pressed="true"] { background: #eaf4f2; color: #155855; }

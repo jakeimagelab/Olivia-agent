@@ -57,6 +57,7 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sourceCount, setSourceCount] = useState(0);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -70,6 +71,7 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
       setFolder(handle);
       setCandidates([]);
       setSelected(new Set());
+      setSourceCount(0);
       setStatus("");
       callbacks.onSelectFolder?.(handle);
     } catch (error) {
@@ -88,6 +90,7 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
       const groups = await collectJpgFolderGroups(folder);
       const source = groups.flatMap((group) => group.photos.map((photo) => ({ parent: group.dirHandle, photo })));
       if (!source.length) throw new Error("선택한 폴더에서 JPG 사진을 찾지 못했습니다.");
+      setSourceCount(source.length);
 
       const prepared: Candidate[] = [];
       for (const [index, item] of source.entries()) {
@@ -146,15 +149,6 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
     <div className={styles.aiPanel}>
       <div className={styles.aiIntro}>
         <p>원하는 사진을 자연어로 설명하면 AI가 JPG 후보를 찾습니다. 후보는 자동 확정하지 않으며, 마지막 선택은 직접 합니다.</p>
-        <div className={styles.searchRow}>
-          <label className={styles.searchInput}>
-            <MessageCircle size={17} aria-hidden="true" />
-            <span className="sr-only">원하는 사진 설명</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} placeholder="예) 상반신 사진 골라줘, 상담하는 장면 찾아줘" />
-          </label>
-          <button type="button" className={styles.primaryButton} disabled={!query.trim() || !folder || loading} onClick={() => void search()}>{loading ? <Loader2 size={16} className="spin-icon" /> : <Search size={16} />}찾기</button>
-        </div>
-        {status ? <p className={styles.inlineNotice} role="status">{status}</p> : null}
       </div>
 
       <section className={styles.aiSection}>
@@ -166,7 +160,22 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
       </section>
 
       <section className={styles.aiSection}>
-        <div className={styles.sectionHeading}><h3><span>2.</span> 후보 사진</h3><small>{selected.size}장 선택됨</small></div>
+        <h3><span>2.</span> 원하는 사진 설명</h3>
+        <div className={styles.searchRow}>
+          <label className={styles.searchInput}>
+            <MessageCircle size={17} aria-hidden="true" />
+            <span className="sr-only">원하는 사진 설명</span>
+            <input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} placeholder="예) 상반신 사진 골라줘, 상담하는 장면 찾아줘" />
+          </label>
+          <button type="button" className={styles.primaryButton} disabled={!query.trim() || !folder || loading} onClick={() => void search()}>{loading ? <Loader2 size={16} className="spin-icon" /> : <Search size={16} />}찾기</button>
+        </div>
+        {!loading && !folder ? <p className={styles.searchHint}>폴더를 먼저 선택하세요.</p> : null}
+        {!loading && folder && !query.trim() ? <p className={styles.searchHint}>찾을 사진을 설명해 주세요.</p> : null}
+        {status ? <p className={styles.inlineNotice} role="status">{status}</p> : null}
+      </section>
+
+      <section className={styles.aiSection}>
+        <div className={styles.sectionHeading}><h3><span>3.</span> 후보 사진</h3><small>{sourceCount}장 중 관련 후보 {candidates.length}장 · {selected.size}장 선택됨</small></div>
         {candidates.length ? (
           <div className={styles.aiCandidateGrid}>
             {candidates.map((candidate) => (
@@ -175,7 +184,7 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={candidate.thumbnail} alt="" />
                 <span><strong>{candidate.name}</strong><small>{candidate.reason}</small></span>
-                <i>{selected.has(candidate.id) ? <Check size={14} strokeWidth={3} /> : `${candidate.score}/3`}</i>
+                <i>{selected.has(candidate.id) ? <Check size={14} strokeWidth={3} /> : `관련도 ${candidate.score}`}</i>
               </button>
             ))}
           </div>
@@ -183,8 +192,8 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
       </section>
 
       <div className={styles.aiActions}>
-        <button type="button" className={styles.secondaryButton} disabled={!selected.size || loading} onClick={() => setSelected(new Set())}>선택 초기화</button>
-        <div><button type="button" className={styles.mutedButton} disabled={!selected.size || loading} onClick={() => callbacks.onConfirmSelection?.(selectedNames)}>선택 완료 ({selected.size}장)</button><button type="button" className={styles.primaryButton} disabled={!selected.size || loading} onClick={() => callbacks.onStartRawMatch?.(selectedNames)}>RAW 매칭으로 이동</button></div>
+        <button type="button" className={styles.mutedButton} disabled={!selected.size || loading} onClick={() => setSelected(new Set())}>선택 초기화</button>
+        <div><button type="button" className={styles.secondaryButton} disabled={!selected.size || loading} onClick={() => callbacks.onConfirmSelection?.(selectedNames)}>선택만 저장 ({selected.size}장)</button><button type="button" className={styles.primaryButton} disabled={!selected.size || loading} onClick={() => callbacks.onStartRawMatch?.(selectedNames)}>저장하고 RAW 매칭으로</button></div>
       </div>
     </div>
   );

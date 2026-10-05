@@ -5,12 +5,19 @@
 }
 
 .intro,
-.panel,
 .result {
   border: 1px solid rgba(21, 88, 85, 0.11);
   border-radius: 16px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(21, 88, 85, 0.05);
+}
+
+.panel {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: #2a2a2a;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12);
+  color: #fff;
 }
 
 .intro {
@@ -30,7 +37,7 @@
   margin: 0 0 5px;
   color: #e85d2c;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0.06em;
 }
 
@@ -60,7 +67,7 @@
   background: #eef7f5;
   color: #155855;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .workerState i {
@@ -81,6 +88,65 @@
 
 .panel {
   padding: 18px;
+}
+
+.panel .sectionHeading h3,
+.panel .sectionHeading strong,
+.panel .fileSummary strong,
+.panel .groupHeader,
+.panel .ocrHeading strong,
+.panel .ocrName,
+.panel .targetInfo strong {
+  color: #fff;
+}
+
+.panel .sectionHeading p,
+.panel .sectionHeading em,
+.panel .fileSummary,
+.panel .groupHeader span,
+.panel .ocrHeading span,
+.panel .ocrName small,
+.panel .targetInfo small,
+.panel .safetyNote {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.panel .fileSummary,
+.panel .group,
+.panel .ocrResults,
+.panel .targetRow {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.panel .groupHeader,
+.panel .ocrName {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.panel .ocrHeading {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.panel .primaryButton {
+  border-color: #37c39d;
+  background: #37c39d;
+  color: #103e36;
+}
+
+.panel .secondaryButton {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: #fff;
+}
+
+.panel .primaryButton:disabled,
+.panel .secondaryButton:disabled,
+.panel .dangerButton:disabled {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 1;
 }
 
 .sectionHeading {
@@ -142,7 +208,7 @@
 }
 
 .dangerButton {
-  background: #e85d2c;
+  background: #c94a1e;
   color: #fff;
 }
 
@@ -259,7 +325,7 @@
   background: #155855;
   color: #fff;
   font-size: 11px;
-  font-weight: 900;
+  font-weight: 600;
 }
 
 .ocrBadge {
@@ -268,10 +334,10 @@
   left: 7px;
   padding: 3px 5px;
   border-radius: 5px;
-  background: #e85d2c;
+  background: #c94a1e;
   color: #fff;
   font-size: 8px;
-  font-weight: 900;
+  font-weight: 600;
   letter-spacing: 0.04em;
 }
 
@@ -361,7 +427,7 @@
 .ocrName span {
   overflow: hidden;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

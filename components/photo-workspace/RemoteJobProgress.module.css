@@ -16,7 +16,7 @@
 .heading b { font-size: 12px; font-variant-numeric: tabular-nums; }
 .actions { justify-content: flex-end; }
 .heading em { color: #9a4b2b; font-size: 10.5px; font-style: normal; white-space: nowrap; }
-.cancel { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(180,55,35,.28); border-radius: 7px; background: #fff; color: #b42318; padding: 4px 7px; font: inherit; font-size: 10.5px; font-weight: 800; cursor: pointer; }
+.cancel { display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(180,55,35,.28); border-radius: 7px; background: #fff; color: #b42318; padding: 4px 7px; font: inherit; font-size: 10.5px; font-weight: 500; cursor: pointer; }
 .cancel:hover { background: #fff3f0; }
 .spin { animation: remote-job-spin 1s linear infinite; }
 
@@ -32,10 +32,10 @@
 
 .steps { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
 .steps li { min-height: 28px; gap: 8px; color: #8ba09b; font-size: 10.5px; }
-.steps li i { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #e4ece9; font-style: normal; font-size: 9px; font-weight: 800; }
+.steps li i { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; background: #e4ece9; font-style: normal; font-size: 9px; font-weight: 500; }
 .steps li span { flex: 1; }
 .steps li small { font-size: 9.5px; font-variant-numeric: tabular-nums; }
-.steps li[data-state="active"] { color: #155855; font-weight: 800; }
+.steps li[data-state="active"] { color: #155855; font-weight: 500; }
 .steps li[data-state="active"] i { background: #155855; color: #fff; }
 .steps li[data-state="complete"] { color: #3f756b; }
 .steps li[data-state="complete"] i { background: #d9eee7; color: #155855; }
