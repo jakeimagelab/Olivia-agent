@@ -20,9 +20,8 @@ type QuoteLineItem = {
   qty: number;
   subtotal: number;
   note?: string;
+  groupLabel?: string | null;
 };
-
-const EXTERNAL_ITEM = /(헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|외주)/i;
 
 function today(offset = 0) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })
@@ -60,10 +59,25 @@ function titleTopic(item: ParsedQuoteItem | undefined) {
   return topic || null;
 }
 
+function hasBalancedParentheses(value: string) {
+  let balance = 0;
+  for (const character of value) {
+    if (character === "(") balance += 1;
+    if (character === ")") balance -= 1;
+    if (balance < 0) return false;
+  }
+  return balance === 0;
+}
+
 export function titleForParsedQuote(request: ParsedQuoteRequest, brand: Brand) {
   const client = request.clientName?.trim();
   if (!client) throw new Error("견적서 제목을 만들 고객명을 원문에서 찾지 못했어요.");
-  if (request.isEvent) return `${client}${request.titleSuffix ? ` ${request.titleSuffix}` : ""} 견적서`;
+  if (request.isEvent) {
+    const eventTitle = [client, request.titleSuffix].filter(Boolean).join(" ").trim();
+    const title = /견적서\s*$/i.test(eventTitle) ? eventTitle : `${eventTitle} 견적서`;
+    if (!hasBalancedParentheses(title)) throw new Error("견적서 제목의 괄호 짝이 맞지 않아 저장하지 않았어요.");
+    return title;
+  }
   if (brand === "jakeimage") {
     const topic = titleTopic(request.items[0]);
     return `${client} 브랜드촬영${topic ? `(${topic})` : ""} 견적서`;
@@ -75,14 +89,21 @@ function detailOf(item: ParsedQuoteItem) {
   return [item.note ? `(${item.note})` : "", ...item.details].filter(Boolean).join("\n");
 }
 
-function toCustomItem(item: ParsedQuoteItem, index: number): CustomItem {
+function toCustomItem(item: ParsedQuoteItem, index: number, brand: Brand): CustomItem {
   const amount = Math.max(0, Number(item.amount) || 0) * Math.max(1, item.quantity);
   return {
     id: `parsed:custom:${index}`,
     name: item.name,
     detail: detailOf(item),
     amount,
-    discountable: !EXTERNAL_ITEM.test(item.name),
+    unitPrice: item.amount ?? 0,
+    quantity: Math.max(1, item.quantity),
+    groupLabel: item.groupLabel,
+    // 할인은 패키지·카탈로그 단일항목·인원 추가에만 적용한다. 사용자 임의 기타/묶음
+    // 항목은 할인 대상에 억지로 넣지 않는다. 특히 "액자 추가 건"은 촬영비 검산 대상이 아니다.
+    discountable: brand === "jakeimage"
+      ? Boolean(jakeSingleId(item.name))
+      : /(?:의료진\s*)?프로필\s*\d+\s*(?:명|인)?\s*추가/.test(item.name),
   };
 }
 
@@ -93,9 +114,6 @@ function packageIdFor(items: ParsedQuoteItem[]) {
 }
 
 function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
-  // 서비스/혜택 섹션의 문구는 이미 서비스라는 맥락 안에 있으므로 "· 서비스"나 정가를
-  // 덧붙이지 않는다. 사용자가 적은 혜택 이름을 그대로 문서에 보인다.
-  if (item.benefitOnly) return [item.name, detailOf(item)].filter(Boolean).join(" · ");
   const normalizedName = normalize(item.name);
   // 포인트영상은 단독 판매가와 패키지 옵션가가 다르다. 패키지에 함께 적혔을 때만
   // 옵션 정가를 보여주고, 그 외에는 단일항목 정가를 보여준다.
@@ -144,6 +162,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
       qty: quantity,
       subtotal,
       note: item.free ? "서비스" : amount === null ? "금액 입력 필요" : item.note || undefined,
+      groupLabel: item.groupLabel,
     });
 
     if (item.free) {
@@ -153,42 +172,31 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     if (isPackage) return;
     // 포토클리닉 단일항목도 금액을 직접 말했으면 그 원문 금액을 우선한다. 고정 카탈로그
     // 버튼은 가격을 말하지 않았거나 정확히 같은 값일 때만 사용한다.
-    if (mappedId && (brand === "jakeimage" || item.amount === null || item.amount === catalogPrice)) {
+    if (brand === "jakeimage" && mappedId) {
+      // 제이크이미지의 매핑은 체크 칸만 정한다. 문서/저장에 찍히는 항목명·수량·단가는
+      // 원문 CustomItem으로 남긴다. 카탈로그 라벨로 바꾸면 안 된다.
       if (!selectedSingleItemIds.includes(mappedId)) selectedSingleItemIds.push(mappedId);
-      if (brand === "jakeimage") {
-        singleItemNotes[mappedId] = detail;
-        singleItemAmounts[mappedId] = subtotal;
-      }
+      customItems.push(toCustomItem(item, index, brand));
       return;
     }
-    customItems.push(toCustomItem(item, index));
+    if (mappedId && (item.amount === null || item.amount === catalogPrice)) {
+      if (!selectedSingleItemIds.includes(mappedId)) selectedSingleItemIds.push(mappedId);
+      return;
+    }
+    customItems.push(toCustomItem(item, index, brand));
   });
 
   const packageTotal = selectedPackageId ? packages.find((entry) => entry.id === selectedPackageId)?.price ?? 0 : 0;
   const singleItemsTotal = brand === "jakeimage"
-    ? Object.values(singleItemAmounts).reduce((sum, amount) => sum + amount, 0)
+    ? 0
     : request.items
       .filter((item) => Boolean(photoclinicSingleId(item.name)) && !item.free)
       .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0) * Math.max(1, item.quantity), 0);
   const discountRate = request.discount?.type === "percent" ? request.discount.value : 0;
   const requestedExtraDiscount = request.discount?.type === "amount" ? request.discount.value : 0;
-  // 총액 확정·절삭은 항목이 아니라 할인이다. 먼저 원문 지시가 만든 차액을 계산한 뒤,
-  // 할인으로 표현 가능한 음수 조정만 extraDiscount에 합친다. 항목 배열에는 절대 넣지 않는다.
-  const adjustmentProbe = computeQuoteTotals({
-    packageTotal,
-    singleItemsTotal,
-    optionsTotal: 0,
-    customItems,
-    discountRate,
-    extraDiscount: requestedExtraDiscount,
-    fixedTotal: request.fixedTotal,
-    roundDownUnit: request.roundDownUnit,
-    depositRate,
-  });
-  const fixedTotalIsDiscount = adjustmentProbe.specialAdjustmentAmount <= 0;
-  const extraDiscount = fixedTotalIsDiscount
-    ? requestedExtraDiscount + Math.abs(adjustmentProbe.specialAdjustmentAmount) + adjustmentProbe.roundDownAmount
-    : requestedExtraDiscount;
+  // 할인, 특별조정, 절삭은 모두 computeQuoteTotals 한 곳에서 순서대로 적용한다.
+  // 이 값을 추가할인으로 합쳐 버리면 문서가 이미 반영한 공급가에서 할인을 또 빼는 것처럼 보인다.
+  const extraDiscount = requestedExtraDiscount;
   const totals = computeQuoteTotals({
     packageTotal,
     singleItemsTotal,
@@ -196,12 +204,22 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     customItems,
     discountRate,
     extraDiscount,
-    // 공급가를 올리는 지정총액은 할인으로 표현할 수 없으므로 기존 명시 조정으로만 남긴다.
-    // 대표가 지정한 금액을 조용히 다른 값으로 바꾸지 않는다.
-    fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
-    roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
+    fixedTotal: request.fixedTotal,
+    roundDownUnit: request.roundDownUnit,
     depositRate,
   });
+
+  if (request.checkTotal !== null) {
+    const discountedCatalogSubtotal = totals.discountableSubtotal - totals.discountTotal;
+    if (request.checkTotal !== totals.supplyAmount && request.checkTotal !== discountedCatalogSubtotal) {
+      throw new Error([
+        "적어주신 금액과 계산이 안 맞아요.",
+        `  적어주신 것:  ${request.checkTotal.toLocaleString("ko-KR")}`,
+        `  계산한 것:    ${discountedCatalogSubtotal.toLocaleString("ko-KR")} (할인 적용 후)`,
+        "어느 쪽이 맞나요?",
+      ].join("\n"));
+    }
+  }
 
   const formState = {
     brand,
@@ -221,8 +239,11 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     discountLabel: request.discount?.label || "",
     discountRate,
     extraDiscount,
-    fixedTotal: fixedTotalIsDiscount ? null : request.fixedTotal,
-    roundDownUnit: fixedTotalIsDiscount ? null : request.roundDownUnit,
+    fixedTotal: request.fixedTotal,
+    roundDownUnit: request.roundDownUnit,
+    checkTotal: request.checkTotal,
+    specialAdjustmentAmount: totals.specialAdjustmentAmount,
+    roundDownAmount: totals.roundDownAmount,
     memo: request.memo || "",
     depositRate,
     // 구조화된 단일항목/내용칸도 함께 채운다. 사람이 열어 수정해도 같은 폼 계산기로 이어진다.

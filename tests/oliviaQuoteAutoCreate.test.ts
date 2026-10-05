@@ -149,7 +149,7 @@ describe("create_quote — temporary document client approval policy", () => {
       recentActions: [],
       revision: 0,
       currentConversationId: "conversation-1",
-      currentRequestText: "1989 청담스시 견적서 만들어줘",
+      currentRequestText: "1989 청담스시\n견적서 만들어줘\n음식사진촬영 150만원",
     };
     const first = await callCreateQuote("1989 청담스시", context);
     const requestKey = lastCrudCall.data.formState.oliviaCreateRequestKey;

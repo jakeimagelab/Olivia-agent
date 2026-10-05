@@ -118,7 +118,6 @@ export function getSingleItems(brand: Brand): SingleItem[] {
 export const BRAND_CONFIG: Record<Brand, {
   label: string;
   logo: string;
-  defaultQuoteTitle: string;
   entityLabel: string;
   entityPlaceholder: string;
   emailPlaceholder: string;
@@ -133,12 +132,10 @@ export const BRAND_CONFIG: Record<Brand, {
   railNoticeDetail: string;
   popupBg: string;
   quoteNumberPrefix: string;
-  defaultMemo: string;
 }> = {
   photoclinic: {
     label: "포토클리닉",
     logo: "/assets/photoclinic-logo.png?v=3",
-    defaultQuoteTitle: "포토클리닉 브랜드사진 견적서",
     entityLabel: "병원명",
     entityPlaceholder: "포토클리닉",
     emailPlaceholder: "photoclnic@gmail.com",
@@ -153,12 +150,10 @@ export const BRAND_CONFIG: Record<Brand, {
     railNoticeDetail: "병원 전문 브랜드 촬영",
     popupBg: "#f0f4f2",
     quoteNumberPrefix: "PC-",
-    defaultMemo: ""
   },
   jakeimage: {
     label: "제이크이미지연구소",
     logo: "/assets/jakeimage-logo-2026.png",
-    defaultQuoteTitle: "제이크이미지연구소 브랜드사진 견적서",
     entityLabel: "회사명",
     entityPlaceholder: "제이크이미지연구소",
     emailPlaceholder: "contact@jakeimage.com",
@@ -173,6 +168,5 @@ export const BRAND_CONFIG: Record<Brand, {
     railNoticeDetail: "이미지를 설계합니다.",
     popupBg: "#eef1f5",
     quoteNumberPrefix: "JI-",
-    defaultMemo: "촬영 범위와 일정은 상담 후 최종 확정됩니다."
   }
 };

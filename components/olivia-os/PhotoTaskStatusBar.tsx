@@ -37,10 +37,10 @@ const STAGE_LABEL: Record<string, string> = {
 };
 
 function operationLabel(job: PhotoJob): string {
-  if (job.action === "PHOTO_SORT") return "사진 분류";
   if (job.action === "PHOTO_PREPARE_SOURCE") return "JPG정리";
   if (job.action === "PHOTO_STAGE_JPG") return "JPG정리";
   if (job.payload?.only === "연출" || job.payload?.only === "프로필" || job.payload?.only === "인테리어") return `${job.payload.only}정리`;
+  if (job.action === "PHOTO_SORT" || job.action === "PHOTO_CLASSIFY_WORK") return "분류";
   return "분류";
 }
 

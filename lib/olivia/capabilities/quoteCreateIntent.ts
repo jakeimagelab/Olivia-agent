@@ -11,9 +11,8 @@ const OPEN_QUALIFIER = /(페이지|화면)/;
 // 대신 페이지 이동으로 새던 문제, 2026-08-29). 다만 견적 생성은 hospitalName을 문장에서 뽑아야
 // 해서 select_match처럼 완전 결정론적으로 바로 실행할 수는 없다 — 여기서는 단지 "페이지 이동을
 // 단정하지 말고 GPT+create_quote/open_feature 판단으로 넘겨라"라는 억제 신호만 준다.
-// GPT 쪽 판단은 start_quote_wizard(브랜드가 아직 없거나 요청이 막연할 때)와 create_quote(이미
-// 충분한 정보가 있을 때) 중 하나로 이어진다 — 견적서 UX 개편(2026-08-31)에서 추가됨, 이 파일의
-// 로직 자체는 변경 없음.
+// GPT는 create_quote 하나만 호출한다. 필요한 고객명·항목이 원문에 없으면 서버 파서의 명시적
+// 오류를 그대로 보여주며, 별도 마법사나 기본값으로 보완하지 않는다.
 export function isQuoteNavigationShortcutBlocked(message: string): boolean {
   const trimmed = message.trim();
   if (!trimmed || OPEN_QUALIFIER.test(trimmed)) return false;

@@ -59,11 +59,13 @@ export async function registerTemporaryDocument(db: SupabaseClient, input: {
   clientId?: string | null;
   workflowRunId?: string | null;
   metadata?: Record<string, unknown>;
+  /** 견적서는 원문 고객만 신뢰한다. 호출자가 이미 검증한 고객 연결만 쓴다. */
+  linkExistingClient?: boolean;
 }) {
   let clientId = input.clientId || null;
   let workflowRunId = input.workflowRunId || null;
   let clientResolution: "existing" | "pending" = clientId ? "existing" : "pending";
-  if (!clientId && input.hospitalName) {
+  if (!clientId && input.hospitalName && input.linkExistingClient !== false) {
     const exact = await findExactDocumentClient(db, input.hospitalName);
     if (exact) {
       clientId = exact.id;

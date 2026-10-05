@@ -44,7 +44,7 @@ export const CLIENT_ONLY_TOOLS = new Set([
 ]);
 
 const UI_TOOLS = new Set([
-  ...CLIENT_ONLY_TOOLS, "show_workspace", "open_feature", "open_document", "start_quote_wizard",
+  ...CLIENT_ONLY_TOOLS, "show_workspace", "open_feature", "open_document",
   "request_contract_signature", "preview_quote", "preview_contract", "preview_conti_v2",
   "brand_analysis_preview", "trend_analysis_preview",
 ]);

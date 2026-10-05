@@ -19,7 +19,12 @@ export type CustomItem = {
   name: string;
   detail: string;
   amount: number;
+  /** 수량이 있는 원문 항목의 표시용 단가/수량. 합계 계산은 amount(소계)만 쓴다. */
+  unitPrice?: number;
+  quantity?: number;
   discountable?: boolean;
+  /** 원문에서 금액 항목 앞에 온 구분 머리글. 금액 항목 자체는 아니다. */
+  groupLabel?: string | null;
 };
 
 export type BenefitItem = {

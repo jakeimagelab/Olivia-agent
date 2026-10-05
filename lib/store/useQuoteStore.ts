@@ -29,6 +29,10 @@ export type QuoteFormState = {
   discountLabel: string;
   discountRate: number;
   extraDiscount: number;
+  /** 원문에 지정된 공급가. 항목 가격을 고치지 않고 특별조정으로 맞춘다. */
+  fixedTotal: number | null;
+  /** 원문에 지정된 절삭 단위. 지정된 경우에만 공급가에서 절삭한다. */
+  roundDownUnit: number | null;
   memo: string;
   depositRate: number;
 };
@@ -37,7 +41,7 @@ const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
   "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
   "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems", "discountLabel",
-  "discountRate", "extraDiscount", "memo", "depositRate",
+  "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
 
 type Updater<T> = T | ((prev: T) => T);
@@ -83,6 +87,8 @@ export type QuoteStoreState = QuoteFormState & {
   setDiscountLabel: (value: Updater<string>) => void;
   setDiscountRate: (value: Updater<number>) => void;
   setExtraDiscount: (value: Updater<number>) => void;
+  setFixedTotal: (value: Updater<number | null>) => void;
+  setRoundDownUnit: (value: Updater<number | null>) => void;
   setMemo: (value: Updater<string>) => void;
   setDepositRate: (value: Updater<number>) => void;
 };
@@ -137,6 +143,8 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     discountLabel: "",
     discountRate: 0,
     extraDiscount: 0,
+    fixedTotal: null,
+    roundDownUnit: null,
     memo: "",
     depositRate: 50,
     dirtyFields: new Set(),
@@ -173,6 +181,8 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setDiscountLabel: dirtySetter("discountLabel"),
     setDiscountRate: dirtySetter("discountRate"),
     setExtraDiscount: dirtySetter("extraDiscount"),
+    setFixedTotal: dirtySetter("fixedTotal"),
+    setRoundDownUnit: dirtySetter("roundDownUnit"),
     setMemo: dirtySetter("memo"),
     setDepositRate: dirtySetter("depositRate"),
   };

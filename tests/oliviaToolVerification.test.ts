@@ -80,7 +80,10 @@ vi.mock("@/lib/supabase", () => ({
   }),
 }));
 
-const fuzzyNameSearchMock = vi.fn(async (..._args: any[]) => [] as any[]);
+const fuzzyNameSearchMock = vi.fn(async (...args: any[]) => {
+  void args;
+  return [] as any[];
+});
 vi.mock("@/lib/olivia/nameSearch", () => ({
   fuzzyNameSearch: (...args: any[]) => fuzzyNameSearchMock(...args),
   fuzzyNameSearchOne: vi.fn(async () => null),
@@ -118,7 +121,10 @@ vi.mock("@/lib/olivia/crud/executor", () => ({
   }),
 }));
 
-const linkDocumentToClientMock = vi.fn(async (..._args: any[]) => ({ action: "done", message: "못 찾았어요" }) as Record<string, unknown>);
+const linkDocumentToClientMock = vi.fn(async (...args: any[]) => {
+  void args;
+  return { action: "done", message: "못 찾았어요" } as Record<string, unknown>;
+});
 vi.mock("@/lib/olivia/tools/documentLink", () => ({
   linkDocumentToClient: (...args: any[]) => linkDocumentToClientMock(...args),
 }));
@@ -132,7 +138,7 @@ vi.mock("@/lib/olivia/tools/calendar", () => ({
   resolveCalendarTaskId: vi.fn(async () => "task-1"),
 }));
 
-import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
+import { executeAgentTool, OLIVIA_V2_TOOLS, runTool } from "@/lib/olivia/v2/toolExecutor";
 import { fromLegacyResult } from "@/lib/olivia/v2/toolExecutors/common";
 import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
@@ -159,23 +165,9 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     expect(execution.result.verification?.resourceExists).toBe(true);
   });
 
-  it("A-2. 의료 문맥으로 확정된 Context 브랜드는 견적 마법사 카드 초기값으로 전달된다", async () => {
-    const execution = await call("start_quote_wizard", {}, { ...baseContext, brand: "photoclinic" });
-    expect(execution.result).toMatchObject({ success: true, data: { brand: "photoclinic" } });
-    expect(execution.uiActions).toEqual([
-      expect.objectContaining({
-        type: "OPEN_CLIENT_TASK",
-        task: "quote_wizard",
-        initialData: { brand: "photoclinic" },
-      }),
-    ]);
-  });
-
-  it("A-3. 브랜드가 확정되지 않은 견적 마법사는 기존 선택 UI를 유지한다", async () => {
-    const execution = await call("start_quote_wizard", {});
-    expect(execution.result.data?.brand).toBeUndefined();
-    expect(execution.uiActions[0]).toMatchObject({ type: "OPEN_CLIENT_TASK", task: "quote_wizard" });
-    expect(execution.uiActions[0]).not.toHaveProperty("initialData");
+  it("A-2. 견적 마법사는 노출하거나 실행하지 않고 원문 파서 create_quote만 쓴다", async () => {
+    expect(OLIVIA_V2_TOOLS.some((tool) => tool.name === "start_quote_wizard")).toBe(false);
+    await expect(runTool("start_quote_wizard", {}, baseContext)).rejects.toThrow("지원하지 않는 Olivia 작업이에요.");
   });
 
   it("B. get_conti_status — 저장된 콘티가 없으면 success=true인데도 verification.resourceExists=false다(콘티 없음은 실패가 아니다)", async () => {

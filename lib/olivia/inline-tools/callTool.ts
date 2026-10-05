@@ -3,8 +3,8 @@
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { getOliviaContextSnapshot } from "@/lib/store/oliviaContextStore";
 
-// 견적서 마법사 인라인 카드(QuoteSetupForm/QuoteDiscountForm/QuoteClientRegistrationChatCard)가
-// 폼 제출/버튼 클릭으로 이미 알고 있는 도구를 GPT 왕복 없이 곧장 실행할 때 쓰는 공유 헬퍼다.
+// 인라인 카드가 폼 제출/버튼 클릭으로 이미 알고 있는 도구를 GPT 왕복 없이 곧장 실행할 때
+// 쓰는 공유 헬퍼다.
 // useOliviaConversationStore.ts의 approveAction()과 정확히 같은 fetch+uiActions 처리 패턴이지만
 // /api/olivia/v2/approve(승인 카드 확인 버튼 전용, APPROVABLE_TOOLS allowlist)가 아니라
 // /api/olivia/v2/inline-tool-action(인라인 카드 전용, INLINE_CARD_TOOLS allowlist)을 호출한다

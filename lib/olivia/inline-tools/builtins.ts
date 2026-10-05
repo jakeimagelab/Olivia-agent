@@ -6,8 +6,6 @@ import ContractPreviewChatCard from "@/components/olivia/ContractPreviewChatCard
 import ContractSignaturePad from "@/components/olivia/ContractSignaturePad";
 import PhotoClassificationChatCard from "@/components/olivia/PhotoClassificationChatCard";
 import { usePhotoClassificationChatStore } from "@/lib/store/usePhotoClassificationChatStore";
-import QuoteWizardChatCard from "@/components/olivia/QuoteWizardChatCard";
-import { useQuoteWizardChatStore } from "@/lib/store/useQuoteWizardChatStore";
 
 // 이 파일을 import하는 것만으로 등록이 끝난다(side-effect import) — index.ts가 이 파일을
 // re-export해서 앱이 레지스트리를 쓰는 지점(OliviaConversation.tsx, useOliviaConversationStore.ts)
@@ -18,7 +16,6 @@ export const QUOTE_PREVIEW_TOOL_ID = "quote_preview";
 export const CONTRACT_PREVIEW_TOOL_ID = "contract_preview";
 export const CONTRACT_SIGNATURE_TOOL_ID = "contract_signature";
 export const PHOTO_CLASSIFICATION_TOOL_ID = "photo_classification";
-export const QUOTE_WIZARD_TOOL_ID = "quote_wizard";
 
 registerInlineTool({
   id: SELECT_MATCH_TOOL_ID,
@@ -54,17 +51,4 @@ registerInlineTool({
   component: PhotoClassificationChatCard,
   onStart: (flowId) => usePhotoClassificationChatStore.getState().startFlow(flowId),
   duplicateRunMessage: "현재 사진 분류가 진행 중입니다. 완료 후 다시 시도해주세요.",
-});
-
-registerInlineTool({
-  id: QUOTE_WIZARD_TOOL_ID,
-  component: QuoteWizardChatCard,
-  onStart: (flowId, initialData) => {
-    const brand = initialData?.brand;
-    useQuoteWizardChatStore.getState().startFlow(
-      flowId,
-      brand === "photoclinic" || brand === "jakeimage" ? brand : undefined,
-    );
-  },
-  duplicateRunMessage: "현재 견적서 생성 마법사가 진행 중이에요. 완료 후 다시 시도해주세요.",
 });

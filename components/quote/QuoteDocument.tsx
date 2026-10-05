@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- Canonical document/PDF capture requires the raw image dimensions used by the Desktop sheet. */
 
-import type { ReactNode, Ref } from "react";
+import { Fragment, type ReactNode, type Ref } from "react";
 import { Building2, Mail, MapPin, Phone, Quote, Receipt, UserRound } from "lucide-react";
 import { BRAND_CONFIG } from "@/lib/quote/quoteCatalog";
 import { formatCustomItemDetail } from "@/lib/quote/formatQuoteDetail";
@@ -22,9 +22,9 @@ function Info({ icon, label, value }: { icon?: ReactNode; label: string; value: 
 export default function QuoteDocument({ data, scale = 1, pageRef }: { data: QuoteDocumentData; scale?: number; pageRef?: Ref<HTMLDivElement> }) {
   const {
     brand, customer, quoteTitle, packageItem, singleItems: selectedSingleItems, optionItems,
-    customItems: visibleCustomItems, benefitItems: visibleBenefitItems, discountLabel, discountRate,
-    rateDiscountAmount, extraDiscountAmount, discountTotal, contentSubtotal, supplyAmount,
-    vat, finalAmount, depositRate, memo,
+    customItems: visibleCustomItems, benefitItems: visibleBenefitItems,
+    discountTotal, contentSubtotal, specialAdjustmentAmount, roundDownAmount, supplyAmount,
+    vat, finalAmount, depositAmount, balanceAmount, depositRate, memo,
   } = data;
   const cfg = BRAND_CONFIG[brand];
 
@@ -38,7 +38,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
         </div>
         <div className="rail-address">
           <span>TO.</span>
-          <strong className={`rail-customer-name rail-customer-name--${getQuoteRailNameSize(customer.hospitalName || cfg.entityLabel)}`}>{customer.hospitalName || cfg.entityLabel}</strong>
+          <strong className={`rail-customer-name rail-customer-name--${getQuoteRailNameSize(customer.hospitalName || "-")}`}>{customer.hospitalName || "-"}</strong>
           <small>{customer.managerName || "담당자"}</small>
         </div>
         <div className="rail-notice">
@@ -58,7 +58,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
             <div><span>촬영 예정일</span><strong>{displayDate(customer.shootDate)}</strong></div>
             <div><span>견적 유효기간</span><strong>{displayDate(customer.validUntil)}</strong></div>
           </div>
-          <h2 style={{ fontFamily: "'Nanum Myeongjo', serif", whiteSpace: "pre-line" }}>{quoteTitle || cfg.defaultQuoteTitle}</h2>
+          <h2 style={{ fontFamily: "'Nanum Myeongjo', serif", whiteSpace: "pre-line" }}>{quoteTitle || "견적서"}</h2>
         </header>
 
         <section className="client-strip">
@@ -79,12 +79,21 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
               {optionItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}{item.detail ? <small>{item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>-</td></tr>)}
               {visibleCustomItems.map((item, index) => {
                 const formattedDetail = formatCustomItemDetail(item.detail);
-                return <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{formattedDetail ? <small style={{ whiteSpace: "pre-line" }}>{formattedDetail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>기타</td></tr>;
+                const previousGroupLabel = index > 0 ? visibleCustomItems[index - 1].groupLabel : null;
+                const showGroupLabel = Boolean(item.groupLabel && item.groupLabel !== previousGroupLabel);
+                return <Fragment key={item.id}>
+                  {showGroupLabel ? <tr className="category-row"><td colSpan={5}>{item.groupLabel}</td></tr> : null}
+                  <tr>
+                    <td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{formattedDetail ? <small style={{ whiteSpace: "pre-line" }}>{formattedDetail}</small> : null}</td>
+                    <td>{item.quantity ?? 1}</td>
+                    <td>{amount(item.unitPrice ?? item.amount)}</td>
+                    <td>{amount(item.amount)}</td>
+                    <td>기타</td>
+                  </tr>
+                </Fragment>;
               })}
               {visibleBenefitItems.length ? <tr className="category-row"><td colSpan={5}>서비스 및 혜택</td></tr> : null}
               {visibleBenefitItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + visibleCustomItems.length + index + 1}. {item.name}</td><td></td><td>-</td><td>-</td><td>서비스 및 혜택</td></tr>)}
-              {discountRate > 0 ? <tr className="discount-row"><td>{discountLabel ? `${discountLabel} ${discountRate}% 할인` : `${discountRate}% 할인`}</td><td>-</td><td>-{amount(rateDiscountAmount)}</td><td>-{amount(rateDiscountAmount)}</td><td>촬영콘텐츠 합계 기준</td></tr> : null}
-              {extraDiscountAmount > 0 ? <tr className="discount-row"><td>추가할인(절삭)</td><td>-</td><td>-{amount(extraDiscountAmount)}</td><td>-{amount(extraDiscountAmount)}</td><td>최종금액 조정</td></tr> : null}
               {contentSubtotal === 0 ? <tr><td>선택된 촬영 항목 없음</td><td>-</td><td>0</td><td>0</td><td>-</td></tr> : null}
               <tr className="blank-row"><td colSpan={5}></td></tr>
             </tbody>
@@ -95,13 +104,16 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
           <div className="payment-box">
             <div className="payment-terms-note"><strong>결제조건</strong><span>선금 {depositRate}%, 잔금 {100 - depositRate}% 기준<br />세부 조건은 상호 협의 가능</span></div>
             <div className="payment-terms-rows">
-              <div className="payment-row">{depositRate > 0 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span><span>{amount(Math.round(finalAmount * depositRate / 100))}</span></> : null}</div>
-              <div className="payment-row">{depositRate < 100 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100 - depositRate}%</strong></span><span>{amount(Math.round(finalAmount * (100 - depositRate) / 100))}</span></> : null}</div>
+              <div className="payment-row">{depositRate > 0 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span><span>{amount(depositAmount)}</span></> : null}</div>
+              <div className="payment-row">{depositRate < 100 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100 - depositRate}%</strong></span><span>{amount(balanceAmount)}</span></> : null}</div>
             </div>
           </div>
           <div className="total-signature"><div className="total-box">
+            <div><span>항목 합계</span><strong>{amount(contentSubtotal)}</strong></div>
+            {discountTotal > 0 ? <div><span>할인 합계</span><strong>−{amount(discountTotal)}</strong></div> : null}
+            {specialAdjustmentAmount !== 0 ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
+            {roundDownAmount > 0 ? <div><span>절삭</span><strong>−{amount(roundDownAmount)}</strong></div> : null}
             <div><span>공급가액</span><strong>{amount(supplyAmount)}</strong></div>
-            <div><span>할인 합계</span><strong>{discountTotal ? `-${amount(discountTotal)}` : "0"}</strong></div>
             <div><span>부가세/10%</span><strong>{amount(vat)}</strong></div>
             <div className="grand-total"><span>KRW</span><strong>{amount(finalAmount)}</strong></div>
           </div></div>

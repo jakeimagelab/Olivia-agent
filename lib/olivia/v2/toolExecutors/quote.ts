@@ -9,7 +9,6 @@ import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quo
 import type { OliviaContextSnapshot, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { text, activeResource } from "./common";
 import { createVerification } from "./verification";
-import { isKnownDocumentBrand } from "@/lib/olivia/brandResolver";
 import { renderQuoteBuffer } from "@/lib/quote/renderQuotePdf";
 import { resolveServerBaseUrl } from "@/lib/baseUrl";
 import { publishQuote } from "@/lib/core/commands/document";
@@ -94,6 +93,7 @@ async function finalizeCreatedQuote(input: {
     clientId: typeof record.client_id === "string" ? record.client_id : fallbackClientId,
     workflowRunId: typeof record.workflow_run_id === "string" ? record.workflow_run_id : fallbackWorkflowRunId,
     metadata: { totalAmount: Number(record.total_amount) || 0, quoteNumber: record.quote_number || null },
+    linkExistingClient: false,
   });
   const temporaryDocument = registered.temporaryDocument;
   return {
@@ -141,7 +141,7 @@ function serviceCount(value: unknown, current: number | null | undefined) {
 }
 
 export const QUOTE_TOOL_NAMES = [
-  "create_quote", "get_quote", "start_quote_wizard", "update_quote_item", "add_quote_item", "remove_quote_item",
+  "create_quote", "get_quote", "update_quote_item", "add_quote_item", "remove_quote_item",
   "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount",
   "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
@@ -180,13 +180,13 @@ async function resolveCreateQuoteContext(input: {
     .eq("hospital_name", input.clientName)
     .maybeSingle();
   if (error) throw new Error(`고객 연결 정보를 확인하지 못했어요: ${error.message}`);
-  const clientId = client?.id ? String(client.id) : undefined;
+  const candidateClientId = client?.id ? String(client.id) : undefined;
   let previousBrand: "photoclinic" | "jakeimage" | null = null;
-  if (clientId) {
+  if (candidateClientId) {
     const { data: previous, error: previousError } = await input.db
       .from("quotes")
       .select("form_state")
-      .eq("client_id", clientId)
+      .eq("client_id", candidateClientId)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -194,6 +194,10 @@ async function resolveCreateQuoteContext(input: {
     const state = previous?.form_state && typeof previous.form_state === "object" ? previous.form_state as Record<string, unknown> : {};
     previousBrand = state.brand === "jakeimage" || state.brand === "photoclinic" ? state.brand : null;
   }
+  const brand = explicitBrand || previousBrand || (MEDICAL_CLIENT_PATTERN.test(medicalName) ? "photoclinic" : "jakeimage");
+  // 고객 레코드 자체가 같은 이름이라는 이유만으로 두 브랜드를 연결하지 않는다. 이전
+  // 견적서가 남긴 브랜드가 이번 견적서의 브랜드와 같을 때만 실제 client_id로 연결한다.
+  const clientId = previousBrand === brand ? candidateClientId : undefined;
   let workflowRunId: string | undefined;
   if (clientId) {
     const { data: run, error: runError } = await input.db.from("workflow_runs")
@@ -201,7 +205,6 @@ async function resolveCreateQuoteContext(input: {
     if (runError) throw new Error(`고객 프로젝트를 확인하지 못했어요: ${runError.message}`);
     workflowRunId = run?.id ? String(run.id) : undefined;
   }
-  const brand = explicitBrand || previousBrand || (MEDICAL_CLIENT_PATTERN.test(medicalName) ? "photoclinic" : "jakeimage");
   return { brand, clientId, workflowRunId };
 }
 
@@ -241,25 +244,11 @@ export async function executeQuoteTool(
     return { tool: name, success: true, data: { quoteId: resourceId, resourceId, quote }, verification: createVerification({ executed: true, resourceExists: true }) };
   }
 
-  if (name === "start_quote_wizard") {
-    // 서버 작업 없음 — flowId만 발급하면 클라이언트가 그 값으로 채팅 카드/스토어를 초기화한다
-    // (start_select_match_flow와 동일한 패턴, 견적서 UX 개편 2026-08-31).
-    return {
-      tool: name,
-      success: true,
-      data: {
-        flowId: crypto.randomUUID(),
-        ...(isKnownDocumentBrand(context.brand) ? { brand: context.brand } : {}),
-      },
-      verification: createVerification({ executed: true }),
-    };
-  }
-
   if (name === "create_quote") {
     const requestText = context.currentRequestText?.trim();
     if (!requestText) throw new Error("이번 견적 요청 원문을 찾지 못했어요. 다시 한 번 보내주세요.");
     const parsed = parseQuoteRequest(requestText);
-    if (!parsed.clientName) throw new Error("견적서를 만들 고객명을 원문에서 찾지 못했어요.");
+    if (!parsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
     const createContext = await resolveCreateQuoteContext({
       db, requestText, clientName: parsed.clientName, modelBrand: input.brand,
     });

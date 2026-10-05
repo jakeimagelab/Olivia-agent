@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement, ReactNode } from "react";
-import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
@@ -49,6 +49,7 @@ type ContractQuoteItem = {
   qty: number;
   subtotal: number;
   note: string;
+  groupLabel?: string | null;
 };
 
 type ContractQuoteData = {
@@ -96,6 +97,8 @@ type ContractQuoteData = {
     discountLabel?: string;
     discountRate: number;
     extraDiscount: number;
+    fixedTotal?: number | null;
+    roundDownUnit?: number | null;
     memo: string;
     depositRate: number;
     brand?: Brand;
@@ -327,6 +330,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setDiscountRate = useQuoteStore((state) => state.setDiscountRate);
   const extraDiscount = useQuoteStore((state) => state.extraDiscount);
   const setExtraDiscount = useQuoteStore((state) => state.setExtraDiscount);
+  const fixedTotal = useQuoteStore((state) => state.fixedTotal);
+  const setFixedTotal = useQuoteStore((state) => state.setFixedTotal);
+  const roundDownUnit = useQuoteStore((state) => state.roundDownUnit);
+  const setRoundDownUnit = useQuoteStore((state) => state.setRoundDownUnit);
   const memo = useQuoteStore((state) => state.memo);
   const setMemo = useQuoteStore((state) => state.setMemo);
   const depositRate = useQuoteStore((state) => state.depositRate);
@@ -569,13 +576,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
 
   const selectedSingleItems = useMemo(
     () => singleItems.filter((item) => selectedSingleItemIds.includes(item.id)),
-    [selectedSingleItemIds]
+    [selectedSingleItemIds, singleItems]
   );
 
   // 제이크이미지연구소 단일항목은 견적마다 직접 금액을 입력한다. 포토클리닉은 기존
   // 카탈로그 고정가를 그대로 쓴다.
-  const singleItemPrice = (item: SingleItem) =>
-    brand === "jakeimage" ? Math.max(0, Number(singleItemAmounts[item.id]) || 0) : item.price;
+  const singleItemPrice = useCallback((item: SingleItem) =>
+    brand === "jakeimage" ? Math.max(0, Number(singleItemAmounts[item.id]) || 0) : item.price,
+  [brand, singleItemAmounts]);
 
   const updateSingleItemNote = (id: string, value: string) => {
     setSingleItemNotes((current) => ({ ...current, [id]: value }));
@@ -642,10 +650,17 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     rateDiscountAmount,
     extraDiscountAmount,
     discountTotal,
+    specialAdjustmentAmount,
+    roundDownAmount,
     supplyAmount,
     vat,
     finalAmount,
-  } = computeQuoteTotals({ packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount });
+    depositAmount,
+    balanceAmount,
+  } = computeQuoteTotals({
+    packageTotal, singleItemsTotal, optionsTotal, customItems, discountRate, extraDiscount,
+    fixedTotal, roundDownUnit, depositRate,
+  });
 
   // Agent가 총액을 스스로 계산해서 말하지 않고 지금 화면의 실제 값을 그대로 전달하게 한다
   // (PHASE 2 스펙 §21, §40) — 편집할 때마다(dirtyFields도 함께) 최신 값으로 갱신한다.
@@ -687,9 +702,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     );
   };
 
-  const removeCustomItem = (id: string) => {
+  const removeCustomItem = useCallback((id: string) => {
     setCustomItems((items) => items.filter((item) => item.id !== id));
-  };
+  }, [setCustomItems]);
 
   const moveCustomItem = (id: string, direction: "up" | "down") => {
     setCustomItems((items) => {
@@ -716,10 +731,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     const nextBrand: Brand = brand === "photoclinic" ? "jakeimage" : "photoclinic";
     const fromCfg = BRAND_CONFIG[brand];
     const toCfg = BRAND_CONFIG[nextBrand];
-    setQuoteTitle((currentTitle) =>
-      currentTitle === fromCfg.defaultQuoteTitle ? toCfg.defaultQuoteTitle : currentTitle
-    );
-    setMemo((currentMemo) => (currentMemo === fromCfg.defaultMemo ? toCfg.defaultMemo : currentMemo));
     setCustomer((current) => ({
       ...current,
       quoteNumber: current.quoteNumber.startsWith(fromCfg.quoteNumberPrefix)
@@ -745,8 +756,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       ...initialCustomer(),
       quoteNumber: createNextQuoteNumber()
     });
-    setQuoteTitle(cfg.defaultQuoteTitle);
-    setSelectedPackageId(brand === "jakeimage" ? null : packages[0].id);
+    setQuoteTitle("");
+    setSelectedPackageId(null);
     setSelectedSingleItemIds([]);
     setSingleItemNotes({});
     setSingleItemAmounts({});
@@ -761,7 +772,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDiscountLabel("");
     setDiscountRate(0);
     setExtraDiscount(0);
-    setMemo(cfg.defaultMemo);
+    setFixedTotal(null);
+    setRoundDownUnit(null);
+    setMemo("");
     // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
     // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
     // 가드가 여기서 잘못 dirty로 남은 필드를 영구히 못 건드리게 되는 걸 막는다).
@@ -789,7 +802,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         subtotal: selectedPackage.price,
         note: "촬영 패키지"
       }] : []),
-      ...selectedSingleItems.map((item) => ({
+      ...selectedSingleItems
+        .filter((item) => brand !== "jakeimage" || Object.hasOwn(singleItemAmounts, item.id))
+        .map((item) => ({
         id: item.id,
         name: item.name,
         detail: "단일 촬영 항목",
@@ -797,7 +812,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         qty: 1,
         subtotal: singleItemPrice(item),
         note: "단일항목"
-      })),
+        })),
       ...optionItems.map((item) => ({
         id: item.name === "프로필 인원 추가" ? "profile_shoot" : item.name === "연출 인원 추가" ? "staged_shoot" : item.name === "프로필/연출 추가" ? "combined_profile_staged" : item.name === "인테리어 층수 추가" ? "floor_shoot" : item.name === "드론촬영" ? "drone_shoot" : `option:${item.name}`,
         name: item.name,
@@ -811,10 +826,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         id: item.id,
         name: item.name,
         detail: item.detail,
-        unitPrice: item.amount,
-        qty: 1,
+        unitPrice: item.unitPrice ?? item.amount,
+        qty: item.quantity ?? 1,
         subtotal: item.amount,
-        note: item.discountable === false ? "기타 · 할인 제외" : "기타"
+        note: item.discountable === false ? "기타 · 할인 제외" : "기타",
+        groupLabel: item.groupLabel,
       })),
       ...visibleBenefitItems.map((item) => ({
         id: item.id,
@@ -844,8 +860,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       discountAmount: discountTotal,
       vat,
       totalAmount:  finalAmount,
-      depositAmount: Math.round(finalAmount * depositRate / 100),
-      balanceAmount: Math.round(finalAmount * (100 - depositRate) / 100),
+      depositAmount,
+      balanceAmount,
       depositRate,
       memos:        memo || null,
       formState: {
@@ -866,6 +882,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         discountLabel,
         discountRate,
         extraDiscount,
+        fixedTotal,
+        roundDownUnit,
         memo,
         depositRate,
         brand
@@ -947,6 +965,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setDiscountLabel(data.formState.discountLabel ?? "");
       setDiscountRate(data.formState.discountRate);
       setExtraDiscount(data.formState.extraDiscount);
+      setFixedTotal(data.formState.fixedTotal ?? null);
+      setRoundDownUnit(data.formState.roundDownUnit ?? null);
       setMemo(data.formState.memo);
       // 선금 0%는 잔금 100%라는 실제 저장값이다. 이 호출이 빠져 있으면 새 폼의
       // 초기값 50%가 그대로 남아, DB에는 0%인데 화면·자동저장은 50/50으로 보인다.
@@ -963,7 +983,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         shootDate: data.shootDate || "",
         quoteNumber: data.quoteNumber || createQuoteNumber()
       });
-      setQuoteTitle(data.title || BRAND_CONFIG.photoclinic.defaultQuoteTitle);
+      setQuoteTitle(data.title || "");
       setSelectedPackageId(null);
       setSelectedSingleItemIds([]);
       setSingleItemNotes({});
@@ -992,6 +1012,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setDiscountLabel("");
       setDiscountRate(0);
       setExtraDiscount(data.discountAmount || 0);
+      setFixedTotal(null);
+      setRoundDownUnit(null);
       setMemo(data.memos || "");
       setDepositRate(data.depositRate ?? 50);
     }
@@ -1098,12 +1120,6 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const goToContract = () => {
     const data = buildContractQuoteData();
     void openContractWithQuote(data);
-  };
-
-  const saveCurrentQuoteSnapshot = () => {
-    const data = buildContractQuoteData();
-    saveRecentQuote(data);
-    return data;
   };
 
   const [manualSaving, setManualSaving] = useState(false);
@@ -1306,7 +1322,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [
     isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
-    customItems, benefitItems, discountLabel, discountRate, extraDiscount, memo, depositRate, brand,
+    customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, memo, depositRate, brand,
   ]);
 
   // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
@@ -1338,7 +1354,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [
     isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
-    customItems, benefitItems, discountLabel, discountRate, extraDiscount, memo, depositRate, brand,
+    customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, memo, depositRate, brand,
   ]);
 
   // 4) 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
@@ -1777,16 +1793,22 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       ["유효기간", snapshot.validUntil],
     ]), [14, 30]);
 
-    const itemsWs = styleSheet(XLSX.utils.aoa_to_sheet([
-      ["항목명", "상세", "단가", "수량", "소계", "비고"],
-      ...snapshot.items.map((item) => [item.name, item.detail || "", item.unitPrice, item.qty, item.subtotal, item.note || ""]),
-      [],
+    const amountRows = [
+      ["항목 합계", "", "", "", contentSubtotal, ""],
+      ...(discountTotal > 0 ? [["할인", "", "", "", -discountTotal, ""]] : []),
+      ...(specialAdjustmentAmount !== 0 ? [["특별조정", "", "", "", specialAdjustmentAmount, ""]] : []),
+      ...(roundDownAmount > 0 ? [["절삭", "", "", "", -roundDownAmount, ""]] : []),
       ["공급가액", "", "", "", snapshot.supplyAmount, ""],
-      ["할인", "", "", "", -snapshot.discountAmount, ""],
       ["부가세", "", "", "", snapshot.vat, ""],
       ["합계", "", "", "", snapshot.totalAmount, ""],
       [`선금 (${snapshot.depositRate}%)`, "", "", "", snapshot.depositAmount, ""],
       [`잔금 (${100 - snapshot.depositRate}%)`, "", "", "", snapshot.balanceAmount, ""],
+    ];
+    const itemsWs = styleSheet(XLSX.utils.aoa_to_sheet([
+      ["항목명", "상세", "단가", "수량", "소계", "비고"],
+      ...snapshot.items.map((item) => [item.name, item.detail || "", item.unitPrice, item.qty, item.subtotal, item.note || ""]),
+      [],
+      ...amountRows,
     ]), [24, 22, 12, 8, 14, 16]);
 
     const wb = XLSX.utils.book_new();
@@ -1800,12 +1822,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     customer,
     quoteTitle,
     packageItem: selectedPackage ? { id: selectedPackage.id, name: selectedPackage.name, detail: selectedPackage.composition, amount: selectedPackage.price } : null,
-    singleItems: selectedSingleItems.map((item) => ({
+    singleItems: selectedSingleItems
+      .filter((item) => brand !== "jakeimage" || Object.hasOwn(singleItemAmounts, item.id))
+      .map((item) => ({
       id: item.id,
       name: item.name,
       amount: singleItemPrice(item),
       detail: brand === "jakeimage" ? singleItemNotes[item.id] : undefined,
-    })),
+      })),
     optionItems: optionItems.map((item) => ({ id: item.name, name: item.name, detail: item.detail, amount: item.amount })),
     customItems: visibleCustomItems,
     benefitItems: visibleBenefitItems,
@@ -1815,9 +1839,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     extraDiscountAmount,
     discountTotal,
     contentSubtotal,
+    specialAdjustmentAmount,
+    roundDownAmount,
     supplyAmount,
     vat,
     finalAmount,
+    depositAmount,
+    balanceAmount,
     depositRate,
     memo,
   };
@@ -1883,7 +1911,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     },
     removeCustomItem,
     setDepositRate,
-  }), [selectedSingleItemIds, singleItemNotes, singleItemAmounts, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes, setSingleItemAmounts]);
+  }), [selectedSingleItemIds, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes, singleItemPrice, singleItems]);
 
   return (
     <>
@@ -1932,7 +1960,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               <textarea
                 value={quoteTitle}
                 onChange={(event) => setQuoteTitle(event.target.value)}
-                placeholder={cfg.defaultQuoteTitle}
+                placeholder="견적서 제목"
                 rows={2}
                 style={{resize:"none", fontFamily:"'Nanum Myeongjo', serif", lineHeight:"1.6", width:"100%", padding:"8px 12px", border:"1px solid #d8d0c4", borderRadius:"6px", fontSize:"14px"}}
               />

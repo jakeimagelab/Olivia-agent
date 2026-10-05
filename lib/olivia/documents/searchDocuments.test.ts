@@ -6,10 +6,12 @@ const FIXTURES: Record<string, Row[]> = {
   clients: [
     { id: "client-1", hospital_name: "히어산부인과" },
     { id: "client-2", hospital_name: "라셀의원" },
+    { id: "client-3", hospital_name: "강남스마트치과의원" },
   ],
   quotes: [
     { id: "q1", quote_number: "PC-1", title: "", hospital_name: "히어산부인과", client_id: "client-1", workflow_run_id: "proj-1", status: "draft", created_at: "2026-01-01", updated_at: "2026-08-10T00:00:00Z" },
     { id: "q2", quote_number: "PC-2", title: "", hospital_name: "라셀의원", client_id: "client-2", workflow_run_id: "proj-2", status: "draft", created_at: "2026-01-01", updated_at: "2026-08-20T00:00:00Z" },
+    { id: "q3", quote_number: "PC-3", title: "강남스마트치과의원 브랜드촬영 견적서", hospital_name: "강남스마트치과의원", client_id: "client-3", workflow_run_id: null, status: "draft", created_at: "2026-01-01", updated_at: "2026-08-21T00:00:00Z" },
   ],
   contracts: [
     { id: "contract-1", quote_number: "PC-1", hospital_name: "히어산부인과", client_id: "client-1", workflow_run_id: "proj-1", signature_data_url: null, created_at: "2026-08-11T00:00:00Z", updated_at: "2026-08-11T00:00:00Z" },
@@ -96,6 +98,21 @@ describe("searchDocuments", () => {
   it("고객명 텍스트 fuzzy 매칭으로 부분 일치하는 문서를 찾는다", async () => {
     const docs = await searchDocuments({ query: "라셀", types: ["quote"] });
     expect(docs.map((d) => d.sourceId)).toEqual(["q2"]);
+  });
+
+  it("견적서 공통어를 뺀 고객명으로 먼저 찾아 제목 형식과 무관하게 연다", async () => {
+    const docs = await searchDocuments({
+      query: "강남스마트치과 견적서",
+      clientName: "강남스마트치과",
+      types: ["quote"],
+    });
+    expect(docs).toHaveLength(1);
+    expect(docs[0]).toMatchObject({
+      sourceId: "q3",
+      title: "강남스마트치과의원 브랜드촬영 견적서",
+      clientName: "강남스마트치과의원",
+      route: "/quote?resourceId=q3",
+    });
   });
 
   it("일치하는 문서가 없으면 빈 배열을 돌려준다(단정적으로 실패하지 않고 호출부가 판단)", async () => {

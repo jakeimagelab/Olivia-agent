@@ -8,6 +8,7 @@ export type QuoteDocumentLine = {
   name: string;
   detail?: string;
   amount: number;
+  groupLabel?: string | null;
 };
 
 export type QuoteDocumentData = {
@@ -25,9 +26,13 @@ export type QuoteDocumentData = {
   extraDiscountAmount: number;
   discountTotal: number;
   contentSubtotal: number;
+  specialAdjustmentAmount: number;
+  roundDownAmount: number;
   supplyAmount: number;
   vat: number;
   finalAmount: number;
+  depositAmount: number;
+  balanceAmount: number;
   depositRate: number;
   memo: string;
 };
@@ -56,7 +61,12 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
   const state = quoteRowToFormState(row);
   const cfg = BRAND_CONFIG[state.brand];
   const packageItem = packages.find((item) => item.id === state.selectedPackageId);
-  const selectedSingles = getSingleItems(state.brand).filter((item) => state.selectedSingleItemIds.includes(item.id));
+  const selectedSingles = getSingleItems(state.brand).filter((item) =>
+    state.selectedSingleItemIds.includes(item.id)
+    // 원문에서 제이크 항목을 카탈로그 칸으로만 분류했을 때는, 그 칸의 라벨/0원을
+    // 문서에 별도 행으로 만들지 않는다. 실제 표시 행은 customItems의 원문 항목이다.
+    && (state.brand !== "jakeimage" || Object.hasOwn(state.singleItemAmounts, item.id)),
+  );
   const singleLines = selectedSingles.map((item) => ({
     id: item.id,
     name: item.name,
@@ -73,6 +83,8 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     customItems,
     discountRate: state.discountRate,
     extraDiscount: state.extraDiscount,
+    fixedTotal: state.fixedTotal,
+    roundDownUnit: state.roundDownUnit,
   });
 
   return {
@@ -92,9 +104,13 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     extraDiscountAmount: totals.extraDiscountAmount,
     discountTotal: totals.discountTotal,
     contentSubtotal: totals.contentSubtotal,
+    specialAdjustmentAmount: totals.specialAdjustmentAmount,
+    roundDownAmount: totals.roundDownAmount,
     supplyAmount: totals.supplyAmount,
     vat: totals.vat,
     finalAmount: totals.finalAmount,
+    depositAmount: totals.depositAmount,
+    balanceAmount: totals.balanceAmount,
     depositRate: state.depositRate,
     memo: state.memo,
   };

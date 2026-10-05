@@ -51,6 +51,8 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
       discountLabel: formState.discountLabel ?? "",
       discountRate: formState.discountRate ?? 0,
       extraDiscount: formState.extraDiscount ?? 0,
+      fixedTotal: formState.fixedTotal ?? null,
+      roundDownUnit: formState.roundDownUnit ?? null,
       memo: formState.memo ?? "",
       depositRate: formState.depositRate ?? 50,
     };
@@ -58,7 +60,15 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
 
   const customItems: CustomItem[] = items
     .filter((item: any) => Number(item.subtotal) > 0)
-    .map((item: any) => ({ id: item.id || crypto.randomUUID(), name: item.name, detail: item.detail, amount: item.subtotal }));
+    .map((item: any) => ({
+      id: item.id || crypto.randomUUID(),
+      name: item.name,
+      detail: item.detail,
+      amount: item.subtotal,
+      ...(typeof item.unitPrice === "number" ? { unitPrice: item.unitPrice } : {}),
+      ...(typeof item.qty === "number" ? { quantity: item.qty } : {}),
+      ...(typeof item.groupLabel === "string" && item.groupLabel ? { groupLabel: item.groupLabel } : {}),
+    }));
   const benefitItems: BenefitItem[] = items
     .filter((item: any) => Number(item.subtotal) === 0)
     .map((item: any) => ({ id: item.id || crypto.randomUUID(), name: item.name }));
@@ -93,6 +103,8 @@ export function quoteRowToFormState(row: QuoteRow): QuoteFormState {
     discountLabel: formState?.discountLabel ?? "",
     discountRate: 0,
     extraDiscount: Number(row.discount_amount) || 0,
+    fixedTotal: formState?.fixedTotal ?? null,
+    roundDownUnit: formState?.roundDownUnit ?? null,
     memo: row.memos || "",
     depositRate: formState?.depositRate ?? 50,
   };

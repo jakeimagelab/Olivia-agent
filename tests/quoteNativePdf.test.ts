@@ -54,6 +54,26 @@ describe("canonical quote document data", () => {
     ]);
     expect(data.finalAmount).toBe(550_000);
   });
+
+  it("keeps a parsed Jakeimage item name instead of showing its catalog checkbox label", () => {
+    const data = quoteDocumentDataFromRow({
+      id: "quote-jake-parsed-item",
+      hospital_name: "양재선변호사님(민정님)",
+      items: [{ id: "parsed:0", name: "웨딩촬영(스케치)", subtotal: 800_000 }],
+      form_state: {
+        brand: "jakeimage",
+        // This selection is classification only. No manually entered catalog price exists.
+        selectedSingleItemIds: ["sketch"],
+        singleItemAmounts: {},
+        customItems: [{ id: "parsed:custom:0", name: "웨딩촬영(스케치)", detail: "", amount: 800_000, unitPrice: 800_000, quantity: 1 }],
+      },
+    });
+
+    expect(data.singleItems).toEqual([]);
+    expect(data.customItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "웨딩촬영(스케치)", amount: 800_000 }),
+    ]));
+  });
 });
 
 describe("quote print route authentication", () => {
