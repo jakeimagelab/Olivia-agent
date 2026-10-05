@@ -21,7 +21,8 @@ function workspaceKey(clientId?: string, workflowRunId?: string, resourceId?: st
 
 // /conti와 OLIVIA OS 창이 함께 쓰는 단일 콘티 화면.
 export interface ContiV2AppProps {
-  surface?: "default" | "tablet";
+  /** The workspace surface reuses the editor but removes the standalone, hero-style shell. */
+  surface?: "default" | "tablet" | "workspace";
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;

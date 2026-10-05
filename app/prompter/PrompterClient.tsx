@@ -1064,7 +1064,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
   /* ── 프로젝트 목록 화면 ── */
   if (mode === "projects") {
     return (
-      <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
+      <main style={{ minHeight: "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
         {embedded ? null : <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />}
         <div className="oa-page pt-projects-page">
           <button onClick={() => openProjectModal("create")} className="pt-new-project-btn">새 프로젝트</button>
@@ -1098,7 +1098,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
   /* ── 씬 편집 화면 ── */
   if (mode === "scenes") {
     return (
-      <main style={{ minHeight: "100vh", background: "var(--mesh-bg)" }}>
+      <main style={{ minHeight: "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
         {embedded ? null : <GlobalHeader
           title="프롬프터"
           description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다."

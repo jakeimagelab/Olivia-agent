@@ -505,13 +505,13 @@ function YoutubeEditingContiInner() {
         <div className="pc-content">
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 18 }}>
             <div>
-              <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 6 }}>유튜브 편집 콘티</h1>
+              <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 6 }}>유튜브 편집 콘티</h1>
               <p style={{ fontSize: 13, color: C.muted, margin: 0 }}>저장된 문서를 열거나 새 문서를 시작하세요.</p>
             </div>
             <Link
               href="/youtube-editing-conti/new"
               className="pc-btn pc-btn--primary pc-btn--sm"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 38, borderRadius: R.md, background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800, textDecoration: "none" }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 38, borderRadius: R.md, background: "#C94A1E", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
             >
               <Plus size={15} />새 프로젝트
             </Link>
@@ -520,7 +520,7 @@ function YoutubeEditingContiInner() {
           {projectList.length === 0 ? (
             <div className="pc-card pc-card--padded" style={{ textAlign: "center", padding: 36 }}>
               <p style={{ fontSize: 13, color: C.muted, marginBottom: 14 }}>아직 저장된 문서가 없습니다.</p>
-              <Link href="/youtube-editing-conti/new" style={{ fontSize: 13, fontWeight: 800, color: C.orange }}>+ 새 프로젝트 시작하기</Link>
+              <Link href="/youtube-editing-conti/new" style={{ fontSize: 13, fontWeight: 600, color: "#C94A1E" }}>새 프로젝트 시작하기</Link>
             </div>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
@@ -556,7 +556,7 @@ function YoutubeEditingContiInner() {
           style={{
             position: "fixed", top: 10, right: 10, zIndex: 250, display: "inline-flex", alignItems: "center", gap: 6,
             height: 34, padding: "0 12px", borderRadius: R.md, border: `1px solid ${C.border}`, background: "rgba(255,255,255,.96)",
-            color: C.ink, fontSize: 11.5, fontWeight: 800, cursor: "pointer", boxShadow: "0 8px 20px rgba(0,0,0,.18)",
+            color: C.ink, fontSize: 11.5, fontWeight: 600, cursor: "pointer", boxShadow: "0 8px 20px rgba(0,0,0,.18)",
           }}
         >
           <Minimize2 size={14} />전체화면 종료
@@ -567,7 +567,7 @@ function YoutubeEditingContiInner() {
         background: "#fff", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 900, color: C.teal, flexShrink: 0 }}>유튜브 편집 콘티 분석기</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.teal, flexShrink: 0 }}>유튜브 편집 콘티 분석기</span>
           <SaveStatus state={saveState} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, position: "relative" }}>
@@ -634,7 +634,7 @@ function YoutubeEditingContiInner() {
 
         <div className={`pc-card pc-card--padded yec-panel yec-panel--script${scriptDrawerOpen ? " yec-drawer-open" : ""}`} style={{ gridArea: "script", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div className="yec-drawer-header" style={{ display: "none", alignItems: "center", justifyContent: "space-between", paddingBottom: 8, marginBottom: 8, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>문장 목록</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>문장 목록</span>
             <button type="button" onClick={() => setScriptDrawerOpen(false)} aria-label="닫기" style={{ width: 26, height: 26, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
               <X size={14} />
             </button>
@@ -701,7 +701,7 @@ function YoutubeEditingContiInner() {
                 ) : null}
               </div>
 
-              <div className="yec-mobile-hint" style={{ display: "none", flexShrink: 0, marginTop: 10, padding: 10, borderRadius: R.sm, background: "#FFF7ED", color: C.orange, fontSize: 11.5, fontWeight: 700 }}>
+              <div className="yec-mobile-hint" style={{ display: "none", flexShrink: 0, marginTop: 10, padding: 10, borderRadius: R.sm, background: "#FFF7ED", color: C.orange, fontSize: 11.5, fontWeight: 600 }}>
                 손글씨 편집은 태블릿 또는 데스크톱에서 이용해주세요. 이 화면에서는 읽기와 간단한 선택만 지원합니다.
               </div>
 
@@ -742,7 +742,7 @@ function YoutubeEditingContiInner() {
 
         <div className={`pc-card pc-card--padded yec-panel yec-panel--tools${toolsDrawerOpen ? " yec-drawer-open" : ""}`} style={{ gridArea: "tools", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div className="yec-drawer-header" style={{ display: "none", alignItems: "center", justifyContent: "space-between", paddingBottom: 8, marginBottom: 8, borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>편집 도구</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>편집 도구</span>
             <button type="button" onClick={() => setToolsDrawerOpen(false)} aria-label="닫기" style={{ width: 26, height: 26, borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
               <X size={14} />
             </button>
@@ -796,7 +796,7 @@ function YoutubeEditingContiInner() {
         </div>
         <div className="pc-card pc-card--padded" style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 9.5, color: C.hint, fontWeight: 700, marginBottom: 3 }}>보기 옵션</div>
+            <div style={{ fontSize: 9.5, color: C.hint, fontWeight: 600, marginBottom: 3 }}>보기 옵션</div>
             <select defaultValue="simple" style={{ height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: 11.5, padding: "0 8px" }}>
               <option value="simple">간단 모드</option>
             </select>
@@ -804,7 +804,7 @@ function YoutubeEditingContiInner() {
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button type="button" onClick={() => setZoom((z) => Math.max(50, z - 10))} aria-label="축소"
               style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: "#fff", cursor: "pointer" }}>-</button>
-            <span style={{ fontSize: 11.5, fontWeight: 700, color: C.ink, width: 38, textAlign: "center" }}>{zoom}%</span>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: C.ink, width: 38, textAlign: "center" }}>{zoom}%</span>
             <button type="button" onClick={() => setZoom((z) => Math.min(150, z + 10))} aria-label="확대"
               style={{ width: 26, height: 26, borderRadius: 6, border: `1px solid ${C.border}`, background: "#fff", cursor: "pointer" }}>+</button>
           </div>
@@ -857,8 +857,8 @@ function HeaderButton({ children, onClick, disabled, primary }: { children: Reac
       disabled={disabled}
       style={{
         display: "inline-flex", alignItems: "center", gap: 5, height: 32, padding: "0 12px", borderRadius: R.sm,
-        border: `1px solid ${primary ? "#2563EB" : C.border}`, background: primary ? "#EEF3FF" : "#fff",
-        color: primary ? "#2563EB" : C.ink, fontSize: 11.5, fontWeight: 800,
+        border: `1px solid ${primary ? "#C94A1E" : C.border}`, background: primary ? "#C94A1E" : "#fff",
+        color: primary ? "#fff" : C.ink, fontSize: 11.5, fontWeight: 600,
         cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.6 : 1, whiteSpace: "nowrap",
       }}
     >

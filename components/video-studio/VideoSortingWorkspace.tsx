@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { CheckCircle2, FolderOpen, RefreshCw } from "lucide-react";
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { C } from "@/lib/theme";
 import type {
@@ -539,7 +540,9 @@ export default function VideoSortingWorkspace() {
 
               <SectionCard title="영상 폴더 선택">
                 <button onClick={pickDir} disabled={!hasFS} style={{ width: "100%", height: 52, border: `1.5px dashed ${C.border}`, borderRadius: 10, background: C.white, cursor: "pointer", fontSize: 13, fontWeight: 500, color: rootDir ? C.green : C.teal, display: "flex", alignItems: "center", gap: 10, padding: "0 18px", fontFamily: "inherit" }}>
-                  {rootDir ? <><span>✅</span>{rootDir.name}</> : <><span>📂</span>폴더 선택</>}
+                  {rootDir
+                    ? <><CheckCircle2 size={17} aria-hidden="true" />{rootDir.name}</>
+                    : <><FolderOpen size={17} aria-hidden="true" />폴더 선택</>}
                 </button>
               </SectionCard>
 
@@ -638,7 +641,7 @@ export default function VideoSortingWorkspace() {
                   ))}
                 </div>
                 <div className="ps-btn-row">
-                  <Btn variant="secondary" onClick={handleRegroupTime}>🔄 다시 그룹핑</Btn>
+                  <Btn variant="secondary" onClick={handleRegroupTime}><RefreshCw size={15} aria-hidden="true" />다시 그룹핑</Btn>
                   {/* 1.2 — 파일을 실제로 이동·복사하는 유일한 오렌지 버튼(final_review와 동일). */}
                   <Btn onClick={handleExportTime} disabled={timeScenes.length === 0} style={{ background: "#C94A1E", color: "#fff" }}>폴더 정리 실행</Btn>
                 </div>

@@ -1,35 +1,21 @@
 "use client";
 
-import { Settings2, Sparkles } from "lucide-react";
-import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
+import { C } from "../PhotoSortingWorkspace";
 
 export type ClassificationUiMode = "ai-auto" | "advanced";
 
 export default function ClassificationModeToggle({ mode, onChange }: { mode: ClassificationUiMode; onChange: (mode: ClassificationUiMode) => void }) {
   return (
-    <div style={{ display: "flex", gap: 4, borderRadius: 10, padding: 4, background: "#EDF0EE", width: "fit-content" }}>
-      {([
-        ["ai-auto", "AI 자동 분류", Sparkles],
-        ["advanced", "고급 설정", Settings2],
-      ] as const).map(([value, label, Icon]) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => onChange(value)}
-          style={{
-            display: "inline-flex", alignItems: "center", gap: 7,
-            padding: "8px 14px", border: "none", borderRadius: 8,
-            cursor: "pointer", fontFamily: "inherit",
-            fontSize: 12.5, fontWeight: mode === value ? 600 : 500,
-            background: mode === value ? C.white : "transparent",
-            color: mode === value ? "#155855" : C.muted,
-            boxShadow: mode === value ? "0 1px 4px rgba(21, 88, 85, .10)" : "none",
-          }}
-        >
-          <Icon size={15} strokeWidth={2} aria-hidden="true" />
-          {label}
-        </button>
-      ))}
-    </div>
+    <label style={{ display: "inline-flex", alignItems: "center", gap: 9, color: "rgba(255,255,255,.58)", fontSize: 12 }}>
+      <span>분류 방식</span>
+      <select
+        value={mode}
+        onChange={(event) => onChange(event.target.value as ClassificationUiMode)}
+        style={{ minHeight: 36, border: "1px solid rgba(255,255,255,.18)", borderRadius: 8, padding: "0 28px 0 10px", background: "#fff", color: C.teal, font: "inherit", fontSize: 12.5, fontWeight: 600 }}
+      >
+        <option value="ai-auto">AI 자동 분류</option>
+        <option value="advanced">고급 설정</option>
+      </select>
+    </label>
   );
 }

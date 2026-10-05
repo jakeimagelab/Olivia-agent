@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderOpen, MessageSquare, Upload } from "lucide-react";
+import { CheckCircle2, FileText, FolderOpen, ListOrdered, MessageSquare, ScanSearch, Smartphone, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
   SELECT_MATCH_JPG_EXTENSIONS as JPG_EXTS,
@@ -169,6 +169,7 @@ function Btn({ children, onClick, disabled, variant, style: s }: {
     <button
       onClick={onClick} disabled={disabled}
       style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
         padding: "9px 20px", fontSize: 13, fontWeight: 500, borderRadius: 10,
         border: variant === "secondary" ? `1px solid ${C.border}` : "none",
         cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
@@ -699,25 +700,25 @@ export function SelectMatchWorkspace({
         border: `1.5px solid ${feature === "raw_match" ? C.teal : C.border}`,
         background: feature === "raw_match" ? C.light : C.white,
         color: feature === "raw_match" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
-      }}>🎯 셀렉 &amp; RAW 매칭</button>
+      }}>셀렉 &amp; RAW 매칭</button>
       <button onClick={() => setFeature("find_move")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "find_move" ? C.teal : C.border}`,
         background: feature === "find_move" ? C.light : C.white,
         color: feature === "find_move" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
-      }}>📋 파일명으로 찾기</button>
+      }}>파일명으로 찾기</button>
       <button onClick={() => setFeature("seq_check")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "seq_check" ? C.teal : C.border}`,
         background: feature === "seq_check" ? C.light : C.white,
         color: feature === "seq_check" ? C.teal : C.muted, fontSize: 12, fontWeight: 500,
-      }}>🔢 파일 순서 검토</button>
+      }}>파일 순서 검토</button>
       <button onClick={() => setFeature("program_archive")} style={{
         padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
         border: `1.5px solid ${feature === "program_archive" ? C.teal : C.border}`,
         background: feature === "program_archive" ? C.light : C.white,
         color: feature === "program_archive" ? C.teal : C.muted, fontSize: 11, fontWeight: 500,
-      }}>📱 모바일 자동화 &gt; 프로그램 아카이브</button>
+      }}>모바일 자동화 &gt; 프로그램 아카이브</button>
     </div>
   );
 
@@ -726,7 +727,7 @@ export function SelectMatchWorkspace({
     <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
       <FeatureTabs />
       <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <div style={{ fontSize: 30, marginBottom: 8 }}>📱</div>
+        <Smartphone size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
         <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>모바일 자동화 &gt; 프로그램 아카이브</div>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>사진 작업실에서 사용하는 자동화 프로그램을 모아둔 자료실입니다.</div>
       </div>
@@ -760,7 +761,7 @@ export function SelectMatchWorkspace({
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
         <FeatureTabs />
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 30, marginBottom: 8 }}>📋</div>
+          <FileText size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
           <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>파일명으로 찾기</div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
         </div>
@@ -771,7 +772,7 @@ export function SelectMatchWorkspace({
             {!hasFS ? (
               <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
             ) : (
-              <Btn onClick={pickFmFolder}>{fmRootDir ? `✅ ${fmRootDir.name}` : "📂 폴더 선택"}</Btn>
+              <Btn onClick={pickFmFolder}>{fmRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{fmRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</Btn>
             )}
           </div>
 
@@ -791,7 +792,7 @@ export function SelectMatchWorkspace({
                 onClick={() => fmOcrFileRef.current?.click()}
                 style={{ padding: "8px 13px" }}
               >
-                {fmOcrLoading ? "🔎 이미지 읽는 중..." : "📷 스크린샷에서 파일명 추출"}
+                {fmOcrLoading ? "이미지 읽는 중..." : <><ScanSearch size={15} aria-hidden="true" />스크린샷에서 파일명 추출</>}
               </Btn>
               <span style={{ fontSize: 11, color: C.hint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
             </div>
@@ -837,7 +838,7 @@ export function SelectMatchWorkspace({
 
     if (fmStep === "scanning") return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 30, marginBottom: 12 }}>🔍</div>
+        <ScanSearch size={28} aria-hidden="true" style={{ marginBottom: 12, color: C.teal }} />
         <div style={{ fontSize: 13, color: C.muted }}>폴더를 검색하는 중입니다...</div>
       </div>
     );
@@ -887,7 +888,7 @@ export function SelectMatchWorkspace({
 
     if (fmStep === "done") return (
       <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 30, marginBottom: 12 }}>✅</div>
+        <CheckCircle2 size={28} aria-hidden="true" style={{ marginBottom: 12, color: C.green }} />
         <div style={{ fontSize: 14, fontWeight: 500, color: C.txt, marginBottom: 20 }}>
           {fmMovedCount}개 파일을 <strong style={{ color: C.teal }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
         </div>
@@ -902,7 +903,7 @@ export function SelectMatchWorkspace({
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
         <FeatureTabs />
         <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 30, marginBottom: 8 }}>🔢</div>
+          <ListOrdered size={28} aria-hidden="true" style={{ marginBottom: 8, color: C.teal }} />
           <div style={{ fontSize: 16, fontWeight: 600, color: C.teal }}>파일 순서 검토</div>
           <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>폴더를 지정하면 파일명 끝자리 번호(예: DSC03532 → 3532)로 넘버링이 끊긴 곳(누락 파일)이 있는지 검사합니다.</div>
         </div>
@@ -912,7 +913,7 @@ export function SelectMatchWorkspace({
             <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
           ) : (
             <>
-              <Btn onClick={pickScFolder}>{scRootDir ? `✅ ${scRootDir.name}` : "📂 폴더 선택"}</Btn>
+              <Btn onClick={pickScFolder}>{scRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{scRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</Btn>
               <div style={{ fontSize: 11, color: C.hint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
               {scRootDir && (
                 <div style={{ marginTop: 16 }}>
@@ -1022,7 +1023,7 @@ export function SelectMatchWorkspace({
           {!hasFS ? (
             <div style={{ fontSize: 12, color: C.red, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
           ) : (
-            <div style={{ textAlign: "center" }}><Btn onClick={loadFolder}>📂 폴더 선택</Btn></div>
+            <div style={{ textAlign: "center" }}><Btn onClick={loadFolder}><FolderOpen size={16} aria-hidden="true" />폴더 선택</Btn></div>
           )}
           <div style={{ marginTop: 16, background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9 }}>
             {selectionOnly ? (
@@ -1092,7 +1093,7 @@ export function SelectMatchWorkspace({
               borderRadius: 12, padding: "48px 24px", textAlign: "center", cursor: "pointer",
               background: clientDragging ? C.light : C.bg, transition: "all .2s",
             }}>
-            <div style={{ fontSize: 36, marginBottom: 10 }}>📁</div>
+            <FolderOpen size={32} aria-hidden="true" style={{ marginBottom: 10, color: C.teal }} />
             <div style={{ fontSize: 13, fontWeight: 500, color: C.teal, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
             <div style={{ fontSize: 11, color: C.hint }}>선택 후 파일명 그대로 사용하거나 이미지 안 파일명을 분석할 수 있습니다.</div>
           </div>
@@ -1157,7 +1158,7 @@ export function SelectMatchWorkspace({
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, padding: 28 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 6 }}>📂 RAW 폴더를 선택하세요</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />RAW 폴더를 선택하세요</div>
         <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7, marginBottom: 20 }}>
           고객 선택 파일명 <strong style={{ color: C.teal }}>{selected.size}개</strong>를 확인했습니다.<br />
           이제 RAW 파일이 들어있는 폴더를 선택하세요.<br />
@@ -1321,7 +1322,7 @@ export function SelectMatchWorkspace({
   if (step === "done") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.green }}>✅ 매칭 완료!</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 600, color: C.green }}><CheckCircle2 size={17} aria-hidden="true" />매칭 완료</div>
         <div style={{ padding: 20 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
             {[
@@ -1336,7 +1337,7 @@ export function SelectMatchWorkspace({
             ))}
           </div>
           <div style={{ background: C.light, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: C.muted, lineHeight: 1.9, marginBottom: 16 }}>
-            📁 <strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
+            <FolderOpen size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 5 }} /><strong style={{ color: C.teal }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
             <span style={{ color: C.hint }}>{rawSelectMode === "move" ? "원본 RAW 파일은 삭제되었습니다." : "원본 RAW 파일은 삭제되지 않았습니다."}</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -1426,13 +1427,14 @@ export function SelectMatchWorkspace({
               <button
                 onClick={pickRawFolder}
                 style={{
+                  display: "inline-flex", alignItems: "center", gap: 5,
                   padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
                   background: rawRootDir ? "#DCFCE7" : "#FEF9C3",
                   border: `1px solid ${rawRootDir ? "#86EFAC" : "#FDE68A"}`,
                   borderRadius: 8, color: rawRootDir ? "#166534" : "#92400E",
                 }}
                 title={rawRootDir ? `RAW 폴더: ${rawRootDir.name}` : "RAW 파일이 있는 폴더를 별도로 선택"}
-              >{rawRootDir ? `📁 ${rawRootDir.name}` : "📂 RAW 폴더 선택"}</button>
+              >{rawRootDir ? <><FolderOpen size={14} aria-hidden="true" />{rawRootDir.name}</> : <><FolderOpen size={14} aria-hidden="true" />RAW 폴더 선택</>}</button>
             </>
           )}
           <button

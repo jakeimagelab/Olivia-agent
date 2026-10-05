@@ -83,7 +83,7 @@ function Btn({
   children: React.ReactNode; variant?: "primary" | "secondary" | "ghost" | "danger";
   style?: React.CSSProperties;
 }) {
-  const bg = variant === "primary" ? C.teal : variant === "danger" ? C.orange : variant === "ghost" ? "transparent" : C.light;
+  const bg = variant === "primary" ? "#C94A1E" : variant === "danger" ? C.orange : variant === "ghost" ? "transparent" : C.light;
   const col = variant === "primary" || variant === "danger" ? C.white : C.teal;
   const bdr = variant === "secondary" ? `1px solid ${C.border}` : variant === "ghost" ? `1px solid ${C.border}` : "none";
   return (
@@ -91,7 +91,7 @@ function Btn({
       onClick={onClick} disabled={disabled || loading}
       style={{
         padding: "8px 16px", borderRadius: 8, border: bdr,
-        background: bg, color: col, fontSize: 13, fontWeight: 700, cursor: disabled || loading ? "not-allowed" : "pointer",
+        background: bg, color: col, fontSize: 13, fontWeight: 600, cursor: disabled || loading ? "not-allowed" : "pointer",
         opacity: disabled || loading ? 0.6 : 1, transition: "opacity .15s", ...style,
       }}
     >{loading ? "처리 중…" : children}</button>
@@ -107,24 +107,16 @@ function ModeToggle({ mode, onChange }: { mode: ContiMode; onChange: (m: ContiMo
     { key: "storyboard", label: "손그림 콘티" },
   ];
   return (
-    <div style={{
-      display: "inline-flex", gap: 4, padding: 4, borderRadius: 10,
-      background: C.light, border: `1px solid ${C.border}`, marginBottom: 20,
-    }}>
-      {opts.map(o => (
-        <button
-          key={o.key}
-          onClick={() => onChange(o.key)}
-          style={{
-            padding: "8px 16px", borderRadius: 7, border: "none", cursor: "pointer",
-            fontSize: 13, fontWeight: 700,
-            background: mode === o.key ? C.teal : "transparent",
-            color: mode === o.key ? C.white : C.muted,
-            transition: "all .15s",
-          }}
-        >{o.label}</button>
-      ))}
-    </div>
+    <label style={{ display: "inline-flex", alignItems: "center", gap: 9, marginBottom: 20, color: C.muted, fontSize: 12 }}>
+      <span>작성 방식</span>
+      <select
+        value={mode}
+        onChange={(event) => onChange(event.target.value as ContiMode)}
+        style={{ minHeight: 36, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 30px 0 10px", background: C.white, color: C.teal, font: "inherit", fontWeight: 600 }}
+      >
+        {opts.map((option) => <option key={option.key} value={option.key}>{option.label}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -204,7 +196,7 @@ function Step1({
     <div>
       <Msg msg={msg} />
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, marginBottom: 12 }}>클라이언트 선택 (선택)</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 12 }}>클라이언트 선택 (선택)</div>
         <select
           value={clientId} onChange={e => handleClientChange(e.target.value)}
           style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, marginBottom: 12 }}
@@ -212,7 +204,7 @@ function Step1({
           <option value="">-- 클라이언트 선택 --</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, marginBottom: 8 }}>홈페이지 URL</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 8 }}>홈페이지 URL</div>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={url} onChange={e => setUrl(e.target.value)}
@@ -225,12 +217,12 @@ function Step1({
 
       {ba && (
         <Card style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: C.teal, marginBottom: 4 }}>{ba.brandName}</div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: C.teal, marginBottom: 4 }}>{ba.brandName}</div>
           <div style={{ fontSize: 13, color: C.muted, marginBottom: 12 }}>{ba.oneLiner}</div>
 
           {ba.keywordGroups && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.hint, marginBottom: 6 }}>키워드 그룹</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.hint, marginBottom: 6 }}>키워드 그룹</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {ba.keywordGroups.flatMap((g: any) => g.keywords ?? []).map((kw: string, i: number) => (
                   <span key={i} style={{ fontSize: 11, background: C.light, color: C.teal, padding: "2px 8px", borderRadius: 20 }}>{kw}</span>
@@ -241,10 +233,10 @@ function Step1({
 
           {ba.brandFilmLines && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: C.hint, marginBottom: 6 }}>브랜드필름 자막 라인</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.hint, marginBottom: 6 }}>브랜드필름 자막 라인</div>
               {ba.brandFilmLines.map((l: any, i: number) => (
                 <div key={i} style={{ fontSize: 13, padding: "6px 10px", borderRadius: 6, background: C.light, marginBottom: 4 }}>
-                  <span style={{ fontWeight: 700, color: C.teal, marginRight: 8 }}>[{l.usage}]</span>
+                  <span style={{ fontWeight: 600, color: C.teal, marginRight: 8 }}>[{l.usage}]</span>
                   <span style={{ color: C.txt }}>{l.line}</span>
                 </div>
               ))}
@@ -252,7 +244,7 @@ function Step1({
           )}
 
           <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-            <Btn onClick={save} loading={saving}>저장하고 다음 →</Btn>
+            <Btn onClick={save} loading={saving}>저장하고 다음 단계</Btn>
           </div>
         </Card>
       )}
@@ -299,7 +291,7 @@ function Step2({
     <div>
       <Msg msg={msg} />
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, marginBottom: 8 }}>BGM 파일 업로드</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 8 }}>BGM 파일 업로드</div>
         <div style={{ fontSize: 12, color: C.hint, marginBottom: 12 }}>WAV 파일 권장 (상세 분석), MP3도 허용</div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <input ref={fileRef} type="file" accept=".wav,.mp3,audio/wav,audio/mpeg" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ flex: 1 }} />
@@ -310,7 +302,7 @@ function Step2({
 
       {sections && sections.length > 0 && (
         <Card style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, marginBottom: 12 }}>BGM 구간 분석 결과</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 12 }}>BGM 구간 분석 결과</div>
 
           {/* Timeline bar */}
           <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", height: 36, marginBottom: 12 }}>
@@ -321,7 +313,7 @@ function Step2({
                   flex: s.durationSec || (s.endSec - s.startSec),
                   background: energyColor(s.energyLevel),
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: C.white,
+                  fontSize: 10, fontWeight: 600, color: C.white,
                   overflow: "hidden", cursor: "default",
                   borderRight: "2px solid rgba(255,255,255,.3)",
                 }}
@@ -335,10 +327,10 @@ function Step2({
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {sections.map(s => (
               <div key={s.index} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "8px 10px", borderRadius: 8, background: C.light }}>
-                <div style={{ width: 28, height: 28, borderRadius: 6, background: energyColor(s.energyLevel), display: "flex", alignItems: "center", justifyContent: "center", color: C.white, fontSize: 12, fontWeight: 800, flexShrink: 0 }}>{s.index + 1}</div>
+                <div style={{ width: 28, height: 28, borderRadius: 6, background: energyColor(s.energyLevel), display: "flex", alignItems: "center", justifyContent: "center", color: C.white, fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{s.index + 1}</div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{s.suggestedTheme ?? `구간 ${s.index + 1}`}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{s.startSec}s ~ {s.endSec}s · 에너지: <span style={{ color: energyColor(s.energyLevel), fontWeight: 700 }}>{s.energyLevel}</span></div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>{s.suggestedTheme ?? `구간 ${s.index + 1}`}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{s.startSec}s ~ {s.endSec}s · 에너지: <span style={{ color: energyColor(s.energyLevel), fontWeight: 600 }}>{s.energyLevel}</span></div>
                   {s.instrumentation && <div style={{ fontSize: 11, color: C.hint, marginTop: 2 }}>악기: {s.instrumentation}</div>}
                 </div>
               </div>
@@ -346,14 +338,14 @@ function Step2({
           </div>
 
           <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end" }}>
-            <Btn onClick={() => onDone(sections)}>다음 →</Btn>
+            <Btn onClick={() => onDone(sections)}>다음 단계</Btn>
           </div>
         </Card>
       )}
 
       {sections && sections.length === 0 && (
         <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
-          <Btn onClick={() => onDone([])}>다음 →</Btn>
+          <Btn onClick={() => onDone([])}>다음 단계</Btn>
         </div>
       )}
     </div>
@@ -401,7 +393,7 @@ function Step3({
 
       {/* Summary */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: C.teal, marginBottom: 10 }}>분석 요약</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 10 }}>분석 요약</div>
         <div style={{ fontSize: 13, color: C.txt, marginBottom: 6 }}><b>브랜드:</b> {ba?.brandName ?? "-"}</div>
         <div style={{ fontSize: 13, color: C.txt, marginBottom: 6 }}><b>촬영 방향:</b> {ba?.shootingDirection ?? "-"}</div>
         <div style={{ fontSize: 13, color: C.txt }}><b>BGM 구간:</b> {bgmSections?.length ?? 0}개</div>
@@ -424,11 +416,11 @@ function Step3({
         <div>
           {scenes.map(scene => (
             <Card key={scene.id} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 800, color: C.teal, marginBottom: 8 }}>씬 {scene.order}: {scene.title}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 8 }}>씬 {scene.order}: {scene.title}</div>
               <div style={{ fontSize: 12, color: C.hint, marginBottom: 8 }}>{scene.startSec}s ~ {scene.endSec}s</div>
               {scene.cuts.map(cut => (
                 <div key={cut.id} style={{ padding: "8px 10px", borderRadius: 6, background: C.light, marginBottom: 6 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: C.muted, marginBottom: 4 }}>컷 {cut.order} · {cut.timecodeStart} ~ {cut.timecodeEnd}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 4 }}>컷 {cut.order} · {cut.timecodeStart} ~ {cut.timecodeEnd}</div>
                   <div style={{ fontSize: 12, color: C.txt }}>{cut.visualNote}</div>
                   {cut.subtitleCopy && <div style={{ fontSize: 12, color: C.teal, marginTop: 2 }}>자막: {cut.subtitleCopy}</div>}
                 </div>
@@ -436,7 +428,7 @@ function Step3({
             </Card>
           ))}
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-            <Btn onClick={() => onDone(scenes)}>편집하기 →</Btn>
+            <Btn onClick={() => onDone(scenes)}>편집하기</Btn>
           </div>
         </div>
       )}
@@ -580,7 +572,7 @@ function Step4({
       {/* Share URL */}
       {shareUrl && (
         <Card style={{ marginBottom: 12, background: C.light }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: C.teal, marginBottom: 4 }}>공유 링크</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.teal, marginBottom: 4 }}>공유 링크</div>
           <input readOnly value={shareUrl} onClick={e => (e.target as HTMLInputElement).select()}
             style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 12 }} />
         </Card>
@@ -591,7 +583,7 @@ function Step4({
         {/* Sidebar: scenes list */}
         <div style={{ width: 220, flexShrink: 0 }}>
           <Card style={{ padding: "12px 14px" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.hint, marginBottom: 8 }}>씬 목록</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.hint, marginBottom: 8 }}>씬 목록</div>
             {scenes.map((s, i) => (
               <div
                 key={s.id}
@@ -603,7 +595,7 @@ function Step4({
                 }}
                 onClick={() => setSelectedScene(s.id)}
               >
-                <div style={{ fontSize: 12, fontWeight: 700 }}>씬 {s.order}</div>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>씬 {s.order}</div>
                 <div style={{ fontSize: 11, opacity: 0.8, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title}</div>
                 <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
                   <button onClick={e => { e.stopPropagation(); moveScene(s.id, -1); }} disabled={i === 0}
@@ -627,7 +619,7 @@ function Step4({
                 <input
                   value={currentScene.title}
                   onChange={e => setScenes(prev => prev.map(s => s.id !== currentScene.id ? s : { ...s, title: e.target.value }))}
-                  style={{ flex: 1, fontSize: 15, fontWeight: 700, padding: "6px 10px", borderRadius: 7, border: `1px solid ${C.border}` }}
+                  style={{ flex: 1, fontSize: 15, fontWeight: 600, padding: "6px 10px", borderRadius: 7, border: `1px solid ${C.border}` }}
                 />
                 <div style={{ fontSize: 12, color: C.hint }}>{currentScene.startSec}s ~ {currentScene.endSec}s</div>
               </div>
@@ -635,7 +627,7 @@ function Step4({
               {currentScene.cuts.map((cut, ci) => (
                 <div key={cut.id} style={{ border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px", marginBottom: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: C.teal }}>컷 {cut.order}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.teal }}>컷 {cut.order}</div>
                     <button onClick={() => removeCut(currentScene.id, cut.id)} style={{ fontSize: 11, color: C.orange, background: "none", border: "none", cursor: "pointer" }}>삭제</button>
                   </div>
                   <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
@@ -670,7 +662,7 @@ function Step4({
       {/* Timeline preview */}
       {scenes.some(s => s.endSec > 0) && (
         <Card style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.hint, marginBottom: 8 }}>타임라인 미리보기</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.hint, marginBottom: 8 }}>타임라인 미리보기</div>
           <div style={{ display: "flex", height: 28, borderRadius: 6, overflow: "hidden" }}>
             {scenes.map((s, i) => {
               const dur = (s.endSec - s.startSec) || 10;
@@ -678,7 +670,7 @@ function Step4({
                 <div key={s.id} style={{
                   flex: dur, background: i % 2 === 0 ? C.teal : C.green,
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 10, fontWeight: 700, color: C.white, overflow: "hidden",
+                  fontSize: 10, fontWeight: 600, color: C.white, overflow: "hidden",
                   borderRight: "2px solid rgba(255,255,255,.4)",
                   cursor: "pointer",
                 }} onClick={() => setSelectedScene(s.id)} title={s.title}>
@@ -728,7 +720,7 @@ function StoryboardPanel({
           style={{ width: "100%", height: "100%" }}
         />
         <div style={{
-          position: "absolute", top: 4, left: 6, fontSize: 11, fontWeight: 800,
+          position: "absolute", top: 4, left: 6, fontSize: 11, fontWeight: 600,
           color: C.hint, background: "rgba(255,255,255,.8)", padding: "1px 6px", borderRadius: 4,
           pointerEvents: "none",
         }}>{index + 1}</div>
@@ -868,11 +860,11 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
     <div>
       {/* 그리드 크기 선택 */}
       <Card style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.teal, marginBottom: 10 }}>그리드 크기</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.teal, marginBottom: 10 }}>그리드 크기</div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
           {GRID_PRESETS.map(([r, c]) => (
             <button key={`${r}x${c}`} onClick={() => applyGridSize(r, c)} style={{
-              padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700,
+              padding: "7px 14px", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,
               background: rows === r && cols === c ? C.teal : C.light,
               color: rows === r && cols === c ? C.white : C.txt,
               border: `1px solid ${rows === r && cols === c ? C.teal : C.border}`,
@@ -906,7 +898,7 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
               height: 32, padding: "0 10px", borderRadius: 8,
               background: !isEraser && penType === key ? C.teal : C.light,
               border: `2px solid ${!isEraser && penType === key ? C.orange : C.border}`,
-              color: !isEraser && penType === key ? C.white : C.txt, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              color: !isEraser && penType === key ? C.white : C.txt, fontSize: 12, fontWeight: 600, cursor: "pointer",
               display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
             }}>{icon} {label}</button>
           ))}
@@ -962,7 +954,7 @@ function StoryboardBoard({ videoContiId }: { videoContiId: string }) {
           title="전체 저장 (⌘S)"
           style={{
             marginLeft: "auto", display: "flex", alignItems: "center", gap: 6,
-            padding: "0 14px", height: 32, borderRadius: 8, fontSize: 12, fontWeight: 800,
+            padding: "0 14px", height: 32, borderRadius: 8, fontSize: 12, fontWeight: 600,
             cursor: saveState === "saving" ? "not-allowed" : "pointer",
             border: `2px solid ${saveState === "saved" ? "#22C55E" : saveState === "error" ? C.orange : C.teal}`,
             background: saveState === "saved" ? "rgba(34,197,94,.12)" : saveState === "error" ? "rgba(232,93,44,.12)" : C.teal,

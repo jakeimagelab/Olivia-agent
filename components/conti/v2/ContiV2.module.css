@@ -614,3 +614,111 @@
   .appShell[data-conti-surface="tablet"] .createLayout { grid-template-columns: 1fr; }
   .appShell[data-conti-surface="tablet"] .previewShell { position: static; }
 }
+
+/* The photo workspace supplies the title, first-level tab and its own guide.
+   Keep the embedded conti a calm, writing-first panel instead of nesting the
+   standalone teal hero in another application panel.  The creation, import,
+   preview and save logic remain exactly the same. */
+.appShell[data-conti-surface="workspace"] {
+  min-height: 100%;
+  padding: 18px;
+  background: #fdfcfa;
+  color: #1c2b28;
+  font-family: var(--font-sans);
+}
+
+.appShell[data-conti-surface="workspace"] .createLayout {
+  grid-template-columns: minmax(0, 1.08fr) minmax(290px, .72fr);
+  gap: 18px;
+  max-width: none;
+}
+
+.appShell[data-conti-surface="workspace"] .formShell,
+.appShell[data-conti-surface="workspace"] .previewShell,
+.appShell[data-conti-surface="workspace"] .resultShell,
+.appShell[data-conti-surface="workspace"] .fieldCurrentShell,
+.appShell[data-conti-surface="workspace"] .fieldNextShell {
+  padding: 0;
+  border: 1px solid rgba(21, 88, 85, .12);
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.appShell[data-conti-surface="workspace"] .formPanel,
+.appShell[data-conti-surface="workspace"] .previewPanel,
+.appShell[data-conti-surface="workspace"] .resultPanel {
+  border-radius: 15px;
+  box-shadow: none;
+}
+
+.appShell[data-conti-surface="workspace"] .formHero {
+  min-height: 0;
+  align-items: flex-start;
+  padding: 24px 26px 18px;
+  color: #1c2b28;
+  background: #fff;
+  border-bottom: 1px solid rgba(21, 88, 85, .1);
+}
+
+.appShell[data-conti-surface="workspace"] .formHero::after,
+.appShell[data-conti-surface="workspace"] .heroMark { display: none; }
+.appShell[data-conti-surface="workspace"] .formHero h2 { color: #1c2b28; font-size: 22px; font-weight: 600; letter-spacing: -.035em; }
+.appShell[data-conti-surface="workspace"] .formHero p { max-width: 500px; color: #5a7470; font-size: 12px; }
+.appShell[data-conti-surface="workspace"] .eyebrow { color: #c94a1e; font-weight: 600; letter-spacing: .08em; }
+.appShell[data-conti-surface="workspace"] .heroActions { align-items: flex-start; }
+.appShell[data-conti-surface="workspace"] .previousButton { border-color: rgba(21, 88, 85, .2); background: #fff; color: #155855; }
+.appShell[data-conti-surface="workspace"] .formBody { padding: 4px 26px 0; }
+.appShell[data-conti-surface="workspace"] .fieldSection { grid-template-columns: 108px minmax(0, 1fr); padding: 16px 0; }
+.appShell[data-conti-surface="workspace"] .fieldLabel,
+.appShell[data-conti-surface="workspace"] .categoryButton { font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .stepNumber { font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .choice span,
+.appShell[data-conti-surface="workspace"] .detailChoice span,
+.appShell[data-conti-surface="workspace"] .smallButton { font-weight: 500; }
+
+.appShell[data-conti-surface="workspace"] .previewShell { position: sticky; top: 18px; }
+.appShell[data-conti-surface="workspace"] .previewPanel {
+  color: #1c2b28;
+  background: #fff;
+}
+.appShell[data-conti-surface="workspace"] .previewHead {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(21, 88, 85, .1);
+}
+.appShell[data-conti-surface="workspace"] .previewTitle h3 { color: #1c2b28; font-size: 17px; font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .liveBadge { background: #edf7f4; color: #155855; }
+.appShell[data-conti-surface="workspace"] .liveBadge::before { background: #22876a; box-shadow: 0 0 0 3px rgba(34, 135, 106, .11); }
+.appShell[data-conti-surface="workspace"] .previewStats { gap: 18px; margin-top: 18px; }
+.appShell[data-conti-surface="workspace"] .previewStats strong { color: #155855; font-size: 24px; font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .previewStats span { color: #718580; font-weight: 500; }
+.appShell[data-conti-surface="workspace"] .sceneList { max-height: 520px; padding: 0; }
+.appShell[data-conti-surface="workspace"] .sceneRow { padding: 11px 16px; box-shadow: inset 0 1px rgba(21, 88, 85, .08); }
+.appShell[data-conti-surface="workspace"] .sceneNumber { background: #edf7f4; color: #155855; font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .sceneInfo strong { color: #243733; font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .sceneInfo span,
+.appShell[data-conti-surface="workspace"] .sceneTime,
+.appShell[data-conti-surface="workspace"] .emptyPreview { color: #718580; }
+
+.appShell[data-conti-surface="workspace"] .primaryButton,
+.appShell[data-conti-surface="workspace"] .primarySaveAction { background: #c94a1e; box-shadow: none; font-weight: 600; }
+.appShell[data-conti-surface="workspace"] .formFooter { padding: 16px 26px 22px; }
+.appShell[data-conti-surface="workspace"] .editorHeader,
+.appShell[data-conti-surface="workspace"] .editorToolbar { border-color: rgba(21, 88, 85, .1); }
+.appShell[data-conti-surface="workspace"] .resultSummary { color: #1c2b28; background: #fff; border-bottom: 1px solid rgba(21, 88, 85, .1); }
+.appShell[data-conti-surface="workspace"] .resultSummaryCopy span { color: #c94a1e; }
+.appShell[data-conti-surface="workspace"] .resultMetric { background: #edf7f4; box-shadow: none; }
+.appShell[data-conti-surface="workspace"] .resultMetric small { color: #5a7470; }
+
+@container (max-width: 900px) {
+  .appShell[data-conti-surface="workspace"] .createLayout { grid-template-columns: 1fr; }
+  .appShell[data-conti-surface="workspace"] .previewShell { position: static; }
+}
+
+@container (max-width: 540px) {
+  .appShell[data-conti-surface="workspace"] { padding: 12px; }
+  .appShell[data-conti-surface="workspace"] .formHero { padding: 20px 18px 16px; }
+  .appShell[data-conti-surface="workspace"] .formBody { padding: 4px 18px 0; }
+  .appShell[data-conti-surface="workspace"] .fieldSection { grid-template-columns: 1fr; gap: 8px; }
+  .appShell[data-conti-surface="workspace"] .formFooter { padding: 16px 18px 20px; }
+}

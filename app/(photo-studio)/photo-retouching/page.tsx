@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { C } from "@/lib/theme";
 
 // 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
@@ -85,7 +85,7 @@ function PsSlider({ label, value }: { label: string; value: number }) {
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
         <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[0]}</span>
-        <span style={{ fontWeight: 900, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
+        <span style={{ fontWeight: 600, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
           {value > 0 ? `+${value}` : value}
         </span>
         <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[1]}</span>
@@ -113,10 +113,10 @@ function SwatchRow({ label, current, target, diff }: any) {
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
       <div style={{ width: 40, height: 40, borderRadius: 8, background: current.hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 2 }}>{label}</div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 2 }}>{label}</div>
         <div style={{ fontSize: 12, color: C.hint }}>{current.hex}</div>
       </div>
-      <div style={{ fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 6,
+      <div style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6,
         background: ok ? "#E6F4EA" : warn ? "#FFF0EB" : "#FFFBEA",
         color: ok ? "#166534" : warn ? C.orange : "#92400E" }}>
         {ok ? "✓ 일치" : `차이 ${diff.dist}`}
@@ -136,7 +136,7 @@ function SyncSlider({ label, value }: { label: string; value: number }) {
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
         <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[0]}</span>
-        <span style={{ fontWeight: 900, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
+        <span style={{ fontWeight: 600, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
           {value > 0 ? `+${value}` : value}
         </span>
         <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[1]}</span>
@@ -162,9 +162,9 @@ function SyncUpload({ label, preview, onFile, onClear, badge }: {
   return (
     <div style={{ flex: 1 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <div style={{ padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 800,
+        <div style={{ padding: "2px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
           background: badge === "기준" ? C.teal : C.orange, color: "#fff" }}>{badge}</div>
-        <span style={{ fontSize: 13, fontWeight: 700, color: C.txt }}>{label}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: C.txt }}>{label}</span>
       </div>
       {!preview ? (
         <div
@@ -175,7 +175,7 @@ function SyncUpload({ label, preview, onFile, onClear, badge }: {
             aspectRatio: "4/3", display: "flex", flexDirection: "column", alignItems: "center",
             justifyContent: "center", cursor: "pointer", gap: 8 }}>
           <div style={{ fontSize: 28 }}>{badge === "기준" ? "📌" : "🔄"}</div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.teal }}>사진 업로드</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.teal }}>사진 업로드</div>
           <div style={{ fontSize: 11, color: C.hint }}>클릭 · 드래그</div>
           <input ref={ref} type="file" accept="image/*" style={{ display:"none" }}
             onChange={e => { const f = e.target.files?.[0]; if(f) onFile(f); }}/>
@@ -250,7 +250,7 @@ function SyncTab() {
       <div style={{ background: C.mint, borderRadius: 12, padding: "14px 18px", display: "flex", gap: 12, alignItems: "center", borderLeft: `3px solid ${C.teal}` }}>
         <div style={{ fontSize: 20 }}>🔄</div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: C.teal, marginBottom: 2 }}>색감 동기화</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: C.teal, marginBottom: 2 }}>색감 동기화</div>
           <div style={{ fontSize: 12, color: C.muted }}>기준 사진과 동기화할 사진을 올리면 두 사진의 피부톤 차이를 분석하고 Photoshop · Camera Raw 보정값을 알려줍니다.</div>
         </div>
       </div>
@@ -268,9 +268,9 @@ function SyncTab() {
 
       {/* 분석 버튼 */}
       <button onClick={analyze} disabled={loading || !refB64 || !tgtB64} style={{
-        height: 52, border: "none", borderRadius: 14,
-        background: (!refB64 || !tgtB64) ? C.hint : loading ? C.muted : C.teal,
-        color: "#fff", fontWeight: 900, fontSize: 15, cursor: (!refB64 || !tgtB64 || loading) ? "not-allowed" : "pointer",
+        height: 52, border: (!refB64 || !tgtB64) ? "1px solid rgba(255,255,255,.18)" : "none", borderRadius: 14,
+        background: (!refB64 || !tgtB64) ? "transparent" : loading ? C.muted : "#37C39D",
+        color: (!refB64 || !tgtB64) ? "rgba(255,255,255,.36)" : loading ? "#fff" : "#103E36", fontWeight: 600, fontSize: 15, cursor: (!refB64 || !tgtB64 || loading) ? "not-allowed" : "pointer",
         fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
       }}>
         {loading
@@ -293,16 +293,16 @@ function SyncTab() {
               boxShadow: "inset 0 0 0 13px #fff",
             }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 20, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{sc}</div>
+                <div style={{ fontSize: 20, fontWeight: 600, color: scoreColor, lineHeight: 1 }}>{sc}</div>
                 <div style={{ fontSize: 9, color: C.hint }}>일치율</div>
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#EAF4F2", color: C.teal, fontWeight: 700 }}>
+                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#EAF4F2", color: C.teal, fontWeight: 600 }}>
                   기준: {result.reference.colorTemp} · {result.reference.saturation}채도
                 </div>
-                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#FFF8F5", color: C.orange, fontWeight: 700 }}>
+                <div style={{ fontSize: 11, padding: "3px 10px", borderRadius: 99, background: "#FFF8F5", color: C.orange, fontWeight: 600 }}>
                   대상: {result.target.colorTemp} · {result.target.saturation}채도
                 </div>
               </div>
@@ -319,9 +319,9 @@ function SyncTab() {
             {([["swatch","피부톤 비교"],["ps","Photoshop"],["cameraraw","Camera Raw"]] as const).map(([id, lbl]) => (
               <button key={id} onClick={() => setResTab(id)} style={{
                 flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
-                fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 900 : 500,
-                background: resTab === id ? C.teal : "transparent",
-                color: resTab === id ? "#fff" : C.muted,
+                fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 600 : 500,
+                background: resTab === id ? "#37C39D" : "transparent",
+                color: resTab === id ? "#103E36" : C.muted,
               }}>{lbl}</button>
             ))}
           </div>
@@ -330,9 +330,9 @@ function SyncTab() {
           {resTab === "swatch" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, marginBottom: 8 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.teal, textAlign: "center" }}>기준 사진</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.teal, textAlign: "center" }}>기준 사진</div>
                 <div/>
-                <div style={{ fontSize: 11, fontWeight: 800, color: C.orange, textAlign: "center" }}>대상 사진</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.orange, textAlign: "center" }}>대상 사진</div>
               </div>
               {(["highlight","mid","shadow"] as const).map(k => {
                 const lbl = { highlight:"하이라이트", mid:"미드톤", shadow:"쉐도우" }[k];
@@ -346,8 +346,8 @@ function SyncTab() {
                       <div style={{ fontSize: 10, color: C.hint }}>{result.reference[k].hex}</div>
                     </div>
                     <div style={{ textAlign: "center" }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 3 }}>{lbl}</div>
-                      <div style={{ fontSize: 11, fontWeight: 800, padding: "3px 8px", borderRadius: 6,
+                      <div style={{ fontSize: 9, fontWeight: 600, color: C.muted, marginBottom: 3 }}>{lbl}</div>
+                      <div style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6,
                         background: ok ? "#E6F4EA" : warn ? "#FFF0EB" : "#FFFBEA",
                         color: ok ? "#166534" : warn ? C.orange : "#92400E" }}>
                         {ok ? "✓" : `±${d.dist}`}
@@ -369,11 +369,11 @@ function SyncTab() {
               <div style={{ background: "#1E2D2A", borderRadius: 14, padding: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026 · 대상 사진에 적용</div>
-                    <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 2 }}>색상 균형 (Color Balance)</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026 · 대상 사진에 적용</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 2 }}>색상 균형 (Color Balance)</div>
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B) · 중간 영역 · 광도 유지 ✓</div>
                   </div>
-                  <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
+                  <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
                     {copied ? <Check size={13}/> : <Copy size={13}/>}{copied ? "복사됨" : "복사"}
                   </button>
                 </div>
@@ -391,10 +391,10 @@ function SyncTab() {
               </div>
               {result.photoshop?.guide?.length > 0 && (
                 <div style={{ background: "#FFF8F5", border: `1px solid ${C.orange}30`, borderRadius: 12, padding: "16px 18px" }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: C.orange, marginBottom: 10 }}>자연어 보정 가이드</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.orange, marginBottom: 10 }}>자연어 보정 가이드</div>
                   {result.photoshop.guide.map((g: string, i: number) => (
                     <div key={i} style={{ fontSize: 13, color: C.txt, marginBottom: 7, display: "flex", gap: 8 }}>
-                      <span style={{ color: C.orange, fontWeight: 900 }}>→</span>{g}
+                      <span style={{ color: C.orange, fontWeight: 600 }}>→</span>{g}
                     </div>
                   ))}
                 </div>
@@ -405,7 +405,7 @@ function SyncTab() {
           {/* Camera Raw */}
           {resTab === "cameraraw" && (
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
-              <div style={{ fontSize: 12, fontWeight: 900, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   ["색온도", result.adjustments.temperature ? (result.adjustments.temperature > 0 ? `+${result.adjustments.temperature}` : String(result.adjustments.temperature)) + "K" : "±0", result.adjustments.temperature !== 0],
@@ -414,12 +414,12 @@ function SyncTab() {
                 ].map(([lbl, val, hi]) => (
                   <div key={String(lbl)} style={{ background: hi ? "#1C2B28" : "#F4F8F7", borderRadius: 12, padding: "16px", textAlign: "center", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
                     <div style={{ fontSize: 11, color: hi ? "rgba(255,255,255,.4)" : C.hint, marginBottom: 6 }}>{lbl}</div>
-                    <div style={{ fontSize: 22, fontWeight: 900, color: hi ? (String(val).startsWith("+") ? "#6EE7B7" : "#FCA5A5") : C.muted }}>{val}</div>
+                    <div style={{ fontSize: 22, fontWeight: 600, color: hi ? (String(val).startsWith("+") ? "#6EE7B7" : "#FCA5A5") : C.muted }}>{val}</div>
                   </div>
                 ))}
               </div>
               {!result.photoshop?.hasAdjustment && result.adjustments.temperature === 0 && (
-                <div style={{ marginTop: 16, textAlign: "center", fontSize: 13, color: "#059669", fontWeight: 700 }}>
+                <div style={{ marginTop: 16, textAlign: "center", fontSize: 13, color: "#059669", fontWeight: 600 }}>
                   ✓ 두 사진의 색감이 거의 동일합니다
                 </div>
               )}
@@ -502,10 +502,11 @@ export default function PhotoRetouchingPage() {
       onPaste={handleGlobalPaste}
     >
       <div style={{ padding: "12px 20px 0" }}>
-        <SegmentedTabs
+        <WorkspaceSubTabs
           ariaLabel="색감 작업 선택"
           value={tab}
           onChange={setTab}
+          tone="dark"
           items={[
             { value: "check", label: "색감 체크" },
             { value: "sync", label: "색감 동기화" },
@@ -519,7 +520,7 @@ export default function PhotoRetouchingPage() {
         {/* 페이지 안내 — 1.1: 화면 이름을 다시 말하지 않는다(타이틀바가 이미 보여준다).
             기존에 있던 "PHOTO RETOUCHING" 영문 이터브로우는 제거했다. */}
         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: C.teal, marginBottom: 6 }}>
+          <div style={{ fontSize: 20, fontWeight: 600, color: C.teal, marginBottom: 6 }}>
             {tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피"}
           </div>
           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.7 }}>
@@ -540,16 +541,17 @@ export default function PhotoRetouchingPage() {
             {/* 왼쪽 */}
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {/* 체크 대상 선택 */}
-              <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
-                {([["skin","🧑 피부톤"],["gown","🥼 가운 컬러"]] as const).map(([id, lbl]) => (
-                  <button key={id} onClick={() => { setCheckType(id); setPreview(""); setImgB64(""); setResult(null); setError(""); }} style={{
-                    flex: 1, padding: "9px 0", border: "none", borderRadius: 9, cursor: "pointer",
-                    fontFamily: "inherit", fontSize: 13, fontWeight: checkType === id ? 900 : 500,
-                    background: checkType === id ? C.teal : "transparent",
-                    color: checkType === id ? "#fff" : C.muted,
-                  }}>{lbl}</button>
-                ))}
-              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+                <span>분석 기준</span>
+                <select
+                  value={checkType}
+                  onChange={(event) => { setCheckType(event.target.value as "skin" | "gown"); setPreview(""); setImgB64(""); setResult(null); setError(""); }}
+                  style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
+                >
+                  <option value="skin">피부톤</option>
+                  <option value="gown">가운 컬러</option>
+                </select>
+              </label>
 
               {!preview ? (
                 <div
@@ -563,8 +565,8 @@ export default function PhotoRetouchingPage() {
                     textAlign: "center", cursor: "pointer", transition: "all .15s",
                     boxShadow: "0 8px 24px rgba(21,88,85,.04)",
                   }}>
-                  <div style={{ fontSize: 38, marginBottom: 14 }}>📷</div>
-                  <div style={{ fontSize: 15, fontWeight: 900, color: C.teal, marginBottom: 8 }}>사진 업로드</div>
+                  <Camera size={34} strokeWidth={1.5} style={{ marginBottom: 14, color: C.teal }} aria-hidden="true" />
+                  <div style={{ fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 8 }}>사진 업로드</div>
                   <div style={{ fontSize: 12, color: C.hint, lineHeight: 2 }}>
                     클릭하거나 드래그&드롭<br/>
                     포토샵·Preview에서 복사 후 <strong style={{ color: C.orange }}>Ctrl+V</strong> 붙여넣기<br/>
@@ -579,8 +581,8 @@ export default function PhotoRetouchingPage() {
                   <div style={{ padding: "12px 14px", display: "flex", gap: 8 }}>
                     <button onClick={analyze} disabled={loading} style={{
                       flex: 1, height: 44, border: "none", borderRadius: 10,
-                      background: loading ? C.hint : C.teal, color: "#fff",
-                      fontWeight: 900, fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
+                      background: loading ? C.hint : "#37C39D", color: loading ? "#fff" : "#103E36",
+                      fontWeight: 600, fontSize: 14, cursor: loading ? "not-allowed" : "pointer",
                       fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}>
                       {loading
@@ -599,8 +601,8 @@ export default function PhotoRetouchingPage() {
 
               {/* DNA 미니카드 */}
               <div style={{ background: C.white, borderRadius: 14, padding: "18px", border: `1px solid ${C.border}`, boxShadow: "0 8px 24px rgba(21,88,85,.04)" }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: C.teal, marginBottom: 2 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 3 }}>포토클리닉</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: C.teal, marginBottom: 2 }}>
                   {checkType === "gown" ? "가운 컬러 목표 · 웜 아이보리" : "컬러 DNA v1"}
                 </div>
                 <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>
@@ -628,7 +630,7 @@ export default function PhotoRetouchingPage() {
                 {!result.detected ? (
                   <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "48px", textAlign: "center" }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: C.teal }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: C.teal }}>
                       {checkType === "gown" ? "가운을 찾지 못했어요" : "피부를 찾지 못했어요"}
                     </div>
                     <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>
@@ -646,12 +648,12 @@ export default function PhotoRetouchingPage() {
                         boxShadow: "inset 0 0 0 12px #fff",
                       }}>
                         <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 19, fontWeight: 900, color: scoreColor, lineHeight: 1 }}>{sc}</div>
+                          <div style={{ fontSize: 19, fontWeight: 600, color: scoreColor, lineHeight: 1 }}>{sc}</div>
                           <div style={{ fontSize: 9, color: C.hint }}>점</div>
                         </div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: C.txt, lineHeight: 1.5, marginBottom: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: C.txt, lineHeight: 1.5, marginBottom: 4 }}>
                           {checkType === "gown" ? result.gownNote : result.skinNote}
                         </div>
                         <div style={{ fontSize: 11, color: C.hint }}>
@@ -660,38 +662,37 @@ export default function PhotoRetouchingPage() {
                             : <>{result.colorTemp} · 채도 {result.saturation} · 신뢰도 {result.confidence}%</>}
                         </div>
                         {result.photoshop?.hasAdjustment && (
-                          <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, background: "#FFF0EB", color: C.orange }}>
+                          <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 600, padding: "2px 10px", borderRadius: 99, background: "#FFF0EB", color: C.orange }}>
                             Photoshop 보정 필요
                           </div>
                         )}
                         {!result.photoshop?.hasAdjustment && sc >= 80 && (
-                          <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 99, background: "#E6F4EA", color: "#059669" }}>
+                          <div style={{ marginTop: 6, display: "inline-block", fontSize: 11, fontWeight: 600, padding: "2px 10px", borderRadius: 99, background: "#E6F4EA", color: "#059669" }}>
                             {checkType === "gown" ? "✓ 웜 아이보리 화이트 일치" : "✓ 포토클리닉 DNA 일치"}
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* 결과 탭 */}
-                    <div className="pc-inline-tabs" style={{ display: "flex", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: 3, gap: 2 }}>
-                      {((checkType === "gown"
-                        ? [["compare","컬러 비교"],["ps","Photoshop 보정"]]
-                        : [["compare","피부톤 비교"],["ps","Photoshop 보정"],["cameraraw","Camera Raw"]]
-                      ) as [string, string][]).map(([id, lbl]) => (
-                        <button key={id} onClick={() => setResTab(id as "compare" | "ps" | "cameraraw")} style={{
-                          flex: 1, padding: "8px 0", border: "none", borderRadius: 9, cursor: "pointer",
-                          fontFamily: "inherit", fontSize: 12, fontWeight: resTab === id ? 900 : 500,
-                          background: resTab === id ? C.teal : "transparent",
-                          color: resTab === id ? "#fff" : C.muted,
-                        }}>{lbl}</button>
-                      ))}
-                    </div>
+                    {/* 결과 보기는 편집 상태가 아니라 표시 방식 선택이라 탭 대신 필드로 둔다. */}
+                    <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 48, padding: "0 14px", background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, color: C.muted, fontSize: 12 }}>
+                      <span>결과 보기</span>
+                      <select
+                        value={resTab}
+                        onChange={(event) => setResTab(event.target.value as "compare" | "ps" | "cameraraw")}
+                        style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
+                      >
+                        <option value="compare">{checkType === "gown" ? "컬러 비교" : "피부톤 비교"}</option>
+                        <option value="ps">Photoshop 보정</option>
+                        {checkType === "gown" ? null : <option value="cameraraw">Camera Raw</option>}
+                      </select>
+                    </label>
 
                     {/* 피부톤/가운 비교 */}
                     {resTab === "compare" && (
                       <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.hint, marginBottom: 12 }}>
-                          <span style={{ fontWeight: 700, color: C.muted }}>
+                          <span style={{ fontWeight: 600, color: C.muted }}>
                             현재 사진 vs {checkType === "gown" ? "가운 목표색" : "DNA 타겟"}
                           </span>
                           <span>← 현재 &nbsp;&nbsp; {checkType === "gown" ? "목표" : "DNA"} →</span>
@@ -710,11 +711,11 @@ export default function PhotoRetouchingPage() {
                         <div style={{ background: "#1E2D2A", borderRadius: 14, padding: "20px", border: `1px solid rgba(255,255,255,.06)` }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
                             <div>
-                              <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026</div>
-                              <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginBottom: 2 }}>색상 균형</div>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026</div>
+                              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 2 }}>색상 균형</div>
                               <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B)<br/>톤: 중간 영역 · 광도 유지 ✓</div>
                             </div>
-                            <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
+                            <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
                               {copied ? <Check size={13}/> : <Copy size={13}/>}
                               {copied ? "복사됨" : "가이드 복사"}
                             </button>
@@ -735,17 +736,17 @@ export default function PhotoRetouchingPage() {
 
                         {result.photoshop?.guide?.length > 0 && (
                           <div style={{ background: "#FFF8F5", border: `1px solid ${C.orange}30`, borderRadius: 12, padding: "16px 18px" }}>
-                            <div style={{ fontSize: 12, fontWeight: 900, color: C.orange, marginBottom: 10 }}>자연어 보정 가이드</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: C.orange, marginBottom: 10 }}>자연어 보정 가이드</div>
                             {result.photoshop.guide.map((g: string, i: number) => (
                               <div key={i} style={{ fontSize: 13, color: C.txt, marginBottom: 6, display: "flex", gap: 8 }}>
-                                <span style={{ color: C.orange, fontWeight: 900 }}>→</span>{g}
+                                <span style={{ color: C.orange, fontWeight: 600 }}>→</span>{g}
                               </div>
                             ))}
                           </div>
                         )}
 
                         <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, padding: "14px 16px" }}>
-                          <div style={{ fontSize: 11, fontWeight: 900, color: C.muted, marginBottom: 8 }}>핵심 원칙</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 8 }}>핵심 원칙</div>
                           <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.9 }}>
                             {checkType === "gown" ? (
                               <>
@@ -770,7 +771,7 @@ export default function PhotoRetouchingPage() {
                     {resTab === "cameraraw" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ background: C.dark, borderRadius: 14, padding: "18px" }}>
-                          <div style={{ fontSize: 11, fontWeight: 900, color: "rgba(255,255,255,.4)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.4)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
                           <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                             {([
                               ["색온도", result.adjustments?.temperature ? `${5900 + result.adjustments.temperature}K` : "5900K", !!result.adjustments?.temperature],
@@ -785,27 +786,27 @@ export default function PhotoRetouchingPage() {
                             ] as [string, string, boolean][]).map(([lbl, val, hi]) => (
                               <div key={lbl} style={{ background: hi ? C.teal : "#243530", borderRadius: 10, padding: "12px 14px", border: hi ? `2px solid ${C.orange}` : "none" }}>
                                 <div style={{ fontSize: 10, color: "rgba(255,255,255,.4)", marginBottom: 4 }}>{lbl}</div>
-                                <div style={{ fontSize: 20, fontWeight: 900, color: val.startsWith("+") ? "#6EE7B7" : val.startsWith("-") ? "#FCA5A5" : "#fff" }}>{val}</div>
+                                <div style={{ fontSize: 20, fontWeight: 600, color: val.startsWith("+") ? "#6EE7B7" : val.startsWith("-") ? "#FCA5A5" : "#fff" }}>{val}</div>
                               </div>
                             ))}
                           </div>
                         </div>
                         <div style={{ background: C.white, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
-                          <div style={{ padding: "12px 16px", background: C.mint, fontSize: 12, fontWeight: 900, color: C.teal, borderBottom: `1px solid ${C.border}` }}>HSL 피부톤 보정</div>
+                          <div style={{ padding: "12px 16px", background: C.mint, fontSize: 12, fontWeight: 600, color: C.teal, borderBottom: `1px solid ${C.border}` }}>HSL 피부톤 보정</div>
                           <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                               <tr style={{ background: "#FAFAFA" }}>
                                 {["색상", "Hue", "Saturation", "Luminance"].map(h => (
-                                  <th key={h} style={{ padding: "8px 14px", fontSize: 11, fontWeight: 800, color: C.muted, textAlign: h === "색상" ? "left" : "center", borderBottom: `1px solid ${C.border}` }}>{h}</th>
+                                  <th key={h} style={{ padding: "8px 14px", fontSize: 11, fontWeight: 600, color: C.muted, textAlign: h === "색상" ? "left" : "center", borderBottom: `1px solid ${C.border}` }}>{h}</th>
                                 ))}
                               </tr>
                             </thead>
                             <tbody>
                               {([["레드 (Reds)", 0, -8, 5],["오렌지 (Oranges)", 3, -6, 4],["옐로우 (Yellows)", 0, -10, 0]] as [string,number,number,number][]).map(([lbl, h, s, l], i) => (
                                 <tr key={lbl} style={{ borderBottom: i < 2 ? `1px solid ${C.border}` : "none" }}>
-                                  <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 700 }}>{lbl}</td>
+                                  <td style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>{lbl}</td>
                                   {[h, s, l].map((v, j) => (
-                                    <td key={j} style={{ padding: "10px 14px", textAlign: "center", fontSize: 14, fontWeight: 900, color: v > 0 ? "#059669" : v < 0 ? "#DC2626" : C.hint }}>
+                                    <td key={j} style={{ padding: "10px 14px", textAlign: "center", fontSize: 14, fontWeight: 600, color: v > 0 ? "#059669" : v < 0 ? "#DC2626" : C.hint }}>
                                       {v > 0 ? `+${v}` : v || "0"}
                                     </td>
                                   ))}
@@ -830,8 +831,8 @@ export default function PhotoRetouchingPage() {
         {tab === "recipe" && (
           <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: C.dark, borderRadius: 16, padding: "24px" }}>
-              <div style={{ fontSize: 10, fontWeight: 900, color: "rgba(255,255,255,.35)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>포토클리닉 컬러 DNA v1</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", marginBottom: 4 }}>클린 뉴트럴 · 신뢰감형</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>포토클리닉 컬러 DNA v1</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: "#fff", marginBottom: 4 }}>클린 뉴트럴 · 신뢰감형</div>
               <div style={{ fontSize: 13, color: "rgba(255,255,255,.5)", lineHeight: 1.8, marginBottom: 16 }}>차갑지도 따뜻하지도 않은 중성 색온도. 채도를 절제해 의료 브랜딩 특유의 신뢰감 구현</div>
               <div style={{ display: "flex", gap: 10 }}>
                 {Object.values(DNA_TARGETS).map(t => (
@@ -846,22 +847,22 @@ export default function PhotoRetouchingPage() {
 
             <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Camera Raw 기준값</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Camera Raw 기준값</div>
                 {[["색온도","5900K"],["색조 Tint","+3"],["노출","+0.2"],["하이라이트","-30"],["섀도우","+20"],["화이트","+8"],["블랙","+12"],["선명도","+8"],["Vibrance","-5"]].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
                     <span style={{ color: C.muted }}>{k}</span>
-                    <span style={{ fontWeight: 800, color: v.startsWith("-") ? "#DC2626" : v.startsWith("+") ? "#059669" : C.txt }}>{v}</span>
+                    <span style={{ fontWeight: 600, color: v.startsWith("-") ? "#DC2626" : v.startsWith("+") ? "#059669" : C.txt }}>{v}</span>
                   </div>
                 ))}
               </div>
 
               <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "18px" }}>
-                <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Photoshop 색상균형 기본</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 12 }}>Photoshop 색상균형 기본</div>
                 <div style={{ fontSize: 12, color: C.muted, lineHeight: 2, marginBottom: 12 }}>이미지 → 조정 → 색상 균형<br/>단축키: Shift+Ctrl+B</div>
                 {[["녹청↔빨강","0 (기본)"],["마젠타↔녹색","0 (기본)"],["노랑↔파랑","0 (기본)"]].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
                     <span style={{ color: C.muted }}>{k}</span>
-                    <span style={{ fontWeight: 700, color: C.hint }}>{v}</span>
+                    <span style={{ fontWeight: 600, color: C.hint }}>{v}</span>
                   </div>
                 ))}
                 <div style={{ fontSize: 11, color: C.hint, marginTop: 10, lineHeight: 1.8 }}>
@@ -871,16 +872,16 @@ export default function PhotoRetouchingPage() {
             </div>
 
             <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, padding: "20px" }}>
-              <div style={{ fontSize: 10, fontWeight: 900, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 14 }}>권장 편집 순서</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".1em", textTransform: "uppercase", marginBottom: 14 }}>권장 편집 순서</div>
               {[
                 { n:1, step:"Camera Raw / ACR", desc:"위 기준값 적용", sub:"XMP 프리셋 드래그&드롭으로 한 번에" },
                 { n:2, step:"Evoto", desc:"피부 보정", sub:"색감 건드리지 않고 피부 질감만" },
                 { n:3, step:"Photoshop 2026", desc:"색상 균형 미세 조정", sub:"색감 체크 탭 → AI 분석 → 가이드 복사 → 적용" },
               ].map(({ n, step, desc, sub }) => (
                 <div key={n} style={{ display: "flex", gap: 14, marginBottom: n < 3 ? 14 : 0 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
+                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: C.teal, color: "#fff", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{n}</div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: C.txt }}>{step} <span style={{ fontWeight: 400, color: C.muted, fontSize: 13 }}>— {desc}</span></div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.txt }}>{step} <span style={{ fontWeight: 400, color: C.muted, fontSize: 13 }}>— {desc}</span></div>
                     <div style={{ fontSize: 11, color: C.hint }}>{sub}</div>
                   </div>
                 </div>

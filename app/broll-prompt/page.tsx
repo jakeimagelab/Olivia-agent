@@ -29,9 +29,9 @@ function Panel({ number, title, children }: { number: number; title: string; chi
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <span style={{
           width: 26, height: 26, borderRadius: "50%", background: C.teal, color: "#fff",
-          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 600, flexShrink: 0,
         }}>{number}</span>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: C.ink, margin: 0 }}>{title}</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 600, color: C.ink, margin: 0 }}>{title}</h2>
       </div>
       {children}
     </section>
@@ -123,7 +123,7 @@ function BrollPromptWorkspace() {
   };
 
   return (
-    <main className="pc-page" style={{ color: C.ink, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
+    <main className="pc-page" style={{ color: C.ink, background: embedded ? "#FDFCFA" : undefined, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>
       {embedded ? null : <GlobalHeader title="B롤 이미지 프롬프트 생성기" description="유튜브 대본에서 구간을 골라 이미지 생성 AI에 바로 쓸 영문 프롬프트를 만듭니다." />}
       <div className="pc-content pc-content--wide">
         <p style={{ fontSize: 13, color: C.muted, marginBottom: 18 }}>
@@ -155,7 +155,7 @@ function BrollPromptWorkspace() {
 
           <div style={{ flex: "0.42 1 300px", minWidth: 0 }}>
             <Panel number={2} title="이미지화할 구간">
-              <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 700 }}>드래그 선택 또는 직접 입력</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 6, fontWeight: 600 }}>드래그 선택 또는 직접 입력</div>
               <textarea
                 value={targetSnippet}
                 onChange={(e) => setTargetSnippet(e.target.value)}
@@ -172,7 +172,7 @@ function BrollPromptWorkspace() {
                 disabled={!targetSnippet.trim()}
                 style={{
                   marginTop: 8, width: "100%", height: 36, borderRadius: R.sm,
-                  border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 12, fontWeight: 800,
+                  border: `1px solid ${C.border}`, background: "#fff", color: C.teal, fontSize: 12, fontWeight: 600,
                   cursor: !targetSnippet.trim() ? "not-allowed" : "pointer", opacity: !targetSnippet.trim() ? 0.55 : 1,
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 5,
                 }}
@@ -182,7 +182,7 @@ function BrollPromptWorkspace() {
 
               {queue.length > 0 ? (
                 <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 700 }}>대기 중인 구간 ({queue.length}개)</div>
+                  <div style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>대기 중인 구간 ({queue.length}개)</div>
                   {queue.map((item) => (
                     <div key={item.id} style={{
                       display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
@@ -209,19 +209,21 @@ function BrollPromptWorkspace() {
                 onClick={generateAll}
                 disabled={!queue.length || generating}
                 style={{
-                  marginTop: 14, width: "100%", height: 42, border: 0, borderRadius: R.md,
-                  background: C.orange, color: "#fff", fontSize: 13, fontWeight: 800,
+                  marginTop: 14, width: "100%", height: 42, borderRadius: R.md,
+                  border: !queue.length || generating ? `1px solid ${C.border}` : "none",
+                  background: !queue.length || generating ? "transparent" : "#C94A1E",
+                  color: !queue.length || generating ? C.hint : "#fff", fontSize: 13, fontWeight: 600,
                   cursor: !queue.length || generating ? "not-allowed" : "pointer",
-                  opacity: !queue.length || generating ? 0.55 : 1,
+                  opacity: 1,
                   display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
                 }}
               >
                 <Sparkles size={15} />{generating ? "생성 중..." : queue.length > 1 ? `선택한 ${queue.length}개 프롬프트 생성` : "프롬프트 생성"}
               </button>
-              {error ? <p style={{ marginTop: 8, fontSize: 11.5, color: C.danger, fontWeight: 700 }}>{error}</p> : null}
+              {error ? <p style={{ marginTop: 8, fontSize: 11.5, color: C.danger, fontWeight: 600 }}>{error}</p> : null}
 
               <div style={{ marginTop: 14, padding: 12, borderRadius: R.sm, background: C.bg, border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, marginBottom: 6 }}>고정 스타일 (자동 적용)</div>
+                <div style={{ fontSize: 10.5, fontWeight: 600, color: C.muted, marginBottom: 6 }}>고정 스타일 (자동 적용)</div>
                 <p style={{ margin: 0, fontSize: 10.5, lineHeight: 1.6, color: C.hint, fontFamily: "monospace" }}>{FIXED_STYLE_SUFFIX}</p>
               </div>
             </Panel>
@@ -237,7 +239,7 @@ function BrollPromptWorkspace() {
                     <div key={item.id} style={{ background: C.bg, border: `1px solid ${C.border}`, borderRadius: R.lg, padding: 14 }}>
                       <span style={{
                         display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                        fontSize: 10.5, fontWeight: 700, color: C.teal, background: C.mint, borderRadius: R.full, padding: "3px 10px", marginBottom: 10,
+                        fontSize: 10.5, fontWeight: 600, color: C.teal, background: C.mint, borderRadius: R.full, padding: "3px 10px", marginBottom: 10,
                       }}>
                         {item.snippet.length > 40 ? `${item.snippet.slice(0, 40)}…` : item.snippet}
                       </span>
@@ -251,7 +253,7 @@ function BrollPromptWorkspace() {
                           onClick={() => copy(item)}
                           style={{
                             display: "inline-flex", alignItems: "center", gap: 5, border: 0, borderRadius: R.sm,
-                            background: C.mint, color: C.teal, fontSize: 11.5, fontWeight: 800, padding: "7px 12px", cursor: "pointer",
+                            background: C.mint, color: C.teal, fontSize: 11.5, fontWeight: 600, padding: "7px 12px", cursor: "pointer",
                           }}
                         >
                           {copiedId === item.id ? <Check size={13} /> : <Copy size={13} />}
@@ -263,7 +265,7 @@ function BrollPromptWorkspace() {
                           onClick={() => regenerate(item.snippet)}
                           style={{
                             display: "inline-flex", alignItems: "center", gap: 5, borderRadius: R.sm,
-                            border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontSize: 11.5, fontWeight: 800,
+                            border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontSize: 11.5, fontWeight: 600,
                             padding: "7px 12px", cursor: generating ? "not-allowed" : "pointer", opacity: generating ? 0.6 : 1,
                           }}
                         >

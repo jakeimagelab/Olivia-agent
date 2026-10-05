@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Clock3, Files } from "lucide-react";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { SelectMatchWorkspace } from "./SelectMatchWorkspace";
 import styles from "./PhotoWorkspace.module.css";
 
@@ -40,15 +40,15 @@ export default function PhotoRawMatchWorkspace({
           ? <>사진 셀렉에서 확정한 JPG <strong style={{ color: "#a8f1dc" }}>{selectedJpgNames.length.toLocaleString("ko-KR")}장</strong>을 매칭 대상으로 불러왔습니다.</>
           : <>사진 셀렉을 거치지 않아도 됩니다. 아래에서 매칭할 JPG 폴더·파일명 목록을 직접 지정하세요.</>}
       </div>
-      <SegmentedTabs
+      <WorkspaceSubTabs
         ariaLabel="RAW 매칭 방식"
+        tone="dark"
         value={method}
         onChange={(next) => setMethod(next as RawMatchMethod)}
         items={[
-          { value: "filename", label: "파일명 매칭", icon: <Files size={15} />, id: "raw-match-method-filename", panelId: "raw-match-method-panel" },
-          { value: "metadata", label: "촬영시간 매칭", icon: <Clock3 size={15} />, id: "raw-match-method-metadata", panelId: "raw-match-method-panel" },
+          { value: "filename", label: "파일명 매칭", icon: <Files size={15} /> },
+          { value: "metadata", label: "촬영시간 매칭", icon: <Clock3 size={15} /> },
         ]}
-        style={{ marginBottom: 14 }}
       />
       <div id="raw-match-method-panel" role="tabpanel" aria-labelledby={`raw-match-method-${method}`}>
         {method === "filename" ? <SelectMatchWorkspace embedded initialView="raw" selectedJpgNames={selectedJpgNames} /> : null}

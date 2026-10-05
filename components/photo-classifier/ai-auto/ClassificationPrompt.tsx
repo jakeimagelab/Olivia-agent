@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Card, Btn } from "../PhotoSortingWorkspace";
-import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
+import { C } from "../PhotoSortingWorkspace";
 
 const QUICK_CHIPS = ["시간차 우선", "모델 변경 감지", "장소 변화 감지"];
 

@@ -10,7 +10,7 @@ import styles from "@/components/conti/v2/ContiV2.module.css";
 interface ClientOption { id: string; name: string }
 
 export interface ContiCreateScreenProps {
-  surface?: "default" | "tablet";
+  surface?: "default" | "tablet" | "workspace";
   onGenerated: (runId: string) => void;
   initialClientId?: string;
   workflowRunId?: string;
@@ -130,7 +130,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
               <h2>필요한 촬영 장면만<br />선택해 주세요.</h2>
               <p>진료과와 참여 인원, 촬영 항목을 고르면 현장에서 바로 사용할 수 있는 순서로 자동 구성합니다.</p>
             </div>
-            {surface === "default" ? <div className={styles.heroActions}>
+            {surface !== "tablet" ? <div className={styles.heroActions}>
               <button type="button" onClick={() => setPreviousOpen(true)} className={styles.previousButton}><History aria-hidden="true" size={14} />이전 콘티 보기</button>
               <button type="button" disabled={importing} onClick={() => importInputRef.current?.click()} className={styles.previousButton}><FileUp aria-hidden="true" size={14} />{importing ? "파일 인식 중…" : "PDF / 이미지 불러오기"}</button>
               <input ref={importInputRef} hidden type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={(event) => void handleImport(event.target.files?.[0])} />

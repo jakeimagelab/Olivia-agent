@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock, HelpCircle, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, FolderOpen, HelpCircle, XCircle } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { scanJpgFiles, scanRawFiles, type ScannedFile } from "@/lib/metadataSelect/folderScan";
@@ -138,17 +138,21 @@ function Btn({ children, onClick, disabled, style }: {
       style={{
         padding: "9px 20px",
         minHeight: 38,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
         fontSize: 13,
-        fontWeight: 700,
+        fontWeight: 600,
         borderRadius: R.md,
-        border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "inherit",
-        background: disabled ? C.border : C.teal,
-        color: disabled ? C.hint : C.white,
-        opacity: disabled ? 0.6 : 1,
-        transition: "opacity .15s",
-        ...style,
+        background: disabled ? "transparent" : "#37C39D",
+        color: disabled ? "rgba(255,255,255,.38)" : "#103E36",
+        border: disabled ? "1px solid rgba(255,255,255,.16)" : "none",
+        opacity: 1,
+        transition: "background .15s",
+        ...(disabled ? {} : style),
       }}
     >
       {children}
@@ -177,18 +181,20 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled }: 
         alignItems: "center",
         justifyContent: "center",
         fontSize: 12,
-        fontWeight: 800,
+        fontWeight: 600,
         flexShrink: 0,
       }}>
         {step}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>{label}</div>
         {dir || hint ? <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{dir?.name ?? hint}</div> : null}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         {dir && onClear ? <Btn onClick={onClear} disabled={disabled} style={{ background: C.white, color: C.muted, border: `1px solid ${C.border}`, paddingInline: 12 }}>선택 해제</Btn> : null}
-        <Btn onClick={onPick} disabled={disabled}>{dir ? `✅ ${dir.name}` : "📂 폴더 선택"}</Btn>
+        <Btn onClick={onPick} disabled={disabled} style={{ background: C.white, color: C.teal, border: `1px solid ${C.border}` }}>
+          {dir ? <><CheckCircle2 size={16} aria-hidden="true" />{dir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}
+        </Btn>
       </div>
     </div>
   );
@@ -519,12 +525,12 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
                           minHeight: 34,
                           padding: "6px 11px",
                           borderRadius: R.sm,
-                          border: `1px solid ${active ? C.teal : C.border}`,
-                          background: active ? C.teal : C.white,
-                          color: active ? C.white : C.muted,
+                          border: `1px solid ${active ? "#37C39D" : C.border}`,
+                          background: active ? "#37C39D" : C.white,
+                          color: active ? "#103E36" : C.muted,
                           fontFamily: "inherit",
                           fontSize: 12,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           cursor: running ? "not-allowed" : "pointer",
                         }}
                       >
@@ -553,13 +559,13 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
             </div>
 
             <div style={{ marginTop: 16, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
-              <Btn onClick={analyze} disabled={!canAnalyze} style={canAnalyze ? { background: C.orange } : undefined}>
+              <Btn onClick={analyze} disabled={!canAnalyze}>
                 {phase === "analyzing" ? PHASE_LABEL[phase] : "메타데이터 매칭 분석"}
               </Btn>
             </div>
 
             {running ? <div style={{ marginTop: 12, fontSize: 12, color: C.teal, textAlign: "center" }}>{PHASE_LABEL[phase]}{phaseDetail ? ` · ${phaseDetail}` : ""}</div> : null}
-            {phase === "done" && phaseDetail ? <div style={{ marginTop: 12, fontSize: 12, color: C.success, textAlign: "center", fontWeight: 700 }}>{phaseDetail}</div> : null}
+            {phase === "done" && phaseDetail ? <div style={{ marginTop: 12, fontSize: 12, color: C.success, textAlign: "center", fontWeight: 600 }}>{phaseDetail}</div> : null}
             {error ? <div style={{ marginTop: 12, whiteSpace: "pre-wrap", fontSize: 12, color: C.danger, textAlign: "center", lineHeight: 1.7 }}>{error}</div> : null}
 
             {phase === "awaiting_confirmation" && plan ? (
@@ -578,7 +584,7 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
                   {!plan.excludeCompleted && plan.transferMode === "move" ? <><br />이동은 {SELECTED_RAW_DIRECTORY} 복사를 검증한 뒤 원본 RAW에서 제거합니다.</> : null}
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                  <Btn onClick={executeMatch} style={{ background: C.orange }}>
+                  <Btn onClick={executeMatch} style={plan.transferMode === "move" ? { background: "#C94A1E", color: "#fff" } : undefined}>
                     {plan.rawCopyTransfers.length > 0
                       ? `RAW ${plan.rawCopyTransfers.length}장 복사`
                       : `RAW ${plan.rawMoveTransfers.length}장 이동`}
@@ -612,13 +618,13 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
                   <div key={row.selectionName} style={{ display: "flex", gap: 10, padding: "10px 12px", background: C.bg, borderRadius: R.sm }}>
                     <Icon size={16} color={meta.color} style={{ flexShrink: 0, marginTop: 1 }} />
                     <div style={{ minWidth: 0, fontSize: 12 }}>
-                      <div style={{ fontWeight: 700, color: C.ink }}>{row.selectionName}</div>
+                      <div style={{ fontWeight: 600, color: C.ink }}>{row.selectionName}</div>
                       {row.status === "success" ? (
                         <div style={{ color: C.muted, marginTop: 2, lineHeight: 1.7 }}>
                           <div>{row.message}</div>
                           {row.matchedOriginalNames?.length ? <div>원본 JPG {row.matchedOriginalNames.length}장</div> : row.matchedOriginalName ? <div>원본 JPG · {leafName(row.matchedOriginalName)}</div> : null}
                           {rawNamesOf(row).map((rawName) => <div key={rawName}>→ {leafName(rawName)}</div>)}
-                          {rawNamesOf(row).length > 1 ? <span style={{ display: "inline-block", marginTop: 2, padding: "1px 6px", borderRadius: 999, background: "rgba(21,88,85,.10)", color: C.teal, fontSize: 10, fontWeight: 800 }}>연사 {rawNamesOf(row).length}장</span> : null}
+                          {rawNamesOf(row).length > 1 ? <span style={{ display: "inline-block", marginTop: 2, padding: "1px 6px", borderRadius: 999, background: "rgba(21,88,85,.10)", color: C.teal, fontSize: 10, fontWeight: 600 }}>연사 {rawNamesOf(row).length}장</span> : null}
                         </div>
                       ) : (
                         <div style={{ color: C.muted, marginTop: 2 }}>{row.message}{row.candidateNames?.length ? <span>: {row.candidateNames.map(leafName).join(", ")}</span> : null}</div>

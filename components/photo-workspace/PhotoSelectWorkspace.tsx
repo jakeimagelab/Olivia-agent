@@ -5,6 +5,7 @@ import { MousePointer2, Sparkles, Users } from "lucide-react";
 import AiPhotoSelectPanel from "./AiPhotoSelectPanel";
 import type { PhotoSelectMode } from "./types";
 import styles from "./PhotoWorkspace.module.css";
+import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 
 const SelectMatchWorkspace = dynamic(() => import("./SelectMatchWorkspace").then((module) => module.SelectMatchWorkspace), {
@@ -33,20 +34,17 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
 
   return (
     <div>
-      <div className={styles.selectTabs} role="tablist" aria-label="사진 셀렉 방식">
-        {SELECT_TABS.map(({ mode, label, icon: Icon }) => (
-          <button
-            key={mode}
-            type="button"
-            role="tab"
-            id={`photo-select-tab-${mode}`}
-            aria-selected={value === mode}
-            aria-controls={`photo-select-panel-${mode}`}
-            className={value === mode ? styles.selectTabActive : undefined}
-            onClick={() => onChange(mode)}
-          ><Icon size={17} strokeWidth={1.8} aria-hidden="true" />{label}</button>
-        ))}
-      </div>
+      <WorkspaceSubTabs
+        ariaLabel="사진 셀렉 방식"
+        tone="dark"
+        value={value}
+        onChange={onChange}
+        items={SELECT_TABS.map(({ mode, label, icon: Icon }) => ({
+          value: mode,
+          label,
+          icon: <Icon size={17} strokeWidth={1.8} aria-hidden="true" />,
+        }))}
+      />
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
         {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}

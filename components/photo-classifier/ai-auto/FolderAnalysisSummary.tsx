@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "../PhotoSortingWorkspace";
-import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
+import { C } from "../PhotoSortingWorkspace";
 import type { FolderShootingPattern } from "@/lib/photo-classifier/pattern-analysis";
 
 export default function FolderAnalysisSummary({ analyzing, pattern, fileCount }: { analyzing: boolean; pattern: FolderShootingPattern | null; fileCount: number }) {

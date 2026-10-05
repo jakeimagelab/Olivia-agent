@@ -42,9 +42,9 @@ function ChipRow({ label, hint, value, options, custom, onSelect, onCustom }: {
             onClick={() => onSelect(option)}
             style={{
               padding: "9px 16px", borderRadius: 9, fontSize: 13, cursor: "pointer",
-              border: `1px solid ${value === option ? "#155855" : "rgba(255,255,255,.14)"}`,
-              background: value === option ? "#155855" : "rgba(255,255,255,.04)",
-              color: value === option ? "#fff" : "rgba(255,255,255,.7)",
+              border: `1px solid ${value === option ? "#37C39D" : "rgba(255,255,255,.14)"}`,
+              background: value === option ? "#37C39D" : "rgba(255,255,255,.04)",
+              color: value === option ? "#103E36" : "rgba(255,255,255,.7)",
               fontWeight: value === option ? 600 : 500,
             }}
           >
@@ -54,9 +54,9 @@ function ChipRow({ label, hint, value, options, custom, onSelect, onCustom }: {
         {onCustom ? (
           <label style={{
             display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 9, fontSize: 13,
-            border: `1px solid ${isCustomActive ? "#155855" : "rgba(255,255,255,.14)"}`,
-            background: isCustomActive ? "#155855" : "rgba(255,255,255,.04)",
-            color: isCustomActive ? "#fff" : "rgba(255,255,255,.7)",
+            border: `1px solid ${isCustomActive ? "#37C39D" : "rgba(255,255,255,.14)"}`,
+            background: isCustomActive ? "#37C39D" : "rgba(255,255,255,.04)",
+            color: isCustomActive ? "#103E36" : "rgba(255,255,255,.7)",
             whiteSpace: "nowrap",
           }}>
             직접 입력

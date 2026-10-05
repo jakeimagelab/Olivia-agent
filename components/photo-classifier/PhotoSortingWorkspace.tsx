@@ -54,12 +54,34 @@ import {
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { Stepper } from "@/components/workspace-shell/Stepper";
-import { WORKSPACE_COLORS as C } from "@/components/workspace-shell/theme";
 import {
   JPG_PHOTO_EXTENSIONS,
   PROFILE_EXCLUDED_SCENE_TYPES,
   RAW_PHOTO_EXTENSIONS,
 } from "@/lib/photo-classifier/constants";
+
+// This workspace predates the shared shell and is also consumed by its small
+// AI-auto subcomponents.  Keep the palette local to the existing workspace
+// rather than introducing a second, global colour-token module.
+export const C = {
+  teal: "#155855",
+  orange: "#C94A1E",
+  green: "#22876A",
+  white: "#FFFFFF",
+  border: "rgba(21,88,85,.12)",
+  muted: "#5A7470",
+  hint: "#9BB5B0",
+  txt: "#1C2B28",
+  light: "#EAF4F2",
+  bg: "#FDFCFA",
+  red: "#DC2626",
+  yellow: "#D97706",
+  purple: "#7C3AED",
+  darkPanel: "#2A2A2A",
+  darkAction: "#37C39D",
+  darkActionText: "#103E36",
+  darkSelected: "#4FD8B8",
+} as const;
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -3819,11 +3841,11 @@ function PhotoSortingInner({
         {/* 통계 요약 */}
         <div style={{fontSize:14,fontWeight:500,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
         <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {[
+          {([
             {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
             {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
             {label:"프로필",   value:fieldStats.totalProfile,      color:C.purple},
-          ].concat(fieldStats.totalQualityReject>0?[{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}]:[]).map(({label,value,color})=>(
+          ] as { label: string; value: number; color: string }[]).concat(fieldStats.totalQualityReject>0?[{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}]:[]).map(({label,value,color})=>(
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:600,color}}>{value}</div>
               <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
@@ -3862,11 +3884,11 @@ function PhotoSortingInner({
       <div style={{maxWidth:640,display:"flex",flexDirection:"column",gap:16}}>
         <div style={{fontSize:14,fontWeight:500,color:C.green}}>사진 분류 완료</div>
         <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {[
+          {([
             {label:"씬", value:fieldStats.totalScenes, color:C.teal},
             {label:"전체 JPG", value:fieldStats.totalJpg, color:C.txt},
             {label:"프로필", value:fieldStats.totalProfile, color:C.purple},
-          ].concat(fieldStats.totalQualityReject > 0 ? [{label:"품질 제외", value:fieldStats.totalQualityReject, color:C.red}] : []).map(({label,value,color}) => (
+          ] as { label: string; value: number; color: string }[]).concat(fieldStats.totalQualityReject > 0 ? [{label:"품질 제외", value:fieldStats.totalQualityReject, color:C.red}] : []).map(({label,value,color}) => (
             <div key={label} style={{background:C.white,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
               <div style={{fontSize:22,fontWeight:600,color}}>{value}</div>
               <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
