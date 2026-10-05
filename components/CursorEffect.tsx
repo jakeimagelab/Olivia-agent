@@ -55,7 +55,7 @@ export default function CursorEffect() {
     };
 
     const onMove = (e: MouseEvent) => {
-      cursor.style.transform = `translate3d(${e.clientX - 9}px, ${e.clientY - 9}px, 0)`;
+      cursor.style.transform = `translate3d(${e.clientX - 6}px, ${e.clientY - 6}px, 0)`;
       const target = document.elementFromPoint(e.clientX, e.clientY);
       if (target !== cursorTargetRef.current) {
         cursorTargetRef.current = target;
@@ -97,14 +97,14 @@ export default function CursorEffect() {
       aria-hidden="true"
       style={{
         position: "fixed", top: 0, left: 0,
-        width: 18, height: 18,
-        border: `2px solid ${clicking ? "#C94A1E" : "#E85D2C"}`,
+        width: 12, height: 12,
+        background: clicking ? "#C94A1E" : "#E85D2C",
         borderRadius: "50%",
         opacity: hidden ? 0 : 1,
         transform: "translate3d(-24px, -24px, 0)",
         pointerEvents: "none",
         zIndex: 100000,
-        transition: "border-color 120ms ease, opacity 120ms ease, width 120ms ease, height 120ms ease",
+        transition: "background-color 120ms ease, opacity 120ms ease, width 120ms ease, height 120ms ease",
         willChange: "transform",
       }}
     />
