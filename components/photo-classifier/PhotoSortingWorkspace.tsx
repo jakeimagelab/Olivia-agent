@@ -3109,7 +3109,7 @@ function PhotoSortingInner({
                     <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:8}}>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                         {DEPARTMENTS.map(d => (
-                          <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"9px 10px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:11.5,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
+                          <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"9px 10px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:11.5,fontWeight:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
                             {d.label}{department===d.value&&" ✓"}
                           </button>
                         ))}
@@ -3152,7 +3152,7 @@ function PhotoSortingInner({
                   <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
                     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
                       {DEPARTMENTS.map(d => (
-                        <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:12,fontWeight:department===d.value?900:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
+                        <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.white,cursor:"pointer",fontSize:12,fontWeight:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
                           {d.label}{department===d.value&&" ✓"}
                         </button>
                       ))}
@@ -3171,7 +3171,7 @@ function PhotoSortingInner({
                   <div style={{padding:"14px 20px"}}>
                     <div style={{display:"flex",gap:8,marginBottom:10}}>
                       {GAP_OPTIONS.map(g => (
-                        <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:gapMinutes===g?900:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
+                        <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.white,cursor:"pointer",fontSize:13,fontWeight:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
                           {g===3.5 ? "3분30초" : `${g}분`}
                         </button>
                       ))}
@@ -3293,7 +3293,7 @@ function PhotoSortingInner({
                     {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
                       <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
                         <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
-                        <span style={{color:studioOpts.lightingSensitivity===v?C.purple:C.muted,fontWeight:studioOpts.lightingSensitivity===v?800:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
+                        <span style={{color:studioOpts.lightingSensitivity===v?C.purple:C.muted,fontWeight:studioOpts.lightingSensitivity===v?600:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
                       </label>
                     ))}
                   </div>
@@ -3304,7 +3304,7 @@ function PhotoSortingInner({
                     {([["copy","복사 — 원본을 남기고 분류 폴더에 복사"],["move","이동 — 원본을 분류 폴더로 이동"]] as const).map(([v,label])=>(
                       <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
                         <input type="radio" name="studioFileMode" value={v} checked={studioFileMode===v} onChange={()=>setStudioFileMode(v)} style={{marginTop:1}}/>
-                        <span style={{color:studioFileMode===v?C.purple:C.muted,fontWeight:studioFileMode===v?800:500}}>{label}</span>
+                        <span style={{color:studioFileMode===v?C.purple:C.muted,fontWeight:studioFileMode===v?600:500}}>{label}</span>
                       </label>
                     ))}
                   </div>
@@ -3841,7 +3841,7 @@ function PhotoSortingInner({
                 key={t}
                 onClick={()=>setSelectTabView(t)}
                 style={{
-                  padding:"9px 18px", fontSize:12, fontWeight:active?800:600,
+                  padding:"9px 18px", fontSize:12, fontWeight:600,
                   color:active?C.teal:C.hint, background:"none", border:"none",
                   borderBottom:active?`2.5px solid ${C.teal}`:"2.5px solid transparent",
                   cursor:"pointer", fontFamily:"inherit", marginBottom:-2, whiteSpace:"nowrap",
@@ -4198,7 +4198,7 @@ function PhotoSortingInner({
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
           {personGroups.map((grp,i)=>(
-            <button key={grp.id} onClick={()=>setActivePersonGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activePersonGroup?C.purple:C.border}`,background:i===activePersonGroup?"#F5F0FF":C.white,fontSize:11,fontWeight:i===activePersonGroup?800:600,color:i===activePersonGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+            <button key={grp.id} onClick={()=>setActivePersonGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activePersonGroup?C.purple:C.border}`,background:i===activePersonGroup?"#F5F0FF":C.white,fontSize:11,fontWeight:600,color:i===activePersonGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
               {grp.isEtc?"ETC":grp.editedFolderName}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
             </button>
           ))}
@@ -4248,7 +4248,7 @@ function PhotoSortingInner({
       <div style={{display:"flex",flexDirection:"column",gap:14}}>
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
           {studioGroups.map((grp,i)=>(
-            <button key={grp.key} onClick={()=>setActiveGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activeGroup?C.purple:C.border}`,background:i===activeGroup?"#F5F0FF":C.white,fontSize:11,fontWeight:i===activeGroup?800:600,color:i===activeGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+            <button key={grp.key} onClick={()=>setActiveGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activeGroup?C.purple:C.border}`,background:i===activeGroup?"#F5F0FF":C.white,fontSize:11,fontWeight:600,color:i===activeGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
               {grp.isEtc?"ETC":grp.editedFolderName.split("_").slice(1).join("_")}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
             </button>
           ))}

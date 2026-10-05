@@ -561,7 +561,7 @@ export default function VideoSortingWorkspace() {
                         flex: 1, padding: "10px 0", borderRadius: 8,
                         border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
                         background: gapMinutes === g ? C.light : C.white,
-                        cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                        cursor: "pointer", fontSize: 13, fontWeight: 600,
                         color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
                       }}>
                         {g}분
@@ -630,7 +630,7 @@ export default function VideoSortingWorkspace() {
                       flex: 1, padding: "10px 0", borderRadius: 8,
                       border: `1.5px solid ${gapMinutes === g ? C.teal : C.border}`,
                       background: gapMinutes === g ? C.light : C.white,
-                      cursor: "pointer", fontSize: 13, fontWeight: gapMinutes === g ? 900 : 600,
+                      cursor: "pointer", fontSize: 13, fontWeight: 600,
                       color: gapMinutes === g ? C.teal : C.muted, fontFamily: "inherit",
                     }}>
                       {g}분

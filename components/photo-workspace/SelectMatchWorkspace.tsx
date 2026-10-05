@@ -1276,7 +1276,7 @@ export function SelectMatchWorkspace({
                       border: `1.5px solid ${rawSelectMode === mode ? C.teal : C.border}`,
                       background: rawSelectMode === mode ? C.light : C.white,
                       color: rawSelectMode === mode ? C.teal : C.muted,
-                      fontSize: 12, fontWeight: rawSelectMode === mode ? 900 : 600,
+                      fontSize: 12, fontWeight: 600,
                     }}>{label}</button>
                   ))}
                 </div>

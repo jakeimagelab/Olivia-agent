@@ -45,7 +45,7 @@ function ChipRow({ label, hint, value, options, custom, onSelect, onCustom }: {
               border: `1px solid ${value === option ? "#155855" : "rgba(255,255,255,.14)"}`,
               background: value === option ? "#155855" : "rgba(255,255,255,.04)",
               color: value === option ? "#fff" : "rgba(255,255,255,.7)",
-              fontWeight: value === option ? 700 : 500,
+              fontWeight: value === option ? 600 : 500,
             }}
           >
             {option}{label.startsWith("해상도") ? "px" : "%"}
