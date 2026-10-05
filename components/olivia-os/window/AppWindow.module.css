@@ -205,6 +205,39 @@
   overflow: hidden;
 }
 
+.chatCompactRestore {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: 10px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(21, 88, 85, .14);
+  border-radius: 13px;
+  background: rgba(232, 242, 239, .88);
+  color: #155855;
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.chatCompactRestore:hover {
+  border-color: rgba(21, 88, 85, .28);
+  background: #deeeea;
+}
+
+.chatCompactRestore:focus-visible {
+  outline: 2px solid rgba(21, 88, 85, .48);
+  outline-offset: 2px;
+}
+
+.chatCompactRestore:active {
+  transform: translateY(-50%) scale(.96);
+}
+
 .chatCompact :global(.olivia-os-chat-dock),
 .chatCompact :global(.olivia-chat-portal-host),
 .chatCompact :global(.olivia-conversation),
@@ -242,7 +275,7 @@
   display: flex;
   align-items: center;
   box-sizing: border-box;
-  padding: 7px 9px;
+  padding: 7px 9px 7px 62px;
 }
 
 .chatCompact :global(.olivia-composer-shell > div) {

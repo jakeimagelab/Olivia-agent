@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode, type RefObject } from "react";
 import { motion } from "framer-motion";
+import { Maximize2 } from "lucide-react";
 import { oliviaMotion } from "@/lib/motion/presets";
 import {
   useOliviaDesktopStore, DESKTOP_DOCK_SAFE_AREA,
@@ -28,7 +29,6 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
   const unsnapWindow = useOliviaDesktopStore((state) => state.unsnapWindow);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const workspaceWidth = useOliviaDesktopStore((state) => state.workspaceWidth);
-  const workspaceHeight = useOliviaDesktopStore((state) => state.workspaceHeight);
   const chatCompact = useOliviaDesktopUtilityStore((state) => state.chatCompact);
   const setChatCompact = useOliviaDesktopUtilityStore((state) => state.setChatCompact);
   // drag/resize 중엔 CSS transition을 꺼서(즉각 반응), maximize/restore 때만 부드럽게 움직인다.
@@ -39,12 +39,12 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
 
   const isActive = activeWindowId === windowId;
   const isChatCompact = win.appId === "olivia-chat" && chatCompact;
-  const compactWidth = Math.min(420, Math.max(320, workspaceWidth - 24));
+  const compactWidth = workspaceWidth > 0 ? Math.min(420, Math.max(0, workspaceWidth - 24)) : 420;
   const compactHeight = 70;
   const renderedBounds = isChatCompact
     ? {
         x: workspaceWidth > 0 ? Math.max(12, workspaceWidth - compactWidth - 18) : win.x,
-        y: workspaceHeight > 0 ? Math.max(12, workspaceHeight - DESKTOP_DOCK_SAFE_AREA - compactHeight - 12) : win.y,
+        y: 0,
         width: compactWidth,
         height: compactHeight,
       }
@@ -66,7 +66,11 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
     <motion.div
       className={`${styles.window} ${isActive ? styles.active : ""} ${isChatCompact ? styles.chatCompact : ""}`}
       style={{
-        left: renderedBounds.x, top: renderedBounds.y, width: renderedBounds.width, height: renderedBounds.height,
+        left: renderedBounds.x,
+        top: isChatCompact ? "auto" : renderedBounds.y,
+        bottom: isChatCompact ? "var(--desktop-dock-bottom)" : "auto",
+        width: renderedBounds.width,
+        height: renderedBounds.height,
         zIndex: win.zIndex, display: win.minimized ? "none" : "flex",
         transition: interacting ? "none" : "left 220ms cubic-bezier(.22,1,.36,1), top 220ms cubic-bezier(.22,1,.36,1), width 220ms cubic-bezier(.22,1,.36,1), height 220ms cubic-bezier(.22,1,.36,1)",
       }}
@@ -99,6 +103,21 @@ export function AppWindow({ windowId, workspaceRef, minWidth = 420, minHeight = 
           </AppWindowErrorBoundary>
         </div>
       </div>
+      {isChatCompact ? (
+        <button
+          type="button"
+          className={styles.chatCompactRestore}
+          aria-label="채팅창 다시 키우기"
+          title="채팅창 다시 키우기"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => {
+            setChatCompact(false);
+            focusWindow(windowId);
+          }}
+        >
+          <Maximize2 size={18} strokeWidth={2} aria-hidden="true" />
+        </button>
+      ) : null}
       {!isChatCompact && win.snapMode === "none" && (
         <>
           <div className={styles.resizeHandleE} onPointerDown={(event) => beginResize(event, "e")} />
