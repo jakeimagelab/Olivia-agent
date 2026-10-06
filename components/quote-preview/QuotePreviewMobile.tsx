@@ -41,8 +41,7 @@ const POLL_MS = 4000;
 
 const won = (n: unknown) => `${(Number(n) || 0).toLocaleString("ko-KR")}원`;
 
-function taxLabel(taxMode: PreviewQuote["taxMode"]) {
-  if (taxMode === "excluded") return "부가세 제외";
+function taxLabel(taxMode: Exclude<PreviewQuote["taxMode"], "excluded">) {
   if (taxMode === "included") return "부가세 포함(10%)";
   return "부가세(10%)";
 }
@@ -224,7 +223,7 @@ export default function QuotePreviewMobile({ token, initialQuote }: { token?: st
         >
           <Row label="공급가액" value={won(quote.supplyAmount)} />
           {quote.discountAmount > 0 && <Row label="할인" value={`-${won(quote.discountAmount)}`} muted />}
-          <Row label={taxLabel(quote.taxMode)} value={won(quote.vat)} />
+          {quote.taxMode !== "excluded" ? <Row label={taxLabel(quote.taxMode)} value={won(quote.vat)} /> : null}
           <div style={{ height: 1, background: "rgba(21,88,85,0.12)", margin: "8px 0" }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ fontSize: 13, fontWeight: 900, color: INK }}>총 금액</span>

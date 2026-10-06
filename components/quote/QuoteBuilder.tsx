@@ -1788,7 +1788,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       ...(specialAdjustmentAmount !== 0 ? [["특별조정", "", "", "", specialAdjustmentAmount, ""]] : []),
       ...(roundDownAmount > 0 ? [["절삭", "", "", "", -roundDownAmount, ""]] : []),
       ["공급가액", "", "", "", snapshot.supplyAmount, ""],
-      [snapshot.taxMode === "excluded" ? "부가세 제외" : snapshot.taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)", "", "", "", snapshot.vat, ""],
+      ...(snapshot.taxMode === "excluded" ? [] : [[snapshot.taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)", "", "", "", snapshot.vat, ""]]),
       ["합계", "", "", "", snapshot.totalAmount, ""],
       [`선금 (${snapshot.depositRate}%)`, "", "", "", snapshot.depositAmount, ""],
       [`잔금 (${100 - snapshot.depositRate}%)`, "", "", "", snapshot.balanceAmount, ""],

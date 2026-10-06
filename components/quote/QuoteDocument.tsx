@@ -114,7 +114,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
             {specialAdjustmentAmount !== 0 ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
             {roundDownAmount > 0 ? <div><span>절삭</span><strong>−{amount(roundDownAmount)}</strong></div> : null}
             <div><span>공급가액</span><strong>{amount(supplyAmount)}</strong></div>
-            <div><span>{taxMode === "excluded" ? "부가세 제외" : taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"}</span><strong>{amount(vat)}</strong></div>
+            {taxMode !== "excluded" ? <div><span>{taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"}</span><strong>{amount(vat)}</strong></div> : null}
             <div className="grand-total"><span>KRW</span><strong>{amount(finalAmount)}</strong></div>
           </div></div>
           <div className="contract-note"><Quote className="contract-note-icon" aria-hidden="true" /><div><strong>계약 안내</strong><p>본 견적서는 상호 협의 및 선금 입금 시 계약서의 효력을 대신할 수 있습니다. 촬영 범위 변경 시 최종 금액은 조정될 수 있습니다.</p>{memo.trim() ? <small>{memo}</small> : null}</div></div>
