@@ -86,6 +86,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     extraDiscount: state.extraDiscount,
     fixedTotal: state.fixedTotal,
     roundDownUnit: state.roundDownUnit,
+    depositRate: state.depositRate,
     taxMode: state.taxMode,
   });
 

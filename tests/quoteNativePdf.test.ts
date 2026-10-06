@@ -32,6 +32,23 @@ describe("canonical quote document data", () => {
       benefitItems: [{ id: "benefit", name: "후속 편집" }],
       depositRate: 40,
       finalAmount: 1_100_000,
+      depositAmount: 440_000,
+      balanceAmount: 660_000,
+    });
+  });
+
+  it("keeps a saved 0% deposit as 100% balance in the downloaded PDF", () => {
+    const data = quoteDocumentDataFromRow({
+      id: "quote-full-balance",
+      hospital_name: "테스트의원",
+      items: [{ id: "shoot", name: "촬영", subtotal: 1_000_000 }],
+      form_state: { brand: "jakeimage", agentOverrideItems: true, depositRate: 0 },
+    });
+
+    expect(data).toMatchObject({
+      depositRate: 0,
+      depositAmount: 0,
+      balanceAmount: 1_100_000,
     });
   });
 
