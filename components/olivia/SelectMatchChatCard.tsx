@@ -82,7 +82,12 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
       store().setRawRootDir(flowId, dir);
       store().setScanProgress(flowId, 0);
       store().setStep(flowId, "scanning");
-      const rawIndex = await buildRawIndex(dir, null, (count) => store().setScanProgress(flowId, count));
+      const rawIndex = await buildRawIndex(
+        dir,
+        null,
+        (count) => store().setScanProgress(flowId, count),
+        flow.selectedNames,
+      );
       rawIndexRef.current = rawIndex;
       store().setPreflight(flowId, computePreflight(flow.selectedNames, rawIndex));
       store().setStep(flowId, "preflight_ready");

@@ -12,7 +12,7 @@ function dir(name: string, children: MockNode[]): MockDir {
   return { kind: "directory", name, children };
 }
 
-function wrapHandle(node: MockNode): any {
+function wrapHandle(node: MockNode, visitedDirectories?: string[]): any {
   if (node.kind === "file") {
     return { kind: "file", name: node.name, getFile: async () => new File([node.content], node.name) };
   }
@@ -20,12 +20,13 @@ function wrapHandle(node: MockNode): any {
     kind: "directory",
     name: node.name,
     entries: async function* () {
-      for (const child of node.children) yield [child.name, wrapHandle(child)];
+      visitedDirectories?.push(node.name);
+      for (const child of node.children) yield [child.name, wrapHandle(child, visitedDirectories)];
     },
     getDirectoryHandle: async (name: string) => {
       const found = node.children.find((c) => c.kind === "directory" && c.name === name);
       if (!found) throw new Error("폴더를 찾을 수 없음");
-      return wrapHandle(found);
+      return wrapHandle(found, visitedDirectories);
     },
     getFileHandle: async (name: string, opts?: { create?: boolean }) => {
       let found = node.children.find((c) => c.kind === "file" && c.name === name) as MockFile | undefined;
@@ -73,6 +74,64 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     const root = dir("RAW", [file("A001.nef"), dir("Selected_RAW", [file("A001.nef")])]);
     const index = await buildRawIndex(wrapHandle(root), null);
     expect(index.size).toBe(1);
+  });
+
+  it("작업 결과와 숨김 폴더는 RAW 탐색에서 제외한다", async () => {
+    const visited: string[] = [];
+    const root = dir("RAW", [
+      file("A001.nef"),
+      dir("Finished_RAW", [file("B002.nef")]),
+      dir("JPG전체", [file("C003.nef")]),
+      dir(".olivia", [file("D004.nef")]),
+      dir(".cache", [file("E005.nef")]),
+      dir("2000px_Q100", [file("F006.nef")]),
+    ]);
+    const index = await buildRawIndex(wrapHandle(root, visited), null);
+
+    expect(Array.from(index.keys())).toEqual(["a001"]);
+    expect(visited).toEqual(["RAW"]);
+  });
+
+  it("대상 RAW를 모두 찾으면 남은 하위 폴더를 탐색하지 않는다", async () => {
+    const visited: string[] = [];
+    const root = dir("RAW", [
+      file("A001.NEF"),
+      dir("unrelated", [file("B002.nef")]),
+    ]);
+    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["a001"]));
+
+    expect(Array.from(index.keys())).toEqual(["a001"]);
+    expect(visited).toEqual([]);
+  });
+
+  it("대형 단일 RAW 폴더도 대상 파일을 직접 조회해 전체 목록을 열거하지 않는다", async () => {
+    const visited: string[] = [];
+    const unrelated = Array.from({ length: 5_000 }, (_, index) => file(`OTHER_${index}.CR3`));
+    const root = dir("RAW", [...unrelated, file("R5K_9999.CR3")]);
+    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["r5k_9999"]));
+
+    expect(index.get("r5k_9999")?.fileHandle.name).toBe("R5K_9999.CR3");
+    expect(visited).toEqual([]);
+  });
+
+  it("대상 RAW가 누락되면 허용된 전체 하위 폴더를 확인한다", async () => {
+    const visited: string[] = [];
+    const root = dir("RAW", [
+      file("A001.nef"),
+      dir("scene1", [file("B002.nef")]),
+      dir("scene2", [file("C003.nef")]),
+    ]);
+    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["a001", "missing"]));
+
+    expect(Array.from(index.keys())).toEqual(["a001"]);
+    expect(visited.sort()).toEqual(["RAW", "scene1", "scene2"]);
+  });
+
+  it("대상 basename 비교는 대소문자와 Unicode 정규형 차이를 무시한다", async () => {
+    const root = dir("RAW", [file("Á001.CR3")]);
+    const index = await buildRawIndex(wrapHandle(root), null, undefined, new Set(["á001"]));
+
+    expect(Array.from(index.keys())).toEqual(["á001"]);
   });
 
   it("rawRootDir가 없으면 fallbackRootDir의 RAW/ 하위 폴더를 찾아 스캔한다", async () => {

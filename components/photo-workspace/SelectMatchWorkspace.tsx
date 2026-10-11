@@ -484,8 +484,12 @@ export function SelectMatchWorkspace({
   const buildRawIndex = useCallback((
     overrideRawDir?: FileSystemDirectoryHandle,
     onProgress?: (scannedCount: number) => void,
-  ): Promise<Map<string, RawIndexEntry>> => buildRawIndexPure(overrideRawDir ?? rawRootDir, rootDir, onProgress),
-  [rootDir, rawRootDir]);
+  ): Promise<Map<string, RawIndexEntry>> => buildRawIndexPure(
+    overrideRawDir ?? rawRootDir,
+    rootDir,
+    onProgress,
+    selected,
+  ), [rootDir, rawRootDir, selected]);
 
   /* ── 사전 확인 (preflight) ── */
   const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
@@ -500,7 +504,7 @@ export function SelectMatchWorkspace({
     for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
 
     setPreflight(computePreflight(selected, rawIndex));
-  }, [rootDir, selected, buildRawIndex, rawIndexRef]);
+  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef]);
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
