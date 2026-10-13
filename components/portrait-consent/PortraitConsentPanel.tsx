@@ -1,26 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { FileSignature, Link2, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
-import { C, R, FS } from "@/lib/theme";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  Check,
+  Copy,
+  FileDown,
+  FileSignature,
+  Link2,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  UserRoundCheck,
+  X,
+} from "lucide-react";
 import {
   DEFAULT_DETAIL_FIELDS,
   DEFAULT_INTRO_TEXT,
   DEFAULT_USAGE_ITEMS,
   type PortraitConsentField,
+  type PortraitConsentStatus,
 } from "@/lib/portraitConsent";
 import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
+import styles from "./PortraitConsentWorkspace.module.css";
 
 interface ConsentListItem {
   id: string;
   client_id: string | null;
+  workflow_run_id: string | null;
+  client_name: string | null;
+  workflow_run_name: string | null;
   title: string;
-  status: "draft" | "sent" | "signed";
+  status: PortraitConsentStatus;
   provider_name: string | null;
   signed_at: string | null;
   created_at: string;
+  updated_at: string;
 }
-interface ConsentDetail extends ConsentListItem {
+
+interface ConsentDetail extends Omit<ConsentListItem, "client_name" | "workflow_run_name"> {
   intro_text: string;
   detail_fields: PortraitConsentField[];
   usage_items: PortraitConsentField[];
@@ -30,444 +49,749 @@ interface ConsentDetail extends ConsentListItem {
   signed_date: string | null;
 }
 
-const STATUS_LABEL: Record<ConsentListItem["status"], string> = { draft: "초안", sent: "전달됨", signed: "서명 완료" };
-const STATUS_COLOR: Record<ConsentListItem["status"], string> = { draft: C.hint, sent: C.gold, signed: C.success };
+interface ClientOption {
+  id: string;
+  name: string;
+}
 
-const FIELD_TYPE_LABEL: Record<NonNullable<PortraitConsentField["type"]>, string> = {
-  text: "텍스트", date: "날짜", checklist: "체크",
+interface WorkflowRunOption {
+  id: string;
+  project_name?: string | null;
+  shoot_date?: string | null;
+  status?: string | null;
+}
+
+type StatusFilter = "all" | PortraitConsentStatus;
+
+const STATUS_LABEL: Record<PortraitConsentStatus, string> = {
+  draft: "초안",
+  sent: "전달됨",
+  signed: "서명 완료",
 };
 
+const STATUS_CLASS: Record<PortraitConsentStatus, string> = {
+  draft: styles.statusDraft,
+  sent: styles.statusSent,
+  signed: styles.statusSigned,
+};
+
+const FIELD_TYPE_LABEL: Record<NonNullable<PortraitConsentField["type"]>, string> = {
+  text: "텍스트",
+  date: "날짜",
+  checklist: "체크",
+};
+
+function cloneFields(fields: PortraitConsentField[]): PortraitConsentField[] {
+  return fields.map((field) => ({ ...field, options: field.options ? [...field.options] : undefined }));
+}
+
+function workflowRunLabel(run: WorkflowRunOption): string {
+  return run.project_name?.trim() || run.shoot_date?.trim() || "이름 없는 촬영 건";
+}
+
+function relativeTime(value: string): string {
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return "";
+  const diffSeconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+  if (diffSeconds < 60) return "방금 전";
+  const minutes = Math.floor(diffSeconds / 60);
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}일 전`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months}개월 전`;
+  return `${Math.floor(months / 12)}년 전`;
+}
+
 function toggleChecklistValue(current: string, option: string): string {
-  const selected = current.split(",").map((s) => s.trim()).filter(Boolean);
-  const next = selected.includes(option) ? selected.filter((s) => s !== option) : [...selected, option];
+  const selected = current.split(",").map((item) => item.trim()).filter(Boolean);
+  const next = selected.includes(option)
+    ? selected.filter((item) => item !== option)
+    : [...selected, option];
   return next.join(", ");
 }
 
 function FieldListEditor({
-  items, onChange, accent,
-}: { items: PortraitConsentField[]; onChange: (next: PortraitConsentField[]) => void; accent: string }) {
-  const update = (i: number, patch: Partial<PortraitConsentField>) =>
-    onChange(items.map((f, idx) => (idx === i ? { ...f, ...patch } : f)));
-  const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
-  const add = () => onChange([...items, { label: "", value: "", type: "text" }]);
-
-  const smallInput: React.CSSProperties = { padding: "7px 9px", borderRadius: R.sm, border: `1px solid ${C.border}`, fontSize: FS.sm };
+  items,
+  onChange,
+}: {
+  items: PortraitConsentField[];
+  onChange: (next: PortraitConsentField[]) => void;
+}) {
+  const update = (index: number, patch: Partial<PortraitConsentField>) => {
+    onChange(items.map((field, itemIndex) => (itemIndex === index ? { ...field, ...patch } : field)));
+  };
 
   return (
-    <div>
-      {items.map((f, i) => {
-        const type = f.type ?? "text";
-        const options = f.options && f.options.length ? f.options : ["사진", "영상"];
-        const selected = f.value.split(",").map((s) => s.trim()).filter(Boolean);
+    <div className={styles.fieldList}>
+      {items.map((field, index) => {
+        const type = field.type ?? "text";
+        const options = field.options?.length ? field.options : ["사진", "영상"];
+        const selected = field.value.split(",").map((item) => item.trim()).filter(Boolean);
         return (
-          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 6, alignItems: "flex-start" }}>
+          <div className={styles.fieldRow} key={`${index}-${field.label}`}>
             <input
-              value={f.label}
-              onChange={(e) => update(i, { label: e.target.value })}
+              aria-label={`${index + 1}번 항목 이름`}
+              className={`${styles.textInput} ${styles.fieldLabelInput}`}
+              value={field.label}
               placeholder="항목명"
-              style={{ ...smallInput, width: 110, flexShrink: 0, fontWeight: 700 }}
+              onChange={(event) => update(index, { label: event.target.value })}
             />
             <select
+              aria-label={`${field.label || index + 1} 항목 종류`}
+              className={`${styles.selectInput} ${styles.fieldTypeInput}`}
               value={type}
-              onChange={(e) => {
-                const nextType = e.target.value as NonNullable<PortraitConsentField["type"]>;
-                update(i, { type: nextType, options: nextType === "checklist" ? options : undefined, value: nextType === "checklist" ? "" : f.value });
+              onChange={(event) => {
+                const nextType = event.target.value as NonNullable<PortraitConsentField["type"]>;
+                update(index, {
+                  type: nextType,
+                  options: nextType === "checklist" ? options : undefined,
+                  value: nextType === "checklist" ? "" : field.value,
+                });
               }}
-              style={{ ...smallInput, width: 76, flexShrink: 0 }}
             >
-              {(Object.keys(FIELD_TYPE_LABEL) as (keyof typeof FIELD_TYPE_LABEL)[]).map((k) => (
-                <option key={k} value={k}>{FIELD_TYPE_LABEL[k]}</option>
+              {(Object.keys(FIELD_TYPE_LABEL) as Array<keyof typeof FIELD_TYPE_LABEL>).map((key) => (
+                <option key={key} value={key}>{FIELD_TYPE_LABEL[key]}</option>
               ))}
             </select>
 
-            {type === "date" && (
-              <input
-                type="date"
-                value={f.value}
-                onChange={(e) => update(i, { value: e.target.value })}
-                style={{ ...smallInput, flex: 1 }}
-              />
-            )}
-            {type === "checklist" && (
-              <div style={{ flex: 1, display: "flex", gap: 12, alignItems: "center", padding: "7px 2px" }}>
-                {options.map((opt) => (
-                  <label key={opt} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: FS.sm, color: C.ink, cursor: "pointer" }}>
-                    <input type="checkbox" checked={selected.includes(opt)} onChange={() => update(i, { value: toggleChecklistValue(f.value, opt) })} />
-                    {opt}
+            {type === "checklist" ? (
+              <div className={styles.checklistValues}>
+                {options.map((option) => (
+                  <label key={option}>
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(option)}
+                      onChange={() => update(index, { value: toggleChecklistValue(field.value, option) })}
+                    />
+                    {option}
                   </label>
                 ))}
               </div>
-            )}
-            {type === "text" && (
+            ) : (
               <input
-                value={f.value}
-                onChange={(e) => update(i, { value: e.target.value })}
+                aria-label={`${field.label || index + 1} 내용`}
+                className={`${styles.textInput} ${styles.fieldValueInput}`}
+                type={type === "date" ? "date" : "text"}
+                value={field.value}
                 placeholder="내용"
-                style={{ ...smallInput, flex: 1 }}
+                onChange={(event) => update(index, { value: event.target.value })}
               />
             )}
-
-            <button type="button" onClick={() => remove(i)} style={{ background: "none", border: "none", color: C.danger, cursor: "pointer", padding: 4 }}>
+            <button
+              aria-label={`${field.label || index + 1} 항목 삭제`}
+              className={`${styles.iconButton} ${styles.dangerButton}`}
+              type="button"
+              onClick={() => onChange(items.filter((_, itemIndex) => itemIndex !== index))}
+            >
               <Trash2 size={14} />
             </button>
           </div>
         );
       })}
       <button
+        className={styles.addFieldButton}
         type="button"
-        onClick={add}
-        style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "none", border: `1px dashed ${accent}`, color: accent, borderRadius: R.sm, padding: "5px 10px", fontSize: FS.xs, fontWeight: 700, cursor: "pointer" }}
+        onClick={() => onChange([...items, { label: "", value: "", type: "text" }])}
       >
-        <Plus size={12} /> 항목 추가
+        <Plus size={13} /> 항목 추가
       </button>
     </div>
   );
 }
 
 export default function PortraitConsentPanel({
-  clientId, workflowRunId, hospitalName,
-}: { clientId: string | null; workflowRunId: string | null; hospitalName: string }) {
+  clientId,
+  workflowRunId,
+  hospitalName,
+}: {
+  clientId: string | null;
+  workflowRunId: string | null;
+  hospitalName: string;
+}) {
   const [consents, setConsents] = useState<ConsentListItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  // 고객 컨텍스트 없이 만들어진 예전 레코드는 clientId 필터에 안 걸린다 — "전체" 탭에서는
-  // 필터 없이 조회해서 그런 레코드도 볼 수 있게 한다(2026-09-10 수정 지시서 1번).
-  const [viewAll, setViewAll] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConsentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [showEditorOnMobile, setShowEditorOnMobile] = useState(false);
 
-  const [editing, setEditing] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(hospitalName ? `${hospitalName} 초상권 동의서` : "초상권 동의서");
   const [introText, setIntroText] = useState(DEFAULT_INTRO_TEXT);
-  const [detailFields, setDetailFields] = useState<PortraitConsentField[]>(DEFAULT_DETAIL_FIELDS);
-  const [usageItems, setUsageItems] = useState<PortraitConsentField[]>(DEFAULT_USAGE_ITEMS);
+  const [detailFields, setDetailFields] = useState(() => cloneFields(DEFAULT_DETAIL_FIELDS));
+  const [usageItems, setUsageItems] = useState(() => cloneFields(DEFAULT_USAGE_ITEMS));
+  const [linkedClientId, setLinkedClientId] = useState<string | null>(clientId);
+  const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | null>(workflowRunId);
+  const [linkedClientName, setLinkedClientName] = useState(hospitalName);
+  const [linkedWorkflowRunName, setLinkedWorkflowRunName] = useState("");
+  const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [notice, setNotice] = useState("");
 
-  const [shareBusyId, setShareBusyId] = useState<string | null>(null);
-  const [shareLink, setShareLink] = useState<{ id: string; url: string } | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareUrl, setShareUrl] = useState("");
   const [shareCopied, setShareCopied] = useState(false);
-
-  const detailDocRef = useRef<HTMLDivElement>(null);
   const [pdfBusy, setPdfBusy] = useState(false);
-  const downloadPdf = async () => {
-    if (!detailDocRef.current || pdfBusy) return;
-    setPdfBusy(true);
+  const detailDocRef = useRef<HTMLDivElement>(null);
+
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [clients, setClients] = useState<ClientOption[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [dialogClientId, setDialogClientId] = useState<string | null>(null);
+  const [dialogWorkflowRunId, setDialogWorkflowRunId] = useState<string | null>(null);
+  const [dialogProjects, setDialogProjects] = useState<WorkflowRunOption[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [linkError, setLinkError] = useState("");
+
+  const isSigned = detail?.status === "signed";
+
+  const loadList = useCallback(async () => {
+    setListLoading(true);
+    setListError("");
     try {
-      const pdf = await generatePortraitConsentPdf(detailDocRef.current);
-      pdf.save(`${detail?.title || "초상권_동의서"}.pdf`);
-    } catch {
-      alert("PDF 생성에 실패했습니다.");
+      const query = new URLSearchParams();
+      if (clientId) query.set("clientId", clientId);
+      if (workflowRunId) query.set("workflowRunId", workflowRunId);
+      const response = await fetch(`/api/conti/portrait-consents?${query.toString()}`);
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "동의서 목록을 불러오지 못했습니다.");
+      setConsents(body.consents ?? []);
+    } catch (error) {
+      setListError(error instanceof Error ? error.message : "동의서 목록을 불러오지 못했습니다.");
     } finally {
-      setPdfBusy(false);
+      setListLoading(false);
     }
-  };
+  }, [clientId, workflowRunId]);
 
-  const loadList = useCallback(() => {
-    setLoading(true);
-    const qs = new URLSearchParams();
-    if (!viewAll && clientId) qs.set("clientId", clientId);
-    if (!viewAll && workflowRunId) qs.set("workflowRunId", workflowRunId);
-    fetch(`/api/conti/portrait-consents?${qs.toString()}`)
-      .then((r) => r.json())
-      .then((body) => { if (body.ok) setConsents(body.consents); })
-      .finally(() => setLoading(false));
-  }, [clientId, workflowRunId, viewAll]);
+  useEffect(() => {
+    void loadList();
+  }, [loadList]);
 
-  useEffect(() => { loadList(); }, [loadList]);
+  useEffect(() => {
+    if (!selectedId && !dirty && hospitalName && title === "초상권 동의서") {
+      setTitle(`${hospitalName} 초상권 동의서`);
+      setLinkedClientName(hospitalName);
+    }
+  }, [dirty, hospitalName, selectedId, title]);
 
-  const openCreate = () => {
-    setEditingId(null);
+  const resetEditor = useCallback(() => {
+    setSelectedId(null);
+    setDetail(null);
     setTitle(hospitalName ? `${hospitalName} 초상권 동의서` : "초상권 동의서");
     setIntroText(DEFAULT_INTRO_TEXT);
-    setDetailFields(DEFAULT_DETAIL_FIELDS);
-    setUsageItems(DEFAULT_USAGE_ITEMS);
+    setDetailFields(cloneFields(DEFAULT_DETAIL_FIELDS));
+    setUsageItems(cloneFields(DEFAULT_USAGE_ITEMS));
+    setLinkedClientId(clientId);
+    setLinkedWorkflowRunId(workflowRunId);
+    setLinkedClientName(hospitalName);
+    setLinkedWorkflowRunName("");
+    setDirty(false);
     setFormError("");
-    setEditing(true);
+    setNotice("");
+    setShareUrl("");
+    setShareCopied(false);
+  }, [clientId, hospitalName, workflowRunId]);
+
+  const confirmDiscard = () => !dirty || window.confirm("저장하지 않은 작성 내용이 있습니다. 이동할까요?");
+
+  const startNew = () => {
+    if (!confirmDiscard()) return;
+    resetEditor();
+    setShowEditorOnMobile(true);
   };
 
-  const openEdit = async (id: string) => {
-    setFormError("");
-    const res = await fetch(`/api/conti/portrait-consents/${id}`);
-    const body = await res.json();
-    if (!body.ok) { alert(body.error || "불러오기 실패"); return; }
-    const c = body.consent as ConsentDetail;
-    setEditingId(id);
-    setTitle(c.title);
-    setIntroText(c.intro_text);
-    setDetailFields(c.detail_fields.length ? c.detail_fields : DEFAULT_DETAIL_FIELDS);
-    setUsageItems(c.usage_items.length ? c.usage_items : DEFAULT_USAGE_ITEMS);
-    setEditing(true);
-  };
-
-  const openView = async (id: string) => {
-    setDetailLoading(true);
+  const openConsent = async (consent: ConsentListItem) => {
+    if (consent.id === selectedId || !confirmDiscard()) return;
+    setSelectedId(consent.id);
     setDetail(null);
+    setDetailLoading(true);
+    setFormError("");
+    setNotice("");
+    setShareUrl("");
+    setShowEditorOnMobile(true);
     try {
-      const res = await fetch(`/api/conti/portrait-consents/${id}`);
-      const body = await res.json();
-      if (body.ok) setDetail(body.consent);
+      const response = await fetch(`/api/conti/portrait-consents/${consent.id}`);
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "동의서를 불러오지 못했습니다.");
+      const nextDetail = body.consent as ConsentDetail;
+      setDetail(nextDetail);
+      setTitle(nextDetail.title);
+      setIntroText(nextDetail.intro_text);
+      setDetailFields(cloneFields(nextDetail.detail_fields?.length ? nextDetail.detail_fields : DEFAULT_DETAIL_FIELDS));
+      setUsageItems(cloneFields(nextDetail.usage_items?.length ? nextDetail.usage_items : DEFAULT_USAGE_ITEMS));
+      setLinkedClientId(nextDetail.client_id);
+      setLinkedWorkflowRunId(nextDetail.workflow_run_id);
+      setLinkedClientName(consent.client_name ?? "");
+      setLinkedWorkflowRunName(consent.workflow_run_name ?? "");
+      setDirty(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "동의서를 불러오지 못했습니다.");
     } finally {
       setDetailLoading(false);
     }
   };
 
+  const filteredConsents = useMemo(() => {
+    const normalizedSearch = search.trim().toLocaleLowerCase("ko-KR");
+    return consents.filter((consent) => {
+      if (statusFilter !== "all" && consent.status !== statusFilter) return false;
+      if (!normalizedSearch) return true;
+      return [consent.title, consent.provider_name, consent.client_name, consent.workflow_run_name]
+        .some((value) => value?.toLocaleLowerCase("ko-KR").includes(normalizedSearch));
+    });
+  }, [consents, search, statusFilter]);
+
   const save = async () => {
-    if (!title.trim()) { setFormError("제목을 입력해 주세요."); return; }
+    if (!title.trim()) {
+      setFormError("제목을 입력해 주세요.");
+      return;
+    }
+    if (isSigned) {
+      setFormError("서명 완료 문서는 내용을 수정할 수 없습니다.");
+      return;
+    }
     setSaving(true);
     setFormError("");
+    setNotice("");
     try {
-      const payload = { clientId, workflowRunId, title, introText, detailFields, usageItems };
-      const res = editingId
-        ? await fetch(`/api/conti/portrait-consents/${editingId}`, {
-            method: "PATCH", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ title, introText, detailFields, usageItems }),
+      const payload = { clientId: linkedClientId, workflowRunId: linkedWorkflowRunId, title, introText, detailFields, usageItems };
+      const response = selectedId
+        ? await fetch(`/api/conti/portrait-consents/${selectedId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
           })
         : await fetch("/api/conti/portrait-consents", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
           });
-      const body = await res.json();
-      if (!body.ok) throw new Error(body.error || "저장 실패");
-      setEditing(false);
-      loadList();
-    } catch (err) {
-      setFormError(err instanceof Error ? err.message : "저장 실패");
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "동의서를 저장하지 못했습니다.");
+      const saved = body.consent as ConsentDetail;
+      setSelectedId(saved.id);
+      setDetail(saved);
+      setDirty(false);
+      setNotice("동의서를 저장했습니다.");
+      await loadList();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "동의서를 저장하지 못했습니다.");
     } finally {
       setSaving(false);
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm("이 초상권 동의서를 삭제할까요?")) return;
-    const res = await fetch(`/api/conti/portrait-consents/${id}`, { method: "DELETE" });
-    const body = await res.json();
-    if (!body.ok) { alert(body.error || "삭제 실패"); return; }
-    loadList();
-  };
-
-  const generateLink = async (id: string) => {
-    setShareBusyId(id);
-    setShareLink(null);
-    setShareCopied(false);
+  const removeConsent = async () => {
+    if (!selectedId || !window.confirm(isSigned ? "서명 완료된 동의서를 삭제할까요?" : "이 동의서를 삭제할까요?")) return;
+    setFormError("");
     try {
-      const res = await fetch(`/api/conti/portrait-consents/${id}/share`, { method: "POST" });
-      const body = await res.json();
-      if (!body.ok) throw new Error(body.error || "링크 생성 실패");
-      const url = `${window.location.origin}/portrait-consent/${body.token}`;
-      setShareLink({ id, url });
-      await navigator.clipboard.writeText(url).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-      setShareCopied(true);
-      loadList();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "링크 생성 실패");
-    } finally {
-      setShareBusyId(null);
+      const response = await fetch(`/api/conti/portrait-consents/${selectedId}`, { method: "DELETE" });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "동의서를 삭제하지 못했습니다.");
+      resetEditor();
+      setShowEditorOnMobile(false);
+      await loadList();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "동의서를 삭제하지 못했습니다.");
     }
   };
 
-  const btnPrimary: React.CSSProperties = {
-    display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
-    borderRadius: R.sm, border: "none", background: C.teal, color: "#fff",
-    fontWeight: 800, fontSize: FS.sm, cursor: "pointer",
+  const generateLink = async () => {
+    if (!selectedId || dirty) return;
+    setShareBusy(true);
+    setFormError("");
+    setNotice("");
+    setShareCopied(false);
+    try {
+      const response = await fetch(`/api/conti/portrait-consents/${selectedId}/share`, { method: "POST" });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "서명 링크를 만들지 못했습니다.");
+      const url = `${window.location.origin}/portrait-consent/${body.token}`;
+      setShareUrl(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setShareCopied(true);
+        setNotice("서명 링크를 만들고 클립보드에 복사했습니다.");
+      } catch {
+        setNotice("서명 링크를 만들었습니다. 아래 주소를 직접 복사해 주세요.");
+      }
+      setDetail((current) => current ? { ...current, status: "sent" } : current);
+      await loadList();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "서명 링크를 만들지 못했습니다.");
+    } finally {
+      setShareBusy(false);
+    }
   };
-  const btnGhost: React.CSSProperties = {
-    display: "inline-flex", alignItems: "center", gap: 5, padding: "6px 12px",
-    borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.ink,
-    fontWeight: 700, fontSize: FS.xs, cursor: "pointer",
+
+  const copyShareUrl = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareCopied(true);
+      setNotice("서명 링크를 복사했습니다.");
+    } catch {
+      setFormError("링크를 복사하지 못했습니다. 주소를 직접 선택해 복사해 주세요.");
+    }
+  };
+
+  const downloadPdf = async () => {
+    if (!detailDocRef.current || pdfBusy) return;
+    setPdfBusy(true);
+    setFormError("");
+    try {
+      const pdf = await generatePortraitConsentPdf(detailDocRef.current);
+      pdf.save(`${detail?.title || "초상권_동의서"}.pdf`);
+    } catch {
+      setFormError("PDF 생성에 실패했습니다.");
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const loadProjects = async (nextClientId: string) => {
+    setProjectsLoading(true);
+    setLinkError("");
+    try {
+      const response = await fetch(`/api/clients/${encodeURIComponent(nextClientId)}`);
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "촬영 건을 불러오지 못했습니다.");
+      setDialogProjects(body.workflowRuns ?? []);
+    } catch (error) {
+      setDialogProjects([]);
+      setLinkError(error instanceof Error ? error.message : "촬영 건을 불러오지 못했습니다.");
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const openLinkDialog = async () => {
+    setLinkDialogOpen(true);
+    setLinkError("");
+    setClientSearch("");
+    setDialogClientId(linkedClientId);
+    setDialogWorkflowRunId(linkedWorkflowRunId);
+    if (linkedClientId) void loadProjects(linkedClientId);
+    if (clients.length) return;
+    setClientsLoading(true);
+    try {
+      const response = await fetch("/api/clients?scope=list");
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "고객 목록을 불러오지 못했습니다.");
+      setClients((body.clients ?? []).map((client: { id: string; name?: string; hospital_name?: string }) => ({
+        id: client.id,
+        name: client.name || client.hospital_name || "이름 없는 고객",
+      })));
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : "고객 목록을 불러오지 못했습니다.");
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  const chooseClient = (nextClient: ClientOption) => {
+    setDialogClientId(nextClient.id);
+    setDialogWorkflowRunId(null);
+    setDialogProjects([]);
+    void loadProjects(nextClient.id);
+  };
+
+  const confirmLink = async () => {
+    const nextClient = clients.find((client) => client.id === dialogClientId) ?? null;
+    const nextRun = dialogProjects.find((run) => run.id === dialogWorkflowRunId) ?? null;
+    if (selectedId) {
+      setLinkBusy(true);
+      setLinkError("");
+      try {
+        const response = await fetch(`/api/conti/portrait-consents/${selectedId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId: dialogClientId, workflowRunId: dialogWorkflowRunId }),
+        });
+        const body = await response.json();
+        if (!response.ok || !body.ok) throw new Error(body.error || "고객 연결을 저장하지 못했습니다.");
+        setDetail(body.consent);
+        setNotice(dialogClientId ? "고객 연결을 저장했습니다." : "고객 연결을 해제했습니다.");
+        await loadList();
+      } catch (error) {
+        setLinkError(error instanceof Error ? error.message : "고객 연결을 저장하지 못했습니다.");
+        setLinkBusy(false);
+        return;
+      }
+      setLinkBusy(false);
+    } else {
+      setDirty(true);
+    }
+
+    setLinkedClientId(dialogClientId);
+    setLinkedWorkflowRunId(dialogClientId ? dialogWorkflowRunId : null);
+    setLinkedClientName(nextClient?.name ?? "");
+    setLinkedWorkflowRunName(nextRun ? workflowRunLabel(nextRun) : "");
+    setLinkDialogOpen(false);
+  };
+
+  const visibleClients = useMemo(() => {
+    const query = clientSearch.trim().toLocaleLowerCase("ko-KR");
+    return query ? clients.filter((client) => client.name.toLocaleLowerCase("ko-KR").includes(query)) : clients;
+  }, [clientSearch, clients]);
+
+  const goBackToList = () => {
+    if (!confirmDiscard()) return;
+    setShowEditorOnMobile(false);
   };
 
   return (
-    <section>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: FS.xl, fontWeight: 900, color: C.ink, display: "flex", alignItems: "center", gap: 8 }}>
-            <FileSignature size={18} color={C.teal} /> 초상권 동의서
-          </h2>
-          <p style={{ margin: "4px 0 0", fontSize: FS.sm, color: C.muted }}>
-            제공자에게 포털 링크를 전달하면, 링크를 연 사람이 직접 서명해 DB에 저장됩니다. 파일로 전달하지 않습니다.
-          </p>
+    <section className={styles.workspace}>
+      <header className={styles.appHeader}>
+        <div className={styles.headingGroup}>
+          <span className={styles.headingIcon}><FileSignature size={21} /></span>
+          <div>
+            <h1>초상권 동의서</h1>
+            <p>현장에서 바로 작성하고 서명 링크를 모델에게 전달합니다.</p>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button type="button" onClick={openCreate} style={btnPrimary}>
-            <Plus size={15} /> 새 동의서 작성
-          </button>
-        </div>
-      </div>
+      </header>
 
-      {clientId && (
-        <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-          <button type="button" onClick={() => setViewAll(false)} style={{ ...btnGhost, background: !viewAll ? C.mint : "#fff", borderColor: !viewAll ? C.teal : C.border, color: !viewAll ? C.teal : C.ink }}>
-            {hospitalName || "현재 병원"}
+      <div className={styles.layout}>
+        <aside className={`${styles.listPane} ${showEditorOnMobile ? styles.mobileHidden : ""}`}>
+          <button className={styles.newButton} type="button" onClick={startNew}>
+            <Plus size={16} /> 새 동의서 작성
           </button>
-          <button type="button" onClick={() => setViewAll(true)} style={{ ...btnGhost, background: viewAll ? C.mint : "#fff", borderColor: viewAll ? C.teal : C.border, color: viewAll ? C.teal : C.ink }}>
-            전체
-          </button>
-        </div>
-      )}
+          <div className={styles.searchWrap}>
+            <Search size={15} />
+            <input className={styles.searchInput} value={search} placeholder="제목·모델·고객 검색" onChange={(event) => setSearch(event.target.value)} />
+          </div>
+          <div className={styles.filterRow} aria-label="동의서 상태 필터">
+            {([
+              ["all", "전체"],
+              ["draft", "초안"],
+              ["sent", "전달됨"],
+              ["signed", "서명 완료"],
+            ] as Array<[StatusFilter, string]>).map(([value, label]) => (
+              <button
+                className={`${styles.statusFilter} ${statusFilter === value ? styles.statusFilterActive : ""}`}
+                type="button"
+                key={value}
+                onClick={() => setStatusFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
 
-      {loading ? (
-        <div style={{ textAlign: "center", padding: "40px 0", color: C.hint, fontSize: FS.sm }}>불러오는 중…</div>
-      ) : consents.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 0", color: C.hint, fontSize: FS.sm, background: "#fff", borderRadius: R.lg, border: `1px solid ${C.border}` }}>
-          작성된 초상권 동의서가 없습니다.
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {consents.map((c) => (
-            <div key={c.id} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: R.lg, padding: "14px 18px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-                  <span style={{ fontWeight: 800, color: C.ink, fontSize: FS.md, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{c.title}</span>
-                  <span style={{ fontSize: FS.xs, fontWeight: 800, color: "#fff", background: STATUS_COLOR[c.status], borderRadius: R.full, padding: "3px 10px", flexShrink: 0 }}>
-                    {STATUS_LABEL[c.status]}
+          {listLoading ? (
+            <div className={styles.loadingState}><Loader2 className="spin-icon" size={18} /> 불러오는 중</div>
+          ) : listError ? (
+            <div className={styles.errorMessage}>{listError}</div>
+          ) : filteredConsents.length === 0 ? (
+            <div className={styles.emptyList}>조건에 맞는 동의서가 없습니다.<br />새 동의서를 바로 작성할 수 있습니다.</div>
+          ) : (
+            <div className={styles.list}>
+              {filteredConsents.map((consent) => (
+                <button
+                  className={`${styles.listRow} ${selectedId === consent.id ? styles.listRowSelected : ""}`}
+                  type="button"
+                  key={consent.id}
+                  onClick={() => void openConsent(consent)}
+                >
+                  <span className={styles.listTitleLine}>
+                    <span className={styles.listTitle}>{consent.title}</span>
+                    <span className={`${styles.statusBadge} ${STATUS_CLASS[consent.status]}`}>{STATUS_LABEL[consent.status]}</span>
                   </span>
-                  {!c.client_id && (
-                    <span style={{ fontSize: FS.xs, fontWeight: 800, color: C.hint, background: C.border, borderRadius: R.full, padding: "3px 10px", flexShrink: 0 }}>
-                      미분류
+                  <span className={styles.listPerson}>{consent.provider_name || "서명자 미입력"}</span>
+                  <span className={styles.listMetaLine}>
+                    <span className={styles.listLink}>
+                      {consent.client_name
+                        ? `${consent.client_name}${consent.workflow_run_name ? ` · ${consent.workflow_run_name}` : ""}`
+                        : "미연결"}
                     </span>
-                  )}
-                  {c.provider_name && <span style={{ fontSize: FS.xs, color: C.muted, flexShrink: 0 }}>{c.provider_name}</span>}
+                    <span>{relativeTime(consent.updated_at || consent.created_at)}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        <section className={`${styles.detailPane} ${!showEditorOnMobile ? styles.mobileHidden : ""}`}>
+          <header className={styles.detailHeader}>
+            <div className={styles.headingGroup}>
+              <button className={`${styles.iconButton} ${styles.mobileBack}`} type="button" onClick={goBackToList} aria-label="동의서 목록으로">
+                <ArrowLeft size={16} />
+              </button>
+              <div className={styles.detailTitleGroup}>
+                <h2>{selectedId ? (isSigned ? "서명 완료 동의서" : "동의서 작성") : "새 동의서 작성"}</h2>
+                <p>{isSigned ? "서명된 본문은 변경할 수 없으며 고객 연결만 바꿀 수 있습니다." : "내용을 저장한 뒤 서명 링크를 만들 수 있습니다."}</p>
+              </div>
+            </div>
+            {detail?.status ? <span className={`${styles.statusBadge} ${STATUS_CLASS[detail.status]}`}>{STATUS_LABEL[detail.status]}</span> : null}
+          </header>
+
+          <div className={styles.linkSummary}>
+            <div className={styles.linkText}>
+              <span className={styles.linkLabel}>연결된 고객 · 촬영 건</span>
+              <span className={styles.linkValue}>
+                {linkedClientName
+                  ? `${linkedClientName}${linkedWorkflowRunName ? ` · ${linkedWorkflowRunName}` : " · 촬영 건 미선택"}`
+                  : "미연결 — 고객 없이도 동의서를 만들 수 있습니다."}
+              </span>
+            </div>
+            <button className={styles.secondaryButton} type="button" onClick={() => void openLinkDialog()}>
+              <UserRoundCheck size={15} /> {linkedClientId ? "고객·촬영 건 변경" : "고객 연결하기"}
+            </button>
+          </div>
+
+          {detailLoading ? (
+            <div className={styles.loadingState}><Loader2 className="spin-icon" size={18} /> 동의서를 불러오는 중</div>
+          ) : isSigned && detail ? (
+            <div className={styles.formScroll}>
+              <div className={styles.signedDocument} ref={detailDocRef}>
+                <h2>{detail.title}</h2>
+                <p className={styles.signedIntro}>{detail.intro_text}</p>
+                <div className={styles.signedSectionTitle}>사진(영상)촬영</div>
+                <div className={styles.signedRows}>
+                  {detail.detail_fields.map((field, index) => (
+                    <div className={styles.signedRow} key={`${field.label}-${index}`}><strong>{field.label}</strong><span>{field.value || "-"}</span></div>
+                  ))}
                 </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  {c.status === "signed" && (
-                    <button type="button" onClick={() => openView(c.id)} style={btnGhost}>보기</button>
-                  )}
-                  <button type="button" onClick={() => openEdit(c.id)} style={btnGhost}><Pencil size={12} /> 편집</button>
-                  {c.status !== "signed" && (
-                    <button
-                      type="button" onClick={() => generateLink(c.id)} disabled={shareBusyId === c.id}
-                      style={{ ...btnGhost, borderColor: C.orange, color: C.orange, opacity: shareBusyId === c.id ? 0.6 : 1 }}
-                    >
-                      {shareBusyId === c.id ? <Loader2 size={12} className="spin-icon" /> : <Link2 size={12} />}
-                      {shareLink?.id === c.id && shareCopied ? "복사됨!" : "포털 링크"}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => remove(c.id)} style={{ ...btnGhost, color: C.danger, borderColor: "rgba(220,38,38,0.3)" }}>
-                    <Trash2 size={12} />
-                  </button>
+                <div className={styles.signedSectionTitle}>영상/사진(이미지) 활용</div>
+                <div className={styles.signedRows}>
+                  {detail.usage_items.map((field, index) => (
+                    <div className={styles.signedRow} key={`${field.label}-${index}`}><strong>{field.label}</strong><span>{field.value || "-"}</span></div>
+                  ))}
+                </div>
+                <div className={styles.signedRows} style={{ marginTop: 18 }}>
+                  <div className={styles.signedRow}><strong>사진 촬영 동의</strong><span>{detail.consent_shoot ? "예" : "아니오"}</span></div>
+                  <div className={styles.signedRow}><strong>홍보 목적 사용 동의</strong><span>{detail.consent_usage ? "예" : "아니오"}</span></div>
+                  <div className={styles.signedRow}><strong>작성일</strong><span>{detail.signed_date || "-"}</span></div>
+                </div>
+                <div className={styles.signatureArea}>
+                  <div>포토클리닉<img src="/assets/ceo-signature.png" alt="포토클리닉 서명" /></div>
+                  <div>초상권 제공자 <strong>{detail.provider_name}</strong> (인)
+                    {detail.signature_data_url ? <img src={detail.signature_data_url} alt="제공자 서명" /> : null}
+                  </div>
                 </div>
               </div>
-              {shareLink?.id === c.id && (
-                <div style={{ marginTop: 10, padding: "8px 12px", background: C.mint, borderRadius: R.sm, fontSize: FS.xs, color: C.teal, wordBreak: "break-all" }}>
-                  {shareLink.url}
-                </div>
-              )}
+              {formError ? <div className={styles.errorMessage}>{formError}</div> : null}
+              {notice ? <div className={styles.successMessage}>{notice}</div> : null}
             </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── 작성/편집 모달 ── */}
-      {editing && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setEditing(false)}>
-          <div style={{ background: "#fff", borderRadius: R.xl, width: "min(640px, 100%)", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ padding: "18px 22px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#fff" }}>
-              <span style={{ fontWeight: 900, fontSize: FS.lg, color: C.ink }}>{editingId ? "초상권 동의서 편집" : "새 초상권 동의서"}</span>
-              <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", cursor: "pointer", color: C.hint }}><X size={20} /></button>
-            </div>
-            <div style={{ padding: 22 }}>
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>제목</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ width: "100%", padding: "9px 12px", borderRadius: R.sm, border: `1.5px solid ${C.border}`, fontSize: FS.md, boxSizing: "border-box", marginBottom: 16 }} />
-
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>안내 문구</label>
-              <textarea value={introText} onChange={(e) => setIntroText(e.target.value)} rows={3} style={{ width: "100%", padding: "9px 12px", borderRadius: R.sm, border: `1.5px solid ${C.border}`, fontSize: FS.sm, boxSizing: "border-box", marginBottom: 16, resize: "vertical", lineHeight: 1.6 }} />
-
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.teal, marginBottom: 6 }}>사진(영상)촬영 — 세부 내용</label>
-              <div style={{ marginBottom: 16 }}><FieldListEditor items={detailFields} onChange={setDetailFields} accent={C.teal} /></div>
-
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.orange, marginBottom: 6 }}>영상/사진(이미지) 활용 목적</label>
-              <div style={{ marginBottom: 8 }}><FieldListEditor items={usageItems} onChange={setUsageItems} accent={C.orange} /></div>
-
-              {formError && <div style={{ color: C.danger, fontSize: FS.sm, fontWeight: 700, marginTop: 8 }}>{formError}</div>}
-
-              <button type="button" onClick={save} disabled={saving} style={{ ...btnPrimary, width: "100%", justifyContent: "center", marginTop: 18, padding: "11px 0", opacity: saving ? 0.7 : 1 }}>
-                {saving ? "저장 중…" : "저장"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── 서명 완료 상세 보기 ── */}
-      {(detailLoading || detail) && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={() => setDetail(null)}>
-          <div style={{ background: "#fff", borderRadius: R.xl, width: "min(600px, 100%)", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.25)" }} onClick={(e) => e.stopPropagation()}>
-            {detailLoading || !detail ? (
-              <div style={{ padding: 40, textAlign: "center", color: C.hint }}>불러오는 중…</div>
-            ) : (
-              <>
-                <div style={{ padding: "18px 22px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, background: "#fff" }}>
-                  <span style={{ fontWeight: 900, fontSize: FS.lg, color: C.ink }}>{detail.title}</span>
-                  <button onClick={() => setDetail(null)} style={{ background: "none", border: "none", cursor: "pointer", color: C.hint }}><X size={20} /></button>
+          ) : (
+            <div className={styles.formScroll}>
+              <section className={styles.formSection}>
+                <div className={styles.fieldBlock}>
+                  <label className={styles.fieldLabel} htmlFor="portrait-consent-title">제목</label>
+                  <input id="portrait-consent-title" className={styles.textInput} value={title} onChange={(event) => { setTitle(event.target.value); setDirty(true); }} />
                 </div>
-
-                <div ref={detailDocRef} style={{ background: "#fff" }}>
-                  <div style={{ padding: "22px 22px 8px" }}>
-                    <p style={{ color: C.muted, fontSize: FS.sm, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 14, margin: 0 }}>{detail.intro_text}</p>
-                  </div>
-
-                  <div style={{ padding: "16px 22px 0" }}>
-                    <div style={{ background: C.teal, color: "#fff", fontWeight: 900, fontSize: FS.sm, padding: "8px 16px", borderRadius: R.sm }}>사진(영상)촬영</div>
-                    <div style={{ padding: "10px 4px" }}>
-                      {detail.detail_fields.map((f, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, padding: "6px 0", fontSize: FS.sm }}>
-                          <span style={{ color: C.orange, fontWeight: 900, flexShrink: 0 }}>▷</span>
-                          <span style={{ fontWeight: 800, color: C.ink, minWidth: 90, flexShrink: 0 }}>{f.label}</span>
-                          <span style={{ color: C.muted, flex: 1 }}>{f.value || "-"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: "8px 22px 0" }}>
-                    <div style={{ background: C.orange, color: "#fff", fontWeight: 900, fontSize: FS.sm, padding: "8px 16px", borderRadius: R.sm }}>영상/사진(이미지) 활용</div>
-                    <div style={{ padding: "10px 4px" }}>
-                      {detail.usage_items.map((f, i) => (
-                        <div key={i} style={{ display: "flex", gap: 8, padding: "6px 0", fontSize: FS.sm }}>
-                          <span style={{ color: C.orange, fontWeight: 900, flexShrink: 0 }}>▷</span>
-                          <span style={{ fontWeight: 800, color: C.ink, minWidth: 90, flexShrink: 0 }}>{f.label}</span>
-                          <span style={{ color: C.muted, flex: 1 }}>{f.value || "-"}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ padding: 22 }}>
-                    <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 6 }}>사진 촬영 동의: <b>{detail.consent_shoot ? "예" : "아니오"}</b></div>
-                    <div style={{ fontSize: FS.sm, color: C.ink, marginBottom: 16 }}>홍보 목적 사용 동의: <b>{detail.consent_usage ? "예" : "아니오"}</b></div>
-                    <div style={{ textAlign: "right", color: C.muted, fontSize: FS.xs, marginBottom: 10 }}>작성일 {detail.signed_date}</div>
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 24, flexWrap: "wrap" }}>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: FS.xs, fontWeight: 800, color: C.ink, marginBottom: 4 }}>포토클리닉</div>
-                        <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 36, objectFit: "contain" }} />
-                      </div>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: FS.xs, fontWeight: 800, color: C.ink, marginBottom: 4 }}>초상권 제공자 &nbsp;<b>{detail.provider_name}</b> (인)</div>
-                        {detail.signature_data_url && (
-                          <img src={detail.signature_data_url} alt="서명" style={{ height: 36, objectFit: "contain" }} />
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                <div className={styles.fieldBlock}>
+                  <label className={styles.fieldLabel} htmlFor="portrait-consent-intro">안내 문구</label>
+                  <textarea id="portrait-consent-intro" className={styles.textArea} value={introText} onChange={(event) => { setIntroText(event.target.value); setDirty(true); }} />
                 </div>
-
-                <div style={{ padding: "0 22px 22px" }}>
-                  <button
-                    type="button" onClick={downloadPdf} disabled={pdfBusy}
-                    style={{
-                      width: "100%", padding: "10px 0", borderRadius: R.md, border: `1.5px solid ${C.teal}`,
-                      background: "#fff", color: C.teal, fontWeight: 800, fontSize: FS.sm,
-                      cursor: pdfBusy ? "not-allowed" : "pointer", opacity: pdfBusy ? 0.6 : 1,
-                    }}
-                  >
-                    {pdfBusy ? "PDF 생성 중…" : "PDF 다운로드"}
+              </section>
+              <section className={styles.formSection}>
+                <h3>사진(영상)촬영 — 세부 내용</h3>
+                <FieldListEditor items={detailFields} onChange={(next) => { setDetailFields(next); setDirty(true); }} />
+              </section>
+              <section className={styles.formSection}>
+                <h3>영상/사진(이미지) 활용 목적</h3>
+                <FieldListEditor items={usageItems} onChange={(next) => { setUsageItems(next); setDirty(true); }} />
+              </section>
+              {shareUrl ? (
+                <div className={styles.shareBox}>
+                  <strong>서명 링크</strong><br />{shareUrl}<br />
+                  <button className={styles.weakButton} type="button" onClick={() => void copyShareUrl()} style={{ marginTop: 8 }}>
+                    {shareCopied ? <Check size={14} /> : <Copy size={14} />} {shareCopied ? "복사됨" : "주소 복사"}
                   </button>
                 </div>
-              </>
-            )}
-          </div>
+              ) : null}
+              {formError ? <div className={styles.errorMessage}>{formError}</div> : null}
+              {notice ? <div className={styles.successMessage}>{notice}</div> : null}
+            </div>
+          )}
+
+          <footer className={styles.actionBar}>
+            <span className={styles.actionHint}>
+              {isSigned
+                ? "서명 원본은 잠겨 있습니다. 고객·촬영 건 연결과 PDF 다운로드만 가능합니다."
+                : dirty || !selectedId
+                  ? "작성 내용을 저장하면 모델에게 전달할 서명 링크를 만들 수 있습니다."
+                  : "저장된 내용으로 30일 동안 유효한 새 서명 링크를 만듭니다."}
+            </span>
+            <div className={styles.actionButtons}>
+              {selectedId ? <button className={`${styles.weakButton} ${styles.dangerButton}`} type="button" onClick={() => void removeConsent()}><Trash2 size={14} /> 삭제</button> : null}
+              {isSigned ? (
+                <button className={styles.secondaryButton} type="button" disabled={pdfBusy} onClick={() => void downloadPdf()}>
+                  {pdfBusy ? <Loader2 className="spin-icon" size={14} /> : <FileDown size={14} />} PDF 다운로드
+                </button>
+              ) : dirty || !selectedId ? (
+                <button className={styles.primaryButton} type="button" disabled={saving} onClick={() => void save()}>
+                  {saving ? <Loader2 className="spin-icon" size={15} /> : <Check size={15} />} {saving ? "저장 중" : "저장"}
+                </button>
+              ) : (
+                <button className={styles.primaryButton} type="button" disabled={shareBusy} onClick={() => void generateLink()}>
+                  {shareBusy ? <Loader2 className="spin-icon" size={15} /> : <Link2 size={15} />}
+                  {detail?.status === "sent" ? "서명 링크 다시 만들기" : "서명 링크 만들기"}
+                </button>
+              )}
+            </div>
+          </footer>
+        </section>
+      </div>
+
+      {linkDialogOpen ? (
+        <div className={styles.dialogBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setLinkDialogOpen(false); }}>
+          <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="portrait-link-title">
+            <header className={styles.dialogHeader}>
+              <h3 id="portrait-link-title">고객·촬영 건 연결</h3>
+              <button className={styles.iconButton} type="button" aria-label="닫기" onClick={() => setLinkDialogOpen(false)}><X size={16} /></button>
+            </header>
+            <div className={styles.dialogBody}>
+              <label className={styles.fieldLabel} htmlFor="portrait-client-search">1. 고객 선택</label>
+              <div className={styles.searchWrap}>
+                <Search size={15} />
+                <input id="portrait-client-search" className={styles.searchInput} value={clientSearch} placeholder="고객 이름 검색" onChange={(event) => setClientSearch(event.target.value)} />
+              </div>
+              <div className={styles.clientList}>
+                {clientsLoading ? (
+                  <div className={styles.loadingState}>고객 목록을 불러오는 중</div>
+                ) : visibleClients.length ? visibleClients.map((client) => (
+                  <button className={`${styles.clientOption} ${dialogClientId === client.id ? styles.clientOptionSelected : ""}`} type="button" key={client.id} onClick={() => chooseClient(client)}>
+                    {client.name}
+                  </button>
+                )) : <div className={styles.emptyList}>검색 결과가 없습니다.</div>}
+              </div>
+
+              <div className={styles.fieldBlock}>
+                <label className={styles.fieldLabel} htmlFor="portrait-project-select">2. 촬영 건 선택 (선택 사항)</label>
+                <select
+                  id="portrait-project-select"
+                  className={styles.selectInput}
+                  value={dialogWorkflowRunId ?? ""}
+                  disabled={!dialogClientId || projectsLoading}
+                  onChange={(event) => setDialogWorkflowRunId(event.target.value || null)}
+                >
+                  <option value="">촬영 건을 연결하지 않음</option>
+                  {dialogProjects.map((run) => <option value={run.id} key={run.id}>{workflowRunLabel(run)}</option>)}
+                </select>
+              </div>
+              {linkError ? <div className={styles.errorMessage}>{linkError}</div> : null}
+            </div>
+            <footer className={styles.dialogActions}>
+              <button className={`${styles.weakButton} ${styles.dangerButton}`} type="button" onClick={() => { setDialogClientId(null); setDialogWorkflowRunId(null); setDialogProjects([]); }}>연결 해제</button>
+              <button className={styles.primaryButton} type="button" disabled={linkBusy} onClick={() => void confirmLink()}>
+                {linkBusy ? <Loader2 className="spin-icon" size={15} /> : <Check size={15} />} 연결 저장
+              </button>
+            </footer>
+          </section>
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

@@ -29,6 +29,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/memo": "memo", "/team-chat": "team-chat", "/calendar": "work-calendar",
   "/work-journal": "work-log", "/team": "workspace", "/marketing": "marketing-dashboard",
   "/quote": "quote", "/contract": "contract", "/clients": "clients", "/select-galleries": "select-gallery",
+  "/portrait-consent": "contract",
   "/per": "per-reward", "/portal-admin": "client-portal", "/mailing": "mailing",
   "/photo-sorting": "photo-studio", "/select-match": "select-match",
   "/metadata-select": "metadata-select", "/raw-select": "raw-select",

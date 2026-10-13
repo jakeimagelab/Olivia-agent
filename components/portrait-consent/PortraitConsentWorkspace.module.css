@@ -1,0 +1,756 @@
+.workspace {
+  --pc-deep-green: #155855;
+  --pc-orange: #c94a1e;
+  --pc-ink: #1c2b28;
+  --pc-muted: #5a7470;
+  --pc-hint: #8a9b97;
+  --pc-border: #dfe7e4;
+  --pc-mint: #edf7f4;
+  min-height: 100%;
+  color: var(--pc-ink);
+  background: #fdfcfa;
+}
+
+.appHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 28px 20px;
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.headingGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.headingIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--pc-deep-green);
+  background: var(--pc-mint);
+  border-radius: 12px;
+}
+
+.appHeader h1,
+.detailHeader h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.appHeader p,
+.detailHeader p {
+  margin: 4px 0 0;
+  color: var(--pc-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.75fr) minmax(540px, 1.65fr);
+  min-height: calc(100% - 84px);
+}
+
+.listPane {
+  min-width: 0;
+  padding: 20px;
+  background: #f7f5f0;
+  border-right: 1px solid var(--pc-border);
+}
+
+.newButton,
+.primaryButton,
+.secondaryButton,
+.weakButton,
+.iconButton,
+.statusFilter,
+.listRow {
+  font: inherit;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pc-orange);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.newButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 14px;
+  color: var(--pc-deep-green);
+  background: #fff;
+  border: 1px solid var(--pc-deep-green);
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  min-height: 40px;
+  padding: 0 18px;
+}
+
+.newButton:disabled,
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.weakButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.searchWrap {
+  position: relative;
+}
+
+.searchWrap svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--pc-hint);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.searchInput,
+.textInput,
+.textArea,
+.selectInput {
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--pc-ink);
+  background: #fff;
+  border: 1px solid var(--pc-border);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.searchInput {
+  height: 40px;
+  padding: 0 12px 0 36px;
+  font-size: 13px;
+}
+
+.textInput,
+.selectInput {
+  min-height: 42px;
+  padding: 9px 12px;
+  font-size: 14px;
+}
+
+.textArea {
+  min-height: 94px;
+  padding: 11px 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.searchInput:focus,
+.textInput:focus,
+.textArea:focus,
+.selectInput:focus {
+  border-color: var(--pc-deep-green);
+  box-shadow: 0 0 0 3px rgba(21, 88, 85, 0.09);
+}
+
+.filterRow {
+  display: flex;
+  gap: 5px;
+  margin: 12px 0 14px;
+  overflow-x: auto;
+}
+
+.statusFilter {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: var(--pc-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.statusFilterActive {
+  color: var(--pc-deep-green);
+  background: #fff;
+  border-color: rgba(21, 88, 85, 0.24);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.listRow {
+  width: 100%;
+  padding: 13px 14px;
+  text-align: left;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--pc-border);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.listRow:hover {
+  border-color: rgba(21, 88, 85, 0.34);
+}
+
+.listRowSelected {
+  background: #fff;
+  border-color: var(--pc-deep-green);
+  box-shadow: 0 0 0 1px rgba(21, 88, 85, 0.08);
+}
+
+.listTitleLine,
+.listMetaLine,
+.detailHeader,
+.linkSummary,
+.actionBar,
+.fieldRow,
+.dialogActions {
+  display: flex;
+  align-items: center;
+}
+
+.listTitleLine {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.listTitle {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusBadge {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.statusDraft {
+  color: #687b77;
+  background: #edf1f0;
+}
+
+.statusSent {
+  color: #73591f;
+  background: #f6ecd2;
+}
+
+.statusSigned {
+  color: var(--pc-deep-green);
+  background: #daf1e9;
+}
+
+.listPerson {
+  margin-top: 8px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+.listMetaLine {
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+  color: var(--pc-hint);
+  font-size: 11px;
+}
+
+.listLink {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptyList,
+.loadingState {
+  padding: 36px 14px;
+  color: var(--pc-muted);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.detailPane {
+  display: flex;
+  min-width: 0;
+  min-height: 650px;
+  flex-direction: column;
+  background: #fff;
+}
+
+.detailHeader {
+  min-height: 70px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.detailTitleGroup {
+  min-width: 0;
+}
+
+.mobileBack {
+  display: none !important;
+}
+
+.linkSummary {
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  background: #f4f8f6;
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.linkText {
+  min-width: 0;
+}
+
+.linkLabel {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--pc-hint);
+  font-size: 11px;
+}
+
+.linkValue {
+  display: block;
+  overflow: hidden;
+  color: var(--pc-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.secondaryButton,
+.weakButton,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 13px;
+  color: var(--pc-deep-green);
+  background: #fff;
+  border: 1px solid var(--pc-deep-green);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weakButton {
+  color: var(--pc-muted);
+  border-color: var(--pc-border);
+}
+
+.dangerButton {
+  color: #a34332;
+  border-color: rgba(163, 67, 50, 0.3);
+}
+
+.iconButton {
+  width: 36px;
+  padding: 0;
+  color: var(--pc-muted);
+  border-color: var(--pc-border);
+}
+
+.formScroll {
+  flex: 1;
+  padding: 22px 24px 30px;
+  overflow: auto;
+}
+
+.formSection + .formSection {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--pc-border);
+}
+
+.formSection h3 {
+  margin: 0 0 13px;
+  color: var(--pc-deep-green);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.fieldLabel {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--pc-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fieldBlock + .fieldBlock {
+  margin-top: 16px;
+}
+
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldRow {
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px;
+  background: #faf9f6;
+  border: 1px solid var(--pc-border);
+  border-radius: 11px;
+}
+
+.fieldLabelInput {
+  flex: 0 0 126px;
+}
+
+.fieldTypeInput {
+  flex: 0 0 84px;
+}
+
+.fieldValueInput {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.checklistValues {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+.checklistValues label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.addFieldButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  align-self: flex-start;
+  min-height: 34px;
+  color: var(--pc-deep-green);
+  background: transparent;
+  border: 1px dashed rgba(21, 88, 85, 0.45);
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.errorMessage,
+.successMessage,
+.shareBox {
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.errorMessage {
+  color: #9e3d2e;
+  background: #fff1ec;
+  border: 1px solid #f0c2b4;
+}
+
+.successMessage,
+.shareBox {
+  color: var(--pc-deep-green);
+  background: var(--pc-mint);
+  border: 1px solid #cce5dd;
+}
+
+.shareBox {
+  word-break: break-all;
+}
+
+.actionBar {
+  min-height: 70px;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 24px;
+  background: #fdfcfa;
+  border-top: 1px solid var(--pc-border);
+}
+
+.actionHint {
+  color: var(--pc-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.actionButtons {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.signedDocument {
+  padding: 20px;
+  background: #fff;
+  border: 1px solid var(--pc-border);
+  border-radius: 12px;
+}
+
+.signedIntro {
+  margin: 0 0 18px;
+  padding: 14px;
+  color: var(--pc-muted);
+  background: var(--pc-mint);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.signedSectionTitle {
+  margin: 18px 0 8px;
+  padding: 8px 12px;
+  color: #fff;
+  background: var(--pc-deep-green);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.signedRows {
+  display: grid;
+  gap: 1px;
+  background: var(--pc-border);
+  border: 1px solid var(--pc-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.signedRow {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.35fr) 1fr;
+  gap: 12px;
+  padding: 9px 12px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.signedRow strong {
+  font-weight: 600;
+}
+
+.signatureArea {
+  display: flex;
+  justify-content: flex-end;
+  gap: 28px;
+  margin-top: 22px;
+  text-align: center;
+}
+
+.signatureArea div {
+  font-size: 11px;
+}
+
+.signatureArea img {
+  display: block;
+  height: 38px;
+  margin: 5px auto 0;
+  object-fit: contain;
+}
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: 800;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(13, 24, 22, 0.44);
+}
+
+.dialog {
+  width: min(520px, 100%);
+  max-height: min(720px, 90vh);
+  overflow: auto;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 24px 70px rgba(22, 42, 38, 0.24);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.dialogHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.dialogBody {
+  padding: 20px;
+}
+
+.clientList {
+  max-height: 230px;
+  margin-top: 10px;
+  overflow: auto;
+  border: 1px solid var(--pc-border);
+  border-radius: 10px;
+}
+
+.clientOption {
+  display: block;
+  width: 100%;
+  padding: 11px 12px;
+  color: var(--pc-ink);
+  text-align: left;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid var(--pc-border);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clientOption:last-child {
+  border-bottom: 0;
+}
+
+.clientOptionSelected {
+  color: var(--pc-deep-green);
+  background: var(--pc-mint);
+  font-weight: 600;
+}
+
+.dialogActions {
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #fdfcfa;
+  border-top: 1px solid var(--pc-border);
+}
+
+@media (max-width: 860px) {
+  .appHeader {
+    padding: 18px;
+  }
+
+  .layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .listPane,
+  .detailPane {
+    min-height: calc(100vh - 150px);
+  }
+
+  .listPane {
+    border-right: 0;
+  }
+
+  .mobileHidden {
+    display: none;
+  }
+
+  .mobileBack {
+    display: inline-flex !important;
+    margin-right: 8px;
+  }
+
+  .detailHeader,
+  .linkSummary,
+  .formScroll,
+  .actionBar {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .actionBar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+
+  .actionButtons > button {
+    flex: 1;
+  }
+}
+
+@media (max-width: 620px) {
+  .appHeader p {
+    display: none;
+  }
+
+  .fieldRow {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .fieldLabelInput,
+  .fieldTypeInput {
+    flex: 1 1 120px;
+  }
+
+  .fieldValueInput,
+  .checklistValues {
+    flex-basis: calc(100% - 44px);
+  }
+
+  .signatureArea {
+    align-items: flex-end;
+    flex-direction: column;
+  }
+}

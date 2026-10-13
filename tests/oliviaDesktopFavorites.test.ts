@@ -23,13 +23,13 @@ describe("Olivia Desktop favorites", () => {
     expect(normalizeDesktopFavoriteKeys([])).toEqual([]);
   });
 
-  it("migrates removed standalone apps to their parent workspaces", () => {
+  it("migrates removed workspace apps and keeps portrait consent standalone", () => {
     expect(normalizeDesktopFavoriteKeys([
       "/conti",
       "app:conti",
       "/video-production",
       "/prompter",
       "/portrait-consent",
-    ])).toEqual(["/photo-sorting", "/video-studio", "/clients"]);
+    ])).toEqual(["/photo-sorting", "/video-studio", "/portrait-consent"]);
   });
 });

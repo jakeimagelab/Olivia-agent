@@ -19,10 +19,8 @@ const LEGACY_FAVORITE_KEYS: Readonly<Record<string, string>> = {
   "/broll-prompt": "/video-studio",
   "/prompter": "/video-studio",
   "/video-production": "/video-studio",
-  "/portrait-consent": "/clients",
   "app:conti": "/photo-sorting",
   "app:video-production": "/video-studio",
-  "app:portrait-consent": "/clients",
 };
 
 export function normalizeDesktopFavoriteKeys(value: unknown): string[] {

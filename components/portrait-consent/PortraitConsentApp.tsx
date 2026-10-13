@@ -6,9 +6,10 @@ import PortraitConsentPanel from "@/components/portrait-consent/PortraitConsentP
 export interface PortraitConsentAppProps {
   clientId?: string;
   workflowRunId?: string;
+  embedded?: boolean;
 }
 
-export default function PortraitConsentApp({ clientId, workflowRunId }: PortraitConsentAppProps) {
+export default function PortraitConsentApp({ clientId, workflowRunId, embedded = false }: PortraitConsentAppProps) {
   const [hospitalName, setHospitalName] = useState("");
 
   useEffect(() => {
@@ -20,8 +21,8 @@ export default function PortraitConsentApp({ clientId, workflowRunId }: Portrait
   }, [clientId]);
 
   return (
-    <div style={{ minHeight: "100%", background: "#F4F1EB", padding: "24px clamp(16px, 3vw, 36px) 60px" }}>
-      <div style={{ width: "100%", maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ minHeight: "100%", height: "100%", background: "#F4F1EB", padding: embedded ? 0 : "24px clamp(16px, 3vw, 36px) 60px" }}>
+      <div style={{ width: "100%", maxWidth: embedded ? "none" : 1280, margin: "0 auto", overflow: "hidden", borderRadius: embedded ? 0 : 16 }}>
         <PortraitConsentPanel clientId={clientId ?? null} workflowRunId={workflowRunId ?? null} hospitalName={hospitalName} />
       </div>
     </div>

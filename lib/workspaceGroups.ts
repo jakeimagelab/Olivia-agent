@@ -117,7 +117,6 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
 const integratedHrefs = new Set(
   WORKSPACE_GROUPS.flatMap((group) => group.tools.flatMap((tool) => tool.sourceHrefs)),
 );
-integratedHrefs.add("/portrait-consent");
 
 const canonicalHrefBySource = new Map<string, string>();
 // EXIF matching is a method inside the RAW matching tab. Its legacy route
@@ -136,8 +135,6 @@ for (const group of WORKSPACE_GROUPS) {
     }
   }
 }
-
-canonicalHrefBySource.set("/portrait-consent", "/clients?tab=documents&document=portrait-consent");
 
 export function isIntegratedToolHref(href: string): boolean {
   return integratedHrefs.has(href);

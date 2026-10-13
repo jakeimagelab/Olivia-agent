@@ -126,19 +126,17 @@ describe("OLIVIA OS persisted workspace migration", () => {
       ],
     }));
 
-    loadDesktopState(new Set(["photo-workspace", "video-studio", "customer"]));
+    loadDesktopState(new Set(["photo-workspace", "video-studio", "customer", "portrait-consent"]));
 
     const state = useOliviaDesktopStore.getState();
-    expect(Object.keys(state.windows)).toEqual(["photo-workspace", "video-studio", "customer"]);
+    expect(Object.keys(state.windows)).toEqual(["photo-workspace", "video-studio", "portrait-consent"]);
     expect(state.windows["photo-workspace"].context).toMatchObject({
       routeHref: "/photo-sorting?tab=plan&tool=conti",
       documentType: "conti",
     });
     expect(state.windows["video-studio"].context?.routeHref).toBe("/video-studio?tab=publish&tool=ai-video");
-    expect(state.windows.customer.context).toMatchObject({
-      routeHref: "/clients?tab=documents&document=portrait-consent",
-      documentType: "portrait-consent",
-    });
+    expect(state.windows["portrait-consent"].title).toBe("초상권 동의서");
+    expect(state.windows["portrait-consent"].context).toBeUndefined();
     expect(state.activeWindowId).toBe("video-studio");
   });
 });

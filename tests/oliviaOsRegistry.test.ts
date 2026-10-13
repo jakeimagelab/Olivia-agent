@@ -33,6 +33,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "quote", "contract", "memo", "today", "all-apps", "legacy-route", "metadata-select", "review-studio",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
+      "portrait-consent",
     ]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
@@ -41,10 +42,11 @@ describe("OLIVIA OS app registry navigation", () => {
     }
   });
 
-  it("maps removed standalone app ids to their parent workspaces", () => {
+  it("maps removed standalone app ids to their parent workspaces while keeping portrait consent standalone", () => {
     expect(getOliviaApp("conti")?.id).toBe("photo-workspace");
     expect(getOliviaApp("video-production")?.id).toBe("video-studio");
-    expect(getOliviaApp("portrait-consent")?.id).toBe("customer");
+    expect(getOliviaApp("portrait-consent")?.id).toBe("portrait-consent");
+    expect(getOliviaAppByRoute("/portrait-consent")?.id).toBe("portrait-consent");
   });
 
   it("routes the four analysis workspaces to native adapters", () => {

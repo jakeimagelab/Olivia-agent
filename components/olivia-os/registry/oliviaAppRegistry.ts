@@ -26,6 +26,7 @@ import { MailingWindowContent } from "../adapters/MailingWindowContent";
 import { WorkJournalWindowContent } from "../adapters/WorkJournalWindowContent";
 import { ReportWindowContent } from "../adapters/ReportWindowContent";
 import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
+import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 단독 앱에서
@@ -188,6 +189,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: ContractBuilderWindowContent,
   },
   {
+    id: "portrait-consent",
+    title: "초상권 동의서",
+    icon: appIcon("contract"),
+    route: "/portrait-consent",
+    defaultSize: { width: 1180, height: 760 },
+    minSize: { width: 720, height: 500 },
+    singleton: true,
+    component: PortraitConsentWindowContent,
+  },
+  {
     id: "documents",
     title: "문서함",
     icon: appIcon("library"),
@@ -289,7 +300,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
 const LEGACY_APP_ID_ALIASES: Readonly<Record<string, string>> = {
   conti: "photo-workspace",
   "video-production": "video-studio",
-  "portrait-consent": "customer",
 };
 
 export function getOliviaApp(appId: string): OliviaAppDefinition | undefined {

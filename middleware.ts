@@ -169,7 +169,6 @@ const LEGACY_WORKSPACE_REDIRECTS: Readonly<Record<string, string>> = {
   "/prompter": "/video-studio?tab=shoot&tool=prompter",
   "/video-sorting": "/video-studio?tab=post&tool=sorting",
   "/video-production": "/video-studio?tab=publish&tool=ai-video",
-  "/portrait-consent": "/clients?tab=documents&document=portrait-consent",
 };
 
 export async function middleware(req: NextRequest) {

@@ -933,12 +933,8 @@ function DetailView({
               contracts={contracts}
               artifacts={artifacts}
             />
-            <section className="pc-card" aria-labelledby="client-portrait-consent-title" style={{ overflow: "hidden" }}>
-              <header style={{ padding: "16px 18px 0" }}>
-                <h2 id="client-portrait-consent-title" style={{ margin: 0, color: C.ink, fontSize: 16 }}>초상권 동의서</h2>
-                <p style={{ margin: "6px 0 0", color: C.muted, fontSize: 12 }}>이 촬영 건의 사진·영상 활용 동의서를 작성하고 서명 링크를 관리합니다.</p>
-              </header>
-              <PortraitConsentApp clientId={clientId} workflowRunId={workflowRun?.id} />
+            <section className="pc-card" aria-label="초상권 동의서" style={{ overflow: "hidden" }}>
+              <PortraitConsentApp clientId={clientId} workflowRunId={workflowRun?.id} embedded />
             </section>
             <ClientMailHistorySection clientId={clientId} />
           </div>

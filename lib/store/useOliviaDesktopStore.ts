@@ -475,14 +475,6 @@ const LEGACY_WORKSPACE_WINDOWS: Readonly<Record<string, {
     title: "영상작업실",
     context: { routeHref: "/video-studio?tab=publish&tool=ai-video" },
   },
-  "portrait-consent": {
-    appId: "customer",
-    title: "고객관리",
-    context: {
-      routeHref: "/clients?tab=documents&document=portrait-consent",
-      documentType: "portrait-consent",
-    },
-  },
 };
 
 function migratePersistedWindow(win: PersistedWindow): PersistedWindow {

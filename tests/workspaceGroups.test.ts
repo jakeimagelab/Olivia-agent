@@ -47,7 +47,8 @@ describe("integrated workspace registry", () => {
     expect(getCanonicalWorkspaceHref("/broll-prompt")).toBe("/video-studio?tab=plan&tool=broll");
     expect(getCanonicalWorkspaceHref("/prompter")).toBe("/video-studio?tab=shoot&tool=prompter");
     expect(getCanonicalWorkspaceHref("/video-production")).toBe("/video-studio?tab=publish&tool=ai-video");
-    expect(getCanonicalWorkspaceHref("/portrait-consent")).toBe("/clients?tab=documents&document=portrait-consent");
+    expect(isIntegratedToolHref("/portrait-consent")).toBe(false);
+    expect(getCanonicalWorkspaceHref("/portrait-consent")).toBe("/portrait-consent");
   });
 });
 
@@ -71,7 +72,7 @@ describe("Olivia resolves detailed feature names through the workspace registry"
     ["메타데이터 셀렉", "/photo-sorting?tool=metadata-match"],
     ["유튜브 편집 콘티", "/video-studio?tab=plan&tool=youtube-conti"],
     ["프롬프터", "/video-studio?tab=shoot&tool=prompter"],
-    ["초상권 동의서", "/clients?tab=documents&document=portrait-consent"],
+    ["초상권 동의서", "/portrait-consent"],
     ["병원 채널 분석", "/channel-analyzer"],
     ["리뷰 콘텐츠", "/clients/reviews"],
   ];

@@ -29,6 +29,16 @@ export interface PortraitConsentDoc {
   updated_at: string;
 }
 
+export type PortraitConsentLink = {
+  clientId: string | null;
+  workflowRunId: string | null;
+};
+
+export type PortraitConsentLinkUpdate = PortraitConsentLink & {
+  requested: boolean;
+  error: string | null;
+};
+
 // 초상권 동의서 기본 세부 항목 — "오블리브 서울 오리진 초상권 동의서" 참고 양식 기준.
 // 관리자가 콘티 페이지에서 자유롭게 수정/추가/삭제할 수 있는 시작값일 뿐이다.
 export const DEFAULT_DETAIL_FIELDS: PortraitConsentField[] = [
@@ -53,6 +63,46 @@ export const DEFAULT_INTRO_TEXT =
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function isUuid(value: unknown): value is string {
   return typeof value === "string" && UUID_RE.test(value);
+}
+
+/**
+ * 고객/촬영 건 연결 입력을 한 곳에서 정규화한다.
+ * 고객을 바꾸고 촬영 건을 생략하면 이전 촬영 건은 자동으로 해제한다.
+ */
+export function resolvePortraitConsentLinkUpdate(
+  body: Record<string, unknown>,
+  current: PortraitConsentLink = { clientId: null, workflowRunId: null },
+): PortraitConsentLinkUpdate {
+  const hasClientId = Object.prototype.hasOwnProperty.call(body, "clientId");
+  const hasWorkflowRunId = Object.prototype.hasOwnProperty.call(body, "workflowRunId");
+  if (!hasClientId && !hasWorkflowRunId) {
+    return { ...current, requested: false, error: null };
+  }
+
+  const parseOptionalUuid = (value: unknown, label: string): { value: string | null; error: string | null } => {
+    if (value === null || value === undefined || value === "") return { value: null, error: null };
+    if (!isUuid(value)) return { value: null, error: `${label} 값이 올바르지 않습니다.` };
+    return { value, error: null };
+  };
+
+  const parsedClient = hasClientId
+    ? parseOptionalUuid(body.clientId, "고객")
+    : { value: current.clientId, error: null };
+  if (parsedClient.error) return { ...current, requested: true, error: parsedClient.error };
+
+  const clientChanged = hasClientId && parsedClient.value !== current.clientId;
+  const parsedWorkflow = hasWorkflowRunId
+    ? parseOptionalUuid(body.workflowRunId, "촬영 건")
+    : { value: clientChanged ? null : current.workflowRunId, error: null };
+  if (parsedWorkflow.error) return { ...current, requested: true, error: parsedWorkflow.error };
+
+  const clientId = parsedClient.value;
+  const workflowRunId = clientId ? parsedWorkflow.value : null;
+  if (parsedWorkflow.value && !clientId) {
+    return { clientId: null, workflowRunId: null, requested: true, error: "촬영 건을 연결하려면 고객을 먼저 선택해 주세요." };
+  }
+
+  return { clientId, workflowRunId, requested: true, error: null };
 }
 
 // 값은 React JSX로만 렌더링되어 자동 이스케이프되므로, 여기서는 HTML 엔티티 변환 없이
