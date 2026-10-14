@@ -14,7 +14,7 @@ function hashPortraitConsentToken(token: string): string {
 // 관리자 세션 필수로 막는데, 이 라우트는 로그인하지 않은 초상권 제공자(모델/환자)가 링크만으로
 // 열고 직접 서명해야 한다. 보안은 세션이 아니라 32바이트 랜덤 토큰 + 해시 저장 + 만료/취소로 확보한다.
 const SELECT_COLUMNS =
-  "id, title, intro_text, detail_fields, usage_items, consent_shoot, consent_usage, provider_name, signature_data_url, signed_date, status, signed_at, token_expires_at, token_revoked_at";
+  "id, title, intro_text, detail_fields, usage_items, status, signature_limit, token_expires_at, token_revoked_at, access_count";
 
 async function loadByToken(token: string) {
   if (!token || token.length < 20 || token.length > 128) return { error: "유효하지 않은 링크입니다.", status: 404 as const };
@@ -22,14 +22,24 @@ async function loadByToken(token: string) {
   const db = getSupabaseAdmin();
   const { data, error } = await db
     .from("portrait_consents")
-    .select(`${SELECT_COLUMNS}, access_count`)
+    .select(SELECT_COLUMNS)
     .eq("token_hash", tokenHash)
     .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return { error: "유효하지 않은 링크입니다.", status: 404 as const };
   if (data.token_revoked_at) return { error: "취소된 링크입니다.", status: 410 as const };
   if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) return { error: "만료된 링크입니다.", status: 410 as const };
-  return { data, db, tokenHash };
+  const { count, error: countError } = await db
+    .from("portrait_consent_signatures")
+    .select("id", { count: "exact", head: true })
+    .eq("portrait_consent_id", data.id);
+  if (countError) throw new Error(countError.message);
+  return { data, db, tokenHash, signatureCount: count ?? 0 };
+}
+
+function requestIp(req: NextRequest): string | null {
+  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return cleanText(forwarded || req.headers.get("x-real-ip"), 100) || null;
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
@@ -38,13 +48,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
     const result = await loadByToken(token);
     if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
 
-    const { data, db } = result;
+    const { data, db, signatureCount } = result;
     await db.from("portrait_consents").update({
       last_accessed_at: new Date().toISOString(),
       access_count: (data.access_count ?? 0) + 1,
     }).eq("id", data.id);
 
-    return NextResponse.json({ ok: true, consent: data });
+    const signatureLimit = data.signature_limit ?? 1;
+    return NextResponse.json({
+      ok: true,
+      consent: {
+        id: data.id,
+        title: data.title,
+        intro_text: data.intro_text,
+        detail_fields: data.detail_fields,
+        usage_items: data.usage_items,
+        status: data.status,
+        signature_count: signatureCount,
+        signature_limit: signatureLimit,
+        can_sign: signatureCount < signatureLimit,
+      },
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "조회 실패" }, { status: 500 });
   }
@@ -57,10 +81,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const result = await loadByToken(token);
     if ("error" in result) return NextResponse.json({ ok: false, error: result.error }, { status: result.status });
 
-    const { data, db } = result;
-    if (data.status === "signed") {
-      return NextResponse.json({ ok: false, error: "이미 서명이 제출된 동의서입니다." }, { status: 400 });
-    }
+    const { data, db, tokenHash } = result;
 
     const body = await req.json();
     const consentShoot = body.consentShoot === true || body.consentShoot === false ? body.consentShoot : null;
@@ -81,23 +102,60 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       return NextResponse.json({ ok: false, error: "서명 데이터가 너무 큽니다." }, { status: 400 });
     }
 
-    const signedDate = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-    const { error } = await db
-      .from("portrait_consents")
-      .update({
-        consent_shoot: consentShoot,
-        consent_usage: consentUsage,
-        provider_name: providerName,
-        signature_data_url: signatureDataUrl,
-        signed_date: signedDate,
-        status: "signed",
-        signed_at: new Date().toISOString(),
-        last_accessed_at: new Date().toISOString(),
-      })
-      .eq("id", data.id);
+    const signedDate = new Date().toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      timeZone: "Asia/Seoul",
+    });
+    const { data: submission, error } = await db.rpc("submit_portrait_consent_signature", {
+      p_portrait_consent_id: data.id,
+      p_token_hash: tokenHash,
+      p_consent_shoot: consentShoot,
+      p_consent_usage: consentUsage,
+      p_provider_name: providerName,
+      p_signature_data_url: signatureDataUrl,
+      p_signed_date: signedDate,
+      p_signer_ip: requestIp(req),
+      p_user_agent: cleanText(req.headers.get("user-agent"), 500) || null,
+    });
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ ok: true });
+    const resultBody = submission as {
+      ok?: boolean;
+      code?: string;
+      error?: string;
+      signature?: Record<string, unknown>;
+      signatureCount?: number;
+      signatureLimit?: number;
+      complete?: boolean;
+    } | null;
+    if (!resultBody?.ok) {
+      const status = resultBody?.code === "complete" ? 409 : resultBody?.code === "expired" || resultBody?.code === "revoked" ? 410 : 400;
+      return NextResponse.json(
+        { ok: false, error: resultBody?.error || "서명을 제출하지 못했습니다." },
+        { status },
+      );
+    }
+
+    const signature = resultBody.signature ?? {};
+    return NextResponse.json({
+      ok: true,
+      signature: {
+        id: signature.id,
+        portrait_consent_id: signature.portrait_consent_id,
+        consent_shoot: signature.consent_shoot,
+        consent_usage: signature.consent_usage,
+        provider_name: signature.provider_name,
+        signature_data_url: signature.signature_data_url,
+        signed_date: signature.signed_date,
+        signed_at: signature.signed_at,
+        created_at: signature.created_at,
+      },
+      signatureCount: resultBody.signatureCount ?? 0,
+      signatureLimit: resultBody.signatureLimit ?? data.signature_limit ?? 1,
+      complete: resultBody.complete === true,
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "제출 실패" }, { status: 500 });
   }

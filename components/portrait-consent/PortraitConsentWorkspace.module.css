@@ -278,9 +278,19 @@
 }
 
 .listPerson {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-top: 8px;
   color: var(--pc-muted);
   font-size: 12px;
+}
+
+.listPerson strong {
+  flex: 0 0 auto;
+  color: var(--pc-deep-green);
+  font-weight: 600;
 }
 
 .listMetaLine {
@@ -327,6 +337,12 @@
   min-width: 0;
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .mobileBack {
   display: none !important;
 }
@@ -337,6 +353,68 @@
   padding: 14px 24px;
   background: #f4f8f6;
   border-bottom: 1px solid var(--pc-border);
+}
+
+.signatureProgress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 24px;
+  background: #fdfcfa;
+  border-bottom: 1px solid var(--pc-border);
+}
+
+.progressCopy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.progressCopy .linkLabel {
+  margin: 0;
+}
+
+.progressCopy strong {
+  color: var(--pc-deep-green);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.progressCopy > span:last-child {
+  color: var(--pc-muted);
+  font-size: 12px;
+}
+
+.limitControl {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.limitControl label {
+  color: var(--pc-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.limitInput {
+  width: 64px;
+  height: 36px;
+  box-sizing: border-box;
+  color: var(--pc-ink);
+  text-align: center;
+  background: #fff;
+  border: 1px solid var(--pc-border);
+  border-radius: 9px;
+  outline: none;
+}
+
+.limitInput:focus {
+  border-color: var(--pc-deep-green);
+  box-shadow: 0 0 0 3px rgba(21, 88, 85, 0.1);
 }
 
 .linkText {
@@ -399,6 +477,100 @@
   flex: 1;
   padding: 22px 24px 30px;
   overflow: auto;
+}
+
+.signerSection {
+  margin-bottom: 18px;
+  padding: 14px;
+  background: #f7f5f0;
+  border: 1px solid var(--pc-border);
+  border-radius: 12px;
+}
+
+.signerHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.signerHeading h3,
+.signerHeading p {
+  margin: 0;
+}
+
+.signerHeading h3 {
+  color: var(--pc-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.signerHeading p {
+  margin-top: 3px;
+  color: var(--pc-muted);
+  font-size: 11px;
+}
+
+.signerHeading > span {
+  padding: 3px 8px;
+  color: var(--pc-deep-green);
+  background: var(--pc-mint);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.signerList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.signerCard {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 2px 8px;
+  align-items: center;
+  padding: 9px 10px;
+  color: var(--pc-ink);
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--pc-border);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.signerCard > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  grid-row: 1 / span 2;
+  place-items: center;
+  color: #fff;
+  background: var(--pc-deep-green);
+  border-radius: 50%;
+  font-size: 11px;
+}
+
+.signerCard strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signerCard small {
+  color: var(--pc-muted);
+  font-size: 10px;
+}
+
+.signerCardSelected {
+  background: var(--pc-mint);
+  border-color: var(--pc-deep-green);
+  box-shadow: 0 0 0 1px rgba(21, 88, 85, 0.08);
 }
 
 .formSection + .formSection {
@@ -709,6 +881,7 @@
 
   .detailHeader,
   .linkSummary,
+  .signatureProgress,
   .formScroll,
   .actionBar {
     padding-right: 18px;
@@ -718,6 +891,19 @@
   .actionBar {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .signatureProgress {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .limitControl {
+    width: 100%;
+  }
+
+  .limitControl .secondaryButton {
+    margin-left: auto;
   }
 
   .actionButtons {
@@ -752,5 +938,14 @@
   .signatureArea {
     align-items: flex-end;
     flex-direction: column;
+  }
+
+  .progressCopy {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .progressCopy > span:last-child {
+    flex-basis: 100%;
   }
 }

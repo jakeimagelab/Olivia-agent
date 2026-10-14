@@ -10,6 +10,7 @@ import {
   Link2,
   Loader2,
   Plus,
+  RefreshCw,
   Search,
   Trash2,
   UserRoundCheck,
@@ -20,6 +21,7 @@ import {
   DEFAULT_INTRO_TEXT,
   DEFAULT_USAGE_ITEMS,
   type PortraitConsentField,
+  type PortraitConsentSignature,
   type PortraitConsentStatus,
 } from "@/lib/portraitConsent";
 import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
@@ -33,8 +35,9 @@ interface ConsentListItem {
   workflow_run_name: string | null;
   title: string;
   status: PortraitConsentStatus;
-  provider_name: string | null;
-  signed_at: string | null;
+  signature_count: number;
+  signature_limit: number;
+  latest_signer_name: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,10 +46,8 @@ interface ConsentDetail extends Omit<ConsentListItem, "client_name" | "workflow_
   intro_text: string;
   detail_fields: PortraitConsentField[];
   usage_items: PortraitConsentField[];
-  consent_shoot: boolean | null;
-  consent_usage: boolean | null;
-  signature_data_url: string | null;
-  signed_date: string | null;
+  signature_count: number;
+  signature_limit: number;
 }
 
 interface ClientOption {
@@ -219,12 +220,17 @@ export default function PortraitConsentPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ConsentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [signatures, setSignatures] = useState<PortraitConsentSignature[]>([]);
+  const [selectedSignatureId, setSelectedSignatureId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [showEditorOnMobile, setShowEditorOnMobile] = useState(false);
 
   const [title, setTitle] = useState(hospitalName ? `${hospitalName} 초상권 동의서` : "초상권 동의서");
   const [introText, setIntroText] = useState(DEFAULT_INTRO_TEXT);
   const [detailFields, setDetailFields] = useState(() => cloneFields(DEFAULT_DETAIL_FIELDS));
   const [usageItems, setUsageItems] = useState(() => cloneFields(DEFAULT_USAGE_ITEMS));
+  const [signatureLimit, setSignatureLimit] = useState(1);
+  const [limitSaving, setLimitSaving] = useState(false);
   const [linkedClientId, setLinkedClientId] = useState<string | null>(clientId);
   const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | null>(workflowRunId);
   const [linkedClientName, setLinkedClientName] = useState(hospitalName);
@@ -251,10 +257,13 @@ export default function PortraitConsentPanel({
   const [linkBusy, setLinkBusy] = useState(false);
   const [linkError, setLinkError] = useState("");
 
-  const isSigned = detail?.status === "signed";
+  const signatureCount = detail?.signature_count ?? 0;
+  const hasSignatures = signatureCount > 0;
+  const isComplete = detail ? signatureCount >= detail.signature_limit : false;
+  const selectedSignature = signatures.find((signature) => signature.id === selectedSignatureId) ?? signatures[0] ?? null;
 
-  const loadList = useCallback(async () => {
-    setListLoading(true);
+  const loadList = useCallback(async (silent = false) => {
+    if (!silent) setListLoading(true);
     setListError("");
     try {
       const query = new URLSearchParams();
@@ -267,9 +276,61 @@ export default function PortraitConsentPanel({
     } catch (error) {
       setListError(error instanceof Error ? error.message : "동의서 목록을 불러오지 못했습니다.");
     } finally {
-      setListLoading(false);
+      if (!silent) setListLoading(false);
     }
   }, [clientId, workflowRunId]);
+
+  const loadConsent = useCallback(async (
+    id: string,
+    consent?: ConsentListItem,
+    silent = false,
+  ) => {
+    if (silent) setRefreshing(true);
+    else setDetailLoading(true);
+    try {
+      const [detailResponse, signaturesResponse] = await Promise.all([
+        fetch(`/api/conti/portrait-consents/${id}`),
+        fetch(`/api/conti/portrait-consents/${id}/signatures`),
+      ]);
+      const [detailBody, signaturesBody] = await Promise.all([
+        detailResponse.json(),
+        signaturesResponse.json(),
+      ]);
+      if (!detailResponse.ok || !detailBody.ok) {
+        throw new Error(detailBody.error || "동의서를 불러오지 못했습니다.");
+      }
+      if (!signaturesResponse.ok || !signaturesBody.ok) {
+        throw new Error(signaturesBody.error || "서명 목록을 불러오지 못했습니다.");
+      }
+
+      const nextDetail = detailBody.consent as ConsentDetail;
+      const nextSignatures = (signaturesBody.signatures ?? []) as PortraitConsentSignature[];
+      setDetail(nextDetail);
+      setSignatures(nextSignatures);
+      setSelectedSignatureId((current) => (
+        current && nextSignatures.some((signature) => signature.id === current)
+          ? current
+          : nextSignatures[0]?.id ?? null
+      ));
+      setTitle(nextDetail.title);
+      setIntroText(nextDetail.intro_text);
+      setDetailFields(cloneFields(nextDetail.detail_fields?.length ? nextDetail.detail_fields : DEFAULT_DETAIL_FIELDS));
+      setUsageItems(cloneFields(nextDetail.usage_items?.length ? nextDetail.usage_items : DEFAULT_USAGE_ITEMS));
+      setSignatureLimit(nextDetail.signature_limit ?? 1);
+      setLinkedClientId(nextDetail.client_id);
+      setLinkedWorkflowRunId(nextDetail.workflow_run_id);
+      if (consent) {
+        setLinkedClientName(consent.client_name ?? "");
+        setLinkedWorkflowRunName(consent.workflow_run_name ?? "");
+      }
+      if (!silent) setDirty(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "동의서를 불러오지 못했습니다.");
+    } finally {
+      if (silent) setRefreshing(false);
+      else setDetailLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     void loadList();
@@ -285,10 +346,13 @@ export default function PortraitConsentPanel({
   const resetEditor = useCallback(() => {
     setSelectedId(null);
     setDetail(null);
+    setSignatures([]);
+    setSelectedSignatureId(null);
     setTitle(hospitalName ? `${hospitalName} 초상권 동의서` : "초상권 동의서");
     setIntroText(DEFAULT_INTRO_TEXT);
     setDetailFields(cloneFields(DEFAULT_DETAIL_FIELDS));
     setUsageItems(cloneFields(DEFAULT_USAGE_ITEMS));
+    setSignatureLimit(1);
     setLinkedClientId(clientId);
     setLinkedWorkflowRunId(workflowRunId);
     setLinkedClientName(hospitalName);
@@ -312,39 +376,42 @@ export default function PortraitConsentPanel({
     if (consent.id === selectedId || !confirmDiscard()) return;
     setSelectedId(consent.id);
     setDetail(null);
-    setDetailLoading(true);
+    setSignatures([]);
+    setSelectedSignatureId(null);
     setFormError("");
     setNotice("");
     setShareUrl("");
     setShowEditorOnMobile(true);
-    try {
-      const response = await fetch(`/api/conti/portrait-consents/${consent.id}`);
-      const body = await response.json();
-      if (!response.ok || !body.ok) throw new Error(body.error || "동의서를 불러오지 못했습니다.");
-      const nextDetail = body.consent as ConsentDetail;
-      setDetail(nextDetail);
-      setTitle(nextDetail.title);
-      setIntroText(nextDetail.intro_text);
-      setDetailFields(cloneFields(nextDetail.detail_fields?.length ? nextDetail.detail_fields : DEFAULT_DETAIL_FIELDS));
-      setUsageItems(cloneFields(nextDetail.usage_items?.length ? nextDetail.usage_items : DEFAULT_USAGE_ITEMS));
-      setLinkedClientId(nextDetail.client_id);
-      setLinkedWorkflowRunId(nextDetail.workflow_run_id);
-      setLinkedClientName(consent.client_name ?? "");
-      setLinkedWorkflowRunName(consent.workflow_run_name ?? "");
-      setDirty(false);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "동의서를 불러오지 못했습니다.");
-    } finally {
-      setDetailLoading(false);
-    }
+    await loadConsent(consent.id, consent);
   };
+
+  const refreshAll = useCallback(async () => {
+    await Promise.all([
+      loadList(true),
+      selectedId && !dirty ? loadConsent(selectedId, undefined, true) : Promise.resolve(),
+    ]);
+  }, [dirty, loadConsent, loadList, selectedId]);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refreshAll();
+    };
+    const timer = window.setInterval(refreshWhenVisible, 15_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshAll]);
 
   const filteredConsents = useMemo(() => {
     const normalizedSearch = search.trim().toLocaleLowerCase("ko-KR");
     return consents.filter((consent) => {
       if (statusFilter !== "all" && consent.status !== statusFilter) return false;
       if (!normalizedSearch) return true;
-      return [consent.title, consent.provider_name, consent.client_name, consent.workflow_run_name]
+      return [consent.title, consent.latest_signer_name, consent.client_name, consent.workflow_run_name]
         .some((value) => value?.toLocaleLowerCase("ko-KR").includes(normalizedSearch));
     });
   }, [consents, search, statusFilter]);
@@ -354,15 +421,23 @@ export default function PortraitConsentPanel({
       setFormError("제목을 입력해 주세요.");
       return;
     }
-    if (isSigned) {
-      setFormError("서명 완료 문서는 내용을 수정할 수 없습니다.");
+    if (hasSignatures) {
+      setFormError("서명이 제출된 문서는 내용을 수정할 수 없습니다.");
       return;
     }
     setSaving(true);
     setFormError("");
     setNotice("");
     try {
-      const payload = { clientId: linkedClientId, workflowRunId: linkedWorkflowRunId, title, introText, detailFields, usageItems };
+      const payload = {
+        clientId: linkedClientId,
+        workflowRunId: linkedWorkflowRunId,
+        title,
+        introText,
+        detailFields,
+        usageItems,
+        signatureLimit,
+      };
       const response = selectedId
         ? await fetch(`/api/conti/portrait-consents/${selectedId}`, {
             method: "PATCH",
@@ -376,7 +451,7 @@ export default function PortraitConsentPanel({
           });
       const body = await response.json();
       if (!response.ok || !body.ok) throw new Error(body.error || "동의서를 저장하지 못했습니다.");
-      const saved = body.consent as ConsentDetail;
+      const saved = { ...body.consent, signature_count: body.consent.signature_count ?? 0 } as ConsentDetail;
       setSelectedId(saved.id);
       setDetail(saved);
       setDirty(false);
@@ -390,7 +465,7 @@ export default function PortraitConsentPanel({
   };
 
   const removeConsent = async () => {
-    if (!selectedId || !window.confirm(isSigned ? "서명 완료된 동의서를 삭제할까요?" : "이 동의서를 삭제할까요?")) return;
+    if (!selectedId || !window.confirm(hasSignatures ? "받은 서명까지 포함해 동의서를 삭제할까요?" : "이 동의서를 삭제할까요?")) return;
     setFormError("");
     try {
       const response = await fetch(`/api/conti/portrait-consents/${selectedId}`, { method: "DELETE" });
@@ -401,6 +476,31 @@ export default function PortraitConsentPanel({
       await loadList();
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "동의서를 삭제하지 못했습니다.");
+    }
+  };
+
+  const saveSignatureLimit = async () => {
+    if (!selectedId || !detail || signatureLimit === detail.signature_limit || limitSaving) return;
+    setLimitSaving(true);
+    setFormError("");
+    setNotice("");
+    try {
+      const response = await fetch(`/api/conti/portrait-consents/${selectedId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signatureLimit }),
+      });
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "받을 인원을 저장하지 못했습니다.");
+      const nextDetail = { ...body.consent, signature_count: body.consent.signature_count ?? signatureCount } as ConsentDetail;
+      setDetail(nextDetail);
+      setSignatureLimit(nextDetail.signature_limit);
+      setNotice(`받을 인원을 ${nextDetail.signature_limit}명으로 저장했습니다.`);
+      await loadList(true);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "받을 인원을 저장하지 못했습니다.");
+    } finally {
+      setLimitSaving(false);
     }
   };
 
@@ -449,7 +549,8 @@ export default function PortraitConsentPanel({
     setFormError("");
     try {
       const pdf = await generatePortraitConsentPdf(detailDocRef.current);
-      pdf.save(`${detail?.title || "초상권_동의서"}.pdf`);
+      const signer = selectedSignature?.provider_name?.trim();
+      pdf.save(`${detail?.title || "초상권_동의서"}${signer ? `_${signer}` : ""}.pdf`);
     } catch {
       setFormError("PDF 생성에 실패했습니다.");
     } finally {
@@ -606,7 +707,10 @@ export default function PortraitConsentPanel({
                     <span className={styles.listTitle}>{consent.title}</span>
                     <span className={`${styles.statusBadge} ${STATUS_CLASS[consent.status]}`}>{STATUS_LABEL[consent.status]}</span>
                   </span>
-                  <span className={styles.listPerson}>{consent.provider_name || "서명자 미입력"}</span>
+                  <span className={styles.listPerson}>
+                    <span>{consent.latest_signer_name ? `최근 서명 · ${consent.latest_signer_name}` : "아직 받은 서명이 없습니다."}</span>
+                    <strong>서명 {consent.signature_count}/{consent.signature_limit}명</strong>
+                  </span>
                   <span className={styles.listMetaLine}>
                     <span className={styles.listLink}>
                       {consent.client_name
@@ -628,11 +732,23 @@ export default function PortraitConsentPanel({
                 <ArrowLeft size={16} />
               </button>
               <div className={styles.detailTitleGroup}>
-                <h2>{selectedId ? (isSigned ? "서명 완료 동의서" : "동의서 작성") : "새 동의서 작성"}</h2>
-                <p>{isSigned ? "서명된 본문은 변경할 수 없으며 고객 연결만 바꿀 수 있습니다." : "내용을 저장한 뒤 서명 링크를 만들 수 있습니다."}</p>
+                <h2>{selectedId ? (hasSignatures ? "받은 서명 확인" : "동의서 작성") : "새 동의서 작성"}</h2>
+                <p>{hasSignatures ? "서명자를 선택해 원본을 확인하고 PDF로 받을 수 있습니다." : "내용을 저장한 뒤 서명 링크를 만들 수 있습니다."}</p>
               </div>
             </div>
-            {detail?.status ? <span className={`${styles.statusBadge} ${STATUS_CLASS[detail.status]}`}>{STATUS_LABEL[detail.status]}</span> : null}
+            <div className={styles.headerActions}>
+              <button
+                className={styles.iconButton}
+                type="button"
+                aria-label="동의서 새로고침"
+                title="새 서명 확인"
+                disabled={refreshing}
+                onClick={() => void refreshAll()}
+              >
+                <RefreshCw className={refreshing ? "spin-icon" : undefined} size={15} />
+              </button>
+              {detail?.status ? <span className={`${styles.statusBadge} ${STATUS_CLASS[detail.status]}`}>{STATUS_LABEL[detail.status]}</span> : null}
+            </div>
           </header>
 
           <div className={styles.linkSummary}>
@@ -649,10 +765,58 @@ export default function PortraitConsentPanel({
             </button>
           </div>
 
+          <div className={styles.signatureProgress}>
+            <div className={styles.progressCopy}>
+              <span className={styles.linkLabel}>서명 진행</span>
+              <strong>{signatureCount}/{signatureLimit}명</strong>
+              <span>{isComplete ? "필요한 서명을 모두 받았습니다." : `${Math.max(0, signatureLimit - signatureCount)}명의 서명을 더 받을 수 있습니다.`}</span>
+            </div>
+            <div className={styles.limitControl}>
+              <label htmlFor="portrait-signature-limit">받을 인원</label>
+              <input
+                id="portrait-signature-limit"
+                className={styles.limitInput}
+                type="number"
+                min={Math.max(1, signatureCount)}
+                max={100}
+                value={signatureLimit}
+                onChange={(event) => setSignatureLimit(Number(event.target.value))}
+              />
+              {selectedId && detail && signatureLimit !== detail.signature_limit ? (
+                <button className={styles.secondaryButton} type="button" disabled={limitSaving} onClick={() => void saveSignatureLimit()}>
+                  {limitSaving ? <Loader2 className="spin-icon" size={14} /> : <Check size={14} />} 인원 저장
+                </button>
+              ) : null}
+            </div>
+          </div>
+
           {detailLoading ? (
             <div className={styles.loadingState}><Loader2 className="spin-icon" size={18} /> 동의서를 불러오는 중</div>
-          ) : isSigned && detail ? (
+          ) : hasSignatures && detail && selectedSignature ? (
             <div className={styles.formScroll}>
+              <section className={styles.signerSection} aria-label="서명자 목록">
+                <div className={styles.signerHeading}>
+                  <div>
+                    <h3>받은 서명</h3>
+                    <p>서명자를 선택하면 아래 원본과 PDF가 함께 바뀝니다.</p>
+                  </div>
+                  <span>{signatures.length}명</span>
+                </div>
+                <div className={styles.signerList}>
+                  {signatures.map((signature, index) => (
+                    <button
+                      className={`${styles.signerCard} ${selectedSignature.id === signature.id ? styles.signerCardSelected : ""}`}
+                      type="button"
+                      key={signature.id}
+                      onClick={() => setSelectedSignatureId(signature.id)}
+                    >
+                      <span>{index + 1}</span>
+                      <strong>{signature.provider_name || "이름 없음"}</strong>
+                      <small>{signature.signed_date || relativeTime(signature.signed_at)}</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
               <div className={styles.signedDocument} ref={detailDocRef}>
                 <h2>{detail.title}</h2>
                 <p className={styles.signedIntro}>{detail.intro_text}</p>
@@ -669,14 +833,14 @@ export default function PortraitConsentPanel({
                   ))}
                 </div>
                 <div className={styles.signedRows} style={{ marginTop: 18 }}>
-                  <div className={styles.signedRow}><strong>사진 촬영 동의</strong><span>{detail.consent_shoot ? "예" : "아니오"}</span></div>
-                  <div className={styles.signedRow}><strong>홍보 목적 사용 동의</strong><span>{detail.consent_usage ? "예" : "아니오"}</span></div>
-                  <div className={styles.signedRow}><strong>작성일</strong><span>{detail.signed_date || "-"}</span></div>
+                  <div className={styles.signedRow}><strong>사진 촬영 동의</strong><span>{selectedSignature.consent_shoot ? "예" : "아니오"}</span></div>
+                  <div className={styles.signedRow}><strong>홍보 목적 사용 동의</strong><span>{selectedSignature.consent_usage ? "예" : "아니오"}</span></div>
+                  <div className={styles.signedRow}><strong>작성일</strong><span>{selectedSignature.signed_date || "-"}</span></div>
                 </div>
                 <div className={styles.signatureArea}>
                   <div>포토클리닉<img src="/assets/ceo-signature.png" alt="포토클리닉 서명" /></div>
-                  <div>초상권 제공자 <strong>{detail.provider_name}</strong> (인)
-                    {detail.signature_data_url ? <img src={detail.signature_data_url} alt="제공자 서명" /> : null}
+                  <div>초상권 제공자 <strong>{selectedSignature.provider_name}</strong> (인)
+                    {selectedSignature.signature_data_url ? <img src={selectedSignature.signature_data_url} alt={`${selectedSignature.provider_name || "제공자"} 서명`} /> : null}
                   </div>
                 </div>
               </div>
@@ -718,18 +882,27 @@ export default function PortraitConsentPanel({
 
           <footer className={styles.actionBar}>
             <span className={styles.actionHint}>
-              {isSigned
-                ? "서명 원본은 잠겨 있습니다. 고객·촬영 건 연결과 PDF 다운로드만 가능합니다."
+              {hasSignatures
+                ? isComplete
+                  ? "필요한 서명을 모두 받았습니다. 선택한 서명자의 원본을 PDF로 받을 수 있습니다."
+                  : "기존 링크를 다음 사람에게 그대로 전달하세요. 받은 서명 원본은 잠겨 있습니다."
                 : dirty || !selectedId
                   ? "작성 내용을 저장하면 모델에게 전달할 서명 링크를 만들 수 있습니다."
                   : "저장된 내용으로 30일 동안 유효한 새 서명 링크를 만듭니다."}
             </span>
             <div className={styles.actionButtons}>
               {selectedId ? <button className={`${styles.weakButton} ${styles.dangerButton}`} type="button" onClick={() => void removeConsent()}><Trash2 size={14} /> 삭제</button> : null}
-              {isSigned ? (
+              {hasSignatures ? (
+                <>
                 <button className={styles.secondaryButton} type="button" disabled={pdfBusy} onClick={() => void downloadPdf()}>
                   {pdfBusy ? <Loader2 className="spin-icon" size={14} /> : <FileDown size={14} />} PDF 다운로드
                 </button>
+                {!isComplete ? (
+                  <button className={styles.primaryButton} type="button" disabled={shareBusy} onClick={() => void generateLink()}>
+                    {shareBusy ? <Loader2 className="spin-icon" size={15} /> : <Link2 size={15} />} 새 링크 만들기
+                  </button>
+                ) : null}
+                </>
               ) : dirty || !selectedId ? (
                 <button className={styles.primaryButton} type="button" disabled={saving} onClick={() => void save()}>
                   {saving ? <Loader2 className="spin-icon" size={15} /> : <Check size={15} />} {saving ? "저장 중" : "저장"}

@@ -1,46 +1,81 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { useParams } from "next/navigation";
-import { C, R, FS } from "@/lib/theme";
-import type { PortraitConsentField } from "@/lib/portraitConsent";
+import { CheckCircle2, Download, Loader2, RotateCcw } from "lucide-react";
+import type { PortraitConsentField, PortraitConsentSignature } from "@/lib/portraitConsent";
 import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
+import styles from "./PortraitConsentPortal.module.css";
 
-// 초상권 제공자(모델/환자)가 로그인 없이 토큰 링크만으로 여는 서명 포털.
-// 전달 방식 자체는 파일이 아닌 이 포털 링크이며, 서명은 화면에서 바로 캔버스로 받아
-// DB(portrait_consents)에 저장한다 — PDF는 서명 완료 후 본인 보관용 다운로드로만 제공한다.
 interface ConsentDoc {
   id: string;
   title: string;
   intro_text: string;
   detail_fields: PortraitConsentField[];
   usage_items: PortraitConsentField[];
-  consent_shoot: boolean | null;
-  consent_usage: boolean | null;
-  provider_name: string | null;
-  signature_data_url: string | null;
-  signed_date: string | null;
   status: "draft" | "sent" | "signed";
+  signature_count: number;
+  signature_limit: number;
+  can_sign: boolean;
 }
 
-function YesNoToggle({
-  value, onChange, disabled,
-}: { value: boolean | null; onChange: (v: boolean) => void; disabled?: boolean }) {
-  const btn = (active: boolean): React.CSSProperties => ({
-    padding: "8px 20px",
-    borderRadius: R.sm,
-    border: `1.5px solid ${active ? C.teal : C.border}`,
-    background: active ? C.teal : "#fff",
-    color: active ? "#fff" : C.muted,
-    fontWeight: 800,
-    fontSize: FS.sm,
-    cursor: disabled ? "default" : "pointer",
-  });
+function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (value: boolean) => void }) {
   return (
-    <div style={{ display: "flex", gap: 8 }}>
-      <button type="button" disabled={disabled} onClick={() => onChange(true)} style={btn(value === true)}>예</button>
-      <button type="button" disabled={disabled} onClick={() => onChange(false)} style={btn(value === false)}>아니오</button>
+    <div className={styles.toggle}>
+      <button className={value === true ? styles.toggleActive : ""} type="button" onClick={() => onChange(true)}>예</button>
+      <button className={value === false ? styles.toggleActive : ""} type="button" onClick={() => onChange(false)}>아니오</button>
+    </div>
+  );
+}
+
+function FieldRows({ fields }: { fields: PortraitConsentField[] }) {
+  return (
+    <div className={styles.fieldRows}>
+      {fields.map((field, index) => (
+        <div className={styles.fieldRow} key={`${field.label}-${index}`}>
+          <span aria-hidden="true">›</span>
+          <strong>{field.label}</strong>
+          <p>{field.value || "-"}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DocumentBody({ consent }: { consent: ConsentDoc }) {
+  return (
+    <>
+      <header className={styles.documentHeader}>
+        <h1>{consent.title}</h1>
+        <p>{consent.intro_text}</p>
+      </header>
+      <section className={styles.documentSection}>
+        <h2>사진(영상)촬영</h2>
+        <FieldRows fields={consent.detail_fields} />
+      </section>
+      <section className={styles.documentSection}>
+        <h2 className={styles.orangeHeading}>영상/사진(이미지) 활용</h2>
+        <FieldRows fields={consent.usage_items} />
+      </section>
+    </>
+  );
+}
+
+function SignatureBlock({ signature }: { signature: PortraitConsentSignature }) {
+  return (
+    <div className={styles.signatureBlock}>
+      <p>작성일 {signature.signed_date || "-"}</p>
+      <div>
+        <section>
+          <span>포토클리닉</span>
+          <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" />
+        </section>
+        <section>
+          <span>초상권 제공자 <strong>{signature.provider_name}</strong> (인)</span>
+          {signature.signature_data_url ? <img src={signature.signature_data_url} alt={`${signature.provider_name || "제공자"} 서명`} /> : null}
+        </section>
+      </div>
     </div>
   );
 }
@@ -48,35 +83,40 @@ function YesNoToggle({
 export default function PortraitConsentPortalPage() {
   const params = useParams<{ token: string }>();
   const token = params?.token || "";
-
   const [consent, setConsent] = useState<ConsentDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [consentShoot, setConsentShoot] = useState<boolean | null>(null);
   const [consentUsage, setConsentUsage] = useState<boolean | null>(null);
   const [providerName, setProviderName] = useState("");
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
+  const [submittedSignature, setSubmittedSignature] = useState<PortraitConsentSignature | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-
+  const [pdfBusy, setPdfBusy] = useState(false);
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
   const docRef = useRef<HTMLDivElement>(null);
-  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const loadConsent = useCallback(async () => {
+    if (!token) return;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/portrait-consent/${encodeURIComponent(token)}`);
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "링크를 열 수 없습니다.");
+      setConsent(body.consent);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "링크를 열 수 없습니다.");
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
 
   useEffect(() => {
-    if (!token) return;
-    fetch(`/api/portrait-consent/${encodeURIComponent(token)}`)
-      .then((r) => r.json())
-      .then((body) => {
-        if (!body.ok) { setError(body.error || "링크를 열 수 없습니다."); return; }
-        setConsent(body.consent);
-      })
-      .catch(() => setError("링크를 열 수 없습니다."))
-      .finally(() => setLoading(false));
-  }, [token]);
+    void loadConsent();
+  }, [loadConsent]);
 
   const getSignaturePoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = signatureCanvasRef.current;
@@ -87,267 +127,197 @@ export default function PortraitConsentPortalPage() {
       y: ((event.clientY - rect.top) / rect.height) * canvas.height,
     };
   };
+
   const startSignature = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = signatureCanvasRef.current;
     const point = getSignaturePoint(event);
     if (!canvas || !point) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     isSigningRef.current = true;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.strokeStyle = "#111111";
-    ctx.lineWidth = 4;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.beginPath();
-    ctx.moveTo(point.x, point.y);
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.strokeStyle = "#111111";
+    context.lineWidth = 4;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.beginPath();
+    context.moveTo(point.x, point.y);
   };
+
   const drawSignature = (event: PointerEvent<HTMLCanvasElement>) => {
     if (!isSigningRef.current) return;
     const canvas = signatureCanvasRef.current;
     const point = getSignaturePoint(event);
     if (!canvas || !point) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.lineTo(point.x, point.y);
-    ctx.stroke();
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.lineTo(point.x, point.y);
+    context.stroke();
   };
+
   const finishSignature = () => {
     const canvas = signatureCanvasRef.current;
     if (!canvas || !isSigningRef.current) return;
     isSigningRef.current = false;
     setSignatureDataUrl(canvas.toDataURL("image/png"));
   };
+
   const clearSignature = () => {
     const canvas = signatureCanvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
     setSignatureDataUrl("");
   };
 
-  const canSubmit = consentShoot !== null && consentUsage !== null && providerName.trim().length > 0 && signatureDataUrl.length > 0;
-  const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-
-  const handleDownloadPdf = async () => {
-    if (!docRef.current || pdfBusy) return;
-    setPdfBusy(true);
-    try {
-      const pdf = await generatePortraitConsentPdf(docRef.current);
-      pdf.save(`${consent?.title || "초상권_동의서"}.pdf`);
-    } catch {
-      alert("PDF 생성에 실패했습니다.");
-    } finally {
-      setPdfBusy(false);
-    }
-  };
+  const canSubmit = consentShoot !== null
+    && consentUsage !== null
+    && providerName.trim().length > 0
+    && signatureDataUrl.length > 0;
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
     setSubmitError("");
     try {
-      const res = await fetch(`/api/portrait-consent/${encodeURIComponent(token)}`, {
+      const response = await fetch(`/api/portrait-consent/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ consentShoot, consentUsage, providerName: providerName.trim(), signatureDataUrl }),
       });
-      const body = await res.json();
-      if (!body.ok) throw new Error(body.error || "제출에 실패했습니다.");
-      setSubmitted(true);
-    } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : "제출에 실패했습니다.");
+      const body = await response.json();
+      if (!response.ok || !body.ok) throw new Error(body.error || "제출에 실패했습니다.");
+      setSubmittedSignature(body.signature as PortraitConsentSignature);
+      setConsent((current) => current ? {
+        ...current,
+        signature_count: body.signatureCount,
+        signature_limit: body.signatureLimit,
+        can_sign: body.complete !== true,
+        status: body.complete ? "signed" : "sent",
+      } : current);
+    } catch (submitFailure) {
+      setSubmitError(submitFailure instanceof Error ? submitFailure.message : "제출에 실패했습니다.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const cardStyle: React.CSSProperties = {
-    background: "#fff", borderRadius: R.xl, border: `1px solid ${C.border}`,
-    boxShadow: "0 8px 32px rgba(21,88,85,0.08)", overflow: "hidden",
+  const handleDownloadPdf = async () => {
+    if (!docRef.current || !submittedSignature || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const pdf = await generatePortraitConsentPdf(docRef.current);
+      pdf.save(`${consent?.title || "초상권_동의서"}_${submittedSignature.provider_name || "서명자"}.pdf`);
+    } catch {
+      setSubmitError("PDF 생성에 실패했습니다.");
+    } finally {
+      setPdfBusy(false);
+    }
   };
-  const sectionHeaderStyle = (bg: string): React.CSSProperties => ({
-    background: bg, color: "#fff", fontWeight: 900, fontSize: FS.md,
-    padding: "10px 20px", letterSpacing: "0.02em",
-  });
-  const fieldRow = (field: PortraitConsentField, i: number) => (
-    <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: i === -1 ? "none" : `1px dashed ${C.border}`, fontSize: FS.md }}>
-      <span style={{ color: C.orange, fontWeight: 900, flexShrink: 0 }}>▷</span>
-      <span style={{ fontWeight: 800, color: C.ink, minWidth: 110, flexShrink: 0 }}>{field.label}</span>
-      <span style={{ color: C.muted, whiteSpace: "pre-line", flex: 1 }}>{field.value || "-"}</span>
-    </div>
-  );
+
+  const startAnotherSignature = async () => {
+    setSubmittedSignature(null);
+    setConsentShoot(null);
+    setConsentUsage(null);
+    setProviderName("");
+    setSignatureDataUrl("");
+    setSubmitError("");
+    await loadConsent();
+  };
 
   return (
-    <main style={{ minHeight: "100vh", background: C.bg, padding: "24px 16px 80px" }}>
-      <div style={{ maxWidth: 720, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
-          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" style={{ height: 32, objectFit: "contain" }} />
+    <main className={styles.page}>
+      <div className={styles.container}>
+        <div className={styles.logoWrap}>
+          <img src="/assets/photoclinic-logo.png" alt="포토클리닉" />
         </div>
 
-        {loading && <p style={{ textAlign: "center", color: C.muted, fontSize: FS.sm }}>불러오는 중…</p>}
-        {error && (
-          <div style={{ ...cardStyle, padding: 24, textAlign: "center", color: C.danger, fontSize: FS.md, fontWeight: 700 }}>
-            {error}
-          </div>
-        )}
+        {loading ? <div className={styles.message}><Loader2 className="spin-icon" size={18} /> 불러오는 중</div> : null}
+        {error ? <div className={`${styles.message} ${styles.error}`}>{error}</div> : null}
 
-        {consent && (consent.status === "signed" || submitted) && (
-          <div style={cardStyle}>
-            <div style={{ background: C.teal, color: "#fff", padding: "16px 20px", fontWeight: 900, fontSize: FS.lg, textAlign: "center" }}>
-              서명이 정상적으로 제출되었습니다
+        {consent && !submittedSignature && !consent.can_sign ? (
+          <section className={styles.completeCard}>
+            <CheckCircle2 size={34} />
+            <h1>필요한 서명을 모두 받았습니다</h1>
+            <p>이 링크에는 더 이상 서명할 수 없습니다. 전달한 담당자에게 문의해 주세요.</p>
+            <strong>{consent.signature_count}/{consent.signature_limit}명 완료</strong>
+          </section>
+        ) : null}
+
+        {consent && submittedSignature ? (
+          <section className={styles.card}>
+            <header className={styles.successHeader}>
+              <CheckCircle2 size={22} />
+              <div>
+                <h1>서명이 정상적으로 제출되었습니다</h1>
+                <p>{consent.signature_count}/{consent.signature_limit}명 서명 완료</p>
+              </div>
+            </header>
+            <div className={styles.document} ref={docRef}>
+              <DocumentBody consent={consent} />
+              <div className={styles.agreementRows}>
+                <p>위와 같이 사진을 촬영하는 것에 동의합니다 <strong>{submittedSignature.consent_shoot ? "예" : "아니오"}</strong></p>
+                <p>촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다 <strong>{submittedSignature.consent_usage ? "예" : "아니오"}</strong></p>
+              </div>
+              <SignatureBlock signature={submittedSignature} />
             </div>
-
-            <div ref={docRef} style={{ background: "#fff" }}>
-              <div style={{ padding: "28px 24px 8px" }}>
-                <div style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, textAlign: "center", marginBottom: 16 }}>{consent.title}</div>
-                <p style={{ color: C.muted, fontSize: FS.md, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 16 }}>{consent.intro_text}</p>
-              </div>
-
-              <div style={{ padding: "0 24px", marginTop: 16 }}>
-                <div style={{ ...sectionHeaderStyle(C.teal), borderRadius: R.sm }}>사진(영상)촬영</div>
-                <div style={{ padding: "12px 4px" }}>{consent.detail_fields.map(fieldRow)}</div>
-              </div>
-
-              <div style={{ padding: "0 24px", marginTop: 8 }}>
-                <div style={{ ...sectionHeaderStyle(C.orange), borderRadius: R.sm }}>영상/사진(이미지) 활용</div>
-                <div style={{ padding: "12px 4px" }}>{consent.usage_items.map(fieldRow)}</div>
-              </div>
-
-              <div style={{ padding: "20px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}>
-                <div style={{ fontWeight: 800, color: C.ink, fontSize: FS.sm }}>
-                  위와 같이 사진을 촬영하는 것에 동의합니다: <b style={{ color: C.teal }}>{consent.consent_shoot ? "예" : "아니오"}</b>
-                </div>
-                <div style={{ fontWeight: 800, color: C.ink, fontSize: FS.sm }}>
-                  촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다: <b style={{ color: C.teal }}>{consent.consent_usage ? "예" : "아니오"}</b>
-                </div>
-              </div>
-
-              <div style={{ padding: 24 }}>
-                <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {consent.signed_date || today}</div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 32, flexWrap: "wrap" }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
-                    <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 44, objectFit: "contain" }} />
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>
-                      초상권 제공자 &nbsp;<b>{consent.provider_name}</b> (인)
-                    </div>
-                    {consent.signature_data_url && (
-                      <img src={consent.signature_data_url} alt="서명" style={{ height: 44, objectFit: "contain" }} />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ padding: "0 24px 24px" }}>
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={pdfBusy}
-                style={{
-                  width: "100%", padding: "12px 0", borderRadius: R.md, border: `1.5px solid ${C.teal}`,
-                  background: "#fff", color: C.teal, fontWeight: 800, fontSize: FS.md,
-                  cursor: pdfBusy ? "not-allowed" : "pointer", opacity: pdfBusy ? 0.6 : 1,
-                }}
-              >
-                {pdfBusy ? "PDF 생성 중…" : "PDF 다운로드"}
+            <footer className={styles.completionActions}>
+              <button className={styles.secondaryButton} type="button" disabled={pdfBusy} onClick={() => void handleDownloadPdf()}>
+                {pdfBusy ? <Loader2 className="spin-icon" size={16} /> : <Download size={16} />} PDF 다운로드
               </button>
-            </div>
-          </div>
-        )}
+              {consent.can_sign ? (
+                <button className={styles.primaryButton} type="button" onClick={() => void startAnotherSignature()}>
+                  <RotateCcw size={16} /> 다른 사람 서명하기
+                </button>
+              ) : null}
+            </footer>
+          </section>
+        ) : null}
 
-        {consent && consent.status !== "signed" && !submitted && (
-          <div style={cardStyle}>
-            <div style={{ height: 6, background: C.teal }} />
-            <div style={{ padding: "28px 24px 8px" }}>
-              <div style={{ fontSize: FS.xxl, fontWeight: 900, color: C.ink, textAlign: "center", marginBottom: 16 }}>{consent.title}</div>
-              <p style={{ color: C.muted, fontSize: FS.md, lineHeight: 1.7, background: C.mint, borderRadius: R.md, padding: 16 }}>{consent.intro_text}</p>
+        {consent && consent.can_sign && !submittedSignature ? (
+          <section className={styles.card}>
+            <div className={styles.progressBar}>
+              <span>서명 {consent.signature_count}/{consent.signature_limit}명</span>
+              <span>{consent.signature_limit - consent.signature_count}명 남음</span>
             </div>
-
-            <div style={{ padding: "0 24px", marginTop: 16 }}>
-              <div style={{ ...sectionHeaderStyle(C.teal), borderRadius: R.sm }}>사진(영상)촬영</div>
-              <div style={{ padding: "12px 4px" }}>{consent.detail_fields.map(fieldRow)}</div>
-            </div>
-
-            <div style={{ padding: "0 24px", marginTop: 8 }}>
-              <div style={{ ...sectionHeaderStyle(C.orange), borderRadius: R.sm }}>영상/사진(이미지) 활용</div>
-              <div style={{ padding: "12px 4px" }}>{consent.usage_items.map(fieldRow)}</div>
-            </div>
-
-            <div style={{ padding: "20px 24px 0", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                <span style={{ fontSize: FS.md, color: C.ink, fontWeight: 700 }}>위와 같이 사진을 촬영하는 것에 동의합니다</span>
-                <YesNoToggle value={consentShoot} onChange={setConsentShoot} />
+            <div className={styles.document}>
+              <DocumentBody consent={consent} />
+              <div className={styles.choiceRows}>
+                <div><span>위와 같이 사진을 촬영하는 것에 동의합니다</span><YesNoToggle value={consentShoot} onChange={setConsentShoot} /></div>
+                <div><span>촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다</span><YesNoToggle value={consentUsage} onChange={setConsentUsage} /></div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                <span style={{ fontSize: FS.md, color: C.ink, fontWeight: 700 }}>촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다</span>
-                <YesNoToggle value={consentUsage} onChange={setConsentUsage} />
-              </div>
-            </div>
-
-            <div style={{ padding: "24px", marginTop: 8, borderTop: `1px solid ${C.border}` }}>
-              <div style={{ textAlign: "right", color: C.muted, fontSize: FS.sm, marginBottom: 16 }}>작성일 {today}</div>
-
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>포토클리닉</div>
-                <div style={{ border: `1px solid ${C.border}`, borderRadius: R.md, padding: "10px 14px", display: "flex", alignItems: "center", background: "#fafaf9" }}>
-                  <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" style={{ height: 40, objectFit: "contain" }} />
+              <section className={styles.signForm}>
+                <div className={styles.companySignature}>
+                  <span>포토클리닉</span>
+                  <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" />
                 </div>
-              </div>
-
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, marginBottom: 6 }}>초상권 제공자 성명</label>
-              <input
-                value={providerName}
-                onChange={(e) => setProviderName(e.target.value)}
-                placeholder="이름을 입력해 주세요"
-                style={{ width: "100%", padding: "10px 12px", borderRadius: R.sm, border: `1.5px solid ${C.border}`, fontSize: FS.md, boxSizing: "border-box" }}
-              />
-
-              <label style={{ display: "block", fontSize: FS.sm, fontWeight: 800, color: C.ink, margin: "18px 0 6px" }}>서명</label>
-              <div style={{ maxWidth: 320 }}>
-                <canvas
-                  ref={signatureCanvasRef}
-                  width={360}
-                  height={100}
-                  onPointerDown={startSignature}
-                  onPointerMove={drawSignature}
-                  onPointerUp={finishSignature}
-                  onPointerLeave={finishSignature}
-                  onPointerCancel={finishSignature}
-                  style={{
-                    width: "100%", aspectRatio: "360 / 100", border: `1.5px dashed ${C.border}`,
-                    borderRadius: R.md, background: "#fff", touchAction: "none", display: "block",
-                  }}
-                />
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6 }}>
-                  <button type="button" onClick={clearSignature} style={{ fontSize: FS.xs, color: C.muted, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-                    서명 지우기
-                  </button>
+                <label htmlFor="portrait-provider-name">초상권 제공자 성명</label>
+                <input id="portrait-provider-name" value={providerName} placeholder="이름을 입력해 주세요" onChange={(event) => setProviderName(event.target.value)} />
+                <label>서명</label>
+                <div className={styles.canvasWrap}>
+                  <canvas
+                    ref={signatureCanvasRef}
+                    width={720}
+                    height={200}
+                    onPointerDown={startSignature}
+                    onPointerMove={drawSignature}
+                    onPointerUp={finishSignature}
+                    onPointerLeave={finishSignature}
+                    onPointerCancel={finishSignature}
+                  />
+                  <button type="button" onClick={clearSignature}>서명 지우기</button>
                 </div>
-              </div>
-
-              {submitError && <div style={{ color: C.danger, fontSize: FS.sm, marginTop: 12, fontWeight: 700 }}>{submitError}</div>}
-
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={!canSubmit || submitting}
-                style={{
-                  width: "100%", marginTop: 20, padding: "14px 0", borderRadius: R.md, border: "none",
-                  background: canSubmit ? C.teal : C.hint, color: "#fff", fontWeight: 900, fontSize: FS.lg,
-                  cursor: canSubmit && !submitting ? "pointer" : "not-allowed",
-                }}
-              >
-                {submitting ? "제출 중…" : "동의하고 서명 제출"}
+                {submitError ? <div className={styles.formError}>{submitError}</div> : null}
+              </section>
+            </div>
+            <footer className={styles.submitBar}>
+              <span>본인의 이름과 서명을 확인한 뒤 제출해 주세요.</span>
+              <button className={styles.primaryButton} type="button" disabled={!canSubmit || submitting} onClick={() => void handleSubmit()}>
+                {submitting ? <Loader2 className="spin-icon" size={16} /> : <CheckCircle2 size={16} />}
+                {submitting ? "제출 중" : "동의하고 서명 제출"}
               </button>
-            </div>
-
-            <div style={{ textAlign: "center", padding: "16px 0 20px", color: C.hint, fontSize: FS.xs }}>포토클리닉</div>
-          </div>
-        )}
+            </footer>
+          </section>
+        ) : null}
       </div>
     </main>
   );

@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { cleanText, isUuid, resolvePortraitConsentLinkUpdate, sanitizeFieldList } from "@/lib/portraitConsent";
+import {
+  cleanText,
+  isUuid,
+  parsePortraitConsentSignatureLimit,
+  resolvePortraitConsentLinkUpdate,
+  resolvePortraitConsentStatus,
+  sanitizeFieldList,
+} from "@/lib/portraitConsent";
 import { validatePortraitConsentLink } from "@/lib/portraitConsentLinkServer";
 
 export const runtime = "nodejs";
@@ -12,11 +19,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!isUuid(id)) return NextResponse.json({ ok: false, error: "id가 올바르지 않습니다." }, { status: 400 });
 
     const db = getSupabaseAdmin();
-    const { data, error } = await db.from("portrait_consents").select("*").eq("id", id).maybeSingle();
+    const [consentResult, signatureResult] = await Promise.all([
+      db.from("portrait_consents").select("*").eq("id", id).maybeSingle(),
+      db
+        .from("portrait_consent_signatures")
+        .select("id", { count: "exact", head: true })
+        .eq("portrait_consent_id", id),
+    ]);
+    const { data, error } = consentResult;
     if (error) throw new Error(error.message);
+    if (signatureResult.error) throw new Error(signatureResult.error.message);
     if (!data) return NextResponse.json({ ok: false, error: "동의서를 찾을 수 없습니다." }, { status: 404 });
 
-    return NextResponse.json({ ok: true, consent: data });
+    return NextResponse.json({
+      ok: true,
+      consent: { ...data, signature_count: signatureResult.count ?? 0 },
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "조회 실패" }, { status: 500 });
   }
@@ -30,19 +48,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!isUuid(id)) return NextResponse.json({ ok: false, error: "id가 올바르지 않습니다." }, { status: 400 });
 
     const db = getSupabaseAdmin();
-    const { data: existing, error: fetchError } = await db
-      .from("portrait_consents").select("status, client_id, workflow_run_id").eq("id", id).maybeSingle();
+    const [existingResult, signatureResult] = await Promise.all([
+      db
+        .from("portrait_consents")
+        .select("status, client_id, workflow_run_id, token_hash, signature_limit")
+        .eq("id", id)
+        .maybeSingle(),
+      db
+        .from("portrait_consent_signatures")
+        .select("id", { count: "exact", head: true })
+        .eq("portrait_consent_id", id),
+    ]);
+    const { data: existing, error: fetchError } = existingResult;
     if (fetchError) throw new Error(fetchError.message);
+    if (signatureResult.error) throw new Error(signatureResult.error.message);
     if (!existing) return NextResponse.json({ ok: false, error: "동의서를 찾을 수 없습니다." }, { status: 404 });
+    const signatureCount = signatureResult.count ?? 0;
 
     const body = await req.json();
     const contentRequested = typeof body.title === "string"
       || typeof body.introText === "string"
       || Array.isArray(body.detailFields)
       || Array.isArray(body.usageItems);
-    if (existing.status === "signed" && contentRequested) {
+    if (signatureCount > 0 && contentRequested) {
       return NextResponse.json(
-        { ok: false, error: "서명 완료 문서는 내용을 수정할 수 없습니다." },
+        { ok: false, error: "서명이 제출된 문서는 내용을 수정할 수 없습니다." },
         { status: 409 },
       );
     }
@@ -52,6 +82,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (typeof body.introText === "string") update.intro_text = cleanText(body.introText, 2000);
     if (Array.isArray(body.detailFields)) update.detail_fields = sanitizeFieldList(body.detailFields);
     if (Array.isArray(body.usageItems)) update.usage_items = sanitizeFieldList(body.usageItems);
+    const signatureLimit = parsePortraitConsentSignatureLimit(body.signatureLimit);
+    if (signatureLimit.error) return NextResponse.json({ ok: false, error: signatureLimit.error }, { status: 400 });
+    if (signatureLimit.value !== null) {
+      if (signatureLimit.value < signatureCount) {
+        return NextResponse.json(
+          { ok: false, error: `이미 ${signatureCount}명이 서명했습니다. 받을 인원을 ${signatureCount}명보다 작게 줄일 수 없습니다.` },
+          { status: 400 },
+        );
+      }
+      update.signature_limit = signatureLimit.value;
+      update.status = resolvePortraitConsentStatus(signatureCount, signatureLimit.value, Boolean(existing.token_hash));
+    }
     const link = resolvePortraitConsentLinkUpdate(body, {
       clientId: existing.client_id,
       workflowRunId: existing.workflow_run_id,
@@ -71,7 +113,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .from("portrait_consents").update(update).eq("id", id).select("*").single();
     if (error) throw new Error(error.message);
 
-    return NextResponse.json({ ok: true, consent: data });
+    return NextResponse.json({ ok: true, consent: { ...data, signature_count: signatureCount } });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "수정 실패" }, { status: 500 });
   }

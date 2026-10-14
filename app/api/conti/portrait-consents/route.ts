@@ -6,6 +6,7 @@ import {
   DEFAULT_USAGE_ITEMS,
   cleanText,
   isUuid,
+  parsePortraitConsentSignatureLimit,
   resolvePortraitConsentLinkUpdate,
   sanitizeFieldList,
 } from "@/lib/portraitConsent";
@@ -15,7 +16,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const LIST_COLUMNS =
-  "id, client_id, workflow_run_id, title, status, provider_name, signed_at, created_at, updated_at";
+  "id, client_id, workflow_run_id, title, status, signature_limit, created_at, updated_at";
 
 // GET — 콘티 페이지의 특정 고객/프로젝트에 연결된 초상권 동의서 목록.
 export async function GET(req: NextRequest) {
@@ -39,25 +40,45 @@ export async function GET(req: NextRequest) {
     if (error) throw new Error(error.message);
 
     const rows = data ?? [];
+    const consentIds = rows.map((row) => row.id);
     const clientIds = Array.from(new Set(rows.map((row) => row.client_id).filter((id): id is string => Boolean(id))));
     const workflowRunIds = Array.from(new Set(rows.map((row) => row.workflow_run_id).filter((id): id is string => Boolean(id))));
-    const [clientsResult, workflowRunsResult] = await Promise.all([
+    const [clientsResult, workflowRunsResult, signaturesResult] = await Promise.all([
       clientIds.length
         ? db.from("clients").select("id, hospital_name").in("id", clientIds)
         : Promise.resolve({ data: [], error: null }),
       workflowRunIds.length
         ? db.from("workflow_runs").select("id, client_id, project_name, shoot_date").in("id", workflowRunIds)
         : Promise.resolve({ data: [], error: null }),
+      consentIds.length
+        ? db
+            .from("portrait_consent_signatures")
+            .select("id, portrait_consent_id, provider_name, signed_at")
+            .in("portrait_consent_id", consentIds)
+            .order("signed_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     ]);
     if (clientsResult.error) throw new Error(clientsResult.error.message);
     if (workflowRunsResult.error) throw new Error(workflowRunsResult.error.message);
+    if (signaturesResult.error) throw new Error(signaturesResult.error.message);
 
     const clientNameById = new Map((clientsResult.data ?? []).map((client) => [client.id, client.hospital_name]));
     const workflowRunById = new Map((workflowRunsResult.data ?? []).map((run) => [run.id, run]));
+    const signatureSummaryByConsentId = new Map<string, { count: number; latestSignerName: string | null }>();
+    for (const signature of signaturesResult.data ?? []) {
+      const current = signatureSummaryByConsentId.get(signature.portrait_consent_id);
+      signatureSummaryByConsentId.set(signature.portrait_consent_id, {
+        count: (current?.count ?? 0) + 1,
+        latestSignerName: current?.latestSignerName ?? signature.provider_name ?? null,
+      });
+    }
     const consents = rows.map((row) => {
       const workflowRun = row.workflow_run_id ? workflowRunById.get(row.workflow_run_id) : null;
+      const signatureSummary = signatureSummaryByConsentId.get(row.id);
       return {
         ...row,
+        signature_count: signatureSummary?.count ?? 0,
+        latest_signer_name: signatureSummary?.latestSignerName ?? null,
         client_name: row.client_id ? clientNameById.get(row.client_id) ?? null : null,
         workflow_run_name: workflowRun?.project_name || workflowRun?.shoot_date || null,
       };
@@ -75,6 +96,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const link = resolvePortraitConsentLinkUpdate(body);
     if (link.error) return NextResponse.json({ ok: false, error: link.error }, { status: 400 });
+    const signatureLimit = parsePortraitConsentSignatureLimit(body.signatureLimit);
+    if (signatureLimit.error) return NextResponse.json({ ok: false, error: signatureLimit.error }, { status: 400 });
 
     const title = cleanText(body.title, 200) || "초상권 동의서";
     const introText = cleanText(body.introText, 2000) || DEFAULT_INTRO_TEXT;
@@ -97,6 +120,7 @@ export async function POST(req: NextRequest) {
         intro_text: introText,
         detail_fields: detailFields,
         usage_items: usageItems,
+        signature_limit: signatureLimit.value ?? 1,
         status: "draft",
       })
       .select("*")

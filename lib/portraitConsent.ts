@@ -27,6 +27,19 @@ export interface PortraitConsentDoc {
   token_revoked_at: string | null;
   created_at: string;
   updated_at: string;
+  signature_limit: number;
+}
+
+export interface PortraitConsentSignature {
+  id: string;
+  portrait_consent_id: string;
+  consent_shoot: boolean | null;
+  consent_usage: boolean | null;
+  provider_name: string | null;
+  signature_data_url: string | null;
+  signed_date: string | null;
+  signed_at: string;
+  created_at: string;
 }
 
 export type PortraitConsentLink = {
@@ -38,6 +51,32 @@ export type PortraitConsentLinkUpdate = PortraitConsentLink & {
   requested: boolean;
   error: string | null;
 };
+
+export const PORTRAIT_CONSENT_SIGNATURE_LIMIT_MIN = 1;
+export const PORTRAIT_CONSENT_SIGNATURE_LIMIT_MAX = 100;
+
+export function parsePortraitConsentSignatureLimit(value: unknown): {
+  value: number | null;
+  error: string | null;
+} {
+  if (value === undefined) return { value: null, error: null };
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isInteger(parsed)
+    || parsed < PORTRAIT_CONSENT_SIGNATURE_LIMIT_MIN
+    || parsed > PORTRAIT_CONSENT_SIGNATURE_LIMIT_MAX) {
+    return { value: null, error: "받을 인원은 1명에서 100명 사이로 입력해 주세요." };
+  }
+  return { value: parsed, error: null };
+}
+
+export function resolvePortraitConsentStatus(
+  signatureCount: number,
+  signatureLimit: number,
+  hasShareToken: boolean,
+): PortraitConsentStatus {
+  if (signatureCount >= signatureLimit) return "signed";
+  return hasShareToken ? "sent" : "draft";
+}
 
 // 초상권 동의서 기본 세부 항목 — "오블리브 서울 오리진 초상권 동의서" 참고 양식 기준.
 // 관리자가 콘티 페이지에서 자유롭게 수정/추가/삭제할 수 있는 시작값일 뿐이다.

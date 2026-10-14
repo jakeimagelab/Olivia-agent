@@ -20,12 +20,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!isUuid(id)) return NextResponse.json({ ok: false, error: "id가 올바르지 않습니다." }, { status: 400 });
 
     const db = getSupabaseAdmin();
-    const { data: existing, error: fetchError } = await db
-      .from("portrait_consents").select("id, status").eq("id", id).maybeSingle();
+    const [existingResult, signatureResult] = await Promise.all([
+      db.from("portrait_consents").select("id, status, signature_limit").eq("id", id).maybeSingle(),
+      db
+        .from("portrait_consent_signatures")
+        .select("id", { count: "exact", head: true })
+        .eq("portrait_consent_id", id),
+    ]);
+    const { data: existing, error: fetchError } = existingResult;
     if (fetchError) throw new Error(fetchError.message);
+    if (signatureResult.error) throw new Error(signatureResult.error.message);
     if (!existing) return NextResponse.json({ ok: false, error: "동의서를 찾을 수 없습니다." }, { status: 404 });
-    if (existing.status === "signed") {
-      return NextResponse.json({ ok: false, error: "이미 서명이 완료된 동의서입니다." }, { status: 400 });
+    if ((signatureResult.count ?? 0) >= (existing.signature_limit ?? 1)) {
+      return NextResponse.json(
+        { ok: false, error: "필요한 서명이 모두 제출되었습니다. 받을 인원을 늘린 뒤 다시 시도해 주세요." },
+        { status: 400 },
+      );
     }
 
     const token = randomBytes(32).toString("base64url");
