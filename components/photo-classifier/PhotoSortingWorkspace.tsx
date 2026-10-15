@@ -57,7 +57,7 @@ import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
-import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { CAMERA_JPG_EXTENSIONS, isHiddenSystemFile, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -208,6 +208,7 @@ async function splitRawAndJpg(dir: FileSystemDirectoryHandle): Promise<{
   const rawFiles: SplitRawFile[] = [];
   const jpgFiles: SplitJpgFile[] = [];
   for await (const [name, handle] of (dir as any).entries()) {
+    if (isHiddenSystemFile(String(name))) continue;
     if (handle.kind !== "file") continue;
     const ext = String(name).split(".").pop()?.toLowerCase() ?? "";
     if (RAW_EXTS.has(ext)) {
@@ -757,11 +758,18 @@ function PhotoSortingInner({
   }, [currentLocalFolder, rootDir]);
   const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
+  const progressPaintedAtRef = useRef(0);
   // 사진 분류(handleFieldSort)가 다른 페이지로 이동해도 우상단 팝업에 계속 보이게
   // (BackgroundJobsWidget) — 로컬 state는 그대로 두고 전역 스토어에도 같이 반영만 한다.
   // handleFieldSort 안의 기존 setProgress(...) 호출부는 이름이 그대로라 하나도 안 건드려도 된다.
   // (스튜디오 모드 handleStudioSort는 startJob을 안 부르므로 이 미러링은 조용히 no-op된다.)
   const setProgress = useCallback((next: { cur: number; total: number; msg: string }) => {
+    const now = Date.now();
+    const finalUpdate = next.total > 0 && next.cur >= next.total;
+    const batchUpdate = next.cur > 0 && next.cur % 20 === 0;
+    const stageStart = next.cur === 0;
+    if (!stageStart && !finalUpdate && !batchUpdate && now - progressPaintedAtRef.current < 120) return;
+    progressPaintedAtRef.current = now;
     setProgressState(next);
     useBackgroundJobsStore.getState().updateJob(PHOTO_CLASSIFY_JOB_ID, next);
   }, []);

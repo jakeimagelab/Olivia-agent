@@ -40,4 +40,9 @@ describe("countJpgFiles — 사진 분류 채팅 미리보기용 가벼운 스�
     const root = directory("root", []);
     expect(await countJpgFiles(root as unknown as FileSystemDirectoryHandle)).toBe(0);
   });
+
+  it("점으로 시작하는 macOS 메타데이터 파일은 JPG로 세지 않는다", async () => {
+    const root = directory("root", [file("R5K00001.JPG"), file("._R5K00001.JPG"), file(".hidden.jpeg")]);
+    expect(await countJpgFiles(root as unknown as FileSystemDirectoryHandle)).toBe(1);
+  });
 });

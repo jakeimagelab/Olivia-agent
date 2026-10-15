@@ -30,6 +30,7 @@
 .statSkip strong { color:#d6bc7d; }.statDanger strong { color:#ed8177; }
 .progress,.message { display:flex; align-items:flex-start; gap:8px; margin-top:13px; padding:10px 11px; border-radius:8px; background:rgba(53,173,147,.12); color:#a8f1dc; font-size:11px; line-height:1.45; }
 .messageError { background:rgba(220,76,68,.14); color:#ffaaa2; }.messageDone { background:rgba(53,173,147,.16); color:#a8f1dc; }
+.message span { white-space:pre-line; }
 .actions { min-height:70px; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:0 24px; border-top:1px solid rgba(255,255,255,.1); color:rgba(255,255,255,.48); font-size:11px; }.actions div { display:flex; gap:8px; }
 .primary,.secondary { min-height:38px; border-radius:8px; padding:0 14px; font:500 12px/1 inherit; cursor:pointer; }
 .primary { border:1px solid #37c39d; background:#37c39d; color:#103e36; }
@@ -39,6 +40,9 @@
 .stepTitle { display:flex; align-items:center; gap:8px; }
 .stepNumber { display:inline-grid; width:22px; height:22px; place-items:center; border-radius:50%; background:rgba(79,216,184,.14); color:#4fd8b8; font-size:11px; font-weight:600; }
 .sectionDescription { margin:-4px 0 13px; color:rgba(255,255,255,.45); font-size:11px; line-height:1.55; }
+.folderSelection { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 11px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:rgba(255,255,255,.025); }
+.folderSelection > span { min-width:0; display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.72); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.folderSelection > span svg { flex:0 0 auto; color:#8bdcc6; }
 .inlineError { margin:9px 0 0; color:#ffc3ad; font-size:11px; }
 .checkRow { display:flex; align-items:flex-start; gap:10px; padding:12px; margin-bottom:9px; border:1px solid rgba(255,255,255,.13); border-radius:9px; background:rgba(255,255,255,.025); color:rgba(255,255,255,.78); cursor:pointer; }
 .checkRow input { margin-top:2px; accent-color:#37c39d; }
@@ -53,7 +57,18 @@
 .resultTableRow span:last-child { color:#a8f1dc; }
 .resultTableRow span[data-status="skip"] { color:#d6bc7d; }
 .resultTableRow span[data-status="conflict"] { color:#ed8177; }
+.moreResults { margin:0; padding:10px; border-top:1px solid rgba(255,255,255,.08); color:rgba(255,255,255,.46); font-size:10px; text-align:center; }
 .emptyResult { margin:0; padding:28px 14px; color:rgba(255,255,255,.38); font-size:11px; text-align:center; }
+.runProgressPanel { position:relative; display:grid; gap:14px; margin-top:13px; padding:22px; border:1px solid rgba(79,216,184,.22); border-radius:11px; background:rgba(255,255,255,.025); }
+.runProgressPanel > strong { color:#f6fffc; font-size:15px; font-weight:600; }
+.runProgressBar { height:10px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.10); }
+.runProgressBar i { display:block; height:100%; border-radius:inherit; background:#37c39d; transition:width 120ms linear; }
+.runProgressCount { display:flex; align-items:center; justify-content:space-between; gap:12px; color:rgba(255,255,255,.52); font-size:11px; }
+.runProgressCount b { color:#fff; font-size:18px; font-weight:500; }
+.runProgressPanel > p { min-width:0; overflow:hidden; margin:0; color:rgba(255,255,255,.70); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.runProgressStats { display:flex; flex-wrap:wrap; gap:8px 14px; color:#a8f1dc; font-size:11px; }
+.runProgressFailed { border-color:rgba(232,93,44,.34); }
+.stopButton { justify-self:end; min-height:34px; display:inline-flex; align-items:center; gap:7px; padding:0 12px; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:rgba(255,255,255,.06); color:#d9f6ee; font:500 11px/1 inherit; cursor:pointer; }
 .spinner { animation:workspace-spin .8s linear infinite; }
 @keyframes workspace-spin { to { transform:rotate(360deg); } }
 @media (max-width:1100px) { .layout { grid-template-columns:1fr; }.controls { border-right:0; border-bottom:1px solid rgba(255,255,255,.1); }.preview { min-height:420px; }.folder { display:none; } }

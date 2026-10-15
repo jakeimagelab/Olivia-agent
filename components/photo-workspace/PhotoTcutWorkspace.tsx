@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, CheckCircle2, EyeOff, FolderOpen, Loader2, MoveRight, ScanSearch, Sparkles, Undo2 } from "lucide-react";
 import { METADATA_SELECT_JPG_EXTENSIONS } from "@/lib/metadataSelect/matcher";
 import { transferFilesSafely, type MetadataFileTransfer } from "@/lib/metadataSelect/fileOperations";
@@ -23,6 +23,7 @@ type TcutPhoto = {
   name: string;
   handle: FileSystemFileHandle;
   thumbnail: string;
+  thumbnailBlob: Blob;
   blurScore: number;
   assessment: TcutVisualAssessment | null;
   reasons: TcutReason[];
@@ -37,7 +38,11 @@ function isPhoto(name: string): boolean {
   return METADATA_SELECT_JPG_EXTENSIONS.has(name.split(".").pop()?.toLowerCase() ?? "");
 }
 
-async function makePreview(file: File): Promise<{ thumbnail: string; blurScore: number }> {
+function releaseObjectUrl(url: string | null | undefined): void {
+  if (url) URL.revokeObjectURL(url);
+}
+
+async function makePreview(file: File): Promise<{ thumbnail: string; thumbnailBlob: Blob; blurScore: number }> {
   const source = URL.createObjectURL(file);
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -71,22 +76,27 @@ async function makePreview(file: File): Promise<{ thumbnail: string; blurScore: 
         count += 1;
       }
     }
-    return { thumbnail: canvas.toDataURL("image/jpeg", 0.72), blurScore: count ? Math.sqrt(total / count) : 0 };
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((value) => value ? resolve(value) : reject(new Error("이미지 미리보기를 만들지 못했습니다.")), "image/jpeg", 0.72);
+    });
+    return { thumbnail: URL.createObjectURL(blob), thumbnailBlob: blob, blurScore: count ? Math.sqrt(total / count) : 0 };
   } finally {
-    URL.revokeObjectURL(source);
+    releaseObjectUrl(source);
   }
 }
 
-async function readPhotos(root: FileSystemDirectoryHandle): Promise<TcutPhoto[]> {
+async function readPhotos(root: FileSystemDirectoryHandle, onThumbnail: (url: string) => void): Promise<TcutPhoto[]> {
   const entries: Array<[string, FileSystemFileHandle]> = [];
   for await (const [name, handle] of (root as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
     if (handle.kind === "file" && isPhoto(name)) entries.push([name, handle as FileSystemFileHandle]);
   }
   entries.sort(([left], [right]) => left.localeCompare(right, "ko-KR", { numeric: true, sensitivity: "base" }));
   const photos: TcutPhoto[] = [];
-  for (const [name, handle] of entries) {
+  for (const [index, [name, handle]] of entries.entries()) {
     const preview = await makePreview(await handle.getFile());
+    onThumbnail(preview.thumbnail);
     photos.push({ name, handle, ...preview, assessment: null, reasons: [], selected: false });
+    if ((index + 1) % 20 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
   }
   return photos;
 }
@@ -96,12 +106,21 @@ async function analyzeVision(photos: readonly TcutPhoto[], checks: TcutChecks): 
   if (!checks.eyesClosed && !checks.faceUnreadableLighting) return results;
   for (let start = 0; start < photos.length; start += 8) {
     const batch = photos.slice(start, start + 8);
+    const images = await Promise.all(batch.map(async (photo) => ({
+      name: photo.name,
+      thumbnail: await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("T컷 미리보기를 읽지 못했습니다."));
+        reader.onerror = () => reject(reader.error ?? new Error("T컷 미리보기를 읽지 못했습니다."));
+        reader.readAsDataURL(photo.thumbnailBlob);
+      }),
+    })));
     const response = await fetch("/api/photo-tcut-analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         checks: { eyesClosed: checks.eyesClosed, faceUnreadableLighting: checks.faceUnreadableLighting },
-        images: batch.map((photo) => ({ name: photo.name, thumbnail: photo.thumbnail })),
+        images,
       }),
     });
     const body = await response.json().catch(() => null) as { ok?: boolean; error?: string; results?: VisionResult[] } | null;
@@ -147,20 +166,28 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
   const [progress, setProgress] = useState({ current: 0, total: 0, name: "" });
   const [preview, setPreview] = useState<{ name: string; source: string } | null>(null);
   const previewUrlRef = useRef<string | null>(null);
+  const thumbnailUrlsRef = useRef(new Set<string>());
+
+  const releasePhotoThumbnails = useCallback(() => {
+    for (const url of thumbnailUrlsRef.current) releaseObjectUrl(url);
+    thumbnailUrlsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     if (rootDir) setActiveRoot(rootDir);
   }, [rootDir]);
 
   useEffect(() => {
+    releasePhotoThumbnails();
     setPhotos([]);
     setPhase("idle");
     setMessage("");
-  }, [activeRoot, tab]);
+  }, [activeRoot, releasePhotoThumbnails, tab]);
 
   useEffect(() => () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-  }, []);
+    releasePhotoThumbnails();
+    releaseObjectUrl(previewUrlRef.current);
+  }, [releasePhotoThumbnails]);
 
   useEffect(() => {
     if (!folderPickerError) return;
@@ -177,8 +204,10 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
     if (!activeRoot || phase === "scanning" || phase === "moving") return;
     setPhase("scanning");
     setMessage("");
+    releasePhotoThumbnails();
+    setPhotos([]);
     try {
-      const source = await readPhotos(activeRoot);
+      const source = await readPhotos(activeRoot, (url) => thumbnailUrlsRef.current.add(url));
       if (tab === "manual") {
         setPhotos(source);
         setPhase("ready");
@@ -194,6 +223,7 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
       setPhase("ready");
       setMessage(`T컷 후보 ${analyzed.filter((photo) => isTcutCandidate(photo.reasons)).length.toLocaleString("ko-KR")}장을 확인했습니다. 이동 전 사진을 직접 검토하세요.`);
     } catch (error) {
+      releasePhotoThumbnails();
       setPhotos([]);
       setMessage(error instanceof Error ? error.message : "T컷 분석에 실패했습니다.");
       setPhase("failed");
@@ -232,6 +262,10 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
         onProgress: (current, total, name) => setProgress({ current, total, name }),
       });
       const moved = new Set(selected.map((photo) => photo.name));
+      for (const photo of selected) {
+        releaseObjectUrl(photo.thumbnail);
+        thumbnailUrlsRef.current.delete(photo.thumbnail);
+      }
       setPhotos((current) => current.filter((photo) => !moved.has(photo.name)));
       setPhase("done");
       setMessage(`${selected.length.toLocaleString("ko-KR")}장 Trash_JPG 이동 완료 · 원본 바이트 검증 성공`);
@@ -244,7 +278,7 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
   const openPreview = async (photo: TcutPhoto) => {
     try {
       const source = URL.createObjectURL(await photo.handle.getFile());
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      releaseObjectUrl(previewUrlRef.current);
       previewUrlRef.current = source;
       setPreview({ name: photo.name, source });
     } catch (error) {
@@ -254,7 +288,7 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
   };
 
   const closePreview = () => {
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    releaseObjectUrl(previewUrlRef.current);
     previewUrlRef.current = null;
     setPreview(null);
   };

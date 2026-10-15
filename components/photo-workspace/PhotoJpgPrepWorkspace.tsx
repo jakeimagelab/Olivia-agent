@@ -1,17 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { CheckCircle2, FolderInput, FolderOpen, Loader2, TriangleAlert } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { CheckCircle2, FolderInput, FolderOpen, Loader2, Square, TriangleAlert } from "lucide-react";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { moveFileFast } from "@/lib/photo-classifier/file-move";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
-import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { CAMERA_JPG_EXTENSIONS, isHiddenSystemFile, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import styles from "./WorkspaceSurface.module.css";
 
-type Phase = "idle" | "scanning" | "ready" | "running" | "done" | "failed";
+type Phase = "idle" | "scanning" | "ready" | "running" | "stopped" | "done" | "failed";
 type PlanStatus = "move" | "moved" | "skip" | "conflict";
 
 type SourceJpg = {
@@ -33,12 +33,22 @@ type PlanRow = SourceJpg & {
 type PrepPlan = {
   rows: PlanRow[];
   rawUntouched: number;
+  hiddenExcluded: number;
 };
 
 type Stats = { moved: number; skipped: number; rawUntouched: number; conflicts: number };
+type RunProgress = {
+  processed: number;
+  total: number;
+  currentName: string;
+  moved: number;
+  skipped: number;
+  conflicts: number;
+};
 
 const EMPTY_STATS: Stats = { moved: 0, skipped: 0, rawUntouched: 0, conflicts: 0 };
 const MAX_DEPTH = 5;
+const RESULT_ROW_LIMIT = 40;
 
 function extension(fileName: string): string {
   return fileName.split(".").pop()?.toLocaleLowerCase("en-US") ?? "";
@@ -94,20 +104,30 @@ async function existingDestination(
   }
 }
 
-async function collectSources(root: FileSystemDirectoryHandle, includeSubdirectories: boolean): Promise<{ jpgs: SourceJpg[]; rawUntouched: number }> {
+export function isJpgIntegratedRoot(name: string): boolean {
+  return name.normalize("NFC") === JPG_INTEGRATED_DIRECTORY.normalize("NFC");
+}
+
+async function collectSources(root: FileSystemDirectoryHandle, includeSubdirectories: boolean): Promise<{ jpgs: SourceJpg[]; rawUntouched: number; hiddenExcluded: number }> {
   const jpgs: SourceJpg[] = [];
   let rawUntouched = 0;
+  let hiddenExcluded = 0;
 
   const visit = async (directory: FileSystemDirectoryHandle, relativeDirectory: string[], depth: number): Promise<void> => {
     for await (const [name, handle] of (directory as FileSystemDirectoryHandle & { entries(): AsyncIterableIterator<[string, FileSystemHandle]> }).entries()) {
       if (handle.kind === "directory") {
-        if (name.normalize("NFC") === JPG_INTEGRATED_DIRECTORY.normalize("NFC")) continue;
+        if (isHiddenSystemFile(name)) continue;
+        if (isJpgIntegratedRoot(name)) continue;
         if (includeSubdirectories && depth < MAX_DEPTH) {
           await visit(handle as FileSystemDirectoryHandle, [...relativeDirectory, name], depth + 1);
         }
         continue;
       }
 
+      if (isHiddenSystemFile(name)) {
+        hiddenExcluded += 1;
+        continue;
+      }
       const fileExtension = extension(name);
       if (RAW_PHOTO_EXTENSIONS.has(fileExtension)) {
         rawUntouched += 1;
@@ -127,14 +147,14 @@ async function collectSources(root: FileSystemDirectoryHandle, includeSubdirecto
   };
 
   await visit(root, [], 0);
-  return { jpgs, rawUntouched };
+  return { jpgs, rawUntouched, hiddenExcluded };
 }
 
 export async function buildJpgPrepPlan(
   root: FileSystemDirectoryHandle,
   options: { includeSubdirectories: boolean; preserveStructure: boolean },
 ): Promise<PrepPlan> {
-  const { jpgs, rawUntouched } = await collectSources(root, options.includeSubdirectories);
+  const { jpgs, rawUntouched, hiddenExcluded } = await collectSources(root, options.includeSubdirectories);
   const plannedDestination = new Map<string, SourceJpg>();
   const rows: PlanRow[] = [];
 
@@ -167,7 +187,7 @@ export async function buildJpgPrepPlan(
   }
 
   rows.sort((left, right) => left.destinationPath.localeCompare(right.destinationPath, "ko", { numeric: true, sensitivity: "base" }));
-  return { rows, rawUntouched };
+  return { rows, rawUntouched, hiddenExcluded };
 }
 
 function statsFor(plan: PrepPlan | null): Stats {
@@ -221,11 +241,23 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
   const [message, setMessage] = useState("폴더를 선택한 뒤 미리보기로 JPG와 RAW를 확인하세요.");
   const [plan, setPlan] = useState<PrepPlan | null>(null);
   const [destination, setDestination] = useState<FileSystemDirectoryHandle | null>(null);
-  const [processed, setProcessed] = useState(0);
+  const [runProgress, setRunProgress] = useState<RunProgress | null>(null);
+  const stopRequestedRef = useRef(false);
 
   const stats = useMemo(() => statsFor(plan), [plan]);
+  const visibleRows = useMemo(() => {
+    const rows = plan?.rows ?? [];
+    return [...rows]
+      .sort((left, right) => Number(right.status === "conflict") - Number(left.status === "conflict"))
+      .slice(0, RESULT_ROW_LIMIT);
+  }, [plan]);
+  const hiddenRowCount = Math.max(0, (plan?.rows.length ?? 0) - visibleRows.length);
   const selectedName = remote ? remoteSelection?.displayPath : root?.name;
   const busy = phase === "scanning" || phase === "running";
+  const showRunProgress = !remote && runProgress !== null && (phase === "running" || phase === "failed");
+  const runPercent = runProgress && runProgress.total > 0
+    ? Math.min(100, Math.round((runProgress.processed / runProgress.total) * 100))
+    : 0;
 
   const chooseFolder = useCallback(async () => {
     if (remote) {
@@ -238,28 +270,42 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
     setCurrentLocalFolder(picked);
     setPlan(null);
     setDestination(null);
-    setPhase("idle");
-    setMessage("미리보기를 눌러 옮길 JPG와 그대로 둘 RAW를 확인하세요.");
+    setRunProgress(null);
+    if (isJpgIntegratedRoot(picked.name)) {
+      setPhase("failed");
+      setMessage("이미 정리된 폴더입니다. 촬영 폴더를 선택하세요.");
+    } else {
+      setPhase("idle");
+      setMessage("미리보기를 눌러 옮길 JPG와 그대로 둘 RAW를 확인하세요.");
+    }
   }, [pick, remote, setCurrentLocalFolder]);
 
   const preview = useCallback(async () => {
     if (remote) {
       if (!remoteSelection) return;
       setPlan(null);
+      setRunProgress(null);
       setPhase("ready");
       setMessage("Mac Studio는 실행할 때 JPG·RAW를 확인하고 기존 워커 경로로 안전하게 정리합니다.");
       return;
     }
     if (!root) return;
+    if (isJpgIntegratedRoot(root.name)) {
+      setPhase("failed");
+      setMessage("이미 정리된 폴더입니다. 촬영 폴더를 선택하세요.");
+      return;
+    }
     setPhase("scanning");
     setMessage("폴더를 훑어 JPG·RAW와 충돌을 확인하는 중입니다.");
     try {
       const nextPlan = await buildJpgPrepPlan(root, { includeSubdirectories, preserveStructure });
       setPlan(nextPlan);
+      setRunProgress(null);
       setPhase("ready");
-      setMessage(nextPlan.rows.length === 0
-        ? "옮길 JPG가 없습니다. RAW와 다른 파일은 그대로 두었습니다."
-        : `JPG ${nextPlan.rows.length.toLocaleString("ko-KR")}개를 확인했습니다. RAW ${nextPlan.rawUntouched.toLocaleString("ko-KR")}개는 그대로 둡니다.`);
+      setMessage([
+        `JPG ${nextPlan.rows.length.toLocaleString("ko-KR")}개를 확인했습니다. RAW ${nextPlan.rawUntouched.toLocaleString("ko-KR")}개는 그대로 둡니다.`,
+        nextPlan.hiddenExcluded > 0 ? `맥 숨김파일 ${nextPlan.hiddenExcluded.toLocaleString("ko-KR")}개는 제외했습니다.` : null,
+      ].filter(Boolean).join("\n"));
     } catch (error) {
       setPhase("failed");
       setMessage(error instanceof Error ? error.message : "폴더를 확인하지 못했습니다.");
@@ -269,6 +315,7 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
   const run = useCallback(async () => {
     if (remote) {
       if (!remoteSelection) return;
+      setRunProgress(null);
       setPhase("running");
       setMessage("Mac Studio에 JPG정리를 요청하는 중입니다.");
       try {
@@ -289,44 +336,86 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
       return;
     }
 
-    if (!root) return;
+    if (!root || !plan) return;
+    if (isJpgIntegratedRoot(root.name)) {
+      setPhase("failed");
+      setMessage("이미 정리된 폴더입니다. 촬영 폴더를 선택하세요.");
+      return;
+    }
+    stopRequestedRef.current = false;
     setPhase("running");
-    setProcessed(0);
     setMessage("JPG만 JPG전체로 옮기는 중입니다. RAW는 건드리지 않습니다.");
+    const total = plan.rows.length;
+    const progressSnapshot: RunProgress = { processed: 0, total, currentName: "", moved: 0, skipped: 0, conflicts: 0 };
+    let lastPaintedAt = 0;
+    setRunProgress(progressSnapshot);
+
+    const paintProgress = (force = false) => {
+      const now = Date.now();
+      const finalUpdate = progressSnapshot.processed >= progressSnapshot.total;
+      const batchUpdate = progressSnapshot.processed > 0 && progressSnapshot.processed % 20 === 0;
+      if (!force && !finalUpdate && !batchUpdate && now - lastPaintedAt < 120) return;
+      lastPaintedAt = now;
+      setRunProgress({ ...progressSnapshot });
+    };
+
     try {
-      const latest = await buildJpgPrepPlan(root, { includeSubdirectories, preserveStructure });
       const completedRows: PlanRow[] = [];
-      let movedCount = 0;
-      for (const row of latest.rows) {
+      let stoppedAt = plan.rows.length;
+      for (const [index, row] of plan.rows.entries()) {
+        if (stopRequestedRef.current) {
+          stoppedAt = index;
+          break;
+        }
+
+        progressSnapshot.currentName = row.name;
         if (row.status !== "move") {
           completedRows.push(row);
+          if (row.status === "conflict") progressSnapshot.conflicts += 1;
+          else progressSnapshot.skipped += 1;
+          progressSnapshot.processed += 1;
+          paintProgress();
           continue;
         }
         try {
           await movePlannedJpg(root, row);
-          movedCount += 1;
+          progressSnapshot.moved += 1;
           completedRows.push({ ...row, status: "moved", reason: "JPG전체로 옮겼습니다." });
-          setProcessed(movedCount);
         } catch (error) {
+          progressSnapshot.conflicts += 1;
           completedRows.push({ ...row, status: "conflict", reason: error instanceof Error ? error.message : "옮기지 못했습니다." });
         }
+        progressSnapshot.processed += 1;
+        paintProgress();
       }
-      const resultPlan = { rows: completedRows, rawUntouched: latest.rawUntouched };
+
+      if (stoppedAt < plan.rows.length) completedRows.push(...plan.rows.slice(stoppedAt));
+      paintProgress(true);
+      const resultPlan = { rows: completedRows, rawUntouched: plan.rawUntouched, hiddenExcluded: plan.hiddenExcluded };
       setPlan(resultPlan);
-      setProcessed(movedCount);
+
+      if (stopRequestedRef.current) {
+        setPhase("stopped");
+        setMessage(`중지했습니다. ${total.toLocaleString("ko-KR")}개 중 ${progressSnapshot.moved.toLocaleString("ko-KR")}개를 옮겼습니다. 다시 실행하면 남은 것만 이어서 합니다.`);
+        return;
+      }
+
       const resultDirectory = await root.getDirectoryHandle(JPG_INTEGRATED_DIRECTORY, { create: true });
       setDestination(resultDirectory);
       setCurrentLocalFolder(resultDirectory);
       const failures = completedRows.filter((row) => row.status === "conflict").length;
       setPhase(failures ? "failed" : "done");
-      setMessage(failures
-        ? `${movedCount.toLocaleString("ko-KR")}개를 옮겼고 ${failures.toLocaleString("ko-KR")}개는 충돌로 남겼습니다.`
-        : `JPG정리가 끝났습니다. RAW ${latest.rawUntouched.toLocaleString("ko-KR")}개는 원래 자리에 그대로 있습니다.`);
+      setMessage([
+        failures
+          ? `${progressSnapshot.moved.toLocaleString("ko-KR")}개를 옮겼고 ${failures.toLocaleString("ko-KR")}개는 충돌로 남겼습니다.`
+          : `JPG정리가 끝났습니다. RAW ${plan.rawUntouched.toLocaleString("ko-KR")}개는 원래 자리에 그대로 있습니다.`,
+        plan.hiddenExcluded > 0 ? `맥 숨김파일 ${plan.hiddenExcluded.toLocaleString("ko-KR")}개는 제외했습니다.` : null,
+      ].filter(Boolean).join("\n"));
     } catch (error) {
       setPhase("failed");
       setMessage(error instanceof Error ? error.message : "JPG정리를 완료하지 못했습니다.");
     }
-  }, [includeSubdirectories, preserveStructure, remote, remoteSelection, root, setCurrentLocalFolder]);
+  }, [plan, remote, remoteSelection, root, setCurrentLocalFolder]);
 
   return (
     <section className={styles.surface}>
@@ -341,9 +430,12 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
           <section className={styles.section}>
             <h3 className={styles.stepTitle}><span className={styles.stepNumber}>1</span> 폴더 선택</h3>
             <p className={styles.sectionDescription}>RAW와 JPG가 섞여 있는 촬영 폴더 하나를 선택합니다.</p>
-            <button type="button" className={styles.secondary} onClick={() => void chooseFolder()} disabled={busy || (!remote && !supported)}>
-              <FolderOpen size={16} aria-hidden="true" /> {selectedName ? "폴더 바꾸기" : "폴더 선택"}
-            </button>
+            <div className={styles.folderSelection}>
+              <span><FolderOpen size={16} aria-hidden="true" />{selectedName ?? "폴더가 선택되지 않았습니다."}</span>
+              <button type="button" className={styles.secondary} onClick={() => void chooseFolder()} disabled={busy || (!remote && !supported)}>
+                {selectedName ? "폴더 바꾸기" : "폴더 선택"}
+              </button>
+            </div>
             {pickerError ? <p className={styles.inlineError}>{pickerError}</p> : null}
           </section>
 
@@ -363,26 +455,49 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
 
         <aside className={styles.preview}>
           <div className={styles.previewHeading}><h3>3. 결과</h3><span>{plan?.rows.length ?? 0}개 확인</span></div>
-          <div className={styles.stats}>
-            <Stat label={phase === "done" || phase === "failed" ? "옮김" : "옮길 JPG"} value={phase === "done" || phase === "failed" ? processed : stats.moved} />
-            <Stat label="건너뜀" value={stats.skipped} tone="skip" />
-            <Stat label="RAW 그대로" value={stats.rawUntouched} />
-            <Stat label="충돌" value={stats.conflicts} tone="danger" />
-          </div>
-          <div className={styles.resultTable} role="region" aria-label="JPG정리 결과">
-            <div className={styles.resultTableHeader}><span>파일명</span><span>옮긴 곳</span><span>상태</span></div>
-            {(plan?.rows.length ?? 0) > 0 ? plan?.rows.map((row, index) => (
-              <div className={styles.resultTableRow} key={`${row.destinationPath}-${index}`}>
-                <span title={row.name}>{row.name}</span>
-                <span title={row.destinationPath}>{row.destinationPath}</span>
-                <span data-status={row.status}>{row.status === "move" ? "옮김 예정" : row.status === "moved" ? "완료" : row.status === "skip" ? "건너뜀" : "충돌"}</span>
+          {showRunProgress && runProgress ? (
+            <div className={`${styles.runProgressPanel} ${phase === "failed" ? styles.runProgressFailed : ""}`}>
+              <strong>{phase === "failed" ? "JPG정리 중 오류" : "JPG정리 중"}</strong>
+              <div className={styles.runProgressBar} role="progressbar" aria-label="JPG정리 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={runPercent}>
+                <i style={{ width: `${runPercent}%` }} />
               </div>
-            )) : <p className={styles.emptyResult}>미리보기를 실행하면 파일별 결과가 여기에 표시됩니다.</p>}
-          </div>
-          <div className={`${styles.message} ${phase === "failed" ? styles.messageError : phase === "done" ? styles.messageDone : ""}`}>
-            {busy ? <Loader2 size={15} className={styles.spinner} aria-hidden="true" /> : phase === "failed" ? <TriangleAlert size={15} aria-hidden="true" /> : <CheckCircle2 size={15} aria-hidden="true" />}
-            <span>{message}</span>
-          </div>
+              <div className={styles.runProgressCount}><b>{runPercent}%</b><span>{runProgress.processed.toLocaleString("ko-KR")} / {runProgress.total.toLocaleString("ko-KR")}</span></div>
+              <p title={runProgress.currentName}>{runProgress.currentName || "파일을 준비하는 중입니다."}</p>
+              <div className={styles.runProgressStats}>
+                <span>옮김 {runProgress.moved.toLocaleString("ko-KR")}</span>
+                <span>건너뜀 {runProgress.skipped.toLocaleString("ko-KR")}</span>
+                <span>충돌 {runProgress.conflicts.toLocaleString("ko-KR")}</span>
+              </div>
+              {phase === "running" ? <button type="button" className={styles.stopButton} onClick={() => { stopRequestedRef.current = true; }}><Square size={11} fill="currentColor" />중지</button> : null}
+              {phase === "failed" ? <div className={`${styles.message} ${styles.messageError}`}><TriangleAlert size={15} aria-hidden="true" /><span>{message}</span></div> : null}
+            </div>
+          ) : (
+            <>
+              <div className={styles.stats}>
+                <Stat label={phase === "done" || phase === "failed" || phase === "stopped" ? "옮김" : "옮길 JPG"} value={phase === "stopped" ? (runProgress?.moved ?? 0) : stats.moved} />
+                <Stat label="건너뜀" value={stats.skipped} tone="skip" />
+                <Stat label="RAW 그대로" value={stats.rawUntouched} />
+                <Stat label="충돌" value={stats.conflicts} tone="danger" />
+              </div>
+              <div className={styles.resultTable} role="region" aria-label="JPG정리 결과">
+                <div className={styles.resultTableHeader}><span>파일명</span><span>옮긴 곳</span><span>상태</span></div>
+                {(plan?.rows.length ?? 0) > 0 ? visibleRows.map((row, index) => (
+                  <div className={styles.resultTableRow} key={`${row.destinationPath}-${index}`}>
+                    <span title={row.name}>{row.name}</span>
+                    <span title={row.destinationPath}>{row.destinationPath}</span>
+                    <span data-status={row.status}>{row.status === "move" ? "옮김 예정" : row.status === "moved" ? "완료" : row.status === "skip" ? "건너뜀" : "충돌"}</span>
+                  </div>
+                )) : <p className={styles.emptyResult}>미리보기를 실행하면 파일별 결과가 여기에 표시됩니다.</p>}
+                {hiddenRowCount > 0 ? <p className={styles.moreResults}>… 외 {hiddenRowCount.toLocaleString("ko-KR")}개</p> : null}
+              </div>
+            </>
+          )}
+          {!showRunProgress ? (
+            <div className={`${styles.message} ${phase === "failed" ? styles.messageError : phase === "done" ? styles.messageDone : ""}`}>
+              {busy ? <Loader2 size={15} className={styles.spinner} aria-hidden="true" /> : phase === "failed" ? <TriangleAlert size={15} aria-hidden="true" /> : <CheckCircle2 size={15} aria-hidden="true" />}
+              <span>{message}</span>
+            </div>
+          ) : null}
         </aside>
       </div>
 
@@ -394,7 +509,7 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
           ) : (
             <>
               <button type="button" className={styles.secondary} onClick={() => void preview()} disabled={busy || !(remote ? remoteSelection : root)}>미리보기</button>
-              <button type="button" className={styles.primary} onClick={() => void run()} disabled={busy || phase !== "ready" || !(remote ? remoteSelection : root)}>JPG정리 실행</button>
+              <button type="button" className={styles.primary} onClick={() => void run()} disabled={busy || (phase !== "ready" && phase !== "stopped") || (!remote && !plan) || !(remote ? remoteSelection : root)}>JPG정리 실행</button>
             </>
           )}
         </div>
@@ -408,6 +523,7 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
             setRemotePickerOpen(false);
             setPhase("idle");
             setPlan(null);
+            setRunProgress(null);
             setMessage("미리보기를 눌러 Mac Studio JPG정리를 준비하세요.");
           }}
         />

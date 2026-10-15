@@ -1,4 +1,4 @@
-import { SELECTABLE_IMAGE_EXTENSIONS } from "@/lib/photo/extensions";
+import { isHiddenSystemFile, SELECTABLE_IMAGE_EXTENSIONS } from "@/lib/photo/extensions";
 
 export { SELECTABLE_IMAGE_EXTENSIONS as SELECT_MATCH_JPG_EXTENSIONS };
 
@@ -30,6 +30,7 @@ export async function collectJpgFolderGroups(
     const childDirectories: FileSystemDirectoryHandle[] = [];
 
     for await (const [name, handle] of (dir as any).entries()) {
+      if (isHiddenSystemFile(name)) continue;
       if ((handle as FileSystemHandle).kind === "directory") {
         childDirectories.push(handle as FileSystemDirectoryHandle);
         continue;

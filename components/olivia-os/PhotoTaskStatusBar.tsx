@@ -56,27 +56,69 @@ export function PhotoTaskStatusBar() {
 
   useEffect(() => {
     let mounted = true;
+    let timer: number | null = null;
+    let reading = false;
+    let rerunWhenReady = false;
+    let visibleCount = 0;
+
+    const nextDelay = () => document.visibilityState === "hidden" ? 60_000 : visibleCount === 0 ? 30_000 : 5_000;
+    const schedule = () => {
+      if (!mounted) return;
+      if (timer !== null) window.clearTimeout(timer);
+      timer = window.setTimeout(() => void read(), nextDelay());
+    };
+
     const read = async () => {
+      if (reading) {
+        rerunWhenReady = true;
+        return;
+      }
+      reading = true;
       try {
         const response = await fetch("/api/remote-jobs", { cache: "no-store" });
         const body = await response.json();
         if (!mounted || !response.ok || !body?.ok) return;
         const now = Date.now();
-        setJobs((body.jobs as PhotoJob[] ?? []).filter((job) => {
+        const nextJobs = (body.jobs as PhotoJob[] ?? []).filter((job) => {
           if (!PHOTO_ACTIONS.has(job.action)) return false;
           if (job.status === "FAILED" || job.status === "CANCELED") return true;
           if (job.status === "QUEUED" || job.status === "RUNNING") return true;
           return job.status === "COMPLETED" && job.completed_at
             ? now - new Date(job.completed_at).getTime() < 8_000
             : false;
-        }));
+        });
+        visibleCount = Math.min(nextJobs.length, 4);
+        setJobs(nextJobs);
       } catch {
         // 상태 표시는 본문을 막으면 안 된다. 다음 주기에 다시 확인한다.
+      } finally {
+        reading = false;
+        if (rerunWhenReady) {
+          rerunWhenReady = false;
+          void read();
+        } else {
+          schedule();
+        }
       }
     };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") {
+        schedule();
+        return;
+      }
+      if (timer !== null) window.clearTimeout(timer);
+      timer = null;
+      void read();
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
     void read();
-    const timer = window.setInterval(() => void read(), 5_000);
-    return () => { mounted = false; window.clearInterval(timer); };
+    return () => {
+      mounted = false;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (timer !== null) window.clearTimeout(timer);
+    };
   }, []);
 
   const visible = useMemo(() => jobs.slice(0, 4), [jobs]);

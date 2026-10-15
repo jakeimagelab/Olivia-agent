@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildJpgPrepPlan } from "@/components/photo-workspace/PhotoJpgPrepWorkspace";
+import { buildJpgPrepPlan, isJpgIntegratedRoot } from "@/components/photo-workspace/PhotoJpgPrepWorkspace";
 
 type TestEntry = TestDirectory | TestFile;
 
@@ -44,11 +44,36 @@ describe("JPG정리 계획", () => {
     });
 
     expect(plan.rawUntouched).toBe(2);
+    expect(plan.hiddenExcluded).toBe(0);
     expect(plan.rows.map((row) => [row.name, row.destinationPath, row.status])).toEqual([
       ["B.jpeg", "JPG전체/2차/B.jpeg", "move"],
       ["A.JPG", "JPG전체/A.JPG", "move"],
     ]);
     expect(plan.rows.some((row) => /\.(cr3|nef)$/i.test(row.name))).toBe(false);
+  });
+
+  it("excludes hidden files and folders before checking photo extensions", async () => {
+    const root = new TestDirectory("촬영")
+      .add(new TestFile("A.JPG", 300, 10))
+      .add(new TestFile("._A.JPG", 4_096, 10))
+      .add(new TestFile("._A.CR3", 4_096, 10))
+      .add(new TestFile(".DS_Store", 512, 10));
+    root.add(new TestDirectory(".Trashes").add(new TestFile("hidden.JPG", 300, 10)));
+    root.add(new TestDirectory("JPG전체").add(new TestFile("already.JPG", 300, 10)));
+
+    const plan = await buildJpgPrepPlan(root as unknown as FileSystemDirectoryHandle, {
+      includeSubdirectories: true,
+      preserveStructure: true,
+    });
+
+    expect(plan.rows.map((row) => row.name)).toEqual(["A.JPG"]);
+    expect(plan.rawUntouched).toBe(0);
+    expect(plan.hiddenExcluded).toBe(3);
+  });
+
+  it("recognizes the integrated destination as an invalid source root", () => {
+    expect(isJpgIntegratedRoot("JPG전체")).toBe(true);
+    expect(isJpgIntegratedRoot("촬영")).toBe(false);
   });
 
   it("skips identical destinations and reports different contents as conflicts", async () => {

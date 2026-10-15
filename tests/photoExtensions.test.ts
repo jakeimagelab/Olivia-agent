@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CAMERA_JPG_EXTENSIONS,
+  isHiddenSystemFile,
   RAW_PHOTO_EXTENSIONS,
   SELECTABLE_IMAGE_EXTENSIONS,
 } from "@/lib/photo/extensions";
@@ -23,5 +24,14 @@ describe("photo extension sets", () => {
     expect([...SELECTABLE_IMAGE_EXTENSIONS]).toEqual(["jpg", "jpeg", "heic", "heif", "tif", "tiff", "webp", "png"]);
     expect(JPG_PHOTO_EXTENSIONS).toBe(CAMERA_JPG_EXTENSIONS);
     expect(SELECT_MATCH_JPG_EXTENSIONS).toBe(SELECTABLE_IMAGE_EXTENSIONS);
+  });
+
+  it("rejects every dot-prefixed macOS system entry before extension checks", () => {
+    expect(isHiddenSystemFile("._R5K00001.JPG")).toBe(true);
+    expect(isHiddenSystemFile("._R5K00001.CR3")).toBe(true);
+    expect(isHiddenSystemFile(".DS_Store")).toBe(true);
+    expect(isHiddenSystemFile(".Trashes")).toBe(true);
+    expect(isHiddenSystemFile("Icon\r")).toBe(false);
+    expect(isHiddenSystemFile("R5K00001.JPG")).toBe(false);
   });
 });

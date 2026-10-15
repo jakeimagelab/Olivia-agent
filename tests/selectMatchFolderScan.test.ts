@@ -56,4 +56,17 @@ describe("셀렉 & RAW 매칭 폴더 스캔", () => {
     expect(await collectJpgFolderGroups(root as unknown as FileSystemDirectoryHandle, 2)).toHaveLength(1);
     expect(await collectJpgFolderGroups(root as unknown as FileSystemDirectoryHandle, 1)).toHaveLength(0);
   });
+
+  it("숨김 이미지와 숨김 폴더는 후보 목록에서 모두 제외한다", async () => {
+    const root = directory("root", [
+      file("R5K00001.JPG"),
+      file("._R5K00001.JPG"),
+      directory(".Trashes", [file("discarded.JPG")]),
+    ]);
+
+    const groups = await collectJpgFolderGroups(root as unknown as FileSystemDirectoryHandle);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].photos.map((photo) => photo.name)).toEqual(["R5K00001.JPG"]);
+  });
 });

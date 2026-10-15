@@ -24,3 +24,7 @@ export const SELECTABLE_IMAGE_EXTENSIONS = new Set([
   "webp",
   "png",
 ]);
+
+export function isHiddenSystemFile(name: string): boolean {
+  return name.startsWith(".");
+}

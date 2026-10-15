@@ -51,6 +51,10 @@ interface Preflight {
 }
 
 /* ── Helpers ── */
+function releaseObjectUrl(url: string | null | undefined): void {
+  if (url) URL.revokeObjectURL(url);
+}
+
 async function loadThumb(file: File, size = 120): Promise<string | null> {
   return new Promise(res => {
     const url = URL.createObjectURL(file);
@@ -60,9 +64,12 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
       const c = document.createElement("canvas");
       c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
       c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.6));
+      c.toBlob((blob) => {
+        releaseObjectUrl(url);
+        res(blob ? URL.createObjectURL(blob) : null);
+      }, "image/jpeg", 0.6);
     };
-    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
+    img.onerror = () => { releaseObjectUrl(url); res(null); };
     img.src = url;
   });
 }
@@ -109,7 +116,15 @@ async function prepareScreenshotForOcr(file: File): Promise<string> {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
-  return canvas.toDataURL("image/jpeg", 0.92);
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => value ? resolve(value) : reject(new Error("이미지를 처리하지 못했습니다.")), "image/jpeg", 0.92);
+  });
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("이미지를 처리하지 못했습니다."));
+    reader.onerror = () => reject(reader.error ?? new Error("이미지를 처리하지 못했습니다."));
+    reader.readAsDataURL(blob);
+  });
 }
 
 /* ── 파일 순서 검토: 파일명 끝자리 숫자로 넘버링 누락 검사 ── */
@@ -224,6 +239,14 @@ export function SelectMatchWorkspace({
   const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
   const cancelRef = useRef(false);
+  const sceneThumbnailUrlsRef = useRef(new Set<string>());
+
+  const releaseSceneThumbnails = useCallback(() => {
+    for (const url of sceneThumbnailUrlsRef.current) releaseObjectUrl(url);
+    sceneThumbnailUrlsRef.current.clear();
+  }, []);
+
+  useEffect(() => () => releaseSceneThumbnails(), [releaseSceneThumbnails, rootDir]);
 
   // RAW 매칭이 다른 페이지로 이동해도 우상단 팝업에 계속 보이게(BackgroundJobsWidget) — 로컬
   // state를 그대로 두고 전역 스토어에도 같이 반영만 한다. runMatch 안의 기존 setProgress(...)
@@ -372,6 +395,7 @@ export function SelectMatchWorkspace({
   const loadFolder = useCallback(async () => {
     try {
       const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      releaseSceneThumbnails();
       setRootDir(dir);
       setStep("loading");
       setProgress({ cur: 0, total: 0, msg: "JPG 폴더 스캔 중..." });
@@ -430,7 +454,7 @@ export function SelectMatchWorkspace({
       if (e?.name !== "AbortError") alert("폴더를 읽는 중 오류가 발생했습니다.");
       setStep("idle");
     }
-  }, []);
+  }, [releaseSceneThumbnails, setProgress]);
 
   /* ── JPG 내장 XMP 딥스캔 (사이드카 없을 때) ── */
   const loadEmbeddedRatings = useCallback(async () => {
@@ -467,16 +491,22 @@ export function SelectMatchWorkspace({
   const loadSceneThumbs = useCallback(async (sceneIdx: number) => {
     const scene = scenes[sceneIdx];
     if (!scene) return;
-    const updated = await Promise.all(
-      scene.photos.map(async (p) => {
-        if (p.thumbUrl) return p;
+    const updated = [] as typeof scene.photos;
+    for (const [index, photo] of scene.photos.entries()) {
+      if (photo.thumbUrl) {
+        updated.push(photo);
+      } else {
         try {
-          const file = await p.handle.getFile();
+          const file = await photo.handle.getFile();
           const url = await loadThumb(file, 130);
-          return { ...p, thumbUrl: url };
-        } catch { return p; }
-      })
-    );
+          if (url) sceneThumbnailUrlsRef.current.add(url);
+          updated.push({ ...photo, thumbUrl: url });
+        } catch {
+          updated.push(photo);
+        }
+      }
+      if ((index + 1) % 20 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    }
     setScenes(prev => prev.map((s, i) => i === sceneIdx ? { ...s, photos: updated } : s));
   }, [scenes]);
 
