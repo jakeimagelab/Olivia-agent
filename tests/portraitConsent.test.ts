@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildPortraitConsentListHref,
   parsePortraitConsentSignatureLimit,
   resolvePortraitConsentLinkUpdate,
   resolvePortraitConsentStatus,
@@ -8,6 +9,24 @@ import {
 const CLIENT_A = "11111111-1111-4111-8111-111111111111";
 const CLIENT_B = "22222222-2222-4222-8222-222222222222";
 const RUN_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+
+describe("portrait consent list scope", () => {
+  it("keeps the standalone desktop list global even when context exists", () => {
+    expect(buildPortraitConsentListHref({
+      clientId: CLIENT_A,
+      workflowRunId: RUN_A,
+      scopeToContext: false,
+    })).toBe("/api/conti/portrait-consents");
+  });
+
+  it("scopes the embedded client workspace list to its context", () => {
+    expect(buildPortraitConsentListHref({
+      clientId: CLIENT_A,
+      workflowRunId: RUN_A,
+      scopeToContext: true,
+    })).toBe(`/api/conti/portrait-consents?clientId=${CLIENT_A}&workflowRunId=${RUN_A}`);
+  });
+});
 
 describe("portrait consent customer/project links", () => {
   it("allows creating an unlinked consent", () => {

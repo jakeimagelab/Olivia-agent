@@ -78,6 +78,22 @@ export function resolvePortraitConsentStatus(
   return hasShareToken ? "sent" : "draft";
 }
 
+export function buildPortraitConsentListHref({
+  clientId,
+  workflowRunId,
+  scopeToContext,
+}: {
+  clientId: string | null;
+  workflowRunId: string | null;
+  scopeToContext: boolean;
+}): string {
+  const query = new URLSearchParams();
+  if (scopeToContext && clientId) query.set("clientId", clientId);
+  if (scopeToContext && workflowRunId) query.set("workflowRunId", workflowRunId);
+  const queryString = query.toString();
+  return `/api/conti/portrait-consents${queryString ? `?${queryString}` : ""}`;
+}
+
 // 초상권 동의서 기본 세부 항목 — "오블리브 서울 오리진 초상권 동의서" 참고 양식 기준.
 // 관리자가 콘티 페이지에서 자유롭게 수정/추가/삭제할 수 있는 시작값일 뿐이다.
 export const DEFAULT_DETAIL_FIELDS: PortraitConsentField[] = [

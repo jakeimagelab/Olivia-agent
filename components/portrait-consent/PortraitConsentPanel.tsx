@@ -20,6 +20,7 @@ import {
   DEFAULT_DETAIL_FIELDS,
   DEFAULT_INTRO_TEXT,
   DEFAULT_USAGE_ITEMS,
+  buildPortraitConsentListHref,
   type PortraitConsentField,
   type PortraitConsentSignature,
   type PortraitConsentStatus,
@@ -207,10 +208,12 @@ export default function PortraitConsentPanel({
   clientId,
   workflowRunId,
   hospitalName,
+  scopeToContext = false,
 }: {
   clientId: string | null;
   workflowRunId: string | null;
   hospitalName: string;
+  scopeToContext?: boolean;
 }) {
   const [consents, setConsents] = useState<ConsentListItem[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -266,10 +269,11 @@ export default function PortraitConsentPanel({
     if (!silent) setListLoading(true);
     setListError("");
     try {
-      const query = new URLSearchParams();
-      if (clientId) query.set("clientId", clientId);
-      if (workflowRunId) query.set("workflowRunId", workflowRunId);
-      const response = await fetch(`/api/conti/portrait-consents?${query.toString()}`);
+      const response = await fetch(buildPortraitConsentListHref({
+        clientId,
+        workflowRunId,
+        scopeToContext,
+      }));
       const body = await response.json();
       if (!response.ok || !body.ok) throw new Error(body.error || "동의서 목록을 불러오지 못했습니다.");
       setConsents(body.consents ?? []);
@@ -278,7 +282,7 @@ export default function PortraitConsentPanel({
     } finally {
       if (!silent) setListLoading(false);
     }
-  }, [clientId, workflowRunId]);
+  }, [clientId, scopeToContext, workflowRunId]);
 
   const loadConsent = useCallback(async (
     id: string,
