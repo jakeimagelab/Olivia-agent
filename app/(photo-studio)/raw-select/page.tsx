@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * to the one-purpose T컷 screen instead of rendering that combined workflow.
  */
 export default function LegacyRawSelectPage() {
-  redirect("/photo-sorting?mode=t-cut");
+  redirect("/photo-sorting?mode=select&selectMode=tcut");
 }

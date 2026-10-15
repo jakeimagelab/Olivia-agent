@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, type ComponentType } from "react";
+import { Suspense, useEffect, type ComponentType } from "react";
 import { Link2 } from "lucide-react";
 import { WorkPanel } from "@/components/workspace-shell/WorkPanel";
 import { WorkspaceGrid } from "@/components/workspace-shell/WorkspaceGrid";
@@ -11,8 +11,12 @@ import PhotoGuidePanel from "./PhotoGuidePanel";
 import PhotoSelectWorkspace from "./PhotoSelectWorkspace";
 import PhotoWorkspaceHeader from "./PhotoWorkspaceHeader";
 import PhotoWorkspaceTabs from "./PhotoWorkspaceTabs";
-import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
-import { resolvePhotoWorkspaceToolState } from "./photoWorkspaceToolState";
+import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "./types";
+import {
+  canonicalizePhotoWorkspaceParams,
+  resolveLegacyPhotoWorkspaceMode,
+  resolvePhotoWorkspaceToolState,
+} from "./photoWorkspaceToolState";
 import styles from "./PhotoWorkspace.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
@@ -31,9 +35,9 @@ const PhotoSortingWorkspace = dynamic(() => import("@/components/photo-classifie
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 분류 도구를 불러오는 중...</div>,
 });
-const PhotoTcutWorkspace = dynamic(() => import("./PhotoTcutWorkspace"), {
+const PhotoJpgPrepWorkspace = dynamic(() => import("./PhotoJpgPrepWorkspace"), {
   ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>T컷 정리 도구를 불러오는 중...</div>,
+  loading: () => <div className={styles.workspaceLoading}>JPG정리 도구를 불러오는 중...</div>,
 });
 const PhotoRetouchingWorkspace = dynamic(
   () => import("@/app/(photo-studio)/photo-retouching/page"),
@@ -42,22 +46,21 @@ const PhotoRetouchingWorkspace = dynamic(
     loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
   },
 ) as ComponentType<{ embedded?: boolean }>;
-const PhotoResizeWorkspace = dynamic(() => import("./PhotoResizeWorkspace"), {
+const PhotoFileOpsWorkspace = dynamic(() => import("./PhotoFileOpsWorkspace"), {
   ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>사진 리사이즈 도구를 불러오는 중...</div>,
-});
-const PhotoRenameWorkspace = dynamic(() => import("./PhotoRenameWorkspace"), {
-  ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>이름변경 도구를 불러오는 중...</div>,
+  loading: () => <div className={styles.workspaceLoading}>파일 정리 도구를 불러오는 중...</div>,
 });
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["plan", "select", "raw-match", "classification", "t-cut", "retouch", "resize", "rename"]);
-const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["plan", "jpg-prep", "select", "raw-match", "classification", "file-ops", "retouch"]);
+const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client", "tcut"]);
+const FILE_OPS_MODES = new Set<PhotoFileOpsMode>(["resize", "rename"]);
 
 function PhotoWorkspaceContent({
   hideHeader = false,
   initialMode = "select",
   initialTool,
+  initialSelectMode,
+  initialFileOpsMode,
   clientId,
   workflowRunId,
   resourceId,
@@ -65,6 +68,8 @@ function PhotoWorkspaceContent({
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
   initialTool?: string;
+  initialSelectMode?: PhotoSelectMode;
+  initialFileOpsMode?: PhotoFileOpsMode;
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -75,30 +80,44 @@ function PhotoWorkspaceContent({
   const toolState = resolvePhotoWorkspaceToolState(searchParams.get("tool"));
   const initialToolState = resolvePhotoWorkspaceToolState(initialTool);
   const rawMode = searchParams.get("mode") as PhotoWorkspaceMode | null;
+  const legacyModeState = resolveLegacyPhotoWorkspaceMode(searchParams.get("mode"));
   const rawTab = searchParams.get("tab");
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
+  const rawFileOpsMode = searchParams.get("fileOpsMode") as PhotoFileOpsMode | null;
   const rawMatchMethodParam = searchParams.get("rawMatchMethod");
   const remoteJobId = searchParams.get("remoteJobId");
-  const mode = rawTab === "plan" ? "plan" : toolState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
-  const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? "ai");
+  const mode = rawTab === "plan" ? "plan" : toolState?.mode ?? legacyModeState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
+  const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? initialSelectMode ?? "ai");
+  const fileOpsMode = toolState?.fileOpsMode ?? legacyModeState?.fileOpsMode ?? (rawFileOpsMode && FILE_OPS_MODES.has(rawFileOpsMode) ? rawFileOpsMode : initialToolState?.fileOpsMode ?? initialFileOpsMode ?? "resize");
   const rawMatchMethod = toolState?.rawMatchMethod ?? (rawMatchMethodParam === "metadata" ? "metadata" : initialToolState?.rawMatchMethod ?? "filename");
   const { executionMode, currentLocalFolder, selectedJpgNames } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
-  const remoteUnavailable = remote && mode !== "plan" && mode !== "classification" && mode !== "select";
+  const remoteUnavailable = remote && mode !== "plan" && mode !== "jpg-prep" && mode !== "classification" && mode !== "select";
 
-  const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode) => {
+  useEffect(() => {
+    const canonical = canonicalizePhotoWorkspaceParams(new URLSearchParams(searchParams.toString()));
+    if (!canonical) return;
+    router.replace(`${pathname}?${canonical.toString()}`, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode, nextFileOpsMode = fileOpsMode) => {
     const params = new URLSearchParams(searchParams.toString());
     if (nextMode === "plan") {
       params.set("tab", "plan");
       params.set("tool", "conti");
       params.delete("mode");
+      params.delete("selectMode");
+      params.delete("fileOpsMode");
     } else {
       params.delete("tab");
       params.delete("tool");
       params.set("mode", nextMode);
+      if (nextMode === "select") params.set("selectMode", nextSelectMode);
+      else params.delete("selectMode");
+      if (nextMode === "file-ops") params.set("fileOpsMode", nextFileOpsMode);
+      else params.delete("fileOpsMode");
     }
     if (nextMode !== "raw-match") params.delete("rawMatchMethod");
-    params.set("selectMode", nextSelectMode);
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
@@ -110,7 +129,7 @@ function PhotoWorkspaceContent({
         <RemotePhotoOperationResultBanner jobId={remoteJobId} />
         <WorkspaceGrid
           forceSingleColumn={remoteUnavailable}
-          guide={remoteUnavailable ? undefined : <PhotoGuidePanel mode={mode} selectMode={selectMode} />}
+          guide={remoteUnavailable ? undefined : <PhotoGuidePanel mode={mode} selectMode={selectMode} fileOpsMode={fileOpsMode} />}
         >
           <WorkPanel
             tone={mode === "plan" ? "light" : "dark"}
@@ -118,13 +137,14 @@ function PhotoWorkspaceContent({
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
-            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "raw-match" ? "RAW 매칭" : mode === "t-cut" ? "T컷 정리" : mode === "retouch" ? "사진 보정" : mode === "rename" ? "이름변경" : "사진 리사이즈"} /> : null}
+            {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "raw-match" ? "RAW 매칭" : mode === "retouch" ? "사진 보정" : "파일 정리"} /> : null}
             {!remoteUnavailable && mode === "plan" ? (
               <PhotoContiWorkspace clientId={clientId} workflowRunId={workflowRunId} resourceId={resourceId} />
             ) : null}
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
+            {!remoteUnavailable && mode === "jpg-prep" ? <PhotoJpgPrepWorkspace onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
             {!remoteUnavailable && mode === "raw-match" ? (
               <div className={styles.workspaceToolSurface}>
                 <header className={styles.workspaceToolHeader}>
@@ -140,10 +160,8 @@ function PhotoWorkspaceContent({
               </div>
             ) : null}
             {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
-            {!remoteUnavailable && mode === "t-cut" ? <PhotoTcutWorkspace rootDir={currentLocalFolder} /> : null}
             {!remoteUnavailable && mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
-            {!remoteUnavailable && mode === "resize" ? <PhotoResizeWorkspace /> : null}
-            {!remoteUnavailable && mode === "rename" ? <PhotoRenameWorkspace rootDir={currentLocalFolder} /> : null}
+            {!remoteUnavailable && mode === "file-ops" ? <PhotoFileOpsWorkspace value={fileOpsMode} onChange={(next) => updateQuery("file-ops", selectMode, next)} /> : null}
           </WorkPanel>
         </WorkspaceGrid>
       </WorkspaceContent>
@@ -155,6 +173,8 @@ export default function PhotoWorkspace({
   hideHeader = false,
   initialMode = "select",
   initialTool,
+  initialSelectMode,
+  initialFileOpsMode,
   clientId,
   workflowRunId,
   resourceId,
@@ -162,6 +182,8 @@ export default function PhotoWorkspace({
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
   initialTool?: string;
+  initialSelectMode?: PhotoSelectMode;
+  initialFileOpsMode?: PhotoFileOpsMode;
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -172,6 +194,8 @@ export default function PhotoWorkspace({
         hideHeader={hideHeader}
         initialMode={initialMode}
         initialTool={initialTool}
+        initialSelectMode={initialSelectMode}
+        initialFileOpsMode={initialFileOpsMode}
         clientId={clientId}
         workflowRunId={workflowRunId}
         resourceId={resourceId}

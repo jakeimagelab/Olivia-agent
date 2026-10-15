@@ -1,4 +1,4 @@
-const JPG_EXTS = new Set(["jpg", "jpeg"]);
+import { CAMERA_JPG_EXTENSIONS } from "@/lib/photo/extensions";
 
 // 채팅 카드에서 폴더 선택 직후 "사진 N장" 미리보기 카운트를 보여주기 위한 가벼운 스캔이다.
 // PhotoSortingWorkspace.tsx의 실제 분류 스캔(EXIF 읽기, RAW 매칭, 비주얼 피처 추출 등)과는
@@ -9,7 +9,7 @@ export async function countJpgFiles(dir: FileSystemDirectoryHandle): Promise<num
   for await (const [name, handle] of (dir as any).entries()) {
     if (handle.kind !== "file") continue;
     const ext = name.split(".").pop()?.toLowerCase() ?? "";
-    if (JPG_EXTS.has(ext)) count++;
+    if (CAMERA_JPG_EXTENSIONS.has(ext)) count++;
   }
   return count;
 }

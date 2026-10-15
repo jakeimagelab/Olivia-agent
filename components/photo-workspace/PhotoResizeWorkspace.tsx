@@ -12,6 +12,7 @@ import {
 import styles from "./PhotoWorkspace.module.css";
 import surfaceStyles from "./WorkspaceSurface.module.css";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
+import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 
 type Phase = "idle" | "counting" | "running" | "stopping" | "completed";
 const PREVIEW_LIMIT = 24;
@@ -85,6 +86,7 @@ function StatBox({ label, value, tone }: { label: string; value: number; tone: "
 }
 
 export default function PhotoResizeWorkspace() {
+  const { pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
   const { currentLocalFolder: rootDir, setCurrentLocalFolder } = usePhotoStudioExecution();
   const [longEdge, setLongEdge] = useState<number>(4000);
   const [quality, setQuality] = useState<number>(95);
@@ -101,17 +103,15 @@ export default function PhotoResizeWorkspace() {
 
   useEffect(() => () => { preview?.forEach((entry) => URL.revokeObjectURL(entry.url)); }, [preview]);
 
+  useEffect(() => {
+    if (folderPickerError) setNotice(folderPickerError);
+  }, [folderPickerError]);
+
   const selectFolder = async () => {
-    try {
-      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) { setNotice("Chrome 또는 Edge에서 폴더를 선택할 수 있습니다."); return; }
-      const handle = await picker({ mode: "readwrite" });
-      setCurrentLocalFolder(handle);
-      setNotice("");
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setNotice("폴더를 선택하지 못했습니다.");
-    }
+    const handle = await pickPhotoFolder("readwrite");
+    if (!handle) return;
+    setCurrentLocalFolder(handle);
+    setNotice("");
   };
 
   const start = async () => {

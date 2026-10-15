@@ -53,13 +53,11 @@ import {
   type RemotePhotoWorkFolderCheck,
 } from "@/lib/photo-classifier/remotePhotoWorkFolderCheck";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { Stepper } from "@/components/workspace-shell/Stepper";
-import {
-  JPG_PHOTO_EXTENSIONS,
-  PROFILE_EXCLUDED_SCENE_TYPES,
-  RAW_PHOTO_EXTENSIONS,
-} from "@/lib/photo-classifier/constants";
+import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
+import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -164,7 +162,7 @@ interface PersonGroup {
    CONSTANTS
 ═══════════════════════════════════════════════ */
 const RAW_EXTS = RAW_PHOTO_EXTENSIONS;
-const JPG_EXTS = JPG_PHOTO_EXTENSIONS;
+const JPG_EXTS = CAMERA_JPG_EXTENSIONS;
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
 // 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
 const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
@@ -199,6 +197,30 @@ const STUDIO_LIGHTING_SENSITIVITY: Record<LightingSensitivity, string> = {
   medium: "보통 — 얼굴이 명확히 어두운 컷 ETC (권장)",
   strict: "강함 — 얼굴 밝기가 조금만 낮아도 ETC",
 };
+
+type SplitRawFile = { name: string; handle: FileSystemFileHandle };
+type SplitJpgFile = SplitRawFile & { file: File; mtime: number; fileSize: number };
+
+async function splitRawAndJpg(dir: FileSystemDirectoryHandle): Promise<{
+  rawFiles: SplitRawFile[];
+  jpgFiles: SplitJpgFile[];
+}> {
+  const rawFiles: SplitRawFile[] = [];
+  const jpgFiles: SplitJpgFile[] = [];
+  for await (const [name, handle] of (dir as any).entries()) {
+    if (handle.kind !== "file") continue;
+    const ext = String(name).split(".").pop()?.toLowerCase() ?? "";
+    if (RAW_EXTS.has(ext)) {
+      rawFiles.push({ name: String(name), handle: handle as FileSystemFileHandle });
+      continue;
+    }
+    if (!JPG_EXTS.has(ext)) continue;
+    const fileHandle = handle as FileSystemFileHandle;
+    const file = await fileHandle.getFile();
+    jpgFiles.push({ name: String(name), handle: fileHandle, file, mtime: file.lastModified, fileSize: file.size });
+  }
+  return { rawFiles, jpgFiles };
+}
 
 /* ════════════════════════════════════════════════
    SHARED HELPERS
@@ -699,6 +721,7 @@ function PhotoSortingInner({
   modalWorkflowRunId?: string;
   onOpenPhotoSelect?: () => void;
 }) {
+  const { supported: hasFS, pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
   const isModal = mode === "modal";
   const isEmbedded = mode === "embedded";
   const sp = useSearchParams();
@@ -742,12 +765,12 @@ function PhotoSortingInner({
     setProgressState(next);
     useBackgroundJobsStore.getState().updateJob(PHOTO_CLASSIFY_JOB_ID, next);
   }, []);
-  // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
-  const [hasFS, setHasFS] = useState(false);
-  useEffect(() => { setHasFS("showDirectoryPicker" in window); }, []);
   // 폴더 선택 실패를 화면에 보여준다 — 예전엔 catch가 비어 있어서 실패해도 아무 반응이 없었다
   // (사용자 보고: "키 자체가 안먹혀" — 버튼을 눌러도 그냥 아무 일도 안 일어남).
   const [dirPickError, setDirPickError] = useState("");
+  useEffect(() => {
+    if (folderPickerError) setDirPickError(folderPickerError);
+  }, [folderPickerError]);
   const [photoSourcePickerOpen, setPhotoSourcePickerOpen] = useState(false);
   const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
   // Olivia OS 2.0 PHASE 6 §11 — BACKUP_READY 알림의 "분류 시작"이 NAS 폴더 탐색을 대신 해주는
@@ -936,7 +959,8 @@ function PhotoSortingInner({
 
   const handleRestore = async (saved: SavedSortingSession) => {
     try {
-      const h = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      const h = await pickPhotoFolder("readwrite");
+      if (!h) return;
       const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
       const rawBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("RAW").catch(() => null);
 
@@ -1033,18 +1057,10 @@ function PhotoSortingInner({
 
   const pickDir = async () => {
     setDirPickError("");
-    try {
-      const h = await (window as any).showDirectoryPicker({ mode:"readwrite" });
-      setRootDir(h);
-      setPhotoSourcePickerOpen(false);
-    } catch (err: any) {
-      if (err?.name === "AbortError") return; // 사용자가 선택 창에서 취소함 — 에러 아님
-      setDirPickError(
-        !hasFS
-          ? "이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge에서 https 주소로 접속해주세요."
-          : "폴더를 열지 못했습니다. 권한을 허용했는지, 주소가 https(또는 localhost)인지 확인 후 다시 시도해주세요."
-      );
-    }
+    const h = await pickPhotoFolder("readwrite");
+    if (!h) return;
+    setRootDir(h);
+    setPhotoSourcePickerOpen(false);
   };
 
   useEffect(() => {
@@ -1288,35 +1304,28 @@ function PhotoSortingInner({
     };
 
     // ① 스캔
-    const rawFiles: { name: string; handle: FileSystemFileHandle }[] = [];
     const jpgEntries: { name: string; handle: FileSystemFileHandle; file: File; mtime: number; timestampSource: TimestampSource; warning?: string }[] = [];
     setClassificationJobState("SCANNING_FILES");
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     let lastUpdate = Date.now();
 
-    for await (const [name, handle] of (rootDir as any).entries()) {
-      if (handle.kind !== "file") continue;
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (RAW_EXTS.has(ext)) {
-        rawFiles.push({ name, handle: handle as FileSystemFileHandle });
-      } else if (JPG_EXTS.has(ext)) {
-        const file = await (handle as FileSystemFileHandle).getFile();
-        // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF
-        // DateTimeOriginal을 우선한다. 빠른 모드는 이후의 시각/AI 분석만 줄인다.
-        setClassificationJobState("READING_EXIF");
-        const exif = await readPhotoTimestamp(file);
-        jpgEntries.push({
-          name,
-          handle: handle as FileSystemFileHandle,
-          file,
-          mtime: exif?.timestamp ?? file.lastModified,
-          timestampSource: exif?.source ?? "mtime",
-          warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
-        });
-        if (Date.now() - lastUpdate > 300) {
-          setProgress({ cur:0, total:0, msg:`스캔: ${name}` });
-          lastUpdate = Date.now();
-        }
+    const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
+    for (const entry of jpgFiles) {
+      // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF
+      // DateTimeOriginal을 우선한다. 빠른 모드는 이후의 시각/AI 분석만 줄인다.
+      setClassificationJobState("READING_EXIF");
+      const exif = await readPhotoTimestamp(entry.file);
+      jpgEntries.push({
+        name: entry.name,
+        handle: entry.handle,
+        file: entry.file,
+        mtime: exif?.timestamp ?? entry.mtime,
+        timestampSource: exif?.source ?? "mtime",
+        warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
+      });
+      if (Date.now() - lastUpdate > 300) {
+        setProgress({ cur:0, total:0, msg:`스캔: ${entry.name}` });
+        lastUpdate = Date.now();
       }
     }
     setFieldRawCount(rawFiles.length);
@@ -2544,15 +2553,7 @@ function PhotoSortingInner({
     setStep(1); cancelRef.current = false;
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     try {
-    const rawFiles: {name:string,handle:FileSystemFileHandle}[] = [];
-    const jpgFiles: {name:string,handle:FileSystemFileHandle,mtime:number,fileSize:number}[] = [];
-    for await (const [name, handle] of (rootDir as any).entries()) {
-      if (handle.kind !== "file") continue;
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      const file = await (handle as FileSystemFileHandle).getFile();
-      if (RAW_EXTS.has(ext)) rawFiles.push({ name, handle });
-      else if (JPG_EXTS.has(ext)) jpgFiles.push({ name, handle, mtime:file.lastModified, fileSize:file.size });
-    }
+    const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
     setStudioRawCount(rawFiles.length);
     jpgFiles.sort((a,b)=>a.mtime-b.mtime);
     const total = jpgFiles.length; let done = 0;

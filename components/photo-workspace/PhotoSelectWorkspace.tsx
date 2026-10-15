@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { MousePointer2, Sparkles, Users } from "lucide-react";
+import { MousePointer2, Scissors, Sparkles, Users } from "lucide-react";
 import AiPhotoSelectPanel from "./AiPhotoSelectPanel";
 import type { PhotoSelectMode } from "./types";
 import styles from "./PhotoWorkspace.module.css";
@@ -16,11 +16,16 @@ const RemotePhotoSelectWorkspace = dynamic(() => import("./RemotePhotoSelectWork
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>원격 사진 셀렉을 준비하는 중...</div>,
 });
+const PhotoTcutWorkspace = dynamic(() => import("./PhotoTcutWorkspace"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>T컷 정리 도구를 불러오는 중...</div>,
+});
 
 const SELECT_TABS = [
   { mode: "ai", label: "AI 사진 셀렉", icon: Sparkles },
   { mode: "manual", label: "직접 셀렉", icon: MousePointer2 },
   { mode: "client", label: "고객 선택 불러오기", icon: Users },
+  { mode: "tcut", label: "T컷 정리", icon: Scissors },
 ] as const;
 
 export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch, remote = false }: {
@@ -29,8 +34,8 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   onStartRawMatch: () => void;
   remote?: boolean;
 }) {
-  const { setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
-  if (remote) return <RemotePhotoSelectWorkspace />;
+  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
+  if (remote && value !== "tcut") return <RemotePhotoSelectWorkspace />;
 
   return (
     <div>
@@ -49,6 +54,9 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
         {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
+        {value === "tcut" ? (remote ? (
+          <div className={styles.workspaceLoading}>T컷 정리는 이 기기에서 작업할 때 사용할 수 있습니다.</div>
+        ) : <PhotoTcutWorkspace rootDir={currentLocalFolder} />) : null}
       </div>
     </div>
   );

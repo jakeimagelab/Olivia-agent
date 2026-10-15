@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FolderTree, Images, Link2, Lock, Palette, PencilLine, Scaling, Scissors } from "lucide-react";
+import { FolderInput, FolderTree, Images, Link2, Lock, Palette, PencilLine, Wrench } from "lucide-react";
 import { WorkspaceTabs } from "@/components/workspace-shell/WorkspaceTabs";
 import type { PhotoWorkspaceMode } from "./types";
 
@@ -12,12 +12,11 @@ export const PHOTO_WORKSPACE_TABS: Array<{
   icon: ReactNode;
 }> = [
   { mode: "plan", title: "기획", description: "촬영 콘티를 준비합니다.", icon: <PencilLine size={15} strokeWidth={2} aria-hidden="true" /> },
+  { mode: "jpg-prep", title: "JPG정리", description: "RAW는 그대로 두고 JPG만 JPG전체로 모읍니다.", icon: <FolderInput size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "select", title: "사진 셀렉", description: "원하는 사진을 빠르게 선택합니다.", icon: <Images size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "raw-match", title: "RAW 매칭", description: "선택된 JPG와 대응하는 RAW 원본을 매칭합니다.", icon: <Link2 size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "classification", title: "사진 분류", description: "촬영 사진을 Scene과 유형 기준으로 자동 분류합니다.", icon: <FolderTree size={15} strokeWidth={2} aria-hidden="true" /> },
-  { mode: "t-cut", title: "T컷 정리", description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 옮깁니다.", icon: <Scissors size={15} strokeWidth={2} aria-hidden="true" /> },
-  { mode: "resize", title: "사진 리사이즈", description: "폴더 전체 사진을 지정한 해상도·품질로 일괄 변환합니다.", icon: <Scaling size={15} strokeWidth={2} aria-hidden="true" /> },
-  { mode: "rename", title: "이름변경", description: "원본 바이트를 검증한 뒤 사진 파일명을 안전하게 변경합니다.", icon: <PencilLine size={15} strokeWidth={2} aria-hidden="true" /> },
+  { mode: "file-ops", title: "파일 정리", description: "사진 리사이즈와 이름변경을 한곳에서 처리합니다.", icon: <Wrench size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "retouch", title: "사진 보정", description: "색감·톤 보정 작업을 처리합니다.", icon: <Palette size={15} strokeWidth={2} aria-hidden="true" /> },
 ];
 
@@ -40,7 +39,7 @@ export default function PhotoWorkspaceTabs({
       value={value}
       onChange={onChange}
       items={PHOTO_WORKSPACE_TABS.map(({ mode, title, description, icon }) => {
-        const unavailable = remote && !["plan", "select", "classification"].includes(mode);
+        const unavailable = remote && !["plan", "jpg-prep", "select", "classification"].includes(mode);
         return {
           value: mode,
           label: title,

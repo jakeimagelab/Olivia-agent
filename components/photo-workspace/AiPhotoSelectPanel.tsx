@@ -1,8 +1,9 @@
 "use client";
 
 import { Check, FolderOpen, Image as ImageIcon, Loader2, MessageCircle, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collectJpgFolderGroups, type SelectMatchPhoto } from "@/lib/selectMatch/folderScanner";
+import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import styles from "./PhotoWorkspace.module.css";
 
 type Candidate = {
@@ -53,6 +54,7 @@ async function makeThumbnail(file: File): Promise<string> {
 }
 
 export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
+  const { pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
   const [folder, setFolder] = useState<FileSystemDirectoryHandle | null>(null);
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -63,21 +65,19 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
 
   const selectedCandidates = useMemo(() => candidates.filter((candidate) => selected.has(candidate.id)), [candidates, selected]);
 
+  useEffect(() => {
+    if (folderPickerError) setStatus(folderPickerError);
+  }, [folderPickerError]);
+
   const selectFolder = async () => {
-    try {
-      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) throw new Error("Chrome 또는 Edge에서 사진 폴더를 선택할 수 있습니다.");
-      const handle = await picker({ mode: "read" });
-      setFolder(handle);
-      setCandidates([]);
-      setSelected(new Set());
-      setSourceCount(0);
-      setStatus("");
-      callbacks.onSelectFolder?.(handle);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setStatus(error instanceof Error ? error.message : "사진 폴더를 선택하지 못했습니다.");
-    }
+    const handle = await pickPhotoFolder("read");
+    if (!handle) return;
+    setFolder(handle);
+    setCandidates([]);
+    setSelected(new Set());
+    setSourceCount(0);
+    setStatus("");
+    callbacks.onSelectFolder?.(handle);
   };
 
   const search = async () => {

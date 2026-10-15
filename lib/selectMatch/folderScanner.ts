@@ -1,4 +1,6 @@
-export const SELECT_MATCH_JPG_EXTENSIONS = new Set(["jpg", "jpeg", "heic", "heif", "tif", "tiff", "webp", "png"]);
+import { SELECTABLE_IMAGE_EXTENSIONS } from "@/lib/photo/extensions";
+
+export { SELECTABLE_IMAGE_EXTENSIONS as SELECT_MATCH_JPG_EXTENSIONS };
 
 export interface SelectMatchPhoto {
   name: string;
@@ -34,7 +36,7 @@ export async function collectJpgFolderGroups(
       }
 
       const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (!SELECT_MATCH_JPG_EXTENSIONS.has(ext)) continue;
+      if (!SELECTABLE_IMAGE_EXTENSIONS.has(ext)) continue;
       photos.push({
         name,
         basename: name.replace(/\.[^.]+$/, ""),

@@ -14,6 +14,7 @@ import {
   type TcutVisualAssessment,
 } from "@/lib/photoTcut/analysis";
 import styles from "./PhotoTcutWorkspace.module.css";
+import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 
 type TcutTab = "ai" | "manual";
 type Phase = "idle" | "scanning" | "ready" | "moving" | "done" | "failed";
@@ -134,6 +135,7 @@ function checkLabel(check: keyof TcutChecks): string {
 }
 
 export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDirectoryHandle | null }) {
+  const { pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
   // T컷에서 바꾼 폴더는 이 작업 안에서만 사용한다. 이름변경 등 다른 작업의
   // 현재 폴더를 바꾸지 않는다.
   const [activeRoot, setActiveRoot] = useState<FileSystemDirectoryHandle | null>(rootDir);
@@ -160,16 +162,15 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
+  useEffect(() => {
+    if (!folderPickerError) return;
+    setMessage(folderPickerError);
+    setPhase("failed");
+  }, [folderPickerError]);
+
   const chooseFolder = async () => {
-    try {
-      const picker = (window as typeof window & { showDirectoryPicker?: (options?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
-      if (!picker) throw new Error("Chrome 또는 Edge에서 작업 폴더를 선택할 수 있습니다.");
-      setActiveRoot(await picker({ mode: "readwrite" }));
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      setMessage(error instanceof Error ? error.message : "폴더를 선택하지 못했습니다.");
-      setPhase("failed");
-    }
+    const handle = await pickPhotoFolder("readwrite");
+    if (handle) setActiveRoot(handle);
   };
 
   const scan = async () => {

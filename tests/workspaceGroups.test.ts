@@ -56,19 +56,20 @@ describe("photo workspace tool deep links", () => {
   it("selects integrated photo modes directly", () => {
     expect(resolvePhotoWorkspaceToolState("ai-search")).toMatchObject({ mode: "select", selectMode: "ai" });
     expect(resolvePhotoWorkspaceToolState("classification")).toMatchObject({ mode: "classification" });
-    expect(resolvePhotoWorkspaceToolState("rename")).toMatchObject({ mode: "rename" });
+    expect(resolvePhotoWorkspaceToolState("rename")).toMatchObject({ mode: "file-ops", fileOpsMode: "rename" });
     expect(resolvePhotoWorkspaceToolState("conversion")).toBeUndefined();
     expect(resolvePhotoWorkspaceToolState("retouch")).toMatchObject({ mode: "retouch", selectMode: "manual" });
   });
 
   it("keeps metadata matching and T컷 cleanup inside the photo workspace shell", () => {
     expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "raw-match", selectMode: "client", rawMatchMethod: "metadata" });
-    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "t-cut", selectMode: "manual" });
+    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "select", selectMode: "tcut" });
   });
 });
 
 describe("Olivia resolves detailed feature names through the workspace registry", () => {
   const cases: Array<[string, string]> = [
+    ["JPG정리", "/photo-sorting?mode=jpg-prep"],
     ["메타데이터 셀렉", "/photo-sorting?tool=metadata-match"],
     ["유튜브 편집 콘티", "/video-studio?tab=plan&tool=youtube-conti"],
     ["프롬프터", "/video-studio?tab=shoot&tool=prompter"],

@@ -7,8 +7,7 @@ import type { SelectGallery, SelectGalleryImage, ClientPhotoSelection, SelectRaw
 import WorkspaceLink, { type SelectGalleryNavigate } from "@/components/select-galleries/WorkspaceLink";
 import { C } from "@/lib/theme";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
-
-const RAW_EXTS = new Set(["arw","cr3","cr2","nef","raf","dng","orf","rw2","x3f","3fr","mef","mrw","pef","srw"]);
+import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 
 interface RawMatchRow {
   selected_jpg: string;
@@ -185,7 +184,7 @@ function SelectGalleryDetailWorkspace({
           await scan(handle as FileSystemDirectoryHandle, depth + 1);
         } else {
           const ext = name.split(".").pop()?.toLowerCase() ?? "";
-          if (RAW_EXTS.has(ext)) {
+          if (RAW_PHOTO_EXTENSIONS.has(ext)) {
             const base = name.replace(/\.[^.]+$/, "").toLowerCase();
             if (!rawIndex.has(base)) rawIndex.set(base, { name, ext, handle: handle as FileSystemFileHandle, dir });
           }
@@ -230,7 +229,7 @@ function SelectGalleryDetailWorkspace({
             await scanJpg(handle as FileSystemDirectoryHandle, depth + 1);
           } else {
             const ext = name.split(".").pop()?.toLowerCase() ?? "";
-            if (ext === "jpg" || ext === "jpeg") {
+            if (CAMERA_JPG_EXTENSIONS.has(ext)) {
               const base = name.replace(/\.[^.]+$/, "").toLowerCase();
               if (!jpgIndex.has(base)) jpgIndex.set(base, handle as FileSystemFileHandle);
             }

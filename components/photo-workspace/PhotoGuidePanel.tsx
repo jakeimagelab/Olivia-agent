@@ -1,9 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import { CheckSquare2, FileCheck2, FolderOpen, FolderTree, Images, Link2, MessageCircle, Palette, PenLine, ScanSearch, Scaling, Scissors, Sparkles, Users } from "lucide-react";
 import { GuidePanel } from "@/components/workspace-shell/GuidePanel";
-import type { PhotoSelectMode, PhotoWorkspaceMode } from "./types";
+import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "./types";
 
-type GuideKey = "plan" | "select_ai" | "select_manual" | "select_client" | "raw_match" | "classification" | "t_cut" | "retouch" | "resize" | "rename";
+type GuideKey = "plan" | "jpg_prep" | "select_ai" | "select_manual" | "select_client" | "select_tcut" | "raw_match" | "classification" | "retouch" | "resize" | "rename";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
@@ -11,6 +11,12 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: PenLine, title: "촬영 정보 선택", description: "진료과와 촬영 항목을 정합니다." },
     { icon: FolderTree, title: "콘티 확인", description: "시간표·장면·장비를 확인하고 수정합니다." },
     { icon: Images, title: "촬영 후 사진 셀렉", description: "같은 작업실의 다음 탭에서 사진을 고릅니다." },
+  ],
+  jpg_prep: [
+    { icon: FolderOpen, title: "폴더 선택", description: "RAW와 JPG가 섞인 촬영 폴더를 선택합니다." },
+    { icon: ScanSearch, title: "JPG·RAW 확인", description: "옮길 JPG와 그대로 둘 RAW 개수를 미리 확인합니다." },
+    { icon: FolderTree, title: "JPG정리 실행", description: "JPG만 JPG전체 폴더로 안전하게 옮깁니다." },
+    { icon: Images, title: "사진 셀렉으로", description: "정리된 JPG전체 폴더를 바로 사진 셀렉에 연결합니다." },
   ],
   select_ai: [
     { icon: FolderOpen, title: "사진 폴더 선택", description: "셀렉할 사진이 있는 폴더를 선택하세요." },
@@ -42,7 +48,7 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: FolderTree, title: "Scene 분류", description: "장면과 유형 기준으로 폴더를 구성합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "분류 결과를 검토하고 저장합니다." },
   ],
-  t_cut: [
+  select_tcut: [
     { icon: FolderOpen, title: "현재 작업 폴더", description: "사진 작업실에서 선택한 JPG 폴더를 그대로 사용합니다." },
     { icon: Scissors, title: "T컷 분석", description: "눈 감음·흔들림·얼굴 식별 불가 조명만 검사합니다." },
     { icon: CheckSquare2, title: "후보 검토", description: "후보를 직접 확인하고 이동할 사진만 선택합니다." },
@@ -68,18 +74,17 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
   ],
 };
 
-function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode): GuideKey {
+function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, fileOpsMode: PhotoFileOpsMode): GuideKey {
   if (mode === "plan") return "plan";
+  if (mode === "jpg-prep") return "jpg_prep";
   if (mode === "select") return `select_${selectMode}` as GuideKey;
   if (mode === "raw-match") return "raw_match";
-  if (mode === "t-cut") return "t_cut";
   if (mode === "retouch") return "retouch";
-  if (mode === "resize") return "resize";
-  if (mode === "rename") return "rename";
+  if (mode === "file-ops") return fileOpsMode;
   return "classification";
 }
-export default function PhotoGuidePanel({ mode, selectMode }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode }) {
-  const key = guideKey(mode, selectMode);
+export default function PhotoGuidePanel({ mode, selectMode, fileOpsMode }: { mode: PhotoWorkspaceMode; selectMode: PhotoSelectMode; fileOpsMode: PhotoFileOpsMode }) {
+  const key = guideKey(mode, selectMode, fileOpsMode);
   const steps = GUIDES[key];
   return (
     <GuidePanel

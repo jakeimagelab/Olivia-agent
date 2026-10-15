@@ -60,7 +60,7 @@ describe("OLIVIA OS app registry navigation", () => {
     const cases = [
       ["/select-match", "photo-workspace", "/photo-sorting?mode=raw-match"],
       ["/metadata-select?clientId=client-1", "metadata-select", "/metadata-select?clientId=client-1"],
-      ["/raw-select", "photo-workspace", "/photo-sorting?tool=t-cut"],
+      ["/raw-select", "photo-workspace", "/photo-sorting?mode=select&selectMode=tcut"],
       ["/photo-retouching", "photo-workspace", "/photo-sorting?tool=retouch"],
       ["/diagnosis", "hospital-brand-image-diagnosis", "/hospital-brand-image-diagnosis"],
       ["/clients/reviews", "review-studio", "/review-studio"],

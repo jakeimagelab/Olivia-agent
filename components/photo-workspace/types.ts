@@ -1,3 +1,4 @@
-/** Each tab has one operational role.  RAW matching and T-cut cleanup are deliberately separate. */
-export type PhotoWorkspaceMode = "plan" | "select" | "raw-match" | "classification" | "t-cut" | "retouch" | "resize" | "rename";
-export type PhotoSelectMode = "ai" | "manual" | "client";
+/** Top-level photo-workspace roles. Related operations live in a second-level tab. */
+export type PhotoWorkspaceMode = "plan" | "jpg-prep" | "select" | "raw-match" | "classification" | "file-ops" | "retouch";
+export type PhotoSelectMode = "ai" | "manual" | "client" | "tcut";
+export type PhotoFileOpsMode = "resize" | "rename";

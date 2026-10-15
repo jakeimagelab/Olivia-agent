@@ -1,18 +1,8 @@
-export const RAW_PHOTO_EXTENSIONS = new Set([
-  "arw",
-  "cr3",
-  "cr2",
-  "nef",
-  "raf",
-  "dng",
-  "orf",
-  "rw2",
-]);
-
-export const JPG_PHOTO_EXTENSIONS = new Set([
-  "jpg",
-  "jpeg",
-]);
+export {
+  CAMERA_JPG_EXTENSIONS,
+  CAMERA_JPG_EXTENSIONS as JPG_PHOTO_EXTENSIONS,
+  RAW_PHOTO_EXTENSIONS,
+} from "@/lib/photo/extensions";
 
 export const PROFILE_EXCLUDED_SCENE_TYPES = new Set([
   "consultation",

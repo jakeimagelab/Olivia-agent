@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { PHOTO_WORKSPACE_TABS } from "@/components/photo-workspace/PhotoWorkspaceTabs";
-import { resolvePhotoWorkspaceToolState } from "@/components/photo-workspace/photoWorkspaceToolState";
+import { canonicalizePhotoWorkspaceParams, resolvePhotoWorkspaceToolState } from "@/components/photo-workspace/photoWorkspaceToolState";
 
 function source(path: string): string {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -11,12 +11,11 @@ describe("사진 작업실 역할 분리", () => {
   it("puts planning first and keeps the existing tools in their operational order", () => {
     expect(PHOTO_WORKSPACE_TABS.map((tab) => tab.title)).toEqual([
       "기획",
+      "JPG정리",
       "사진 셀렉",
       "RAW 매칭",
       "사진 분류",
-      "T컷 정리",
-      "사진 리사이즈",
-      "이름변경",
+      "파일 정리",
       "사진 보정",
     ]);
   });
@@ -25,9 +24,15 @@ describe("사진 작업실 역할 분리", () => {
     expect(resolvePhotoWorkspaceToolState("conti")).toMatchObject({ mode: "plan" });
   });
 
-  it("maps legacy AI 컷 links to the dedicated T컷 tab, never the RAW tab", () => {
-    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "t-cut" });
+  it("maps legacy AI 컷 links to the T컷 select subtab, never the RAW tab", () => {
+    expect(resolvePhotoWorkspaceToolState("ai-cull")).toMatchObject({ mode: "select", selectMode: "tcut" });
     expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "raw-match", rawMatchMethod: "metadata" });
+  });
+
+  it("normalizes former top-level modes to their new subtabs", () => {
+    expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=t-cut"))?.toString()).toBe("mode=select&selectMode=tcut");
+    expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=resize"))?.toString()).toBe("mode=file-ops&fileOpsMode=resize");
+    expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=rename"))?.toString()).toBe("mode=file-ops&fileOpsMode=rename");
   });
 
   it("keeps T컷 transfer scoped to JPG and Trash_JPG only", () => {
