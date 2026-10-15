@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { cleanText } from "@/lib/portraitConsent";
+import {
+  cleanText,
+  type PortraitConsentAppearanceRole,
+} from "@/lib/portraitConsent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +18,13 @@ function hashPortraitConsentToken(token: string): string {
 // 열고 직접 서명해야 한다. 보안은 세션이 아니라 32바이트 랜덤 토큰 + 해시 저장 + 만료/취소로 확보한다.
 const SELECT_COLUMNS =
   "id, title, intro_text, detail_fields, usage_items, status, signature_limit, token_expires_at, token_revoked_at, access_count";
+
+const APPEARANCE_ROLES = new Set<PortraitConsentAppearanceRole>([
+  "patient_customer",
+  "medical_staff",
+  "staff",
+  "other",
+]);
 
 async function loadByToken(token: string) {
   if (!token || token.length < 20 || token.length > 128) return { error: "유효하지 않은 링크입니다.", status: 404 as const };
@@ -87,6 +97,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const consentShoot = body.consentShoot === true || body.consentShoot === false ? body.consentShoot : null;
     const consentUsage = body.consentUsage === true || body.consentUsage === false ? body.consentUsage : null;
     const providerName = cleanText(body.providerName, 100);
+    const providerPhone = cleanText(body.providerPhone, 50);
+    const appearanceRole = APPEARANCE_ROLES.has(body.appearanceRole)
+      ? body.appearanceRole as PortraitConsentAppearanceRole
+      : null;
+    const appearanceRoleOther = appearanceRole === "other" ? cleanText(body.appearanceRoleOther, 100) : null;
+    const isRealIdentity = body.isRealIdentity === true || body.isRealIdentity === false
+      ? body.isRealIdentity
+      : null;
+    const consentSensitive = isRealIdentity === false
+      ? null
+      : body.consentSensitive === true || body.consentSensitive === false
+        ? body.consentSensitive
+        : null;
     const signatureDataUrl = typeof body.signatureDataUrl === "string" ? body.signatureDataUrl : "";
 
     if (consentShoot === null || consentUsage === null) {
@@ -94,6 +117,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     }
     if (!providerName) {
       return NextResponse.json({ ok: false, error: "초상권 제공자 성명을 입력해 주세요." }, { status: 400 });
+    }
+    if (!providerPhone) {
+      return NextResponse.json({ ok: false, error: "연락처를 입력해 주세요." }, { status: 400 });
+    }
+    if (!appearanceRole) {
+      return NextResponse.json({ ok: false, error: "출연 역할을 선택해 주세요." }, { status: 400 });
+    }
+    if (appearanceRole === "other" && !appearanceRoleOther) {
+      return NextResponse.json({ ok: false, error: "기타 출연 역할을 입력해 주세요." }, { status: 400 });
+    }
+    if (isRealIdentity === null) {
+      return NextResponse.json({ ok: false, error: "실제 신분 여부를 선택해 주세요." }, { status: 400 });
+    }
+    if (isRealIdentity && consentSensitive === null) {
+      return NextResponse.json({ ok: false, error: "민감정보 동의 여부를 선택해 주세요." }, { status: 400 });
     }
     if (!signatureDataUrl.startsWith("data:image/")) {
       return NextResponse.json({ ok: false, error: "서명을 입력해 주세요." }, { status: 400 });
@@ -116,6 +154,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       p_provider_name: providerName,
       p_signature_data_url: signatureDataUrl,
       p_signed_date: signedDate,
+      p_provider_phone: providerPhone,
+      p_appearance_role: appearanceRole,
+      p_appearance_role_other: appearanceRoleOther,
+      p_is_real_identity: isRealIdentity,
+      p_consent_sensitive: consentSensitive,
       p_signer_ip: requestIp(req),
       p_user_agent: cleanText(req.headers.get("user-agent"), 500) || null,
     });
@@ -147,6 +190,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
         consent_shoot: signature.consent_shoot,
         consent_usage: signature.consent_usage,
         provider_name: signature.provider_name,
+        provider_phone: signature.provider_phone,
+        appearance_role: signature.appearance_role,
+        appearance_role_other: signature.appearance_role_other,
+        is_real_identity: signature.is_real_identity,
+        consent_sensitive: signature.consent_sensitive,
         signature_data_url: signature.signature_data_url,
         signed_date: signature.signed_date,
         signed_at: signature.signed_at,

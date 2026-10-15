@@ -69,6 +69,11 @@ describe("portrait consent public multi-signer route", () => {
         consent_shoot: true,
         consent_usage: true,
         provider_name: "두 번째 모델",
+        provider_phone: "010-1234-5678",
+        appearance_role: "patient_customer",
+        appearance_role_other: null,
+        is_real_identity: true,
+        consent_sensitive: true,
         signature_data_url: "data:image/png;base64,signature",
         signed_date: "2026년 10월 14일",
         signed_at: "2026-10-14T12:00:00.000Z",
@@ -97,6 +102,11 @@ describe("portrait consent public multi-signer route", () => {
         consentShoot: true,
         consentUsage: true,
         providerName: "두 번째 모델",
+        providerPhone: "010-1234-5678",
+        appearanceRole: "patient_customer",
+        appearanceRoleOther: null,
+        isRealIdentity: true,
+        consentSensitive: true,
         signatureDataUrl: "data:image/png;base64,signature",
       }),
     });
@@ -105,12 +115,77 @@ describe("portrait consent public multi-signer route", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       ok: true,
-      signature: { provider_name: "두 번째 모델" },
+      signature: {
+        provider_name: "두 번째 모델",
+        provider_phone: "010-1234-5678",
+        appearance_role: "patient_customer",
+        is_real_identity: true,
+        consent_sensitive: true,
+      },
       signatureCount: 2,
       signatureLimit: 2,
       complete: true,
     });
-    expect(rpcPayload).toMatchObject({ p_provider_name: "두 번째 모델", p_signer_ip: "203.0.113.10" });
+    expect(rpcPayload).toMatchObject({
+      p_provider_name: "두 번째 모델",
+      p_provider_phone: "010-1234-5678",
+      p_appearance_role: "patient_customer",
+      p_is_real_identity: true,
+      p_consent_sensitive: true,
+      p_signer_ip: "203.0.113.10",
+    });
+  });
+
+  it("stores role performers with sensitive consent as not applicable", async () => {
+    rpcResult = {
+      ...rpcResult,
+      signature: {
+        ...(rpcResult.signature as Record<string, unknown>),
+        appearance_role: "staff",
+        is_real_identity: false,
+        consent_sensitive: null,
+      },
+    };
+    const request = new NextRequest(`http://localhost/api/portrait-consent/${TOKEN}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        consentShoot: true,
+        consentUsage: true,
+        providerName: "역할 모델",
+        providerPhone: "010-2222-3333",
+        appearanceRole: "staff",
+        isRealIdentity: false,
+        consentSensitive: true,
+        signatureDataUrl: "data:image/png;base64,signature",
+      }),
+    });
+    const response = await POST(request, params);
+    expect(response.status).toBe(200);
+    expect(rpcPayload).toMatchObject({
+      p_is_real_identity: false,
+      p_consent_sensitive: null,
+    });
+  });
+
+  it("requires sensitive consent only for a real identity", async () => {
+    const request = new NextRequest(`http://localhost/api/portrait-consent/${TOKEN}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        consentShoot: true,
+        consentUsage: true,
+        providerName: "실제 환자",
+        providerPhone: "010-4444-5555",
+        appearanceRole: "patient_customer",
+        isRealIdentity: true,
+        signatureDataUrl: "data:image/png;base64,signature",
+      }),
+    });
+    const response = await POST(request, params);
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe("민감정보 동의 여부를 선택해 주세요.");
+    expect(rpcPayload).toBeNull();
   });
 
   it("reports a full link as a conflict without overwriting signatures", async () => {
@@ -128,6 +203,9 @@ describe("portrait consent public multi-signer route", () => {
         consentShoot: true,
         consentUsage: true,
         providerName: "세 번째 모델",
+        providerPhone: "010-9999-0000",
+        appearanceRole: "medical_staff",
+        isRealIdentity: false,
         signatureDataUrl: "data:image/png;base64,signature",
       }),
     });

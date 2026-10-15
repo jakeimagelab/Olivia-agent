@@ -17,7 +17,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       db.from("portrait_consents").select("id, signature_limit").eq("id", id).maybeSingle(),
       db
         .from("portrait_consent_signatures")
-        .select("id, portrait_consent_id, consent_shoot, consent_usage, provider_name, signature_data_url, signed_date, signed_at, created_at")
+        .select("id, portrait_consent_id, consent_shoot, consent_usage, provider_name, provider_phone, appearance_role, appearance_role_other, is_real_identity, consent_sensitive, signature_data_url, signed_date, signed_at, created_at")
         .eq("portrait_consent_id", id)
         .order("signed_at", { ascending: false }),
     ]);

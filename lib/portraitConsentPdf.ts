@@ -14,6 +14,8 @@ export async function generatePortraitConsentPdf(node: HTMLElement) {
     )
   );
 
+  await document.fonts.ready;
+
   const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
 
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });

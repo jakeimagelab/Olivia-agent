@@ -4,7 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle2, Download, Loader2, RotateCcw } from "lucide-react";
-import type { PortraitConsentField, PortraitConsentSignature } from "@/lib/portraitConsent";
+import PortraitConsentSignedDocument from "@/components/portrait-consent/PortraitConsentSignedDocument";
+import type {
+  PortraitConsentAppearanceRole,
+  PortraitConsentField,
+  PortraitConsentSignature,
+} from "@/lib/portraitConsent";
 import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
 import styles from "./PortraitConsentPortal.module.css";
 
@@ -29,57 +34,6 @@ function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (va
   );
 }
 
-function FieldRows({ fields }: { fields: PortraitConsentField[] }) {
-  return (
-    <div className={styles.fieldRows}>
-      {fields.map((field, index) => (
-        <div className={styles.fieldRow} key={`${field.label}-${index}`}>
-          <span aria-hidden="true">›</span>
-          <strong>{field.label}</strong>
-          <p>{field.value || "-"}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DocumentBody({ consent }: { consent: ConsentDoc }) {
-  return (
-    <>
-      <header className={styles.documentHeader}>
-        <h1>{consent.title}</h1>
-        <p>{consent.intro_text}</p>
-      </header>
-      <section className={styles.documentSection}>
-        <h2>사진(영상)촬영</h2>
-        <FieldRows fields={consent.detail_fields} />
-      </section>
-      <section className={styles.documentSection}>
-        <h2 className={styles.orangeHeading}>영상/사진(이미지) 활용</h2>
-        <FieldRows fields={consent.usage_items} />
-      </section>
-    </>
-  );
-}
-
-function SignatureBlock({ signature }: { signature: PortraitConsentSignature }) {
-  return (
-    <div className={styles.signatureBlock}>
-      <p>작성일 {signature.signed_date || "-"}</p>
-      <div>
-        <section>
-          <span>포토클리닉</span>
-          <img src="/assets/ceo-signature.png" alt="포토클리닉 서명" />
-        </section>
-        <section>
-          <span>초상권 제공자 <strong>{signature.provider_name}</strong> (인)</span>
-          {signature.signature_data_url ? <img src={signature.signature_data_url} alt={`${signature.provider_name || "제공자"} 서명`} /> : null}
-        </section>
-      </div>
-    </div>
-  );
-}
-
 export default function PortraitConsentPortalPage() {
   const params = useParams<{ token: string }>();
   const token = params?.token || "";
@@ -89,6 +43,11 @@ export default function PortraitConsentPortalPage() {
   const [consentShoot, setConsentShoot] = useState<boolean | null>(null);
   const [consentUsage, setConsentUsage] = useState<boolean | null>(null);
   const [providerName, setProviderName] = useState("");
+  const [providerPhone, setProviderPhone] = useState("");
+  const [appearanceRole, setAppearanceRole] = useState<PortraitConsentAppearanceRole | null>(null);
+  const [appearanceRoleOther, setAppearanceRoleOther] = useState("");
+  const [isRealIdentity, setIsRealIdentity] = useState<boolean | null>(null);
+  const [consentSensitive, setConsentSensitive] = useState<boolean | null>(null);
   const [signatureDataUrl, setSignatureDataUrl] = useState("");
   const [submittedSignature, setSubmittedSignature] = useState<PortraitConsentSignature | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -172,7 +131,25 @@ export default function PortraitConsentPortalPage() {
   const canSubmit = consentShoot !== null
     && consentUsage !== null
     && providerName.trim().length > 0
+    && providerPhone.trim().length > 0
+    && appearanceRole !== null
+    && (appearanceRole !== "other" || appearanceRoleOther.trim().length > 0)
+    && isRealIdentity !== null
+    && (!isRealIdentity || consentSensitive !== null)
     && signatureDataUrl.length > 0;
+
+  const draftSignature = {
+    consent_shoot: consentShoot,
+    consent_usage: consentUsage,
+    provider_name: providerName,
+    provider_phone: providerPhone,
+    appearance_role: appearanceRole,
+    appearance_role_other: appearanceRole === "other" ? appearanceRoleOther : null,
+    is_real_identity: isRealIdentity,
+    consent_sensitive: isRealIdentity ? consentSensitive : null,
+    signature_data_url: signatureDataUrl,
+    signed_date: null,
+  } satisfies Partial<PortraitConsentSignature>;
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
@@ -182,7 +159,17 @@ export default function PortraitConsentPortalPage() {
       const response = await fetch(`/api/portrait-consent/${encodeURIComponent(token)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ consentShoot, consentUsage, providerName: providerName.trim(), signatureDataUrl }),
+        body: JSON.stringify({
+          consentShoot,
+          consentUsage,
+          providerName: providerName.trim(),
+          providerPhone: providerPhone.trim(),
+          appearanceRole,
+          appearanceRoleOther: appearanceRole === "other" ? appearanceRoleOther.trim() : null,
+          isRealIdentity,
+          consentSensitive: isRealIdentity ? consentSensitive : null,
+          signatureDataUrl,
+        }),
       });
       const body = await response.json();
       if (!response.ok || !body.ok) throw new Error(body.error || "제출에 실패했습니다.");
@@ -219,6 +206,11 @@ export default function PortraitConsentPortalPage() {
     setConsentShoot(null);
     setConsentUsage(null);
     setProviderName("");
+    setProviderPhone("");
+    setAppearanceRole(null);
+    setAppearanceRoleOther("");
+    setIsRealIdentity(null);
+    setConsentSensitive(null);
     setSignatureDataUrl("");
     setSubmitError("");
     await loadConsent();
@@ -252,13 +244,8 @@ export default function PortraitConsentPortalPage() {
                 <p>{consent.signature_count}/{consent.signature_limit}명 서명 완료</p>
               </div>
             </header>
-            <div className={styles.document} ref={docRef}>
-              <DocumentBody consent={consent} />
-              <div className={styles.agreementRows}>
-                <p>위와 같이 사진을 촬영하는 것에 동의합니다 <strong>{submittedSignature.consent_shoot ? "예" : "아니오"}</strong></p>
-                <p>촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다 <strong>{submittedSignature.consent_usage ? "예" : "아니오"}</strong></p>
-              </div>
-              <SignatureBlock signature={submittedSignature} />
+            <div className={styles.documentViewport}>
+              <PortraitConsentSignedDocument ref={docRef} consent={consent} signature={submittedSignature} />
             </div>
             <footer className={styles.completionActions}>
               <button className={styles.secondaryButton} type="button" disabled={pdfBusy} onClick={() => void handleDownloadPdf()}>
@@ -279,8 +266,10 @@ export default function PortraitConsentPortalPage() {
               <span>서명 {consent.signature_count}/{consent.signature_limit}명</span>
               <span>{consent.signature_limit - consent.signature_count}명 남음</span>
             </div>
-            <div className={styles.document}>
-              <DocumentBody consent={consent} />
+            <div className={styles.documentForm}>
+              <div className={styles.documentViewport}>
+                <PortraitConsentSignedDocument consent={consent} signature={draftSignature} />
+              </div>
               <div className={styles.choiceRows}>
                 <div><span>위와 같이 사진을 촬영하는 것에 동의합니다</span><YesNoToggle value={consentShoot} onChange={setConsentShoot} /></div>
                 <div><span>촬영된 사진(영상)을 기업의 홍보 목적에만 사용하는 것에 동의합니다</span><YesNoToggle value={consentUsage} onChange={setConsentUsage} /></div>
@@ -306,6 +295,99 @@ export default function PortraitConsentPortalPage() {
                   />
                   <button type="button" onClick={clearSignature}>서명 지우기</button>
                 </div>
+
+                <label htmlFor="portrait-provider-phone">연락처</label>
+                <input
+                  id="portrait-provider-phone"
+                  type="tel"
+                  value={providerPhone}
+                  placeholder="전화번호를 입력해 주세요"
+                  onChange={(event) => setProviderPhone(event.target.value)}
+                />
+
+                <fieldset className={styles.radioFieldset}>
+                  <legend>출연 역할</legend>
+                  <div className={styles.radioGrid}>
+                    {([
+                      ["patient_customer", "환자·고객"],
+                      ["medical_staff", "의료진"],
+                      ["staff", "직원"],
+                      ["other", "기타"],
+                    ] as Array<[PortraitConsentAppearanceRole, string]>).map(([value, label]) => (
+                      <label className={appearanceRole === value ? styles.radioActive : ""} key={value}>
+                        <input
+                          type="radio"
+                          name="appearance-role"
+                          value={value}
+                          checked={appearanceRole === value}
+                          onChange={() => setAppearanceRole(value)}
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                  {appearanceRole === "other" ? (
+                    <input
+                      aria-label="기타 출연 역할"
+                      value={appearanceRoleOther}
+                      placeholder="출연 역할을 입력해 주세요"
+                      onChange={(event) => setAppearanceRoleOther(event.target.value)}
+                    />
+                  ) : null}
+                </fieldset>
+
+                <fieldset className={styles.radioFieldset}>
+                  <legend>실제 신분 여부</legend>
+                  <div className={styles.radioGrid}>
+                    <label className={isRealIdentity === true ? styles.radioActive : ""}>
+                      <input
+                        type="radio"
+                        name="real-identity"
+                        checked={isRealIdentity === true}
+                        onChange={() => setIsRealIdentity(true)}
+                      />
+                      실제 본인 신분
+                    </label>
+                    <label className={isRealIdentity === false ? styles.radioActive : ""}>
+                      <input
+                        type="radio"
+                        name="real-identity"
+                        checked={isRealIdentity === false}
+                        onChange={() => {
+                          setIsRealIdentity(false);
+                          setConsentSensitive(null);
+                        }}
+                      />
+                      역할 출연(연기)
+                    </label>
+                  </div>
+                </fieldset>
+
+                {isRealIdentity ? (
+                  <fieldset className={styles.radioFieldset}>
+                    <legend>민감정보 동의</legend>
+                    <div className={styles.radioGrid}>
+                      <label className={consentSensitive === true ? styles.radioActive : ""}>
+                        <input
+                          type="radio"
+                          name="sensitive-consent"
+                          checked={consentSensitive === true}
+                          onChange={() => setConsentSensitive(true)}
+                        />
+                        동의
+                      </label>
+                      <label className={consentSensitive === false ? styles.radioActive : ""}>
+                        <input
+                          type="radio"
+                          name="sensitive-consent"
+                          checked={consentSensitive === false}
+                          onChange={() => setConsentSensitive(false)}
+                        />
+                        미동의
+                      </label>
+                    </div>
+                  </fieldset>
+                ) : null}
                 {submitError ? <div className={styles.formError}>{submitError}</div> : null}
               </section>
             </div>

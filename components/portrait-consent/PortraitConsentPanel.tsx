@@ -26,6 +26,7 @@ import {
   type PortraitConsentStatus,
 } from "@/lib/portraitConsent";
 import { generatePortraitConsentPdf } from "@/lib/portraitConsentPdf";
+import PortraitConsentSignedDocument from "./PortraitConsentSignedDocument";
 import styles from "./PortraitConsentWorkspace.module.css";
 
 interface ConsentListItem {
@@ -821,32 +822,8 @@ export default function PortraitConsentPanel({
                   ))}
                 </div>
               </section>
-              <div className={styles.signedDocument} ref={detailDocRef}>
-                <h2>{detail.title}</h2>
-                <p className={styles.signedIntro}>{detail.intro_text}</p>
-                <div className={styles.signedSectionTitle}>사진(영상)촬영</div>
-                <div className={styles.signedRows}>
-                  {detail.detail_fields.map((field, index) => (
-                    <div className={styles.signedRow} key={`${field.label}-${index}`}><strong>{field.label}</strong><span>{field.value || "-"}</span></div>
-                  ))}
-                </div>
-                <div className={styles.signedSectionTitle}>영상/사진(이미지) 활용</div>
-                <div className={styles.signedRows}>
-                  {detail.usage_items.map((field, index) => (
-                    <div className={styles.signedRow} key={`${field.label}-${index}`}><strong>{field.label}</strong><span>{field.value || "-"}</span></div>
-                  ))}
-                </div>
-                <div className={styles.signedRows} style={{ marginTop: 18 }}>
-                  <div className={styles.signedRow}><strong>사진 촬영 동의</strong><span>{selectedSignature.consent_shoot ? "예" : "아니오"}</span></div>
-                  <div className={styles.signedRow}><strong>홍보 목적 사용 동의</strong><span>{selectedSignature.consent_usage ? "예" : "아니오"}</span></div>
-                  <div className={styles.signedRow}><strong>작성일</strong><span>{selectedSignature.signed_date || "-"}</span></div>
-                </div>
-                <div className={styles.signatureArea}>
-                  <div>포토클리닉<img src="/assets/ceo-signature.png" alt="포토클리닉 서명" /></div>
-                  <div>초상권 제공자 <strong>{selectedSignature.provider_name}</strong> (인)
-                    {selectedSignature.signature_data_url ? <img src={selectedSignature.signature_data_url} alt={`${selectedSignature.provider_name || "제공자"} 서명`} /> : null}
-                  </div>
-                </div>
+              <div className={styles.signedDocumentViewport}>
+                <PortraitConsentSignedDocument ref={detailDocRef} consent={detail} signature={selectedSignature} />
               </div>
               {formError ? <div className={styles.errorMessage}>{formError}</div> : null}
               {notice ? <div className={styles.successMessage}>{notice}</div> : null}

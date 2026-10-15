@@ -12,7 +12,7 @@
   background: #fdfcfa;
 }
 
-.container { width: min(720px, 100%); margin: 0 auto; }
+.container { width: min(860px, 100%); margin: 0 auto; }
 .logoWrap { display: flex; justify-content: center; margin-bottom: 20px; }
 .logoWrap img { height: 32px; object-fit: contain; }
 
@@ -74,7 +74,18 @@
 .successHeader h1 { font-size: 17px; font-weight: 600; }
 .successHeader p { margin-top: 2px; color: rgba(255, 255, 255, 0.72); font-size: 12px; }
 
-.document { background: #fff; }
+.document,
+.documentForm { background: #fff; }
+
+.documentViewport {
+  width: 100%;
+  overflow-x: auto;
+  background: #eef2f1;
+}
+
+.documentViewport > div {
+  margin: 0 auto;
+}
 .documentHeader { padding: 28px 24px 8px; }
 .documentHeader h1 {
   margin: 0 0 16px;
@@ -156,6 +167,59 @@
 }
 .signForm input:focus { border-color: var(--portal-green); box-shadow: 0 0 0 3px rgba(21, 88, 85, 0.1); }
 
+.radioFieldset {
+  min-width: 0;
+  margin: 18px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.radioFieldset legend {
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.radioGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radioGrid label {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0 13px;
+  color: var(--portal-muted);
+  background: #fff;
+  border: 1px solid var(--portal-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.radioGrid label.radioActive {
+  color: var(--portal-green);
+  background: var(--portal-mint);
+  border-color: var(--portal-green);
+}
+
+.radioFieldset .radioGrid input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--portal-green);
+  box-shadow: none;
+}
+
+.radioFieldset > input {
+  margin-top: 8px;
+}
+
 .companySignature {
   display: inline-flex;
   align-items: center;
@@ -187,7 +251,7 @@
   background: none;
   border: 0;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   text-decoration: underline;
   cursor: pointer;
 }

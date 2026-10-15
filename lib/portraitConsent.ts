@@ -1,5 +1,6 @@
 export type PortraitConsentStatus = "draft" | "sent" | "signed";
 export type PortraitConsentFieldType = "text" | "date" | "checklist";
+export type PortraitConsentAppearanceRole = "patient_customer" | "medical_staff" | "staff" | "other";
 
 export interface PortraitConsentField {
   label: string;
@@ -36,6 +37,11 @@ export interface PortraitConsentSignature {
   consent_shoot: boolean | null;
   consent_usage: boolean | null;
   provider_name: string | null;
+  provider_phone: string | null;
+  appearance_role: PortraitConsentAppearanceRole | null;
+  appearance_role_other: string | null;
+  is_real_identity: boolean | null;
+  consent_sensitive: boolean | null;
   signature_data_url: string | null;
   signed_date: string | null;
   signed_at: string;
