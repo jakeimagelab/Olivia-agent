@@ -30,11 +30,15 @@ export function secondsToTimecode(seconds: number, rate: FrameRate): string {
   return framesToTimecode(secondsToFrames(seconds, rate), rate);
 }
 
-export function timecodeToFrames(timecode: string, rate: FrameRate): number | null {
+export function timecodeToFrames(timecode: string, rate: FrameRate, dropFrame = false): number | null {
   const parts = timecode.split(/[:;.]/).map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isFinite(part))) return null;
   const [h, m, s, f] = parts;
-  return ((h * 60 + m) * 60 + s) * rate.timebase + f;
+  const frames = ((h * 60 + m) * 60 + s) * rate.timebase + f;
+  if (!dropFrame || !rate.ntsc || (rate.timebase !== 30 && rate.timebase !== 60)) return frames;
+  const drop = rate.timebase === 30 ? 2 : 4;
+  const totalMinutes = h * 60 + m;
+  return frames - drop * (totalMinutes - Math.floor(totalMinutes / 10));
 }
 
 /** 목록 표시용 짧은 시계 (05:31 / 1:02:14) */

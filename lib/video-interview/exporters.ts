@@ -215,7 +215,7 @@ export function buildFcpxml(plan: ExportPlan): string {
     if (frames <= 0) return "0s";
     return rate.ntsc ? `${frames * 1001}/${rate.timebase * 1000}s` : `${frames}/${rate.timebase}s`;
   };
-  const assetStart = layout.map(({ clip }) => (clip.startTimecode ? timecodeToFrames(clip.startTimecode, rate) ?? 0 : 0));
+  const assetStart = layout.map(({ clip }) => (clip.startTimecode ? timecodeToFrames(clip.startTimecode, rate, clip.startTimecodeDropFrame) ?? 0 : 0));
   const mainName = fcpFormatName(plan.width, plan.height, rate);
 
   const resources = [
@@ -240,7 +240,7 @@ export function buildFcpxml(plan: ExportPlan): string {
     .join("");
 
   const totalFrames = layout.reduce((sum, item) => sum + item.frames, 0);
-  const mainSpine = layout.map(({ clip, offset, frames }, index) => `<asset-clip ref="a${index + 1}" offset="${t(offset)}" name="${xml(clip.name)}" start="${t(assetStart[index])}" duration="${t(frames)}" tcFormat="NDF">${markerXml(index)}</asset-clip>`).join("");
+  const mainSpine = layout.map(({ clip, offset, frames }, index) => `<asset-clip ref="a${index + 1}" offset="${t(offset)}" name="${xml(clip.name)}" start="${t(assetStart[index])}" duration="${t(frames)}" tcFormat="${clip.startTimecodeDropFrame ? "DF" : "NDF"}">${markerXml(index)}</asset-clip>`).join("");
   const projects = [
     `<project name="${xml("00_본편_Q&A마커")}"><sequence format="r1" duration="${t(totalFrames)}" tcStart="0s" tcFormat="NDF" audioLayout="stereo" audioRate="48k"><spine>${mainSpine}</spine></sequence></project>`,
   ];
@@ -252,7 +252,7 @@ export function buildFcpxml(plan: ExportPlan): string {
     const spine = pieces.map((piece, pieceIndex) => {
       const length = piece.outFrame - piece.inFrame;
       const hook = pieceIndex === 0 && reel.hook ? `<marker start="${t(assetStart[piece.index] + piece.inFrame)}" duration="${t(1)}" value="${xml(reel.hook)}"/>` : "";
-      const item = `<asset-clip ref="a${piece.index + 1}" offset="${t(cursor)}" name="${xml(plan.clips[piece.index].name)}" start="${t(assetStart[piece.index] + piece.inFrame)}" duration="${t(length)}" tcFormat="NDF"><adjust-conform type="fill"/>${hook}</asset-clip>`;
+      const item = `<asset-clip ref="a${piece.index + 1}" offset="${t(cursor)}" name="${xml(plan.clips[piece.index].name)}" start="${t(assetStart[piece.index] + piece.inFrame)}" duration="${t(length)}" tcFormat="${plan.clips[piece.index].startTimecodeDropFrame ? "DF" : "NDF"}"><adjust-conform type="fill"/>${hook}</asset-clip>`;
       cursor += length;
       return item;
     }).join("");

@@ -79,6 +79,27 @@ export function candidateBoundaries(segments: InterviewSegment[]): number[] {
 
 export type QaSkeleton = { questionStartSeg: number | null; answerStartSeg: number; answerEndSeg: number };
 
+export const MIXED_CAMERA_WARNING = "서로 다른 카메라 파일(R5K·DSC 등)이 섞여 있습니다. 같은 대화가 중복될 수 있으니 메인 카메라 파일만 있는 폴더로 다시 분석하세요.";
+export const MIXED_FORMAT_WARNING = "프레임레이트나 해상도가 다른 파일이 섞여 있어 편집툴 내보내기 길이가 틀어질 수 있습니다.";
+
+export function cameraFilePrefix(name: string): "R5K" | "DSC" | "_AK" | null {
+  const normalized = name.toUpperCase();
+  if (normalized.startsWith("R5K")) return "R5K";
+  if (normalized.startsWith("DSC")) return "DSC";
+  if (normalized.startsWith("_AK")) return "_AK";
+  return null;
+}
+
+export function interviewSourceWarnings(clips: Pick<InterviewClip, "name" | "hasVideo" | "rate" | "width" | "height">[]): string[] {
+  const warnings: string[] = [];
+  const prefixes = new Set(clips.map((clip) => cameraFilePrefix(clip.name)).filter((value): value is "R5K" | "DSC" | "_AK" => value !== null));
+  if (prefixes.size > 1) warnings.push(MIXED_CAMERA_WARNING);
+  const videoClips = clips.filter((clip) => clip.hasVideo);
+  const formats = new Set(videoClips.map((clip) => `${clip.rate.fps.toFixed(4)}:${clip.width ?? "?"}x${clip.height ?? "?"}`));
+  if (formats.size > 1) warnings.push(MIXED_FORMAT_WARNING);
+  return warnings;
+}
+
 /**
  * Claude 결과를 쓸 수 없을 때의 기계적 Q&A 분리.
  * 작은 목소리 구간은 질문, 그 뒤 큰 목소리 구간은 답변으로 묶고, 작은 목소리가 없으면
@@ -88,17 +109,19 @@ export function fallbackQaBlocks(segments: InterviewSegment[]): QaSkeleton[] {
   if (!segments.length) return [];
   const starts = [0, ...candidateBoundaries(segments)].filter((value, index, array) => array.indexOf(value) === index).sort((a, b) => a - b);
   const blocks: QaSkeleton[] = [];
+  let pendingQuestionStart: number | null = null;
   starts.forEach((start, index) => {
     const end = (starts[index + 1] ?? segments.length) - 1;
     let cursor = start;
     while (cursor <= end && segments[cursor].quiet) cursor += 1;
     const hasQuestion = cursor > start;
     if (cursor > end) {
-      // 질문만 있고 답이 없는 구간은 다음 블록 질문에 합친다.
-      if (blocks.length) blocks[blocks.length - 1].answerEndSeg = end;
+      // 질문만 있는 구간은 앞 답변을 늘리지 않고, 다음 답변 블록의 질문 시작으로 보류한다.
+      pendingQuestionStart ??= start;
       return;
     }
-    blocks.push({ questionStartSeg: hasQuestion ? start : null, answerStartSeg: cursor, answerEndSeg: end });
+    blocks.push({ questionStartSeg: pendingQuestionStart ?? (hasQuestion ? start : null), answerStartSeg: cursor, answerEndSeg: end });
+    pendingQuestionStart = null;
   });
   return mergeShortBlocks(blocks, segments);
 }

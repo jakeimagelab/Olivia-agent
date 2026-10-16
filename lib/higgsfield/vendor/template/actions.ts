@@ -19,6 +19,7 @@ export async function getGenerationStatuses(data: unknown): Promise<StatusResult
     const record = item as Record<string, unknown>;
     const requestId = typeof record.requestId === "string" ? record.requestId : "";
     if (!requestId) return [];
+    if (typeof record.checkError === "string") return [];
     if (typeof record.providerError === "string" && record.status === "failed") return [{ requestId, error: record.providerError }];
     return [{
       requestId,

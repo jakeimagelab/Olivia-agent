@@ -7,6 +7,7 @@ import { Stepper } from "@/components/workspace-shell/Stepper";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { C } from "@/lib/theme";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import { getSupabase } from "@/lib/supabase";
 
 /* ─── types ──────────────────────────────────────────────── */
 interface BgmSection {
@@ -268,12 +269,23 @@ function Step2({
 
   const upload = async () => {
     if (!file) { setMsg({ text: "파일을 선택해주세요", ok: false }); return; }
+    if (file.size > 50 * 1024 * 1024) { setMsg({ text: "50MB 이하 파일만 올릴 수 있습니다", ok: false }); return; }
     setUploading(true); setMsg(null);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("videoContiId", videoContiId);
-      const r = await fetch("/api/video-conti/bgm-upload", { method: "POST", body: form });
+      const ticketResponse = await fetch("/api/video-conti/bgm-upload/ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoContiId, fileName: file.name, contentType: file.type, size: file.size }),
+      });
+      const ticket = await ticketResponse.json();
+      if (!ticketResponse.ok || !ticket.ok || !ticket.signedUrl || !ticket.storagePath) throw new Error(ticket.error ?? "업로드 주소 생성 실패");
+      const { error: uploadError } = await getSupabase().storage.from(ticket.bucket).uploadToSignedUrl(ticket.storagePath, ticket.token, file, { contentType: file.type || (file.name.toLowerCase().endsWith(".wav") ? "audio/wav" : "audio/mpeg") });
+      if (uploadError) throw new Error(uploadError.message || "BGM 파일 업로드 실패");
+      const r = await fetch("/api/video-conti/bgm-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoContiId, storagePath: ticket.storagePath, fileName: file.name }),
+      });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error ?? "업로드 실패");
       setSections(d.sections ?? []);

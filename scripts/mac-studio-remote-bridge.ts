@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { randomUUID } from "node:crypto";
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -38,6 +38,7 @@ export type RunnerInvocation = {
   command: string;
   args: string[];
   cwd: string;
+  killProcessGroup?: boolean;
 };
 
 type RunnerOutcome = {
@@ -179,11 +180,12 @@ function runner(repoRoot: string, scriptName: string, args: string[]): RunnerInv
 
 function videoRunner(repoRoot: string, args: string[]): RunnerInvocation {
   const invocation = runner(repoRoot, "video-interview-runner.ts", args);
-  if (process.platform !== "darwin") return invocation;
+  if (process.platform !== "darwin") return { ...invocation, killProcessGroup: true };
   return {
     command: "/usr/bin/caffeinate",
     args: ["-i", invocation.command, ...invocation.args],
     cwd: invocation.cwd,
+    killProcessGroup: true,
   };
 }
 
@@ -328,6 +330,22 @@ function captureWithLimit(current: string, chunk: Buffer): string {
   throw new Error(`runner 출력이 ${MAX_CAPTURE_BYTES / 1024 / 1024}MB 제한을 초과했습니다.`);
 }
 
+function killIgnoringMissing(pid: number, signal: NodeJS.Signals): void {
+  try {
+    process.kill(pid, signal);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+  }
+}
+
+function terminateGroup(child: ChildProcess): ReturnType<typeof setTimeout> | null {
+  if (!child.pid) return null;
+  killIgnoringMissing(-child.pid, "SIGTERM");
+  return setTimeout(() => {
+    if (child.exitCode === null && child.signalCode === null && child.pid) killIgnoringMissing(-child.pid, "SIGKILL");
+  }, 10_000);
+}
+
 async function executeRunner(
   invocation: RunnerInvocation,
   onProgress: (progress: JsonRecord) => Promise<void>,
@@ -338,6 +356,7 @@ async function executeRunner(
       cwd: invocation.cwd,
       env: process.env,
       stdio: ["ignore", "pipe", "pipe"],
+      ...(invocation.killProcessGroup ? { detached: true } : {}),
     });
     let stdout = "";
     let stderr = "";
@@ -345,6 +364,14 @@ async function executeRunner(
     let cancellationRequested = false;
     let cancelCheckRunning = false;
     let cancelTimer: ReturnType<typeof setInterval> | null = null;
+    let forceKillTimer: ReturnType<typeof setTimeout> | null = null;
+    const terminate = () => {
+      if (invocation.killProcessGroup) {
+        forceKillTimer ??= terminateGroup(child);
+      } else {
+        child.kill("SIGTERM");
+      }
+    };
     const progressReporter = createCoalescedProgressReporter(onProgress, {
       onError: (error) => {
         console.error(`[remote-bridge] 진행 상태 보고 실패: ${error instanceof Error ? error.message : String(error)}`);
@@ -371,7 +398,7 @@ async function executeRunner(
       try {
         if (await options.shouldCancel()) {
           cancellationRequested = true;
-          child.kill("SIGTERM");
+          terminate();
         }
       } catch (error) {
         // 취소 상태 조회 실패는 작업 실패가 아니다. 다음 500ms polling에서 다시 확인한다.
@@ -389,7 +416,7 @@ async function executeRunner(
       try {
         stdout = captureWithLimit(stdout, chunk);
       } catch (error) {
-        child.kill("SIGTERM");
+        terminate();
         reject(error);
       }
     });
@@ -401,13 +428,14 @@ async function executeRunner(
         stderrBuffer = lines.pop() ?? "";
         for (const line of lines) processStderrLine(line);
       } catch (error) {
-        child.kill("SIGTERM");
+        terminate();
         reject(error);
       }
     });
     child.once("error", reject);
     child.once("close", (code) => {
       if (cancelTimer) clearInterval(cancelTimer);
+      if (forceKillTimer) clearTimeout(forceKillTimer);
       if (stderrBuffer) processStderrLine(stderrBuffer);
       void progressReporter.flush().then(() => {
         resolve({

@@ -113,12 +113,20 @@ describe("Mac Studio Worker repository scripts", () => {
     }), repoRoot);
 
     expect(invocation?.args).toContain(path.join(repoRoot, "scripts/video-interview-runner.ts"));
+    expect(invocation?.killProcessGroup).toBe(true);
     if (process.platform === "darwin") {
       expect(invocation?.command).toBe("/usr/bin/caffeinate");
       expect(invocation?.args.slice(0, 2)).toEqual(["-i", process.execPath]);
     } else {
       expect(invocation?.command).toBe(process.execPath);
     }
+  });
+
+  it("kills only video runner process groups while leaving photo runners unchanged", () => {
+    const audio = createRunnerInvocation(job("VIDEO_AUDIO_EXTRACT", { source_relative_path: "1004_인터뷰" }), repoRoot);
+    const photo = createRunnerInvocation(job("PHOTO_RESIZE", { project_relative_path: "1004_사진" }), repoRoot);
+    expect(audio?.killProcessGroup).toBe(true);
+    expect(photo?.killProcessGroup).toBeUndefined();
   });
 
   it("keeps the PHASE 6 action contract visible in both installed shell entrypoints", async () => {

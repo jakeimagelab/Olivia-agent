@@ -56,7 +56,7 @@ export function resolveInterviewAnalysis(raw: unknown, segments: InterviewSegmen
     if (answerStart === null || answerEnd === null || answerEnd < answerStart) continue;
     const questionStart = item.question_start_seg === null ? null : clampSeg(item.question_start_seg);
     skeletons.push({
-      questionStartSeg: questionStart !== null && questionStart <= answerStart ? questionStart : null,
+      questionStartSeg: questionStart !== null && questionStart < answerStart ? questionStart : null,
       answerStartSeg: answerStart,
       answerEndSeg: answerEnd,
       item,

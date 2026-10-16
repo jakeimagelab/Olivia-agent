@@ -6,7 +6,7 @@ import type { VideoGenerationStatus, VideoModelCapability, VideoUploadTicket } f
 import { getModel, MODELS, parseSettings } from "./vendor/template/catalog";
 import { groupMedia } from "./vendor/template/catalog/media-inputs";
 import { validateMedia } from "./vendor/template/catalog/media-inputs";
-import { createPlatformClient, type GenerationStatus } from "./vendor/template/platform";
+import { createPlatformClient, PlatformError, type GenerationStatus } from "./vendor/template/platform";
 import { toPlatform } from "./vendor/template/to-platform";
 import { requireUploadContentType, type UploadTicket } from "./vendor/template/upload-contract";
 
@@ -109,16 +109,21 @@ export async function getVideoGenerationStatus(requestId: string) {
   return normalizeStatus(await createOfficialPlatformClient().status(requestId));
 }
 
-export async function getVideoGenerationStatuses(requestIds: string[]) {
-  const client = createOfficialPlatformClient();
+export async function getVideoGenerationStatuses(
+  requestIds: string[],
+  client: Pick<ReturnType<typeof createPlatformClient>, "status"> = createOfficialPlatformClient(),
+) {
   return Promise.all(requestIds.map(async (requestId) => {
     try {
       return await normalizeStatus(await client.status(requestId));
     } catch (error) {
+      const message = error instanceof Error ? error.message : "상태를 확인하지 못했습니다.";
+      if (error instanceof PlatformError && (error.status === 404 || /not[ -]?found|없는 작업|찾을 수 없/i.test(message))) {
+        return { requestId, status: "failed" as const, providerError: message };
+      }
       return {
         requestId,
-        status: "failed" as const,
-        providerError: error instanceof Error ? error.message : "상태를 확인하지 못했습니다.",
+        checkError: message,
       };
     }
   }));

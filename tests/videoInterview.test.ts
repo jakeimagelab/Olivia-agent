@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { annotateSegments, candidateBoundaries, fallbackQaBlocks, snapRange } from "@/lib/video-interview/signals";
+import { describe, expect, it, vi } from "vitest";
+import { annotateSegments, candidateBoundaries, fallbackQaBlocks, interviewSourceWarnings, MIXED_CAMERA_WARNING, MIXED_FORMAT_WARNING, snapRange } from "@/lib/video-interview/signals";
 import { resolveInterviewAnalysis } from "@/lib/video-interview/resolve";
 import { buildFcpxml, buildMarkers, buildPremiereXml, createPathMapper } from "@/lib/video-interview/exporters";
 import { buildSrt, splitForSubtitle } from "@/lib/video-interview/srt";
-import { fpsToRate, locateInClip, secondsToTimecode } from "@/lib/video-interview/timecode";
+import { fpsToRate, locateInClip, secondsToTimecode, timecodeToFrames } from "@/lib/video-interview/timecode";
 import { parseFfmpegProbe, compareNatural } from "@/lib/video-interview/node/media";
 import type { InterviewClip } from "@/lib/video-interview/types";
+import { requestInterviewAnalysisMessage, TRUNCATED_ANALYSIS_WARNING } from "@/lib/video-interview/node/runVideoInterview";
 
 const rate = fpsToRate(29.97);
 const clip = (index: number, start: number, duration: number): InterviewClip => ({
@@ -45,6 +46,20 @@ describe("video interview signals", () => {
     ]);
   });
 
+  it("carries an unanswered question forward and drops a trailing unanswered question", () => {
+    const rows = [
+      { start: 0, end: 1, text: "질문1", levelDb: -42 },
+      ...Array.from({ length: 8 }, (_, index) => ({ start: 1 + index * 2, end: 2 + index * 2, text: `답1-${index}`, levelDb: -20 })),
+      { start: 18, end: 19, text: "질문2", levelDb: -42 },
+      ...Array.from({ length: 8 }, (_, index) => ({ start: 19 + index * 2, end: 20 + index * 2, text: `답2-${index}`, levelDb: -20 })),
+      { start: 36, end: 37, text: "마지막질문", levelDb: -42 },
+    ];
+    const annotated = annotateSegments(rows, [{ timelineStartSec: 0, durationSec: 60 }]);
+    const blocks = fallbackQaBlocks(annotated);
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].answerEndSeg).toBe(rows.length - 2);
+  });
+
   it("snaps a range to the pauses around speech", () => {
     const snapped = snapRange(segments, 5, 6, 120);
     expect(snapped.start).toBeGreaterThan(63);
@@ -80,6 +95,12 @@ describe("video interview signals", () => {
     expect(analysis.qaFallback).toBe(true);
     expect(analysis.qa).toHaveLength(2);
     expect(analysis.qa[0].question).toContain("개원");
+  });
+
+  it("treats an equal question and answer start as inferred", () => {
+    const analysis = resolveInterviewAnalysis({ qa_blocks: [{ question_start_seg: 1, answer_start_seg: 1, answer_end_seg: 2, question: "", question_heard: true }] }, segments, 120);
+    expect(analysis.qa[0].questionStartSeg).toBeNull();
+    expect(analysis.qa[0].questionSource).toBe("inferred");
   });
 });
 
@@ -121,6 +142,13 @@ describe("video interview exports", () => {
     expect(xml).not.toMatch(/="NaN|undefined/);
   });
 
+  it("uses Sony drop-frame asset timecode only in FCPXML", () => {
+    const dfClip = { ...clip(0, 0, 60), startTimecode: "10:00:00:00", startTimecodeDropFrame: true };
+    const xml = buildFcpxml({ ...plan, clips: [dfClip], markers: [], reels: [] });
+    expect(xml).toContain('start="1079998920/30000s"');
+    expect(xml).toContain('tcFormat="DF"');
+  });
+
   it("splits long subtitles into balanced lines", () => {
     const long = { ...segments[1], text: "그래서 저희 병원은 환자분이 무서워하지 않는 치과를 만들고 싶었고 그 마음을 사진에 담고 싶었습니다", start: 0, end: 10, words: [] };
     const pieces = splitForSubtitle(long);
@@ -136,6 +164,13 @@ describe("video interview helpers", () => {
     expect(locateInClip(75, clips)).toEqual({ clipName: "C0002.MP4", offsetSec: 15 });
   });
 
+  it("converts NTSC drop-frame and non-drop-frame timecodes to frames", () => {
+    expect(timecodeToFrames("10:00:00;00", fpsToRate(29.97), true)).toBe(1_078_920);
+    expect(timecodeToFrames("10:00:00:00", fpsToRate(29.97))).toBe(1_080_000);
+    expect(timecodeToFrames("00:10:00;00", fpsToRate(29.97), true)).toBe(17_982);
+    expect(timecodeToFrames("01:00:00;00", fpsToRate(59.94), true)).toBe(215_784);
+  });
+
   it("parses ffmpeg probe output and sorts camera files naturally", () => {
     const info = parseFfmpegProbe(`  Duration: 00:12:03.52, start: 0.000000, bitrate: 100000 kb/s
   Stream #0:0: Video: h264 (High), yuv420p, 3840x2160, 100000 kb/s, 29.97 fps, 29.97 tbr
@@ -143,5 +178,31 @@ describe("video interview helpers", () => {
   Stream #0:1: Audio: aac (LC), 48000 Hz, stereo, fltp, 192 kb/s`);
     expect(info).toMatchObject({ durationSec: 723.52, width: 3840, height: 2160, fps: 29.97, hasAudio: true, channels: 2, startTimecode: "10:21:33:12" });
     expect(["C0010.MP4", "C0002.MP4", "C0001.MP4"].sort(compareNatural)).toEqual(["C0001.MP4", "C0002.MP4", "C0010.MP4"]);
+    const dropFrame = parseFfmpegProbe("Duration: 00:00:10.00\nStream #0:0: Video: h264, 1920x1080, 29.97 fps\ntimecode : 10:00:00;00");
+    expect(dropFrame).toMatchObject({ startTimecode: "10:00:00:00", startTimecodeDropFrame: true });
+  });
+
+  it("warns for mixed camera prefixes and mixed video formats", () => {
+    expect(interviewSourceWarnings([clip(0, 0, 10), { ...clip(1, 10, 10), name: "R5K_0002.MP4" }])).not.toContain(MIXED_CAMERA_WARNING);
+    expect(interviewSourceWarnings([{ ...clip(0, 0, 10), name: "R5K_0001.MP4" }, { ...clip(1, 10, 10), name: "DSC00012.MP4" }])).toContain(MIXED_CAMERA_WARNING);
+    expect(interviewSourceWarnings([clip(0, 0, 10), { ...clip(1, 10, 10), rate: fpsToRate(59.94) }])).toContain(MIXED_FORMAT_WARNING);
+  });
+
+  it("retries a truncated Claude stream once and uses the complete second response", async () => {
+    const stream = vi.fn()
+      .mockReturnValueOnce({ finalMessage: async () => ({ stop_reason: "max_tokens", content: [] }) })
+      .mockReturnValueOnce({ finalMessage: async () => ({ stop_reason: "end_turn", content: [{ type: "text", text: "complete" }] }) });
+    const retry = vi.fn();
+    const result = await requestInterviewAnalysisMessage({ stream } as never, { model: "test", messages: [{ role: "user", content: "test" }] }, retry);
+    expect(stream.mock.calls.map(([params]) => params.max_tokens)).toEqual([16000, 32000]);
+    expect(result.message.stop_reason).toBe("end_turn");
+    expect(result.warnings).toEqual([]);
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the second truncated result with one warning", async () => {
+    const stream = vi.fn().mockReturnValue({ finalMessage: async () => ({ stop_reason: "max_tokens", content: [] }) });
+    const result = await requestInterviewAnalysisMessage({ stream } as never, { model: "test", messages: [{ role: "user", content: "test" }] });
+    expect(result.warnings).toEqual([TRUNCATED_ANALYSIS_WARNING]);
   });
 });

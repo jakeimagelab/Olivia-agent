@@ -1,9 +1,14 @@
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import { MODELS } from "@/lib/higgsfield/vendor/template/catalog";
 import { defaultSettings } from "@/components/video-production/types";
 import { upsertVideoGenerationHistory } from "@/lib/higgsfield/history";
 import type { VideoGenerationRecord, VideoModelCapability } from "@/lib/higgsfield/types";
+import { HIGGSFIELD_POLL_DEADLINE_MS, shouldRestoreVideoGenerationWatch, videoGenerationPollDeadline } from "@/lib/higgsfield/recovery";
+import { getVideoGenerationStatuses } from "@/lib/higgsfield/adapter";
+import { PlatformError } from "@/lib/higgsfield/vendor/template/platform";
+import { getGenerationStatuses } from "@/lib/higgsfield/vendor/template/actions";
 
 function capability(model: typeof MODELS[number]): VideoModelCapability {
   return {
@@ -33,6 +38,7 @@ function record(requestId: string, updatedAt: string): VideoGenerationRecord {
 }
 
 describe("Higgsfield video production integration", () => {
+  afterEach(() => vi.unstubAllGlobals());
   it("derives selectable video models and their settings from the official catalog", () => {
     const videoModels = MODELS.filter((model) => model.surface === "video");
     expect(videoModels.length).toBeGreaterThan(0);
@@ -111,12 +117,41 @@ describe("Higgsfield video production integration", () => {
     const workspace = readFileSync("components/video-production/VideoProductionWorkspace.tsx", "utf8");
     const viewer = readFileSync("components/video-production/VideoResultViewer.tsx", "utf8");
 
-    expect(workspace).toContain("HIGGSFIELD_POLL_DEADLINE_MS = 5 * 60_000");
+    expect(readFileSync("lib/higgsfield/recovery.ts", "utf8")).toContain("HIGGSFIELD_POLL_DEADLINE_MS = 10 * 60_000");
     expect(workspace).toContain("HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE");
     expect(workspace).toContain('"queue_timeout"');
     expect(viewer).toContain("Higgsfield 대기열 지연");
     expect(viewer).toContain("Higgsfield 대기열 확인 한도 초과");
     expect(viewer).toContain("최근 상태 확인");
     expect(viewer).toContain("기존 요청 취소");
+    expect(viewer).toContain("상태 다시 확인");
+  });
+
+  it("starts a fresh ten-minute deadline when a six-minute-old record is restored", () => {
+    const now = Date.parse("2026-10-16T10:00:00.000Z");
+    const restored = record("req-restored", new Date(now - 6 * 60_000).toISOString());
+    restored.status = "in_progress";
+    expect(shouldRestoreVideoGenerationWatch(restored, now)).toBe(true);
+    expect(videoGenerationPollDeadline(now)).toBe(now + HIGGSFIELD_POLL_DEADLINE_MS);
+  });
+
+  it("restores recent queue timeouts but excludes ones older than 24 hours", () => {
+    const now = Date.parse("2026-10-16T10:00:00.000Z");
+    const recent = { ...record("recent", new Date(now - 60_000).toISOString()), status: "queue_timeout" as const };
+    const expired = { ...record("expired", new Date(now - 24 * 60 * 60_000 - 1).toISOString()), status: "queue_timeout" as const };
+    expect(shouldRestoreVideoGenerationWatch(recent, now)).toBe(true);
+    expect(shouldRestoreVideoGenerationWatch(expired, now)).toBe(false);
+  });
+
+  it("keeps transient status errors retryable and marks only missing requests failed", async () => {
+    const transient = await getVideoGenerationStatuses(["transient"], { status: vi.fn().mockRejectedValue(new Error("rate limited")) });
+    expect(transient).toEqual([{ requestId: "transient", checkError: "rate limited" }]);
+    const missing = await getVideoGenerationStatuses(["missing"], { status: vi.fn().mockRejectedValue(new PlatformError(404, { detail: "not found" })) });
+    expect(missing).toEqual([{ requestId: "missing", status: "failed", providerError: "not found" }]);
+  });
+
+  it("drops transient checkError entries from the client poll result", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, statuses: [{ requestId: "retry", checkError: "temporary" }] }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    await expect(getGenerationStatuses({ requestIds: ["retry"] })).resolves.toEqual([]);
   });
 });

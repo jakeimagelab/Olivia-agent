@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { loadEnvConfig } from "@next/env";
-import { runVideoAudioExtract, runVideoInterviewAnalyze } from "@/lib/video-interview/node/runVideoInterview";
+import { cleanupActiveTempDirs, runVideoAudioExtract, runVideoInterviewAnalyze } from "@/lib/video-interview/node/runVideoInterview";
 import type { VideoStudioProgress } from "@/lib/video-interview/types";
 import type { RemoteJobProgressStage } from "@/lib/remote-jobs/progress";
 
@@ -20,6 +20,17 @@ const STAGE_MAP: Record<VideoStudioProgress["stage"], RemoteJobProgressStage> = 
 // stdout 마지막 줄: 결과 JSON / stderr: OLIVIA_REMOTE_PROGRESS {json}
 loadEnvConfig(process.cwd());
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
+let canceling = false;
+
+function cancelRunner(): void {
+  if (canceling) return;
+  canceling = true;
+  cleanupActiveTempDirs();
+  process.stdout.write(`${JSON.stringify({ ok: false, status: "VIDEO_STUDIO_CANCELED", error: "작업이 취소되었습니다." })}\n`, () => process.exit(143));
+}
+
+process.on("SIGTERM", cancelRunner);
+process.on("SIGINT", cancelRunner);
 
 function args(): Record<string, string> {
   const values: Record<string, string> = {};

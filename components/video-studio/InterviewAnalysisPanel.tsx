@@ -217,6 +217,7 @@ function ResultView({ result, edits, editRoot, onBack, notify }: { result: Video
       </div>
 
       {analysis.qaFallback ? <p className={styles.notice}>AI 정리가 불완전해 목소리 크기·쉼·파일 바뀜만으로 Q&A를 나눴습니다. 질문 제목이 비어 있을 수 있어요.</p> : null}
+      {result.warnings?.map((warning) => <p className={styles.notice} key={warning}>{warning}</p>)}
 
       <div className={styles.searchRow}>
         <label className={styles.search}>

@@ -87,6 +87,7 @@ export function parseFfmpegProbe(output: string) {
     sampleRate: 48000,
     channels: 2,
     startTimecode: null as string | null,
+    startTimecodeDropFrame: false,
   };
   const duration = output.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
   if (duration) info.durationSec = Number(duration[1]) * 3600 + Number(duration[2]) * 60 + Number(duration[3]);
@@ -105,7 +106,10 @@ export function parseFfmpegProbe(output: string) {
       if (/\bmono\b/.test(line)) info.channels = 1;
     }
     const timecode = line.match(/timecode\s*:\s*(\d\d:\d\d:\d\d[:;]\d\d)/);
-    if (timecode && !info.startTimecode) info.startTimecode = timecode[1].replace(";", ":");
+    if (timecode && !info.startTimecode) {
+      info.startTimecodeDropFrame = timecode[1].includes(";");
+      info.startTimecode = timecode[1].replace(";", ":");
+    }
   }
   // 휴대폰 세로 촬영: 회전 메타데이터가 있으면 가로·세로를 바꾼다.
   if (/rotation of -?90|rotate\s*:\s*-?90|rotate\s*:\s*270/.test(output) && info.width && info.height) {
@@ -131,6 +135,7 @@ export async function probeClip(absolutePath: string, relativePath: string, inde
     sampleRate: info.sampleRate,
     channels: info.channels,
     startTimecode: info.startTimecode,
+    startTimecodeDropFrame: info.startTimecodeDropFrame,
     hasVideo: info.hasVideo,
     hasAudio: info.hasAudio,
   };

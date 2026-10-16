@@ -271,6 +271,7 @@ export default function VideoSortingWorkspace() {
   const [classified, setClassified] = useState<ClassifiedVideo[]>([]);
   const [timeScenes, setTimeScenes] = useState<TimeScene[]>([]);
   const [failedClips, setFailedClips] = useState<{ name: string; handle: FileSystemFileHandle; reason: string }[]>([]);
+  const [organizationFailures, setOrganizationFailures] = useState<Array<{ name: string; reason: string }>>([]);
   const [progress, setProgress] = useState({ cur: 0, total: 0, msg: "" });
   const [stats, setStats] = useState<VideoStats | null>(null);
 
@@ -434,6 +435,8 @@ export default function VideoSortingWorkspace() {
     let moved = 0;
     let lastUpdate = Date.now();
     const categoryCounts: Record<string, number> = {};
+    const exportFailures: Array<{ name: string; reason: string }> = [];
+    setOrganizationFailures([]);
 
     for (const item of classified) {
       const category: VideoCategory = item.category ?? "NEED_CHECK";
@@ -448,11 +451,15 @@ export default function VideoSortingWorkspace() {
         await copyFileHandle(item.clip.handle, dir, item.clip.name);
         if (fileMode === "move") await (rootDir as any).removeEntry(item.clip.name);
         moved++;
-      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+      } catch (error) {
+        console.error("[OLIVIA] Suppressed error", error);
+        exportFailures.push({ name: item.clip.name, reason: "정리 실패" });
+      }
       done++;
     }
 
-    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length, categoryCounts });
+    setOrganizationFailures(exportFailures);
+    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length + exportFailures.length, categoryCounts });
     setStep("done");
   }, [rootDir, classified, fileMode, failedClips]);
 
@@ -465,6 +472,8 @@ export default function VideoSortingWorkspace() {
     let moved = 0;
     let lastUpdate = Date.now();
     const categoryCounts: Record<string, number> = {};
+    const exportFailures: Array<{ name: string; reason: string }> = [];
+    setOrganizationFailures([]);
 
     for (const scene of timeScenes) {
       categoryCounts[scene.folderName] = scene.clips.length;
@@ -478,12 +487,16 @@ export default function VideoSortingWorkspace() {
           await copyFileHandle(clip.handle, dir, clip.name);
           if (fileMode === "move") await (rootDir as any).removeEntry(clip.name);
           moved++;
-        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+        } catch (error) {
+          console.error("[OLIVIA] Suppressed error", error);
+          exportFailures.push({ name: clip.name, reason: "정리 실패" });
+        }
         done++;
       }
     }
 
-    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length, categoryCounts });
+    setOrganizationFailures(exportFailures);
+    setStats({ totalClips: total, movedClips: moved, failedClips: failedClips.length + exportFailures.length, categoryCounts });
     setStep("done");
   }, [rootDir, timeScenes, fileMode, failedClips]);
 
@@ -797,6 +810,13 @@ export default function VideoSortingWorkspace() {
                     </div>
                   ))}
                 </div>
+                {failedClips.length + organizationFailures.length > 0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    {[...failedClips.map(({ name, reason }) => ({ name, reason })), ...organizationFailures].map((failure) => (
+                      <div key={`${failure.name}-${failure.reason}`} style={{ padding: "6px 0", fontSize: 13, color: C.red }}>{failure.name} — {failure.reason}</div>
+                    ))}
+                  </div>
+                )}
                 <Link href="/video-studio?tab=post&tool=sorting" style={{ fontSize: 13, fontWeight: 500, color: C.teal }}>영상작업실로 돌아가기 →</Link>
               </SectionCard>
             </div>

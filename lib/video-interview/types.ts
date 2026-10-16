@@ -27,6 +27,8 @@ export type InterviewClip = {
   channels: number;
   /** 카메라가 기록한 시작 타임코드 (예: 10:21:33:12). 없으면 null */
   startTimecode: string | null;
+  /** 원본 타임코드 구분자가 세미콜론인 NTSC 드롭프레임 촬영본 */
+  startTimecodeDropFrame?: boolean;
   hasVideo: boolean;
   hasAudio: boolean;
 };
@@ -147,6 +149,7 @@ export type VideoInterviewResult = {
   clips: InterviewClip[];
   segments: InterviewSegment[];
   analysis: InterviewAnalysis;
+  warnings?: string[];
   engine: { asr: string; asrModel: string; llm: string };
 };
 

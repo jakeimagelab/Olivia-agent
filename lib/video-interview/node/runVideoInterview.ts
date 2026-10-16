@@ -1,11 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
+import { rmSync } from "node:fs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { ensureSafeDirectory, isInside, normalizePhotoProjectPath, requireSafeDirectory } from "@/lib/photo-operations/node/common";
 import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
 import type { RunnerRoots } from "@/lib/photo-classifier/node/types";
-import { annotateSegments, type RawSegment } from "../signals";
+import { annotateSegments, interviewSourceWarnings, type RawSegment } from "../signals";
 import { buildInterviewUserMessage, VIDEO_INTERVIEW_SYSTEM_PROMPT, VIDEO_INTERVIEW_TOOL_NAME, VIDEO_INTERVIEW_TOOL_SCHEMA } from "../prompt";
 import { resolveInterviewAnalysis } from "../resolve";
 import { buildPlainTranscript, buildSrt } from "../srt";
@@ -17,6 +19,18 @@ export const VIDEO_INTERVIEW_OUTPUT_DIR = "인터뷰분석";
 export const VIDEO_AUDIO_OUTPUT_DIR = "음성분리";
 const WHISPER_PROMPT = "포토클리닉, 병원 브랜딩, 원장님, 병원 촬영, 프로필 사진, 홈페이지, 마케팅, 환자, 진료, 인터뷰.";
 const DEFAULT_MODEL = "claude-sonnet-5";
+const activeTempDirs = new Set<string>();
+export const TRUNCATED_ANALYSIS_WARNING = "AI 정리가 길이 한도로 일부 잘렸습니다. 릴스·웹진 항목이 빠졌을 수 있습니다.";
+
+export function cleanupActiveTempDirs(): void {
+  for (const directory of activeTempDirs) {
+    try {
+      rmSync(directory, { recursive: true, force: true });
+    } finally {
+      activeTempDirs.delete(directory);
+    }
+  }
+}
 
 type ProgressFn = (progress: VideoStudioProgress) => void;
 
@@ -25,6 +39,22 @@ function helperScriptPath(): string {
   if (configured) return configured;
   const repoRoot = process.env.OLIVIA_REPO_ROOT?.trim() || process.cwd();
   return path.join(repoRoot, "scripts", "video-studio", "interview_transcribe.py");
+}
+
+type StreamMessages = {
+  stream: (params: MessageCreateParamsBase) => { finalMessage: () => Promise<Message> };
+};
+
+export async function requestInterviewAnalysisMessage(
+  messages: StreamMessages,
+  params: Omit<MessageCreateParamsBase, "max_tokens">,
+  onRetry: () => void = () => undefined,
+): Promise<{ message: Message; warnings: string[] }> {
+  let message = await messages.stream({ ...params, max_tokens: 16000 }).finalMessage();
+  if (message.stop_reason !== "max_tokens") return { message, warnings: [] };
+  onRetry();
+  message = await messages.stream({ ...params, max_tokens: 32000 }).finalMessage();
+  return { message, warnings: message.stop_reason === "max_tokens" ? [TRUNCATED_ANALYSIS_WARNING] : [] };
 }
 
 async function resolveFolders(sourceRelativePath: string, outputDirName: string, roots?: RunnerRoots) {
@@ -65,9 +95,12 @@ export async function runVideoInterviewAnalyze(input: {
   const context = (input.context ?? "").trim().slice(0, 500);
   const folders = await resolveFolders(input.sourceRelativePath, VIDEO_INTERVIEW_OUTPUT_DIR, input.roots);
   const clips = await probeAll(folders.sourceDir, folders.relativePath, onProgress);
+  const warnings = interviewSourceWarnings(clips);
+  for (const warning of warnings) onProgress({ stage: "probe", percent: 3, message: warning });
   const durationSec = clips.reduce((sum, clip) => sum + clip.durationSec, 0);
   const firstVideo = clips.find((clip) => clip.hasVideo) ?? clips[0];
   const temp = await mkdtemp(path.join(tmpdir(), "olivia-interview-"));
+  activeTempDirs.add(temp);
 
   try {
     // 1) 음성 추출
@@ -121,14 +154,15 @@ export async function runVideoInterviewAnalyze(input: {
     const model = process.env.OLIVIA_VIDEO_INTERVIEW_MODEL?.trim() || DEFAULT_MODEL;
     onProgress({ stage: "analyze", percent: 78, message: "Q&A 분리·핵심 정리·릴스 추천 중 (1~3분)" });
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 15 * 60 * 1000 });
-    const response = await client.messages.create({
+    const requested = await requestInterviewAnalysisMessage(client.messages, {
       model,
-      max_tokens: 16000,
       system: VIDEO_INTERVIEW_SYSTEM_PROMPT,
       tools: [{ name: VIDEO_INTERVIEW_TOOL_NAME, description: "인터뷰 Q&A 분리와 편집 설계 결과 저장", input_schema: VIDEO_INTERVIEW_TOOL_SCHEMA as unknown as Anthropic.Tool["input_schema"] }],
       tool_choice: { type: "tool", name: VIDEO_INTERVIEW_TOOL_NAME },
       messages: [{ role: "user", content: buildInterviewUserMessage(segments, context, durationSec) }],
-    });
+    }, () => onProgress({ stage: "analyze", percent: 88, message: "응답이 길어 다시 정리 중" }));
+    warnings.push(...requested.warnings);
+    const response = requested.message;
     const toolUse = response.content.find((block) => block.type === "tool_use");
     const analysis = resolveInterviewAnalysis(toolUse && toolUse.type === "tool_use" ? toolUse.input : null, segments, durationSec);
 
@@ -152,6 +186,7 @@ export async function runVideoInterviewAnalyze(input: {
       clips,
       segments,
       analysis,
+      ...(warnings.length ? { warnings } : {}),
       engine: { asr: transcript.engine, asrModel: transcript.model, llm: model },
     };
     await writeFile(path.join(folders.outputDir, "analysis.json"), JSON.stringify(result, null, 1));
@@ -161,7 +196,13 @@ export async function runVideoInterviewAnalyze(input: {
     onProgress({ stage: "done", percent: 100, message: `Q&A ${analysis.qa.length}개 · 릴스 후보 ${analysis.reels.length}개` });
     return result;
   } finally {
-    await rm(temp, { recursive: true, force: true }).catch(() => undefined);
+    try {
+      await rm(temp, { recursive: true, force: true });
+    } catch {
+      // SIGTERM/SIGINT handler may already have removed the directory synchronously.
+    } finally {
+      activeTempDirs.delete(temp);
+    }
   }
 }
 

@@ -7,6 +7,7 @@ import type { VideoGenerationRecord, VideoGenerationStatus, VideoModelCapability
 import { watchRequest, stopWatching } from "@/lib/higgsfield/vendor/template/poll";
 import { uploadMedia } from "@/lib/higgsfield/vendor/template/upload";
 import type { GenerationStatus } from "@/lib/higgsfield/vendor/template/platform";
+import { isTerminalVideoGeneration, shouldRestoreVideoGenerationWatch, videoGenerationPollDeadline } from "@/lib/higgsfield/recovery";
 import { VideoHistory } from "./VideoHistory";
 import { VideoInputPanel } from "./VideoInputPanel";
 import { VideoModelSelector } from "./VideoModelSelector";
@@ -21,8 +22,7 @@ type GenerationStage = "idle" | "uploading" | "submitting";
 // Higgsfield의 공식 JS 클라이언트 기본 상태 확인 한도와 맞춘다.
 // 생성 요청을 자동으로 다시 보내면 이중 과금/중복 영상이 생길 수 있으므로,
 // 한도를 넘으면 사용자가 취소 또는 재생성을 선택하게 한다.
-const HIGGSFIELD_POLL_DEADLINE_MS = 5 * 60_000;
-const HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE = "Higgsfield가 5분 안에 작업을 시작하지 않았습니다. 이 요청은 아직 대기열에 남아 있을 수 있습니다. 자동 재생성은 하지 않았으니, 먼저 기존 요청을 취소하거나 다시 생성해주세요.";
+const HIGGSFIELD_QUEUE_TIMEOUT_MESSAGE = "Higgsfield가 10분 안에 작업을 시작하지 않았습니다. 이 요청은 아직 대기열에 남아 있을 수 있습니다. 자동 재생성은 하지 않았으니, 상태를 다시 확인하거나 기존 요청을 취소해주세요.";
 
 type ModelResponse = {
   ok?: boolean;
@@ -40,10 +40,6 @@ type GenerateResponse = {
 
 function draftId(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `media-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function isTerminal(status: VideoGenerationStatus): boolean {
-  return status === "completed" || status === "failed" || status === "nsfw" || status === "canceled" || status === "queue_timeout";
 }
 
 function messageFromResponse(payload: unknown, fallback: string): string {
@@ -74,13 +70,6 @@ function defaultInputMode(model: VideoModelCapability | undefined): string | und
   return model?.mediaModes?.[0]?.id;
 }
 
-function pollDeadline(record: VideoGenerationRecord): number {
-  const createdAt = Date.parse(record.createdAt);
-  return Number.isFinite(createdAt)
-    ? Math.max(Date.now(), createdAt + HIGGSFIELD_POLL_DEADLINE_MS)
-    : Date.now() + HIGGSFIELD_POLL_DEADLINE_MS;
-}
-
 export function VideoProductionWorkspace({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<WorkspaceTab>("generate");
   const [models, setModels] = useState<VideoModelCapability[]>([]);
@@ -109,10 +98,10 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
   }, []);
 
   const watchRecord = useCallback((record: VideoGenerationRecord) => {
-    if (isTerminal(record.status) || restoredRequestIds.current.has(record.requestId)) return;
+    if (isTerminalVideoGeneration(record.status) || restoredRequestIds.current.has(record.requestId)) return;
     restoredRequestIds.current.add(record.requestId);
     void watchRequest(record.requestId, {
-      deadline: pollDeadline(record),
+      deadline: videoGenerationPollDeadline(),
       onUpdate: (status) => updateRecord(statusPatch(record, status)),
     })
       .then((status) => updateRecord(statusPatch(record, status)))
@@ -130,7 +119,7 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
     const restored = readVideoGenerationHistory();
     setHistory(restored);
     if (restored[0]) setCurrentId(restored[0].requestId);
-    for (const record of restored) watchRecord(record);
+    for (const record of restored) if (shouldRestoreVideoGenerationWatch(record)) watchRecord(record);
   }, [watchRecord]);
 
   useEffect(() => {
@@ -290,6 +279,10 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
   };
 
   const retryGeneration = () => { void createGeneration(); };
+  const recheckStatus = useCallback((record: VideoGenerationRecord) => {
+    restoredRequestIds.current.delete(record.requestId);
+    watchRecord(record);
+  }, [watchRecord]);
   const isWorking = stage !== "idle";
 
   return (
@@ -302,7 +295,7 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
       </div>
 
       {modelsLoading ? <section className={styles.loadingPanel}><LoaderCircle className={styles.spin} size={28} /> 영상 모델을 준비하는 중...</section> : modelsError ? <section className={styles.failurePanel}><AlertTriangle size={22} /><div><strong>영상제작을 열지 못했습니다.</strong><p>{modelsError}</p></div><button type="button" onClick={() => window.location.reload()}>다시 시도</button></section> : tab === "history" ? (
-        <section className={styles.historyOnly}><VideoHistory records={history} activeId={currentId} onSelect={(record) => { setCurrentId(record.requestId); setTab("generate"); }} /></section>
+        <section className={styles.historyOnly}><VideoHistory records={history} activeId={currentId} onSelect={(record) => { setCurrentId(record.requestId); setTab("generate"); }} onCheckStatus={recheckStatus} /></section>
       ) : (
         <>
           <div className={styles.studioGrid}>
@@ -316,9 +309,9 @@ export function VideoProductionWorkspace({ embedded = false }: { embedded?: bool
               <button type="button" className={styles.generateButton} onClick={() => void createGeneration()} disabled={isWorking || !configured || !selectedModel}><Sparkles size={18} /> {stage === "uploading" ? "입력 파일 업로드 중" : stage === "submitting" ? "영상 생성 요청 중" : "영상 생성하기"}</button>
               {!configured ? <p className={styles.configHint}>서버 환경변수 <code>HF_API_KEY</code> 등록 후 생성 버튼이 활성화됩니다.</p> : null}
             </section>
-            <VideoResultViewer record={currentRecord} configured={configured} onCancel={() => void cancelCurrent()} onRetry={retryGeneration} onReference={useAsReference} onNew={newGeneration} />
+            <VideoResultViewer record={currentRecord} configured={configured} onCancel={() => void cancelCurrent()} onRetry={retryGeneration} onCheckStatus={() => currentRecord && recheckStatus(currentRecord)} onReference={useAsReference} onNew={newGeneration} />
           </div>
-          <VideoHistory records={history} activeId={currentId} onSelect={(record) => setCurrentId(record.requestId)} />
+          <VideoHistory records={history} activeId={currentId} onSelect={(record) => setCurrentId(record.requestId)} onCheckStatus={recheckStatus} />
         </>
       )}
     </main>
