@@ -1,0 +1,13 @@
+{
+  "clientName": "전주푸른안과",
+  "brand": "photoclinic",
+  "title": "전주푸른안과 브랜드촬영 견적서",
+  "contactName": "대표원장님",
+  "shootDate": "2026-10-26",
+  "regularItems": ["의료진 프로필", "의료진 컨셉연출(진료/수술)"],
+  "serviceItems": ["단체사진 및 컨셉사진", "기타 병원 분위기 사진", "주요 인테리어 및 외관"],
+  "supplyAmount": 3700000,
+  "vat": 370000,
+  "finalAmount": 4070000,
+  "depositRate": 50
+}

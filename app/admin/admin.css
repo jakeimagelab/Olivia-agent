@@ -2777,6 +2777,7 @@
 .olivia-message__body p { margin: 0; }
 .olivia-message__error { color: #9e4327; }
 .olivia-message__error button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 8px; background: #fff0ea; color: var(--olivia-orange); font-size: 9px; cursor: pointer; }
+.olivia-approval-card__summary { display: block; white-space: pre-wrap; }
 
 /* PHASE 4 작업 2(2026-09-25) — guarded 턴(텍스트를 실시간으로 안 흘리는 실행형 요청) 진행 타임라인.
    agent_status/tool_start/tool_result를 그대로 쌓아서 보여준다 — 새 스타일 언어를 만들지 않고

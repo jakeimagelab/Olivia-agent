@@ -3,6 +3,14 @@ import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
 import { formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
 import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
 import { buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
+import {
+  quoteReadingFromParsedRequest,
+  quoteReadingFromUnknown,
+  readQuoteRequestWithAI,
+  toParsedQuoteRequest,
+  verifyReadingAgainstText,
+  type QuoteReading,
+} from "@/lib/quote/aiQuoteReader";
 import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
 import { addQuoteItem, quoteItems, recalculateQuote, removeQuoteItem, resolveQuoteItem, updateQuoteItem, type QuoteItem } from "@/lib/quote/quoteMutationService";
 import { linkNewClientToQuote, resolveQuoteClient } from "@/lib/olivia/tools/quoteClientLink";
@@ -142,7 +150,7 @@ function serviceCount(value: unknown, current: number | null | undefined) {
 }
 
 export const QUOTE_TOOL_NAMES = [
-  "create_quote", "get_quote", "update_quote_item", "add_quote_item", "remove_quote_item",
+  "create_quote", "apply_quote_create", "get_quote", "update_quote_item", "add_quote_item", "remove_quote_item",
   "update_quote_note", "update_quote_info", "update_quote_payment_terms", "update_quote_service", "apply_quote_discount",
   "preview_quote", "request_quote_publish",
   "download_quote_pdf", "publish_quote", "resolve_quote_client", "link_new_client_to_quote",
@@ -150,7 +158,7 @@ export const QUOTE_TOOL_NAMES = [
 
 const MEDICAL_CLIENT_PATTERN = /(병원|의원|클리닉|메디컬|의료재단|검진센터|요양병원|한의원|한방|내과|외과|정형외과|신경외과|성형외과|흉부외과|피부과|안과|이비인후과|산부인과|소아과|소아청소년과|비뇨기과|비뇨의학과|정신건강의학과|신경과|재활의학과|영상의학과|마취통증의학과|가정의학과|응급의학과|치과|교정과|구강내과|구강외과|치주과|보철과|헬스|health|메디|medical|medi|닥터|doctor|\bdr\b|의료|의학|웰니스|재활|통증|임플란트|약국|제약|바이오)/i;
 
-async function resolveCreateQuoteContext(input: {
+export async function resolveCreateQuoteContext(input: {
   db: ReturnType<typeof getSupabaseAdmin>;
   requestText: string;
   clientName: string;
@@ -234,6 +242,79 @@ function addQuoteParseNotices(result: OliviaToolResult, notices: string[]) {
   return { ...result, data: { ...result.data, parserNotices: notices, summary: [summary, ...notices].join("\n") } };
 }
 
+function koreaToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+async function readQuoteForApproval(requestText: string) {
+  try {
+    const reading = verifyReadingAgainstText(await readQuoteRequestWithAI({ text: requestText, today: koreaToday() }), requestText);
+    return { reading, fallbackNotice: null };
+  } catch {
+    return {
+      reading: quoteReadingFromParsedRequest(parseQuoteRequest(requestText)),
+      fallbackNotice: "AI 읽기에 실패해 기본 규칙으로 읽었어요",
+    };
+  }
+}
+
+function won(value: number) {
+  return `${Math.round(value).toLocaleString("ko-KR")}원`;
+}
+
+function quoteReadingPreview(input: {
+  reading: QuoteReading;
+  parsed: ReturnType<typeof toParsedQuoteRequest>;
+  brand: "photoclinic" | "jakeimage";
+  quoteData: ReturnType<typeof buildQuoteDataFromParsedRequest>;
+  fallbackNotice: string | null;
+}) {
+  const { reading, parsed, brand, quoteData } = input;
+  const regular = parsed.items.filter((item) => !item.free).map((item) => item.amount === null
+    ? item.name
+    : `${item.name} ${won(item.amount * Math.max(1, item.quantity))}`);
+  const services = parsed.items.filter((item) => item.free).map((item) => item.name);
+  const contact = [parsed.phone, parsed.email].filter(Boolean).join(" / ") || "비움";
+  const totals = quoteData.totals;
+  const lines = [
+    `${quoteData.title} (${brand === "photoclinic" ? "포토클리닉" : "제이크이미지연구소"})`,
+    `담당: ${parsed.contactName || "비움"} · 연락처/메일: ${contact} · 촬영일: ${parsed.shootDate || "비움"}`,
+    `항목: ${regular.join(" / ") || "비움"}`,
+    ...(services.length ? [`서비스(0원): ${services.join(" / ")}`] : []),
+    `금액: 공급가 ${won(totals.supplyAmount)} + 부가세 ${won(totals.vat)} = 합계 ${won(totals.finalAmount)}${parsed.itemPricesHidden ? "  ※ 항목별 금액 없음" : ""}`,
+    `결제: 선금 ${parsed.depositRate ?? 50}% · 잔금 ${100 - (parsed.depositRate ?? 50)}%`,
+  ];
+  const needs = [...reading.uncertain, ...reading.unreadLines];
+  if (needs.length) lines.push(`확인 필요: ${needs.join(" / ")}`);
+  if (input.fallbackNotice) lines.push(input.fallbackNotice);
+  return lines.join("\n");
+}
+
+export async function prepareQuoteCreateApproval(input: {
+  requestText: string;
+  modelBrand?: unknown;
+  db?: ReturnType<typeof getSupabaseAdmin>;
+}) {
+  const db = input.db ?? getSupabaseAdmin();
+  const { reading, fallbackNotice } = await readQuoteForApproval(input.requestText);
+  if (!reading.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
+  const parsed = toParsedQuoteRequest(reading);
+  const createContext = await resolveCreateQuoteContext({
+    db,
+    requestText: input.requestText,
+    clientName: reading.clientName,
+    modelBrand: reading.brandExplicit ?? input.modelBrand,
+  });
+  const quoteData = buildQuoteDataFromParsedRequest({ request: parsed, brand: createContext.brand });
+  return {
+    reading,
+    parsed,
+    brand: createContext.brand,
+    preview: quoteReadingPreview({ reading, parsed, brand: createContext.brand, quoteData, fallbackNotice }),
+    fallbackNotice,
+  };
+}
+
 export async function executeQuoteTool(
   name: string,
   input: Record<string, unknown>,
@@ -250,10 +331,31 @@ export async function executeQuoteTool(
   if (name === "create_quote") {
     const requestText = context.currentRequestText?.trim();
     if (!requestText) throw new Error("이번 견적 요청 원문을 찾지 못했어요. 다시 한 번 보내주세요.");
-    const parsed = parseQuoteRequest(requestText);
+    const prepared = await prepareQuoteCreateApproval({ requestText, modelBrand: input.brand, db });
+    return {
+      tool: name,
+      success: true,
+      data: {
+        approvalRequired: true,
+        reading: prepared.reading,
+        brand: prepared.brand,
+        requestText,
+        preview: prepared.preview,
+        summary: prepared.preview,
+        ...(prepared.fallbackNotice ? { fallbackNotice: prepared.fallbackNotice } : {}),
+      },
+      verification: createVerification({ executed: true, persisted: false }),
+    };
+  }
+
+  if (name === "apply_quote_create") {
+    const requestText = typeof input.requestText === "string" ? input.requestText.trim() : "";
+    if (!requestText) throw new Error("승인할 견적 요청 원문을 찾지 못했어요.");
+    const reading = verifyReadingAgainstText(quoteReadingFromUnknown(input.reading), requestText);
+    const parsed = toParsedQuoteRequest(reading);
     if (!parsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
     const createContext = await resolveCreateQuoteContext({
-      db, requestText, clientName: parsed.clientName, modelBrand: input.brand,
+      db, requestText, clientName: parsed.clientName, modelBrand: input.brand ?? reading.brandExplicit,
     });
     const hospitalName = parsed.clientName;
     const clientId = createContext.clientId;

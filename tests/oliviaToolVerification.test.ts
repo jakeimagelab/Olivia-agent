@@ -157,9 +157,13 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     contractRow = null;
   });
 
-  it("A. create_quote 성공 시 verification.persisted/resourceExists가 실제 DB round-trip 결과를 반영한다", async () => {
-    const execution = await call("create_quote", { brand: null });
-    expect(execution.result.success).toBe(true);
+  it("A. create_quote는 저장하지 않고 apply_quote_create 승인 후에만 DB 결과를 반영한다", async () => {
+    const prepared = await call("create_quote", { brand: null });
+    expect(prepared.result).toMatchObject({ success: true, data: { approvalRequired: true }, verification: { persisted: false } });
+    const approval = prepared.uiActions.find((action) => action.type === "REQUEST_APPROVAL");
+    expect(approval).toMatchObject({ type: "REQUEST_APPROVAL", toolName: "apply_quote_create" });
+    if (!approval || approval.type !== "REQUEST_APPROVAL") throw new Error("approval missing");
+    const execution = await call(approval.toolName, approval.toolInput);
     expect(execution.result.data?.quoteId).toBe("quote-real-1");
     expect(execution.result.verification?.persisted).toBe(true);
     expect(execution.result.verification?.resourceExists).toBe(true);
@@ -239,10 +243,10 @@ describe("Tool Dispatch — 이름→domain executor 연결이 분리 후에도 
     fuzzyNameSearchMock.mockReset().mockResolvedValue([]);
   });
 
-  it('"create_quote"는 quote executor로 라우팅된다(quoteId/totalAmount를 반환)', async () => {
+  it('"create_quote"는 quote executor로 라우팅되어 저장 전 승인 데이터를 반환한다', async () => {
     const execution = await call("create_quote", { brand: null });
-    expect(execution.result.data?.quoteId).toBe("quote-real-1");
-    expect(execution.result.data?.totalAmount).toBe(1_350_000);
+    expect(execution.result.data).toMatchObject({ approvalRequired: true, brand: "photoclinic" });
+    expect(execution.result.data?.quoteId).toBeUndefined();
   });
 
   it('"create_contract"는 contract executor로 라우팅된다(contractId를 반환)', async () => {

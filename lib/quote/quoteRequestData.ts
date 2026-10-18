@@ -130,6 +130,7 @@ function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
  */
 export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
   const { request, brand } = input;
+  const taxMode = request.vatIncluded ? "included" : request.taxMode;
   // 0% 선금은 "잔금 100%"라는 명시적 결제조건이다. || 50을 쓰면 그 값을 조용히
   // 기본값으로 덮어쓰므로 null일 때만 기존 기본 결제조건을 쓴다.
   const depositRate = request.depositRate ?? 50;
@@ -207,7 +208,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
     depositRate,
-    taxMode: request.taxMode,
+    taxMode,
   });
 
   if (request.checkTotal !== null) {
@@ -242,7 +243,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     extraDiscount,
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
-    taxMode: request.taxMode,
+    taxMode,
     itemPricesHidden: request.itemPricesHidden,
     checkTotal: request.checkTotal,
     specialAdjustmentAmount: totals.specialAdjustmentAmount,

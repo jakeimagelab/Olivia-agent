@@ -64,10 +64,17 @@ import type { OliviaContextSnapshot } from "@/lib/olivia/v2/types";
 
 const contextWithoutClient: OliviaContextSnapshot = { recentActions: [], revision: 0 };
 
-function callCreateQuote(hospitalName: string, context: OliviaContextSnapshot = contextWithoutClient) {
-  return executeAgentTool(
+async function callCreateQuote(hospitalName: string, context: OliviaContextSnapshot = contextWithoutClient) {
+  const quoteContext = { ...context, currentRequestText: context.currentRequestText ?? `${hospitalName} 견적서\n프로필촬영 35만원` };
+  const prepared = await executeAgentTool(
     { id: "create-quote-call", name: "create_quote", arguments: JSON.stringify({ brand: null }) },
-    { ...context, currentRequestText: context.currentRequestText ?? `${hospitalName} 견적서\n프로필촬영 35만원` },
+    quoteContext,
+  );
+  const approval = prepared.uiActions.find((action) => action.type === "REQUEST_APPROVAL");
+  if (!approval || approval.type !== "REQUEST_APPROVAL") throw new Error("견적 승인 카드가 없습니다.");
+  return executeAgentTool(
+    { id: "apply-quote-call", name: approval.toolName, arguments: JSON.stringify(approval.toolInput) },
+    quoteContext,
   );
 }
 

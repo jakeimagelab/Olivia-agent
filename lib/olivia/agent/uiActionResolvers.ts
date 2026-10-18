@@ -135,6 +135,21 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     }];
   },
   create_quote: async (args) => {
+    if (!args.result.success || !args.result.data?.approvalRequired) return [];
+    const reading = args.result.data.reading;
+    const brand = value(args.result.data, "brand");
+    const requestText = value(args.result.data, "requestText");
+    if (!reading || typeof reading !== "object" || !brand || !requestText) return [];
+    return [{
+      type: "REQUEST_APPROVAL",
+      approvalId: crypto.randomUUID(),
+      summary: String(args.result.data.preview || args.result.data.summary || "이렇게 읽었어요. 견적서를 만들까요?"),
+      confirmLabel: "만들기",
+      toolName: "apply_quote_create",
+      toolInput: { reading, brand, requestText },
+    }];
+  },
+  apply_quote_create: async (args) => {
     const opened = workspaceAction("quote", args);
     if (!opened.length) return opened;
     // Quote Workspace를 여는 것과 별개로, 채팅에도 live Preview 카드를 띄운다(스펙 §25) —

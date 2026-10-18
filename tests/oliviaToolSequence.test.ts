@@ -124,9 +124,12 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     vi.mocked(executeOliviaCrud).mockClear();
   });
 
-  it("create_quote DB 결과의 실제 quoteId로만 Workspace를 연다", async () => {
-    const execution = await call("create_quote", { brand: null });
-
+  it("create_quote는 확인 카드만 만들고 승인 후 실제 quoteId로 Workspace를 연다", async () => {
+    const prepared = await call("create_quote", { brand: null });
+    expect(executionLog).toEqual([]);
+    const approval = prepared.uiActions.find((action) => action.type === "REQUEST_APPROVAL");
+    if (!approval || approval.type !== "REQUEST_APPROVAL") throw new Error("approval missing");
+    const execution = await call(approval.toolName, approval.toolInput);
     expect(executionLog).toEqual(["db:quote"]);
     expect(execution.result).toMatchObject({ success: true, data: { quoteId: "quote-real-123" } });
     expect(execution.uiActions).toEqual(expect.arrayContaining([
@@ -135,12 +138,15 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
   });
 
   it("원문에서 직접 지정한 브랜드가 실제 견적 데이터에 저장된다", async () => {
-    await executeAgentTool({
+    const prepared = await executeAgentTool({
       id: "create-quote-brand-context",
       name: "create_quote",
       arguments: JSON.stringify({ brand: null }),
     }, { ...context, currentRequestText: "제이크컴퍼니 견적서\n제품촬영 50만원\n제이크이미지연구소로 만들어줘" });
 
+    const approval = prepared.uiActions.find((action) => action.type === "REQUEST_APPROVAL");
+    if (!approval || approval.type !== "REQUEST_APPROVAL") throw new Error("approval missing");
+    await executeAgentTool({ id: "apply-quote-brand-context", name: approval.toolName, arguments: JSON.stringify(approval.toolInput) }, { ...context, currentRequestText: "제이크컴퍼니 견적서\n제품촬영 50만원\n제이크이미지연구소로 만들어줘" });
     const createRequest = vi.mocked(executeOliviaCrud).mock.calls.at(-1)?.[1];
     expect(createRequest?.data).toMatchObject({
       title: "제이크컴퍼니 브랜드촬영(제품) 견적서",
@@ -159,7 +165,10 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
 
   it("DB Tool 실패 시 UI Action을 만들지 않는다", async () => {
     vi.mocked(executeOliviaCrud).mockRejectedValueOnce(new Error("견적서 생성에 실패했어요."));
-    const execution = await call("create_quote", { brand: null });
+    const prepared = await call("create_quote", { brand: null });
+    const approval = prepared.uiActions.find((action) => action.type === "REQUEST_APPROVAL");
+    if (!approval || approval.type !== "REQUEST_APPROVAL") throw new Error("approval missing");
+    const execution = await call(approval.toolName, approval.toolInput);
 
     expect(execution.result.success).toBe(false);
     expect(execution.uiActions).toEqual([]);

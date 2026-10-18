@@ -5,16 +5,14 @@ import {
   listAssistantMessages,
   mergeAssistantConversationMetadata,
   saveAssistantMessage,
+  updateAssistantApprovalBlockState,
 } from "@/lib/assistant/conversations/service";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
-import { quoteCreationTargetFromRequest } from "@/lib/quote/quoteRequestParser";
-import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
-import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
-import type { OliviaStreamEvent, OliviaToolResult } from "@/lib/olivia/v2/types";
+import type { OliviaStreamEvent } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
 import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRequest";
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
@@ -31,6 +29,8 @@ import { getOliviaAgentEngine, isUiExecutionIntent } from "@/lib/hermes/client";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 import {
+  pendingActionBlock,
+  pendingActionFromUiAction,
   pendingActionPromptContext,
   readPendingAction,
   resolvePendingActionContext,
@@ -152,7 +152,6 @@ export async function handleOliviaStreamPost(req: NextRequest) {
   const requestClass = classifyOliviaRequest(message, context);
   // 화면 선택보다 원문에 적힌 고객명·항목이 우선이다. 여러 줄 견적 원문은 파서가
   // 이미 직접 읽을 수 있으므로, 고객 선택 가드가 이를 "대상 없음"으로 막으면 안 된다.
-  const quoteCreationTarget = quoteCreationTargetFromRequest(rawMessage);
   const directQuoteCandidate = isDirectQuoteCandidate(rawMessage);
   const quoteCreationTurn = isQuoteCreationTurn(rawMessage);
   const model = routeOliviaModel(requestClass);
@@ -406,11 +405,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
         selectedTools = selectOliviaTools({ requestClass, message, context: effectiveContext, recentText: effectiveRecentUserText });
         if (quoteCreationTurn) selectedTools = selectedTools.filter((tool) => !tool.name.startsWith("update_quote_"));
-        const requiredFollowupTool = quoteCreationTarget && selectedTools.some((tool) => tool.name === "create_quote")
-          // 원문에 고객과 항목이 모두 있으면 create_quote가 실제로 실행돼야 한다. 자유
-          // 텍스트가 "고객을 골라주세요"나 확인되지 않은 실패를 대신 말하지 못하게 한다.
-          ? "create_quote"
-          : requestClass === "TOOL_ACTION"
+        const requiredFollowupTool = requestClass === "TOOL_ACTION"
             ? resolveRequiredFollowupTool({ message, recentText: effectiveRecentUserText, availableToolNames: selectedTools.map((tool) => tool.name) })
             : undefined;
         if (requiredFollowupTool || canonicalRecentUserText) {
@@ -468,6 +463,57 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return saved.message;
         };
+
+        // 견적 확인 카드가 떠 있는 동안의 모든 비승인/비취소 문장은 기존 원문을 수정하는
+        // 요청이다. 모델 라우터나 다른 도구로 넘기지 않고 견적 판독기만 다시 실행한다.
+        if (pendingAction?.toolName === "apply_quote_create" && pendingAction.status === "pending") {
+          if (pendingTurn === "approve" || pendingTurn === "reject" || pendingTurn === "defer") {
+            const pendingResult = await handlePendingActionTurn({
+              db, ownerId: owner.id, conversationId: conversation.id, pendingAction, pendingTurn,
+              effectiveContext, messageId, send, saveTurnAssistant,
+            });
+            if (pendingResult.handled) return;
+          } else {
+            activeAgentEngine = "legacy";
+            chatRouteLabel = "DIRECT_TOOL";
+            const original = typeof pendingAction.toolInput.requestText === "string" ? pendingAction.toolInput.requestText : "";
+            const revisedRequest = `${original}\n\n[수정 요청]\n${rawMessage}`.trim();
+            const toolCall = { id: crypto.randomUUID(), name: "create_quote", arguments: JSON.stringify({ brand: pendingAction.toolInput.brand ?? null }) };
+            const quoteContext = { ...effectiveContext, currentRequestText: revisedRequest };
+            send({ type: "agent_status", status: toolStatus(toolCall.name) });
+            send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
+            const execution = await executeAgentTool(toolCall, quoteContext);
+            for (const action of execution.uiActions) send({ type: "ui_action", action });
+            const nextPending = execution.uiActions.reduce(
+              (current, action) => pendingActionFromUiAction(action, quoteContext) || current,
+              undefined as ReturnType<typeof pendingActionFromUiAction>,
+            );
+            send({
+              type: "tool_result", tool: toolCall.name, toolCallId: toolCall.id,
+              success: execution.result.success,
+              result: execution.result.success ? execution.result.data || {} : { message: execution.result.error || "견적 요청을 다시 읽지 못했어요." },
+            });
+            const text = execution.result.success
+              ? String(execution.result.data?.summary || "수정한 내용으로 다시 읽었어요.")
+              : String(execution.result.error || "견적 요청을 다시 읽지 못했어요.");
+            if (nextPending) {
+              await updateAssistantApprovalBlockState(db, {
+                ownerId: owner.id, conversationId: conversation.id, approvalId: pendingAction.id, state: "replaced",
+              });
+              await mergeAssistantConversationMetadata(db, {
+                ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPending },
+              });
+            }
+            await flushTextAsDeltas(text, send, messageId);
+            const block = pendingActionBlock(nextPending);
+            await saveTurnAssistant(text, {
+              blocks: [{ type: "text", text }, ...(block ? [block] : [])],
+              routeDecision: "DIRECT_QUOTE_REVISION",
+              toolCalls: [{ id: toolCall.id, name: toolCall.name, success: execution.result.success, verification: execution.result.verification }],
+            });
+            return;
+          }
+        }
         // 직전 assistant turn이 DB 저장까지 검증한 작업을 가진 경우, "응/엉/그래"는 새
         // 요청이 아니다. Hermes/OpenAI에 다시 보내면 같은 일정을 중복 저장하거나, 모델의
         // 불필요한 연결 실패 문장이 실제 완료 결과를 덮을 수 있다.
@@ -482,16 +528,14 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return;
         }
-        if (directQuoteRequest.kind === "retry_missing" || directQuoteRequest.kind === "missing_client") {
+        if (directQuoteRequest.kind === "retry_missing") {
           activeAgentEngine = "legacy";
           chatRouteLabel = "DIRECT_TOOL";
-          const text = directQuoteRequest.kind === "retry_missing"
-            ? "다시 만들 견적 요청을 찾지 못했어요. 요청 내용을 다시 보내주세요."
-            : "고객명을 못 읽었어요 — 알려주세요";
+          const text = "다시 만들 견적 요청을 찾지 못했어요. 요청 내용을 다시 보내주세요.";
           await flushTextAsDeltas(text, send, messageId);
           await saveTurnAssistant(text, {
             blocks: [{ type: "text", text }],
-            routeDecision: directQuoteRequest.kind === "retry_missing" ? "QUOTE_RETRY_SOURCE_MISSING" : "QUOTE_CLIENT_MISSING",
+            routeDecision: "QUOTE_RETRY_SOURCE_MISSING",
           });
           return;
         }
@@ -507,23 +551,21 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           send({ type: "agent_status", status: toolStatus(toolCall.name) });
           send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
           const toolStartedAt = performance.now();
-          let result: OliviaToolResult;
-          try {
-            result = await executeQuoteTool(toolCall.name, { brand: null }, quoteContext);
-          } catch (error) {
-            result = {
-              tool: toolCall.name,
-              success: false,
-              error: error instanceof Error ? error.message : String(error),
-              verification: { executed: false },
-            };
-          }
+          const execution = await executeAgentTool(toolCall, quoteContext);
+          const result = execution.result;
           toolExecutionMs += performance.now() - toolStartedAt;
           toolRounds += 1;
-          const uiActions = result.success
-            ? await resolveUiActions({ toolCall, input: { brand: null }, result, context: quoteContext })
-            : [];
+          const uiActions = execution.uiActions;
           for (const action of uiActions) send({ type: "ui_action", action });
+          const nextPending = uiActions.reduce(
+            (current, action) => pendingActionFromUiAction(action, quoteContext) || current,
+            undefined as ReturnType<typeof pendingActionFromUiAction>,
+          );
+          if (nextPending) {
+            await mergeAssistantConversationMetadata(db, {
+              ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPending },
+            });
+          }
           send({
             type: "tool_result",
             tool: toolCall.name,
@@ -535,8 +577,9 @@ export async function handleOliviaStreamPost(req: NextRequest) {
             ? String(result.data?.summary || "견적서를 만들었어요.")
             : String(result.error || "견적서 생성에 실패했어요.");
           await flushTextAsDeltas(text, send, messageId);
+          const approvalBlock = pendingActionBlock(nextPending);
           await saveTurnAssistant(text, {
-            blocks: [{ type: "text", text }],
+            blocks: [{ type: "text", text }, ...(approvalBlock ? [approvalBlock] : [])],
             routeDecision: directQuoteRequest.retry ? "DIRECT_QUOTE_RETRY" : "DIRECT_QUOTE_CREATE",
             toolCalls: [{ id: toolCall.id, name: toolCall.name, success: result.success, verification: result.verification }],
             ...(result.success ? resourceMetadataFromTool(toolCall.name, result.data) : {}),
@@ -578,7 +621,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return;
         }
-        if (!quoteCreationTarget && shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
+        if (!directQuoteCandidate && shouldRequireClientSelection({ message, resolved: trustedClientProject })) {
           const text = clientTargetQuestion(context, "작업");
           send({ type: "text_delta", messageId, delta: text });
           await saveTurnAssistant(text, {

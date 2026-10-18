@@ -5,6 +5,7 @@ export function toolStatus(name: string) {
   if (name === "start_photo_scene_sort") return "JPG정리·복사·사진 정리 작업을 주문하는 중…";
   if (name === "select_project") return "고객과 프로젝트를 확인하는 중…";
   if (name === "create_quote") return "견적 초안을 생성하는 중…";
+  if (name === "apply_quote_create") return "확인한 견적서를 저장하는 중…";
   if (name === "create_contract") return "계약서 초안을 생성하는 중…";
   if (name === "create_conti") return "콘티 초안을 생성하는 중…";
   if (name === "get_conti_status") return "저장된 콘티를 확인하는 중…";

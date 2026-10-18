@@ -492,8 +492,8 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                     if (block.type === "resource_card") return isMobile ? <button key={index} type="button" className="olivia-resource-card olivia-resource-card--mobile" onClick={() => window.dispatchEvent(new CustomEvent("olivia-mobile-open-resource", { detail: block }))}><strong>{block.title || (block.resourceType === "quote" ? "견적서" : block.resourceType === "contract" ? "계약서" : "문서")}</strong><span>{block.summary || "미리보기"}</span><b>미리보기</b></button> : <button key={index} type="button" className="olivia-resource-card olivia-resource-card--desktop" onClick={() => openDesktopResource(block)} disabled={!(["quote", "contract", "storyboard", "conti"].includes(block.resourceType))}><strong>{block.title || block.resourceType}</strong><span>{block.summary || "문서 열기"}</span></button>;
                     if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
                     if (block.type === "approval") return <div key={index} className="olivia-approval-card">
-                      <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : "확인이 필요해요"}</strong>
-                      <span>{block.summary}</span>
+                      <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : block.state === "replaced" ? "대체됨" : "확인이 필요해요"}</strong>
+                      <span className="olivia-approval-card__summary">{block.summary}</span>
                       {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
                         <button type="button" onClick={() => void approveAction(block.approvalId, block.toolName, block.toolInput)}>{block.confirmLabel}</button>
                         <button type="button" onClick={() => void cancelApproval(block.approvalId)}>취소</button>

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { DEFAULT_CLAUDE_MODEL } from "@/lib/ai/claudeModel";
 import type { Message, MessageCreateParamsBase } from "@anthropic-ai/sdk/resources/messages";
 import { rmSync } from "node:fs";
 import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -18,7 +19,6 @@ import { extractAnalysisAudio, extractEditAudio, listVideoFiles, probeClip, pyth
 export const VIDEO_INTERVIEW_OUTPUT_DIR = "인터뷰분석";
 export const VIDEO_AUDIO_OUTPUT_DIR = "음성분리";
 const WHISPER_PROMPT = "포토클리닉, 병원 브랜딩, 원장님, 병원 촬영, 프로필 사진, 홈페이지, 마케팅, 환자, 진료, 인터뷰.";
-const DEFAULT_MODEL = "claude-sonnet-5";
 const activeTempDirs = new Set<string>();
 export const TRUNCATED_ANALYSIS_WARNING = "AI 정리가 길이 한도로 일부 잘렸습니다. 릴스·웹진 항목이 빠졌을 수 있습니다.";
 
@@ -151,7 +151,7 @@ export async function runVideoInterviewAnalyze(input: {
     if (!segments.length) throw new Error("인식된 대사가 없습니다. 영상에 음성이 있는지 확인하세요.");
 
     // 4) Claude 분석
-    const model = process.env.OLIVIA_VIDEO_INTERVIEW_MODEL?.trim() || DEFAULT_MODEL;
+    const model = process.env.OLIVIA_VIDEO_INTERVIEW_MODEL?.trim() || DEFAULT_CLAUDE_MODEL;
     onProgress({ stage: "analyze", percent: 78, message: "Q&A 분리·핵심 정리·릴스 추천 중 (1~3분)" });
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 15 * 60 * 1000 });
     const requested = await requestInterviewAnalysisMessage(client.messages, {

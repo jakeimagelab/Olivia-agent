@@ -7,25 +7,21 @@ const context: OliviaContextSnapshot = {
 };
 
 describe("shared Olivia document approvals", () => {
-  it("견적서 생성 직후에는 방금 만든 문서를 열고 승인 카드는 만들지 않는다", async () => {
+  it("견적서 생성 요청은 저장 전에 만들기 확인 카드를 만든다", async () => {
     const actions = await resolveUiActions({
       toolCall: { id: "call-1", name: "create_quote", arguments: "{}" },
       input: {},
-      result: { tool: "create_quote", success: true, data: { resourceId: "quote-1", quoteId: "quote-1", temporaryDocumentId: "temp-1", hospitalName: "리나클리닉", title: "리나클리닉 브랜드촬영 견적서" } },
+      result: { tool: "create_quote", success: true, data: { approvalRequired: true, reading: { clientName: "리나클리닉" }, brand: "photoclinic", requestText: "리나클리닉 견적서", preview: "이렇게 읽었어요" } },
       context,
     });
-    expect(actions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-1", documentTitle: "리나클리닉 브랜드촬영 견적서" }),
-      expect.objectContaining({ type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: "quote-1" }),
-    ]));
-    expect(actions).not.toContainEqual(expect.objectContaining({ type: "REQUEST_APPROVAL" }));
+    expect(actions).toEqual([expect.objectContaining({ type: "REQUEST_APPROVAL", toolName: "apply_quote_create", confirmLabel: "만들기", summary: "이렇게 읽었어요" })]);
   });
 
-  it("고객 미연결 견적서는 화면에 열려 있던 다른 고객으로 대체하지 않는다", async () => {
+  it("승인 후 저장된 고객 미연결 견적서는 화면의 다른 고객으로 대체하지 않는다", async () => {
     const actions = await resolveUiActions({
-      toolCall: { id: "call-unlinked", name: "create_quote", arguments: "{}" },
+      toolCall: { id: "call-unlinked", name: "apply_quote_create", arguments: "{}" },
       input: {},
-      result: { tool: "create_quote", success: true, data: { resourceId: "quote-unlinked", quoteId: "quote-unlinked", hospitalName: "1989 삼칠갈비" } },
+      result: { tool: "apply_quote_create", success: true, data: { resourceId: "quote-unlinked", quoteId: "quote-unlinked", hospitalName: "1989 삼칠갈비" } },
       context,
     });
     expect(actions[0]).toMatchObject({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-unlinked", clientName: "1989 삼칠갈비" });

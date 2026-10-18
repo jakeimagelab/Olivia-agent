@@ -220,7 +220,7 @@ export async function updateAssistantApprovalBlockState(
     ownerId: string;
     conversationId: string;
     approvalId: string;
-    state: "approved" | "cancelled" | "error";
+    state: "approved" | "cancelled" | "error" | "replaced";
   },
 ) {
   const { data: rows, error: readError } = await db.from("olivia_chat_messages")

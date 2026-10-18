@@ -49,9 +49,9 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
 
   it("구조화된 견적 원문은 고객 선택 질문보다 먼저 create_quote 경로로 보낸다", () => {
     const streamSource = readFileSync("lib/olivia/v2/stream/streamRoute.ts", "utf8");
-    expect(streamSource).toContain("quoteCreationTargetFromRequest(rawMessage)");
-    expect(streamSource).toContain('!quoteCreationTarget && shouldRequireClientSelection');
-    expect(streamSource).toContain('? "create_quote"');
+    expect(streamSource).toContain("const directQuoteCandidate = isDirectQuoteCandidate(rawMessage)");
+    expect(streamSource).toContain('!directQuoteCandidate && shouldRequireClientSelection');
+    expect(streamSource).toContain('if (directQuoteRequest.kind === "create")');
   });
 
   it("도구 0회 폴백 배지는 완료라고 표현하지 않는다", () => {

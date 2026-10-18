@@ -405,7 +405,7 @@ describe("quoteRequestParser", () => {
     expect(resolveDirectQuoteRequest("위 견적 요청 다시 해봐.", [
       { role: "user", content: JEONJU_REQUEST },
       { role: "assistant", content: "견적 생성에 실패했어요." },
-    ])).toEqual({ kind: "create", requestText: JEONJU_REQUEST, clientName: "전주푸른안과", retry: true });
+    ])).toEqual({ kind: "create", requestText: JEONJU_REQUEST, retry: true });
     expect(resolveDirectQuoteRequest("위 견적 요청 다시 해봐.", [])).toEqual({ kind: "retry_missing" });
   });
 
@@ -414,10 +414,22 @@ describe("quoteRequestParser", () => {
     const start = source.indexOf('if (directQuoteRequest.kind === "create")');
     const end = source.indexOf("const compactSummary", start);
     const directBranch = source.slice(start, end);
-    expect(directBranch).toContain("executeQuoteTool(toolCall.name");
+    expect(directBranch).toContain("executeAgentTool(toolCall, quoteContext)");
     expect(directBranch).not.toContain("calendar_add");
     expect(directBranch).not.toContain("update_quote_payment_terms");
     expect(directBranch).not.toContain("runHermesTurn");
     expect(directBranch).not.toContain("runLegacyTurn");
+  });
+
+  it("견적 승인 대기 중의 말 수정은 원문에 덧붙여 새 카드로 교체한다", () => {
+    const source = readFileSync("lib/olivia/v2/stream/streamRoute.ts", "utf8");
+    const start = source.indexOf('pendingAction?.toolName === "apply_quote_create"');
+    const end = source.indexOf("// 직전 assistant turn", start);
+    const revisionBranch = source.slice(start, end);
+    expect(revisionBranch).toContain("[수정 요청]");
+    expect(revisionBranch).toContain('name: "create_quote"');
+    expect(revisionBranch).toContain('state: "replaced"');
+    expect(revisionBranch).not.toContain("runHermesTurn");
+    expect(revisionBranch).not.toContain("runLegacyTurn");
   });
 });

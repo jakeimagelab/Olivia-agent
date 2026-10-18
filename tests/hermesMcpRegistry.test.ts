@@ -62,6 +62,12 @@ describe("Olivia Hermes MCP registry", () => {
     expect(OLIVIA_V2_TOOLS.map((tool) => tool.name)).not.toContain("client_delete");
   });
 
+  it("견적 생성은 승인 카드만 만들고 승인 전 저장 mutation으로 실행되지 않는다", () => {
+    expect(getHermesToolPolicy("create_quote")).toBe("approval");
+    expect(getHermesToolMode("create_quote")).toBe("approval");
+    expect(listHermesOliviaTools().find((tool) => tool.name === "create_quote")?.annotations).toMatchObject({ destructiveHint: true });
+  });
+
   // Olivia OS 2.0 §7 — DANGEROUS는 이름 패턴만으로도 코드 레벨에서 차단되어야 한다(Prompt 의존 금지).
   it.each([
     "delete_raw_photos", "move_raw_files", "remove_raw_asset", "raw_file_delete",

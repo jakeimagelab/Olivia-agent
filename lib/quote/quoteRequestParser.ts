@@ -26,6 +26,7 @@ export type ParsedQuoteRequest = {
   checkTotal: number | null;
   shootDate: string | null;
   itemPricesHidden: boolean;
+  vatIncluded?: boolean;
   taxMode: "separate" | "included" | "excluded";
   /** Existing payment-term support stays explicit; it is unrelated to quote parsing defaults. */
   depositRate: number | null;
@@ -181,7 +182,7 @@ function itemFromLine(line: string, groupLabel: string | null): ParsedQuoteItem 
   return null;
 }
 
-function correctedEmail(raw: string) {
+export function correctedEmail(raw: string) {
   const markdown = /\[[^\]]*\]\(mailto:([^\s)]+)\)/i.exec(raw);
   const extracted = markdown?.[1] || raw.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
   if (!extracted) return null;
