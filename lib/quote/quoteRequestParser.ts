@@ -232,15 +232,20 @@ function validIsoDate(year: number, month: number, day: number) {
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function shootDateFromLine(line: string, now = new Date()) {
+function shootDateFromLine(line: string, now = new Date(), previous: string | null = null) {
   const match = /^(?:촬영일|촬영\s*일정)\s*[:：은는]?\s*(.+)$/u.exec(line);
   if (!match) return undefined;
   const value = match[1].trim();
-  const explicit = /^(\d{4})[-.]\s*(\d{1,2})[-.]\s*(\d{1,2})(?:일)?$/u.exec(value);
+  const explicit = /^(\d{4})[-.]\s*(\d{1,2})[-.]\s*(\d{1,2})(?:일)?(?:로)?$/u.exec(value);
   if (explicit) return validIsoDate(Number(explicit[1]), Number(explicit[2]), Number(explicit[3]));
-  const partial = /^(\d{1,2})\s*(?:월|\/)\s*(\d{1,2})\s*일?$/u.exec(value);
-  if (!partial) return null;
+  const partial = /^(\d{1,2})\s*(?:월|\/)\s*(\d{1,2})\s*일?(?:로)?$/u.exec(value);
   const current = koreaDateParts(now);
+  if (!partial) {
+    const dayOnly = /^(\d{1,2})\s*일(?:로)?$/u.exec(value);
+    if (!dayOnly || !previous) return null;
+    const [year, month] = previous.split("-").map(Number);
+    return validIsoDate(year, month, Number(dayOnly[1]));
+  }
   const month = Number(partial[1]);
   const day = Number(partial[2]);
   const year = month > current.month || (month === current.month && day >= current.day)
@@ -328,6 +333,8 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     const line = lines[index];
     const nextLine = lines[index + 1];
 
+    if (/^\[수정 요청\]$/u.test(line)) continue;
+
     if (index === 0) {
       const client = firstLineQuoteClient(line);
       if (client) {
@@ -336,7 +343,7 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
       }
     }
 
-    const parsedShootDate = shootDateFromLine(line);
+    const parsedShootDate = shootDateFromLine(line, new Date(), result.shootDate);
     if (parsedShootDate !== undefined) {
       result.shootDate = parsedShootDate;
       continue;

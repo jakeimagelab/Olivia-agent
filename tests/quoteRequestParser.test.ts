@@ -400,6 +400,13 @@ describe("quoteRequestParser", () => {
     }
   });
 
+  it("대체 규칙도 촬영일 일자 수정 시 기존 연월을 유지한다", () => {
+    const revised = parseQuoteRequest(`${JEONJU_REQUEST}\n\n[수정 요청]\n촬영일 27일로`);
+    expect(revised.shootDate).toBe("2026-10-27");
+    expect(revised.unparsedLines).not.toContain("[수정 요청]");
+    expect(revised.items.flatMap((item) => item.details)).not.toContain("[수정 요청]");
+  });
+
   it("짧은 견적 재시도는 최근 생성 원문만 복원하고, 기록이 없으면 실행하지 않는다", () => {
     expect(parseQuoteRequest("위 견적 요청 다시 해봐.").clientName).toBeNull();
     expect(resolveDirectQuoteRequest("위 견적 요청 다시 해봐.", [
