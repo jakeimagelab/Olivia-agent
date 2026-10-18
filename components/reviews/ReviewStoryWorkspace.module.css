@@ -9,7 +9,7 @@
   margin: 0 auto;
   padding-inline: 20px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   background: #fafbfa;
   color: #1c2b28;
   border-top: 1px solid var(--line);
@@ -464,7 +464,7 @@ label.toolbarRange input[type="range"] { box-sizing: border-box; width: 100%; mi
 }
 
 @media (max-width: 760px) {
-  .workspace { height: auto; overflow: visible; grid-template-rows: auto auto; padding-inline: 12px; }
+  .workspace { height: auto; overflow: visible; grid-template-rows: auto auto auto; padding-inline: 12px; }
   .header { align-items: flex-start; padding: 14px 0; }
   .subtitle { display: none; }
   .editorGrid { display: block; height: auto; overflow: visible; }

@@ -4,6 +4,8 @@ import type { ReactNode } from "react";
 import AnalysisExecutionBar from "./AnalysisExecutionBar";
 import AnalysisWorkspaceHeader from "./AnalysisWorkspaceHeader";
 import AnalysisWorkspaceTabs, { type AnalysisWorkspaceTab } from "./AnalysisWorkspaceTabs";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
+import type { WorkspaceGroupId } from "@/lib/workspaceGroups";
 import styles from "./AnalysisWorkspace.module.css";
 
 export type AnalysisWorkspaceSurface = "page" | "window" | "tablet";
@@ -17,6 +19,7 @@ export default function AnalysisWorkspaceShell({
   tabs = [],
   activeTab = "",
   onTabChange = () => undefined,
+  workspaceGroupId,
   children,
 }: {
   surface?: AnalysisWorkspaceSurface;
@@ -27,12 +30,14 @@ export default function AnalysisWorkspaceShell({
   tabs?: readonly AnalysisWorkspaceTab[];
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  workspaceGroupId?: WorkspaceGroupId;
   children: ReactNode;
 }) {
   return (
     <div className={styles.shell} data-analysis-surface={surface}>
       <AnalysisExecutionBar />
       <div className={styles.viewport}>
+        {workspaceGroupId ? <WorkspaceGroupTabs groupId={workspaceGroupId} /> : null}
         {surface === "window" ? null : (
           <AnalysisWorkspaceHeader title={title} description={description} eyebrow={eyebrow} target={target} />
         )}

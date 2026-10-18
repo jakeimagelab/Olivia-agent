@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { calendarItems, hospitals, reportItems } from "@/lib/subscription-data";
 import { createMailingDraft } from "@/lib/mailingQueue";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
 
 export default function MonthlyReportPage() {
   const [hospitalId, setHospitalId] = useState(hospitals[0].id);
@@ -30,6 +31,7 @@ export default function MonthlyReportPage() {
 
   return (
     <main className="ops-shell">
+      <WorkspaceGroupTabs groupId="insights" activeToolId="monthly" />
       <header className="ops-header">
         <p>Monthly Report</p>
         <h1>월간 운영 리포트</h1>

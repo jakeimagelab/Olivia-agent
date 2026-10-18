@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import GlobalHeader from "@/components/GlobalHeader";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import {
   FileText, Instagram, MapPin, Sparkles, ShieldAlert, Calendar,
@@ -1480,6 +1481,7 @@ export default function SnsManagerPage() {
 
   return (
     <div className="sns-manager-page" style={{ minHeight: "100vh", background: C.bg }}>
+      <WorkspaceGroupTabs groupId="content" activeToolId="promotion" />
       <GlobalHeader title="홍보 콘텐츠 제작" description="블로그·인스타·네이버 플레이스 홍보 콘텐츠를 클라이언트별로 제작합니다." />
 
       {/* 탭 헤더 — 유튜브 탭은 딥링크(?tab=youtube) 보존, 캘린더는 준비중 배지가 있어

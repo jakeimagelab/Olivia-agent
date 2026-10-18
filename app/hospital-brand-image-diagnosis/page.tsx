@@ -759,6 +759,7 @@ function HospitalBrandImageDiagnosisContent() {
     return (
       <AnalysisWorkspaceShell
         surface={surface}
+        workspaceGroupId="brand"
         title="병원 브랜드 이미지 진단"
         description="홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다."
         eyebrow="BRAND IMAGE DIAGNOSIS"
@@ -819,6 +820,7 @@ function HospitalBrandImageDiagnosisContent() {
   return (
     <AnalysisWorkspaceShell
       surface={surface}
+      workspaceGroupId="brand"
       title="병원 브랜드 이미지 진단"
       description="현재 채널과 보유 콘텐츠가 환자에게 전달하는 브랜드 이미지를 단계별로 확인합니다."
       eyebrow="BRAND IMAGE DIAGNOSIS"

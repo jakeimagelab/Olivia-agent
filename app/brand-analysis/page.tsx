@@ -739,6 +739,7 @@ function BrandAnalysisContent() {
   return (
     <AnalysisWorkspaceShell
       surface={surface}
+      workspaceGroupId="brand"
       title={result ? `홈페이지 브랜드 분석 — ${result.brandName}` : "홈페이지 브랜드 분석"}
       description="병원 홈페이지 URL을 바탕으로 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 분석합니다."
       eyebrow="BRAND ANALYSIS"

@@ -110,7 +110,7 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     tools: [
       { id: "work", title: "업무 리포트", href: "/report", aliases: ["업무 리포트", "주간 리포트"], sourceHrefs: ["/report"] },
       { id: "monthly", title: "월간 리포트", href: "/monthly-report", aliases: ["월간 리포트", "월간 운영 리포트"], sourceHrefs: ["/monthly-report"] },
-      { id: "trend", title: "트렌드 리포트", href: "/trend-dashboard", aliases: ["트렌드 리포트", "시장 트렌드"], sourceHrefs: ["/trend-dashboard"] },
+      { id: "trend", title: "트렌드 리포트", href: "/trend-dashboard?group=insights", aliases: ["트렌드 리포트", "시장 트렌드"], sourceHrefs: ["/trend-dashboard"] },
     ],
   },
 ] as const;
@@ -154,6 +154,38 @@ export function getCanonicalWorkspaceHref(href: string): string {
 
 export function getWorkspaceGroup(id: WorkspaceGroupId): WorkspaceGroup | undefined {
   return WORKSPACE_GROUPS.find((group) => group.id === id);
+}
+
+const NAVIGABLE_WORKSPACE_GROUP_IDS = new Set<WorkspaceGroupId>(["brand", "content", "insights"]);
+
+function hrefPathname(href: string): string {
+  return new URL(href, "https://olivia.local").pathname;
+}
+
+export function resolveWorkspaceGroupForLocation(
+  pathname: string,
+  search = "",
+): { group: WorkspaceGroup; activeToolId: string } | null {
+  const locationPathname = hrefPathname(pathname);
+  const searchParams = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+
+  // 트렌드 화면은 브랜드 진단센터가 기본 소유자이고, 리포트 묶음에서 들어온 주소만
+  // 명시적인 group 쿼리로 구분한다.
+  if (locationPathname === "/trend-dashboard" && searchParams.get("group") === "insights") {
+    const insights = getWorkspaceGroup("insights");
+    if (insights) return { group: insights, activeToolId: "trend" };
+  }
+
+  for (const group of WORKSPACE_GROUPS) {
+    if (!NAVIGABLE_WORKSPACE_GROUP_IDS.has(group.id)) continue;
+    for (const tool of group.tools) {
+      const matchesHref = hrefPathname(tool.href) === locationPathname;
+      const matchesSource = tool.sourceHrefs.some((sourceHref) => hrefPathname(sourceHref) === locationPathname);
+      if (matchesHref || matchesSource) return { group, activeToolId: tool.id };
+    }
+  }
+
+  return null;
 }
 
 export function workspaceGroupSearchText(group: WorkspaceGroup): string {

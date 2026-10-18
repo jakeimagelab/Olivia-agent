@@ -112,6 +112,7 @@ function ChannelAnalyzerContent() {
 
   return <AnalysisWorkspaceShell
     surface={surface}
+    workspaceGroupId="brand"
     title="병원 채널 분석"
     description="인스타그램·홈페이지·네이버 플레이스·블로그를 한 흐름에서 진단합니다."
     eyebrow="CHANNEL ANALYSIS"

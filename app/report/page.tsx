@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
 
 type ReportData = {
   total: number;
@@ -65,6 +66,7 @@ function ReportWorkspace({ hideHeader = false }: { hideHeader?: boolean } = {}) 
 
   return (
     <div style={{ minHeight: hideHeader ? "100%" : "100vh", background: "var(--teal-tint)" }}>
+      <WorkspaceGroupTabs groupId="insights" activeToolId="work" />
       {hideHeader ? null : <GlobalHeader title="업무 리포트" description="AI 활동 기록, 병원별 통계, 일별 차트를 한눈에 확인합니다." />}
 
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "18px 20px 48px" }}>

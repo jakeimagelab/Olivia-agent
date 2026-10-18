@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, BarChart, Bar,
@@ -12,6 +12,8 @@ import { TREND_INDUSTRIES } from "@/lib/trend/constants";
 import { AnalysisExecutionProvider, useAnalysisExecution } from "@/components/analysis-workspace/AnalysisExecutionContext";
 import AnalysisWorkspaceShell from "@/components/analysis-workspace/AnalysisWorkspaceShell";
 import { useAnalysisHost } from "@/components/analysis-workspace/AnalysisHostContext";
+import { usePathname, useSearchParams } from "next/navigation";
+import { resolveWorkspaceGroupForLocation, type WorkspaceGroupId } from "@/lib/workspaceGroups";
 
 const SERIES_COLORS = ["#155855", "#E85D2C", "#0891B2", "#9333EA", "#D97706", "#059669"];
 
@@ -67,6 +69,10 @@ function mergeKeywordSeries(series: Record<string, { date: string; value: number
 
 function TrendDashboardContent() {
   const { surface } = useAnalysisHost();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const resolvedWorkspace = resolveWorkspaceGroupForLocation(pathname, searchParams.toString());
+  const workspaceGroupId: WorkspaceGroupId = resolvedWorkspace?.group.id === "insights" ? "insights" : "brand";
   const [industry, setIndustry] = useState<string>("all");
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,6 +183,7 @@ function TrendDashboardContent() {
   return (
     <AnalysisWorkspaceShell
       surface={surface}
+      workspaceGroupId={workspaceGroupId}
       title="병원 트렌드 분석"
       description="SNS·키워드 검색량·경쟁사 현황을 업종별로 수집해 AI 인사이트와 함께 확인합니다."
       eyebrow="TREND DASHBOARD"
@@ -553,7 +560,9 @@ function TrendDashboardContent() {
 export default function TrendDashboardPage() {
   return (
     <AnalysisExecutionProvider workspaceId="trend-dashboard">
-      <TrendDashboardContent />
+      <Suspense fallback={null}>
+        <TrendDashboardContent />
+      </Suspense>
     </AnalysisExecutionProvider>
   );
 }

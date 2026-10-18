@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
 import PcrmReviewTable, { type ReviewRow } from "../_components/PcrmReviewTable";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
 
 export default function ClientReviewsPage() {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -71,6 +72,7 @@ export default function ClientReviewsPage() {
 
   return (
     <div style={{ maxWidth: 1500, margin: "0 auto", padding: "0 0 80px" }}>
+      <WorkspaceGroupTabs groupId="content" activeToolId="review" />
       <PcrmReviewTable reviews={reviews} loading={loading} onRegister={onRegister} onEdit={onEdit} onDelete={onDelete} />
     </div>
   );

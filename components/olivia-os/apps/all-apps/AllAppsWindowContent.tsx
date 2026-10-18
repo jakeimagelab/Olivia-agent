@@ -35,8 +35,8 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/metadata-select": "metadata-select", "/raw-select": "raw-select",
   "/video-studio": "video-studio", "/video-convert": "resolution-convert",
   "/photo-retouching": "retouch",
-  "/report": "work-report", "/link-generator": "share-link", "/trash": "trash",
-  "/daily-ideas": "idea", "/sns-manager": "promo-content", "/review-studio": "review-content",
+  "/report": "work-report", "/monthly-report": "work-report", "/link-generator": "share-link", "/trash": "trash",
+  "/daily-ideas": "idea", "/sns-manager": "promo-content", "/review-studio": "review-content", "/clients/reviews": "review-content",
   "/brand-analysis": "brand-audit", "/ai-trust-gap": "reverse-analysis",
   "/diagnosis": "image-diagnosis", "/hospital-brand-image-diagnosis": "brand-image-diagnosis",
   "/channel-analyzer": "channel-analysis", "/trend-dashboard": "trend-analysis",
@@ -67,8 +67,29 @@ const APP_TOOLS: ToolDef[] = [
   ...WORKSPACE_APP_TOOLS,
   ...ALL_TOOLS.filter((tool) => !isIntegratedToolHref(tool.href)),
 ];
-const TOOL_BY_HREF = new Map(APP_TOOLS.map((tool) => [tool.href, tool]));
+const WORKSPACE_SUBTOOLS: ToolDef[] = WORKSPACE_GROUPS.flatMap((group) => group.tools.map((tool) => ({
+  title: tool.title,
+  desc: group.description,
+  href: tool.href,
+  icon: group.icon,
+  meta: group.title,
+  orange: false,
+  category: "tools" as const,
+  aliases: tool.aliases,
+})));
+// 전체/카테고리는 APP_TOOLS만 써서 묶음 카드 구성을 유지한다. 저장된 즐겨찾기 복원만
+// 숨김 전 목록과 묶음 하위 기능 전체를 조회한다.
+const FAVORITE_TOOL_BY_HREF = new Map(
+  [...WORKSPACE_SUBTOOLS, ...ALL_TOOLS].map((tool) => [tool.href, tool]),
+);
 const DESKTOP_APP_IDS = ["today", "olivia-chat"] as const;
+
+export function resolveFavoriteWorkspaceTools(keys: readonly string[]): ToolDef[] {
+  return keys.flatMap((key) => {
+    const tool = FAVORITE_TOOL_BY_HREF.get(key);
+    return tool ? [tool] : [];
+  });
+}
 
 type AppTab = "favorites" | "all" | "desktop" | NavCategory;
 type MenuState = { key: string; title: string; x: number; y: number };
@@ -218,7 +239,7 @@ export function AllAppsWindowContent() {
       return favoriteKeys.flatMap((key) => {
         const desktopEntry = desktopByKey.get(key);
         if (desktopEntry) return [desktopEntry];
-        const tool = TOOL_BY_HREF.get(key);
+        const tool = FAVORITE_TOOL_BY_HREF.get(key);
         return tool ? [toolEntry(tool, FAVORITE_LABEL_BY_KEY[key] ?? tool.title)] : [];
       });
     }

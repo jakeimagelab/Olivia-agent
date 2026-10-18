@@ -25,6 +25,7 @@ import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useOliviaUiSurface } from "@/lib/olivia/surfaceContext";
 import ReviewTemplateThumbnail from "./ReviewTemplateThumbnail";
 import Modal from "@/components/ui/Modal";
+import WorkspaceGroupTabs from "@/components/workspace-shell/WorkspaceGroupTabs";
 import styles from "./ReviewStoryWorkspace.module.css";
 
 type Review = {
@@ -881,11 +882,12 @@ export default function ReviewStoryWorkspace({ initialReviewId, initialContentId
   // 리뷰 관리 목록 → [콘텐츠 만들기]로 들어올 때 콘텐츠를 새로 만드는 await가 끼어 있어서,
   // 그 사이 빈 에디터가 잠깐 보이지 않도록 첫 로드가 끝날 때까지는 로딩 문구만 보여준다.
   if (busy === "load" && !reviews.length && !contents.length) {
-    return <main ref={workspaceRef} className={styles.workspace} style={workspaceHeight ? { height: workspaceHeight } : undefined}><div className={styles.loadingState}>리뷰 정보를 불러오는 중…</div></main>;
+    return <main ref={workspaceRef} className={styles.workspace} style={workspaceHeight ? { height: workspaceHeight } : undefined}><WorkspaceGroupTabs groupId="content" activeToolId="review" /><div className={styles.loadingState}>리뷰 정보를 불러오는 중…</div></main>;
   }
 
   return (
     <main ref={workspaceRef} className={styles.workspace} style={workspaceHeight ? { height: workspaceHeight } : undefined}>
+      <WorkspaceGroupTabs groupId="content" activeToolId="review" />
       <header className={styles.header}>
         {!isDesktopWindow ? (
           <div>
