@@ -51,6 +51,7 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     const streamSource = readFileSync("lib/olivia/v2/stream/streamRoute.ts", "utf8");
     expect(streamSource).toContain("const directQuoteCandidate = isDirectQuoteCandidate(rawMessage)");
     expect(streamSource).toContain('!directQuoteCandidate && shouldRequireClientSelection');
+    expect(streamSource).toContain('trustedClientProject.clientConflict && isClientScopedExecutionRequest(message)');
     expect(streamSource).toContain('if (directQuoteRequest.kind === "create")');
   });
 

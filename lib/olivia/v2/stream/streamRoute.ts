@@ -630,7 +630,9 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           },
           recent: recentClientProject,
         });
-        if (trustedClientProject.clientConflict) {
+        // 순수 화면 이동(예: "메모 열어줘")은 고객 대상이 없는 명령이다. 화면과 최근
+        // 대화의 고객이 달라도 대상 선택 질문으로 막지 않고 아래 결정론적 navigation으로 보낸다.
+        if (trustedClientProject.clientConflict && isClientScopedExecutionRequest(message)) {
           const text = clientTargetConflictQuestion({
             message,
             conflict: trustedClientProject.clientConflict,
