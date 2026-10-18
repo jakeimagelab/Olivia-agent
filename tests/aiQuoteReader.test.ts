@@ -63,4 +63,27 @@ describe("AI quote reader verification", () => {
     expect(parsed.items.filter((item) => item.free)).toHaveLength(3);
     expect(quote.totals).toMatchObject({ supplyAmount: 3_700_000, vat: 370_000, finalAmount: 4_070_000, depositAmount: 2_035_000, balanceAmount: 2_035_000 });
   });
+
+  it.each([
+    { names: ["프로필촬영"], supply: 350_000 },
+    { names: ["포인트영상"], supply: 1_800_000 },
+    { names: ["스탠다드패키지", "포인트영상"], supply: 2_150_000 },
+    { names: ["프리미엄패키지", "의료진프로필 2명 추가"], quantities: [1, 2], supply: 2_500_000 },
+  ])("AI가 비운 카탈로그 금액을 코드가 채운다: $names", ({ names, quantities, supply }) => {
+    const parsed = toParsedQuoteRequest({
+      ...READING,
+      clientName: "강남스마트치과의원",
+      fixedTotal: null,
+      itemPricesHidden: false,
+      items: names.map((name, index) => ({
+        name,
+        details: [],
+        amount: null,
+        quantity: quantities?.[index] ?? 1,
+        free: false,
+      })),
+    });
+    const quote = buildQuoteDataFromParsedRequest({ request: parsed, brand: "photoclinic" });
+    expect(quote.totals.supplyAmount).toBe(supply);
+  });
 });

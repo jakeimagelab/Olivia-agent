@@ -21,17 +21,12 @@ export function isDangerousToolName(toolName: string): boolean {
   return DANGEROUS_NAME_PATTERN.test(toolName);
 }
 
-/** Canonical Desktop data와 갈라지는 legacy conti_saves 도구만 차단한다. */
-export const BLOCKED_TOOLS = new Set([
-  "get_conti_status", "create_conti", "add_conti_shots", "update_conti_shot",
-  "remove_conti_shot", "reorder_conti_shot", "duplicate_conti_shot",
-  "estimate_conti_duration", "generate_shoot_prep_from_conti",
-]);
+export const BLOCKED_TOOLS = new Set<string>();
 
 /** 아래 도구들은 변경을 실행하지 않고 기존 Olivia 승인 카드만 만든다. */
 export const APPROVAL_TOOLS = new Set([
   "create_quote", "request_quote_publish", "request_contract_publish",
-  "request_remove_conti_scene_v2", "client_create", "client_archive", "send_mailing",
+  "client_create", "client_archive",
   // §9 "최종 Rule 승인은 Olivia/User가 한다" — Hermes가 스스로 규칙을 확정할 수 없게 한다.
   "approve_agent_memory_rule",
 ]);
@@ -45,8 +40,7 @@ export const CLIENT_ONLY_TOOLS = new Set([
 
 const UI_TOOLS = new Set([
   ...CLIENT_ONLY_TOOLS, "show_workspace", "open_feature", "open_document",
-  "request_contract_signature", "preview_quote", "preview_contract", "preview_conti_v2",
-  "brand_analysis_preview", "trend_analysis_preview",
+  "request_contract_signature", "preview_quote", "preview_contract",
 ]);
 
 export function getHermesToolPolicy(toolName: string): HermesToolPolicy {
@@ -60,9 +54,6 @@ export function getHermesToolMode(toolName: string, description = ""): ToolExecu
   if (UI_TOOLS.has(toolName)) return "ui";
   if (/^\[READ\]/i.test(description) || /^(get|list|search|check|resolve|estimate)_/.test(toolName)
     || /_(get_latest|preview)$/.test(toolName)
-    // client_search는 이름이 search_로 시작하지 않아 위 접두사 정규식에 안 걸린다(끝에 _search가
-    // 붙는 형태라 놓침) — 정규식을 더 넓히는 대신, 읽기 전용임이 확실한 이런 예외를 명시적으로
-    // 나열한다(email_* 계열과 동일한 방식).
-    || ["email_read", "email_search", "email_summarize", "calendar_availability", "client_search"].includes(toolName)) return "read";
+    || ["calendar_availability", "client_search"].includes(toolName)) return "read";
   return "mutation";
 }

@@ -174,21 +174,6 @@ describe("Tool 실행 결과 Verification (Agent 실행 구조 개편, 2026-08-3
     await expect(runTool("start_quote_wizard", {}, baseContext)).rejects.toThrow("지원하지 않는 Olivia 작업이에요.");
   });
 
-  it("B. get_conti_status — 저장된 콘티가 없으면 success=true인데도 verification.resourceExists=false다(콘티 없음은 실패가 아니다)", async () => {
-    fuzzyNameSearchMock.mockResolvedValueOnce([]);
-    const execution = await call("get_conti_status", { hospitalName: "없는병원" });
-    expect(execution.result.success).toBe(true);
-    expect(execution.result.verification?.executed).toBe(true);
-    expect(execution.result.verification?.resourceExists).toBe(false);
-  });
-
-  it("B-2. get_conti_status — 콘티를 찾으면 verification.resourceExists=true다", async () => {
-    fuzzyNameSearchMock.mockResolvedValueOnce([{ id: "conti-1", hospital_name: "유진스의원", saved_at: "2026-08-20", result: { conti: [], checklist: [] } }]);
-    const execution = await call("get_conti_status", { hospitalName: "유진스의원" });
-    expect(execution.result.success).toBe(true);
-    expect(execution.result.verification?.resourceExists).toBe(true);
-  });
-
   it("C. link_document_to_client — 연결 대상을 못 찾으면 기존 success 메시지는 유지하되 verification.linked=false로 실패를 숨기지 않는다", async () => {
     linkDocumentToClientMock.mockResolvedValueOnce({ action: "done", message: "일치하는 자료를 못 찾았어요." });
     const execution = await call("link_document_to_client", { documentType: "conti", documentQuery: "없는병원", clientName: "아무의원" });
@@ -261,10 +246,4 @@ describe("Tool Dispatch — 이름→domain executor 연결이 분리 후에도 
     expect(execution.result.data?.taskId).toBe("task-1");
   });
 
-  it('"send_mailing"은 mailing executor로 라우팅된다(mailingId/approvalRequired를 반환)', async () => {
-    const execution = await call("send_mailing", { mailingId: "mail-1" });
-    expect(execution.result.success).toBe(true);
-    expect(execution.result.data?.mailingId).toBe("mail-1");
-    expect(execution.result.data?.approvalRequired).toBe(true);
-  });
 });

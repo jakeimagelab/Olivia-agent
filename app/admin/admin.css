@@ -2774,10 +2774,20 @@
 .olivia-resource-card--desktop:hover { border-color: rgba(21,88,85,.28); background: #eef7f5; }
 .olivia-resource-card--desktop:focus-visible { outline: 2px solid var(--olivia-orange); outline-offset: 2px; }
 .olivia-resource-card--desktop:disabled { cursor: default; opacity: .72; }
+.olivia-approval-card { width: 100%; margin-top: 8px; display: grid; gap: 9px; border: 1px solid rgba(21,88,85,.12); border-radius: 12px; padding: 12px; background: #f7fbfa; color: #17332e; }
+.olivia-approval-card > strong { font-size: 11.5px; font-weight: 600; }
 .olivia-message__body p { margin: 0; }
 .olivia-message__error { color: #9e4327; }
 .olivia-message__error button { margin-left: 8px; border: 0; border-radius: 999px; padding: 5px 8px; background: #fff0ea; color: var(--olivia-orange); font-size: 9px; cursor: pointer; }
-.olivia-approval-card__summary { display: block; white-space: pre-wrap; }
+.olivia-approval-card__summary { display: block; color: #405651; white-space: pre-wrap; }
+.olivia-approval-card__hint { display: block; color: #6e817c; font-size: 9.5px; line-height: 1.5; }
+.olivia-approval-card__actions { display: flex; flex-wrap: nowrap; gap: 8px; }
+.olivia-approval-card__actions button { min-height: 36px; border: 1px solid rgba(21,88,85,.18); border-radius: 9px; padding: 7px 13px; background: #fff; color: #155855; font: inherit; font-weight: 500; cursor: pointer; }
+.olivia-approval-card__actions button:first-child { border-color: var(--olivia-orange); background: var(--olivia-orange); color: #fff; }
+.olivia-approval-card__actions button:disabled { cursor: wait; opacity: .55; }
+@media (max-width: 680px) {
+  .olivia-approval-card__actions button { min-height: 44px; }
+}
 
 /* PHASE 4 작업 2(2026-09-25) — guarded 턴(텍스트를 실시간으로 안 흘리는 실행형 요청) 진행 타임라인.
    agent_status/tool_start/tool_result를 그대로 쌓아서 보여준다 — 새 스타일 언어를 만들지 않고

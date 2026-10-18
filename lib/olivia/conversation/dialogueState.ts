@@ -17,7 +17,7 @@ export type OliviaPendingAction = {
   resolvedAt?: string;
 };
 
-export type PendingActionTurn = "approve" | "reject" | "defer" | "correction" | "none";
+export type PendingActionTurn = "approve" | "reject" | "defer" | "question" | "correction" | "none";
 
 const APPROVE_PATTERN = /^(응|네|예|그래|맞아|좋아|오케이|ok|ㅇㅇ|해\s*줘|진행해|적용해|그렇게\s*해)([.!~\s]|$)/i;
 const REJECT_PATTERN = /^(아니|아니야|취소|하지\s*마|안\s*할래|됐어)([.!~\s]|$)/i;
@@ -93,6 +93,16 @@ export function resolvePendingActionTurn(message: string, pending?: OliviaPendin
   if (!pending || pending.status !== "pending") return "none";
   const normalized = message.trim();
   if (!normalized) return "none";
+  if (pending.toolName === "apply_quote_create") {
+    if (APPROVE_PATTERN.test(normalized) || /^(만들어|만들어줘|만들기|생성해|그대로\s*만들어)([.!~\s]|$)/i.test(normalized)) return "approve";
+    if (REJECT_PATTERN.test(normalized) || /^아니/i.test(normalized) || /(만들지\s*마|그만)/i.test(normalized)) return "reject";
+    if (
+      /[?？]\s*$/.test(normalized)
+      || /(뭐|무슨|왜|어떤|뭘)/.test(normalized)
+      || /^(?:[?？!~.\-_=]+|[ㄱ-ㅎㅏ-ㅣ]+)$/.test(normalized)
+    ) return "question";
+    return "correction";
+  }
   if (DEFER_PATTERN.test(normalized)) return "defer";
   if (CORRECTION_PATTERN.test(normalized) && /\d|[일이삼사오육칠팔구십백천만억]/.test(normalized)) return "correction";
   if (REJECT_PATTERN.test(normalized)) return "reject";

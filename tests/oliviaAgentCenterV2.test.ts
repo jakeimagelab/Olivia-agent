@@ -39,7 +39,7 @@ describe("Olivia routing and tools",()=>{
   it("parallelizes read calls and serializes writes",async()=>{
     let active=0;let maxActive=0;
     const execute=async()=>{active++;maxActive=Math.max(maxActive,active);await new Promise((resolve)=>setTimeout(resolve,8));active--;return true};
-    await executeOliviaToolBatch([{id:"1",name:"calendar_list",arguments:"{}"},{id:"2",name:"get_urgent_insights",arguments:"{}"}],execute);
+    await executeOliviaToolBatch([{id:"1",name:"calendar_list",arguments:"{}"},{id:"2",name:"client_get",arguments:"{}"}],execute);
     expect(maxActive).toBe(2);
     active=0;maxActive=0;
     await executeOliviaToolBatch([{id:"1",name:"calendar_add",arguments:"{}"},{id:"2",name:"calendar_update",arguments:"{}"}],execute);

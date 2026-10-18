@@ -73,7 +73,10 @@ export function titleForParsedQuote(request: ParsedQuoteRequest, brand: Brand) {
   const client = request.clientName?.trim();
   if (!client) throw new Error("견적서 제목을 만들 고객명을 원문에서 찾지 못했어요.");
   if (request.isEvent) {
-    const eventTitle = [client, request.titleSuffix].filter(Boolean).join(" ").trim();
+    const suffix = request.titleSuffix?.trim();
+    const eventTitle = suffix && normalize(suffix).startsWith(normalize(client))
+      ? suffix
+      : [client, suffix].filter(Boolean).join(" ").trim();
     const title = /견적서\s*$/i.test(eventTitle) ? eventTitle : `${eventTitle} 견적서`;
     if (!hasBalancedParentheses(title)) throw new Error("견적서 제목의 괄호 짝이 맞지 않아 저장하지 않았어요.");
     return title;
@@ -83,6 +86,26 @@ export function titleForParsedQuote(request: ParsedQuoteRequest, brand: Brand) {
     return `${client} 브랜드촬영${topic ? `(${topic})` : ""} 견적서`;
   }
   return `${client} 브랜드촬영 견적서`;
+}
+
+/** Fill only catalog-backed prices. User-entered prices always win. */
+export function applyCatalogPricingToParsedRequest(request: ParsedQuoteRequest, brand: Brand): ParsedQuoteRequest {
+  if (request.itemPricesHidden || brand !== "photoclinic") return request;
+  const hasPackage = request.items.some((item) => /패키지/.test(item.name));
+  const items = request.items.map((item) => {
+    if (item.free || item.amount !== null) return item;
+    const person = /(?:의료진\s*)?프로필\s*(\d+)\s*(?:명|인)?\s*추가/.exec(item.name);
+    if (person) return { ...item, amount: 250_000, quantity: Math.max(1, Number(person[1]) || item.quantity) };
+    const name = normalize(item.name);
+    if (name.includes(normalize("포인트영상"))) {
+      return { ...item, amount: hasPackage ? 800_000 : 1_800_000 };
+    }
+    const catalog = [...packages, ...singleItems]
+      .filter((entry) => name.includes(normalize(entry.name)))
+      .sort((left, right) => normalize(right.name).length - normalize(left.name).length)[0];
+    return catalog ? { ...item, amount: catalog.price } : item;
+  });
+  return { ...request, items };
 }
 
 function detailOf(item: ParsedQuoteItem) {
@@ -129,7 +152,8 @@ function benefitLabel(item: ParsedQuoteItem, hasPackage: boolean) {
  * every amount and item is taken from ParsedQuoteRequest, which itself came from the original user message.
  */
 export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
-  const { request, brand } = input;
+  const brand = input.brand;
+  const request = applyCatalogPricingToParsedRequest(input.request, brand);
   const taxMode = request.vatIncluded ? "included" : request.taxMode;
   // 0% 선금은 "잔금 100%"라는 명시적 결제조건이다. || 50을 쓰면 그 값을 조용히
   // 기본값으로 덮어쓰므로 null일 때만 기존 기본 결제조건을 쓴다.
@@ -154,6 +178,8 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
       ? singleItems.find((entry) => entry.id === mappedId)?.price
       : undefined;
     const isPackage = selectedPackageId && packages.some((entry) => entry.id === selectedPackageId && normalize(item.name).includes(normalize(entry.name)));
+    const isPackagePointVideo = Boolean(selectedPackageId)
+      && normalize(item.name).includes(normalize("포인트영상"));
 
     canonicalItems.push({
       id: `parsed:${index}`,
@@ -171,6 +197,10 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
       return;
     }
     if (isPackage) return;
+    if (isPackagePointVideo && amount !== null) {
+      if (mappedId && !selectedSingleItemIds.includes(mappedId)) selectedSingleItemIds.push(mappedId);
+      return;
+    }
     // 포토클리닉 단일항목도 금액을 직접 말했으면 그 원문 금액을 우선한다. 고정 카탈로그
     // 버튼은 가격을 말하지 않았거나 정확히 같은 값일 때만 사용한다.
     if (brand === "jakeimage" && mappedId) {
@@ -191,8 +221,19 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
   const singleItemsTotal = brand === "jakeimage"
     ? 0
     : request.items
-      .filter((item) => Boolean(photoclinicSingleId(item.name)) && !item.free)
+      .filter((item) => {
+        const mappedId = photoclinicSingleId(item.name);
+        if (!mappedId || item.free) return false;
+        if (selectedPackageId && normalize(item.name).includes(normalize("포인트영상"))) return false;
+        const catalogPrice = singleItems.find((entry) => entry.id === mappedId)?.price;
+        return item.amount === catalogPrice;
+      })
       .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0) * Math.max(1, item.quantity), 0);
+  const optionsTotal = brand === "photoclinic" && selectedPackageId
+    ? request.items
+      .filter((item) => !item.free && normalize(item.name).includes(normalize("포인트영상")))
+      .reduce((sum, item) => sum + Math.max(0, Number(item.amount) || 0) * Math.max(1, item.quantity), 0)
+    : 0;
   const discountRate = request.discount?.type === "percent" ? request.discount.value : 0;
   const requestedExtraDiscount = request.discount?.type === "amount" ? request.discount.value : 0;
   // 할인, 특별조정, 절삭은 모두 computeQuoteTotals 한 곳에서 순서대로 적용한다.
@@ -201,7 +242,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
   const totals = computeQuoteTotals({
     packageTotal,
     singleItemsTotal,
-    optionsTotal: 0,
+    optionsTotal,
     customItems,
     discountRate,
     extraDiscount,

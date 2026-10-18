@@ -48,7 +48,7 @@ export async function handlePendingActionTurn({
   send,
   saveTurnAssistant,
 }: PendingActionTurnInput): Promise<PendingActionTurnResult> {
-  if (!pendingAction || pendingTurn === "none") return { handled: false, pendingAction };
+  if (!pendingAction || pendingTurn === "none" || pendingTurn === "question") return { handled: false, pendingAction };
 
   if (pendingTurn === "correction") {
     const rejected = transitionPendingAction(pendingAction, "rejected");

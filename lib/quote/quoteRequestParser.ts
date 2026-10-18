@@ -155,7 +155,7 @@ function normalItem(input: { name: string; note?: string | null; amount: number 
 }
 
 /** Quantity is parsed only from `x N` or `N개 = 개당 ...`, never from prose such as 3회 방문. */
-function itemFromLine(line: string, groupLabel: string | null): ParsedQuoteItem | null {
+function itemFromLine(line: string, groupLabel: string | null, hasPackage = false): ParsedQuoteItem | null {
   const free = /(?:서비스|무료|무상)\s*$/i.test(line);
   const withoutFree = line.replace(/\s*(?:서비스|무료|무상)\s*$/i, "").trim();
 
@@ -177,7 +177,10 @@ function itemFromLine(line: string, groupLabel: string | null): ParsedQuoteItem 
   const addition = cataloguePersonAddition(withoutFree);
   if (addition) return normalItem({ name: withoutFree, amount: addition.amount, quantity: addition.quantity, free, groupLabel });
   const catalog = catalogMatch(withoutFree);
-  if (catalog) return normalItem({ name: withoutFree, amount: catalog.price, free, groupLabel });
+  if (catalog) {
+    const amount = normalized(withoutFree).includes(normalized("포인트영상")) && hasPackage ? 800_000 : catalog.price;
+    return normalItem({ name: withoutFree, amount, free, groupLabel });
+  }
   if (free || EXTERNAL_ITEM.test(withoutFree)) return normalItem({ name: withoutFree, amount: null, free, groupLabel });
   return null;
 }
@@ -260,8 +263,11 @@ function titleDataFromClientLine(line: string) {
   const withoutQuote = line.replace(/\s*견적서\s*$/i, "").trim();
   const event = EVENT_TOKEN.exec(withoutQuote);
   if (!event || !/견적서\s*$/i.test(line)) return null;
-  const client = validClientCandidate(withoutQuote.slice(0, event.index));
-  const suffix = withoutQuote.slice(event.index).trim();
+  const numberedEvent = /\d+\s*(?:주년|돌|환갑|칠순|고희)/i.exec(withoutQuote);
+  const splitAt = numberedEvent && numberedEvent.index <= event.index ? numberedEvent.index : event.index;
+  const client = validClientCandidate(withoutQuote.slice(0, splitAt));
+  // 숫자+행사 단위는 원문 전체를 보존한다. 일반 행사(웨딩 등)는 기존 suffix 규칙을 유지한다.
+  const suffix = numberedEvent ? withoutQuote : withoutQuote.slice(event.index).trim();
   return client && suffix ? { client, suffix } : null;
 }
 
@@ -405,7 +411,7 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
       }
     }
 
-    const item = itemFromLine(line, groupLabel)
+    const item = itemFromLine(line, groupLabel, result.items.some((entry) => /패키지/.test(entry.name)))
       ?? (AMOUNTLESS_ITEM.test(line) ? normalItem({ name: line, amount: null, groupLabel }) : null);
     if (item) {
       result.items.push(item);

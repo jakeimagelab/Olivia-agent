@@ -132,6 +132,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const pendingAttachmentsRef = useRef<PendingOliviaAttachment[]>([]);
   pendingAttachmentsRef.current = pendingAttachments;
   const [attachmentError, setAttachmentError] = useState("");
+  const [processingApprovalIds, setProcessingApprovalIds] = useState<Set<string>>(() => new Set());
   const lastMessageCountRef = useRef(0);
   // 페이지를 처음 열어서 캐시/서버 기록이 아직 하나도 안 채워진 0 → N으로 바뀌는 첫 순간을
   // 따로 구분한다. 이걸 안 하면 "방금 내가 보낸 메시지"랑 똑같은 조건(0에서 늘어남)으로 오인해서,
@@ -492,11 +493,24 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
                     if (block.type === "resource_card") return isMobile ? <button key={index} type="button" className="olivia-resource-card olivia-resource-card--mobile" onClick={() => window.dispatchEvent(new CustomEvent("olivia-mobile-open-resource", { detail: block }))}><strong>{block.title || (block.resourceType === "quote" ? "견적서" : block.resourceType === "contract" ? "계약서" : "문서")}</strong><span>{block.summary || "미리보기"}</span><b>미리보기</b></button> : <button key={index} type="button" className="olivia-resource-card olivia-resource-card--desktop" onClick={() => openDesktopResource(block)} disabled={!(["quote", "contract", "storyboard", "conti"].includes(block.resourceType))}><strong>{block.title || block.resourceType}</strong><span>{block.summary || "문서 열기"}</span></button>;
                     if (block.type === "error") return <div key={index} className="olivia-message__error">{block.message}<button type="button" onClick={() => void retryLast()}>다시 시도</button></div>;
                     if (block.type === "approval") return <div key={index} className="olivia-approval-card">
-                      <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : block.state === "replaced" ? "대체됨" : "확인이 필요해요"}</strong>
+                      <strong>{block.state === "approved" ? "처리했어요" : block.state === "cancelled" ? "취소했어요" : block.state === "error" ? "처리하지 못했어요" : block.state === "replaced" ? "대체됨" : block.toolName === "apply_quote_create" ? "이렇게 견적서를 만들까요?" : "확인이 필요해요"}</strong>
                       <span className="olivia-approval-card__summary">{block.summary}</span>
+                      {block.toolName === "apply_quote_create" && (!block.state || block.state === "pending") ? <small className="olivia-approval-card__hint">맞으면 [만들기]를 누르세요. 고칠 내용은 채팅에 말하면 다시 읽어요. (예: 촬영일 26일, 잔금 30%)</small> : null}
                       {(!block.state || block.state === "pending") ? <div className="olivia-approval-card__actions">
-                        <button type="button" onClick={() => void approveAction(block.approvalId, block.toolName, block.toolInput)}>{block.confirmLabel}</button>
-                        <button type="button" onClick={() => void cancelApproval(block.approvalId)}>취소</button>
+                        <button type="button" disabled={processingApprovalIds.has(block.approvalId)} onClick={() => {
+                          if (processingApprovalIds.has(block.approvalId)) return;
+                          setProcessingApprovalIds((current) => new Set(current).add(block.approvalId));
+                          void approveAction(block.approvalId, block.toolName, block.toolInput).finally(() => setProcessingApprovalIds((current) => {
+                            const next = new Set(current); next.delete(block.approvalId); return next;
+                          }));
+                        }}>{processingApprovalIds.has(block.approvalId) ? "처리 중…" : block.confirmLabel}</button>
+                        <button type="button" disabled={processingApprovalIds.has(block.approvalId)} onClick={() => {
+                          if (processingApprovalIds.has(block.approvalId)) return;
+                          setProcessingApprovalIds((current) => new Set(current).add(block.approvalId));
+                          void cancelApproval(block.approvalId).finally(() => setProcessingApprovalIds((current) => {
+                            const next = new Set(current); next.delete(block.approvalId); return next;
+                          }));
+                        }}>취소</button>
                       </div> : null}
                     </div>;
                     if (block.type === "shoot_confirm") return <div key={index} className="olivia-approval-card">

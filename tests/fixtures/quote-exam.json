@@ -1,0 +1,17 @@
+[
+  {"id":1,"text":"전주푸른안과 견적서 만들어.\n\n전주푸른안과 사진/영상 촬영\n대표원장님\n연락처 및 메일주소 공란으로 하고\n촬영일 10월 26일\n\n의료진 프로필\n의료진 컨셉연출(진료/수술)\n\n서비스/혜택\n- 단체사진 및 컨셉사진\n- 기타 병원 분위기 사진\n- 주요 인테리어 및 외관\n\n금액은 항목별로 나눌 필요없고,\n전체 금액 370만원(부가세별도)\n잔금 50%","today":"2026-10-18","expect":{"clientName":"전주푸른안과","brand":"photoclinic","title":"전주푸른안과 브랜드촬영 견적서","contactName":"대표원장님","phone":null,"email":null,"shootDate":"2026-10-26","items":[{"name":"의료진 프로필","amount":null},{"name":"의료진 컨셉연출(진료/수술)","amount":null},{"name":"단체사진 및 컨셉사진","free":true,"amount":0},{"name":"기타 병원 분위기 사진","free":true,"amount":0},{"name":"주요 인테리어 및 외관","free":true,"amount":0}],"fixedTotal":3700000,"depositRate":50,"supplyAmount":3700000,"vat":370000,"finalAmount":4070000,"unreadLines":[]}},
+  {"id":2,"text":"전주푸른안과 견적서 만들어줘\n프로필촬영","expect":{"clientName":"전주푸른안과","brand":"photoclinic","title":"전주푸른안과 브랜드촬영 견적서","supplyAmount":350000,"vat":35000,"finalAmount":385000}},
+  {"id":3,"text":"강남스마트치과의원\n프리미엄패키지","expect":{"clientName":"강남스마트치과의원","brand":"photoclinic","title":"강남스마트치과의원 브랜드촬영 견적서","supplyAmount":2000000,"vat":200000,"finalAmount":2200000}},
+  {"id":4,"text":"강남스마트치과의원\n프리미엄패키지\n의료진프로필 2명 추가\n헤어메이크업","expect":{"items":[{"name":"프리미엄패키지"},{"name":"의료진프로필 2명 추가","quantity":2},{"name":"헤어메이크업","amount":null}],"supplyAmount":2500000}},
+  {"id":5,"text":"1989 삼칠갈비\n음식사진촬영 200\n>> 1000원 미만 절삭해줘","expect":{"clientName":"1989 삼칠갈비","brand":"jakeimage","title":"1989 삼칠갈비 브랜드촬영(음식) 견적서","items":[{"name":"음식사진촬영","amount":2000000}],"roundDownUnit":1000}},
+  {"id":6,"text":"1989 삼칠갈비\n재료구입비 28750원","expect":{"items":[{"name":"재료구입비","amount":28750}]}},
+  {"id":7,"text":"강남스마트치과의원\n프리미엄패키지\n포인트영상 서비스","expect":{"items":[{"name":"프리미엄패키지"},{"name":"포인트영상","free":true,"amount":0}],"supplyAmount":2000000}},
+  {"id":8,"text":"강남스마트치과의원\n프리미엄패키지\n모델섭외15만원\n소개할인으로 10%할인적용","expect":{"items":[{"name":"프리미엄패키지"},{"name":"모델섭외","amount":150000}],"discount":{"label":"소개할인","type":"percent","value":10},"supplyAmount":1950000,"vat":195000,"finalAmount":2145000}},
+  {"id":9,"text":"강남스마트치과의원\nkim@gamil.com\n프리미엄패키지","expect":{"email":"kim@gmail.com"}},
+  {"id":10,"text":"강남스마트치과의원\n프리미엄패키지\n>> 총 금액 250으로 결정","expect":{"fixedTotal":2500000,"supplyAmount":2500000,"vat":250000,"finalAmount":2750000}},
+  {"id":11,"text":"예방치과교실 60주년 행사 견적서\n스케치촬영 100","expect":{"title":"예방치과교실 60주년 행사 견적서","items":[{"name":"스케치촬영","amount":1000000}]}},
+  {"id":12,"text":"강남스마트치과의원\n프리미엄패키지\n포인트영상","expect":{"supplyAmount":2800000,"vat":280000,"finalAmount":3080000}},
+  {"id":13,"text":"강남스마트치과의원\n스탠다드패키지\n포인트영상","expect":{"supplyAmount":2150000}},
+  {"id":14,"text":"강남스마트치과의원\n포인트영상","expect":{"supplyAmount":1800000}},
+  {"id":15,"text":"강남스마트치과의원\n프리미엄패키지\n잔금 100%","expect":{"depositRate":0}}
+]

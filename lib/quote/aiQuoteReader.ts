@@ -33,6 +33,47 @@ export type QuoteReading = {
 };
 
 const TOOL_NAME = "save_quote_reading";
+export type QuoteReaderFailureCode =
+  | "NO_API_KEY"
+  | "MODEL_NOT_FOUND"
+  | "TIMEOUT"
+  | "TOOL_NOT_CALLED"
+  | "SCHEMA_ERROR"
+  | `API_ERROR${string}`;
+
+export class QuoteReaderError extends Error {
+  constructor(public readonly code: QuoteReaderFailureCode, message: string, public readonly status?: number) {
+    super(message);
+    this.name = "QuoteReaderError";
+  }
+}
+
+export function quoteReaderModel() {
+  return process.env.OLIVIA_QUOTE_READER_MODEL?.trim() || DEFAULT_CLAUDE_MODEL;
+}
+
+export function quoteReaderFailureDetails(error: unknown): { code: QuoteReaderFailureCode; label: string; status?: number } {
+  if (error instanceof QuoteReaderError) {
+    const labels: Partial<Record<QuoteReaderFailureCode, string>> = {
+      NO_API_KEY: "API 키 없음",
+      MODEL_NOT_FOUND: "모델을 찾지 못함",
+      TIMEOUT: "시간 초과",
+      TOOL_NOT_CALLED: "판독 도구 응답 없음",
+      SCHEMA_ERROR: "응답 형식 오류",
+    };
+    return { code: error.code, label: labels[error.code] || `API 오류${error.status ? ` ${error.status}` : ""}`, ...(error.status ? { status: error.status } : {}) };
+  }
+  const candidate = object(error);
+  const status = typeof candidate.status === "number" ? candidate.status : undefined;
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (status === 404 || /model.*(?:not found|없)|not_found_error/i.test(message)) {
+    return { code: "MODEL_NOT_FOUND", label: "모델을 찾지 못함", ...(status ? { status } : {}) };
+  }
+  if (/timeout|timed out|시간 초과|aborted/i.test(message) || candidate.name === "AbortError") {
+    return { code: "TIMEOUT", label: "시간 초과", ...(status ? { status } : {}) };
+  }
+  return { code: `API_ERROR${status ? `(${status})` : ""}`, label: `API 오류${status ? ` ${status}` : ""}`, ...(status ? { status } : {}) };
+}
 
 const TOOL = {
   name: TOOL_NAME,
@@ -89,6 +130,45 @@ function nullableNumber(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+function isNullableString(value: unknown) {
+  return value === null || typeof value === "string";
+}
+
+function isNullableNumber(value: unknown) {
+  return value === null || (typeof value === "number" && Number.isFinite(value));
+}
+
+function hasValidReadingSchema(value: unknown) {
+  const raw = object(value);
+  const required = [
+    "clientName", "titleTopic", "isEvent", "contactName", "phone", "email", "blankContact",
+    "shootDate", "items", "fixedTotal", "itemPricesHidden", "vatIncluded", "depositRate",
+    "discount", "roundDownUnit", "brandExplicit", "unreadLines", "uncertain",
+  ];
+  if (!required.every((key) => Object.prototype.hasOwnProperty.call(raw, key))) return false;
+  if (![raw.clientName, raw.titleTopic, raw.contactName, raw.phone, raw.email, raw.shootDate].every(isNullableString)) return false;
+  if (![raw.isEvent, raw.blankContact, raw.itemPricesHidden, raw.vatIncluded].every((entry) => typeof entry === "boolean")) return false;
+  if (![raw.fixedTotal, raw.depositRate, raw.roundDownUnit].every(isNullableNumber)) return false;
+  if (raw.brandExplicit !== null && raw.brandExplicit !== "photoclinic" && raw.brandExplicit !== "jakeimage") return false;
+  if (!Array.isArray(raw.unreadLines) || !raw.unreadLines.every((entry) => typeof entry === "string")) return false;
+  if (!Array.isArray(raw.uncertain) || !raw.uncertain.every((entry) => typeof entry === "string")) return false;
+  if (!Array.isArray(raw.items) || !raw.items.every((entry) => {
+    const item = object(entry);
+    return typeof item.name === "string"
+      && Array.isArray(item.details) && item.details.every((detail) => typeof detail === "string")
+      && isNullableNumber(item.amount)
+      && typeof item.quantity === "number" && Number.isFinite(item.quantity)
+      && typeof item.free === "boolean";
+  })) return false;
+  if (raw.discount !== null) {
+    const discount = object(raw.discount);
+    if (!isNullableString(discount.label)
+      || (discount.type !== "percent" && discount.type !== "amount")
+      || typeof discount.value !== "number" || !Number.isFinite(discount.value)) return false;
+  }
+  return true;
+}
+
 export function quoteReadingFromUnknown(value: unknown): QuoteReading {
   const raw = object(value);
   const rawDiscount = object(raw.discount);
@@ -113,20 +193,29 @@ export function quoteReadingFromUnknown(value: unknown): QuoteReading {
 }
 
 export async function readQuoteRequestWithAI(input: { text: string; today: string }): Promise<QuoteReading> {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY가 없습니다.");
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 20_000, maxRetries: 0 });
-  const response = await client.messages.create({
-    model: process.env.OLIVIA_QUOTE_READER_MODEL?.trim() || DEFAULT_CLAUDE_MODEL,
-    max_tokens: 4000,
-    temperature: 0,
-    system: `${QUOTE_READING_RULES}\n\n기준일(서울): ${input.today}`,
-    messages: [{ role: "user", content: input.text }],
-    tools: [TOOL],
-    tool_choice: { type: "tool", name: TOOL_NAME },
-  });
-  const use = response.content.find((block) => block.type === "tool_use" && block.name === TOOL_NAME);
-  if (!use || use.type !== "tool_use") throw new Error("AI가 견적 판독 결과를 반환하지 않았습니다.");
-  return quoteReadingFromUnknown(use.input);
+  if (!process.env.ANTHROPIC_API_KEY) throw new QuoteReaderError("NO_API_KEY", "ANTHROPIC_API_KEY가 없습니다.");
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 45_000, maxRetries: 1 });
+  try {
+    const response = await client.messages.create({
+      model: quoteReaderModel(),
+      max_tokens: 4000,
+      temperature: 0,
+      system: `${QUOTE_READING_RULES}\n\n기준일(서울): ${input.today}`,
+      messages: [{ role: "user", content: input.text }],
+      tools: [TOOL],
+      tool_choice: { type: "tool", name: TOOL_NAME },
+    });
+    const use = response.content.find((block) => block.type === "tool_use" && block.name === TOOL_NAME);
+    if (!use || use.type !== "tool_use") throw new QuoteReaderError("TOOL_NOT_CALLED", "AI가 견적 판독 결과를 반환하지 않았습니다.");
+    if (!hasValidReadingSchema(use.input)) {
+      throw new QuoteReaderError("SCHEMA_ERROR", "AI 견적 판독 응답 형식이 올바르지 않습니다.");
+    }
+    return quoteReadingFromUnknown(use.input);
+  } catch (error) {
+    if (error instanceof QuoteReaderError) throw error;
+    const details = quoteReaderFailureDetails(error);
+    throw new QuoteReaderError(details.code, error instanceof Error ? error.message : details.label, details.status);
+  }
 }
 
 function normalizedText(value: string) {

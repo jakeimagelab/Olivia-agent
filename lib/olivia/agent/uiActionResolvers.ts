@@ -42,27 +42,6 @@ function workspaceAction(
   }];
 }
 
-function resolveFeatureRecordAction(result: OliviaToolResult): OliviaUiAction[] {
-  if (!result.success) return [];
-  if (result.data?.approvalRequired) {
-    return [{
-      type: "REQUEST_APPROVAL",
-      approvalId: crypto.randomUUID(),
-      summary: String(result.data?.summary || "이 변경에는 승인이 필요해요. 진행할까요?"),
-      confirmLabel: "진행",
-      toolName: "apply_feature_record_write",
-      toolInput: {
-        operation: result.data?.operation,
-        domain: result.data?.domain,
-        crudData: result.data?.crudData,
-        target: result.data?.target,
-      },
-    }];
-  }
-  const href = value(result.data, "url");
-  return href ? [{ type: "OPEN_FEATURE", href }] : [];
-}
-
 function temporaryDocumentApproval(result: OliviaToolResult): OliviaUiAction[] {
   if (!result.success) return [];
   const temporaryDocumentId = value(result.data, "temporaryDocumentId");
@@ -173,8 +152,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!resourceId) return opened;
     return [...opened, { type: "OPEN_CLIENT_TASK", task: "contract_preview", flowId: resourceId }, ...temporaryDocumentApproval(args.result)];
   },
-  create_conti: async (args) => [...workspaceAction("conti", args), ...temporaryDocumentApproval(args.result)],
-  create_conti_v2: async (args) => [...workspaceAction("conti", args), ...temporaryDocumentApproval(args.result)],
   update_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   add_quote_item: async ({ result }) => mutationActions("quote", result, "quote-item"),
   remove_quote_item: async ({ result }) => mutationActions("quote", result),
@@ -283,33 +260,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     if (!message) return [];
     return [{ type: "REFINE_PHOTO_CLASSIFICATION", message }];
   },
-  add_conti_shots: async ({ result }) => mutationActions("conti", result, "conti-shot"),
-  update_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
-  reorder_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
-  duplicate_conti_shot: async ({ result }) => mutationActions("conti", result, "conti-shot"),
-  remove_conti_shot: async ({ result }) => {
-    if (!result.success) return [];
-    return [{ type: "REQUEST_APPROVAL", approvalId: crypto.randomUUID(), summary: String(result.data?.summary || "이 컷을 삭제할까요?"), confirmLabel: "삭제", toolName: "apply_remove_conti_shot", toolInput: { selector: null, position: result.data?.targetIndex == null ? null : Number(result.data.targetIndex) + 1 } }];
-  },
-  apply_remove_conti_shot: async ({ result }) => mutationActions("conti", result),
-  update_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
-  add_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
-  reorder_conti_scene_v2: async ({ result }) => mutationActions("conti", result, "conti-scene"),
-  request_remove_conti_scene_v2: async ({ result }) => {
-    if (!result.success) return [];
-    const contiId = value(result.data, "contiId") || value(result.data, "resourceId");
-    const sceneId = value(result.data, "sceneId");
-    if (!contiId || !sceneId) return [];
-    return [{
-      type: "REQUEST_APPROVAL",
-      approvalId: crypto.randomUUID(),
-      summary: String(result.data?.summary || "이 장면을 삭제할까요?"),
-      confirmLabel: "삭제",
-      toolName: "remove_conti_scene_v2",
-      toolInput: { contiId, sceneId },
-    }];
-  },
-  remove_conti_scene_v2: async ({ result }) => mutationActions("conti", result),
   open_feature: async ({ result }) => {
     if (!result.success) return [];
     const href = value(result.data, "href");
@@ -330,26 +280,6 @@ export const uiActionResolvers: Record<string, UiActionResolver> = {
     // 유지한다("select_match" — lib/olivia/inline-tools/builtins.ts의 SELECT_MATCH_TOOL_ID와
     // 반드시 같은 값이어야 한다).
     return flowId ? [{ type: "OPEN_CLIENT_TASK", task: "select_match", flowId }] : [];
-  },
-  start_task_session: async ({ result }) => {
-    if (!result.success) return [];
-    const href = value(result.data, "href");
-    return href ? [{ type: "OPEN_FEATURE", href }] : [];
-  },
-  continue_task_session: async ({ result }) => {
-    if (!result.success) return [];
-    const href = value(result.data, "href");
-    return href ? [{ type: "OPEN_FEATURE", href }] : [];
-  },
-  // owner_only 필드가 섞이면 create_feature_record/update_feature_record 자체는 DB에 쓰지 않고
-  // approvalRequired:true만 돌려준다(코드 요청서 4번 항목) — 여기서 그 표시를 보고 승인 카드로
-  // 바꾼다. review_required(즉시 실행됨)나 일반 성공 건은 approvalRequired가 없으니 그대로 통과.
-  create_feature_record: async ({ result }) => resolveFeatureRecordAction(result),
-  update_feature_record: async ({ result }) => resolveFeatureRecordAction(result),
-  apply_feature_record_write: async ({ result }) => {
-    if (!result.success) return [];
-    const url = value(result.data, "url");
-    return url ? [{ type: "OPEN_FEATURE", href: url }] : [];
   },
   show_workspace: async ({ result, context }) => {
     if (!result.success) return [];

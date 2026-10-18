@@ -47,10 +47,10 @@ describe("project snapshot tools", () => {
     expect(dependencies.getSnapshot).not.toHaveBeenCalled();
   });
 
-  it("executes Hermes workflow.get_snapshot through the same V2 snapshot tool", async () => {
+  it("executes Hermes get_project_snapshot through the same V2 snapshot tool", async () => {
     const { executeHermesOliviaTool } = await import("@/lib/hermes/mcp/oliviaToolBridge");
     const response = await executeHermesOliviaTool({
-      toolName: "workflow.get_snapshot",
+      toolName: "get_project_snapshot",
       input: { workflowRunId },
     });
     expect(response.isError).not.toBe(true);
@@ -65,7 +65,7 @@ describe("project snapshot tools", () => {
   it("requires an exact workflowRunId for the Hermes snapshot alias", async () => {
     const { executeHermesOliviaTool } = await import("@/lib/hermes/mcp/oliviaToolBridge");
     const response = await executeHermesOliviaTool({
-      toolName: "workflow.get_snapshot",
+      toolName: "get_project_snapshot",
       input: {},
     });
     expect(response.isError).toBe(true);

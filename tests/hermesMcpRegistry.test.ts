@@ -11,19 +11,19 @@ describe("Olivia Hermes MCP registry", () => {
   });
 
   it("Olivia registry의 비차단 Tool을 누락 없이 자동 노출한다", () => {
-    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
-      .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
+    const expected = OLIVIA_V2_TOOLS.map((tool) => tool.name)
+      .filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
     const actual = listHermesOliviaTools().map((tool) => tool.name).sort();
     expect(new Set(actual).size).toBe(actual.length);
     expect(actual).toEqual(expected);
   });
 
-  it("canonical project snapshot은 Hermes에서 workflow.get_snapshot으로 노출된다", () => {
+  it("canonical project snapshot은 지정된 get_project_snapshot 이름으로 노출된다", () => {
     const tools = listHermesOliviaTools();
     const names = tools.map((tool) => tool.name);
-    expect(names).toContain("workflow.get_snapshot");
-    expect(names).not.toContain("get_project_snapshot");
-    const snapshotTool = tools.find((tool) => tool.name === "workflow.get_snapshot")!;
+    expect(names).toContain("get_project_snapshot");
+    expect(names).not.toContain("workflow.get_snapshot");
+    const snapshotTool = tools.find((tool) => tool.name === "get_project_snapshot")!;
     expect(snapshotTool.description).toContain("Never infer workflow/resource state from chat history");
     expect(snapshotTool.inputSchema.required).toContain("workflowRunId");
     expect((snapshotTool.inputSchema.properties as Record<string, unknown>).workflowRunId).toEqual({
@@ -32,16 +32,15 @@ describe("Olivia Hermes MCP registry", () => {
     });
   });
 
-  it("문서 내부 최종완료 도구는 Hermes 전체 catalog에 mutation으로 노출된다", () => {
+  it("계약서 내부 최종완료 도구는 Hermes 전체 catalog에 mutation으로 노출된다", () => {
     const tools = listHermesOliviaTools();
-    for (const name of ["complete_contract", "complete_conti_v2"]) {
+    for (const name of ["complete_contract"]) {
       const tool = tools.find((entry) => entry.name === name);
       expect(tool, `${name} must be exposed through the live Hermes catalog`).toBeTruthy();
       expect(tool?.description).toContain("[WRITE]");
       expect(getHermesToolMode(name, tool?.description ?? "")).toBe("mutation");
     }
     expect(tools.find((tool) => tool.name === "complete_contract")?.description).toContain("고객 포털에는 공개하지 않습니다");
-    expect(tools.find((tool) => tool.name === "complete_conti_v2")?.description).toContain("고객 포털 공개와는 별개입니다");
   });
 
   it("새 Tool의 기본 노출 정책은 OPEN이다", () => {
@@ -96,11 +95,9 @@ describe("Olivia Hermes MCP registry", () => {
     expect(source.parameters!.properties).not.toHaveProperty("requestId");
   });
 
-  it("일정 생성은 calendar_add만 담당하고 범용 create_feature_record는 calendar를 노출하지 않는다", () => {
-    const createFeature = listHermesOliviaTools().find((tool) => tool.name === "create_feature_record")!;
-    const domain = (createFeature.inputSchema.properties as Record<string, { enum?: string[] }>).domain;
-    expect(domain.enum).not.toContain("calendar");
+  it("일정 생성은 calendar_add가 담당하고 삭제된 범용 record 도구는 노출하지 않는다", () => {
     expect(listHermesOliviaTools().map((tool) => tool.name)).toContain("calendar_add");
+    expect(listHermesOliviaTools().map((tool) => tool.name)).not.toContain("create_feature_record");
   });
 
   // 요청서 §18-5 — Hermes가 존재하지 않는 Tool을 호출해도 앱은 안전하게 실패해야 한다.
@@ -132,7 +129,7 @@ describe("Olivia Hermes MCP registry", () => {
   });
 
   it("실제 호출 경로와 동일하게 OLIVIA_V2_TOOLS의 진짜 description을 넘기면 client_get/list/search류가 전부 read로 분류된다", () => {
-    for (const name of ["client_search", "client_get", "memo_list", "memo_search", "memo_get", "calendar_list"]) {
+    for (const name of ["client_search", "client_get", "calendar_list", "remote_folder_list", "remote_file_search"]) {
       const definition = OLIVIA_V2_TOOLS.find((tool) => tool.name === name)!;
       expect(getHermesToolMode(name, definition.description ?? "")).toBe("read");
     }
@@ -143,10 +140,9 @@ describe("Olivia Hermes MCP registry", () => {
   // "Hermes에 연결됐다"로 착각하지 않도록, 이번 Phase에서 추가한 7개 tool이 진짜 살아있는 경로
   // (listHermesOliviaTools() — app/api/hermes/mcp/route.ts가 실제로 쓰는 바로 그 함수)에
   // 노출되는지 직접 확인한다.
-  it("Phase 2에서 추가한 업무일지/Finder/NAS 신규 tool 7종이 실제 Hermes MCP tool 목록에 노출된다", () => {
+  it("Finder/NAS/사진 실행 도구가 실제 Hermes MCP tool 목록에 노출된다", () => {
     const exposedNames = new Set(listHermesOliviaTools().map((tool) => tool.name));
     for (const name of [
-      "work_journal_list", "work_journal_get", "work_journal_create", "work_journal_update", "work_journal_complete", "work_journal_search",
       "remote_folder_list", "remote_folder_get_info", "remote_file_search",
       "nas_backup_status", "nas_backup_recent", "nas_backup_get", "nas_backup_start_sort",
       "find_photo_folder", "start_photo_source_prep", "start_photo_scene_sort",
@@ -213,16 +209,16 @@ describe("Olivia Hermes MCP registry", () => {
 
     it("requestId가 없어도 전체 목록을 반환한다", () => {
       const names = listHermesOliviaTools().map((t) => t.name).sort();
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
-        .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name)
+        .filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
       expect(names).toEqual(full);
     });
 
     it("등록된 request context가 있어도 목록을 좁히지 않는다", () => {
       registerHermesExecutionContext("req-narrow-1", { recentActions: [], revision: 0 });
       const names = listHermesOliviaTools("req-narrow-1").map((t) => t.name);
-      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name === "get_project_snapshot" ? "workflow.get_snapshot" : tool.name)
-        .filter((name) => getHermesToolPolicy(name === "workflow.get_snapshot" ? "get_project_snapshot" : name) !== "blocked").sort();
+      const full = OLIVIA_V2_TOOLS.map((tool) => tool.name)
+        .filter((name) => getHermesToolPolicy(name) !== "blocked").sort();
       expect(names.sort()).toEqual(full);
     });
 

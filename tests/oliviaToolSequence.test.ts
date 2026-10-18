@@ -154,13 +154,11 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     });
   });
 
-  it("create_contract와 create_conti도 DB 결과 ID로 Workspace를 연다", async () => {
+  it("create_contract는 DB 결과 ID로 Workspace를 연다", async () => {
     const contract = await call("create_contract", { hospitalName: null });
-    const conti = await call("create_conti", { hospitalName: null, title: null, specialties: [] });
 
-    expect(executionLog).toEqual(["db:contract", "db:conti"]);
+    expect(executionLog).toEqual(["db:contract"]);
     expect(contract.uiActions[0]).toMatchObject({ workspace: "contract", resourceId: "contract-real-456" });
-    expect(conti.uiActions[0]).toMatchObject({ workspace: "conti", resourceId: "conti-real-789" });
   });
 
   it("DB Tool 실패 시 UI Action을 만들지 않는다", async () => {
@@ -226,92 +224,4 @@ describe("Olivia Tool → DB → Result → UI Action", () => {
     expect(executionLog).toContain("db:update:quotes");
   });
 
-  it("콘티 컷 추가는 같은 result JSON을 저장한 뒤 refresh한다", async () => {
-    const execution = await executeAgentTool({ id: "conti-add", name: "add_conti_shots", arguments: JSON.stringify({ items: [{ category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }, { category: "상담", keyword: null, personnel: null, location: null, description: null, notes: null }], insertAfter: null }) }, {
-      ...context, activeWorkspace: "conti", activeResourceId: contiRow.id,
-    });
-    expect(executionLog).toContain("db:update:conti_saves");
-    expect(contiRow.result.conti).toHaveLength(3);
-    expect(execution.uiActions[0]).toMatchObject({ type: "REFRESH_RESOURCE", resource: "conti", resourceId: contiRow.id });
-  });
-});
-
-// 코드 요청서(2026-08-15) 3·4번 항목 — create_feature_record/update_feature_record는 열린
-// 도메인만 실행하고, 나머지(quote/contract/client/workflow 등)는 executeOliviaCrud를 아예 안 부르고
-// 막는다. calendar도 전용 도구와 중복되므로 범용 경로에서 차단한다. owner_only 필드는 열린
-// 도메인 어디에도 없어서(전부 client/quote/contract 전용) 이
-// 단계에서는 review_required 즉시 실행 경로만 실제로 도달 가능 — owner_only 분기 자체는
-// tests/olivia/crudValidation.test.ts가 validateOliviaCrudRequest 단에서 이미 검증한다.
-describe("Olivia 범용 기능 생성/수정 도구", () => {
-  beforeEach(() => {
-    executionLog.length = 0;
-    vi.mocked(executeOliviaCrud).mockClear();
-  });
-
-  it("열린 도메인(memo)은 즉시 실행되고 검토 안내 문구가 붙는다", async () => {
-    const execution = await call("create_feature_record", {
-      domain: "memo",
-      data: JSON.stringify({ rawMemo: "고객이 따뜻한 톤을 원함" }),
-      requestText: null,
-    });
-    expect(executionLog).toEqual(["db:memo"]);
-    expect(execution.result.success).toBe(true);
-    expect(execution.result.data?.summary).toMatch(/검토가 필요한 변경입니다/);
-  });
-
-  it("아직 열지 않은 도메인(quote)은 executeOliviaCrud를 부르지 않고 막는다", async () => {
-    const execution = await call("update_feature_record", {
-      domain: "quote",
-      data: JSON.stringify({ totalAmount: 1_000_000 }),
-      target: "PC-123",
-      requestText: null,
-    });
-    expect(executionLog).toEqual([]);
-    expect(execution.result.success).toBe(false);
-    expect(execution.result.error).toMatch(/아직 챗에서/);
-  });
-
-  it("data가 JSON이 아니면 실행 전에 막는다", async () => {
-    const execution = await call("create_feature_record", { domain: "memo", data: "이거 JSON 아님", requestText: null });
-    expect(executionLog).toEqual([]);
-    expect(execution.result.success).toBe(false);
-  });
-
-  it("update는 target이 없으면 대상을 찾기 전에 막는다", async () => {
-    const execution = await call("update_feature_record", { domain: "memo", data: JSON.stringify({ title: "촬영" }), target: "", requestText: null });
-    expect(executionLog).toEqual([]);
-    expect(execution.result.success).toBe(false);
-  });
-
-  it("calendar는 범용 create_feature_record로 생성할 수 없다", async () => {
-    const execution = await call("create_feature_record", {
-      domain: "calendar",
-      data: JSON.stringify({ date: "2026-09-20", title: "중복 방지 일정" }),
-      requestText: null,
-    });
-    expect(executionLog).toEqual([]);
-    expect(execution.result.success).toBe(false);
-  });
-
-  it("예전 승인 카드도 apply_feature_record_write로 calendar를 생성할 수 없다", async () => {
-    const execution = await call("apply_feature_record_write", {
-      operation: "create",
-      domain: "calendar",
-      crudData: { date: "2026-09-20", title: "중복 방지 일정" },
-      target: undefined,
-    });
-    expect(executionLog).toEqual([]);
-    expect(execution.result.success).toBe(false);
-  });
-
-  it("apply_feature_record_write는 승인 카드의 toolInput을 그대로 재생해서 실행한다", async () => {
-    const execution = await call("apply_feature_record_write", {
-      operation: "create",
-      domain: "agent_task",
-      crudData: { title: "테스트 업무" },
-      target: undefined,
-    });
-    expect(executionLog).toEqual(["db:agent_task"]);
-    expect(execution.result.success).toBe(true);
-  });
 });

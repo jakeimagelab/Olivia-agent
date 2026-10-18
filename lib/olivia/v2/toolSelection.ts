@@ -6,7 +6,7 @@ import { executedToolsFromMetadata } from "./executionEvidence";
 import { hasClientDestructiveIntent, hasClientPermanentDeleteIntent, hasClientRegistrationIntent, NEGATIVE_MUTATION_PATTERN } from "./mutationIntentGuard";
 import { isOliviaShortConfirmation } from "./executionIntent";
 
-type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"conti"|"workflow"|"mailing"|"gallery"|"meeting"|"content"|"agent_run"|"photo_classification"|"photo_storage"|"window";
+type ToolDomain = "navigation"|"calendar"|"client"|"quote"|"contract"|"workflow"|"gallery"|"photo_classification"|"photo_storage"|"window";
 
 const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   navigation: ["open_feature","show_workspace"],
@@ -14,19 +14,14 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
   // 안 겹쳐서 별도 도메인이 필요하다("크게 보여줘"만 navigation과 우연히 겹침, 문제 없음).
   window: ["maximize_active_window","close_active_window","minimize_active_window"],
   calendar: ["calendar_list","calendar_list_month","calendar_availability","calendar_add","calendar_add_bulk","calendar_update","calendar_complete","calendar_delete"],
-  client: ["client_search","client_get","client_archive","client_create","select_project","search_client_projects","get_project_status","memo_add","list_temporary_documents","link_temporary_document_client"],
+  client: ["client_search","client_get","client_archive","client_create","select_project","search_client_projects","get_project_status","list_temporary_documents","link_temporary_document_client"],
   quote: ["create_quote","update_quote_item","add_quote_item","remove_quote_item","update_quote_note","update_quote_info","update_quote_payment_terms","update_quote_service","apply_quote_discount","preview_quote","request_quote_publish","resolve_quote_client","link_new_client_to_quote","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   contract: ["create_contract","update_contract_terms","request_contract_signature","complete_contract","request_contract_publish","download_contract_pdf","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
-  conti: ["get_conti_status","create_conti","complete_conti_v2","add_conti_shots","update_conti_shot","remove_conti_shot","reorder_conti_shot","duplicate_conti_shot","estimate_conti_duration","generate_shoot_prep_from_conti","link_document_to_client","search_documents","get_recent_documents","list_temporary_documents","approve_temporary_document","defer_temporary_document","link_temporary_document_client"],
   workflow: ["get_project_snapshot","get_workflow_status","list_active_workflows","list_workflow_step_tasks","process_workflow_step","approve_workflow_task","advance_workflow_step","complete_workflow_retroactively"],
-  mailing: ["list_mailing_queue","send_mailing","email_search","email_read","email_summarize","email_create_draft"],
   // start_select_match_flow가 빠져 있으면 "셀렉"/"사진" 키워드로 gallery 도메인이 잡혀도 모델이
   // 이 도구를 아예 선택지로 못 받아서 항상 open_feature(페이지 이동)로 새는 사고가 났다
   // (2026-08-29 사용자 리포트: "셀렉매칭 하자"가 기능 페이지로 이동해버림).
-  gallery: ["get_gallery","create_gallery","start_select_match_flow"],
-  meeting: ["list_upcoming_meetings","prepare_meeting_brief","analyze_meeting_memo","complete_meeting","get_meeting_followups","link_meeting_client"],
-  content: ["get_today_briefing","get_urgent_insights","run_brand_diagnosis","create_feature_record","update_feature_record"],
-  agent_run: ["start_task_session","get_task_session_status","continue_task_session","pause_task_session","get_today_briefing","get_urgent_insights"],
+  gallery: ["start_select_match_flow"],
   // 첫 메시지의 "사진 분류 시작"은 select_match와 동일하게 결정론적 RUN으로 처리되고(GPT 미거침,
   // photoClassificationIntent.ts) 여기 없다. 씬 편집(이름변경/합치기/나누기)과 AI 사진 분류 2.0의
   // start/refine(스펙 §35/36, 이미 화면이 열려 있는 상태에서의 후속 대화)은 자연어 파라미터
@@ -42,18 +37,16 @@ const DOMAIN_TOOLS: Record<ToolDomain, readonly string[]> = {
 
 const DOMAIN_PATTERNS: Array<[ToolDomain, RegExp]> = [
   ["calendar",/(일정|캘린더|스케줄|오늘\s*할\s*일)/i], ["quote",/(견적|단가|금액|할인|부가세|vat|선금|잔금|결제\s*조건)/i],
-  ["contract",/(계약)/i], ["conti",/(콘티|스토리보드|컷|촬영\s*시간|촬영\s*준비물)/i],
-  ["workflow",/(워크플로|단계|프로세스|진행\s*상태|체크리스트)/i], ["mailing",/(메일|이메일|발송|답장)/i],
-  ["gallery",/(갤러리|사진|셀렉)/i], ["meeting",/(미팅|회의|상담)/i],
-  ["content",/(브리핑|인사이트|진단|분석|콘텐츠|보고서)/i],
-  ["agent_run",/(준비해|준비하자|계속하자|어디까지|보류|끝까지|알아서\s*처리)/i],
+  ["contract",/(계약)/i],
+  ["workflow",/(워크플로|단계|프로세스|진행\s*상태|체크리스트)/i],
+  ["gallery",/(갤러리|사진|셀렉)/i],
   ["client",/(고객|병원|의원|프로젝트)/i], ["navigation",/(열어|보여줘|이동|화면|페이지)/i],
   ["photo_classification",/(씬)/i],
   ["photo_storage",/(jpg|jpeg|원본\s*(?:분리|통합)|사진.{0,8}(?:분류|정리|셀렉|보정|리사이즈)|ai\s*셀렉|피부\s*보정|가운\s*보정|씬별\s*분류|raw\s*(?:매칭|찾)|촬영\s*폴더|폴더.{0,8}(?:찾|검색)|어디까지\s*(?:됐|진행)|크기\s*(?:변경|조절))/i],
   ["window",/(이\s*창|창\s*닫|닫아줘|최소화|내려줘|전체화면|창\s*키워)/i],
 ];
 
-const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_project_snapshot","get_workflow_status","list_active_workflows","calendar_list","get_today_briefing","get_urgent_insights"]);
+const SAFE_FALLBACK = new Set(["open_feature","select_project","search_client_projects","get_project_status","get_project_snapshot","get_workflow_status","list_active_workflows","calendar_list"]);
 
 // "6일 10시 미팅, 6일 14시 촬영, 10~14일 여행 … 등록"처럼 사용자가
 // '일정'이라는 단어 없이 날짜 목록과 등록 동사만 적는 실제 업무 입력을 캘린더로
@@ -91,17 +84,12 @@ const PAGE_TOOL_CAPABILITY: Readonly<Record<string, string>> = {
   request_contract_signature: "contract.sign",
   request_contract_publish: "contract.publish",
   download_contract_pdf: "contract.download_pdf",
-  update_conti_shot: "conti.edit",
-  duplicate_conti_shot: "conti.edit",
-  add_conti_shots: "conti.add_scene",
-  remove_conti_shot: "conti.remove_scene",
-  reorder_conti_shot: "conti.reorder_scene",
 };
 
 const EDIT_TOOLS = new Set(Object.entries(PAGE_TOOL_CAPABILITY)
   .filter(([, capability]) => capability.endsWith(".edit") || capability.endsWith(".discount") || capability.endsWith(".add_item") || capability.includes("scene"))
   .map(([tool]) => tool));
-const FINALIZE_TOOLS = new Set(["request_quote_publish", "complete_contract", "request_contract_publish", "complete_conti_v2"]);
+const FINALIZE_TOOLS = new Set(["request_quote_publish", "complete_contract", "request_contract_publish"]);
 
 function isAllowedByPageContext(toolName: string, context: OliviaContextSnapshot) {
   const requiredCapability = PAGE_TOOL_CAPABILITY[toolName];
@@ -125,7 +113,6 @@ export function getOliviaToolDomains(message:string, context:OliviaContextSnapsh
   }
   const workspace=String(context.activeWorkspace||"").toLowerCase();
   if(workspace.includes("quote")) domains.add("quote");
-  if(workspace.includes("conti")) domains.add("conti");
   if(workspace.includes("contract")) domains.add("contract");
   if(workspace.includes("photo-sort")) domains.add("photo_classification");
   return [...domains];
@@ -231,7 +218,6 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
     { pattern: /(고객\s*등록|고객으로\s*등록|신규\s*고객|거래처\s*등록)/gi, create: "client_create", source: message },
     { pattern: /(견적|단가|금액|할인|부가세|vat)/gi, create: "create_quote", source: recent },
     { pattern: /(계약)/gi, create: "create_contract", source: recent },
-    { pattern: /(콘티|스토리보드|촬영\s*준비)/gi, create: "create_conti", source: recent },
   ].map((candidate) => {
     let lastIndex = -1;
     for (const match of candidate.source.matchAll(candidate.pattern)) lastIndex = match.index ?? lastIndex;
@@ -254,7 +240,7 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   return undefined;
 }
 
-const CREATION_TOOL_NAMES = new Set(["client_create", "create_quote", "create_contract", "create_conti"]);
+const CREATION_TOOL_NAMES = new Set(["client_create", "create_quote", "create_contract"]);
 
 export function isRequiredToolChoiceCompatible(message: string, toolName?: string): boolean {
   if (!toolName) return false;
@@ -305,5 +291,5 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
 
 export function isReadOnlyOliviaTool(toolName:string, tools:FunctionTool[]=OLIVIA_V2_TOOLS){
   const tool=tools.find((candidate)=>candidate.name===toolName);
-  return Boolean(tool?.description?.startsWith("[READ]")) || ["get_conti_status","preview_quote","estimate_conti_duration","generate_shoot_prep_from_conti"].includes(toolName);
+  return Boolean(tool?.description?.startsWith("[READ]")) || toolName === "preview_quote";
 }

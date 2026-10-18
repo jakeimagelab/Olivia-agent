@@ -25,7 +25,7 @@ import { createAgentRun } from "@/lib/olivia/agentRuns/service";
 import { hasDatabaseFastPath, resolveDatabaseFastPath } from "@/lib/olivia/v2/databaseFastPath";
 import { OLIVIA_FALLBACK_MESSAGES } from "@/lib/olivia/output/errorMessages";
 import { resolveDocumentBrand } from "@/lib/olivia/brandResolver";
-import { getOliviaAgentEngine, isUiExecutionIntent } from "@/lib/hermes/client";
+import { getOliviaAgentEngine, isMutationIntent, isUiExecutionIntent } from "@/lib/hermes/client";
 import type { AssistantChannel } from "@/lib/assistant/types";
 import { sanitizeOliviaAttachments } from "@/lib/olivia/chatAttachments";
 import {
@@ -72,6 +72,7 @@ import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadat
 import { isDirectQuoteCandidate, isQuoteCreationTurn, resolveDirectQuoteRequest } from "@/lib/olivia/v2/stream/directQuoteRequest";
 import { createRemoteWorkerNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
 import { internalFetcher } from "@/lib/olivia/v2/toolExecutors/http";
+import { resolveRemovedChatFeatureNotice } from "@/lib/olivia/removedChatFeature";
 
 const photoDirectDataSource = createRemoteWorkerNasDataSource({ fetcher: internalFetcher });
 
@@ -167,6 +168,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
   // 미적용 상태(테이블 없음)에서는 매 요청마다 실패하는 조회를 순차로 기다린 셈이라 더 심했다.
   const memoryScopes = getOliviaToolDomains(message, context, recentUserText);
   const databaseFastPath = hasDatabaseFastPath(message);
+  const removedFeatureNotice = resolveRemovedChatFeatureNotice(rawMessage);
   const engineRoute = resolveOliviaEngineRoute({
     configuredEngine: configuredAgentEngine,
     requestClass,
@@ -176,7 +178,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
     uiExecutionIntent: isUiExecutionIntent(message),
   });
   const useHermes = engineRoute.useHermes;
-  if (!systemStatusChatRequest && !directQuoteCandidate && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
+  if (!systemStatusChatRequest && !removedFeatureNotice && !directQuoteCandidate && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -464,6 +466,17 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           return saved.message;
         };
 
+        if (removedFeatureNotice) {
+          activeAgentEngine = "legacy";
+          chatRouteLabel = "DIRECT_TOOL";
+          await flushTextAsDeltas(removedFeatureNotice, send, messageId);
+          await saveTurnAssistant(removedFeatureNotice, {
+            blocks: [{ type: "text", text: removedFeatureNotice }],
+            routeDecision: "REMOVED_CHAT_FEATURE",
+          });
+          return;
+        }
+
         // 견적 확인 카드가 떠 있는 동안의 모든 비승인/비취소 문장은 기존 원문을 수정하는
         // 요청이다. 모델 라우터나 다른 도구로 넘기지 않고 견적 판독기만 다시 실행한다.
         if (pendingAction?.toolName === "apply_quote_create" && pendingAction.status === "pending") {
@@ -473,6 +486,14 @@ export async function handleOliviaStreamPost(req: NextRequest) {
               effectiveContext, messageId, send, saveTurnAssistant,
             });
             if (pendingResult.handled) return;
+          } else if (pendingTurn === "question") {
+            const text = "위 견적서를 이 내용으로 만들지 확인하는 카드예요. 맞으면 [만들기], 고칠 게 있으면 바로 말해주세요.";
+            await flushTextAsDeltas(text, send, messageId);
+            await saveTurnAssistant(text, {
+              blocks: [{ type: "text", text }],
+              routeDecision: "QUOTE_APPROVAL_QUESTION",
+            });
+            return;
           } else {
             activeAgentEngine = "legacy";
             chatRouteLabel = "DIRECT_TOOL";
@@ -504,10 +525,10 @@ export async function handleOliviaStreamPost(req: NextRequest) {
                 ownerId: owner.id, conversationId: conversation.id, metadata: { pendingAction: nextPending },
               });
             }
-            await flushTextAsDeltas(text, send, messageId);
             const block = pendingActionBlock(nextPending);
+            if (!block) await flushTextAsDeltas(text, send, messageId);
             await saveTurnAssistant(text, {
-              blocks: [{ type: "text", text }, ...(block ? [block] : [])],
+              blocks: block ? [block] : [{ type: "text", text }],
               routeDecision: "DIRECT_QUOTE_REVISION",
               toolCalls: [{ id: toolCall.id, name: toolCall.name, success: execution.result.success, verification: execution.result.verification }],
             });
@@ -576,10 +597,10 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           const text = result.success
             ? String(result.data?.summary || "견적서를 만들었어요.")
             : String(result.error || "견적서 생성에 실패했어요.");
-          await flushTextAsDeltas(text, send, messageId);
           const approvalBlock = pendingActionBlock(nextPending);
+          if (!approvalBlock) await flushTextAsDeltas(text, send, messageId);
           await saveTurnAssistant(text, {
-            blocks: [{ type: "text", text }, ...(approvalBlock ? [approvalBlock] : [])],
+            blocks: approvalBlock ? [approvalBlock] : [{ type: "text", text }],
             routeDecision: directQuoteRequest.retry ? "DIRECT_QUOTE_RETRY" : "DIRECT_QUOTE_CREATE",
             toolCalls: [{ id: toolCall.id, name: toolCall.name, success: result.success, verification: result.verification }],
             ...(result.success ? resourceMetadataFromTool(toolCall.name, result.data) : {}),
@@ -789,6 +810,16 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           if (hermesTurn.handled) return;
         }
 
+        if (fallbackReason && (requestClass === "TOOL_ACTION" || isMutationIntent(message) || isUiExecutionIntent(message))) {
+          const text = `지금 헤르메스 연결이 안 돼서 실행하지 못했어요. 잠시 후 다시 보내주세요. (사유: ${fallbackReason})`;
+          await flushTextAsDeltas(text, send, messageId);
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: "HERMES_EXECUTION_FALLBACK_BLOCKED",
+          });
+          return;
+        }
+
         if (databaseFastPath) {
           const fastText=await resolveDatabaseFastPath(db,message,effectiveContext,oliviaRuntime.todayISO);
           if(fastText){
@@ -850,8 +881,8 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           historyHint,
           compactSummary,
           taughtMemories,
-          selectedTools,
-          requiredFollowupTool,
+          selectedTools: fallbackReason ? [] : selectedTools,
+          requiredFollowupTool: fallbackReason ? undefined : requiredFollowupTool,
           requestId,
           signal: req.signal,
           messageId,

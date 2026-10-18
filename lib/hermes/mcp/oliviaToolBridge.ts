@@ -13,12 +13,10 @@ import { getHermesToolMode, getHermesToolPolicy } from "./exposurePolicy";
 type JsonSchema = Record<string, unknown>;
 const validator = new AjvJsonSchemaValidator();
 
-const HERMES_TOOL_ALIASES: Record<string, string> = {
-  "workflow.get_snapshot": "get_project_snapshot",
-};
+const HERMES_TOOL_ALIASES: Record<string, string> = {};
 
 const HERMES_TOOL_OVERRIDES: Record<string, { description: string; parameters: JsonSchema }> = {
-  "workflow.get_snapshot": {
+  get_project_snapshot: {
     description: "Read the canonical Olivia Core project snapshot for an exact workflow run. Never infer workflow/resource state from chat history when this tool is available.",
     parameters: {
       type: "object",

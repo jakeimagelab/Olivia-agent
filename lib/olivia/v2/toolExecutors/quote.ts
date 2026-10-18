@@ -2,10 +2,12 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
 import { formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
 import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
-import { buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
+import { applyCatalogPricingToParsedRequest, buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
 import {
   quoteReadingFromParsedRequest,
   quoteReadingFromUnknown,
+  quoteReaderFailureDetails,
+  quoteReaderModel,
   readQuoteRequestWithAI,
   toParsedQuoteRequest,
   verifyReadingAgainstText,
@@ -247,13 +249,22 @@ function koreaToday() {
 }
 
 async function readQuoteForApproval(requestText: string) {
+  const startedAt = performance.now();
   try {
     const reading = verifyReadingAgainstText(await readQuoteRequestWithAI({ text: requestText, today: koreaToday() }), requestText);
+    console.info("[quote-reader]", { ok: true, model: quoteReaderModel(), ms: Math.round(performance.now() - startedAt) });
     return { reading, fallbackNotice: null };
-  } catch {
+  } catch (error) {
+    const failure = quoteReaderFailureDetails(error);
+    console.warn("[quote-reader]", {
+      ok: false,
+      reason: failure.code,
+      model: quoteReaderModel(),
+      ms: Math.round(performance.now() - startedAt),
+    });
     return {
       reading: quoteReadingFromParsedRequest(parseQuoteRequest(requestText)),
-      fallbackNotice: "AI 읽기에 실패해 기본 규칙으로 읽었어요",
+      fallbackNotice: `AI 읽기에 실패해 기본 규칙으로 읽었어요 (사유: ${failure.label})`,
     };
   }
 }
@@ -298,13 +309,14 @@ export async function prepareQuoteCreateApproval(input: {
   const db = input.db ?? getSupabaseAdmin();
   const { reading, fallbackNotice } = await readQuoteForApproval(input.requestText);
   if (!reading.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
-  const parsed = toParsedQuoteRequest(reading);
+  const initialParsed = toParsedQuoteRequest(reading);
   const createContext = await resolveCreateQuoteContext({
     db,
     requestText: input.requestText,
     clientName: reading.clientName,
     modelBrand: reading.brandExplicit ?? input.modelBrand,
   });
+  const parsed = applyCatalogPricingToParsedRequest(initialParsed, createContext.brand);
   const quoteData = buildQuoteDataFromParsedRequest({ request: parsed, brand: createContext.brand });
   return {
     reading,
@@ -352,12 +364,13 @@ export async function executeQuoteTool(
     const requestText = typeof input.requestText === "string" ? input.requestText.trim() : "";
     if (!requestText) throw new Error("승인할 견적 요청 원문을 찾지 못했어요.");
     const reading = verifyReadingAgainstText(quoteReadingFromUnknown(input.reading), requestText);
-    const parsed = toParsedQuoteRequest(reading);
-    if (!parsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
+    const initialParsed = toParsedQuoteRequest(reading);
+    if (!initialParsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
     const createContext = await resolveCreateQuoteContext({
-      db, requestText, clientName: parsed.clientName, modelBrand: input.brand ?? reading.brandExplicit,
+      db, requestText, clientName: initialParsed.clientName, modelBrand: input.brand ?? reading.brandExplicit,
     });
-    const hospitalName = parsed.clientName;
+    const parsed = applyCatalogPricingToParsedRequest(initialParsed, createContext.brand);
+    const hospitalName = parsed.clientName!;
     const clientId = createContext.clientId;
     const workflowRunId = createContext.workflowRunId;
     let quoteData: Record<string, unknown> = buildQuoteDataFromParsedRequest({
@@ -511,11 +524,7 @@ export async function executeQuoteTool(
     const resourceId = activeResource(context, "quote");
     const quote = await loadQuote(resourceId);
     // 견적 항목/금액은 add_quote_item 등 전용 도구가 recalculateQuote()를 거쳐 처리하지만,
-    // 병원명·담당자·연락처처럼 계산과 무관한 기본 정보는 그런 도구가 없어서 GPT가
-    // create_feature_record/update_feature_record(domain:"quote")로 넘어갔고, quote는 그
-    // 범용 경로에서 명시적으로 막혀 있어 "직접 수정할 수 없다"는 에러로 이어졌다
-    // (2026-08-30 사용자 리포트). items/formState 전체를 여는 대신 이 안전한 필드만 딱
-    // 열어주는 전용 도구를 추가한다.
+    // 병원명·담당자·연락처처럼 계산과 무관한 기본 정보도 견적 전용 경로에서만 수정한다.
     const columnMap: Array<[string, string]> = [
       ["hospitalName", "hospital_name"],
       ["contactName", "contact_name"],

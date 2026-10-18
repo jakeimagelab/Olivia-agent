@@ -45,6 +45,15 @@ describe("Olivia dialogue state", () => {
     expect(resolvePendingActionTurn("아니, 240만원으로 맞춰", pending)).toBe("correction");
   });
 
+  it("견적 승인 카드는 만들기·거절·질문·수정을 순서대로 구분한다", () => {
+    const quotePending = { ...pending, toolName: "apply_quote_create" };
+    expect(resolvePendingActionTurn("만들어", quotePending)).toBe("approve");
+    expect(resolvePendingActionTurn("아니아니..", quotePending)).toBe("reject");
+    expect(resolvePendingActionTurn("무슨 확인?", quotePending)).toBe("question");
+    expect(resolvePendingActionTurn("??", quotePending)).toBe("question");
+    expect(resolvePendingActionTurn("촬영일은 27일로", quotePending)).toBe("correction");
+  });
+
   it("승인 UI action에서 대상까지 포함한 상태를 만든다", () => {
     const state = pendingActionFromUiAction({
       type: "REQUEST_APPROVAL", approvalId: "a", summary: "진행할까요?", confirmLabel: "진행",
