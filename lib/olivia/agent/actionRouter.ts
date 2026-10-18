@@ -26,7 +26,7 @@ function isOliviaOsRoute() {
 function desktopAppInputFor(appId: string, context?: OpenAppInput["context"]): OpenAppInput | undefined {
   const app = getOliviaApp(appId);
   if (!app) return undefined;
-  const title = context?.clientName ? `${context.clientName} · ${app.title}` : app.title;
+  const title = context?.documentTitle || (context?.clientName ? `${context.clientName} · ${app.title}` : app.title);
   return { appId, title, width: app.defaultSize.width, height: app.defaultSize.height, context };
 }
 
@@ -42,6 +42,7 @@ function workspaceWindowContext(
   action: {
     clientId?: string;
     clientName?: string;
+    documentTitle?: string;
     workflowRunId?: string;
     projectName?: string;
     resourceId?: string;
@@ -57,6 +58,7 @@ function workspaceWindowContext(
     resourceType: workspace,
     ...(workspace === "conti" ? { routeHref: "/photo-sorting?tab=plan&tool=conti" } : {}),
     ...(documentType ? { documentId: action.resourceId, documentType } : {}),
+    ...(action.documentTitle ? { documentTitle: action.documentTitle } : {}),
   };
 }
 

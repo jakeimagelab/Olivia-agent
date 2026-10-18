@@ -14,8 +14,8 @@ export function resourceMetadataFromTool(toolName: string, data: Record<string, 
   return {
     resourceType: matched[0],
     resourceId: matched[1],
-    ...((typeof data.hospitalName === "string" && data.hospitalName) || (typeof data.title === "string" && data.title)
-      ? { resourceTitle: (data.hospitalName || data.title) as string }
+    ...((typeof data.title === "string" && data.title) || (typeof data.hospitalName === "string" && data.hospitalName)
+      ? { resourceTitle: (data.title || data.hospitalName) as string }
       : {}),
     ...(typeof data.temporaryDocumentId === "string" ? { temporaryDocumentId: data.temporaryDocumentId } : {}),
     ...(typeof data.version === "number" ? { resourceVersion: data.version } : {}),

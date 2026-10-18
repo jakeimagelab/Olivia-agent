@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
 import { parseQuoteRequest, quoteCreationTargetFromRequest } from "@/lib/quote/quoteRequestParser";
 import { buildQuoteDataFromParsedRequest, titleForParsedQuote } from "@/lib/quote/quoteRequestData";
+import { quoteParseNotices } from "@/lib/olivia/v2/toolExecutors/quote";
+import { resolveDirectQuoteRequest } from "@/lib/olivia/v2/stream/directQuoteRequest";
 
 const JAKE_REQUEST = `1989 삼칠갈비 견적서
 양형석팀장님
@@ -83,6 +86,25 @@ const WEDDING_REQUEST = `견적서 하나 만들어줘요!
 액자 추가 건
 - 40cm 아크릴 3개 = 개당 92000원
 - 25cm 아크릴 4개 = 개당 46000원`;
+
+const JEONJU_REQUEST = `전주푸른안과 견적서 만들어.
+
+전주푸른안과 사진/영상 촬영
+대표원장님
+연락처 및 메일주소 공란으로 하고
+촬영일 10월 26일
+
+의료진 프로필
+의료진 컨셉연출(진료/수술)
+
+서비스/혜택
+- 단체사진 및 컨셉사진
+- 기타 병원 분위기 사진
+- 주요 인테리어 및 외관
+
+금액은 항목별로 나눌 필요없고,
+전체 금액 370만원(부가세별도)
+잔금 50%`;
 
 describe("quoteRequestParser", () => {
   it("대표의 제이크이미지 원문을 금액과 설명을 잃지 않고 읽고 절삭한다", () => {
@@ -315,10 +337,11 @@ describe("quoteRequestParser", () => {
     ]);
   });
 
-  it("[10/05] 할인 없는 총액 문장은 검산값만 만들고 항목이나 할인으로 만들지 않는다", () => {
+  it("할인 없는 독립 총액 문장은 지정 총액으로 읽고 항목이나 할인으로 만들지 않는다", () => {
     const request = parseQuoteRequest("고객\n제품촬영 150만원\n총 100만원");
     expect(request.discount).toBeNull();
-    expect(request.checkTotal).toBe(1_000_000);
+    expect(request.fixedTotal).toBe(1_000_000);
+    expect(request.checkTotal).toBeNull();
     expect(request.items.map((item) => item.name)).toEqual(["제품촬영"]);
   });
 
@@ -336,5 +359,65 @@ describe("quoteRequestParser", () => {
     const broken = { ...request, titleSuffix: "웨딩촬영(", isEvent: true };
     expect(() => buildQuoteDataFromParsedRequest({ request: broken, brand: "jakeimage" }))
       .toThrow("견적서 제목의 괄호 짝이 맞지 않아 저장하지 않았어요.");
+  });
+
+  it("전주푸른안과 재현 원문을 고객·일정·서비스·지정 총액으로 정확히 읽는다", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-17T15:00:00.000Z"));
+    try {
+      const request = parseQuoteRequest(JEONJU_REQUEST);
+      expect(request).toMatchObject({
+        clientName: "전주푸른안과",
+        contactName: "대표원장님",
+        phone: null,
+        email: null,
+        shootDate: "2026-10-26",
+        fixedTotal: 3_700_000,
+        itemPricesHidden: true,
+        taxMode: "separate",
+        depositRate: 50,
+        unparsedLines: [],
+      });
+      expect(quoteCreationTargetFromRequest(JEONJU_REQUEST)).toBe("전주푸른안과");
+      expect(request.items).toEqual([
+        expect.objectContaining({ name: "의료진 프로필", amount: null, free: false }),
+        expect.objectContaining({ name: "의료진 컨셉연출(진료/수술)", amount: null, free: false }),
+        expect.objectContaining({ name: "단체사진 및 컨셉사진", amount: 0, free: true }),
+        expect.objectContaining({ name: "기타 병원 분위기 사진", amount: 0, free: true }),
+        expect.objectContaining({ name: "주요 인테리어 및 외관", amount: 0, free: true }),
+      ]);
+      expect(request.items.map((item) => item.name)).not.toContain("전주푸른안과 사진/영상 촬영");
+      expect(request.items.map((item) => item.name)).not.toContain("전체 금액");
+
+      const quote = buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" });
+      expect(titleForParsedQuote(request, "photoclinic")).toBe("전주푸른안과 브랜드촬영 견적서");
+      expect(quote.formState).toMatchObject({ itemPricesHidden: true, depositRate: 50 });
+      expect(quote.shootDate).toBe("2026-10-26");
+      expect(quote.totals).toMatchObject({ supplyAmount: 3_700_000, vat: 370_000, finalAmount: 4_070_000 });
+      expect(quoteParseNotices({ parsed: request, brand: "photoclinic" }).join("\n")).not.toContain("금액 입력 필요");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("짧은 견적 재시도는 최근 생성 원문만 복원하고, 기록이 없으면 실행하지 않는다", () => {
+    expect(parseQuoteRequest("위 견적 요청 다시 해봐.").clientName).toBeNull();
+    expect(resolveDirectQuoteRequest("위 견적 요청 다시 해봐.", [
+      { role: "user", content: JEONJU_REQUEST },
+      { role: "assistant", content: "견적 생성에 실패했어요." },
+    ])).toEqual({ kind: "create", requestText: JEONJU_REQUEST, clientName: "전주푸른안과", retry: true });
+    expect(resolveDirectQuoteRequest("위 견적 요청 다시 해봐.", [])).toEqual({ kind: "retry_missing" });
+  });
+
+  it("견적 생성 직접 경로는 create_quote 뒤에 다른 모델 도구를 실행하지 않는다", () => {
+    const source = readFileSync("lib/olivia/v2/stream/streamRoute.ts", "utf8");
+    const start = source.indexOf('if (directQuoteRequest.kind === "create")');
+    const end = source.indexOf("const compactSummary", start);
+    const directBranch = source.slice(start, end);
+    expect(directBranch).toContain("executeQuoteTool(toolCall.name");
+    expect(directBranch).not.toContain("calendar_add");
+    expect(directBranch).not.toContain("update_quote_payment_terms");
+    expect(directBranch).not.toContain("runHermesTurn");
+    expect(directBranch).not.toContain("runLegacyTurn");
   });
 });

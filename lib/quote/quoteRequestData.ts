@@ -161,7 +161,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
       unitPrice: amount ?? 0,
       qty: quantity,
       subtotal,
-      note: item.free ? "서비스" : amount === null ? "금액 입력 필요" : item.note || undefined,
+      note: item.free ? "서비스" : amount === null && !request.itemPricesHidden ? "금액 입력 필요" : item.note || undefined,
       groupLabel: item.groupLabel,
     });
 
@@ -207,7 +207,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
     depositRate,
-    taxMode: "separate",
+    taxMode: request.taxMode,
   });
 
   if (request.checkTotal !== null) {
@@ -226,7 +226,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     brand,
     customer: {
       hospitalName: request.clientName || "", managerName: request.contactName || "", phone: request.phone || "", email: request.email || "",
-      quoteDate: today(), validUntil: today(14), shootDate: "", quoteNumber: "",
+      quoteDate: today(), validUntil: today(14), shootDate: request.shootDate || "", quoteNumber: "",
     },
     quoteTitle: title,
     selectedPackageId,
@@ -242,7 +242,8 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     extraDiscount,
     fixedTotal: request.fixedTotal,
     roundDownUnit: request.roundDownUnit,
-    taxMode: "separate",
+    taxMode: request.taxMode,
+    itemPricesHidden: request.itemPricesHidden,
     checkTotal: request.checkTotal,
     specialAdjustmentAmount: totals.specialAdjustmentAmount,
     roundDownAmount: totals.roundDownAmount,
@@ -261,6 +262,7 @@ export function buildQuoteDataFromParsedRequest(input: QuoteRequestBuildInput) {
     phone: request.phone,
     email: request.email,
     quoteDate: today(),
+    shootDate: request.shootDate || undefined,
     validUntil: today(14),
     title,
     packageId: selectedPackageId,

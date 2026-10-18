@@ -34,6 +34,8 @@ export type QuoteFormState = {
   /** 원문에 지정된 절삭 단위. 지정된 경우에만 공급가에서 절삭한다. */
   roundDownUnit: number | null;
   taxMode: QuoteTaxMode;
+  /** 항목별 금액을 공개하지 않고 지정 총액만 표시하는 견적서다. */
+  itemPricesHidden: boolean;
   memo: string;
   depositRate: number;
 };
@@ -42,7 +44,7 @@ const QUOTE_FORM_KEYS = [
   "customer", "brand", "quoteTitle", "selectedPackageId", "selectedSingleItemIds",
   "singleItemNotes", "singleItemAmounts", "profileCount", "stagedCount", "combinedProfileStagedCount",
   "floorCount", "largeHospital", "droneCount", "customItems", "benefitItems", "discountLabel",
-  "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "taxMode", "memo", "depositRate",
+  "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "taxMode", "itemPricesHidden", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
 
 type Updater<T> = T | ((prev: T) => T);
@@ -91,6 +93,7 @@ export type QuoteStoreState = QuoteFormState & {
   setFixedTotal: (value: Updater<number | null>) => void;
   setRoundDownUnit: (value: Updater<number | null>) => void;
   setTaxMode: (value: Updater<QuoteTaxMode>) => void;
+  setItemPricesHidden: (value: Updater<boolean>) => void;
   setMemo: (value: Updater<string>) => void;
   setDepositRate: (value: Updater<number>) => void;
 };
@@ -148,6 +151,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     fixedTotal: null,
     roundDownUnit: null,
     taxMode: "separate",
+    itemPricesHidden: false,
     memo: "",
     depositRate: 50,
     dirtyFields: new Set(),
@@ -187,6 +191,7 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setFixedTotal: dirtySetter("fixedTotal"),
     setRoundDownUnit: dirtySetter("roundDownUnit"),
     setTaxMode: dirtySetter("taxMode"),
+    setItemPricesHidden: dirtySetter("itemPricesHidden"),
     setMemo: dirtySetter("memo"),
     setDepositRate: dirtySetter("depositRate"),
   };

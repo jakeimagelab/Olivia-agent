@@ -24,7 +24,7 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
     brand, customer, quoteTitle, packageItem, singleItems: selectedSingleItems, optionItems,
     customItems: visibleCustomItems, benefitItems: visibleBenefitItems,
     discountTotal, contentSubtotal, specialAdjustmentAmount, roundDownAmount, supplyAmount,
-    vat, taxMode, finalAmount, depositAmount, balanceAmount, depositRate, memo,
+    vat, taxMode, itemPricesHidden, finalAmount, depositAmount, balanceAmount, depositRate, memo,
   } = data;
   const cfg = BRAND_CONFIG[brand];
 
@@ -73,10 +73,10 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
             <thead><tr><th>항목</th><th>수량</th><th>가격</th><th>소계</th><th>비고</th></tr></thead>
             <tbody>
               <tr className="category-row"><td colSpan={5}>촬영 콘텐츠</td></tr>
-              {packageItem ? <tr><td>1. {packageItem.name} 패키지<small>{packageItem.detail}</small></td><td></td><td>{amount(packageItem.amount)}</td><td>{amount(packageItem.amount)}</td><td>촬영 패키지</td></tr> : null}
+              {packageItem ? <tr><td>1. {packageItem.name} 패키지<small>{packageItem.detail}</small></td><td></td><td>{itemPricesHidden ? "" : amount(packageItem.amount)}</td><td>{itemPricesHidden ? "" : amount(packageItem.amount)}</td><td>촬영 패키지</td></tr> : null}
               {selectedSingleItems.length ? <tr className="category-row"><td colSpan={5}>단일 항목</td></tr> : null}
-              {selectedSingleItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 2 : 1) + index}. {item.name}{item.detail ? <small style={{ whiteSpace: "pre-line" }}>{item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>단일 콘텐츠</td></tr>)}
-              {optionItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}{item.detail ? <small>{item.detail}</small> : null}</td><td></td><td>{amount(item.amount)}</td><td>{amount(item.amount)}</td><td>-</td></tr>)}
+              {selectedSingleItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 2 : 1) + index}. {item.name}{item.detail ? <small style={{ whiteSpace: "pre-line" }}>{item.detail}</small> : null}</td><td></td><td>{itemPricesHidden ? "" : amount(item.amount)}</td><td>{itemPricesHidden ? "" : amount(item.amount)}</td><td>단일 콘텐츠</td></tr>)}
+              {optionItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + index + 1}. {item.name}{item.detail ? <small>{item.detail}</small> : null}</td><td></td><td>{itemPricesHidden ? "" : amount(item.amount)}</td><td>{itemPricesHidden ? "" : amount(item.amount)}</td><td>-</td></tr>)}
               {visibleCustomItems.map((item, index) => {
                 const formattedDetail = formatCustomItemDetail(item.detail);
                 const previousGroupLabel = index > 0 ? visibleCustomItems[index - 1].groupLabel : null;
@@ -86,15 +86,15 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
                   <tr>
                     <td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + index + 1}. {item.name || cfg.customItemsLabel}{formattedDetail ? <small style={{ whiteSpace: "pre-line" }}>{formattedDetail}</small> : null}</td>
                     <td>{item.quantity ?? 1}</td>
-                    <td>{amount(item.unitPrice ?? item.amount)}</td>
-                    <td>{amount(item.amount)}</td>
+                    <td>{itemPricesHidden ? "" : amount(item.unitPrice ?? item.amount)}</td>
+                    <td>{itemPricesHidden ? "" : amount(item.amount)}</td>
                     <td>기타</td>
                   </tr>
                 </Fragment>;
               })}
               {visibleBenefitItems.length ? <tr className="category-row"><td colSpan={5}>서비스 및 혜택</td></tr> : null}
               {visibleBenefitItems.map((item, index) => <tr key={item.id}><td>{(packageItem ? 1 : 0) + selectedSingleItems.length + optionItems.length + visibleCustomItems.length + index + 1}. {item.name}</td><td></td><td>-</td><td>-</td><td>서비스 및 혜택</td></tr>)}
-              {contentSubtotal === 0 ? <tr><td>선택된 촬영 항목 없음</td><td>-</td><td>0</td><td>0</td><td>-</td></tr> : null}
+              {contentSubtotal === 0 && !itemPricesHidden ? <tr><td>선택된 촬영 항목 없음</td><td>-</td><td>0</td><td>0</td><td>-</td></tr> : null}
               <tr className="blank-row"><td colSpan={5}></td></tr>
             </tbody>
           </table>
@@ -109,9 +109,9 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
             </div>
           </div>
           <div className="total-signature"><div className="total-box">
-            <div><span>항목 합계</span><strong>{amount(contentSubtotal)}</strong></div>
+            {!itemPricesHidden ? <div><span>항목 합계</span><strong>{amount(contentSubtotal)}</strong></div> : null}
             {discountTotal > 0 ? <div><span>할인 합계</span><strong>−{amount(discountTotal)}</strong></div> : null}
-            {specialAdjustmentAmount !== 0 ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
+            {specialAdjustmentAmount !== 0 && !itemPricesHidden ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
             {roundDownAmount > 0 ? <div><span>절삭</span><strong>−{amount(roundDownAmount)}</strong></div> : null}
             <div><span>공급가액</span><strong>{amount(supplyAmount)}</strong></div>
             {taxMode !== "excluded" ? <div><span>{taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"}</span><strong>{amount(vat)}</strong></div> : null}

@@ -24,6 +24,9 @@ export type ParsedQuoteRequest = {
   fixedTotal: number | null;
   roundDownUnit: number | null;
   checkTotal: number | null;
+  shootDate: string | null;
+  itemPricesHidden: boolean;
+  taxMode: "separate" | "included" | "excluded";
   /** Existing payment-term support stays explicit; it is unrelated to quote parsing defaults. */
   depositRate: number | null;
   memo: string | null;
@@ -38,6 +41,11 @@ const CONTENT_HEADING = /^(?:내용은?|아래와\s*같이|다음과\s*같이)$/
 const PHONE = /^0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}$/;
 const CONTACT = /^(?=.{2,20}$)[가-힣A-Za-z][가-힣A-Za-z\s]*(?:대표|원장|팀장|실장|매니저|담당자|이사|부장|과장)?님$/;
 const EXTERNAL_ITEM = /(헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|외주)/i;
+const AMOUNTLESS_ITEM = /(프로필|연출|컨셉|인테리어|외관|영상|스케치|단체)/i;
+const SERVICE_HEADING = /^(?:서비스|혜택|서비스\s*\/\s*혜택|서비스\s*및\s*혜택|무료\s*제공)\s*:?$/i;
+const BLANK_CONTACT_INSTRUCTION = /(?:공란|비워|빈칸|없음).*(?:연락처|전화|메일|이메일)|(?:연락처|전화|메일|이메일).*(?:공란|비워|빈칸|없음)/i;
+const ITEM_PRICES_HIDDEN_INSTRUCTION = /(항목별로\s*나눌\s*필요\s*없|항목별\s*금액\s*없이|총액만)/i;
+const RETRY_INSTRUCTION = /(?:견적|견적서).*(?:다시|재시도|한번\s*더|다시\s*만들어|다시\s*해)/i;
 const QUANTITY_UNIT = "개장점벌세트부본";
 const CATALOG: CatalogEntry[] = [
   ...packages.map((entry) => ({ ...entry, package: true })),
@@ -74,6 +82,9 @@ function isCreateCommand(value: string) {
 
 function isInstruction(value: string) {
   return isCreateCommand(value)
+    || BLANK_CONTACT_INSTRUCTION.test(value)
+    || ITEM_PRICES_HIDDEN_INSTRUCTION.test(value)
+    || RETRY_INSTRUCTION.test(value)
     || /(?:할인|절삭|총\s*(?:금액|액|촬영|합계|\d)|합계|잔금|계약금|선금)/.test(value);
 }
 
@@ -189,7 +200,59 @@ function correctedEmail(raw: string) {
 
 function validClientCandidate(value: string) {
   const candidate = value.trim().replace(/\s*견적서\s*$/i, "").trim();
+  if (isInstruction(value) || RETRY_INSTRUCTION.test(value)) return null;
   return candidate.length >= 2 && /[가-힣A-Za-z0-9]/.test(candidate) ? candidate : null;
+}
+
+function firstLineQuoteClient(value: string) {
+  const match = /^(.+?)\s*견적서?\s*(?:좀\s*)?(?:만들어|작성해|뽑아|부탁)/u.exec(value.trim());
+  if (!match) return null;
+  const candidate = match[1].trim().replace(/^[\s,.;:!?~]+|[\s,.;:!?~]+$/gu, "");
+  return validClientCandidate(candidate);
+}
+
+function koreaDateParts(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((entry) => entry.type === type)?.value);
+  return { year: part("year"), month: part("month"), day: part("day") };
+}
+
+function validIsoDate(year: number, month: number, day: number) {
+  const value = new Date(Date.UTC(year, month - 1, day));
+  if (value.getUTCFullYear() !== year || value.getUTCMonth() !== month - 1 || value.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function shootDateFromLine(line: string, now = new Date()) {
+  const match = /^(?:촬영일|촬영\s*일정)\s*[:：은는]?\s*(.+)$/u.exec(line);
+  if (!match) return undefined;
+  const value = match[1].trim();
+  const explicit = /^(\d{4})[-.]\s*(\d{1,2})[-.]\s*(\d{1,2})(?:일)?$/u.exec(value);
+  if (explicit) return validIsoDate(Number(explicit[1]), Number(explicit[2]), Number(explicit[3]));
+  const partial = /^(\d{1,2})\s*(?:월|\/)\s*(\d{1,2})\s*일?$/u.exec(value);
+  if (!partial) return null;
+  const current = koreaDateParts(now);
+  const month = Number(partial[1]);
+  const day = Number(partial[2]);
+  const year = month > current.month || (month === current.month && day >= current.day)
+    ? current.year
+    : current.year + 1;
+  return validIsoDate(year, month, day);
+}
+
+function strictFixedTotal(line: string) {
+  const match = /^(?:전체\s*금액|총\s*금액|전체|총액|총|합계)\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(만원|만|원)?(?:\s*\([^)]*부가세[^)]*\))?\s*$/u.exec(line.trim());
+  if (!match) return null;
+  return moneyFromToken(match[1], match[2]);
+}
+
+function isExplanatoryDetailLine(line: string) {
+  return /^\([^)]*\)/u.test(line) || /[,，]/u.test(line) || /^\d+\s*회/u.test(line);
 }
 
 function titleDataFromClientLine(line: string) {
@@ -202,6 +265,9 @@ function titleDataFromClientLine(line: string) {
 }
 
 function parseDirective(line: string, result: ParsedQuoteRequest) {
+  if (ITEM_PRICES_HIDDEN_INSTRUCTION.test(line)) result.itemPricesHidden = true;
+  if (/부가세\s*포함/i.test(line)) result.taxMode = "included";
+  if (/부가세\s*(?:제외|없음)/i.test(line)) result.taxMode = "excluded";
   const roundDown = /(\d[\d,]*)\s*원?\s*미만\s*절삭/.exec(line);
   if (roundDown) result.roundDownUnit = Number(roundDown[1].replaceAll(",", ""));
   if (/만원\s*미만\s*절삭/.test(line)) result.roundDownUnit = 10_000;
@@ -244,17 +310,48 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
   const result: ParsedQuoteRequest = {
     clientName: null, titleSuffix: null, isEvent: false, contactName: null, phone: null, email: null,
     emailCorrectedFrom: null, items: [], discount: null, fixedTotal: null, roundDownUnit: null, checkTotal: null,
+    shootDate: null, itemPricesHidden: false, taxMode: "separate",
     depositRate: null, memo: null, unparsedLines: [],
   };
   const lines = text.replace(/\r\n?/g, "\n").split("\n").map(stripLeader).filter(Boolean);
   let groupLabel: string | null = null;
+  let serviceSection = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index];
     const nextLine = lines[index + 1];
 
+    if (index === 0) {
+      const client = firstLineQuoteClient(line);
+      if (client) {
+        result.clientName = client;
+        continue;
+      }
+    }
+
+    const parsedShootDate = shootDateFromLine(line);
+    if (parsedShootDate !== undefined) {
+      result.shootDate = parsedShootDate;
+      continue;
+    }
+
+    if (SERVICE_HEADING.test(line)) {
+      serviceSection = true;
+      groupLabel = null;
+      continue;
+    }
+
+    const fixedTotal = strictFixedTotal(line);
+    if (fixedTotal !== null) {
+      result.fixedTotal = fixedTotal;
+      if (/부가세\s*포함/i.test(line)) result.taxMode = "included";
+      serviceSection = false;
+      continue;
+    }
+
     // Commands are instructions, never clients. Their remaining fragments are intentionally discarded.
     if (isInstruction(line)) {
+      serviceSection = false;
       parseDirective(line, result);
       continue;
     }
@@ -272,7 +369,43 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
       }
     }
 
-    const item = itemFromLine(line, groupLabel);
+    if (serviceSection && isPaidItemLine(line)) serviceSection = false;
+
+    if (result.clientName && result.items.length === 0 && !findMoney(line) && line.startsWith(result.clientName)) {
+      // 고객명 다음의 "고객명 사진/영상 촬영" 같은 줄은 문서 주제를 설명할 뿐 항목이 아니다.
+      continue;
+    }
+
+    if (serviceSection) {
+      const serviceItem = normalItem({ name: line, amount: 0, free: true, groupLabel: null });
+      if (serviceItem) result.items.push(serviceItem);
+      continue;
+    }
+
+    if (result.items.length > 0 && isExplanatoryDetailLine(line) && !findMoney(line)) {
+      result.items[result.items.length - 1].details.push(line);
+      continue;
+    }
+
+    if (!result.clientName && result.items.length === 0) {
+      const eventTitle = titleDataFromClientLine(line);
+      if (eventTitle) {
+        result.clientName = eventTitle.client;
+        result.titleSuffix = eventTitle.suffix;
+        result.isEvent = true;
+        continue;
+      }
+      if (!findMoney(line) && !AMOUNTLESS_ITEM.test(line)) {
+        const candidate = validClientCandidate(line);
+        if (candidate) {
+          result.clientName = candidate;
+          continue;
+        }
+      }
+    }
+
+    const item = itemFromLine(line, groupLabel)
+      ?? (AMOUNTLESS_ITEM.test(line) ? normalItem({ name: line, amount: null, groupLabel }) : null);
     if (item) {
       result.items.push(item);
       continue;
@@ -284,20 +417,6 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     // Before the first item an amountless line is the customer/title candidate, not a group
     // heading. This prevents `양재선변호사님(민정님) 웨딩촬영 ... 견적서` from becoming
     // an "액자 추가 건" style grouping label simply because the next line has a price.
-    if (!result.clientName && result.items.length === 0) {
-      const eventTitle = titleDataFromClientLine(line);
-      if (eventTitle) {
-        result.clientName = eventTitle.client;
-        result.titleSuffix = eventTitle.suffix;
-        result.isEvent = true;
-        continue;
-      }
-      const candidate = validClientCandidate(line);
-      if (candidate) {
-        result.clientName = candidate;
-        continue;
-      }
-    }
     if (!/^\d+\s*회/.test(line) && !findMoney(line) && nextLine && !isInstruction(nextLine) && isPaidItemLine(nextLine)) {
       groupLabel = line;
       continue;
@@ -316,5 +435,5 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
 
 export function quoteCreationTargetFromRequest(text: string): string | null {
   const request = parseQuoteRequest(text);
-  return request.clientName && request.items.length > 0 ? request.clientName : null;
+  return request.clientName && (request.items.length > 0 || request.fixedTotal !== null) ? request.clientName : null;
 }

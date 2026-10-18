@@ -28,6 +28,7 @@ function workspaceAction(
   const clientId = value(data, "clientId") || (mayUseActiveContext ? args.context.activeClientId : undefined);
   const workflowRunId = value(data, "workflowRunId") || (mayUseActiveContext ? args.context.activeProjectId : undefined);
   const clientName = value(data, "hospitalName") || (mayUseActiveContext ? args.context.activeClientName : undefined);
+  const documentTitle = value(data, "title");
   const projectName = mayUseActiveContext ? args.context.activeProjectName : undefined;
   return [{
     type: "OPEN_WORKSPACE",
@@ -36,6 +37,7 @@ function workspaceAction(
     ...(clientId ? { clientId } : {}),
     ...(workflowRunId ? { workflowRunId } : {}),
     ...(clientName ? { clientName } : {}),
+    ...(documentTitle ? { documentTitle } : {}),
     ...(projectName ? { projectName } : {}),
   }];
 }

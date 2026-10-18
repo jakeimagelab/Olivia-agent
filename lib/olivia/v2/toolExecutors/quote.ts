@@ -104,6 +104,7 @@ async function finalizeCreatedQuote(input: {
       resourceId: quoteId,
       totalAmount: record.total_amount,
       hospitalName,
+      title: String(record.title || `${hospitalName} 견적서`),
       clientId: temporaryDocument.client_id,
       workflowRunId: temporaryDocument.workflow_run_id,
       temporaryDocumentId: temporaryDocument.id,
@@ -208,7 +209,7 @@ async function resolveCreateQuoteContext(input: {
   return { brand, clientId, workflowRunId };
 }
 
-function quoteParseNotices(input: {
+export function quoteParseNotices(input: {
   parsed: ReturnType<typeof parseQuoteRequest>;
   brand: "photoclinic" | "jakeimage";
 }) {
@@ -216,8 +217,10 @@ function quoteParseNotices(input: {
   if (input.parsed.emailCorrectedFrom && input.parsed.email) {
     notices.push(`이메일을 ${input.parsed.email.split("@")[1]}으로 고쳤어요.`);
   }
-  for (const item of input.parsed.items.filter((item) => item.amount === null && !item.free)) {
-    notices.push(`${item.name} — 금액 입력 필요`);
+  if (!input.parsed.itemPricesHidden) {
+    for (const item of input.parsed.items.filter((item) => item.amount === null && !item.free)) {
+      notices.push(`${item.name} — 금액 입력 필요`);
+    }
   }
   for (const line of input.parsed.unparsedLines) {
     notices.push(`이 줄은 못 읽었어요 — "${line}" / 어디에 넣을지 알려주세요`);

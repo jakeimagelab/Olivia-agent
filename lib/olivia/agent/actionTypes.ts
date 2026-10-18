@@ -12,6 +12,7 @@ export type OliviaUiAction =
       workflowRunId?: string;
       resourceId?: string;
       clientName?: string;
+      documentTitle?: string;
       projectName?: string;
     }
   | {
@@ -21,6 +22,7 @@ export type OliviaUiAction =
       clientId?: string;
       workflowRunId?: string;
       clientName?: string;
+      documentTitle?: string;
       projectName?: string;
       startInPreview?: boolean;
     }

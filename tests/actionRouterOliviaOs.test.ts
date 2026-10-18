@@ -106,6 +106,21 @@ describe("actionRouter — OLIVIA OS routing", () => {
     expect(win.title).toContain("글로리의원");
   });
 
+  it("견적 창 제목은 사용자 요청문이 아니라 저장된 문서 제목을 쓴다", () => {
+    stubPathname("/");
+    executeOliviaAction({
+      type: "OPEN_WORKSPACE",
+      workspace: "quote",
+      clientName: "전주푸른안과",
+      documentTitle: "전주푸른안과 브랜드촬영 견적서",
+      resourceId: "quote-jeonju",
+    });
+
+    const win = useOliviaDesktopStore.getState().windows.quote;
+    expect(win.title).toBe("전주푸른안과 브랜드촬영 견적서");
+    expect(win.context?.documentTitle).toBe("전주푸른안과 브랜드촬영 견적서");
+  });
+
   it("문서 창은 채팅창에 붙어서 열리고, 닫으면 채팅 연결 대상도 함께 해제한다", () => {
     stubPathname("/");
     useOliviaDesktopStore.setState({ workspaceWidth: 1600, workspaceHeight: 1000 });

@@ -10,9 +10,11 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
 import { quoteCreationTargetFromRequest } from "@/lib/quote/quoteRequestParser";
+import { executeQuoteTool } from "@/lib/olivia/v2/toolExecutors/quote";
+import { resolveUiActions } from "@/lib/olivia/agent/uiActionResolvers";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
-import type { OliviaStreamEvent } from "@/lib/olivia/v2/types";
+import type { OliviaStreamEvent, OliviaToolResult } from "@/lib/olivia/v2/types";
 import { buildOliviaRuntimeContext } from "@/lib/olivia/runtime/buildRuntimeContext";
 import { resolveDeterministicResponse } from "@/lib/olivia/orchestrator/handleRequest";
 import { classifyRequestKind } from "@/lib/olivia/orchestrator/classifyRequest";
@@ -66,6 +68,8 @@ import { buildExecutedToolsContext, withExecutedToolsMetadata } from "@/lib/oliv
 import { handlePendingActionTurn } from "@/lib/olivia/v2/stream/pendingAction";
 import { runHermesTurn, type ChatRouteLabel } from "@/lib/olivia/v2/stream/hermesTurn";
 import { runLegacyTurn } from "@/lib/olivia/v2/stream/legacyTurn";
+import { resourceMetadataFromTool } from "@/lib/olivia/v2/stream/resourceMetadata";
+import { isDirectQuoteCandidate, isQuoteCreationTurn, resolveDirectQuoteRequest } from "@/lib/olivia/v2/stream/directQuoteRequest";
 import { createRemoteWorkerNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
 import { internalFetcher } from "@/lib/olivia/v2/toolExecutors/http";
 
@@ -148,13 +152,14 @@ export async function handleOliviaStreamPost(req: NextRequest) {
   const requestClass = classifyOliviaRequest(message, context);
   // 화면 선택보다 원문에 적힌 고객명·항목이 우선이다. 여러 줄 견적 원문은 파서가
   // 이미 직접 읽을 수 있으므로, 고객 선택 가드가 이를 "대상 없음"으로 막으면 안 된다.
-  const quoteCreationTarget = requestClass === "TOOL_ACTION"
-    ? quoteCreationTargetFromRequest(rawMessage)
-    : null;
+  const quoteCreationTarget = quoteCreationTargetFromRequest(rawMessage);
+  const directQuoteCandidate = isDirectQuoteCandidate(rawMessage);
+  const quoteCreationTurn = isQuoteCreationTurn(rawMessage);
   const model = routeOliviaModel(requestClass);
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
   const recentUserText = optionalString(body.recentUserText);
   let selectedTools = selectOliviaTools({ requestClass, message, context, recentText: recentUserText });
+  if (quoteCreationTurn) selectedTools = selectedTools.filter((tool) => !tool.name.startsWith("update_quote_"));
   // Adaptive Memory용 scope만 여기서 미리 계산해둔다(순수 함수, DB 호출 없음) — 실제 조회는
   // 스트림 안에서 history 등 기존에 이미 병렬로 부르던 DB 호출들과 함께 묶는다. 예전엔 여기서
   // 바로 await listActiveMemories(...)를 했는데, deterministic/fast-path/persistentAgentRun처럼
@@ -172,7 +177,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
     uiExecutionIntent: isUiExecutionIntent(message),
   });
   const useHermes = engineRoute.useHermes;
-  if (!systemStatusChatRequest && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
+  if (!systemStatusChatRequest && !directQuoteCandidate && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -362,6 +367,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         // 저장된다. 현재 메시지가 history 조회에 잡히더라도 message 인자와 중복되지 않게 제외한다.
         const userMessageId = String(userMessageResult.message.id);
         const history = historyRows.filter((row) => row.id !== userMessageId);
+        const directQuoteRequest = resolveDirectQuoteRequest(rawMessage, history);
         // 현재 요청 원문은 Quote Engine의 결정론적 mode guard에 전달한다. 모델이 packageId를
         // 잘못 채워도 원문에 "패키지"가 없으면 CUSTOM으로 강제하기 위한 실행 전용 값이다.
         let effectiveContext = restoreDocumentContextFromHistory({
@@ -399,6 +405,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
         const canonicalRecentUserText = buildCanonicalRecentUserText(history);
         const effectiveRecentUserText = [canonicalRecentUserText, recentUserText].filter(Boolean).join("\n");
         selectedTools = selectOliviaTools({ requestClass, message, context: effectiveContext, recentText: effectiveRecentUserText });
+        if (quoteCreationTurn) selectedTools = selectedTools.filter((tool) => !tool.name.startsWith("update_quote_"));
         const requiredFollowupTool = quoteCreationTarget && selectedTools.some((tool) => tool.name === "create_quote")
           // 원문에 고객과 항목이 모두 있으면 create_quote가 실제로 실행돼야 한다. 자유
           // 텍스트가 "고객을 골라주세요"나 확인되지 않은 실패를 대신 말하지 못하게 한다.
@@ -472,6 +479,67 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           await saveTurnAssistant(completedActionAcknowledgement, {
             blocks: [{ type: "text", text: completedActionAcknowledgement }],
             routeDecision: "COMPLETED_ACTION_ACKNOWLEDGEMENT",
+          });
+          return;
+        }
+        if (directQuoteRequest.kind === "retry_missing" || directQuoteRequest.kind === "missing_client") {
+          activeAgentEngine = "legacy";
+          chatRouteLabel = "DIRECT_TOOL";
+          const text = directQuoteRequest.kind === "retry_missing"
+            ? "다시 만들 견적 요청을 찾지 못했어요. 요청 내용을 다시 보내주세요."
+            : "고객명을 못 읽었어요 — 알려주세요";
+          await flushTextAsDeltas(text, send, messageId);
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: directQuoteRequest.kind === "retry_missing" ? "QUOTE_RETRY_SOURCE_MISSING" : "QUOTE_CLIENT_MISSING",
+          });
+          return;
+        }
+        if (directQuoteRequest.kind === "create") {
+          activeAgentEngine = "legacy";
+          chatRouteLabel = "DIRECT_TOOL";
+          const toolCall = {
+            id: crypto.randomUUID(),
+            name: "create_quote",
+            arguments: JSON.stringify({ brand: null }),
+          };
+          const quoteContext = { ...effectiveContext, currentRequestText: directQuoteRequest.requestText };
+          send({ type: "agent_status", status: toolStatus(toolCall.name) });
+          send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
+          const toolStartedAt = performance.now();
+          let result: OliviaToolResult;
+          try {
+            result = await executeQuoteTool(toolCall.name, { brand: null }, quoteContext);
+          } catch (error) {
+            result = {
+              tool: toolCall.name,
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+              verification: { executed: false },
+            };
+          }
+          toolExecutionMs += performance.now() - toolStartedAt;
+          toolRounds += 1;
+          const uiActions = result.success
+            ? await resolveUiActions({ toolCall, input: { brand: null }, result, context: quoteContext })
+            : [];
+          for (const action of uiActions) send({ type: "ui_action", action });
+          send({
+            type: "tool_result",
+            tool: toolCall.name,
+            toolCallId: toolCall.id,
+            success: result.success,
+            result: result.success ? result.data || {} : { message: result.error || "견적서 생성에 실패했어요." },
+          });
+          const text = result.success
+            ? String(result.data?.summary || "견적서를 만들었어요.")
+            : String(result.error || "견적서 생성에 실패했어요.");
+          await flushTextAsDeltas(text, send, messageId);
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: directQuoteRequest.retry ? "DIRECT_QUOTE_RETRY" : "DIRECT_QUOTE_CREATE",
+            toolCalls: [{ id: toolCall.id, name: toolCall.name, success: result.success, verification: result.verification }],
+            ...(result.success ? resourceMetadataFromTool(toolCall.name, result.data) : {}),
           });
           return;
         }

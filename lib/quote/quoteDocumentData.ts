@@ -31,6 +31,7 @@ export type QuoteDocumentData = {
   supplyAmount: number;
   vat: number;
   taxMode: QuoteTaxMode;
+  itemPricesHidden: boolean;
   finalAmount: number;
   depositAmount: number;
   balanceAmount: number;
@@ -112,6 +113,7 @@ export function quoteDocumentDataFromRow(row: Record<string, unknown>): QuoteDoc
     supplyAmount: totals.supplyAmount,
     vat: totals.vat,
     taxMode: totals.taxMode,
+    itemPricesHidden: state.itemPricesHidden,
     finalAmount: totals.finalAmount,
     depositAmount: totals.depositAmount,
     balanceAmount: totals.balanceAmount,

@@ -102,6 +102,7 @@ type ContractQuoteData = {
     fixedTotal?: number | null;
     roundDownUnit?: number | null;
     taxMode?: QuoteTaxMode;
+    itemPricesHidden?: boolean;
     memo: string;
     depositRate: number;
     brand?: Brand;
@@ -335,6 +336,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const setRoundDownUnit = useQuoteStore((state) => state.setRoundDownUnit);
   const taxMode = useQuoteStore((state) => state.taxMode);
   const setTaxMode = useQuoteStore((state) => state.setTaxMode);
+  const itemPricesHidden = useQuoteStore((state) => state.itemPricesHidden);
+  const setItemPricesHidden = useQuoteStore((state) => state.setItemPricesHidden);
   const memo = useQuoteStore((state) => state.memo);
   const setMemo = useQuoteStore((state) => state.setMemo);
   const depositRate = useQuoteStore((state) => state.depositRate);
@@ -757,6 +760,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setFixedTotal(null);
     setRoundDownUnit(null);
     setTaxMode("separate");
+    setItemPricesHidden(false);
     setMemo("");
     // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
     // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
@@ -869,6 +873,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         fixedTotal,
         roundDownUnit,
         taxMode,
+        itemPricesHidden,
         memo,
         depositRate,
         brand
@@ -953,6 +958,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setFixedTotal(data.formState.fixedTotal ?? null);
       setRoundDownUnit(data.formState.roundDownUnit ?? null);
       setTaxMode(data.formState.taxMode === "excluded" || data.formState.taxMode === "included" ? data.formState.taxMode : "separate");
+      setItemPricesHidden(Boolean(data.formState.itemPricesHidden));
       setMemo(data.formState.memo);
       // 선금 0%는 잔금 100%라는 실제 저장값이다. 이 호출이 빠져 있으면 새 폼의
       // 초기값 50%가 그대로 남아, DB에는 0%인데 화면·자동저장은 50/50으로 보인다.
@@ -1001,6 +1007,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setFixedTotal(null);
       setRoundDownUnit(null);
       setTaxMode("separate");
+      setItemPricesHidden(false);
       setMemo(data.memos || "");
       setDepositRate(data.depositRate ?? 50);
     }
@@ -1833,6 +1840,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     supplyAmount,
     vat,
     taxMode,
+    itemPricesHidden,
     finalAmount,
     depositAmount,
     balanceAmount,

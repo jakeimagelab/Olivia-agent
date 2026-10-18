@@ -11,11 +11,11 @@ describe("shared Olivia document approvals", () => {
     const actions = await resolveUiActions({
       toolCall: { id: "call-1", name: "create_quote", arguments: "{}" },
       input: {},
-      result: { tool: "create_quote", success: true, data: { resourceId: "quote-1", quoteId: "quote-1", temporaryDocumentId: "temp-1", hospitalName: "리나클리닉" } },
+      result: { tool: "create_quote", success: true, data: { resourceId: "quote-1", quoteId: "quote-1", temporaryDocumentId: "temp-1", hospitalName: "리나클리닉", title: "리나클리닉 브랜드촬영 견적서" } },
       context,
     });
     expect(actions).toEqual(expect.arrayContaining([
-      expect.objectContaining({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-1" }),
+      expect.objectContaining({ type: "OPEN_WORKSPACE", workspace: "quote", resourceId: "quote-1", documentTitle: "리나클리닉 브랜드촬영 견적서" }),
       expect.objectContaining({ type: "OPEN_CLIENT_TASK", task: "quote_preview", flowId: "quote-1" }),
     ]));
     expect(actions).not.toContainEqual(expect.objectContaining({ type: "REQUEST_APPROVAL" }));
