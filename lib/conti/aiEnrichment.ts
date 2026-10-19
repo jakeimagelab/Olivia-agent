@@ -41,7 +41,11 @@ const contiEnrichmentSchema = {
 } as const;
 
 export async function enrichContiScenes(scenes: DraftScene[]): Promise<DraftScene[]> {
-  if (!process.env.OPENAI_API_KEY || scenes.length === 0) return scenes;
+  return (await enrichContiScenesWithStatus(scenes)).scenes;
+}
+
+export async function enrichContiScenesWithStatus(scenes: DraftScene[]): Promise<{ scenes: DraftScene[]; warning?: string }> {
+  if (!process.env.OPENAI_API_KEY || scenes.length === 0) return { scenes, ...(!process.env.OPENAI_API_KEY && scenes.length ? { warning: "AI 보강 없이 기본 구성으로 만들었습니다." } : {}) };
   try {
     const response = await getOpenAIClient().chat.completions.create({
       model: process.env.OPENAI_CONTI_MODEL ?? "gpt-4.1-mini",
@@ -59,10 +63,10 @@ export async function enrichContiScenes(scenes: DraftScene[]): Promise<DraftScen
     const enriched = parsed.scenes;
     const expectedIds = scenes.map((scene) => scene.id).sort();
     const receivedIds = enriched?.map((scene) => scene.id).sort();
-    if (!enriched || enriched.length !== scenes.length || JSON.stringify(expectedIds) !== JSON.stringify(receivedIds)) return scenes;
+    if (!enriched || enriched.length !== scenes.length || JSON.stringify(expectedIds) !== JSON.stringify(receivedIds)) return { scenes, warning: "AI 보강 없이 기본 구성으로 만들었습니다." };
 
     const originalById = new Map(scenes.map((scene) => [scene.id, scene]));
-    return enriched.map((item, sort) => {
+    return { scenes: enriched.map((item, sort) => {
       const original = originalById.get(item.id)!;
       return {
         ...original,
@@ -81,9 +85,9 @@ export async function enrichContiScenes(scenes: DraftScene[]): Promise<DraftScen
           preparation_text: "ai", keyword: "ai", note: item.note ? "ai" : original.fieldSources.note,
         },
       };
-    });
+    }) };
   } catch (error) {
     console.error("[conti] AI enrichment failed; deterministic skeleton retained", error);
-    return scenes;
+    return { scenes, warning: "AI 보강 없이 기본 구성으로 만들었습니다." };
   }
 }

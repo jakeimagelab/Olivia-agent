@@ -25,6 +25,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       ...(body.studioState !== undefined ? { studioState: normalizeContiStudioState(body.studioState) } : {}),
       ...(body.hospitalId !== undefined ? { hospitalId: body.hospitalId || null } : {}),
       ...(body.workflowRunId !== undefined ? { workflowRunId: body.workflowRunId || null } : {}),
+      ...(Array.isArray(body.doctors) ? { doctors: body.doctors } : {}),
     });
     return NextResponse.json({ ok: true, run });
   } catch (error) {

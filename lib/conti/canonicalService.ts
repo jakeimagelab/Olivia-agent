@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { generateContiDraft, type GenerateContiInput, type HospitalSpaceRow, type HospitalStaffRow, type SceneTemplateRow } from "@/lib/conti/generate";
+import { generateContiDraft, type ContiDoctorInput, type GenerateContiInput, type HospitalSpaceRow, type HospitalStaffRow, type SceneTemplateRow } from "@/lib/conti/generate";
 import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
-import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
+import { enrichContiScenesWithStatus } from "@/lib/conti/aiEnrichment";
 import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStudioState } from "@/lib/conti/studioState";
 
 export type CanonicalContiPayload = {
@@ -10,6 +10,7 @@ export type CanonicalContiPayload = {
   groups: Array<Record<string, unknown>>;
   scenes: Array<Record<string, unknown>>;
   spaceMatchStats?: unknown;
+  warnings?: string[];
 };
 
 export type CreateCanonicalContiInput = {
@@ -17,6 +18,7 @@ export type CreateCanonicalContiInput = {
   hospitalName?: string | null;
   specialty: string;
   doctorCount?: number;
+  doctors?: ContiDoctorInput[];
   staffFlags?: { siljang?: boolean; jikwon?: boolean; other?: boolean };
   otherStaffRole?: string;
   harmony?: boolean;
@@ -66,6 +68,7 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
   let hospitalSpaces: HospitalSpaceRow[] = [];
   let hospitalStaff: HospitalStaffRow[] = [];
   let hospitalName = source.hospitalName?.trim() ?? "";
+  const warnings: string[] = [];
   if (source.hospitalId) {
     const [spacesResult, staffResult, hospitalResult] = await Promise.all([
       db.from("hospital_spaces").select("id, name, space_type, floor").eq("hospital_id", source.hospitalId),
@@ -74,11 +77,14 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
     ]);
     hospitalSpaces = spacesResult.error ? [] : spacesResult.data ?? [];
     hospitalStaff = staffResult.error ? [] : staffResult.data ?? [];
+    if (spacesResult.error) warnings.push("병원 공간 정보를 읽지 못해 장소 자동 매칭 없이 만들었습니다.");
+    if (staffResult.error) warnings.push("병원 직원 정보를 읽지 못해 역할 이름으로 만들었습니다.");
     if (!hospitalName && !hospitalResult.error) hospitalName = hospitalResult.data?.hospital_name?.trim() ?? "";
   }
   const input: GenerateContiInput = {
     specialty: source.specialty,
-    doctorCount: source.doctorCount && source.doctorCount > 0 ? source.doctorCount : 1,
+    doctorCount: Array.isArray(source.doctors) && source.doctors.length ? source.doctors.length : source.doctorCount && source.doctorCount > 0 ? source.doctorCount : 1,
+    doctors: Array.isArray(source.doctors) ? source.doctors : [],
     staffFlags: { siljang: Boolean(source.staffFlags?.siljang), jikwon: Boolean(source.staffFlags?.jikwon), other: Boolean(source.staffFlags?.other) },
     otherStaffRole: source.otherStaffRole || "",
     harmony: Boolean(source.harmony),
@@ -86,11 +92,16 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
     extraItems: Array.isArray(source.extraItems) ? source.extraItems.filter((item): item is string => typeof item === "string") : [],
   };
   const skeleton = generateContiDraft(input, { templates, hospitalSpaces, hospitalStaff });
-  const generated = { ...skeleton, scenes: await enrichContiScenes(skeleton.scenes) };
+  const enrichment = await enrichContiScenesWithStatus(skeleton.scenes);
+  if (enrichment.warning) warnings.push(enrichment.warning);
+  const generated = { ...skeleton, scenes: enrichment.scenes };
   const baseRunFields = { hospital_id: source.hospitalId ?? null, specialty: source.specialty, doctor_count: input.doctorCount, staff_flags: input.staffFlags, harmony: input.harmony, checked: input.checked };
-  const fullRunFields = { ...baseRunFields, legacy_save_id: source.resourceId ?? null, workflow_run_id: source.workflowRunId ?? null, other_staff_role: input.otherStaffRole, custom_items: input.extraItems };
+  const fullRunFields = { ...baseRunFields, doctors: input.doctors ?? [], legacy_save_id: source.resourceId ?? null, workflow_run_id: source.workflowRunId ?? null, other_staff_role: input.otherStaffRole, custom_items: input.extraItems };
   let runResult = await db.from("conti_runs").insert(fullRunFields).select("*").single();
-  if (runResult.error && isMissingV2Column(runResult.error)) runResult = await db.from("conti_runs").insert(baseRunFields).select("*").single();
+  if (runResult.error && isMissingV2Column(runResult.error)) {
+    runResult = await db.from("conti_runs").insert(baseRunFields).select("*").single();
+    warnings.push("DB 마이그레이션이 필요합니다. 의료진 명단은 이전 형식으로 저장되었습니다.");
+  }
   if (runResult.error || !runResult.data) throw new Error("콘티 저장 공간을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.");
   const run = runResult.data;
   const groupsResult = await db.from("conti_groups").insert(generated.groups.map((group) => ({ run_id: run.id, name: group.name, sort: group.sort }))).select("id, name, sort");
@@ -100,25 +111,30 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
   }
   const groupIdByName = new Map((groupsResult.data ?? []).map((group) => [group.name, group.id]));
   const sceneRows = generated.scenes.map((scene) => ({
-    run_id: run.id, group_id: groupIdByName.get(scene.group) ?? null, sort: scene.sort, name: scene.name,
+    run_id: run.id, group_id: groupIdByName.get(scene.group) ?? null, sort: scene.sort, scene_code: scene.sceneCode, name: scene.name,
     space_text: scene.spaceText, minutes: scene.minutes, keyword: scene.keyword, description: scene.description,
     procedures: scene.procedures, people_text: scene.peopleText, patient_role_text: scene.patientRoleText,
     preparation_text: scene.preparationText, note: scene.note,
     template_id: scene.templateId?.startsWith("code:") ? null : scene.templateId, field_sources: scene.fieldSources,
+    repeat_scope: scene.repeatScope, media: scene.media,
   }));
   let scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");
   if (scenesResult.error && isMissingV2Column(scenesResult.error)) {
     scenesResult = await db.from("conti_scenes").insert(sceneRows.map((scene) => {
       const legacyScene = { ...scene } as Record<string, unknown>;
       delete legacyScene.preparation_text;
+      delete legacyScene.scene_code;
+      delete legacyScene.repeat_scope;
+      delete legacyScene.media;
       return legacyScene;
     })).select("*");
+    warnings.push("DB 마이그레이션이 필요합니다. 준비사항과 새 타임테이블 필드는 이전 형식으로 저장되었습니다.");
   }
   if (scenesResult.error) {
     await db.from("conti_runs").delete().eq("id", run.id);
     throw new Error("콘티 장면을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
   }
-  return { ok: true, run: { ...run, hospital_name: hospitalName }, groups: groupsResult.data ?? [], scenes: scenesResult.data ?? [], spaceMatchStats: generated.spaceMatchStats };
+  return { ok: true, run: { ...run, hospital_name: hospitalName }, groups: groupsResult.data ?? [], scenes: scenesResult.data ?? [], spaceMatchStats: generated.spaceMatchStats, warnings };
 }
 
 const BLANK_FIELD_SOURCES = { name: "blank", space_text: "blank", minutes: "blank", keyword: "blank", description: "blank", people_text: "blank", patient_role_text: "blank", note: "blank", preparation_text: "blank" };
@@ -128,7 +144,8 @@ export async function addCanonicalContiScene(runId: string, groupId?: string | n
   const db = getSupabaseAdmin();
   const existing = await db.from("conti_scenes").select("sort").eq("run_id", runId).order("sort", { ascending: false }).limit(1);
   if (existing.error) throw new Error(existing.error.message);
-  const result = await db.from("conti_scenes").insert({ run_id: runId, group_id: groupId ?? null, sort: (existing.data?.[0]?.sort ?? -1) + 1, name: "", space_text: "", minutes: null, keyword: "", description: "", procedures: [], people_text: "", patient_role_text: "", preparation_text: "", note: "", template_id: null, field_sources: BLANK_FIELD_SOURCES }).select("*").single();
+  const sort = (existing.data?.[0]?.sort ?? -1) + 1;
+  const result = await db.from("conti_scenes").insert({ run_id: runId, group_id: groupId ?? null, sort, scene_code: `S${sort + 1}`, name: "", space_text: "", minutes: null, keyword: "", description: "", procedures: [], people_text: "", patient_role_text: "", preparation_text: "", note: "", template_id: null, repeat_scope: "once", media: "photo", field_sources: BLANK_FIELD_SOURCES }).select("*").single();
   if (result.error || !result.data) throw new Error(result.error?.message ?? "장면 추가 실패");
   return result.data as Record<string, unknown>;
 }
@@ -166,7 +183,7 @@ export async function deleteCanonicalContiScene(sceneId: string) {
 
 export async function updateCanonicalContiRun(
   runId: string,
-  patch: { studioState?: ContiStudioState; hospitalId?: string | null; workflowRunId?: string | null },
+  patch: { studioState?: ContiStudioState; hospitalId?: string | null; workflowRunId?: string | null; doctors?: ContiDoctorInput[] },
 ) {
   const db = getSupabaseAdmin();
   const update: Record<string, unknown> = {};
@@ -175,6 +192,7 @@ export async function updateCanonicalContiRun(
     update.hospital_id = patch.hospitalId;
   }
   if (patch.workflowRunId !== undefined) update.workflow_run_id = patch.workflowRunId;
+  if (patch.doctors !== undefined) { update.doctors = patch.doctors; update.doctor_count = patch.doctors.length; }
   if (!Object.keys(update).length) throw new Error("수정할 콘티 정보가 없습니다.");
   const result = await db.from("conti_runs").update(update).eq("id", runId).select("*").single();
   if (result.error || !result.data) {
@@ -196,6 +214,7 @@ export async function duplicateCanonicalContiScene(sceneId: string) {
     run_id: source.run_id,
     group_id: source.group_id ?? null,
     sort: Number(lastResult.data?.[0]?.sort ?? -1) + 1,
+    scene_code: `S${Number(lastResult.data?.[0]?.sort ?? -1) + 2}`,
     name: source.name ?? "",
     space_text: source.space_text ?? "",
     minutes: source.minutes ?? null,
@@ -209,6 +228,8 @@ export async function duplicateCanonicalContiScene(sceneId: string) {
     template_id: source.template_id ?? null,
     field_sources: source.field_sources ?? {},
     completed: false,
+    repeat_scope: source.repeat_scope ?? "once",
+    media: source.media ?? "photo",
   };
   const result = await db.from("conti_scenes").insert(insert).select("*").single();
   if (result.error || !result.data) throw new Error(result.error?.message ?? "장면 복제에 실패했습니다.");
@@ -248,6 +269,7 @@ export async function cloneCanonicalConti(runId: string): Promise<CanonicalConti
     hospital_id: sourceRun.hospital_id ?? null,
     specialty: sourceRun.specialty ?? "",
     doctor_count: sourceRun.doctor_count ?? 1,
+    doctors: sourceRun.doctors ?? [],
     staff_flags: sourceRun.staff_flags ?? {},
     harmony: Boolean(sourceRun.harmony),
     checked: sourceRun.checked ?? {},
@@ -282,6 +304,7 @@ export async function cloneCanonicalConti(runId: string): Promise<CanonicalConti
       run_id: newRun.id,
       group_id: scene.group_id ? newGroupIdBySourceId.get(String(scene.group_id)) ?? null : null,
       sort: scene.sort ?? 0,
+      scene_code: scene.scene_code ?? `S${Number(scene.sort ?? 0) + 1}`,
       name: scene.name ?? "",
       space_text: scene.space_text ?? "",
       minutes: scene.minutes ?? null,
@@ -295,6 +318,8 @@ export async function cloneCanonicalConti(runId: string): Promise<CanonicalConti
       template_id: scene.template_id ?? null,
       field_sources: scene.field_sources ?? {},
       completed: false,
+      repeat_scope: scene.repeat_scope ?? "once",
+      media: scene.media ?? "photo",
     }));
     const scenesResult = sceneRows.length ? await db.from("conti_scenes").insert(sceneRows).select("*") : { data: [], error: null };
     if (scenesResult.error) throw new Error(scenesResult.error.message);
@@ -337,6 +362,7 @@ export async function importCanonicalConti(source: ImportCanonicalContiInput): P
     hospital_id: source.hospitalId ?? null,
     specialty: "imported",
     doctor_count: 1,
+    doctors: [],
     staff_flags: {},
     harmony: false,
     checked: {},
@@ -357,6 +383,7 @@ export async function importCanonicalConti(source: ImportCanonicalContiInput): P
       run_id: run.id,
       group_id: groupResult.data.id,
       sort,
+      scene_code: `S${sort + 1}`,
       name: String(row.category ?? row.name ?? `Scene ${sort + 1}`),
       space_text: String(row.location ?? row.space_text ?? ""),
       minutes: durationMinutes(row.duration ?? row.minutes),
@@ -369,6 +396,8 @@ export async function importCanonicalConti(source: ImportCanonicalContiInput): P
       note: String(row.notes ?? row.note ?? ""),
       template_id: null,
       completed: false,
+      repeat_scope: "once",
+      media: "photo",
       field_sources: { name: "user", space_text: "user", minutes: "user", keyword: "user", description: "user", people_text: "user", patient_role_text: "blank", preparation_text: "blank", note: "user" },
     }));
     const scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");

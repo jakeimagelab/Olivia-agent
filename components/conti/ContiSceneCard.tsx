@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Images, MapPin, UserRound, Users } from "lucide-react";
 
 export type ContiSceneCardColor = { bg: string; text: string };
 
@@ -11,6 +12,8 @@ export type ContiSceneCardProps = {
   location?: string;
   cameraAngle?: string;
   personnel?: string;
+  patientRole?: string;
+  media?: string;
   imageUrl?: string;
   preparationItems?: string[];
   color: ContiSceneCardColor;
@@ -25,7 +28,7 @@ export type ContiSceneCardProps = {
 // 카드. 드래그/완료토글 같은 동작은 이 컴포넌트가 모르고, 호출부가 바깥 wrapper에서 처리한다.
 export default function ContiSceneCard({
   index, category, duration, keyword, description,
-  location, cameraAngle, personnel, imageUrl, preparationItems, color, completed, headerLeft, headerRight,
+  location, personnel, patientRole, media, imageUrl, preparationItems, color, completed, headerLeft, headerRight,
 }: ContiSceneCardProps) {
   const bodyColor = completed ? "#166534" : color.text;
   const headerBg = completed ? "#DCFCE7" : color.bg;
@@ -57,13 +60,13 @@ export default function ContiSceneCard({
             display: "flex", alignItems: "center", justifyContent: "center",
             width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
             background: "rgba(0,0,0,0.14)", color: bodyColor,
-            fontSize: 11.5, fontWeight: 900,
+            fontSize: 11.5, fontWeight: 600,
           }}>{index}</span>
-          <span style={{ color: bodyColor, fontWeight: 900, fontSize: 14.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{category}</span>
+          <span style={{ color: bodyColor, fontWeight: 600, fontSize: 14.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{category}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {duration ? (
-            <span style={{ background: "rgba(0,0,0,0.09)", color: bodyColor, fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>⏱ {duration}</span>
+            <span style={{ background: "rgba(0,0,0,0.09)", color: bodyColor, fontSize: 11.5, fontWeight: 500, padding: "3px 10px", borderRadius: 99, whiteSpace: "nowrap" }}>{duration}</span>
           ) : null}
           {headerRight}
         </div>
@@ -72,7 +75,7 @@ export default function ContiSceneCard({
       <div style={{ padding: "16px", display: "grid", gap: 12 }}>
         {keyword ? (
           <div style={{
-            color: completed ? "#6B7280" : "#E85D2C", fontWeight: 900, fontSize: 15,
+            color: completed ? "#6B7280" : "#C94A1E", fontWeight: 600, fontSize: 15,
             textDecoration: completed ? "line-through" : "none",
           }}>{keyword}</div>
         ) : null}
@@ -82,13 +85,14 @@ export default function ContiSceneCard({
           </p>
         ) : null}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          <ContiSceneMiniField icon="📍" label="장소" value={location} />
-          <ContiSceneMiniField icon="📷" label="구도" value={cameraAngle} />
-          <ContiSceneMiniField icon="👥" label="필요인원" value={personnel} span2 />
+          <ContiSceneMiniField icon={<MapPin size={13} />} label="장소" value={location} />
+          <ContiSceneMiniField icon={<Images size={13} />} label="사진/영상" value={media} />
+          <ContiSceneMiniField icon={<Users size={13} />} label="인물" value={personnel} />
+          <ContiSceneMiniField icon={<UserRound size={13} />} label="환자 역할" value={patientRole} />
         </div>
         {preparationItems?.length ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {preparationItems.map((item) => <span key={item} style={{ borderRadius: 99, padding: "4px 8px", background: "#F4EFE7", color: "#6B6355", fontSize: 10.5, fontWeight: 750 }}>준비 · {item}</span>)}
+            {preparationItems.map((item) => <span key={item} style={{ borderRadius: 99, padding: "4px 8px", background: "#F4EFE7", color: "#6B6355", fontSize: 11.5, fontWeight: 500 }}>준비 · {item}</span>)}
           </div>
         ) : null}
       </div>
@@ -96,13 +100,13 @@ export default function ContiSceneCard({
   );
 }
 
-function ContiSceneMiniField({ icon, label, value, span2 }: { icon: string; label: string; value?: string; span2?: boolean }) {
+function ContiSceneMiniField({ icon, label, value, span2 }: { icon: ReactNode; label: string; value?: string; span2?: boolean }) {
   return (
     <div style={{ background: "#EDF5F3", borderRadius: 10, padding: "9px 12px", gridColumn: span2 ? "1/-1" : undefined }}>
-      <div style={{ color: "#7A9E9B", fontSize: 11, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+      <div style={{ color: "#5A7470", fontSize: 11.5, fontWeight: 500, marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
         <span aria-hidden="true">{icon}</span>{label}
       </div>
-      <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 700, lineHeight: 1.5 }}>{value || "—"}</div>
+      <div style={{ color: "#1C2B28", fontSize: 13, fontWeight: 600, lineHeight: 1.5 }}>{value || "—"}</div>
     </div>
   );
 }

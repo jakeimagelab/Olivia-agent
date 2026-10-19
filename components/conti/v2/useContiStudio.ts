@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deriveContiChecklist } from "@/lib/conti/deriveChecklist";
 import { deriveContiSchedule } from "@/lib/conti/deriveSchedule";
 import { normalizeContiStudioState, type ContiFieldCardSize, type ContiStudioState } from "@/lib/conti/studioState";
-import type { ContiEditableSceneField, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
+import type { ContiDoctor, ContiEditableSceneField, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
 
 type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; completed?: boolean };
 type HistorySnapshot = Pick<ContiStudioDocument, "scenes" | "studioState">;
@@ -17,8 +17,10 @@ async function readDocument(runId: string): Promise<ContiStudioDocument> {
   const response = await fetch(`/api/conti/runs/${runId}`, { cache: "no-store" });
   const body = await response.json();
   if (!response.ok || !body.ok) throw new Error(body.error ?? "콘티를 불러오지 못했습니다.");
+  const storedDoctors = Array.isArray(body.run?.doctors) ? body.run.doctors : [];
+  const legacyDoctorCount = Math.max(1, Number(body.run?.doctor_count) || 1);
   return {
-    run: body.run,
+    run: { ...body.run, doctors: storedDoctors.length ? storedDoctors : Array.from({ length: legacyDoctorCount }, (_, index) => ({ id: `legacy-doctor-${index + 1}`, name: `의료진 ${index + 1}`, surgeries: [], note: "", day: null })) },
     groups: body.groups ?? [],
     scenes: (body.scenes ?? []).map((scene: Record<string, unknown>) => ({ ...scene, completed: Boolean(scene.completed), preparation_text: scene.preparation_text ?? "" })),
     studioState: normalizeContiStudioState(body.run?.studio_state),
@@ -38,6 +40,7 @@ export function useContiStudio(runId: string | null) {
   const scenePatchesRef = useRef(new Map<string, ScenePatch>());
   const orderDirtyRef = useRef(false);
   const studioDirtyRef = useRef(false);
+  const runDirtyRef = useRef(false);
   const mutationVersionRef = useRef(0);
   const flushRef = useRef<() => Promise<boolean>>(async () => false);
   const undoRef = useRef<HistorySnapshot[]>([]);
@@ -109,8 +112,9 @@ export function useContiStudio(runId: string | null) {
     const capturedPatches = new Map(scenePatchesRef.current);
     const capturedOrder = orderDirtyRef.current;
     const capturedStudio = studioDirtyRef.current;
-    scenePatchesRef.current.clear(); orderDirtyRef.current = false; studioDirtyRef.current = false;
-    if (!capturedPatches.size && !capturedOrder && !capturedStudio) {
+    const capturedRun = runDirtyRef.current;
+    scenePatchesRef.current.clear(); orderDirtyRef.current = false; studioDirtyRef.current = false; runDirtyRef.current = false;
+    if (!capturedPatches.size && !capturedOrder && !capturedStudio && !capturedRun) {
       setSaveStatus("saved");
       return true;
     }
@@ -123,8 +127,15 @@ export function useContiStudio(runId: string | null) {
       if (capturedOrder) {
         tasks.push(fetch(`/api/conti/runs/${runId}/reorder`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderedSceneIds: current.scenes.map((scene) => scene.id) }) }));
       }
-      if (capturedStudio) {
-        tasks.push(fetch(`/api/conti/runs/${runId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ studioState: current.studioState }) }));
+      if (capturedStudio || capturedRun) {
+        tasks.push(fetch(`/api/conti/runs/${runId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...(capturedStudio ? { studioState: current.studioState } : {}),
+            ...(capturedRun ? { doctors: current.run.doctors ?? [] } : {}),
+          }),
+        }));
       }
       const responses = await Promise.all(tasks);
       for (const response of responses) {
@@ -144,6 +155,7 @@ export function useContiStudio(runId: string | null) {
       for (const [sceneId, patch] of capturedPatches) queueScenePatch(sceneId, patch);
       orderDirtyRef.current ||= capturedOrder;
       studioDirtyRef.current ||= capturedStudio;
+      runDirtyRef.current ||= capturedRun;
       setSaveStatus("failed");
       setError(caught instanceof Error ? caught.message : "콘티 저장에 실패했습니다.");
       return false;
@@ -204,12 +216,51 @@ export function useContiStudio(runId: string | null) {
     checklistCompleted: { ...state.checklistCompleted, [itemId]: !state.checklistCompleted[itemId] },
   })), [updateStudioState]);
 
-  const setScheduleStartTime = useCallback((value: string) => updateStudioState((state) => ({ ...state, scheduleStartTime: value || undefined })), [updateStudioState]);
+  const setChecklistAssignee = useCallback((itemId: string, value: string) => updateStudioState((state) => ({
+    ...state,
+    checklistAssignees: { ...state.checklistAssignees, [itemId]: value },
+  })), [updateStudioState]);
+
+  const setScheduleStartTime = useCallback((value: string) => updateStudioState((state) => ({
+    ...state,
+    scheduleStartTime: value || undefined,
+    scheduleSegments: state.scheduleSegments.map((segment, index) => index === 0 ? { ...segment, startTime: value || undefined } : segment),
+  })), [updateStudioState]);
   const setFieldCardSize = useCallback((value: ContiFieldCardSize) => updateStudioState((state) => ({ ...state, fieldCardSize: value })), [updateStudioState]);
   const setSceneCameraAngle = useCallback((sceneId: string, cameraAngle: string) => updateStudioState((state) => ({
     ...state,
     sceneMeta: { ...state.sceneMeta, [sceneId]: { ...state.sceneMeta[sceneId], cameraAngle } },
   })), [updateStudioState]);
+
+  const updateDoctors = useCallback((doctors: ContiDoctor[]) => {
+    setDocument((current) => {
+      if (!current) return current;
+      const next = { ...current, run: { ...current.run, doctors, doctor_count: doctors.length } };
+      documentRef.current = next;
+      return next;
+    });
+    runDirtyRef.current = true;
+    scheduleSave();
+  }, [scheduleSave]);
+
+  const toggleTimelineItem = useCallback((rowId: string) => updateStudioState((state) => ({
+    ...state,
+    timelineCompleted: { ...state.timelineCompleted, [rowId]: !state.timelineCompleted[rowId] },
+  })), [updateStudioState]);
+
+  const reorderTimeline = useCallback((activeId: string, overId: string) => {
+    const rows = deriveContiSchedule(documentRef.current?.scenes ?? [], {
+      doctors: documentRef.current?.run.doctors ?? [],
+      studioState: documentRef.current?.studioState,
+    });
+    const active = rows.find((row) => row.rowId === activeId);
+    const over = rows.find((row) => row.rowId === overId);
+    if (!active || !over || active.locked || over.locked || activeId === overId) return;
+    const order = rows.map((row) => row.rowId);
+    const from = order.indexOf(activeId); const to = order.indexOf(overId);
+    const [moved] = order.splice(from, 1); order.splice(to, 0, moved);
+    updateStudioState((state) => ({ ...state, timelineOrder: order }));
+  }, [updateStudioState]);
 
   const addChecklistItem = useCallback((label: string) => {
     const clean = label.trim();
@@ -296,14 +347,15 @@ export function useContiStudio(runId: string | null) {
   }, [runId]);
 
   const checklist = useMemo(() => document ? deriveContiChecklist(document.scenes, document.studioState) : [], [document]);
-  const schedule = useMemo(() => document ? deriveContiSchedule(document.scenes, document.studioState.scheduleStartTime) : [], [document]);
+  const schedule = useMemo(() => document ? deriveContiSchedule(document.scenes, { doctors: document.run.doctors ?? [], studioState: document.studioState }) : [], [document]);
 
   return {
     document, loading, error, saveStatus, lastSavedAt, checklist, schedule,
     canUndo: historyRevision >= 0 && undoRef.current.length > 0,
     canRedo: historyRevision >= 0 && redoRef.current.length > 0,
     reload: load, flushSave, updateSceneFields, toggleSceneComplete, reorderScenes,
-    toggleChecklistItem, addChecklistItem, setScheduleStartTime, setFieldCardSize, setSceneCameraAngle,
+    toggleChecklistItem, setChecklistAssignee, addChecklistItem, setScheduleStartTime, setFieldCardSize, setSceneCameraAngle,
+    updateDoctors, toggleTimelineItem, reorderTimeline, updateStudioState,
     addScene, duplicateScene, deleteScene, undo, redo, linkCanonicalConti,
   };
 }

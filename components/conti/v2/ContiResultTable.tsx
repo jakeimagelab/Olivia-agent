@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { Fragment, useMemo, useRef } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, Copy, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Plus, Trash2 } from "lucide-react";
 import type { ContiEditableSceneField, ContiGroupRow, ContiSceneRow } from "@/components/conti/v2/types";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
+import { CONTI_GROUP_COLORS } from "@/lib/conti/departmentTaxonomy";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
 export default function ContiResultTable({ controller }: { controller: ContiStudioController }) {
@@ -47,37 +48,36 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <table ref={tableRef} className={styles.resultTable}>
             <thead><tr>
-              <th className={styles.dragColumn} aria-label="순서" />
-              <th className={styles.numberColumn}>#</th>
+              <th className={styles.numberColumn}>No</th>
               <th>구분</th>
-              <th>Scene</th>
-              <th className={styles.detailColumn}>세부내용 / 촬영포인트</th>
-              <th>인원</th>
+              <th>장면</th>
+              <th>촬영시간</th>
+              <th>분</th>
+              <th>사진/영상</th>
+              <th>키워드</th>
+              <th className={styles.detailColumn}>설명</th>
               <th>장소</th>
-              <th>구도</th>
-              <th>준비사항</th>
-              <th>예상시간</th>
-              <th>비고</th>
-              <th>상태</th>
-              <th aria-label="행 메뉴" />
+              <th>인물</th>
+              <th>환자 역할</th>
+              <th>준비사항 (병원요청)</th>
             </tr></thead>
             <SortableContext items={scenes.map((scene) => scene.id)} strategy={verticalListSortingStrategy}>
-              <tbody>{scenes.map((scene, index) => (
+              <tbody>{scenes.map((scene, index) => <Fragment key={scene.id}>
+                {scene.repeat_scope === "per_doctor" && !scenes.slice(0, index).some((item) => item.repeat_scope === "per_doctor") ? <tr className={styles.repeatBand}><td colSpan={12}>의료진 개인 촬영 · × {document.run.doctors?.length || document.run.doctor_count || 1}명 · 타임테이블에서 전개</td></tr> : null}
                 <SortableSceneRow
                   key={scene.id}
                   scene={scene}
                   groups={groups}
                   groupName={scene.group_id ? groupNameById.get(scene.group_id) ?? "미지정" : "미지정"}
                   rowIndex={index}
-                  cameraAngle={document.studioState.sceneMeta[scene.id]?.cameraAngle ?? ""}
+                  scheduleTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.startTime}
+                  scheduleEndTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.endTime}
                   onMoveFocus={moveFocus}
                   onUpdate={controller.updateSceneFields}
-                  onCameraAngle={controller.setSceneCameraAngle}
-                  onComplete={controller.toggleSceneComplete}
                   onDuplicate={controller.duplicateScene}
                   onDelete={async (sceneId) => { if (window.confirm("이 장면을 삭제할까요?")) await controller.deleteScene(sceneId); }}
                 />
-              ))}</tbody>
+              </Fragment>)}</tbody>
             </SortableContext>
           </table>
         </DndContext>
@@ -90,38 +90,36 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
   );
 }
 
-function SortableSceneRow({ scene, groups, groupName, rowIndex, cameraAngle, onMoveFocus, onUpdate, onCameraAngle, onComplete, onDuplicate, onDelete }: {
+function SortableSceneRow({ scene, groups, groupName, rowIndex, scheduleTime, scheduleEndTime, onMoveFocus, onUpdate, onDuplicate, onDelete }: {
   scene: ContiSceneRow;
   groups: ContiGroupRow[];
   groupName: string;
   rowIndex: number;
-  cameraAngle: string;
+  scheduleTime?: string;
+  scheduleEndTime?: string;
   onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") => void;
   onUpdate: (sceneId: string, fields: Partial<Record<ContiEditableSceneField, string | number | null>>) => void;
-  onCameraAngle: (sceneId: string, value: string) => void;
-  onComplete: (sceneId: string) => void;
   onDuplicate: (sceneId: string) => Promise<boolean>;
   onDelete: (sceneId: string) => Promise<void>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
-  const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.58 : scene.completed ? 0.68 : 1, position: "relative", zIndex: isDragging ? 3 : undefined };
+  const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.58 : 1, position: "relative", zIndex: isDragging ? 3 : undefined };
   const groupIndex = Math.max(0, groups.findIndex((group) => group.id === scene.group_id));
 
   return (
-    <tr ref={setNodeRef} style={style} className={scene.completed ? styles.completedRow : undefined}>
-      <td className={styles.dragColumn}><button type="button" className={styles.dragHandle} aria-label={`${scene.name || "장면"} 순서 이동`} {...attributes} {...listeners}><GripVertical size={15} /></button></td>
-      <td className={styles.numberColumn}>{String(rowIndex + 1).padStart(2, "0")}</td>
-      <td><span className={styles.groupPill} style={{ "--group-color": GROUP_COLORS[groupIndex % GROUP_COLORS.length] } as React.CSSProperties}>{groupName}</span></td>
+    <tr ref={setNodeRef} style={style}>
+      <td className={styles.numberColumn}><div className={styles.sceneCodeCell}><button type="button" className={styles.dragHandle} aria-label={`${scene.name || "장면"} 순서 이동`} {...attributes} {...listeners}><GripVertical size={15} /></button><span>{scene.scene_code || `S${rowIndex + 1}`}</span><div className={styles.rowActions}><button type="button" title="복제" aria-label={`${scene.name} 복제`} onClick={() => void onDuplicate(scene.id)}><Copy size={12} /></button><button type="button" title="삭제" aria-label={`${scene.name} 삭제`} onClick={() => void onDelete(scene.id)}><Trash2 size={12} /></button></div></div></td>
+      <td><span className={styles.groupPill} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties}>{groupName}</span></td>
       <EditableCell scene={scene} field="name" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="description" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="people_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="space_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <td><CellInput key={cameraAngle} value={cameraAngle} field="cameraAngle" rowIndex={rowIndex} placeholder="정면 / 디테일" onMoveFocus={onMoveFocus} onCommit={(value) => { if (value !== cameraAngle) onCameraAngle(scene.id, value); }} /></td>
-      <EditableCell scene={scene} field="preparation_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <td className={styles.timeCell}>{scene.repeat_scope === "per_doctor" ? "타임테이블" : scheduleTime && scheduleEndTime ? `${scheduleTime}–${scheduleEndTime}` : "미정"}</td>
       <EditableCell scene={scene} field="minutes" rowIndex={rowIndex} numeric onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="note" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <td><button type="button" className={`${styles.statusToggle} ${scene.completed ? styles.statusToggleDone : ""}`} onClick={() => onComplete(scene.id)}><span><Check size={11} /></span>{scene.completed ? "완료" : "대기"}</button></td>
-      <td><div className={styles.rowActions}><button type="button" title="복제" aria-label={`${scene.name} 복제`} onClick={() => void onDuplicate(scene.id)}><Copy size={13} /></button><button type="button" title="삭제" aria-label={`${scene.name} 삭제`} onClick={() => void onDelete(scene.id)}><Trash2 size={13} /></button></div></td>
+      <td className={styles.mediaCell}>{mediaLabel(scene.media)}</td>
+      <EditableCell scene={scene} field="keyword" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="description" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="space_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="people_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="patient_role_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="preparation_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
     </tr>
   );
 }
@@ -156,7 +154,10 @@ function CellInput({ value, field, rowIndex, textarea, numeric, placeholder, onM
   return textarea ? <textarea {...shared} rows={2} /> : <input {...shared} type={numeric ? "number" : "text"} />;
 }
 
-const GROUP_COLORS = ["#155855", "#E85D2C", "#3B6FB4", "#8A5EC2", "#B4823B", "#4C9E6E", "#B1477D", "#5C7CBE"];
+function mediaLabel(value: ContiSceneRow["media"]): string {
+  if (value === "none") return "—";
+  return value === "photo_video" ? "사진 + 영상" : "사진";
+}
 const PLACEHOLDERS: Record<ContiEditableSceneField, string> = {
   name: "장면 이름", space_text: "장소 미정", minutes: "분", keyword: "키워드", description: "촬영 포인트", people_text: "필요 인원", patient_role_text: "환자 역할", preparation_text: "준비사항", note: "비고",
 };

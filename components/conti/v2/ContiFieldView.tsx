@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, Check, GripVertical, Share2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Check, GripVertical, LockKeyhole, Share2, SlidersHorizontal } from "lucide-react";
 import ContiSceneCard from "@/components/conti/ContiSceneCard";
-import type { ContiSceneRow } from "@/components/conti/v2/types";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
+import type { DerivedContiScheduleRow } from "@/lib/conti/deriveSchedule";
 import { parsePreparationText } from "@/lib/conti/deriveChecklist";
 import { resolveSceneVisual } from "@/lib/conti/sceneVisualLibrary";
 import type { ContiFieldCardSize } from "@/lib/conti/studioState";
+import { CONTI_GROUP_COLORS, getDepartmentContiTitle, getSurgeryTypeLabel } from "@/lib/conti/departmentTaxonomy";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
 type FieldTab = "cards" | "checklist" | "schedule";
@@ -25,17 +26,17 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
     useSensor(TouchSensor, { activationConstraint: { delay: 140, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const groupById = useMemo(() => new Map((document?.groups ?? []).map((group, index) => [group.id, { name: group.name, color: GROUP_COLORS[index % GROUP_COLORS.length] }])), [document?.groups]);
+  const groupById = useMemo(() => new Map((document?.groups ?? []).map((group, index) => [group.id, { name: group.name, color: CONTI_GROUP_COLORS[index % CONTI_GROUP_COLORS.length] }])), [document?.groups]);
   if (!document) return null;
   const activeDocument = document;
-  const completed = activeDocument.scenes.filter((scene) => scene.completed).length;
-  const total = activeDocument.scenes.length;
+  const completed = controller.schedule.filter((row) => row.steps?.length ? row.steps.every((step) => activeDocument.studioState.timelineCompleted[`${row.rowId}:${step.id}`]) : activeDocument.studioState.timelineCompleted[row.rowId]).length;
+  const total = controller.schedule.length;
   const progress = total ? completed / total : 0;
   const cardSize = activeDocument.studioState.fieldCardSize;
-  const fieldTitle = activeDocument.run.hospital_name?.trim() || `${specialtyLabel(activeDocument.run.specialty)} 촬영 콘티`;
+  const fieldTitle = activeDocument.run.hospital_name?.trim() || getDepartmentContiTitle(activeDocument.run.specialty || "촬영");
 
   function handleDragEnd(event: DragEndEvent) {
-    if (event.over && event.active.id !== event.over.id) controller.reorderScenes(String(event.active.id), String(event.over.id));
+    if (event.over && event.active.id !== event.over.id) controller.reorderTimeline(String(event.active.id), String(event.over.id));
   }
 
   async function share() {
@@ -67,12 +68,23 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
 
       {tab === "cards" ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={document.scenes.map((scene) => scene.id)} strategy={rectSortingStrategy}>
+          <SortableContext items={controller.schedule.map((row) => row.rowId)} strategy={rectSortingStrategy}>
             <div className={`${styles.fieldCardGrid} ${styles[`fieldCardGrid_${cardSize}`]}`}>
-              {document.scenes.map((scene, index) => {
-                const group = scene.group_id ? groupById.get(scene.group_id) : undefined;
-                const visual = document.studioState.sceneMeta[scene.id]?.visual ?? resolveSceneVisual({ specialty: document.run.specialty, name: scene.name, keyword: scene.keyword, procedures: scene.procedures });
-                return <SortableFieldCard key={scene.id} scene={scene} index={index + 1} groupName={group?.name || "미지정"} groupColor={group?.color || "#155855"} imageUrl={visual.imageUrl} cameraAngle={document.studioState.sceneMeta[scene.id]?.cameraAngle} onComplete={controller.toggleSceneComplete} />;
+              {controller.schedule.map((row) => {
+                const scene = document.scenes.find((item) => item.id === row.sceneId);
+                const group = scene?.group_id ? groupById.get(scene.group_id) : undefined;
+                const visual = scene ? document.studioState.sceneMeta[scene.id]?.visual ?? resolveSceneVisual({ specialty: document.run.specialty, name: scene.name, keyword: scene.keyword, procedures: scene.procedures }) : undefined;
+                return <SortableFieldCard key={row.rowId} row={row} specialty={document.run.specialty || ""} groupName={group?.name || (row.type === "break" ? "고정 일정" : "미지정")} groupColor={group?.color || "#155855"} imageUrl={visual?.imageUrl} completed={row.steps?.length ? row.steps.every((step) => document.studioState.timelineCompleted[`${row.rowId}:${step.id}`]) : Boolean(document.studioState.timelineCompleted[row.rowId])} completedMap={document.studioState.timelineCompleted} onComplete={(key) => {
+                  if (key === row.rowId && row.steps?.length) {
+                    const allDone = row.steps.every((step) => document.studioState.timelineCompleted[`${row.rowId}:${step.id}`]);
+                    for (const step of row.steps) {
+                      const stepKey = `${row.rowId}:${step.id}`;
+                      if (Boolean(document.studioState.timelineCompleted[stepKey]) === allDone) controller.toggleTimelineItem(stepKey);
+                    }
+                    return;
+                  }
+                  controller.toggleTimelineItem(key);
+                }} />;
               })}
             </div>
           </SortableContext>
@@ -81,36 +93,36 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
 
       {tab === "checklist" ? <section className={styles.fieldChecklist}>{controller.checklist.length ? controller.checklist.map((item) => <label key={item.id} className={item.completed ? styles.fieldChecklistDone : undefined}><input type="checkbox" checked={item.completed} onChange={() => controller.toggleChecklistItem(item.id)} /><span><Check size={15} /></span><strong>{item.label}</strong><small>{item.linkedSceneIds.length ? `${item.linkedSceneIds.length}개 Scene에서 사용` : "직접 추가"}</small></label>) : <p>등록된 준비사항이 없습니다.</p>}</section> : null}
 
-      {tab === "schedule" ? <section className={styles.fieldSchedule}><header><label>촬영 시작 <input type="time" value={document.studioState.scheduleStartTime ?? ""} onChange={(event) => controller.setScheduleStartTime(event.target.value)} /></label><span>순서를 바꾸면 시간이 자동으로 다시 계산됩니다.</span></header>{controller.schedule.map((row) => <article key={row.sceneId}><span>{String(row.order).padStart(2, "0")}</span><time>{row.startTime && row.endTime ? `${row.startTime}–${row.endTime}` : `${row.minutes}분`}</time><div><strong>{row.name}</strong><small>{row.location}</small></div></article>)}</section> : null}
+      {tab === "schedule" ? <section className={styles.fieldSchedule}><header><label>촬영 시작 <input type="time" value={document.studioState.scheduleSegments[0]?.startTime ?? ""} onChange={(event) => controller.setScheduleStartTime(event.target.value)} /></label><span>순서를 바꾸면 시간이 자동으로 다시 계산됩니다.</span></header>{controller.schedule.map((row) => <article key={row.rowId}><span>{String(row.order).padStart(2, "0")}</span><time>{row.startTime && row.endTime ? `${row.startTime}–${row.endTime}` : `${row.minutes}분`}</time><div><strong>{row.name}</strong><small>{row.dayLabel} · {row.location}</small></div>{row.locked ? <LockKeyhole size={14} aria-label="고정 일정" /> : null}</article>)}</section> : null}
     </div>
   );
 }
 
-function SortableFieldCard({ scene, index, groupName, groupColor, imageUrl, cameraAngle, onComplete }: { scene: ContiSceneRow; index: number; groupName: string; groupColor: string; imageUrl?: string; cameraAngle?: string; onComplete: (sceneId: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
+function SortableFieldCard({ row, specialty, groupName, groupColor, imageUrl, completed, completedMap, onComplete }: { row: DerivedContiScheduleRow; specialty: string; groupName: string; groupColor: string; imageUrl?: string; completed: boolean; completedMap: Record<string, boolean>; onComplete: (rowId: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.rowId, disabled: row.locked });
+  const surgeryText = row.surgeries?.map((value) => getSurgeryTypeLabel(specialty, value)).join(" · ");
   return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? .62 : undefined, zIndex: isDragging ? 4 : undefined }}>
     <ContiSceneCard
-      index={index}
-      category={scene.name || "이름 없는 Scene"}
-      duration={scene.minutes != null ? `${scene.minutes}분` : undefined}
-      keyword={scene.keyword || groupName}
-      description={scene.description}
-      location={scene.space_text}
-      cameraAngle={cameraAngle}
-      personnel={scene.people_text}
+      index={row.order}
+      category={row.type === "doctor" ? `${row.doctorName}${surgeryText ? ` · ${surgeryText}` : ""}` : row.name || "이름 없는 장면"}
+      duration={row.startTime && row.endTime ? `${row.startTime}–${row.endTime} · ${row.minutes}분` : `${row.minutes}분`}
+      keyword={row.keyword || groupName}
+      description={row.type === "doctor" ? "메이크업 · 프로필 · 진료 연출 · 수술 연출 · 정리 이동" : row.description}
+      location={row.location}
+      personnel={row.people}
+      patientRole={row.patientRole}
+      media={row.media === "photo_video" ? "사진 + 영상" : row.media === "none" ? "—" : "사진"}
       imageUrl={imageUrl}
-      preparationItems={parsePreparationText(scene.preparation_text)}
+      preparationItems={parsePreparationText(row.preparation)}
       color={{ bg: `${groupColor}18`, text: groupColor }}
-      completed={scene.completed}
-      headerLeft={<button type="button" className={styles.fieldDragHandle} aria-label={`${scene.name} 순서 이동`} {...attributes} {...listeners}><GripVertical size={17} /></button>}
-      headerRight={<button type="button" className={`${styles.fieldCompleteButton} ${scene.completed ? styles.fieldCompleteButtonDone : ""}`} onClick={() => onComplete(scene.id)}><span><Check size={12} /></span>{scene.completed ? "완료" : "완료 체크"}</button>}
+      completed={completed}
+      headerLeft={row.locked ? <span className={styles.fieldDragHandle} title="고정 일정"><LockKeyhole size={15} /></span> : <button type="button" className={styles.fieldDragHandle} aria-label={`${row.name} 타임 순서 이동`} {...attributes} {...listeners}><GripVertical size={17} /></button>}
+      headerRight={<button type="button" className={`${styles.fieldCompleteButton} ${completed ? styles.fieldCompleteButtonDone : ""}`} onClick={() => onComplete(row.rowId)}><span><Check size={12} /></span>{completed ? "완료" : "완료 체크"}</button>}
     />
+    {row.steps?.length ? <div className={styles.doctorStepChecks}>{row.steps.filter((step) => !step.id.startsWith("cleanup:")).map((step) => {
+      const key = `${row.rowId}:${step.id}`;
+      const done = Boolean(completedMap[key]);
+      return <button key={step.id} type="button" className={done ? styles.doctorStepDone : undefined} onClick={() => onComplete(key)}><span><Check size={11} /></span>{step.name}</button>;
+    })}</div> : null}
   </div>;
-}
-
-const GROUP_COLORS = ["#155855", "#E85D2C", "#3B6FB4", "#8A5EC2", "#B4823B", "#4C9E6E", "#B1477D", "#5C7CBE"];
-
-function specialtyLabel(value?: string | null) {
-  const labels: Record<string, string> = { dermatology: "피부과", orthopedics: "정형외과", ophthalmology: "안과", "plastic-surgery": "성형외과", rehabilitation: "재활의학과", dental: "치과", internal: "내과", pediatrics: "소아과", gynecology: "산부인과" };
-  return value ? labels[value] || value : "촬영";
 }

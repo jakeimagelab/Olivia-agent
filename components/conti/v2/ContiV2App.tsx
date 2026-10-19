@@ -37,6 +37,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
   const retained = retainedWorkspaces.get(persistenceKey);
   const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? initialRunId ?? null);
   const [view, setView] = useState<ResultView>(() => retained?.view ?? "table");
+  const [notices, setNotices] = useState<string[]>([]);
   const [legacyResourceId, setLegacyResourceId] = useState<string | undefined>(initialRunId ? undefined : resourceId);
   const [resolvingInitial, setResolvingInitial] = useState(Boolean(!retained && !initialRunId && (resourceId || workflowRunId)));
   const controller = useContiStudio(runId);
@@ -69,8 +70,10 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
     }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); }).finally(() => setResolvingInitial(false));
   }, [clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
 
-  const handleGenerated = (id: string) => {
+  const handleGenerated = (id: string, metadata?: { warnings?: string[]; spaceMatchStats?: { matched: number; total: number } }) => {
     retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
+    const match = metadata?.spaceMatchStats;
+    setNotices([...(metadata?.warnings ?? []), ...(match ? [`병원 공간 자동 매칭 ${match.matched} / ${match.total}개`] : [])]);
     setLegacyResourceId(undefined);
     setRunId(id);
     setView("table");
@@ -88,6 +91,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
     void controller.flushSave();
     retainedWorkspaces.delete(persistenceKey);
     setRunId(null);
+    setNotices([]);
     setView("table");
   };
 
@@ -100,6 +104,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
           {view === "table" ? (
             <ContiEditorWorkspace
               controller={controller}
+              notices={notices}
               clientId={clientId}
               workflowRunId={workflowRunId}
               onBack={returnToCreate}

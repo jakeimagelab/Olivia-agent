@@ -38,7 +38,7 @@ describe("Conti checklist derivation", () => {
 
 describe("Conti schedule derivation", () => {
   it("keeps duration-only rows when a start time is absent", () => {
-    expect(deriveContiSchedule([{ id: "s1", sort: 0, name: "프로필", minutes: 15 }])[0]).toEqual({
+    expect(deriveContiSchedule([{ id: "s1", sort: 0, name: "프로필", minutes: 15 }])[0]).toMatchObject({
       sceneId: "s1", order: 1, name: "프로필", location: "장소 미정", minutes: 15,
     });
   });
@@ -52,6 +52,26 @@ describe("Conti schedule derivation", () => {
       ["s1", "10:00", "10:15"],
       ["s2", "10:15", "10:25"],
     ]);
+  });
+
+  it("normalizes legacy start time into one schedule segment", () => {
+    expect(normalizeContiStudioState({ scheduleStartTime: "10:30" }).scheduleSegments).toEqual([
+      { id: "day-1", label: "1일차", startTime: "10:30", endTime: "18:00" },
+    ]);
+  });
+
+  it("supports separate days, fixed-time scenes, and breaks", () => {
+    const state = normalizeContiStudioState({
+      scheduleSegments: [
+        { id: "mon", label: "월", startTime: "09:00", endTime: "18:00" },
+        { id: "tue", label: "화", startTime: "09:00", endTime: "18:00" },
+      ],
+      scheduleBlocks: [{ id: "lunch", segmentId: "mon", type: "break", label: "점심", minutes: 60, startTime: "12:00" }],
+      fixedSceneTimes: { exterior: { segmentId: "mon", startTime: "17:30" } },
+    });
+    const rows = deriveContiSchedule([{ id: "exterior", sort: 0, name: "외관", minutes: 15 }], { studioState: state });
+    expect(rows.find((row) => row.sceneId === "exterior")).toMatchObject({ startTime: "17:30", endTime: "17:45", locked: true });
+    expect(rows.find((row) => row.type === "break")).toMatchObject({ startTime: "12:00", endTime: "13:00", locked: true });
   });
 });
 

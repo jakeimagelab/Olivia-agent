@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         hospitalId: serviceBody?.hospitalId,
         specialty: serviceBody?.specialty,
         doctorCount: serviceBody?.doctorCount,
+        doctors: serviceBody?.doctors,
         staffFlags: serviceBody?.staffFlags,
         otherStaffRole: serviceBody?.otherStaffRole,
         harmony: serviceBody?.harmony,

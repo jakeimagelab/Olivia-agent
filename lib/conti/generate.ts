@@ -4,6 +4,16 @@
 // DB 접근은 호출자(API route)가 담당한다 — 이 파일은 순수 로직이라 테스트하기 쉽다.
 
 export type FieldSource = "template" | "hospital" | "ai" | "user" | "blank";
+export type ContiRepeatScope = "once" | "per_doctor" | "per_doctor_pair";
+export type ContiMedia = "photo" | "photo_video" | "none";
+
+export interface ContiDoctorInput {
+  id: string;
+  name: string;
+  surgeries: string[];
+  note: string;
+  day: string | null;
+}
 
 export interface SceneTemplateRow {
   id: string;
@@ -18,6 +28,8 @@ export interface SceneTemplateRow {
   default_roles: string[];
   needs_patient: boolean;
   per_doctor: boolean;
+  repeat_scope?: ContiRepeatScope;
+  media?: ContiMedia;
   preparation_text?: string;
   default_note?: string;
   patient_role_text?: string;
@@ -39,6 +51,7 @@ export interface HospitalStaffRow {
 export interface GenerateContiInput {
   specialty: string;
   doctorCount: number;
+  doctors?: ContiDoctorInput[];
   staffFlags: { siljang: boolean; jikwon: boolean; other: boolean };
   otherStaffRole?: string;
   harmony: boolean;
@@ -57,6 +70,7 @@ export interface GenerateContiContext {
 export interface DraftScene {
   id: string;
   sort: number;
+  sceneCode: string;
   group: string;
   name: string;
   spaceText: string;
@@ -69,6 +83,8 @@ export interface DraftScene {
   preparationText: string;
   note: string;
   templateId: string | null;
+  repeatScope: ContiRepeatScope;
+  media: ContiMedia;
   fieldSources: Record<
     "name" | "space_text" | "minutes" | "keyword" | "description" | "people_text" | "patient_role_text" | "preparation_text" | "note",
     FieldSource
@@ -91,7 +107,13 @@ const HARMONY_SCENE_KEYS = ["harmony", "로비_하모니컷"];
 const RECEPTION_SCENE_KEYS = ["reception", "인포데스크_접수컷"];
 const STAFF_WORK_SCENE_KEYS = ["staff-work", "staff_work", "직원_업무"];
 const CONSULT_SCENE_KEYS = ["doctor-consult", "consult", "진료실_상담컷"];
+const PERSONAL_SCENE_KEYS = ["doctor-makeup", "doctor-profile", "doctor-consult", "doctor-surgery"];
 const SILJANG_SCENE_KEYS = ["manager-consult", "manager_consult", "실장_상담"];
+const SURGERY_LABELS: Record<string, string> = {
+  lasik: "라식·라섹", cataract: "백내장", retina: "망막", "eye-plastic": "안성형",
+  "general-treatment": "일반치료", orthodontics: "교정", implant: "임플란트", "pediatric-dentistry": "소아치과",
+  lifting: "리프팅", "skin-booster": "스킨부스터", pigmentation: "색소", acne: "여드름",
+};
 
 function textSource(value: string | null | undefined): FieldSource {
   return value && value.trim() ? "template" : "blank";
@@ -117,14 +139,13 @@ function findCommon(templates: SceneTemplateRow[], sceneKeys: string[]): SceneTe
   return templates.find((template) => template.specialty === COMMON_SPECIALTY && sceneKeys.includes(template.scene_key));
 }
 
-function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[], sort: number, nameSuffix: string): DraftScene {
-  const baseName = template.default_name.replace(/^진료실\s*/, "").replace(/^원장\s*/, "").replace(/컷$/, "").trim();
-  const name = nameSuffix ? `${nameSuffix} ${baseName}` : template.default_name;
+function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[], sort: number): DraftScene {
   return {
     id: `scene-${sort}`,
     sort,
+    sceneCode: `S${sort + 1}`,
     group: "미지정",
-    name,
+    name: template.default_name,
     spaceText: template.space_type,
     minutes: template.default_minutes,
     keyword: template.default_keyword,
@@ -135,6 +156,8 @@ function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[]
     preparationText: template.preparation_text ?? "",
     note: template.default_note ?? "",
     templateId: template.id,
+    repeatScope: template.repeat_scope ?? (template.per_doctor ? "per_doctor" : "once"),
+    media: template.media ?? "photo",
     fieldSources: {
       name: textSource(template.default_name),
       space_text: textSource(template.space_type),
@@ -181,13 +204,7 @@ function assignPeople(scene: DraftScene, template: SceneTemplateRow | undefined,
   }
 
   let allMatched = true;
-  const doctorMatch = scene.name.match(/^원장(\d+)\s/);
   const labels = roles.map((role) => {
-    if (role === "원장" && doctorMatch) {
-      const index = Number(doctorMatch[1]) - 1;
-      const doctors = staff.filter((member) => member.role.trim().includes("원장"));
-      return doctors[index]?.name ?? `원장${index + 1}`;
-    }
     const staffMember = staff.find((s) => s.role.trim() === role.trim());
     if (staffMember) return staffMember.name;
     allMatched = false;
@@ -206,6 +223,7 @@ function buildCustomScene(name: string, sort: number, role?: string): DraftScene
   return {
     id: `scene-${sort}`,
     sort,
+    sceneCode: `S${sort + 1}`,
     group: "미지정",
     name,
     spaceText: "병원 내부",
@@ -218,6 +236,8 @@ function buildCustomScene(name: string, sort: number, role?: string): DraftScene
     preparationText: "촬영 장소와 참여 인원, 필요한 소품 확인",
     note: "",
     templateId: null,
+    repeatScope: "once",
+    media: "photo",
     fieldSources: {
       name: "user", space_text: "ai", minutes: "ai", keyword: "ai", description: "ai",
       people_text: peopleText ? "user" : "blank", patient_role_text: "blank",
@@ -232,27 +252,21 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
   const templateById = new Map(ctx.templates.map((t) => [t.id, t]));
 
   const selected = matchCheckedTemplates(input, templates);
-  const perDoctor = selected.filter((item) => item.template.per_doctor);
-  const shared = selected.filter((item) => !item.template.per_doctor);
+  const shared = selected.filter((item) => !PERSONAL_SCENE_KEYS.includes(item.template.scene_key));
 
   let sortCounter = 0;
   let scenes: DraftScene[] = [];
-  const pushTemplate = (template: SceneTemplateRow | undefined, procedures: string[] = [], suffix = "") => {
+  const pushTemplate = (template: SceneTemplateRow | undefined, procedures: string[] = []) => {
     if (!template) return;
-    scenes.push(buildDraftFromTemplate(template, procedures, sortCounter++, suffix));
+    scenes.push(buildDraftFromTemplate(template, procedures, sortCounter++));
   };
 
   if (input.staffFlags.jikwon) {
     pushTemplate(findCommon(templates, RECEPTION_SCENE_KEYS));
   }
 
-  const hasSelectedDoctorConsult = perDoctor.some((item) => item.template.scene_key === "doctor-consult");
-  const consult = hasSelectedDoctorConsult ? undefined : findCommon(templates, CONSULT_SCENE_KEYS);
-  const doctorCount = Math.max(1, input.doctorCount);
-  for (let doctorIndex = 0; doctorIndex < doctorCount; doctorIndex += 1) {
-    const suffix = doctorCount > 1 ? `원장${doctorIndex + 1}` : "";
-    pushTemplate(consult, [], suffix);
-    for (const item of perDoctor) pushTemplate(item.template, item.procedures, suffix);
+  for (const sceneKey of PERSONAL_SCENE_KEYS) {
+    pushTemplate(findCommon(templates, sceneKey === "doctor-consult" ? CONSULT_SCENE_KEYS : [sceneKey]));
   }
 
   for (const item of shared) pushTemplate(item.template, item.procedures);
@@ -284,7 +298,19 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
     if (!groupOrder.includes(scene.group)) groupOrder.push(scene.group);
   }
 
-  const orderedScenes = scenes.map((scene, index) => ({ ...scene, sort: index }));
+  const doctorAssignments = (input.doctors ?? [])
+    .filter((doctor) => doctor.name.trim())
+    .map((doctor) => `${doctor.name.trim()} ${doctor.surgeries.map((value) => value.startsWith("custom:") ? value.slice(7) : SURGERY_LABELS[value] ?? value).join("·")}`.trim())
+    .filter(Boolean)
+    .join(" · ");
+  const orderedScenes = scenes.map((scene, index) => ({
+    ...scene,
+    sort: index,
+    sceneCode: `S${index + 1}`,
+    ...(scene.templateId?.endsWith(":doctor-surgery") && doctorAssignments
+      ? { preparationText: doctorAssignments, fieldSources: { ...scene.fieldSources, preparation_text: "user" as FieldSource } }
+      : {}),
+  }));
 
   const groups: DraftGroup[] = groupOrder.map((name, index) => ({ name, sort: index }));
 

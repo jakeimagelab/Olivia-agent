@@ -7,6 +7,7 @@ export interface ContiRunRow {
   workflow_run_id?: string | null;
   specialty?: string | null;
   doctor_count?: number | null;
+  doctors?: ContiDoctor[];
   staff_flags?: Record<string, unknown>;
   harmony?: boolean;
   checked?: Record<string, string[]>;
@@ -14,6 +15,17 @@ export interface ContiRunRow {
   studio_state?: unknown;
   created_at?: string;
   updated_at?: string;
+}
+
+export type ContiRepeatScope = "once" | "per_doctor" | "per_doctor_pair";
+export type ContiMedia = "photo" | "photo_video" | "none";
+
+export interface ContiDoctor {
+  id: string;
+  name: string;
+  surgeries: string[];
+  note: string;
+  day: string | null;
 }
 
 export interface ContiGroupRow {
@@ -29,6 +41,7 @@ export interface ContiSceneRow {
   run_id: string;
   group_id: string | null;
   sort: number;
+  scene_code?: string | null;
   name: string;
   space_text: string;
   minutes: number | null;
@@ -42,6 +55,8 @@ export interface ContiSceneRow {
   template_id: string | null;
   field_sources: Record<string, string>;
   completed: boolean;
+  repeat_scope?: ContiRepeatScope;
+  media?: ContiMedia;
 }
 
 export interface ContiStudioDocument {

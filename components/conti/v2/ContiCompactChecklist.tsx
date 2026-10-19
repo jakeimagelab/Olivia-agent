@@ -5,7 +5,7 @@ import { Check, ChevronDown, Plus } from "lucide-react";
 import type { DerivedContiChecklistItem } from "@/lib/conti/deriveChecklist";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
-export default function ContiCompactChecklist({ items, onToggle, onAdd }: { items: DerivedContiChecklistItem[]; onToggle: (id: string) => void; onAdd: (label: string) => void }) {
+export default function ContiCompactChecklist({ items, assignees = {}, onToggle, onAdd, onAssigneeChange }: { items: DerivedContiChecklistItem[]; assignees?: Record<string, string>; onToggle: (id: string) => void; onAdd: (label: string) => void; onAssigneeChange?: (id: string, value: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState("");
   const completed = items.filter((item) => item.completed).length;
@@ -21,11 +21,11 @@ export default function ContiCompactChecklist({ items, onToggle, onAdd }: { item
       </header>
       <div className={styles.compactList}>
         {items.length ? items.map((item) => (
-          <label key={item.id} className={`${styles.checklistItem} ${item.completed ? styles.checklistItemDone : ""}`}>
-            <input type="checkbox" checked={item.completed} onChange={() => onToggle(item.id)} />
-            <span className={styles.checkMark}><Check size={12} /></span>
+          <div key={item.id} className={`${styles.checklistItem} ${item.completed ? styles.checklistItemDone : ""}`}>
+            <label><input type="checkbox" checked={item.completed} onChange={() => onToggle(item.id)} /><span className={styles.checkMark}><Check size={12} /></span></label>
             <span className={styles.checklistLabel}>{item.label}<small>{item.linkedSceneIds.length ? `${item.linkedSceneIds.length}개 Scene` : "직접 추가"}</small></span>
-          </label>
+            {onAssigneeChange ? <input className={styles.checklistAssignee} aria-label={`${item.label} 담당자`} value={assignees[item.id] || ""} onChange={(event) => onAssigneeChange(item.id, event.target.value)} placeholder="담당자" /> : null}
+          </div>
         )) : <p className={styles.compactEmpty}>Scene 준비사항을 입력하면 자동으로 정리됩니다.</p>}
       </div>
       <div className={styles.compactAdd}>
