@@ -6,6 +6,7 @@ import { createPersonSelectSession, PERSON_SELECT_COOKIE, PERSON_SELECT_SESSION_
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const preferredRegion = ["icn1"];
 
 function ipHash(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "unknown";

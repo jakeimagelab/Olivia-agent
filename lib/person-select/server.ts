@@ -25,6 +25,15 @@ export async function signedImageUrl(path: string, expiresIn = 600) {
   return data.signedUrl;
 }
 
+export async function signedImageUrls(paths: string[], expiresIn = 600) {
+  const uniquePaths = [...new Set(paths.filter(Boolean))];
+  if (!uniquePaths.length) return new Map<string, string>();
+  const { data, error } = await getSupabaseAdmin().storage.from(PERSON_SELECT_BUCKET).createSignedUrls(uniquePaths, expiresIn);
+  if (error) throw error;
+  if (!data || data.length !== uniquePaths.length) throw new Error("사진 주소를 모두 만들지 못했어요.");
+  return new Map(uniquePaths.map((path, index) => [path, data[index]?.signedUrl ?? ""]));
+}
+
 export async function getPublicSessionContext(request: NextRequest, slug: string) {
   const session = sessionFromRequest(request);
   if (!session) return null;

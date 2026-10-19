@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getPublicSessionContext, signedImageUrl } from "@/lib/person-select/server";
+import { getPublicSessionContext, signedImageUrls } from "@/lib/person-select/server";
 
 export const dynamic = "force-dynamic";
+export const preferredRegion = ["icn1"];
 
 export async function GET(request: NextRequest, context: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await context.params;
@@ -18,13 +19,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     : query.eq("owner_person_id", ctx.person.id);
   const { data, error } = await query;
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
-  const images = await Promise.all((data ?? []).map(async (image) => ({
+  const rows = data ?? [];
+  const signedUrls = await signedImageUrls(rows.flatMap((image) => [image.thumb_path, image.preview_path]), 600);
+  const images = rows.map((image) => ({
     id: image.id,
     original_file_name: image.original_file_name,
-    thumb_url: await signedImageUrl(image.thumb_path),
-    preview_url: await signedImageUrl(image.preview_path),
+    thumb_url: signedUrls.get(image.thumb_path) ?? "",
+    preview_url: signedUrls.get(image.preview_path) ?? "",
     width: image.width,
     height: image.height,
-  })));
+  }));
   return Response.json({ ok: true, images });
 }

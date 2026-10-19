@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { eventIsLocked, validateChoiceInput } from "@/lib/person-select/core";
 import { getPublicSessionContext, imageBelongsToPerson } from "@/lib/person-select/server";
 
+export const preferredRegion = ["icn1"];
+
 export async function PUT(request: NextRequest, context: { params: Promise<{ eventSlug: string; category: string }> }) {
   const { eventSlug, category } = await context.params;
   const ctx = await getPublicSessionContext(request, eventSlug);

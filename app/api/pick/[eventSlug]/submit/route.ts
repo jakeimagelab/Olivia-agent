@@ -3,6 +3,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { eventIsLocked, requiredCategoryKeys } from "@/lib/person-select/core";
 import { getPublicSessionContext } from "@/lib/person-select/server";
 
+export const preferredRegion = ["icn1"];
+
 export async function POST(request: NextRequest, context: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await context.params;
   const ctx = await getPublicSessionContext(request, eventSlug);

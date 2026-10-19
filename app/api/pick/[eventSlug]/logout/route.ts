@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { PERSON_SELECT_COOKIE } from "@/lib/person-select/session";
 
+export const preferredRegion = ["icn1"];
+
 export async function POST() {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(PERSON_SELECT_COOKIE, "", {
