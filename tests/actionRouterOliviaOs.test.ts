@@ -43,15 +43,15 @@ describe("actionRouter — OLIVIA OS routing", () => {
   it("이미 열려 있으면 singleton 규칙대로 focus만 하고 중복 생성하지 않는다", () => {
     stubPathname("/");
     executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
-    const firstId = useOliviaDesktopStore.getState().windows["photo-workspace"].zIndex;
+    const firstId = useOliviaDesktopStore.getState().windows.conti.zIndex;
     executeOliviaAction({ type: "SWITCH_WORKSPACE", workspace: "conti" });
 
     // 문서 창은 채팅창과 한 묶음으로 연다. 두 번째 요청도 새 창을 더 만들지 않는다.
     expect(Object.keys(useOliviaDesktopStore.getState().windows)).toHaveLength(2);
-    expect(useOliviaDesktopStore.getState().activeWindowId).toBe("photo-workspace");
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"].zIndex).toBeGreaterThanOrEqual(firstId);
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"].context).toMatchObject({
-      routeHref: "/photo-sorting?tab=plan&tool=conti",
+    expect(useOliviaDesktopStore.getState().activeWindowId).toBe("conti");
+    expect(useOliviaDesktopStore.getState().windows.conti.zIndex).toBeGreaterThanOrEqual(firstId);
+    expect(useOliviaDesktopStore.getState().windows.conti.context).toMatchObject({
+      routeHref: "/conti",
       documentType: "conti",
     });
   });
@@ -182,7 +182,7 @@ describe("actionRouter — OLIVIA OS routing", () => {
     executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
     executeOliviaAction({ type: "MAXIMIZE_ACTIVE_WINDOW" });
 
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"].snapMode).toBe("maximized");
+    expect(useOliviaDesktopStore.getState().windows.conti.snapMode).toBe("maximized");
   });
 
   it("CLOSE_ACTIVE_WINDOW는 OS 라우트에서 활성 창을 닫는다", () => {
@@ -190,7 +190,7 @@ describe("actionRouter — OLIVIA OS routing", () => {
     executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
     executeOliviaAction({ type: "CLOSE_ACTIVE_WINDOW" });
 
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"]).toBeUndefined();
+    expect(useOliviaDesktopStore.getState().windows.conti).toBeUndefined();
     expect(useOliviaDesktopStore.getState().activeWindowId).toBeNull();
   });
 
@@ -199,8 +199,8 @@ describe("actionRouter — OLIVIA OS routing", () => {
     executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "conti" });
     executeOliviaAction({ type: "MINIMIZE_ACTIVE_WINDOW" });
 
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"]).toBeDefined();
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"].minimized).toBe(true);
+    expect(useOliviaDesktopStore.getState().windows.conti).toBeDefined();
+    expect(useOliviaDesktopStore.getState().windows.conti.minimized).toBe(true);
   });
 
   it("창 조작 3종은 활성 창이 없으면 아무 것도 하지 않는다", () => {

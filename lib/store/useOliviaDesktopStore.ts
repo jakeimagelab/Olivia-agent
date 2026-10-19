@@ -447,7 +447,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
 // 들이지 않고 수동 localStorage read/write로 구현한다. FileSystemHandle/File/Blob/DOM
 // 참조/ReactNode/함수는 OliviaWindowState 자체에 애초에 없으므로(각 앱의 내부 상태일 뿐) 직렬화
 // 위험이 구조적으로 없다.
-export const DESKTOP_STATE_VERSION = 4;
+export const DESKTOP_STATE_VERSION = 5;
 const MAX_RESTORED_WINDOWS = 20;
 
 type PersistedWindow = {
@@ -462,14 +462,6 @@ const LEGACY_WORKSPACE_WINDOWS: Readonly<Record<string, {
   title: string;
   context: WindowContext;
 }>> = {
-  conti: {
-    appId: "photo-workspace",
-    title: "사진작업실",
-    context: {
-      routeHref: "/photo-sorting?tab=plan&tool=conti",
-      documentType: "conti",
-    },
-  },
   "video-production": {
     appId: "video-studio",
     title: "영상작업실",
@@ -478,6 +470,15 @@ const LEGACY_WORKSPACE_WINDOWS: Readonly<Record<string, {
 };
 
 function migratePersistedWindow(win: PersistedWindow): PersistedWindow {
+  if (win.appId === "photo-workspace" && win.context?.documentType === "conti") {
+    return {
+      ...win,
+      appId: "conti",
+      title: win.context.documentTitle || "콘티",
+      context: { ...win.context, routeHref: "/conti" },
+      parentWindowId: migratePersistedAppId(win.parentWindowId) ?? undefined,
+    };
+  }
   const replacement = LEGACY_WORKSPACE_WINDOWS[win.appId];
   const parentWindowId = migratePersistedAppId(win.parentWindowId) ?? undefined;
   if (!replacement) return parentWindowId === win.parentWindowId ? win : { ...win, parentWindowId };

@@ -55,8 +55,8 @@ export const workspaceRegistry: Partial<Record<Exclude<WorkspaceType, null>, Wor
     icon: Clapperboard,
     component: ContiWorkspace,
     preload: loadConti,
-    directRoutes: [],
-    canonicalRoute: "/photo-sorting?tab=plan&tool=conti",
+    directRoutes: ["/conti"],
+    canonicalRoute: "/conti",
   },
   // photo-sort의 실제 direct route(/photo-sorting)는 PhotoWorkspace(자체 탭/URL 체계를 가진
   // 상위 셸)가 그려서 70/30 스플릿을 쓰지 않는다 — directRoutes는 "이 경로는 등록된

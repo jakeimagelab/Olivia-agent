@@ -13,13 +13,11 @@ const FAVORITE_KEY_PATTERN = /^(?:\/[a-z0-9][a-z0-9/_-]*|app:[a-z0-9][a-z0-9_-]*
 const MAX_FAVORITES = 64;
 
 const LEGACY_FAVORITE_KEYS: Readonly<Record<string, string>> = {
-  "/conti": "/photo-sorting",
   "/video-conti": "/video-studio",
   "/youtube-editing-conti": "/video-studio",
   "/broll-prompt": "/video-studio",
   "/prompter": "/video-studio",
   "/video-production": "/video-studio",
-  "app:conti": "/photo-sorting",
   "app:video-production": "/video-studio",
 };
 

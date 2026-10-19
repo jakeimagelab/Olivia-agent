@@ -27,6 +27,7 @@ import { WorkJournalWindowContent } from "../adapters/WorkJournalWindowContent";
 import { ReportWindowContent } from "../adapters/ReportWindowContent";
 import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
 import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowContent";
+import { ContiWindowContent } from "../adapters/ContiWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 단독 앱에서
@@ -189,6 +190,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     component: ContractBuilderWindowContent,
   },
   {
+    id: "conti",
+    title: "콘티",
+    icon: appIcon("storyboard"),
+    route: "/conti",
+    defaultSize: { width: 1420, height: 820 },
+    minSize: { width: 760, height: 500 },
+    singleton: true,
+    component: ContiWindowContent,
+  },
+  {
     id: "portrait-consent",
     title: "초상권 동의서",
     icon: appIcon("contract"),
@@ -298,7 +309,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
 ];
 
 const LEGACY_APP_ID_ALIASES: Readonly<Record<string, string>> = {
-  conti: "photo-workspace",
   "video-production": "video-studio",
 };
 
@@ -333,7 +343,18 @@ export type OliviaResolvedAppRoute = {
  * open a specific review while `/clients/reviews` opens the same native workspace.
  */
 export function resolveOliviaAppRoute(href: string): OliviaResolvedAppRoute | undefined {
-  const pathname = href.split("?")[0].replace(/\/$/, "") || "/";
+  const sourceUrl = new URL(href, "https://olivia.local");
+  const pathname = sourceUrl.pathname.replace(/\/$/, "") || "/";
+  if (
+    pathname === "/photo-sorting"
+    && (sourceUrl.searchParams.get("tab") === "plan" || sourceUrl.searchParams.get("tool") === "conti")
+  ) {
+    const app = appForPathname("/conti");
+    if (!app) return undefined;
+    for (const key of ["tab", "tool", "mode", "selectMode", "fileOpsMode"]) sourceUrl.searchParams.delete(key);
+    const suffix = sourceUrl.searchParams.toString();
+    return { app, href: `/conti${suffix ? `?${suffix}` : ""}`, originalHref: href };
+  }
   const exact = appForPathname(pathname);
   if (exact) return { app: exact, href, originalHref: href };
 

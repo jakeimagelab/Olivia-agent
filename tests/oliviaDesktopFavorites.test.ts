@@ -30,6 +30,6 @@ describe("Olivia Desktop favorites", () => {
       "/video-production",
       "/prompter",
       "/portrait-consent",
-    ])).toEqual(["/photo-sorting", "/video-studio", "/portrait-consent"]);
+    ])).toEqual(["/conti", "app:conti", "/video-studio", "/portrait-consent"]);
   });
 });

@@ -29,6 +29,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/memo": "memo", "/team-chat": "team-chat", "/calendar": "work-calendar",
   "/work-journal": "work-log", "/team": "workspace", "/marketing": "marketing-dashboard",
   "/quote": "quote", "/contract": "contract", "/clients": "clients", "/select-galleries": "select-gallery",
+  "/conti": "storyboard",
   "/portrait-consent": "contract",
   "/per": "per-reward", "/portal-admin": "client-portal", "/mailing": "mailing",
   "/photo-sorting": "photo-studio", "/select-match": "select-match",
@@ -47,6 +48,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
 const FAVORITE_LABEL_BY_KEY: Record<string, string> = {
   "/calendar": "일정",
   "/quote": "견적서 생성",
+  "/conti": "콘티",
   "/photo-sorting": "사진작업실",
   "/video-studio": "영상작업실",
   "/memo": "메모",

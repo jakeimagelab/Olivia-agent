@@ -34,6 +34,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
       "portrait-consent",
+      "conti",
     ]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
@@ -42,11 +43,15 @@ describe("OLIVIA OS app registry navigation", () => {
     }
   });
 
-  it("maps removed standalone app ids to their parent workspaces while keeping portrait consent standalone", () => {
-    expect(getOliviaApp("conti")?.id).toBe("photo-workspace");
+  it("keeps conti and portrait consent standalone while mapping old video production", () => {
+    expect(getOliviaApp("conti")?.id).toBe("conti");
     expect(getOliviaApp("video-production")?.id).toBe("video-studio");
     expect(getOliviaApp("portrait-consent")?.id).toBe("portrait-consent");
     expect(getOliviaAppByRoute("/portrait-consent")?.id).toBe("portrait-consent");
+    expect(resolveOliviaAppRoute("/photo-sorting?tab=plan&tool=conti&clientId=client-1")).toMatchObject({
+      app: expect.objectContaining({ id: "conti" }),
+      href: "/conti?clientId=client-1",
+    });
   });
 
   it("routes the four analysis workspaces to native adapters", () => {

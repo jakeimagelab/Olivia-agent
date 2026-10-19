@@ -33,7 +33,7 @@ function desktopAppInputFor(appId: string, context?: OpenAppInput["context"]): O
 const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, string>> = {
   quote: "quote",
   contract: "contract",
-  conti: "photo-workspace",
+  conti: "conti",
   "photo-sort": "photo-workspace",
 };
 
@@ -56,7 +56,7 @@ function workspaceWindowContext(
     projectName: action.projectName,
     resourceId: action.resourceId,
     resourceType: workspace,
-    ...(workspace === "conti" ? { routeHref: "/photo-sorting?tab=plan&tool=conti" } : {}),
+    ...(workspace === "conti" ? { routeHref: "/conti" } : {}),
     ...(documentType ? { documentId: action.resourceId, documentType } : {}),
     ...(action.documentTitle ? { documentTitle: action.documentTitle } : {}),
   };
@@ -249,12 +249,7 @@ export function executeOliviaAction(action: OliviaUiAction) {
         const resolved = resolveOliviaAppRoute(action.href);
         const appId = resolved?.app.id;
         const routeContext = resolved ? { ...contextFromHref(resolved.href), routeHref: resolved.href } : undefined;
-        const resolvedUrl = resolved ? new URL(resolved.href, "https://olivia.local") : undefined;
-        const documentType = appId && (["quote", "contract", "conti"].includes(appId)
-          ? appId
-          : appId === "photo-workspace" && resolvedUrl?.searchParams.get("tool") === "conti"
-            ? "conti"
-            : undefined);
+        const documentType = appId && ["quote", "contract", "conti"].includes(appId) ? appId : undefined;
         const nativeContext = appId && routeContext ? {
           ...routeContext,
           resourceType: documentType ?? routeContext.resourceType,

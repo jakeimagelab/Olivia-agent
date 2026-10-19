@@ -8,10 +8,7 @@ import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
 export const CHAT_LINKED_DOCUMENT_APP_IDS = new Set(["quote", "contract", "conti"]);
 
 export function isChatLinkedDocumentWindow(window?: Pick<OliviaWindowState, "appId" | "context">): boolean {
-  return Boolean(window && (
-    CHAT_LINKED_DOCUMENT_APP_IDS.has(window.appId)
-    || (window.appId === "photo-workspace" && window.context?.documentType === "conti")
-  ));
+  return Boolean(window && CHAT_LINKED_DOCUMENT_APP_IDS.has(window.appId));
 }
 
 /**

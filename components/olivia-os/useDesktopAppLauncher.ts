@@ -16,12 +16,9 @@ export function useDesktopAppLauncher() {
     if (resolved) {
       const app = resolved.app;
       const mergedContext = mergeDefinedWindowContext(hrefContext, context);
-      const resolvedUrl = new URL(resolvedHref, "https://olivia.local");
       const documentType = ["quote", "contract", "conti"].includes(app.id)
         ? app.id
-        : app.id === "photo-workspace" && resolvedUrl.searchParams.get("tool") === "conti"
-          ? "conti"
-          : undefined;
+        : undefined;
       const documentContext = documentType
         ? { ...mergedContext, documentId: mergedContext.resourceId, documentType }
         : mergedContext;

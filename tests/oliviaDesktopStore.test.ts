@@ -26,7 +26,7 @@ describe("OLIVIA OS desktop store", () => {
   });
 
   it("invalidates fixed-layout persisted window geometry", () => {
-    expect(DESKTOP_STATE_VERSION).toBe(4);
+    expect(DESKTOP_STATE_VERSION).toBe(5);
   });
 
   it("moves a docked Olivia child with its main window and detaches it independently", () => {
@@ -107,7 +107,7 @@ describe("OLIVIA OS persisted workspace migration", () => {
     resetDesktopSession();
   });
 
-  it("moves removed standalone windows into their exact integrated workspace tabs", () => {
+  it("keeps conti standalone while moving removed video production into its workspace tab", () => {
     const values = new Map<string, string>();
     vi.stubGlobal("window", {
       localStorage: {
@@ -126,14 +126,11 @@ describe("OLIVIA OS persisted workspace migration", () => {
       ],
     }));
 
-    loadDesktopState(new Set(["photo-workspace", "video-studio", "customer", "portrait-consent"]));
+    loadDesktopState(new Set(["conti", "photo-workspace", "video-studio", "customer", "portrait-consent"]));
 
     const state = useOliviaDesktopStore.getState();
-    expect(Object.keys(state.windows)).toEqual(["photo-workspace", "video-studio", "portrait-consent"]);
-    expect(state.windows["photo-workspace"].context).toMatchObject({
-      routeHref: "/photo-sorting?tab=plan&tool=conti",
-      documentType: "conti",
-    });
+    expect(Object.keys(state.windows)).toEqual(["conti", "video-studio", "portrait-consent"]);
+    expect(state.windows.conti.title).toBe("콘티 스튜디오");
     expect(state.windows["video-studio"].context?.routeHref).toBe("/video-studio?tab=publish&tool=ai-video");
     expect(state.windows["portrait-consent"].title).toBe("초상권 동의서");
     expect(state.windows["portrait-consent"].context).toBeUndefined();
