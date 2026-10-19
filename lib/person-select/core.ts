@@ -65,7 +65,8 @@ export function requiredCategoryKeys(input: {
 }) {
   return input.categories
     .filter((category) => category.pick > 0)
-    .filter((category) => category.key !== "homeroom" || Boolean(input.groupLabel && (input.imageCounts[category.key] ?? 0) > 0))
+    .filter((category) => (input.imageCounts[category.key] ?? 0) > 0)
+    .filter((category) => category.key !== "homeroom" || Boolean(input.groupLabel))
     .map((category) => category.key);
 }
 

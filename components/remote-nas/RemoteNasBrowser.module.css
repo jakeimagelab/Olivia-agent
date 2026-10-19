@@ -96,6 +96,16 @@
   gap: 7px;
 }
 
+.connectionError {
+  max-width: min(420px, 42vw);
+  overflow: hidden;
+  color: #b03f14;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .statusBadge,
 .previewBadge {
   min-height: 31px;

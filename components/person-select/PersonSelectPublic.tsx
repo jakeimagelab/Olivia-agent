@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LockKeyhole, LogOut } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut } from "lucide-react";
 import styles from "./PersonSelectPublic.module.css";
 
 type Category = { key: string; label: string; pick: number; image_count: number; choice: Choice | null };
@@ -113,7 +113,10 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const [submitError, setSubmitError] = useState("");
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
-  const required = me.categories.filter((category) => category.key !== "homeroom" || Boolean(me.person.group_label && category.image_count > 0));
+  const visibleCategories = me.categories
+    .filter((category) => category.image_count > 0)
+    .filter((category) => category.key !== "homeroom" || Boolean(me.person.group_label));
+  const required = visibleCategories.filter((category) => category.pick > 0);
   const completed = required.filter((category) => category.choice).length;
   const missing = required.find((category) => !category.choice);
 
@@ -128,12 +131,11 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     <section className={`${styles.content} ${styles.mobileOnly}`}>
       <div className={styles.hello}><div><p className={styles.eyebrow}>사진 셀렉</p><h1>{me.person.display_name} 선생님</h1><p className={styles.muted}>각 항목에서 사용할 사진을 한 장씩 골라주세요.</p></div><div className={styles.progressText}>{completed} / {required.length} 선택</div></div>
       {me.event.locked ? <div className={styles.notice}>선택이 마감됐어요. 변경이 필요하면 포토클리닉에 연락해 주세요.</div> : null}
-      <div className={styles.categoryList}>{me.categories.map((category) => {
-        const unavailable = category.key === "homeroom" && category.image_count === 0;
-        return <button key={category.key} className={styles.categoryRow} disabled={unavailable} onClick={() => router.push(`/pick/${slug}/c/${category.key}`)}>
-          {category.choice?.thumb_url ? <img className={styles.choiceThumb} src={category.choice.thumb_url} alt="고른 사진" draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={`${styles.choiceThumb} ${styles.emptyThumb}`}>{unavailable ? <LockKeyhole size={20} /> : <ImageIcon size={21} />}</span>}
-          <div><h3>{category.label}{category.key === "homeroom" && me.person.group_label ? ` · ${me.person.group_label}` : ""}</h3><p>{unavailable ? "담임 사진 준비 중" : category.choice ? shortFileName(category.choice.original_file_name) : `${category.image_count}장 중 1장 선택`}</p></div>
-          <span className={`${styles.badge} ${category.choice ? "" : styles.badgePending}`}>{unavailable ? "준비 중" : category.choice ? `보정 요청 ${category.choice.retouch_keys.length}개` : "미선택"}</span>
+      <div className={styles.categoryList}>{visibleCategories.map((category) => {
+        return <button key={category.key} className={styles.categoryRow} onClick={() => router.push(`/pick/${slug}/c/${category.key}`)}>
+          {category.choice?.thumb_url ? <img className={styles.choiceThumb} src={category.choice.thumb_url} alt="고른 사진" draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={`${styles.choiceThumb} ${styles.emptyThumb}`}><ImageIcon size={21} /></span>}
+          <div><h3>{category.label}{category.key === "homeroom" && me.person.group_label ? ` · ${me.person.group_label}` : ""}</h3><p>{category.choice ? shortFileName(category.choice.original_file_name) : `${category.image_count}장 중 1장 선택`}</p></div>
+          <span className={`${styles.badge} ${category.choice ? "" : styles.badgePending}`}>{category.choice ? `보정 요청 ${category.choice.retouch_keys.length}개` : "미선택"}</span>
           <ChevronRight size={18} />
         </button>;
       })}</div>
@@ -233,7 +235,9 @@ export function PersonSelectDone({ slug }: { slug: string }) {
 }
 
 function PcWorkspace({ slug, me, reload }: { slug: string; me: MeData; reload: () => Promise<void> }) {
-  const categories = me.categories.filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
+  const categories = me.categories
+    .filter((item) => item.image_count > 0)
+    .filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
   const [activeKey, setActiveKey] = useState(categories[0]?.key ?? "profile");
   const active = categories.find((item) => item.key === activeKey) ?? categories[0];
   const { images } = useImages(slug, active?.key ?? "profile");
@@ -263,7 +267,7 @@ function PcWorkspace({ slug, me, reload }: { slug: string; me: MeData; reload: (
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [choice?.image_id, images, preview, save]);
   if (!active) return null;
-  const required = categories.filter((item) => item.key !== "homeroom" || item.image_count > 0);
+  const required = categories.filter((item) => item.pick > 0);
   const missing = required.find((item) => !item.choice);
   async function submit() { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); window.location.href = `/pick/${slug}/done`; }
   return <section className={styles.pcWorkspace}>

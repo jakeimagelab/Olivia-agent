@@ -223,17 +223,19 @@ export default function RemoteNasBrowser({
         </div>
 
         <div className={styles.connectionStates} aria-label="연결 상태">
-          {sourceIsMock ? <span className={styles.previewBadge}>미리보기 데이터</span> : null}
-          <span className={styles.statusBadge} aria-label={`${workerLabel} ${macStudioLabel}`}>
-            <i className={macStudioState === "unknown" ? styles.unknownDot : macStudioState === "offline" ? styles.offlineDot : styles.onlineDot} />
-            <span className={styles.statusLong}>{workerLabel} {macStudioLabel}</span>
-            <span className={styles.statusShort} aria-hidden="true">{workerLabel === "MacBook Pro" ? "MBP" : "MAC"}</span>
-          </span>
-          <span className={styles.statusBadge} aria-label={`NAS ${nasLabel}`}>
-            <i className={nasState === "unknown" ? styles.unknownDot : nasState === "disconnected" ? styles.offlineDot : styles.onlineDot} />
-            <span className={styles.statusLong}>NAS {nasLabel}</span>
-            <span className={styles.statusShort} aria-hidden="true">NAS</span>
-          </span>
+          {error ? <span className={styles.connectionError} role="alert" title={error}>{error}</span> : <>
+            {sourceIsMock ? <span className={styles.previewBadge}>미리보기 데이터</span> : null}
+            <span className={styles.statusBadge} aria-label={`${workerLabel} ${macStudioLabel}`}>
+              <i className={macStudioState === "unknown" ? styles.unknownDot : macStudioState === "offline" ? styles.offlineDot : styles.onlineDot} />
+              <span className={styles.statusLong}>{workerLabel} {macStudioLabel}</span>
+              <span className={styles.statusShort} aria-hidden="true">{workerLabel === "MacBook Pro" ? "MBP" : "MAC"}</span>
+            </span>
+            <span className={styles.statusBadge} aria-label={`NAS ${nasLabel}`}>
+              <i className={nasState === "unknown" ? styles.unknownDot : nasState === "disconnected" ? styles.offlineDot : styles.onlineDot} />
+              <span className={styles.statusLong}>NAS {nasLabel}</span>
+              <span className={styles.statusShort} aria-hidden="true">NAS</span>
+            </span>
+          </>}
         </div>
       </header>
 

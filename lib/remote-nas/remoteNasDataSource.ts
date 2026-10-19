@@ -19,6 +19,7 @@ import {
 
 export const REMOTE_WORKER_NAS_POLL_INTERVAL_MS = 800;
 export const REMOTE_WORKER_NAS_TIMEOUT_MS = 15_000;
+export const PERSON_SELECT_FOLDER_TIMEOUT_MS = 45_000;
 
 const HIDDEN_SYSTEM_ITEMS = new Set(["#recycle", ".ds_store", "@eadir"]);
 
@@ -426,6 +427,7 @@ export function createPersonSelectRemoteDataSource(
     ...options,
     action: "PERSON_SELECT_LIST_FOLDER",
     rootName: "PERSON_SELECT_ROOTS",
+    timeoutMs: options.timeoutMs ?? PERSON_SELECT_FOLDER_TIMEOUT_MS,
   });
   const withFriendlyError = async <T,>(request: Promise<T>): Promise<T> => {
     try {

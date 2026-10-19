@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  createPersonSelectRemoteDataSource,
   createRemoteWorkerNasDataSource,
   mapRemoteWorkerFolderResult,
+  PERSON_SELECT_FOLDER_TIMEOUT_MS,
   RemoteNasDataSourceError,
 } from "@/lib/remote-nas/remoteNasDataSource";
 
@@ -13,6 +15,79 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("Remote Worker NAS data source", () => {
+  it("maps the completed person-select root result and exposes both allowed roots", async () => {
+    const completedResult = {
+      ok: true,
+      path: "",
+      root: "PERSON_SELECT_ROOTS",
+      displayPath: "허용 폴더",
+      entries: [
+        { name: "root-0", path: "root-0", displayName: "Workstation(M.2SSD)", displayPath: "Workstation(M.2SSD)", type: "folder", modifiedAt: null },
+        { name: "root-1", path: "root-1", displayName: "UGnasync", displayPath: "UGnasync", type: "folder", modifiedAt: null },
+      ],
+    };
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: { id: "018e2f30-92af-78b1-8f21-67f4404f5027", action: "PERSON_SELECT_LIST_FOLDER", status: "QUEUED" },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        ok: true,
+        job: {
+          id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+          action: "PERSON_SELECT_LIST_FOLDER",
+          status: "COMPLETED",
+          result: completedResult,
+        },
+      }));
+    const source = createPersonSelectRemoteDataSource({ fetcher, pollIntervalMs: 0 });
+
+    const result = await source.listRoot({ foldersOnly: true });
+
+    expect(PERSON_SELECT_FOLDER_TIMEOUT_MS).toBe(45_000);
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body))).toEqual({
+      action: "PERSON_SELECT_LIST_FOLDER",
+      payload: { root: true, folders_only: true },
+    });
+    expect(result).toMatchObject({
+      rootName: "PERSON_SELECT_ROOTS",
+      path: "",
+      displayPath: "허용 폴더",
+      connection: { macStudio: "online", nas: "connected", source: "worker" },
+    });
+    expect(result.entries.map((entry) => entry.displayName).sort()).toEqual(["UGnasync", "Workstation(M.2SSD)"].sort());
+  });
+
+  it("keeps the person-select root alias while navigating a Korean nested folder", () => {
+    const requestedPath = "root-1/2026(유그린)/서공예폴더/서공예원본폴더";
+    const result = mapRemoteWorkerFolderResult({
+      ok: true,
+      path: requestedPath,
+      root: "PERSON_SELECT_ROOTS",
+      displayPath: "UGnasync/2026(유그린)/서공예폴더/서공예원본폴더",
+      entries: [{
+        name: "학교전달",
+        path: `${requestedPath}/학교전달`,
+        displayName: "학교전달",
+        displayPath: "UGnasync/2026(유그린)/서공예폴더/서공예원본폴더/학교전달",
+        type: "folder",
+        modifiedAt: null,
+      }],
+    }, requestedPath, true, "PERSON_SELECT_ROOTS");
+
+    expect(result).toMatchObject({
+      rootName: "PERSON_SELECT_ROOTS",
+      path: requestedPath,
+      displayPath: "UGnasync/2026(유그린)/서공예폴더/서공예원본폴더",
+    });
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        displayName: "학교전달",
+        path: `${requestedPath}/학교전달`,
+      }),
+    ]);
+  });
+
   it("creates LIST_FOLDER, polls the job, and preserves an NFD raw path", async () => {
     const rawFolderName = "0819_진보형교수님".normalize("NFD");
     const rawEntryName = "진료실_현장".normalize("NFD");

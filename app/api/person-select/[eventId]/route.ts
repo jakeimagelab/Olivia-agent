@@ -14,19 +14,33 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     db.from("person_select_events").select("*").eq("id", eventId).single(),
     db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at").eq("event_id", eventId).order("display_name"),
     db.from("person_select_choices").select("id,event_id,person_id,category_key,image_id,retouch_keys,memo,updated_at,person_select_images(original_file_name,source_rel_path,thumb_path)").eq("event_id", eventId),
-    db.from("person_select_images").select("owner_group,category_key").eq("event_id", eventId),
+    db.from("person_select_images").select("owner_person_id,owner_group,category_key").eq("event_id", eventId),
   ]);
   if (error || !event) return Response.json({ ok: false, error: error?.message || "행사를 찾을 수 없습니다." }, { status: 404 });
   const choiceRows = await Promise.all((choices ?? []).map(async (choice) => {
     const image = choice.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
     return { ...choice, person_select_images: image ? { ...image, thumb_url: await signedImageUrl(image.thumb_path) } : null };
   }));
+  const profileCounts = (imageGroups ?? []).reduce<Record<string, number>>((acc, row) => {
+    if (row.category_key === "profile" && row.owner_person_id) acc[row.owner_person_id] = (acc[row.owner_person_id] ?? 0) + 1;
+    return acc;
+  }, {});
+  const groupCounts = (imageGroups ?? []).reduce<Record<string, number>>((acc, row) => {
+    if (row.category_key === "homeroom" && row.owner_group) acc[row.owner_group] = (acc[row.owner_group] ?? 0) + 1;
+    return acc;
+  }, {});
   const peopleRows = (people ?? []).map((person) => {
     const ownChoices = choiceRows.filter((choice) => choice.person_id === person.id);
     const latest = ownChoices.map((choice) => choice.updated_at).sort().at(-1) ?? null;
-    return { ...person, choices: ownChoices, status_label: selectionStatus({ firstSeenAt: person.first_seen_at, submittedAt: person.submitted_at, choiceCount: ownChoices.length, latestChoiceAt: latest }), latest_activity_at: latest || person.last_seen_at || person.first_seen_at };
+    return {
+      ...person,
+      choices: ownChoices,
+      image_counts: { profile: profileCounts[person.id] ?? 0, homeroom: person.group_label ? groupCounts[person.group_label] ?? 0 : 0 },
+      status_label: selectionStatus({ firstSeenAt: person.first_seen_at, submittedAt: person.submitted_at, choiceCount: ownChoices.length, latestChoiceAt: latest }),
+      latest_activity_at: latest || person.last_seen_at || person.first_seen_at,
+    };
   });
-  const groups = Object.entries((imageGroups ?? []).reduce<Record<string, number>>((acc, row) => { if (row.category_key === "homeroom" && row.owner_group) acc[row.owner_group] = (acc[row.owner_group] ?? 0) + 1; return acc; }, {})).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
+  const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
   return Response.json({ ok: true, event, people: peopleRows, groups });
 }
 

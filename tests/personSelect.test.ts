@@ -64,10 +64,38 @@ describe("person select public access", () => {
     expect(eventIsLocked({ status: "open", deadline_at: "2026-10-18T00:00:00Z" }, new Date("2026-10-19T00:00:00Z"))).toBe(true);
   });
 
-  it("requires two categories for a homeroom teacher, one otherwise, and excludes an empty homeroom", () => {
-    expect(requiredCategoryKeys({ categories: DEFAULT_PERSON_SELECT_CATEGORIES, groupLabel: "1반", imageCounts: { profile: 10, homeroom: 20 } })).toEqual(["profile", "homeroom"]);
-    expect(requiredCategoryKeys({ categories: DEFAULT_PERSON_SELECT_CATEGORIES, groupLabel: null, imageCounts: { profile: 10, homeroom: 20 } })).toEqual(["profile"]);
-    expect(requiredCategoryKeys({ categories: DEFAULT_PERSON_SELECT_CATEGORIES, groupLabel: "1반", imageCounts: { profile: 10, homeroom: 0 } })).toEqual(["profile"]);
+  it("requires only the homeroom choice when a homeroom teacher has no profile images", () => {
+    const required = requiredCategoryKeys({
+      categories: DEFAULT_PERSON_SELECT_CATEGORIES,
+      groupLabel: "4반",
+      imageCounts: { profile: 0, homeroom: 20 },
+    });
+
+    expect(required).toEqual(["homeroom"]);
+    expect(required.every((categoryKey) => new Set(["homeroom"]).has(categoryKey))).toBe(true);
+  });
+
+  it("requires only the profile choice for a non-homeroom teacher", () => {
+    const required = requiredCategoryKeys({
+      categories: DEFAULT_PERSON_SELECT_CATEGORIES,
+      groupLabel: null,
+      imageCounts: { profile: 10, homeroom: 20 },
+    });
+
+    expect(required).toEqual(["profile"]);
+    expect(required.every((categoryKey) => new Set(["profile"]).has(categoryKey))).toBe(true);
+  });
+
+  it("requires both choices when a homeroom teacher can see both categories", () => {
+    const required = requiredCategoryKeys({
+      categories: DEFAULT_PERSON_SELECT_CATEGORIES,
+      groupLabel: "1반",
+      imageCounts: { profile: 10, homeroom: 20 },
+    });
+
+    expect(required).toEqual(["profile", "homeroom"]);
+    expect(required.every((categoryKey) => new Set(["profile"]).has(categoryKey))).toBe(false);
+    expect(required.every((categoryKey) => new Set(["profile", "homeroom"]).has(categoryKey))).toBe(true);
   });
 });
 
