@@ -44,7 +44,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: `/pick/${eventSlug}`,
+    path: "/",
     maxAge: PERSON_SELECT_SESSION_SECONDS,
   });
   return response;
