@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut } from "lucide-react";
+import { formatSeoulDeadline } from "@/lib/person-select/date";
 import styles from "./PersonSelectPublic.module.css";
 
 type Category = { key: string; label: string; pick: number; image_count: number; choice: Choice | null };
@@ -21,11 +22,6 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 function shortFileName(value: string) {
   return value.length > 34 ? `…${value.slice(-32)}` : value;
-}
-
-function deadlineText(value: string) {
-  const date = new Date(value);
-  return `${date.getMonth() + 1}월 ${date.getDate()}일 ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}까지`;
 }
 
 export function PersonSelectLogin({ slug, event }: { slug: string; event: PublicEvent | null }) {
@@ -64,7 +60,7 @@ export function PersonSelectLogin({ slug, event }: { slug: string; event: Public
         <p className={styles.eyebrow}>개인별 사진 셀렉</p>
         <h2>내 사진 보기</h2>
         <p className={styles.muted}>학교에서 받은 이름과 비밀번호 4자리를 입력해 주세요.</p>
-        {event ? <p className={styles.loginDeadline}>마감 {deadlineText(event.deadline_at)}</p> : null}
+        {event ? <p className={styles.loginDeadline}>마감 {formatSeoulDeadline(event.deadline_at)}</p> : null}
         {event?.status === "draft" ? <div className={styles.error}>아직 열리지 않았어요.</div> : null}
         <div className={styles.field}><label htmlFor="pick-name">이름</label><input id="pick-name" className={styles.input} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="선생님 이름" /></div>
         <div className={styles.field}><label htmlFor="pick-pin">비밀번호</label><input id="pick-pin" className={`${styles.input} ${styles.pin}`} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" autoComplete="one-time-code" placeholder="0000" /></div>
@@ -101,7 +97,7 @@ function Header({ me, slug }: { me: MeData; slug: string }) {
   return <header className={styles.topbar}>
     <div className={styles.brand}><i><ImageIcon size={16} /></i><span>{me.event.title}</span></div>
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <span className={styles.deadlineChip}>{deadlineText(me.event.deadline_at)}</span>
+      <span className={styles.deadlineChip}>마감 {formatSeoulDeadline(me.event.deadline_at)}</span>
       <button className={styles.weak} aria-label="로그아웃" onClick={async () => { await fetch(`/api/pick/${slug}/logout`, { method: "POST" }); router.replace(`/pick/${slug}`); }}><LogOut size={17} /></button>
     </div>
   </header>;
@@ -126,7 +122,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
   }
 
-  return <main className={styles.page}>
+  return <main className={`${styles.page} ${styles.pcHomePage}`}>
     <Header me={me} slug={slug} />
     <section className={`${styles.content} ${styles.mobileOnly}`}>
       <div className={styles.hello}><div><p className={styles.eyebrow}>사진 셀렉</p><h1>{me.person.display_name} 선생님</h1><p className={styles.muted}>각 항목에서 사용할 사진을 한 장씩 골라주세요.</p></div><div className={styles.progressText}>{completed} / {required.length} 선택</div></div>
@@ -249,9 +245,15 @@ function PcWorkspace({ slug, me, reload }: { slug: string; me: MeData; reload: (
   const choice = active?.choice;
   useEffect(() => { setPreviewId(choice?.image_id || images[0]?.id || ""); setKeys(choice?.retouch_keys ?? []); setMemo(choice?.memo ?? ""); }, [activeKey, choice?.image_id, images]);
   const preview = images.find((image) => image.id === previewId) ?? images[0];
+  const previewIndex = preview ? images.findIndex((image) => image.id === preview.id) : -1;
   const save = useCallback(async (imageId: string, nextKeys: string[], nextMemo: string) => {
     await jsonFetch(`/api/pick/${slug}/choices/${active.key}`, { method: "PUT", body: JSON.stringify({ image_id: imageId, retouch_keys: nextKeys, memo: nextMemo }) });
     setSavedAt("자동 저장됨 · 방금"); await reload();
+  }, [active.key, reload, slug]);
+  const clearChoice = useCallback(async () => {
+    await jsonFetch(`/api/pick/${slug}/choices/${active.key}`, { method: "DELETE" });
+    setSavedAt("자동 저장됨 · 방금");
+    await reload();
   }, [active.key, reload, slug]);
   function schedule(nextKeys: string[], nextMemo: string) { if (!choice?.image_id) return; if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => void save(choice.image_id, nextKeys, nextMemo), 800); }
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -273,8 +275,32 @@ function PcWorkspace({ slug, me, reload }: { slug: string; me: MeData; reload: (
   return <section className={styles.pcWorkspace}>
     <div className={styles.pcTabs}><div className={styles.pillbar}>{categories.map((category) => <button key={category.key} className={`${styles.pill} ${active.key === category.key ? styles.pillActive : ""}`} onClick={() => setActiveKey(category.key)}>{category.choice ? <Check size={14} style={{ marginRight: 5, verticalAlign: -2 }} /> : null}{category.label}{category.key === "homeroom" && me.person.group_label ? ` · ${me.person.group_label}` : ""}</button>)}</div><strong>{required.filter((item) => item.choice).length} / {required.length} 선택</strong></div>
     <div className={styles.pcBody}>
-      <div className={styles.pcPhotos}><div className={styles.pcPreview}><div className={styles.preview}>{preview ? <img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={styles.muted}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</span>}</div><div className={styles.pcPreviewActions}>{preview?.id === choice?.image_id ? <button className={styles.secondary}>선택 해제</button> : <button className={styles.secondary} disabled={!preview || me.event.locked} onClick={() => preview && void save(preview.id, [], "")}>이 사진 고르기</button>}</div></div><div className={styles.pcThumbs}>{images.map((image) => <button key={image.id} className={`${styles.photoTile} ${image.id === choice?.image_id ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} />{image.id === choice?.image_id ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div></div>
-      <aside className={styles.pcFeedback}><p className={styles.eyebrow}>보정 요청 · {active.label}</p><h2>{choice ? shortFileName(choice.original_file_name) : "사진을 먼저 골라주세요."}</h2><p className={styles.autoSave}>{savedAt}</p><div className={styles.field}><label>보정 체크리스트</label><div className={styles.chipGrid}>{me.event.retouch_options.map((option) => { const selected = keys.includes(option.key); return <button key={option.key} aria-pressed={selected} disabled={!choice} className={`${styles.chip} ${selected ? styles.chipActive : ""}`} onClick={() => { const next = selected ? keys.filter((key) => key !== option.key) : [...keys, option.key]; setKeys(next); schedule(next, memo); }}>{option.label}</button>; })}</div></div><div className={styles.field}><label>메모</label><textarea className={styles.textarea} disabled={!choice} maxLength={me.event.memo_max} value={memo} onChange={(e) => { setMemo(e.target.value); schedule(keys, e.target.value); }} /><span className={styles.counter}>{memo.length} / {me.event.memo_max}</span></div>{missing ? <p className={styles.submitReason}>{missing.label}을 먼저 골라주세요.</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked} onClick={submit}>최종 제출</button></aside>
+      <div className={styles.pcPhotos}>
+        <div className={styles.pcPreview}>
+          <div className={styles.preview}>{preview ? <img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={styles.pcPhotoEmpty}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</span>}</div>
+          <div className={styles.pcPreviewActions}>
+            <div className={styles.pcPreviewInfo}><strong title={preview?.original_file_name}>{preview ? shortFileName(preview.original_file_name) : "사진 없음"}</strong><span>{preview ? `${previewIndex + 1} / ${images.length}` : `0 / ${images.length}`}</span></div>
+            <div className={styles.pcPreviewControls}>
+              <button className={styles.pcNavButton} disabled={previewIndex <= 0} onClick={() => setPreviewId(images[previewIndex - 1]?.id ?? preview?.id ?? "")} aria-label="이전 사진"><ChevronLeft size={18} /></button>
+              <button className={styles.pcNavButton} disabled={previewIndex < 0 || previewIndex >= images.length - 1} onClick={() => setPreviewId(images[previewIndex + 1]?.id ?? preview?.id ?? "")} aria-label="다음 사진"><ChevronRight size={18} /></button>
+              {preview?.id === choice?.image_id
+                ? <button className={styles.pcSelectButton} disabled={me.event.locked} onClick={() => void clearChoice()}>선택 해제</button>
+                : <button className={styles.pcSelectButton} disabled={!preview || me.event.locked} onClick={() => preview && void save(preview.id, [], "")}>이 사진 고르기</button>}
+            </div>
+          </div>
+        </div>
+        <div className={styles.pcThumbs}>{images.map((image) => <button key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${image.id === choice?.image_id ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} />{image.id === choice?.image_id ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div>
+      </div>
+      <aside className={styles.pcFeedback}>
+        <p className={styles.eyebrow}>보정 요청 · {active.label}</p>
+        {choice ? <>
+          <h2 title={choice.original_file_name}>{shortFileName(choice.original_file_name)}</h2>
+          <p className={styles.autoSave}>{savedAt || "자동 저장됨"}</p>
+          <div className={styles.field}><label>보정 체크리스트</label><div className={styles.chipGrid}>{me.event.retouch_options.map((option) => { const selected = keys.includes(option.key); return <button key={option.key} aria-pressed={selected} className={`${styles.chip} ${selected ? styles.chipActive : ""}`} onClick={() => { const next = selected ? keys.filter((key) => key !== option.key) : [...keys, option.key]; setKeys(next); schedule(next, memo); }}>{option.label}</button>; })}</div></div>
+          <div className={styles.field}><label>메모</label><textarea className={styles.textarea} maxLength={me.event.memo_max} value={memo} onChange={(e) => { setMemo(e.target.value); schedule(keys, e.target.value); }} /><span className={styles.counter}>{memo.length} / {me.event.memo_max}</span></div>
+        </> : <div className={styles.pcFeedbackEmpty}>왼쪽에서 사진을 먼저 골라주세요.</div>}
+        <div className={styles.pcSubmitArea}>{missing ? <p className={styles.submitReason}>{missing.label}을 먼저 골라주세요.</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked} onClick={submit}>최종 제출</button></div>
+      </aside>
     </div>
   </section>;
 }
