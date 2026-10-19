@@ -11,12 +11,20 @@ function makeToken(): string {
   return randomBytes(16).toString("hex");
 }
 
+export async function GET(_request: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const db = getSupabaseAdmin();
+  const result = await db.from("conti_run_shares").select("edited_at,submitted_at").eq("run_id", id).eq("audience", "hospital").is("revoked_at", null).order("edited_at", { ascending: false, nullsFirst: false }).limit(1).maybeSingle();
+  if (result.error) return NextResponse.json({ ok: false, error: result.error.message }, { status: 500 });
+  return NextResponse.json({ ok: true, editedAt: result.data?.edited_at ?? null, submittedAt: result.data?.submitted_at ?? null });
+}
+
 // 같은 run + audience로 이미 발급된(취소 안 된) 토큰이 있으면 재사용한다 — 버튼을 여러 번
 // 눌러도 링크가 계속 늘어나지 않는다.
 export async function POST(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
-  const audience = body.audience === "staff" ? "staff" : "customer";
+  const audience = body.audience === "staff" ? "staff" : body.audience === "hospital" ? "hospital" : "customer";
 
   const db = getSupabaseAdmin();
 
@@ -35,7 +43,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   const token = makeToken();
   const { error: insertError } = await db
     .from("conti_run_shares")
-    .insert({ run_id: id, audience, token });
+    .insert({ run_id: id, audience, token, can_edit: audience === "hospital" });
   if (insertError) return NextResponse.json({ ok: false, error: insertError.message }, { status: 500 });
 
   return NextResponse.json({ ok: true, token });
