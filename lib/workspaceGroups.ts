@@ -28,13 +28,12 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "photo",
     title: "사진작업실",
-    description: "촬영 콘티부터 사진 셀렉, RAW 매칭, 분류와 후반 작업까지 한 곳에서.",
+    description: "JPG정리부터 사진 셀렉, RAW 매칭, 분류와 후반 작업까지 한 곳에서.",
     href: "/photo-sorting",
     icon: Camera,
     accent: "mint",
     aliases: ["사진 작업실", "포토 작업실", "사진 도구"],
     tools: [
-      { id: "plan", title: "촬영 콘티", href: "/photo-sorting?tab=plan&tool=conti", aliases: ["콘티", "촬영 콘티", "사진 콘티", "콘티 만들기", "촬영계획", "촬영 계획", "콘티 작업실", "스토리보드 스튜디오"], sourceHrefs: ["/conti"] },
       { id: "jpg-prep", title: "JPG정리", href: "/photo-sorting?mode=jpg-prep", aliases: ["JPG정리", "JPG 정리", "JPG 통합", "원본 분리", "RAW/JPG 분리", "JPG원본"], sourceHrefs: [] },
       { id: "photo-select", title: "사진 셀렉", href: "/photo-sorting?mode=select", aliases: ["사진 셀렉", "AI 사진 셀렉", "AI 사진 검색", "사진 검색", "직접 셀렉", "고객 셀렉", "고객셀렉"], sourceHrefs: [] },
       { id: "raw-match", title: "RAW 매칭", href: "/photo-sorting?mode=raw-match", aliases: ["셀렉매칭", "셀렉 매칭", "RAW 매칭", "원본 매칭", "RAW 셀렉", "매칭"], sourceHrefs: ["/select-match", "/metadata-select"] },

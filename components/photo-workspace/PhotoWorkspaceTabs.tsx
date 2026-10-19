@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FolderInput, FolderTree, Images, Link2, Lock, Palette, PencilLine, Wrench } from "lucide-react";
+import { FolderInput, FolderTree, Images, Link2, Lock, Palette, Wrench } from "lucide-react";
 import { WorkspaceTabs } from "@/components/workspace-shell/WorkspaceTabs";
 import type { PhotoWorkspaceMode } from "./types";
 
@@ -11,7 +11,6 @@ export const PHOTO_WORKSPACE_TABS: Array<{
   description: string;
   icon: ReactNode;
 }> = [
-  { mode: "plan", title: "기획", description: "촬영 콘티를 준비합니다.", icon: <PencilLine size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "jpg-prep", title: "JPG정리", description: "RAW는 그대로 두고 JPG만 JPG전체로 모읍니다.", icon: <FolderInput size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "select", title: "사진 셀렉", description: "원하는 사진을 빠르게 선택합니다.", icon: <Images size={15} strokeWidth={2} aria-hidden="true" /> },
   { mode: "raw-match", title: "RAW 매칭", description: "선택된 JPG와 대응하는 RAW 원본을 매칭합니다.", icon: <Link2 size={15} strokeWidth={2} aria-hidden="true" /> },
@@ -39,7 +38,7 @@ export default function PhotoWorkspaceTabs({
       value={value}
       onChange={onChange}
       items={PHOTO_WORKSPACE_TABS.map(({ mode, title, description, icon }) => {
-        const unavailable = remote && !["plan", "jpg-prep", "select", "classification"].includes(mode);
+        const unavailable = remote && !["jpg-prep", "select", "classification"].includes(mode);
         return {
           value: mode,
           label: title,

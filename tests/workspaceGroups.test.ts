@@ -41,7 +41,7 @@ describe("integrated workspace registry", () => {
   });
 
   it("maps former standalone production tools to their exact workspace tabs", () => {
-    expect(getCanonicalWorkspaceHref("/conti?clientId=c1")).toBe("/photo-sorting?tab=plan&tool=conti&clientId=c1");
+    expect(getCanonicalWorkspaceHref("/conti?clientId=c1")).toBe("/conti?clientId=c1");
     expect(getCanonicalWorkspaceHref("/video-conti")).toBe("/video-studio?tab=plan&tool=video-conti");
     expect(getCanonicalWorkspaceHref("/youtube-editing-conti")).toBe("/video-studio?tab=plan&tool=youtube-conti");
     expect(getCanonicalWorkspaceHref("/broll-prompt")).toBe("/video-studio?tab=plan&tool=broll");

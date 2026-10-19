@@ -27,10 +27,6 @@ const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"),
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>RAW 매칭 도구를 불러오는 중...</div>,
 });
-const PhotoContiWorkspace = dynamic(() => import("@/components/conti/v2/ContiWorkspaceAdapter"), {
-  ssr: false,
-  loading: () => <div className={styles.workspaceLoading}>촬영 콘티를 불러오는 중...</div>,
-});
 const PhotoSortingWorkspace = dynamic(() => import("@/components/photo-classifier/PhotoSortingWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>사진 분류 도구를 불러오는 중...</div>,
@@ -51,19 +47,16 @@ const PhotoFileOpsWorkspace = dynamic(() => import("./PhotoFileOpsWorkspace"), {
   loading: () => <div className={styles.workspaceLoading}>파일 정리 도구를 불러오는 중...</div>,
 });
 
-const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["plan", "jpg-prep", "select", "raw-match", "classification", "file-ops", "retouch"]);
+const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["jpg-prep", "select", "raw-match", "classification", "file-ops", "retouch"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client", "tcut"]);
 const FILE_OPS_MODES = new Set<PhotoFileOpsMode>(["resize", "rename"]);
 
 function PhotoWorkspaceContent({
   hideHeader = false,
-  initialMode = "select",
+  initialMode = "jpg-prep",
   initialTool,
   initialSelectMode,
   initialFileOpsMode,
-  clientId,
-  workflowRunId,
-  resourceId,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
@@ -86,40 +79,48 @@ function PhotoWorkspaceContent({
   const rawFileOpsMode = searchParams.get("fileOpsMode") as PhotoFileOpsMode | null;
   const rawMatchMethodParam = searchParams.get("rawMatchMethod");
   const remoteJobId = searchParams.get("remoteJobId");
-  const mode = rawTab === "plan" ? "plan" : toolState?.mode ?? legacyModeState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
+  const legacyContiLink = rawTab === "plan" || searchParams.get("tool") === "conti";
+  const mode = toolState?.mode ?? legacyModeState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? initialSelectMode ?? "ai");
   const fileOpsMode = toolState?.fileOpsMode ?? legacyModeState?.fileOpsMode ?? (rawFileOpsMode && FILE_OPS_MODES.has(rawFileOpsMode) ? rawFileOpsMode : initialToolState?.fileOpsMode ?? initialFileOpsMode ?? "resize");
   const rawMatchMethod = toolState?.rawMatchMethod ?? (rawMatchMethodParam === "metadata" ? "metadata" : initialToolState?.rawMatchMethod ?? "filename");
   const { executionMode, currentLocalFolder, selectedJpgNames } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
-  const remoteUnavailable = remote && mode !== "plan" && mode !== "jpg-prep" && mode !== "classification" && mode !== "select";
+  const remoteUnavailable = remote && mode !== "jpg-prep" && mode !== "classification" && mode !== "select";
 
   useEffect(() => {
+    if (!legacyContiLink) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("tab");
+    params.delete("tool");
+    params.delete("mode");
+    params.delete("selectMode");
+    params.delete("fileOpsMode");
+    const suffix = params.toString();
+    router.replace(`/conti${suffix ? `?${suffix}` : ""}`, { scroll: false });
+  }, [legacyContiLink, router, searchParams]);
+
+  useEffect(() => {
+    if (legacyContiLink) return;
     const canonical = canonicalizePhotoWorkspaceParams(new URLSearchParams(searchParams.toString()));
     if (!canonical) return;
     router.replace(`${pathname}?${canonical.toString()}`, { scroll: false });
-  }, [pathname, router, searchParams]);
+  }, [legacyContiLink, pathname, router, searchParams]);
 
   const updateQuery = (nextMode: PhotoWorkspaceMode, nextSelectMode = selectMode, nextFileOpsMode = fileOpsMode) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (nextMode === "plan") {
-      params.set("tab", "plan");
-      params.set("tool", "conti");
-      params.delete("mode");
-      params.delete("selectMode");
-      params.delete("fileOpsMode");
-    } else {
-      params.delete("tab");
-      params.delete("tool");
-      params.set("mode", nextMode);
-      if (nextMode === "select") params.set("selectMode", nextSelectMode);
-      else params.delete("selectMode");
-      if (nextMode === "file-ops") params.set("fileOpsMode", nextFileOpsMode);
-      else params.delete("fileOpsMode");
-    }
+    params.delete("tab");
+    params.delete("tool");
+    params.set("mode", nextMode);
+    if (nextMode === "select") params.set("selectMode", nextSelectMode);
+    else params.delete("selectMode");
+    if (nextMode === "file-ops") params.set("fileOpsMode", nextFileOpsMode);
+    else params.delete("fileOpsMode");
     if (nextMode !== "raw-match") params.delete("rawMatchMethod");
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
+
+  if (legacyContiLink) return <div className={styles.workspaceLoading}>촬영 콘티로 이동하는 중...</div>;
 
   return (
     <WorkspaceShell>
@@ -132,15 +133,12 @@ function PhotoWorkspaceContent({
           guide={remoteUnavailable ? undefined : <PhotoGuidePanel mode={mode} selectMode={selectMode} fileOpsMode={fileOpsMode} />}
         >
           <WorkPanel
-            tone={mode === "plan" ? "light" : "dark"}
+            tone="dark"
             role="tabpanel"
             id={`photo-workspace-panel-${mode}`}
             aria-labelledby={`photo-workspace-tab-${mode}`}
           >
             {remoteUnavailable ? <RemoteUnsupportedNotice feature={mode === "raw-match" ? "RAW 매칭" : mode === "retouch" ? "사진 보정" : "파일 정리"} /> : null}
-            {!remoteUnavailable && mode === "plan" ? (
-              <PhotoContiWorkspace clientId={clientId} workflowRunId={workflowRunId} resourceId={resourceId} />
-            ) : null}
             {!remoteUnavailable && mode === "select" ? (
               <PhotoSelectWorkspace remote={remote} value={selectMode} onChange={(next) => updateQuery("select", next)} onStartRawMatch={() => updateQuery("raw-match")} />
             ) : null}
@@ -171,7 +169,7 @@ function PhotoWorkspaceContent({
 
 export default function PhotoWorkspace({
   hideHeader = false,
-  initialMode = "select",
+  initialMode = "jpg-prep",
   initialTool,
   initialSelectMode,
   initialFileOpsMode,

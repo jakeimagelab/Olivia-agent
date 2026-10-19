@@ -8,9 +8,8 @@ function source(path: string): string {
 }
 
 describe("사진 작업실 역할 분리", () => {
-  it("puts planning first and keeps the existing tools in their operational order", () => {
+  it("keeps the six photo tools in their operational order after conti is detached", () => {
     expect(PHOTO_WORKSPACE_TABS.map((tab) => tab.title)).toEqual([
-      "기획",
       "JPG정리",
       "사진 셀렉",
       "RAW 매칭",
@@ -20,8 +19,8 @@ describe("사진 작업실 역할 분리", () => {
     ]);
   });
 
-  it("maps the shooting conti entry to the planning workspace", () => {
-    expect(resolvePhotoWorkspaceToolState("conti")).toMatchObject({ mode: "plan" });
+  it("does not map the standalone shooting conti into the photo workspace", () => {
+    expect(resolvePhotoWorkspaceToolState("conti")).toBeUndefined();
   });
 
   it("maps legacy AI 컷 links to the T컷 select subtab, never the RAW tab", () => {

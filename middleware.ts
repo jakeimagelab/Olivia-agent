@@ -162,8 +162,6 @@ async function resolveShareScope(token: string): Promise<string | null> {
 const IS_LOCAL_DEV = process.env.NODE_ENV !== "production";
 
 const LEGACY_WORKSPACE_REDIRECTS: Readonly<Record<string, string>> = {
-  "/conti": "/photo-sorting?tab=plan&tool=conti",
-  "/video-conti": "/video-studio?tab=plan&tool=video-conti",
   "/youtube-editing-conti": "/video-studio?tab=plan&tool=youtube-conti",
   "/broll-prompt": "/video-studio?tab=plan&tool=broll",
   "/prompter": "/video-studio?tab=shoot&tool=prompter",

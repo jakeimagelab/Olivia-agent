@@ -3,15 +3,10 @@ import { CheckSquare2, FileCheck2, FolderOpen, FolderTree, Images, Link2, Messag
 import { GuidePanel } from "@/components/workspace-shell/GuidePanel";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "./types";
 
-type GuideKey = "plan" | "jpg_prep" | "select_ai" | "select_manual" | "select_client" | "select_tcut" | "raw_match" | "classification" | "retouch" | "resize" | "rename";
+type GuideKey = "jpg_prep" | "select_ai" | "select_manual" | "select_client" | "select_tcut" | "raw_match" | "classification" | "retouch" | "resize" | "rename";
 type GuideStep = { icon: LucideIcon; title: string; description: string };
 
 const GUIDES: Record<GuideKey, GuideStep[]> = {
-  plan: [
-    { icon: PenLine, title: "촬영 정보 선택", description: "진료과와 촬영 항목을 정합니다." },
-    { icon: FolderTree, title: "콘티 확인", description: "시간표·장면·장비를 확인하고 수정합니다." },
-    { icon: Images, title: "촬영 후 사진 셀렉", description: "같은 작업실의 다음 탭에서 사진을 고릅니다." },
-  ],
   jpg_prep: [
     { icon: FolderOpen, title: "폴더 선택", description: "RAW와 JPG가 섞인 촬영 폴더를 선택합니다." },
     { icon: ScanSearch, title: "JPG·RAW 확인", description: "옮길 JPG와 그대로 둘 RAW 개수를 미리 확인합니다." },
@@ -75,7 +70,6 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
 };
 
 function guideKey(mode: PhotoWorkspaceMode, selectMode: PhotoSelectMode, fileOpsMode: PhotoFileOpsMode): GuideKey {
-  if (mode === "plan") return "plan";
   if (mode === "jpg-prep") return "jpg_prep";
   if (mode === "select") return `select_${selectMode}` as GuideKey;
   if (mode === "raw-match") return "raw_match";
