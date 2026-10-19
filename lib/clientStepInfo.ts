@@ -10,7 +10,7 @@ export const STEP_INFO: Record<string, ClientStepInfo> = {
   consult_meeting: { icon: "🤝", desc: "병원 기본 정보 등록, 상담 내용 AI 분析", href: "/consultation" },
   quote: { icon: "📄", desc: "패키지 선택 및 PDF 견적서 자동 생성", href: "/quote" },
   contract: { icon: "✍️", desc: "계약서 생성 및 이메일 전달", href: "/contract" },
-  conti: { icon: "🎬", desc: "AI 촬영 콘티 및 체크리스트 생성", href: "/photo-sorting?tab=plan&tool=conti" },
+  conti: { icon: "🎬", desc: "AI 촬영 콘티 및 체크리스트 생성", href: "/conti" },
   shooting: { icon: "📸", desc: "촬영 당일 체크리스트 진행 및 완료 처리", href: "/shooting" },
   payment_confirm: { icon: "🧾", desc: "잔금 입금과 계산서 처리 상태를 수동 확인", href: "/clients" },
   backup_sorting: { icon: "🗂️", desc: "RAW/JPG 자동 분류 및 백업 관리", href: "/photo-sorting?mode=classification" },

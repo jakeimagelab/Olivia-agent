@@ -8,7 +8,7 @@ import { resolveNavigationCapability } from "@/lib/olivia/capabilities/resolver"
 
 describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 match, confidence 1", () => {
   const exactCases: Array<[string, string]> = [
-    ["콘티", "/photo-sorting?tab=plan&tool=conti"],
+    ["콘티", "/conti"],
     ["견적", "/quote"],
     ["사진분류", "/photo-sorting?tool=classification"],
     ["사진 분류", "/photo-sorting?tool=classification"],
@@ -102,7 +102,7 @@ describe("resolveNavigationCapability — confidence===1 게이트가 새 알고
     expect(result.kind).toBe("match");
     if (result.kind === "match") {
       expect(result.confidence).toBe(1);
-      expect(result.tool.href).toBe("/photo-sorting?tab=plan&tool=conti");
+      expect(result.tool.href).toBe("/conti");
     }
   });
 

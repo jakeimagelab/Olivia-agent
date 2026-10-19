@@ -10,7 +10,7 @@ import { useWorkspaceStore, type WorkspaceType } from "@/lib/store/workspaceStor
 
 const layoutTransition = { duration: 0.32, ease: [0.32, 0.72, 0, 1] as const };
 
-// Olivia Agent 2.0 Phase 1 — /contract, /conti(그리고 sync 전용으로 /photo-sorting)가
+// Olivia Agent 2.0 Phase 1 — /contract(그리고 sync 전용으로 /photo-sorting)가
 // 렌더링하는 얇은 다리. /photoclinic, /quote(견적서)는 2026-09 원복 요청으로 이 브릿지를
 // 쓰지 않고 QuoteBuilder mode="page"를 직접 렌더링한다(WorkspaceRegistry.ts 참고). 두 가지
 // 일을 한다:

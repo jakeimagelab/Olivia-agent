@@ -1125,7 +1125,7 @@ export default function ImageDirectorPage() {
                   </button>
                 )}
                 <Link
-                  href="/photo-sorting?tab=plan&tool=conti"
+                  href="/conti"
                   style={{
                     display: "flex",
                     alignItems: "center",
