@@ -4,8 +4,6 @@ import ContiHospitalShareEditor from "@/components/conti/v2/ContiHospitalShareEd
 import ShareViewPrintButton from "@/components/conti/v2/ShareViewPrintButton";
 import type { ContiGroupRow, ContiRunRow, ContiSceneRow } from "@/components/conti/v2/types";
 import { parsePreparationText } from "@/lib/conti/deriveChecklist";
-import { resolveSceneVisual } from "@/lib/conti/sceneVisualLibrary";
-import { normalizeContiStudioState } from "@/lib/conti/studioState";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { CONTI_GROUP_COLORS, getDepartmentContiTitle, getDepartmentLabel } from "@/lib/conti/departmentTaxonomy";
 
@@ -32,7 +30,6 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
   }
   const groupRows = (groups ?? []) as ContiGroupRow[];
   const sceneRows = (scenes ?? []) as ContiSceneRow[];
-  const studioState = normalizeContiStudioState(runRow.studio_state);
   if (share.audience === "hospital" && share.can_edit) {
     return <ContiHospitalShareEditor token={token} hospitalName={hospitalName || getDepartmentLabel(runRow.specialty || "촬영")} run={{ ...runRow, hospital_name: hospitalName }} groups={groupRows} scenes={sceneRows} editedAt={share.edited_at} />;
   }
@@ -68,8 +65,7 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
         <div className="share-grid">
           {sceneRows.map((scene, index) => {
             const group = scene.group_id ? groupById.get(scene.group_id) : undefined;
-            const visual = studioState.sceneMeta[scene.id]?.visual ?? resolveSceneVisual({ specialty: runRow.specialty, name: scene.name, keyword: scene.keyword, procedures: scene.procedures });
-            return <ContiSceneCard key={scene.id} index={index + 1} category={scene.name || "이름 없는 Scene"} duration={scene.minutes != null ? `${scene.minutes}분` : undefined} keyword={isStaff ? scene.keyword || group?.name : group?.name} description={scene.description} location={scene.space_text} personnel={scene.people_text} patientRole={scene.patient_role_text} media={scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "—" : "사진"} imageUrl={visual.imageUrl} preparationItems={isStaff ? parsePreparationText(scene.preparation_text) : undefined} completed={scene.completed} color={{ bg: `${group?.color || "#155855"}18`, text: group?.color || "#155855" }} />;
+            return <ContiSceneCard key={scene.id} index={index + 1} category={scene.name || "이름 없는 Scene"} duration={scene.minutes != null ? `${scene.minutes}분` : undefined} keyword={isStaff ? scene.keyword || group?.name : group?.name} description={scene.description} location={scene.space_text} personnel={scene.people_text} patientRole={scene.patient_role_text} media={scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "—" : "사진"} preparationItems={isStaff ? parsePreparationText(scene.preparation_text) : undefined} completed={scene.completed} color={{ bg: `${group?.color || "#155855"}18`, text: group?.color || "#155855" }} />;
           })}
         </div>
         <footer className="share-footer no-print">OLIVIA OS · {isStaff ? "현장팀" : "고객"} 공유뷰</footer>
