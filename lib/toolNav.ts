@@ -4,7 +4,7 @@ import {
   BarChart2, Share2, Lightbulb, CalendarCheck, Sparkles, ScanSearch, ShieldCheck,
   ImageDown, Activity, TrendingUp, Globe2, Search, Trash2, Images, Trophy, MessageCircle, Mic,
   Fingerprint, Library, ImagePlus, PenTool, LayoutGrid, Megaphone,
-  Target, Scissors, Film, Palette, Clock, FileSignature, Clapperboard,
+  Target, Scissors, Film, Palette, Clock, FileSignature, Clapperboard, UserCheck,
 } from "lucide-react";
 
 /* /admin 콘솔의 3개 카테고리(관리자 대시보드 / 고객관리 CRM / 개별 기능)와 동일한 분류 —
@@ -48,6 +48,7 @@ export const TOOLS_WORK: ToolDef[] = [
   { title: "초상권 동의서", desc: "촬영 대상자의 사진·영상 촬영 및 활용 동의서를 작성하고 서명을 받습니다.", href: "/portrait-consent", icon: FileSignature, meta: "Portrait Consent", orange: false, category: "tools", aliases: ["초상권", "초상권 동의서", "촬영 동의서", "사진 동의서", "영상 동의서"] },
   { title: "고객 관리", desc: "병원별 상담→견적→계약→촬영→전달 단계를 관리하고 업무 현황을 추적합니다.", href: "/clients", icon: Users, meta: "Client Management", orange: true, category: "crm", aliases: ["고객관리", "고객 관리", "고객", "고객 목록", "고객리스트", "CRM", "클라이언트"] },
   { title: "셀렉 갤러리", desc: "고객에게 촬영본을 전달하고 셀렉을 받는 갤러리를 관리합니다.", href: "/select-galleries", icon: Images, meta: "Select Gallery", orange: false, category: "crm", aliases: ["셀렉갤러리", "셀렉 갤러리", "갤러리"] },
+  { title: "개인별 사진 셀렉", desc: "행사 참가자가 본인 사진을 고르고 보정 요청을 남기는 셀렉을 관리합니다.", href: "/person-select", icon: UserCheck, meta: "Person Select", orange: false, category: "crm", aliases: ["개인별 사진 셀렉", "선생님 사진 셀렉", "학생 사진 셀렉"] },
   { title: "PER 리워드", desc: "고객 추천 리워드 적립·신청·후속 관리를 처리합니다.", href: "/per", icon: Trophy, meta: "PER Reward", orange: false, category: "crm", aliases: ["PER", "리워드"] },
   { title: "고객 포털 관리", desc: "병원 고객에게 전달할 고객 전용 포털 링크를 생성하고 수정 요청·리뷰를 관리합니다.", href: "/portal-admin", icon: Link2, meta: "Client Portal", orange: false, category: "crm", aliases: ["고객포털", "고객 포털"] },
   { title: "통합 메일링", desc: "견적서·계약서·갤러리 등 메일 초안을 한 곳에서 확인·발송합니다.", href: "/mailing", icon: Mail, meta: "Unified Mailing", orange: false, category: "dashboard", aliases: ["메일링", "메일함"] },

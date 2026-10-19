@@ -54,6 +54,7 @@ const protectedApiPrefixes = [
   "/api/mailing",
   "/api/contacts",
   "/api/select-galleries",
+  "/api/person-select",
   "/api/send-brand-mail",
   "/api/video-conti",
   "/api/brand-analysis",

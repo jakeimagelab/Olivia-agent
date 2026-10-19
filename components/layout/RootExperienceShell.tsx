@@ -29,6 +29,7 @@ const BARE_PATH_PREFIXES = [
   "/remote-files",
   "/team-chat/invite/",
   "/select/",
+  "/pick/",
   "/s/",
 ];
 

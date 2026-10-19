@@ -21,6 +21,7 @@ import { HospitalBrandDiagnosisWindowContent } from "../adapters/HospitalBrandDi
 import { ChannelAnalyzerWindowContent } from "../adapters/ChannelAnalyzerWindowContent";
 import { MetadataSelectWindowContent } from "../adapters/MetadataSelectWindowContent";
 import { SelectGalleriesWindowContent } from "../adapters/SelectGalleriesWindowContent";
+import { PersonSelectWindowContent } from "../adapters/PersonSelectWindowContent";
 import { SeoDeliveryWindowContent } from "../adapters/SeoDeliveryWindowContent";
 import { MailingWindowContent } from "../adapters/MailingWindowContent";
 import { WorkJournalWindowContent } from "../adapters/WorkJournalWindowContent";
@@ -117,6 +118,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 620, height: 440 },
     singleton: true,
     component: SelectGalleriesWindowContent,
+  },
+  {
+    id: "person-select",
+    title: "개인별 사진 셀렉",
+    icon: appIcon("select-gallery"),
+    route: "/person-select",
+    defaultSize: { width: 1120, height: 760 },
+    minSize: { width: 620, height: 440 },
+    singleton: true,
+    component: PersonSelectWindowContent,
   },
   {
     id: "seo-delivery",
@@ -327,6 +338,9 @@ function appForPathname(pathname: string): OliviaAppDefinition | undefined {
   if (exact) return exact;
   if (/^\/select-galleries\/[^/]+$/.test(pathname)) {
     return oliviaAppRegistry.find((app) => app.id === "select-galleries");
+  }
+  if (/^\/person-select\/[^/]+$/.test(pathname)) {
+    return oliviaAppRegistry.find((app) => app.id === "person-select");
   }
   return undefined;
 }

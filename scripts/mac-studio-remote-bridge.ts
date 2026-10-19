@@ -260,6 +260,13 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       addString(args, "--check-type", stringValue(payload, "check_type"));
       return runner(repoRoot, "photo-retouch-runner.ts", args);
     }
+    case "PERSON_SELECT_IMPORT": {
+      addString(args, "--event-id", stringValue(payload, "event_id", true));
+      addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
+      if (!Array.isArray(payload.mappings) || payload.mappings.length === 0) throw new Error("PERSON_SELECT_IMPORT에는 mappings가 필요합니다.");
+      addString(args, "--mappings-json", JSON.stringify(payload.mappings));
+      return runner(repoRoot, "person-select-import.ts", args);
+    }
     case "VIDEO_INTERVIEW_ANALYZE":
       addString(args, "--action", "analyze");
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));

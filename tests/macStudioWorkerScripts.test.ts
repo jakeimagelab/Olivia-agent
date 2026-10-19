@@ -129,6 +129,17 @@ describe("Mac Studio Worker repository scripts", () => {
     expect(photo?.killProcessGroup).toBeUndefined();
   });
 
+  it("maps PERSON_SELECT_IMPORT to the dedicated Mac Studio runner", () => {
+    const invocation = createRunnerInvocation(job("PERSON_SELECT_IMPORT", {
+      event_id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+      source_relative_path: "서공예폴더/학교전달",
+      mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }],
+    }), repoRoot);
+    expect(invocation?.args).toContain(path.join(repoRoot, "scripts/person-select-import.ts"));
+    expect(invocation?.args).toEqual(expect.arrayContaining(["--event-id", "018e2f30-92af-78b1-8f21-67f4404f5027", "--source-relative-path", "서공예폴더/학교전달", "--mappings-json"]));
+    expect(invocation?.killProcessGroup).toBeUndefined();
+  });
+
   it("keeps the PHASE 6 action contract visible in both installed shell entrypoints", async () => {
     for (const script of ["worker.sh", "remote-bridge.sh"]) {
       const source = await readFile(path.join(repoRoot, "ops/mac-studio/bin", script), "utf8");

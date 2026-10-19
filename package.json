@@ -17,6 +17,7 @@
     "photo:classify-work": "node --import tsx scripts/photo-classify-work-runner.ts",
     "photo:raw-match": "node --import tsx scripts/photo-raw-match-runner.ts",
     "photo:resize": "node --import tsx scripts/photo-resize-runner.ts",
+    "person-select:import": "node --import tsx scripts/person-select-import.ts",
     "photo:ai-select": "node --import tsx scripts/photo-ai-select-runner.ts",
     "photo:retouch": "node --import tsx scripts/photo-retouch-runner.ts"
   },

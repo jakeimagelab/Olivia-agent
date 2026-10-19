@@ -25,6 +25,7 @@ import { useOliviaDesktopEffectiveActiveApp } from "./useOliviaDesktopEffectiveA
 export const DESKTOP_APP_TO_WORKSPACE: Partial<Record<string, string>> = {
   "photo-workspace": "photo-sort",
   "select-galleries": "photo-sort",
+  "person-select": "photo-sort",
   quote: "quote",
   contract: "contract",
   calendar: "calendar",
