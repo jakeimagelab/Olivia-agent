@@ -6,6 +6,16 @@
 .header p { margin: 4px 0 0; color: #5a7470; font-size: 12px; }
 .actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .primary, .secondary, .weak { min-height: 44px; border-radius: 10px; padding: 0 15px; font: inherit; font-weight: 600; cursor: pointer; }
+.headerActions { flex-wrap: nowrap; }
+.headerActions > .primary, .headerActions > .secondary, .headerActions > .weak {
+  min-height: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 .primary { color: #fff; border: 1px solid #c94a1e; background: #c94a1e; }
 .secondary { color: #155855; border: 1px solid #c8d5d1; background: #fff; }
 .weak { color: #5a7470; border: 0; background: transparent; }
@@ -51,6 +61,8 @@
 .notice { margin: 14px 0; padding: 13px 15px; border-left: 3px solid #155855; background: #f1f7f5; color: #355450; font-size: 13px; }
 .warning { margin: 14px 0; padding: 13px 15px; border: 1px solid #f0cdb9; border-radius: 10px; background: #fff4ee; color: #b03f14; font-size: 13px; }
 .result { margin-top: 18px; padding: 16px; border: 1px solid #cfe0dc; border-radius: 11px; color: #155855; background: #f1f7f5; }
+.skippedFolders { margin-top: 9px; color: #5a7470; font-size: 13px; }
+.disabledReason { margin: 10px 0 0; color: #5a7470; font-size: 12px; }
 .failureList { max-height: 180px; margin: 12px 0 0; padding: 10px 0 0 20px; overflow: auto; border-top: 1px solid #cfe0dc; color: #b03f14; font-size: 12px; line-height: 1.6; }
 .groupRows { display: grid; gap: 8px; margin-top: 16px; }
 .groupRow { display: grid; grid-template-columns: 80px minmax(0,1fr) 90px; gap: 12px; align-items: center; padding: 10px; border-radius: 10px; background: #f6f8f7; }
@@ -69,6 +81,7 @@
 @media (max-width: 800px) {
   .header { align-items: flex-start; flex-direction: column; }
   .actions { justify-content: flex-start; }
+  .headerActions { flex-wrap: wrap; }
   .body { width: calc(100% - 28px); }
   .toolbar { align-items: flex-start; flex-direction: column; }
   .eventRow { min-width: 760px; }

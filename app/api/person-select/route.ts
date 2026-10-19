@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { DEFAULT_PERSON_SELECT_CATEGORIES, DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS } from "@/lib/person-select/types";
+import { parseSeoulDateTime } from "@/lib/person-select/date";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const title = typeof body.title === "string" ? body.title.trim() : "";
   const slug = typeof body.slug === "string" ? body.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") : "";
-  const deadlineAt = typeof body.deadline_at === "string" ? body.deadline_at : "";
+  const deadlineAt = parseSeoulDateTime(body.deadline_at);
   if (!title || !slug || !deadlineAt) return Response.json({ ok: false, error: "행사명, 공개 주소, 마감일을 입력해 주세요." }, { status: 400 });
   const { data, error } = await getSupabaseAdmin().from("person_select_events").insert({
     title, slug, deadline_at: deadlineAt,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFile, mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { readFile, mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -16,7 +16,9 @@ import {
   validateChoiceInput,
 } from "@/lib/person-select/core";
 import { DEFAULT_PERSON_SELECT_CATEGORIES } from "@/lib/person-select/types";
-import { scanPersonSelectFolders } from "@/scripts/person-select-import";
+import { findSkippedFolders, scanPersonSelectFolders } from "@/scripts/person-select-import";
+import { formatSeoulDeadline, formatSeoulDateTimeInput, parseSeoulDateTime, defaultSeoulDeadlineInput } from "@/lib/person-select/date";
+import { getPersonSelectRoots, resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 
 describe("person select public access", () => {
   it("normalizes NFC names and removes spaces", () => {
@@ -83,6 +85,45 @@ describe("person select importer", () => {
       expect(rows[0].ownerName).toBe("고가연");
       expect(rows[0].relPath).toBe(rows[0].relPath.normalize("NFC"));
     } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it("scans only mapped folders and reports 학생사진 as skipped", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "person-select-skip-"));
+    try {
+      await mkdir(path.join(root, "선생님프로필", "선생님프로필_고가연"), { recursive: true });
+      await mkdir(path.join(root, "학생사진", "학생_가연"), { recursive: true });
+      await writeFile(path.join(root, "선생님프로필", "선생님프로필_고가연", "A.JPG"), "teacher");
+      await writeFile(path.join(root, "학생사진", "학생_가연", "B.JPG"), "student");
+      const mappings = [{ folder: "선생님프로필", category: "profile", owner: "person" as const }];
+      expect(await scanPersonSelectFolders(root, mappings)).toHaveLength(1);
+      expect(await findSkippedFolders(root, mappings)).toEqual(["학생사진"]);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it("accepts only configured person-select roots after realpath and rejects traversal or symlink escapes", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "person-select-root-"));
+    const outside = await mkdtemp(path.join(tmpdir(), "person-select-outside-"));
+    const env = JSON.stringify([root]);
+    try {
+      await mkdir(path.join(root, "학교전달"));
+      await symlink(outside, path.join(root, "outside-link"));
+      expect(getPersonSelectRoots(env)[0]?.path).toBe(root);
+      await expect(resolvePersonSelectSourcePath(path.join(root, "학교전달"), env)).resolves.toMatchObject({ relativePath: "학교전달" });
+      await expect(resolvePersonSelectSourcePath("root-0/학교전달", env)).resolves.toMatchObject({ relativePath: "학교전달" });
+      await expect(resolvePersonSelectSourcePath(`${root}/../outside`, env)).rejects.toThrow("허용 루트 밖");
+      await expect(resolvePersonSelectSourcePath(outside, env)).rejects.toThrow("허용 루트 밖");
+      await expect(resolvePersonSelectSourcePath(path.join(root, "outside-link"), env)).rejects.toThrow("안전한 폴더");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    }
+  });
+
+  it("stores KST datetime-local values as timestamptz and formats deadline without seconds", () => {
+    expect(parseSeoulDateTime("2026-10-31T18:00")).toBe("2026-10-31T09:00:00.000Z");
+    expect(formatSeoulDateTimeInput("2026-10-31T09:00:00.000Z")).toBe("2026-10-31T18:00");
+    expect(formatSeoulDeadline("2026-10-31T09:00:00.000Z")).toBe("10월 31일 (토) 오후 6:00");
+    expect(defaultSeoulDeadlineInput(new Date("2026-10-19T17:00:00.000Z"))).toBe("2026-11-03T18:00");
   });
 
   it("keeps pin_code out of every public pick response source", async () => {

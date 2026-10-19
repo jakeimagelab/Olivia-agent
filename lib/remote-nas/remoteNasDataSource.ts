@@ -40,6 +40,8 @@ type RemoteWorkerNasDataSourceOptions = {
   pollIntervalMs?: number;
   timeoutMs?: number;
   targetWorker?: string;
+  action?: "LIST_FOLDER" | "PERSON_SELECT_LIST_FOLDER";
+  rootName?: string;
 };
 
 export type RemoteNasFailureStage =
@@ -172,6 +174,7 @@ export function mapRemoteWorkerFolderResult(
   value: unknown,
   requestedPath: string,
   foldersOnly = false,
+  expectedRootName = REMOTE_NAS_ROOT_NAME,
 ): RemoteNasFolderResult {
   const result = parseWorkerResult(value);
 
@@ -179,7 +182,7 @@ export function mapRemoteWorkerFolderResult(
     throw new Error(apiErrorMessage(result, "NAS 폴더를 불러오지 못했습니다."));
   }
 
-  if (result.root !== REMOTE_NAS_ROOT_NAME) {
+  if (result.root !== expectedRootName) {
     throw new Error("허용되지 않은 NAS Root 응답입니다.");
   }
 
@@ -244,7 +247,7 @@ export function mapRemoteWorkerFolderResult(
     : toRemoteNasDisplayPath(folderPath)).normalize("NFC");
 
   return {
-    rootName: REMOTE_NAS_ROOT_NAME,
+    rootName: expectedRootName,
     path: folderPath,
     displayPath,
     entries: sortRemoteNasEntries(entries),
@@ -260,6 +263,8 @@ export function createRemoteWorkerNasDataSource(
   const pollIntervalMs = options.pollIntervalMs ?? REMOTE_WORKER_NAS_POLL_INTERVAL_MS;
   const timeoutMs = options.timeoutMs ?? REMOTE_WORKER_NAS_TIMEOUT_MS;
   const targetWorker = options.targetWorker?.trim() || undefined;
+  const action = options.action ?? "LIST_FOLDER";
+  const rootName = options.rootName ?? REMOTE_NAS_ROOT_NAME;
 
   const fetchFolder = async (
     relativePath: string,
@@ -282,7 +287,7 @@ export function createRemoteWorkerNasDataSource(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            action: "LIST_FOLDER",
+            action,
             payload: {
               ...(path ? { remote_path: path } : { root: true }),
               ...(foldersOnly ? { folders_only: true } : {}),
@@ -351,7 +356,7 @@ export function createRemoteWorkerNasDataSource(
             );
           }
 
-          if (job.action && job.action !== "LIST_FOLDER") {
+          if (job.action && job.action !== action) {
             throw new RemoteNasDataSourceError(
               "요청한 폴더 작업과 다른 결과가 반환되었습니다.",
               { macStudio: "online", nas: "unknown", source: "worker" },
@@ -362,7 +367,7 @@ export function createRemoteWorkerNasDataSource(
           if (job.status === "COMPLETED") {
             stage = "folder_lookup_result";
             try {
-              return mapRemoteWorkerFolderResult(job.result, path, foldersOnly);
+              return mapRemoteWorkerFolderResult(job.result, path, foldersOnly, rootName);
             } catch (error) {
               throw new RemoteNasDataSourceError(
                 error instanceof Error ? error.message : "NAS 폴더 결과를 읽지 못했습니다.",
@@ -410,6 +415,31 @@ export function createRemoteWorkerNasDataSource(
     listFolder(relativePath, requestOptions) {
       return fetchFolder(relativePath, requestOptions, false);
     },
+  };
+}
+
+/** 개인별 사진 셀렉 전용: 기존 NAS 단일 루트와 분리된 Mac Studio 허용 루트 목록을 탐색한다. */
+export function createPersonSelectRemoteDataSource(
+  options: Omit<RemoteWorkerNasDataSourceOptions, "action" | "rootName"> = {},
+): RemoteNasDataSource {
+  const source = createRemoteWorkerNasDataSource({
+    ...options,
+    action: "PERSON_SELECT_LIST_FOLDER",
+    rootName: "PERSON_SELECT_ROOTS",
+  });
+  const withFriendlyError = async <T,>(request: Promise<T>): Promise<T> => {
+    try {
+      return await request;
+    } catch (error) {
+      if (error instanceof RemoteNasDataSourceError && error.connection.macStudio === "offline") {
+        throw new RemoteNasDataSourceError("Mac Studio가 꺼져 있어요.", error.connection, error.stage);
+      }
+      throw error;
+    }
+  };
+  return {
+    listRoot(options) { return withFriendlyError(source.listRoot(options)); },
+    listFolder(relativePath, options) { return withFriendlyError(source.listFolder(relativePath, options)); },
   };
 }
 

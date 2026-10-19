@@ -3,6 +3,7 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { selectionStatus } from "@/lib/person-select/core";
 import { signedImageUrl } from "@/lib/person-select/server";
+import { parseSeoulDateTime } from "@/lib/person-select/date";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,11 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
   const { eventId } = await context.params; const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max"];
   const update = Object.fromEntries(allowed.filter((key) => body[key] !== undefined).map((key) => [key, body[key]]));
+  if (body.deadline_at !== undefined) {
+    const deadlineAt = parseSeoulDateTime(body.deadline_at);
+    if (!deadlineAt) return Response.json({ ok: false, error: "올바른 마감일을 입력해 주세요." }, { status: 400 });
+    update.deadline_at = deadlineAt;
+  }
   if (update.status && !["draft", "open", "closed"].includes(String(update.status))) return Response.json({ ok: false, error: "올바르지 않은 행사 상태입니다." }, { status: 400 });
   update.updated_at = new Date().toISOString();
   const { data, error } = await getSupabaseAdmin().from("person_select_events").update(update).eq("id", eventId).select("*").single();

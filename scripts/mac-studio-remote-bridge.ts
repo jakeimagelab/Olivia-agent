@@ -22,6 +22,7 @@ import {
 } from "@/lib/remote-nas/path";
 import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
 import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
+import { getPersonSelectRoots, resolvePersonSelectSourcePath, toPersonSelectVirtualPath } from "@/lib/person-select/sourceRoots";
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
@@ -279,6 +280,7 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     case "PING":
     case "COPY_TEST":
     case "LIST_FOLDER":
+    case "PERSON_SELECT_LIST_FOLDER":
     case "PHOTO_CHECK_WORK_FOLDER":
       return null;
     default:
@@ -506,6 +508,60 @@ async function listFolder(payload: JsonRecord): Promise<JsonRecord> {
   return result;
 }
 
+/** 개인별 사진 셀렉 전용 탐색기. 기존 LIST_FOLDER/사진 작업 root에는 영향을 주지 않는다. */
+async function listPersonSelectFolder(payload: JsonRecord): Promise<JsonRecord> {
+  const rootRequested = booleanValue(payload, "root") === true;
+  const requestedPath = stringValue(payload, "remote_path") ?? "";
+  const virtualPath = normalizeRemoteNasRelativePath(requestedPath);
+  if (rootRequested && virtualPath) throw new Error("PERSON_SELECT_LIST_FOLDER의 root와 remote_path를 동시에 지정할 수 없습니다.");
+  const foldersOnly = booleanValue(payload, "folders_only") === true;
+
+  if (!virtualPath) {
+    const entries = getPersonSelectRoots().map((root) => ({
+      name: root.id,
+      displayName: root.label,
+      path: root.id,
+      displayPath: root.label,
+      type: "folder",
+      modifiedAt: null,
+    }));
+    return { ok: true, root: "PERSON_SELECT_ROOTS", path: "", displayPath: "허용 폴더", entries };
+  }
+
+  const resolved = await resolvePersonSelectSourcePath(virtualPath);
+  const entries: JsonRecord[] = [];
+  try {
+    for (const entry of await readdir(resolved.canonicalPath, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) continue;
+      if (!entry.isDirectory() && !entry.isFile()) continue;
+      if (foldersOnly && !entry.isDirectory()) continue;
+      const childAbsolutePath = path.join(resolved.canonicalPath, entry.name);
+      const metadata = await stat(childAbsolutePath);
+      const relativePath = path.relative(resolved.root.canonicalPath, childAbsolutePath).split(path.sep).join("/");
+      const childPath = toPersonSelectVirtualPath(resolved.root, relativePath);
+      entries.push({
+        name: entry.name,
+        displayName: entry.name.normalize("NFC"),
+        path: childPath,
+        displayPath: `${resolved.root.label}/${relativePath.split("/").map((part) => part.normalize("NFC")).join("/")}`,
+        type: entry.isDirectory() ? "folder" : "file",
+        ...(entry.isFile() ? { size: metadata.size } : {}),
+        modifiedAt: metadata.mtime.toISOString(),
+      });
+    }
+  } catch (error) {
+    const code = error && typeof error === "object" && "code" in error ? String((error as NodeJS.ErrnoException).code) : "";
+    if (code === "EACCES" || code === "EPERM") throw new Error("이 폴더를 읽을 권한이 없어요.");
+    if (code === "ENOENT" || code === "ENOTDIR") throw new Error("드라이브가 연결되어 있지 않아요.");
+    throw error;
+  }
+  const displayPath = resolved.relativePath
+    ? `${resolved.root.label}/${resolved.relativePath.split("/").map((part) => part.normalize("NFC")).join("/")}`
+    : resolved.root.label;
+  console.info(`[remote-bridge] PERSON_SELECT_LIST_FOLDER completed: ${virtualPath}`);
+  return { ok: true, root: "PERSON_SELECT_ROOTS", path: virtualPath, displayPath, entries };
+}
+
 /** 선택한 NAS 촬영 폴더에 대응하는 Agentstation JPG 작업본을 읽기 전용으로만 확인한다. */
 async function checkPhotoWorkFolder(payload: JsonRecord): Promise<JsonRecord> {
   const sourceFolderInput = stringValue(payload, "source_folder", true);
@@ -565,6 +621,7 @@ async function executeBuiltIn(job: ClaimedRemoteJob): Promise<JsonRecord> {
   }
   if (job.action === "COPY_TEST") return copyTest();
   if (job.action === "LIST_FOLDER") return listFolder(job.payload);
+  if (job.action === "PERSON_SELECT_LIST_FOLDER") return listPersonSelectFolder(job.payload);
   if (job.action === "PHOTO_CHECK_WORK_FOLDER") return checkPhotoWorkFolder(job.payload);
   throw new Error(`내장 실행기가 없는 action입니다: ${job.action}`);
 }

@@ -6,9 +6,9 @@ import { readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
 import { createUniquePin, normalizeLoginName, normalizeNfc, parseGroupFolderName, parsePersonFolderName } from "@/lib/person-select/core";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
+import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 
 type Mapping = { folder: string; category: string; owner: "person" | "group" };
 type Candidate = { absolutePath: string; relPath: string; fileName: string; category: string; ownerName: string | null; ownerGroup: string | null };
@@ -50,24 +50,35 @@ export async function scanPersonSelectFolders(root: string, mappings: Mapping[])
   return files.sort((a, b) => a.relPath.localeCompare(b.relPath, "ko"));
 }
 
-function watermark(width: number, height: number) {
-  const size = Math.max(18, Math.round(width * .018));
-  return Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg"><text x="${width - 24}" y="${height - 24}" text-anchor="end" font-family="Arial,sans-serif" font-size="${size}" font-weight="500" fill="white" fill-opacity=".72" stroke="black" stroke-opacity=".22" stroke-width="1">PHOTOCLINIC · 미리보기</text></svg>`);
+/** 매핑되지 않은 학생사진은 절대 순회하지 않고, 결과 안내에만 남긴다. */
+export async function findSkippedFolders(root: string, mappings: Mapping[]) {
+  const mapped = new Set(mappings.map((mapping) => normalizeNfc(mapping.folder)));
+  try {
+    const entries = await readdir(root, { withFileTypes: true, encoding: "utf8" });
+    return entries
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith(".") && !mapped.has(normalizeNfc(entry.name)))
+      .map((entry) => normalizeNfc(entry.name));
+  } catch {
+    return [];
+  }
 }
 
 async function main() {
   const input = readArgs();
   if (!input.mappings.length) throw new Error("가져오기 항목 매핑이 필요합니다.");
-  const root = input.root ? path.resolve(input.root) : path.resolve(getStorageRoots().sourceRoot, input.sourceRelativePath ?? "");
+  const root = input.root
+    ? (await resolvePersonSelectSourcePath(input.root)).canonicalPath
+    : (await resolvePersonSelectSourcePath(input.sourceRelativePath ?? "")).canonicalPath;
   const db = getSupabaseAdmin();
   const query = db.from("person_select_events").select("id,slug");
   const { data: event, error: eventError } = input.eventId ? await query.eq("id", input.eventId).single() : await query.eq("slug", input.eventSlug ?? "").single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   const eventId = event.id;
   const files = await scanPersonSelectFolders(root, input.mappings);
+  const skippedFolders = await findSkippedFolders(root, input.mappings);
   const peopleNames = [...new Set(files.map((file) => file.ownerName).filter((value): value is string => Boolean(value)))];
   if (input.dryRun) {
-    process.stdout.write(`${JSON.stringify({ ok: true, dryRun: true, root, photoCount: files.length, people: peopleNames, byCategory: Object.fromEntries(input.mappings.map((item) => [item.category, files.filter((file) => file.category === item.category).length])) })}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: true, dryRun: true, root, photoCount: files.length, people: peopleNames, skippedFolders, byCategory: Object.fromEntries(input.mappings.map((item) => [item.category, files.filter((file) => file.category === item.category).length])) })}\n`);
     return;
   }
   await ensurePersonSelectBucket();
@@ -94,9 +105,7 @@ async function main() {
       try {
         const imageId = randomUUID(); const image = sharp(file.absolutePath, { failOn: "none" }).rotate(); const metadata = await image.metadata();
         const thumb = await image.clone().resize({ width: 480, height: 480, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 72 }).toBuffer();
-        const dimensions = await image.clone().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).metadata();
-        const w = dimensions.width ?? Math.min(metadata.width ?? 1600, 1600); const h = dimensions.height ?? Math.min(metadata.height ?? 1600, 1600);
-        const preview = await image.clone().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).composite([{ input: watermark(w, h), top: 0, left: 0 }]).jpeg({ quality: 80 }).toBuffer();
+        const preview = await image.clone().resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer();
         const thumbPath = `${eventId}/${imageId}_thumb.jpg`; const previewPath = `${eventId}/${imageId}_preview.jpg`; const storage = db.storage.from(PERSON_SELECT_BUCKET);
         const [a, b] = await Promise.all([storage.upload(thumbPath, thumb, { contentType: "image/jpeg" }), storage.upload(previewPath, preview, { contentType: "image/jpeg" })]);
         if (a.error || b.error) throw a.error || b.error;
@@ -108,7 +117,7 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, Math.max(1, pending.length)) }, () => worker()));
-  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: people.size, createdPeople, failedCount: failed.length, failed };
+  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: people.size, createdPeople, skippedFolders, failedCount: failed.length, failed };
   process.stdout.write(`${JSON.stringify(result)}\n`); if (failed.length) process.exitCode = 1;
 }
 

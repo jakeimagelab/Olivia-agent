@@ -47,10 +47,15 @@ OLIVIA_WORKER_ID=jake-macstudio-01
 OLIVIA_REPO_ROOT=/Users/jakemacstudio/olivia-worker
 OLIVIA_PHOTO_SOURCE_ROOT="/Volumes/Workstation(M.2SSD)"
 OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
+# 개인별 사진 셀렉 전용 허용 루트 — JSON 배열 또는 줄바꿈 목록(콜론 구분 금지)
+OLIVIA_PERSON_SELECT_ROOTS='["/Volumes/Workstation(M.2SSD)","/Users/jakemacstudio/UGnasync"]'
 ```
 
 `WORKER_TOKEN`, `WORKER_ID`, `SOURCE_ROOT` 기존 별칭도 호환한다. 새 인증키를 만들지
 않고 서버의 기존 `OLIVIA_WORKER_TOKEN`과 같은 값을 사용한다.
+
+`OLIVIA_PERSON_SELECT_ROOTS`는 개인별 사진 셀렉 가져오기에만 쓰며, 기존 사진 작업의
+`OLIVIA_PHOTO_SOURCE_ROOT`는 바꾸지 않는다. 각 줄에 하나씩 적는 방식도 사용할 수 있다.
 
 ## 4. Worker 재시작과 확인
 

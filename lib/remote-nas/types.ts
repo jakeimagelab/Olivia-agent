@@ -24,7 +24,8 @@ export type RemoteNasConnectionState = {
 };
 
 export type RemoteNasFolderResult = {
-  rootName: typeof REMOTE_NAS_ROOT_NAME;
+  /** 데이터 소스별 루트 이름. 기존 NAS는 Workstation(M.2SSD), 개인별 셀렉은 전용 루트 목록이다. */
+  rootName: string;
   path: string;
   displayPath: string;
   entries: RemoteNasEntry[];
@@ -53,5 +54,5 @@ export type RemoteNasSelection = {
   path: string;
   /** 사용자에게 보여줄 NFC 경로. */
   displayPath: string;
-  rootName: typeof REMOTE_NAS_ROOT_NAME;
+  rootName: string;
 };

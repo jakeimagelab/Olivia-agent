@@ -196,7 +196,9 @@ export default function RemoteNasBrowser({
 
   const totalEntries = result?.path === currentPath ? result.entries.length : 0;
   const visibleFolderCount = visibleEntries.filter((entry) => entry.kind === "directory").length;
-  const displayLocation = currentPath ? toRemoteNasDisplayPath(currentPath) : rootLabel || "NAS Root";
+  const displayLocation = result?.path === currentPath
+    ? result.displayPath
+    : currentPath ? toRemoteNasDisplayPath(currentPath) : rootLabel || "NAS Root";
   const connection = errorConnection ?? result?.connection;
   const sourceIsMock = connection?.source === "mock";
   const macStudioState = connection?.macStudio ?? "unknown";

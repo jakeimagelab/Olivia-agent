@@ -22,6 +22,7 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_AI_SELECT",
   "PHOTO_RETOUCH",
   "PERSON_SELECT_IMPORT",
+  "PERSON_SELECT_LIST_FOLDER",
   "VIDEO_INTERVIEW_ANALYZE",
   "VIDEO_AUDIO_EXTRACT",
 ]);
@@ -68,6 +69,14 @@ function finiteNumber(value: unknown, label: string, min: number, max: number, i
   if (value === undefined) return undefined;
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new Error(`${label} 값이 올바르지 않습니다.`);
   return value;
+}
+
+/** 개인별 사진 셀렉은 전용 Worker에서만 실제 허용 루트를 realpath로 검증한다. */
+function safePersonSelectSourcePath(value: unknown): string {
+  if (typeof value !== "string" || !value.trim() || value.includes("\0")) throw new Error("학교전달 폴더를 선택해 주세요.");
+  const path = value.trim();
+  if (path.split(/[\\/]/).some((segment) => segment === "..")) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+  return path;
 }
 
 export async function POST(request: NextRequest) {
@@ -326,7 +335,7 @@ export async function POST(request: NextRequest) {
   if (action === "PERSON_SELECT_IMPORT") {
     try {
       if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
-      const sourceRelativePath = normalizeRemoteNasRelativePath(typeof requestedPayload.source_relative_path === "string" ? requestedPayload.source_relative_path : "");
+      const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
       if (!sourceRelativePath) throw new Error("학교전달 폴더를 선택해 주세요.");
       const mappings = requestedPayload.mappings;
       if (!Array.isArray(mappings) || mappings.length === 0 || mappings.some((entry) => {
@@ -337,6 +346,25 @@ export async function POST(request: NextRequest) {
       payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, mappings };
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 가져오기 요청입니다." }, { status: 400 });
+    }
+  }
+
+  if (action === "PERSON_SELECT_LIST_FOLDER") {
+    try {
+      const remotePath = requestedPayload.remote_path;
+      const root = requestedPayload.root;
+      const foldersOnly = requestedPayload.folders_only;
+      if (remotePath !== undefined && remotePath !== null && typeof remotePath !== "string") throw new Error("폴더 경로가 올바르지 않습니다.");
+      if (root !== undefined && typeof root !== "boolean") throw new Error("root는 boolean이어야 합니다.");
+      if (foldersOnly !== undefined && typeof foldersOnly !== "boolean") throw new Error("folders_only는 boolean이어야 합니다.");
+      const safePath = remotePath ? normalizeRemoteNasRelativePath(remotePath) : "";
+      if (root === true && safePath) throw new Error("root와 remote_path를 동시에 지정할 수 없습니다.");
+      payload = {
+        ...(root === true || !safePath ? { root: true } : { remote_path: safePath }),
+        ...(foldersOnly === true ? { folders_only: true } : {}),
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 개인별 사진 폴더입니다." }, { status: 400 });
     }
   }
 
