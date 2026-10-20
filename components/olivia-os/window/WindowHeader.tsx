@@ -3,8 +3,7 @@
 import { Minus, Square, X } from "lucide-react";
 import styles from "./AppWindow.module.css";
 
-// macOS 스타일 traffic-light — 평소엔 색 원만 보이고, hover 시에만 글리프(×/−/□)가 나타난다
-// (참고 이미지 요청에 따라 이전의 "복제하지 않는다" 결정을 뒤집음). 클릭 핸들러는 그대로.
+// macOS 스타일 traffic-light. 닫기 X는 창마다 항상 보여서 종료 동작을 바로 알 수 있게 한다.
 export function WindowHeader({
   title, compatibilityMode = false, onPointerDown, onDoubleClick, onClose, onMinimize, onToggleMaximize,
 }: {
@@ -21,7 +20,7 @@ export function WindowHeader({
       <div className={styles.controls}>
         {onClose ? (
           <button type="button" aria-label="닫기" className={`${styles.trafficLight} ${styles.trafficLightClose}`} onPointerDown={(event) => event.stopPropagation()} onClick={onClose}>
-            <X size={7} strokeWidth={3} className={styles.trafficLightGlyph} />
+            <X size={9} strokeWidth={2.6} className={styles.trafficLightGlyph} />
           </button>
         ) : <span className={`${styles.trafficLight} ${styles.trafficLightClose} ${styles.trafficLightDisabled}`} aria-hidden="true" />}
         <button type="button" aria-label="최소화" className={`${styles.trafficLight} ${styles.trafficLightMinimize}`} onPointerDown={(event) => event.stopPropagation()} onClick={onMinimize}>

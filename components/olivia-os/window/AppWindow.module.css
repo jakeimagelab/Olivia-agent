@@ -53,7 +53,7 @@
   padding-left: 8px;
 }
 
-/* macOS 트래픽라이트 — 평소엔 색 원만, hover 시에만 내부 글리프가 나타난다. */
+/* macOS 트래픽라이트. 닫기 X는 항상 보이고 나머지 글리프는 hover/focus 때 보인다. */
 .trafficLight {
   display: flex;
   align-items: center;
@@ -78,6 +78,10 @@
 
 .trafficLightClose {
   background: #D6D6D2;
+}
+
+.trafficLightClose .trafficLightGlyph {
+  color: rgba(0, 0, 0, 0.62);
 }
 
 .trafficLightDisabled {

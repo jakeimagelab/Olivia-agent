@@ -69,4 +69,13 @@ describe("Olivia AppWindow header ownership", () => {
     expect(windowHeader).toContain('role="tooltip"');
     expect(windowHeader).toContain('aria-describedby="olivia-compatibility-tooltip"');
   });
+
+  it("keeps the close glyph visible without hover", () => {
+    const windowHeader = source("components/olivia-os/window/WindowHeader.tsx");
+    const windowCss = source("components/olivia-os/window/AppWindow.module.css");
+
+    expect(windowHeader).toContain('aria-label="닫기"');
+    expect(windowCss).toContain(".trafficLightClose .trafficLightGlyph");
+    expect(windowCss).toMatch(/\.trafficLightClose \.trafficLightGlyph\s*\{[^}]*color:\s*rgba\(0, 0, 0, 0\.62\)/s);
+  });
 });
