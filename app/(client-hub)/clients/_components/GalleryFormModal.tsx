@@ -194,11 +194,11 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
                 <span>고객 연결</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{
-                    flex: 1, fontSize: 11.5, fontWeight: 700, borderRadius: 8, padding: "6px 8px",
+                    flex: 1, fontSize: 11.5, fontWeight: 600, borderRadius: 8, padding: "6px 8px",
                     color: selectedClientId ? "#155855" : "#c9581a",
                     background: selectedClientId ? "rgba(21,88,85,.08)" : "rgba(232,93,44,.08)",
                   }}>
-                    {selectedClientId ? `🔗 ${selectedClientName || "연결됨"}` : "⚠ 고객 미연결"}
+                    {selectedClientId ? (selectedClientName || "연결됨") : "고객 미연결"}
                   </span>
                   <button type="button" className="pc-btn pc-btn--ghost pc-btn--sm" onClick={() => setShowClientPicker((v) => !v)}>{selectedClientId ? "변경" : "연결"}</button>
                 </div>
@@ -208,7 +208,7 @@ export default function GalleryFormModal({ open, editSource, onClose, onSaved }:
                     <div style={{ maxHeight: 200, overflowY: "auto" }}>
                       {clientResults.length === 0 && <div style={{ padding: 8, textAlign: "center", fontSize: 11.5, color: "#9bb5b0" }}>검색 결과 없음</div>}
                       {clientResults.map((c) => (
-                        <div key={c.id} onClick={() => pickClient(c)} style={{ padding: "7px 9px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                        <div key={c.id} onClick={() => pickClient(c)} style={{ padding: "7px 9px", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                           {c.hospital_name || c.name}
                         </div>
                       ))}

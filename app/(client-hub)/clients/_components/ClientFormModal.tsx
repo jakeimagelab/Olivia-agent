@@ -301,7 +301,7 @@ export default function ClientFormModal({ open, mode, client, onClose, onSaved, 
             onClick={() => setDetailsOpen((v) => !v)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5, border: "none", background: "transparent",
-              color: C.teal, fontSize: 12.5, fontWeight: 800, cursor: "pointer", padding: "4px 0",
+              color: C.teal, fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: "4px 0",
             }}
           >
             {detailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}

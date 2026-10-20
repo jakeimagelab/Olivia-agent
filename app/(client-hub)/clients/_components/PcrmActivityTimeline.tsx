@@ -28,7 +28,7 @@ export default function PcrmActivityTimeline({ activities, variant = "compact", 
     <section className={`pcrm-admin-activity${variant === "row" ? " pcrm-admin-activity--row" : ""}`}>
       <header>
         <div>{variant === "row" ? <h2>최근 활동</h2> : <><span>PCRM · ACTIVITY</span><h2>프로젝트 활동 기록</h2></>}</div>
-        {onViewAll ? <button type="button" onClick={onViewAll} style={{ border: 0, background: "none", color: "#155855", fontSize: 10.5, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>전체 활동 보기 ›</button> : <Activity size={17} />}
+        {onViewAll ? <button type="button" onClick={onViewAll} style={{ border: 0, background: "none", color: "#155855", fontSize: 10.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>전체 활동 보기 ›</button> : <Activity size={17} />}
       </header>
       {variant === "full" && (
         <div className="pcrm-project-tabs">

@@ -23,6 +23,7 @@ import {
 import { syncClassificationCompletedWorkflow } from "@/lib/photo-storage/shootingProgress";
 import { registerOriginalDeliveryLink } from "@/lib/photo-storage/shootingProgressActions";
 import type { PhotoProjectStatus } from "@/lib/photo-storage/types";
+import { writeWorkflowChecks } from "@/lib/workflowCheckPersistence";
 import { coreCommandFailure, type CoreCommandResult } from "./result";
 
 type PhotoProjectRow = Record<string, unknown> & {
@@ -96,6 +97,16 @@ export async function approveClassification(
     const project = current ?? await loadPhotoProject(db, projectId);
     if (project.status === "CLASSIFY_APPROVED") {
       await clearPhotoProjectNotificationState(db, projectId);
+      if (project.workflow_run_id) {
+        const at = String(project.classify_approved_at || project.approved_at || new Date().toISOString());
+        await writeWorkflowChecks(db, {
+          workflowRunId: project.workflow_run_id,
+          updates: [
+            { key: "backup_sorted", done: true, by: "auto", at },
+            { key: "sort_approved", done: true, by: "user", at },
+          ],
+        });
+      }
       return { ok: true, value: { project }, idempotent: true };
     }
     if (project.status !== "MERGE_COMPLETED") {
@@ -125,6 +136,15 @@ export async function approveClassification(
     if (!data) return { ok: false, reason: "프로젝트 상태가 변경되었습니다.", code: "STATE_CHANGED" };
     const updated = data as PhotoProjectRow;
     await finishApprovalSideEffects(db, updated, "PHOTO_PROJECT_CLASSIFY_APPROVED");
+    if (updated.workflow_run_id) {
+      await writeWorkflowChecks(db, {
+        workflowRunId: updated.workflow_run_id,
+        updates: [
+          { key: "backup_sorted", done: true, by: "auto", at: now },
+          { key: "sort_approved", done: true, by: "user", at: now },
+        ],
+      });
+    }
     return { ok: true, value: { project: updated }, idempotent: false };
   } catch (error) {
     return coreCommandFailure(error, "사진 분류 승인을 처리하지 못했습니다.");

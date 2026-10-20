@@ -6,6 +6,7 @@ import { isMissingColumnError } from "@/lib/dbErrors";
 import { getWorkflowPhaseProgress } from "@/lib/workflow";
 import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
 import { cancelWorkflow } from "@/lib/workflowAutomation";
+import { effectiveWorkflowChecks, workflowCheckProgress } from "@/lib/workflowChecks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -167,13 +168,17 @@ export async function GET(
   const workflowSummary = workflowRun
     ? getWorkflowPhaseProgress(workflowRun.current_step_key, workflowRun.status)
     : null;
+  const workflowChecks = workflowRun
+    ? effectiveWorkflowChecks({ checks: workflowRun.checks, currentStepKey: workflowRun.current_step_key, status: workflowRun.status })
+    : null;
 
   return NextResponse.json({
     ok: true,
     client,
-    workflowRun,
+    workflowRun: workflowRun ? { ...workflowRun, checks: workflowChecks } : null,
     workflowRuns,
     workflowSummary,
+    workflowCheckProgress: workflowChecks ? workflowCheckProgress(workflowChecks) : null,
     resourceIds,
     mailingQueue: mailings ?? [],
     quotes: quotesRes.error ? [] : quotesRes.data ?? [],

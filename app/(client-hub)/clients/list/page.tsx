@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
 import { C } from "@/lib/theme";
 import { useClientRoster } from "../_hooks/useClientRoster";
 import PcrmClientTable from "../_components/PcrmClientTable";
@@ -10,8 +11,8 @@ import NewPcrmProjectDialog from "../_components/NewPcrmProjectDialog";
 function SpinBox() {
   return (
     <div style={{ padding: "80px 0", textAlign: "center", color: C.hint }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>⏳</div>
-      <div style={{ fontSize: 13, fontWeight: 700 }}>불러오는 중...</div>
+      <LoaderCircle size={28} aria-hidden="true" style={{ marginBottom: 10 }} />
+      <div style={{ fontSize: 13, fontWeight: 600 }}>불러오는 중...</div>
     </div>
   );
 }

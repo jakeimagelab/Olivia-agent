@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { advanceWorkflow, createStepTasks, logAgent } from "@/lib/workflowAutomation";
+import { createStepTasks, logAgent } from "@/lib/workflowAutomation";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { getErrorMessage } from "@/lib/errors";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const eventToStep: Record<string, string> = {
-  quote_confirmed: "contract",
-  contract_confirmed: "conti",
-  conti_confirmed: "shooting",
-  revision_requested: "revision",
-  review_submitted: "review_content",
-  product_requested: "reward",
-  donation_requested: "reward",
+const eventToCheck: Record<string, string> = {
+  quote_confirmed: "quote_sent",
+  contract_confirmed: "contract_signed",
+  revision_requested: "feedback",
+  review_submitted: "feedback",
 };
 
 const portalEventName: Record<string, string> = {
@@ -66,15 +64,22 @@ export async function POST(req: NextRequest) {
         : null,
     });
 
-    const toStep = eventToStep[event_type];
-    if (toStep) await advanceWorkflow(db, { workflow_run_id, to_step_key: toStep, reason: `portal event: ${event_type}` });
+    const checkKey = eventToCheck[event_type];
+    if (checkKey) {
+      await writeWorkflowCheckSafely(db, {
+        workflowRunId: workflow_run_id,
+        key: checkKey,
+        done: true,
+        by: "auto",
+      });
+    }
 
     const taskDef = eventToTask[event_type];
     if (taskDef) {
       await createStepTasks(db, workflow_run_id, taskDef.step);
     }
 
-    return NextResponse.json({ ok: true, event_type, to_step_key: toStep ?? null });
+    return NextResponse.json({ ok: true, event_type, check_key: checkKey ?? null });
   } catch (error) {
     await logAgent(db, {
       workflow_run_id,

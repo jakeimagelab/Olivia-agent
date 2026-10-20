@@ -4,12 +4,17 @@ const dependencies = vi.hoisted(() => ({
   completeTasks: vi.fn(),
   advance: vi.fn(),
   getWorkflowRun: vi.fn(),
+  writeCheck: vi.fn(),
 }));
 
 vi.mock("@/lib/workflowAutomation", () => ({
   completeOpenStepTasksForManualSave: dependencies.completeTasks,
   maybeAdvanceWorkflow: dependencies.advance,
   getWorkflowRun: dependencies.getWorkflowRun,
+}));
+
+vi.mock("@/lib/workflowCheckPersistence", () => ({
+  writeWorkflowCheck: dependencies.writeCheck,
 }));
 
 type Row = Record<string, unknown>;
@@ -53,24 +58,23 @@ beforeEach(() => {
 });
 
 describe("workflow.ts Core commands — completeStep/completeShoot/confirmPayment", () => {
-  it("completeShoot advances shooting to payment_confirm via the shared wrapper", async () => {
-    dependencies.advance.mockResolvedValue({ advanced: true, result: { completed: false, to_step_key: "payment_confirm" } });
+  it("completeShoot records the shooting check and returns the derived step", async () => {
+    dependencies.writeCheck.mockResolvedValue({ current_step_key: "payment_confirm" });
     const { completeShoot } = await import("@/lib/core/commands/workflow");
 
     const result = await completeShoot("run-1", {} as never);
 
-    expect(dependencies.completeTasks).toHaveBeenCalledWith({}, "run-1", "shooting");
-    expect(dependencies.advance).toHaveBeenCalledWith({}, "run-1", "shooting");
+    expect(dependencies.writeCheck).toHaveBeenCalledWith({}, { workflowRunId: "run-1", key: "shot", done: true, by: "user" });
     expect(result).toMatchObject({ ok: true, value: { advanced: true, fromStep: "shooting", toStep: "payment_confirm" } });
   });
 
-  it("confirmPayment advances payment_confirm to backup_sorting", async () => {
-    dependencies.advance.mockResolvedValue({ advanced: true, result: { completed: false, to_step_key: "backup_sorting" } });
+  it("confirmPayment records the payment check and returns the derived step", async () => {
+    dependencies.writeCheck.mockResolvedValue({ current_step_key: "backup_sorting" });
     const { confirmPayment } = await import("@/lib/core/commands/workflow");
 
     const result = await confirmPayment("run-1", {} as never);
 
-    expect(dependencies.advance).toHaveBeenCalledWith({}, "run-1", "payment_confirm");
+    expect(dependencies.writeCheck).toHaveBeenCalledWith({}, { workflowRunId: "run-1", key: "payment", done: true, by: "user" });
     expect(result).toMatchObject({ ok: true, value: { advanced: true, fromStep: "payment_confirm", toStep: "backup_sorting" } });
   });
 
@@ -94,9 +98,7 @@ describe("workflow.ts Core commands — completeStep/completeShoot/confirmPaymen
 });
 
 describe("registerGallery Command", () => {
-  it("registers an original gallery and advances client_selection", async () => {
-    dependencies.getWorkflowRun.mockResolvedValue({ id: "run-1", current_step_key: "client_selection" });
-    dependencies.advance.mockResolvedValue({ advanced: true, result: { completed: false, to_step_key: "retouching" } });
+  it("registers an original gallery without marking final delivery", async () => {
     const db = memoryDb({ photo_galleries: [] });
     const { registerGallery } = await import("@/lib/core/commands/workflow");
 
@@ -110,14 +112,14 @@ describe("registerGallery Command", () => {
 
     expect(result).toMatchObject({
       ok: true,
-      value: { advance: { advanced: true, targetStep: "client_selection" } },
+      value: { advance: { advanced: false } },
     });
     expect(db.tables.photo_galleries[0]).toMatchObject({ hospital_name: "포토클리닉", gallery_type: "original_photo" });
+    expect(dependencies.writeCheck).not.toHaveBeenCalled();
   });
 
-  it("keeps the gallery registration a success even when the step advance is blocked", async () => {
-    dependencies.getWorkflowRun.mockResolvedValue({ id: "run-1", current_step_key: "retouching" });
-    dependencies.advance.mockResolvedValue({ advanced: false, reason: "open_items" });
+  it("keeps the gallery registration a success when the final-delivery check fails", async () => {
+    dependencies.writeCheck.mockRejectedValue(new Error("checks column missing"));
     const db = memoryDb({ photo_galleries: [] });
     const { registerGallery } = await import("@/lib/core/commands/workflow");
 
@@ -132,7 +134,7 @@ describe("registerGallery Command", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected ok result");
     expect(result.value.gallery).toMatchObject({ hospital_name: "포토클리닉" });
-    expect(result.value.advance).toMatchObject({ advanced: false, targetStep: "retouching", reason: "open_items" });
+    expect(result.value.advance).toMatchObject({ advanced: false, reason: "checks column missing" });
   });
 
   it("does not attempt an advance when no client/workflow is linked", async () => {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
-import { advanceWorkflow } from "@/lib/workflowAutomation";
 import { normalizeSelectionCategory } from "@/lib/select-core";
+import { writeWorkflowChecks } from "@/lib/workflowCheckPersistence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,24 +104,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 분류 결과가 실제 셀렉 갤러리로 생성된 뒤에만 기존 Workflow Command로 전진한다.
-    // 갤러리·이미지는 이미 저장됐으므로, 단계 전진이 건너뛰어져도(skipped) 이 요청 자체를
-    // 실패로 만들지 않는다 — 그 시점에 throw하면 화면엔 500이 뜨지만 갤러리는 이미 만들어진
-    // 상태로 남아 사용자가 "실패했다"고 오해한다. advance 필드로 사실만 별도로 알린다.
-    let advance: { advanced: boolean; reason?: string } = { advanced: false };
-    if (workflowRun && workflowRun.current_step_key !== "client_selection") {
-      const advanced = await advanceWorkflow(sb, {
-        workflow_run_id: workflowRun.id,
-        from_step_key: workflowRun.current_step_key,
-        to_step_key: "client_selection",
-        reason: "셀렉 갤러리 생성",
+    // 이 버튼은 분류 결과를 확인해 고객 셀렉 갤러리로 넘기는 지점이다.
+    // 체크가 current_step_key를 역산하므로 별도의 단계 전진은 하지 않는다.
+    if (workflowRun) {
+      const at = new Date().toISOString();
+      await writeWorkflowChecks(sb, {
+        workflowRunId: workflowRun.id,
+        updates: [
+          { key: "backup_sorted", done: true, by: "auto", at },
+          { key: "sort_approved", done: true, by: "user", at },
+        ],
       });
-      advance = advanced.skipped
-        ? { advanced: false, reason: advanced.reason || "프로젝트 단계가 변경되었습니다." }
-        : { advanced: true };
     }
 
-    return NextResponse.json({ ok: true, gallery, shareToken, advance });
+    return NextResponse.json({ ok: true, gallery, shareToken, checksUpdated: Boolean(workflowRun) });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

@@ -14,6 +14,8 @@ import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredDat
 import { addPoints, REWARD_RATE } from "@/lib/per";
 import { coreCommandFailure, type CoreCommandResult } from "@/lib/core/commands/result";
 import { assertWrite } from "@/lib/db/assertWrite";
+import { persistWorkflowChecks, writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
+import { WORKFLOW_CHECKS, deriveWorkflowPosition, normalizeWorkflowChecks } from "@/lib/workflowChecks";
 
 export type StepAutomation = {
   task_type: string;
@@ -307,6 +309,23 @@ export async function createStepTasks(db: SupabaseClient, workflowRunId: string,
 export async function advanceWorkflow(db: SupabaseClient, input: { workflow_run_id: string; to_step_key?: string | null; from_step_key?: string | null; reason?: string }) {
   const run = await getWorkflowRun(db, input.workflow_run_id);
   const fromStep = run.current_step_key;
+
+  // 새 체크리스트를 한 번이라도 저장한 촬영 건의 단계는 오직 체크에서 역산한다.
+  // 기존 advanceWorkflow 호출은 옛 건과 작업 로그 호환을 위해 남기되, 새 건의 단계를 덮지 않는다.
+  const storedChecks = normalizeWorkflowChecks(run.checks);
+  const checklistManaged = WORKFLOW_CHECKS.some((definition) => definition.key in storedChecks);
+  if (checklistManaged) {
+    const position = deriveWorkflowPosition(storedChecks);
+    await persistWorkflowChecks(db, run.id, storedChecks);
+    return {
+      completed: position.status === "completed",
+      skipped: false,
+      checklist_managed: true,
+      from_step_key: fromStep,
+      to_step_key: position.currentStepKey,
+      created: [],
+    };
+  }
 
   // from_step_key 가드: 현재 단계가 지정한 단계와 다르면 건너뜀 (중복 전진 방지)
   if (input.from_step_key && fromStep !== input.from_step_key) {
@@ -968,7 +987,10 @@ async function ensureMailingDraft(db: SupabaseClient, task: any, run: any, autom
     .eq("source_id", task.id)
     .limit(1);
   if (existingError) throw new Error(existingError.message);
-  if (existing?.length) return existing[0];
+  if (existing?.length) {
+    if (task.workflow_run_id) await writeWorkflowCheckSafely(db, { workflowRunId: task.workflow_run_id, key: "reward", done: true, by: "auto" });
+    return existing[0];
+  }
 
   const registered = (task.input_data?.registered_data ?? {}) as WorkflowRegisteredData;
   const contact = workflowContact(registered, run ?? task);
@@ -1067,6 +1089,7 @@ async function ensureRewardTransaction(db: SupabaseClient, task: any, run: any, 
       memo: `${run?.client_name || task.client_name || "고객"} 촬영 PER 포인트 적립`,
       createdBy: "olivia_workflow",
     });
+    if (task.workflow_run_id) await writeWorkflowCheckSafely(db, { workflowRunId: task.workflow_run_id, key: "reward", done: true, by: "auto" });
     return { id: txId };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

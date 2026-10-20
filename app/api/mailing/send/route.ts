@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { assertWrite } from "@/lib/db/assertWrite";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import tls from "node:tls";
 
 export const dynamic = "force-dynamic";
@@ -193,6 +194,10 @@ export async function POST(req: NextRequest) {
       subject:       item.subject,
       status:        "sent",
     });
+
+    if (item.workflow_run_id && item.type === "quote") {
+      await writeWorkflowCheckSafely(supabase, { workflowRunId: item.workflow_run_id, key: "quote_sent", done: true, by: "auto" });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

@@ -13,6 +13,7 @@ type FakeOptions = {
   now: string;
   mcpLastSeen?: string;
   missingTable?: string;
+  missingColumn?: { table: string; column: string };
   workerLastSeen?: string;
   workerRev?: string;
   workerInstalledAt?: string;
@@ -27,6 +28,9 @@ function fakeSupabase(options: FakeOptions): SupabaseClient {
           const result = () => {
             if (columns === "*" && table === options.missingTable) {
               return { data: null, error: { code: "PGRST205", message: "missing" }, count: null };
+            }
+            if (options.missingColumn && table === options.missingColumn.table && columns === options.missingColumn.column) {
+              return { data: null, error: { code: "42703", message: "missing column" }, count: null };
             }
             if (columns === "*" && ["worker_events", "remote_workers", "remote_jobs", "photo_storage_projects"].includes(table)) {
               return { data: [], error: null, count: null };
@@ -224,5 +228,25 @@ describe("Olivia chat 시스템 진단", () => {
     const text = formatSystemStatusForChat(report);
     expect(text).toContain("조치:");
     expect(text.indexOf("worker_events · 없음")).toBeLessThan(text.indexOf("remote_jobs · OK"));
+  });
+
+  it("촬영 건 체크 컬럼이 없으면 적용할 migration만 알려주고 비밀 값은 노출하지 않는다", async () => {
+    const now = new Date("2026-10-20T19:00:00+09:00");
+    const { collectSystemStatus } = await import("@/lib/system-status/service");
+    const report = await collectSystemStatus({
+      now,
+      db: fakeSupabase({
+        now: now.toISOString(),
+        missingColumn: { table: "workflow_runs", column: "checks" },
+      }),
+    });
+    expect(report.items.find((item) => item.id === "column_workflow_runs_checks")).toMatchObject({
+      level: "error",
+      state: "미적용",
+      migration: "supabase/migrations/20261020_workflow_run_checks.sql",
+    });
+    const serialized = JSON.stringify(report);
+    expect(serialized).not.toContain("anthropic-super-secret");
+    expect(serialized).not.toContain("openai-super-secret");
   });
 });

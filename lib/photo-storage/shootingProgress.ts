@@ -1,15 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
-  advanceWorkflow,
   buildNextAction,
-  completeOpenStepTasksForManualSave,
   ensureStepRun,
   getWorkflowRun,
-  revertWorkflowToStep,
 } from "@/lib/workflowAutomation";
-import { completeShoot } from "@/lib/core/commands/workflow";
-import { createEventDeduplicationKey, emitOliviaEvent } from "@/lib/olivia/events";
-import { assertWrite } from "@/lib/db/assertWrite";
+import { writeWorkflowCheck, writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import { validatePhotoProjectRelativePath } from "./server";
 
 export type ShootingProgressStage =
@@ -247,15 +242,6 @@ export async function resolvePhotoWorkflowLink(
   };
 }
 
-// completeShoot()는 to_step_key를 고정하지 않는다 — getNextWorkflowStep(ACTIVE_WORKFLOW_STEP_KEYS
-// 순서)이 shooting 다음을 payment_confirm으로 정한다. 예전엔 여기서 backup_sorting을 직접
-// 지정해서 잔금·계산서(payment_confirm) 단계를 통째로 건너뛰었다 — NAS 자동 감지가 홈 채팅
-// 확인보다 거의 항상 먼저 일어나서 실질적으로 이 단계가 한 번도 열리지 않는 사고였다
-// (PHASE 3 작업 1-B/3, 2026-09-25).
-async function advanceShootingIfCurrent(db: SupabaseClient, workflowRunId: string): Promise<void> {
-  await completeShoot(workflowRunId, db);
-}
-
 export async function registerDetectedPhotoProject(
   db: SupabaseClient,
   input: {
@@ -306,7 +292,6 @@ export async function registerDetectedPhotoProject(
     created = true;
   }
 
-  if (link.workflowRunId) await advanceShootingIfCurrent(db, link.workflowRunId);
   return { projectId, link, created };
 }
 
@@ -337,9 +322,7 @@ export async function syncOriginalDeliveryRegisteredWorkflow(
   if (error) throw error;
 }
 
-// 아래의 to_step_key 고정값들은 전부 안전하다 — 매 분기가 advanceWorkflow를 부르기 전에
-// run.current_step_key(또는 input.stage)가 바로 그 단계인지 먼저 확인하므로, 지정한
-// to_step_key는 ACTIVE_WORKFLOW_STEP_KEYS 순서상 실제 다음 단계와 항상 일치한다(건너뜀 없음).
+// 기존 촬영 진행 카드의 완료/복원 동작도 같은 체크 원본을 갱신한다.
 export async function syncManualShootingProgressAction(
   db: SupabaseClient,
   input: {
@@ -350,87 +333,18 @@ export async function syncManualShootingProgressAction(
 ): Promise<void> {
   const workflowRunId = input.workflowRunId;
   if (!workflowRunId) return;
-  const run = await getWorkflowRun(db, workflowRunId);
-
-  if (input.state === "restored") {
-    if (input.stage === "original_delivery" || input.stage === "raw_matching") {
-      const now = new Date().toISOString();
-      const { error: reopenError } = await db.from("workflow_step_runs")
-        .update({ status: "in_progress", completed_at: null, updated_at: now })
-        .eq("workflow_run_id", workflowRunId)
-        .eq("step_key", input.stage);
-      if (reopenError) throw reopenError;
-      await ensureStepRun(db, workflowRunId, input.stage, "in_progress");
-      const { error: nextActionError } = await db.from("workflow_runs").update({
-        next_action: buildNextAction(input.stage),
-        updated_at: now,
-      }).eq("id", workflowRunId);
-      if (nextActionError) throw nextActionError;
-    }
-    const target = input.stage === "retouching" || input.stage === "final_delivery"
-      ? input.stage
-      : "client_selection";
-    if (run.current_step_key !== target) {
-      try {
-        await revertWorkflowToStep(db, {
-          workflow_run_id: workflowRunId,
-          to_step_key: target,
-          reason: `촬영 진행 ${input.stage} 단계 건너뛰기 취소`,
-        });
-      } catch (error) {
-        // 같은 단계이거나 이미 더 앞선 단계라면 이벤트 이력만 복원해도 카드가 다시 열린다.
-        console.warn("[shooting progress restore workflow]", error instanceof Error ? error.message : error);
-      }
-    }
-    return;
-  }
-
-  if (input.stage === "original_delivery") {
-    await syncOriginalDeliveryRegisteredWorkflow(db, workflowRunId);
-    return;
-  }
-  if (input.stage === "raw_matching") {
-    await completeStepRun(db, workflowRunId, "raw_matching");
-    if (run.current_step_key === "client_selection") {
-      await completeOpenStepTasksForManualSave(db, workflowRunId, "client_selection");
-      await advanceWorkflow(db, {
-        workflow_run_id: workflowRunId,
-        from_step_key: "client_selection",
-        to_step_key: "retouching",
-        reason: `RAW 매칭 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
-      });
-    }
-    return;
-  }
-  if (input.stage === "client_selection" && run.current_step_key === "client_selection") {
-    await completeStepRun(db, workflowRunId, "client_selection");
-    await completeOpenStepTasksForManualSave(db, workflowRunId, "client_selection");
-    await advanceWorkflow(db, {
-      workflow_run_id: workflowRunId,
-      from_step_key: "client_selection",
-      to_step_key: "retouching",
-      reason: `고객 셀렉 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
-    });
-    return;
-  }
-  if (input.stage === "retouching" && run.current_step_key === "retouching") {
-    await advanceWorkflow(db, {
-      workflow_run_id: workflowRunId,
-      from_step_key: "retouching",
-      to_step_key: "final_delivery",
-      reason: `보정 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
-    });
-    return;
-  }
-  if (input.stage === "final_delivery" && run.current_step_key === "final_delivery") {
-    await completeOpenStepTasksForManualSave(db, workflowRunId, "final_delivery");
-    await advanceWorkflow(db, {
-      workflow_run_id: workflowRunId,
-      from_step_key: "final_delivery",
-      to_step_key: "revision",
-      reason: `2차 전달 ${input.state === "skipped" ? "건너뜀" : "완료"}`,
-    });
-  }
+  const done = input.state !== "restored";
+  const mapping: Partial<Record<ShootingProgressActionStage, { key: string; by: "auto" | "user" }>> = {
+    client_selection: { key: "client_selected", by: "auto" },
+    raw_matching: { key: "raw_approved", by: "user" },
+    retouching: { key: "retouched", by: "user" },
+    final_delivery: { key: "final_delivered", by: "auto" },
+  };
+  const check = mapping[input.stage];
+  if (check) await writeWorkflowCheck(db, { workflowRunId, key: check.key, done, by: check.by });
+  if (done && input.stage === "raw_matching") await completeStepRun(db, workflowRunId, "raw_matching");
+  if (done && input.stage === "client_selection") await completeStepRun(db, workflowRunId, "client_selection");
+  if (done && input.stage === "original_delivery") await syncOriginalDeliveryRegisteredWorkflow(db, workflowRunId);
 }
 
 export async function syncClassificationCompletedWorkflow(
@@ -444,51 +358,12 @@ export async function syncClassificationCompletedWorkflow(
   if (error) throw error;
   if (!project?.workflow_run_id) return;
 
-  let run = await getWorkflowRun(db, project.workflow_run_id);
-  if (run.current_step_key === "shooting") {
-    await advanceShootingIfCurrent(db, project.workflow_run_id);
-    run = await getWorkflowRun(db, project.workflow_run_id);
-  }
-
-  // 사진 분류 자체(이 함수를 부르는 시점엔 이미 끝난 상태)는 잔금·계산서 확인과 무관하게 계속
-  // 돌아간다 — 사진 상태 머신과 워크플로 12단계는 별개다(lib/core/commands/photo.ts 상단 표 참고).
-  // 여기서는 "워크플로 단계 표시"만 잔금 확인 전까지 backup_sorting으로 넘기지 않고 대기시킨다.
-  if (run.current_step_key === "payment_confirm") {
-    await emitOliviaEvent(db, {
-      eventType: "workflow.blocked",
-      eventSource: "photo_storage_watcher",
-      clientId: run.client_id ?? null,
-      projectId: run.project_id ?? null,
-      workflowRunId: run.id,
-      payload: { stepKey: "payment_confirm", waitingFor: "payment_confirm" },
-      deduplicationKey: createEventDeduplicationKey("workflow.blocked", run.id, "payment_confirm"),
-    });
-    const blockedWrite = await db.from("workflow_runs").update({
-      next_action: "잔금·계산서 확인 후 분류 단계로 진행",
-      updated_at: new Date().toISOString(),
-    }).eq("id", run.id);
-    assertWrite(blockedWrite, "잔금 확인 대기 워크플로 상태 기록");
-    return;
-  }
-
-  if (run.current_step_key === "backup_sorting") {
-    await completeOpenStepTasksForManualSave(db, project.workflow_run_id, "backup_sorting");
-    await advanceWorkflow(db, {
-      workflow_run_id: project.workflow_run_id,
-      from_step_key: "backup_sorting",
-      to_step_key: "client_selection",
-      reason: "PHOTO_CLASSIFY_WORK 완료",
-    });
-  }
-  const latest = await getWorkflowRun(db, project.workflow_run_id);
-  if (latest.current_step_key === "client_selection") {
-    await ensureStepRun(db, project.workflow_run_id, "original_delivery", "in_progress");
-    const nextActionWrite = await db.from("workflow_runs").update({
-      next_action: buildNextAction("original_delivery"),
-      updated_at: new Date().toISOString(),
-    }).eq("id", project.workflow_run_id);
-    assertWrite(nextActionWrite, "원본 전달 다음 작업 기록");
-  }
+  await writeWorkflowCheckSafely(db, {
+    workflowRunId: project.workflow_run_id,
+    key: "backup_sorted",
+    done: true,
+    by: "auto",
+  });
 }
 
 // to_step_key: "raw_matching"은 레거시/내부 세부 단계 키다(ACTIVE_WORKFLOW_STEP_KEYS엔 없고
@@ -499,17 +374,7 @@ export async function syncSelectionSubmittedWorkflow(
   workflowRunId: string | null | undefined,
 ): Promise<void> {
   if (!workflowRunId) return;
-  const run = await getWorkflowRun(db, workflowRunId);
-  if (!["client_selection", "raw_matching"].includes(run.current_step_key)) return;
-  if (run.current_step_key === "raw_matching") return;
-
-  const advanced = await advanceWorkflow(db, {
-    workflow_run_id: workflowRunId,
-    from_step_key: "client_selection",
-    to_step_key: "raw_matching",
-    reason: "고객 셀렉 제출",
-  });
-  if (advanced.skipped) throw new Error(advanced.reason || "프로젝트 단계가 변경되었습니다.");
+  await writeWorkflowCheck(db, { workflowRunId, key: "client_selected", done: true, by: "auto" });
   await completeStepRun(db, workflowRunId, "original_delivery");
 }
 
@@ -537,15 +402,6 @@ export async function syncRawMatchWorkflow(
 
   if (input.jobStatus !== "COMPLETED" || !project.workflow_run_id) return;
   await completeStepRun(db, project.workflow_run_id, "raw_matching");
-  const run = await getWorkflowRun(db, project.workflow_run_id);
-  // client_selection/raw_matching(레거시 하위 단계) 둘 다 ACTIVE_WORKFLOW_STEP_KEYS 상 다음이
-  // retouching이라 to_step_key를 고정해도 건너뜀이 아니다 — LEGACY_NEXT_STEP과 동일한 값.
-  if (run.current_step_key === "client_selection" || run.current_step_key === "raw_matching") {
-    await advanceWorkflow(db, {
-      workflow_run_id: project.workflow_run_id,
-      from_step_key: run.current_step_key,
-      to_step_key: "retouching",
-      reason: "PHOTO_RAW_MATCH 완료",
-    });
-  }
+  // 파일 복사 성공은 결과 사실이고, 다음 단계 진입은 사용자가 실패 목록을 확인한 뒤
+  // 상세 체크리스트의 `raw_approved`를 눌러 결정한다.
 }

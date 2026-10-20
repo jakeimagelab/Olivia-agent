@@ -10,6 +10,7 @@ import {
 import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
 import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
 import { createCanonicalConti } from "@/lib/conti/canonicalService";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -226,6 +227,8 @@ export async function POST(request: NextRequest) {
     await db.from("conti_runs").delete().eq("id", run.id);
     return NextResponse.json({ ok: false, error: "콘티 장면을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요." }, { status: 500 });
   }
+
+  if (workflowRunId) await writeWorkflowCheckSafely(db, { workflowRunId, key: "conti_made", done: true, by: "auto" });
 
   return NextResponse.json({
     ok: true,

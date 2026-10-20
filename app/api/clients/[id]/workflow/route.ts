@@ -73,8 +73,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       expected_completion_date: project.expectedCompletionDate,
       expected_contract_amount: project.expectedContractAmount,
       project_memo: project.projectMemo,
-      current_step_key: body.current_step_key ?? "consult_meeting",
-      next_action: body.next_action ?? buildNextAction(body.current_step_key ?? "consult_meeting"),
+      current_step_key: body.current_step_key ?? "quote",
+      next_action: body.next_action ?? buildNextAction(body.current_step_key ?? "quote"),
+      checks: {},
       status: "active",
     })
     .select()

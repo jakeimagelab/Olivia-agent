@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { advanceWorkflow } from "@/lib/workflowAutomation";
 import { assertWrite } from "@/lib/db/assertWrite";
 
 export const runtime = "nodejs";
@@ -64,20 +63,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .eq("id", id);
     assertWrite(galleryWrite, "RAW 매칭 완료 상태 기록");
 
-    // 워크플로우 자동 진행: client_selection/raw_matching → retouching.
-    // 과거 데이터는 client_selection에 머문 채 next_action만 raw_matching인 경우가 있어
-    // 실제 현재 단계를 읽어 from_step_key로 넘긴다.
-    if (workflowRun && workflowRun.current_step_key !== "retouching") {
-        const advanced = await advanceWorkflow(sb, {
-          workflow_run_id: workflowRun.id,
-          from_step_key: workflowRun.current_step_key,
-          to_step_key: "retouching",
-          reason: "RAW 매칭 완료",
-        });
-        if (advanced.skipped) throw new Error(advanced.reason || "프로젝트 단계가 변경되었습니다.");
-    }
-
-    return NextResponse.json({ ok: true, total: rows.length, matched: matchedCount, rawMatches: inserted });
+    // 매칭 결과 생성과 승인은 분리한다. 결과를 본 뒤 관리자가 raw_approved를 직접 켠다.
+    return NextResponse.json({ ok: true, total: rows.length, matched: matchedCount, rawMatches: inserted, approvalRequired: Boolean(workflowRun) });
   } catch (e: any) {
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }

@@ -16,6 +16,14 @@ const REQUIRED_TABLES = [
   ["remote_jobs", "supabase/migrations/20260913_remote_photo_progress.sql"],
   ["photo_storage_projects", "supabase/migrations/20260914_photo_storage_projects.sql"],
   ["health_findings", "supabase/migrations/20260928_health_findings.sql"],
+  ["olivia_desktop_settings", "supabase/migrations/20260909_olivia_desktop_settings.sql"],
+  ["client_photo_selection_items", "supabase/migrations/20261020_client_photo_selection_items.sql"],
+] as const;
+
+const REQUIRED_COLUMNS = [
+  ["photo_storage_projects", "workflow_run_id", "supabase/migrations/20260924_shooting_progress_links.sql"],
+  ["remote_jobs", "cancel_requested_at", "supabase/migrations/20261001_remote_job_cancellation.sql"],
+  ["workflow_runs", "checks", "supabase/migrations/20261020_workflow_run_checks.sql"],
 ] as const;
 
 const REQUIRED_ENV = [
@@ -105,6 +113,21 @@ async function checkRequiredTable(db: SupabaseClient, table: string, migration: 
     return unknownItem(`table_${table}`, "database", table, "테이블 조회에 실패했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   } catch {
     return unknownItem(`table_${table}`, "database", table, "테이블 조회에 실패했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
+  }
+}
+
+async function checkRequiredColumn(db: SupabaseClient, table: string, column: string, migration: string): Promise<SystemStatusItem> {
+  const id = `column_${table}_${column}`;
+  const label = `${table}.${column}`;
+  try {
+    const { error } = await db.from(table).select(column).limit(1);
+    if (!error) return { id, group: "database", label, level: "ok", state: "OK" };
+    if (isMissingSchemaObject(error)) {
+      return { id, group: "database", label, level: "error", state: "미적용", detail: "필수 DB 변경이 적용되지 않았습니다.", remedy: `${migration} migration을 적용하세요.`, migration };
+    }
+    return unknownItem(id, "database", label, "컬럼 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
+  } catch {
+    return unknownItem(id, "database", label, "컬럼 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   }
 }
 
@@ -293,7 +316,10 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
   let workerItems: SystemStatusItem[];
 
   if (!db || databaseConfigError) {
-    databaseItems = REQUIRED_TABLES.map(([table]) => unknownItem(`table_${table}`, "database", table, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable));
+    databaseItems = [
+      ...REQUIRED_TABLES.map(([table]) => unknownItem(`table_${table}`, "database", table, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)),
+      ...REQUIRED_COLUMNS.map(([table, column]) => unknownItem(`column_${table}_${column}`, "database", `${table}.${column}`, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)),
+    ];
     mcpItem = unknownItem("mcp_tools", "cloud", "MCP 도구", "MCP 연결 기록을 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
     workerItems = [
       unknownItem("worker", "mac_studio", "Worker", "Worker 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
@@ -308,12 +334,13 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
       unknownItem("queued_jobs", "mac_studio", "대기 중인 잡", "Remote job 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
     ];
   } else {
-    const [tableResults, mcpResult, workerResult] = await Promise.all([
+    const [tableResults, columnResults, mcpResult, workerResult] = await Promise.all([
       Promise.all(REQUIRED_TABLES.map(([table, migration]) => checkRequiredTable(db!, table, migration))),
+      Promise.all(REQUIRED_COLUMNS.map(([table, column, migration]) => checkRequiredColumn(db!, table, column, migration))),
       checkMcpSignal(db, now),
       checkWorker(db, now).catch(() => [unknownItem("worker", "mac_studio", "Worker", "Worker 상태 확인 중 오류가 발생했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)]),
     ]);
-    databaseItems = tableResults;
+    databaseItems = [...tableResults, ...columnResults];
     mcpItem = mcpResult;
     workerItems = workerResult;
   }

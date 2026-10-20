@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveClientId } from "@/lib/clientLookup";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import type { CreateReviewInput } from "./types";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 function cleanText(value: unknown, max: number) {
   return String(value ?? "").trim().slice(0, max);
@@ -120,6 +121,8 @@ export async function createUnifiedReview(db: SupabaseClient, input: CreateRevie
       deduplicationKey: createEventDeduplicationKey("review.registered", String(client.id), String(review.id)),
     }),
   ]);
+
+  if (workflowRunId) await writeWorkflowCheckSafely(db, { workflowRunId, key: "feedback", done: true, by: "auto" });
 
   return {
     review,

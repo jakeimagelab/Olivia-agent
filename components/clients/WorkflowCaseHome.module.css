@@ -1,0 +1,39 @@
+.shell { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:20px; padding:20px; min-height:100%; background:#FDFCFA; color:#1B2A27; }
+.main { min-width:0; }
+.heading { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.heading h1 { margin:0; color:#155855; font-size:26px; font-weight:600; letter-spacing:-.025em; }
+.heading p { margin:6px 0 0; color:#5A7470; font-size:13px; }
+.hospitalLink { min-height:40px; display:inline-flex; align-items:center; gap:6px; padding:0 14px; border:1px solid #B9C9C5; border-radius:8px; color:#155855; background:#fff; font-weight:600; text-decoration:none; white-space:nowrap; }
+.filters { display:flex; gap:7px; overflow-x:auto; padding:4px; margin-bottom:14px; border-radius:999px; background:#EEF1F0; scrollbar-width:none; }
+.filters::-webkit-scrollbar { display:none; }
+.filter { min-height:36px; flex:0 0 auto; border:0; border-radius:999px; padding:0 14px; background:transparent; color:#5A7470; font-size:13px; font-weight:500; }
+.filterActive { background:#fff; color:#155855; box-shadow:0 1px 4px rgba(21,88,85,.12); }
+.warning { display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:11px 13px; border:1px solid #F0CDB9; border-radius:8px; background:#FFF4EE; color:#B03F14; font-size:13px; }
+.list { display:flex; flex-direction:column; gap:8px; }
+.row { display:grid; grid-template-columns:minmax(150px,1.1fr) minmax(180px,1.25fr) minmax(110px,.65fr) auto; align-items:center; gap:14px; padding:16px 18px; border:1px solid #DDE5E3; border-radius:10px; background:#fff; content-visibility:auto; contain-intrinsic-size:0 86px; }
+.identity strong { display:block; font-size:15px; font-weight:600; color:#1B2A27; }
+.identity span { display:block; margin-top:4px; color:#5A7470; font-size:12px; }
+.next { min-width:0; }
+.next b { display:flex; align-items:center; gap:6px; color:#1B2A27; font-size:13px; font-weight:600; }
+.next small { display:block; margin-top:5px; color:#5A7470; font-size:12px; }
+.turn { display:inline-flex; align-items:center; min-height:22px; padding:0 8px; border-radius:999px; background:#FFF0E9; color:#C94A1E; font-size:11px; font-weight:600; }
+.progressLine { display:flex; justify-content:space-between; gap:8px; margin-bottom:6px; color:#5A7470; font-size:12px; }
+.progressTrack { height:7px; overflow:hidden; border-radius:999px; background:#E7ECEA; }
+.progressFill { display:block; height:100%; border-radius:inherit; background:#155855; }
+.open { min-height:40px; display:inline-flex; align-items:center; justify-content:center; gap:5px; padding:0 13px; border:1px solid #B9C9C5; border-radius:8px; color:#155855; background:#fff; font-weight:600; white-space:nowrap; }
+.rail { min-width:0; }
+.railCard { position:sticky; top:16px; padding:18px; border:1px solid #DDE5E3; border-radius:12px; background:#fff; }
+.railCard h2 { margin:0 0 4px; color:#155855; font-size:17px; font-weight:600; }
+.railCard > p { margin:0 0 14px; color:#5A7470; font-size:12px; }
+.railItems { display:flex; flex-direction:column; gap:8px; }
+.railItem { width:100%; display:flex; align-items:flex-start; gap:10px; padding:11px 0; border:0; border-top:1px solid #E7ECEA; background:transparent; color:#1B2A27; text-align:left; }
+.railItem:first-child { border-top:0; }
+.railItem svg { flex:0 0 auto; color:#C94A1E; margin-top:2px; }
+.railItem strong { display:block; font-size:13px; font-weight:600; }
+.railItem span { display:block; margin-top:3px; color:#5A7470; font-size:11.5px; line-height:1.45; }
+.empty { padding:64px 20px; border:1px dashed #C9D5D2; border-radius:12px; background:#fff; text-align:center; color:#5A7470; }
+.empty svg { color:#8AA19D; }
+.empty strong { display:block; margin-top:10px; color:#1B2A27; font-weight:600; }
+.loading { padding:60px 20px; color:#5A7470; text-align:center; }
+@media (max-width:1100px) { .shell { grid-template-columns:1fr; } .railCard { position:static; } }
+@media (max-width:760px) { .shell { padding:14px; } .heading { align-items:flex-start; } .heading h1 { font-size:22px; } .row { grid-template-columns:1fr; gap:12px; } .open { width:100%; } }

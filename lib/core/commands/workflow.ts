@@ -2,10 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   completeOpenStepTasksForManualSave,
-  getWorkflowRun,
   maybeAdvanceWorkflow,
 } from "@/lib/workflowAutomation";
 import { coreCommandFailure, type CoreCommandResult } from "./result";
+import { writeWorkflowCheck } from "@/lib/workflowCheckPersistence";
 
 type AdvanceOutcome = { advanced: boolean; fromStep: string; toStep?: string; reason?: string };
 
@@ -35,22 +35,30 @@ export async function completeStep(
   }
 }
 
-// shooting → payment_confirm. 촬영 완료를 알리는 두 경로(홈 채팅 확인, NAS 자동 감지)가
-// 전부 이 Command 하나로만 단계를 넘긴다(PHASE 3 작업 1-B).
+// 촬영 완료 사실을 체크에 기록한다. current_step_key는 체크 목록에서 역산된다.
 export async function completeShoot(
   workflowRunId: string,
   db: SupabaseClient = getSupabaseAdmin(),
 ): Promise<CoreCommandResult<AdvanceOutcome>> {
-  return completeStep(workflowRunId, "shooting", db);
+  try {
+    const updated = await writeWorkflowCheck(db, { workflowRunId, key: "shot", done: true, by: "user" });
+    return { ok: true, value: { advanced: true, fromStep: "shooting", toStep: updated.current_step_key } };
+  } catch (error) {
+    return coreCommandFailure(error, "촬영 완료 확인에 실패했습니다.");
+  }
 }
 
-// payment_confirm → backup_sorting. 계좌 API 연동 전까지는 대표가 입금·계산서 처리를
-// 수동으로 확인한 뒤 이 Command를 호출하는 버튼 하나로만 열린다.
+// 잔금 확인 사실을 체크에 기록한다. 계좌 API 연동 전까지는 대표가 직접 확인한다.
 export async function confirmPayment(
   workflowRunId: string,
   db: SupabaseClient = getSupabaseAdmin(),
 ): Promise<CoreCommandResult<AdvanceOutcome>> {
-  return completeStep(workflowRunId, "payment_confirm", db);
+  try {
+    const updated = await writeWorkflowCheck(db, { workflowRunId, key: "payment", done: true, by: "user" });
+    return { ok: true, value: { advanced: true, fromStep: "payment_confirm", toStep: updated.current_step_key } };
+  } catch (error) {
+    return coreCommandFailure(error, "잔금 확인에 실패했습니다.");
+  }
 }
 
 export type RegisterGalleryInput = {
@@ -67,12 +75,10 @@ export type RegisterGalleryInput = {
   galleryType: string;
 };
 
-const ORIGINAL_GALLERY_TYPES = new Set(["original", "original_photo", "original_video"]);
 const FINAL_GALLERY_TYPES = new Set(["retouched", "final_photo", "final_video"]);
 
-// 원본 갤러리 등록 = 1차 납품, 완료본 갤러리 등록 = 2차 납품. 갤러리 등록 자체(DB insert)는
-// 별개의 사실이라 항상 성공으로 반환하고, 그 뒤에 시도하는 단계 전진의 결과(advanced/보류
-// 사유)는 별도 필드로 함께 실어서 호출부가 조용히 삼키지 않게 한다(PHASE 3 작업 2).
+// 갤러리 등록 자체와 완료사진 전달 체크는 별개의 사실이다. 체크 기록이 실패해도 저장된
+// 갤러리는 성공으로 반환하고, 실패 사유를 별도 필드로 드러낸다.
 export async function registerGallery(
   input: RegisterGalleryInput,
   db: SupabaseClient = getSupabaseAdmin(),
@@ -117,19 +123,13 @@ export async function registerGallery(
     }
 
     let advance: { advanced: boolean; targetStep?: string; reason?: string } = { advanced: false };
-    const isOriginalType = ORIGINAL_GALLERY_TYPES.has(input.galleryType);
     const isFinalType = FINAL_GALLERY_TYPES.has(input.galleryType);
-    if (input.clientId && input.workflowRunId && (isOriginalType || isFinalType)) {
-      const run = await getWorkflowRun(db, input.workflowRunId);
-      let targetStep: string | null = null;
-      if (isOriginalType && run.current_step_key === "client_selection") targetStep = "client_selection";
-      else if (isFinalType && (run.current_step_key === "retouching" || run.current_step_key === "final_delivery")) targetStep = run.current_step_key;
-
-      if (targetStep) {
-        const result = await completeStep(input.workflowRunId, targetStep, db);
-        advance = result.ok
-          ? { advanced: result.value.advanced, targetStep, reason: result.value.reason }
-          : { advanced: false, targetStep, reason: result.reason };
+    if (input.clientId && input.workflowRunId && isFinalType) {
+      try {
+        const updated = await writeWorkflowCheck(db, { workflowRunId: input.workflowRunId, key: "final_delivered", done: true, by: "auto" });
+        advance = { advanced: true, targetStep: updated.current_step_key };
+      } catch (error) {
+        advance = { advanced: false, reason: error instanceof Error ? error.message : "완료사진 전달 체크를 기록하지 못했습니다." };
       }
     }
 

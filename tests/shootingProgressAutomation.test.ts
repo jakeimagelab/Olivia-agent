@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("shooting progress automation", () => {
-  it("links one shooting calendar and workflow, then advances shooting to payment_confirm", async () => {
+  it("links one shooting calendar and workflow without completing the manual shooting check", async () => {
     const db = createDb({
       calendar_tasks: [{ id: "cal-1", date: "2026-09-11", title: "WINF 촬영", location: "WINF", category: "shooting" }],
       workflow_runs: [{ id: "run-1", shoot_date: "2026-09-11", client_name: "WINF", project_name: "9월 촬영", current_step_key: "shooting", status: "active" }],
@@ -117,10 +117,9 @@ describe("shooting progress automation", () => {
       calendar_task_id: "cal-1",
       status: "READY",
     });
-    // PHASE 3 작업 1-B(2026-09-25) — NAS 자동 감지가 잔금·계산서(payment_confirm)를 건너뛰고
-    // 곧장 backup_sorting으로 가던 사고를 고쳤다. 이제는 두 경로(홈 채팅 확인, NAS 자동 감지)
-    // 모두 payment_confirm에서 멈춘다.
-    expect(workflow.advances).toMatchObject([{ from_step_key: "shooting", to_step_key: "payment_confirm" }]);
+    // 폴더 감지는 촬영 완료의 근거가 아니다. `shot`은 사용자가 직접 확인하므로 단계가 그대로다.
+    expect(workflow.advances).toHaveLength(0);
+    expect(db.tables.workflow_runs[0]).toMatchObject({ current_step_key: "shooting" });
   });
 
   it("keeps an unmatched folder as a standalone photo project", async () => {
@@ -195,11 +194,7 @@ describe("shooting progress automation", () => {
     expect(result.link).toMatchObject({ workflowRunId: null, calendarTaskId: null, reason: "calendar_not_found" });
   });
 
-  // PHASE 3 작업 1-B(2026-09-25) — 잔금·계산서 확인 전에 사진 분류가 끝나도 워크플로 단계
-  // 표시는 backup_sorting으로 넘어가지 않고 payment_confirm에서 대기해야 한다. 사진 분류
-  // 자체(이 함수가 불릴 때는 이미 끝난 상태)는 막지 않는다 — 여기서 검증하는 건 오직 워크플로
-  // "단계 표시" 전진 여부와 workflow.blocked 이벤트다.
-  it("waits at payment_confirm instead of auto-advancing when classification finishes early", async () => {
+  it("records early classification while keeping the first unchecked payment item", async () => {
     workflow.run = { id: "run-1", current_step_key: "payment_confirm", client_id: "client-1", project_id: "proj-1" };
     const db = createDb({
       photo_storage_projects: [{ id: "project-1", workflow_run_id: "run-1" }],
@@ -211,17 +206,13 @@ describe("shooting progress automation", () => {
 
     expect(workflow.advances).toHaveLength(0);
     expect(workflow.completedTasks).toHaveLength(0);
-    expect(db.tables.olivia_events[0]).toMatchObject({
-      event_type: "workflow.blocked",
-      workflow_run_id: "run-1",
-      client_id: "client-1",
-      project_id: "proj-1",
-      payload: { stepKey: "payment_confirm", waitingFor: "payment_confirm" },
+    expect(db.tables.workflow_runs[0]).toMatchObject({
+      current_step_key: "payment_confirm",
+      checks: { payment: { done: false }, backup_sorted: { done: true, by: "auto" } },
     });
-    expect(db.tables.workflow_runs[0]).toMatchObject({ next_action: "잔금·계산서 확인 후 분류 단계로 진행" });
   });
 
-  it("opens original delivery after classification without exposing a legacy current step", async () => {
+  it("records classification completion and waits for direct classification approval", async () => {
     workflow.run.current_step_key = "backup_sorting";
     const db = createDb({
       photo_storage_projects: [{ id: "project-1", workflow_run_id: "run-1" }],
@@ -231,13 +222,15 @@ describe("shooting progress automation", () => {
     const { syncClassificationCompletedWorkflow } = await import("@/lib/photo-storage/shootingProgress");
     await syncClassificationCompletedWorkflow(db as any, "project-1");
 
-    expect(workflow.completedTasks).toEqual(["backup_sorting"]);
-    expect(workflow.advances).toMatchObject([{ from_step_key: "backup_sorting", to_step_key: "client_selection" }]);
-    expect(workflow.stepRuns.get("run-1:original_delivery")).toMatchObject({ status: "in_progress" });
-    expect(db.tables.workflow_runs[0]).toMatchObject({ next_action: "next:original_delivery" });
+    expect(workflow.completedTasks).toHaveLength(0);
+    expect(workflow.advances).toHaveLength(0);
+    expect(db.tables.workflow_runs[0]).toMatchObject({
+      current_step_key: "backup_sorting",
+      checks: { backup_sorted: { done: true, by: "auto" }, sort_approved: { done: false } },
+    });
   });
 
-  it("moves selection to internal raw matching and RAW completion to retouching", async () => {
+  it("moves selection to RAW approval and keeps completed matching there until manual approval", async () => {
     workflow.run.current_step_key = "client_selection";
     const db = createDb({
       photo_storage_projects: [{ id: "project-1", workflow_run_id: "run-1" }],
@@ -248,11 +241,11 @@ describe("shooting progress automation", () => {
     const { syncSelectionSubmittedWorkflow, syncRawMatchWorkflow } = await import("@/lib/photo-storage/shootingProgress");
 
     await syncSelectionSubmittedWorkflow(db as any, "run-1");
-    expect(workflow.advances.at(-1)).toMatchObject({ from_step_key: "client_selection", to_step_key: "raw_matching" });
-    expect(workflow.run.current_step_key).toBe("raw_matching");
+    expect(db.tables.workflow_runs[0]).toMatchObject({ current_step_key: "raw_matching", checks: { client_selected: { done: true, by: "auto" } } });
 
     await syncRawMatchWorkflow(db as any, { projectId: "project-1", jobStatus: "COMPLETED" });
     expect(db.tables.select_galleries[0]).toMatchObject({ status: "raw_matched" });
-    expect(workflow.advances.at(-1)).toMatchObject({ from_step_key: "raw_matching", to_step_key: "retouching" });
+    expect(workflow.advances).toHaveLength(0);
+    expect(db.tables.workflow_runs[0]).toMatchObject({ current_step_key: "raw_matching", checks: { raw_approved: { done: false } } });
   });
 });

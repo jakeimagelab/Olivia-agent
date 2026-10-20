@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, MoreVertical, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
+import { AlertTriangle, Building2, Camera, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, Link2, LoaderCircle, Mail, MoreVertical, Paperclip, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ACTIVE_WORKFLOW_STEPS,
@@ -16,9 +16,10 @@ import { tryMoveWorkflowStep } from "@/lib/clientWorkspace/stepNavigation";
 import { avatarColor, avatarInitial } from "@/lib/pcrmAvatar";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
-import ClientListPanel from "@/components/client-workspace/ClientListPanel";
 import ProjectWorkflowStepper from "@/components/client-workspace/ProjectWorkflowStepper";
 import WorkspaceModal from "@/components/client-workspace/WorkspaceModal";
+import WorkflowCaseHome from "@/components/clients/WorkflowCaseHome";
+import WorkflowCaseDetail from "@/components/clients/WorkflowCaseDetail";
 import type { WorkspacePhase } from "@/lib/clientWorkspace/types";
 import ClientFormModal from "@/app/(client-hub)/clients/_components/ClientFormModal";
 import NewPcrmProjectDialog from "@/app/(client-hub)/clients/_components/NewPcrmProjectDialog";
@@ -158,8 +159,8 @@ export default function ClientsWorkspace({ initialClientId, initialWorkflowRunId
 function SpinBox() {
   return (
     <div style={{ padding: "80px 0", textAlign: "center", color: C.hint }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>⏳</div>
-      <div style={{ fontSize: 13, fontWeight: 700 }}>불러오는 중...</div>
+      <LoaderCircle size={28} aria-hidden="true" style={{ marginBottom: 10 }} />
+      <div style={{ fontSize: 13, fontWeight: 600 }}>불러오는 중...</div>
     </div>
   );
 }
@@ -211,18 +212,16 @@ function ClientWorkspaceView({
 }) {
   const router = useRouter();
   const {
-    filtered, loading, search, setSearch,
     formModal, openCreate, closeForm,
-    deletingId, deleteClient, load,
+    load,
   } = useClientRoster();
-  const [selectedClientId, setSelectedClientId] = useState<string | null>(initialClientId);
   const [detailTarget, setDetailTarget] = useState<{ clientId: string; workflowRunId: string | null } | null>(() => (
-    initialClientId && initialTab === "documents"
-      ? resolveEmbeddedClientDetailTarget(initialClientId, initialWorkflowRunId)
-      : null
+    initialWorkflowRunId
+      ? resolveEmbeddedClientDetailTarget(initialClientId || "_by-workflow", initialWorkflowRunId)
+      : initialClientId
+        ? resolveEmbeddedClientDetailTarget(initialClientId, null)
+        : null
   ));
-  const filteredClientIds = filtered.map((client) => client.id).join("|");
-  const lastAppliedInitialClientIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (openNewOnLoad) openCreate();
@@ -230,40 +229,26 @@ function ClientWorkspaceView({
   }, [openNewOnLoad]);
 
   useEffect(() => {
-    if (loading) return;
-    const initialClientChanged = lastAppliedInitialClientIdRef.current !== initialClientId;
-    lastAppliedInitialClientIdRef.current = initialClientId;
-    const { clientId: nextId, source } = resolveClientWorkspaceSelectionDetail({
-      initialClientId,
-      initialClientChanged,
-      selectedClientId,
-      availableClientIds: filtered.map((client) => client.id),
-    });
-    if (nextId === selectedClientId) return;
-    setSelectedClientId(nextId);
-    const selected = filtered.find((client) => client.id === nextId);
-    // 화면을 채우려고 고른 고객은 채팅의 "지금 대상"이 되지 않는다. 목록을 여는 것과
-    // 그 고객으로 작업하겠다는 것은 다르다(2026-09-27). 행을 직접 누르면 selectClient가
-    // 따로 setClient를 부른다.
-    if (source === "explicit") {
-      const contextStore = useOliviaContextStore.getState();
-      contextStore.setClient(selected?.id, selected?.name, "screen");
-      contextStore.setProject(undefined, undefined);
+    if (initialWorkflowRunId) {
+      setDetailTarget(resolveEmbeddedClientDetailTarget(initialClientId || "_by-workflow", initialWorkflowRunId));
+    } else if (initialClientId) {
+      setDetailTarget(resolveEmbeddedClientDetailTarget(initialClientId, null));
     }
-    // fallback 선택을 URL의 clientId로 승격하면 다음 effect에서 explicit 선택이 되어 다시
-    // 채팅 context를 덮는다. 명시적 선택일 때만 기존 딥링크 동기화를 유지한다.
-    if (!embedded && source === "explicit" && nextId && initialClientId !== nextId) router.replace(`/clients?clientId=${encodeURIComponent(nextId)}`, { scroll: false });
-  // filteredClientIds는 선택 가능한 id 집합만 추적해 검색 입력 중 불필요한 effect 재실행을 막는다.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embedded, filteredClientIds, initialClientId, loading, router, selectedClientId]);
+  }, [initialClientId, initialWorkflowRunId]);
 
-  const selectClient = (clientId: string) => {
-    setSelectedClientId(clientId);
-    const selected = filtered.find((client) => client.id === clientId);
-    const contextStore = useOliviaContextStore.getState();
-    contextStore.setClient(clientId, selected?.name, "screen");
-    contextStore.setProject(undefined, undefined);
-    if (!embedded) router.replace(`/clients?clientId=${encodeURIComponent(clientId)}`, { scroll: false });
+  const openDetail = (clientId: string, workflowRunId: string | null) => {
+    setDetailTarget(resolveEmbeddedClientDetailTarget(clientId, workflowRunId));
+    if (!embedded) {
+      const params = new URLSearchParams();
+      if (clientId && clientId !== "_by-workflow") params.set("clientId", clientId);
+      if (workflowRunId) params.set("workflowRunId", workflowRunId);
+      router.replace(`/clients?${params.toString()}`, { scroll: false });
+    }
+  };
+
+  const closeDetail = () => {
+    setDetailTarget(null);
+    if (!embedded) router.replace("/clients", { scroll: false });
   };
 
   // openCreate는 useClientRoster가 매 렌더마다 새로 만드는 함수라 deps에 넣으면 헤더 슬롯이
@@ -272,20 +257,12 @@ function ClientWorkspaceView({
   openCreateRef.current = openCreate;
   const headerActions = useMemo(() => (
     <>
-      <label className="oa-header__client-search">
-        <Search size={15} aria-hidden="true" />
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="고객명, 병원명 검색"
-          aria-label="고객명 또는 병원명 검색"
-        />
-      </label>
+      <Link href="/clients/list" className="pc-btn pc-btn--secondary pc-btn--sm"><Building2 size={15} /> 병원 목록</Link>
       <button type="button" className="oa-header__client-create" onClick={() => openCreateRef.current()}>
         <Plus size={15} /> <span>고객 등록</span>
       </button>
     </>
-  ), [search, setSearch]);
+  ), []);
   usePcrmHeaderActions(headerActions, [headerActions]);
 
   const body = detailTarget ? (
@@ -293,61 +270,23 @@ function ClientWorkspaceView({
       clientId={detailTarget.clientId}
       workflowRunId={detailTarget.workflowRunId}
       initialTab={initialTab}
-      onBack={() => setDetailTarget(null)}
+      onBack={closeDetail}
       onWorkflowRunChange={(workflowRunId) => setDetailTarget((current) => current ? { ...current, workflowRunId } : current)}
       embedded={embedded}
     />
   ) : (
-    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, height: embedded ? "auto" : undefined, minHeight: embedded ? "100%" : 0, overflow: embedded ? "visible" : undefined }}>
-      <div
-        className="pcrm-workspace-grid"
-        style={{ display: "grid", width: "100%", gridTemplateColumns: "310px minmax(0, 1fr)", gap: 18, height: embedded ? "auto" : "calc(100vh - 160px)", minHeight: embedded ? "100%" : 560, padding: embedded ? 12 : "0 0 16px" }}
-      >
-        <ClientListPanel
-          clients={filtered}
-          loading={loading}
-          search={search}
-          onSearch={setSearch}
-          selectedClientId={selectedClientId}
-          onSelect={selectClient}
-          deletingId={deletingId}
-          onDelete={deleteClient}
-        />
-
-        <div className="pcrm-inline-project-column">
-          {selectedClientId ? (
-            <InlineClientProjectPanel
-              clientId={selectedClientId}
-              embedded={embedded}
-              onOpenDetail={(workflowRunId) => setDetailTarget(resolveEmbeddedClientDetailTarget(selectedClientId, workflowRunId))}
-            />
-          ) : (
-            <div className="pc-card pc-card--padded pcrm-inline-project-empty">
-              <p>등록된 고객이 없습니다.</p>
-              <button type="button" onClick={openCreate} className="pc-btn pc-btn--orange pc-btn--sm"><Plus size={13} /> 고객 등록</button>
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="pcrm-dashboard pcrm-dashboard--workspace" style={{ color: C.txt, minHeight: "100%" }}>
+      <WorkflowCaseHome onOpen={(clientId, workflowRunId) => openDetail(clientId, workflowRunId)} />
 
       <ClientFormModal
         open={formModal !== null}
         mode={formModal?.mode ?? "create"}
         client={formModal?.client}
         onClose={closeForm}
-        onSaved={(id) => { closeForm(); void load(false); selectClient(id); }}
+        onSaved={(id) => { closeForm(); void load(false); openDetail(id, null); }}
         onSavedAndNewProject={(id) => { closeForm(); void load(false); if (!embedded) router.push(`/quote?clientId=${id}`); }}
       />
 
-      <style jsx global>{`
-        @media (max-width: 1180px) and (min-width: 761px) {
-          .pcrm-workspace-grid { grid-template-columns: 280px minmax(0, 1fr) !important; }
-        }
-        @media (max-width: 760px) {
-          .pcrm-workspace-grid { grid-template-columns: 1fr !important; height: auto !important; min-height: 0 !important; }
-          .pcrm-workspace-grid > div { height: auto !important; max-height: none !important; }
-        }
-      `}</style>
     </div>
   );
 
@@ -721,10 +660,10 @@ function DetailView({
   if (loading) return <SpinBox />;
   if (!pageData?.client) return (
     <div style={{ padding: "60px 24px", textAlign: "center", color: C.muted }}>
-      <div style={{ fontSize: 40, marginBottom: 14 }}>❌</div>
-      <div style={{ fontWeight: 700, marginBottom: 6 }}>{loadError || "고객을 찾을 수 없습니다."}</div>
+      <AlertTriangle size={40} aria-hidden="true" style={{ marginBottom: 14 }} />
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>{loadError || "고객을 찾을 수 없습니다."}</div>
       {loadError && <div style={{ fontSize: 12, color: C.hint, marginBottom: 12 }}>잠시 후 다시 시도하거나 관리자에게 문의해주세요.</div>}
-      <button onClick={onBack} style={{ height: 40, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>← 목록으로</button>
+      <button onClick={onBack} style={{ height: 40, padding: "0 20px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}><ChevronLeft size={14} /> 목록으로</button>
     </div>
   );
 
@@ -785,12 +724,59 @@ function DetailView({
     });
   };
 
+  if (workflowRun) {
+    const openCheckAction = (check: { key: string; stepKey: string }) => {
+      if (check.key === "client_portal") {
+        void openClientPreview();
+        return;
+      }
+      if (check.stepKey === "quote" || check.stepKey === "contract" || check.stepKey === "conti") {
+        openToolModal(check.stepKey);
+        return;
+      }
+      const href = buildStepAppLink({ stepKey: check.stepKey, clientId, workflowRunId: workflowRun.id });
+      if (desktopWindowMode) launchHref(href, client.name, { clientId, projectId: workflowRun.id });
+      else router.push(href);
+    };
+    return (
+      <div style={{ color: C.txt, minWidth: 0 }}>
+        <WorkflowCaseDetail
+          client={client}
+          workflowRun={workflowRun}
+          activities={activities}
+          resourceIds={resourceIds}
+          reviewHandoff={reviewHandoff}
+          onBack={onBack}
+          onRefresh={load}
+          onOpenTool={openToolModal}
+          onOpenAction={openCheckAction}
+          onOpenPortal={() => void openClientPreview()}
+        />
+        {toolModal?.type === "quote" ? (
+          <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 견적서 작성`}>
+            <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+          </WorkspaceModal>
+        ) : null}
+        {toolModal?.type === "contract" ? (
+          <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 계약서 작성`}>
+            <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+          </WorkspaceModal>
+        ) : null}
+        {toolModal?.type === "conti" ? (
+          <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
+            <ContiWorkspace clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+          </WorkspaceModal>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div style={{ color: C.txt, minWidth: 0 }}>
       <section className="pcrm-dashboard" aria-label="고객 프로젝트 요약" style={{ paddingBottom: 0 }}>
       <nav className="pcrm-breadcrumb" aria-label="이동 경로">
         {desktopWindowMode ? <button type="button" onClick={onBack}>고객 관리</button> : <Link href="/clients">고객 관리</Link>}<span>/</span><span>고객 상세 · {activeTabLabel}</span>
-        <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 800, cursor: "pointer", fontFamily: "inherit" }}>
+        <button type="button" onClick={onBack} style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, border: 0, background: "none", color: "#5a7470", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
           <ChevronLeft size={13} /> 목록
         </button>
       </nav>
@@ -1093,19 +1079,19 @@ function ClientRelatedArtifactsSection({
     <section style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }} aria-labelledby="client-artifacts-title">
       <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
-          <div id="client-artifacts-title" style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📎 관련 자료</div>
+          <div id="client-artifacts-title" style={{ fontSize: 12, fontWeight: 600, color: C.teal, display: "flex", alignItems: "center", gap: 6 }}><Paperclip size={14} /> 관련 자료</div>
           <div style={{ marginTop: 2, fontSize: 10, color: C.muted }}>견적서·계약서·콘티 원본을 한곳에서 확인합니다.</div>
         </div>
-        <span style={{ borderRadius: 99, padding: "4px 8px", background: `${C.teal}0D`, color: C.teal, fontSize: 10, fontWeight: 900 }}>{artifacts.length + legacyQuotes.length + legacyContracts.length}건</span>
+        <span style={{ borderRadius: 99, padding: "4px 8px", background: `${C.teal}0D`, color: C.teal, fontSize: 10, fontWeight: 600 }}>{artifacts.length + legacyQuotes.length + legacyContracts.length}건</span>
       </div>
 
       {artifacts.map((artifact) => (
         <div key={artifact.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: `1px solid ${C.border}` }}>
-          <span style={{ borderRadius: 99, padding: "5px 8px", background: artifact.document_type === "quote" ? "#FFF0E8" : artifact.document_type === "contract" ? "#EAF4F2" : "#EEF6EC", color: artifact.document_type === "quote" ? C.orange : C.teal, fontSize: 9, fontWeight: 900, whiteSpace: "nowrap" }}>
+          <span style={{ borderRadius: 99, padding: "5px 8px", background: artifact.document_type === "quote" ? "#FFF0E8" : artifact.document_type === "contract" ? "#EAF4F2" : "#EEF6EC", color: artifact.document_type === "quote" ? C.orange : C.teal, fontSize: 9, fontWeight: 600, whiteSpace: "nowrap" }}>
             {typeLabel[artifact.document_type]}
           </span>
           <div style={{ minWidth: 0 }}>
-            <div style={{ overflow: "hidden", color: C.txt, fontSize: 12, fontWeight: 800, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{artifact.title || artifact.file_name}</div>
+            <div style={{ overflow: "hidden", color: C.txt, fontSize: 12, fontWeight: 600, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{artifact.title || artifact.file_name}</div>
             <div style={{ marginTop: 2, overflow: "hidden", color: C.muted, fontSize: 10, textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {artifact.file_name} · {new Date(artifact.created_at).toLocaleDateString("ko-KR")}{formatArtifactSize(artifact.file_size) ? ` · ${formatArtifactSize(artifact.file_size)}` : ""}
             </div>
@@ -1142,9 +1128,9 @@ function ClientRelatedArtifactsSection({
         <div>
           {legacyQuotes.map((q: any) => (
             <div key={q.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", gap: 12, alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 9, fontWeight: 900, color: C.orange }}>견적서</span>
-              <div><div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{q.title || q.quote_number || "견적서"} · {won(q.total_amount)}</div><div style={{ fontSize: 10, color: C.muted }}>공급가액 {won(q.supply_amount)} · {q.created_at ? new Date(q.created_at).toLocaleDateString("ko-KR") : ""}</div></div>
-              <span style={{ color: C.hint, fontSize: 10, fontWeight: 800 }}>원본 파일 없음</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: C.orange }}>견적서</span>
+              <div><div style={{ fontSize: 12, fontWeight: 600, color: C.txt }}>{q.title || q.quote_number || "견적서"} · {won(q.total_amount)}</div><div style={{ fontSize: 10, color: C.muted }}>공급가액 {won(q.supply_amount)} · {q.created_at ? new Date(q.created_at).toLocaleDateString("ko-KR") : ""}</div></div>
+              <span style={{ color: C.hint, fontSize: 10, fontWeight: 600 }}>원본 파일 없음</span>
             </div>
           ))}
         </div>
@@ -1154,9 +1140,9 @@ function ClientRelatedArtifactsSection({
         <div>
           {legacyContracts.map((contract: any) => (
             <div key={contract.id} style={{ display: "grid", gridTemplateColumns: "auto minmax(0,1fr) auto", gap: 12, alignItems: "center", padding: "10px 18px", borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 9, fontWeight: 900, color: C.teal }}>계약서</span>
-              <div><div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>{contract.quote_number || "계약서"}</div><div style={{ fontSize: 10, color: C.muted }}>{contract.signature_data_url ? "서명완료" : "서명대기"}{contract.created_at ? ` · ${new Date(contract.created_at).toLocaleDateString("ko-KR")}` : ""}</div></div>
-              <span style={{ color: C.hint, fontSize: 10, fontWeight: 800 }}>원본 파일 없음</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: C.teal }}>계약서</span>
+              <div><div style={{ fontSize: 12, fontWeight: 600, color: C.txt }}>{contract.quote_number || "계약서"}</div><div style={{ fontSize: 10, color: C.muted }}>{contract.signature_data_url ? "서명완료" : "서명대기"}{contract.created_at ? ` · ${new Date(contract.created_at).toLocaleDateString("ko-KR")}` : ""}</div></div>
+              <span style={{ color: C.hint, fontSize: 10, fontWeight: 600 }}>원본 파일 없음</span>
             </div>
           ))}
         </div>
@@ -1195,7 +1181,7 @@ function ClientMailHistorySection({ clientId }: { clientId: string }) {
   return (
     <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
       <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)" }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📬 메일 발송이력</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.teal, display: "flex", alignItems: "center", gap: 6 }}><Mail size={14} /> 메일 발송이력</div>
         <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>이 고객에게 발송/예정된 메일 전체 (최신순)</div>
       </div>
       {loading ? (
@@ -1206,7 +1192,7 @@ function ClientMailHistorySection({ clientId }: { clientId: string }) {
         <div style={{ maxHeight: 320, overflowY: "auto" }}>
           {items.map((m) => (
             <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 18px", borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint, flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 99, background: `${MAIL_COLOR[m.status] || C.hint}18`, color: MAIL_COLOR[m.status] || C.hint, flexShrink: 0 }}>
                 {STATUS_LABEL[m.status] || m.status}
               </span>
               <span style={{ flex: 1, fontSize: 12, color: C.txt, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1314,13 +1300,13 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
   return (
     <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
       <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>📷 촬영 갤러리</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.teal, display: "flex", alignItems: "center", gap: 6 }}><Camera size={14} /> 촬영 갤러리</div>
         <div style={{ display: "flex", gap: 6 }}>
           <a href={`/gallery?client_id=${clientId}${workflowRunId ? `&workflow_run_id=${workflowRunId}` : ""}`}
-            style={{ fontSize: 11, fontWeight: 700, color: C.orange, background: `${C.orange}12`, border: `1px solid ${C.orange}30`, borderRadius: 6, padding: "4px 10px", textDecoration: "none" }}>
+            style={{ fontSize: 11, fontWeight: 600, color: C.orange, background: `${C.orange}12`, border: `1px solid ${C.orange}30`, borderRadius: 6, padding: "4px 10px", textDecoration: "none" }}>
             갤러리 앱 →
           </a>
-          <button onClick={() => setShowForm(v => !v)} style={{ fontSize: 11, fontWeight: 700, color: C.teal, background: "rgba(21,88,85,.06)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={() => setShowForm(v => !v)} style={{ fontSize: 11, fontWeight: 600, color: C.teal, background: "rgba(21,88,85,.06)", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
             {showForm ? "닫기" : "+ 빠른 추가"}
           </button>
         </div>
@@ -1344,10 +1330,10 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
           <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="촬영 내용 메모" style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", fontSize: 12, outline: "none", fontFamily: "inherit", color: C.txt, background: C.white, boxSizing: "border-box" }} />
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={save} disabled={saving} style={{ height: 34, padding: "0 18px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 900, cursor: "pointer", fontFamily: "inherit" }}>
+            <button onClick={save} disabled={saving} style={{ height: 34, padding: "0 18px", background: C.teal, color: "#fff", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
               {saving ? "저장 중..." : "저장"}
             </button>
-            {msg && <span style={{ fontSize: 11, color: msg.includes("실패") || msg.includes("입력") ? C.orange : C.teal, fontWeight: 700 }}>{msg}</span>}
+            {msg && <span style={{ fontSize: 11, color: msg.includes("실패") || msg.includes("입력") ? C.orange : C.teal, fontWeight: 600 }}>{msg}</span>}
           </div>
         </div>
       )}
@@ -1365,17 +1351,17 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
               {g.items?.[0]?.thumbnail_url ? (
                 <img src={g.items[0].thumbnail_url} alt="" style={{ width: 48, height: 36, objectFit: "cover", borderRadius: 6, flexShrink: 0 }} />
               ) : (
-                <div style={{ width: 48, height: 36, background: C.light, borderRadius: 6, flexShrink: 0, display: "grid", placeItems: "center", fontSize: 18 }}>📷</div>
+                <div style={{ width: 48, height: 36, background: C.light, borderRadius: 6, flexShrink: 0, display: "grid", placeItems: "center" }}><Camera size={18} /></div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.txt }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.txt }}>
                   {g.shoot_date ? new Date(g.shoot_date).toLocaleDateString("ko-KR", { year: "numeric", month: "short", day: "numeric" }) : "날짜 미입력"}
                 </div>
                 {g.description && <div style={{ fontSize: 11, color: C.muted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{g.description}</div>}
               </div>
               <a href={g.nas_link} target="_blank" rel="noreferrer"
-                style={{ flexShrink: 0, fontSize: 11, fontWeight: 800, color: C.teal, background: C.light, border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 10px", textDecoration: "none" }}>
-                🔗 열기
+                style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: C.teal, background: C.light, border: `1px solid ${C.border}`, borderRadius: 7, padding: "5px 10px", textDecoration: "none" }}>
+                <Link2 size={13} /> 열기
               </a>
               {workflowRunId && (
                 <button
@@ -1391,7 +1377,7 @@ function ClientGallerySection({ clientId, hospitalName, email, workflowRunId }: 
                     color: C.orange,
                     fontFamily: "inherit",
                     fontSize: 10,
-                    fontWeight: 900,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
@@ -1490,21 +1476,21 @@ function InfoPanel({ client, onUpdate, forceEditSignal }: { client: any; onUpdat
   return (
     <div style={{ background: C.white, borderRadius: 14, border: `1px solid ${C.border}`, overflow: "hidden" }}>
       <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.border}`, background: "rgba(21,88,85,.03)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: C.teal }}>고객 기본 정보</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: C.teal }}>고객 기본 정보</div>
         {!editing ? (
-          <button onClick={startEdit} style={{ fontSize: 11, fontWeight: 800, color: C.teal, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>수정</button>
+          <button onClick={startEdit} style={{ fontSize: 11, fontWeight: 600, color: C.teal, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>수정</button>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => { setEditing(false); setMsg(""); }} style={{ fontSize: 11, fontWeight: 700, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>취소</button>
-            <button onClick={save} disabled={saving} style={{ fontSize: 11, fontWeight: 800, color: "#fff", background: saving ? C.hint : C.teal, border: "none", borderRadius: 6, padding: "4px 14px", cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "..." : "저장"}</button>
+            <button onClick={() => { setEditing(false); setMsg(""); }} style={{ fontSize: 11, fontWeight: 600, color: C.muted, background: "none", border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>취소</button>
+            <button onClick={save} disabled={saving} style={{ fontSize: 11, fontWeight: 600, color: "#fff", background: saving ? C.hint : C.teal, border: "none", borderRadius: 6, padding: "4px 14px", cursor: saving ? "not-allowed" : "pointer", fontFamily: "inherit" }}>{saving ? "..." : "저장"}</button>
           </div>
         )}
       </div>
-      {msg && <div style={{ padding: "8px 18px", background: msg.includes("실패") ? "#FFF0F0" : C.light, fontSize: 12, fontWeight: 700, color: msg.includes("실패") ? C.orange : C.green }}>{msg}</div>}
+      {msg && <div style={{ padding: "8px 18px", background: msg.includes("실패") ? "#FFF0F0" : C.light, fontSize: 12, fontWeight: 600, color: msg.includes("실패") ? C.orange : C.green }}>{msg}</div>}
       <div style={{ padding: "12px 18px", display: "grid", gap: 10 }}>
         {rows.map(([key, label]) => (
           <div key={key} className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>{label}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, paddingTop: 3 }}>{label}</span>
             {editing ? (
               key === "memo" || key === "notes" ? (
                 <textarea value={form[key] || ""} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))} rows={2}
@@ -1526,13 +1512,13 @@ function InfoPanel({ client, onUpdate, forceEditSignal }: { client: any; onUpdat
             <div style={{ height: 1, background: C.border, margin: "2px 0" }} />
             {client.original_photos_link && (
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>원본사진공유링크</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, paddingTop: 3 }}>원본사진공유링크</span>
                 <a href={client.original_photos_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: C.teal, textDecoration: "none", wordBreak: "break-word" }}>{client.original_photos_link} ↗</a>
               </div>
             )}
             {client.retouched_photos_link && (
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: 8, alignItems: "start" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.muted, paddingTop: 3 }}>보정사진공유링크</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, paddingTop: 3 }}>보정사진공유링크</span>
                 <a href={client.retouched_photos_link} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: C.teal, textDecoration: "none", wordBreak: "break-word" }}>{client.retouched_photos_link} ↗</a>
               </div>
             )}

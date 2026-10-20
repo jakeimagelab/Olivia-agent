@@ -25,17 +25,20 @@ describe("Olivia Phase 1 Core boundaries", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("routes every known workflow bypass through the existing command engine", () => {
-    const paths = [
+  it("routes workflow facts through the command or checklist engine", () => {
+    const stateChangePaths = [
       "app/api/client-portal/gallery-workspace/final/route.ts",
-      "app/api/select-galleries/[id]/raw-match/route.ts",
       "app/api/select-galleries/create-from-photo-sorting/route.ts",
       "lib/photo-storage/shootingProgress.ts",
     ];
-    for (const path of paths) {
+    for (const path of stateChangePaths) {
       const source = readFileSync(join(process.cwd(), path), "utf8");
-      expect(source, path).toContain("advanceWorkflow(");
+      expect(source, path).toMatch(/(?:advanceWorkflow|writeWorkflowCheck)/);
     }
+
+    const rawMatchSource = readFileSync(join(process.cwd(), "app/api/select-galleries/[id]/raw-match/route.ts"), "utf8");
+    expect(rawMatchSource).toContain("approvalRequired");
+    expect(rawMatchSource).not.toContain("advanceWorkflow(");
   });
 });
 

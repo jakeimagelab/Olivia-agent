@@ -107,7 +107,7 @@ export default function PcrmGalleryTable() {
         <div>
           <span>PCRM · PHOTOCLINIC CRM</span>
           <h1>앨범/갤러리 관리</h1>
-          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>
+          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 600, color: C.muted }}>
             고객에게 전달된 모든 앨범과 갤러리의 공개 상태를 확인하고 관리할 수 있습니다.
           </small>
         </div>

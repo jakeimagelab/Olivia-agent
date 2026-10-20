@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getPortalProjectContext, pcrmError, pcrmOk, verifyPortalEntity } from "@/lib/pcrm/server";
 import { isPcrmUuid } from "@/lib/pcrm/validation";
 import { applyPortalPublicationAction } from "@/lib/pcrm/publications";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,5 +43,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (contractError) return pcrmError(contractError.message, 500);
 
   const result = await applyPortalPublicationAction(db, session, publication.id, "approve");
+  if (result.ok && session.workflowRunId) {
+    await writeWorkflowCheckSafely(db, { workflowRunId: session.workflowRunId, key: "contract_signed", done: true, by: "auto" });
+  }
   return result.ok ? pcrmOk({ publication: result.publication }) : pcrmError(result.error, result.status);
 }

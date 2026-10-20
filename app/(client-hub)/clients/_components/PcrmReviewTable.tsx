@@ -378,7 +378,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
         onClick={(event) => event.stopPropagation()}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 900, color: C.ink }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: C.ink }}>{title}</h3>
           <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.hint, display: "flex" }}><X size={18} /></button>
         </div>
         {children}
@@ -391,7 +391,7 @@ const fieldStyle: React.CSSProperties = {
   width: "100%", fontSize: 13, border: `1px solid ${C.border}`, borderRadius: R.sm,
   padding: "9px 11px", outline: "none", background: "#FAFAFA", color: C.ink, fontFamily: "inherit",
 };
-const labelStyle: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 700, color: C.muted, marginBottom: 5 };
+const labelStyle: React.CSSProperties = { display: "block", fontSize: 11.5, fontWeight: 600, color: C.muted, marginBottom: 5 };
 
 function ViewReviewModal({ review, onClose }: { review: ReviewRow; onClose: () => void }) {
   const meta = getReviewContentStageMeta(review);
@@ -400,7 +400,7 @@ function ViewReviewModal({ review, onClose }: { review: ReviewRow; onClose: () =
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <strong style={{ fontSize: 14, color: C.ink }}>{review.hospital_name}</strong>
-          <span style={{ padding: "3px 10px", borderRadius: R.full, fontSize: 11, fontWeight: 800, color: meta.text, background: meta.bg }}>{meta.label}</span>
+          <span style={{ padding: "3px 10px", borderRadius: R.full, fontSize: 11, fontWeight: 600, color: meta.text, background: meta.bg }}>{meta.label}</span>
         </div>
         <div style={{ fontSize: 12, color: C.muted }}>{review.reviewer_name || "—"} · {formatDate(review.delivered_at || review.created_at)}</div>
         {review.rating ? (
@@ -427,7 +427,7 @@ function EditReviewModal({ review, onClose, onSave }: { review: ReviewRow; onClo
           type="button"
           disabled={saving || !reviewText.trim()}
           onClick={async () => { setSaving(true); try { await onSave({ reviewText, reviewerName }); } finally { setSaving(false); } }}
-          style={{ padding: "10px 14px", borderRadius: R.md, border: "none", background: C.teal, color: C.white, fontSize: 13, fontWeight: 800, cursor: "pointer" }}
+          style={{ padding: "10px 14px", borderRadius: R.md, border: "none", background: C.teal, color: C.white, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
         >{saving ? "저장 중..." : "저장"}</button>
       </div>
     </ModalShell>
@@ -464,7 +464,7 @@ function RegisterReviewModal({ onClose, onSave }: { onClose: () => void; onSave:
             catch (saveError) { setError(saveError instanceof Error ? saveError.message : "등록하지 못했습니다."); }
             finally { setSaving(false); }
           }}
-          style={{ padding: "10px 14px", borderRadius: R.md, border: "none", background: C.teal, color: C.white, fontSize: 13, fontWeight: 800, cursor: canSave ? "pointer" : "not-allowed", opacity: canSave ? 1 : 0.6 }}
+          style={{ padding: "10px 14px", borderRadius: R.md, border: "none", background: C.teal, color: C.white, fontSize: 13, fontWeight: 600, cursor: canSave ? "pointer" : "not-allowed", opacity: canSave ? 1 : 0.6 }}
         >{saving ? "등록 중..." : "등록"}</button>
       </div>
     </ModalShell>

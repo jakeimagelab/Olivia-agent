@@ -4,6 +4,7 @@ import { linkUnassignedPhotoGalleries } from "@/lib/clientGalleryLinking";
 import { createEventDeduplicationKey, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { isActiveWorkflowStep } from "@/lib/workflow";
 import { buildNextAction, createStepTasks, ensureStepRun, logAgent } from "@/lib/workflowAutomation";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 export type CreateClientWithWorkflowInput = {
   hospitalName: string;
@@ -23,7 +24,7 @@ async function startWorkflowRun(
   input: Pick<CreateClientWithWorkflowInput, "startStepKey" | "eventSource">,
 ) {
   const requestedStep = typeof input.startStepKey === "string" ? input.startStepKey : "";
-  const startStepKey = isActiveWorkflowStep(requestedStep) ? requestedStep : "consult_meeting";
+  const startStepKey = isActiveWorkflowStep(requestedStep) ? requestedStep : "quote";
   const { data: run, error: runError } = await db.from("workflow_runs").insert({
     client_id: clientId,
     client_name: hospitalName,
@@ -40,9 +41,7 @@ async function startWorkflowRun(
     await logAgent(db, {
       workflow_run_id: run.id,
       log_type: "workflow_started",
-      message: startStepKey === "consult_meeting"
-        ? `${hospitalName} 고객 생성 후 워크플로우가 시작되었습니다.`
-        : `${hospitalName} 고객이 ${startStepKey} 단계에 연결되었습니다. 이전 단계도 필요하면 진행할 수 있습니다.`,
+      message: `${hospitalName} 고객이 ${startStepKey} 단계에 연결되었습니다. 이전 단계도 필요하면 진행할 수 있습니다.`,
       output_summary: `created_tasks: ${taskResult.created.length}`,
     });
     await emitOliviaEventSafely(db, {
@@ -73,18 +72,20 @@ export async function createClientWithWorkflow(db: SupabaseClient, input: Create
     .maybeSingle();
   if (existingError) throw new Error(`기존 고객 조회 실패: ${existingError.message}`);
   if (existing) {
-    let { data: activeRun, error: activeRunError } = await db.from("workflow_runs")
+    const activeRunResult = await db.from("workflow_runs")
       .select("id,current_step_key")
       .eq("client_id", existing.id)
       .eq("status", "active")
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (activeRunError) throw new Error(`활성 워크플로우 조회 실패: ${activeRunError.message}`);
+    if (activeRunResult.error) throw new Error(`활성 워크플로우 조회 실패: ${activeRunResult.error.message}`);
+    let activeRun = activeRunResult.data;
     if (!activeRun) {
       activeRun = await startWorkflowRun(db, existing.id, existing.hospital_name, input);
     }
     await ensurePortalAccess({ clientId: existing.id });
+    if (activeRun?.id) await writeWorkflowCheckSafely(db, { workflowRunId: activeRun.id, key: "client_portal", done: true, by: "auto" });
     return { client: existing, run: activeRun, created: false };
   }
 
@@ -116,6 +117,7 @@ export async function createClientWithWorkflow(db: SupabaseClient, input: Create
     .catch((linkError) => console.error("[clients] 기존 촬영 갤러리 연결 실패", linkError));
 
   await ensurePortalAccess({ clientId: client.id });
+  if (run?.id) await writeWorkflowCheckSafely(db, { workflowRunId: run.id, key: "client_portal", done: true, by: "auto" });
 
   return { client, run, created: true };
 }

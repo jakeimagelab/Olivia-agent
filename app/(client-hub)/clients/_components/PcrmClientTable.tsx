@@ -275,7 +275,7 @@ export default function PcrmClientTable({ clients, onOpen, onEdit, onDelete, onC
         <div>
           <span>PCRM · PHOTOCLINIC CRM</span>
           <h1>고객 관리</h1>
-          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>
+          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 600, color: C.muted }}>
             등록된 병원 고객 정보를 관리하고 프로젝트 진행 현황을 확인할 수 있습니다.
           </small>
         </div>

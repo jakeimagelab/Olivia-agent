@@ -163,7 +163,7 @@ export default function PcrmScheduleBoard() {
         <div>
           <span>PCRM · PHOTOCLINIC CRM</span>
           <h1>일정 관리</h1>
-          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 700, color: C.muted }}>
+          <small style={{ display: "block", marginTop: 4, fontSize: 11, fontWeight: 600, color: C.muted }}>
             촬영·상담·행정 일정을 한 곳에서 확인하고 등록할 수 있습니다.
           </small>
         </div>
@@ -358,7 +358,7 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
             <label>
               날짜<input type="date" value={taskDate} onChange={(e) => setTaskDate(e.target.value)} />
               {task && onCopy && taskDate !== date && (
-                <small style={{ display: "block", marginTop: 4, fontSize: 10, color: C.orange, fontWeight: 700 }}>
+                <small style={{ display: "block", marginTop: 4, fontSize: 10, color: C.orange, fontWeight: 600 }}>
                   ‘복사’를 누르면 이 날짜에 새로 만들어지고, 원본({date.slice(5).replace("-", ".")})은 그대로 남습니다.
                 </small>
               )}
@@ -411,24 +411,24 @@ function TaskFormPopover({ date, task, saving, onClose, onSave, onDelete, onCopy
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
               <img src="/assets/photoclinic-mark.png" alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
               <span style={{
-                fontSize: 15, fontWeight: 900, color: "#fff", letterSpacing: 0.5,
+                fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: 0.5,
                 background: cat.color, padding: "7px 16px", borderRadius: 999,
               }}>{cat.label} 일정 안내</span>
             </div>
 
-            <div style={{ fontSize: 20, fontWeight: 800, color: BRAND_TEAL, marginBottom: 16, letterSpacing: 0.2 }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: BRAND_TEAL, marginBottom: 16, letterSpacing: 0.2 }}>
               {taskDate ? formatKoreanDate(taskDate) : ""}
               {time ? ` · ${time}${endTime ? ` ~ ${endTime}` : ""}` : ""}
             </div>
 
-            <div style={{ fontSize: 42, fontWeight: 900, color: "#1C2B28", lineHeight: 1.38, marginBottom: 14, wordBreak: "keep-all" }}>
+            <div style={{ fontSize: 42, fontWeight: 600, color: "#1C2B28", lineHeight: 1.38, marginBottom: 14, wordBreak: "keep-all" }}>
               {title || "일정"}
             </div>
             <div style={{ width: 56, height: 6, borderRadius: 3, background: BRAND_ORANGE, marginBottom: 30 }} />
 
             {location && (
-              <div style={{ fontSize: 19, fontWeight: 700, color: "#1C2B28", marginBottom: 12 }}>
-                📍 {location}
+              <div style={{ fontSize: 19, fontWeight: 600, color: "#1C2B28", marginBottom: 12 }}>
+                {location}
               </div>
             )}
             {memo && (

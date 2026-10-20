@@ -3,6 +3,7 @@ import { generateContiDraft, type ContiDoctorInput, type GenerateContiInput, typ
 import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/departmentTaxonomy";
 import { enrichContiScenesWithStatus } from "@/lib/conti/aiEnrichment";
 import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStudioState } from "@/lib/conti/studioState";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 
 export type CanonicalContiPayload = {
   ok: true;
@@ -134,6 +135,7 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
     await db.from("conti_runs").delete().eq("id", run.id);
     throw new Error("콘티 장면을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
   }
+  if (source.workflowRunId) await writeWorkflowCheckSafely(db, { workflowRunId: source.workflowRunId, key: "conti_made", done: true, by: "auto" });
   return { ok: true, run: { ...run, hospital_name: hospitalName }, groups: groupsResult.data ?? [], scenes: scenesResult.data ?? [], spaceMatchStats: generated.spaceMatchStats, warnings };
 }
 

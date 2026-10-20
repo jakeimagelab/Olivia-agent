@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
 import { assertWrite } from "@/lib/db/assertWrite";
+import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import {
   canResubmitSelection,
   missingRequiredSelectionCategories,
@@ -106,6 +107,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     assertWrite(galleryWrite, "웹 셀렉 제출 상태 기록");
 
     try {
+      if (gallery.workflow_run_id) {
+        await writeWorkflowCheckSafely(sb, { workflowRunId: gallery.workflow_run_id, key: "client_selected", done: true, by: "auto", at: now });
+      }
       await syncSelectionSubmittedWorkflow(sb, gallery.workflow_run_id);
     } catch (workflowError) {
       // 고객의 셀렉 제출은 이미 저장됐다. 워크플로 동기화 오류로 제출을 실패 응답하면 고객이
