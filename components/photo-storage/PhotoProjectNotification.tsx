@@ -4,6 +4,7 @@ import { AlertTriangle, Check, Clock3, HardDrive, X } from "lucide-react";
 import { useState } from "react";
 import { usePhotoProjectNotifications } from "./PhotoProjectNotificationProvider";
 import type { PhotoStorageProject } from "@/lib/photo-storage/types";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./PhotoProjectNotification.module.css";
 
 const ACTIVE_STATUSES = new Set([
@@ -38,6 +39,7 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
   const { projects, events, lastAction, selectedProjectId, selectProject, approve, defer, retry } = usePhotoProjectNotifications();
   const [busy, setBusy] = useState<"approve" | "defer" | "retry" | null>(null);
   const [dismissedCards, setDismissedCards] = useState<string[]>([]);
+  const [dismissedStatusKeys, setDismissedStatusKeys] = useState<string[]>([]);
   const [showConflicts, setShowConflicts] = useState(false);
   const pending = projects.filter((project) =>
     (ACTIVE_STATUSES.has(project.status) || project.status === "REVIEW_REQUIRED")
@@ -68,14 +70,18 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
   };
 
   if (lastAction) {
+    const statusKey = `action:${lastAction.project.id}:${lastAction.action}:${lastAction.project.status}`;
+    if (dismissedStatusKeys.includes(statusKey)) return null;
     const label = lastAction.action === "DEFERRED"
       ? "나중에 처리하도록 보류됨"
       : lastAction.project.status === "CLASSIFY_APPROVED" ? "분류 승인됨 · 작업 대기" : "JPG정리 승인됨 · 작업 대기";
-    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {label}</span></div>;
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{lastAction.project.project_name} · {label}</span><ModalCloseButton className={styles.statusToastClose} onClick={() => setDismissedStatusKeys((current) => [...current, statusKey])} /></div>;
   }
   if (!project) {
     const completed = projects.find((candidate) => candidate.status === "CLASSIFY_COMPLETED" && Date.now() - new Date(candidate.updated_at).getTime() < 10 * 60_000);
     if (!completed) return null;
+    const statusKey = `completed:${completed.id}:${completed.updated_at}`;
+    if (dismissedStatusKeys.includes(statusKey)) return null;
     const warning = typeof completed.classification_progress?.warning === "string"
       ? completed.classification_progress.warning
       : null;
@@ -85,7 +91,7 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
     const unclassifiedFiles = Array.isArray(completed.classification_progress?.unclassifiedFiles)
       ? completed.classification_progress.unclassifiedFiles.filter((name): name is string => typeof name === "string")
       : [];
-    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name}<br />백업 {total.toLocaleString("ko-KR")}장 · 분류 완료 {completed.classified_jpg_count.toLocaleString("ko-KR")}장 · 분류 못 함 {unclassified.toLocaleString("ko-KR")}장{categoryCounts ? <><br />프로필 {(categoryCounts.profile ?? 0).toLocaleString("ko-KR")} · 연출 {(categoryCounts.staged ?? 0).toLocaleString("ko-KR")} · 인테리어 {(categoryCounts.interior ?? 0).toLocaleString("ko-KR")}</> : null}{unclassifiedFiles.length ? <><br /><strong>분류 확인 필요: {unclassifiedFiles.slice(0, 3).join(", ")}{unclassifiedFiles.length > 3 ? ` 외 ${unclassifiedFiles.length - 3}장` : ""}</strong></> : null}{warning ? <><br /><strong>{warning}</strong></> : null}</span></div>;
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name}<br />백업 {total.toLocaleString("ko-KR")}장 · 분류 완료 {completed.classified_jpg_count.toLocaleString("ko-KR")}장 · 분류 못 함 {unclassified.toLocaleString("ko-KR")}장{categoryCounts ? <><br />프로필 {(categoryCounts.profile ?? 0).toLocaleString("ko-KR")} · 연출 {(categoryCounts.staged ?? 0).toLocaleString("ko-KR")} · 인테리어 {(categoryCounts.interior ?? 0).toLocaleString("ko-KR")}</> : null}{unclassifiedFiles.length ? <><br /><strong>분류 확인 필요: {unclassifiedFiles.slice(0, 3).join(", ")}{unclassifiedFiles.length > 3 ? ` 외 ${unclassifiedFiles.length - 3}장` : ""}</strong></> : null}{warning ? <><br /><strong>{warning}</strong></> : null}</span><ModalCloseButton className={styles.statusToastClose} onClick={() => setDismissedStatusKeys((current) => [...current, statusKey])} /></div>;
   }
 
   // 상태 2 — MERGING / MERGE_APPROVED (1/2단계)

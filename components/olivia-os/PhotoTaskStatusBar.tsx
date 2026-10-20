@@ -6,6 +6,7 @@ import { cancelRemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort
 import type { RemoteJobProgress } from "@/lib/remote-jobs/progress";
 import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
 import RemotePhotoProgressDetails from "@/components/photo-workspace/RemotePhotoProgressDetails";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./OliviaDesktop.module.css";
 
 type PhotoJob = {
@@ -54,6 +55,7 @@ function folderName(job: PhotoJob): string {
 export function PhotoTaskStatusBar() {
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
+  const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -122,7 +124,10 @@ export function PhotoTaskStatusBar() {
     };
   }, []);
 
-  const visible = useMemo(() => jobs.slice(0, 4), [jobs]);
+  const visible = useMemo(
+    () => jobs.filter((job) => !dismissedJobIds.includes(job.id)).slice(0, 4),
+    [dismissedJobIds, jobs],
+  );
   if (!visible.length) return null;
 
   return (
@@ -158,6 +163,14 @@ export function PhotoTaskStatusBar() {
               {failed ? <TriangleAlert size={15} /> : canceled || done ? <Check size={15} /> : <LoaderCircle size={15} className={styles.photoTaskStatusSpin} />}
               <span><strong>{operationLabel(job)} · {folderName(job)}</strong><small>{failed ? (job.error || job.message || "작업에 실패했습니다.") : canceled ? (job.message || "작업을 취소했습니다. NAS 원본은 변경되지 않았습니다.") : `${stage}${count ? ` · ${count}` : ""}`}</small>{percent !== null ? <i className={styles.photoTaskGauge}><i style={{ width: `${percent}%` }} /></i> : null}</span>
               {!failed && !done && !canceled && !cancelRequested ? <button type="button" className={styles.photoTaskCancel} onClick={(event) => void cancel(event)}><Square size={10} fill="currentColor" /> 취소</button> : cancelRequested && !canceled ? <em className={styles.photoTaskCancelPending}>취소 요청됨</em> : null}
+              <ModalCloseButton
+                className={styles.photoTaskClose}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setDismissedJobIds((current) => current.includes(job.id) ? current : [...current, job.id]);
+                  setExpandedJobId((current) => current === job.id ? null : current);
+                }}
+              />
             </div>
             {expanded ? <div className={styles.photoTaskStatusDetail}><RemotePhotoProgressDetails job={{ status: job.status, progress: job.progress ?? null, message: job.message, error: job.error, cancelRequested }} sourceFolder={sourceFolder} /></div> : null}
           </div>

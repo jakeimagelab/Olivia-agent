@@ -20,7 +20,8 @@
 .progressTrack { height: 6px; margin-top: 12px; overflow: hidden; border-radius: 999px; background: #e7f0ed; }
 .progressTrack span { display: block; height: 100%; border-radius: inherit; background: #c94a1e; transition: width .25s ease; }
 .progressMessage { margin: 7px 0 0; color: #849a96; font-size: 11px; }
-.statusToast { position: fixed; z-index: 30000; top: 76px; right: 20px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(21,88,85,.14); border-radius: 999px; padding: 11px 16px; background: rgba(239,247,245,.97); color: #155855; box-shadow: 0 12px 30px rgba(21,88,85,.12); font-size: 12px; font-weight: 600; }
+.statusToast { position: fixed; z-index: 30000; top: 76px; right: 20px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid rgba(21,88,85,.14); border-radius: 999px; padding: 11px 8px 11px 16px; background: rgba(239,247,245,.97); color: #155855; box-shadow: 0 12px 30px rgba(21,88,85,.12); font-size: 12px; font-weight: 600; }
+.statusToastClose { flex: 0 0 44px; margin: -9px -5px -9px 0; color: inherit; }
 .card.panel,
 .statusToast.panel {
   position: relative;

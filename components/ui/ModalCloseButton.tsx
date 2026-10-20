@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import type { MouseEventHandler } from "react";
 import styles from "./ModalCloseButton.module.css";
 
 export function ModalCloseButton({
@@ -7,7 +8,7 @@ export function ModalCloseButton({
   dark = false,
   absolute = false,
 }: {
-  onClick: () => void;
+  onClick: MouseEventHandler<HTMLButtonElement>;
   className?: string;
   dark?: boolean;
   absolute?: boolean;

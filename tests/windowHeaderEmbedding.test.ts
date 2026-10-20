@@ -76,6 +76,6 @@ describe("Olivia AppWindow header ownership", () => {
 
     expect(windowHeader).toContain('aria-label="닫기"');
     expect(windowCss).toContain(".trafficLightClose .trafficLightGlyph");
-    expect(windowCss).toMatch(/\.trafficLightClose \.trafficLightGlyph\s*\{[^}]*color:\s*rgba\(0, 0, 0, 0\.62\)/s);
+    expect(windowCss).toMatch(/\.trafficLightClose \.trafficLightGlyph\s*\{[^}]*color:\s*rgba\(0, 0, 0, 0\.62\)/);
   });
 });

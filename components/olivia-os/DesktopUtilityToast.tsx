@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { CircleAlert, Info } from "lucide-react";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopUtilityToast() {
@@ -21,7 +22,7 @@ export function DesktopUtilityToast() {
     <div className={styles.desktopUtilityToast} data-tone={notice.tone} role="status">
       <Icon size={16} aria-hidden="true" />
       <span>{notice.message}</span>
-      <button type="button" onClick={() => clearNotice(notice.id)} aria-label="안내 닫기">닫기</button>
+      <ModalCloseButton className={styles.desktopUtilityToastClose} onClick={() => clearNotice(notice.id)} />
     </div>
   );
 }

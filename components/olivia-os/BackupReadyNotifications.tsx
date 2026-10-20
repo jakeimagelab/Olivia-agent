@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./BackupReadyNotifications.module.css";
 
 type WorkerEvent = {
@@ -105,6 +106,7 @@ export function BackupReadyNotifications({ variant = "floating" }: { variant?: "
     <div className={`${styles.stack} ${variant === "panel" ? styles.panel : ""}`} aria-live="polite">
       {events.map((event) => (
         <div key={event.id} className={styles.card} role="status">
+          <ModalCloseButton className={styles.close} onClick={() => handleLater(event)} />
           <div className={styles.title}><span className={styles.dot} aria-hidden="true" /> 새 촬영 데이터가 백업되었습니다</div>
           <div className={styles.folder}>{event.folder_name}</div>
           <div className={styles.meta}>{event.file_count.toLocaleString("ko-KR")}개 파일 · {formatBytes(event.total_bytes)}</div>
