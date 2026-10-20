@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Check, CircleHelp, ImagePlus, Images } from "lucide-react";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./OliviaDesktop.module.css";
 
 export type DesktopOverlayKind = "wallpaper" | "help" | null;
@@ -34,7 +35,7 @@ export function DesktopSystemOverlay({ kind, wallpaper, customWallpaper, onWallp
             <strong>{kind === "wallpaper" ? "배경화면" : "Olivia OS 도움말"}</strong>
             <small>{kind === "wallpaper" ? "승인된 Olivia 배경 표현을 선택하세요." : "기본 창 조작 안내"}</small>
           </div>
-          <button type="button" onClick={onClose} aria-label="닫기">×</button>
+          <ModalCloseButton onClick={onClose} />
         </header>
 
         {kind === "wallpaper" ? (

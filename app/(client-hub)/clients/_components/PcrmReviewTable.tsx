@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Search, X, Eye, Pencil, MoreVertical, HelpCircle, Download, RotateCcw, Plus,
+  Search, Eye, Pencil, MoreVertical, HelpCircle, Download, RotateCcw, Plus,
   ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Star, MessageCircle,
   Sparkles, CheckCircle2, PauseCircle, HeartPulse, Leaf, Smile,
 } from "lucide-react";
 import { C, R } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { getReviewContentStageMeta, type ReviewContentStage } from "@/lib/reviews/contentStatusLabel";
 import styles from "./PcrmReviewTable.module.css";
 
@@ -379,7 +380,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: C.ink }}>{title}</h3>
-          <button type="button" onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: C.hint, display: "flex" }}><X size={18} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         {children}
       </div>

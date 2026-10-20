@@ -157,6 +157,9 @@ export function DesktopGlobalSearch() {
       {loading ? <LoaderCircle className={styles.desktopSearchSpinner} size={13} aria-label="검색 중" /> : query ? (
         <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus(); }} aria-label="검색어 지우기"><X size={13} /></button>
       ) : <kbd>⌘F</kbd>}
+      <button type="button" className={styles.desktopSearchClose} onClick={() => setOpen(false)} aria-label="닫기">
+        <X size={18} strokeWidth={2} />
+      </button>
       {deferredQuery ? (
         <div id="olivia-desktop-search-results" className={styles.desktopSearchResults} role="listbox">
           {groups.map((group) => group.items.length ? (

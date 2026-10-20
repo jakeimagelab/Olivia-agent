@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Search, Plus, ChevronRight, Award } from "lucide-react";
 import { TIER_LABEL, TIER_COLOR, calculateRewardPoints } from "@/lib/per";
 import { usePcrmHeaderActions, usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 
@@ -123,8 +124,9 @@ export default function PerClientsPage() {
       {/* 포인트 적립 모달 */}
       {addModal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }} onClick={() => setAddModal(false)}>
-          <div style={{ background:C.white, borderRadius:16, padding:28, width:360, maxWidth:"90vw" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin:"0 0 20px", fontSize:16, fontWeight:800 }}>포인트 적립</h2>
+          <div style={{ background:C.white, borderRadius:16, padding:28, width:360, maxWidth:"90vw", position:"relative" }} onClick={e => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setAddModal(false)} absolute />
+            <h2 style={{ margin:"0 0 20px", paddingRight:36, fontSize:16, fontWeight:600 }}>포인트 적립</h2>
             <div style={{ marginBottom:12 }}>
               <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:"block", marginBottom:5 }}>병원 선택</label>
               <select value={addForm.clientId} onChange={e => setAddForm(f => ({ ...f, clientId:e.target.value }))} style={{ ...iS }}>

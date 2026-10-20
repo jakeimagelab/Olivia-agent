@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { usePcrmHeaderActions, usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"0 12px", height:40, fontSize:13, outline:"none", background:C.white, color:C.txt, fontFamily:"inherit", boxSizing:"border-box" };
@@ -83,8 +84,9 @@ export default function PerDonationsPage() {
       {/* 기부 등록 모달 */}
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }} onClick={() => setModal(false)}>
-          <div style={{ background:C.white, borderRadius:16, padding:28, width:400, maxWidth:"95vw" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin:"0 0 20px", fontSize:16, fontWeight:800 }}>기부 등록</h2>
+          <div style={{ background:C.white, borderRadius:16, padding:28, width:400, maxWidth:"95vw", position:"relative" }} onClick={e => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setModal(false)} absolute />
+            <h2 style={{ margin:"0 0 20px", paddingRight:36, fontSize:16, fontWeight:600 }}>기부 등록</h2>
             <div style={{ marginBottom:12 }}>
               <label style={{ fontSize:11, fontWeight:600, color:C.muted, display:"block", marginBottom:4 }}>병원 선택</label>
               <select value={form.clientId} onChange={e => { const c = clients.find(cl => cl.id===e.target.value); setForm(f => ({ ...f, clientId:e.target.value, displayName:c?.name??"" })); }} style={iS}>

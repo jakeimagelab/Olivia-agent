@@ -2,6 +2,7 @@
 
 import { Inbox } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./WorkspaceShell.module.css";
 
 export function EmptyState({ title, description, icon }: { title: string; description?: string; icon?: ReactNode }) {
@@ -35,6 +36,7 @@ export function ConfirmDialog({ title, description, confirmLabel = "확인", can
   return (
     <div className={styles.dialogBackdrop} role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
       <div className={styles.dialog} role="alertdialog" aria-modal="true" aria-labelledby="workspace-confirm-title" aria-describedby="workspace-confirm-description">
+        <ModalCloseButton onClick={onCancel} absolute />
         <h2 id="workspace-confirm-title">{title}</h2>
         <p id="workspace-confirm-description">{description}</p>
         <div className={styles.dialogActions}>

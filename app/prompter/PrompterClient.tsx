@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import GlobalHeader from "@/components/GlobalHeader";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { getSupabase } from "@/lib/supabase";
 import {
   FONT_OPTIONS, COLOR_OPTIONS, BG_COLOR_OPTIONS, V_ALIGN_PADDING, fmtTime,
@@ -1043,6 +1044,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
   const projectModal = showProjectModal && (
     <div className="pt-modal-backdrop" onClick={() => setShowProjectModal(false)}>
       <div className="pt-modal" onClick={(e) => e.stopPropagation()}>
+        <ModalCloseButton onClick={() => setShowProjectModal(false)} absolute />
         <strong style={{ fontSize: 15 }}>{projectModalMode === "create" ? "새 프로젝트 만들기" : "프로젝트 이름 변경"}</strong>
         <p style={{ fontSize: 12, color: "#8aa39f", margin: "6px 0 12px" }}>병원명 또는 기업명을 입력하세요.</p>
         <input
@@ -1358,6 +1360,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
         {showMobileBlocked && (
           <div className="pt-modal-backdrop" onClick={() => setShowMobileBlocked(false)}>
             <div className="pt-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+              <ModalCloseButton onClick={() => setShowMobileBlocked(false)} absolute />
               <strong style={{ fontSize: 15 }}>PC 또는 태블릿에서 실행해주세요</strong>
               <p style={{ fontSize: 13, color: "#6a8e8a", margin: "10px 0 0" }}>
                 모바일 화면은 프롬프터를 읽기엔 너무 작아요.<br />대신 리모컨 기능으로 PC/태블릿의 큰 화면을 조작해보세요.
@@ -1372,7 +1375,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
             <div className="pt-modal pt-ai-modal" onClick={(e) => e.stopPropagation()}>
               <div className="pt-ai-modal-head">
                 <strong style={{ fontSize: 15 }}><Sparkles size={15} /> AI 맞춤법 · 표현 검토</strong>
-                <button onClick={() => setAiReviewOpen(false)} className="pt-ai-modal-close"><X size={16} /></button>
+                <ModalCloseButton onClick={() => setAiReviewOpen(false)} />
               </div>
               {aiReviewLoading ? (
                 <p style={{ fontSize: 13, color: "#8aa39f", padding: "24px 0", textAlign: "center" }}>AI가 대본을 검토하고 있어요…</p>
@@ -1403,6 +1406,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
         {showShareModal && currentProject?.public_share_token && (
           <div className="pt-modal-backdrop" onClick={() => setShowShareModal(false)}>
             <div className="pt-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+              <ModalCloseButton onClick={() => setShowShareModal(false)} absolute />
               <strong style={{ fontSize: 15 }}>프로젝트 전체 공유 중</strong>
               <p style={{ fontSize: 12, color: "#6a8e8a", margin: "6px 0 12px" }}>
                 이 링크를 받은 사람은 &quot;{currentProject.name}&quot; 프로젝트의 실제 씬을 그대로 보고 편집할 수 있습니다.
@@ -1642,6 +1646,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
       {showRemoteInfo && sessionCode && (
         <div className="pt-modal-backdrop" onClick={() => setShowRemoteInfo(false)}>
           <div className="pt-modal" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
+            <ModalCloseButton onClick={() => setShowRemoteInfo(false)} absolute />
             <strong style={{ fontSize: 15 }}>리모컨으로 조작하기</strong>
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/prompter/remote/${sessionCode}`)}`}
@@ -1659,6 +1664,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
       {recordedUrl && (
         <div className="pt-modal-backdrop" onClick={() => setRecordedUrl(null)}>
           <div className="pt-modal" onClick={(e) => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setRecordedUrl(null)} absolute />
             <strong>녹화가 완료됐어요</strong>
             <video src={recordedUrl} controls style={{ width: "100%", borderRadius: 10, margin: "12px 0" }} />
             <a href={recordedUrl} download={`prompter-${Date.now()}.webm`} className="pt-btn pt-btn-primary">다운로드</a>

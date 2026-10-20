@@ -7,6 +7,7 @@ import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { tryMoveWorkflowStep } from "@/lib/clientWorkspace/stepNavigation";
 import { C, R } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const MODAL_TOOL_STEPS = new Set(["quote", "contract", "conti"]);
 
@@ -53,7 +54,7 @@ export default function ProgressDetailModal({
       <div className="pcrm-project-dialog" style={{ maxWidth: 440 }}>
         <header>
           <div><span>PCRM · WORKFLOW</span><h2>전체 진행 상황</h2><p>단계를 클릭하면 바로 그 처리 화면으로 들어갑니다.</p></div>
-          <button type="button" onClick={onClose} aria-label="닫기">×</button>
+          <ModalCloseButton onClick={onClose} />
         </header>
 
         <div style={{ padding: "4px 24px 20px", display: "flex", flexDirection: "column", gap: 6, maxHeight: 420, overflowY: "auto" }}>

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Plus, Heart } from "lucide-react";
 import { CAMPAIGN_STATUS_LABEL } from "@/lib/per";
 import { usePcrmHeaderActions, usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 const STATUS_COLOR: Record<string,string> = { draft:C.hint, active:C.green, closed:C.orange, donated:"#7C3AED", reported:C.teal };
@@ -134,8 +135,9 @@ export default function PerCampaignsPage() {
       {/* 캠페인 생성/수정 모달 */}
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }} onClick={() => setModal(false)}>
-          <div style={{ background:C.white, borderRadius:16, padding:28, width:440, maxWidth:"95vw" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin:"0 0 20px", fontSize:16, fontWeight:800 }}>{editing?"캠페인 수정":"캠페인 생성"}</h2>
+          <div style={{ background:C.white, borderRadius:16, padding:28, width:440, maxWidth:"95vw", position:"relative" }} onClick={e => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setModal(false)} absolute />
+            <h2 style={{ margin:"0 0 20px", paddingRight:36, fontSize:16, fontWeight:600 }}>{editing?"캠페인 수정":"캠페인 생성"}</h2>
             {[
               { label:"캠페인명", key:"title" },
               { label:"기간 표시 (예: 2026년 상반기)", key:"periodLabel" },

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
 import { C } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type { ChatMember } from "./types";
 
 export default function NewRoomDialog({
@@ -34,9 +34,7 @@ export default function NewRoomDialog({
       <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 24, width: 340, boxShadow: "0 20px 60px rgba(21,88,85,.2)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <span style={{ fontSize: 15, fontWeight: 800, color: C.ink }}>새 채팅방</span>
-          <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", color: C.muted }}>
-            <X size={18} />
-          </button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <input
           value={name}

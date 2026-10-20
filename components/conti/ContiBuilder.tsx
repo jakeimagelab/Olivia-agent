@@ -11,6 +11,7 @@ import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { isContiCoreCompleted } from "@/lib/core/readModels/projectViewState";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { addContiShots as addContiShotsShared, duplicateContiShot as duplicateContiShotShared, removeContiShot as removeContiShotShared, reorderContiShot as reorderContiShotShared, updateContiShot as updateContiShotShared } from "@/lib/conti/contiMutationService";
 import DrawingCanvas, { DrawingCanvasHandle, PEN_TYPES, DRAW_COLORS, ERASER_SIZES } from "@/components/DrawingCanvas";
 import ContiSetupForm from "@/components/conti/ContiSetupForm";
@@ -26,7 +27,7 @@ import { getContiCategoryColor } from "@/components/conti/contiColors";
 import type { ChecklistRow, ContiFormState, ContiResult, ContiRow, LocationItem, PatientItem, SavedConti, ScheduleRow, StaffItem } from "@/components/conti/types";
 import {
   CalendarClock, CheckSquare, Clapperboard, ClipboardCheck, ClipboardList, Image as ImageIcon,
-  Clock, FileText, Link2, Minus, Pencil, Plus, Trash2
+  Clock, FileText, Link2, Minus, Pencil, Plus, Trash2, X
 } from "lucide-react";
 
 /* ════════════════════════════════════════
@@ -2087,12 +2088,12 @@ ${header("타임테이블")}
                   <Link2 size={14} />
                   {shareLoading ? "생성 중" : shareCopied ? "링크 복사됨!" : "링크 공유"}
                 </button>
-                <button onClick={() => { setFieldView(false); setDrawMode(false); clearCanvas(); tempDrawingRef.current = null; }} style={{
+                <button onClick={() => { setFieldView(false); setDrawMode(false); clearCanvas(); tempDrawingRef.current = null; }} aria-label="현장뷰 닫기" style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "8px 16px", border: "1.5px solid rgba(255,255,255,0.35)",
                   borderRadius: 10, background: "rgba(255,255,255,0.12)", color: "#fff",
                   fontWeight: 800, fontSize: 13, cursor: "pointer"
-                }}>✕ 편집 모드로</button>
+                }}><X size={16} strokeWidth={2} /> 편집 모드로</button>
               </div>
             </div>
 
@@ -2451,7 +2452,7 @@ ${header("타임테이블")}
               <div style={{ fontSize: 17, fontWeight: 900, color: "#155855" }}>📂 저장된 콘티</div>
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>클릭하면 바로 불러와요 · 최대 5개 보관</div>
             </div>
-            <button onClick={() => setShowLoadPanel(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#9ca3af" }}>✕</button>
+            <ModalCloseButton onClick={() => setShowLoadPanel(false)} />
           </div>
           {/* 목록 */}
           <div style={{ overflowY: "auto", padding: "12px 16px", flex: 1 }}>
@@ -2558,9 +2559,10 @@ ${header("타임테이블")}
         background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center"
       }} onClick={() => setLinkTarget(null)}>
         <div style={{
-          background: "#fff", borderRadius: 16, width: "min(420px, 90vw)",
+          background: "#fff", borderRadius: 16, width: "min(420px, 90vw)", position: "relative",
           overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.25)"
         }} onClick={e => e.stopPropagation()}>
+          <ModalCloseButton onClick={() => setLinkTarget(null)} absolute />
           <div style={{ padding: "18px 20px", borderBottom: "1px solid rgba(21,88,85,0.1)" }}>
             <div style={{ fontSize: 15, fontWeight: 900, color: "#155855" }}>고객에 연결</div>
             <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>
@@ -2597,8 +2599,9 @@ ${header("타임테이블")}
 
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
-        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
+        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
+          <ModalCloseButton onClick={() => setCloseConfirmOpen(false)} absolute />
+          <h3 style={{ margin: "0 0 8px", paddingRight: 36, fontSize: 15, fontWeight: 600, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
           <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#5a7470" }}>계속 작성하시겠습니까, 아니면 저장 후 닫으시겠습니까?</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button type="button" onClick={() => setCloseConfirmOpen(false)}

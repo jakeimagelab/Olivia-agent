@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { C, R, FS } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type {
   ActionStatus, ChannelScores, DiagnosisAction, DiagnosisChannel, HistoryItem, HospitalBrandDiagnosisReport, SourceStatus,
 } from "@/lib/hospitalBrandDiagnosis/types";
@@ -79,7 +80,7 @@ function EvidencePanel({ channel, evidence, diagnosisId, onClose }: {
       <div style={{ width: "min(640px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>{HBD_CHANNEL_LABEL[channel]} — 근거 자료</h3>
-          <button onClick={onClose} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         {evidence.length === 0 ? (
           <p style={{ color: C.muted, fontSize: FS.sm }}>이 채널에 연결된 근거 자료가 없습니다.</p>
@@ -120,7 +121,7 @@ function ModalShell({ title, onClose, children }: { title: string; onClose: () =
       <div style={{ width: "min(480px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>{title}</h3>
-          <button onClick={onClose} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         {children}
       </div>
@@ -631,7 +632,7 @@ export function ReportView({ report, onRestart, onBackToStep, diagnosisId, readO
           <div style={{ width: "min(720px, 100%)", maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: R.lg, background: C.white, padding: 22 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <h3 style={{ margin: 0, fontSize: FS.lg, fontWeight: 900, color: C.ink }}>이전 진단과 비교</h3>
-              <button onClick={() => setShowCompare(false)} style={{ width: 32, height: 32, border: `1px solid ${C.border}`, borderRadius: R.sm, background: "#fff", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
+              <ModalCloseButton onClick={() => setShowCompare(false)} />
             </div>
 
             {compareError && <p style={{ color: C.danger, fontSize: FS.sm }}>{compareError}</p>}

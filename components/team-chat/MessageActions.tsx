@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckSquare2, FolderPlus, MoreHorizontal, X } from "lucide-react";
+import { CheckSquare2, FolderPlus, MoreHorizontal } from "lucide-react";
 import { C } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type { TeamProject } from "@/components/team-workspace/types";
 import CreateTaskFromMessageDialog from "./CreateTaskFromMessageDialog";
 import type { ChatMessage } from "./types";
@@ -48,7 +49,7 @@ export default function MessageActions({
       <CreateTaskFromMessageDialog message={message} projectId={roomProjectId ?? (message.metadata?.projectId as string | undefined)} open={taskOpen} onClose={() => setTaskOpen(false)} onCreated={() => { setTaskOpen(false); onChanged(); }} />
       {projectOpen ? <div style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(28,43,40,.3)", display: "grid", placeItems: "center", padding: 16 }}>
         <div className="team-card" style={{ width: "min(400px,100%)", padding: 18 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 13 }}><b style={{ color: C.teal }}>프로젝트에 연결</b><button onClick={() => setProjectOpen(false)} style={{ border: 0, background: "transparent" }}><X size={18} /></button></div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 13 }}><b style={{ color: C.teal }}>프로젝트에 연결</b><ModalCloseButton onClick={() => setProjectOpen(false)} /></div>
           {error ? <div className="team-error" style={{ marginBottom: 8 }}>{error}</div> : null}
           <div style={{ display: "grid", gap: 6 }}>{projects.map((project) => <button key={project.id} className="team-button secondary" onClick={() => connect(project.id)}>{project.name}</button>)}</div>
         </div>

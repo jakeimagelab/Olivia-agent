@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, Plus, Sparkles, X } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { C, R, FS, SP } from "@/lib/theme";
 import { CHANNEL_PRESETS, channelLabel, metricLabel, metricPresetsForChannel } from "@/lib/marketingChannels";
 
@@ -155,7 +156,7 @@ function MetricModal({ action, channel, onClose, onSaved }: { action: Action; ch
       <div style={{ background: C.white, borderRadius: R.xl, padding: 24, width: "min(560px, 100%)", maxHeight: "88vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <h2 style={{ margin: 0, fontSize: FS.xl, fontWeight: 900, color: C.ink }}>지표 입력</h2>
-          <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", color: C.muted }}><X size={20} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <p style={{ margin: "0 0 16px", fontSize: FS.sm, color: C.muted }}>{action.title}</p>
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut } from "lucide-react";
+import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut, X } from "lucide-react";
 import { formatSeoulDeadline } from "@/lib/person-select/date";
 import styles from "./PersonSelectPublic.module.css";
 
@@ -255,7 +255,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <button key={image.id} className={`${styles.photoTile} ${image.id === selected ? styles.photoTileSelected : ""}`} onClick={() => setPreviewIndex(images.findIndex((item) => item.id === image.id))}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{image.id === selected ? <span className={styles.check}><Check size={17} /></span> : null}</button>)}</div>}
     <div className={styles.darkDock}><p>{selected ? "고른 사진의 보정 요청을 적어주세요." : "사진을 먼저 골라주세요"}</p><button className={styles.mintButton} disabled={!selected || me.event.locked} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>이 사진으로 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
-      <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)}><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><span style={{ width: 44 }} /></div>
+      <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>
       <div className={styles.preview}><img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /><div className={styles.previewNav}><button className={styles.iconButton} disabled={!previewIndex} onClick={() => setPreviewIndex(Math.max(0, (previewIndex ?? 0) - 1))}><ChevronLeft /></button><button className={styles.iconButton} disabled={previewIndex === images.length - 1} onClick={() => setPreviewIndex(Math.min(images.length - 1, (previewIndex ?? 0) + 1))}><ChevronRight /></button></div></div>
       <div className={styles.lightboxActions}>{preview.id === selected ? <button className={styles.secondary} onClick={() => void clearChoice()}>선택 해제</button> : <button className={styles.secondary} onClick={() => void choose(preview.id)}>이 사진 고르기</button>}<button className={styles.mintButton} disabled={preview.id !== selected} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>보정 요청 쓰기</button></div>
     </div> : null}

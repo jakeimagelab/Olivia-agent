@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, CheckCircle2, EyeOff, FolderOpen, Loader2, MoveRight, ScanSearch, Sparkles, Undo2 } from "lucide-react";
+import { Check, CheckCircle2, EyeOff, FolderOpen, Loader2, MoveRight, ScanSearch, Sparkles, Undo2, X } from "lucide-react";
 import { METADATA_SELECT_JPG_EXTENSIONS } from "@/lib/metadataSelect/matcher";
 import { transferFilesSafely, type MetadataFileTransfer } from "@/lib/metadataSelect/fileOperations";
 import {
@@ -326,7 +326,7 @@ export default function PhotoTcutWorkspace({ rootDir }: { rootDir: FileSystemDir
         </section>
       </div>
       <footer className={styles.footer}><span>{selectedCount ? `선택한 ${selectedCount.toLocaleString("ko-KR")}장은 삭제하지 않고 Trash_JPG로 이동합니다.` : "이동할 사진을 선택하세요."}</span><button type="button" onClick={() => void moveToTrash()} disabled={!selectedCount || phase === "moving"}><MoveRight size={16} />선택 {selectedCount.toLocaleString("ko-KR")}장 Trash_JPG로 이동</button></footer>
-      {preview ? <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={`${preview.name} 크게 보기`} onClick={closePreview}><div className={styles.lightboxContent} onClick={(event) => event.stopPropagation()}><button type="button" className={styles.lightboxClose} onClick={closePreview}>닫기</button><img src={preview.source} alt={preview.name} /><strong>{preview.name}</strong></div></div> : null}
+      {preview ? <div className={styles.lightbox} role="dialog" aria-modal="true" aria-label={`${preview.name} 크게 보기`} onClick={closePreview}><div className={styles.lightboxContent} onClick={(event) => event.stopPropagation()}><button type="button" className={styles.lightboxClose} onClick={closePreview} aria-label="닫기"><X size={20} strokeWidth={2} /></button><img src={preview.source} alt={preview.name} /><strong>{preview.name}</strong></div></div> : null}
     </section>
   );
 }

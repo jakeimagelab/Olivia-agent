@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import { ModalCloseButton } from "./ModalCloseButton";
 
 type ModalProps = {
   open: boolean;
@@ -39,19 +39,12 @@ export default function Modal({ open, onClose, title, children, width = 480 }: M
       <div style={{
         width: `min(${typeof width === "number" ? `${width}px` : width}, 100%)`,
         maxHeight: "calc(100vh - 48px)", overflowY: "auto", borderRadius: 16, padding: 24,
-        background: "var(--panel-bg)", boxShadow: "0 24px 80px rgba(13, 37, 35, .25)",
+        background: "var(--panel-bg)", boxShadow: "0 24px 80px rgba(13, 37, 35, .25)", position: "relative",
       }}>
+        <ModalCloseButton onClick={onClose} absolute />
         {title ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 18 }}>
-            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "var(--ink)" }}>{title}</h2>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="닫기"
-              style={{ border: 0, background: "transparent", cursor: "pointer", color: "var(--muted)", padding: 4 }}
-            >
-              <X size={16} />
-            </button>
+          <div style={{ display: "flex", alignItems: "center", paddingRight: 40, gap: 16, marginBottom: 18 }}>
+            <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{title}</h2>
           </div>
         ) : null}
         {children}

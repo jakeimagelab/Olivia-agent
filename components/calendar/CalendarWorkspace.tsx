@@ -3,8 +3,9 @@
 
 import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2, X } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
 import { CALENDAR_REMINDER_LABEL, CALENDAR_REMINDER_MINUTES, reminderTimingPhrase, type CalendarReminderMinutes } from "@/lib/calendarReminders";
@@ -652,8 +653,7 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
       }}>
         {isMobile && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <button onClick={onClose} style={{ background: "none", border: "none", color: C.teal,
-              fontSize: mfz(15, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer", padding: "6px 4px" }}>‹ 닫기</button>
+            <ModalCloseButton onClick={onClose} />
             {mode === "edit" && task && editing && (
               <button onClick={() => { onDelete(task.id); onClose(); }} style={{
                 background: "none", border: "none", color: "#DC2626", fontSize: mfz(13, isMobile), fontWeight: mfw(800, isMobile), cursor: "pointer" }}>
@@ -2765,10 +2765,7 @@ export default function CalendarWorkspace() {
                 background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
                 {year}년 {monthLabel(month)}
               </span>
-              <button onClick={() => setShowStatsModal(false)} style={{
-                background: "none", border: "none", color: C.muted, cursor: "pointer", padding: 2, display: "flex" }}>
-                <X size={16}/>
-              </button>
+              <ModalCloseButton onClick={() => setShowStatsModal(false)} />
             </div>
             <div style={{ fontSize: mfz(12, isMobile), color: C.muted, marginBottom: 16 }}>
               총 {monthStats.total}건 · 완료 {monthStats.completed}건
@@ -2806,6 +2803,7 @@ export default function CalendarWorkspace() {
             width: 320, background: "#fff", borderRadius: 14, padding: "22px 22px 18px",
             boxShadow: "0 20px 50px rgba(0,0,0,.22)",
           }}>
+            <ModalCloseButton onClick={() => setConfirmDeleteId(null)} absolute />
             <div style={{ fontSize: mfz(15, isMobile), fontWeight: mfw(900, isMobile), color: C.txt, marginBottom: 8 }}>일정을 삭제할까요?</div>
             <div style={{ fontSize: mfz(13, isMobile), color: C.muted, lineHeight: 1.6, marginBottom: 20, wordBreak: "break-word" }}>
               &lsquo;{taskById[confirmDeleteId]?.title ?? ""}&rsquo; 일정을 휴지통으로 이동합니다. 30일 안에 복원할 수 있어요.

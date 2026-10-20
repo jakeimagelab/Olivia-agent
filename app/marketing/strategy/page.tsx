@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Target, X } from "lucide-react";
+import { Plus, Target } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { C, R, FS, SP } from "@/lib/theme";
 import { CHANNEL_PRESETS, channelLabel } from "@/lib/marketingChannels";
 
@@ -87,7 +88,7 @@ function NewStrategyModal({ onClose, onCreated }: { onClose: () => void; onCreat
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <h2 style={{ margin: 0, fontSize: FS.xl, fontWeight: 900, color: C.ink }}>새 전략 등록</h2>
-          <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", color: C.muted }}><X size={20} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <div style={{ display: "grid", gap: 12 }}>

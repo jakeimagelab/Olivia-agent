@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { ExternalLink, Paperclip, X } from "lucide-react";
+import { ExternalLink, Paperclip } from "lucide-react";
 import { C } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { MemoWorkspace } from "@/components/memo/MemoWorkspace";
 import type { TeamMember, TeamTask, TeamTaskChecklistItem } from "../types";
 import TaskChecklist from "./TaskChecklist";
@@ -205,7 +206,7 @@ export default function TaskDetailDrawer({
       <aside style={{ position: "fixed", zIndex: 61, top: 0, right: 0, height: "100vh", width: "min(520px,100%)", background: "#fff", boxShadow: "-20px 0 50px rgba(28,43,40,.12)", overflowY: "auto" }}>
         <div style={{ position: "sticky", top: 0, zIndex: 2, height: 60, padding: "0 18px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,.95)", borderBottom: `1px solid ${C.border}` }}>
           <b style={{ color: C.teal, fontSize: 14 }}>업무 상세</b>
-          <button type="button" onClick={onClose} style={{ border: 0, background: "transparent", color: C.muted, cursor: "pointer" }}><X size={20} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         {loading && !task ? <div style={{ padding: 24, color: C.muted }}>불러오는 중...</div> : task ? (
           <div style={{ padding: 22, display: "grid", gap: 22 }}>

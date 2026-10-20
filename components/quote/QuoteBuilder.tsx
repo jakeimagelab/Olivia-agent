@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { createPortal } from "react-dom";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
@@ -2751,8 +2752,9 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     </main>
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
-        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
+        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
+          <ModalCloseButton onClick={() => setCloseConfirmOpen(false)} absolute />
+          <h3 style={{ margin: "0 0 8px", paddingRight: 36, fontSize: 15, fontWeight: 600, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
           <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#5a7470" }}>계속 작성하시겠습니까, 아니면 저장 후 닫으시겠습니까?</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button type="button" onClick={() => setCloseConfirmOpen(false)}

@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { useMemo, useRef, useState } from "react";
 import NoteCanvasPanel from "@/components/memo/NoteCanvasPanel";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import type { DrawingCanvasHandle, CanvasExportOptions } from "@/components/DrawingCanvas";
 import { PEN_TEMPLATE_OPTIONS, emptyTemplateData, type MemoTemplateType } from "@/lib/memo/types";
 
@@ -102,7 +103,7 @@ export default function ShootingMemoPanel({ clientId, clientName, onClose }: Pro
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="메모 제목"
               style={{ marginTop: 4, border: "none", outline: "none", font: "inherit", fontSize: 17, fontWeight: 900, color: "#1C2B28", width: "100%" }} />
           </div>
-          <button onClick={onClose} aria-label="닫기" style={{ width: 34, height: 34, border: "none", borderRadius: 99, background: "#EDF5F3", color: "#155855", fontSize: 18, cursor: "pointer", flexShrink: 0 }}>×</button>
+          <ModalCloseButton onClick={onClose} />
         </div>
 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>

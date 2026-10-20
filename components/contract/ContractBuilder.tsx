@@ -7,6 +7,7 @@ import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useContractPdfHandlerStore } from "@/lib/store/useContractPdfHandlerStore";
@@ -1100,8 +1101,9 @@ export default function ContractBuilder({
     </div>
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
-        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
+        <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>
+          <ModalCloseButton onClick={() => setCloseConfirmOpen(false)} absolute />
+          <h3 style={{ margin: "0 0 8px", paddingRight: 36, fontSize: 15, fontWeight: 600, color: "#155855" }}>저장하지 않은 변경사항이 있습니다.</h3>
           <p style={{ margin: "0 0 18px", fontSize: 12.5, color: "#5a7470" }}>계속 작성하시겠습니까, 아니면 저장 후 닫으시겠습니까?</p>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button type="button" onClick={() => setCloseConfirmOpen(false)}

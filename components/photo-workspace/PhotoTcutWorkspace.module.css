@@ -25,5 +25,5 @@
 .lightboxContent { position:relative; display:grid; gap:10px; max-width:min(92vw,1200px); max-height:92vh; padding:14px; border:1px solid rgba(255,255,255,.16); border-radius:12px; background:#182221; color:#fff; }
 .lightboxContent img { display:block; max-width:calc(92vw - 28px); max-height:calc(92vh - 86px); object-fit:contain; }
 .lightboxContent strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.78); font-size:12px; }
-.lightboxClose { position:absolute; z-index:1; top:22px; right:22px; min-height:32px; border:1px solid rgba(255,255,255,.22); border-radius:7px; padding:0 10px; background:rgba(0,0,0,.56); color:#fff; font: 500 11px/1 inherit; cursor:pointer; }
+.lightboxClose { position:absolute; z-index:1; top:18px; right:18px; width:44px; height:44px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.22); border-radius:10px; padding:0; background:rgba(0,0,0,.56); color:#fff; cursor:pointer; }
 @media (max-width:760px) { .header p { display:none; }.folder { display:inline-flex; margin-left:auto; max-width:52%; }.folder > svg { display:none; }.lightbox { padding:12px; }.lightboxContent img { max-width:calc(100vw - 52px); max-height:calc(100vh - 84px); } }

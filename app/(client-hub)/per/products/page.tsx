@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Plus, Edit2, Package } from "lucide-react";
 import { usePcrmHeaderActions, usePcrmHeaderTitle } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 
@@ -119,8 +120,9 @@ export default function PerProductsPage() {
       {/* 등록/수정 모달 */}
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }} onClick={() => setModal(false)}>
-          <div style={{ background:C.white, borderRadius:16, padding:28, width:480, maxWidth:"95vw", maxHeight:"90vh", overflow:"auto" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin:"0 0 20px", fontSize:16, fontWeight:800 }}>{editing?"제품 수정":"제품 등록"}</h2>
+          <div style={{ background:C.white, borderRadius:16, padding:28, width:480, maxWidth:"95vw", maxHeight:"90vh", overflow:"auto", position:"relative" }} onClick={e => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setModal(false)} absolute />
+            <h2 style={{ margin:"0 0 20px", paddingRight:36, fontSize:16, fontWeight:600 }}>{editing?"제품 수정":"제품 등록"}</h2>
             {[
               { label:"제품명", key:"name", type:"text" },
               { label:"이미지 URL", key:"image_url", type:"text" },

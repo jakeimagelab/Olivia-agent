@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Copy, RefreshCw, ExternalLink, X, Users, Star, Edit2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 const C = { teal:"#155855", orange:"#E85D2C", green:"#22876A", bg:"#F0F9F8", white:"#FFFFFF", border:"rgba(21,88,85,.12)", muted:"#5A7470", hint:"#9BB5B0", txt:"#1C2B28", light:"#EAF4F2" };
 const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${C.border}`, borderRadius:8, padding:"0 12px", height:40, fontSize:13, outline:"none", background:C.white, color:C.txt, fontFamily:"inherit", boxSizing:"border-box" };
@@ -262,8 +263,9 @@ export default function PortalAdminPage() {
       {/* 링크 생성 모달 */}
       {modal && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.4)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1000 }} onClick={() => setModal(null)}>
-          <div style={{ background:C.white, borderRadius:16, padding:28, width:380, maxWidth:"90vw" }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin:"0 0 6px", fontSize:16, fontWeight:800 }}>고객 포털 링크 생성</h2>
+          <div style={{ background:C.white, borderRadius:16, padding:28, width:380, maxWidth:"90vw", position:"relative" }} onClick={e => e.stopPropagation()}>
+            <ModalCloseButton onClick={() => setModal(null)} absolute />
+            <h2 style={{ margin:"0 0 6px", paddingRight:36, fontSize:16, fontWeight:600 }}>고객 포털 링크 생성</h2>
             <div style={{ fontSize:13, color:C.muted, marginBottom:20 }}>{modal.name}</div>
             <div style={{ marginBottom:16 }}>
               <label style={{ fontSize:12, fontWeight:600, color:C.muted, display:"block", marginBottom:5 }}>유효기간</label>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
 import { C } from "@/lib/theme";
+import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 
 export type NewTaskDefaults = {
   title?: string;
@@ -65,7 +65,7 @@ export default function NewTaskDialog({
       <form onSubmit={submit} className="team-card" style={{ width: "min(420px,100%)", padding: 22 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div><h2 style={{ fontSize: 18, color: C.teal, margin: 0 }}>새 할 일</h2><p style={{ fontSize: 11, color: C.muted, margin: "5px 0 0" }}>할 일 제목만 적어 바로 추가하세요.</p></div>
-          <button type="button" onClick={onClose} style={{ border: 0, background: "transparent", color: C.muted, cursor: "pointer" }}><X size={20} /></button>
+          <ModalCloseButton onClick={onClose} />
         </div>
         <div style={{ display: "grid", gap: 13 }}>
           <input
