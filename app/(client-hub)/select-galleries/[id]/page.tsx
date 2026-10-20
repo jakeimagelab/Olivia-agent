@@ -7,7 +7,8 @@ import type { SelectGallery, SelectGalleryImage, ClientPhotoSelection, SelectRaw
 import WorkspaceLink, { type SelectGalleryNavigate } from "@/components/select-galleries/WorkspaceLink";
 import { C } from "@/lib/theme";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
-import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { AlertTriangle, Check, CheckCircle2, Copy, Eye, Folder, Mail, Upload, XCircle } from "lucide-react";
 
 interface RawMatchRow {
   selected_jpg: string;
@@ -67,6 +68,7 @@ function SelectGalleryDetailWorkspace({
   const [matching, setMatching] = useState(false);
   const [matchProgress, setMatchProgress] = useState("");
   const [matchLog, setMatchLog] = useState<string[]>([]);
+  const [copySummary, setCopySummary] = useState<{ copied: number; failed: string[] } | null>(null);
   const hasFS = typeof window !== "undefined" && "showDirectoryPicker" in window;
 
   // 메일
@@ -137,7 +139,7 @@ function SelectGalleryDetailWorkspace({
       const res = await fetch(`/api/select-galleries/${id}/upload-images`, { method: "POST", body: fd });
       const d = await res.json();
       done += d.uploaded ?? 0;
-      setUploadLog(prev => [...prev, `✅ ${done}/${files.length}장 업로드됨`]);
+      setUploadLog(prev => [...prev, `${done}/${files.length}장 업로드됨`]);
     }
     setUploadLog(prev => [...prev, `완료! 총 ${done}장 업로드`]);
     setUploading(false);
@@ -167,11 +169,12 @@ function SelectGalleryDetailWorkspace({
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   };
 
-  /* ── RAW 자동 매칭 (SELECT/JPG_SELECT + SELECT/RAW_SELECT) ── */
+  /* ── RAW 자동 매칭 (원본은 읽기만, 선택 RAW는 Selected_RAW로 복사) ── */
   const runRawMatch = async () => {
     if (!rawDir || !selection || !gallery) return;
     setMatching(true);
     setMatchLog([]);
+    setCopySummary(null);
     setMatchProgress("RAW 폴더 스캔 중...");
 
     // 1) RAW 인덱스 빌드 (재귀, SELECT 폴더 제외)
@@ -213,51 +216,13 @@ function SelectGalleryDetailWorkspace({
     const matched = matches.filter(m => m.status === "matched");
     const log: string[] = [];
 
-    // 4) SELECT/JPG_SELECT 폴더 생성 → RAW 폴더 내에서 JPG 검색 후 복사
+    // 4) 원본 RAW는 읽기만 하고 선택 RAW만 Selected_RAW에 복사한다.
+    let rawCopied = 0;
+    const failedFiles: string[] = matches
+      .filter((match) => match.status === "raw_missing")
+      .map((match) => match.selected_jpg);
     try {
-      const selectDir = await (rawDir as any).getDirectoryHandle("SELECT", { create: true }) as FileSystemDirectoryHandle;
-      const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create: true }) as FileSystemDirectoryHandle;
-      const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create: true }) as FileSystemDirectoryHandle;
-
-      // JPG SELECT: RAW 폴더 내 JPG 검색
-      const jpgIndex = new Map<string, FileSystemFileHandle>();
-      const scanJpg = async (dir: FileSystemDirectoryHandle, depth = 0) => {
-        if (depth > 6) return;
-        for await (const [name, handle] of (dir as any).entries()) {
-          if (name === "SELECT") continue;
-          if ((handle as FileSystemHandle).kind === "directory") {
-            await scanJpg(handle as FileSystemDirectoryHandle, depth + 1);
-          } else {
-            const ext = name.split(".").pop()?.toLowerCase() ?? "";
-            if (CAMERA_JPG_EXTENSIONS.has(ext)) {
-              const base = name.replace(/\.[^.]+$/, "").toLowerCase();
-              if (!jpgIndex.has(base)) jpgIndex.set(base, handle as FileSystemFileHandle);
-            }
-          }
-        }
-      };
-      await scanJpg(rawDir);
-
-      let jpgCopied = 0;
-      for (const jpg of selectedFiles) {
-        const base = jpg.replace(/\.[^.]+$/, "").toLowerCase();
-        const handle = jpgIndex.get(base);
-        if (handle) {
-          setMatchProgress(`JPG 복사: ${jpg} (${jpgCopied + 1}/${selectedFiles.length})`);
-          try {
-            const file = await handle.getFile();
-            const ab = await file.arrayBuffer();
-            const dest = await (jpgSelectDir as any).getFileHandle(jpg, { create: true }) as FileSystemFileHandle;
-            const w = await (dest as any).createWritable(); await w.write(ab); await w.close();
-            jpgCopied++; log.push(`📋 JPG: ${jpg}`);
-          } catch { log.push(`❌ JPG 복사 실패: ${jpg}`); }
-        } else {
-          log.push(`⚠️ JPG 없음: ${jpg}`);
-        }
-      }
-
-      // RAW SELECT
-      let rawCopied = 0;
+      const rawSelectDir = await (rawDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
       for (const m of matched) {
         if (!m.matched_raw) continue;
         setMatchProgress(`RAW 복사: ${m.matched_raw} (${rawCopied + 1}/${matched.length})`);
@@ -268,19 +233,25 @@ function SelectGalleryDetailWorkspace({
             const ab = await file.arrayBuffer();
             const dest = await (rawSelectDir as any).getFileHandle(m.matched_raw, { create: true }) as FileSystemFileHandle;
             const w = await (dest as any).createWritable(); await w.write(ab); await w.close();
-            rawCopied++; log.push(`✅ RAW: ${m.matched_raw}`);
+            rawCopied++; log.push(`RAW 복사 완료: ${m.matched_raw}`);
           }
-        } catch { log.push(`❌ RAW 복사 실패: ${m.matched_raw}`); }
+        } catch {
+          const failedName = m.matched_raw ?? m.selected_jpg;
+          failedFiles.push(failedName);
+          log.push(`RAW 복사 실패: ${failedName}`);
+        }
       }
 
-      log.push(`\n📁 SELECT/JPG_SELECT/ — ${jpgCopied}장`);
-      log.push(`📁 SELECT/RAW_SELECT/ — ${rawCopied}장`);
-      matches.filter(m => m.status === "raw_missing").forEach(m => log.push(`⚠️ RAW 없음: ${m.selected_jpg}`));
+      log.push(`\nSelected_RAW — ${rawCopied}장`);
+      matches.filter(m => m.status === "raw_missing").forEach(m => log.push(`RAW 없음: ${m.selected_jpg}`));
     } catch (e: any) {
-      log.push(`❌ 폴더 생성 오류: ${e.message}`);
+      const message = `폴더 생성 오류: ${e.message}`;
+      failedFiles.push(message);
+      log.push(message);
     }
 
     setMatchLog(log);
+    setCopySummary({ copied: rawCopied, failed: failedFiles });
 
     // 5) CSV 다운로드
     const csv = [
@@ -289,14 +260,18 @@ function SelectGalleryDetailWorkspace({
     ].join("\n");
     downloadText(csv, "raw_match_report.csv");
 
-    // 6) DB 저장 + 워크플로우 retouching으로 이동
-    await fetch(`/api/select-galleries/${id}/raw-match`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ selection_id: selection.id, matches }),
-    });
+    // 6) 실패가 없을 때만 DB 저장 + 워크플로우 retouching으로 이동한다.
+    if (failedFiles.length === 0) {
+      await fetch(`/api/select-galleries/${id}/raw-match`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ selection_id: selection.id, matches }),
+      });
+    } else {
+      setMatchProgress(`${rawCopied}장 복사 · ${failedFiles.length}장 실패`);
+    }
 
     setMatching(false);
-    load();
+    if (failedFiles.length === 0) load();
   };
 
   if (loading) return <div style={{ padding: 40, textAlign: "center", color: C.muted, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}>불러오는 중...</div>;
@@ -339,13 +314,13 @@ function SelectGalleryDetailWorkspace({
       {(client || clientId) && (
         <div style={{ background: C.mint, border: `1.5px solid color-mix(in srgb, ${C.teal} 32%, transparent)`, borderRadius: 10, padding: "12px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.teal, marginBottom: 2 }}>현재 고객</div>
-            <div style={{ fontSize: 14, fontWeight: 900, color: C.txt }}>{client?.hospital_name ?? client?.name ?? "고객 정보 로딩 중"}</div>
+            <div style={{ fontSize: 11, fontWeight:600, color: C.teal, marginBottom: 2 }}>현재 고객</div>
+            <div style={{ fontSize: 14, fontWeight:600, color: C.txt }}>{client?.hospital_name ?? client?.name ?? "고객 정보 로딩 중"}</div>
             {client?.manager_name && <div style={{ fontSize: 12, color: C.muted }}>{client.manager_name}</div>}
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <WorkspaceLink href={`/clients?clientId=${linkedClientId}`} onNavigate={onNavigate}
-              style={{ fontSize: 12, color: C.teal, fontWeight: 700, padding: "6px 14px", border: `1px solid ${C.teal}`, borderRadius: 6, textDecoration: "none" }}>
+              style={{ fontSize: 12, color: C.teal, fontWeight:600, padding: "6px 14px", border: `1px solid ${C.teal}`, borderRadius: 6, textDecoration: "none" }}>
               고객관리로
             </WorkspaceLink>
           </div>
@@ -362,25 +337,25 @@ function SelectGalleryDetailWorkspace({
           style={{ color: C.muted, fontSize: 20, textDecoration: "none", lineHeight: 1 }}
         >←</WorkspaceLink>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 18, fontWeight: 900, color: C.teal }}>{gallery.shooting_name ?? gallery.title}</div>
+          <div style={{ fontSize: 18, fontWeight:600, color: C.teal }}>{gallery.shooting_name ?? gallery.title}</div>
           {gallery.hospital_name && <div style={{ fontSize: 13, color: C.muted }}>{gallery.hospital_name}</div>}
         </div>
-        <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>
+        <span style={{ fontSize: 12, fontWeight:600, padding: "4px 10px", borderRadius: 6, background: `color-mix(in srgb, ${statusColor} 12%, transparent)`, color: statusColor }}>
           {GALLERY_STATUS_LABEL[gallery.status] ?? gallery.status}
         </span>
       </div>
 
       {/* 현재 해야 할 일 */}
       <div style={{ background: `color-mix(in srgb, ${todo.color} 7%, transparent)`, border: `2px solid color-mix(in srgb, ${todo.color} 25%, transparent)`, borderRadius: 12, padding: "14px 20px", marginBottom: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: todo.color, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>현재 해야 할 일</div>
-        <div style={{ fontSize: 15, fontWeight: 900, color: C.txt }}>{todo.text}</div>
+        <div style={{ fontSize: 11, fontWeight:600, color: todo.color, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>현재 해야 할 일</div>
+        <div style={{ fontSize: 15, fontWeight:600, color: C.txt }}>{todo.text}</div>
         {todo.sub && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>{todo.sub}</div>}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* 갤러리 요약 + 링크 */}
-        <Card title="📋 갤러리 정보">
+        <Card title="갤러리 정보">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10, marginBottom: 14 }}>
             {[
               ["총 이미지", `${gallery.total_jpg_count}장`],
@@ -390,21 +365,21 @@ function SelectGalleryDetailWorkspace({
             ].map(([l, v]) => (
               <div key={l} style={{ background: C.bg, borderRadius: 8, padding: "10px 14px" }}>
                 <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>{l}</div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: l === "파일 만료" && filesExpired ? C.red : C.txt }}>{v}</div>
+                <div style={{ fontWeight:600, fontSize: 13, color: l === "파일 만료" && filesExpired ? C.red : C.txt }}>{v}</div>
               </div>
             ))}
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Btn onClick={copyLink} variant="secondary">🔗 셀렉 링크 복사</Btn>
+            <Btn onClick={copyLink} variant="secondary"><Copy size={15} /> 셀렉 링크 복사</Btn>
             <a href={selectUrl} target="_blank" rel="noopener noreferrer"
-              style={{ display: "inline-flex", alignItems: "center", padding: "9px 16px", fontSize: 13, fontWeight: 700, color: C.teal, border: `1.5px solid ${C.teal}`, borderRadius: 8, textDecoration: "none" }}>
-              👁 고객 화면 보기
+              style={{ display: "inline-flex", alignItems: "center", padding: "9px 16px", fontSize: 13, fontWeight:600, color: C.teal, border: `1.5px solid ${C.teal}`, borderRadius: 8, textDecoration: "none" }}>
+              <Eye size={15} style={{ marginRight:6 }} />고객 화면 보기
             </a>
           </div>
         </Card>
 
         {/* JPG 업로드 */}
-        <Card title={`📁 원본 이미지 업로드 (${images.length}장 등록됨)`}>
+        <Card title={`원본 이미지 업로드 (${images.length}장 등록됨)`}>
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 12, lineHeight: 1.7 }}>
             고객이 볼 JPG 파일을 업로드합니다. 파일은 {expiresDate}에 자동 삭제됩니다.
             선택 파일명 정보는 만료 후에도 DB에 보관됩니다.
@@ -412,7 +387,7 @@ function SelectGalleryDetailWorkspace({
           <input ref={fileInputRef} type="file" multiple accept=".jpg,.jpeg" style={{ display: "none" }}
             onChange={e => uploadImages(e.target.files)} />
           <Btn onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-            {uploading ? "업로드 중..." : "📤 JPG 파일 업로드"}
+            {uploading ? "업로드 중..." : <><Upload size={15} /> JPG 파일 업로드</>}
           </Btn>
           {uploadLog.length > 0 && (
             <div style={{ marginTop: 10, maxHeight: 100, overflowY: "auto", fontFamily: "monospace", fontSize: 11, color: C.green, background: `color-mix(in srgb, ${C.green} 8%, ${C.white})`, borderRadius: 6, padding: 10 }}>
@@ -422,7 +397,7 @@ function SelectGalleryDetailWorkspace({
         </Card>
 
         {/* 브랜드메일 */}
-        <Card title="📧 브랜드메일 발송">
+        <Card title="브랜드메일 발송">
           <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>
             셀렉 링크와 안내가 포함된 브랜드메일을 발송합니다.
             카카오톡 일반전송 금지 및 파일명 유지 안내가 포함됩니다.
@@ -435,9 +410,9 @@ function SelectGalleryDetailWorkspace({
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <Btn onClick={sendMail} disabled={!mailEmail || sendingMail}>
-              {sendingMail ? "발송 중..." : "📧 브랜드메일 발송"}
+              {sendingMail ? "발송 중..." : <><Mail size={15} /> 브랜드메일 발송</>}
             </Btn>
-            <Btn onClick={copyLink} variant="secondary">🔗 셀렉 링크 복사</Btn>
+            <Btn onClick={copyLink} variant="secondary"><Copy size={15} /> 셀렉 링크 복사</Btn>
           </div>
           {mailResult && (
             <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 8, background: `color-mix(in srgb, ${mailResult.ok ? C.green : C.red} 8%, ${C.white})`, color: mailResult.ok ? C.green : C.red, fontSize: 12 }}>
@@ -447,7 +422,7 @@ function SelectGalleryDetailWorkspace({
         </Card>
 
         {/* 고객 셀렉 결과 */}
-        <Card title={`✅ 고객 셀렉 결과${selection ? ` — ${selection.selected_count}장` : ""}`}>
+        <Card title={`고객 셀렉 결과${selection ? ` — ${selection.selected_count}장` : ""}`}>
           {selection ? (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 12 }}>
@@ -457,19 +432,31 @@ function SelectGalleryDetailWorkspace({
               </div>
               {selection.customer_memo && (
                 <div style={{ background: `color-mix(in srgb, ${C.gold} 10%, ${C.white})`, border: `1px solid color-mix(in srgb, ${C.gold} 45%, transparent)`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.gold, marginBottom: 12 }}>
-                  💬 고객 메모: {selection.customer_memo}
+                  고객 메모: {selection.customer_memo}
                 </div>
               )}
+              {selection.items?.length ? (
+                <div style={{ display:"grid", gap:7, marginBottom:12 }}>
+                  {selection.items.map((item) => (
+                    <div key={item.id ?? `${item.file_name}-${item.category}`} style={{ display:"grid", gridTemplateColumns:"80px minmax(0,1fr)", gap:8, padding:"9px 11px", border:`1px solid ${C.border}`, borderRadius:8, fontSize:11 }}>
+                      <strong style={{ color:C.teal, fontWeight:600 }}>{item.category === "profile" ? "프로필" : item.category === "staged" ? "연출" : item.category === "interior" ? "인테리어" : "미분류"}</strong>
+                      <div><span style={{ fontFamily:"monospace" }}>{item.file_name}</span>{item.memo ? <p style={{ margin:"4px 0 0", color:C.muted }}>메모: {item.memo}</p> : null}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <div style={{ background: C.bg, borderRadius: 8, padding: 12, maxHeight: 200, overflowY: "auto", marginBottom: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 6 }}>선택 파일명 ({selection.selected_files.length}개)</div>
+                <div style={{ fontSize: 11, fontWeight:600, color: C.muted, marginBottom: 6 }}>선택 파일명 ({selection.selected_files.length}개)</div>
                 {selection.selected_files.slice(0, 50).map((f, i) => (
                   <div key={i} style={{ fontSize: 11, fontFamily: "monospace", color: C.txt, padding: "2px 0", borderBottom: `1px solid ${C.border}` }}>{f}</div>
                 ))}
                 {selection.selected_files.length > 50 && <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>... 외 {selection.selected_files.length - 50}개</div>}
               </div>
               <Btn onClick={() => {
-                const csv = ["갤러리ID,병원명,선택방식,파일명,제출일시\n",
-                  ...selection.selected_files.map(f => `${gallery.id},${gallery.hospital_name ?? ""},${selection.method},${f},${selection.submitted_at}`)
+                const csv = ["갤러리ID,병원명,선택방식,구분,파일명,사진별메모,제출일시\n",
+                  ...(selection.items?.length
+                    ? selection.items.map(item => `${gallery.id},${gallery.hospital_name ?? ""},${selection.method},${item.category},${item.file_name},${JSON.stringify(item.memo ?? "")},${selection.submitted_at}`)
+                    : selection.selected_files.map(f => `${gallery.id},${gallery.hospital_name ?? ""},${selection.method},,${f},,${selection.submitted_at}`))
                 ].join("\n");
                 downloadText(csv, "selection_report.csv");
               }} variant="secondary">↓ 선택 결과 CSV</Btn>
@@ -484,23 +471,35 @@ function SelectGalleryDetailWorkspace({
 
         {/* RAW 자동 매칭 */}
         {selection && (
-          <Card title="🎯 RAW 자동 매칭">
+          <Card title="RAW 자동 매칭">
+            {copySummary ? (
+              <div style={{ marginBottom:12, padding:"12px 14px", border:`1px solid ${copySummary.failed.length ? C.orange : C.green}`, borderRadius:8, background:copySummary.failed.length ? "#FFF4EE" : "#EDF5F3" }}>
+                <div style={{ fontSize:13, fontWeight:600, color:copySummary.failed.length ? C.orange : C.green }}>
+                  {copySummary.copied}장 복사 · {copySummary.failed.length}장 실패
+                </div>
+                {copySummary.failed.length ? (
+                  <ul style={{ margin:"8px 0 0", paddingLeft:18, fontSize:11, color:C.muted }}>
+                    {copySummary.failed.map((fileName, index) => <li key={`${fileName}-${index}`}>{fileName}</li>)}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
             {rawMatches.length > 0 ? (
               <div>
                 <div style={{ background: `color-mix(in srgb, ${C.green} 7%, transparent)`, border: `1px solid color-mix(in srgb, ${C.green} 25%, transparent)`, borderRadius: 10, padding: "12px 16px", marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: C.green, marginBottom: 8 }}>✅ RAW 매칭 완료</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, fontSize: 13, fontWeight:600, color: C.green, marginBottom: 8 }}><CheckCircle2 size={15} />RAW 매칭 완료</div>
                   <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
-                    <span style={{ color: C.green, fontWeight: 700 }}>매칭 {matchedCount}장</span>
-                    {missingCount > 0 && <span style={{ color: C.red, fontWeight: 700 }}>누락 {missingCount}장</span>}
+                    <span style={{ color: C.green, fontWeight:600 }}>매칭 {matchedCount}장</span>
+                    {missingCount > 0 && <span style={{ color: C.red, fontWeight:600 }}>누락 {missingCount}장</span>}
                   </div>
                   <div style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>
-                    📁 SELECT/JPG_SELECT/ · 📁 SELECT/RAW_SELECT/ · 📊 raw_match_report.csv
+                    Selected_RAW · raw_match_report.csv
                   </div>
                 </div>
                 <div style={{ background: C.bg, borderRadius: 8, padding: 10, maxHeight: 140, overflowY: "auto", fontSize: 11, fontFamily: "monospace", marginBottom: 10 }}>
                   {rawMatches.map((m, i) => (
                     <div key={i} style={{ color: m.status === "matched" ? C.green : C.red, padding: "1px 0" }}>
-                      {m.status === "matched" ? "✅" : "❌"} {m.selected_jpg} → {m.matched_raw ?? "없음"}
+                      {m.status === "matched" ? <Check size={13} style={{ verticalAlign:"-2px", marginRight:5 }} /> : <XCircle size={13} style={{ verticalAlign:"-2px", marginRight:5 }} />} {m.selected_jpg} → {m.matched_raw ?? "없음"}
                     </div>
                   ))}
                 </div>
@@ -525,27 +524,25 @@ function SelectGalleryDetailWorkspace({
             ) : (
               <div>
                 <div style={{ fontSize: 12, color: C.muted, marginBottom: 14, lineHeight: 1.8, background: C.bg, borderRadius: 8, padding: "12px 16px" }}>
-                  <strong>생성 폴더 구조:</strong><br />
-                  📁 SELECT/<br />
-                  &nbsp;&nbsp;├ JPG_SELECT/ — 선택된 JPG 복사<br />
-                  &nbsp;&nbsp;├ RAW_SELECT/ — 매칭된 RAW 복사<br />
-                  &nbsp;&nbsp;└ raw_match_report.csv<br />
+                  <strong>복사 위치:</strong><br />
+                  <Folder size={14} style={{ verticalAlign:"-2px", marginRight:5 }} />Selected_RAW — 선택된 RAW만 복사<br />
+                  raw_match_report.csv — 매칭 결과<br />
                   <br />
-                  <span style={{ color: C.teal, fontWeight: 700 }}>RAW 원본은 절대 삭제되지 않습니다. 복사 전용입니다.</span>
+                  <span style={{ color: C.teal, fontWeight:600 }}>RAW 원본은 절대 삭제되지 않습니다. 복사 전용입니다.</span>
                 </div>
 
                 {!hasFS && (
                   <div style={{ background: `color-mix(in srgb, ${C.gold} 18%, ${C.white})`, borderRadius: 8, padding: "10px 14px", fontSize: 12, color: C.gold, marginBottom: 12 }}>
-                    ⚠️ Chrome / Edge에서만 파일 시스템 접근이 가능합니다.
+                    <AlertTriangle size={14} style={{ verticalAlign:"-2px", marginRight:5 }} />Chrome / Edge에서만 파일 시스템 접근이 가능합니다.
                   </div>
                 )}
 
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: matching ? 12 : 0 }}>
                   <Btn onClick={pickRawDir} variant="secondary" disabled={!hasFS}>
-                    {rawDir ? `✅ 폴더: ${rawDir.name}` : "📂 RAW 폴더 선택"}
+                    {rawDir ? <><Check size={15} /> 폴더: {rawDir.name}</> : <><Folder size={15} /> RAW 폴더 선택</>}
                   </Btn>
                   <Btn onClick={runRawMatch} disabled={!rawDir || matching}>
-                    {matching ? "처리 중..." : "🎯 RAW 자동 매칭 시작"}
+                    {matching ? "처리 중..." : "RAW 자동 매칭 시작"}
                   </Btn>
                 </div>
 
@@ -555,7 +552,7 @@ function SelectGalleryDetailWorkspace({
                 {matchLog.length > 0 && (
                   <div style={{ maxHeight: 140, overflowY: "auto", fontFamily: "monospace", fontSize: 11, background: `color-mix(in srgb, ${C.teal} 3%, ${C.white})`, borderRadius: 6, padding: 10, border: `1px solid ${C.border}` }}>
                     {matchLog.map((l, i) => (
-                      <div key={i} style={{ color: l.startsWith("✅") ? C.green : l.startsWith("❌") ? C.red : l.startsWith("📁") ? C.teal : C.muted }}>{l}</div>
+                      <div key={i} style={{ color: l.includes("완료") ? C.green : l.includes("실패") || l.includes("없음") || l.includes("오류") ? C.red : l.includes("Selected_RAW") ? C.teal : C.muted }}>{l}</div>
                     ))}
                   </div>
                 )}
@@ -580,7 +577,7 @@ function downloadText(content: string, filename: string) {
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight: 800, color: C.teal }}>{title}</div>
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, fontSize: 13, fontWeight:600, color: C.teal }}>{title}</div>
       <div style={{ padding: "16px 20px" }}>{children}</div>
     </div>
   );
@@ -590,7 +587,7 @@ function InfoBadge({ label, value, color }: { label: string; value: string; colo
   return (
     <div style={{ background: C.bg, borderRadius: 8, padding: "8px 14px", textAlign: "center" }}>
       <div style={{ fontSize: 10, color: C.muted, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 13, fontWeight: 800, color: color ?? C.txt }}>{value}</div>
+      <div style={{ fontSize: 13, fontWeight:600, color: color ?? C.txt }}>{value}</div>
     </div>
   );
 }
@@ -601,7 +598,7 @@ function Btn({ children, onClick, variant, disabled }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ padding: "9px 18px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, transition: "opacity .15s",
+      style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6, padding: "9px 18px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight:600, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.5 : 1, transition: "opacity .15s",
         border: variant === "secondary" ? `1.5px solid ${C.border}` : "none",
         background: variant === "secondary" ? "transparent" : C.teal,
         color: variant === "secondary" ? C.txt : C.white }}>

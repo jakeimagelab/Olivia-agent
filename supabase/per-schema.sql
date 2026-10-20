@@ -17,7 +17,7 @@ alter table public.clients
 -- ── 1. PER 설정 테이블 ─────────────────────────────────────────
 create table if not exists public.per_settings (
   id                      uuid primary key default gen_random_uuid(),
-  reward_rate             numeric(5,4) not null default 0.01,
+  reward_rate             numeric(5,4) not null default 0.025,
   point_value             integer not null default 1,
   point_expiration_months integer not null default 24,
   allow_donation          boolean not null default true,
@@ -28,7 +28,7 @@ create table if not exists public.per_settings (
 );
 
 insert into public.per_settings (id, reward_rate, point_value, point_expiration_months)
-values (gen_random_uuid(), 0.01, 1, 24)
+values (gen_random_uuid(), 0.025, 1, 24)
 on conflict do nothing;
 
 -- ── 2. 포인트 거래 내역 ────────────────────────────────────────

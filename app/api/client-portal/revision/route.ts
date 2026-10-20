@@ -22,7 +22,14 @@ export async function GET(req: NextRequest) {
   if (session.workflowRunId && session.projectScoped) {
     revisionQuery = revisionQuery.eq("workflow_run_id", session.workflowRunId);
   }
-  const [revisionResult, approvalResult] = await Promise.all([
+  let galleryQuery = db.from("photo_galleries")
+    .select("id,gallery_type,created_at,items:photo_gallery_items(id,title,thumbnail_url,nas_file_url)")
+    .eq("client_id", session.clientId)
+    .in("gallery_type", ["retouched", "final_photo", "final_video"])
+    .order("created_at", { ascending: false })
+    .limit(3);
+  if (session.workflowRunId && session.projectScoped) galleryQuery = galleryQuery.eq("workflow_run_id", session.workflowRunId);
+  const [revisionResult, approvalResult, galleryResult] = await Promise.all([
     revisionQuery,
     session.workflowRunId
       ? db
@@ -33,6 +40,7 @@ export async function GET(req: NextRequest) {
           .eq("status", "approved")
           .order("updated_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
+    galleryQuery,
   ]);
 
   const eligibleApprovals = (approvalResult.data ?? [])
@@ -43,7 +51,10 @@ export async function GET(req: NextRequest) {
       stepName: visibleStepNames.get(approval.workflow_step_key),
     }));
 
-  return NextResponse.json({ ok: true, revisions: revisionResult.data ?? [], eligibleApprovals });
+  const completedPhotos = (galleryResult.data ?? []).flatMap((gallery: any) =>
+    (gallery.items ?? []).map((item: any) => ({ ...item, galleryId: gallery.id })),
+  );
+  return NextResponse.json({ ok: true, revisions: revisionResult.data ?? [], eligibleApprovals, completedPhotos });
 }
 
 export async function POST(req: NextRequest) {
@@ -66,6 +77,7 @@ export async function POST(req: NextRequest) {
     content,
     relatedFile,
     priority,
+    photoIds,
   } = body as Record<string, unknown>;
   const revisionContent = String(message ?? content ?? "").trim();
   const revisionTitle = String(title ?? "").trim();
@@ -78,6 +90,29 @@ export async function POST(req: NextRequest) {
   }
 
   const db = getSupabaseAdmin();
+  const normalizedPhotoIds = Array.isArray(photoIds)
+    ? [...new Set(photoIds.filter((id): id is string => typeof id === "string" && Boolean(id.trim())).map((id) => id.trim()))].slice(0, 100)
+    : [];
+  let normalizedRelatedFile = String(relatedFile ?? "");
+  if (normalizedPhotoIds.length) {
+    const { data: photoRows, error: photoError } = await db.from("photo_gallery_items")
+      .select("id,gallery_id,title")
+      .in("id", normalizedPhotoIds);
+    if (photoError) return NextResponse.json({ ok: false, error: photoError.message }, { status: 500 });
+    const galleryIds = [...new Set((photoRows ?? []).map((photo) => photo.gallery_id).filter(Boolean))];
+    let allowedGalleryQuery = db.from("photo_galleries").select("id").eq("client_id", session.clientId).in("id", galleryIds);
+    if (session.workflowRunId && session.projectScoped) allowedGalleryQuery = allowedGalleryQuery.eq("workflow_run_id", session.workflowRunId);
+    const { data: allowedGalleries, error: galleryError } = await allowedGalleryQuery;
+    if (galleryError) return NextResponse.json({ ok: false, error: galleryError.message }, { status: 500 });
+    const allowedIds = new Set((allowedGalleries ?? []).map((gallery) => gallery.id));
+    if ((photoRows ?? []).length !== normalizedPhotoIds.length || (photoRows ?? []).some((photo) => !allowedIds.has(photo.gallery_id))) {
+      return NextResponse.json({ ok: false, error: "선택할 수 없는 완료사진이 포함되어 있습니다." }, { status: 403 });
+    }
+    normalizedRelatedFile = JSON.stringify({
+      photoIds: normalizedPhotoIds,
+      photos: (photoRows ?? []).map((photo) => ({ id: photo.id, name: photo.title ?? "" })),
+    });
+  }
 
   // 승인 결과에 연결된 수정 요청은 DB 함수 하나로 검증·상태 변경·작업 생성을 처리한다.
   if (approvalId || stepKey || projectId) {
@@ -97,7 +132,7 @@ export async function POST(req: NextRequest) {
       p_title: revisionTitle,
       p_content: revisionContent,
       p_request_type: String(requestType ?? "general"),
-      p_related_file: String(relatedFile ?? ""),
+      p_related_file: normalizedRelatedFile,
       p_priority: normalizedPriority,
     });
 
@@ -128,7 +163,7 @@ export async function POST(req: NextRequest) {
       request_type: String(requestType ?? "general"),
       title: revisionTitle,
       content: revisionContent,
-      related_file: String(relatedFile ?? ""),
+      related_file: normalizedRelatedFile,
       priority: normalizedPriority,
     })
     .select("id")

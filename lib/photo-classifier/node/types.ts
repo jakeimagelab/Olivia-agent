@@ -41,7 +41,10 @@ export type RemotePhotoSortSuccess = {
   fileCount: number;
   rawCount: number;
   jpgCount: number;
+  classifiedJpgCount: number;
   sceneCount: number;
+  categoryCounts: { profile: number; staged: number; interior: number; unclassified: number };
+  unclassifiedFiles: string[];
   reviewBoundaryCount: number;
   durationMs: number;
   warnings: RunnerWarning[];

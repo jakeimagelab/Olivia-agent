@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { generateShareToken, getFileExpiresAt } from "@/lib/selectGallery";
 import { advanceWorkflow } from "@/lib/workflowAutomation";
+import { normalizeSelectionCategory } from "@/lib/select-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
             original_file_name: img.originalFileName,
             basename: img.basename,
             extension: img.originalFileName?.split(".").pop()?.toLowerCase() ?? "jpg",
-            scene_name: scene.sceneName ?? null,
+            scene_name: normalizeSelectionCategory(scene.sceneType ?? scene.sceneName, scene.folderName),
             folder_name: scene.folderName ?? null,
             image_url: img.imageUrl ?? null,
             thumbnail_url: img.thumbnailUrl ?? null,

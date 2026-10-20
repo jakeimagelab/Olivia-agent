@@ -79,7 +79,13 @@ export default function PhotoProjectNotification({ variant = "floating" }: { var
     const warning = typeof completed.classification_progress?.warning === "string"
       ? completed.classification_progress.warning
       : null;
-    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name} · 분류 완료 · {completed.scene_count.toLocaleString("ko-KR")}개 Scene · {completed.classified_jpg_count.toLocaleString("ko-KR")}장{warning ? <><br /><strong>⚠️ {warning}</strong></> : null}</span></div>;
+    const categoryCounts = completed.classification_progress?.categoryCounts as Record<string, number> | undefined;
+    const total = typeof completed.classification_progress?.totalJpgCount === "number" ? completed.classification_progress.totalJpgCount : completed.jpg_count;
+    const unclassified = Math.max(0, total - completed.classified_jpg_count);
+    const unclassifiedFiles = Array.isArray(completed.classification_progress?.unclassifiedFiles)
+      ? completed.classification_progress.unclassifiedFiles.filter((name): name is string => typeof name === "string")
+      : [];
+    return <div className={`${styles.statusToast} ${variant === "panel" ? styles.panel : ""}`} role="status"><Check size={16} /><span>{completed.project_name}<br />백업 {total.toLocaleString("ko-KR")}장 · 분류 완료 {completed.classified_jpg_count.toLocaleString("ko-KR")}장 · 분류 못 함 {unclassified.toLocaleString("ko-KR")}장{categoryCounts ? <><br />프로필 {(categoryCounts.profile ?? 0).toLocaleString("ko-KR")} · 연출 {(categoryCounts.staged ?? 0).toLocaleString("ko-KR")} · 인테리어 {(categoryCounts.interior ?? 0).toLocaleString("ko-KR")}</> : null}{unclassifiedFiles.length ? <><br /><strong>분류 확인 필요: {unclassifiedFiles.slice(0, 3).join(", ")}{unclassifiedFiles.length > 3 ? ` 외 ${unclassifiedFiles.length - 3}장` : ""}</strong></> : null}{warning ? <><br /><strong>{warning}</strong></> : null}</span></div>;
   }
 
   // 상태 2 — MERGING / MERGE_APPROVED (1/2단계)

@@ -72,7 +72,7 @@ export default function ProjectWorkflowStepper({
             >
               <div style={{
                 width: circleSize, height: circleSize, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: compact ? 9 : 12, fontWeight: 800,
+                fontSize: compact ? 9 : 12, fontWeight: 600,
                 background: light
                   ? phase.status === "completed" ? C.mint : "#fff"
                   : phase.status === "completed" ? C.teal : phase.status === "active" ? C.orange : "#fff",
@@ -104,7 +104,7 @@ export default function ProjectWorkflowStepper({
         <div style={{ flex: 1, height: compact ? 4 : 6, borderRadius: R.full, background: C.border, overflow: "hidden" }}>
           <div style={{ width: `${progressPercent}%`, height: "100%", background: C.teal, borderRadius: R.full, transition: "width .3s" }} />
         </div>
-        <span style={{ fontSize: compact ? 10.5 : 11.5, fontWeight: 800, color: C.teal, flexShrink: 0 }}>{progressPercent}%</span>
+        <span style={{ fontSize: compact ? 10.5 : 11.5, fontWeight: 600, color: C.teal, flexShrink: 0 }}>{progressPercent}%</span>
       </div>
     </div>
   );

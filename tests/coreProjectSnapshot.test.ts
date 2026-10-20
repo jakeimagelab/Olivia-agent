@@ -41,7 +41,8 @@ describe("Core Project Snapshot", () => {
     }));
     const result = await getCoreProjectSnapshot("run-1", db as never);
     expect(result.ok && result.value.workflow.currentStep).toBe("quote");
-    expect(result.ok && result.value.workflow.completedSteps).toEqual(["consult_meeting"]);
+    expect(result.ok && result.value.workflow.completedSteps).toEqual([]);
+    expect(result.ok && result.value.workflow.stepStates.some((step) => step.key === "consult_meeting")).toBe(false);
     expect(result.ok && result.value.workflow.stepStates.find((step) => step.key === "contract")?.status).toBe("skipped");
   });
 

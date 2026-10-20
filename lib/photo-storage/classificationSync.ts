@@ -76,11 +76,18 @@ export async function syncPhotoClassificationProject(
       ? null
       : (typeof result.error === "string" ? result.error : "분류 결과를 확인해야 합니다.");
     patch.scene_count = nonNegativeInteger(result.sceneCount) ?? project.scene_count ?? 0;
-    patch.classified_jpg_count = nonNegativeInteger(result.jpgCount)
-      ?? nonNegativeInteger(result.classifiedJpgCount)
+    patch.classified_jpg_count = nonNegativeInteger(result.classifiedJpgCount)
+      ?? nonNegativeInteger(result.jpgCount)
       ?? project.classified_jpg_count
       ?? 0;
-    if (visibleWarningMessage) patch.classification_progress = { ...progress, warning: visibleWarningMessage };
+    patch.classification_progress = {
+      ...progress,
+      ...(record(result.categoryCounts).profile !== undefined ? { categoryCounts: result.categoryCounts } : {}),
+      ...(nonNegativeInteger(result.jpgCount) !== undefined ? { totalJpgCount: result.jpgCount } : {}),
+      ...(Array.isArray(result.unclassifiedFiles) ? { unclassifiedFiles: result.unclassifiedFiles } : {}),
+      ...(warnings.length ? { failureReasons: warnings.map((warning) => record(warning).message).filter((message) => typeof message === "string") } : {}),
+      ...(visibleWarningMessage ? { warning: visibleWarningMessage } : {}),
+    };
   } else {
     const result = record(input.result);
     status = resultStatus(input.result) === "REVIEW_REQUIRED" ? "REVIEW_REQUIRED" : "CLASSIFY_FAILED";

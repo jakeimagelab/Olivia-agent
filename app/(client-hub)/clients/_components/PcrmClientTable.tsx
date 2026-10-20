@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
   ChevronDown,
   Copy,
@@ -18,6 +17,7 @@ import {
 import { C, R } from "@/lib/theme";
 import { getOrCreatePortalAccessToken, portalUrlFromToken } from "@/lib/clientPortalAccess";
 import { avatarColor } from "@/lib/pcrmAvatar";
+import { getWorkflowDisplayStepKey } from "@/lib/workflow";
 
 type ClientRow = {
   id: string;
@@ -81,10 +81,11 @@ function stageLabel(client: ClientRow) {
   const run = client.active_run;
   if (!run) return { label: "기획 단계", tone: "empty" };
   if (run.status === "completed") return { label: "촬영 완료", tone: "done" };
-  const key = run.current_step_key || "";
-  if (["consult_meeting", "quote", "contract"].includes(key)) return { label: "상담 진행 중", tone: "consult" };
+  const key = getWorkflowDisplayStepKey(run.current_step_key || "") || run.current_step_key || "";
+  if (key === "quote") return { label: "견적 진행 중", tone: "consult" };
+  if (key === "contract") return { label: "계약 진행 중", tone: "consult" };
   if (["conti", "shooting"].includes(key)) return { label: "촬영 진행 중", tone: "shoot" };
-  if (["backup_sorting", "original_delivery", "client_selection", "retouching", "revision"].includes(key)) return { label: "수정 진행 중", tone: "revision" };
+  if (["backup_sorting", "client_selection", "raw_matching", "retouching", "revision"].includes(key)) return { label: "수정 진행 중", tone: "revision" };
   return { label: "납품 진행 중", tone: "delivery" };
 }
 
@@ -219,7 +220,7 @@ function RowMenu({ client, onOpen, onEdit, onDelete, onNewProject }: {
   );
 }
 
-export default function PcrmClientTable({ clients, deletingId, onOpen, onEdit, onDelete, onCreate, onNewProject }: Props) {
+export default function PcrmClientTable({ clients, onOpen, onEdit, onDelete, onCreate, onNewProject }: Props) {
   const { favorites, toggle: toggleFavorite } = useFavorites();
   const [search, setSearch] = useState("");
   const [managerFilter, setManagerFilter] = useState("");

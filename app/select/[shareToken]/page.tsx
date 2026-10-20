@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+import { AlertTriangle, Archive, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Folder, Link2, Monitor, Search, Upload, X } from "lucide-react";
+import {
+  countSelectionsByCategory,
+  missingRequiredSelectionCategories,
+  normalizeSelectionCategory,
+  type SelectionCategoryKey,
+} from "@/lib/select-core";
 
 /* ══════════════════════════
    TYPES
@@ -32,8 +39,15 @@ const C = {
   teal: "#155855", bg: "#0d1117", card: "#161b22",
   border: "rgba(255,255,255,.08)", white: "#fff",
   muted: "#8b949e", green: "#22876A", red: "#f85149",
-  yellow: "#d29922", purple: "#7c3aed",
+  yellow: "#d29922", orange: "#C94A1E",
 };
+
+const CATEGORY_TABS: Array<{ key: SelectionCategoryKey; label: string }> = [
+  { key: "profile", label: "프로필" },
+  { key: "staged", label: "연출" },
+  { key: "interior", label: "인테리어" },
+  { key: "unclassified", label: "미분류" },
+];
 
 /* ══════════════════════════
    MAIN PAGE
@@ -108,13 +122,13 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white }}>
       <header style={{ background: C.teal, padding: "20px 24px", textAlign: "center" }}>
         <div style={{ fontSize: 13, color: "rgba(255,255,255,.7)", marginBottom: 4 }}>포토클리닉</div>
-        <div style={{ fontSize: 20, fontWeight: 900 }}>📸 {gallery.shooting_name ?? gallery.title}</div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 20, fontWeight:600 }}><Camera size={20} /> {gallery.shooting_name ?? gallery.title}</div>
         {gallery.hospital_name && <div style={{ fontSize: 13, color: "rgba(255,255,255,.8)", marginTop: 4 }}>{gallery.hospital_name}</div>}
       </header>
 
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "28px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, padding: "20px 24px" }}>
-          <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>보정할 사진을 선택해주세요</div>
+          <div style={{ fontSize: 16, fontWeight:600, marginBottom: 6 }}>보정할 사진을 선택해주세요</div>
           <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
             총 <strong style={{ color: C.white }}>{gallery.total_jpg_count}장</strong>의 원본 사진이 준비되어 있습니다.<br />
             아래 방법 중 하나를 선택해 보정할 사진을 골라주세요.
@@ -126,7 +140,7 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
             href={gallery.nas_link}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ display: "block", background: C.teal, color: C.white, padding: "13px 18px", borderRadius: 10, textAlign: "center", fontSize: 14, fontWeight: 800, textDecoration: "none" }}
+            style={{ display: "block", background: "transparent", color: C.white, border: `1px solid ${C.teal}`, padding: "13px 18px", borderRadius: 10, textAlign: "center", fontSize: 14, fontWeight:600, textDecoration: "none" }}
           >
             원본 사진 열기
           </a>
@@ -134,7 +148,7 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
 
         {/* 경고 배너 */}
         <div style={{ background: "rgba(242,163,38,.08)", border: "1px solid rgba(242,163,38,.3)", borderRadius: 10, padding: "14px 18px", fontSize: 12, color: "#d29922", lineHeight: 1.8 }}>
-          ⚠️ <strong>카카오톡으로 사진을 그냥 보내시면 파일명·화질·데이터가 변경</strong>될 수 있습니다.<br />
+          <AlertTriangle size={15} style={{ verticalAlign: "-2px", marginRight: 5 }} /><strong>카카오톡으로 사진을 그냥 보내시면 파일명·화질·데이터가 변경</strong>될 수 있습니다.<br />
           RAW 원본 매칭을 위해 파일명은 절대 변경하지 말아주세요.<br />
           사진 파일은 보안상 <strong>{expiresDate}까지만</strong> 보관됩니다.
         </div>
@@ -143,15 +157,15 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
         {gallery.allow_web_select && !gallery.files_expired && (
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>방법 1. 웹에서 바로 선택하기</div>
+              <div style={{ fontSize: 14, fontWeight:600, marginBottom: 6 }}>방법 1. 웹에서 바로 선택하기</div>
               <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
                 사진을 웹에서 크게 보고 체크하실 수 있습니다.<br />
                 파일을 다시 보내실 필요가 없습니다.
               </div>
             </div>
             <div style={{ padding: "16px 24px" }}>
-              <Btn onClick={onWebSelect} style={{ background: C.teal, color: C.white, width: "100%" }}>
-                🖥 웹에서 선택하기
+              <Btn onClick={onWebSelect} style={{ background: C.orange, color: C.white, width: "100%" }}>
+                <Monitor size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />웹에서 선택하기
               </Btn>
             </div>
           </div>
@@ -161,7 +175,7 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
         {gallery.allow_download_upload && (
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.border}` }}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>방법 2. 다운로드 후 선택 JPG 업로드</div>
+              <div style={{ fontSize: 14, fontWeight:600, marginBottom: 6 }}>방법 2. 다운로드 후 선택 JPG 업로드</div>
               <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.7 }}>
                 전체 JPG를 다운로드한 뒤 컴퓨터에서 직접 확인하고<br />
                 보정할 JPG 파일만 다시 업로드해주세요.
@@ -171,13 +185,13 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
               {gallery.allow_download_zip && !gallery.files_expired && (
                 <a
                   href={`/api/select-galleries/${gallery.id}/download-zip?token=${gallery.share_token}`}
-                  style={{ display: "block", background: "rgba(21,88,85,.2)", color: C.white, border: `1px solid ${C.teal}`, padding: "11px 16px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 700, textDecoration: "none" }}
+                  style={{ display: "block", background: "rgba(21,88,85,.2)", color: C.white, border: `1px solid ${C.teal}`, padding: "11px 16px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight:600, textDecoration: "none" }}
                 >
-                  📦 전체 JPG 다운로드 ({gallery.total_jpg_count}장)
+                  <Archive size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />전체 JPG 다운로드 ({gallery.total_jpg_count}장)
                 </a>
               )}
-              <Btn onClick={onUpload} style={{ background: C.purple, color: C.white }}>
-                ⬆ 선택한 JPG 업로드하기
+              <Btn onClick={onUpload} style={{ background: "transparent", border: `1px solid ${C.teal}`, color: C.white }}>
+                <Upload size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />선택한 JPG 업로드하기
               </Btn>
             </div>
           </div>
@@ -207,16 +221,21 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
   const [lightbox, setLightbox] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [memo, setMemo] = useState("");
+  const [imageNotes, setImageNotes] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
-  const [sceneFilter, setSceneFilter] = useState<string>("all");
+  const [category, setCategory] = useState<SelectionCategoryKey>("profile");
   const [zoom, setZoom] = useState(1);
 
-  const scenes = Array.from(new Set(images.map(i => i.scene_name ?? i.folder_name ?? ""))).filter(Boolean);
+  const imageCategory = (image: GalleryImage) => normalizeSelectionCategory(image.scene_name, image.folder_name);
+  const selectedCategoryCounts = countSelectionsByCategory(
+    images.filter((image) => selected.has(image.original_file_name)).map((image) => ({ category: imageCategory(image) })),
+  );
+  const missingRequiredCategories = missingRequiredSelectionCategories(
+    images.map((image) => ({ category: imageCategory(image) })),
+    images.filter((image) => selected.has(image.original_file_name)).map((image) => ({ category: imageCategory(image) })),
+  );
   const displayed = images.filter(img => {
-    if (sceneFilter !== "all") {
-      const sc = img.scene_name ?? img.folder_name ?? "";
-      if (sc !== sceneFilter) return false;
-    }
+    if (imageCategory(img) !== category) return false;
     if (filter === "selected" && !selected.has(img.original_file_name)) return false;
     return true;
   });
@@ -245,7 +264,20 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
     setSubmitting(true);
     const res = await fetch(`/api/select-galleries/${gallery.id}/submit-web-select`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ selected_files: Array.from(selected), customer_memo: memo, share_token: gallery.share_token }),
+      body: JSON.stringify({
+        selected_files: Array.from(selected),
+        selected_items: images
+          .filter((image) => selected.has(image.original_file_name))
+          .map((image) => ({
+            image_id: image.id,
+            file_name: image.original_file_name,
+            category: imageCategory(image),
+            memo: imageNotes[image.original_file_name] ?? "",
+            retouch_keys: [],
+          })),
+        customer_memo: memo,
+        share_token: gallery.share_token,
+      }),
     });
     const d = await res.json();
     setSubmitting(false);
@@ -258,24 +290,30 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
       {/* 상단 툴바 */}
       <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(13,17,23,.95)", backdropFilter: "blur(8px)", borderBottom: `1px solid ${C.border}`, padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 22, lineHeight: 1, padding: "0 4px" }}>←</button>
-        <span style={{ fontSize: 13, fontWeight: 700, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <span style={{ fontSize: 13, fontWeight: 600, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {gallery.shooting_name ?? gallery.title}
         </span>
-        {scenes.length > 0 && (
-          <select value={sceneFilter} onChange={e => setSceneFilter(e.target.value)}
-            style={{ background: C.card, border: `1px solid ${C.border}`, color: C.white, padding: "5px 8px", borderRadius: 6, fontSize: 11, cursor: "pointer" }}>
-            <option value="all">전체 씬</option>
-            {scenes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
         <button onClick={() => setFilter(f => f === "all" ? "selected" : "all")}
-          style={{ background: filter === "selected" ? C.purple : "transparent", border: `1px solid ${filter === "selected" ? C.purple : C.border}`, color: C.white, padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          style={{ background: filter === "selected" ? "rgba(79,216,184,.14)" : "transparent", border: `1px solid ${filter === "selected" ? "#4FD8B8" : C.border}`, color: C.white, padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
           {filter === "selected" ? `선택만 (${selected.size})` : `전체 (${images.length})`}
         </button>
-        <div style={{ background: selected.size > 0 ? C.teal : "rgba(255,255,255,.06)", border: `1px solid ${selected.size > 0 ? C.teal : C.border}`, color: C.white, padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 700 }}>
-          ✅ {selected.size}장 선택
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: selected.size > 0 ? "rgba(79,216,184,.14)" : "rgba(255,255,255,.06)", border: `1px solid ${selected.size > 0 ? "#4FD8B8" : C.border}`, color: C.white, padding: "5px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+          <Check size={13} strokeWidth={2} aria-hidden="true" /> {selected.size}장 선택
         </div>
       </div>
+
+      <nav aria-label="사진 구분" style={{ position: "sticky", top: 51, zIndex: 45, display: "flex", gap: 18, overflowX: "auto", padding: "0 16px", background: "rgba(13,17,23,.96)", borderBottom: `1px solid ${C.border}` }}>
+        {CATEGORY_TABS.map((tab) => {
+          const count = images.filter((image) => imageCategory(image) === tab.key).length;
+          const selectedCount = selectedCategoryCounts[tab.key] ?? 0;
+          return (
+            <button key={tab.key} type="button" onClick={() => { setCategory(tab.key); setLightbox(null); }}
+              style={{ flex: "0 0 auto", minHeight: 48, border: 0, borderBottom: `2px solid ${category === tab.key ? "#4FD8B8" : "transparent"}`, background: "transparent", color: category === tab.key ? C.white : C.muted, font: "inherit", fontSize: 12, fontWeight: category === tab.key ? 600 : 500, cursor: "pointer" }}>
+              {tab.label} · 선택 {selectedCount} / 권장&nbsp;&nbsp;({count}장)
+            </button>
+          );
+        })}
+      </nav>
 
       {/* 썸네일 그리드 */}
       <div style={{ padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6 }}>
@@ -291,7 +329,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
               <div style={{ position: "absolute", top: 6, left: 6 }}
                 onClick={e => { e.stopPropagation(); toggle(img.original_file_name); }}>
                 <div style={{ width: 22, height: 22, borderRadius: 5, border: `2px solid ${isSel ? C.teal : "rgba(255,255,255,.6)"}`, background: isSel ? C.teal : "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.white }}>
-                  {isSel && "✓"}
+                  {isSel && <Check size={13} strokeWidth={2.2} aria-hidden="true" />}
                 </div>
               </div>
               {/* 파일명 */}
@@ -312,9 +350,10 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
       <div style={{ position: "sticky", bottom: 0, background: "rgba(13,17,23,.95)", backdropFilter: "blur(8px)", borderTop: `1px solid ${C.border}`, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
         <textarea value={memo} onChange={e => setMemo(e.target.value)} placeholder="보정 메모 (선택사항) — 예: 자연스럽게 부탁드립니다"
           rows={2} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.white, fontSize: 12, padding: "8px 12px", resize: "none", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }} />
-        <Btn onClick={submit} disabled={selected.size === 0 || submitting}
-          style={{ background: selected.size > 0 ? C.teal : "rgba(255,255,255,.08)", color: C.white, fontWeight: 800, fontSize: 15, padding: "14px" }}>
-          {submitting ? "제출 중..." : `✅ ${selected.size}장 선택 완료`}
+        {missingRequiredCategories.length ? <div style={{ fontSize: 11, color: C.muted, textAlign: "center" }}>프로필·연출·인테리어에서 각각 한 장 이상 골라주세요.</div> : null}
+        <Btn onClick={submit} disabled={selected.size === 0 || missingRequiredCategories.length > 0 || submitting}
+          style={{ background: selected.size > 0 && missingRequiredCategories.length === 0 ? C.teal : "transparent", border: `1px solid ${selected.size > 0 && missingRequiredCategories.length === 0 ? C.teal : C.border}`, color: C.white, fontWeight: 600, fontSize: 15, padding: "14px" }}>
+          {submitting ? "제출 중..." : `${selected.size}장 선택 완료`}
         </Btn>
         <div style={{ fontSize: 11, color: C.muted, textAlign: "center" }}>
           스페이스바: 현재 사진 선택/해제 · 방향키: 이전/다음 · ESC: 닫기
@@ -330,6 +369,8 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
           onPrev={() => setLightbox(v => Math.max(0, (v ?? 0) - 1))}
           onNext={() => setLightbox(v => Math.min(displayed.length - 1, (v ?? 0) + 1))}
           onToggle={(name) => toggle(name)}
+          note={imageNotes[displayed[lightbox]?.original_file_name] ?? ""}
+          onNoteChange={(name, value) => setImageNotes((current) => ({ ...current, [name]: value.slice(0, 1_000) }))}
           zoom={zoom} setZoom={setZoom}
         />
       )}
@@ -340,10 +381,11 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
 /* ══════════════════════════
    LIGHTBOX
 ══════════════════════════ */
-function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, zoom, setZoom }: {
+function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, note, onNoteChange, zoom, setZoom }: {
   images: GalleryImage[]; index: number; selected: Set<string>;
   onClose: () => void; onPrev: () => void; onNext: () => void;
   onToggle: (name: string) => void; zoom: number; setZoom: (v: number) => void;
+  note: string; onNoteChange: (name: string, value: string) => void;
 }) {
   const img = images[index];
   if (!img) return null;
@@ -362,29 +404,35 @@ function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, 
       onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* 상단바 */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(0,0,0,.6)", flexShrink: 0 }}>
-        <button onClick={onClose} style={{ background: "none", border: "none", color: C.white, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="닫기" style={{ display: "grid", placeItems: "center", background: "none", border: "none", color: C.white, cursor: "pointer", width: 44, height: 44 }}><X size={21} /></button>
         <span style={{ fontSize: 12, color: C.muted, flex: 1 }}>{img.original_file_name}</span>
         <span style={{ fontSize: 12, color: C.muted }}>{index + 1} / {images.length}</span>
         <button onClick={() => setZoom(zoom === 1 ? 2 : 1)} style={{ background: "rgba(255,255,255,.1)", border: "none", color: C.white, cursor: "pointer", padding: "5px 10px", borderRadius: 6, fontSize: 12 }}>
-          {zoom === 1 ? "🔍 확대" : "🔍 원래"}
+          <Search size={13} style={{ verticalAlign: "middle", marginRight: 5 }} />{zoom === 1 ? "확대" : "원래 크기"}
         </button>
         <button onClick={() => onToggle(img.original_file_name)}
-          style={{ background: isSel ? C.teal : "rgba(255,255,255,.1)", border: `1px solid ${isSel ? C.teal : "rgba(255,255,255,.2)"}`, color: C.white, cursor: "pointer", padding: "6px 16px", borderRadius: 6, fontSize: 13, fontWeight: 700 }}>
-          {isSel ? "✅ 선택됨" : "☐ 선택"}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, background: isSel ? "rgba(79,216,184,.18)" : "rgba(255,255,255,.1)", border: `1px solid ${isSel ? "#4FD8B8" : "rgba(255,255,255,.2)"}`, color: C.white, cursor: "pointer", padding: "6px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600 }}>
+          {isSel ? <><Check size={14} /> 선택됨</> : "사진 선택"}
         </button>
       </div>
       {/* 이미지 */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflow: "auto", position: "relative" }}>
-        <button onClick={onPrev} style={{ position: "absolute", left: 8, background: "rgba(0,0,0,.4)", border: "none", color: C.white, cursor: "pointer", fontSize: 28, borderRadius: 6, padding: "8px 12px", zIndex: 10 }}>‹</button>
+        <button onClick={onPrev} aria-label="이전 사진" style={{ position: "absolute", left: 8, display: "grid", placeItems: "center", width: 44, height: 44, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.14)", color: C.white, cursor: "pointer", borderRadius: "50%", zIndex: 10 }}><ChevronLeft /></button>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={img.image_url} alt={img.original_file_name}
           style={{ maxWidth: zoom === 1 ? "100%" : "none", maxHeight: zoom === 1 ? "100%" : "none", width: zoom === 2 ? "auto" : undefined, objectFit: "contain", transition: "transform .2s", display: "block" }} />
-        <button onClick={onNext} style={{ position: "absolute", right: 8, background: "rgba(0,0,0,.4)", border: "none", color: C.white, cursor: "pointer", fontSize: 28, borderRadius: 6, padding: "8px 12px", zIndex: 10 }}>›</button>
+        <button onClick={onNext} aria-label="다음 사진" style={{ position: "absolute", right: 8, display: "grid", placeItems: "center", width: 44, height: 44, background: "rgba(0,0,0,.4)", border: "1px solid rgba(255,255,255,.14)", color: C.white, cursor: "pointer", borderRadius: "50%", zIndex: 10 }}><ChevronRight /></button>
       </div>
       {/* 선택 상태 표시줄 */}
       {isSel && (
-        <div style={{ background: "rgba(21,88,85,.8)", padding: "8px 16px", fontSize: 12, color: C.white, textAlign: "center", flexShrink: 0 }}>
-          ✅ 이 사진이 선택되어 있습니다 — 다시 누르면 선택 해제
+        <div style={{ background: "rgba(21,88,85,.8)", padding: "10px 16px", fontSize: 12, color: C.white, flexShrink: 0 }}>
+          <label style={{ display: "grid", gap: 6, maxWidth: 720, margin: "0 auto" }}>
+            <span style={{ fontWeight: 600 }}>이 사진의 보정 메모</span>
+            <textarea value={note} onChange={(event) => onNoteChange(img.original_file_name, event.target.value)} maxLength={1_000} rows={2}
+              placeholder="이 사진에 필요한 보정 내용을 적어주세요."
+              style={{ width: "100%", boxSizing: "border-box", border: "1px solid rgba(255,255,255,.18)", borderRadius: 7, background: "rgba(0,0,0,.22)", color: C.white, padding: "9px 11px", font: "inherit", resize: "vertical" }} />
+            <small style={{ color: "rgba(255,255,255,.62)", textAlign: "right" }}>{note.length} / 1000</small>
+          </label>
         </div>
       )}
     </div>
@@ -441,12 +489,12 @@ function UploadPage({ gallery, onBack, onDone }: {
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white }}>
       <div style={{ background: C.teal, padding: "16px 20px", display: "flex", alignItems: "center", gap: 12 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", color: C.white, cursor: "pointer", fontSize: 22, lineHeight: 1 }}>←</button>
-        <span style={{ fontSize: 16, fontWeight: 800 }}>선택한 JPG 업로드</span>
+        <span style={{ fontSize: 16, fontWeight:600 }}>선택한 JPG 업로드</span>
       </div>
 
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 20px", display: "flex", flexDirection: "column", gap: 20 }}>
         <div style={{ background: "rgba(242,163,38,.08)", border: "1px solid rgba(242,163,38,.3)", borderRadius: 10, padding: "14px 18px", fontSize: 12, color: "#d29922", lineHeight: 1.8 }}>
-          ⚠️ 컴퓨터에서 보정받을 JPG 파일만 선택해서 업로드해주세요.<br />
+          <AlertTriangle size={15} style={{ verticalAlign: "-2px", marginRight: 5 }} />컴퓨터에서 보정받을 JPG 파일만 선택해서 업로드해주세요.<br />
           파일명을 변경하면 RAW 매칭이 어려울 수 있습니다.
         </div>
 
@@ -459,8 +507,8 @@ function UploadPage({ gallery, onBack, onDone }: {
           style={{ border: `2px dashed ${dragging ? C.teal : C.border}`, borderRadius: 12, padding: "48px 24px", textAlign: "center", cursor: "pointer", background: dragging ? "rgba(21,88,85,.1)" : C.card, transition: "all .2s" }}>
           <input ref={inputRef} type="file" multiple accept=".jpg,.jpeg,.heic,.heif,.tif,.tiff,.png"
             style={{ display: "none" }} onChange={e => addFiles(e.target.files)} />
-          <div style={{ fontSize: 40, marginBottom: 12 }}>📁</div>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>파일을 여기에 드래그하거나 클릭해서 선택</div>
+          <Folder size={40} style={{ marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight:600, marginBottom: 6 }}>파일을 여기에 드래그하거나 클릭해서 선택</div>
           <div style={{ fontSize: 12, color: C.muted }}>JPG, JPEG, HEIC, TIFF, PNG 파일 지원</div>
         </div>
 
@@ -468,7 +516,7 @@ function UploadPage({ gallery, onBack, onDone }: {
         {files.length > 0 && (
           <div style={{ background: C.card, borderRadius: 12, border: `1px solid ${C.border}`, overflow: "hidden" }}>
             <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 13, fontWeight: 700 }}>선택된 파일 {files.length}개</span>
+              <span style={{ fontSize: 13, fontWeight:600 }}>선택된 파일 {files.length}개</span>
               <button onClick={() => setFiles([])} style={{ background: "none", border: "none", color: C.red, cursor: "pointer", fontSize: 12 }}>전체 삭제</button>
             </div>
             <div style={{ maxHeight: 280, overflowY: "auto" }}>
@@ -477,7 +525,7 @@ function UploadPage({ gallery, onBack, onDone }: {
                   <span style={{ fontSize: 12, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
                   <span style={{ fontSize: 11, color: C.muted, flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)}MB</span>
                   <button onClick={() => setFiles(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }}>✕</button>
+                    style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 14 }} aria-label={`${f.name} 삭제`}><X size={14} /></button>
                 </div>
               ))}
             </div>
@@ -488,8 +536,8 @@ function UploadPage({ gallery, onBack, onDone }: {
           rows={3} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, color: C.white, fontSize: 13, padding: "10px 14px", resize: "none", fontFamily: "inherit", width: "100%", boxSizing: "border-box" }} />
 
         <Btn onClick={submit} disabled={files.length === 0 || submitting}
-          style={{ background: files.length > 0 ? C.teal : "rgba(255,255,255,.08)", color: C.white, fontWeight: 800, fontSize: 15, padding: "14px" }}>
-          {submitting ? "업로드 중..." : `✅ ${files.length}개 파일로 선택 완료`}
+          style={{ background: files.length > 0 ? C.teal : "rgba(255,255,255,.08)", color: C.white, fontWeight:600, fontSize: 15, padding: "14px" }}>
+          {submitting ? "업로드 중..." : <><Check size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />{files.length}개 파일로 선택 완료</>}
         </Btn>
       </div>
     </div>
@@ -503,8 +551,8 @@ function DoneScreen({ gallery, selection, onResubmit }: { gallery: GalleryInfo; 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 60, marginBottom: 20 }}>✅</div>
-        <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 8 }}>선택이 완료되었습니다!</div>
+        <CheckCircle2 size={60} style={{ marginBottom: 20, color: C.teal }} />
+        <div style={{ fontSize: 22, fontWeight:600, marginBottom: 8 }}>선택이 완료되었습니다!</div>
         <div style={{ fontSize: 14, color: C.muted, marginBottom: 24, lineHeight: 1.7 }}>
           총 <strong style={{ color: C.white }}>{selection?.selected_count ?? 0}장</strong>의 사진이 선택되었습니다.<br />
           보정 작업이 완료되면 별도로 연락드리겠습니다.
@@ -531,8 +579,8 @@ function AlreadyDoneScreen({ gallery, selection }: { gallery: GalleryInfo; selec
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 420, textAlign: "center" }}>
-        <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-        <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>이미 선택이 완료되었습니다</div>
+        <ClipboardList size={48} style={{ marginBottom: 16, color: C.teal }} />
+        <div style={{ fontSize: 20, fontWeight:600, marginBottom: 8 }}>이미 선택이 완료되었습니다</div>
         <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.7 }}>
           <strong style={{ color: C.white }}>{selection.selected_count}장</strong>이 선택되었습니다.<br />
           보정 완료 시 연락드리겠습니다. 감사합니다.
@@ -556,8 +604,8 @@ function LoadingScreen() {
 function ErrorScreen({ message }: { message: string }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 12, fontFamily: FONT, color: C.white, padding: 24, textAlign: "center" }}>
-      <div style={{ fontSize: 40 }}>🔗</div>
-      <div style={{ fontSize: 16, fontWeight: 700 }}>링크를 찾을 수 없습니다</div>
+      <Link2 size={40} />
+      <div style={{ fontSize: 16, fontWeight:600 }}>링크를 찾을 수 없습니다</div>
       <div style={{ fontSize: 13, color: C.muted }}>{message}</div>
     </div>
   );
@@ -569,7 +617,7 @@ function Btn({ children, onClick, disabled, style }: {
 }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      style={{ display: "block", width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, fontSize: 14, fontWeight: 700, transition: "opacity .15s", opacity: disabled ? 0.4 : 1, ...style }}>
+      style={{ display: "block", width: "100%", padding: "12px 20px", borderRadius: 8, border: "none", cursor: disabled ? "not-allowed" : "pointer", fontFamily: FONT, fontSize: 14, fontWeight:600, transition: "opacity .15s", opacity: disabled ? 0.4 : 1, ...style }}>
       {children}
     </button>
   );

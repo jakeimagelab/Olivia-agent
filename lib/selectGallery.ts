@@ -74,6 +74,18 @@ export interface ClientPhotoSelection {
   submitted_at: string;
   created_at: string;
   updated_at: string;
+  items?: ClientPhotoSelectionItem[];
+}
+
+export interface ClientPhotoSelectionItem {
+  id: string;
+  selection_id: string;
+  gallery_id?: string;
+  image_id?: string;
+  file_name: string;
+  category: string;
+  memo: string;
+  retouch_keys: string[];
 }
 
 export interface SelectRawMatch {
@@ -110,7 +122,7 @@ export async function getGalleryByToken(
 ): Promise<SelectGallery | null> {
   const { data } = await sb
     .from("select_galleries")
-    .select("*")
+    .select("*,items:client_photo_selection_items(*)")
     .eq("share_token", shareToken)
     .single();
   return data ?? null;

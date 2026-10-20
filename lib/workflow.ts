@@ -102,7 +102,7 @@ export const WORKFLOW_STEPS = [
     stage: "feedback_done" as WorkflowStageKey, primary: false, folded_into: "revision",
   },
   {
-    key: "reward",            name: "고객 리워드 (1%)",
+    key: "reward",            name: "고객 리워드",
     order_index: 15, requires_approval: false, automation_level: "full" as const,
     visible_to_client: false, creates_mailing_draft: false, related_feature: "per",
     stage: "feedback_done" as WorkflowStageKey, primary: true,
@@ -134,7 +134,6 @@ export const WORKFLOW_STEPS = [
  * 신규 워크플로우 실행과 진행률 계산은 반드시 아래 활성 12단계를 사용한다.
  */
 export const ACTIVE_WORKFLOW_STEP_KEYS = [
-  "consult_meeting",
   "quote",
   "contract",
   "conti",
@@ -142,6 +141,7 @@ export const ACTIVE_WORKFLOW_STEP_KEYS = [
   "payment_confirm",
   "backup_sorting",
   "client_selection",
+  "raw_matching",
   "retouching",
   "final_delivery",
   "revision",
@@ -158,7 +158,7 @@ export const ACTIVE_WORKFLOW_STEPS = ACTIVE_WORKFLOW_STEP_KEYS.map((key) => {
 
 /** 활성 단계에 포함되어 실행되는 내부 레거시 작업. */
 export const INTERNAL_STEP_GROUPS: Partial<Record<ActiveWorkflowStepKey, readonly string[]>> = {
-  client_selection: ["original_delivery", "raw_matching"],
+  client_selection: ["original_delivery"],
   final_delivery: ["seo_delivery"],
   revision: ["review_content"],
 };
@@ -168,14 +168,17 @@ export const STANDALONE_WORKFLOW_STEP_KEYS = ["customer_care", "content_planning
 
 /** 레거시 실행 건을 화면의 12단계로 정규화한다. */
 export const LEGACY_STEP_PARENT: Readonly<Record<string, ActiveWorkflowStepKey>> = {
+  consult_meeting: "quote",
   original_delivery: "client_selection",
-  raw_matching: "client_selection",
   seo_delivery: "final_delivery",
   review_content: "revision",
+  customer_care: "reward",
+  content_planning: "reward",
 };
 
 /** 이미 레거시 단계에 진입한 실행 건의 안전한 다음 단계. */
 export const LEGACY_NEXT_STEP: Readonly<Record<string, ActiveWorkflowStepKey | null>> = {
+  consult_meeting: "quote",
   original_delivery: "client_selection",
   raw_matching: "retouching",
   seo_delivery: "final_delivery",
@@ -221,11 +224,11 @@ export type WorkflowPhaseKey =
   | "select_retouch" | "revision_delivery" | "wrap_up";
 
 export const WORKFLOW_PHASES: { key: WorkflowPhaseKey; name: string; order: number; steps: ActiveWorkflowStepKey[] }[] = [
-  { key: "consult_quote",     name: "상담·견적",   order: 1, steps: ["consult_meeting", "quote"] },
+  { key: "consult_quote",     name: "상담·견적",   order: 1, steps: ["quote"] },
   { key: "contract_schedule", name: "계약·일정",   order: 2, steps: ["contract"] },
   { key: "shoot_prep",        name: "촬영 준비",   order: 3, steps: ["conti"] },
   { key: "shooting_phase",    name: "촬영",       order: 4, steps: ["shooting", "payment_confirm"] },
-  { key: "select_retouch",    name: "셀렉·보정",   order: 5, steps: ["backup_sorting", "client_selection", "retouching"] },
+  { key: "select_retouch",    name: "셀렉·보정",   order: 5, steps: ["backup_sorting", "client_selection", "raw_matching", "retouching"] },
   { key: "revision_delivery", name: "수정·납품",   order: 6, steps: ["revision", "final_delivery"] },
   { key: "wrap_up",           name: "완료·관리",   order: 7, steps: ["reward"] },
 ];

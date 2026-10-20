@@ -1,5 +1,6 @@
 import { randomInt, timingSafeEqual } from "node:crypto";
 import type { PersonSelectCategory } from "./types";
+import { isSelectionSubmissionLocked, validateSelectionMemo } from "@/lib/select-core";
 
 export function normalizeNfc(value: string) {
   return value.normalize("NFC");
@@ -55,7 +56,7 @@ export function parseGroupFolderName(folderName: string, prefix: string) {
 }
 
 export function eventIsLocked(event: { status: string; deadline_at: string }, now = new Date()) {
-  return event.status === "closed" || now.getTime() > new Date(event.deadline_at).getTime();
+  return isSelectionSubmissionLocked({ status: event.status, deadlineAt: event.deadline_at, now });
 }
 
 export function requiredCategoryKeys(input: {
@@ -91,8 +92,5 @@ export function validateChoiceInput(input: {
   if (!Array.isArray(input.retouchKeys) || input.retouchKeys.some((key) => typeof key !== "string" || !input.allowedKeys.includes(key))) {
     return "행사에 없는 보정 요청입니다.";
   }
-  if (typeof input.memo !== "string" || input.memo.length > input.memoMax) {
-    return `메모는 ${input.memoMax}자까지 적을 수 있습니다.`;
-  }
-  return null;
+  return validateSelectionMemo(input.memo, input.memoMax);
 }

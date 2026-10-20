@@ -13,6 +13,7 @@ import {
   Send,
   X,
 } from "lucide-react";
+import { countSelectionsByCategory, missingRequiredSelectionCategories, normalizeSelectionCategory, type SelectionCategoryKey } from "@/lib/select-core";
 
 type SelectionImage = {
   id: string;
@@ -20,6 +21,8 @@ type SelectionImage = {
   image_url: string;
   thumbnail_url?: string;
   preview_url?: string;
+  scene_name?: string;
+  folder_name?: string;
 };
 
 type PhotoItem = {
@@ -41,6 +44,7 @@ type Annotation = {
 };
 
 type Workspace = {
+  classificationPending?: boolean;
   selection: {
     publication: any;
     gallery: any;
@@ -122,7 +126,10 @@ export function GalleryWorkspace({
       </nav>
 
       {!workspace.selection.gallery && !workspace.retouched.gallery && !workspace.finalDelivery.gallery ? (
-        <EmptyGallery />
+        <EmptyGallery
+          title={workspace.classificationPending ? "분류 중입니다 — 확인되면 알려드립니다" : undefined}
+          description={workspace.classificationPending ? "분류 확인이 끝난 뒤 원본 사진을 이곳에 공개합니다." : undefined}
+        />
       ) : active === "selection" ? (
         <SelectionPanel key={`${workspace.selection.gallery?.id}:${workspace.selection.submissions?.length ?? 0}`} selection={workspace.selection} token={token} onRefresh={onRefresh} />
       ) : active === "retouched" ? (
@@ -142,12 +149,25 @@ function SelectionPanel({ selection, token, onRefresh }: { selection: Workspace[
   const [selected, setSelected] = useState<string[]>(initialIds);
   const [favorites, setFavorites] = useState<string[]>(selection.draft?.favorite_image_ids ?? []);
   const [memo, setMemo] = useState(selection.draft?.customer_memo ?? "");
+  const [imageNotes, setImageNotes] = useState<Record<string, string>>(selection.draft?.image_notes ?? {});
+  const [category, setCategory] = useState<SelectionCategoryKey>("profile");
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [preview, setPreview] = useState<SelectionImage | null>(null);
   const initialRender = useRef(true);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
+  const selectedCategoryCounts = useMemo(() => countSelectionsByCategory(
+    selection.images.filter((image) => selectedSet.has(image.id)).map((image) => ({ category: normalizeSelectionCategory(image.scene_name, image.folder_name) })),
+  ), [selectedSet, selection.images]);
+  const missingRequiredCategories = useMemo(() => missingRequiredSelectionCategories(
+    selection.images.map((image) => ({ category: normalizeSelectionCategory(image.scene_name, image.folder_name) })),
+    selection.images.filter((image) => selectedSet.has(image.id)).map((image) => ({ category: normalizeSelectionCategory(image.scene_name, image.folder_name) })),
+  ), [selectedSet, selection.images]);
+  const categoryImages = useMemo(
+    () => selection.images.filter((image) => normalizeSelectionCategory(image.scene_name, image.folder_name) === category),
+    [category, selection.images],
+  );
   const favoriteSet = useMemo(() => new Set(favorites), [favorites]);
   const galleryId = selection.gallery?.id;
   const expired = galleryId && new Date(selection.gallery.file_expires_at).getTime() <= Date.now();
@@ -164,12 +184,13 @@ function SelectionPanel({ selection, token, onRefresh }: { selection: Workspace[
         selectedImageIds: selected,
         favoriteImageIds: favorites,
         customerMemo: memo,
+        imageNotes,
       });
       setSaving(false);
       setStatus(result.ok ? "선택 내용이 자동 저장되었습니다." : result.error);
     }, 550);
     return () => window.clearTimeout(timer);
-  }, [favorites, galleryId, memo, selected, token]);
+  }, [favorites, galleryId, imageNotes, memo, selected, token]);
 
   const toggle = (id: string) => setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   const toggleFavorite = (id: string) => setFavorites((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
@@ -179,6 +200,7 @@ function SelectionPanel({ selection, token, onRefresh }: { selection: Workspace[
     const result = await portalRequest("/api/client-portal/gallery-workspace/submit", token, "POST", {
       galleryId,
       selectedImageIds: selected,
+      imageNotes,
       customerMemo: memo,
       requestKey: crypto.randomUUID(),
     });
@@ -194,8 +216,20 @@ function SelectionPanel({ selection, token, onRefresh }: { selection: Workspace[
         <div><b>{selected.length}</b><span>장 선택</span></div>
       </header>
       {expired ? <div className="pcrm-gallery-notice is-error">사진 보관 기간이 만료되었습니다. 담당자에게 기간 연장을 요청해주세요.</div> : null}
+      <nav className="pcrm-gallery-category-tabs" aria-label="사진 구분">
+        {([
+          ["profile", "프로필"],
+          ["staged", "연출"],
+          ["interior", "인테리어"],
+          ["unclassified", "미분류"],
+        ] as Array<[SelectionCategoryKey, string]>).map(([key, label]) => (
+          <button key={key} type="button" className={category === key ? "is-active" : ""} onClick={() => setCategory(key)}>
+            {label} <span>선택 {selectedCategoryCounts[key] ?? 0} / 권장</span>
+          </button>
+        ))}
+      </nav>
       <div className="pcrm-photo-grid">
-        {selection.images.map((image, index) => (
+        {categoryImages.map((image, index) => (
           <article key={image.id} className={selectedSet.has(image.id) ? "is-selected" : ""}>
             <button type="button" className="pcrm-photo-preview" onClick={() => setPreview(image)}>
               <img src={image.thumbnail_url || image.preview_url || image.image_url} alt={image.original_file_name} loading="lazy" />
@@ -208,14 +242,23 @@ function SelectionPanel({ selection, token, onRefresh }: { selection: Workspace[
               <Heart size={15} fill={favoriteSet.has(image.id) ? "currentColor" : "none"} />
             </button>
             <footer title={image.original_file_name}>{image.original_file_name}</footer>
+            {selectedSet.has(image.id) ? (
+              <label style={{ display: "grid", gap: 5, padding: "8px" }}>
+                <span style={{ fontSize: 11, color: "#5A7470" }}>이 사진의 메모</span>
+                <textarea value={imageNotes[image.id] ?? ""} maxLength={2_000} rows={2}
+                  onChange={(event) => setImageNotes((current) => ({ ...current, [image.id]: event.target.value }))}
+                  placeholder="사진별 보정 요청"
+                  style={{ width: "100%", boxSizing: "border-box", resize: "vertical", font: "inherit" }} />
+              </label>
+            ) : null}
           </article>
         ))}
       </div>
       <div className="pcrm-gallery-submitbar">
         <label><span>촬영팀에 전할 메모</span><textarea value={memo} onChange={(event) => setMemo(event.target.value)} maxLength={5000} placeholder="셀렉 기준이나 참고할 내용을 남겨주세요." /></label>
         <div>
-          <small>{saving ? "자동 저장 중…" : status}</small>
-          <button type="button" disabled={expired || selected.length === 0 || submitting} onClick={submit}>
+          <small>{missingRequiredCategories.length ? "프로필·연출·인테리어에서 각각 한 장 이상 골라주세요." : saving ? "자동 저장 중…" : status}</small>
+          <button type="button" disabled={expired || selected.length === 0 || missingRequiredCategories.length > 0 || submitting} onClick={submit}>
             {submitting ? <LoaderCircle size={15} className="is-spinning" /> : <Send size={15} />}
             {selection.submissions?.length ? "변경 선택 제출" : "선택 제출"}
           </button>
@@ -382,8 +425,11 @@ function ImageDialog({ image, title, onClose }: { image: string; title: string; 
   return <div className="pcrm-image-dialog" role="dialog" aria-modal="true" onClick={onClose}><button type="button" aria-label="닫기"><X /></button><figure onClick={(event) => event.stopPropagation()}><img src={image} alt={title} /><figcaption>{title}</figcaption></figure></div>;
 }
 
-function EmptyGallery({ title = "아직 공개된 촬영 결과물이 없습니다." }: { title?: string }) {
-  return <section className="pcrm-portal-card pcrm-gallery-empty"><ImageIcon size={30} /><strong>{title}</strong><span>담당 매니저가 자료를 공개하면 이 화면에서 바로 확인할 수 있습니다.</span></section>;
+function EmptyGallery({
+  title = "아직 공개된 촬영 결과물이 없습니다.",
+  description = "담당 매니저가 자료를 공개하면 이 화면에서 바로 확인할 수 있습니다.",
+}: { title?: string; description?: string }) {
+  return <section className="pcrm-portal-card pcrm-gallery-empty"><ImageIcon size={30} /><strong>{title}</strong><span>{description}</span></section>;
 }
 
 function filenamesToIds(images: SelectionImage[], filenames: string[]) {

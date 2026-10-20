@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PartyPopper, Star } from "lucide-react";
 import { usePortalSession } from "../_hooks/usePortalSession";
 import { PortalHeader, PortalNav, PortalCard, PortalError, PortalLoading } from "../_components/PortalShell";
 
-const G = "#155855", OR = "#E85D2C", MUT = "#5A7470", BRD = "rgba(21,88,85,.10)";
+const G = "#155855", MUT = "#5A7470", BRD = "rgba(21,88,85,.10)";
 const iS: React.CSSProperties = { width:"100%", border:`1.5px solid ${BRD}`, borderRadius:10, padding:"0 12px", height:44, fontSize:13, outline:"none", background:"#fff", color:"#1C2B28", fontFamily:"inherit", boxSizing:"border-box" };
 
 function StarRating({ value, onChange, label }: { value: number; onChange:(v:number)=>void; label:string }) {
@@ -15,8 +16,9 @@ function StarRating({ value, onChange, label }: { value: number; onChange:(v:num
       <div style={{ display:"flex", gap:4 }}>
         {[1,2,3,4,5].map(n => (
           <button key={n} type="button" onClick={() => onChange(n)} onMouseEnter={() => setHover(n)} onMouseLeave={() => setHover(0)}
-            style={{ fontSize:28, background:"none", border:"none", cursor:"pointer", padding:0, opacity:n<=(hover||value)?1:.2, transition:"opacity .1s" }}>
-            ⭐
+            aria-label={`${n}점`}
+            style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:44, height:44, background:"none", border:"none", color:G, cursor:"pointer", padding:0, opacity:n<=(hover||value)?1:.2, transition:"opacity .1s" }}>
+            <Star size={27} fill="currentColor" />
           </button>
         ))}
         <span style={{ fontSize:13, color:MUT, alignSelf:"center", marginLeft:6 }}>{value}점</span>
@@ -67,14 +69,14 @@ export default function PortalReviewPage() {
         <PortalNav active="리뷰" visibleMenus={session.visibleMenus} />
         <div style={{ maxWidth:780, margin:"0 auto", padding:"40px 16px 80px" }}>
           <PortalCard style={{ textAlign:"center", padding:48 }}>
-            <div style={{ fontSize:48, marginBottom:16 }}>🎉</div>
-            <h2 style={{ fontSize:20, fontWeight:800, margin:"0 0 8px" }}>리뷰 작성 감사합니다!</h2>
+            <PartyPopper size={44} color={G} strokeWidth={1.7} style={{ marginBottom:16 }} />
+            <h2 style={{ fontSize:20, fontWeight:600, margin:"0 0 8px" }}>리뷰 작성 감사합니다!</h2>
             <p style={{ fontSize:14, color:MUT, lineHeight:1.7, margin:"0 0 20px" }}>
               작성해주신 후기는 포토클리닉 서비스 개선과<br />병원 촬영 사례 소개에 소중히 활용됩니다.
             </p>
             {existing && (
               <div style={{ background:`${G}08`, borderRadius:12, padding:"16px 20px", textAlign:"left" }}>
-                <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>⭐ 전체 만족도: {existing.overall_rating}점</div>
+                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:13, fontWeight:600, marginBottom:8 }}><Star size={15} fill="currentColor" /> 전체 만족도: {existing.overall_rating}점</div>
                 {existing.public_review_text && <div style={{ fontSize:13, color:MUT, lineHeight:1.7 }}>"{existing.public_review_text}"</div>}
               </div>
             )}
@@ -91,7 +93,7 @@ export default function PortalReviewPage() {
 
       <div style={{ maxWidth:780, margin:"0 auto", padding:"24px 16px 80px" }}>
         <div style={{ marginBottom:20 }}>
-          <h1 style={{ fontSize:20, fontWeight:800, margin:"0 0 4px" }}>⭐ 리뷰 작성</h1>
+          <h1 style={{ display:"flex", alignItems:"center", gap:8, fontSize:20, fontWeight:600, margin:"0 0 4px" }}><Star size={20} /> 리뷰 작성</h1>
           <p style={{ fontSize:13, color:MUT, margin:0 }}>촬영 경험을 공유해주세요. 소중한 피드백에 감사드립니다.</p>
         </div>
 
@@ -139,7 +141,7 @@ export default function PortalReviewPage() {
             </div>
           </div>
 
-          <button onClick={handleSubmit} disabled={saving} style={{ width:"100%", background:G, color:"#fff", border:"none", borderRadius:12, padding:16, fontWeight:800, fontSize:15, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
+          <button onClick={handleSubmit} disabled={saving} style={{ width:"100%", background:G, color:"#fff", border:"none", borderRadius:12, padding:16, fontWeight:600, fontSize:15, cursor:"pointer", fontFamily:"inherit", opacity:saving?.6:1 }}>
             {saving ? "제출 중..." : "리뷰 제출하기"}
           </button>
         </PortalCard>

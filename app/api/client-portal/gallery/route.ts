@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validatePortalToken, logPortalEvent } from "@/lib/clientPortal";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { getClassificationPortalAccess } from "@/lib/photo-storage/portalVisibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,6 +12,15 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ ok: false, error: "인증 필요" }, { status: 401 });
 
   const db = getSupabaseAdmin();
+  const classificationAccess = await getClassificationPortalAccess(db, session.workflowRunId, session.clientId);
+  if (classificationAccess.pending) {
+    return NextResponse.json({
+      ok: true,
+      galleries: [],
+      classificationPending: true,
+      message: "분류 중입니다 — 확인되면 알려드립니다",
+    });
+  }
   let publishedGalleryIds: string[] | null = null;
   if (session.workflowRunId && session.projectScoped) {
     const { data: publications } = await db.from("pcrm_publications")
@@ -35,5 +45,5 @@ export async function GET(req: NextRequest) {
 
   await logPortalEvent({ clientId: session.clientId, eventType: "gallery_viewed", workflowRunId: session.workflowRunId });
 
-  return NextResponse.json({ ok: true, galleries: data ?? [] });
+  return NextResponse.json({ ok: true, galleries: data ?? [], classificationPending: false });
 }

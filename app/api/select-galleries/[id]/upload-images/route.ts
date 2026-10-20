@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { toAsciiStorageSegment } from "@/lib/storageKey";
 import { assertWrite } from "@/lib/db/assertWrite";
+import { normalizeSelectionCategory } from "@/lib/select-core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
     const sceneName = (formData.get("scene_name") as string) ?? "";
+    const sceneType = (formData.get("scene_type") as string) ?? "";
     const folderName = (formData.get("folder_name") as string) ?? "";
 
     if (!files.length) return NextResponse.json({ ok: false, error: "파일 없음" }, { status: 400 });
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         original_file_name: file.name,
         basename,
         extension: ext,
-        scene_name: sceneName || null,
+        scene_name: normalizeSelectionCategory(sceneType || sceneName, folderName),
         folder_name: folderName || null,
         image_url: imageUrl,
         thumbnail_url: imageUrl,

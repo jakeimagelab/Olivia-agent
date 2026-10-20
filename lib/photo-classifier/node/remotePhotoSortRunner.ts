@@ -1125,6 +1125,19 @@ export async function runRemotePhotoSortRunner(
     }
   }
 
+  const resultCategory = (sceneType: string | null | undefined): "profile" | "staged" | "interior" | "unclassified" => sceneType === "profile" ? "profile"
+      : sceneType === "interior" ? "interior"
+      : sceneType === "consultation" || sceneType === "treatment" || sceneType === "skin_care" ? "staged"
+      : "unclassified";
+  const categoryCounts = outputScenes.reduce((counts, scene) => {
+    const key = resultCategory(scene.sceneType);
+    counts[key] += scene.files.length;
+    return counts;
+  }, { profile: 0, staged: 0, interior: 0, unclassified: 0 });
+  const unclassifiedFiles = outputScenes
+    .filter((scene) => resultCategory(scene.sceneType) === "unclassified")
+    .flatMap((scene) => scene.files.map((file) => file.name));
+
   return {
     ok: true,
     status: "COMPLETED",
@@ -1133,7 +1146,10 @@ export async function runRemotePhotoSortRunner(
     fileCount: expectedPhotoCount,
     rawCount: scanned.raw.length,
     jpgCount: outputScenes.reduce((count, scene) => count + scene.files.length, 0),
+    classifiedJpgCount: categoryCounts.profile + categoryCounts.staged + categoryCounts.interior,
     sceneCount: outputScenes.length,
+    categoryCounts,
+    unclassifiedFiles,
     reviewBoundaryCount: decisions.filter((decision) => decision.needsReview).length,
     durationMs: Date.now() - startedAt,
     warnings,

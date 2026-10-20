@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import { CalendarDays, Check, ExternalLink, FileText, History, Images, Paintbrush, Settings, StickyNote } from "lucide-react";
 import CurrentStepCard from "@/components/client-workspace/CurrentStepCard";
 import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow";
@@ -63,10 +64,12 @@ export default function ClientOverviewTab({
   resourceIds,
   stepIcon,
   stepDescription,
+  reviewHandoff,
   onRefresh,
   onNavigateTab,
   onOpenToolModal,
   onOpenProjectSettings,
+  onOpenReviewStudio,
 }: {
   client: any;
   workflowRun: any;
@@ -75,12 +78,14 @@ export default function ClientOverviewTab({
   quotes?: any[];
   contracts?: any[];
   resourceIds?: Partial<Record<ToolType, string | null>>;
-  stepIcon?: string;
+  stepIcon?: LucideIcon;
   stepDescription?: string;
+  reviewHandoff?: { reviewId: string; reviewText?: string; photoName?: string; photoUrl?: string } | null;
   onRefresh: () => void;
   onNavigateTab?: (tab: string) => void;
   onOpenToolModal?: (type: ToolType) => void;
   onOpenProjectSettings?: () => void;
+  onOpenReviewStudio?: (href: string) => void;
 }) {
   const [upcoming, setUpcoming] = useState<any[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(true);
@@ -111,7 +116,7 @@ export default function ClientOverviewTab({
   useEffect(() => { void loadSchedule(); }, [loadSchedule]);
   useEffect(() => { setMemoDraft(client.memo || ""); }, [client.memo]);
 
-  const currentStepKey = getWorkflowDisplayStepKey(workflowRun?.current_step_key) || workflowRun?.current_step_key || "consult_meeting";
+  const currentStepKey = getWorkflowDisplayStepKey(workflowRun?.current_step_key) || workflowRun?.current_step_key || "quote";
   const currentStepIndex = ACTIVE_WORKFLOW_STEPS.findIndex((step) => step.key === currentStepKey);
   const shooting = useMemo(() => resolveShootingSchedule({
     shootDate: workflowRun?.shoot_date,
@@ -144,9 +149,14 @@ export default function ClientOverviewTab({
   };
 
   const referenceType: ToolType | null = currentStepKey === "contract" ? "quote" : currentStepKey === "conti" ? "contract" : null;
-  const secondaryAction = referenceType && hasDocument(referenceType)
-    ? { label: `${DOCUMENTS.find((document) => document.type === referenceType)?.label} 보기`, onClick: () => openDocument(referenceType) }
-    : undefined;
+  const reviewStudioHref = reviewHandoff?.reviewId
+    ? `/review-studio?reviewId=${encodeURIComponent(reviewHandoff.reviewId)}${reviewHandoff.photoUrl ? `&photoUrl=${encodeURIComponent(reviewHandoff.photoUrl)}&photoName=${encodeURIComponent(reviewHandoff.photoName || "완료사진")}` : ""}`
+    : "";
+  const secondaryAction = currentStepKey === "reward" && reviewStudioHref
+    ? { label: "리뷰 콘텐츠 만들기", onClick: () => onOpenReviewStudio?.(reviewStudioHref) }
+    : referenceType && hasDocument(referenceType)
+      ? { label: `${DOCUMENTS.find((document) => document.type === referenceType)?.label} 보기`, onClick: () => openDocument(referenceType) }
+      : undefined;
 
   const saveMemo = async () => {
     setMemoSaving(true);

@@ -1,11 +1,13 @@
 "use client";
 
-import { WORKFLOW_STEPS } from "@/lib/workflow";
+import { Check } from "lucide-react";
+import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow";
 import { C } from "@/lib/theme";
 
 const SHORT: Record<string, string> = {
   consult_meeting: "상담",   quote: "견적서",     contract: "계약서",
   conti: "콘티",             shooting: "촬영",    backup_sorting: "백업",
+  payment_confirm: "잔금",   client_selection: "셀렉", raw_matching: "RAW 승인",
   original_delivery: "원본", retouching: "보정",  revision: "수정",
   final_delivery: "최종",    review_content: "후기", reward: "리워드",
   customer_care: "고객관리", content_planning: "기획",
@@ -18,14 +20,16 @@ interface Props {
 }
 
 export default function WorkflowBar({ currentStepKey, selectedStepKey, onSelect }: Props) {
-  const currentIdx = WORKFLOW_STEPS.findIndex((s) => s.key === currentStepKey);
+  const displayCurrentKey = getWorkflowDisplayStepKey(currentStepKey) ?? ACTIVE_WORKFLOW_STEPS[0].key;
+  const displaySelectedKey = getWorkflowDisplayStepKey(selectedStepKey) ?? displayCurrentKey;
+  const currentIdx = ACTIVE_WORKFLOW_STEPS.findIndex((s) => s.key === displayCurrentKey);
 
   return (
     <div style={{ overflowX: "auto", padding: "0 0 4px" }}>
       <div style={{ display: "flex", gap: 4, minWidth: "max-content", padding: "2px" }}>
-        {WORKFLOW_STEPS.map((step, idx) => {
-          const isCurrent = step.key === currentStepKey;
-          const isSelected = step.key === selectedStepKey && !isCurrent;
+        {ACTIVE_WORKFLOW_STEPS.map((step, idx) => {
+          const isCurrent = step.key === displayCurrentKey;
+          const isSelected = step.key === displaySelectedKey && !isCurrent;
           const isDone = idx < currentIdx;
 
           let bg: string = C.white;
@@ -53,10 +57,10 @@ export default function WorkflowBar({ currentStepKey, selectedStepKey, onSelect 
                 transition: "all .12s",
               }}
             >
-              <span style={{ fontSize: 10, fontWeight: 900, color: textColor }}>
-                {isDone && !isCurrent ? "✓" : idx + 1}
+              <span style={{ minHeight: 14, display: "grid", placeItems: "center", fontSize: 10, fontWeight: 600, color: textColor }}>
+                {isDone && !isCurrent ? <Check size={13} strokeWidth={2} aria-hidden="true" /> : idx + 1}
               </span>
-              <span style={{ fontSize: 11, fontWeight: isCurrent ? 900 : 700, color: textColor, whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 11, fontWeight: isCurrent ? 600 : 500, color: textColor, whiteSpace: "nowrap" }}>
                 {SHORT[step.key] ?? step.name}
               </span>
             </button>

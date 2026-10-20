@@ -1,6 +1,7 @@
 "use client";
 
 import { CLIENT_WORKFLOW_STAGES, getClientWorkflowStage } from "@/lib/pcrm/clientWorkflow";
+import { Check } from "lucide-react";
 
 export default function PortalWorkflowProgress({ currentStepKey, completed = false }: {
   currentStepKey?: string | null;
@@ -16,7 +17,7 @@ export default function PortalWorkflowProgress({ currentStepKey, completed = fal
         const active = !completed && index === currentIndex;
         return (
           <div key={stage.key} className={`${done ? "is-done" : ""} ${active ? "is-current" : ""}`}>
-            <span>{done ? "✓" : index + 1}</span>
+            <span>{done ? <Check size={13} strokeWidth={2} /> : index + 1}</span>
             <strong>{stage.label}</strong>
           </div>
         );

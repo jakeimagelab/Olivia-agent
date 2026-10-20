@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { normalizeIdList, normalizeImageNotes } from "@/lib/pcrm/gallery";
 import { getPublishedPortalResource, verifyPortalSelectGallery } from "@/lib/pcrm/galleryServer";
 import { getPortalProjectContext, pcrmError, pcrmOk } from "@/lib/pcrm/server";
+import { getClassificationPortalAccess } from "@/lib/photo-storage/portalVisibility";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,6 +11,18 @@ export async function GET(req: NextRequest) {
   const context = await getPortalProjectContext(req);
   if (!context) return pcrmError("프로젝트 전용 링크로 다시 접속해주세요.", 401);
   const { db, session } = context;
+  const classificationAccess = await getClassificationPortalAccess(db, session.workflowRunId, session.clientId);
+
+  if (classificationAccess.pending) {
+    return pcrmOk({
+      workspace: {
+        classificationPending: true,
+        selection: { publication: null, gallery: null, images: [], draft: null, submissions: [] },
+        retouched: { publication: null, gallery: null, annotations: [] },
+        finalDelivery: { publication: null, gallery: null, confirmation: null },
+      },
+    });
+  }
 
   const [selectPublication, retouchedPublication, finalPublication] = await Promise.all([
     getPublishedPortalResource(db, session, "select_gallery"),
@@ -71,6 +84,7 @@ export async function GET(req: NextRequest) {
 
   return pcrmOk({
     workspace: {
+      classificationPending: false,
       selection: {
         publication: selectPublication,
         gallery: selectGalleryResult.data,

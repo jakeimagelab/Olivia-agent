@@ -66,7 +66,7 @@ export default function ProgressDetailModal({
                 onClick={() => void handleSelect(step.key)}
                 style={{
                   display: "flex", alignItems: "center", gap: 10, textAlign: "left",
-                  height: 42, padding: "0 12px", borderRadius: R.sm, font: "inherit", fontSize: 12.5, fontWeight: 700,
+                  height: 42, padding: "0 12px", borderRadius: R.sm, font: "inherit", fontSize: 12.5, fontWeight: 600,
                   border: `1px solid ${isCurrent ? C.teal : C.border}`,
                   background: isCurrent ? "rgba(21,88,85,.08)" : C.white,
                   color: isCurrent ? C.teal : C.ink,
@@ -75,12 +75,12 @@ export default function ProgressDetailModal({
               >
                 <span style={{
                   width: 20, height: 20, borderRadius: "50%", flexShrink: 0, display: "grid", placeItems: "center",
-                  fontSize: 10, fontWeight: 800,
+                  fontSize: 10, fontWeight: 600,
                   background: isCurrent ? C.teal : "rgba(21,88,85,.1)",
                   color: isCurrent ? "#fff" : C.teal,
                 }}>{index + 1}</span>
                 <span style={{ flex: 1 }}>{step.name}</span>
-                {isCurrent && <><span style={{ fontSize: 10.5, color: C.muted, fontWeight: 700 }}>현재 단계</span><Check size={14} color={C.teal} /></>}
+                {isCurrent && <><span style={{ fontSize: 10.5, color: C.muted, fontWeight: 600 }}>현재 단계</span><Check size={14} color={C.teal} /></>}
               </button>
             );
           })}

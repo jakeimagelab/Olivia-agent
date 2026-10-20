@@ -729,7 +729,7 @@ function DetailView({
   );
 
   const effectivePageData = mergeClientPageDataWithSnapshot(pageData, coreSnapshot);
-  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary, resourceIds } = effectivePageData;
+  const { client, workflowRun, quotes = [], contracts = [], artifacts = [], activities = [], workflowSummary, resourceIds, reviewHandoff } = effectivePageData;
   const workflowCompleted = workflowRun?.status === "completed";
   const currentStepKey = workflowCompleted
     ? ACTIVE_WORKFLOW_STEPS[ACTIVE_WORKFLOW_STEPS.length - 1].key
@@ -917,10 +917,12 @@ function DetailView({
             resourceIds={resourceIds}
             stepIcon={STEP_INFO[displayStepKey]?.icon}
             stepDescription={STEP_INFO[displayStepKey]?.desc}
+            reviewHandoff={reviewHandoff}
             onRefresh={load}
             onNavigateTab={setActiveTab}
             onOpenToolModal={openToolModal}
             onOpenProjectSettings={() => workflowRun ? setShowEditProjectDialog(true) : setShowProjectDialog(true)}
+            onOpenReviewStudio={(href) => launchHref(href, "리뷰콘텐츠")}
           />
         )}
 

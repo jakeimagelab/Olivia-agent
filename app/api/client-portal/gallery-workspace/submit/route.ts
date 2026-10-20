@@ -2,6 +2,8 @@ import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
 import { recordPcrmActivitySafely } from "@/lib/pcrm/activity";
 import { normalizeIdList } from "@/lib/pcrm/gallery";
+import { normalizeImageNotes } from "@/lib/pcrm/gallery";
+import { missingRequiredSelectionCategories, normalizeSelectionCategory } from "@/lib/select-core";
 import { mapGalleryRpcError, verifyPortalSelectGallery } from "@/lib/pcrm/galleryServer";
 import { getPortalProjectContext, pcrmError, pcrmOk } from "@/lib/pcrm/server";
 import { syncSelectionSubmittedWorkflow } from "@/lib/photo-storage/shootingProgress";
@@ -21,6 +23,22 @@ export async function POST(req: NextRequest) {
   if (selectedImageIds.length === 0) return pcrmError("한 장 이상의 사진을 선택해주세요.", 400);
   const requestKey = String(body?.requestKey ?? randomUUID()).trim().slice(0, 100);
   const customerMemo = String(body?.customerMemo ?? "").trim().slice(0, 5_000);
+  const { data: imageRows, error: imageError } = await context.db
+    .from("select_gallery_images")
+    .select("id,original_file_name,scene_name,folder_name")
+    .eq("gallery_id", galleryId);
+  if (imageError) return pcrmError(imageError.message, 500);
+  const selectedIdSet = new Set(selectedImageIds);
+  const categorizedImages = (imageRows ?? []).map((image) => ({ ...image, category: normalizeSelectionCategory(image.scene_name, image.folder_name) }));
+  const selectedImageRows = categorizedImages.filter((image) => selectedIdSet.has(image.id));
+  if (selectedImageRows.length !== selectedImageIds.length) return pcrmError("선택 목록에 존재하지 않는 사진이 포함되어 있습니다.", 400);
+  const allowedIds = new Set(selectedImageRows.map((image) => image.id));
+  const imageNotes = normalizeImageNotes(body?.imageNotes, allowedIds);
+  const missingCategories = missingRequiredSelectionCategories(categorizedImages, selectedImageRows);
+  if (missingCategories.length) {
+    const labels: Record<string, string> = { profile: "프로필", staged: "연출", interior: "인테리어" };
+    return pcrmError(`${missingCategories.map((key) => labels[key]).join(" · ")} 사진을 먼저 골라주세요.`, 400);
+  }
   const { data, error } = await context.db.rpc("submit_pcrm_photo_selection", {
     p_client_id: context.session.clientId,
     p_workflow_run_id: context.session.workflowRunId,
@@ -35,6 +53,18 @@ export async function POST(req: NextRequest) {
   }
   const result = Array.isArray(data) ? data[0] : data;
   if (result?.created) {
+    const { error: itemError } = await context.db.from("client_photo_selection_items").insert(
+      selectedImageRows.map((image) => ({
+        selection_id: result.selection_id,
+        gallery_id: galleryId,
+        image_id: image.id,
+        file_name: image.original_file_name,
+        category: image.category,
+        memo: imageNotes[image.id] ?? "",
+        retouch_keys: [],
+      })),
+    );
+    if (itemError) return pcrmError(itemError.message, 500);
     await recordPcrmActivitySafely(context.db, {
       clientId: context.session.clientId,
       workflowRunId: context.session.workflowRunId,

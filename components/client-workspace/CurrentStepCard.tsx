@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { CircleDot, type LucideIcon } from "lucide-react";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
@@ -25,7 +26,7 @@ export default function CurrentStepCard({
 }: {
   client: Record<string, any>;
   workflowRun: any;
-  stepIcon?: string;
+  stepIcon?: LucideIcon;
   stepDescription?: string;
   onOpenToolModal?: (stepKey: "quote" | "contract" | "conti") => void;
   onRefresh?: () => void;
@@ -62,11 +63,12 @@ export default function CurrentStepCard({
     : stepKey === "backup_sorting"
       ? "사진작업실 열기"
       : `${stepName} 열기`;
+  const StepIcon = stepIcon ?? CircleDot;
 
   return (
     <section className={`pcrm-current-step-card${presentation === "overview" ? " pcrm-current-step-card--overview" : ""}`}>
       <div className="pcrm-current-step-card__left">
-        {presentation === "overview" ? <span className="pcrm-current-step-card__signal" aria-hidden="true" /> : <div className="pcrm-current-step-card__icon">{stepIcon || "🟠"}</div>}
+        {presentation === "overview" ? <span className="pcrm-current-step-card__signal" aria-hidden="true" /> : <div className="pcrm-current-step-card__icon"><StepIcon size={20} strokeWidth={2} aria-hidden="true" /></div>}
         <div className="pcrm-current-step-card__body">
           <span className="pcrm-current-step-card__label">{presentation === "overview" ? "지금 할 일" : "현재 단계"}</span>
           <h2 className="pcrm-current-step-card__title">{isCompleted ? "모든 단계 완료" : stepName}</h2>

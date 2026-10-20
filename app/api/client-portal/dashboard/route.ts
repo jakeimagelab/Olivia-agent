@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { validatePortalToken } from "@/lib/clientPortal";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
+import { getClassificationPortalAccess } from "@/lib/photo-storage/portalVisibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
 
   const visibleStepKeys = new Set(ACTIVE_WORKFLOW_STEPS.filter((step) => step.visible_to_client).map((step) => step.key));
   const workflowRun = workflowRes.data ?? null;
+  const classificationAccess = await getClassificationPortalAccess(db, workflowRun?.id ?? workflowRunId, clientId);
   const { data: approvalRows } = workflowRun?.id
     ? await db
         .from("agent_approvals")
@@ -135,9 +137,13 @@ export async function GET(req: NextRequest) {
     ok: true,
     session,
     client: clientRes.data,
-    galleries: enforcePublication
-      ? (galleryRes.data ?? []).filter((item) => publishedSourceIds.has(item.id))
-      : galleryRes.data ?? [],
+    galleries: classificationAccess.pending
+      ? []
+      : enforcePublication
+        ? (galleryRes.data ?? []).filter((item) => publishedSourceIds.has(item.id))
+        : galleryRes.data ?? [],
+    galleryClassificationPending: classificationAccess.pending,
+    galleryClassificationMessage: classificationAccess.pending ? "분류 중입니다 — 확인되면 알려드립니다" : null,
     revisions: revisionRes.data ?? [],
     hasReview: (reviewRes.data?.length ?? 0) > 0,
     events: eventsRes.data ?? [],

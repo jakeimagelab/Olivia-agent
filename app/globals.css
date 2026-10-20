@@ -5572,6 +5572,27 @@ main:has(> .pc-header) {
 .pcrm-gallery-steps button.is-active { background: var(--teal-tint); color: var(--teal); }
 .pcrm-gallery-steps button.is-active i { border-color: var(--teal); background: var(--teal); color: #fff; }
 .pcrm-gallery-steps button:disabled { opacity: .45; cursor: default; }
+.pcrm-gallery-category-tabs {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid rgba(21,88,85,.12);
+  scrollbar-width: thin;
+}
+.pcrm-gallery-category-tabs button {
+  min-height: 46px;
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #5A7470;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.pcrm-gallery-category-tabs button span { margin-left: 6px; font-size: 11px; color: #5A7470; }
+.pcrm-gallery-category-tabs button.is-active { border-bottom-color: #155855; color: #155855; font-weight: 600; }
 .pcrm-gallery-panel {
   min-width: 0;
   border: 1px solid rgba(21,88,85,.12);
@@ -8353,12 +8374,23 @@ main:has(> .pc-header) {
    포토클리닉 어드민 — 전역 인터랙션 이펙트
    ═══════════════════════════════════════════════════════════ */
 
-/* 데스크톱 공통 오렌지 원형 커서. 글자 입력·그림·드래그 대상은 native cursor를 유지한다. */
+/* 데스크톱 공통 오렌지 원형 커서. 브라우저의 native cursor pipeline을 써서 지연 없이 움직인다. */
 @media (pointer: fine) {
-  .pc-custom-cursor-active,
-  .pc-custom-cursor-active * { cursor: none !important; }
-  .pc-custom-cursor-active.pc-custom-cursor-suspended,
-  .pc-custom-cursor-active.pc-custom-cursor-suspended * { cursor: var(--pc-native-cursor, auto) !important; }
+  .pc-custom-cursor-active {
+    --pc-orange-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23E85D2C'/%3E%3C/svg%3E") 8 8, auto;
+    cursor: var(--pc-orange-cursor);
+  }
+
+  .pc-custom-cursor-active.pc-custom-cursor-clicking {
+    --pc-orange-cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%23C94A1E'/%3E%3C/svg%3E") 8 8, auto;
+  }
+
+  .pc-custom-cursor-active body,
+  .pc-custom-cursor-active a,
+  .pc-custom-cursor-active button,
+  .pc-custom-cursor-active [role="button"] {
+    cursor: var(--pc-orange-cursor) !important;
+  }
 }
 
 

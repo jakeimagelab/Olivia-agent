@@ -11,7 +11,7 @@ import {
 import { addYearsIso } from "@/lib/dataRetention";
 import { createEventDeduplicationKey, emitOliviaEvent, emitOliviaEventSafely } from "@/lib/olivia/events";
 import { loadWorkflowRegisteredData, workflowContact, type WorkflowRegisteredData } from "@/lib/workflowDataContext";
-import { addPoints } from "@/lib/per";
+import { addPoints, REWARD_RATE } from "@/lib/per";
 import { coreCommandFailure, type CoreCommandResult } from "@/lib/core/commands/result";
 import { assertWrite } from "@/lib/db/assertWrite";
 
@@ -154,7 +154,7 @@ export const STEP_AUTOMATIONS: Record<string, StepAutomation[]> = {
     {
       task_type: "per_points_calculate",
       title: "PER 포인트 적립 계산",
-      description: "촬영 금액 기준 1% PER 포인트를 계산합니다.",
+      description: "촬영 금액 기준 PER 포인트를 계산합니다.",
       requires_approval: false,
       creates_mailing_draft: false,
       approval_type: "per",
@@ -941,13 +941,13 @@ async function buildTaskOutput(db: SupabaseClient, task: any, run: any) {
     }
 
     const supplyForReward = Math.round(baseAmount / 1.1);
-    const points = Math.floor(supplyForReward * 0.01);
+    const points = Math.floor(supplyForReward * REWARD_RATE);
     return {
       base_amount: baseAmount,
       supply_amount: supplyForReward,
-      point_rate: 0.01,
+      point_rate: REWARD_RATE,
       earned_points: points,
-      memo: "VAT 제외 공급가 기준 1% PER 포인트 계산",
+      memo: "VAT 제외 공급가 기준 PER 포인트 계산",
     };
   }
 

@@ -27,6 +27,8 @@ import { getClientNextAction } from "@/lib/pcrm/clientWorkflow";
 type DashboardData = {
   client: any;
   galleries: any[];
+  galleryClassificationPending?: boolean;
+  galleryClassificationMessage?: string | null;
   revisions: any[];
   hasReview: boolean;
   per: any;
@@ -129,6 +131,12 @@ export default function PortalDashboard() {
 
         <div className="pcrm-client-main-grid">
           <div className="pcrm-client-main-column">
+            {data.galleryClassificationPending ? (
+              <PortalCard className="pcrm-client-notice-card" style={{ display: "grid", gap: 4 }}>
+                <strong style={{ color: "#155855", fontWeight: 600 }}>분류 중입니다 — 확인되면 알려드립니다</strong>
+                <span style={{ color: "#5A7470", fontSize: 12 }}>분류 확인이 끝난 뒤 원본 사진이 포털에 표시됩니다.</span>
+              </PortalCard>
+            ) : null}
             <PortalCard className="pcrm-client-approval-card">
               <header><h2>확인 및 승인 항목</h2><span>{data.approvedSteps.length + data.publications.length}건</span></header>
               {data.approvedSteps.length === 0 && data.publications.length === 0 ? (
@@ -149,7 +157,7 @@ export default function PortalDashboard() {
                         <FileText size={17} />
                         <div><strong>{item.title || item.related_type}</strong><span>{item.description || "프로젝트 자료를 확인해 주세요."}</span></div>
                         {downloadUrl ? (
-                          <a href={downloadUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700 }}>다운로드</a>
+                          <a href={downloadUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600 }}>다운로드</a>
                         ) : (
                           <StatusBadge status={publicationLabel(item.status)} />
                         )}

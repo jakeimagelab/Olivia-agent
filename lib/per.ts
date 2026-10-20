@@ -1,6 +1,6 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-export const REWARD_RATE = 0.01;
+export const REWARD_RATE = 0.025;
 
 export function calculateRewardPoints(amount: number, rate = REWARD_RATE): number {
   return Math.floor(amount * rate);

@@ -256,6 +256,16 @@ export default function ReviewStoryWorkspace({ initialReviewId, initialContentId
   const canvasHandleRef = useRef<ReviewStoryCanvasHandle>(null);
   const exportHostRefs = useRef<Map<string, ReviewCanvasExportHostHandle>>(new Map());
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const photoUrl = params.get("photoUrl")?.trim();
+    if (!photoUrl) return;
+    const photoName = params.get("photoName")?.trim() || "완료사진";
+    const handoffPhoto: PhotoAsset = { id: `handoff:${photoUrl}`, name: photoName, src: photoUrl, storagePath: photoUrl };
+    setPhotos((current) => current.some((photo) => photo.id === handoffPhoto.id) ? current : [handoffPhoto, ...current]);
+    setAssetUrls((current) => ({ ...current, [photoUrl]: photoUrl }));
+  }, []);
+
   // 위(GlobalHeader/PcrmSubNav) 높이가 "고객관리와 연결되지 않은 신규 작업입니다" 배너처럼
   // 조건부로 나타나는 요소 때문에 고정값이 아니다 — CSS calc(100dvh - Npx)로 고정폭을 빼면
   // 배너가 뜰 때마다 어긋난다. 실제 뷰포트에서 이 요소가 시작하는 y좌표를 재서 남은 높이를

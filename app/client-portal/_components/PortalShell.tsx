@@ -152,7 +152,7 @@ export function StatusBadge({ status }: { status: string }) {
         background: completed ? `${C.success}15` : waiting ? `${C.orange}15` : `${C.teal}10`,
         color: completed ? C.success : waiting ? C.orange : C.teal,
         fontSize: 10,
-        fontWeight: 900,
+        fontWeight: 600,
       }}
     >
       {labels[status] ?? status}

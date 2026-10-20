@@ -3990,6 +3990,7 @@ function PhotoSortingInner({
                   const scenes = fieldScenes.map((sc, i) => ({
                     sceneId: `scene-${i+1}`,
                     sceneName: sc.editedName,
+                    sceneType: sc.sceneType,
                     folderName: sc.folderName ?? `Scene${String(i+1).padStart(2,"0")}`,
                     images: sc.files.map((f, j) => ({
                       originalFileName: f.name,
@@ -4013,10 +4014,10 @@ function PhotoSortingInner({
                   const advanceReason: string | null = createData.advance?.advanced === false ? (createData.advance.reason ?? null) : null;
 
                   // 2) 실제 JPG 파일 업로드 (씬별, 배치 5장)
-                  const allFiles: { handle: FileSystemFileHandle; name: string; sceneName: string; folderName: string; sortOrder: number }[] = [];
+                  const allFiles: { handle: FileSystemFileHandle; name: string; sceneName: string; sceneType: string; folderName: string; sortOrder: number }[] = [];
                   fieldScenes.forEach((sc, si) => {
                     sc.files.forEach((f, fi) => {
-                      allFiles.push({ handle: f.handle, name: f.name, sceneName: sc.editedName, folderName: sc.folderName ?? `Scene${String(si+1).padStart(2,"0")}`, sortOrder: si * 10000 + fi });
+                      allFiles.push({ handle: f.handle, name: f.name, sceneName: sc.editedName, sceneType: sc.sceneType ?? "", folderName: sc.folderName ?? `Scene${String(si+1).padStart(2,"0")}`, sortOrder: si * 10000 + fi });
                     });
                   });
 
@@ -4035,6 +4036,7 @@ function PhotoSortingInner({
                       } catch { failed.push(item.name); }
                     }
                     fd.set("scene_name", batch[0]?.sceneName ?? "");
+                    fd.set("scene_type", batch[0]?.sceneType ?? "");
                     fd.set("folder_name", batch[0]?.folderName ?? "");
                     try {
                       const upRes = await fetch(`/api/select-galleries/${galleryId}/upload-images`, { method: "POST", body: fd });

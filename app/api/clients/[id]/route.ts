@@ -86,7 +86,7 @@ export async function GET(
     ?? null;
 
   // 서로 의존관계 없는 조회들을 병렬로 — 매 라운드트립이 버퍼링을 키웠다.
-  const [activitiesRes, mailingsRes, quoteRes, contractRes, contiV2Res] = await Promise.all([
+  const [activitiesRes, mailingsRes, quoteRes, contractRes, contiV2Res, reviewRes, finalGalleryRes] = await Promise.all([
     workflowRun?.id
       ? supabase.from("pcrm_activity_logs")
           .select("*")
@@ -112,6 +112,25 @@ export async function GET(
     workflowRun?.id
       ? supabase.from("conti_runs").select("id").eq("workflow_run_id", workflowRun.id).order("updated_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    workflowRun?.id
+      ? supabase.from("client_reviews")
+          .select("id, public_review_text, good_points, created_at")
+          .eq("client_id", id)
+          .eq("workflow_run_id", workflowRun.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    workflowRun?.id
+      ? supabase.from("photo_galleries")
+          .select("id,items:photo_gallery_items(id,title,thumbnail_url,nas_file_url,sort_order)")
+          .eq("client_id", id)
+          .eq("workflow_run_id", workflowRun.id)
+          .in("gallery_type", ["retouched", "final_photo"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   let contiRes = contiV2Res;
   // 신규 V2 run이 아직 없는 과거 프로젝트는 기존 conti_saves id를 그대로 넘겨 호환한다.
@@ -124,6 +143,15 @@ export async function GET(
     contract: contractRes.data?.id ?? null,
     conti: contiRes.data?.id ?? null,
   };
+  const reviewPhoto = (finalGalleryRes.data?.items ?? [])
+    .slice()
+    .sort((a: any, b: any) => Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0))[0] ?? null;
+  const reviewHandoff = reviewRes.data ? {
+    reviewId: reviewRes.data.id,
+    reviewText: reviewRes.data.public_review_text || reviewRes.data.good_points || "",
+    photoName: reviewPhoto?.title || "",
+    photoUrl: reviewPhoto?.nas_file_url || reviewPhoto?.thumbnail_url || "",
+  } : null;
 
   // 프론트가 기대하는 필드명으로 정규화
   const client = {
@@ -154,6 +182,7 @@ export async function GET(
       ? []
       : (artifactsRes.data ?? []).filter((artifact) => !workflowRun?.id || artifact.workflow_run_id === workflowRun.id || artifact.workflow_run_id === null),
     activities: activitiesRes.error ? [] : activitiesRes.data ?? [],
+    reviewHandoff,
   });
 }
 

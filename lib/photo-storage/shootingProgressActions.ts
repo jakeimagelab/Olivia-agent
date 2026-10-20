@@ -17,6 +17,7 @@ type ProjectRow = {
   calendar_task_id?: string | null;
   jpg_count?: number | null;
   discovered_at?: string | null;
+  classify_approved_at?: string | null;
 };
 
 type WorkflowRow = {
@@ -54,7 +55,7 @@ export function normalizeExternalPhotoLink(value: unknown): string {
 
 async function loadProject(db: SupabaseClient, projectId: string): Promise<ProjectRow> {
   const { data, error } = await db.from("photo_storage_projects")
-    .select("id,project_name,source_relative_path,workflow_run_id,calendar_task_id,jpg_count,discovered_at")
+    .select("id,project_name,source_relative_path,workflow_run_id,calendar_task_id,jpg_count,discovered_at,classify_approved_at")
     .eq("id", projectId)
     .maybeSingle();
   if (error) throw error;
@@ -115,6 +116,9 @@ export async function registerOriginalDeliveryLink(
   const workflow = await loadWorkflow(db, project.workflow_run_id);
   const client = await loadClient(db, workflow?.client_id || input.clientId);
   const clientId = client?.id ?? workflow?.client_id ?? null;
+  if (clientId && !project.classify_approved_at) {
+    throw new Error("분류 확인 전에는 원본 NAS 링크를 고객에게 등록할 수 없습니다.");
+  }
   const now = new Date().toISOString();
   const shootDate = workflow?.shoot_date
     ?? buildFolderDateCandidates(project.project_name, new Date(project.discovered_at ?? now))[0]
@@ -165,6 +169,35 @@ export async function registerOriginalDeliveryLink(
       .single();
     if (error || !data) throw error ?? new Error("셀렉 갤러리를 만들지 못했습니다.");
     gallery = data as GalleryRow;
+  }
+
+  // 원본 링크는 photo_galleries를 단일 진입점으로 삼는다. 이 테이블의 기존 트리거가
+  // clients.original_photos_link를 같은 트랜잭션 흐름에서 갱신한다.
+  if (clientId) {
+    const photoGalleryValues = {
+      client_id: clientId,
+      workflow_run_id: project.workflow_run_id ?? null,
+      hospital_name: client?.hospital_name ?? workflow?.client_name ?? project.project_name,
+      description: `${project.project_name} 원본 사진`,
+      shoot_date: shootDate,
+      nas_link: nasLink,
+      gallery_type: "original_photo",
+    };
+    let photoGalleryQuery = db.from("photo_galleries")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("gallery_type", "original_photo");
+    if (project.workflow_run_id) photoGalleryQuery = photoGalleryQuery.eq("workflow_run_id", project.workflow_run_id);
+    const { data: originalGallery, error: originalGalleryReadError } = await photoGalleryQuery
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (originalGalleryReadError) throw originalGalleryReadError;
+
+    const write = originalGallery
+      ? await db.from("photo_galleries").update(photoGalleryValues).eq("id", originalGallery.id)
+      : await db.from("photo_galleries").insert(photoGalleryValues);
+    if (write.error) throw write.error;
   }
 
   await syncOriginalDeliveryRegisteredWorkflow(db, project.workflow_run_id);
