@@ -113,7 +113,7 @@
   .pill { min-height: 36px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 0 13px; color: #5a7470; background: transparent; font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
   .pillActive { color: #155855; background: #fff; box-shadow: 0 2px 8px rgba(31,58,52,.1); }
   .pcBody { height: 100%; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 360px; overflow: hidden; }
-  .pcPhotos { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) 120px 22px; gap: 8px; padding: 12px 14px 8px; overflow: hidden; background: #2a2a2a; }
+  .pcPhotos { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) 120px 26px; gap: 8px; padding: 12px 14px 10px; overflow: hidden; background: #2a2a2a; }
   .pcPreview { height: 100%; min-height: 0; background: #2a2a2a; overflow: hidden; }
   .pcPreview .preview { position: relative; height: 100%; min-height: 0; overflow: hidden; }
   .pcPreview .preview img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%; max-height: 100%; object-fit: contain; }
@@ -128,11 +128,20 @@
   .pcSelectButtonSelected { color: #103e36; background: #4fd8b8; }
   .pcNavButton:disabled, .pcSelectButton:disabled { cursor: default; border-color: rgba(255,255,255,.14); color: rgba(255,255,255,.3); background: transparent; }
   .pcPhotoEmpty { max-width: 280px; color: rgba(255,255,255,.55); text-align: center; line-height: 1.6; }
-  .pcThumbs { height: 120px; min-width: 0; display: flex; gap: 7px; overflow-x: auto; overflow-y: hidden; padding: 2px 1px 5px; scroll-behavior: smooth; scrollbar-width: thin; }
-  .pcThumbs .photoTile { height: 100%; flex: 0 0 auto; aspect-ratio: 2/3; border-radius: 4px; }
+  .pcFilmstrip { position: relative; height: 120px; min-width: 0; }
+  .pcThumbs { height: 100%; min-width: 0; box-sizing: border-box; display: flex; gap: 7px; overflow-x: auto; overflow-y: hidden; padding: 2px 52px 14px; scroll-behavior: smooth; scrollbar-color: rgba(255,255,255,.35) transparent; scrollbar-width: thin; }
+  .pcThumbs::-webkit-scrollbar { height: 8px; }
+  .pcThumbs::-webkit-scrollbar-track { background: transparent; }
+  .pcThumbs::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,.35); }
+  .pcThumbs::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.6); }
+  .pcThumbs .photoTile { height: 96px; flex: 0 0 auto; aspect-ratio: 2/3; border-radius: 4px; }
   .pcThumbs .pcThumbCurrent { border-color: #fff; }
   .pcThumbs .photoTileSelected { border-color: #4fd8b8; }
-  .pcKeyboardHint { margin: 0; color: rgba(255,255,255,.48); font-size: 11px; line-height: 22px; text-align: center; }
+  .pcFilmstripArrow { position: absolute; top: 50%; z-index: 3; width: 44px; height: 44px; transform: translateY(-50%); display: grid; place-items: center; border: 1px solid rgba(255,255,255,.18); border-radius: 50%; color: rgba(255,255,255,.82); background: rgba(0,0,0,.48); cursor: pointer; }
+  .pcFilmstripArrow:hover { background: rgba(0,0,0,.68); }
+  .pcFilmstripPrevious { left: 4px; }
+  .pcFilmstripNext { right: 4px; }
+  .pcKeyboardHint { min-height: 26px; margin: 0; padding: 1px 0 3px; box-sizing: border-box; color: rgba(255,255,255,.48); font-size: 11px; line-height: 22px; text-align: center; }
   .pcFeedback { height: 100%; min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0,1fr) auto; overflow: hidden; background: #fdfcfa; }
   .pcFeedbackScroll { min-height: 0; overflow-y: auto; padding: 20px; }
   .pcChosenPhoto { display: grid; grid-template-columns: 68px minmax(0,1fr); align-items: center; gap: 12px; padding: 4px 0 16px; border-bottom: 1px solid #e2e9e7; }

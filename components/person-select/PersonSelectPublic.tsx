@@ -311,6 +311,7 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   const [choice, setChoice] = useState<Choice | null>(active?.choice ?? null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveSequence = useRef(0);
+  const filmstripRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<HTMLButtonElement | null>(null);
   const firstPhotoMeasured = useRef(false);
   const serverChoice = active?.choice ?? null;
@@ -385,8 +386,25 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
     }
   }, [images, previewIndex]);
   useEffect(() => {
-    activeThumbRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const filmstrip = filmstripRef.current;
+    const thumbnail = activeThumbRef.current;
+    if (!filmstrip || !thumbnail) return;
+    filmstrip.scrollTo({
+      left: thumbnail.offsetLeft - (filmstrip.clientWidth - thumbnail.clientWidth) / 2,
+      behavior: "smooth",
+    });
   }, [previewId]);
+  useEffect(() => {
+    const filmstrip = filmstripRef.current;
+    if (!filmstrip) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      event.preventDefault();
+      filmstrip.scrollLeft += event.deltaY;
+    };
+    filmstrip.addEventListener("wheel", handleWheel, { passive: false });
+    return () => filmstrip.removeEventListener("wheel", handleWheel);
+  }, []);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!preview || (event.target instanceof HTMLInputElement) || (event.target instanceof HTMLTextAreaElement)) return;
@@ -402,6 +420,11 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   const required = categories.filter((item) => item.pick > 0);
   const missing = required.find((item) => !item.choice);
   async function submit() { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); window.location.href = `/pick/${slug}/done`; }
+  function scrollFilmstrip(direction: -1 | 1) {
+    const filmstrip = filmstripRef.current;
+    if (!filmstrip) return;
+    filmstrip.scrollBy({ left: direction * filmstrip.clientWidth, behavior: "smooth" });
+  }
   function measureFirstPhoto() {
     if (firstPhotoMeasured.current) return;
     firstPhotoMeasured.current = true;
@@ -425,7 +448,11 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
               : <button className={styles.pcSelectButton} disabled={!preview || me.event.locked} onClick={() => preview && void save(preview.id, [], "", true)}>이 사진 고르기</button>}
           </div>
         </div>
-        <div className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${image.id === choice?.image_id ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{image.id === choice?.image_id ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div>
+        <div className={styles.pcFilmstrip}>
+          <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripPrevious}`} type="button" aria-label="이전 사진 묶음" onClick={() => scrollFilmstrip(-1)}><ChevronLeft size={20} /></button>
+          <div ref={filmstripRef} className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${image.id === choice?.image_id ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{image.id === choice?.image_id ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div>
+          <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripNext}`} type="button" aria-label="다음 사진 묶음" onClick={() => scrollFilmstrip(1)}><ChevronRight size={20} /></button>
+        </div>
         <p className={styles.pcKeyboardHint}>← → 사진 이동 · Space 사진 고르기</p>
       </div>
       <aside className={styles.pcFeedback}>
