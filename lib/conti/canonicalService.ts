@@ -4,6 +4,7 @@ import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/de
 import { enrichContiScenesWithStatus } from "@/lib/conti/aiEnrichment";
 import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStudioState } from "@/lib/conti/studioState";
 import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
+import { removeUnsupportedContiSceneColumn } from "@/lib/conti/schemaCompatibility";
 
 export type CanonicalContiPayload = {
   ok: true;
@@ -144,14 +145,25 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
 const BLANK_FIELD_SOURCES = { name: "blank", space_text: "blank", minutes: "blank", keyword: "blank", description: "blank", people_text: "blank", patient_role_text: "blank", note: "blank", preparation_text: "blank" };
 const EDITABLE_FIELDS = ["name", "space_text", "minutes", "keyword", "description", "people_text", "patient_role_text", "preparation_text", "note"] as const;
 
+async function insertCanonicalContiScene(row: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const db = getSupabaseAdmin();
+  let compatibleRow = row;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const result = await db.from("conti_scenes").insert(compatibleRow).select("*").single();
+    if (!result.error && result.data) return result.data as Record<string, unknown>;
+    const next = removeUnsupportedContiSceneColumn(compatibleRow, result.error);
+    if (!next) throw new Error(result.error?.message ?? "장면 저장 실패");
+    compatibleRow = next;
+  }
+  throw new Error("장면 저장에 필요한 DB 컬럼을 확인하지 못했습니다.");
+}
+
 export async function addCanonicalContiScene(runId: string, groupId?: string | null) {
   const db = getSupabaseAdmin();
   const existing = await db.from("conti_scenes").select("sort").eq("run_id", runId).order("sort", { ascending: false }).limit(1);
   if (existing.error) throw new Error(existing.error.message);
   const sort = (existing.data?.[0]?.sort ?? -1) + 1;
-  const result = await db.from("conti_scenes").insert({ run_id: runId, group_id: groupId ?? null, sort, scene_code: `S${sort + 1}`, name: "", space_text: "", minutes: null, keyword: "", description: "", procedures: [], people_text: "", patient_role_text: "", preparation_text: "", note: "", template_id: null, repeat_scope: "once", media: "photo", field_sources: BLANK_FIELD_SOURCES }).select("*").single();
-  if (result.error || !result.data) throw new Error(result.error?.message ?? "장면 추가 실패");
-  return result.data as Record<string, unknown>;
+  return insertCanonicalContiScene({ run_id: runId, group_id: groupId ?? null, sort, scene_code: `S${sort + 1}`, name: "", space_text: "", minutes: null, keyword: "", description: "", procedures: [], people_text: "", patient_role_text: "", preparation_text: "", note: "", template_id: null, repeat_scope: "once", media: "photo", field_sources: BLANK_FIELD_SOURCES });
 }
 
 export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean }) {
@@ -235,9 +247,7 @@ export async function duplicateCanonicalContiScene(sceneId: string) {
     repeat_scope: source.repeat_scope ?? "once",
     media: source.media ?? "photo",
   };
-  const result = await db.from("conti_scenes").insert(insert).select("*").single();
-  if (result.error || !result.data) throw new Error(result.error?.message ?? "장면 복제에 실패했습니다.");
-  return result.data as Record<string, unknown>;
+  return insertCanonicalContiScene(insert);
 }
 
 export async function reorderCanonicalContiScenes(runId: string, orderedSceneIds: string[]) {
