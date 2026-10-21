@@ -1,5 +1,5 @@
 import { getOpenAIClient } from "@/lib/ai/openai";
-import type { DraftScene } from "@/lib/conti/generate";
+import { isMandatoryOpeningScene, type DraftScene } from "@/lib/conti/generate";
 
 type EnrichedScene = {
   id: string;
@@ -46,6 +46,9 @@ export async function enrichContiScenes(scenes: DraftScene[]): Promise<DraftScen
 
 export async function enrichContiScenesWithStatus(scenes: DraftScene[]): Promise<{ scenes: DraftScene[]; warning?: string }> {
   if (!process.env.OPENAI_API_KEY || scenes.length === 0) return { scenes, ...(!process.env.OPENAI_API_KEY && scenes.length ? { warning: "AI 보강 없이 기본 구성으로 만들었습니다." } : {}) };
+  const fixedOpeningScenes = scenes.filter(isMandatoryOpeningScene);
+  const scenesToEnrich = scenes.filter((scene) => !isMandatoryOpeningScene(scene));
+  if (!scenesToEnrich.length) return { scenes };
   try {
     const response = await getOpenAIClient().chat.completions.create({
       model: process.env.OPENAI_CONTI_MODEL ?? "gpt-4.1-mini",
@@ -54,23 +57,22 @@ export async function enrichContiScenesWithStatus(scenes: DraftScene[]): Promise
           role: "system",
           content: "당신은 병원 홍보 촬영 콘티 전문가입니다. 입력 Scene을 삭제하거나 추가하지 말고 id를 절대 변경하지 마세요. procedures도 장면 분리 기준이 아닙니다. 촬영 동선에 맞게 순서만 조정하고 각 장면의 실무 정보를 간결한 한국어로 보강하세요.",
         },
-        { role: "user", content: JSON.stringify({ scenes: scenes.map((scene) => ({ id: scene.id, title: scene.name, location: scene.spaceText, duration: scene.minutes, description: scene.description, people: scene.peopleText.split(",").map((item) => item.trim()).filter(Boolean), preparation: scene.preparationText, keywords: scene.keyword, note: scene.note, procedures: scene.procedures })) }) },
+        { role: "user", content: JSON.stringify({ scenes: scenesToEnrich.map((scene) => ({ id: scene.id, title: scene.name, location: scene.spaceText, duration: scene.minutes, description: scene.description, people: scene.peopleText.split(",").map((item) => item.trim()).filter(Boolean), preparation: scene.preparationText, keywords: scene.keyword, note: scene.note, procedures: scene.procedures })) }) },
       ],
       response_format: { type: "json_schema", json_schema: contiEnrichmentSchema },
       max_tokens: 5000,
     });
     const parsed = JSON.parse(response.choices[0]?.message?.content ?? "{}") as { scenes?: EnrichedScene[] };
     const enriched = parsed.scenes;
-    const expectedIds = scenes.map((scene) => scene.id).sort();
+    const expectedIds = scenesToEnrich.map((scene) => scene.id).sort();
     const receivedIds = enriched?.map((scene) => scene.id).sort();
-    if (!enriched || enriched.length !== scenes.length || JSON.stringify(expectedIds) !== JSON.stringify(receivedIds)) return { scenes, warning: "AI 보강 없이 기본 구성으로 만들었습니다." };
+    if (!enriched || enriched.length !== scenesToEnrich.length || JSON.stringify(expectedIds) !== JSON.stringify(receivedIds)) return { scenes, warning: "AI 보강 없이 기본 구성으로 만들었습니다." };
 
-    const originalById = new Map(scenes.map((scene) => [scene.id, scene]));
-    return { scenes: enriched.map((item, sort) => {
+    const originalById = new Map(scenesToEnrich.map((scene) => [scene.id, scene]));
+    const enrichedScenes: DraftScene[] = enriched.map((item) => {
       const original = originalById.get(item.id)!;
       return {
         ...original,
-        sort,
         name: item.title.trim() || original.name,
         spaceText: item.location.trim() || original.spaceText,
         minutes: item.duration || original.minutes,
@@ -85,7 +87,10 @@ export async function enrichContiScenesWithStatus(scenes: DraftScene[]): Promise
           preparation_text: "ai", keyword: "ai", note: item.note ? "ai" : original.fieldSources.note,
         },
       };
-    }) };
+    });
+    return {
+      scenes: [...fixedOpeningScenes, ...enrichedScenes].map((scene, sort) => ({ ...scene, sort, sceneCode: `S${sort + 1}` })),
+    };
   } catch (error) {
     console.error("[conti] AI enrichment failed; deterministic skeleton retained", error);
     return { scenes, warning: "AI 보강 없이 기본 구성으로 만들었습니다." };

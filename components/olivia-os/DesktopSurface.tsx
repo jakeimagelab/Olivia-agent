@@ -6,6 +6,7 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
 import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
+import { getDesktopContentKey } from "@/lib/olivia/desktopContentKey";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
@@ -65,7 +66,7 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
           const Content = app.component;
           return (
             <AppWindow key={win.id} windowId={win.id} workspaceRef={surfaceRef} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
-              <Content key={`${win.appId}:${win.context?.resourceId ?? ""}:${win.context?.clientId ?? ""}:${win.context?.projectId ?? ""}`} context={win.context} />
+              <Content key={getDesktopContentKey({ windowId: win.id, appId: win.appId, context: win.context })} context={win.context} />
             </AppWindow>
           );
         })}

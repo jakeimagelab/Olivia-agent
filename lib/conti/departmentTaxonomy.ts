@@ -100,9 +100,6 @@ export const DEPARTMENT_TAXONOMY: ContiDepartment[] = [
   },
   {
     id: "ophthalmology", label: "안과", categories: [
-      category("group-photo", "단체사진", [], { defaultSpace: "로비", roles: ["의료진", "직원"], patientRole: "" }),
-      category("group-harmony", "단체 하모니컷", [], { defaultSpace: "로비", roles: ["의료진", "직원"], patientRole: "" }),
-      category("reception-harmony", "인포데스크 하모니컷", [], { defaultSpace: "인포데스크", roles: ["직원"], patientRole: "" }),
       category("manager-consult", "상담실장 상담", [], { defaultSpace: "상담실", roles: ["실장", "환자"] }),
       category("pediatric-dream-lens", "검사실(드림렌즈)", ["소아 시력검사", "사시/약시", "드림렌즈 검사", "렌즈 피팅"], { defaultMinutes: 20, defaultSpace: "검사실", roles: ["검사 담당자", "아이", "보호자"], patientRole: "아이, 보호자" }),
       category("group-surgery", "수술 연출(그룹 협진)", ["협진", "수술 준비", "장비 확인"], { defaultMinutes: 20, defaultSpace: "수술실", roles: ["의료진", "환자"] }),
@@ -216,10 +213,13 @@ export function getSurgeryTypeLabel(department: string, value: string): string {
 export function buildCodeSceneTemplates(departmentValue: string): SceneTemplateRow[] {
   const department = getDepartmentDefinition(departmentValue);
   const rows: SceneTemplateRow[] = [
+    mandatoryOpeningTemplate("group-photo", "단체사진", "로비"),
+    mandatoryOpeningTemplate("group-harmony", "단체 하모니컷", "로비 · 복도"),
+    mandatoryOpeningTemplate("reception-harmony", "인포데스크 하모니컷", "로비"),
     commonTemplate("reception", "접수/안내", "로비", 10, ["직원", "환자"]),
     commonTemplate("staff-work", "직원 업무", "병원 내부", 10, ["직원"]),
-    commonTemplate("doctor-makeup", "메이크업 · 준비", "준비실", 10, ["의료진"], true, "none"),
-    commonTemplate("doctor-profile", "프로필", "프로필 촬영 공간", 15, ["의료진"], true, "photo"),
+    commonTemplate("doctor-makeup", "헤어메이크업 · 준비", "준비실", 10, ["의료진"], true, "none"),
+    commonTemplate("doctor-profile", "의료진 프로필", "프로필 촬영 공간", 15, ["의료진"], true, "photo"),
     commonTemplate("doctor-consult", "진료 연출", "진료실", 20, ["의료진", "환자"], true, "photo_video"),
     commonTemplate("doctor-surgery", "수술 연출", "수술실", 15, ["의료진", "환자"], true, "photo_video"),
     commonTemplate("manager-consult", "실장 상담", "상담실", 10, ["실장", "환자"]),
@@ -248,6 +248,15 @@ export function buildCodeSceneTemplates(departmentValue: string): SceneTemplateR
     });
   }
   return rows;
+}
+
+function mandatoryOpeningTemplate(key: string, name: string, space: string): SceneTemplateRow {
+  return {
+    id: `code:common:${key}`, specialty: "공통", category: "단체", scene_key: key,
+    default_name: name, default_keyword: "", default_description: "", default_minutes: 15,
+    space_type: space, default_roles: [], needs_patient: false, per_doctor: false,
+    repeat_scope: "once", media: "photo", preparation_text: "", default_note: "", patient_role_text: "",
+  };
 }
 
 function commonTemplate(key: string, name: string, space: string, minutes: number, roles: string[], perDoctor = false, media: SceneTemplateRow["media"] = "photo"): SceneTemplateRow {

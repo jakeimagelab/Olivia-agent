@@ -34,7 +34,7 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
       if (target) { event.preventDefault(); target.focus(); }
       return;
     }
-    if (event.key === "Enter" && !event.shiftKey) {
+    if (event.key === "Enter" && !event.shiftKey && event.currentTarget.tagName !== "TEXTAREA") {
       const target = tableRef.current?.querySelector<HTMLElement>(`[data-row='${rowIndex + 1}'][data-field='${field}']`);
       if (target) { event.preventDefault(); target.focus(); }
     }
@@ -83,7 +83,7 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
         </DndContext>
       </div>
       <footer className={styles.tableFooter}>
-        <span>총 {scenes.length} Scene · 셀을 클릭해 바로 수정할 수 있습니다.</span>
+        <span>총 {scenes.length} Scene · Enter 줄바꿈 · Tab 다음 셀</span>
         <button type="button" onClick={() => void controller.addScene()}><Plus size={14} />장면 추가</button>
       </footer>
     </section>
@@ -110,15 +110,15 @@ function SortableSceneRow({ scene, groups, groupName, rowIndex, scheduleTime, sc
     <tr ref={setNodeRef} style={style}>
       <td className={styles.numberColumn}><div className={styles.sceneCodeCell}><button type="button" className={styles.dragHandle} aria-label={`${scene.name || "장면"} 순서 이동`} {...attributes} {...listeners}><GripVertical size={15} /></button><span>{scene.scene_code || `S${rowIndex + 1}`}</span><div className={styles.rowActions}><button type="button" title="복제" aria-label={`${scene.name} 복제`} onClick={() => void onDuplicate(scene.id)}><Copy size={12} /></button><button type="button" title="삭제" aria-label={`${scene.name} 삭제`} onClick={() => void onDelete(scene.id)}><Trash2 size={12} /></button></div></div></td>
       <td><span className={styles.groupPill} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties}>{groupName}</span></td>
-      <EditableCell scene={scene} field="name" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="name" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <td className={styles.timeCell}>{scene.repeat_scope === "per_doctor" ? "타임테이블" : scheduleTime && scheduleEndTime ? `${scheduleTime}–${scheduleEndTime}` : "미정"}</td>
       <EditableCell scene={scene} field="minutes" rowIndex={rowIndex} numeric onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <td className={styles.mediaCell}>{mediaLabel(scene.media)}</td>
-      <EditableCell scene={scene} field="keyword" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="keyword" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <EditableCell scene={scene} field="description" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="space_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="people_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <EditableCell scene={scene} field="patient_role_text" rowIndex={rowIndex} onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="space_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="people_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
+      <EditableCell scene={scene} field="patient_role_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <EditableCell scene={scene} field="preparation_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
     </tr>
   );
@@ -151,7 +151,7 @@ function CellInput({ value, field, rowIndex, textarea, numeric, placeholder, onM
   onCommit: (value: string) => void;
 }) {
   const shared = { defaultValue: value, placeholder, "data-conti-cell": "true", "data-row": String(rowIndex), "data-field": field, onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => onCommit(event.target.value), onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => onMoveFocus(event, rowIndex, field), className: styles.cellInput };
-  return textarea ? <textarea {...shared} rows={2} /> : <input {...shared} type={numeric ? "number" : "text"} />;
+  return textarea ? <textarea {...shared} rows={Math.min(6, Math.max(2, value.split("\n").length))} onInput={(event) => { event.currentTarget.rows = Math.min(6, Math.max(2, event.currentTarget.value.split("\n").length)); }} /> : <input {...shared} type={numeric ? "number" : "text"} />;
 }
 
 function mediaLabel(value: ContiSceneRow["media"]): string {

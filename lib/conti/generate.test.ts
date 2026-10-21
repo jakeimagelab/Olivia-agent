@@ -32,8 +32,8 @@ describe("department taxonomy", () => {
     for (const forbidden of ["신경계 재활", "수술 후 재활", "척추", "관절", "통증클리닉", "MRI 판독"]) expect(labels).not.toContain(forbidden);
   });
 
-  it("uses the exact ophthalmology and plastic-surgery category sets", () => {
-    expect(getDepartmentDefinition("ophthalmology")!.categories.map((category) => category.label)).toEqual(["단체사진", "단체 하모니컷", "인포데스크 하모니컷", "상담실장 상담", "검사실(드림렌즈)", "수술 연출(그룹 협진)", "기타 진료(안성형/IPL)", "외관", "내부 공간컷"]);
+  it("keeps mandatory opening scenes out of the ophthalmology choices", () => {
+    expect(getDepartmentDefinition("ophthalmology")!.categories.map((category) => category.label)).toEqual(["상담실장 상담", "검사실(드림렌즈)", "수술 연출(그룹 협진)", "기타 진료(안성형/IPL)", "외관", "내부 공간컷"]);
     expect(getDepartmentDefinition("plastic-surgery")!.categories.map((category) => category.label)).toEqual(["얼굴성형", "가슴성형", "비만/체형", "기타"]);
   });
 
@@ -62,10 +62,11 @@ describe("generateContiDraft", () => {
     const result = generate({
       specialty: "dermatology", doctorCount: 2,
       staffFlags: { siljang: true, jikwon: true, other: false }, harmony: true,
+      personalOptions: { makeup: true, profile: true },
       checked: { lifting: ["울쎄라", "써마지"], "skin-booster": ["리쥬란"], pigmentation: ["피코"] },
     });
     expect(result.scenes.map((scene) => scene.name)).toEqual([
-      "접수/안내", "메이크업 · 준비", "프로필", "진료 연출", "수술 연출", "리프팅", "스킨부스터", "색소",
+      "단체사진", "단체 하모니컷", "인포데스크 하모니컷", "접수/안내", "헤어메이크업 · 준비", "의료진 프로필", "진료 연출", "수술 연출", "리프팅", "스킨부스터", "색소",
       "실장 상담", "직원 업무", "로비 하모니컷",
     ]);
     expect(result.scenes.filter((scene) => scene.repeatScope === "per_doctor")).toHaveLength(4);
@@ -84,19 +85,37 @@ describe("generateContiDraft", () => {
 
   it("supports category-only selection, custom staff, and extra items", () => {
     const result = generate({ specialty: "dermatology", checked: { botox: [] }, staffFlags: { siljang: false, jikwon: false, other: true }, otherStaffRole: "코디네이터", extraItems: ["장비 단독컷"] });
-    expect(result.scenes.map((scene) => scene.name)).toEqual(["메이크업 · 준비", "프로필", "진료 연출", "수술 연출", "보톡스", "코디네이터 촬영", "장비 단독컷"]);
+    expect(result.scenes.map((scene) => scene.name)).toEqual(["단체사진", "단체 하모니컷", "인포데스크 하모니컷", "진료 연출", "수술 연출", "보톡스", "코디네이터 촬영", "장비 단독컷"]);
   });
 
-  it("creates 13 ophthalmology definitions and expands seven doctors into 15 timeline rows", () => {
+  it("creates fixed opening rows with the entered doctor count", () => {
+    const doctors = Array.from({ length: 7 }, (_, index) => ({ id: `d${index + 1}`, name: `의료진 ${index + 1}`, surgeries: [], note: "", day: null }));
+    const result = generate({ specialty: "ophthalmology", doctorCount: 9, doctors, checked: {} });
+    expect(result.scenes.slice(0, 3).map((scene) => scene.name)).toEqual(["단체사진", "단체 하모니컷", "인포데스크 하모니컷"]);
+    expect(result.scenes[0]).toMatchObject({ sceneCode: "S1", group: "단체", peopleText: "의료진 7명 / 실장 / 직원 2-3명", preparationText: "가운 7벌" });
+    expect(result.scenes[1]).toMatchObject({ sceneCode: "S2", peopleText: "의료진 7명 전원", patientRoleText: "없음" });
+    expect(result.scenes[2]).toMatchObject({ sceneCode: "S3", peopleText: "인포직원 2명, 환자그룹 2명", patientRoleText: "필요" });
+  });
+
+  it("adds hair makeup and profile only when selected", () => {
+    const basic = generate({ specialty: "dermatology", checked: {} });
+    expect(basic.scenes.map((scene) => scene.name)).not.toContain("헤어메이크업 · 준비");
+    expect(basic.scenes.map((scene) => scene.name)).not.toContain("의료진 프로필");
+    const selected = generate({ specialty: "dermatology", checked: {}, personalOptions: { makeup: true, profile: true } });
+    expect(selected.scenes.map((scene) => scene.name)).toContain("헤어메이크업 · 준비");
+    expect(selected.scenes.map((scene) => scene.name)).toContain("의료진 프로필");
+  });
+
+  it("keeps 15 ophthalmology timeline rows while optional personal scenes stay excluded", () => {
     const department = getDepartmentDefinition("ophthalmology")!;
     const doctors = Array.from({ length: 7 }, (_, index) => ({ id: `d${index + 1}`, name: `의료진 ${index + 1}`, surgeries: index === 0 ? ["cataract"] : ["lasik"], note: "", day: null }));
     const result = generate({ specialty: "ophthalmology", doctorCount: 7, doctors, checked: Object.fromEntries(department.categories.map((item) => [item.id, []])) });
-    expect(result.scenes).toHaveLength(13);
-    expect(result.scenes.filter((scene) => scene.repeatScope === "per_doctor")).toHaveLength(4);
+    expect(result.scenes).toHaveLength(11);
+    expect(result.scenes.filter((scene) => scene.repeatScope === "per_doctor")).toHaveLength(2);
     expect(result.scenes.filter((scene) => scene.name === "검사실(드림렌즈)")).toHaveLength(1);
     const schedule = deriveContiSchedule(result.scenes.map((scene) => ({ id: scene.id, sort: scene.sort, name: scene.name, minutes: scene.minutes, repeat_scope: scene.repeatScope, media: scene.media })), { doctors });
     expect(schedule).toHaveLength(15);
     expect(schedule.filter((row) => row.type === "doctor")).toHaveLength(7);
-    expect(schedule.find((row) => row.type === "doctor")?.minutes).toBe(70);
+    expect(schedule.find((row) => row.type === "doctor")?.minutes).toBe(45);
   });
 });

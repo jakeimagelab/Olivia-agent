@@ -23,6 +23,7 @@ export type CreateCanonicalContiInput = {
   staffFlags?: { siljang?: boolean; jikwon?: boolean; other?: boolean };
   otherStaffRole?: string;
   harmony?: boolean;
+  personalOptions?: { makeup?: boolean; profile?: boolean };
   checked?: Record<string, string[]>;
   extraItems?: string[];
   workflowRunId?: string | null;
@@ -84,11 +85,12 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
   }
   const input: GenerateContiInput = {
     specialty: source.specialty,
-    doctorCount: Array.isArray(source.doctors) && source.doctors.length ? source.doctors.length : source.doctorCount && source.doctorCount > 0 ? source.doctorCount : 1,
-    doctors: Array.isArray(source.doctors) ? source.doctors : [],
+    doctorCount: Array.isArray(source.doctors) && source.doctors.some((doctor) => doctor.name.trim()) ? source.doctors.filter((doctor) => doctor.name.trim()).length : source.doctorCount && source.doctorCount > 0 ? source.doctorCount : 1,
+    doctors: Array.isArray(source.doctors) ? source.doctors.filter((doctor) => doctor.name.trim()) : [],
     staffFlags: { siljang: Boolean(source.staffFlags?.siljang), jikwon: Boolean(source.staffFlags?.jikwon), other: Boolean(source.staffFlags?.other) },
     otherStaffRole: source.otherStaffRole || "",
     harmony: Boolean(source.harmony),
+    personalOptions: source.personalOptions,
     checked: source.checked ?? {},
     extraItems: Array.isArray(source.extraItems) ? source.extraItems.filter((item): item is string => typeof item === "string") : [],
   };

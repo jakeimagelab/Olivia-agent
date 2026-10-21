@@ -29,6 +29,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
   const [customSurgeryTypes, setCustomSurgeryTypes] = useState<ContiSurgeryType[]>([]);
   const [surgeryDraft, setSurgeryDraft] = useState("");
   const [checked, setChecked] = useState<Record<string, string[]>>({});
+  const [personalOptions, setPersonalOptions] = useState({ makeup: false, profile: false });
   const [extraItems, setExtraItems] = useState<string[]>([]);
   const [extraDraft, setExtraDraft] = useState("");
   const [hospitalSpaces, setHospitalSpaces] = useState<HospitalSpaceRow[]>([]);
@@ -64,7 +65,8 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
   const department = useMemo(() => getDepartmentDefinition(specialty), [specialty]);
   const surgeryTypes = useMemo(() => [...getSurgeryTypesForDepartment(specialty), ...customSurgeryTypes], [customSurgeryTypes, specialty]);
   const templates = useMemo(() => buildCodeSceneTemplates(specialty), [specialty]);
-  const input: GenerateContiInput = useMemo(() => ({ specialty, doctorCount: doctors.length, doctors, staffFlags: emptyStaff, otherStaffRole: "", harmony: false, checked, extraItems }), [specialty, doctors, checked, extraItems]);
+  const enteredDoctors = useMemo(() => doctors.filter((doctor) => doctor.name.trim()), [doctors]);
+  const input: GenerateContiInput = useMemo(() => ({ specialty, doctorCount: enteredDoctors.length || 1, doctors: enteredDoctors, staffFlags: emptyStaff, otherStaffRole: "", harmony: false, personalOptions, checked, extraItems }), [specialty, enteredDoctors, personalOptions, checked, extraItems]);
   const draft = useMemo(() => specialty ? generateContiDraft(input, { templates, hospitalSpaces, hospitalStaff }) : null, [specialty, input, templates, hospitalSpaces, hospitalStaff]);
   const totalMinutes = draft?.scenes.reduce((sum, scene) => sum + (scene.minutes ?? 0), 0) ?? 0;
 
@@ -134,7 +136,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
 
   const selectedCategories = Object.keys(checked).length;
   const selectedDetails = Object.values(checked).reduce((sum, items) => sum + items.length, 0);
-  const canGenerate = Boolean(specialty) && doctors.some((doctor) => doctor.name.trim()) && (selectedCategories > 0 || extraItems.length > 0) && !submitting;
+  const canGenerate = Boolean(specialty) && enteredDoctors.length > 0 && !submitting;
 
   return (
     <div className={styles.createLayout} data-conti-surface={surface}>
@@ -185,7 +187,21 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
               </div>
             </Field>
 
-            <Field step="4" label="촬영항목">
+            <Field step="4" label="의료진 개인 촬영" optional>
+              <div className={styles.choiceRow}>
+                <label className={styles.choice}>
+                  <input type="checkbox" checked={personalOptions.makeup} onChange={(event) => setPersonalOptions((value) => ({ ...value, makeup: event.target.checked }))} />
+                  <span>헤어메이크업 · 준비</span>
+                </label>
+                <label className={styles.choice}>
+                  <input type="checkbox" checked={personalOptions.profile} onChange={(event) => setPersonalOptions((value) => ({ ...value, profile: event.target.checked }))} />
+                  <span>의료진 프로필</span>
+                </label>
+              </div>
+              <span className={styles.hint}>필요한 촬영만 선택하세요. 진료 연출과 수술 연출은 기본으로 들어갑니다.</span>
+            </Field>
+
+            <Field step="5" label="촬영항목">
               {!department ? <span className={styles.hint}>진료과를 선택하면 촬영 가능한 항목이 표시됩니다.</span> : <div className={styles.categoryList}>{department.categories.map((category) => {
                 const selected = Object.hasOwn(checked, category.id);
                 return <div key={category.id} className={`${styles.category} ${selected ? styles.categorySelected : ""}`}>
@@ -201,7 +217,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
               })}</div>}
             </Field>
 
-            <Field step="5" label="기타 항목" optional>
+            <Field step="6" label="기타 항목" optional>
               <div className={styles.extraRow}><input aria-label="기타 촬영 항목" name="conti-extra-item" autoComplete="off" value={extraDraft} onChange={(event) => setExtraDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addExtraItem(); } }} placeholder="예: 장비 단독컷, 건물 외관…" className={styles.control} /><button type="button" onClick={addExtraItem} className={styles.smallButton}><Plus aria-hidden="true" size={13} strokeWidth={1.8} />항목 추가</button></div>
               {extraItems.length ? <div className={styles.extraTags}>{extraItems.map((item) => <span key={item} className={styles.extraTag}>{item}<button type="button" onClick={() => setExtraItems((values) => values.filter((value) => value !== item))} aria-label={`${item} 삭제`}><Trash2 aria-hidden="true" size={10} strokeWidth={1.8} /></button></span>)}</div> : null}
             </Field>
@@ -210,7 +226,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
           {sourceNotice ? <p className={styles.sourceNotice} role="status">{sourceNotice} 병원 연결 없이 만들 수 있습니다.</p> : null}
           {error ? <p className={styles.error} role="alert">{error}</p> : null}
           <footer className={styles.formFooter}>
-            <span className={styles.selectionSummary}>의료진 {doctors.filter((doctor) => doctor.name.trim()).length}명 · 촬영 항목 {selectedCategories}개 · 세부 {selectedDetails}개</span>
+            <span className={styles.selectionSummary}>의료진 {enteredDoctors.length}명 · 고정 장면 3개 · 선택 항목 {selectedCategories + Number(personalOptions.makeup) + Number(personalOptions.profile)}개 · 세부 {selectedDetails}개</span>
             <button type="button" disabled={!canGenerate} onClick={handleGenerate} className={styles.primaryButton}>{submitting ? "콘티 생성 중…" : "콘티 자동 생성"}<span className={styles.primaryIcon}><Sparkles aria-hidden="true" size={15} strokeWidth={1.7} /></span></button>
           </footer>
         </main>

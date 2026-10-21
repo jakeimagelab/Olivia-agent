@@ -55,6 +55,7 @@ export interface GenerateContiInput {
   staffFlags: { siljang: boolean; jikwon: boolean; other: boolean };
   otherStaffRole?: string;
   harmony: boolean;
+  personalOptions?: { makeup?: boolean; profile?: boolean };
   // category id → 촬영할 세부 시술. key의 존재가 대분류 선택을 뜻한다.
   // 배열은 빈 값일 수 있으며, 배열 원소 수와 관계없이 대분류는 항상 Scene 하나다.
   checked: Record<string, string[]>;
@@ -108,6 +109,7 @@ const RECEPTION_SCENE_KEYS = ["reception", "인포데스크_접수컷"];
 const STAFF_WORK_SCENE_KEYS = ["staff-work", "staff_work", "직원_업무"];
 const CONSULT_SCENE_KEYS = ["doctor-consult", "consult", "진료실_상담컷"];
 const PERSONAL_SCENE_KEYS = ["doctor-makeup", "doctor-profile", "doctor-consult", "doctor-surgery"];
+export const MANDATORY_OPENING_SCENE_KEYS = ["group-photo", "group-harmony", "reception-harmony"] as const;
 const SILJANG_SCENE_KEYS = ["manager-consult", "manager_consult", "실장_상담"];
 const SURGERY_LABELS: Record<string, string> = {
   lasik: "라식·라섹", cataract: "백내장", retina: "망막", "eye-plastic": "안성형",
@@ -170,6 +172,77 @@ function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[]
       note: textSource(template.default_note),
     },
   };
+}
+
+function templateSceneKey(scene: DraftScene): string {
+  return scene.templateId?.split(":").at(-1) ?? "";
+}
+
+export function isMandatoryOpeningScene(scene: Pick<DraftScene, "templateId">): boolean {
+  const sceneKey = scene.templateId?.split(":").at(-1) ?? "";
+  return MANDATORY_OPENING_SCENE_KEYS.some((key) => key === sceneKey);
+}
+
+function applyMandatoryOpeningContent(scene: DraftScene, doctorCount: number): DraftScene {
+  const sceneKey = templateSceneKey(scene);
+  const common = {
+    ...scene,
+    group: "단체",
+    minutes: 15,
+    media: "photo" as ContiMedia,
+    repeatScope: "once" as ContiRepeatScope,
+    fieldSources: {
+      ...scene.fieldSources,
+      name: "template" as FieldSource,
+      space_text: "template" as FieldSource,
+      minutes: "template" as FieldSource,
+      keyword: "template" as FieldSource,
+      description: "template" as FieldSource,
+      people_text: "template" as FieldSource,
+      patient_role_text: "template" as FieldSource,
+    },
+  };
+  if (sceneKey === "group-photo") {
+    return {
+      ...common,
+      name: "단체사진",
+      spaceText: "로비",
+      keyword: "신뢰 · 전문",
+      description: `의료진 ${doctorCount}명 일렬 또는 2열 정렬. 정면 아이컨택.\n- 병원의 느낌을 보여주는 것으로 가장 중요합니다\n- 가운 색·길이를 통일한 뒤 촬영\n- 홈페이지 메인 후보`,
+      peopleText: `의료진 ${doctorCount}명 / 실장 / 직원 2-3명`,
+      patientRoleText: "2명 권장",
+      preparationText: `가운 ${doctorCount}벌`,
+      fieldSources: { ...common.fieldSources, preparation_text: "template" },
+    };
+  }
+  if (sceneKey === "group-harmony") {
+    return {
+      ...common,
+      name: "단체 하모니컷",
+      spaceText: "로비 · 복도",
+      keyword: "역동 · 호흡",
+      description: "의료진, 간호사, 직원이 함께 웃는 모습\n- 병원의 느낌을 보여주는 것으로 가장 중요합니다.",
+      peopleText: `의료진 ${doctorCount}명 전원`,
+      patientRoleText: "없음",
+      preparationText: "",
+      fieldSources: { ...common.fieldSources, preparation_text: "blank" },
+    };
+  }
+  if (sceneKey === "reception-harmony") {
+    const participatingDoctors = Math.min(doctorCount, 2);
+    return {
+      ...common,
+      name: "인포데스크 하모니컷",
+      spaceText: "로비",
+      keyword: "따뜻한 병원",
+      description: `실제 접수하는 모습 촬영하되, 필요시 의료진도 함께 연출\n- 환자그룹 2명, 모든 접수물 화면에서 안내를 받고\n- 여기에 의료진 ${participatingDoctors}명이 함께 미소를 짓는 모습`,
+      peopleText: "인포직원 2명, 환자그룹 2명",
+      patientRoleText: "필요",
+      preparationText: "",
+      fieldSources: { ...common.fieldSources, preparation_text: "blank" },
+    };
+  }
+  return scene;
 }
 
 // 4) space_type ↔ hospital_spaces 매칭 + 층 그룹 배정
@@ -261,11 +334,23 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
     scenes.push(buildDraftFromTemplate(template, procedures, sortCounter++));
   };
 
+  const enteredDoctorCount = Math.max(1, (input.doctors ?? []).filter((doctor) => doctor.name.trim()).length || input.doctorCount || 1);
+
+  for (const sceneKey of MANDATORY_OPENING_SCENE_KEYS) {
+    pushTemplate(findCommon(templates, [sceneKey]));
+  }
+
   if (input.staffFlags.jikwon) {
     pushTemplate(findCommon(templates, RECEPTION_SCENE_KEYS));
   }
 
-  for (const sceneKey of PERSONAL_SCENE_KEYS) {
+  const selectedPersonalSceneKeys = [
+    ...(input.personalOptions?.makeup ? ["doctor-makeup"] : []),
+    ...(input.personalOptions?.profile ? ["doctor-profile"] : []),
+    "doctor-consult",
+    "doctor-surgery",
+  ];
+  for (const sceneKey of selectedPersonalSceneKeys) {
     pushTemplate(findCommon(templates, sceneKey === "doctor-consult" ? CONSULT_SCENE_KEYS : [sceneKey]));
   }
 
@@ -289,7 +374,7 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
     const template = scene.templateId ? templateById.get(scene.templateId) : undefined;
     const { scene: withSpace, matched: didMatch } = assignSpaceAndGroup(scene, template, ctx.hospitalSpaces);
     if (didMatch) spaceMatchedCount += 1;
-    return assignPeople(withSpace, template, ctx.hospitalStaff);
+    return applyMandatoryOpeningContent(assignPeople(withSpace, template, ctx.hospitalStaff), enteredDoctorCount);
   });
 
   // 생성 순서는 의료진별 촬영 흐름을 보존한다. 그룹은 결과 표의 시각적 구분에만 쓴다.

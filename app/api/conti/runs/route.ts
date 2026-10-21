@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   generateContiDraft,
+  type ContiDoctorInput,
   type GenerateContiInput,
   type HospitalSpaceRow,
   type HospitalStaffRow,
@@ -86,6 +87,7 @@ export async function POST(request: NextRequest) {
         staffFlags: serviceBody?.staffFlags,
         otherStaffRole: serviceBody?.otherStaffRole,
         harmony: serviceBody?.harmony,
+        personalOptions: serviceBody?.personalOptions,
         checked: serviceBody?.checked,
         extraItems: serviceBody?.extraItems,
         workflowRunId: serviceBody?.workflowRunId,
@@ -101,8 +103,10 @@ export async function POST(request: NextRequest) {
     hospitalId,
     specialty,
     doctorCount,
+    doctors,
     staffFlags,
     harmony,
+    personalOptions,
     checked,
     otherStaffRole,
     extraItems,
@@ -112,9 +116,11 @@ export async function POST(request: NextRequest) {
     hospitalId?: string | null;
     specialty?: string;
     doctorCount?: number;
+    doctors?: ContiDoctorInput[];
     staffFlags?: { siljang?: boolean; jikwon?: boolean; other?: boolean };
     otherStaffRole?: string;
     harmony?: boolean;
+    personalOptions?: { makeup?: boolean; profile?: boolean };
     checked?: Record<string, string[]>;
     extraItems?: string[];
     workflowRunId?: string;
@@ -144,10 +150,12 @@ export async function POST(request: NextRequest) {
 
   const input: GenerateContiInput = {
     specialty,
-    doctorCount: doctorCount && doctorCount > 0 ? doctorCount : 1,
+    doctorCount: Array.isArray(doctors) && doctors.some((doctor) => doctor.name.trim()) ? doctors.filter((doctor) => doctor.name.trim()).length : doctorCount && doctorCount > 0 ? doctorCount : 1,
+    doctors: Array.isArray(doctors) ? doctors.filter((doctor) => doctor.name.trim()) : [],
     staffFlags: { siljang: Boolean(staffFlags?.siljang), jikwon: Boolean(staffFlags?.jikwon), other: Boolean(staffFlags?.other) },
     otherStaffRole: typeof otherStaffRole === "string" ? otherStaffRole : "",
     harmony: Boolean(harmony),
+    personalOptions,
     checked: checked ?? {},
     extraItems: Array.isArray(extraItems) ? extraItems.filter((item): item is string => typeof item === "string") : [],
   };
