@@ -73,6 +73,171 @@
 .tableFooter { display: flex; min-height: 42px; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 11px 6px 14px; border-top: 1px solid rgba(21,88,85,.06); color: #81948f; font-size: 9.5px; font-weight: 500; }
 .tableFooter button { display: inline-flex; min-height: 30px; align-items: center; gap: 6px; border: 1px solid rgba(21,88,85,.14); border-radius: 8px; padding: 0 10px; background: #fff; color: #155855; font-size: 10px; font-weight: 600; cursor: pointer; }
 
+.sceneAddBackdrop {
+  position: fixed;
+  z-index: 220;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(14, 40, 36, .32);
+  backdrop-filter: blur(4px);
+}
+
+.sceneAddDialog {
+  display: flex;
+  width: min(780px, calc(100vw - 36px));
+  max-height: min(780px, calc(100dvh - 36px));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(21, 88, 85, .14);
+  border-radius: 18px;
+  background: #fff;
+  color: #1b2a27;
+  box-shadow: 0 28px 80px rgba(13, 46, 41, .24);
+}
+
+.sceneAddHeader {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #e4eae8;
+}
+
+.sceneAddHeader > div > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #155855;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.sceneAddHeader h3 { margin: 5px 0 4px; font-size: 21px; font-weight: 600; letter-spacing: -.025em; }
+.sceneAddHeader p { margin: 0; color: #5a7470; font-size: 12px; line-height: 1.55; }
+.sceneAddHeader > button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: #edf5f3;
+  color: #155855;
+  cursor: pointer;
+}
+.sceneAddHeader > button:hover { background: #e1efec; }
+.sceneAddHeader > button:disabled { cursor: not-allowed; background: transparent; color: #9dadaa; outline: 1px solid #d5dedb; }
+
+.sceneAddPrompt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  flex: 0 0 auto;
+  gap: 8px;
+  padding: 14px 20px 0;
+}
+.sceneAddPrompt input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d5dedb;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #fff;
+  color: #1b2a27;
+  font-size: 13px;
+  outline: none;
+}
+.sceneAddPrompt input:focus { border-color: #155855; box-shadow: 0 0 0 3px rgba(21, 88, 85, .09); }
+.sceneAddPrompt button,
+.sceneAddBlank {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid rgba(21, 88, 85, .24);
+  border-radius: 9px;
+  padding: 0 13px;
+  background: #fff;
+  color: #155855;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sceneAddPrompt button:disabled,
+.sceneAddBlank:disabled { cursor: not-allowed; border-color: #d5dedb; background: transparent; color: #92a19e; }
+
+.sceneAddNotice,
+.sceneAddError { flex: 0 0 auto; margin: 10px 20px 0; border-radius: 8px; padding: 9px 11px; font-size: 11.5px; line-height: 1.55; }
+.sceneAddNotice { border-left: 3px solid #155855; background: #f1f7f5; color: #365e58; }
+.sceneAddError { border: 1px solid #f0cdb9; background: #fff4ee; color: #b03f14; }
+
+.sceneRecommendationList {
+  display: grid;
+  min-height: 180px;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 20px;
+}
+.sceneRecommendationRow {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 150px;
+  min-height: 92px;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid #d5dedb;
+  border-radius: 11px;
+  padding: 12px;
+  background: #fff;
+  color: #1b2a27;
+  text-align: left;
+  cursor: pointer;
+}
+.sceneRecommendationRow:hover { border-color: rgba(21, 88, 85, .46); background: #fafcfb; }
+.sceneRecommendationSelected { border-color: #155855; background: #edf5f3; box-shadow: inset 3px 0 #155855; }
+.sceneRecommendationCheck { display: grid; width: 21px; height: 21px; place-items: center; border: 1px solid #b9c6c3; border-radius: 5px; color: transparent; }
+.sceneRecommendationSelected .sceneRecommendationCheck { border-color: #155855; background: #155855; color: #fff; }
+.sceneRecommendationCopy { display: grid; min-width: 0; gap: 4px; }
+.sceneRecommendationCopy strong { font-size: 13px; font-weight: 600; }
+.sceneRecommendationCopy small { color: #155855; font-size: 11.5px; }
+.sceneRecommendationCopy p { margin: 0; color: #5a7470; font-size: 11.5px; line-height: 1.5; }
+.sceneRecommendationMeta { display: grid; justify-items: end; gap: 6px; color: #5a7470; font-size: 11.5px; text-align: right; }
+.sceneRecommendationMeta small:last-child { color: #155855; }
+.sceneAddEmpty { display: grid; min-height: 180px; place-items: center; color: #5a7470; font-size: 12px; text-align: center; }
+
+.sceneAddFooter {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  border-top: 1px solid #e4eae8;
+  padding: 14px 20px 18px;
+  background: #fdfcfa;
+}
+.sceneAddFooter > div { display: grid; justify-items: end; gap: 6px; }
+.sceneAddFooter small { color: #5a7470; font-size: 11.5px; }
+.sceneAddPrimary {
+  min-height: 44px;
+  border: 1px solid #c94a1e;
+  border-radius: 10px;
+  padding: 0 17px;
+  background: #c94a1e;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.sceneAddPrimary:disabled { cursor: not-allowed; border-color: #cbd5d2; background: transparent; color: #899895; }
+.spinning { animation: sceneAddSpin .8s linear infinite; }
+@keyframes sceneAddSpin { to { transform: rotate(360deg); } }
+
 .compactGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
 .compactPanel { display: flex; min-width: 0; height: clamp(180px, 23cqh, 235px); flex-direction: column; overflow: hidden; border: 1px solid rgba(21,88,85,.1); border-radius: 14px; background: rgba(255,255,255,.96); box-shadow: 0 10px 28px rgba(24,62,57,.05); }
 .compactPanelExpanded { height: clamp(270px, 42cqh, 420px); }
@@ -834,6 +999,22 @@
 }
 
 @media (max-width: 760px) {
+  .sceneAddBackdrop { padding: 10px; }
+  .sceneAddDialog { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 14px; }
+  .sceneAddHeader { padding: 16px 14px 13px; }
+  .sceneAddHeader h3 { font-size: 18px; }
+  .sceneAddPrompt { grid-template-columns: 1fr; padding: 12px 14px 0; }
+  .sceneAddPrompt input { min-height: 44px; font-size: 16px; }
+  .sceneAddNotice,
+  .sceneAddError { margin: 9px 14px 0; }
+  .sceneRecommendationList { padding: 12px 14px; }
+  .sceneRecommendationRow { grid-template-columns: 24px minmax(0, 1fr); }
+  .sceneRecommendationMeta { grid-column: 2; justify-items: start; grid-template-columns: auto auto; text-align: left; }
+  .sceneAddFooter { align-items: stretch; flex-direction: column; padding: 12px 14px 14px; }
+  .sceneAddFooter > div { justify-items: stretch; }
+  .sceneAddFooter small { text-align: right; }
+  .sceneAddBlank,
+  .sceneAddPrimary { width: 100%; min-height: 44px; }
   .hospitalShareHeader { align-items: flex-start; flex-direction: column; }.hospitalShareHeader > div:last-child { width: 100%; align-items: stretch; flex-direction: column; }.hospitalShareHeader button { justify-content: center; }
   .hospitalChecklistRow { grid-template-columns: 34px 1fr; }.hospitalChecklistRow small, .hospitalChecklistRow > input { grid-column: 2; }.hospitalDoctorRow { grid-template-columns: 1fr; }.hospitalEditPanel > header { align-items: flex-start; flex-direction: column; justify-content: center; gap: 3px; }
 }

@@ -5,6 +5,7 @@ import { enrichContiScenesWithStatus } from "@/lib/conti/aiEnrichment";
 import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStudioState } from "@/lib/conti/studioState";
 import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import { removeUnsupportedContiSceneColumn } from "@/lib/conti/schemaCompatibility";
+import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
 
 export type CanonicalContiPayload = {
   ok: true;
@@ -158,12 +159,30 @@ async function insertCanonicalContiScene(row: Record<string, unknown>): Promise<
   throw new Error("장면 저장에 필요한 DB 컬럼을 확인하지 못했습니다.");
 }
 
-export async function addCanonicalContiScene(runId: string, groupId?: string | null) {
+export async function addCanonicalContiScene(
+  runId: string,
+  groupId?: string | null,
+  suggested?: Omit<ContiSceneRecommendation, "id" | "reason"> | null,
+) {
   const db = getSupabaseAdmin();
   const existing = await db.from("conti_scenes").select("sort").eq("run_id", runId).order("sort", { ascending: false }).limit(1);
   if (existing.error) throw new Error(existing.error.message);
   const sort = (existing.data?.[0]?.sort ?? -1) + 1;
-  return insertCanonicalContiScene({ run_id: runId, group_id: groupId ?? null, sort, scene_code: `S${sort + 1}`, name: "", space_text: "", minutes: null, keyword: "", description: "", procedures: [], people_text: "", patient_role_text: "", preparation_text: "", note: "", template_id: null, repeat_scope: "once", media: "photo", field_sources: BLANK_FIELD_SOURCES });
+  const source = suggested?.source === "default" ? "template" : suggested ? "ai" : "blank";
+  const fieldSources = suggested ? Object.fromEntries(Object.keys(BLANK_FIELD_SOURCES).map((key) => [key, key === "note" ? "blank" : source])) : BLANK_FIELD_SOURCES;
+  let resolvedGroupId = groupId ?? null;
+  if (suggested?.openingOrder !== undefined) {
+    const group = await db.from("conti_groups").select("id").eq("run_id", runId).eq("name", "단체").order("sort").limit(1).maybeSingle();
+    if (!group.error && group.data?.id) resolvedGroupId = group.data.id;
+  }
+  return insertCanonicalContiScene({
+    run_id: runId, group_id: resolvedGroupId, sort, scene_code: `S${sort + 1}`,
+    name: suggested?.name ?? "", space_text: suggested?.spaceText ?? "", minutes: suggested?.minutes ?? null,
+    keyword: suggested?.keyword ?? "", description: suggested?.description ?? "", procedures: [],
+    people_text: suggested?.peopleText ?? "", patient_role_text: suggested?.patientRoleText ?? "",
+    preparation_text: suggested?.preparationText ?? "", note: "", template_id: null,
+    repeat_scope: "once", media: suggested?.media ?? "photo", field_sources: fieldSources,
+  });
 }
 
 export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean }) {

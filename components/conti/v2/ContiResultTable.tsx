@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useMemo, useRef } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Copy, GripVertical, Plus, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Sparkles, Trash2 } from "lucide-react";
+import ContiSceneAddDialog from "@/components/conti/v2/ContiSceneAddDialog";
 import type { ContiEditableSceneField, ContiGroupRow, ContiSceneRow } from "@/components/conti/v2/types";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import { CONTI_GROUP_COLORS } from "@/lib/conti/departmentTaxonomy";
@@ -12,6 +13,7 @@ import styles from "@/components/conti/v2/ContiV2.module.css";
 
 export default function ContiResultTable({ controller }: { controller: ContiStudioController }) {
   const tableRef = useRef<HTMLTableElement>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const document = controller.document;
   const groups = useMemo(() => document?.groups ?? [], [document?.groups]);
   const scenes = useMemo(() => document?.scenes ?? [], [document?.scenes]);
@@ -84,8 +86,9 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
       </div>
       <footer className={styles.tableFooter}>
         <span>총 {scenes.length} Scene · Enter 줄바꿈 · Tab 다음 셀</span>
-        <button type="button" onClick={() => void controller.addScene()}><Plus size={14} />장면 추가</button>
+        <button type="button" onClick={() => setAddDialogOpen(true)}><Sparkles size={14} />장면 추가</button>
       </footer>
+      <ContiSceneAddDialog open={addDialogOpen} controller={controller} onClose={() => setAddDialogOpen(false)} />
     </section>
   );
 }

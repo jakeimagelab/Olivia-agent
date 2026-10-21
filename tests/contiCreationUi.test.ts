@@ -19,6 +19,17 @@ describe("conti creation UI", () => {
     expect(source).toContain('event.currentTarget.tagName !== "TEXTAREA"');
   });
 
+  it("opens an accessible AI scene recommendation dialog with a close control", () => {
+    const tableSource = readFileSync("components/conti/v2/ContiResultTable.tsx", "utf8");
+    const dialogSource = readFileSync("components/conti/v2/ContiSceneAddDialog.tsx", "utf8");
+    expect(tableSource).toContain("setAddDialogOpen(true)");
+    expect(tableSource).toContain("<ContiSceneAddDialog");
+    expect(dialogSource).toContain('role="dialog"');
+    expect(dialogSource).toContain('aria-label="닫기"');
+    expect(dialogSource).toContain("빈 장면 추가");
+    expect(dialogSource).toContain("선택한 장면 추가");
+  });
+
   it("does not remount the conti window when its client context changes", () => {
     const first = getDesktopContentKey({ windowId: "conti", appId: "conti", context: { clientId: "client-a", projectId: "project-a" } });
     const second = getDesktopContentKey({ windowId: "conti", appId: "conti", context: { clientId: "client-b", projectId: "project-b", documentId: "run-b" } });

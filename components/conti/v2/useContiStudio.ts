@@ -5,6 +5,7 @@ import { deriveContiChecklist } from "@/lib/conti/deriveChecklist";
 import { deriveContiSchedule } from "@/lib/conti/deriveSchedule";
 import { normalizeContiStudioState, type ContiFieldCardSize, type ContiStudioState } from "@/lib/conti/studioState";
 import type { ContiDoctor, ContiEditableSceneField, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
+import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
 
 type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; completed?: boolean };
 type HistorySnapshot = Pick<ContiStudioDocument, "scenes" | "studioState">;
@@ -268,19 +269,37 @@ export function useContiStudio(runId: string | null) {
     updateStudioState((state) => ({ ...state, extraChecklistItems: [...state.extraChecklistItems, { id: `manual-${crypto.randomUUID()}`, label: clean }] }));
   }, [updateStudioState]);
 
-  const addScene = useCallback(async () => {
+  const addScene = useCallback(async (suggested?: ContiSceneRecommendation) => {
     if (!runId || !documentRef.current) return false;
     setSaveStatus("saving");
     try {
       const scenes = documentRef.current.scenes;
-      const response = await fetch("/api/conti/scenes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runId, groupId: scenes.at(-1)?.group_id ?? null }) });
+      const response = await fetch("/api/conti/scenes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ runId, groupId: scenes.at(-1)?.group_id ?? null, ...(suggested ? { scene: suggested } : {}) }) });
       const body = await response.json();
       if (!response.ok || !body.ok) throw new Error(body.error ?? "장면 추가에 실패했습니다.");
-      const next = { ...documentRef.current, scenes: [...documentRef.current.scenes, { ...body.scene, completed: false, preparation_text: body.scene.preparation_text ?? "" }] };
+      const insertedScene = {
+        ...body.scene,
+        ...(suggested && body.scene.media === undefined ? { media: suggested.media } : {}),
+        ...(suggested && body.scene.repeat_scope === undefined ? { repeat_scope: "once" as const } : {}),
+        completed: false,
+        preparation_text: body.scene.preparation_text ?? suggested?.preparationText ?? "",
+      };
+      const nextScenes = [...documentRef.current.scenes, insertedScene];
+      if (suggested?.openingOrder !== undefined) {
+        const openingOrder = new Map([["단체사진", 0], ["단체 하모니컷", 1], ["인포데스크 하모니컷", 2]]);
+        nextScenes.sort((left, right) => {
+          const leftOrder = openingOrder.get(left.name);
+          const rightOrder = openingOrder.get(right.name);
+          if (leftOrder !== undefined || rightOrder !== undefined) return (leftOrder ?? 99) - (rightOrder ?? 99);
+          return left.sort - right.sort;
+        });
+      }
+      const next = { ...documentRef.current, scenes: nextScenes.map((scene, sort) => ({ ...scene, sort })) };
       setDocument(next); documentRef.current = next; setSaveStatus("saved"); setLastSavedAt(new Date());
+      if (suggested?.openingOrder !== undefined) { orderDirtyRef.current = true; scheduleSave(); }
       return true;
     } catch (caught) { setError(caught instanceof Error ? caught.message : "장면 추가에 실패했습니다."); setSaveStatus("failed"); return false; }
-  }, [runId]);
+  }, [runId, scheduleSave]);
 
   const duplicateScene = useCallback(async (sceneId: string) => {
     if (!documentRef.current) return false;
