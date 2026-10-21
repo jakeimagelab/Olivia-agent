@@ -296,10 +296,17 @@ export function useContiStudio(runId: string | null) {
       }
       const next = { ...documentRef.current, scenes: nextScenes.map((scene, sort) => ({ ...scene, sort })) };
       setDocument(next); documentRef.current = next; setSaveStatus("saved"); setLastSavedAt(new Date());
-      if (suggested?.openingOrder !== undefined) { orderDirtyRef.current = true; scheduleSave(); }
+      // 추천 장면 여러 개를 연속으로 추가하는 동안 900ms 타이머가 먼저 실행되면,
+      // 아직 추가 중인 장면 목록과 마지막 목록의 reorder 요청이 서로 경합한다.
+      // 고정 시작 장면은 배치 추가가 끝난 뒤 ContiSceneAddDialog가 flushSave를 한 번만 호출한다.
+      if (suggested?.openingOrder !== undefined) {
+        orderDirtyRef.current = true;
+        mutationVersionRef.current += 1;
+        setSaveStatus("dirty");
+      }
       return true;
     } catch (caught) { setError(caught instanceof Error ? caught.message : "장면 추가에 실패했습니다."); setSaveStatus("failed"); return false; }
-  }, [runId, scheduleSave]);
+  }, [runId]);
 
   const duplicateScene = useCallback(async (sceneId: string) => {
     if (!documentRef.current) return false;

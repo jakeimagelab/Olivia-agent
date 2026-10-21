@@ -70,12 +70,15 @@ export default function ContiSceneAddDialog({ open, controller, onClose }: {
   async function addSelected() {
     if (!selectedRecommendations.length) return;
     setAdding(true); setError("");
+    let needsOrderSave = false;
     for (const recommendation of selectedRecommendations) {
       if (!await controller.addScene(recommendation)) {
+        if (needsOrderSave) await controller.flushSave();
         setError(controller.error || "장면을 추가하지 못했습니다.");
         setAdding(false);
         return;
       }
+      needsOrderSave ||= recommendation.openingOrder !== undefined;
       setRecommendations((current) => current.filter((item) => item.id !== recommendation.id));
       setSelected((current) => {
         const next = new Set(current);
@@ -83,7 +86,7 @@ export default function ContiSceneAddDialog({ open, controller, onClose }: {
         return next;
       });
     }
-    if (!await controller.flushSave()) {
+    if (needsOrderSave && !await controller.flushSave()) {
       setError("장면은 추가했지만 순서를 저장하지 못했습니다. 다시 시도해 주세요.");
       setAdding(false);
       return;

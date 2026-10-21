@@ -30,6 +30,14 @@ describe("conti creation UI", () => {
     expect(dialogSource).toContain("선택한 장면 추가");
   });
 
+  it("saves the opening-scene order once after the recommendation batch", () => {
+    const studioSource = readFileSync("components/conti/v2/useContiStudio.ts", "utf8");
+    const dialogSource = readFileSync("components/conti/v2/ContiSceneAddDialog.tsx", "utf8");
+    expect(studioSource).toContain("mutationVersionRef.current += 1");
+    expect(studioSource).toContain('setSaveStatus("dirty")');
+    expect(dialogSource).toContain("needsOrderSave && !await controller.flushSave()");
+  });
+
   it("does not remount the conti window when its client context changes", () => {
     const first = getDesktopContentKey({ windowId: "conti", appId: "conti", context: { clientId: "client-a", projectId: "project-a" } });
     const second = getDesktopContentKey({ windowId: "conti", appId: "conti", context: { clientId: "client-b", projectId: "project-b", documentId: "run-b" } });
