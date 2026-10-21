@@ -125,7 +125,7 @@ export default function ContiSceneAddDialog({ open, controller, onClose }: {
             return <button key={item.id} type="button" className={`${styles.sceneRecommendationRow} ${checked ? styles.sceneRecommendationSelected : ""}`} aria-pressed={checked} onClick={() => toggle(item.id)}>
               <span className={styles.sceneRecommendationCheck}>{checked ? <Check size={14} /> : null}</span>
               <span className={styles.sceneRecommendationCopy}><strong>{item.name}</strong><small>{item.reason}</small><p>{item.description}</p></span>
-              <span className={styles.sceneRecommendationMeta}><small>{item.spaceText || "장소 미정"}</small><small>{item.minutes}분 · {item.media === "photo_video" ? "사진 + 영상" : item.media === "none" ? "촬영 없음" : "사진"}</small></span>
+              <span className={styles.sceneRecommendationMeta}><small>{item.groupName} · {item.spaceText || "장소 미정"}</small><small>{item.minutes}분 · {item.media === "photo_video" ? "사진 + 영상" : item.media === "none" ? "촬영 없음" : "사진"}</small></span>
             </button>;
           }) : null}
         </div>

@@ -4,6 +4,7 @@ import { generateContiDraft } from "@/lib/conti/generate";
 
 export type ContiSceneRecommendation = {
   id: string;
+  groupName: string;
   name: string;
   keyword: string;
   description: string;
@@ -26,34 +27,39 @@ type RecommendationInput = {
   intent?: string;
 };
 
-const MANDATORY_OPENING_NAMES = ["단체사진", "단체 하모니컷", "인포데스크 하모니컷"] as const;
+export const MANDATORY_OPENING_NAMES = ["단체사진", "단체 하모니컷", "인포데스크 하모니컷"] as const;
 
 const PAIN_RECOMMENDATIONS: Array<Omit<ContiSceneRecommendation, "id" | "source">> = [
   {
+    groupName: "시술",
     name: "C-ARM 신경차단술", keyword: "정밀 시술 · 전문성", minutes: 20, spaceText: "C-ARM실",
     description: "C-ARM 영상을 확인하며 신경차단술을 진행하는 장면. 의료진의 집중과 장비 활용이 함께 보이도록 촬영합니다.",
     peopleText: "의료진 / 방사선사 / 환자", patientRoleText: "엎드리거나 옆으로 누운 환자",
     preparationText: "C-ARM 장비 · 시술복 · 보호구 · 시술 동선 확인", media: "photo_video", reason: "마취통증의학과 핵심 시술",
   },
   {
+    groupName: "시술",
     name: "초음파 유도 주사치료", keyword: "정밀 진단 · 집중", minutes: 20, spaceText: "초음파실",
     description: "초음파 화면으로 통증 부위를 확인하며 주사치료하는 장면. 화면과 의료진 손동작이 함께 보이도록 촬영합니다.",
     peopleText: "의료진 / 간호사 / 환자", patientRoleText: "시술 부위를 노출하고 안정된 자세를 취한 환자",
     preparationText: "초음파 장비 · 젤 · 시술 소모품 · 모니터 화면 정리", media: "photo_video", reason: "마취통증의학과 정밀 시술",
   },
   {
+    groupName: "진료",
     name: "통증 부위 진찰 · 설명", keyword: "세심한 진찰 · 신뢰", minutes: 15, spaceText: "진료실",
     description: "환자의 통증 부위를 촉진하고 모형이나 차트를 이용해 원인을 설명하는 진료 장면입니다.",
     peopleText: "의료진 / 환자", patientRoleText: "통증 부위를 설명하고 진찰받는 환자",
     preparationText: "척추·관절 모형 · 진료 차트", media: "photo_video", reason: "통증 진료 과정을 설명하는 장면",
   },
   {
+    groupName: "진료",
     name: "X-ray · MRI 영상 판독", keyword: "근거 중심 · 전문 판독", minutes: 15, spaceText: "진료실",
     description: "의료진이 X-ray 또는 MRI 영상을 가리키며 환자에게 통증 원인과 치료 계획을 설명하는 장면입니다.",
     peopleText: "의료진 / 환자", patientRoleText: "모니터를 보며 설명을 듣는 환자",
     preparationText: "판독용 영상 · 모니터 개인정보 제거", media: "photo_video", reason: "영상 기반 통증 진단",
   },
   {
+    groupName: "상담",
     name: "시술 전 환자 상담", keyword: "안심 · 충분한 설명", minutes: 15, spaceText: "상담실",
     description: "시술 방법과 주의사항을 차분히 설명하고 환자의 질문에 답하는 상담 장면입니다.",
     peopleText: "의료진 / 환자", patientRoleText: "설명을 듣고 질문하는 환자",
@@ -101,6 +107,7 @@ export function buildDefaultSceneRecommendations(input: RecommendationInput): Co
   }).scenes
     .filter((scene) => MANDATORY_OPENING_NAMES.includes(scene.name as (typeof MANDATORY_OPENING_NAMES)[number]))
     .map((scene) => ({
+      groupName: "단체",
       name: scene.name,
       keyword: scene.keyword,
       description: scene.description,
@@ -124,6 +131,7 @@ export function buildDefaultSceneRecommendations(input: RecommendationInput): Co
 
   const department = getDepartmentDefinition(input.specialty);
   const candidates = (department?.categories ?? []).map((category) => ({
+    groupName: category.defaultSpace ?? "진료",
     name: category.label,
     keyword: "전문성 · 신뢰",
     description: `${category.label} 장면을 실제 진료 흐름에 맞게 자연스럽게 촬영합니다.`,
@@ -156,9 +164,9 @@ const recommendationSchema = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["name", "keyword", "description", "minutes", "spaceText", "peopleText", "patientRoleText", "preparationText", "media", "reason"],
+            required: ["groupName", "name", "keyword", "description", "minutes", "spaceText", "peopleText", "patientRoleText", "preparationText", "media", "reason"],
             properties: {
-              name: { type: "string" }, keyword: { type: "string" }, description: { type: "string" },
+              groupName: { type: "string" }, name: { type: "string" }, keyword: { type: "string" }, description: { type: "string" },
               minutes: { type: "integer", minimum: 5, maximum: 60 }, spaceText: { type: "string" },
               peopleText: { type: "string" }, patientRoleText: { type: "string" }, preparationText: { type: "string" },
               media: { type: "string", enum: ["photo", "photo_video", "none"] }, reason: { type: "string" },
@@ -189,7 +197,7 @@ export async function recommendContiScenes(input: RecommendationInput): Promise<
       messages: [
         {
           role: "system",
-          content: "당신은 병원 홍보 사진·영상 촬영 콘티 전문가입니다. 진료과에 실제로 필요한 장면만 추천하세요. 기존 장면과 겹치지 말고 과장되거나 의료적으로 부정확한 시술을 만들지 마세요. 응답은 지정된 JSON Schema를 따르세요.",
+          content: "당신은 병원 홍보 사진·영상 촬영 콘티 전문가입니다. 진료과에 실제로 필요한 장면만 추천하세요. 각 장면의 groupName에는 장소명이 아니라 콘티에서 읽기 쉬운 구분(예: 단체, 진료, 시술, 상담)을 적으세요. 기존 장면과 겹치지 말고 과장되거나 의료적으로 부정확한 시술을 만들지 마세요. 응답은 지정된 JSON Schema를 따르세요.",
         },
         {
           role: "user",
@@ -223,6 +231,13 @@ export function parseContiSceneRecommendation(value: unknown): Omit<ContiSceneRe
   const media = input.media === "photo_video" || input.media === "none" ? input.media : "photo";
   const openingOrder = MANDATORY_OPENING_NAMES.indexOf(name as (typeof MANDATORY_OPENING_NAMES)[number]);
   return {
+    groupName: openingOrder >= 0
+      ? "단체"
+      : typeof input.groupName === "string" && input.groupName.trim()
+        ? input.groupName.trim().slice(0, 100)
+        : typeof input.spaceText === "string" && input.spaceText.trim()
+          ? input.spaceText.trim().slice(0, 100)
+          : "미지정",
     name,
     keyword: typeof input.keyword === "string" ? input.keyword.trim().slice(0, 200) : "",
     description: typeof input.description === "string" ? input.description.trim().slice(0, 2000) : "",

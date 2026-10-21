@@ -7,7 +7,7 @@ import { normalizeContiStudioState, type ContiFieldCardSize, type ContiStudioSta
 import type { ContiDoctor, ContiEditableSceneField, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
 import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
 
-type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; completed?: boolean };
+type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; group_id?: string | null; completed?: boolean };
 type HistorySnapshot = Pick<ContiStudioDocument, "scenes" | "studioState">;
 
 function cloneHistorySnapshot(document: ContiStudioDocument): HistorySnapshot {
@@ -174,6 +174,20 @@ export function useContiStudio(runId: string | null) {
       return next;
     });
     queueScenePatch(sceneId, { fields }); scheduleSave();
+  }, [pushHistory, queueScenePatch, scheduleSave]);
+
+  const updateSceneGroup = useCallback((sceneId: string, groupId: string | null) => {
+    const scene = documentRef.current?.scenes.find((item) => item.id === sceneId);
+    if (!scene || scene.group_id === groupId) return;
+    pushHistory();
+    setDocument((current) => {
+      if (!current) return current;
+      const next = { ...current, scenes: current.scenes.map((item) => item.id === sceneId ? { ...item, group_id: groupId } : item) };
+      documentRef.current = next;
+      return next;
+    });
+    queueScenePatch(sceneId, { group_id: groupId });
+    scheduleSave();
   }, [pushHistory, queueScenePatch, scheduleSave]);
 
   const toggleSceneComplete = useCallback((sceneId: string) => {
@@ -347,6 +361,7 @@ export function useContiStudio(runId: string | null) {
     setDocument(next); documentRef.current = next;
     for (const scene of next.scenes) queueScenePatch(scene.id, {
       fields: { name: scene.name, space_text: scene.space_text, minutes: scene.minutes, keyword: scene.keyword, description: scene.description, people_text: scene.people_text, patient_role_text: scene.patient_role_text, preparation_text: scene.preparation_text, note: scene.note },
+      group_id: scene.group_id,
       completed: scene.completed,
     });
     orderDirtyRef.current = true; studioDirtyRef.current = true; scheduleSave();
@@ -379,7 +394,7 @@ export function useContiStudio(runId: string | null) {
     document, loading, error, saveStatus, lastSavedAt, checklist, schedule,
     canUndo: historyRevision >= 0 && undoRef.current.length > 0,
     canRedo: historyRevision >= 0 && redoRef.current.length > 0,
-    reload: load, flushSave, updateSceneFields, toggleSceneComplete, reorderScenes,
+    reload: load, flushSave, updateSceneFields, updateSceneGroup, toggleSceneComplete, reorderScenes,
     toggleChecklistItem, setChecklistAssignee, addChecklistItem, setScheduleStartTime, setFieldCardSize, setSceneCameraAngle,
     updateDoctors, toggleTimelineItem, reorderTimeline, updateStudioState,
     addScene, duplicateScene, deleteScene, undo, redo, linkCanonicalConti,

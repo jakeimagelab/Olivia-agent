@@ -19,6 +19,14 @@ describe("conti creation UI", () => {
     expect(source).toContain('event.currentTarget.tagName !== "TEXTAREA"');
   });
 
+  it("lets the user change a scene group and queues it for autosave", () => {
+    const tableSource = readFileSync("components/conti/v2/ContiResultTable.tsx", "utf8");
+    const studioSource = readFileSync("components/conti/v2/useContiStudio.ts", "utf8");
+    expect(tableSource).toContain("controller.updateSceneGroup");
+    expect(tableSource).toContain("<select");
+    expect(studioSource).toContain("queueScenePatch(sceneId, { group_id: groupId })");
+  });
+
   it("opens an accessible AI scene recommendation dialog with a close control", () => {
     const tableSource = readFileSync("components/conti/v2/ContiResultTable.tsx", "utf8");
     const dialogSource = readFileSync("components/conti/v2/ContiSceneAddDialog.tsx", "utf8");

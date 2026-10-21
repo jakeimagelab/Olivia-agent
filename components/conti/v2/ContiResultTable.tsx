@@ -17,7 +17,6 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
   const document = controller.document;
   const groups = useMemo(() => document?.groups ?? [], [document?.groups]);
   const scenes = useMemo(() => document?.scenes ?? [], [document?.scenes]);
-  const groupNameById = useMemo(() => new Map(groups.map((group) => [group.id, group.name])), [groups]);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 160, tolerance: 8 } }),
@@ -70,12 +69,12 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
                   key={scene.id}
                   scene={scene}
                   groups={groups}
-                  groupName={scene.group_id ? groupNameById.get(scene.group_id) ?? "미지정" : "미지정"}
                   rowIndex={index}
                   scheduleTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.startTime}
                   scheduleEndTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.endTime}
                   onMoveFocus={moveFocus}
                   onUpdate={controller.updateSceneFields}
+                  onUpdateGroup={controller.updateSceneGroup}
                   onDuplicate={controller.duplicateScene}
                   onDelete={async (sceneId) => { if (window.confirm("이 장면을 삭제할까요?")) await controller.deleteScene(sceneId); }}
                 />
@@ -93,15 +92,15 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
   );
 }
 
-function SortableSceneRow({ scene, groups, groupName, rowIndex, scheduleTime, scheduleEndTime, onMoveFocus, onUpdate, onDuplicate, onDelete }: {
+function SortableSceneRow({ scene, groups, rowIndex, scheduleTime, scheduleEndTime, onMoveFocus, onUpdate, onUpdateGroup, onDuplicate, onDelete }: {
   scene: ContiSceneRow;
   groups: ContiGroupRow[];
-  groupName: string;
   rowIndex: number;
   scheduleTime?: string;
   scheduleEndTime?: string;
   onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") => void;
   onUpdate: (sceneId: string, fields: Partial<Record<ContiEditableSceneField, string | number | null>>) => void;
+  onUpdateGroup: (sceneId: string, groupId: string | null) => void;
   onDuplicate: (sceneId: string) => Promise<boolean>;
   onDelete: (sceneId: string) => Promise<void>;
 }) {
@@ -112,7 +111,10 @@ function SortableSceneRow({ scene, groups, groupName, rowIndex, scheduleTime, sc
   return (
     <tr ref={setNodeRef} style={style}>
       <td className={styles.numberColumn}><div className={styles.sceneCodeCell}><button type="button" className={styles.dragHandle} aria-label={`${scene.name || "장면"} 순서 이동`} {...attributes} {...listeners}><GripVertical size={15} /></button><span>{scene.scene_code || `S${rowIndex + 1}`}</span><div className={styles.rowActions}><button type="button" title="복제" aria-label={`${scene.name} 복제`} onClick={() => void onDuplicate(scene.id)}><Copy size={12} /></button><button type="button" title="삭제" aria-label={`${scene.name} 삭제`} onClick={() => void onDelete(scene.id)}><Trash2 size={12} /></button></div></div></td>
-      <td><span className={styles.groupPill} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties}>{groupName}</span></td>
+      <td><select className={styles.groupSelect} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties} value={scene.group_id ?? ""} aria-label={`${scene.name || "장면"} 구분`} onChange={(event) => onUpdateGroup(scene.id, event.target.value || null)}>
+        <option value="">미지정</option>
+        {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+      </select></td>
       <EditableCell scene={scene} field="name" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <td className={styles.timeCell}>{scene.repeat_scope === "per_doctor" ? "타임테이블" : scheduleTime && scheduleEndTime ? `${scheduleTime}–${scheduleEndTime}` : "미정"}</td>
       <EditableCell scene={scene} field="minutes" rowIndex={rowIndex} numeric onMoveFocus={onMoveFocus} onUpdate={onUpdate} />

@@ -5,7 +5,7 @@ import { enrichContiScenesWithStatus } from "@/lib/conti/aiEnrichment";
 import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStudioState } from "@/lib/conti/studioState";
 import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import { removeUnsupportedContiSceneColumn } from "@/lib/conti/schemaCompatibility";
-import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
+import { MANDATORY_OPENING_NAMES, type ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
 
 export type CanonicalContiPayload = {
   ok: true;
@@ -42,6 +42,19 @@ export type ImportCanonicalContiInput = {
   schedule?: Array<Record<string, unknown>>;
 };
 
+async function ensureCanonicalContiGroup(runId: string, name: string): Promise<Record<string, unknown>> {
+  const db = getSupabaseAdmin();
+  const existing = await db.from("conti_groups").select("*").eq("run_id", runId).eq("name", name).order("sort").limit(1).maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (existing.data) return existing.data as Record<string, unknown>;
+
+  const last = await db.from("conti_groups").select("sort").eq("run_id", runId).order("sort", { ascending: false }).limit(1);
+  if (last.error) throw new Error(last.error.message);
+  const inserted = await db.from("conti_groups").insert({ run_id: runId, name, sort: (last.data?.[0]?.sort ?? -1) + 1 }).select("*").single();
+  if (inserted.error || !inserted.data) throw new Error(inserted.error?.message ?? "콘티 구분을 저장하지 못했습니다.");
+  return inserted.data as Record<string, unknown>;
+}
+
 function isMissingV2Column(error: { code?: string; message?: string } | null): boolean {
   return Boolean(error && (error.code === "PGRST204" || /schema cache|column .* does not exist/i.test(error.message ?? "")));
 }
@@ -57,12 +70,27 @@ export async function getCanonicalConti(runId: string): Promise<CanonicalContiPa
   ]);
   if (groupsError) throw new Error(groupsError.message);
   if (scenesError) throw new Error(scenesError.message);
+  let normalizedGroups = [...(groups ?? [])] as Array<Record<string, unknown>>;
+  let normalizedScenes = [...(scenes ?? [])] as Array<Record<string, unknown>>;
+  const groupNames = new Map(normalizedGroups.map((group) => [String(group.id), String(group.name ?? "")]));
+  const misplacedOpeningIds = normalizedScenes
+    .filter((scene) => MANDATORY_OPENING_NAMES.includes(String(scene.name ?? "") as (typeof MANDATORY_OPENING_NAMES)[number]))
+    .filter((scene) => groupNames.get(String(scene.group_id ?? "")) !== "단체")
+    .map((scene) => String(scene.id));
+  if (misplacedOpeningIds.length) {
+    const collectiveGroup = await ensureCanonicalContiGroup(runId, "단체");
+    const collectiveGroupId = String(collectiveGroup.id);
+    const repaired = await db.from("conti_scenes").update({ group_id: collectiveGroupId }).in("id", misplacedOpeningIds);
+    if (repaired.error) throw new Error(repaired.error.message);
+    if (!normalizedGroups.some((group) => String(group.id) === collectiveGroupId)) normalizedGroups = [...normalizedGroups, collectiveGroup].sort((left, right) => Number(left.sort ?? 0) - Number(right.sort ?? 0));
+    normalizedScenes = normalizedScenes.map((scene) => misplacedOpeningIds.includes(String(scene.id)) ? { ...scene, group_id: collectiveGroupId } : scene);
+  }
   let hospitalName = "";
   if (run.hospital_id) {
     const client = await db.from("clients").select("hospital_name").eq("id", run.hospital_id).maybeSingle();
     if (!client.error) hospitalName = client.data?.hospital_name?.trim() ?? "";
   }
-  return { ok: true, run: { ...run, hospital_name: hospitalName }, groups: groups ?? [], scenes: scenes ?? [] };
+  return { ok: true, run: { ...run, hospital_name: hospitalName }, groups: normalizedGroups, scenes: normalizedScenes };
 }
 
 export async function createCanonicalConti(source: CreateCanonicalContiInput): Promise<CanonicalContiPayload> {
@@ -171,9 +199,9 @@ export async function addCanonicalContiScene(
   const source = suggested?.source === "default" ? "template" : suggested ? "ai" : "blank";
   const fieldSources = suggested ? Object.fromEntries(Object.keys(BLANK_FIELD_SOURCES).map((key) => [key, key === "note" ? "blank" : source])) : BLANK_FIELD_SOURCES;
   let resolvedGroupId = groupId ?? null;
-  if (suggested?.openingOrder !== undefined) {
-    const group = await db.from("conti_groups").select("id").eq("run_id", runId).eq("name", "단체").order("sort").limit(1).maybeSingle();
-    if (!group.error && group.data?.id) resolvedGroupId = group.data.id;
+  if (suggested) {
+    const requestedGroupName = suggested.openingOrder !== undefined ? "단체" : suggested.groupName.trim();
+    if (requestedGroupName) resolvedGroupId = String((await ensureCanonicalContiGroup(runId, requestedGroupName)).id);
   }
   return insertCanonicalContiScene({
     run_id: runId, group_id: resolvedGroupId, sort, scene_code: `S${sort + 1}`,
