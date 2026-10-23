@@ -22,6 +22,8 @@ type PhotoJob = {
 };
 
 const PHOTO_ACTIONS = new Set(["PHOTO_SORT", "PHOTO_PREPARE_SOURCE", "PHOTO_STAGE_JPG", "PHOTO_CLASSIFY_WORK", "PERSON_SELECT_IMPORT"]);
+const DISMISSED_JOB_STORAGE_KEY = "olivia.photo-task.dismissed-job-ids.v1";
+const MAX_DISMISSED_JOB_IDS = 500;
 const STAGE_LABEL: Record<string, string> = {
   STAGING: "복사 준비 중",
   PREPARING: "JPG정리 중",
@@ -51,11 +53,37 @@ function folderName(job: PhotoJob): string {
   return raw.split("/").at(-1) || raw;
 }
 
+function readDismissedJobIds(): string[] {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(DISMISSED_JOB_STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((value): value is string => typeof value === "string" && Boolean(value)).slice(-MAX_DISMISSED_JOB_IDS);
+  } catch {
+    return [];
+  }
+}
+
+function persistDismissedJobIds(jobIds: string[]): void {
+  try {
+    window.localStorage.setItem(DISMISSED_JOB_STORAGE_KEY, JSON.stringify(jobIds.slice(-MAX_DISMISSED_JOB_IDS)));
+  } catch {
+    // 저장소가 차단된 환경에서도 현재 화면의 닫기 동작은 유지한다.
+  }
+}
+
 /** 데스크톱 상태 패널과 별개의 실행 표시줄. 실패는 사용자가 닫을 때까지 남긴다. */
 export function PhotoTaskStatusBar() {
   const [jobs, setJobs] = useState<PhotoJob[]>([]);
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
-  const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
+  const [dismissedJobIds, setDismissedJobIds] = useState<string[]>(() => typeof window === "undefined" ? [] : readDismissedJobIds());
+
+  useEffect(() => {
+    const syncDismissedJobs = (event: StorageEvent) => {
+      if (event.key === DISMISSED_JOB_STORAGE_KEY) setDismissedJobIds(readDismissedJobIds());
+    };
+    window.addEventListener("storage", syncDismissedJobs);
+    return () => window.removeEventListener("storage", syncDismissedJobs);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -167,7 +195,11 @@ export function PhotoTaskStatusBar() {
                 className={styles.photoTaskClose}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setDismissedJobIds((current) => current.includes(job.id) ? current : [...current, job.id]);
+                  setDismissedJobIds((current) => {
+                    const next = current.includes(job.id) ? current : [...current, job.id].slice(-MAX_DISMISSED_JOB_IDS);
+                    persistDismissedJobIds(next);
+                    return next;
+                  });
                   setExpandedJobId((current) => current === job.id ? null : current);
                 }}
               />

@@ -11,6 +11,9 @@ describe("Olivia OS notification close controls", () => {
 
     expect(statusBar).toContain("dismissedJobIds");
     expect(statusBar).toContain("!dismissedJobIds.includes(job.id)");
+    expect(statusBar).toContain("DISMISSED_JOB_STORAGE_KEY");
+    expect(statusBar).toContain("window.localStorage.setItem");
+    expect(statusBar).toContain("readDismissedJobIds()");
     expect(statusBar).toContain("<ModalCloseButton");
     expect(statusBar).toContain("event.stopPropagation()");
     expect(statusBar).toContain("cancelRemotePhotoSortJob(job.id)");
