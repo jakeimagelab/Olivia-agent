@@ -1,10 +1,20 @@
 export type ContiFieldCardSize = "compact" | "normal" | "large";
 export interface ContiSceneVisual { assetId?: string; imageUrl?: string; source: "library" | "custom" | "ai"; sceneKey?: string }
-export interface ContiSceneMeta { cameraAngle?: string; visual?: ContiSceneVisual }
+export interface ContiSceneMeta {
+  cameraAngle?: string;
+  visual?: ContiSceneVisual;
+  // 속성이 없으면 자동 계산값, 빈 문자열이면 사용자가 의도적으로 비운 값이다.
+  shootingTimeOverride?: string;
+}
 export interface ContiExtraChecklistItem { id: string; label: string; notes?: string }
 export interface ContiScheduleSegment { id: string; label: string; date?: string; startTime?: string; endTime?: string }
 export interface ContiScheduleBlock { id: string; segmentId: string; type: "break"; label: string; minutes: number; startTime?: string; location?: string }
 export interface ContiFixedSceneTime { segmentId: string; startTime: string }
+export interface ContiTimelineOverride {
+  date?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+}
 
 export interface ContiStudioState {
   version: 2;
@@ -17,18 +27,21 @@ export interface ContiStudioState {
   fixedSceneTimes: Record<string, ContiFixedSceneTime>;
   timelineOrder: string[];
   timelineCompleted: Record<string, boolean>;
+  timelineOverrides: Record<string, ContiTimelineOverride>;
   hospitalRequestNote: string;
   fieldCardSize: ContiFieldCardSize;
   sceneMeta: Record<string, ContiSceneMeta>;
 }
 
 export function createDefaultContiStudioState(): ContiStudioState {
-  return { version: 2, checklistCompleted: {}, checklistAssignees: {}, extraChecklistItems: [], scheduleSegments: [{ id: "day-1", label: "1일차", startTime: "09:00", endTime: "18:00" }], scheduleBlocks: [], fixedSceneTimes: {}, timelineOrder: [], timelineCompleted: {}, hospitalRequestNote: "", fieldCardSize: "normal", sceneMeta: {} };
+  return { version: 2, checklistCompleted: {}, checklistAssignees: {}, extraChecklistItems: [], scheduleSegments: [{ id: "day-1", label: "1일차", startTime: "09:00", endTime: "18:00" }], scheduleBlocks: [], fixedSceneTimes: {}, timelineOrder: [], timelineCompleted: {}, timelineOverrides: {}, hospitalRequestNote: "", fieldCardSize: "normal", sceneMeta: {} };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
 function cleanText(value: unknown): string | undefined { return typeof value === "string" && value.trim() ? value.trim() : undefined; }
 function cleanTime(value: unknown): string | undefined { return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value) ? value : undefined; }
+function cleanDate(value: unknown): string | undefined { return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined; }
+function hasOwn(record: Record<string, unknown>, key: string): boolean { return Object.prototype.hasOwnProperty.call(record, key); }
 
 function normalizeVisual(value: unknown): ContiSceneVisual | undefined {
   if (!isRecord(value) || !["library", "custom", "ai"].includes(String(value.source))) return undefined;
@@ -64,14 +77,19 @@ export function normalizeContiStudioState(value: unknown): ContiStudioState {
   if (isRecord(value.sceneMeta)) for (const [sceneId, rawMeta] of Object.entries(value.sceneMeta)) {
     if (!sceneId || !isRecord(rawMeta)) continue;
     const cameraAngle = cleanText(rawMeta.cameraAngle); const visual = normalizeVisual(rawMeta.visual);
-    if (cameraAngle || visual) sceneMeta[sceneId] = { ...(cameraAngle ? { cameraAngle } : {}), ...(visual ? { visual } : {}) };
+    const hasShootingTimeOverride = hasOwn(rawMeta, "shootingTimeOverride") && typeof rawMeta.shootingTimeOverride === "string";
+    if (cameraAngle || visual || hasShootingTimeOverride) sceneMeta[sceneId] = {
+      ...(cameraAngle ? { cameraAngle } : {}),
+      ...(visual ? { visual } : {}),
+      ...(hasShootingTimeOverride ? { shootingTimeOverride: String(rawMeta.shootingTimeOverride).replace(/\r\n?/g, "\n").slice(0, 240) } : {}),
+    };
   }
   const scheduleSegments: ContiScheduleSegment[] = [];
   if (Array.isArray(value.scheduleSegments)) for (const raw of value.scheduleSegments) {
     if (!isRecord(raw)) continue;
     const id = cleanText(raw.id); const label = cleanText(raw.label);
     if (!id || !label) continue;
-    scheduleSegments.push({ id, label, ...(cleanText(raw.date) ? { date: cleanText(raw.date) } : {}), ...(cleanTime(raw.startTime) ? { startTime: cleanTime(raw.startTime) } : {}), ...(cleanTime(raw.endTime) ? { endTime: cleanTime(raw.endTime) } : {}) });
+    scheduleSegments.push({ id, label, ...(cleanDate(raw.date) ? { date: cleanDate(raw.date) } : {}), ...(cleanTime(raw.startTime) ? { startTime: cleanTime(raw.startTime) } : {}), ...(cleanTime(raw.endTime) ? { endTime: cleanTime(raw.endTime) } : {}) });
   }
   const legacyStart = cleanTime(value.scheduleStartTime);
   if (!scheduleSegments.length) scheduleSegments.push({ ...fallback.scheduleSegments[0], ...(legacyStart ? { startTime: legacyStart } : {}) });
@@ -90,5 +108,14 @@ export function normalizeContiStudioState(value: unknown): ContiStudioState {
   }
   const fieldCardSize: ContiFieldCardSize = ["compact", "normal", "large"].includes(String(value.fieldCardSize)) ? value.fieldCardSize as ContiFieldCardSize : "normal";
   const timelineOrder = Array.isArray(value.timelineOrder) ? value.timelineOrder.filter((entry): entry is string => typeof entry === "string" && Boolean(entry)) : [];
-  return { version: 2, checklistCompleted: normalizeBooleanRecord(value.checklistCompleted), checklistAssignees: normalizeTextRecord(value.checklistAssignees), extraChecklistItems, ...(legacyStart ? { scheduleStartTime: legacyStart } : {}), scheduleSegments, scheduleBlocks, fixedSceneTimes, timelineOrder, timelineCompleted: normalizeBooleanRecord(value.timelineCompleted), hospitalRequestNote: cleanText(value.hospitalRequestNote) ?? "", fieldCardSize, sceneMeta };
+  const timelineOverrides: Record<string, ContiTimelineOverride> = {};
+  if (isRecord(value.timelineOverrides)) for (const [rowId, rawOverride] of Object.entries(value.timelineOverrides)) {
+    if (!rowId || !isRecord(rawOverride)) continue;
+    const normalized: ContiTimelineOverride = {};
+    if (hasOwn(rawOverride, "date")) normalized.date = rawOverride.date === null || rawOverride.date === "" ? null : cleanDate(rawOverride.date);
+    if (hasOwn(rawOverride, "startTime")) normalized.startTime = rawOverride.startTime === null || rawOverride.startTime === "" ? null : cleanTime(rawOverride.startTime);
+    if (hasOwn(rawOverride, "endTime")) normalized.endTime = rawOverride.endTime === null || rawOverride.endTime === "" ? null : cleanTime(rawOverride.endTime);
+    if (Object.values(normalized).some((entry) => entry !== undefined)) timelineOverrides[rowId] = normalized;
+  }
+  return { version: 2, checklistCompleted: normalizeBooleanRecord(value.checklistCompleted), checklistAssignees: normalizeTextRecord(value.checklistAssignees), extraChecklistItems, ...(legacyStart ? { scheduleStartTime: legacyStart } : {}), scheduleSegments, scheduleBlocks, fixedSceneTimes, timelineOrder, timelineCompleted: normalizeBooleanRecord(value.timelineCompleted), timelineOverrides, hospitalRequestNote: cleanText(value.hospitalRequestNote) ?? "", fieldCardSize, sceneMeta };
 }

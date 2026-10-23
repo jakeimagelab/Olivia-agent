@@ -142,6 +142,13 @@ function findCommon(templates: SceneTemplateRow[], sceneKeys: string[]): SceneTe
 }
 
 function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[], sort: number): DraftScene {
+  const selectedProcedureText = procedures.length ? procedures.join(" · ") : "";
+  const description = selectedProcedureText
+    ? `${template.default_description}\n촬영 세부: ${selectedProcedureText}`
+    : template.default_description;
+  const preparationText = selectedProcedureText
+    ? `${procedures.join(", ")} 관련 장비·소품과 촬영 동선 확인`
+    : template.preparation_text ?? "";
   return {
     id: `scene-${sort}`,
     sort,
@@ -151,11 +158,11 @@ function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[]
     spaceText: template.space_type,
     minutes: template.default_minutes,
     keyword: template.default_keyword,
-    description: template.default_description,
+    description,
     procedures,
     peopleText: "",
     patientRoleText: template.patient_role_text ?? (template.needs_patient ? "환자" : ""),
-    preparationText: template.preparation_text ?? "",
+    preparationText,
     note: template.default_note ?? "",
     templateId: template.id,
     repeatScope: template.repeat_scope ?? (template.per_doctor ? "per_doctor" : "once"),
@@ -165,10 +172,10 @@ function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[]
       space_text: textSource(template.space_type),
       minutes: template.default_minutes != null ? "template" : "blank",
       keyword: textSource(template.default_keyword),
-      description: textSource(template.default_description),
+      description: textSource(description),
       people_text: "blank",
       patient_role_text: textSource(template.patient_role_text ?? (template.needs_patient ? "환자" : "")),
-      preparation_text: textSource(template.preparation_text),
+      preparation_text: textSource(preparationText),
       note: textSource(template.default_note),
     },
   };
@@ -368,6 +375,22 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
   }
 
   if (input.harmony) pushTemplate(findCommon(templates, HARMONY_SCENE_KEYS));
+
+  // 같은 자동 장면과 진료과 장면이 겹쳐도 한 벌만 남긴다. 세부 선택은 합쳐 보존한다.
+  const deduplicated = new Map<string, DraftScene>();
+  for (const scene of scenes) {
+    const key = templateSceneKey(scene) || scene.name.trim().replace(/\s+/g, " ");
+    const previous = deduplicated.get(key);
+    if (!previous) {
+      deduplicated.set(key, scene);
+      continue;
+    }
+    deduplicated.set(key, {
+      ...previous,
+      procedures: [...new Set([...previous.procedures, ...scene.procedures])],
+    });
+  }
+  scenes = [...deduplicated.values()];
 
   let spaceMatchedCount = 0;
   scenes = scenes.map((scene) => {

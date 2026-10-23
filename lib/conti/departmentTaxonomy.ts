@@ -162,6 +162,14 @@ export const DEPARTMENT_TAXONOMY: ContiDepartment[] = [
 
 export const CONTI_DEPARTMENT_LIST = DEPARTMENT_TAXONOMY.map(({ id, label }) => ({ id, label }));
 
+// 의료진 개인 촬영에서 자동으로 포함되는 장면은 진료과 선택 목록에 다시 노출하지 않는다.
+export const AUTO_INCLUDED_CONTI_CATEGORY_IDS = ["doctor-consult", "doctor-surgery"] as const;
+
+export function getSelectableContiCategories(value: string): ContiCategory[] {
+  const automatic = new Set<string>(AUTO_INCLUDED_CONTI_CATEGORY_IDS);
+  return (getDepartmentDefinition(value)?.categories ?? []).filter((item) => !automatic.has(item.id));
+}
+
 export function getDepartmentDefinition(value: string): ContiDepartment | undefined {
   return DEPARTMENT_TAXONOMY.find((department) => department.id === value || department.label === value || department.aliases?.includes(value));
 }

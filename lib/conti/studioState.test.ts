@@ -22,6 +22,16 @@ describe("Conti Studio state", () => {
       sceneMeta: { s1: { cameraAngle: "정면", visual: { source: "library", imageUrl: "/scene.svg" } } },
     })).toMatchObject({ fieldCardSize: "large", scheduleStartTime: "10:30", sceneMeta: { s1: { cameraAngle: "정면" } } });
   });
+
+  it("preserves intentional blank shooting times and timeline overrides", () => {
+    expect(normalizeContiStudioState({
+      sceneMeta: { s1: { shootingTimeOverride: "" } },
+      timelineOverrides: { "s1:once": { date: null, startTime: "13:20", endTime: null } },
+    })).toMatchObject({
+      sceneMeta: { s1: { shootingTimeOverride: "" } },
+      timelineOverrides: { "s1:once": { date: null, startTime: "13:20", endTime: null } },
+    });
+  });
 });
 describe("Conti checklist derivation", () => {
   it("splits and deduplicates preparation while retaining linked scenes", () => {
@@ -72,6 +82,23 @@ describe("Conti schedule derivation", () => {
     const rows = deriveContiSchedule([{ id: "exterior", sort: 0, name: "외관", minutes: 15 }], { studioState: state });
     expect(rows.find((row) => row.sceneId === "exterior")).toMatchObject({ startTime: "17:30", endTime: "17:45", locked: true });
     expect(rows.find((row) => row.type === "break")).toMatchObject({ startTime: "12:00", endTime: "13:00", locked: true });
+  });
+
+  it("keeps manual date and time overrides instead of recalculating them", () => {
+    const state = normalizeContiStudioState({
+      scheduleSegments: [{ id: "day-1", label: "월", date: "2026-10-26", startTime: "09:00", endTime: "18:00" }],
+      timelineOverrides: {
+        "s1:once": { date: "2026-10-27", startTime: "13:20", endTime: "13:50" },
+        "s2:once": { startTime: null, endTime: null },
+      },
+    });
+    const rows = deriveContiSchedule([
+      { id: "s1", sort: 0, name: "프로필", minutes: 15 },
+      { id: "s2", sort: 1, name: "진료", minutes: 20 },
+    ], { studioState: state });
+    expect(rows[0]).toMatchObject({ date: "2026-10-27", startTime: "13:20", endTime: "13:50" });
+    expect(rows[1].startTime).toBeUndefined();
+    expect(rows[1].endTime).toBeUndefined();
   });
 });
 

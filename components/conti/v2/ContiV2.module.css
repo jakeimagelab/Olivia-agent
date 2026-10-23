@@ -290,8 +290,44 @@
   .fieldCardGrid_compact { grid-template-columns: repeat(2,minmax(0,1fr)); }.fieldCardGrid_normal, .fieldCardGrid_large { grid-template-columns: 1fr; }.fieldChecklist { grid-template-columns: 1fr 1fr; }
 }
 @media print {
-  .editorHeader, .editorToolbar, .tableFooter, .drawerBackdrop, .linkDialogBackdrop, .workspaceError { display: none !important; }
-  .editorWorkspace { padding: 0; background: #fff; }.tableViewport { max-height: none; overflow: visible; }.resultTable { min-width: 0; font-size: 8px; }.resultTable th { font-size: 7px; }.resultTable td { height: auto; }.cellInput { min-height: 34px; padding: 4px; font-size: 8px; }.compactGrid { break-before: page; }.compactPanel { height: auto; min-height: 260px; box-shadow: none; }
+  @page { size: A4 landscape; margin: 0; }
+  :global(html):has(> body > .printDocument),
+  :global(body):has(> .printDocument) { width: 297mm !important; min-width: 0 !important; height: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  :global(body):has(> .printDocument) > *:not(.printDocument) { display: none !important; }
+  .editorWorkspace { width: auto; padding: 0; background: #fff; }
+  .printDocument { display: block !important; width: 297mm; margin: 0; color: #1b2a27; background: #fff; }
+  .printDocument,
+  .printDocument * { visibility: visible !important; }
+  .printPage { display: grid; width: 297mm; height: 210mm; grid-template-rows: auto 1fr auto; box-sizing: border-box; break-after: page; page-break-after: always; padding: 9mm 9mm 7mm; background: #fff; }
+  .printPage:last-child { break-after: auto; page-break-after: auto; }
+  .printHeader { display: flex; min-height: 16mm; align-items: flex-start; justify-content: space-between; gap: 12mm; border-bottom: 1.2pt solid #155855; padding: 0 1mm 4mm; }
+  .printHeader span { color: #c94a1e; font-size: 7.5pt; letter-spacing: .1em; }
+  .printHeader h1 { margin: 1.4mm 0 0; color: #155855; font-size: 18pt; line-height: 1.15; }
+  .printHeader > div:last-child { display: grid; gap: 1.5mm; justify-items: end; padding-top: 1mm; }
+  .printHeader strong { color: #155855; font-size: 10pt; }
+  .printHeader small { color: #5a7470; font-size: 7.5pt; }
+  .printPageBody { display: block !important; min-height: 0; padding-top: 5mm; }
+  .printPage > footer { display: flex; align-items: flex-end; justify-content: space-between; border-top: .7pt solid #d5dedb; padding: 2.5mm 1mm 0; color: #5a7470; font-size: 7pt; }
+  .printTable { display: table !important; width: 100%; border: .8pt solid #155855; border-collapse: collapse; table-layout: fixed; font-size: 7.2pt; line-height: 1.3; }
+  .printTable th { border: .7pt solid #155855; padding: 2mm 1.2mm; background: #155855 !important; color: #fff !important; font-size: 7.2pt; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .printTable td { border: .55pt solid #d5dedb; padding: 1.7mm 1.2mm; vertical-align: middle; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .printTable tbody tr { break-inside: avoid; page-break-inside: avoid; }
+  .printContiTable td:nth-child(1), .printContiTable td:nth-child(4), .printContiTable td:nth-child(5), .printContiTable td:nth-child(6) { text-align: center; }
+  .printContiTable td:nth-child(2) { border-left-width: 3pt; }
+  .printContiTable th:nth-child(1) { width: 4%; }.printContiTable th:nth-child(2) { width: 6%; }.printContiTable th:nth-child(3) { width: 9%; }.printContiTable th:nth-child(4) { width: 8%; }.printContiTable th:nth-child(5) { width: 3%; }.printContiTable th:nth-child(6) { width: 6%; }.printContiTable th:nth-child(7) { width: 9%; }.printContiTable th:nth-child(8) { width: 22%; }.printContiTable th:nth-child(9) { width: 7%; }.printContiTable th:nth-child(10) { width: 9%; }.printContiTable th:nth-child(11) { width: 7%; }.printContiTable th:nth-child(12) { width: 10%; }
+  .printChecklistTable { font-size: 8.5pt; }.printChecklistTable th:nth-child(1) { width: 9%; }.printChecklistTable th:nth-child(2) { width: 14%; }.printChecklistTable th:nth-child(3) { width: 35%; }.printChecklistTable th:nth-child(4) { width: 27%; }.printChecklistTable th:nth-child(5) { width: 15%; }
+  .printSchedulePage { padding-top: 7mm; padding-bottom: 5mm; }
+  .printSchedulePage .printHeader { min-height: 14mm; padding-bottom: 3mm; }
+  .printSchedulePage .printPageBody { padding-top: 3mm; }
+  .printSchedulePage .printTable th { padding: 1.2mm .7mm; font-size: 6.3pt; line-height: 1.15; }
+  .printSchedulePage .printTable td { padding: .7mm .7mm; font-size: 6.3pt; line-height: 1.16; }
+  .printScheduleTable { font-size: 6.3pt; }.printScheduleTable th:nth-child(1) { width: 7%; }.printScheduleTable th:nth-child(2) { width: 3%; }.printScheduleTable th:nth-child(3), .printScheduleTable th:nth-child(4) { width: 4%; }.printScheduleTable th:nth-child(5) { width: 3%; }.printScheduleTable th:nth-child(6) { width: 10%; }.printScheduleTable th:nth-child(7) { width: 30%; }.printScheduleTable th:nth-child(8) { width: 7%; }.printScheduleTable th:nth-child(9) { width: 12%; }.printScheduleTable th:nth-child(10) { width: 8%; }.printScheduleTable th:nth-child(11) { width: 12%; }
+  .printPersonalComposition { margin-top: 5mm; border: .8pt solid #d5dedb; }
+  .printPersonalComposition > header { display: flex; min-height: 9mm; align-items: center; justify-content: space-between; padding: 0 3mm; background: #edf5f3 !important; color: #155855; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .printPersonalComposition h3 { margin: 0; font-size: 9pt; }.printPersonalComposition header span { font-size: 8pt; }
+  .printPersonalComposition > div { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .printPersonalComposition p { display: grid; grid-template-columns: 5mm 1fr auto; gap: 2mm; align-items: center; margin: 0; border-right: .55pt solid #d5dedb; padding: 2mm; font-size: 7.5pt; }
+  .printPersonalComposition p span:last-child { grid-column: 2 / 4; color: #5a7470; font-size: 7pt; }
 }
 
 .tabsDock {
@@ -941,6 +977,7 @@
 .resultTable th:nth-child(2) { width: 100px; }.resultTable th:nth-child(3) { width: 150px; }.resultTable th:nth-child(4) { width: 122px; }.resultTable th:nth-child(5) { width: 58px; }.resultTable th:nth-child(6) { width: 96px; }.resultTable th:nth-child(7) { width: 150px; }.resultTable th:nth-child(8) { width: 230px; }.resultTable th:nth-child(9) { width: 130px; }.resultTable th:nth-child(10) { width: 135px; }.resultTable th:nth-child(11) { width: 120px; }.resultTable th:nth-child(12) { width: 220px; }
 .timeCell,
 .mediaCell { padding: 0 9px !important; color: #5a7470; font-size: 11.5px; }
+.mediaCell select { width: 100%; min-height: 34px; border: 1px solid #d5dedb; border-radius: 8px; padding: 0 7px; background: #fff; color: #1b2a27; font-size: 11.5px; }
 
 .scheduleEditor { overflow: hidden; border: 1px solid #d5dedb; background: #fff; }
 .scheduleEditor > header { display: flex; min-height: 70px; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid #e4eae8; }
@@ -955,11 +992,14 @@
 .segmentFields label { height: 36px; border: 1px solid #d5dedb; border-radius: 8px; padding: 0 9px; background: #fff; color: #1b2a27; font-size: 11.5px; }
 .segmentFields label { display: flex; align-items: center; gap: 6px; }.segmentFields label input { min-width: 0; border: 0; background: transparent; }
 .timelineTable { overflow-x: auto; }
-.timelineTable > div { display: grid; grid-template-columns: 76px 54px 70px 70px 54px minmax(220px,1.2fr) minmax(150px,.8fr) minmax(140px,.7fr) 64px; min-width: 1060px; align-items: center; min-height: 48px; border-bottom: 1px solid #e4eae8; padding: 0 12px; color: #3b5752; font-size: 11.5px; }
+.timelineTable > div { display: grid; grid-template-columns: 132px 54px 76px 76px 54px minmax(220px,1.2fr) minmax(150px,.8fr) minmax(140px,.7fr) 64px; min-width: 1135px; align-items: center; min-height: 48px; border-bottom: 1px solid #e4eae8; padding: 0 12px; color: #3b5752; font-size: 11.5px; }
 .timelineHead { min-height: 38px !important; background: #f3f7f6; color: #155855 !important; }
 .timelineTable strong { display: grid; gap: 3px; }.timelineTable strong small { color: #5a7470; }
+.timelineTable > div > span > input { width: 100%; min-width: 0; height: 32px; border: 1px solid #d5dedb; border-radius: 7px; padding: 0 5px; background: #fff; color: #1b2a27; font-size: 11px; }
 .timelineLocked { background: #f2f3f2 !important; color: #7a8885 !important; }
 .fixedTimeControl { display: inline-flex; align-items: center; gap: 4px; }
+
+.printDocument { display: none; }
 
 .doctorStepChecks { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; border: 1px solid #c8ddd9; border-top: 0; border-radius: 0 0 14px 14px; padding: 8px; background: #fff; }
 .doctorStepChecks button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 4px; border: 0; border-radius: 7px; background: #f3f7f6; color: #5a7470; font-size: 11.5px; }

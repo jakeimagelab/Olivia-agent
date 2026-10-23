@@ -36,6 +36,7 @@ export interface DerivedContiScheduleRow {
   minutes: number;
   startTime?: string;
   endTime?: string;
+  date?: string;
   segmentId?: string;
   dayLabel?: string;
   type: "scene" | "doctor" | "break";
@@ -190,14 +191,48 @@ export function deriveContiSchedule(scenes: ScheduleSceneInput[], startTimeOrOpt
 
   return ordered.map((source, index) => {
     const segment = segmentForRow(source, segments, doctors);
-    const row = { ...source, order: index + 1, ...(segment ? { segmentId: segment.id, dayLabel: segment.label } : {}) };
+    const row = {
+      ...source,
+      order: index + 1,
+      ...(segment ? { segmentId: segment.id, dayLabel: segment.label, ...(segment.date ? { date: segment.date } : {}) } : {}),
+    };
     if (!segment) return row;
     let cursor = cursorBySegment.get(segment.id) ?? null;
     const fixed = state?.fixedSceneTimes?.[source.sceneId];
     if (fixed?.segmentId === segment.id) { const fixedStart = parseTime(fixed.startTime); if (fixedStart != null) cursor = fixedStart; row.locked = true; }
     const explicitStart = parseTime(source.startTime);
     if (explicitStart != null) cursor = explicitStart;
-    if (cursor != null) { row.startTime = formatTime(cursor); cursor += row.minutes; row.endTime = formatTime(cursor); cursorBySegment.set(segment.id, cursor); }
+    const override = state?.timelineOverrides?.[source.rowId];
+    const hasDateOverride = Boolean(override) && Object.prototype.hasOwnProperty.call(override, "date");
+    const hasStartOverride = Boolean(override) && Object.prototype.hasOwnProperty.call(override, "startTime");
+    const hasEndOverride = Boolean(override) && Object.prototype.hasOwnProperty.call(override, "endTime");
+
+    if (hasDateOverride) {
+      if (override?.date) row.date = override.date;
+      else delete row.date;
+    }
+
+    const overriddenStart = parseTime(override?.startTime ?? undefined);
+    const calculationStart = hasStartOverride && overriddenStart != null ? overriddenStart : cursor;
+    const calculatedEnd = calculationStart != null ? calculationStart + row.minutes : null;
+
+    if (hasStartOverride) {
+      if (override?.startTime) row.startTime = override.startTime;
+      else delete row.startTime;
+    } else if (calculationStart != null) {
+      row.startTime = formatTime(calculationStart);
+    }
+
+    const overriddenEnd = parseTime(override?.endTime ?? undefined);
+    if (hasEndOverride) {
+      if (override?.endTime) row.endTime = override.endTime;
+      else delete row.endTime;
+    } else if (calculatedEnd != null) {
+      row.endTime = formatTime(calculatedEnd);
+    }
+
+    const nextCursor = hasEndOverride && overriddenEnd != null ? overriddenEnd : calculatedEnd;
+    if (nextCursor != null) cursorBySegment.set(segment.id, nextCursor);
     return row;
   });
 }

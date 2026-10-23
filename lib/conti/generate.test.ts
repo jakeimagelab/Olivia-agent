@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generateContiDraft, type GenerateContiInput } from "./generate";
-import { buildCodeSceneTemplates, CONTI_DEPARTMENT_LIST, getDepartmentContiTitle, getDepartmentDefinition, getDepartmentLabel } from "./departmentTaxonomy";
+import { buildCodeSceneTemplates, CONTI_DEPARTMENT_LIST, getDepartmentContiTitle, getDepartmentDefinition, getDepartmentLabel, getSelectableContiCategories } from "./departmentTaxonomy";
 import { deriveContiSchedule } from "./deriveSchedule";
 
 function generate(input: Partial<GenerateContiInput> & Pick<GenerateContiInput, "specialty" | "checked">) {
@@ -37,6 +37,11 @@ describe("department taxonomy", () => {
     expect(getDepartmentDefinition("plastic-surgery")!.categories.map((category) => category.label)).toEqual(["얼굴성형", "가슴성형", "비만/체형", "기타"]);
   });
 
+  it("hides automatically included personal scenes from department choices", () => {
+    expect(getSelectableContiCategories("dermatology").map((category) => category.id)).not.toContain("doctor-consult");
+    expect(getSelectableContiCategories("pain-medicine").map((category) => category.id)).not.toContain("doctor-consult");
+  });
+
   it("uses one taxonomy label source for saved and imported conti titles", () => {
     expect(getDepartmentLabel("dentistry")).toBe("치과");
     expect(getDepartmentLabel("rehabilitation-medicine")).toBe("재활의학과");
@@ -56,6 +61,8 @@ describe("generateContiDraft", () => {
     expect(result.scenes.filter((scene) => scene.name.includes("리프팅"))).toHaveLength(1);
     expect(result.scenes.find((scene) => scene.name.includes("리프팅"))?.procedures).toEqual(["울쎄라", "써마지"]);
     expect(result.scenes.some((scene) => scene.name.includes("울쎄라"))).toBe(false);
+    expect(result.scenes.find((scene) => scene.name === "리프팅")?.description).toContain("촬영 세부: 울쎄라 · 써마지");
+    expect(result.scenes.find((scene) => scene.name === "리프팅")?.preparationText).toContain("울쎄라, 써마지 관련");
   });
 
   it("stores one personal scene set instead of duplicating it per doctor", () => {

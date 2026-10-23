@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { deriveContiChecklist } from "@/lib/conti/deriveChecklist";
 import { deriveContiSchedule } from "@/lib/conti/deriveSchedule";
 import { normalizeContiStudioState, type ContiFieldCardSize, type ContiStudioState } from "@/lib/conti/studioState";
-import type { ContiDoctor, ContiEditableSceneField, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
+import type { ContiDoctor, ContiEditableSceneField, ContiMedia, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
 import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
 
-type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; group_id?: string | null; completed?: boolean };
+type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; group_id?: string | null; completed?: boolean; media?: ContiMedia };
 type HistorySnapshot = Pick<ContiStudioDocument, "scenes" | "studioState">;
 
 function cloneHistorySnapshot(document: ContiStudioDocument): HistorySnapshot {
@@ -190,6 +190,20 @@ export function useContiStudio(runId: string | null) {
     scheduleSave();
   }, [pushHistory, queueScenePatch, scheduleSave]);
 
+  const updateSceneMedia = useCallback((sceneId: string, media: ContiMedia) => {
+    const scene = documentRef.current?.scenes.find((item) => item.id === sceneId);
+    if (!scene || scene.media === media) return;
+    pushHistory();
+    setDocument((current) => {
+      if (!current) return current;
+      const next = { ...current, scenes: current.scenes.map((item) => item.id === sceneId ? { ...item, media } : item) };
+      documentRef.current = next;
+      return next;
+    });
+    queueScenePatch(sceneId, { media });
+    scheduleSave();
+  }, [pushHistory, queueScenePatch, scheduleSave]);
+
   const toggleSceneComplete = useCallback((sceneId: string) => {
     const scene = documentRef.current?.scenes.find((item) => item.id === sceneId);
     if (!scene) return;
@@ -245,6 +259,17 @@ export function useContiStudio(runId: string | null) {
   const setSceneCameraAngle = useCallback((sceneId: string, cameraAngle: string) => updateStudioState((state) => ({
     ...state,
     sceneMeta: { ...state.sceneMeta, [sceneId]: { ...state.sceneMeta[sceneId], cameraAngle } },
+  })), [updateStudioState]);
+  const setSceneShootingTime = useCallback((sceneId: string, shootingTimeOverride: string) => updateStudioState((state) => ({
+    ...state,
+    sceneMeta: { ...state.sceneMeta, [sceneId]: { ...state.sceneMeta[sceneId], shootingTimeOverride } },
+  })), [updateStudioState]);
+  const updateTimelineOverride = useCallback((rowId: string, patch: { date?: string | null; startTime?: string | null; endTime?: string | null }) => updateStudioState((state) => ({
+    ...state,
+    timelineOverrides: {
+      ...state.timelineOverrides,
+      [rowId]: { ...(state.timelineOverrides[rowId] ?? {}), ...patch },
+    },
   })), [updateStudioState]);
 
   const updateDoctors = useCallback((doctors: ContiDoctor[]) => {
@@ -363,6 +388,7 @@ export function useContiStudio(runId: string | null) {
       fields: { name: scene.name, space_text: scene.space_text, minutes: scene.minutes, keyword: scene.keyword, description: scene.description, people_text: scene.people_text, patient_role_text: scene.patient_role_text, preparation_text: scene.preparation_text, note: scene.note },
       group_id: scene.group_id,
       completed: scene.completed,
+      media: scene.media ?? "photo",
     });
     orderDirtyRef.current = true; studioDirtyRef.current = true; scheduleSave();
   }, [queueScenePatch, scheduleSave]);
@@ -394,9 +420,9 @@ export function useContiStudio(runId: string | null) {
     document, loading, error, saveStatus, lastSavedAt, checklist, schedule,
     canUndo: historyRevision >= 0 && undoRef.current.length > 0,
     canRedo: historyRevision >= 0 && redoRef.current.length > 0,
-    reload: load, flushSave, updateSceneFields, updateSceneGroup, toggleSceneComplete, reorderScenes,
+    reload: load, flushSave, updateSceneFields, updateSceneGroup, updateSceneMedia, toggleSceneComplete, reorderScenes,
     toggleChecklistItem, setChecklistAssignee, addChecklistItem, setScheduleStartTime, setFieldCardSize, setSceneCameraAngle,
-    updateDoctors, toggleTimelineItem, reorderTimeline, updateStudioState,
+    setSceneShootingTime, updateTimelineOverride, updateDoctors, toggleTimelineItem, reorderTimeline, updateStudioState,
     addScene, duplicateScene, deleteScene, undo, redo, linkCanonicalConti,
   };
 }

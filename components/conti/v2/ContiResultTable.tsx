@@ -9,6 +9,7 @@ import ContiSceneAddDialog from "@/components/conti/v2/ContiSceneAddDialog";
 import type { ContiEditableSceneField, ContiGroupRow, ContiSceneRow } from "@/components/conti/v2/types";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import { CONTI_GROUP_COLORS } from "@/lib/conti/departmentTaxonomy";
+import { sceneShootingTime } from "@/lib/conti/exportModel";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
 export default function ContiResultTable({ controller }: { controller: ContiStudioController }) {
@@ -27,7 +28,7 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
     if (event.over && event.active.id !== event.over.id) controller.reorderScenes(String(event.active.id), String(event.over.id));
   }
 
-  function moveFocus(event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") {
+  function moveFocus(event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle" | "shootingTime") {
     if (event.key === "Tab") {
       const cells = [...(tableRef.current?.querySelectorAll<HTMLElement>("[data-conti-cell='true']") ?? [])];
       const index = cells.indexOf(event.currentTarget);
@@ -70,11 +71,12 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
                   scene={scene}
                   groups={groups}
                   rowIndex={index}
-                  scheduleTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.startTime}
-                  scheduleEndTime={controller.schedule.find((row) => row.sceneIds.includes(scene.id))?.endTime}
+                  shootingTime={sceneShootingTime(document, controller.schedule, scene.id)}
                   onMoveFocus={moveFocus}
                   onUpdate={controller.updateSceneFields}
                   onUpdateGroup={controller.updateSceneGroup}
+                  onUpdateMedia={controller.updateSceneMedia}
+                  onUpdateShootingTime={controller.setSceneShootingTime}
                   onDuplicate={controller.duplicateScene}
                   onDelete={async (sceneId) => { if (window.confirm("이 장면을 삭제할까요?")) await controller.deleteScene(sceneId); }}
                 />
@@ -92,15 +94,16 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
   );
 }
 
-function SortableSceneRow({ scene, groups, rowIndex, scheduleTime, scheduleEndTime, onMoveFocus, onUpdate, onUpdateGroup, onDuplicate, onDelete }: {
+function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, onUpdate, onUpdateGroup, onUpdateMedia, onUpdateShootingTime, onDuplicate, onDelete }: {
   scene: ContiSceneRow;
   groups: ContiGroupRow[];
   rowIndex: number;
-  scheduleTime?: string;
-  scheduleEndTime?: string;
-  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") => void;
+  shootingTime: string;
+  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle" | "shootingTime") => void;
   onUpdate: (sceneId: string, fields: Partial<Record<ContiEditableSceneField, string | number | null>>) => void;
   onUpdateGroup: (sceneId: string, groupId: string | null) => void;
+  onUpdateMedia: ContiStudioController["updateSceneMedia"];
+  onUpdateShootingTime: ContiStudioController["setSceneShootingTime"];
   onDuplicate: (sceneId: string) => Promise<boolean>;
   onDelete: (sceneId: string) => Promise<void>;
 }) {
@@ -116,9 +119,9 @@ function SortableSceneRow({ scene, groups, rowIndex, scheduleTime, scheduleEndTi
         {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
       </select></td>
       <EditableCell scene={scene} field="name" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <td className={styles.timeCell}>{scene.repeat_scope === "per_doctor" ? "타임테이블" : scheduleTime && scheduleEndTime ? `${scheduleTime}–${scheduleEndTime}` : "미정"}</td>
+      <td className={styles.timeCell}><CellInput key={shootingTime} value={shootingTime} field="shootingTime" rowIndex={rowIndex} textarea placeholder="촬영시간" onMoveFocus={onMoveFocus} onCommit={(value) => { if (value !== shootingTime) onUpdateShootingTime(scene.id, value); }} /></td>
       <EditableCell scene={scene} field="minutes" rowIndex={rowIndex} numeric onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
-      <td className={styles.mediaCell}>{mediaLabel(scene.media)}</td>
+      <td className={styles.mediaCell}><select aria-label={`${scene.name || "장면"} 사진·영상`} value={scene.media ?? "photo"} onChange={(event) => onUpdateMedia(scene.id, event.target.value as "photo" | "photo_video" | "none")}><option value="photo">사진</option><option value="photo_video">사진 + 영상</option><option value="none">없음</option></select></td>
       <EditableCell scene={scene} field="keyword" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <EditableCell scene={scene} field="description" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <EditableCell scene={scene} field="space_text" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
@@ -135,7 +138,7 @@ function EditableCell({ scene, field, rowIndex, textarea, numeric, onMoveFocus, 
   rowIndex: number;
   textarea?: boolean;
   numeric?: boolean;
-  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") => void;
+  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle" | "shootingTime") => void;
   onUpdate: (sceneId: string, fields: Partial<Record<ContiEditableSceneField, string | number | null>>) => void;
 }) {
   const initial = String(scene[field] ?? "");
@@ -147,22 +150,18 @@ function EditableCell({ scene, field, rowIndex, textarea, numeric, onMoveFocus, 
 
 function CellInput({ value, field, rowIndex, textarea, numeric, placeholder, onMoveFocus, onCommit }: {
   value: string;
-  field: ContiEditableSceneField | "cameraAngle";
+  field: ContiEditableSceneField | "cameraAngle" | "shootingTime";
   rowIndex: number;
   textarea?: boolean;
   numeric?: boolean;
   placeholder: string;
-  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle") => void;
+  onMoveFocus: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>, rowIndex: number, field: ContiEditableSceneField | "cameraAngle" | "shootingTime") => void;
   onCommit: (value: string) => void;
 }) {
   const shared = { defaultValue: value, placeholder, "data-conti-cell": "true", "data-row": String(rowIndex), "data-field": field, onBlur: (event: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => onCommit(event.target.value), onKeyDown: (event: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => onMoveFocus(event, rowIndex, field), className: styles.cellInput };
   return textarea ? <textarea {...shared} rows={Math.min(6, Math.max(2, value.split("\n").length))} onInput={(event) => { event.currentTarget.rows = Math.min(6, Math.max(2, event.currentTarget.value.split("\n").length)); }} /> : <input {...shared} type={numeric ? "number" : "text"} />;
 }
 
-function mediaLabel(value: ContiSceneRow["media"]): string {
-  if (value === "none") return "—";
-  return value === "photo_video" ? "사진 + 영상" : "사진";
-}
 const PLACEHOLDERS: Record<ContiEditableSceneField, string> = {
   name: "장면 이름", space_text: "장소 미정", minutes: "분", keyword: "키워드", description: "촬영 포인트", people_text: "필요 인원", patient_role_text: "환자 역할", preparation_text: "준비사항", note: "비고",
 };

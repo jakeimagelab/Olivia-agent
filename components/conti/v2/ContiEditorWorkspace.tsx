@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, Check, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, History, Plus, Redo2, Save, Share2, Tablet, Undo2, Users, X } from "lucide-react";
 import ContiCompactChecklist from "@/components/conti/v2/ContiCompactChecklist";
 import ContiPreviousDrawer from "@/components/conti/v2/ContiPreviousDrawer";
+import ContiPrintDocument from "@/components/conti/v2/ContiPrintDocument";
 import ContiResultTable from "@/components/conti/v2/ContiResultTable";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import styles from "@/components/conti/v2/ContiV2.module.css";
@@ -14,6 +15,8 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { getDepartmentContiTitle } from "@/lib/conti/departmentTaxonomy";
 import { summarizeScheduleSegments } from "@/lib/conti/deriveSchedule";
+import { buildContiExportModel } from "@/lib/conti/exportModel";
+import { downloadContiExcel } from "@/lib/conti/excel";
 
 interface ClientOption { id: string; name: string }
 
@@ -107,6 +110,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
 
   const linked = Boolean(activeDocument.run.hospital_id);
   const title = activeDocument.run.hospital_name?.trim() || getDepartmentContiTitle(activeDocument.run.specialty || "촬영");
+  const exportModel = buildContiExportModel({ title, document: activeDocument, checklist: controller.checklist, schedule: controller.schedule });
 
   async function saveCanonical(chosenClientId?: string) {
     const targetClientId = chosenClientId || clientId || activeDocument.run.hospital_id || "";
@@ -132,55 +136,13 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
   }
 
   async function downloadExcel() {
-    const XLSX = await import("xlsx");
-    const workbook = XLSX.utils.book_new();
-    const contiRows = activeDocument.scenes.map((scene, index) => ({
-      "No": scene.scene_code || `S${index + 1}`,
-      "구분": activeDocument.groups.find((group) => group.id === scene.group_id)?.name || "미지정",
-      "장면": scene.name,
-      "촬영시간": scene.repeat_scope === "per_doctor" ? "타임테이블에서 전개" : (() => { const row = controller.schedule.find((item) => item.sceneIds.includes(scene.id)); return row?.startTime && row.endTime ? `${row.startTime}-${row.endTime}` : ""; })(),
-      "분": scene.minutes ?? "",
-      "사진/영상": scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "-" : "사진",
-      "키워드": scene.keyword,
-      "설명": scene.description,
-      "장소": scene.space_text,
-      "인물": scene.people_text,
-      "환자 역할": scene.patient_role_text,
-      "준비사항 (병원요청)": scene.preparation_text,
-    }));
-    const fieldRows = activeDocument.scenes.flatMap((scene, index) => [
-      { "No": scene.scene_code || `S${index + 1}`, "항목": "장면", "내용": scene.name },
-      { "No": "", "항목": "키워드", "내용": scene.keyword },
-      { "No": "", "항목": "사진/영상", "내용": scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "-" : "사진" },
-      { "No": "", "항목": "연출", "내용": scene.description },
-      { "No": "", "항목": "장소", "내용": scene.space_text },
-      { "No": "", "항목": "인물", "내용": scene.people_text },
-      { "No": "", "항목": "환자 역할", "내용": scene.patient_role_text },
-      { "No": "", "항목": "준비물", "내용": scene.preparation_text },
-    ]);
-    const checklistRows = controller.checklist.map((item) => ({ "완료": item.completed ? "☑" : "☐", "구분": item.linkedSceneIds.length ? "장면 준비" : "공통", "항목": item.label, "비고": item.notes || "", "담당": activeDocument.studioState.checklistAssignees[item.id] || "" }));
-    const scheduleRows = controller.schedule.map((row) => ({ "요일": row.dayLabel || "", "순서": row.order, "시작": row.startTime || "", "종료": row.endTime || "", "분": row.minutes, "장면": row.name, "내용": row.description, "등장인물·담당": row.people || row.doctorName || "", "장소": row.location, "비고": row.note }));
-    const sheets = [
-      ["콘티", contiRows, [8, 14, 22, 18, 7, 14, 20, 42, 18, 18, 16, 32]],
-      ["현장뷰(카드)", fieldRows, [8, 16, 60]],
-      ["준비사항", checklistRows, [8, 14, 34, 28, 18]],
-      ["타임테이블", scheduleRows, [12, 8, 10, 10, 8, 24, 40, 24, 18, 24]],
-    ] as const;
-    for (const [name, rows, widths] of sheets) {
-      const sheet = XLSX.utils.json_to_sheet(rows);
-      sheet["!cols"] = widths.map((wch) => ({ wch }));
-      if (sheet["!ref"]) {
-        const range = XLSX.utils.decode_range(sheet["!ref"]);
-        sheet["!autofilter"] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: range.e.r, c: range.e.c } }) };
-        (sheet as Record<string, unknown>)["!views"] = [{ state: "frozen", ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft" }];
-      }
-      if (name === "타임테이블" && rows.length) {
-        const totalRow = rows.length + 2;
-        XLSX.utils.sheet_add_aoa(sheet, [["", "", "", "합계", { f: `SUM(E2:E${rows.length + 1})` }, "1인 70분 구성"]], { origin: `A${totalRow}` });
-      }
-      XLSX.utils.book_append_sheet(workbook, sheet, name);
-    }
-    XLSX.writeFile(workbook, `${sanitizeFilename(title)}.xlsx`);
+    if (!await controller.flushSave()) return;
+    await downloadContiExcel(exportModel, `${sanitizeFilename(title)}.xlsx`);
+  }
+
+  async function printPdf() {
+    if (!await controller.flushSave()) return;
+    window.print();
   }
 
   async function completeWorkflowStep() {
@@ -220,7 +182,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
         <div className={styles.editorActions}>
           <SaveState status={controller.saveStatus} error={controller.error} lastSavedAt={controller.lastSavedAt} onRetry={() => void controller.flushSave()} />
           <button type="button" className={styles.secondaryAction} onClick={() => void downloadExcel()}><FileSpreadsheet size={14} />Excel</button>
-          <button type="button" className={styles.secondaryAction} onClick={() => window.print()}><Download size={14} />PDF</button>
+          <button type="button" className={styles.secondaryAction} onClick={() => void printPdf()}><Download size={14} />PDF</button>
           <div className={styles.actionMenu}>
             <button type="button" className={styles.secondaryAction} onClick={() => setShareOpen((value) => !value)}><Share2 size={14} />공유<ChevronDown size={12} /></button>
             {shareOpen ? <div className={styles.actionPopover}><button type="button" onClick={() => void createShareLink("customer")}><Share2 size={13} />고객용 링크</button><button type="button" onClick={() => void createShareLink("staff")}><Users size={13} />현장팀용 링크</button><button type="button" onClick={() => void createShareLink("hospital")}><CalendarDays size={13} />병원 작성용 링크</button></div> : null}
@@ -246,6 +208,8 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
       {editorTab === "conti" ? <ContiResultTable controller={controller} /> : null}
       {editorTab === "checklist" ? <div className={styles.singleEditorPanel}><ContiCompactChecklist items={controller.checklist} onToggle={controller.toggleChecklistItem} onAdd={controller.addChecklistItem} assignees={document.studioState.checklistAssignees} onAssigneeChange={controller.setChecklistAssignee} /></div> : null}
       {editorTab === "schedule" ? <ScheduleEditor controller={controller} /> : null}
+
+      <ContiPrintDocument model={exportModel} />
 
       <ContiPreviousDrawer open={previousOpen} onClose={() => setPreviousOpen(false)} onOpen={(runId) => { setPreviousOpen(false); onOpenRun(runId); }} />
       {linkOpen ? <div className={styles.linkDialogBackdrop}><section className={styles.linkDialog} role="dialog" aria-modal="true" aria-label="고객 연결"><header><div><span>CANONICAL SAVE</span><h3>고객과 연결하기</h3></div><button type="button" onClick={() => setLinkOpen(false)} aria-label="닫기"><X size={17} /></button></header><p>저장할 고객을 선택하면 현재 콘티가 고객관리에서 바로 열립니다.</p><select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}><option value="">고객을 선택해 주세요</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select><button type="button" className={styles.primarySaveAction} disabled={!selectedClientId || savingLink} onClick={() => void saveCanonical(selectedClientId)}><Check size={14} />{savingLink ? "연결 중…" : "연결하고 저장"}</button></section></div> : null}
@@ -296,9 +260,9 @@ function ScheduleEditor({ controller }: { controller: ContiStudioController }) {
       </article>;
     })}</div>
     <div className={styles.timelineTable}>
-      <div className={styles.timelineHead}><span>요일</span><span>순서</span><span>시작</span><span>종료</span><span>분</span><span>장면</span><span>담당·인물</span><span>장소</span><span>고정</span></div>
+      <div className={styles.timelineHead}><span>날짜</span><span>순서</span><span>시작</span><span>종료</span><span>분</span><span>장면</span><span>담당·인물</span><span>장소</span><span>고정</span></div>
       {controller.schedule.map((row) => <div key={row.rowId} className={row.locked ? styles.timelineLocked : undefined}>
-        <span>{row.dayLabel || "-"}</span><span>{row.order}</span><span>{row.startTime || "-"}</span><span>{row.endTime || "-"}</span><span>{row.minutes}</span><strong>{row.name}{row.type === "doctor" ? <small>메이크업 · 프로필 · 진료 · 수술 · 정리</small> : null}</strong><span>{row.doctorName || row.people || "-"}</span><span>{row.location}</span>
+        <span><input aria-label={`${row.name} 날짜`} type="date" value={row.date || ""} onChange={(event) => controller.updateTimelineOverride(row.rowId, { date: event.target.value || null })} /></span><span>{row.order}</span><span><input aria-label={`${row.name} 시작 시각`} type="time" value={row.startTime || ""} onChange={(event) => controller.updateTimelineOverride(row.rowId, { startTime: event.target.value || null })} /></span><span><input aria-label={`${row.name} 종료 시각`} type="time" value={row.endTime || ""} onChange={(event) => controller.updateTimelineOverride(row.rowId, { endTime: event.target.value || null })} /></span><span>{row.minutes}</span><strong>{row.name}{row.type === "doctor" ? <small>{row.steps?.map((step) => step.name).join(" · ")}</small> : null}</strong><span>{row.doctorName || row.people || "-"}</span><span>{row.location}</span>
         <label className={styles.fixedTimeControl}><input type="checkbox" checked={Boolean(state.fixedSceneTimes[row.sceneId]) || row.type === "break"} disabled={row.type === "break" || row.type === "doctor"} onChange={(event) => controller.updateStudioState((current) => {
           const next = { ...current.fixedSceneTimes };
           if (event.target.checked && row.startTime && row.segmentId) next[row.sceneId] = { segmentId: row.segmentId, startTime: row.startTime };

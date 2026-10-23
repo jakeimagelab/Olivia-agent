@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Check, Clock3, FileUp, History, Plus, Sparkles, Trash2 } from "lucide-react";
 import { generateContiDraft, type ContiDoctorInput, type GenerateContiInput, type HospitalSpaceRow, type HospitalStaffRow } from "@/lib/conti/generate";
-import { buildCodeSceneTemplates, CONTI_DEPARTMENT_LIST, getDepartmentDefinition, getSurgeryTypesForDepartment, type ContiSurgeryType } from "@/lib/conti/departmentTaxonomy";
+import { buildCodeSceneTemplates, CONTI_DEPARTMENT_LIST, getSelectableContiCategories, getSurgeryTypesForDepartment, type ContiSurgeryType } from "@/lib/conti/departmentTaxonomy";
 import ContiPreviousDrawer from "@/components/conti/v2/ContiPreviousDrawer";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
@@ -62,7 +62,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
       .catch((caught) => setSourceNotice(caught instanceof Error ? caught.message : "병원 공간과 직원 정보를 불러오지 못했습니다."));
   }, [hospitalId]);
 
-  const department = useMemo(() => getDepartmentDefinition(specialty), [specialty]);
+  const selectableCategories = useMemo(() => getSelectableContiCategories(specialty), [specialty]);
   const surgeryTypes = useMemo(() => [...getSurgeryTypesForDepartment(specialty), ...customSurgeryTypes], [customSurgeryTypes, specialty]);
   const templates = useMemo(() => buildCodeSceneTemplates(specialty), [specialty]);
   const enteredDoctors = useMemo(() => doctors.filter((doctor) => doctor.name.trim()), [doctors]);
@@ -96,6 +96,16 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
       if (Object.hasOwn(next, categoryId)) delete next[categoryId];
       else next[categoryId] = [];
       return next;
+    });
+  }
+
+  function toggleCategoryDetail(categoryId: string, detail: string) {
+    setChecked((previous) => {
+      const current = previous[categoryId] ?? [];
+      return {
+        ...previous,
+        [categoryId]: current.includes(detail) ? current.filter((item) => item !== detail) : [...current, detail],
+      };
     });
   }
 
@@ -202,7 +212,7 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
             </Field>
 
             <Field step="5" label="촬영항목">
-              {!department ? <span className={styles.hint}>진료과를 선택하면 촬영 가능한 항목이 표시됩니다.</span> : <div className={styles.categoryList}>{department.categories.map((category) => {
+              {!specialty ? <span className={styles.hint}>진료과를 선택하면 촬영 가능한 항목이 표시됩니다.</span> : <div className={styles.categoryList}>{selectableCategories.map((category) => {
                 const selected = Object.hasOwn(checked, category.id);
                 return <div key={category.id} className={`${styles.category} ${selected ? styles.categorySelected : ""}`}>
                   <div className={styles.categoryHeader}>
@@ -213,6 +223,12 @@ export default function ContiCreateScreen({ surface = "default", onGenerated, in
                       <span className={styles.categoryMeta}>선택 가능</span>
                     </button>
                   </div>
+                  {selected && category.details.length ? <div className={styles.categoryDetails} aria-label={`${category.label} 세부 촬영 항목`}>
+                    {category.details.map((detail) => <label key={detail} className={styles.detailChoice}>
+                      <input type="checkbox" checked={(checked[category.id] ?? []).includes(detail)} onChange={() => toggleCategoryDetail(category.id, detail)} />
+                      <span>{detail}</span>
+                    </label>)}
+                  </div> : null}
                 </div>;
               })}</div>}
             </Field>

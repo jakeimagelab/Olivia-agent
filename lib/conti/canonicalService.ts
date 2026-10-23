@@ -213,7 +213,7 @@ export async function addCanonicalContiScene(
   });
 }
 
-export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean }) {
+export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean; media?: unknown }) {
   const db = getSupabaseAdmin();
   const existing = await db.from("conti_scenes").select("field_sources").eq("id", sceneId).maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
@@ -232,6 +232,7 @@ export async function updateCanonicalContiScene(sceneId: string, patch: { fields
   if (patch.group_id !== undefined) update.group_id = patch.group_id;
   if (Array.isArray(patch.procedures)) update.procedures = patch.procedures;
   if (typeof patch.completed === "boolean") update.completed = patch.completed;
+  if (["photo", "photo_video", "none"].includes(String(patch.media))) update.media = patch.media;
   if (!Object.keys(update).length) throw new Error("수정할 내용이 없습니다.");
   const result = await db.from("conti_scenes").update(update).eq("id", sceneId).select("*").single();
   if (result.error || !result.data) throw new Error(result.error?.message ?? "수정 실패");
@@ -306,13 +307,20 @@ export async function reorderCanonicalContiScenes(runId: string, orderedSceneIds
   if (currentIds.length !== requestedIds.length || currentIds.some((id, index) => id !== requestedIds[index])) {
     throw new Error("장면 순서 목록이 현재 콘티와 일치하지 않습니다.");
   }
-  const updates = await Promise.all(orderedSceneIds.map((id, sort) => db.from("conti_scenes").update({ sort }).eq("id", id)));
-  const failed = updates.find((result) => result.error);
-  if (failed?.error) throw new Error(failed.error.message);
-  const verified = await db.from("conti_scenes").select("id,sort").eq("run_id", runId).order("sort");
+  // sort에 고유 제약이 있는 운영 DB에서도 서로 자리를 바꿀 수 있도록 임시 범위로 먼저 옮긴다.
+  const temporaryBase = orderedSceneIds.length + 10_000;
+  for (const [sort, id] of orderedSceneIds.entries()) {
+    const temporary = await db.from("conti_scenes").update({ sort: temporaryBase + sort }).eq("run_id", runId).eq("id", id);
+    if (temporary.error) throw new Error(temporary.error.message);
+  }
+  for (const [sort, id] of orderedSceneIds.entries()) {
+    const final = await db.from("conti_scenes").update({ sort }).eq("run_id", runId).eq("id", id);
+    if (final.error) throw new Error(final.error.message);
+  }
+  const verified = await db.from("conti_scenes").select("id,sort").eq("run_id", runId).order("sort").order("id");
   if (verified.error) throw new Error(verified.error.message);
   const verifiedIds = (verified.data ?? []).map((scene) => String(scene.id));
-  if (verifiedIds.some((id, index) => id !== orderedSceneIds[index])) throw new Error("장면 순서 저장을 확인하지 못했습니다.");
+  if (verifiedIds.length !== orderedSceneIds.length || verifiedIds.some((id, index) => id !== orderedSceneIds[index])) throw new Error("장면 순서 저장을 확인하지 못했습니다.");
   return verified.data ?? [];
 }
 
