@@ -34,7 +34,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   onStartRawMatch: () => void;
   remote?: boolean;
 }) {
-  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
+  const { currentLocalFolder, selectedJpgNames, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
   if (remote && value !== "tcut") return <RemotePhotoSelectWorkspace />;
 
   return (
@@ -52,8 +52,8 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
       />
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
         {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
-        {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
-        {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly onSelectionComplete={setSelectedJpgNames} /> : null}
+        {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
+        {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
         {value === "tcut" ? (remote ? (
           <div className={styles.workspaceLoading}>T컷 정리는 이 기기에서 작업할 때 사용할 수 있습니다.</div>
         ) : <PhotoTcutWorkspace rootDir={currentLocalFolder} />) : null}

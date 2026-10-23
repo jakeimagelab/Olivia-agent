@@ -239,6 +239,7 @@ export function SelectMatchWorkspace({
   const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
   const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
   const cancelRef = useRef(false);
+  const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sceneThumbnailUrlsRef = useRef(new Set<string>());
 
   const releaseSceneThumbnails = useCallback(() => {
@@ -392,9 +393,7 @@ export function SelectMatchWorkspace({
   }, []);
 
   /* ── 폴더 로드: 이름 규칙 없이 JPG 폴더 재귀 스캔 ── */
-  const loadFolder = useCallback(async () => {
-    try {
-      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+  const scanFolder = useCallback(async (dir: FileSystemDirectoryHandle) => {
       releaseSceneThumbnails();
       setRootDir(dir);
       setStep("loading");
@@ -408,7 +407,6 @@ export function SelectMatchWorkspace({
       const scanDir = jpgBase ?? dir;
       const sceneList = await collectJpgFolderGroups(scanDir);
       setScenes(sceneList);
-      setSelected(new Set());
       setExpanded(new Set());
       setRatingLoaded(false);
 
@@ -440,21 +438,38 @@ export function SelectMatchWorkspace({
       setScenes(afterEmbedded);
 
       // 별점 있는 사진 자동 선택
-      const autoKeys = new Set<string>();
+      const autoKeys = new Set(selectedJpgNames
+        .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
+        .filter(Boolean));
       for (const scene of afterEmbedded) {
         for (const p of scene.photos) {
           if (p.rating !== null && p.rating >= 1) autoKeys.add(p.basename.toLowerCase());
         }
       }
-      if (autoKeys.size > 0) setSelected(autoKeys);
+      setSelected(autoKeys);
 
       setRatingLoaded(true);
       setRatingLoading(false);
+  }, [releaseSceneThumbnails, selectedJpgNames, setProgress]);
+
+  const loadFolder = useCallback(async () => {
+    try {
+      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+      await scanFolder(dir);
     } catch (e: any) {
       if (e?.name !== "AbortError") alert("폴더를 읽는 중 오류가 발생했습니다.");
       setStep("idle");
     }
-  }, [releaseSceneThumbnails, setProgress]);
+  }, [scanFolder]);
+
+  useEffect(() => {
+    if (!selectionOnly || !currentLocalFolder || step !== "idle" || autoScannedFolderRef.current === currentLocalFolder) return;
+    autoScannedFolderRef.current = currentLocalFolder;
+    void scanFolder(currentLocalFolder).catch((error) => {
+      console.error("[photo-select] Bridge folder scan failed", error);
+      setStep("idle");
+    });
+  }, [currentLocalFolder, scanFolder, selectionOnly, step]);
 
   /* ── JPG 내장 XMP 딥스캔 (사이드카 없을 때) ── */
   const loadEmbeddedRatings = useCallback(async () => {

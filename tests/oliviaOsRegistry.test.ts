@@ -13,6 +13,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "customer",
       "calendar",
       "photo-workspace",
+      "olivia-bridge",
       "documents",
     ]);
   });

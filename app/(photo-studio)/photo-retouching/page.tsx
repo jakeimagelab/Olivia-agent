@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
 import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
+import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { C } from "@/lib/theme";
 
@@ -433,7 +434,7 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-function PhotoRetouchingWorkspace({ embedded: embeddedOverride }: { embedded?: boolean }) {
+function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: { embedded?: boolean; initialFile?: File }) {
   const embedded = embeddedOverride ?? useDesktopWindowMode();
   const inputRef   = useRef<HTMLInputElement>(null);
   const [tab,      setTab]      = useState<"check" | "sync" | "recipe">("check");
@@ -448,7 +449,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride }: { embedded?: b
   const [dragging, setDragging] = useState(false);
   const [checkType, setCheckType] = useState<"skin" | "gown">("skin");
 
-  const processFile = async (file: File) => {
+  const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return;
     setResult(null); setError("");
     try {
@@ -459,13 +460,17 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride }: { embedded?: b
     } catch (e: any) {
       setError(e.message || "이미지 처리에 실패했습니다.");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (initialFile && !preview) void processFile(initialFile);
+  }, [initialFile, preview, processFile]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = Array.from(e.clipboardData.items);
     const img = items.find(i => i.type.startsWith("image/"));
     if (img) { const file = img.getAsFile(); if (file) processFile(file); }
-  }, []);
+  }, [processFile]);
 
   const handleGlobalPaste = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     if (preview) return;
@@ -918,5 +923,6 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride }: { embedded?: b
 }
 
 export default function PhotoRetouchingPage() {
-  return <PhotoRetouchingWorkspace />;
+  const { selectedJpgFiles } = usePhotoStudioExecution();
+  return <PhotoRetouchingWorkspace initialFile={selectedJpgFiles[0]} />;
 }

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, type ComponentType } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link2 } from "lucide-react";
 import { WorkPanel } from "@/components/workspace-shell/WorkPanel";
 import { WorkspaceGrid } from "@/components/workspace-shell/WorkspaceGrid";
@@ -35,13 +35,10 @@ const PhotoJpgPrepWorkspace = dynamic(() => import("./PhotoJpgPrepWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>JPG정리 도구를 불러오는 중...</div>,
 });
-const PhotoRetouchingWorkspace = dynamic(
-  () => import("@/app/(photo-studio)/photo-retouching/page"),
-  {
-    ssr: false,
-    loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
-  },
-) as ComponentType<{ embedded?: boolean }>;
+const PhotoRetouchingWorkspace = dynamic(() => import("@/app/(photo-studio)/photo-retouching/page"), {
+  ssr: false,
+  loading: () => <div className={styles.workspaceLoading}>사진 보정 도구를 불러오는 중...</div>,
+});
 const PhotoFileOpsWorkspace = dynamic(() => import("./PhotoFileOpsWorkspace"), {
   ssr: false,
   loading: () => <div className={styles.workspaceLoading}>파일 정리 도구를 불러오는 중...</div>,
@@ -50,6 +47,60 @@ const PhotoFileOpsWorkspace = dynamic(() => import("./PhotoFileOpsWorkspace"), {
 const WORKSPACE_MODES = new Set<PhotoWorkspaceMode>(["jpg-prep", "select", "raw-match", "classification", "file-ops", "retouch"]);
 const SELECT_MODES = new Set<PhotoSelectMode>(["ai", "manual", "client", "tcut"]);
 const FILE_OPS_MODES = new Set<PhotoFileOpsMode>(["resize", "rename"]);
+
+export type PhotoWorkspaceEmbeddedToolProps = {
+  mode: PhotoWorkspaceMode;
+  selectMode?: PhotoSelectMode;
+  fileOpsMode?: PhotoFileOpsMode;
+  rawMatchMethod?: "filename" | "metadata";
+};
+
+/**
+ * Olivia Bridge에서 기존 사진작업실 엔진을 중복 구현하지 않고 불러오는 얇은 연결면이다.
+ * 폴더와 JPG 선택은 PhotoStudioExecutionContext에서 그대로 이어받고, 라우트나 작업실 탭은
+ * 건드리지 않는다. 따라서 도구를 닫아도 Bridge의 탐색 상태가 유지된다.
+ */
+export function PhotoWorkspaceEmbeddedTool({
+  mode: initialMode,
+  selectMode: initialSelectMode = "manual",
+  fileOpsMode: initialFileOpsMode = "resize",
+  rawMatchMethod = "filename",
+}: PhotoWorkspaceEmbeddedToolProps) {
+  const [mode, setMode] = useState(initialMode);
+  const [selectMode, setSelectMode] = useState(initialSelectMode);
+  const [fileOpsMode, setFileOpsMode] = useState(initialFileOpsMode);
+  const { currentLocalFolder, selectedJpgNames } = usePhotoStudioExecution();
+
+  return (
+    <WorkPanel tone="dark" className={styles.embeddedToolPanel}>
+      {mode === "select" ? (
+        <PhotoSelectWorkspace
+          remote={false}
+          value={selectMode}
+          onChange={setSelectMode}
+          onStartRawMatch={() => setMode("raw-match")}
+        />
+      ) : null}
+      {mode === "jpg-prep" ? <PhotoJpgPrepWorkspace onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
+      {mode === "raw-match" ? (
+        <div className={styles.workspaceToolSurface}>
+          <header className={styles.workspaceToolHeader}>
+            <span className={styles.workspaceToolHeaderIcon}><Link2 size={18} aria-hidden="true" /></span>
+            <span>
+              <strong>RAW 매칭</strong>
+              <small>Bridge에서 선택한 JPG와 RAW 원본을 파일명 또는 촬영시간으로 연결합니다.</small>
+            </span>
+            <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
+          </header>
+          <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
+        </div>
+      ) : null}
+      {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
+      {mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
+      {mode === "file-ops" ? <PhotoFileOpsWorkspace value={fileOpsMode} onChange={setFileOpsMode} /> : null}
+    </WorkPanel>
+  );
+}
 
 function PhotoWorkspaceContent({
   hideHeader = false,

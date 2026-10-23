@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, FolderInput, FolderOpen, Loader2, Square, TriangleAlert } from "lucide-react";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { moveFileFast } from "@/lib/photo-classifier/file-move";
@@ -229,10 +229,10 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "sk
 }
 
 export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPhotoSelect: () => void }) {
-  const { executionMode, setCurrentLocalFolder } = usePhotoStudioExecution();
+  const { executionMode, currentLocalFolder, setCurrentLocalFolder } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
   const { supported, pick, error: pickerError } = usePhotoFolderPicker();
-  const [root, setRoot] = useState<FileSystemDirectoryHandle | null>(null);
+  const [root, setRoot] = useState<FileSystemDirectoryHandle | null>(currentLocalFolder);
   const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [includeSubdirectories, setIncludeSubdirectories] = useState(true);
@@ -243,6 +243,10 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
   const [destination, setDestination] = useState<FileSystemDirectoryHandle | null>(null);
   const [runProgress, setRunProgress] = useState<RunProgress | null>(null);
   const stopRequestedRef = useRef(false);
+
+  useEffect(() => {
+    if (!root && currentLocalFolder) setRoot(currentLocalFolder);
+  }, [currentLocalFolder, root]);
 
   const stats = useMemo(() => statsFor(plan), [plan]);
   const visibleRows = useMemo(() => {

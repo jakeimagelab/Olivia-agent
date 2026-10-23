@@ -47,6 +47,9 @@ type PhotoStudioExecutionValue = {
   /** JPG selection is deliberately separate from a folder: RAW matching consumes it, other tools do not. */
   selectedJpgNames: string[];
   setSelectedJpgNames: (names: readonly string[]) => void;
+  /** Bridge처럼 파일 핸들을 이미 읽은 화면은 선택 파일도 함께 전달한다. 기존 도구는 이름만 써도 된다. */
+  selectedJpgFiles: File[];
+  setSelectedJpgFiles: (files: readonly File[]) => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -89,6 +92,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
   const [currentLocalFolder, setCurrentLocalFolder] = useState<FileSystemDirectoryHandle | null>(null);
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
+  const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
 
   const setSelectedJpgNames = useCallback((names: readonly string[]) => {
     const unique = new Map<string, string>();
@@ -99,6 +103,12 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
       if (!unique.has(key)) unique.set(key, trimmed);
     }
     setSelectedJpgNamesState([...unique.values()]);
+  }, []);
+
+  const setSelectedJpgFiles = useCallback((files: readonly File[]) => {
+    const unique = new Map<string, File>();
+    for (const file of files) unique.set(`${file.name}:${file.size}:${file.lastModified}`, file);
+    setSelectedJpgFilesState([...unique.values()]);
   }, []);
 
   useEffect(() => {
@@ -192,6 +202,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setCurrentLocalFolder,
     selectedJpgNames,
     setSelectedJpgNames,
+    selectedJpgFiles,
+    setSelectedJpgFiles,
   }), [
     availableModes,
     clearRemoteJob,
@@ -207,6 +219,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     workerPresence,
     selectedJpgNames,
     setSelectedJpgNames,
+    selectedJpgFiles,
+    setSelectedJpgFiles,
   ]);
 
   return (

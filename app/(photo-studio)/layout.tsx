@@ -7,6 +7,7 @@ import { PhotoStudioExecutionProvider, usePhotoStudioExecution } from "@/compone
 import RemoteUnsupportedNotice from "@/components/photo-workspace/RemoteUnsupportedNotice";
 
 const TITLE: Record<string, { title: string; description: string }> = {
+  "/olivia-bridge":    { title: "Olivia Bridge",      description: "폴더를 중심으로 사진을 탐색하고 기존 사진 도구를 한 화면에서 실행합니다." },
   "/photo-sorting":    { title: "사진 분류",         description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." },
   "/photo-retouching": { title: "사진 보정",         description: "사진을 업로드해 AI로 피부톤 또는 가운 색을 기준과 비교하고 Photoshop·Camera Raw 보정값을 제공합니다." },
   "/raw-select":       { title: "T컷 정리",          description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 안전하게 이동합니다." },
@@ -27,7 +28,8 @@ function PhotoStudioRouteContent({ children }: { children: React.ReactNode }) {
 
 export default function PhotoStudioLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const unifiedWorkspace = pathname === "/photo-sorting";
+  const unifiedWorkspace = pathname === "/photo-sorting" || pathname === "/olivia-bridge";
+  const bridgeWorkspace = pathname === "/olivia-bridge";
   const meta = TITLE[pathname] ?? { title: "사진 작업실", description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." };
 
   return (
@@ -36,7 +38,10 @@ export default function PhotoStudioLayout({ children }: { children: React.ReactN
         {!unifiedWorkspace ? <GlobalHeader title={meta.title} description={meta.description} /> : null}
 
         <PhotoStudioExecutionBar />
-        <div className={unifiedWorkspace ? undefined : "pc-page-content"}>
+        <div
+          className={unifiedWorkspace ? undefined : "pc-page-content"}
+          style={bridgeWorkspace ? { height: "calc(100dvh - 58px)", minHeight: 640, overflow: "hidden" } : undefined}
+        >
           <PhotoStudioRouteContent>{children}</PhotoStudioRouteContent>
         </div>
       </div>

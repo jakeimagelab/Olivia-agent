@@ -32,7 +32,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/conti": "storyboard",
   "/portrait-consent": "contract",
   "/per": "per-reward", "/portal-admin": "client-portal", "/mailing": "mailing",
-  "/photo-sorting": "photo-studio", "/select-match": "select-match",
+  "/photo-sorting": "photo-studio", "/olivia-bridge": "photo-studio", "/select-match": "select-match",
   "/metadata-select": "metadata-select", "/raw-select": "raw-select",
   "/video-studio": "video-studio", "/video-convert": "resolution-convert",
   "/photo-retouching": "retouch",
