@@ -47,6 +47,18 @@ export type BridgeScene = {
   needsReview: boolean;
 };
 
+export type BridgeAnalyzedJpgFile = BridgeJpgFile & {
+  mtime: number;
+  timestampSource: TimestampSource;
+  visualFeatures: LocalVisualFeatures;
+};
+
+export type BridgeSceneAnalysis = {
+  files: BridgeAnalyzedJpgFile[];
+  boundaries: SceneBoundaryDecision[];
+  scenes: BridgeScene[];
+};
+
 function extensionOf(name: string) {
   return name.split(".").pop()?.toLocaleLowerCase("en-US") ?? "";
 }
@@ -199,8 +211,8 @@ export async function analyzeBridgeScenes(input: {
   jpgs: readonly BridgeJpgFile[];
   signal?: AbortSignal;
   onProgress?: (completed: number, total: number, stage: string) => void;
-}): Promise<BridgeScene[]> {
-  if (input.jpgs.length === 0) return [];
+}): Promise<BridgeSceneAnalysis> {
+  if (input.jpgs.length === 0) return { files: [], boundaries: [], scenes: [] };
   const files = await timestampBridgeFiles(input.jpgs, input.signal, input.onProgress);
   const settings = getClassificationSettings("default", "precise");
   const cacheKeys = files.map((entry) => featureCacheKey(input.folderKey, entry.file));
@@ -239,7 +251,7 @@ export async function analyzeBridgeScenes(input: {
   }));
   const stabilized = stabilizeBoundaries(decisions, files.length, settings.minimumSceneImages);
   input.onProgress?.(files.length, files.length, "Scene 계획 만드는 중");
-  return buildSceneRangesFromBoundaries(files.length, stabilized).map((range) => {
+  const scenes = buildSceneRangesFromBoundaries(files.length, stabilized).map((range) => {
     const representativeIndex = Math.min(range.endIndex - 1, range.startIndex + Math.floor((range.endIndex - range.startIndex) / 2));
     return {
       id: `scene-${range.index}`,
@@ -253,4 +265,9 @@ export async function analyzeBridgeScenes(input: {
       needsReview: Boolean(range.boundaryBefore?.needsReview),
     };
   });
+  return {
+    files: files.map((file, index) => ({ ...file, visualFeatures: safeFeatures[index] })),
+    boundaries: stabilized,
+    scenes,
+  };
 }

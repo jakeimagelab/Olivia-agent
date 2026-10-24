@@ -49,7 +49,9 @@ import {
   type BridgeJpgFile,
   type BridgeRawFile,
   type BridgeScene,
+  type BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
+import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import {
   bridgeGridNavigationTarget,
@@ -112,6 +114,7 @@ type SceneState = {
   completed: number;
   total: number;
   scenes: BridgeScene[];
+  analysis: BridgeSceneAnalysis | null;
   error?: string;
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
@@ -454,6 +457,7 @@ export default function OliviaBridgeWorkspace() {
     jpgRatingsByName,
     setJpgRatingsByName,
     setExecutionMode,
+    stageBridgeClassificationPlan,
   } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
@@ -474,7 +478,7 @@ export default function OliviaBridgeWorkspace() {
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
-  const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
+  const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
   const [sceneRunKey, setSceneRunKey] = useState(0);
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
@@ -670,24 +674,24 @@ export default function OliviaBridgeWorkspace() {
 
   useEffect(() => {
     if (!activeFolder || scanStatus !== "ready") {
-      setSceneState({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
+      setSceneState({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
       return;
     }
     if (!scan.jpgs.length) {
-      setSceneState({ status: "complete", stage: "분석할 JPG가 없습니다", completed: 0, total: 0, scenes: [] });
+      setSceneState({ status: "complete", stage: "분석할 JPG가 없습니다", completed: 0, total: 0, scenes: [], analysis: null });
       return;
     }
     const controller = new AbortController();
-    setSceneState({ status: "running", stage: "AI Scene 사전 분석 준비", completed: 0, total: scan.jpgs.length, scenes: [] });
+    setSceneState({ status: "running", stage: "AI Scene 사전 분석 준비", completed: 0, total: scan.jpgs.length, scenes: [], analysis: null });
     void analyzeBridgeScenes({
       folderKey: folderPath,
       jpgs: scan.jpgs,
       signal: controller.signal,
       onProgress: (completed, total, stage) => setSceneState((previous) => ({ ...previous, status: "running", completed, total, stage })),
-    }).then((scenes) => setSceneState({ status: "complete", stage: "Scene 분류 계획 준비됨", completed: scan.jpgs.length, total: scan.jpgs.length, scenes }))
+    }).then((analysis) => setSceneState({ status: "complete", stage: "Scene 분류 계획 준비됨", completed: scan.jpgs.length, total: scan.jpgs.length, scenes: analysis.scenes, analysis }))
       .catch((error) => {
         if (controller.signal.aborted) return;
-        setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: scan.jpgs.length, scenes: [], error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
+        setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: scan.jpgs.length, scenes: [], analysis: null, error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
       });
     return () => controller.abort();
   }, [activeFolder, folderPath, scan.jpgs, scanStatus, sceneRunKey]);
@@ -941,6 +945,28 @@ export default function OliviaBridgeWorkspace() {
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
   const sceneBoundaryReviewCount = useMemo(() => sceneState.scenes.filter((scene) => scene.needsReview).length, [sceneState.scenes]);
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
+  const scenePlanReady = sceneState.status === "complete" && Boolean(sceneState.analysis) && sceneState.scenes.length > 0;
+
+  const applyScenePlan = useCallback(() => {
+    if (!activeFolder || !sceneState.analysis || !scenePlanReady) return;
+    try {
+      stageBridgeClassificationPlan(createBridgeClassificationPlan({
+        folderKey: folderPath,
+        folderName: activeFolder.name,
+        directory: activeFolder,
+        analysis: sceneState.analysis,
+      }));
+      setSceneReviewOpen(false);
+      setToolKey("classification");
+    } catch (error) {
+      setSceneState((previous) => ({
+        ...previous,
+        status: "error",
+        stage: "Scene 계획 적용 오류",
+        error: error instanceof Error ? error.message : "Scene 계획을 적용하지 못했습니다.",
+      }));
+    }
+  }, [activeFolder, folderPath, scenePlanReady, sceneState.analysis, stageBridgeClassificationPlan]);
 
   return (
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
@@ -957,7 +983,7 @@ export default function OliviaBridgeWorkspace() {
             <button key={key} type="button" onClick={() => openTool(key)} disabled={!activeFolder} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={label}><Icon size={18} strokeWidth={1.8} /></button>
           ))}
         </nav>
-        <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => activeFolder && setSceneReviewOpen(true)} disabled={!activeFolder}>
+        <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => activeFolder && setSceneReviewOpen(true)} disabled={!activeFolder} aria-label={sceneState.stage} title={sceneState.stage}>
           {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
           <span>{sceneState.status === "running" ? `${sceneState.completed}/${sceneState.total}` : sceneState.stage}</span>
         </button>
@@ -1103,7 +1129,7 @@ export default function OliviaBridgeWorkspace() {
           {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
           <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
         </div>
-        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {sceneState.scenes.length.toLocaleString("ko-KR")}개 · JPG {sceneState.total.toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{sceneState.status === "complete" ? "승인 전에는 파일을 이동하거나 이름을 바꾸지 않습니다." : "분석이 끝나면 분류 실행을 승인할 수 있습니다."}</p></div><button type="button" disabled={sceneState.status !== "complete"} onClick={() => { setSceneReviewOpen(false); setToolKey("classification"); }}><ScanSearch size={16} /> 승인하고 분류 실행</button></footer>
+        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {sceneState.scenes.length.toLocaleString("ko-KR")}개 · JPG {sceneState.total.toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{scenePlanReady ? "적용 후 사진 분류에서 Scene을 합치거나 나눌 수 있습니다. 파일은 아직 이동하지 않습니다." : sceneState.status === "complete" ? "분류할 JPG가 없어 계획을 적용할 수 없습니다." : "분석이 끝나면 Scene 계획을 적용할 수 있습니다."}</p></div><button type="button" disabled={!scenePlanReady} onClick={applyScenePlan}><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button></footer>
       </BridgeFloatingWindow> : null}
 
       {activeTool ? <BridgeFloatingWindow

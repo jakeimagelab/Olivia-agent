@@ -31,6 +31,7 @@ import {
   samePhotoToolSelectionNames,
   type PhotoToolRatings,
 } from "@/lib/photo-bridge/toolLinkage";
+import type { BridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 
 export type RemotePollingState = RemotePhotoPollingState;
 
@@ -66,6 +67,11 @@ type PhotoStudioExecutionValue = {
     entries: Readonly<Record<string, number | null | undefined>>,
     options?: { overwrite?: boolean },
   ) => void;
+  /** Bridge의 Scene 분석을 사진 분류가 한 번만 이어받는 메모리 전용 계획이다. */
+  pendingBridgeClassificationPlan: BridgeClassificationPlan | null;
+  stageBridgeClassificationPlan: (plan: BridgeClassificationPlan) => void;
+  takeBridgeClassificationPlan: () => BridgeClassificationPlan | null;
+  clearBridgeClassificationPlan: () => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -112,6 +118,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
   const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
   const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
+  const [pendingBridgeClassificationPlan, setPendingBridgeClassificationPlan] = useState<BridgeClassificationPlan | null>(null);
+  const pendingBridgeClassificationPlanRef = useRef<BridgeClassificationPlan | null>(null);
 
   const setCurrentLocalFolder = useCallback((folder: FileSystemDirectoryHandle | null) => {
     if (currentLocalFolderRef.current === folder) return;
@@ -120,6 +128,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgNamesState([]);
     setSelectedJpgFilesState([]);
     setJpgRatingsByNameState({});
+    pendingBridgeClassificationPlanRef.current = null;
+    setPendingBridgeClassificationPlan(null);
   }, []);
 
   const setSelectedJpgNames = useCallback((names: readonly string[]) => {
@@ -138,6 +148,24 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     options?: { overwrite?: boolean },
   ) => {
     setJpgRatingsByNameState((current) => mergePhotoToolRatings(current, entries, options));
+  }, []);
+
+  const stageBridgeClassificationPlan = useCallback((plan: BridgeClassificationPlan) => {
+    pendingBridgeClassificationPlanRef.current = plan;
+    setPendingBridgeClassificationPlan(plan);
+  }, []);
+
+  const takeBridgeClassificationPlan = useCallback(() => {
+    const plan = pendingBridgeClassificationPlanRef.current;
+    if (!plan) return null;
+    pendingBridgeClassificationPlanRef.current = null;
+    setPendingBridgeClassificationPlan(null);
+    return plan;
+  }, []);
+
+  const clearBridgeClassificationPlan = useCallback(() => {
+    pendingBridgeClassificationPlanRef.current = null;
+    setPendingBridgeClassificationPlan(null);
   }, []);
 
   useEffect(() => {
@@ -237,6 +265,10 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
+    pendingBridgeClassificationPlan,
+    stageBridgeClassificationPlan,
+    takeBridgeClassificationPlan,
+    clearBridgeClassificationPlan,
   }), [
     availableModes,
     clearRemoteJob,
@@ -258,6 +290,10 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
+    pendingBridgeClassificationPlan,
+    stageBridgeClassificationPlan,
+    takeBridgeClassificationPlan,
+    clearBridgeClassificationPlan,
   ]);
 
   return (

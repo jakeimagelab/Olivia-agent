@@ -87,11 +87,25 @@ describe("Olivia Bridge", () => {
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(workspace).toContain("Scene {sceneState.scenes.length.toLocaleString");
-    expect(workspace).toContain("승인하고 분류 실행");
+    expect(workspace).toContain("계획 적용하고 Scene 검토");
+    expect(workspace).toContain("stageBridgeClassificationPlan");
     expect(workspace).toContain("sceneApprovalSummary");
     expect(styles).toMatch(/\.sceneWindow\s*\{\s*grid-template-rows:\s*54px minmax\(0, 1fr\) auto/);
     expect(styles).toMatch(/\.sceneBody\s*\{[^}]*overflow:\s*hidden/);
     expect(styles).toMatch(/\.sceneGrid\s*\{[^}]*overflow:\s*auto/);
+  });
+
+  it("승인한 Scene 계획을 사진 분류가 일회 소비하고 기존 검토 단계에 적용한다", () => {
+    const context = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
+    const classifier = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+
+    expect(context).toContain("pendingBridgeClassificationPlanRef.current = null");
+    expect(context).toContain("takeBridgeClassificationPlan");
+    expect(classifier).toContain("validateBridgeClassificationPlan(plan");
+    expect(classifier).toContain("buildFieldScenesFromBridgePlan(plan)");
+    expect(classifier).toContain('setClassificationJobState("WAITING_REVIEW")');
+    expect(classifier).toContain('setStep(2)');
+    expect(classifier).toContain("Bridge 계획 적용됨");
   });
 
   it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {

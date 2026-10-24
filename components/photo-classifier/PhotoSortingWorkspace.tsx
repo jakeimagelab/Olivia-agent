@@ -58,6 +58,10 @@ import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
 import { CAMERA_JPG_EXTENSIONS, isHiddenSystemFile, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import {
+  buildFieldScenesFromBridgePlan,
+  validateBridgeClassificationPlan,
+} from "@/lib/photo-bridge/classificationPlan";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -221,6 +225,23 @@ async function splitRawAndJpg(dir: FileSystemDirectoryHandle): Promise<{
     jpgFiles.push({ name: String(name), handle: fileHandle, file, mtime: file.lastModified, fileSize: file.size });
   }
   return { rawFiles, jpgFiles };
+}
+
+async function isSameDirectoryHandle(
+  left: FileSystemDirectoryHandle | null,
+  right: FileSystemDirectoryHandle,
+) {
+  if (!left) return false;
+  if (left === right) return true;
+  const identityAware = left as FileSystemDirectoryHandle & {
+    isSameEntry?: (other: FileSystemHandle) => Promise<boolean>;
+  };
+  if (!identityAware.isSameEntry) return false;
+  try {
+    return await identityAware.isSameEntry(right);
+  } catch {
+    return false;
+  }
 }
 
 /* ════════════════════════════════════════════════
@@ -742,6 +763,8 @@ function PhotoSortingInner({
     workerPresence,
     currentLocalFolder,
     setCurrentLocalFolder,
+    pendingBridgeClassificationPlan,
+    takeBridgeClassificationPlan,
   } = usePhotoStudioExecution();
 
   /* ── shared state ── */
@@ -884,6 +907,7 @@ function PhotoSortingInner({
   const [mergeCandidates,            setMergeCandidates]            = useState<SceneMergeCandidate[]>([]);
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
   const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
+  const [bridgePlanSummary, setBridgePlanSummary] = useState<{ sceneCount: number; jpgCount: number; reviewCount: number } | null>(null);
 
   /* ── AI 사진 분류 2.0 — Step0의 "AI 자동 분류" 탭 상태(기존 필드 분류 엔진은 그대로,
      이 상태들은 그 엔진에 넘길 동적 weights/threshold만 들고 있다) ── */
@@ -1247,10 +1271,10 @@ function PhotoSortingInner({
   }, [rootDir, department, gapMinutes]);
 
   useEffect(() => {
-    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto") return;
+    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto" || step !== 0) return;
     runAiFolderAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionMode, rootDir, photoMode, classificationUiMode]);
+  }, [executionMode, rootDir, photoMode, classificationUiMode, step]);
 
   // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
   // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
@@ -1293,6 +1317,7 @@ function PhotoSortingInner({
   ═══════════════════════════════════════════ */
   const handleFieldSort = useCallback(async () => {
     if (!rootDir) return;
+    setBridgePlanSummary(null);
     setStep(1); cancelRef.current = false; setCopyLog([]); setBoundaryDecisions([]); setSceneCorrections([]);
     try {
     useBackgroundJobsStore.getState().startJob({
@@ -1754,6 +1779,106 @@ function PhotoSortingInner({
       setMergeDecisions([]);
     }
   };
+
+  useEffect(() => {
+    if (!isEmbedded || executionMode !== "LOCAL_DIRECT" || !pendingBridgeClassificationPlan) return;
+    const plan = takeBridgeClassificationPlan();
+    if (!plan) return;
+
+    setBridgePlanSummary(null);
+    setDirPickError("");
+    setPhotoMode("field");
+    setFastAnalyzeMode(false);
+    setSavedSession(null);
+    setStep(1);
+    setProgress({ cur: 0, total: plan.files.length, msg: "Bridge Scene 계획 확인 중..." });
+    setClassificationJobState("CREATING_SCENES");
+
+    void (async () => {
+      try {
+        const [sameFolder, { rawFiles, jpgFiles }] = await Promise.all([
+          isSameDirectoryHandle(currentLocalFolder, plan.directory),
+          splitRawAndJpg(plan.directory),
+        ]);
+        const validation = validateBridgeClassificationPlan(plan, {
+          sameFolder,
+          folderName: plan.directory.name,
+          jpgs: jpgFiles.map((entry) => ({
+            name: entry.name,
+            size: entry.fileSize,
+            lastModified: entry.mtime,
+          })),
+        });
+        if (!validation.ok) throw new Error(validation.message);
+
+        const scenes = buildFieldScenesFromBridgePlan(plan);
+        await mapWithConcurrency(scenes, 3, async (scene) => {
+          const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
+          await Promise.all(thumbIndexes.map(async (index) => {
+            try {
+              scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160);
+            } catch (error) {
+              console.error("[olivia-bridge] Failed to build classification thumbnail", error);
+            }
+          }));
+          return scene;
+        });
+
+        const reviewCount = plan.boundaries.filter((decision) => decision.needsReview).length;
+        setRootDir(plan.directory);
+        setFieldJpgBaseDir(null);
+        setFieldRawBaseDir(null);
+        setFieldRawHandles(rawFiles);
+        setFieldRawCount(rawFiles.length);
+        setBoundaryDecisions(plan.boundaries);
+        setSceneCorrections([]);
+        setMergeCandidates([]);
+        setDismissedCandidates(new Set());
+        setMergeDecisions([]);
+        setFieldScenes(scenes);
+        setFieldStats({
+          totalJpg: plan.files.length,
+          totalRaw: rawFiles.length,
+          totalScenes: scenes.length,
+          totalSubScenes: 0,
+          totalProfile: 0,
+          totalQualityReject: 0,
+          selectedJpg: 0,
+          selectedRawMoved: 0,
+          rawMissing: 0,
+        });
+        setCopyLog([
+          `✅ Bridge 계획 적용 완료 — JPG ${plan.files.length}장 / RAW ${rawFiles.length}개 / Scene ${scenes.length}개`,
+          `🧭 경계 확인 필요 ${reviewCount}곳`,
+          "🔒 승인 전 파일 이동 없음 — Scene 검토 후 폴더 정리를 실행하세요",
+        ]);
+        setProgress({ cur: plan.files.length, total: plan.files.length, msg: "Bridge Scene 계획 적용 완료" });
+        setClassificationJobState("WAITING_REVIEW");
+        setBridgePlanSummary({ sceneCount: scenes.length, jpgCount: plan.files.length, reviewCount });
+        setStep(2);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Bridge Scene 계획을 적용하지 못했습니다.";
+        setBridgePlanSummary(null);
+        setFieldScenes([]);
+        setBoundaryDecisions([]);
+        setFieldRawHandles([]);
+        setFieldRawCount(0);
+        setFieldStats(null);
+        setCopyLog([`❌ ${message}`]);
+        setClassificationJobState("FAILED");
+        setDirPickError(message);
+        setRootDir(plan.directory);
+        setStep(0);
+      }
+    })();
+  }, [
+    currentLocalFolder,
+    executionMode,
+    isEmbedded,
+    pendingBridgeClassificationPlan,
+    setProgress,
+    takeBridgeClassificationPlan,
+  ]);
 
   const mergeFieldScenes = useCallback(async (i: number, j: number, candidateId?: string) => {
     const si = fieldScenes[i];
@@ -3385,8 +3510,10 @@ function PhotoSortingInner({
     const allFieldFiles = fieldScenes.flatMap((scene) => scene.files);
     return (
       <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <div style={{padding:14,background: fastAnalyzeMode ? "#EAF4F2" : "#ECFDF5",borderRadius:10,fontSize:12,color: fastAnalyzeMode ? "#155855" : "#166534",border:`1px solid ${fastAnalyzeMode ? "#B8CBD8" : "#A7F3D0"}`}}>
-          {fastAnalyzeMode
+        <div style={{padding:14,background: bridgePlanSummary || fastAnalyzeMode ? "#EAF4F2" : "#ECFDF5",borderRadius:10,fontSize:12,color: bridgePlanSummary || fastAnalyzeMode ? "#155855" : "#166534",border:`1px solid ${bridgePlanSummary || fastAnalyzeMode ? "#B8CBD8" : "#A7F3D0"}`}}>
+          {bridgePlanSummary
+            ? <><strong>Bridge 계획 적용됨</strong> · Scene {bridgePlanSummary.sceneCount}개 · JPG {bridgePlanSummary.jpgCount}장 — 원본은 아직 이동되지 않았습니다. 기존 검토 도구에서 Scene을 합치거나 나눈 뒤 폴더 정리를 실행하세요. {bridgePlanSummary.reviewCount > 0 && <span style={{color:"#B45309"}}>경계 확인 {bridgePlanSummary.reviewCount}곳</span>}</>
+            : fastAnalyzeMode
             ? <><strong>⚡ 빠른 분석 완료</strong> — 파일이 이동되지 않았습니다. 씬 이름을 확인·수정하고 <strong>폴더 정리 실행</strong>을 눌러 실제로 파일을 이동하세요.</>
             : <><strong>🔍 하이브리드 분류 완료</strong> — 원본은 아직 이동되지 않았습니다. 경계 이유를 검토하고 Scene을 승인한 뒤 폴더 정리를 실행하세요. {boundaryReviewCount > 0 && <span style={{color:"#B45309"}}>검토 필요 {boundaryReviewCount}건</span>}</>
           }
