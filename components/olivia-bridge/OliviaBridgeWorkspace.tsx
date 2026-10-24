@@ -57,6 +57,13 @@ import {
   clampBridgePaneWidth,
   type BridgeResizablePane,
 } from "@/lib/photo-bridge/paneLayout";
+import {
+  bridgeMarqueeSelection,
+  bridgeRectangleFromPoints,
+  bridgeRectanglesIntersect,
+  type BridgePoint,
+  type BridgeRectangle,
+} from "@/lib/photo-bridge/marqueeSelection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -80,6 +87,17 @@ type SceneState = {
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | "rated" | "excluded";
+type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
+type MarqueeSession = {
+  pointerId: number;
+  start: BridgePoint;
+  current: BridgePoint;
+  additive: boolean;
+  initialSelection: Set<string>;
+  currentSelection: Set<string>;
+  started: boolean;
+  cards: MarqueeCard[];
+};
 
 const EMPTY_SCAN: BridgeFolderScan = { folders: [], jpgs: [], raws: [], sidecars: [], ignoredCount: 0 };
 
@@ -253,6 +271,8 @@ function BridgePaneDivider({
 }) {
   const pointerIdRef = useRef<number | null>(null);
   const widthRef = useRef(BRIDGE_PANE_DEFAULT_WIDTH[pane]);
+  const scheduledWidthRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [width, setWidth] = useState(BRIDGE_PANE_DEFAULT_WIDTH[pane]);
   const [dragging, setDragging] = useState(false);
 
@@ -271,6 +291,25 @@ function BridgePaneDivider({
     return nextWidth;
   }, [oppositePaneRef, pane, workspaceRef]);
 
+  const flushScheduledWidth = useCallback(() => {
+    if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = null;
+    const requestedWidth = scheduledWidthRef.current;
+    scheduledWidthRef.current = null;
+    return requestedWidth === null ? widthRef.current : applyWidth(requestedWidth);
+  }, [applyWidth]);
+
+  const scheduleWidth = useCallback((requestedWidth: number) => {
+    scheduledWidthRef.current = requestedWidth;
+    if (animationFrameRef.current !== null) return;
+    animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+      const nextWidth = scheduledWidthRef.current;
+      scheduledWidthRef.current = null;
+      if (nextWidth !== null) applyWidth(nextWidth);
+    });
+  }, [applyWidth]);
+
   useEffect(() => {
     const workspace = workspaceRef.current;
     if (!workspace) return;
@@ -282,6 +321,7 @@ function BridgePaneDivider({
     observer.observe(workspace);
     return () => {
       cancelAnimationFrame(frame);
+      if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
       observer.disconnect();
     };
   }, [applyWidth, pane, workspaceRef]);
@@ -300,11 +340,12 @@ function BridgePaneDivider({
 
   const finishDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     if (pointerIdRef.current !== event.pointerId) return;
+    const finalWidth = flushScheduledWidth();
     pointerIdRef.current = null;
     setDragging(false);
-    storePaneWidth(pane, widthRef.current);
+    storePaneWidth(pane, finalWidth);
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-  }, [pane]);
+  }, [flushScheduledWidth, pane]);
 
   return (
     <div
@@ -324,11 +365,11 @@ function BridgePaneDivider({
         pointerIdRef.current = event.pointerId;
         setDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
-        applyWidth(widthFromPointer(event.clientX));
+        scheduleWidth(widthFromPointer(event.clientX));
       }}
       onPointerMove={(event) => {
         if (pointerIdRef.current !== event.pointerId) return;
-        applyWidth(widthFromPointer(event.clientX));
+        scheduleWidth(widthFromPointer(event.clientX));
       }}
       onPointerUp={finishDrag}
       onPointerCancel={finishDrag}
@@ -374,6 +415,11 @@ export default function OliviaBridgeWorkspace() {
   const workspaceRef = useRef<HTMLElement>(null);
   const folderPanelRef = useRef<HTMLElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
+  const fileAreaRef = useRef<HTMLDivElement>(null);
+  const marqueeRef = useRef<HTMLDivElement>(null);
+  const marqueeSessionRef = useRef<MarqueeSession | null>(null);
+  const marqueeFrameRef = useRef<number | null>(null);
+  const suppressThumbnailClickRef = useRef(false);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
@@ -586,6 +632,75 @@ export default function OliviaBridgeWorkspace() {
     setToolKey(key);
   }, [currentLocalFolder]);
 
+  const clearMarqueePresentation = useCallback(() => {
+    const fileArea = fileAreaRef.current;
+    const marquee = marqueeRef.current;
+    if (marquee) marquee.style.display = "none";
+    if (!fileArea) return;
+    delete fileArea.dataset.marqueeActive;
+    fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]").forEach((element) => {
+      delete element.dataset.marqueeSelected;
+    });
+  }, []);
+
+  const paintMarquee = useCallback(() => {
+    const session = marqueeSessionRef.current;
+    const fileArea = fileAreaRef.current;
+    const marquee = marqueeRef.current;
+    if (!session || !fileArea || !marquee || !session.started) return;
+    const rectangle = bridgeRectangleFromPoints(session.start, session.current);
+    const hits = new Set(session.cards.filter((card) => bridgeRectanglesIntersect(rectangle, card.rectangle)).map((card) => card.id));
+    const selection = bridgeMarqueeSelection({
+      initial: session.initialSelection,
+      hits,
+      additive: session.additive,
+    });
+    session.currentSelection = selection;
+    for (const card of session.cards) card.element.dataset.marqueeSelected = selection.has(card.id) ? "true" : "false";
+
+    const areaBounds = fileArea.getBoundingClientRect();
+    marquee.style.display = "block";
+    marquee.style.width = `${rectangle.right - rectangle.left}px`;
+    marquee.style.height = `${rectangle.bottom - rectangle.top}px`;
+    marquee.style.transform = `translate3d(${rectangle.left - areaBounds.left + fileArea.scrollLeft}px, ${rectangle.top - areaBounds.top + fileArea.scrollTop}px, 0)`;
+  }, []);
+
+  const scheduleMarqueePaint = useCallback(() => {
+    if (marqueeFrameRef.current !== null) return;
+    marqueeFrameRef.current = requestAnimationFrame(() => {
+      marqueeFrameRef.current = null;
+      paintMarquee();
+    });
+  }, [paintMarquee]);
+
+  const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, commit: boolean) => {
+    const session = marqueeSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    if (marqueeFrameRef.current !== null) {
+      cancelAnimationFrame(marqueeFrameRef.current);
+      marqueeFrameRef.current = null;
+    }
+    session.current = { x: event.clientX, y: event.clientY };
+    if (session.started) paintMarquee();
+    if (commit && session.started) {
+      const nextSelection = new Set(session.currentSelection);
+      setSelectedIds(nextSelection);
+      const nextFocused = visibleJpgs.find((photo) => nextSelection.has(photo.id)) ?? null;
+      setFocusedId(nextFocused?.id ?? null);
+      setAnchorId(nextFocused?.id ?? null);
+      setPreviewSize(undefined);
+      suppressThumbnailClickRef.current = true;
+      setTimeout(() => { suppressThumbnailClickRef.current = false; }, 0);
+    }
+    marqueeSessionRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    requestAnimationFrame(clearMarqueePresentation);
+  }, [clearMarqueePresentation, paintMarquee, visibleJpgs]);
+
+  useEffect(() => () => {
+    if (marqueeFrameRef.current !== null) cancelAnimationFrame(marqueeFrameRef.current);
+  }, []);
+
   const filters: Array<{ key: FileFilter; label: string; count: number }> = [
     { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
     { key: "jpg", label: "JPG", count: scan.jpgs.length },
@@ -652,8 +767,55 @@ export default function OliviaBridgeWorkspace() {
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
           {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
-            <div className={styles.fileArea}>
-              {visibleJpgs.length ? <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
+            <div
+              ref={fileAreaRef}
+              className={styles.fileArea}
+              onClickCapture={(event) => {
+                if (!suppressThumbnailClickRef.current) return;
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onPointerDown={(event) => {
+                if (event.button !== 0 || event.pointerType !== "mouse") return;
+                marqueeSessionRef.current = {
+                  pointerId: event.pointerId,
+                  start: { x: event.clientX, y: event.clientY },
+                  current: { x: event.clientX, y: event.clientY },
+                  additive: event.metaKey || event.ctrlKey,
+                  initialSelection: new Set(selectedIds),
+                  currentSelection: new Set(selectedIds),
+                  started: false,
+                  cards: [],
+                };
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerMove={(event) => {
+                const session = marqueeSessionRef.current;
+                if (!session || session.pointerId !== event.pointerId) return;
+                session.current = { x: event.clientX, y: event.clientY };
+                if (!session.started) {
+                  const distance = Math.hypot(session.current.x - session.start.x, session.current.y - session.start.y);
+                  if (distance < 6) return;
+                  session.started = true;
+                  const fileArea = event.currentTarget;
+                  fileArea.dataset.marqueeActive = "true";
+                  session.cards = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]")).map((element) => {
+                    const bounds = element.getBoundingClientRect();
+                    return {
+                      id: element.dataset.bridgePhotoId ?? "",
+                      element,
+                      rectangle: { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom },
+                    };
+                  }).filter((card) => Boolean(card.id));
+                }
+                event.preventDefault();
+                scheduleMarqueePaint();
+              }}
+              onPointerUp={(event) => endMarquee(event, true)}
+              onPointerCancel={(event) => endMarquee(event, false)}
+            >
+              <div ref={marqueeRef} className={styles.selectionMarquee} aria-hidden="true" />
+              {visibleJpgs.length ? <div data-bridge-thumbnail-grid className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
                 {visibleJpgs.map((photo) => {
                   const selected = selectedIds.has(photo.id);
                   const focused = focusedId === photo.id;
@@ -667,7 +829,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}><span>← → 사진 이동</span><span>Space 전체화면</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}><span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space 전체화면</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 

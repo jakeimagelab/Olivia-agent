@@ -170,6 +170,14 @@
 
 .paneDividerDragging { cursor: col-resize; }
 
+.paneDividerDragging::before {
+  content: "";
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  cursor: col-resize;
+}
+
 .panelTitle { display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 18px; color: rgba(255, 255, 255, .84); font-size: 11px; font-weight: 600; }
 .panelTitle button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 7px; color: rgba(255, 255, 255, .72); background: transparent; cursor: pointer; }
 .panelTitle button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
@@ -223,7 +231,7 @@
 .thumbnailControls button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
 .thumbnailControls > svg { color: rgba(255, 255, 255, .38); }
 
-.fileArea { min-height: 0; overflow: auto; padding: 15px 16px 22px; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
+.fileArea { min-height: 0; position: relative; overflow: auto; padding: 15px 16px 22px; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
 .fileArea::-webkit-scrollbar, .folderList::-webkit-scrollbar, .toolBody::-webkit-scrollbar, .sceneGrid::-webkit-scrollbar { width: 8px; height: 8px; }
 .fileArea::-webkit-scrollbar-track, .folderList::-webkit-scrollbar-track, .toolBody::-webkit-scrollbar-track, .sceneGrid::-webkit-scrollbar-track { background: transparent; }
 .fileArea::-webkit-scrollbar-thumb, .folderList::-webkit-scrollbar-thumb, .toolBody::-webkit-scrollbar-thumb, .sceneGrid::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255, 255, 255, .28); }
@@ -234,6 +242,11 @@
 .thumbnailCard.focused { border-color: rgba(255, 255, 255, .76); }
 .thumbnailCard.selected { border-color: var(--bridge-mint); background: rgba(79, 216, 184, .08); }
 .thumbnailCard.excluded .thumbnailMedia { opacity: .36; }
+.fileArea[data-marquee-active="true"] { cursor: crosshair; user-select: none; }
+.fileArea[data-marquee-active="true"] .thumbnailCard { transition: none; }
+.fileArea[data-marquee-active="true"] .thumbnailCard.selected[data-marquee-selected="false"] { border-color: transparent; background: rgba(255, 255, 255, .025); }
+.fileArea[data-marquee-active="true"] .thumbnailCard[data-marquee-selected="true"] { border-color: var(--bridge-mint); background: rgba(79, 216, 184, .08); }
+.selectionMarquee { position: absolute; z-index: 12; top: 0; left: 0; display: none; min-width: 1px; min-height: 1px; border: 1px solid rgba(79, 216, 184, .95); border-radius: 3px; background: rgba(79, 216, 184, .14); box-shadow: 0 0 0 1px rgba(16, 62, 54, .4); pointer-events: none; will-change: width, height, transform; }
 .thumbnailMedia { width: 100%; min-height: 86px; aspect-ratio: 3 / 2; display: grid; place-items: center; overflow: hidden; border-radius: 4px; background: #101719; }
 .thumbnailMedia img { width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; }
 .photoName { display: block; padding: 0 4px; overflow: hidden; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
