@@ -76,12 +76,13 @@ export function PhotoWorkspaceEmbeddedTool({
       {mode === "select" ? (
         <PhotoSelectWorkspace
           remote={false}
+          bridgeEmbedded
           value={selectMode}
           onChange={setSelectMode}
           onStartRawMatch={() => setMode("raw-match")}
         />
       ) : null}
-      {mode === "jpg-prep" ? <PhotoJpgPrepWorkspace onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
+      {mode === "jpg-prep" ? <PhotoJpgPrepWorkspace bridgeEmbedded onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
       {mode === "raw-match" ? (
         <div className={styles.workspaceToolSurface}>
           <header className={styles.workspaceToolHeader}>
@@ -92,7 +93,7 @@ export function PhotoWorkspaceEmbeddedTool({
             </span>
             <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
           </header>
-          <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
+          <PhotoRawMatchWorkspace bridgeLinked selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
         </div>
       ) : null}
       {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}

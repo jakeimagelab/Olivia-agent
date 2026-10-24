@@ -11,6 +11,12 @@ import {
 } from "@/lib/photo-bridge/floatingWindow";
 import { getDesktopShortcutApps, getDockApps, getOliviaAppByRoute } from "@/components/olivia-os/registry/oliviaAppRegistry";
 import { DESKTOP_APP_TO_WORKSPACE } from "@/components/olivia-os/useOliviaDesktopContextBridge";
+import {
+  mergePhotoToolRatings,
+  normalizePhotoToolFileKey,
+  normalizePhotoToolSelectionNames,
+  samePhotoToolSelectionNames,
+} from "@/lib/photo-bridge/toolLinkage";
 
 describe("Olivia Bridge", () => {
   it("JPG·RAW·사이드카를 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
@@ -38,6 +44,39 @@ describe("Olivia Bridge", () => {
     expect([...addedRange]).toEqual(["a", "b", "c", "d"]);
     const removed = updateBridgeSelection({ current: new Set(["b", "d"]), orderedIds: ids, clickedId: "b", anchorId: "d", additive: true, range: false });
     expect([...removed]).toEqual(["d"]);
+  });
+
+  it("Bridge와 사진 도구의 파일명·선택·별점을 같은 키로 연결한다", () => {
+    expect(normalizePhotoToolFileKey(" 촬영/JPG/IMG_0001.JPG ")).toBe("img_0001");
+    expect(normalizePhotoToolSelectionNames(["IMG_0001.JPG", "img_0001.cr3", "IMG_0002.JPG"])).toEqual([
+      "IMG_0001.JPG",
+      "IMG_0002.JPG",
+    ]);
+    expect(samePhotoToolSelectionNames(["IMG_0001.JPG"], ["img_0001"])).toBe(true);
+
+    const fromXmp = mergePhotoToolRatings({ img_0001: 5 }, { "IMG_0001.JPG": 2, "IMG_0002.JPG": 3 });
+    expect(fromXmp).toEqual({ img_0001: 5, img_0002: 3 });
+    expect(mergePhotoToolRatings(fromXmp, { "IMG_0001.JPG": 0 }, { overwrite: true })).toEqual({ img_0002: 3 });
+  });
+
+  it("기능 창의 SVG 닫기 아이콘은 헤더 드래그로 처리하지 않는다", () => {
+    const floatingWindow = readFileSync("components/olivia-bridge/BridgeFloatingWindow.tsx", "utf8");
+    expect(floatingWindow).toContain("event.target instanceof Element");
+    expect(floatingWindow).toContain("onPointerDown={(event) => event.stopPropagation()}");
+    expect(floatingWindow).toContain("event.stopPropagation(); onClose();");
+  });
+
+  it("Bridge 폴더를 AI 셀렉·JPG 정리·RAW 매칭에 다시 선택 없이 전달한다", () => {
+    const embeddedTool = readFileSync("components/photo-workspace/PhotoWorkspace.tsx", "utf8");
+    const aiSelect = readFileSync("components/photo-workspace/PhotoSelectWorkspace.tsx", "utf8");
+    const aiPanel = readFileSync("components/photo-workspace/AiPhotoSelectPanel.tsx", "utf8");
+    const rawMatch = readFileSync("components/photo-workspace/SelectMatchWorkspace.tsx", "utf8");
+
+    expect(embeddedTool).toContain("bridgeEmbedded");
+    expect(embeddedTool).toContain("bridgeLinked");
+    expect(aiSelect).toContain("initialFolder={currentLocalFolder}");
+    expect(aiPanel).toContain("현재 Bridge 폴더");
+    expect(rawMatch).toContain("현재 폴더에서 RAW 확인");
   });
 
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {

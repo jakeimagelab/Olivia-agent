@@ -139,7 +139,7 @@ export function BridgeFloatingWindow({
 
   const beginInteraction = useCallback((event: ReactPointerEvent<HTMLElement>, mode: Interaction["mode"]) => {
     if (event.button !== 0 || !rectRef.current) return;
-    if (mode === "move" && event.target instanceof HTMLElement && event.target.closest("button, input, select, textarea, a")) return;
+    if (mode === "move" && event.target instanceof Element && event.target.closest("button, input, select, textarea, a")) return;
     event.preventDefault();
     const body = document.body;
     const previousUserSelect = body.style.userSelect;
@@ -179,7 +179,12 @@ export function BridgeFloatingWindow({
       <header className={styles.floatingHeader} onPointerDown={(event) => beginInteraction(event, "move")}>
         <Grip className={styles.dragIndicator} size={16} strokeWidth={1.8} aria-hidden="true" />
         <div><strong>{title}</strong>{subtitle ? <span>{subtitle}</span> : null}</div>
-        <button type="button" onClick={onClose} aria-label={`${title} 닫기`}><X size={19} /></button>
+        <button
+          type="button"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => { event.stopPropagation(); onClose(); }}
+          aria-label={`${title} 닫기`}
+        ><X size={19} /></button>
       </header>
       {children}
       <div className={`${styles.resizeHandle} ${styles.resizeEast}`} onPointerDown={(event) => beginInteraction(event, "east")} aria-hidden="true" />

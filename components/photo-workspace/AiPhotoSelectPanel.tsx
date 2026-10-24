@@ -4,6 +4,7 @@ import { Check, FolderOpen, Image as ImageIcon, Loader2, MessageCircle, Search }
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collectJpgFolderGroups, type SelectMatchPhoto } from "@/lib/selectMatch/folderScanner";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import styles from "./PhotoWorkspace.module.css";
 
 type Candidate = {
@@ -20,6 +21,9 @@ type Candidate = {
 type ApiCandidate = { name: string; score: number; reason: string };
 
 export type AiPhotoSelectCallbacks = {
+  initialFolder?: FileSystemDirectoryHandle | null;
+  selectedJpgNames?: readonly string[];
+  lockFolder?: boolean;
   onSelectFolder?: (folder: FileSystemDirectoryHandle) => void;
   onConfirmSelection?: (candidateNames: string[]) => void;
   onStartRawMatch?: (candidateNames: string[]) => void;
@@ -80,7 +84,7 @@ async function makeThumbnail(file: File): Promise<{ url: string; blob: Blob }> {
 
 export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
   const { pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
-  const [folder, setFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [folder, setFolder] = useState<FileSystemDirectoryHandle | null>(callbacks.initialFolder ?? null);
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -104,6 +108,21 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
   useEffect(() => () => releaseThumbnailUrls(), [releaseThumbnailUrls]);
 
   const selectedCandidates = useMemo(() => candidates.filter((candidate) => selected.has(candidate.id)), [candidates, selected]);
+
+  useEffect(() => {
+    if (!callbacks.initialFolder || callbacks.initialFolder === folder) return;
+    setFolder(callbacks.initialFolder);
+    clearCandidates();
+    setSelected(new Set());
+    setSourceCount(0);
+    setStatus("");
+  }, [callbacks.initialFolder, clearCandidates, folder]);
+
+  useEffect(() => {
+    if (!candidates.length || !callbacks.selectedJpgNames) return;
+    const selectedKeys = new Set(callbacks.selectedJpgNames.map(normalizePhotoToolFileKey));
+    setSelected(new Set(candidates.filter((candidate) => selectedKeys.has(normalizePhotoToolFileKey(candidate.basename))).map((candidate) => candidate.id)));
+  }, [callbacks.selectedJpgNames, candidates]);
 
   useEffect(() => {
     if (folderPickerError) setStatus(folderPickerError);
@@ -226,10 +245,10 @@ export default function AiPhotoSelectPanel(callbacks: AiPhotoSelectCallbacks) {
             <p>원하는 사진을 자연어로 설명하면 AI가 JPG 후보를 찾습니다. 후보는 자동 확정하지 않으며, 마지막 선택은 직접 합니다.</p>
           </div>
           <section className={styles.aiSection}>
-            <h3><span>1.</span> 사진 폴더 선택</h3>
+            <h3><span>1.</span> {callbacks.lockFolder ? "현재 Bridge 폴더" : "사진 폴더 선택"}</h3>
             <div className={styles.folderRow}>
               <span className={styles.folderState}><FolderOpen size={19} aria-hidden="true" />{folder?.name || "폴더가 선택되지 않았습니다."}</span>
-              <button type="button" className={styles.secondaryButton} onClick={() => void selectFolder()} disabled={loading}>폴더 선택</button>
+              {!callbacks.lockFolder ? <button type="button" className={styles.secondaryButton} onClick={() => void selectFolder()} disabled={loading}>폴더 선택</button> : null}
             </div>
           </section>
           <section className={styles.aiSection}>

@@ -206,7 +206,7 @@ function FolderPickerRow({ step, label, hint, dir, onPick, onClear, disabled, da
   );
 }
 
-export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { selectedJpgNames?: readonly string[] }) {
+export default function MetadataSelectWorkspace({ selectedJpgNames = [], bridgeLinked = false }: { selectedJpgNames?: readonly string[]; bridgeLinked?: boolean }) {
   const { currentLocalFolder, setCurrentLocalFolder } = usePhotoStudioExecution();
   const desktopWindowMode = useDesktopWindowMode();
   const panelCard = desktopWindowMode ? "rgba(255,255,255,.025)" : C.white;
@@ -226,6 +226,9 @@ export default function MetadataSelectWorkspace({ selectedJpgNames = [] }: { sel
   useEffect(() => {
     if (!selectionDir && currentLocalFolder) setSelectionDir(currentLocalFolder);
   }, [currentLocalFolder, selectionDir]);
+  useEffect(() => {
+    if (bridgeLinked && !rawDir && currentLocalFolder) setRawDir(currentLocalFolder);
+  }, [bridgeLinked, currentLocalFolder, rawDir]);
   useEffect(() => {
     if (selectionDir) setCurrentLocalFolder(selectionDir);
   }, [selectionDir, setCurrentLocalFolder]);

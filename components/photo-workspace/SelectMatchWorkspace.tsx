@@ -22,6 +22,7 @@ import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeR
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -200,12 +201,14 @@ export type SelectMatchInitialView = "raw" | "manual" | "client";
 
 export function SelectMatchWorkspace({
   embedded = false,
+  bridgeLinked = false,
   initialView = "raw",
   selectionOnly = false,
   selectedJpgNames = [],
   onSelectionComplete,
 }: {
   embedded?: boolean;
+  bridgeLinked?: boolean;
   initialView?: SelectMatchInitialView;
   /** 사진 셀렉 탭에서는 JPG 목록만 저장하고 RAW 탐색 UI를 렌더하지 않는다. */
   selectionOnly?: boolean;
@@ -213,7 +216,7 @@ export function SelectMatchWorkspace({
   selectedJpgNames?: readonly string[];
   onSelectionComplete?: (names: string[]) => void;
 } = {}) {
-  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
+  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, jpgRatingsByName, setJpgRatingsByName } = usePhotoStudioExecution();
   const [step,       setStep]       = useState<Step>("idle");
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   useEffect(() => {
@@ -310,6 +313,11 @@ export function SelectMatchWorkspace({
     onSelectionComplete?.(selectedNames);
     setStep("selection_done");
   }, [onSelectionComplete, setSelectedJpgNames]);
+
+  useEffect(() => {
+    if (!selectionOnly || step !== "ready") return;
+    setSelectedJpgNames([...selected]);
+  }, [selected, selectionOnly, setSelectedJpgNames, step]);
 
   /* ── 클라이언트 선택 확정 → RAW 탭에서만 raw_pick 단계로 ── */
   const confirmClientInput = (names: Set<string>) => {
@@ -417,10 +425,13 @@ export function SelectMatchWorkspace({
       // 1단계: .xmp 사이드카
       const afterSidecar = await Promise.all(sceneList.map(async (scene) => ({
         ...scene,
-        photos: await Promise.all(scene.photos.map(async (p) => ({
-          ...p,
-          rating: await readRatingSidecar(scene.dirHandle, p.basename),
-        }))),
+        photos: await Promise.all(scene.photos.map(async (p) => {
+          const sharedRating = jpgRatingsByName[normalizePhotoToolFileKey(p.name)];
+          return {
+            ...p,
+            rating: sharedRating ?? await readRatingSidecar(scene.dirHandle, p.basename),
+          };
+        })),
       })));
       setScenes(afterSidecar);
 
@@ -436,6 +447,9 @@ export function SelectMatchWorkspace({
         })),
       })));
       setScenes(afterEmbedded);
+      setJpgRatingsByName(Object.fromEntries(afterEmbedded.flatMap((scene) => scene.photos.flatMap((photo) => (
+        photo.rating !== null && photo.rating >= 1 ? [[photo.name, photo.rating] as const] : []
+      )))), { overwrite: false });
 
       // 별점 있는 사진 자동 선택
       const autoKeys = new Set(selectedJpgNames
@@ -450,7 +464,7 @@ export function SelectMatchWorkspace({
 
       setRatingLoaded(true);
       setRatingLoading(false);
-  }, [releaseSceneThumbnails, selectedJpgNames, setProgress]);
+  }, [jpgRatingsByName, releaseSceneThumbnails, selectedJpgNames, setJpgRatingsByName, setProgress]);
 
   const loadFolder = useCallback(async () => {
     try {
@@ -463,13 +477,14 @@ export function SelectMatchWorkspace({
   }, [scanFolder]);
 
   useEffect(() => {
-    if (!selectionOnly || !currentLocalFolder || step !== "idle" || autoScannedFolderRef.current === currentLocalFolder) return;
+    const shouldScanBridgeFolder = selectionOnly || (bridgeLinked && initialView === "raw" && selectedJpgNames.length === 0);
+    if (!shouldScanBridgeFolder || !currentLocalFolder || step !== "idle" || autoScannedFolderRef.current === currentLocalFolder) return;
     autoScannedFolderRef.current = currentLocalFolder;
     void scanFolder(currentLocalFolder).catch((error) => {
       console.error("[photo-select] Bridge folder scan failed", error);
       setStep("idle");
     });
-  }, [currentLocalFolder, scanFolder, selectionOnly, step]);
+  }, [bridgeLinked, currentLocalFolder, initialView, scanFolder, selectedJpgNames.length, selectionOnly, step]);
 
   /* ── JPG 내장 XMP 딥스캔 (사이드카 없을 때) ── */
   const loadEmbeddedRatings = useCallback(async () => {
@@ -485,9 +500,23 @@ export function SelectMatchWorkspace({
       })),
     })));
     setScenes(updated);
+    setJpgRatingsByName(Object.fromEntries(updated.flatMap((scene) => scene.photos.flatMap((photo) => (
+      photo.rating !== null && photo.rating >= 1 ? [[photo.name, photo.rating] as const] : []
+    )))), { overwrite: false });
     setRatingLoaded(true);
     setRatingLoading(false);
-  }, [scenes]);
+  }, [scenes, setJpgRatingsByName]);
+
+  useEffect(() => {
+    if (!scenes.length) return;
+    setScenes((current) => current.map((scene) => ({
+      ...scene,
+      photos: scene.photos.map((photo) => {
+        const sharedRating = jpgRatingsByName[normalizePhotoToolFileKey(photo.name)];
+        return sharedRating && sharedRating !== photo.rating ? { ...photo, rating: sharedRating } : photo;
+      }),
+    })));
+  }, [jpgRatingsByName, scenes.length]);
 
   /* ── 별점 기준 자동 선택 ── */
   const autoSelectByRating = useCallback((minRating: number) => {
@@ -1218,10 +1247,10 @@ export function SelectMatchWorkspace({
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />RAW 폴더를 선택하세요</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "현재 Bridge 폴더에서 RAW를 확인합니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
           고객 선택 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
-          이제 RAW 파일이 들어있는 폴더를 선택하세요.<br />
+          {bridgeLinked ? <>현재 Bridge 폴더 <strong>{currentLocalFolder?.name ?? rootDir?.name}</strong>에서 RAW를 먼저 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
         <div style={{ background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted, marginBottom: 18 }}>
@@ -1233,12 +1262,13 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          <Btn onClick={async () => {
+          {bridgeLinked && (currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(currentLocalFolder ?? rootDir ?? undefined)}>현재 폴더에서 RAW 확인</Btn> : null}
+          <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={async () => {
             try {
               const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
               await runPreflight(dir);
             } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
-          }}>RAW 폴더 선택</Btn>
+          }}>{bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
         </div>
       </div>
     </div>
@@ -1497,10 +1527,10 @@ export function SelectMatchWorkspace({
               >{rawRootDir ? <><FolderOpen size={14} aria-hidden="true" />{rawRootDir.name}</> : <><FolderOpen size={14} aria-hidden="true" />RAW 폴더 선택</>}</button>
             </>
           )}
-          <button
+          {!bridgeLinked ? <button
             onClick={() => { setStep("idle"); setRootDir(null); setRawRootDir(null); setScenes([]); setSelected(new Set()); }}
             style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${uiBorder}`, borderRadius: 8, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
-          >폴더 변경</button>
+          >폴더 변경</button> : null}
         </div>
       </div>
 

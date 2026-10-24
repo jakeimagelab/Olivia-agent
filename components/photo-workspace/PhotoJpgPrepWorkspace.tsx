@@ -228,7 +228,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "sk
   );
 }
 
-export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPhotoSelect: () => void }) {
+export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect, bridgeEmbedded = false }: { onOpenPhotoSelect: () => void; bridgeEmbedded?: boolean }) {
   const { executionMode, currentLocalFolder, setCurrentLocalFolder } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
   const { supported, pick, error: pickerError } = usePhotoFolderPicker();
@@ -238,7 +238,9 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
   const [includeSubdirectories, setIncludeSubdirectories] = useState(true);
   const [preserveStructure, setPreserveStructure] = useState(true);
   const [phase, setPhase] = useState<Phase>("idle");
-  const [message, setMessage] = useState("폴더를 선택한 뒤 미리보기로 JPG와 RAW를 확인하세요.");
+  const [message, setMessage] = useState(bridgeEmbedded
+    ? "현재 Bridge 폴더를 미리보기로 확인한 뒤 JPG정리를 실행하세요."
+    : "폴더를 선택한 뒤 미리보기로 JPG와 RAW를 확인하세요.");
   const [plan, setPlan] = useState<PrepPlan | null>(null);
   const [destination, setDestination] = useState<FileSystemDirectoryHandle | null>(null);
   const [runProgress, setRunProgress] = useState<RunProgress | null>(null);
@@ -432,13 +434,13 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect }: { onOpenPho
       <div className={styles.layout}>
         <div className={styles.controls}>
           <section className={styles.section}>
-            <h3 className={styles.stepTitle}><span className={styles.stepNumber}>1</span> 폴더 선택</h3>
-            <p className={styles.sectionDescription}>RAW와 JPG가 섞여 있는 촬영 폴더 하나를 선택합니다.</p>
+            <h3 className={styles.stepTitle}><span className={styles.stepNumber}>1</span> {bridgeEmbedded ? "현재 Bridge 폴더" : "폴더 선택"}</h3>
+            <p className={styles.sectionDescription}>{bridgeEmbedded ? "Bridge에서 열어 둔 촬영 폴더를 그대로 사용합니다." : "RAW와 JPG가 섞여 있는 촬영 폴더 하나를 선택합니다."}</p>
             <div className={styles.folderSelection}>
               <span><FolderOpen size={16} aria-hidden="true" />{selectedName ?? "폴더가 선택되지 않았습니다."}</span>
-              <button type="button" className={styles.secondary} onClick={() => void chooseFolder()} disabled={busy || (!remote && !supported)}>
+              {!bridgeEmbedded ? <button type="button" className={styles.secondary} onClick={() => void chooseFolder()} disabled={busy || (!remote && !supported)}>
                 {selectedName ? "폴더 바꾸기" : "폴더 선택"}
-              </button>
+              </button> : null}
             </div>
             {pickerError ? <p className={styles.inlineError}>{pickerError}</p> : null}
           </section>

@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -24,6 +25,12 @@ import {
 import type { RemoteWorkerPresence } from "@/lib/remote-jobs/workerPresence";
 import { usePhotoSourceSurface } from "@/components/photo-classifier/usePhotoSourceSurface";
 import { useRemotePhotoJobStore, type RemotePhotoPollingState } from "@/lib/store/useRemotePhotoJobStore";
+import {
+  mergePhotoToolRatings,
+  normalizePhotoToolSelectionNames,
+  samePhotoToolSelectionNames,
+  type PhotoToolRatings,
+} from "@/lib/photo-bridge/toolLinkage";
 
 export type RemotePollingState = RemotePhotoPollingState;
 
@@ -50,6 +57,12 @@ type PhotoStudioExecutionValue = {
   /** Bridge처럼 파일 핸들을 이미 읽은 화면은 선택 파일도 함께 전달한다. 기존 도구는 이름만 써도 된다. */
   selectedJpgFiles: File[];
   setSelectedJpgFiles: (files: readonly File[]) => void;
+  /** Bridge와 사진 셀렉 도구가 파일명 기준으로 함께 쓰는 JPG 별점이다. */
+  jpgRatingsByName: PhotoToolRatings;
+  setJpgRatingsByName: (
+    entries: Readonly<Record<string, number | null | undefined>>,
+    options?: { overwrite?: boolean },
+  ) => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -90,25 +103,37 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [workerPresence, setWorkerPresence] = useState<RemoteWorkerPresence>(EMPTY_WORKER);
   const [workerPollingState, setWorkerPollingState] = useState<RemotePollingState>("idle");
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
-  const [currentLocalFolder, setCurrentLocalFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [currentLocalFolder, setCurrentLocalFolderState] = useState<FileSystemDirectoryHandle | null>(null);
+  const currentLocalFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
   const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
+  const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
+
+  const setCurrentLocalFolder = useCallback((folder: FileSystemDirectoryHandle | null) => {
+    if (currentLocalFolderRef.current === folder) return;
+    currentLocalFolderRef.current = folder;
+    setCurrentLocalFolderState(folder);
+    setSelectedJpgNamesState([]);
+    setSelectedJpgFilesState([]);
+    setJpgRatingsByNameState({});
+  }, []);
 
   const setSelectedJpgNames = useCallback((names: readonly string[]) => {
-    const unique = new Map<string, string>();
-    for (const name of names) {
-      const trimmed = name.trim();
-      if (!trimmed) continue;
-      const key = trimmed.normalize("NFC").toLocaleLowerCase("en-US");
-      if (!unique.has(key)) unique.set(key, trimmed);
-    }
-    setSelectedJpgNamesState([...unique.values()]);
+    const next = normalizePhotoToolSelectionNames(names);
+    setSelectedJpgNamesState((current) => samePhotoToolSelectionNames(current, next) ? current : next);
   }, []);
 
   const setSelectedJpgFiles = useCallback((files: readonly File[]) => {
     const unique = new Map<string, File>();
     for (const file of files) unique.set(`${file.name}:${file.size}:${file.lastModified}`, file);
     setSelectedJpgFilesState([...unique.values()]);
+  }, []);
+
+  const setJpgRatingsByName = useCallback((
+    entries: Readonly<Record<string, number | null | undefined>>,
+    options?: { overwrite?: boolean },
+  ) => {
+    setJpgRatingsByNameState((current) => mergePhotoToolRatings(current, entries, options));
   }, []);
 
   useEffect(() => {
@@ -204,6 +229,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgNames,
     selectedJpgFiles,
     setSelectedJpgFiles,
+    jpgRatingsByName,
+    setJpgRatingsByName,
   }), [
     availableModes,
     clearRemoteJob,
@@ -215,12 +242,15 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setExecutionMode,
     trackRemoteJob,
     currentLocalFolder,
+    setCurrentLocalFolder,
     workerPollingState,
     workerPresence,
     selectedJpgNames,
     setSelectedJpgNames,
     selectedJpgFiles,
     setSelectedJpgFiles,
+    jpgRatingsByName,
+    setJpgRatingsByName,
   ]);
 
   return (

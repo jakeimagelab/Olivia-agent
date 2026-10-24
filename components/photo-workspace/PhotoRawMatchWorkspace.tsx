@@ -26,9 +26,11 @@ type RawMatchMethod = "filename" | "metadata";
 export default function PhotoRawMatchWorkspace({
   selectedJpgNames,
   initialMethod = "filename",
+  bridgeLinked = false,
 }: {
   selectedJpgNames: readonly string[];
   initialMethod?: RawMatchMethod;
+  bridgeLinked?: boolean;
 }) {
   const [method, setMethod] = useState<RawMatchMethod>(initialMethod);
   useEffect(() => setMethod(initialMethod), [initialMethod]);
@@ -51,8 +53,8 @@ export default function PhotoRawMatchWorkspace({
         ]}
       />
       <div id="raw-match-method-panel" role="tabpanel" aria-labelledby={`raw-match-method-${method}`}>
-        {method === "filename" ? <SelectMatchWorkspace embedded initialView="raw" selectedJpgNames={selectedJpgNames} /> : null}
-        {method === "metadata" ? <DesktopWindowProvider value={true}><MetadataSelectWorkspace selectedJpgNames={selectedJpgNames} /></DesktopWindowProvider> : null}
+        {method === "filename" ? <SelectMatchWorkspace embedded bridgeLinked={bridgeLinked} initialView="raw" selectedJpgNames={selectedJpgNames} /> : null}
+        {method === "metadata" ? <DesktopWindowProvider value={true}><MetadataSelectWorkspace bridgeLinked={bridgeLinked} selectedJpgNames={selectedJpgNames} /></DesktopWindowProvider> : null}
       </div>
     </div>
   );

@@ -28,11 +28,12 @@ const SELECT_TABS = [
   { mode: "tcut", label: "T컷 정리", icon: Scissors },
 ] as const;
 
-export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch, remote = false }: {
+export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch, remote = false, bridgeEmbedded = false }: {
   value: PhotoSelectMode;
   onChange: (mode: PhotoSelectMode) => void;
   onStartRawMatch: () => void;
   remote?: boolean;
+  bridgeEmbedded?: boolean;
 }) {
   const { currentLocalFolder, selectedJpgNames, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
   if (remote && value !== "tcut") return <RemotePhotoSelectWorkspace />;
@@ -51,7 +52,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         }))}
       />
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
-        {value === "ai" ? <AiPhotoSelectPanel onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
+        {value === "ai" ? <AiPhotoSelectPanel initialFolder={currentLocalFolder} selectedJpgNames={selectedJpgNames} lockFolder={bridgeEmbedded} onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
         {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
         {value === "tcut" ? (remote ? (

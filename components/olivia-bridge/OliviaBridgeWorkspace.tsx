@@ -51,6 +51,7 @@ import {
   type BridgeScene,
 } from "@/lib/photo-bridge/bridgeFiles";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import {
   BRIDGE_PANE_DEFAULT_WIDTH,
   bridgePaneWidthFromPointer,
@@ -431,12 +432,22 @@ function BridgePaneDivider({
 
 export default function OliviaBridgeWorkspace() {
   const picker = usePhotoFolderPicker();
-  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, setSelectedJpgFiles, setExecutionMode } = usePhotoStudioExecution();
+  const {
+    currentLocalFolder,
+    setCurrentLocalFolder,
+    selectedJpgNames,
+    setSelectedJpgNames,
+    setSelectedJpgFiles,
+    jpgRatingsByName,
+    setJpgRatingsByName,
+    setExecutionMode,
+  } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [scanError, setScanError] = useState<string>();
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIdsState] = useState<Set<string>>(new Set());
+  const selectedIdsRef = useRef<Set<string>>(new Set());
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
@@ -479,14 +490,44 @@ export default function OliviaBridgeWorkspace() {
   const focusedPhoto = scan.jpgs.find((photo) => photo.id === focusedId) ?? null;
   const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
 
+  const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
+    const next = typeof value === "function" ? value(selectedIdsRef.current) : value;
+    selectedIdsRef.current = next;
+    setSelectedIdsState(next);
+    setSelectedJpgNames(scan.jpgs.filter((photo) => next.has(photo.id)).map((photo) => photo.name));
+  }, [scan.jpgs, setSelectedJpgNames]);
+
   const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
     floatingWindowRectsRef.current[windowId] = rect;
   }, []);
 
   useEffect(() => {
-    setSelectedJpgNames(selectedNames);
     setSelectedJpgFiles(scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.file));
-  }, [scan.jpgs, selectedIds, selectedNames, setSelectedJpgFiles, setSelectedJpgNames]);
+  }, [scan.jpgs, selectedIds, setSelectedJpgFiles]);
+
+  useEffect(() => {
+    const selectedKeys = new Set(selectedJpgNames.map(normalizePhotoToolFileKey).filter(Boolean));
+    const next = new Set(scan.jpgs.filter((photo) => selectedKeys.has(normalizePhotoToolFileKey(photo.name))).map((photo) => photo.id));
+    setSelectedIdsState((current) => {
+      if (current.size === next.size && [...current].every((id) => next.has(id))) return current;
+      selectedIdsRef.current = next;
+      return next;
+    });
+  }, [scan.jpgs, selectedJpgNames]);
+
+  useEffect(() => {
+    const next: Record<string, number> = {};
+    for (const photo of scan.jpgs) {
+      const rating = jpgRatingsByName[normalizePhotoToolFileKey(photo.name)];
+      if (rating) next[photo.id] = rating;
+    }
+    setRatings((current) => {
+      const currentEntries = Object.entries(current);
+      const nextEntries = Object.entries(next);
+      if (currentEntries.length === nextEntries.length && currentEntries.every(([id, rating]) => next[id] === rating)) return current;
+      return next;
+    });
+  }, [jpgRatingsByName, scan.jpgs]);
 
   useEffect(() => {
     if (!labelFilter || focusedIndex >= 0) return;
@@ -513,9 +554,11 @@ export default function OliviaBridgeWorkspace() {
     try {
       const nextPath = trail.map((item) => item.name).join(" / ");
       const next = await scanBridgeFolder(directory, nextPath);
+      let restoredRatings: Record<string, number> = {};
       try {
         const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; colorLabels?: unknown; excluded?: string[] };
-        setRatings(parsed.ratings ?? {});
+        restoredRatings = parsed.ratings ?? {};
+        setRatings(restoredRatings);
         setColorLabels(normalizeBridgeColorLabels(parsed.colorLabels));
         setExcludedIds(new Set(parsed.excluded ?? []));
       } catch {
@@ -531,6 +574,11 @@ export default function OliviaBridgeWorkspace() {
       setPreviewSize(undefined);
       setFileFilter("all");
       setCurrentLocalFolder(directory);
+      const restoredRatingsByName = Object.fromEntries(next.jpgs.flatMap((photo) => {
+        const rating = restoredRatings[photo.id];
+        return rating ? [[photo.name, rating] as const] : [];
+      }));
+      setJpgRatingsByName(restoredRatingsByName, { overwrite: true });
       setExecutionMode("LOCAL_DIRECT");
       setScanStatus("ready");
       rootRef.current?.focus();
@@ -538,7 +586,7 @@ export default function OliviaBridgeWorkspace() {
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [setCurrentLocalFolder, setExecutionMode]);
+  }, [setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setSelectedIds]);
 
   const chooseFolder = useCallback(async () => {
     const directory = await picker.pick("readwrite");
@@ -576,7 +624,7 @@ export default function OliviaBridgeWorkspace() {
     setAnchorId(photo.id);
     setFocusedId(photo.id);
     setPreviewSize(undefined);
-  }, [anchorId, selectedIds, visibleJpgs]);
+  }, [anchorId, selectedIds, setSelectedIds, visibleJpgs]);
 
   const moveFocus = useCallback((delta: number) => {
     if (!visibleJpgs.length) return;
@@ -588,7 +636,7 @@ export default function OliviaBridgeWorkspace() {
     setAnchorId(next.id);
     setPreviewSize(undefined);
     document.querySelector<HTMLElement>(`[data-bridge-photo-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [focusedIndex, visibleJpgs]);
+  }, [focusedIndex, setSelectedIds, visibleJpgs]);
 
   const labelTargets = useCallback((focusedOnly = false) => {
     if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
@@ -599,7 +647,9 @@ export default function OliviaBridgeWorkspace() {
     const targets = labelTargets(focusedOnly);
     if (!targets.size) return;
     setRatings((previous) => updateBridgeRatings(previous, targets, rating));
-  }, [labelTargets]);
+    const ratingsByName = Object.fromEntries(scan.jpgs.flatMap((photo) => targets.has(photo.id) ? [[photo.name, rating] as const] : []));
+    setJpgRatingsByName(ratingsByName, { overwrite: true });
+  }, [labelTargets, scan.jpgs, setJpgRatingsByName]);
 
   const applyColorLabel = useCallback((label: BridgeColorLabel, focusedOnly = false) => {
     const targets = labelTargets(focusedOnly);
@@ -766,7 +816,7 @@ export default function OliviaBridgeWorkspace() {
     marqueeSessionRef.current = null;
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
     requestAnimationFrame(clearMarqueePresentation);
-  }, [clearMarqueePresentation, paintMarquee, visibleJpgs]);
+  }, [clearMarqueePresentation, paintMarquee, setSelectedIds, visibleJpgs]);
 
   useEffect(() => () => {
     if (marqueeFrameRef.current !== null) cancelAnimationFrame(marqueeFrameRef.current);
