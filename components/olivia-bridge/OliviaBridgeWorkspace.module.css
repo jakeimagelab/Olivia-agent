@@ -19,12 +19,6 @@
   container: olivia-bridge / size;
 }
 
-.bridge:fullscreen {
-  width: 100vw;
-  height: 100vh;
-  min-height: 100vh;
-}
-
 .bridgeBar {
   min-width: 0;
   display: flex;
@@ -252,6 +246,7 @@
 .photoName { display: block; padding: 0 4px; overflow: hidden; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
 .selectMark { position: absolute; top: 7px; right: 7px; width: 13px; height: 13px; border-radius: 50%; background: var(--bridge-mint); box-shadow: 0 0 0 3px rgba(16, 62, 54, .25); }
 .rating { position: absolute; bottom: 27px; left: 6px; min-height: 21px; display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 999px; color: #ffd16d; background: rgba(0, 0, 0, .76); font-size: 8px; }
+.colorLabelMark { position: absolute; right: 7px; bottom: 31px; width: 14px; height: 14px; border: 2px solid rgba(255, 255, 255, .9); border-radius: 50%; box-shadow: 0 1px 5px rgba(0, 0, 0, .55); }
 .rejectMark { position: absolute; top: 7px; left: 7px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: #c94a1e; font-size: 10px; font-weight: 600; }
 
 .plainFileSection { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--bridge-line); }
@@ -343,6 +338,35 @@
 .fullscreenArrowLeft { left: max(18px, env(safe-area-inset-left)); }
 .fullscreenArrowRight { right: max(18px, env(safe-area-inset-right)); }
 
+.fullscreenLabelBar {
+  position: absolute;
+  z-index: 2;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  left: max(18px, env(safe-area-inset-left));
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(260px, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, .76);
+  background: rgba(10, 14, 15, .78);
+  backdrop-filter: blur(12px);
+}
+.fullscreenLabelBar > div:first-child { min-width: 0; display: flex; align-items: baseline; gap: 9px; }
+.fullscreenLabelBar > div:first-child strong { overflow: hidden; color: #fff; font-size: 10.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.fullscreenLabelBar > div:first-child span { flex: 0 0 auto; color: rgba(255, 255, 255, .48); font-size: 8.5px; }
+.fullscreenLabelBar p { margin: 0; color: rgba(255, 255, 255, .52); font-size: 8.5px; text-align: right; white-space: nowrap; }
+.fullscreenActiveLabels { display: flex; align-items: center; gap: 7px; }
+.fullscreenActiveLabels > span { min-height: 26px; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border: 1px solid rgba(255, 255, 255, .15); border-radius: 999px; color: rgba(255, 255, 255, .88); background: rgba(255, 255, 255, .07); font-size: 9px; white-space: nowrap; }
+.fullscreenActiveLabels > span > i { width: 11px; height: 11px; border: 1px solid rgba(255, 255, 255, .8); border-radius: 50%; }
+.fullscreenActiveLabels > small { color: rgba(255, 255, 255, .4); font-size: 8.5px; white-space: nowrap; }
+.fullscreenActiveLabels .fullscreenRating { color: #ffd16d; }
+
 .emptyState { grid-row: 2; min-height: 0; display: grid; align-content: center; justify-items: center; gap: 9px; padding: 28px; color: rgba(255, 255, 255, .46); text-align: center; }
 .emptyState strong { color: rgba(255, 255, 255, .82); font-size: 13px; font-weight: 600; }
 .emptyState p { max-width: 330px; margin: 0; font-size: 10px; line-height: 1.6; }
@@ -414,6 +438,8 @@
   .paneDivider { display: none; }
   .browserPanel { border-right: 0; border-bottom: 1px solid var(--bridge-line); }
   .previewPanel { min-height: 0; }
+  .fullscreenLabelBar { grid-template-columns: minmax(0, 1fr) auto; }
+  .fullscreenLabelBar p { grid-column: 1 / -1; text-align: left; }
 }
 
 @container (max-width: 680px) {

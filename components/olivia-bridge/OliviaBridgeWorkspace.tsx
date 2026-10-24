@@ -64,6 +64,16 @@ import {
   type BridgePoint,
   type BridgeRectangle,
 } from "@/lib/photo-bridge/marqueeSelection";
+import {
+  BRIDGE_COLOR_LABELS,
+  countBridgeLabeledFiles,
+  hasBridgeLabel,
+  normalizeBridgeColorLabels,
+  toggleBridgeColorLabel,
+  updateBridgeRatings,
+  type BridgeColorLabel,
+  type BridgeColorLabels,
+} from "@/lib/photo-bridge/labels";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -86,7 +96,7 @@ type SceneState = {
   error?: string;
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
-type FileFilter = "all" | "jpg" | "raw" | "sidecar" | "rated" | "excluded";
+type FileFilter = "all" | "jpg" | "raw" | "sidecar" | "rated" | "labeled" | "excluded";
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
   pointerId: number;
@@ -185,17 +195,26 @@ function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize?: 
 
 function BridgeFullscreenPreview({
   photo,
+  position,
+  total,
+  rating,
+  colorLabel,
   canMovePrevious,
   canMoveNext,
   onMove,
   onClose,
 }: {
   photo: BridgeJpgFile;
+  position: number;
+  total: number;
+  rating: number;
+  colorLabel?: BridgeColorLabel;
   canMovePrevious: boolean;
   canMoveNext: boolean;
   onMove: (delta: number) => void;
   onClose: () => void;
 }) {
+  const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
   return (
     <section className={styles.fullscreenPreview} role="dialog" aria-modal="true" aria-label="사진 전체화면 미리보기">
       <BridgePreviewImage photo={photo} />
@@ -208,6 +227,15 @@ function BridgeFullscreenPreview({
       <button type="button" className={`${styles.fullscreenArrow} ${styles.fullscreenArrowRight}`} onClick={() => onMove(1)} disabled={!canMoveNext} aria-label="다음 사진">
         <ChevronRight size={30} strokeWidth={1.6} />
       </button>
+      <div className={styles.fullscreenLabelBar}>
+        <div><strong>{photo.name}</strong><span>{position.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}</span></div>
+        <div className={styles.fullscreenActiveLabels}>
+          {rating ? <span className={styles.fullscreenRating}><Star size={13} fill="currentColor" /> {rating}</span> : null}
+          {color ? <span><i style={{ background: color.color }} />{color.name}</span> : null}
+          {!rating && !color ? <small>레이블 없음</small> : null}
+        </div>
+        <p>1–5 별점 · 0 별점 해제 · 6 빨강 · 7 노랑 · 8 초록 · 9 파랑</p>
+      </div>
     </section>
   );
 }
@@ -405,6 +433,7 @@ export default function OliviaBridgeWorkspace() {
   const [thumbnailSize, setThumbnailSize] = useState(156);
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
@@ -427,9 +456,10 @@ export default function OliviaBridgeWorkspace() {
   const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
     if (fileFilter === "raw" || fileFilter === "sidecar") return false;
     if (fileFilter === "rated") return Boolean(ratings[photo.id]);
+    if (fileFilter === "labeled") return hasBridgeLabel(photo.id, ratings, colorLabels);
     if (fileFilter === "excluded") return excludedIds.has(photo.id);
     return true;
-  }), [excludedIds, fileFilter, ratings, scan.jpgs]);
+  }), [colorLabels, excludedIds, fileFilter, ratings, scan.jpgs]);
   const showRaws = fileFilter === "all" || fileFilter === "raw";
   const showSidecars = fileFilter === "all" || fileFilter === "sidecar";
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
@@ -446,21 +476,13 @@ export default function OliviaBridgeWorkspace() {
   }, [scan.jpgs, selectedIds, selectedNames, setSelectedJpgFiles, setSelectedJpgNames]);
 
   useEffect(() => {
-    const syncFullscreenState = () => {
-      setFullscreenPreviewOpen(document.fullscreenElement === rootRef.current);
-    };
-    document.addEventListener("fullscreenchange", syncFullscreenState);
-    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
-  }, []);
-
-  useEffect(() => {
     if (!folderPath) return;
     try {
-      localStorage.setItem(`olivia-bridge:marks:${folderPath}`, JSON.stringify({ ratings, excluded: [...excludedIds] }));
+      localStorage.setItem(`olivia-bridge:marks:${folderPath}`, JSON.stringify({ ratings, colorLabels, excluded: [...excludedIds] }));
     } catch (error) {
       void error;
     }
-  }, [excludedIds, folderPath, ratings]);
+  }, [colorLabels, excludedIds, folderPath, ratings]);
 
   const loadDirectory = useCallback(async (directory: FileSystemDirectoryHandle, trail: Breadcrumb[]) => {
     setScanStatus("loading");
@@ -471,11 +493,13 @@ export default function OliviaBridgeWorkspace() {
       const nextPath = trail.map((item) => item.name).join(" / ");
       const next = await scanBridgeFolder(directory, nextPath);
       try {
-        const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; excluded?: string[] };
+        const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; colorLabels?: unknown; excluded?: string[] };
         setRatings(parsed.ratings ?? {});
+        setColorLabels(normalizeBridgeColorLabels(parsed.colorLabels));
         setExcludedIds(new Set(parsed.excluded ?? []));
       } catch {
         setRatings({});
+        setColorLabels({});
         setExcludedIds(new Set());
       }
       setScan(next);
@@ -545,18 +569,22 @@ export default function OliviaBridgeWorkspace() {
     document.querySelector<HTMLElement>(`[data-bridge-photo-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [focusedIndex, visibleJpgs]);
 
-  const applyRating = useCallback((rating: number) => {
-    const targets = selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
-    if (!targets.size) return;
-    setRatings((previous) => {
-      const next = { ...previous };
-      for (const id of targets) {
-        if (rating === 0) delete next[id];
-        else next[id] = rating;
-      }
-      return next;
-    });
+  const labelTargets = useCallback((focusedOnly = false) => {
+    if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
+    return selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
   }, [focusedId, selectedIds]);
+
+  const applyRating = useCallback((rating: number, focusedOnly = false) => {
+    const targets = labelTargets(focusedOnly);
+    if (!targets.size) return;
+    setRatings((previous) => updateBridgeRatings(previous, targets, rating));
+  }, [labelTargets]);
+
+  const applyColorLabel = useCallback((label: BridgeColorLabel, focusedOnly = false) => {
+    const targets = labelTargets(focusedOnly);
+    if (!targets.size) return;
+    setColorLabels((previous) => toggleBridgeColorLabel(previous, targets, label));
+  }, [labelTargets]);
 
   const toggleExcluded = useCallback(() => {
     const targets = selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
@@ -574,22 +602,13 @@ export default function OliviaBridgeWorkspace() {
 
   const closeFullscreenPreview = useCallback(() => {
     setFullscreenPreviewOpen(false);
-    if (document.fullscreenElement !== rootRef.current) return;
-    void document.exitFullscreen().catch((error) => {
-      console.warn("[olivia-bridge] 전체화면을 닫지 못했습니다.", error);
-      setFullscreenPreviewOpen(document.fullscreenElement === rootRef.current);
-    });
+    requestAnimationFrame(() => rootRef.current?.focus());
   }, []);
 
   const openFullscreenPreview = useCallback(() => {
-    const root = rootRef.current;
-    if (!focusedPhoto || !root?.requestFullscreen) return;
+    if (!focusedPhoto || focusedIndex < 0) return;
     setFullscreenPreviewOpen(true);
-    void root.requestFullscreen().catch((error) => {
-      console.warn("[olivia-bridge] 전체화면을 열지 못했습니다.", error);
-      setFullscreenPreviewOpen(false);
-    });
-  }, [focusedPhoto]);
+  }, [focusedIndex, focusedPhoto]);
 
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isTypingTarget(event.target)) return;
@@ -603,6 +622,12 @@ export default function OliviaBridgeWorkspace() {
       } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
         event.preventDefault();
         moveFocus(1);
+      } else if (/^[0-5]$/.test(event.key)) {
+        event.preventDefault();
+        applyRating(Number(event.key), true);
+      } else if (/^[6-9]$/.test(event.key)) {
+        event.preventDefault();
+        applyColorLabel(Number(event.key) as BridgeColorLabel, true);
       }
       return;
     }
@@ -616,10 +641,11 @@ export default function OliviaBridgeWorkspace() {
     else if (event.key === "ArrowRight" || event.key === "ArrowDown") { event.preventDefault(); moveFocus(1); }
     else if (event.key === " " && isSpaceShortcutTarget(event.target, event.currentTarget)) { event.preventDefault(); openFullscreenPreview(); }
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
+    else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
     else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
     else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-  }, [applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder) return;
@@ -701,12 +727,14 @@ export default function OliviaBridgeWorkspace() {
     if (marqueeFrameRef.current !== null) cancelAnimationFrame(marqueeFrameRef.current);
   }, []);
 
+  const labeledCount = countBridgeLabeledFiles(scan.jpgs.map((photo) => photo.id), ratings, colorLabels);
   const filters: Array<{ key: FileFilter; label: string; count: number }> = [
     { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
     { key: "jpg", label: "JPG", count: scan.jpgs.length },
     { key: "raw", label: "RAW", count: scan.raws.length },
     { key: "sidecar", label: "사이드카", count: scan.sidecars.length },
     { key: "rated", label: "별점", count: Object.keys(ratings).length },
+    { key: "labeled", label: "레이블 있음", count: labeledCount },
     { key: "excluded", label: "제외", count: excludedIds.size },
   ];
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
@@ -746,7 +774,7 @@ export default function OliviaBridgeWorkspace() {
             <small>파일 필터</small>
             {filters.map((filter) => <button key={filter.key} type="button" className={fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => setFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
           </div>
-          <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>별점 <b>{Object.keys(ratings).length}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
+          <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
         </aside>
 
         <BridgePaneDivider
@@ -821,7 +849,9 @@ export default function OliviaBridgeWorkspace() {
                   const focused = focusedId === photo.id;
                   const excluded = excludedIds.has(photo.id);
                   const rating = ratings[photo.id] ?? 0;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => choosePhoto(photo, event)} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
+                  const colorLabel = colorLabels[photo.id];
+                  const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => choosePhoto(photo, event)} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
@@ -829,7 +859,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}><span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space 전체화면</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}><span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 
@@ -879,6 +909,10 @@ export default function OliviaBridgeWorkspace() {
       {fullscreenPreviewOpen && focusedPhoto ? (
         <BridgeFullscreenPreview
           photo={focusedPhoto}
+          position={focusedIndex + 1}
+          total={visibleJpgs.length}
+          rating={ratings[focusedPhoto.id] ?? 0}
+          colorLabel={colorLabels[focusedPhoto.id]}
           canMovePrevious={focusedIndex > 0}
           canMoveNext={focusedIndex >= 0 && focusedIndex < visibleJpgs.length - 1}
           onMove={moveFocus}

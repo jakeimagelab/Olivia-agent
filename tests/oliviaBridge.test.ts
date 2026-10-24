@@ -73,20 +73,22 @@ describe("Olivia Bridge", () => {
     expect(DESKTOP_APP_TO_WORKSPACE["olivia-bridge"]).toBe("photo-sort");
   });
 
-  it("Space 전체화면 미리보기는 Bridge 루트 Fullscreen API와 contain 표시를 사용한다", () => {
+  it("Space 미리보기는 브라우저 전체화면 대신 Olivia OS 창 내부와 contain 표시를 사용한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
-    expect(workspace).toContain("root.requestFullscreen()");
-    expect(workspace).toContain('document.addEventListener("fullscreenchange"');
-    expect(workspace).toContain("document.exitFullscreen()");
-    expect(workspace).toContain("Space 전체화면");
+    expect(workspace).not.toContain("requestFullscreen");
+    expect(workspace).not.toContain("fullscreenchange");
+    expect(workspace).not.toContain("exitFullscreen");
+    expect(workspace).toContain("Space OS 창 미리보기");
     expect(workspace).not.toContain("Space 선택");
+    expect(workspace).toContain("1–5 별점 · 0 별점 해제 · 6 빨강 · 7 노랑 · 8 초록 · 9 파랑");
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*object-fit:\s*contain/);
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*width:\s*auto[\s\S]*height:\s*auto/);
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*max-width:\s*100%[\s\S]*max-height:\s*100%/);
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*image-orientation:\s*from-image/);
-    expect(styles).toContain(".bridge:fullscreen");
+    expect(styles).not.toContain(".bridge:fullscreen");
+    expect(styles).toContain(".fullscreenLabelBar");
   });
 
   it("기능 창은 Bridge 오른쪽에 열리고 앱 경계 안으로 보정된다", () => {
