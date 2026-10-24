@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  bridgeLabelFilterCommandFromShortcutCode,
+  bridgeLabelFilterName,
   countBridgeLabeledFiles,
   hasBridgeLabel,
+  matchesBridgeLabelFilter,
   normalizeBridgeColorLabels,
   toggleBridgeColorLabel,
   updateBridgeRatings,
@@ -44,5 +47,26 @@ describe("Olivia Bridge labels", () => {
     expect(hasBridgeLabel("c", ratings, colors)).toBe(true);
     expect(hasBridgeLabel("d", ratings, colors)).toBe(false);
     expect(countBridgeLabeledFiles(["a", "b", "c", "d"], ratings, colors)).toBe(3);
+  });
+
+  it("maps macOS shortcut codes to exact label filters", () => {
+    expect(bridgeLabelFilterCommandFromShortcutCode("Digit1")).toEqual({ kind: "rating", rating: 1 });
+    expect(bridgeLabelFilterCommandFromShortcutCode("Digit5")).toEqual({ kind: "rating", rating: 5 });
+    expect(bridgeLabelFilterCommandFromShortcutCode("Digit6")).toEqual({ kind: "color", label: 6 });
+    expect(bridgeLabelFilterCommandFromShortcutCode("Digit9")).toEqual({ kind: "color", label: 9 });
+    expect(bridgeLabelFilterCommandFromShortcutCode("KeyA")).toEqual({ kind: "all" });
+    expect(bridgeLabelFilterCommandFromShortcutCode("Digit0")).toBeNull();
+  });
+
+  it("matches only the exact rating or color while allowing both labels to coexist", () => {
+    const ratings = { a: 3, b: 4, c: 3 };
+    const colors = { a: 6, b: 6, c: 9 } as const;
+    const ratingFilter = { kind: "rating", rating: 3 } as const;
+    const colorFilter = { kind: "color", label: 6 } as const;
+
+    expect(["a", "b", "c"].filter((id) => matchesBridgeLabelFilter(id, ratingFilter, ratings, colors))).toEqual(["a", "c"]);
+    expect(["a", "b", "c"].filter((id) => matchesBridgeLabelFilter(id, colorFilter, ratings, colors))).toEqual(["a", "b"]);
+    expect(bridgeLabelFilterName(ratingFilter)).toBe("별점 3");
+    expect(bridgeLabelFilterName(colorFilter)).toBe("빨강");
   });
 });

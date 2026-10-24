@@ -66,13 +66,18 @@ import {
 } from "@/lib/photo-bridge/marqueeSelection";
 import {
   BRIDGE_COLOR_LABELS,
+  bridgeLabelFilterCommandFromShortcutCode,
+  bridgeLabelFilterName,
   countBridgeLabeledFiles,
   hasBridgeLabel,
+  matchesBridgeLabelFilter,
   normalizeBridgeColorLabels,
   toggleBridgeColorLabel,
   updateBridgeRatings,
   type BridgeColorLabel,
   type BridgeColorLabels,
+  type BridgeLabelFilter,
+  type BridgeLabelFilterCommand,
 } from "@/lib/photo-bridge/labels";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
@@ -234,7 +239,7 @@ function BridgeFullscreenPreview({
           {color ? <span><i style={{ background: color.color }} />{color.name}</span> : null}
           {!rating && !color ? <small>레이블 없음</small> : null}
         </div>
-        <p>1–5 별점 · 0 별점 해제 · 6 빨강 · 7 노랑 · 8 초록 · 9 파랑</p>
+        <p>1–5 별점 · 0 해제 · 6–9 컬러 · ⌥⌘ 숫자만 보기 · ⌥⌘A 전체</p>
       </div>
     </section>
   );
@@ -432,6 +437,7 @@ export default function OliviaBridgeWorkspace() {
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
   const [thumbnailSize, setThumbnailSize] = useState(156);
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
+  const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
@@ -454,14 +460,15 @@ export default function OliviaBridgeWorkspace() {
   const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
   const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
+    if (labelFilter) return matchesBridgeLabelFilter(photo.id, labelFilter, ratings, colorLabels);
     if (fileFilter === "raw" || fileFilter === "sidecar") return false;
     if (fileFilter === "rated") return Boolean(ratings[photo.id]);
     if (fileFilter === "labeled") return hasBridgeLabel(photo.id, ratings, colorLabels);
     if (fileFilter === "excluded") return excludedIds.has(photo.id);
     return true;
-  }), [colorLabels, excludedIds, fileFilter, ratings, scan.jpgs]);
-  const showRaws = fileFilter === "all" || fileFilter === "raw";
-  const showSidecars = fileFilter === "all" || fileFilter === "sidecar";
+  }), [colorLabels, excludedIds, fileFilter, labelFilter, ratings, scan.jpgs]);
+  const showRaws = !labelFilter && (fileFilter === "all" || fileFilter === "raw");
+  const showSidecars = !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
   const focusedPhoto = scan.jpgs.find((photo) => photo.id === focusedId) ?? null;
   const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
@@ -474,6 +481,14 @@ export default function OliviaBridgeWorkspace() {
     setSelectedJpgNames(selectedNames);
     setSelectedJpgFiles(scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.file));
   }, [scan.jpgs, selectedIds, selectedNames, setSelectedJpgFiles, setSelectedJpgNames]);
+
+  useEffect(() => {
+    if (!labelFilter || focusedIndex >= 0) return;
+    const next = visibleJpgs[0] ?? null;
+    setFocusedId(next?.id ?? null);
+    setAnchorId(next?.id ?? null);
+    setPreviewSize(undefined);
+  }, [focusedIndex, labelFilter, visibleJpgs]);
 
   useEffect(() => {
     if (!folderPath) return;
@@ -610,8 +625,32 @@ export default function OliviaBridgeWorkspace() {
     setFullscreenPreviewOpen(true);
   }, [focusedIndex, focusedPhoto]);
 
+  const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
+    if (fullscreenPreviewOpen) closeFullscreenPreview();
+    if (command.kind === "all") {
+      setLabelFilter(null);
+      setFileFilter("all");
+      return;
+    }
+    setLabelFilter(command);
+    setFileFilter("jpg");
+  }, [closeFullscreenPreview, fullscreenPreviewOpen]);
+
+  const chooseFileFilter = useCallback((filter: FileFilter) => {
+    setLabelFilter(null);
+    setFileFilter(filter);
+  }, []);
+
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isTypingTarget(event.target)) return;
+    if (event.altKey && event.metaKey && !event.ctrlKey && !event.shiftKey) {
+      const command = bridgeLabelFilterCommandFromShortcutCode(event.code);
+      if (command) {
+        event.preventDefault();
+        applyLabelFilterCommand(command);
+        return;
+      }
+    }
     if (fullscreenPreviewOpen) {
       if (event.key === "Escape" || event.key === " ") {
         event.preventDefault();
@@ -645,7 +684,7 @@ export default function OliviaBridgeWorkspace() {
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
     else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
     else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-  }, [applyColorLabel, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder) return;
@@ -728,6 +767,7 @@ export default function OliviaBridgeWorkspace() {
   }, []);
 
   const labeledCount = countBridgeLabeledFiles(scan.jpgs.map((photo) => photo.id), ratings, colorLabels);
+  const activeLabelFilterName = labelFilter ? bridgeLabelFilterName(labelFilter) : null;
   const filters: Array<{ key: FileFilter; label: string; count: number }> = [
     { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
     { key: "jpg", label: "JPG", count: scan.jpgs.length },
@@ -772,7 +812,7 @@ export default function OliviaBridgeWorkspace() {
           </div>
           <div className={styles.filterList}>
             <small>파일 필터</small>
-            {filters.map((filter) => <button key={filter.key} type="button" className={fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => setFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+            {filters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
           </div>
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
         </aside>
@@ -859,7 +899,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}><span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 

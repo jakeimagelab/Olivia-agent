@@ -7,6 +7,11 @@ export const BRIDGE_COLOR_LABELS = {
 
 export type BridgeColorLabel = keyof typeof BRIDGE_COLOR_LABELS;
 export type BridgeColorLabels = Record<string, BridgeColorLabel>;
+export type BridgeRating = 1 | 2 | 3 | 4 | 5;
+export type BridgeLabelFilter =
+  | { kind: "rating"; rating: BridgeRating }
+  | { kind: "color"; label: BridgeColorLabel };
+export type BridgeLabelFilterCommand = BridgeLabelFilter | { kind: "all" };
 
 export function updateBridgeRatings(
   current: Readonly<Record<string, number>>,
@@ -64,4 +69,29 @@ export function countBridgeLabeledFiles(
   colorLabels: Readonly<BridgeColorLabels>,
 ) {
   return ids.reduce((count, id) => count + (hasBridgeLabel(id, ratings, colorLabels) ? 1 : 0), 0);
+}
+
+export function bridgeLabelFilterCommandFromShortcutCode(code: string): BridgeLabelFilterCommand | null {
+  if (code === "KeyA") return { kind: "all" };
+  const match = /^Digit([1-9])$/.exec(code);
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (value >= 1 && value <= 5) return { kind: "rating", rating: value as BridgeRating };
+  if (isBridgeColorLabel(value)) return { kind: "color", label: value };
+  return null;
+}
+
+export function matchesBridgeLabelFilter(
+  id: string,
+  filter: BridgeLabelFilter,
+  ratings: Readonly<Record<string, number>>,
+  colorLabels: Readonly<BridgeColorLabels>,
+) {
+  if (filter.kind === "rating") return ratings[id] === filter.rating;
+  return colorLabels[id] === filter.label;
+}
+
+export function bridgeLabelFilterName(filter: BridgeLabelFilter) {
+  if (filter.kind === "rating") return `별점 ${filter.rating}`;
+  return BRIDGE_COLOR_LABELS[filter.label].name;
 }
