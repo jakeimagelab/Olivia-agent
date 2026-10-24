@@ -51,6 +51,10 @@ import {
   type BridgeScene,
 } from "@/lib/photo-bridge/bridgeFiles";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
+import {
+  bridgeGridNavigationTarget,
+  type BridgeGridDirection,
+} from "@/lib/photo-bridge/gridNavigation";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import {
   BRIDGE_PANE_DEFAULT_WIDTH,
@@ -66,6 +70,14 @@ import {
   type BridgePoint,
   type BridgeRectangle,
 } from "@/lib/photo-bridge/marqueeSelection";
+import {
+  bridgeRawMatchDefaultFolder,
+  clearBridgeFolderTrail,
+  queryBridgeFolderTrailPermission,
+  readBridgeFolderTrail,
+  requestBridgeFolderTrailPermission,
+  saveBridgeFolderTrail,
+} from "@/lib/photo-bridge/recentFolder";
 import {
   BRIDGE_COLOR_LABELS,
   bridgeLabelFilterCommandFromShortcutCode,
@@ -435,6 +447,7 @@ export default function OliviaBridgeWorkspace() {
   const {
     currentLocalFolder,
     setCurrentLocalFolder,
+    setRawMatchDefaultFolder,
     selectedJpgNames,
     setSelectedJpgNames,
     setSelectedJpgFiles,
@@ -444,8 +457,10 @@ export default function OliviaBridgeWorkspace() {
   } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
-  const [scanStatus, setScanStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
   const [scanError, setScanError] = useState<string>();
+  const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
+  const [restoreMessage, setRestoreMessage] = useState("");
   const [selectedIds, setSelectedIdsState] = useState<Set<string>>(new Set());
   const selectedIdsRef = useRef<Set<string>>(new Set());
   const [anchorId, setAnchorId] = useState<string | null>(null);
@@ -472,6 +487,7 @@ export default function OliviaBridgeWorkspace() {
   const marqueeSessionRef = useRef<MarqueeSession | null>(null);
   const marqueeFrameRef = useRef<number | null>(null);
   const suppressThumbnailClickRef = useRef(false);
+  const restoreAttemptedRef = useRef(false);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
@@ -568,6 +584,9 @@ export default function OliviaBridgeWorkspace() {
       }
       setScan(next);
       setBreadcrumbs(trail);
+      setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
+      setRestoreTrail([]);
+      setRestoreMessage("");
       setSelectedIds(new Set());
       setAnchorId(null);
       setFocusedId(next.jpgs[0]?.id ?? null);
@@ -581,18 +600,73 @@ export default function OliviaBridgeWorkspace() {
       setJpgRatingsByName(restoredRatingsByName, { overwrite: true });
       setExecutionMode("LOCAL_DIRECT");
       setScanStatus("ready");
+      void saveBridgeFolderTrail(trail).catch((error) => {
+        console.error("[olivia-bridge] Failed to remember the last folder", error);
+      });
       rootRef.current?.focus();
     } catch (error) {
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setSelectedIds]);
+  }, [setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setSelectedIds]);
 
   const chooseFolder = useCallback(async () => {
     const directory = await picker.pick("readwrite");
     if (!directory) return;
     await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
   }, [loadDirectory, picker]);
+
+  useEffect(() => {
+    if (restoreAttemptedRef.current) return;
+    restoreAttemptedRef.current = true;
+    let disposed = false;
+
+    void readBridgeFolderTrail().then(async (trail) => {
+      if (disposed) return;
+      if (!trail?.length) {
+        setScanStatus("idle");
+        return;
+      }
+      const permission = await queryBridgeFolderTrailPermission(trail);
+      if (disposed) return;
+      if (permission === "granted") {
+        await loadDirectory(trail.at(-1)!.handle, trail);
+        return;
+      }
+      if (permission === "prompt" || permission === "denied") {
+        setRestoreTrail(trail);
+        setRestoreMessage(permission === "denied"
+          ? `${trail.at(-1)?.name ?? "지난 폴더"} 접근 권한이 해제되었습니다. 다시 허용하면 이어서 열 수 있습니다.`
+          : `${trail.at(-1)?.name ?? "지난 폴더"} 접근 권한을 다시 확인해 주세요.`);
+        setScanStatus("idle");
+        return;
+      }
+    }).catch(async (error) => {
+      console.error("[olivia-bridge] Failed to restore the last folder", error);
+      await clearBridgeFolderTrail().catch(() => undefined);
+      if (disposed) return;
+      setRestoreMessage("지난 폴더를 다시 열지 못했습니다. 새 폴더를 선택해 주세요.");
+      setScanStatus("idle");
+    });
+
+    return () => { disposed = true; };
+  }, [loadDirectory]);
+
+  const restoreLastFolder = useCallback(async () => {
+    if (!restoreTrail.length) return;
+    setRestoreMessage("");
+    try {
+      const permission = await requestBridgeFolderTrailPermission(restoreTrail);
+      if (permission !== "granted") {
+        setRestoreMessage("지난 폴더의 접근 권한을 허용하지 않았습니다. 다른 폴더를 선택할 수 있습니다.");
+        return;
+      }
+      await loadDirectory(restoreTrail.at(-1)!.handle, restoreTrail);
+    } catch (error) {
+      console.error("[olivia-bridge] Failed to request the last folder permission", error);
+      setRestoreMessage("지난 폴더를 다시 열지 못했습니다. 다른 폴더를 선택해 주세요.");
+    }
+  }, [loadDirectory, restoreTrail]);
 
   useEffect(() => {
     if (!activeFolder || scanStatus !== "ready") {
@@ -637,6 +711,35 @@ export default function OliviaBridgeWorkspace() {
     setPreviewSize(undefined);
     document.querySelector<HTMLElement>(`[data-bridge-photo-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [focusedIndex, setSelectedIds, visibleJpgs]);
+
+  const moveGridFocus = useCallback((direction: BridgeGridDirection) => {
+    const fileArea = fileAreaRef.current;
+    if (!fileArea || !visibleJpgs.length) return;
+    const visibleIds = new Set(visibleJpgs.map((photo) => photo.id));
+    const elements = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]"))
+      .filter((element) => visibleIds.has(element.dataset.bridgePhotoId ?? ""));
+    const targetId = bridgeGridNavigationTarget({
+      currentId: focusedId,
+      direction,
+      items: elements.map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return {
+          id: element.dataset.bridgePhotoId ?? "",
+          left: bounds.left,
+          top: bounds.top,
+          right: bounds.right,
+          bottom: bounds.bottom,
+        };
+      }).filter((item) => Boolean(item.id)),
+    });
+    if (!targetId || targetId === focusedId) return;
+    setFocusedId(targetId);
+    setSelectedIds(new Set([targetId]));
+    setAnchorId(targetId);
+    setPreviewSize(undefined);
+    elements.find((element) => element.dataset.bridgePhotoId === targetId)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [focusedId, setSelectedIds, visibleJpgs]);
 
   const labelTargets = useCallback((focusedOnly = false) => {
     if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
@@ -732,15 +835,17 @@ export default function OliviaBridgeWorkspace() {
       return;
     }
     if (toolKey || sceneReviewOpen) return;
-    if (event.key === "ArrowLeft" || event.key === "ArrowUp") { event.preventDefault(); moveFocus(-1); }
-    else if (event.key === "ArrowRight" || event.key === "ArrowDown") { event.preventDefault(); moveFocus(1); }
+    if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left"); }
+    else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right"); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up"); }
+    else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down"); }
     else if (event.key === " " && isSpaceShortcutTarget(event.target, event.currentTarget)) { event.preventDefault(); openFullscreenPreview(); }
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
     else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
     else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, moveGridFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder) return;
@@ -834,6 +939,7 @@ export default function OliviaBridgeWorkspace() {
     { key: "excluded", label: "제외", count: excludedIds.size },
   ];
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
+  const sceneBoundaryReviewCount = useMemo(() => sceneState.scenes.filter((scene) => scene.needsReview).length, [sceneState.scenes]);
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
 
   return (
@@ -887,7 +993,8 @@ export default function OliviaBridgeWorkspace() {
             <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
-          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>촬영 폴더를 선택해 주세요</strong><p>JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다.</p><button type="button" onClick={() => void chooseFolder()}>폴더 선택</button></div> : null}
+          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : <button type="button" onClick={() => void chooseFolder()}>폴더 선택</button>}</div> : null}
+          {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
           {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
@@ -963,7 +1070,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 
@@ -991,10 +1098,12 @@ export default function OliviaBridgeWorkspace() {
         onRectChange={(rect) => updateFloatingWindowRect("scene-review", rect)}
         onClose={() => setSceneReviewOpen(false)}
       >
-        {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
-        {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
-        <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
-        <footer><p>이 검토 단계에서는 파일을 이동하거나 이름을 바꾸지 않습니다.</p><button type="button" disabled={sceneState.status !== "complete"} onClick={() => { setSceneReviewOpen(false); setToolKey("classification"); }}><ScanSearch size={16} /> 승인하고 분류 실행</button></footer>
+        <div className={styles.sceneBody}>
+          {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
+          {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
+          <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
+        </div>
+        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {sceneState.scenes.length.toLocaleString("ko-KR")}개 · JPG {sceneState.total.toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{sceneState.status === "complete" ? "승인 전에는 파일을 이동하거나 이름을 바꾸지 않습니다." : "분석이 끝나면 분류 실행을 승인할 수 있습니다."}</p></div><button type="button" disabled={sceneState.status !== "complete"} onClick={() => { setSceneReviewOpen(false); setToolKey("classification"); }}><ScanSearch size={16} /> 승인하고 분류 실행</button></footer>
       </BridgeFloatingWindow> : null}
 
       {activeTool ? <BridgeFloatingWindow

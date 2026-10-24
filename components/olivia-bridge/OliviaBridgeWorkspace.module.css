@@ -372,6 +372,8 @@
 .emptyState strong { color: rgba(255, 255, 255, .82); font-size: 13px; font-weight: 600; }
 .emptyState p { max-width: 330px; margin: 0; font-size: 10px; line-height: 1.6; }
 .emptyState button { min-height: 40px; margin-top: 5px; padding: 0 18px; border: 1px solid rgba(79, 216, 184, .58); border-radius: 8px; color: #dffff6; background: transparent; font: 600 11px/1 inherit; cursor: pointer; }
+.restoreActions { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.emptyState .restoreSecondary { color: rgba(255, 255, 255, .56); border-color: rgba(255, 255, 255, .16); }
 .noPhotos { min-height: 180px; display: grid; align-content: center; justify-items: center; gap: 8px; color: rgba(255, 255, 255, .4); font-size: 10px; }
 
 .floatingWindow { position: absolute; z-index: 30; top: 0; left: 0; display: grid; overflow: hidden; border: 1px solid rgba(79, 216, 184, .45); border-radius: 13px; background: #13272a; box-shadow: 0 24px 60px rgba(0, 0, 0, .42); container-type: size; will-change: width, height, transform; }
@@ -394,13 +396,14 @@
 .toolBody { min-height: 0; overflow: auto; background: #2a2a2a; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
 .toolLoading { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: 8px; color: rgba(255, 255, 255, .62); font-size: 10px; }
 
-.sceneWindow { grid-template-rows: 54px auto minmax(0, 1fr) auto; }
+.sceneWindow { grid-template-rows: 54px minmax(0, 1fr) auto; }
+.sceneBody { min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .sceneProgress { height: 4px; background: rgba(255, 255, 255, .08); }
 .sceneProgress span { height: 100%; display: block; background: var(--bridge-action); transition: width .18s ease; }
 .sceneError { display: flex; align-items: center; gap: 8px; margin: 12px 14px 0; padding: 10px; border: 1px solid rgba(201, 74, 30, .55); border-radius: 8px; color: #ffd1c0; background: rgba(201, 74, 30, .12); font-size: 9px; }
 .sceneError span { min-width: 0; flex: 1; }
 .sceneError button { min-height: 32px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 6px; color: #fff; background: transparent; font: 500 9px/1 inherit; cursor: pointer; }
-.sceneGrid { min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 10px; overflow: auto; padding: 14px; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
+.sceneGrid { min-height: 0; flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 10px; overflow: auto; padding: 14px; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
 .sceneGrid article { min-width: 0; padding: 5px 5px 8px; border: 1px solid rgba(255, 255, 255, .1); border-radius: 8px; background: rgba(255, 255, 255, .04); }
 .sceneGrid article .thumbnailMedia { min-height: 80px; }
 .sceneGrid article > div:not(.thumbnailMedia) { display: flex; justify-content: space-between; gap: 4px; margin-top: 6px; }
@@ -410,6 +413,8 @@
 .sceneGrid article i { display: inline-flex; margin-top: 5px; padding: 3px 5px; border-radius: 4px; color: #ffd1c0; background: rgba(201, 74, 30, .14); font-size: 7px; font-style: normal; }
 .sceneGrid > p { grid-column: 1 / -1; color: rgba(255, 255, 255, .44); font-size: 10px; text-align: center; }
 .sceneWindow > footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 10px 14px; border-top: 1px solid var(--bridge-line); background: rgba(0, 0, 0, .12); }
+.sceneApprovalSummary { min-width: 0; display: grid; gap: 4px; }
+.sceneApprovalSummary strong { overflow: hidden; color: rgba(255, 255, 255, .78); font-size: 9.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .sceneWindow > footer p { margin: 0; color: rgba(255, 255, 255, .45); font-size: 8.5px; }
 .sceneWindow > footer button { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 16px; border: 1px solid var(--bridge-action); border-radius: 8px; color: #103e36; background: var(--bridge-action); font: 600 10px/1 inherit; cursor: pointer; }
 .sceneWindow > footer button:disabled { color: rgba(255, 255, 255, .32); border-color: rgba(255, 255, 255, .12); background: transparent; cursor: not-allowed; }

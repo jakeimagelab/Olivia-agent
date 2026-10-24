@@ -71,12 +71,36 @@ describe("Olivia Bridge", () => {
     const aiSelect = readFileSync("components/photo-workspace/PhotoSelectWorkspace.tsx", "utf8");
     const aiPanel = readFileSync("components/photo-workspace/AiPhotoSelectPanel.tsx", "utf8");
     const rawMatch = readFileSync("components/photo-workspace/SelectMatchWorkspace.tsx", "utf8");
+    const executionContext = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
 
     expect(embeddedTool).toContain("bridgeEmbedded");
     expect(embeddedTool).toContain("bridgeLinked");
     expect(aiSelect).toContain("initialFolder={currentLocalFolder}");
     expect(aiPanel).toContain("현재 Bridge 폴더");
     expect(rawMatch).toContain("현재 폴더에서 RAW 확인");
+    expect(rawMatch).toContain("상위 폴더에서 RAW 확인");
+    expect(executionContext).toContain("rawMatchDefaultFolder");
+  });
+
+  it("Scene 검토 결과만 스크롤하고 승인 실행 바는 항상 고정한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
+
+    expect(workspace).toContain("Scene {sceneState.scenes.length.toLocaleString");
+    expect(workspace).toContain("승인하고 분류 실행");
+    expect(workspace).toContain("sceneApprovalSummary");
+    expect(styles).toMatch(/\.sceneWindow\s*\{\s*grid-template-rows:\s*54px minmax\(0, 1fr\) auto/);
+    expect(styles).toMatch(/\.sceneBody\s*\{[^}]*overflow:\s*hidden/);
+    expect(styles).toMatch(/\.sceneGrid\s*\{[^}]*overflow:\s*auto/);
+  });
+
+  it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+
+    expect(workspace).toContain("saveBridgeFolderTrail(trail)");
+    expect(workspace).toContain("queryBridgeFolderTrailPermission(trail)");
+    expect(workspace).toContain("지난 폴더 다시 열기");
+    expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
 
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {

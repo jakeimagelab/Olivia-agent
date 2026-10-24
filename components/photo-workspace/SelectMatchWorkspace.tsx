@@ -216,7 +216,14 @@ export function SelectMatchWorkspace({
   selectedJpgNames?: readonly string[];
   onSelectionComplete?: (names: string[]) => void;
 } = {}) {
-  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, jpgRatingsByName, setJpgRatingsByName } = usePhotoStudioExecution();
+  const {
+    currentLocalFolder,
+    rawMatchDefaultFolder,
+    setCurrentLocalFolder,
+    setSelectedJpgNames,
+    jpgRatingsByName,
+    setJpgRatingsByName,
+  } = usePhotoStudioExecution();
   const [step,       setStep]       = useState<Step>("idle");
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   useEffect(() => {
@@ -234,6 +241,11 @@ export function SelectMatchWorkspace({
   const [preflight,  setPreflight]  = useState<Preflight | null>(null);
   const [rawScanCount, setRawScanCount] = useState(0);
   const [rawIndexRef] = useState<{ map: Map<string, RawIndexEntry> }>(() => ({ map: new Map() }));
+
+  useEffect(() => {
+    if (!bridgeLinked || rawRootDir || !rawMatchDefaultFolder) return;
+    setRawRootDir(rawMatchDefaultFolder);
+  }, [bridgeLinked, rawMatchDefaultFolder, rawRootDir]);
   // 매칭된 RAW 파일을 Selected_RAW/에 넣을 때 원본을 지울지(이동) 남겨둘지(복사) — 기본값은
   // 기존 동작(복사)과 동일하게 유지해 이 기능을 모르는 사용자에게 갑자기 원본이 사라지는
   // 일이 없게 한다.
@@ -1247,10 +1259,10 @@ export function SelectMatchWorkspace({
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "현재 Bridge 폴더에서 RAW를 확인합니다" : "RAW 폴더를 선택하세요"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked && rawMatchDefaultFolder ? "상위 폴더에서 RAW를 확인합니다" : bridgeLinked ? "현재 Bridge 폴더에서 RAW를 확인합니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
           고객 선택 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
-          {bridgeLinked ? <>현재 Bridge 폴더 <strong>{currentLocalFolder?.name ?? rootDir?.name}</strong>에서 RAW를 먼저 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
+          {bridgeLinked ? <><strong>{rawMatchDefaultFolder?.name ?? currentLocalFolder?.name ?? rootDir?.name}</strong> 폴더에서 RAW를 먼저 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
         <div style={{ background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted, marginBottom: 18 }}>
@@ -1262,7 +1274,7 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          {bridgeLinked && (currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(currentLocalFolder ?? rootDir ?? undefined)}>현재 폴더에서 RAW 확인</Btn> : null}
+          {bridgeLinked && (rawMatchDefaultFolder || currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(rawMatchDefaultFolder ?? currentLocalFolder ?? rootDir ?? undefined)}>{rawMatchDefaultFolder ? "상위 폴더에서 RAW 확인" : "현재 폴더에서 RAW 확인"}</Btn> : null}
           <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={async () => {
             try {
               const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });

@@ -48,9 +48,12 @@ type PhotoStudioExecutionValue = {
   workerPresence: RemoteWorkerPresence;
   workerPollingState: RemotePollingState;
   refreshWorkerPresence: () => void;
-  /** File System Access handles cannot be serialized. Keep the active local work folder only while this workspace is open. */
+  /** File System Access handles cannot be JSON serialized. Keep the active work folder in the shared runtime context. */
   currentLocalFolder: FileSystemDirectoryHandle | null;
   setCurrentLocalFolder: (folder: FileSystemDirectoryHandle | null) => void;
+  /** Bridge가 폴더 트리에서 알고 있는 바로 위 폴더. RAW 원본 검색의 기본값으로만 쓴다. */
+  rawMatchDefaultFolder: FileSystemDirectoryHandle | null;
+  setRawMatchDefaultFolder: (folder: FileSystemDirectoryHandle | null) => void;
   /** JPG selection is deliberately separate from a folder: RAW matching consumes it, other tools do not. */
   selectedJpgNames: string[];
   setSelectedJpgNames: (names: readonly string[]) => void;
@@ -105,6 +108,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [workerRefreshKey, setWorkerRefreshKey] = useState(0);
   const [currentLocalFolder, setCurrentLocalFolderState] = useState<FileSystemDirectoryHandle | null>(null);
   const currentLocalFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
+  const [rawMatchDefaultFolder, setRawMatchDefaultFolder] = useState<FileSystemDirectoryHandle | null>(null);
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
   const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
   const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
@@ -225,6 +229,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     refreshWorkerPresence: () => setWorkerRefreshKey((key) => key + 1),
     currentLocalFolder,
     setCurrentLocalFolder,
+    rawMatchDefaultFolder,
+    setRawMatchDefaultFolder,
     selectedJpgNames,
     setSelectedJpgNames,
     selectedJpgFiles,
@@ -243,6 +249,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     trackRemoteJob,
     currentLocalFolder,
     setCurrentLocalFolder,
+    rawMatchDefaultFolder,
     workerPollingState,
     workerPresence,
     selectedJpgNames,
