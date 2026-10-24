@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { bridgeFileKind, partitionBridgeFileNames, scanBridgeFolder, updateBridgeSelection } from "@/lib/photo-bridge/bridgeFiles";
@@ -63,5 +64,18 @@ describe("Olivia Bridge", () => {
     expect(getDockApps().map((app) => app.id)).toContain("olivia-bridge");
     expect(getDockApps().map((app) => app.id)).not.toContain("photo-workspace");
     expect(DESKTOP_APP_TO_WORKSPACE["olivia-bridge"]).toBe("photo-sort");
+  });
+
+  it("Space 전체화면 미리보기는 Bridge 루트 Fullscreen API와 contain 표시를 사용한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
+
+    expect(workspace).toContain("root.requestFullscreen()");
+    expect(workspace).toContain('document.addEventListener("fullscreenchange"');
+    expect(workspace).toContain("document.exitFullscreen()");
+    expect(workspace).toContain("Space 전체화면");
+    expect(workspace).not.toContain("Space 선택");
+    expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*object-fit:\s*contain/);
+    expect(styles).toContain(".bridge:fullscreen");
   });
 });

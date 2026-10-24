@@ -143,7 +143,7 @@ function BridgeThumbnail({ photo, alt = "", eager = false }: { photo: BridgeJpgF
   return <div ref={hostRef} className={styles.thumbnailMedia}>{url ? <img src={url} alt={alt} draggable={false} decoding="async" /> : <LoaderCircle className={styles.spin} size={18} aria-label="썸네일 불러오는 중" />}</div>;
 }
 
-function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize: (size: { width: number; height: number }) => void }) {
+function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize?: (size: { width: number; height: number }) => void }) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     const next = URL.createObjectURL(photo.file);
@@ -151,8 +151,37 @@ function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize: (
     return () => URL.revokeObjectURL(next);
   }, [photo]);
   return url ? (
-    <img src={url} alt={photo.name} draggable={false} decoding="async" onLoad={(event) => onSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
+    <img src={url} alt={photo.name} draggable={false} decoding="async" onLoad={onSize ? (event) => onSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight }) : undefined} />
   ) : <LoaderCircle className={styles.spin} size={24} />;
+}
+
+function BridgeFullscreenPreview({
+  photo,
+  canMovePrevious,
+  canMoveNext,
+  onMove,
+  onClose,
+}: {
+  photo: BridgeJpgFile;
+  canMovePrevious: boolean;
+  canMoveNext: boolean;
+  onMove: (delta: number) => void;
+  onClose: () => void;
+}) {
+  return (
+    <section className={styles.fullscreenPreview} role="dialog" aria-modal="true" aria-label="사진 전체화면 미리보기">
+      <BridgePreviewImage photo={photo} />
+      <button type="button" className={styles.fullscreenClose} onClick={onClose} aria-label="전체화면 닫기">
+        <X size={25} strokeWidth={1.8} />
+      </button>
+      <button type="button" className={`${styles.fullscreenArrow} ${styles.fullscreenArrowLeft}`} onClick={() => onMove(-1)} disabled={!canMovePrevious} aria-label="이전 사진">
+        <ChevronLeft size={30} strokeWidth={1.6} />
+      </button>
+      <button type="button" className={`${styles.fullscreenArrow} ${styles.fullscreenArrowRight}`} onClick={() => onMove(1)} disabled={!canMoveNext} aria-label="다음 사진">
+        <ChevronRight size={30} strokeWidth={1.6} />
+      </button>
+    </section>
+  );
 }
 
 function PlainFileCard({ file }: { file: BridgeRawFile }) {
@@ -175,6 +204,10 @@ function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
 }
 
+function isSpaceShortcutTarget(target: EventTarget | null, root: HTMLDivElement) {
+  return target === root || (target instanceof HTMLElement && Boolean(target.closest("[data-bridge-photo-id]")));
+}
+
 export default function OliviaBridgeWorkspace() {
   const picker = usePhotoFolderPicker();
   const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, setSelectedJpgFiles, setExecutionMode } = usePhotoStudioExecution();
@@ -194,6 +227,7 @@ export default function OliviaBridgeWorkspace() {
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
   const [sceneRunKey, setSceneRunKey] = useState(0);
+  const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
@@ -215,6 +249,14 @@ export default function OliviaBridgeWorkspace() {
     setSelectedJpgNames(selectedNames);
     setSelectedJpgFiles(scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.file));
   }, [scan.jpgs, selectedIds, selectedNames, setSelectedJpgFiles, setSelectedJpgNames]);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      setFullscreenPreviewOpen(document.fullscreenElement === rootRef.current);
+    };
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
 
   useEffect(() => {
     if (!folderPath) return;
@@ -335,18 +377,40 @@ export default function OliviaBridgeWorkspace() {
     });
   }, [focusedId, selectedIds]);
 
-  const toggleFocusedSelection = useCallback(() => {
-    if (!focusedId) return;
-    setSelectedIds((previous) => {
-      const next = new Set(previous);
-      if (next.has(focusedId)) next.delete(focusedId);
-      else next.add(focusedId);
-      return next;
+  const closeFullscreenPreview = useCallback(() => {
+    setFullscreenPreviewOpen(false);
+    if (document.fullscreenElement !== rootRef.current) return;
+    void document.exitFullscreen().catch((error) => {
+      console.warn("[olivia-bridge] 전체화면을 닫지 못했습니다.", error);
+      setFullscreenPreviewOpen(document.fullscreenElement === rootRef.current);
     });
-  }, [focusedId]);
+  }, []);
+
+  const openFullscreenPreview = useCallback(() => {
+    const root = rootRef.current;
+    if (!focusedPhoto || !root?.requestFullscreen) return;
+    setFullscreenPreviewOpen(true);
+    void root.requestFullscreen().catch((error) => {
+      console.warn("[olivia-bridge] 전체화면을 열지 못했습니다.", error);
+      setFullscreenPreviewOpen(false);
+    });
+  }, [focusedPhoto]);
 
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isTypingTarget(event.target)) return;
+    if (fullscreenPreviewOpen) {
+      if (event.key === "Escape" || event.key === " ") {
+        event.preventDefault();
+        closeFullscreenPreview();
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault();
+        moveFocus(-1);
+      } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault();
+        moveFocus(1);
+      }
+      return;
+    }
     if (event.key === "Escape") {
       if (sceneReviewOpen) setSceneReviewOpen(false);
       else if (toolKey) setToolKey(undefined);
@@ -355,12 +419,12 @@ export default function OliviaBridgeWorkspace() {
     if (toolKey || sceneReviewOpen) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") { event.preventDefault(); moveFocus(-1); }
     else if (event.key === "ArrowRight" || event.key === "ArrowDown") { event.preventDefault(); moveFocus(1); }
-    else if (event.key === " ") { event.preventDefault(); toggleFocusedSelection(); }
+    else if (event.key === " " && isSpaceShortcutTarget(event.target, event.currentTarget)) { event.preventDefault(); openFullscreenPreview(); }
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
     else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
     else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-  }, [applyRating, moveFocus, sceneReviewOpen, toggleExcluded, toggleFocusedSelection, toolKey]);
+  }, [applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder) return;
@@ -446,7 +510,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}><span>← → 사진 이동</span><span>Space 선택</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}><span>← → 사진 이동</span><span>Space 전체화면</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
         <aside className={styles.previewPanel} aria-label="선택한 사진 미리보기">
@@ -463,6 +527,16 @@ export default function OliviaBridgeWorkspace() {
       </section> : null}
 
       {activeTool ? <section className={`${styles.floatingWindow} ${styles.toolWindow}`} role="dialog" aria-modal="false" aria-label={`${activeTool.label} 도구`}><header><div><strong>{activeTool.label}</strong><span>{activeFolder?.name} · 선택 JPG {selectedNames.length}장</span></div><button type="button" onClick={() => setToolKey(undefined)} aria-label={`${activeTool.label} 닫기`}><X size={19} /></button></header><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} /></div></section> : null}
+
+      {fullscreenPreviewOpen && focusedPhoto ? (
+        <BridgeFullscreenPreview
+          photo={focusedPhoto}
+          canMovePrevious={focusedIndex > 0}
+          canMoveNext={focusedIndex >= 0 && focusedIndex < visibleJpgs.length - 1}
+          onMove={moveFocus}
+          onClose={closeFullscreenPreview}
+        />
+      ) : null}
     </div>
   );
 }
