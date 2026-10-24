@@ -18,13 +18,15 @@ describe("OLIVIA OS app registry navigation", () => {
   });
 
   it("uses the requested Dock app sequence and keeps Olivia as its utility button", () => {
-    expect(getDockApps().map((app) => app.id)).toEqual([
+    const dockApps = getDockApps();
+    expect(dockApps.map((app) => app.id)).toEqual([
       "calendar",
       "customer",
       "documents",
       "olivia-bridge",
       "video-studio",
     ]);
+    expect(dockApps.find((app) => app.id === "olivia-bridge")?.title).toBe("Olivia Bridge");
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });
 
@@ -44,8 +46,8 @@ describe("OLIVIA OS app registry navigation", () => {
     }
   });
 
-  it("uses Olivia Bridge as the visible 사진작업실 and keeps the old shell hidden", () => {
-    expect(getOliviaApp("olivia-bridge")).toMatchObject({ title: "사진작업실", route: "/olivia-bridge" });
+  it("uses Olivia Bridge as the visible photo workspace and keeps the old shell hidden", () => {
+    expect(getOliviaApp("olivia-bridge")).toMatchObject({ title: "Olivia Bridge", route: "/olivia-bridge" });
     expect(getOliviaApp("photo-workspace")).toMatchObject({ route: "/photo-sorting" });
     expect(getOliviaApp("photo-workspace")?.desktopShortcutOrder).toBeUndefined();
     expect(getOliviaApp("photo-workspace")?.dockOrder).toBeUndefined();

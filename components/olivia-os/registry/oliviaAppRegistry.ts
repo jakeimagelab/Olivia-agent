@@ -100,7 +100,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
   },
   {
     id: "olivia-bridge",
-    title: "사진작업실",
+    title: "Olivia Bridge",
     icon: appIcon("photo-studio"),
     route: "/olivia-bridge",
     defaultSize: { width: 1380, height: 820 },

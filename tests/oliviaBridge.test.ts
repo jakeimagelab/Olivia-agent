@@ -58,7 +58,7 @@ describe("Olivia Bridge", () => {
   });
 
   it("OliviaOS 네이티브 앱과 사진 작업 컨텍스트로 등록된다", () => {
-    expect(getOliviaAppByRoute("/olivia-bridge")).toMatchObject({ id: "olivia-bridge", title: "사진작업실" });
+    expect(getOliviaAppByRoute("/olivia-bridge")).toMatchObject({ id: "olivia-bridge", title: "Olivia Bridge" });
     expect(getDesktopShortcutApps().map((app) => app.id)).toContain("olivia-bridge");
     expect(getDesktopShortcutApps().map((app) => app.id)).not.toContain("photo-workspace");
     expect(getDockApps().map((app) => app.id)).toContain("olivia-bridge");

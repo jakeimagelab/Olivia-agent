@@ -11,7 +11,7 @@ import {
 describe("integrated workspace registry", () => {
   it("exposes the approved primary workspaces in order", () => {
     expect(WORKSPACE_GROUPS.map((group) => group.title)).toEqual([
-      "사진작업실",
+      "Olivia Bridge",
       "영상작업실",
       "브랜드 진단센터",
       "콘텐츠 스튜디오",

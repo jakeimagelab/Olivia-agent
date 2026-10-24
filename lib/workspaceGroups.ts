@@ -27,12 +27,12 @@ export type WorkspaceGroup = {
 export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "photo",
-    title: "사진작업실",
+    title: "Olivia Bridge",
     description: "JPG정리부터 사진 셀렉, RAW 매칭, 분류와 후반 작업까지 한 곳에서.",
     href: "/olivia-bridge",
     icon: Camera,
     accent: "mint",
-    aliases: ["사진 작업실", "포토 작업실", "사진 도구"],
+    aliases: ["사진작업실", "사진 작업실", "포토 작업실", "사진 도구", "Olivia Bridge", "올리비아 브릿지"],
     tools: [
       { id: "jpg-prep", title: "JPG정리", href: "/photo-sorting?mode=jpg-prep", aliases: ["JPG정리", "JPG 정리", "JPG 통합", "원본 분리", "RAW/JPG 분리", "JPG원본"], sourceHrefs: [] },
       { id: "photo-select", title: "사진 셀렉", href: "/photo-sorting?mode=select", aliases: ["사진 셀렉", "AI 사진 셀렉", "AI 사진 검색", "사진 검색", "직접 셀렉", "고객 셀렉", "고객셀렉"], sourceHrefs: [] },
