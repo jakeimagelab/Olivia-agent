@@ -3,7 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { PhotoPipelineStartError, startNasBackupClassification } from "@/lib/photo-storage/nasClassifyHandoff";
 import { isPhotoAutomationAvailable } from "@/lib/photo-storage/photoAutomation";
-import { departmentFromPhotoText } from "@/lib/photo-classifier/departmentResolver";
+import { resolveNasPhotoDepartment } from "@/lib/photo-classifier/departmentServerResolver";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,9 +37,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (eventError) throw eventError;
     if (!event) return Response.json({ ok: false, error: "이벤트를 찾지 못했습니다." }, { status: 404 });
 
+    const departmentResolution = await resolveNasPhotoDepartment(db, String(event.folder_name || ""));
+    if (departmentResolution.status !== "resolved") {
+      return Response.json({
+        ok: false,
+        code: "PHOTO_DEPARTMENT_REQUIRED",
+        error: departmentResolution.status === "conflict"
+          ? "등록 고객 정보와 폴더명의 진료과가 달라 확인이 필요합니다."
+          : "진료과를 자동으로 확인하지 못했습니다. 고객 정보나 폴더명을 확인해주세요.",
+      }, { status: 409 });
+    }
+
     const project = await startNasBackupClassification(db, {
       folderName: event.folder_name as string,
-      department: departmentFromPhotoText(String(event.folder_name || "")) ?? "general",
+      department: departmentResolution.department,
       only,
       confirmRestart: body.confirmRestart === true,
       approvedBy: "olivia-notification",

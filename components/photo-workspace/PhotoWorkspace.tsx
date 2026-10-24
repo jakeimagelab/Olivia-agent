@@ -53,6 +53,8 @@ export type PhotoWorkspaceEmbeddedToolProps = {
   selectMode?: PhotoSelectMode;
   fileOpsMode?: PhotoFileOpsMode;
   rawMatchMethod?: "filename" | "metadata";
+  clientId?: string;
+  workflowRunId?: string;
 };
 
 /**
@@ -65,6 +67,8 @@ export function PhotoWorkspaceEmbeddedTool({
   selectMode: initialSelectMode = "manual",
   fileOpsMode: initialFileOpsMode = "resize",
   rawMatchMethod = "filename",
+  clientId,
+  workflowRunId,
 }: PhotoWorkspaceEmbeddedToolProps) {
   const [mode, setMode] = useState(initialMode);
   const [selectMode, setSelectMode] = useState(initialSelectMode);
@@ -96,7 +100,7 @@ export function PhotoWorkspaceEmbeddedTool({
           <PhotoRawMatchWorkspace bridgeLinked selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
         </div>
       ) : null}
-      {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
+      {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
       {mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
       {mode === "file-ops" ? <PhotoFileOpsWorkspace value={fileOpsMode} onChange={setFileOpsMode} /> : null}
     </WorkPanel>
@@ -109,6 +113,8 @@ function PhotoWorkspaceContent({
   initialTool,
   initialSelectMode,
   initialFileOpsMode,
+  clientId,
+  workflowRunId,
 }: {
   hideHeader?: boolean;
   initialMode?: PhotoWorkspaceMode;
@@ -209,7 +215,7 @@ function PhotoWorkspaceContent({
                 <footer className={styles.workspaceToolActions}>JPG 선택 방식과 RAW 원본 위치를 지정하면 매칭을 시작할 수 있습니다.</footer>
               </div>
             ) : null}
-            {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
+            {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}
             {!remoteUnavailable && mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
             {!remoteUnavailable && mode === "file-ops" ? <PhotoFileOpsWorkspace value={fileOpsMode} onChange={(next) => updateQuery("file-ops", selectMode, next)} /> : null}
           </WorkPanel>

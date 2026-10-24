@@ -1,13 +1,14 @@
 import { buildFieldScenesFromBoundaries, buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import type { FieldScene, SceneFile } from "@/lib/photo-classifier/types";
 import type { SceneBoundaryDecision } from "@/lib/photo-classifier/hybrid-types";
+import type { ResolvedPhotoDepartment } from "@/lib/photo-classifier/departmentResolver";
 import type {
   BridgeAnalyzedJpgFile,
   BridgeScene,
   BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
 
-export const BRIDGE_CLASSIFICATION_PLAN_VERSION = 1 as const;
+export const BRIDGE_CLASSIFICATION_PLAN_VERSION = 2 as const;
 
 export type BridgeClassificationPlan = {
   version: typeof BRIDGE_CLASSIFICATION_PLAN_VERSION;
@@ -16,6 +17,7 @@ export type BridgeClassificationPlan = {
   folderKey: string;
   folderName: string;
   directory: FileSystemDirectoryHandle;
+  departmentResolution: ResolvedPhotoDepartment;
   files: BridgeAnalyzedJpgFile[];
   boundaries: SceneBoundaryDecision[];
   scenes: BridgeScene[];
@@ -46,6 +48,7 @@ export function createBridgeClassificationPlan(input: {
   folderName: string;
   directory: FileSystemDirectoryHandle;
   analysis: BridgeSceneAnalysis;
+  departmentResolution: ResolvedPhotoDepartment;
   id?: string;
   createdAt?: string;
 }): BridgeClassificationPlan {
@@ -56,6 +59,7 @@ export function createBridgeClassificationPlan(input: {
     folderKey: input.folderKey,
     folderName: input.folderName,
     directory: input.directory,
+    departmentResolution: input.departmentResolution,
     files: [...input.analysis.files],
     boundaries: [...input.analysis.boundaries],
     scenes: input.analysis.scenes.map((scene) => ({ ...scene })),
@@ -79,6 +83,9 @@ export function validateBridgeClassificationPlan(
 ): BridgeClassificationPlanValidation {
   if (plan.version !== BRIDGE_CLASSIFICATION_PLAN_VERSION) {
     return { ok: false, message: "지원하지 않는 Bridge Scene 계획입니다. 현재 폴더를 다시 분석해 주세요." };
+  }
+  if (!plan.departmentResolution || plan.departmentResolution.status !== "resolved") {
+    return { ok: false, message: "Bridge Scene 계획의 진료과가 확정되지 않았습니다. 진료과를 확인해 주세요." };
   }
   if (!current.sameFolder || current.folderName !== plan.folderName) {
     return { ok: false, message: "Bridge에서 분석한 폴더와 현재 폴더가 다릅니다. 현재 폴더를 다시 분석해 주세요." };

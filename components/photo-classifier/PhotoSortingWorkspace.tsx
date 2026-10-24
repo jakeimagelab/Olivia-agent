@@ -5,7 +5,13 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FolderTree } from "lucide-react";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
-import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
+import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
+import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
+import {
+  PHOTO_DEPARTMENT_SOURCE_DISPLAY,
+  manualPhotoDepartmentResolution,
+  resolvePhotoDepartmentEvidence,
+} from "@/lib/photo-classifier/departmentResolver";
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
 import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
@@ -185,7 +191,7 @@ const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
   { value:"dermatology",            label:"피부과" },
   { value:"dentistry",              label:"치과" },
   { value:"ophthalmology",          label:"안과" },
-  { value:"orthopedics_neurosurgery", label:"정형외과/신경외과" },
+  { value:"orthopedics_neurosurgery", label:"근골격·통증계" },
   { value:"pediatrics",             label:"소아과" },
   { value:"korean_medicine",        label:"한의원" },
   { value:"plastic_surgery",        label:"성형외과" },
@@ -748,8 +754,8 @@ function PhotoSortingInner({
   const isEmbedded = mode === "embedded";
   const sp = useSearchParams();
   const router = useRouter();
-  const clientId = isModal ? (modalClientId ?? "") : (sp.get("clientId") ?? sp.get("client_id") ?? "");
-  const workflowRunId = isModal ? (modalWorkflowRunId ?? "") : (sp.get("workflowRunId") ?? "");
+  const clientId = modalClientId ?? sp.get("clientId") ?? sp.get("client_id") ?? "";
+  const workflowRunId = modalWorkflowRunId ?? sp.get("workflowRunId") ?? "";
   const photoSourceSurface = usePhotoSourceSurface();
   const {
     executionMode,
@@ -765,6 +771,8 @@ function PhotoSortingInner({
     setCurrentLocalFolder,
     pendingBridgeClassificationPlan,
     takeBridgeClassificationPlan,
+    photoDepartmentResolution,
+    setPhotoDepartmentResolution,
   } = usePhotoStudioExecution();
 
   /* ── shared state ── */
@@ -777,7 +785,10 @@ function PhotoSortingInner({
   // A folder chosen by 사진 셀렉/RAW 매칭/T컷 is the same active work folder.
   // Do not replace a folder this classifier already owns during an in-progress session.
   useEffect(() => {
-    if (!rootDir && currentLocalFolder) setRootDir(currentLocalFolder);
+    if (!rootDir && currentLocalFolder) {
+      departmentContextKeyRef.current = "";
+      setRootDir(currentLocalFolder);
+    }
   }, [currentLocalFolder, rootDir]);
   const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
@@ -880,6 +891,10 @@ function PhotoSortingInner({
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
+  const [departmentContextLoading,   setDepartmentContextLoading]   = useState(false);
+  const [departmentContextError,     setDepartmentContextError]     = useState("");
+  const [departmentPickerOpen,       setDepartmentPickerOpen]       = useState(false);
+  const departmentContextKeyRef = useRef("");
   const [gapMinutes,                 setGapMinutes]                 = useState(3.5);
   const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(false);
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
@@ -996,8 +1011,16 @@ function PhotoSortingInner({
       const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
       const rawBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("RAW").catch(() => null);
 
+      departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${h.name}`;
+      setCurrentLocalFolder(h);
       setRootDir(h);
       setDepartment(saved.department);
+      setPhotoDepartmentResolution(resolvePhotoDepartmentEvidence([{
+        department: saved.department,
+        rawValue: DEPARTMENT_DISPLAY[saved.department],
+        source: "saved_session",
+      }]));
+      setDepartmentPickerOpen(false);
       setGapMinutes(saved.gapMinutes);
       setFastAnalyzeMode(saved.fastAnalyzeMode);
       setDepartmentLogicEnabled(saved.departmentLogicEnabled);
@@ -1091,6 +1114,8 @@ function PhotoSortingInner({
     setDirPickError("");
     const h = await pickPhotoFolder("readwrite");
     if (!h) return;
+    departmentContextKeyRef.current = "";
+    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
     setRootDir(h);
     setPhotoSourcePickerOpen(false);
   };
@@ -1103,6 +1128,7 @@ function PhotoSortingInner({
       aiScanEntriesRef.current = [];
     }
     setDirPickError("");
+    departmentContextKeyRef.current = "";
     setPhotoSourcePickerOpen(false);
   }, [executionMode]);
 
@@ -1113,11 +1139,66 @@ function PhotoSortingInner({
 
   const selectRemoteFolder = (selection: RemoteNasSelection) => {
     setRemoteSelection(selection);
+    departmentContextKeyRef.current = "";
+    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
+    setDepartmentContextError("");
+    setDepartmentPickerOpen(false);
     if (!remoteJobActive) clearRemoteJob();
     setRemotePhotoSortError("");
     setDirPickError("");
     setPhotoSourcePickerOpen(false);
   };
+
+  const chooseFieldDepartment = useCallback((nextDepartment: MedicalDepartment) => {
+    setDepartment(nextDepartment);
+    setPhotoDepartmentResolution(manualPhotoDepartmentResolution(nextDepartment));
+    setDepartmentContextError("");
+    setDepartmentPickerOpen(false);
+  }, [setPhotoDepartmentResolution]);
+
+  const departmentFolderName = executionMode === "LOCAL_DIRECT"
+    ? rootDir?.name ?? ""
+    : remoteSelection?.path ?? "";
+
+  useEffect(() => {
+    if (photoMode !== "field" || !departmentFolderName || pendingBridgeClassificationPlan) return;
+    const contextKey = `${clientId}:${workflowRunId}:${departmentFolderName}`;
+    if (departmentContextKeyRef.current === contextKey) return;
+    departmentContextKeyRef.current = contextKey;
+
+    const controller = new AbortController();
+    setDepartmentContextLoading(true);
+    setDepartmentContextError("");
+    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: departmentFolderName }, { signal: controller.signal })
+      .then((resolution) => {
+        if (controller.signal.aborted) return;
+        setPhotoDepartmentResolution(resolution);
+        if (resolution.status === "resolved") {
+          setDepartment(resolution.department);
+          setDepartmentPickerOpen(false);
+        } else {
+          setDepartmentPickerOpen(true);
+        }
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
+        setDepartmentPickerOpen(true);
+        setDepartmentContextError(error instanceof Error ? error.message : "진료과 정보를 확인하지 못했습니다.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDepartmentContextLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [
+    clientId,
+    departmentFolderName,
+    pendingBridgeClassificationPlan,
+    photoMode,
+    setPhotoDepartmentResolution,
+    workflowRunId,
+  ]);
 
   const handleFolderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (executionMode === "LOCAL_DIRECT" && event.button === 0) void pickDir();
@@ -1135,6 +1216,12 @@ function PhotoSortingInner({
   const handleRemotePhotoSort = useCallback(async () => {
     if (!remoteSelection?.path) {
       setRemotePhotoSortError("NAS Root가 아닌 촬영 폴더를 선택해주세요.");
+      return;
+    }
+
+    if (photoMode === "field" && photoDepartmentResolution.status !== "resolved") {
+      setRemotePhotoSortError("진료과를 확인해야 분류를 시작할 수 있습니다.");
+      setDepartmentPickerOpen(true);
       return;
     }
 
@@ -1211,6 +1298,7 @@ function PhotoSortingInner({
     remoteWorkFolderCheck,
     remoteWorkFolderReady,
     trackRemoteJob,
+    photoDepartmentResolution.status,
   ]);
 
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
@@ -1271,10 +1359,10 @@ function PhotoSortingInner({
   }, [rootDir, department, gapMinutes]);
 
   useEffect(() => {
-    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto" || step !== 0) return;
+    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto" || step !== 0 || photoDepartmentResolution.status !== "resolved") return;
     runAiFolderAnalysis();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionMode, rootDir, photoMode, classificationUiMode, step]);
+  }, [executionMode, rootDir, photoMode, classificationUiMode, step, photoDepartmentResolution.status]);
 
   // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
   // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
@@ -1317,6 +1405,11 @@ function PhotoSortingInner({
   ═══════════════════════════════════════════ */
   const handleFieldSort = useCallback(async () => {
     if (!rootDir) return;
+    if (photoDepartmentResolution.status !== "resolved") {
+      setDirPickError("진료과를 확인해야 분류를 시작할 수 있습니다.");
+      setDepartmentPickerOpen(true);
+      return;
+    }
     setBridgePlanSummary(null);
     setStep(1); cancelRef.current = false; setCopyLog([]); setBoundaryDecisions([]); setSceneCorrections([]);
     try {
@@ -1651,7 +1744,7 @@ function PhotoSortingInner({
       setClassificationJobState("WAITING_REVIEW");
       useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "error");
     }
-  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile]);
+  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status]);
 
   // 피부과 2차 분리: 강한 전환 신호 감지
   const isDermatologyStrongTransition = (
@@ -1825,6 +1918,12 @@ function PhotoSortingInner({
         });
 
         const reviewCount = plan.boundaries.filter((decision) => decision.needsReview).length;
+        departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${plan.directory.name}`;
+        setCurrentLocalFolder(plan.directory);
+        setDepartment(plan.departmentResolution.department);
+        setPhotoDepartmentResolution(plan.departmentResolution);
+        setDepartmentContextError("");
+        setDepartmentPickerOpen(false);
         setRootDir(plan.directory);
         setFieldJpgBaseDir(null);
         setFieldRawBaseDir(null);
@@ -1873,11 +1972,15 @@ function PhotoSortingInner({
     })();
   }, [
     currentLocalFolder,
+    clientId,
     executionMode,
     isEmbedded,
     pendingBridgeClassificationPlan,
+    setCurrentLocalFolder,
     setProgress,
+    setPhotoDepartmentResolution,
     takeBridgeClassificationPlan,
+    workflowRunId,
   ]);
 
   const mergeFieldScenes = useCallback(async (i: number, j: number, candidateId?: string) => {
@@ -2742,11 +2845,17 @@ function PhotoSortingInner({
   useEffect(() => {
     if (!isModal) return;
     const handoff = usePhotoClassificationHandoffStore.getState().consume();
-    if (!handoff) return;
+    if (!handoff?.rootDir) return;
     setPhotoMode(handoff.photoMode);
+    departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${handoff.rootDir.name}`;
+    setCurrentLocalFolder(handoff.rootDir);
     setRootDir(handoff.rootDir);
     if (handoff.photoMode === "field") {
-      if (handoff.department) setDepartment(handoff.department);
+      if (handoff.department) {
+        setDepartment(handoff.department);
+        setPhotoDepartmentResolution(handoff.departmentResolution ?? manualPhotoDepartmentResolution(handoff.department));
+        setDepartmentPickerOpen(false);
+      }
       if (handoff.gapMinutes != null) setGapMinutes(handoff.gapMinutes);
       if (handoff.fastAnalyzeMode != null) setFastAnalyzeMode(handoff.fastAnalyzeMode);
       if (handoff.departmentLogicEnabled != null) setDepartmentLogicEnabled(handoff.departmentLogicEnabled);
@@ -3195,15 +3304,85 @@ function PhotoSortingInner({
     );
   };
 
+  const renderDepartmentControl = (compact = false) => {
+    const hasFolder = executionMode === "LOCAL_DIRECT" ? Boolean(rootDir) : Boolean(remoteSelection?.path);
+    const resolved = photoDepartmentResolution.status === "resolved" ? photoDepartmentResolution : null;
+    const showPicker = departmentPickerOpen || (!departmentContextLoading && hasFolder && !resolved);
+
+    return (
+      <div style={{padding:compact ? "12px 16px" : "14px 20px",display:"flex",flexDirection:"column",gap:10}}>
+        {!hasFolder ? (
+          <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>
+            폴더를 선택하면 등록 고객 정보와 폴더명에서 진료과를 자동으로 적용합니다.
+          </div>
+        ) : departmentContextLoading ? (
+          <div aria-live="polite" style={{padding:"10px 12px",borderRadius:8,background:"rgba(79,216,184,.08)",border:`1px solid ${C.border}`,fontSize:11.5,color:C.green}}>
+            진료과 정보를 확인하고 있습니다…
+          </div>
+        ) : resolved && !departmentPickerOpen ? (
+          <div style={{padding:"11px 12px",borderRadius:8,background:"rgba(79,216,184,.08)",border:"1px solid rgba(79,216,184,.28)",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12.5,fontWeight:650,color:C.green}}>
+                {DEPARTMENT_DISPLAY[resolved.department]} 적용됨
+              </div>
+              <div style={{marginTop:3,fontSize:10.5,color:C.muted,lineHeight:1.5}}>
+                {PHOTO_DEPARTMENT_SOURCE_DISPLAY[resolved.source]}
+                {resolved.rawValue && resolved.source !== "manual" ? ` · ${resolved.rawValue}` : ""}
+              </div>
+              {DEPARTMENT_DESCRIPTION[resolved.department] ? (
+                <div style={{marginTop:3,fontSize:10.5,color:C.hint,lineHeight:1.5}}>{DEPARTMENT_DESCRIPTION[resolved.department]}</div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setDepartmentPickerOpen(true)}
+              style={{flex:"0 0 auto",padding:"6px 9px",borderRadius:7,border:`1px solid ${C.border}`,background:"transparent",color:C.teal,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
+            >
+              변경
+            </button>
+          </div>
+        ) : null}
+
+        {departmentContextError ? (
+          <div role="alert" style={{padding:"9px 11px",borderRadius:8,background:"rgba(232,93,44,.10)",border:"1px solid rgba(232,93,44,.34)",fontSize:11,color:"#FFC3AD",lineHeight:1.55}}>
+            {departmentContextError}
+          </div>
+        ) : null}
+
+        {showPicker ? (
+          <>
+            <div style={{fontSize:11,color:photoDepartmentResolution.status === "conflict" ? "#FFC3AD" : C.muted,lineHeight:1.55}}>
+              {photoDepartmentResolution.status === "conflict"
+                ? "고객 정보와 폴더명의 진료과가 달라 자동 적용하지 않았습니다. 한 번만 확인해주세요."
+                : "진료과를 자동으로 확인하지 못했습니다. 한 번만 선택해주세요."}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:compact?"1fr 1fr":"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+              {DEPARTMENTS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => chooseFieldDepartment(item.value)}
+                  style={{padding:compact?"9px 10px":"10px 14px",borderRadius:8,border:`1.5px solid ${resolved?.department===item.value?C.teal:C.border}`,background:resolved?.department===item.value?C.light:C.surface,cursor:"pointer",fontSize:compact?11.5:12,fontWeight:600,color:resolved?.department===item.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}
+                >
+                  {item.label}{resolved?.department===item.value ? " ✓" : ""}
+                </button>
+              ))}
+            </div>
+            {resolved && DEPARTMENT_DESCRIPTION[resolved.department] ? (
+              <div style={{fontSize:10.5,color:C.hint,lineHeight:1.55}}>{DEPARTMENT_DESCRIPTION[resolved.department]}</div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
   /* ════════════════════════════════════════════
      STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
   const Step0 = () => {
-    const deptInfo: Record<string, string> = {
-      dermatology: "피부과 모드: 실장상담, 피부관리, 원장상담, 레이저시술, 장비시술, 주사시술, 프로필, 인테리어, 접수안내 장면을 기준으로 분류합니다.",
-      general: "기타 모드: 시간차 기준 Scene 분류를 우선 적용하고, 공통 장면 기준으로 이름을 추천합니다.",
-    };
     const aiAutoActive = photoMode === "field" && classificationUiMode === "ai-auto";
+    const departmentReady = photoDepartmentResolution.status === "resolved";
     return (
       <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth: aiAutoActive ? 1120 : 700}}>
 
@@ -3262,16 +3441,8 @@ function PhotoSortingInner({
                   </Card>
 
                   <Card>
-                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과 선택</div>
-                    <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:8}}>
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                        {DEPARTMENTS.map(d => (
-                          <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"9px 10px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.surface,cursor:"pointer",fontSize:11.5,fontWeight:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
-                            {d.label}{department===d.value&&" ✓"}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과</div>
+                    {renderDepartmentControl(true)}
                   </Card>
 
                   <ClassificationPrompt onSubmit={submitAiNlRequest} busy={aiRefining} history={aiRefinementHistory} />
@@ -3284,10 +3455,13 @@ function PhotoSortingInner({
                   {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                   <Btn
                     onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
+                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing||!departmentReady) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline||!departmentReady)}
                   >
                     {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작"}
                   </Btn>
+                  {(Boolean(rootDir) || Boolean(remoteSelection?.path)) && !departmentReady ? (
+                    <div style={{fontSize:10.5,color:C.hint,textAlign:"center"}}>진료과를 확인해야 분류를 시작할 수 있습니다.</div>
+                  ) : null}
                   <ClassificationProfilePanel profile={aiWeightProfile} onOpenAdvanced={() => setClassificationUiMode("advanced")} />
                 </div>
               </div>
@@ -3303,21 +3477,8 @@ function PhotoSortingInner({
 
                 {/* 진료과 선택 */}
                 <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과 선택</div>
-                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-                      {DEPARTMENTS.map(d => (
-                        <button key={d.value} onClick={()=>setDepartment(d.value)} style={{padding:"10px 14px",borderRadius:8,border:`1.5px solid ${department===d.value?C.teal:C.border}`,background:department===d.value?C.light:C.surface,cursor:"pointer",fontSize:12,fontWeight:600,color:department===d.value?C.teal:C.muted,fontFamily:"inherit",textAlign:"left"}}>
-                          {d.label}{department===d.value&&" ✓"}
-                        </button>
-                      ))}
-                    </div>
-                    {deptInfo[department] && (
-                      <div style={{padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:11,color:"#166534",border:"1px solid #BBF7D0",lineHeight:1.7}}>
-                        {deptInfo[department]}
-                      </div>
-                    )}
-                  </div>
+                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과</div>
+                  {renderDepartmentControl()}
                 </Card>
 
                 {/* 강제 Scene 경계 시간 */}
@@ -3366,10 +3527,13 @@ function PhotoSortingInner({
                 {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                 <Btn
                   onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
+                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||!departmentReady) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline||!departmentReady)}
                 >
                   {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작"}
                 </Btn>
+                {(Boolean(rootDir) || Boolean(remoteSelection?.path)) && !departmentReady ? (
+                  <div style={{fontSize:10.5,color:C.hint,textAlign:"center"}}>진료과를 확인해야 분류를 시작할 수 있습니다.</div>
+                ) : null}
               </>
             )}
           </>

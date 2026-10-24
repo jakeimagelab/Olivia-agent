@@ -52,6 +52,12 @@ import {
   type BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
+import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
+import {
+  manualPhotoDepartmentResolution,
+  PHOTO_DEPARTMENT_SOURCE_DISPLAY,
+} from "@/lib/photo-classifier/departmentResolver";
+import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import {
   bridgeGridNavigationTarget,
@@ -445,7 +451,13 @@ function BridgePaneDivider({
   );
 }
 
-export default function OliviaBridgeWorkspace() {
+export default function OliviaBridgeWorkspace({
+  clientId,
+  workflowRunId,
+}: {
+  clientId?: string;
+  workflowRunId?: string;
+} = {}) {
   const picker = usePhotoFolderPicker();
   const {
     currentLocalFolder,
@@ -458,6 +470,8 @@ export default function OliviaBridgeWorkspace() {
     setJpgRatingsByName,
     setExecutionMode,
     stageBridgeClassificationPlan,
+    photoDepartmentResolution,
+    setPhotoDepartmentResolution,
   } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
@@ -480,6 +494,9 @@ export default function OliviaBridgeWorkspace() {
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
   const [sceneRunKey, setSceneRunKey] = useState(0);
+  const [departmentLoading, setDepartmentLoading] = useState(false);
+  const [departmentError, setDepartmentError] = useState("");
+  const [departmentPickerOpen, setDepartmentPickerOpen] = useState(false);
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
@@ -695,6 +712,35 @@ export default function OliviaBridgeWorkspace() {
       });
     return () => controller.abort();
   }, [activeFolder, folderPath, scan.jpgs, scanStatus, sceneRunKey]);
+
+  useEffect(() => {
+    if (!activeFolder || scanStatus !== "ready") return;
+    const controller = new AbortController();
+    setDepartmentLoading(true);
+    setDepartmentError("");
+    setDepartmentPickerOpen(false);
+    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: activeFolder.name }, { signal: controller.signal })
+      .then((resolution) => {
+        setPhotoDepartmentResolution(resolution);
+        setDepartmentPickerOpen(resolution.status !== "resolved");
+      })
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
+        setDepartmentPickerOpen(true);
+        setDepartmentError(error instanceof Error ? error.message : "진료과 정보를 확인하지 못했습니다.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setDepartmentLoading(false);
+      });
+    return () => controller.abort();
+  }, [activeFolder, clientId, scanStatus, setPhotoDepartmentResolution, workflowRunId]);
+
+  const chooseDepartment = useCallback((department: MedicalDepartment) => {
+    setPhotoDepartmentResolution(manualPhotoDepartmentResolution(department));
+    setDepartmentError("");
+    setDepartmentPickerOpen(false);
+  }, [setPhotoDepartmentResolution]);
 
   const choosePhoto = useCallback((photo: BridgeJpgFile, event: ReactMouseEvent) => {
     const next = updateBridgeSelection({ current: selectedIds, orderedIds: visibleJpgs.map((item) => item.id), clickedId: photo.id, anchorId, additive: event.metaKey || event.ctrlKey, range: event.shiftKey });
@@ -945,16 +991,18 @@ export default function OliviaBridgeWorkspace() {
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
   const sceneBoundaryReviewCount = useMemo(() => sceneState.scenes.filter((scene) => scene.needsReview).length, [sceneState.scenes]);
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
-  const scenePlanReady = sceneState.status === "complete" && Boolean(sceneState.analysis) && sceneState.scenes.length > 0;
+  const sceneAnalysisReady = sceneState.status === "complete" && Boolean(sceneState.analysis) && sceneState.scenes.length > 0;
+  const scenePlanReady = sceneAnalysisReady && photoDepartmentResolution.status === "resolved" && !departmentLoading;
 
   const applyScenePlan = useCallback(() => {
-    if (!activeFolder || !sceneState.analysis || !scenePlanReady) return;
+    if (!activeFolder || !sceneState.analysis || !scenePlanReady || photoDepartmentResolution.status !== "resolved") return;
     try {
       stageBridgeClassificationPlan(createBridgeClassificationPlan({
         folderKey: folderPath,
         folderName: activeFolder.name,
         directory: activeFolder,
         analysis: sceneState.analysis,
+        departmentResolution: photoDepartmentResolution,
       }));
       setSceneReviewOpen(false);
       setToolKey("classification");
@@ -966,7 +1014,7 @@ export default function OliviaBridgeWorkspace() {
         error: error instanceof Error ? error.message : "Scene 계획을 적용하지 못했습니다.",
       }));
     }
-  }, [activeFolder, folderPath, scenePlanReady, sceneState.analysis, stageBridgeClassificationPlan]);
+  }, [activeFolder, folderPath, photoDepartmentResolution, scenePlanReady, sceneState.analysis, stageBridgeClassificationPlan]);
 
   return (
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
@@ -1127,9 +1175,38 @@ export default function OliviaBridgeWorkspace() {
         <div className={styles.sceneBody}>
           {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
           {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
+          <section className={styles.departmentContext} aria-label="사진 분류 진료과">
+            {departmentLoading ? <div className={styles.departmentStatus}><LoaderCircle className={styles.spin} size={14} /><span>등록 고객과 폴더에서 진료과 확인 중...</span></div> : null}
+            {!departmentLoading && photoDepartmentResolution.status === "resolved" && !departmentPickerOpen ? (
+              <div className={styles.departmentStatus}>
+                <Check size={14} />
+                <span><strong>{DEPARTMENT_DISPLAY[photoDepartmentResolution.department]} 적용됨</strong> · {PHOTO_DEPARTMENT_SOURCE_DISPLAY[photoDepartmentResolution.source]}</span>
+                {photoDepartmentResolution.department === "orthopedics_neurosurgery" && photoDepartmentResolution.rawValue !== "orthopedics_neurosurgery" ? <small>{photoDepartmentResolution.rawValue} → 근골격·통증계 규칙</small> : null}
+                <button type="button" onClick={() => setDepartmentPickerOpen(true)}>변경</button>
+              </div>
+            ) : null}
+            {!departmentLoading && (departmentPickerOpen || photoDepartmentResolution.status !== "resolved") ? (
+              <div className={styles.departmentPicker}>
+                <span>{departmentError || (photoDepartmentResolution.status === "conflict" ? "등록 고객과 폴더명의 진료과가 다릅니다. 적용할 진료과를 확인해 주세요." : "등록 고객과 폴더명에서 진료과를 찾지 못했습니다.")}</span>
+                <label>
+                  <span>진료과</span>
+                  <select
+                    aria-label="사진 분류 진료과 선택"
+                    value={photoDepartmentResolution.status === "resolved" ? photoDepartmentResolution.department : ""}
+                    onChange={(event) => event.target.value && chooseDepartment(event.target.value as MedicalDepartment)}
+                  >
+                    <option value="">진료과를 선택해 주세요</option>
+                    {(Object.entries(DEPARTMENT_DISPLAY) as Array<[MedicalDepartment, string]>).map(([value, label]) => (
+                      <option key={value} value={value}>{label}{DEPARTMENT_DESCRIPTION[value] ? ` (${DEPARTMENT_DESCRIPTION[value]})` : ""}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+          </section>
           <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
         </div>
-        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {sceneState.scenes.length.toLocaleString("ko-KR")}개 · JPG {sceneState.total.toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{scenePlanReady ? "적용 후 사진 분류에서 Scene을 합치거나 나눌 수 있습니다. 파일은 아직 이동하지 않습니다." : sceneState.status === "complete" ? "분류할 JPG가 없어 계획을 적용할 수 없습니다." : "분석이 끝나면 Scene 계획을 적용할 수 있습니다."}</p></div><button type="button" disabled={!scenePlanReady} onClick={applyScenePlan}><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button></footer>
+        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {sceneState.scenes.length.toLocaleString("ko-KR")}개 · JPG {sceneState.total.toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{scenePlanReady ? "적용 후 사진 분류에서 Scene을 합치거나 나눌 수 있습니다. 파일은 아직 이동하지 않습니다." : sceneAnalysisReady && photoDepartmentResolution.status !== "resolved" ? "진료과를 확인해야 Scene 계획을 적용할 수 있습니다." : sceneState.status === "complete" ? "분류할 JPG가 없어 계획을 적용할 수 없습니다." : "분석이 끝나면 Scene 계획을 적용할 수 있습니다."}</p></div><button type="button" disabled={!scenePlanReady} onClick={applyScenePlan}><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button></footer>
       </BridgeFloatingWindow> : null}
 
       {activeTool ? <BridgeFloatingWindow
@@ -1143,7 +1220,7 @@ export default function OliviaBridgeWorkspace() {
         rect={floatingWindowRectsRef.current[`tool-${activeTool.key}`]}
         onRectChange={(rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect)}
         onClose={() => setToolKey(undefined)}
-      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} /></div></BridgeFloatingWindow> : null}
+      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} clientId={clientId} workflowRunId={workflowRunId} /></div></BridgeFloatingWindow> : null}
 
       {fullscreenPreviewOpen && focusedPhoto ? (
         <BridgeFullscreenPreview

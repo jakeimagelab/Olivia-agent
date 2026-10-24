@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
+import type { PhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
 
 // 채팅 안에서 사진 분류 설정을 단계적으로 모으는 카드(components/olivia/PhotoClassificationChatCard.tsx)의
 // 실시간 상태 — useSelectMatchChatStore.ts와 동일한 패턴(flowId로 키가 나뉜 client-only, 비영속
@@ -44,6 +45,7 @@ export type PhotoClassificationChatFlowState = {
   rootDir: FileSystemDirectoryHandle | null;
   rootDirName: string;
   fileCount: number;
+  departmentResolution: PhotoDepartmentResolution;
   settings: PhotoClassificationSettings;
   errorMessage: string | null;
 };
@@ -70,6 +72,7 @@ function emptyFlow(flowId: string): PhotoClassificationChatFlowState {
     rootDir: null,
     rootDirName: "",
     fileCount: 0,
+    departmentResolution: { status: "unknown", evidence: [] },
     settings: defaultSettings(),
     errorMessage: null,
   };
@@ -82,6 +85,7 @@ export type PhotoClassificationChatStoreState = {
   setPhotoMode: (flowId: string, photoMode: "field" | "studio") => void;
   setRootDir: (flowId: string, dir: FileSystemDirectoryHandle, rootDirName: string) => void;
   setFileCount: (flowId: string, fileCount: number) => void;
+  setDepartmentResolution: (flowId: string, resolution: PhotoDepartmentResolution) => void;
   updateSettings: (flowId: string, patch: Partial<PhotoClassificationSettings>) => void;
   setError: (flowId: string, message: string) => void;
   resetFlow: (flowId: string) => void;
@@ -104,6 +108,7 @@ export const usePhotoClassificationChatStore = create<PhotoClassificationChatSto
   setPhotoMode: (flowId, photoMode) => set((state) => ({ flows: updateFlow(state.flows, flowId, { photoMode }) })),
   setRootDir: (flowId, dir, rootDirName) => set((state) => ({ flows: updateFlow(state.flows, flowId, { rootDir: dir, rootDirName }) })),
   setFileCount: (flowId, fileCount) => set((state) => ({ flows: updateFlow(state.flows, flowId, { fileCount }) })),
+  setDepartmentResolution: (flowId, departmentResolution) => set((state) => ({ flows: updateFlow(state.flows, flowId, { departmentResolution }) })),
   updateSettings: (flowId, patch) => set((state) => {
     const current = state.flows[flowId] ?? emptyFlow(flowId);
     return { flows: { ...state.flows, [flowId]: { ...current, settings: { ...current.settings, ...patch } } } };

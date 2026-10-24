@@ -9,6 +9,7 @@ function createFakeTable(rows: Row[]) {
       const filters: Array<(row: Row) => boolean> = [];
       const builder = {
         eq(col: string, val: unknown) { filters.push((row) => row[col] === val); return builder; },
+        limit() { return builder; },
         select() { return builder; },
         async maybeSingle() {
           if (operation === "insert") {
@@ -36,10 +37,11 @@ function createFakeTable(rows: Row[]) {
 }
 
 let currentDb: any = null;
-function createFakeSupabase(store: { events: Row[]; projects: Row[] }) {
+function createFakeSupabase(store: { events: Row[]; projects: Row[]; clients: Row[] }) {
   const tables = {
     worker_events: createFakeTable(store.events),
     photo_storage_projects: createFakeTable(store.projects),
+    clients: createFakeTable(store.clients),
   };
   return {
     from(table: keyof typeof tables) {
@@ -72,10 +74,10 @@ async function postStart(id: string, body: unknown) {
   );
 }
 
-let store: { events: Row[]; projects: Row[] };
+let store: { events: Row[]; projects: Row[]; clients: Row[] };
 beforeEach(() => {
   adminSession = true;
-  store = { events: [{ id: EVENT_ID, folder_name: "0917_청담스시", status: "PENDING" }], projects: [] };
+  store = { events: [{ id: EVENT_ID, folder_name: "0917_강재활의학과", status: "PENDING" }], projects: [], clients: [] };
   currentDb = createFakeSupabase(store);
 });
 
@@ -113,9 +115,9 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
     expect(body.status).toBe("MERGE_APPROVED");
 
     expect(store.projects).toMatchObject([{
-      source_relative_path: "0917_청담스시",
+      source_relative_path: "0917_강재활의학과",
       status: "MERGE_APPROVED",
-      nas_department: "general",
+      nas_department: "orthopedics_neurosurgery",
       classify_approved_at: expect.any(String),
     }]);
     expect(store.events).toMatchObject([{ id: EVENT_ID, status: "STARTED" }]);
@@ -124,8 +126,8 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
   it("기존 실패 프로젝트는 알림 버튼에서도 재확인을 받은 뒤 같은 helper로 재시작한다", async () => {
     store.projects.push({
       id: "project-failed",
-      project_name: "0917_청담스시",
-      source_relative_path: "0917_청담스시",
+      project_name: "0917_강재활의학과",
+      source_relative_path: "0917_강재활의학과",
       status: "MERGE_FAILED",
     });
 
@@ -139,5 +141,26 @@ describe("POST /api/worker/events/[id]/start-classification", () => {
     expect(await confirmed.json()).toMatchObject({ ok: true, status: "MERGE_APPROVED" });
     expect(store.projects[0]).toMatchObject({ status: "MERGE_APPROVED", classify_approved_at: expect.any(String) });
     expect(store.events[0]).toMatchObject({ status: "STARTED" });
+  });
+
+  it("진료과 근거가 없으면 general로 넘기지 않고 확인을 요청한다", async () => {
+    store.events[0].folder_name = "0917_청담스시";
+
+    const response = await postStart(EVENT_ID, {});
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "PHOTO_DEPARTMENT_REQUIRED" });
+    expect(store.projects).toHaveLength(0);
+    expect(store.events[0].status).toBe("PENDING");
+  });
+
+  it("폴더명과 정확히 일치한 등록 고객의 진료과를 사용한다", async () => {
+    store.events[0].folder_name = "0917_청담스시";
+    store.clients.push({ hospital_name: "청담스시", specialty: "마취통증의학과" });
+
+    const response = await postStart(EVENT_ID, {});
+
+    expect(response.status).toBe(200);
+    expect(store.projects[0]).toMatchObject({ nas_department: "orthopedics_neurosurgery" });
   });
 });

@@ -8,6 +8,7 @@ import {
 } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeSceneAnalysis } from "@/lib/photo-bridge/bridgeFiles";
 import type { SceneBoundaryDecision } from "@/lib/photo-classifier/hybrid-types";
+import { manualPhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
 
 const features = {
   dHash: "0".repeat(64),
@@ -73,6 +74,7 @@ function plan() {
     folderName: "촬영본",
     directory: { kind: "directory", name: "촬영본" } as FileSystemDirectoryHandle,
     analysis: analysis(),
+    departmentResolution: manualPhotoDepartmentResolution("orthopedics_neurosurgery"),
     id: "plan-1",
     createdAt: "2026-10-25T00:00:00.000Z",
   });
@@ -114,12 +116,20 @@ describe("Bridge classification plan", () => {
   });
 
   it("지원하지 않는 계획 버전을 거부한다", () => {
-    const unsupported = { ...plan(), version: 2 } as unknown as BridgeClassificationPlan;
+    const unsupported = { ...plan(), version: 1 } as unknown as BridgeClassificationPlan;
 
     expect(validateBridgeClassificationPlan(unsupported, {
       sameFolder: true,
       folderName: "촬영본",
       jpgs: analysis().files,
     })).toMatchObject({ ok: false });
+  });
+
+  it("확정된 진료과와 출처를 계획에 보존한다", () => {
+    expect(plan().departmentResolution).toMatchObject({
+      status: "resolved",
+      department: "orthopedics_neurosurgery",
+      source: "manual",
+    });
   });
 });

@@ -32,6 +32,7 @@ import {
   type PhotoToolRatings,
 } from "@/lib/photo-bridge/toolLinkage";
 import type { BridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
+import type { PhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
 
 export type RemotePollingState = RemotePhotoPollingState;
 
@@ -72,6 +73,10 @@ type PhotoStudioExecutionValue = {
   stageBridgeClassificationPlan: (plan: BridgeClassificationPlan) => void;
   takeBridgeClassificationPlan: () => BridgeClassificationPlan | null;
   clearBridgeClassificationPlan: () => void;
+  /** 현재 폴더의 자동/수동 진료과 판별 결과. unknown은 임의 기본값을 뜻하지 않는다. */
+  photoDepartmentResolution: PhotoDepartmentResolution;
+  setPhotoDepartmentResolution: (resolution: PhotoDepartmentResolution) => void;
+  clearPhotoDepartmentResolution: () => void;
 };
 
 const EMPTY_WORKER: RemoteWorkerPresence = {
@@ -120,6 +125,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
   const [pendingBridgeClassificationPlan, setPendingBridgeClassificationPlan] = useState<BridgeClassificationPlan | null>(null);
   const pendingBridgeClassificationPlanRef = useRef<BridgeClassificationPlan | null>(null);
+  const [photoDepartmentResolution, setPhotoDepartmentResolution] = useState<PhotoDepartmentResolution>({ status: "unknown", evidence: [] });
 
   const setCurrentLocalFolder = useCallback((folder: FileSystemDirectoryHandle | null) => {
     if (currentLocalFolderRef.current === folder) return;
@@ -130,6 +136,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setJpgRatingsByNameState({});
     pendingBridgeClassificationPlanRef.current = null;
     setPendingBridgeClassificationPlan(null);
+    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
   }, []);
 
   const setSelectedJpgNames = useCallback((names: readonly string[]) => {
@@ -166,6 +173,10 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const clearBridgeClassificationPlan = useCallback(() => {
     pendingBridgeClassificationPlanRef.current = null;
     setPendingBridgeClassificationPlan(null);
+  }, []);
+
+  const clearPhotoDepartmentResolution = useCallback(() => {
+    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
   }, []);
 
   useEffect(() => {
@@ -269,6 +280,9 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     stageBridgeClassificationPlan,
     takeBridgeClassificationPlan,
     clearBridgeClassificationPlan,
+    photoDepartmentResolution,
+    setPhotoDepartmentResolution,
+    clearPhotoDepartmentResolution,
   }), [
     availableModes,
     clearRemoteJob,
@@ -294,6 +308,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     stageBridgeClassificationPlan,
     takeBridgeClassificationPlan,
     clearBridgeClassificationPlan,
+    photoDepartmentResolution,
+    clearPhotoDepartmentResolution,
   ]);
 
   return (

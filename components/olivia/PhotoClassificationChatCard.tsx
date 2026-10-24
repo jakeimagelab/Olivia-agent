@@ -5,8 +5,14 @@ import { usePhotoClassificationChatStore } from "@/lib/store/usePhotoClassificat
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import { countJpgFiles } from "@/lib/photo-classifier/countJpgFiles";
+import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
+import {
+  PHOTO_DEPARTMENT_SOURCE_DISPLAY,
+  manualPhotoDepartmentResolution,
+} from "@/lib/photo-classifier/departmentResolver";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 
 // PhotoSortingWorkspace.tsx(components/photo-classifier/, 원래 /photo-sorting 페이지)의 실제
 // 설정값과 기본값을 그대로 따른다(PHASE 4, 2026-08-30) — GAP_OPTIONS([3,3.5,5,7,10]분),
@@ -49,12 +55,13 @@ export default function PhotoClassificationChatCard({ flowId }: { flowId: string
 
   const chooseMode = (mode: "field" | "studio") => {
     store().setPhotoMode(flowId, mode);
-    store().setStep(flowId, mode === "field" ? "choose_department" : "picking_folder");
+    store().setStep(flowId, "picking_folder");
   };
 
   const chooseDepartment = (department: MedicalDepartment) => {
     store().updateSettings(flowId, { department });
-    store().setStep(flowId, "picking_folder");
+    store().setDepartmentResolution(flowId, manualPhotoDepartmentResolution(department));
+    store().setStep(flowId, "choose_boundary");
   };
 
   const pickFolder = async () => {
@@ -62,11 +69,28 @@ export default function PhotoClassificationChatCard({ flowId }: { flowId: string
       // showDirectoryPicker는 반드시 클릭 핸들러의 첫 번째 await여야 한다(user gesture) —
       // SelectMatchChatCard.tsx와 동일한 이유·패턴.
       const dir = await (window as any).showDirectoryPicker({ mode: "read" });
+      store().setDepartmentResolution(flowId, { status: "unknown", evidence: [] });
       store().setRootDir(flowId, dir, dir.name);
       store().setStep(flowId, "scanning");
       setFolderScanning(true);
       const count = await countJpgFiles(dir);
       store().setFileCount(flowId, count);
+      if (flow.photoMode === "field") {
+        const context = useOliviaContextStore.getState();
+        try {
+          const resolution = await fetchPhotoDepartmentContext({
+            clientId: context.activeClientId,
+            workflowRunId: context.activeProjectId,
+            folderName: dir.name,
+          });
+          store().setDepartmentResolution(flowId, resolution);
+          if (resolution.status === "resolved") {
+            store().updateSettings(flowId, { department: resolution.department });
+          }
+        } catch {
+          store().setDepartmentResolution(flowId, { status: "unknown", evidence: [] });
+        }
+      }
       store().setStep(flowId, "folder_ready");
     } catch (e: any) {
       if (e?.name !== "AbortError") store().setError(flowId, "폴더 선택에 실패했어요. 다시 시도해주세요.");
@@ -76,14 +100,23 @@ export default function PhotoClassificationChatCard({ flowId }: { flowId: string
   };
 
   const afterFolderReady = () => {
-    store().setStep(flowId, flow.photoMode === "field" ? "choose_boundary" : "choose_lighting");
+    if (flow.photoMode !== "field") {
+      store().setStep(flowId, "choose_lighting");
+      return;
+    }
+    store().setStep(flowId, flow.departmentResolution.status === "resolved" ? "choose_boundary" : "choose_department");
   };
 
   const start = () => {
     if (!flow.rootDir || !flow.photoMode) return;
+    if (flow.photoMode === "field" && flow.departmentResolution.status !== "resolved") {
+      store().setStep(flowId, "choose_department");
+      return;
+    }
     usePhotoClassificationHandoffStore.getState().handoff({
       photoMode: flow.photoMode,
       department: flow.settings.department,
+      departmentResolution: flow.departmentResolution.status === "resolved" ? flow.departmentResolution : undefined,
       rootDir: flow.rootDir,
       rootDirName: flow.rootDirName,
       gapMinutes: flow.settings.gapMinutes,
@@ -114,7 +147,7 @@ export default function PhotoClassificationChatCard({ flowId }: { flowId: string
 
       {flow.step === "choose_department" && (
         <div className="olivia-select-match-card__section">
-          <p>진료과를 선택해주세요.</p>
+          <p>{flow.departmentResolution.status === "conflict" ? "고객 정보와 폴더명이 달라요. 진료과를 한 번만 확인해주세요." : "진료과를 자동으로 확인하지 못했어요. 한 번만 선택해주세요."}</p>
           <div className="olivia-select-match-card__tabs" style={{ flexWrap: "wrap" }}>
             {(Object.entries(DEPARTMENT_DISPLAY) as [MedicalDepartment, string][]).map(([value, label]) => (
               <button key={value} type="button" className={flow.settings.department === value ? "is-active" : ""} onClick={() => chooseDepartment(value)}>{label}</button>
@@ -144,6 +177,9 @@ export default function PhotoClassificationChatCard({ flowId }: { flowId: string
         <div className="olivia-select-match-card__section">
           <strong>✓ 데이터 폴더</strong>
           <p>{flow.rootDirName}<br />사진 {flow.fileCount.toLocaleString()}장</p>
+          {flow.photoMode === "field" && flow.departmentResolution.status === "resolved" ? (
+            <p>진료과 — {DEPARTMENT_DISPLAY[flow.departmentResolution.department]} 적용됨 · {PHOTO_DEPARTMENT_SOURCE_DISPLAY[flow.departmentResolution.source]}</p>
+          ) : null}
           <div className="olivia-select-match-card__actions">
             <button type="button" className="is-secondary" onClick={() => store().setStep(flowId, "picking_folder")}>다시 선택</button>
             <button type="button" onClick={afterFolderReady}>다음 →</button>

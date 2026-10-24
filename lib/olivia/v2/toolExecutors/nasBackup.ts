@@ -16,7 +16,7 @@ import { text } from "./common";
 import { internalFetcher } from "./http";
 import { createVerification } from "./verification";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
-import { departmentFromPhotoText } from "@/lib/photo-classifier/departmentResolver";
+import { resolveNasPhotoDepartment } from "@/lib/photo-classifier/departmentServerResolver";
 import { isPhotoAutomationAvailable } from "@/lib/photo-storage/photoAutomation";
 
 // NAS Backup Watcher — Phase 2 §5. Watcher 자체(Mac Studio nas-backup-watcher.ts)는 건드리지
@@ -78,27 +78,8 @@ async function departmentFromFolderOrRegisteredClient(
   db: ReturnType<typeof getSupabaseAdmin>,
   folderName: string,
 ): Promise<MedicalDepartment | null> {
-  const fromFolder = departmentFromPhotoText(folderName);
-  if (fromFolder) return fromFolder;
-  // 날짜 접두어만 제거한 정확한 고객명으로만 보완한다. 화면에 남아 있는 다른 고객을
-  // 사진 폴더 대상으로 대체하지 않는다.
-  const clientName = folderName.replace(/^\d{2,8}[\s._-]*/, "").trim();
-  if (clientName) {
-    try {
-      const { data, error } = await db
-        .from("clients")
-        .select("specialty,department")
-        .eq("hospital_name", clientName)
-        .maybeSingle();
-      const fromClient = !error && data
-        ? departmentFromPhotoText(String(data.specialty || data.department || ""))
-        : null;
-      if (fromClient) return fromClient;
-    } catch {
-      // 조회 실패는 진료과를 알았다는 근거가 아니다.
-    }
-  }
-  return null;
+  const resolution = await resolveNasPhotoDepartment(db, folderName);
+  return resolution.status === "resolved" ? resolution.department : null;
 }
 
 /** Worker가 명시적으로 AI 키 없음이라고 보고한 경우에는 분류 job 자체를 만들지 않는다. */

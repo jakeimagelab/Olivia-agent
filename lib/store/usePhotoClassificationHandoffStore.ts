@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
+import type { ResolvedPhotoDepartment } from "@/lib/photo-classifier/departmentResolver";
 
 // 채팅(PhotoClassificationChatCard)에서 모은 설정을 PhotoSortingWorkspace가 마운트될 때
 // 한 번 읽어가는 핸드오프 전용 스토어(PHASE 4, 2026-08-30). field/studio 리터럴은
@@ -8,6 +9,7 @@ import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 export type PhotoClassificationHandoff = {
   photoMode: "field" | "studio";
   department?: MedicalDepartment;
+  departmentResolution?: ResolvedPhotoDepartment;
   rootDir: FileSystemDirectoryHandle | null;
   rootDirName?: string;
   gapMinutes?: number;

@@ -181,11 +181,15 @@ export const DEPARTMENT_DISPLAY: Record<MedicalDepartment, string> = {
   dermatology: "피부과",
   dentistry: "치과",
   ophthalmology: "안과",
-  orthopedics_neurosurgery: "정형외과/신경외과",
+  orthopedics_neurosurgery: "근골격·통증계",
   pediatrics: "소아과",
   korean_medicine: "한의원",
   plastic_surgery: "성형외과",
   obgyn: "산부인과",
   internal_medicine_checkup: "내과/검진센터",
   general: "기타",
+};
+
+export const DEPARTMENT_DESCRIPTION: Partial<Record<MedicalDepartment, string>> = {
+  orthopedics_neurosurgery: "정형외과 · 신경외과 · 마취통증의학과 · 재활의학과",
 };
