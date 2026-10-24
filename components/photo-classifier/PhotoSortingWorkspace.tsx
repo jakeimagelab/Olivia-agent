@@ -4401,6 +4401,25 @@ function PhotoSortingInner({
               box-shadow: 0 0 0 3px rgba(79,216,184,.10);
               outline: none;
             }
+            @container (max-width: 700px) {
+              [data-photo-sorting-surface="workspace"] .pc-mobile-form-grid,
+              [data-photo-sorting-surface="workspace"] .pc-ai-auto-grid,
+              [data-photo-sorting-surface="workspace"] .ps-stat4 {
+                grid-template-columns: minmax(0, 1fr) !important;
+              }
+              [data-photo-sorting-surface="workspace"] .ps-btn-row {
+                align-items: stretch !important;
+                flex-direction: column !important;
+              }
+              [data-photo-sorting-surface="workspace"] .ps-wrap {
+                width: 100%;
+                max-width: none !important;
+                padding-inline: 12px;
+              }
+              [data-photo-sorting-surface="workspace"] > header > span:last-child {
+                display: none !important;
+              }
+            }
           `}</style>
         ) : null}
         {isEmbedded ? (

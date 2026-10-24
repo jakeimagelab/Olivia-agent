@@ -570,3 +570,44 @@
     grid-template-columns: 1fr;
   }
 }
+
+@container (max-width: 700px) {
+  .intro,
+  .submitRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workerState {
+    align-self: flex-start;
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .photoGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    padding: 7px;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    min-height: 44px;
+  }
+
+  .ocrHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ocrHeading span {
+    text-align: left;
+  }
+
+  .ocrNameList {
+    grid-template-columns: 1fr;
+  }
+}

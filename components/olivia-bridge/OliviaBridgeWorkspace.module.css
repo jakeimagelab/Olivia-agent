@@ -9,13 +9,14 @@
   position: relative;
   width: 100%;
   height: 100%;
-  min-height: 620px;
+  min-height: 0;
   display: grid;
   grid-template-rows: 58px minmax(0, 1fr);
   overflow: hidden;
   color: rgba(255, 255, 255, .86);
   background: var(--bridge-bg);
   outline: none;
+  container: olivia-bridge / size;
 }
 
 .bridge:fullscreen {
@@ -293,19 +294,27 @@
 .emptyState button { min-height: 40px; margin-top: 5px; padding: 0 18px; border: 1px solid rgba(79, 216, 184, .58); border-radius: 8px; color: #dffff6; background: transparent; font: 600 11px/1 inherit; cursor: pointer; }
 .noPhotos { min-height: 180px; display: grid; align-content: center; justify-items: center; gap: 8px; color: rgba(255, 255, 255, .4); font-size: 10px; }
 
-.floatingWindow { position: absolute; z-index: 30; top: 76px; left: 22px; display: grid; overflow: hidden; border: 1px solid rgba(79, 216, 184, .45); border-radius: 13px; background: #13272a; box-shadow: 0 24px 60px rgba(0, 0, 0, .42); }
-.floatingWindow > header { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 0 10px 0 18px; border-bottom: 1px solid var(--bridge-line); color: #fff; background: #123336; }
+.floatingWindow { position: absolute; z-index: 30; top: 0; left: 0; display: grid; overflow: hidden; border: 1px solid rgba(79, 216, 184, .45); border-radius: 13px; background: #13272a; box-shadow: 0 24px 60px rgba(0, 0, 0, .42); container-type: size; will-change: width, height, transform; }
+.floatingWindow > header { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--bridge-line); color: #fff; background: #123336; }
 .floatingWindow > header > div { min-width: 0; display: flex; align-items: baseline; gap: 9px; }
 .floatingWindow > header strong { font-size: 13px; font-weight: 600; }
 .floatingWindow > header span { overflow: hidden; color: rgba(255, 255, 255, .48); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .floatingWindow > header button { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 8px; color: rgba(255, 255, 255, .8); background: transparent; cursor: pointer; }
 .floatingWindow > header button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.floatingHeader { cursor: grab; touch-action: none; user-select: none; }
+.floatingHeader:active { cursor: grabbing; }
+.dragIndicator { flex: 0 0 auto; color: rgba(255, 255, 255, .38); }
+.resizeHandle { position: absolute; z-index: 4; touch-action: none; }
+.resizeEast { top: 54px; right: 0; bottom: 12px; width: 10px; cursor: ew-resize; }
+.resizeSouth { right: 12px; bottom: 0; left: 0; height: 10px; cursor: ns-resize; }
+.resizeSoutheast { right: 0; bottom: 0; width: 18px; height: 18px; cursor: nwse-resize; }
+.resizeSoutheast::after { content: ""; position: absolute; right: 4px; bottom: 4px; width: 8px; height: 8px; border-right: 1px solid rgba(255, 255, 255, .38); border-bottom: 1px solid rgba(255, 255, 255, .38); }
 
-.toolWindow { width: min(920px, calc(100% - 430px)); height: min(700px, calc(100% - 98px)); grid-template-rows: 54px minmax(0, 1fr); }
+.toolWindow { grid-template-rows: 54px minmax(0, 1fr); }
 .toolBody { min-height: 0; overflow: auto; background: #2a2a2a; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
 .toolLoading { min-height: 220px; display: flex; align-items: center; justify-content: center; gap: 8px; color: rgba(255, 255, 255, .62); font-size: 10px; }
 
-.sceneWindow { width: min(700px, calc(100% - 430px)); height: min(610px, calc(100% - 98px)); grid-template-rows: 54px auto minmax(0, 1fr) auto; }
+.sceneWindow { grid-template-rows: 54px auto minmax(0, 1fr) auto; }
 .sceneProgress { height: 4px; background: rgba(255, 255, 255, .08); }
 .sceneProgress span { height: 100%; display: block; background: var(--bridge-action); transition: width .18s ease; }
 .sceneError { display: flex; align-items: center; gap: 8px; margin: 12px 14px 0; padding: 10px; border: 1px solid rgba(201, 74, 30, .55); border-radius: 8px; color: #ffd1c0; background: rgba(201, 74, 30, .12); font-size: 9px; }
@@ -329,24 +338,20 @@
 @keyframes bridge-spin { to { transform: rotate(360deg); } }
 .bridge :focus-visible { outline: 2px solid var(--bridge-mint); outline-offset: 2px; }
 
-@media (max-width: 1240px) {
+@container olivia-bridge (max-width: 1240px) {
   .workspace { grid-template-columns: 190px minmax(360px, 1fr) minmax(330px, 38%); }
   .bridgeBar > strong { display: none; }
-  .toolWindow, .sceneWindow { width: min(780px, calc(100% - 370px)); }
-  .sceneGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 980px) {
+@container olivia-bridge (max-width: 980px) {
   .bridgeBar { gap: 7px; padding-inline: 9px; }
   .breadcrumbs { display: none; }
   .sceneStatusButton { min-width: 38px; width: 38px; padding: 0; }
   .sceneStatusButton span { display: none; }
   .workspace { grid-template-columns: 170px minmax(350px, 1fr) minmax(300px, 36%); }
-  .toolWindow, .sceneWindow { width: calc(100% - 64px); }
 }
 
-@media (max-width: 760px) {
-  .bridge { min-height: 600px; grid-template-rows: 54px minmax(0, 1fr); }
+@container olivia-bridge (max-width: 760px) {
   .folderPickerButton { width: 38px; padding: 0; justify-content: center; }
   .folderPickerButton:not(:focus) { font-size: 0; }
   .toolBar { overflow-x: auto; scrollbar-width: none; }
@@ -355,6 +360,16 @@
   .folderPanel { display: none; }
   .browserPanel { border-right: 0; border-bottom: 1px solid var(--bridge-line); }
   .previewPanel { min-height: 0; }
-  .floatingWindow { top: 62px; right: 8px; bottom: 8px; left: 8px; width: auto; height: auto; }
+}
+
+@container (max-width: 680px) {
   .sceneGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container (max-width: 540px) {
+  .floatingWindow > header > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .floatingWindow > header span { max-width: 100%; }
+  .sceneGrid { grid-template-columns: minmax(0, 1fr); }
+  .sceneWindow > footer { align-items: stretch; flex-direction: column; gap: 8px; }
+  .sceneWindow > footer button { width: 100%; }
 }

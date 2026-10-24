@@ -518,9 +518,24 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
   return (
     <main
       // OLIVIA OS Desktop UI 제안서 유형 D + 1.5 — 사진 색을 판단하는 화면이라 중성 회색.
+      data-photo-retouching-surface={embedded ? "workspace" : "standalone"}
       style={{ background: "#2A2A2A", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "rgba(255,255,255,.85)" }}
       onPaste={handleGlobalPaste}
     >
+      {embedded ? <style>{`
+        @container (max-width: 700px) {
+          [data-photo-retouching-surface="workspace"] .pc-mobile-stack,
+          [data-photo-retouching-surface="workspace"] .pc-mobile-form-grid {
+            grid-template-columns: minmax(0, 1fr) !important;
+          }
+          [data-photo-retouching-surface="workspace"] .pc-inline-tabs {
+            overflow-x: auto;
+          }
+          [data-photo-retouching-surface="workspace"] > header > span:last-child {
+            min-width: 0;
+          }
+        }
+      `}</style> : null}
       {embedded ? (
         <header style={{ height: 70, padding: "0 20px", borderBottom: "1px solid rgba(255,255,255,.10)", display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(79,216,184,.12)", color: "#4FD8B8", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Camera size={18} aria-hidden="true" /></span>

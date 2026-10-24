@@ -37,6 +37,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
+import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
@@ -47,6 +48,7 @@ import {
   type BridgeRawFile,
   type BridgeScene,
 } from "@/lib/photo-bridge/bridgeFiles";
+import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -228,6 +230,7 @@ export default function OliviaBridgeWorkspace() {
   const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
   const [sceneRunKey, setSceneRunKey] = useState(0);
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
+  const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
@@ -244,6 +247,10 @@ export default function OliviaBridgeWorkspace() {
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
   const focusedPhoto = scan.jpgs.find((photo) => photo.id === focusedId) ?? null;
   const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
+
+  const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
+    floatingWindowRectsRef.current[windowId] = rect;
+  }, []);
 
   useEffect(() => {
     setSelectedJpgNames(selectedNames);
@@ -518,15 +525,35 @@ export default function OliviaBridgeWorkspace() {
         </aside>
       </main>
 
-      {sceneReviewOpen ? <section className={`${styles.floatingWindow} ${styles.sceneWindow}`} role="dialog" aria-modal="false" aria-label="AI Scene 분류 검토">
-        <header><div><strong>AI Scene 분류 검토</strong><span>{sceneState.stage}</span></div><button type="button" onClick={() => setSceneReviewOpen(false)} aria-label="Scene 검토 닫기"><X size={19} /></button></header>
+      {sceneReviewOpen ? <BridgeFloatingWindow
+        windowId="scene-review"
+        variant="scene"
+        title="AI Scene 분류 검토"
+        subtitle={sceneState.stage}
+        ariaLabel="AI Scene 분류 검토"
+        containerRef={rootRef}
+        rect={floatingWindowRectsRef.current["scene-review"]}
+        onRectChange={(rect) => updateFloatingWindowRect("scene-review", rect)}
+        onClose={() => setSceneReviewOpen(false)}
+      >
         {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
         {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
         <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
         <footer><p>이 검토 단계에서는 파일을 이동하거나 이름을 바꾸지 않습니다.</p><button type="button" disabled={sceneState.status !== "complete"} onClick={() => { setSceneReviewOpen(false); setToolKey("classification"); }}><ScanSearch size={16} /> 승인하고 분류 실행</button></footer>
-      </section> : null}
+      </BridgeFloatingWindow> : null}
 
-      {activeTool ? <section className={`${styles.floatingWindow} ${styles.toolWindow}`} role="dialog" aria-modal="false" aria-label={`${activeTool.label} 도구`}><header><div><strong>{activeTool.label}</strong><span>{activeFolder?.name} · 선택 JPG {selectedNames.length}장</span></div><button type="button" onClick={() => setToolKey(undefined)} aria-label={`${activeTool.label} 닫기`}><X size={19} /></button></header><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} /></div></section> : null}
+      {activeTool ? <BridgeFloatingWindow
+        key={activeTool.key}
+        windowId={`tool-${activeTool.key}`}
+        variant="tool"
+        title={activeTool.label}
+        subtitle={`${activeFolder?.name} · 선택 JPG ${selectedNames.length}장`}
+        ariaLabel={`${activeTool.label} 도구`}
+        containerRef={rootRef}
+        rect={floatingWindowRectsRef.current[`tool-${activeTool.key}`]}
+        onRectChange={(rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect)}
+        onClose={() => setToolKey(undefined)}
+      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} /></div></BridgeFloatingWindow> : null}
 
       {fullscreenPreviewOpen && focusedPhoto ? (
         <BridgeFullscreenPreview
