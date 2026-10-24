@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectBridgeSidecarRatedNames, readRatingFromXmpText } from "@/lib/selectMatch/bridgeRating";
+import { collectAdobeBridgeRatings, collectBridgeSidecarRatedNames, readRatingFromXmpText } from "@/lib/selectMatch/bridgeRating";
 import type { SelectMatchFolderGroup } from "@/lib/selectMatch/folderScanner";
 
 function sidecarDirectory(ratings: Record<string, string>): FileSystemDirectoryHandle {
@@ -52,5 +52,24 @@ describe("Bridge 별점 사이드카", () => {
     const result = await collectBridgeSidecarRatedNames([group({})]);
     expect(result.names).toEqual(new Set());
     expect(result.scanned).toBe(3);
+  });
+
+  it("Adobe Bridge의 사이드카와 JPG 내장 XMP 별점을 함께 수집한다", async () => {
+    const embeddedFile = (text: string) => ({
+      slice: () => ({ arrayBuffer: async () => new TextEncoder().encode(text).buffer }),
+    }) as unknown as File;
+    const ratings = await collectAdobeBridgeRatings(
+      sidecarDirectory({ "DSC_001.xmp": '<rdf:Description xmp:Rating="4" />' }),
+      [
+        { name: "DSC_001.JPG", file: embeddedFile("") },
+        { name: "DSC_002.JPG", file: embeddedFile('<x:xmpmeta><rdf:Description xmp:Rating="2" /></x:xmpmeta>') },
+        { name: "DSC_003.JPG", file: embeddedFile('<x:xmpmeta><rdf:Description xmp:Rating="0" /></x:xmpmeta>') },
+      ],
+    );
+
+    expect([...ratings.entries()]).toEqual([
+      ["dsc_001", 4],
+      ["dsc_002", 2],
+    ]);
   });
 });

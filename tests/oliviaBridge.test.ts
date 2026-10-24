@@ -13,6 +13,7 @@ import { getDesktopShortcutApps, getDockApps, getOliviaAppByRoute } from "@/comp
 import { DESKTOP_APP_TO_WORKSPACE } from "@/components/olivia-os/useOliviaDesktopContextBridge";
 import {
   mergePhotoToolRatings,
+  mergePhotoToolSelectionSources,
   normalizePhotoToolFileKey,
   normalizePhotoToolSelectionNames,
   samePhotoToolSelectionNames,
@@ -53,6 +54,11 @@ describe("Olivia Bridge", () => {
       "IMG_0002.JPG",
     ]);
     expect(samePhotoToolSelectionNames(["IMG_0001.JPG"], ["img_0001"])).toBe(true);
+    expect([...mergePhotoToolSelectionSources(new Set(["olivia-a", "shared"]), new Set(["adobe-b", "shared"]))]).toEqual([
+      "olivia-a",
+      "shared",
+      "adobe-b",
+    ]);
 
     const fromXmp = mergePhotoToolRatings({ img_0001: 5 }, { "IMG_0001.JPG": 2, "IMG_0002.JPG": 3 });
     expect(fromXmp).toEqual({ img_0001: 5, img_0002: 3 });
@@ -86,7 +92,10 @@ describe("Olivia Bridge", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
-    expect(workspace).toContain("Scene {sceneState.scenes.length.toLocaleString");
+    expect(workspace).toContain("Scene {selectedScenes.length.toLocaleString");
+    expect(workspace).toContain("collectAdobeBridgeRatings");
+    expect(workspace).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
+    expect(workspace).toContain("rebuildBridgeSceneAnalysis(sceneState.analysis.files.filter");
     expect(workspace).toContain("계획 적용하고 Scene 검토");
     expect(workspace).toContain("stageBridgeClassificationPlan");
     expect(workspace).toContain("sceneApprovalSummary");

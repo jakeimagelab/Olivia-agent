@@ -1,4 +1,5 @@
 import type { SelectMatchFolderGroup } from "@/lib/selectMatch/folderScanner";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 
 export function readRatingFromXmpText(text: string): number | null {
   const match = text.match(/xmp:Rating[^>]*>\s*([1-5])\s*</i)
@@ -33,6 +34,37 @@ export async function readRatingEmbedded(file: File): Promise<number | null> {
   } catch {
     return null;
   }
+}
+
+export type AdobeBridgeRatingCandidate = {
+  name: string;
+  file: File;
+};
+
+export async function collectAdobeBridgeRatings(
+  directory: FileSystemDirectoryHandle,
+  photos: readonly AdobeBridgeRatingCandidate[],
+  options: { concurrency?: number; signal?: AbortSignal } = {},
+): Promise<Map<string, number>> {
+  const ratings = new Map<string, number>();
+  let cursor = 0;
+  const concurrency = Math.min(Math.max(1, options.concurrency ?? 12), Math.max(1, photos.length));
+
+  const worker = async () => {
+    while (!options.signal?.aborted) {
+      const index = cursor++;
+      if (index >= photos.length) return;
+      const photo = photos[index];
+      const basename = photo.name.replace(/\.[^.]+$/, "");
+      const rating = await readRatingSidecar(directory, basename)
+        ?? await readRatingEmbedded(photo.file);
+      if (rating !== null) ratings.set(normalizePhotoToolFileKey(photo.name), rating);
+    }
+  };
+
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+  if (options.signal?.aborted) throw new DOMException("작업이 취소되었습니다.", "AbortError");
+  return ratings;
 }
 
 export async function collectBridgeSidecarRatedNames(

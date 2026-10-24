@@ -95,9 +95,6 @@ export function validateBridgeClassificationPlan(
   }
 
   const currentByName = new Map(current.jpgs.map((file) => [normalizedFileName(file.name), file]));
-  if (currentByName.size !== plan.files.length || current.jpgs.length !== plan.files.length) {
-    return { ok: false, message: "Bridge 분석 뒤 JPG가 추가되거나 삭제되었습니다. 현재 폴더를 다시 분석해 주세요." };
-  }
   for (const planned of plan.files) {
     const found = currentByName.get(normalizedFileName(planned.name));
     if (!found) {

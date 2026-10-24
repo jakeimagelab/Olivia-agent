@@ -6,7 +6,7 @@ import {
   validateBridgeClassificationPlan,
   type BridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlan";
-import type { BridgeSceneAnalysis } from "@/lib/photo-bridge/bridgeFiles";
+import { rebuildBridgeSceneAnalysis, type BridgeSceneAnalysis } from "@/lib/photo-bridge/bridgeFiles";
 import type { SceneBoundaryDecision } from "@/lib/photo-classifier/hybrid-types";
 import { manualPhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
 
@@ -97,11 +97,22 @@ describe("Bridge classification plan", () => {
     expect(validateBridgeClassificationPlan(plan(), { sameFolder: true, folderName: "촬영본", jpgs: current })).toEqual({ ok: true });
   });
 
-  it("JPG 추가·변경과 다른 폴더를 거부한다", () => {
+  it("미선택 JPG는 허용하고 선택 JPG 변경과 다른 폴더는 거부한다", () => {
     const current = analysis().files.map(({ name, size, lastModified }) => ({ name, size, lastModified }));
     expect(validateBridgeClassificationPlan(plan(), { sameFolder: false, folderName: "촬영본", jpgs: current })).toMatchObject({ ok: false });
-    expect(validateBridgeClassificationPlan(plan(), { sameFolder: true, folderName: "촬영본", jpgs: [...current, { name: "D.JPG", size: 1, lastModified: 1 }] })).toMatchObject({ ok: false });
+    expect(validateBridgeClassificationPlan(plan(), { sameFolder: true, folderName: "촬영본", jpgs: [...current, { name: "D.JPG", size: 1, lastModified: 1 }] })).toEqual({ ok: true });
+    expect(validateBridgeClassificationPlan(plan(), { sameFolder: true, folderName: "촬영본", jpgs: current.filter((entry) => entry.name !== "B.JPG") })).toMatchObject({ ok: false });
     expect(validateBridgeClassificationPlan(plan(), { sameFolder: true, folderName: "촬영본", jpgs: current.map((entry) => entry.name === "B.JPG" ? { ...entry, size: 999 } : entry) })).toMatchObject({ ok: false });
+  });
+
+  it("선택한 파일만 새 Scene 계획으로 다시 계산한다", () => {
+    const selected = analysis().files.filter((entry) => entry.name !== "B.JPG");
+    const result = rebuildBridgeSceneAnalysis(selected);
+
+    expect(result.files.map((entry) => entry.name)).toEqual(["A.JPG", "C.JPG"]);
+    expect(result.scenes.reduce((count, scene) => count + scene.fileCount, 0)).toBe(2);
+    expect(result.scenes[0]?.startIndex).toBe(0);
+    expect(result.scenes.at(-1)?.endIndex).toBe(2);
   });
 
   it("겹치거나 비어 있는 Scene 범위를 거부한다", () => {

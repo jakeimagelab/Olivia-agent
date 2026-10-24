@@ -24,6 +24,10 @@ export function samePhotoToolSelectionNames(left: readonly string[], right: read
   return leftKeys.length === rightKeys.length && leftKeys.every((key, index) => key === rightKeys[index]);
 }
 
+export function mergePhotoToolSelectionSources(...sources: ReadonlySet<string>[]): Set<string> {
+  return new Set(sources.flatMap((source) => [...source]));
+}
+
 export function mergePhotoToolRatings(
   current: Readonly<PhotoToolRatings>,
   incoming: Readonly<Record<string, number | null | undefined>>,

@@ -240,7 +240,18 @@ export async function analyzeBridgeScenes(input: {
   };
   const firstValid = features.find((feature): feature is LocalVisualFeatures => Boolean(feature)) ?? blank;
   const safeFeatures = features.map((feature, index) => feature ?? features[index - 1] ?? firstValid);
-  const candidates = buildVisualBoundaryCandidates(files, safeFeatures, settings);
+  const analyzedFiles = files.map((file, index) => ({ ...file, visualFeatures: safeFeatures[index] }));
+  input.onProgress?.(files.length, files.length, "Scene 계획 만드는 중");
+  return rebuildBridgeSceneAnalysis(analyzedFiles);
+}
+
+export function rebuildBridgeSceneAnalysis(
+  files: readonly BridgeAnalyzedJpgFile[],
+): BridgeSceneAnalysis {
+  if (files.length === 0) return { files: [], boundaries: [], scenes: [] };
+  const settings = getClassificationSettings("default", "precise");
+  const safeFeatures = files.map((file) => file.visualFeatures);
+  const candidates = buildVisualBoundaryCandidates([...files], safeFeatures, settings);
   const decisions: SceneBoundaryDecision[] = candidates.map((candidate) => decideBoundary({
     candidate,
     analysis: null,
@@ -250,7 +261,6 @@ export async function analyzeBridgeScenes(input: {
     aiFailed: candidate.requiresAi,
   }));
   const stabilized = stabilizeBoundaries(decisions, files.length, settings.minimumSceneImages);
-  input.onProgress?.(files.length, files.length, "Scene 계획 만드는 중");
   const scenes = buildSceneRangesFromBoundaries(files.length, stabilized).map((range) => {
     const representativeIndex = Math.min(range.endIndex - 1, range.startIndex + Math.floor((range.endIndex - range.startIndex) / 2));
     return {
@@ -266,7 +276,7 @@ export async function analyzeBridgeScenes(input: {
     };
   });
   return {
-    files: files.map((file, index) => ({ ...file, visualFeatures: safeFeatures[index] })),
+    files: [...files],
     boundaries: stabilized,
     scenes,
   };
