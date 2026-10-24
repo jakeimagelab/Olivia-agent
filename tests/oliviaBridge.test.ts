@@ -83,6 +83,9 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("Space 전체화면");
     expect(workspace).not.toContain("Space 선택");
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*object-fit:\s*contain/);
+    expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*width:\s*auto[\s\S]*height:\s*auto/);
+    expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*max-width:\s*100%[\s\S]*max-height:\s*100%/);
+    expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*image-orientation:\s*from-image/);
     expect(styles).toContain(".bridge:fullscreen");
   });
 
