@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bridgeMarqueeSelection,
+  bridgeMarqueeUsesAdditiveSelection,
   bridgeRectangleFromPoints,
   bridgeRectanglesIntersect,
 } from "@/lib/photo-bridge/marqueeSelection";
@@ -36,5 +37,12 @@ describe("Olivia Bridge marquee selection", () => {
       hits: new Set(["photo-1", "photo-2"]),
       additive: true,
     })]).toEqual(["old", "photo-1", "photo-2"]);
+  });
+
+  it("treats Command, Control, and Shift as additive marquee modifiers", () => {
+    expect(bridgeMarqueeUsesAdditiveSelection({ metaKey: true, ctrlKey: false, shiftKey: false })).toBe(true);
+    expect(bridgeMarqueeUsesAdditiveSelection({ metaKey: false, ctrlKey: true, shiftKey: false })).toBe(true);
+    expect(bridgeMarqueeUsesAdditiveSelection({ metaKey: false, ctrlKey: false, shiftKey: true })).toBe(true);
+    expect(bridgeMarqueeUsesAdditiveSelection({ metaKey: false, ctrlKey: false, shiftKey: false })).toBe(false);
   });
 });

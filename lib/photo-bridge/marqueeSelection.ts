@@ -25,3 +25,11 @@ export function bridgeMarqueeSelection(input: {
   if (!input.additive) return new Set(input.hits);
   return new Set([...input.initial, ...input.hits]);
 }
+
+export function bridgeMarqueeUsesAdditiveSelection(input: {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+}) {
+  return input.metaKey || input.ctrlKey || input.shiftKey;
+}

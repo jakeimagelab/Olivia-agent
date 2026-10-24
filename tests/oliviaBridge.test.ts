@@ -34,6 +34,22 @@ describe("Olivia Bridge", () => {
     expect([...added]).toEqual(["b", "d"]);
     const range = updateBridgeSelection({ current: new Set(), orderedIds: ids, clickedId: "d", anchorId: "b", additive: false, range: true });
     expect([...range]).toEqual(["b", "c", "d"]);
+    const addedRange = updateBridgeSelection({ current: new Set(["a"]), orderedIds: ids, clickedId: "d", anchorId: "b", additive: true, range: true });
+    expect([...addedRange]).toEqual(["a", "b", "c", "d"]);
+    const removed = updateBridgeSelection({ current: new Set(["b", "d"]), orderedIds: ids, clickedId: "b", anchorId: "d", additive: true, range: false });
+    expect([...removed]).toEqual(["d"]);
+  });
+
+  it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+
+    expect(workspace).toContain('event.target.closest("[data-bridge-photo-id]")');
+    expect(workspace).toContain("if (suppressThumbnailClickRef.current) return;");
+    expect(workspace).toMatch(/session\.started = true;[\s\S]*fileArea\.setPointerCapture\(event\.pointerId\)/);
+    expect(workspace).toContain("onContextMenu={(event) => { if (!isMacControlClick(event)) return;");
+    expect(workspace).toContain("setSelectedIds(new Set())");
+    expect(workspace).toContain("setAnchorId(null)");
+    expect(workspace).toContain("setFocusedId(null)");
   });
 
   it("폴더 스캔은 JPG·RAW·사이드카 메타데이터와 하위 폴더를 유지한다", async () => {

@@ -59,6 +59,7 @@ import {
 } from "@/lib/photo-bridge/paneLayout";
 import {
   bridgeMarqueeSelection,
+  bridgeMarqueeUsesAdditiveSelection,
   bridgeRectangleFromPoints,
   bridgeRectanglesIntersect,
   type BridgePoint,
@@ -115,6 +116,11 @@ type MarqueeSession = {
 };
 
 const EMPTY_SCAN: BridgeFolderScan = { folders: [], jpgs: [], raws: [], sidecars: [], ignoredCount: 0 };
+
+function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
+  if (!event.ctrlKey || event.metaKey) return false;
+  return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+}
 
 const TOOL_ITEMS: Array<{
   key: ToolKey;
@@ -843,19 +849,26 @@ export default function OliviaBridgeWorkspace() {
                 event.preventDefault();
                 event.stopPropagation();
               }}
+              onClick={(event) => {
+                if (suppressThumbnailClickRef.current) return;
+                if (event.target instanceof Element && event.target.closest("[data-bridge-photo-id]")) return;
+                setSelectedIds(new Set());
+                setAnchorId(null);
+                setFocusedId(null);
+                setPreviewSize(undefined);
+              }}
               onPointerDown={(event) => {
                 if (event.button !== 0 || event.pointerType !== "mouse") return;
                 marqueeSessionRef.current = {
                   pointerId: event.pointerId,
                   start: { x: event.clientX, y: event.clientY },
                   current: { x: event.clientX, y: event.clientY },
-                  additive: event.metaKey || event.ctrlKey,
+                  additive: bridgeMarqueeUsesAdditiveSelection(event),
                   initialSelection: new Set(selectedIds),
                   currentSelection: new Set(selectedIds),
                   started: false,
                   cards: [],
                 };
-                event.currentTarget.setPointerCapture(event.pointerId);
               }}
               onPointerMove={(event) => {
                 const session = marqueeSessionRef.current;
@@ -866,6 +879,7 @@ export default function OliviaBridgeWorkspace() {
                   if (distance < 6) return;
                   session.started = true;
                   const fileArea = event.currentTarget;
+                  fileArea.setPointerCapture(event.pointerId);
                   fileArea.dataset.marqueeActive = "true";
                   session.cards = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]")).map((element) => {
                     const bounds = element.getBoundingClientRect();
@@ -891,7 +905,7 @@ export default function OliviaBridgeWorkspace() {
                   const rating = ratings[photo.id] ?? 0;
                   const colorLabel = colorLabels[photo.id];
                   const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => choosePhoto(photo, event)} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
@@ -899,7 +913,7 @@ export default function OliviaBridgeWorkspace() {
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 
