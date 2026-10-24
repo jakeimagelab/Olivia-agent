@@ -1,17 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { bridgeFileKind, partitionBridgeFileNames, scanBridgeFolder, updateBridgeSelection } from "@/lib/photo-bridge/bridgeFiles";
-import { getOliviaAppByRoute } from "@/components/olivia-os/registry/oliviaAppRegistry";
+import { getDesktopShortcutApps, getDockApps, getOliviaAppByRoute } from "@/components/olivia-os/registry/oliviaAppRegistry";
 import { DESKTOP_APP_TO_WORKSPACE } from "@/components/olivia-os/useOliviaDesktopContextBridge";
 
 describe("Olivia Bridge", () => {
-  it("JPG와 RAW는 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
+  it("JPG·RAW·사이드카를 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
     expect(bridgeFileKind("IMG_1001.JPG")).toBe("jpg");
     expect(bridgeFileKind("IMG_1001.ARW")).toBe("raw");
+    expect(bridgeFileKind("IMG_1001.XMP")).toBe("sidecar");
     expect(bridgeFileKind("._IMG_1001.JPG")).toBe("other");
-    expect(partitionBridgeFileNames(["A.JPG", "A.CR3", "note.txt", ".DS_Store"])).toEqual({
+    expect(partitionBridgeFileNames(["A.JPG", "A.CR3", "A.XMP", "note.txt", ".DS_Store"])).toEqual({
       jpg: ["A.JPG"],
       raw: ["A.CR3"],
+      sidecar: ["A.XMP"],
       other: ["note.txt", ".DS_Store"],
     });
   });
@@ -26,7 +28,7 @@ describe("Olivia Bridge", () => {
     expect([...range]).toEqual(["b", "c", "d"]);
   });
 
-  it("폴더 스캔은 JPG와 RAW 메타데이터만 읽고 하위 폴더를 유지한다", async () => {
+  it("폴더 스캔은 JPG·RAW·사이드카 메타데이터와 하위 폴더를 유지한다", async () => {
     const fileHandle = (name: string, size: number) => ({
       kind: "file",
       name,
@@ -39,6 +41,7 @@ describe("Olivia Bridge", () => {
       async *entries() {
         yield ["IMG_2.JPG", fileHandle("IMG_2.JPG", 20)] as [string, FileSystemHandle];
         yield ["IMG_1.ARW", fileHandle("IMG_1.ARW", 40)] as [string, FileSystemHandle];
+        yield ["IMG_1.XMP", fileHandle("IMG_1.XMP", 4)] as [string, FileSystemHandle];
         yield ["촬영 2일차", child] as [string, FileSystemHandle];
         yield ["._IMG_2.JPG", fileHandle("._IMG_2.JPG", 5)] as [string, FileSystemHandle];
       },
@@ -48,12 +51,17 @@ describe("Olivia Bridge", () => {
 
     expect(result.jpgs.map((item) => [item.name, item.size])).toEqual([["IMG_2.JPG", 20]]);
     expect(result.raws.map((item) => [item.name, item.size])).toEqual([["IMG_1.ARW", 40]]);
+    expect(result.sidecars.map((item) => [item.name, item.size])).toEqual([["IMG_1.XMP", 4]]);
     expect(result.folders.map((item) => item.name)).toEqual(["촬영 2일차"]);
     expect(result.ignoredCount).toBe(1);
   });
 
   it("OliviaOS 네이티브 앱과 사진 작업 컨텍스트로 등록된다", () => {
-    expect(getOliviaAppByRoute("/olivia-bridge")?.id).toBe("olivia-bridge");
+    expect(getOliviaAppByRoute("/olivia-bridge")).toMatchObject({ id: "olivia-bridge", title: "사진작업실" });
+    expect(getDesktopShortcutApps().map((app) => app.id)).toContain("olivia-bridge");
+    expect(getDesktopShortcutApps().map((app) => app.id)).not.toContain("photo-workspace");
+    expect(getDockApps().map((app) => app.id)).toContain("olivia-bridge");
+    expect(getDockApps().map((app) => app.id)).not.toContain("photo-workspace");
     expect(DESKTOP_APP_TO_WORKSPACE["olivia-bridge"]).toBe("photo-sort");
   });
 });

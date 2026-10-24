@@ -17,6 +17,7 @@ describe("integrated workspace registry", () => {
       "콘텐츠 스튜디오",
       "리포트 · 인사이트",
     ]);
+    expect(WORKSPACE_GROUPS.find((group) => group.id === "photo")?.href).toBe("/olivia-bridge");
   });
 
   it("removes grouped tools from the standalone launcher without deleting ALL_TOOLS", () => {

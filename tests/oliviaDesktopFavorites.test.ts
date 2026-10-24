@@ -32,4 +32,12 @@ describe("Olivia Desktop favorites", () => {
       "/portrait-consent",
     ])).toEqual(["/conti", "app:conti", "/video-studio", "/portrait-consent"]);
   });
+
+  it("migrates old photo workspace favorites to Olivia Bridge", () => {
+    expect(normalizeDesktopFavoriteKeys([
+      "/photo-sorting",
+      "app:photo-workspace",
+      "/olivia-bridge",
+    ])).toEqual(["/olivia-bridge"]);
+  });
 });

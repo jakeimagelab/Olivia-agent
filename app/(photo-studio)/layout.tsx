@@ -7,7 +7,7 @@ import { PhotoStudioExecutionProvider, usePhotoStudioExecution } from "@/compone
 import RemoteUnsupportedNotice from "@/components/photo-workspace/RemoteUnsupportedNotice";
 
 const TITLE: Record<string, { title: string; description: string }> = {
-  "/olivia-bridge":    { title: "Olivia Bridge",      description: "폴더를 중심으로 사진을 탐색하고 기존 사진 도구를 한 화면에서 실행합니다." },
+  "/olivia-bridge":    { title: "사진작업실",         description: "Olivia Bridge에서 폴더를 중심으로 사진을 탐색하고 기존 사진 도구를 실행합니다." },
   "/photo-sorting":    { title: "사진 분류",         description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." },
   "/photo-retouching": { title: "사진 보정",         description: "사진을 업로드해 AI로 피부톤 또는 가운 색을 기준과 비교하고 Photoshop·Camera Raw 보정값을 제공합니다." },
   "/raw-select":       { title: "T컷 정리",          description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 안전하게 이동합니다." },

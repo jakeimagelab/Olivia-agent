@@ -29,7 +29,7 @@ describe("actionRouter — OLIVIA OS routing", () => {
     executeOliviaAction({ type: "OPEN_WORKSPACE", workspace: "photo-sort" });
 
     expect(window.location.pathname).toBe("/");
-    expect(useOliviaDesktopStore.getState().windows["photo-workspace"]).toBeDefined();
+    expect(useOliviaDesktopStore.getState().windows["olivia-bridge"]).toBeDefined();
   });
 
   it("SWITCH_WORKSPACE(contract)는 OS 라우트에서 AppWindow만 연다", () => {

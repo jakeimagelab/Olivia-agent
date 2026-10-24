@@ -28,7 +28,7 @@ const HREF_TO_DISPLAY_CATEGORY: Record<string, DisplayCategory> = {
   "/calendar": "schedule",
   "/work-journal": "schedule",
   "/select-galleries": "media",
-  "/photo-sorting": "media",
+  "/olivia-bridge": "media",
   "/video-studio": "media",
   "/select-match": "media",
   "/metadata-select": "media",

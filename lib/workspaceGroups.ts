@@ -29,7 +29,7 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
     id: "photo",
     title: "사진작업실",
     description: "JPG정리부터 사진 셀렉, RAW 매칭, 분류와 후반 작업까지 한 곳에서.",
-    href: "/photo-sorting",
+    href: "/olivia-bridge",
     icon: Camera,
     accent: "mint",
     aliases: ["사진 작업실", "포토 작업실", "사진 도구"],
@@ -115,7 +115,10 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
 ] as const;
 
 const integratedHrefs = new Set(
-  WORKSPACE_GROUPS.flatMap((group) => group.tools.flatMap((tool) => tool.sourceHrefs)),
+  WORKSPACE_GROUPS.flatMap((group) => [
+    group.href,
+    ...group.tools.flatMap((tool) => tool.sourceHrefs),
+  ]),
 );
 
 const canonicalHrefBySource = new Map<string, string>();

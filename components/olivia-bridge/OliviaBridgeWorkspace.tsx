@@ -2,24 +2,30 @@
 
 import dynamic from "next/dynamic";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
+  File,
   Folder,
   FolderOpen,
-  Image as ImageIcon,
+  FolderPlus,
+  Images,
   LayoutGrid,
+  Link2,
   LoaderCircle,
-  Maximize2,
   Minus,
-  PanelLeftClose,
-  PanelRightClose,
+  PencilLine,
   Plus,
   RefreshCw,
+  Scaling,
   ScanSearch,
+  Scissors,
   Sparkles,
   Star,
+  WandSparkles,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import {
   useCallback,
@@ -38,6 +44,7 @@ import {
   updateBridgeSelection,
   type BridgeFolderScan,
   type BridgeJpgFile,
+  type BridgeRawFile,
   type BridgeScene,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
@@ -62,24 +69,26 @@ type SceneState = {
   error?: string;
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
+type FileFilter = "all" | "jpg" | "raw" | "sidecar" | "rated" | "excluded";
 
-const EMPTY_SCAN: BridgeFolderScan = { folders: [], jpgs: [], raws: [], ignoredCount: 0 };
+const EMPTY_SCAN: BridgeFolderScan = { folders: [], jpgs: [], raws: [], sidecars: [], ignoredCount: 0 };
 
 const TOOL_ITEMS: Array<{
   key: ToolKey;
   label: string;
+  icon: LucideIcon;
   mode: PhotoWorkspaceMode;
   selectMode?: PhotoSelectMode;
   fileOpsMode?: PhotoFileOpsMode;
 }> = [
-  { key: "jpg-prep", label: "JPG 정리", mode: "jpg-prep" },
-  { key: "select", label: "사진 셀렉", mode: "select", selectMode: "manual" },
-  { key: "raw-match", label: "RAW 매칭", mode: "raw-match" },
-  { key: "classification", label: "사진 분류", mode: "classification" },
-  { key: "tcut", label: "T컷 정리", mode: "select", selectMode: "tcut" },
-  { key: "resize", label: "리사이즈", mode: "file-ops", fileOpsMode: "resize" },
-  { key: "rename", label: "이름변경", mode: "file-ops", fileOpsMode: "rename" },
-  { key: "retouch", label: "사진 보정", mode: "retouch" },
+  { key: "jpg-prep", label: "JPG 정리", icon: Images, mode: "jpg-prep" },
+  { key: "select", label: "사진 셀렉", icon: Check, mode: "select", selectMode: "manual" },
+  { key: "raw-match", label: "RAW 매칭", icon: Link2, mode: "raw-match" },
+  { key: "classification", label: "사진 분류", icon: ScanSearch, mode: "classification" },
+  { key: "tcut", label: "T컷 정리", icon: Scissors, mode: "select", selectMode: "tcut" },
+  { key: "resize", label: "사진 리사이즈", icon: Scaling, mode: "file-ops", fileOpsMode: "resize" },
+  { key: "rename", label: "이름변경", icon: PencilLine, mode: "file-ops", fileOpsMode: "rename" },
+  { key: "retouch", label: "사진 보정", icon: WandSparkles, mode: "retouch" },
 ];
 
 const thumbnailCache = new Map<string, Promise<string>>();
@@ -134,14 +143,27 @@ function BridgeThumbnail({ photo, alt = "", eager = false }: { photo: BridgeJpgF
   return <div ref={hostRef} className={styles.thumbnailMedia}>{url ? <img src={url} alt={alt} draggable={false} decoding="async" /> : <LoaderCircle className={styles.spin} size={18} aria-label="썸네일 불러오는 중" />}</div>;
 }
 
-function BridgePreviewImage({ photo }: { photo: BridgeJpgFile }) {
+function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize: (size: { width: number; height: number }) => void }) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     const next = URL.createObjectURL(photo.file);
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [photo]);
-  return url ? <img src={url} alt={photo.name} draggable={false} decoding="async" /> : <LoaderCircle className={styles.spin} size={24} />;
+  return url ? (
+    <img src={url} alt={photo.name} draggable={false} decoding="async" onLoad={(event) => onSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />
+  ) : <LoaderCircle className={styles.spin} size={24} />;
+}
+
+function PlainFileCard({ file }: { file: BridgeRawFile }) {
+  return (
+    <article className={styles.plainFileCard}>
+      <File size={30} strokeWidth={1.5} aria-hidden="true" />
+      <span>{file.extension}</span>
+      <strong title={file.name}>{file.name}</strong>
+      <small>{formatBytes(file.size)}</small>
+    </article>
+  );
 }
 
 function formatBytes(bytes: number) {
@@ -155,13 +177,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 export default function OliviaBridgeWorkspace() {
   const picker = usePhotoFolderPicker();
-  const {
-    currentLocalFolder,
-    setCurrentLocalFolder,
-    setSelectedJpgNames,
-    setSelectedJpgFiles,
-    setExecutionMode,
-  } = usePhotoStudioExecution();
+  const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, setSelectedJpgFiles, setExecutionMode } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -169,13 +185,13 @@ export default function OliviaBridgeWorkspace() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [toolKey, setToolKey] = useState<ToolKey>();
-  const [thumbnailSize, setThumbnailSize] = useState(154);
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
+  const [thumbnailSize, setThumbnailSize] = useState(156);
+  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [] });
   const [sceneRunKey, setSceneRunKey] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -183,8 +199,16 @@ export default function OliviaBridgeWorkspace() {
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
-  const focusedIndex = useMemo(() => scan.jpgs.findIndex((photo) => photo.id === focusedId), [focusedId, scan.jpgs]);
-  const focusedPhoto = focusedIndex >= 0 ? scan.jpgs[focusedIndex] : null;
+  const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
+    if (fileFilter === "raw" || fileFilter === "sidecar") return false;
+    if (fileFilter === "rated") return Boolean(ratings[photo.id]);
+    if (fileFilter === "excluded") return excludedIds.has(photo.id);
+    return true;
+  }), [excludedIds, fileFilter, ratings, scan.jpgs]);
+  const showRaws = fileFilter === "all" || fileFilter === "raw";
+  const showSidecars = fileFilter === "all" || fileFilter === "sidecar";
+  const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
+  const focusedPhoto = scan.jpgs.find((photo) => photo.id === focusedId) ?? null;
   const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
 
   useEffect(() => {
@@ -194,9 +218,8 @@ export default function OliviaBridgeWorkspace() {
 
   useEffect(() => {
     if (!folderPath) return;
-    const key = `olivia-bridge:marks:${folderPath}`;
     try {
-      localStorage.setItem(key, JSON.stringify({ ratings, excluded: [...excludedIds] }));
+      localStorage.setItem(`olivia-bridge:marks:${folderPath}`, JSON.stringify({ ratings, excluded: [...excludedIds] }));
     } catch (error) {
       void error;
     }
@@ -205,7 +228,8 @@ export default function OliviaBridgeWorkspace() {
   const loadDirectory = useCallback(async (directory: FileSystemDirectoryHandle, trail: Breadcrumb[]) => {
     setScanStatus("loading");
     setScanError(undefined);
-    setPreviewOpen(false);
+    setToolKey(undefined);
+    setSceneReviewOpen(false);
     try {
       const nextPath = trail.map((item) => item.name).join(" / ");
       const next = await scanBridgeFolder(directory, nextPath);
@@ -222,6 +246,8 @@ export default function OliviaBridgeWorkspace() {
       setSelectedIds(new Set());
       setAnchorId(null);
       setFocusedId(next.jpgs[0]?.id ?? null);
+      setPreviewSize(undefined);
+      setFileFilter("all");
       setCurrentLocalFolder(directory);
       setExecutionMode("LOCAL_DIRECT");
       setScanStatus("ready");
@@ -263,29 +289,24 @@ export default function OliviaBridgeWorkspace() {
   }, [activeFolder, folderPath, scan.jpgs, scanStatus, sceneRunKey]);
 
   const choosePhoto = useCallback((photo: BridgeJpgFile, event: ReactMouseEvent) => {
-    const next = updateBridgeSelection({
-      current: selectedIds,
-      orderedIds: scan.jpgs.map((item) => item.id),
-      clickedId: photo.id,
-      anchorId,
-      additive: event.metaKey || event.ctrlKey,
-      range: event.shiftKey,
-    });
+    const next = updateBridgeSelection({ current: selectedIds, orderedIds: visibleJpgs.map((item) => item.id), clickedId: photo.id, anchorId, additive: event.metaKey || event.ctrlKey, range: event.shiftKey });
     setSelectedIds(next);
     setAnchorId(photo.id);
     setFocusedId(photo.id);
-  }, [anchorId, scan.jpgs, selectedIds]);
+    setPreviewSize(undefined);
+  }, [anchorId, selectedIds, visibleJpgs]);
 
   const moveFocus = useCallback((delta: number) => {
-    if (!scan.jpgs.length) return;
+    if (!visibleJpgs.length) return;
     const current = focusedIndex >= 0 ? focusedIndex : 0;
-    const nextIndex = Math.max(0, Math.min(scan.jpgs.length - 1, current + delta));
-    const next = scan.jpgs[nextIndex];
+    const nextIndex = Math.max(0, Math.min(visibleJpgs.length - 1, current + delta));
+    const next = visibleJpgs[nextIndex];
     setFocusedId(next.id);
     setSelectedIds(new Set([next.id]));
     setAnchorId(next.id);
+    setPreviewSize(undefined);
     document.querySelector<HTMLElement>(`[data-bridge-photo-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [focusedIndex, scan.jpgs]);
+  }, [focusedIndex, visibleJpgs]);
 
   const applyRating = useCallback((rating: number) => {
     const targets = selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
@@ -306,216 +327,142 @@ export default function OliviaBridgeWorkspace() {
     setExcludedIds((previous) => {
       const next = new Set(previous);
       const exclude = [...targets].some((id) => !next.has(id));
-      for (const id of targets) exclude ? next.add(id) : next.delete(id);
+      for (const id of targets) {
+        if (exclude) next.add(id);
+        else next.delete(id);
+      }
       return next;
     });
   }, [focusedId, selectedIds]);
 
+  const toggleFocusedSelection = useCallback(() => {
+    if (!focusedId) return;
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(focusedId)) next.delete(focusedId);
+      else next.add(focusedId);
+      return next;
+    });
+  }, [focusedId]);
+
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (isTypingTarget(event.target)) return;
     if (event.key === "Escape") {
-      if (previewOpen) setPreviewOpen(false);
+      if (sceneReviewOpen) setSceneReviewOpen(false);
       else if (toolKey) setToolKey(undefined);
       return;
     }
-    if (toolKey) return;
+    if (toolKey || sceneReviewOpen) return;
     if (event.key === "ArrowLeft" || event.key === "ArrowUp") { event.preventDefault(); moveFocus(-1); }
     else if (event.key === "ArrowRight" || event.key === "ArrowDown") { event.preventDefault(); moveFocus(1); }
-    else if (event.key === " ") { event.preventDefault(); if (focusedPhoto) setPreviewOpen((value) => !value); }
+    else if (event.key === " ") { event.preventDefault(); toggleFocusedSelection(); }
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
     else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
     else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-    else if (event.key === "Tab") { event.preventDefault(); setLeftPanelOpen((value) => !value); setRightPanelOpen((value) => !value); }
-  }, [applyRating, focusedPhoto, moveFocus, previewOpen, toggleExcluded, toolKey]);
+  }, [applyRating, moveFocus, sceneReviewOpen, toggleExcluded, toggleFocusedSelection, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder) return;
+    setSceneReviewOpen(false);
+    if (key === "classification") {
+      setToolKey(undefined);
+      setSceneReviewOpen(true);
+      return;
+    }
     setToolKey(key);
   }, [currentLocalFolder]);
 
+  const filters: Array<{ key: FileFilter; label: string; count: number }> = [
+    { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
+    { key: "jpg", label: "JPG", count: scan.jpgs.length },
+    { key: "raw", label: "RAW", count: scan.raws.length },
+    { key: "sidecar", label: "사이드카", count: scan.sidecars.length },
+    { key: "rated", label: "별점", count: Object.keys(ratings).length },
+    { key: "excluded", label: "제외", count: excludedIds.size },
+  ];
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
+  const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
 
   return (
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
-      <header className={styles.header}>
-        <div>
-          <h1>Olivia Bridge</h1>
-          <p>폴더를 유지한 채 사진을 보고, 고르고, 기존 작업 도구를 실행합니다.</p>
-        </div>
-        <div className={styles.headerStats}>
-          <span>폴더 <b>{activeFolder?.name ?? "선택 안 됨"}</b></span>
-          <span>JPG <b>{scan.jpgs.length.toLocaleString("ko-KR")}</b></span>
-          <span>RAW <b>{scan.raws.length.toLocaleString("ko-KR")}</b></span>
-          <span className={sceneState.status === "complete" ? styles.statusComplete : sceneState.status === "error" ? styles.statusError : styles.statusRunning}>
-            {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={13} /> : sceneState.status === "complete" ? <Sparkles size={13} /> : <ScanSearch size={13} />}
-            {sceneState.stage}
-          </span>
-        </div>
-      </header>
-
-      <nav className={styles.toolBar} aria-label="Bridge 기능 바로가기">
-        <span>기능 바로가기</span>
-        {TOOL_ITEMS.map((item) => (
-          <button key={item.key} type="button" onClick={() => openTool(item.key)} disabled={!activeFolder}>{item.label}</button>
-        ))}
-      </nav>
-
-      <div className={styles.pathBar}>
-        <button type="button" className={styles.folderButton} onClick={() => void chooseFolder()}><FolderOpen size={15} /> 폴더 선택</button>
+      <header className={styles.bridgeBar}>
+        <strong>OLIVIA BRIDGE</strong>
+        <button type="button" className={styles.folderPickerButton} onClick={() => void chooseFolder()}><FolderOpen size={17} /> 폴더 선택</button>
         <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
           {breadcrumbs.length ? breadcrumbs.map((item, index) => (
-            <span key={`${item.name}-${index}`}>
-              {index ? <ChevronRight size={12} /> : null}
-              <button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button>
-            </span>
+            <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
           )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
         </div>
-        {activeFolder ? <span className={styles.folderReady}>현재 폴더 열림</span> : null}
-      </div>
+        <nav className={styles.toolBar} aria-label="Bridge 사진 도구">
+          {TOOL_ITEMS.map(({ key, label, icon: Icon }) => (
+            <button key={key} type="button" onClick={() => openTool(key)} disabled={!activeFolder} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={label}><Icon size={18} strokeWidth={1.8} /></button>
+          ))}
+        </nav>
+        <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => activeFolder && setSceneReviewOpen(true)} disabled={!activeFolder}>
+          {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
+          <span>{sceneState.status === "running" ? `${sceneState.completed}/${sceneState.total}` : sceneState.stage}</span>
+        </button>
+      </header>
 
-      <main className={`${styles.workspace} ${leftPanelOpen ? "" : styles.withoutLeft} ${rightPanelOpen ? "" : styles.withoutRight}`}>
-        {leftPanelOpen ? (
-          <aside className={styles.folderPanel} aria-label="폴더 탐색">
-            <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => setLeftPanelOpen(false)} aria-label="폴더 패널 닫기"><PanelLeftClose size={16} /></button></div>
-            <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}>
-              <FolderOpen size={15} /> {breadcrumbs[0]?.name ?? "촬영 폴더"}
-            </button>
-            <div className={styles.folderList}>
-              {scan.folders.map((folder) => (
-                <button key={folder.name} type="button" onDoubleClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])} onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}>
-                  <Folder size={14} /> <span>{folder.name}</span><ChevronRight size={12} />
-                </button>
-              ))}
-              {activeFolder && !scan.folders.length ? <p>이 폴더 안에 하위 폴더가 없습니다.</p> : null}
-            </div>
-            <div className={styles.folderSummary}>
-              <span>선택 <b>{selectedIds.size}</b>장</span>
-              <span>별점 <b>{Object.keys(ratings).length}</b>장</span>
-              <span>제외 <b>{excludedIds.size}</b>장</span>
-            </div>
-          </aside>
-        ) : null}
+      <main className={styles.workspace}>
+        <aside className={styles.folderPanel} aria-label="폴더와 파일 필터">
+          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => void chooseFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
+          <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
+          <div className={styles.folderList}>
+            {scan.folders.length ? <small>다른 폴더</small> : null}
+            {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><ChevronRight size={12} /></button>)}
+            {activeFolder && !scan.folders.length ? <p>하위 폴더가 없습니다.</p> : null}
+          </div>
+          <div className={styles.filterList}>
+            <small>파일 필터</small>
+            {filters.map((filter) => <button key={filter.key} type="button" className={fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => setFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+          </div>
+          <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>별점 <b>{Object.keys(ratings).length}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
+        </aside>
 
-        <section className={styles.browserPanel} aria-label="현재 폴더 사진">
+        <section className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
-            <div>
-              {!leftPanelOpen ? <button type="button" onClick={() => setLeftPanelOpen(true)} aria-label="폴더 패널 열기"><PanelLeftClose size={16} /></button> : null}
-              <strong>폴더 내용</strong><span>JPG 썸네일 · RAW 파일 형식</span>
-            </div>
-            <div className={styles.thumbnailControls}>
-              <button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={14} /></button>
-              <LayoutGrid size={14} aria-hidden="true" />
-              <button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={14} /></button>
-              {!rightPanelOpen ? <button type="button" onClick={() => setRightPanelOpen(true)} aria-label="Scene 패널 열기"><PanelRightClose size={16} /></button> : null}
-            </div>
+            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일</span></div>
+            <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
-          {scanStatus === "idle" ? (
-            <div className={styles.emptyState}><FolderOpen size={32} /><strong>촬영 폴더를 먼저 선택해 주세요</strong><p>JPG는 썸네일로, RAW는 파일 정보로만 보여줍니다.</p><button type="button" onClick={() => void chooseFolder()}>폴더 선택</button></div>
-          ) : null}
-          {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>사진은 보이는 순서부터 썸네일을 만듭니다.</p></div> : null}
+          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>촬영 폴더를 선택해 주세요</strong><p>JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다.</p><button type="button" onClick={() => void chooseFolder()}>폴더 선택</button></div> : null}
+          {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
           {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
             <div className={styles.fileArea}>
-              {scan.jpgs.length ? (
-                <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
-                  {scan.jpgs.map((photo) => {
-                    const selected = selectedIds.has(photo.id);
-                    const focused = focusedId === photo.id;
-                    const excluded = excludedIds.has(photo.id);
-                    const rating = ratings[photo.id] ?? 0;
-                    return (
-                      <button
-                        key={photo.id}
-                        type="button"
-                        data-bridge-photo-id={photo.id}
-                        className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`}
-                        onClick={(event) => choosePhoto(photo, event)}
-                        onDoubleClick={() => { setFocusedId(photo.id); setPreviewOpen(true); }}
-                        aria-pressed={selected}
-                      >
-                        <BridgeThumbnail photo={photo} alt={photo.name} />
-                        <span className={styles.photoName}>{photo.name}</span>
-                        {rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}
-                        {excluded ? <span className={styles.rejectMark}>X</span> : null}
-                        {selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : <div className={styles.noPhotos}><ImageIcon size={26} /><span>이 폴더에는 JPG가 없습니다.</span></div>}
-
-              {scan.raws.length ? (
-                <div className={styles.rawSection}>
-                  <header><strong>RAW 파일</strong><span>미리보기 없음 · 파일명과 형식만 표시</span></header>
-                  <div>
-                    {scan.raws.map((raw) => <span key={raw.id}><b>{raw.extension}</b><em>{raw.name}</em><small>{formatBytes(raw.size)}</small></span>)}
-                  </div>
-                </div>
-              ) : null}
+              {visibleJpgs.length ? <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
+                {visibleJpgs.map((photo) => {
+                  const selected = selectedIds.has(photo.id);
+                  const focused = focusedId === photo.id;
+                  const excluded = excludedIds.has(photo.id);
+                  const rating = ratings[photo.id] ?? 0;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => choosePhoto(photo, event)} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
+                })}
+              </div> : null}
+              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
+              {showSidecars && scan.sidecars.length ? <section className={styles.plainFileSection}><header><strong>사이드카</strong><span>원본과 함께 유지되는 설정 파일</span></header><div>{scan.sidecars.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
+              {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-
-          <footer className={styles.shortcutBar}>
-            <span>← → 이동</span><span>Space 미리보기</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span><span>Tab 패널</span>
-            {scan.ignoredCount ? <i>숨김·비사진 파일 {scan.ignoredCount}개 제외</i> : null}
-          </footer>
+          <footer className={styles.shortcutBar}><span>← → 사진 이동</span><span>Space 선택</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
-        {rightPanelOpen ? (
-          <aside className={styles.scenePanel} aria-label="Scene 분류 검토">
-            <div className={styles.panelTitle}><span>Scene 분류 검토</span><button type="button" onClick={() => setRightPanelOpen(false)} aria-label="Scene 패널 닫기"><PanelRightClose size={16} /></button></div>
-            <div className={styles.sceneStatus}>
-              <span>{sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}</span>
-              <div><strong>{sceneState.stage}</strong><small>{sceneState.status === "running" ? `${sceneState.completed} / ${sceneState.total}` : `JPG ${scan.jpgs.length.toLocaleString("ko-KR")}장 분석`}</small></div>
-              {sceneState.status === "error" ? <button type="button" onClick={() => setSceneRunKey((value) => value + 1)} aria-label="Scene 분석 다시 시도"><RefreshCw size={14} /></button> : null}
-            </div>
-            {sceneState.status === "running" ? <div className={styles.progress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
-            {sceneState.error ? <p className={styles.sceneError}>{sceneState.error}</p> : null}
-            <div className={styles.sceneGrid}>
-              {sceneState.scenes.map((scene) => {
-                const photo = scenePhotoByName.get(scene.representativeFileName);
-                return (
-                  <article key={scene.id}>
-                    {photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : <div className={styles.scenePlaceholder}><ImageIcon size={18} /></div>}
-                    <div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div>
-                    <small>{scene.firstFileName}<br />– {scene.lastFileName}</small>
-                    {scene.needsReview ? <i>경계 확인 필요</i> : null}
-                  </article>
-                );
-              })}
-              {sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}
-            </div>
-            <div className={styles.sceneActions}>
-              <button type="button" className={styles.secondaryAction} disabled={!sceneState.scenes.length} onClick={() => setPreviewOpen(Boolean(focusedPhoto))}><Maximize2 size={15} /> 미리보기 전체 확인</button>
-              <button type="button" className={styles.primaryAction} disabled={!activeFolder || sceneState.status !== "complete"} onClick={() => openTool("classification")}><ScanSearch size={15} /> 승인하고 분류 실행</button>
-              <p>사전 분석은 파일을 바꾸지 않습니다. 실제 분류는 기존 검토 화면에서 승인한 뒤 실행됩니다.</p>
-            </div>
-          </aside>
-        ) : null}
+        <aside className={styles.previewPanel} aria-label="선택한 사진 미리보기">
+          {focusedPhoto ? <><div className={styles.previewCanvas}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span></div></> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 JPG를 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
+        </aside>
       </main>
 
-      {previewOpen && focusedPhoto ? (
-        <div className={styles.previewOverlay} role="dialog" aria-modal="true" aria-label={`${focusedPhoto.name} 미리보기`}>
-          <button type="button" className={styles.closeButton} onClick={() => setPreviewOpen(false)} aria-label="미리보기 닫기"><X size={22} /></button>
-          <button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={26} /></button>
-          <div className={styles.previewImage}><BridgePreviewImage photo={focusedPhoto} /></div>
-          <button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex >= scan.jpgs.length - 1} aria-label="다음 사진"><ChevronRight size={26} /></button>
-          <div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{focusedIndex + 1} / {scan.jpgs.length}</span><span>{formatBytes(focusedPhoto.size)}</span><span>별점 {ratings[focusedPhoto.id] ?? 0}</span>{excludedIds.has(focusedPhoto.id) ? <i>제외 표시</i> : null}</div>
-        </div>
-      ) : null}
+      {sceneReviewOpen ? <section className={`${styles.floatingWindow} ${styles.sceneWindow}`} role="dialog" aria-modal="false" aria-label="AI Scene 분류 검토">
+        <header><div><strong>AI Scene 분류 검토</strong><span>{sceneState.stage}</span></div><button type="button" onClick={() => setSceneReviewOpen(false)} aria-label="Scene 검토 닫기"><X size={19} /></button></header>
+        {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
+        {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
+        <div className={styles.sceneGrid}>{sceneState.scenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !sceneState.scenes.length ? <p>표시할 Scene이 없습니다.</p> : null}</div>
+        <footer><p>이 검토 단계에서는 파일을 이동하거나 이름을 바꾸지 않습니다.</p><button type="button" disabled={sceneState.status !== "complete"} onClick={() => { setSceneReviewOpen(false); setToolKey("classification"); }}><ScanSearch size={16} /> 승인하고 분류 실행</button></footer>
+      </section> : null}
 
-      {activeTool ? (
-        <div className={styles.toolOverlay} role="dialog" aria-modal="true" aria-label={`${activeTool.label} 도구`}>
-          <div className={styles.toolWindow}>
-            <header><div><strong>{activeTool.label}</strong><span>{activeFolder?.name} · 선택 JPG {selectedNames.length}장</span></div><button type="button" onClick={() => setToolKey(undefined)} aria-label={`${activeTool.label} 닫기`}><X size={20} /></button></header>
-            <div className={styles.toolBody}>
-              <EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {activeTool ? <section className={`${styles.floatingWindow} ${styles.toolWindow}`} role="dialog" aria-modal="false" aria-label={`${activeTool.label} 도구`}><header><div><strong>{activeTool.label}</strong><span>{activeFolder?.name} · 선택 JPG {selectedNames.length}장</span></div><button type="button" onClick={() => setToolKey(undefined)} aria-label={`${activeTool.label} 닫기`}><X size={19} /></button></header><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} /></div></section> : null}
     </div>
   );
 }

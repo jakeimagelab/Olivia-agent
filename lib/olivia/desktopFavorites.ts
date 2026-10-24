@@ -1,7 +1,7 @@
 export const DEFAULT_DESKTOP_FAVORITE_KEYS = [
   "/calendar",
   "/quote",
-  "/photo-sorting",
+  "/olivia-bridge",
   "/video-studio",
   "/memo",
   "/clients",
@@ -13,6 +13,8 @@ const FAVORITE_KEY_PATTERN = /^(?:\/[a-z0-9][a-z0-9/_-]*|app:[a-z0-9][a-z0-9_-]*
 const MAX_FAVORITES = 64;
 
 const LEGACY_FAVORITE_KEYS: Readonly<Record<string, string>> = {
+  "/photo-sorting": "/olivia-bridge",
+  "app:photo-workspace": "/olivia-bridge",
   "/video-conti": "/video-studio",
   "/youtube-editing-conti": "/video-studio",
   "/broll-prompt": "/video-studio",

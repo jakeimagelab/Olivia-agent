@@ -9,7 +9,9 @@ import { featureCacheKey, getCachedFeature, setCachedFeature } from "@/lib/photo
 import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 
-export type BridgeFileKind = "jpg" | "raw" | "other";
+const BRIDGE_SIDECAR_EXTENSIONS = new Set(["xmp"]);
+
+export type BridgeFileKind = "jpg" | "raw" | "sidecar" | "other";
 
 export type BridgeJpgFile = {
   id: string;
@@ -23,10 +25,13 @@ export type BridgeJpgFile = {
 
 export type BridgeRawFile = Omit<BridgeJpgFile, "file">;
 
+export type BridgeSidecarFile = BridgeRawFile;
+
 export type BridgeFolderScan = {
   folders: FileSystemDirectoryHandle[];
   jpgs: BridgeJpgFile[];
   raws: BridgeRawFile[];
+  sidecars: BridgeSidecarFile[];
   ignoredCount: number;
 };
 
@@ -51,18 +56,20 @@ export function bridgeFileKind(name: string): BridgeFileKind {
   const extension = extensionOf(name);
   if (CAMERA_JPG_EXTENSIONS.has(extension)) return "jpg";
   if (RAW_PHOTO_EXTENSIONS.has(extension)) return "raw";
+  if (BRIDGE_SIDECAR_EXTENSIONS.has(extension)) return "sidecar";
   return "other";
 }
 
 export function partitionBridgeFileNames(names: readonly string[]) {
   const jpg: string[] = [];
   const raw: string[] = [];
+  const sidecar: string[] = [];
   const other: string[] = [];
   for (const name of names) {
     const kind = bridgeFileKind(name);
-    (kind === "jpg" ? jpg : kind === "raw" ? raw : other).push(name);
+    (kind === "jpg" ? jpg : kind === "raw" ? raw : kind === "sidecar" ? sidecar : other).push(name);
   }
-  return { jpg, raw, other };
+  return { jpg, raw, sidecar, other };
 }
 
 const naturalSort = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name, "ko", {
@@ -74,7 +81,8 @@ export async function scanBridgeFolder(directory: FileSystemDirectoryHandle, fol
   const folders: FileSystemDirectoryHandle[] = [];
   const jpgs: BridgeJpgFile[] = [];
   const raws: BridgeRawFile[] = [];
-  const fileHandles: Array<{ name: string; kind: "jpg" | "raw"; handle: FileSystemFileHandle }> = [];
+  const sidecars: BridgeSidecarFile[] = [];
+  const fileHandles: Array<{ name: string; kind: "jpg" | "raw" | "sidecar"; handle: FileSystemFileHandle }> = [];
   let ignoredCount = 0;
   const iterable = directory as FileSystemDirectoryHandle & {
     entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
@@ -112,14 +120,16 @@ export async function scanBridgeFolder(directory: FileSystemDirectoryHandle, fol
         lastModified: file.lastModified,
       };
       if (kind === "jpg") jpgs.push({ ...base, file });
-      else raws.push(base);
+      else if (kind === "raw") raws.push(base);
+      else sidecars.push(base);
     }
   });
   await Promise.all(workers);
   folders.sort(naturalSort);
   jpgs.sort(naturalSort);
   raws.sort(naturalSort);
-  return { folders, jpgs, raws, ignoredCount };
+  sidecars.sort(naturalSort);
+  return { folders, jpgs, raws, sidecars, ignoredCount };
 }
 
 export function updateBridgeSelection(input: {

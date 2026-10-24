@@ -64,6 +64,7 @@ describe("Olivia Tablet Shell", () => {
     expect(resolveTabletAppIconSource("calendar")).toEqual({ kind: "registry", appId: "calendar" });
     expect(resolveTabletAppIconSource("conti")).toEqual({ kind: "registry", appId: "conti" });
     expect(resolveTabletAppIconSource("customer")).toEqual({ kind: "registry", appId: "customer" });
+    expect(resolveTabletAppIconSource("photo-workspace")).toEqual({ kind: "registry", appId: "olivia-bridge" });
     expect(resolveTabletAppIconSource("channel-analysis")).toEqual({ kind: "shared", iconName: "channel-analysis" });
     expect(TABLET_APPS.map((app) => app.id)).toEqual([
       "home", "customer", "calendar", "conti", "documents", "olivia-chat", "review-studio", "memo", "quote-contract",

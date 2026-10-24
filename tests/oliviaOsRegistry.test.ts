@@ -12,7 +12,6 @@ describe("OLIVIA OS app registry navigation", () => {
     expect(getDesktopShortcutApps().map((app) => app.id)).toEqual([
       "customer",
       "calendar",
-      "photo-workspace",
       "olivia-bridge",
       "documents",
     ]);
@@ -23,7 +22,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "calendar",
       "customer",
       "documents",
-      "photo-workspace",
+      "olivia-bridge",
       "video-studio",
     ]);
     expect(getOliviaApp("olivia-chat")).toBeDefined();
@@ -36,12 +35,20 @@ describe("OLIVIA OS app registry navigation", () => {
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
       "portrait-consent",
       "conti",
+      "photo-workspace",
     ]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
       expect(app?.desktopShortcutOrder).toBeUndefined();
       expect(app?.dockOrder).toBeUndefined();
     }
+  });
+
+  it("uses Olivia Bridge as the visible 사진작업실 and keeps the old shell hidden", () => {
+    expect(getOliviaApp("olivia-bridge")).toMatchObject({ title: "사진작업실", route: "/olivia-bridge" });
+    expect(getOliviaApp("photo-workspace")).toMatchObject({ route: "/photo-sorting" });
+    expect(getOliviaApp("photo-workspace")?.desktopShortcutOrder).toBeUndefined();
+    expect(getOliviaApp("photo-workspace")?.dockOrder).toBeUndefined();
   });
 
   it("keeps conti and portrait consent standalone while mapping old video production", () => {

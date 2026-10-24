@@ -50,6 +50,7 @@ const FAVORITE_LABEL_BY_KEY: Record<string, string> = {
   "/quote": "견적서 생성",
   "/conti": "콘티",
   "/photo-sorting": "사진작업실",
+  "/olivia-bridge": "사진작업실",
   "/video-studio": "영상작업실",
   "/memo": "메모",
   "/clients": "고객 관리",

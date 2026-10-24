@@ -34,7 +34,7 @@ const WORKSPACE_TO_DESKTOP_APP_ID: Partial<Record<Exclude<WorkspaceType, null>, 
   quote: "quote",
   contract: "contract",
   conti: "conti",
-  "photo-sort": "photo-workspace",
+  "photo-sort": "olivia-bridge",
 };
 
 function workspaceWindowContext(
