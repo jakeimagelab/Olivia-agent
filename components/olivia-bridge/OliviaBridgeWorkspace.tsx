@@ -33,6 +33,8 @@ import {
   useMemo,
   useRef,
   useState,
+  type PointerEvent as ReactPointerEvent,
+  type RefObject,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -49,6 +51,12 @@ import {
   type BridgeScene,
 } from "@/lib/photo-bridge/bridgeFiles";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
+import {
+  BRIDGE_PANE_DEFAULT_WIDTH,
+  bridgePaneWidthFromPointer,
+  clampBridgePaneWidth,
+  type BridgeResizablePane,
+} from "@/lib/photo-bridge/paneLayout";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -210,6 +218,137 @@ function isSpaceShortcutTarget(target: EventTarget | null, root: HTMLDivElement)
   return target === root || (target instanceof HTMLElement && Boolean(target.closest("[data-bridge-photo-id]")));
 }
 
+const BRIDGE_PANE_STORAGE_KEY = "olivia-bridge:pane-widths";
+
+function readStoredPaneWidth(pane: BridgeResizablePane) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(BRIDGE_PANE_STORAGE_KEY) ?? "{}") as Partial<Record<BridgeResizablePane, number>>;
+    return typeof stored[pane] === "number" ? stored[pane] : BRIDGE_PANE_DEFAULT_WIDTH[pane];
+  } catch {
+    return BRIDGE_PANE_DEFAULT_WIDTH[pane];
+  }
+}
+
+function storePaneWidth(pane: BridgeResizablePane, width: number) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(BRIDGE_PANE_STORAGE_KEY) ?? "{}") as Partial<Record<BridgeResizablePane, number>>;
+    localStorage.setItem(BRIDGE_PANE_STORAGE_KEY, JSON.stringify({ ...stored, [pane]: width }));
+  } catch (error) {
+    void error;
+  }
+}
+
+function BridgePaneDivider({
+  pane,
+  workspaceRef,
+  oppositePaneRef,
+  controls,
+  label,
+}: {
+  pane: BridgeResizablePane;
+  workspaceRef: RefObject<HTMLElement | null>;
+  oppositePaneRef: RefObject<HTMLElement | null>;
+  controls: string;
+  label: string;
+}) {
+  const pointerIdRef = useRef<number | null>(null);
+  const widthRef = useRef(BRIDGE_PANE_DEFAULT_WIDTH[pane]);
+  const [width, setWidth] = useState(BRIDGE_PANE_DEFAULT_WIDTH[pane]);
+  const [dragging, setDragging] = useState(false);
+
+  const applyWidth = useCallback((requestedWidth: number) => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return widthRef.current;
+    const nextWidth = clampBridgePaneWidth({
+      pane,
+      requestedWidth,
+      containerWidth: workspace.getBoundingClientRect().width,
+      oppositePaneWidth: oppositePaneRef.current?.getBoundingClientRect().width ?? BRIDGE_PANE_DEFAULT_WIDTH[pane === "folder" ? "preview" : "folder"],
+    });
+    workspace.style.setProperty(pane === "folder" ? "--bridge-folder-width" : "--bridge-preview-width", `${nextWidth}px`);
+    widthRef.current = nextWidth;
+    setWidth(nextWidth);
+    return nextWidth;
+  }, [oppositePaneRef, pane, workspaceRef]);
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+    const frame = requestAnimationFrame(() => applyWidth(readStoredPaneWidth(pane)));
+    const observer = new ResizeObserver(() => {
+      if (workspace.getBoundingClientRect().width <= 760) return;
+      applyWidth(widthRef.current);
+    });
+    observer.observe(workspace);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [applyWidth, pane, workspaceRef]);
+
+  const widthFromPointer = useCallback((clientX: number) => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return widthRef.current;
+    const bounds = workspace.getBoundingClientRect();
+    return bridgePaneWidthFromPointer({
+      pane,
+      pointerX: clientX,
+      containerLeft: bounds.left,
+      containerRight: bounds.right,
+    });
+  }, [pane, workspaceRef]);
+
+  const finishDrag = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (pointerIdRef.current !== event.pointerId) return;
+    pointerIdRef.current = null;
+    setDragging(false);
+    storePaneWidth(pane, widthRef.current);
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }, [pane]);
+
+  return (
+    <div
+      className={`${styles.paneDivider} ${dragging ? styles.paneDividerDragging : ""}`}
+      role="separator"
+      aria-label={label}
+      aria-controls={controls}
+      aria-orientation="vertical"
+      aria-valuemin={pane === "folder" ? 150 : 240}
+      aria-valuemax={pane === "folder" ? 360 : 560}
+      aria-valuenow={width}
+      tabIndex={0}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.focus();
+        pointerIdRef.current = event.pointerId;
+        setDragging(true);
+        event.currentTarget.setPointerCapture(event.pointerId);
+        applyWidth(widthFromPointer(event.clientX));
+      }}
+      onPointerMove={(event) => {
+        if (pointerIdRef.current !== event.pointerId) return;
+        applyWidth(widthFromPointer(event.clientX));
+      }}
+      onPointerUp={finishDrag}
+      onPointerCancel={finishDrag}
+      onDoubleClick={() => {
+        const nextWidth = applyWidth(BRIDGE_PANE_DEFAULT_WIDTH[pane]);
+        storePaneWidth(pane, nextWidth);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const direction = event.key === "ArrowLeft" ? -1 : 1;
+        const delta = pane === "folder" ? direction * 24 : direction * -24;
+        const nextWidth = applyWidth(widthRef.current + delta);
+        storePaneWidth(pane, nextWidth);
+      }}
+    />
+  );
+}
+
 export default function OliviaBridgeWorkspace() {
   const picker = usePhotoFolderPicker();
   const { currentLocalFolder, setCurrentLocalFolder, setSelectedJpgNames, setSelectedJpgFiles, setExecutionMode } = usePhotoStudioExecution();
@@ -232,6 +371,9 @@ export default function OliviaBridgeWorkspace() {
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
+  const workspaceRef = useRef<HTMLElement>(null);
+  const folderPanelRef = useRef<HTMLElement>(null);
+  const previewPanelRef = useRef<HTMLElement>(null);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
@@ -476,8 +618,8 @@ export default function OliviaBridgeWorkspace() {
         </button>
       </header>
 
-      <main className={styles.workspace}>
-        <aside className={styles.folderPanel} aria-label="폴더와 파일 필터">
+      <main ref={workspaceRef} className={styles.workspace}>
+        <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
           <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => void chooseFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <div className={styles.folderList}>
@@ -492,7 +634,15 @@ export default function OliviaBridgeWorkspace() {
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>별점 <b>{Object.keys(ratings).length}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
         </aside>
 
-        <section className={styles.browserPanel} aria-label="현재 폴더 파일">
+        <BridgePaneDivider
+          pane="folder"
+          workspaceRef={workspaceRef}
+          oppositePaneRef={previewPanelRef}
+          controls="olivia-bridge-folder-panel"
+          label="폴더 영역 너비 조절"
+        />
+
+        <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
             <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일</span></div>
             <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
@@ -520,7 +670,16 @@ export default function OliviaBridgeWorkspace() {
           <footer className={styles.shortcutBar}><span>← → 사진 이동</span><span>Space 전체화면</span><span>⌘ 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
-        <aside className={styles.previewPanel} aria-label="선택한 사진 미리보기">
+
+        <BridgePaneDivider
+          pane="preview"
+          workspaceRef={workspaceRef}
+          oppositePaneRef={folderPanelRef}
+          controls="olivia-bridge-preview-panel"
+          label="미리보기 영역 너비 조절"
+        />
+
+        <aside ref={previewPanelRef} id="olivia-bridge-preview-panel" className={styles.previewPanel} aria-label="선택한 사진 미리보기">
           {focusedPhoto ? <><div className={styles.previewCanvas}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span></div></> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 JPG를 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
         </aside>
       </main>

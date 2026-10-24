@@ -114,10 +114,17 @@
 .sceneStatusButton.sceneFailed { color: #ffd4c4; border-color: rgba(201, 74, 30, .65); }
 
 .workspace {
+  --bridge-folder-width: 210px;
+  --bridge-preview-width: 300px;
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-columns: 230px minmax(390px, 1fr) minmax(360px, 40%);
+  grid-template-columns:
+    minmax(150px, var(--bridge-folder-width))
+    9px
+    minmax(0, 1fr)
+    9px
+    minmax(240px, var(--bridge-preview-width));
   overflow: hidden;
 }
 
@@ -127,9 +134,41 @@
   display: grid;
   grid-template-rows: 52px auto minmax(72px, 1fr) auto auto;
   overflow: hidden;
-  border-right: 1px solid var(--bridge-line);
   background: #152127;
 }
+
+.paneDivider {
+  position: relative;
+  z-index: 4;
+  min-width: 9px;
+  min-height: 0;
+  border: 0;
+  padding: 0;
+  background: #111a1d;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.paneDivider::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 4px;
+  width: 1px;
+  background: var(--bridge-line);
+  transition: width .12s ease, background-color .12s ease;
+}
+
+.paneDivider:hover::after,
+.paneDivider:focus-visible::after,
+.paneDividerDragging::after {
+  left: 3px;
+  width: 3px;
+  background: rgba(79, 216, 184, .72);
+}
+
+.paneDividerDragging { cursor: col-resize; }
 
 .panelTitle { display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 18px; color: rgba(255, 255, 255, .84); font-size: 11px; font-weight: 600; }
 .panelTitle button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 7px; color: rgba(255, 255, 255, .72); background: transparent; cursor: pointer; }
@@ -174,7 +213,7 @@
 .folderSummary span { display: grid; gap: 3px; color: rgba(255, 255, 255, .35); font-size: 8px; text-align: center; }
 .folderSummary b { color: rgba(255, 255, 255, .78); font-size: 11px; font-weight: 600; }
 
-.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr) 34px; overflow: hidden; border-right: 1px solid var(--bridge-line); background: #182024; }
+.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr) 34px; overflow: hidden; background: #182024; }
 .browserHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid var(--bridge-line); background: #172126; }
 .browserHeader > div { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .browserHeader strong { overflow: hidden; color: #fff; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -342,7 +381,6 @@
 .bridge :focus-visible { outline: 2px solid var(--bridge-mint); outline-offset: 2px; }
 
 @container olivia-bridge (max-width: 1240px) {
-  .workspace { grid-template-columns: 190px minmax(360px, 1fr) minmax(330px, 38%); }
   .bridgeBar > strong { display: none; }
 }
 
@@ -351,7 +389,6 @@
   .breadcrumbs { display: none; }
   .sceneStatusButton { min-width: 38px; width: 38px; padding: 0; }
   .sceneStatusButton span { display: none; }
-  .workspace { grid-template-columns: 170px minmax(350px, 1fr) minmax(300px, 36%); }
 }
 
 @container olivia-bridge (max-width: 760px) {
@@ -361,6 +398,7 @@
   .toolBar button { width: 36px; height: 36px; }
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(240px, 40%); }
   .folderPanel { display: none; }
+  .paneDivider { display: none; }
   .browserPanel { border-right: 0; border-bottom: 1px solid var(--bridge-line); }
   .previewPanel { min-height: 0; }
 }
