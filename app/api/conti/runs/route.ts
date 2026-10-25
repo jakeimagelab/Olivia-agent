@@ -12,6 +12,7 @@ import { buildCodeSceneTemplates, getDepartmentDefinition } from "@/lib/conti/de
 import { enrichContiScenes } from "@/lib/conti/aiEnrichment";
 import { createCanonicalConti } from "@/lib/conti/canonicalService";
 import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
+import { inferContiShotType } from "@/lib/conti/shotType";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -220,12 +221,14 @@ export async function POST(request: NextRequest) {
     note: s.note,
     template_id: s.templateId?.startsWith("code:") ? null : s.templateId,
     field_sources: s.fieldSources,
+    shot_type: s.shotType ?? inferContiShotType({ name: s.name, groupName: s.group }),
   }));
 
   let scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");
   if (scenesResult.error && isMissingV2Column(scenesResult.error)) {
-    const legacySceneRows = sceneRows.map(({ preparation_text, ...scene }) => {
+    const legacySceneRows = sceneRows.map(({ preparation_text, shot_type, ...scene }) => {
       void preparation_text;
+      void shot_type;
       return scene;
     });
     scenesResult = await db.from("conti_scenes").insert(legacySceneRows).select("*");

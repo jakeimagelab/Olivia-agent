@@ -6,8 +6,9 @@ import { deriveContiSchedule } from "@/lib/conti/deriveSchedule";
 import { normalizeContiStudioState, type ContiFieldCardSize, type ContiStudioState } from "@/lib/conti/studioState";
 import type { ContiDoctor, ContiEditableSceneField, ContiMedia, ContiSaveStatus, ContiStudioDocument } from "@/components/conti/v2/types";
 import type { ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
+import type { ContiShotType } from "@/lib/conti/shotType";
 
-type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; group_id?: string | null; completed?: boolean; media?: ContiMedia };
+type ScenePatch = { fields?: Partial<Record<ContiEditableSceneField, string | number | null>>; group_id?: string | null; completed?: boolean; media?: ContiMedia; shot_type?: ContiShotType | null };
 type HistorySnapshot = Pick<ContiStudioDocument, "scenes" | "studioState">;
 
 function cloneHistorySnapshot(document: ContiStudioDocument): HistorySnapshot {
@@ -204,6 +205,20 @@ export function useContiStudio(runId: string | null) {
     scheduleSave();
   }, [pushHistory, queueScenePatch, scheduleSave]);
 
+  const updateSceneShotType = useCallback((sceneId: string, shotType: ContiShotType | null) => {
+    const scene = documentRef.current?.scenes.find((item) => item.id === sceneId);
+    if (!scene || scene.shot_type === shotType) return;
+    pushHistory();
+    setDocument((current) => {
+      if (!current) return current;
+      const next = { ...current, scenes: current.scenes.map((item) => item.id === sceneId ? { ...item, shot_type: shotType } : item) };
+      documentRef.current = next;
+      return next;
+    });
+    queueScenePatch(sceneId, { shot_type: shotType });
+    scheduleSave();
+  }, [pushHistory, queueScenePatch, scheduleSave]);
+
   const toggleSceneComplete = useCallback((sceneId: string) => {
     const scene = documentRef.current?.scenes.find((item) => item.id === sceneId);
     if (!scene) return;
@@ -389,6 +404,7 @@ export function useContiStudio(runId: string | null) {
       group_id: scene.group_id,
       completed: scene.completed,
       media: scene.media ?? "photo",
+      shot_type: scene.shot_type ?? null,
     });
     orderDirtyRef.current = true; studioDirtyRef.current = true; scheduleSave();
   }, [queueScenePatch, scheduleSave]);
@@ -420,7 +436,7 @@ export function useContiStudio(runId: string | null) {
     document, loading, error, saveStatus, lastSavedAt, checklist, schedule,
     canUndo: historyRevision >= 0 && undoRef.current.length > 0,
     canRedo: historyRevision >= 0 && redoRef.current.length > 0,
-    reload: load, flushSave, updateSceneFields, updateSceneGroup, updateSceneMedia, toggleSceneComplete, reorderScenes,
+    reload: load, flushSave, updateSceneFields, updateSceneGroup, updateSceneMedia, updateSceneShotType, toggleSceneComplete, reorderScenes,
     toggleChecklistItem, setChecklistAssignee, addChecklistItem, setScheduleStartTime, setFieldCardSize, setSceneCameraAngle,
     setSceneShootingTime, updateTimelineOverride, updateDoctors, toggleTimelineItem, reorderTimeline, updateStudioState,
     addScene, duplicateScene, deleteScene, undo, redo, linkCanonicalConti,

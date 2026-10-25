@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Images, MapPin, UserRound, Users } from "lucide-react";
+import { Images, MapPin, UserRound, Users, Wrench } from "lucide-react";
 
 export type ContiSceneCardColor = { bg: string; text: string };
 
@@ -16,6 +16,7 @@ export type ContiSceneCardProps = {
   media?: string;
   imageUrl?: string;
   preparationItems?: string[];
+  setup?: string;
   color: ContiSceneCardColor;
   completed?: boolean;
   /** 드래그 핸들 등 헤더 왼쪽(번호 배지 앞)에 끼워 넣는 슬롯 — 없으면 순수 읽기 전용 카드. */
@@ -28,7 +29,7 @@ export type ContiSceneCardProps = {
 // 카드. 드래그/완료토글 같은 동작은 이 컴포넌트가 모르고, 호출부가 바깥 wrapper에서 처리한다.
 export default function ContiSceneCard({
   index, category, duration, keyword, description,
-  location, personnel, patientRole, media, imageUrl, preparationItems, color, completed, headerLeft, headerRight,
+  location, personnel, patientRole, media, imageUrl, preparationItems, setup, color, completed, headerLeft, headerRight,
 }: ContiSceneCardProps) {
   const bodyColor = completed ? "#166534" : color.text;
   const headerBg = completed ? "#DCFCE7" : color.bg;
@@ -90,6 +91,7 @@ export default function ContiSceneCard({
           <ContiSceneMiniField icon={<Users size={13} />} label="인물" value={personnel} />
           <ContiSceneMiniField icon={<UserRound size={13} />} label="환자 역할" value={patientRole} />
         </div>
+        {setup ? <div style={{ display: "flex", alignItems: "flex-start", gap: 7, borderTop: "1px solid #DCE9E6", paddingTop: 10, color: "#315F59", fontSize: 12, lineHeight: 1.55 }}><Wrench size={14} style={{ marginTop: 2, flexShrink: 0 }} /><span><strong style={{ fontWeight: 600 }}>세팅</strong> · {setup}</span></div> : null}
         {preparationItems?.length ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
             {preparationItems.map((item) => <span key={item} style={{ borderRadius: 99, padding: "4px 8px", background: "#F4EFE7", color: "#6B6355", fontSize: 11.5, fontWeight: 500 }}>준비 · {item}</span>)}

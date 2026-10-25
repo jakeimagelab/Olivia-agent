@@ -5,8 +5,7 @@ import type { PrepEquipmentItem } from "@/lib/work-journal/scheduleTypes";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// 이 촬영에서 아직 한 번도 안 건드린 장비는 schedule_equipment 행이 없다 — 매번 47개 전부를
-// 응답하기 위해 equipment 마스터와 schedule_equipment를 서버에서 직접 merge한다.
+// 활성 장비 전체와 이 일정에서 이미 선택했던 비활성 장비를 함께 돌려준다.
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const scheduleId = searchParams.get("scheduleId");
@@ -14,20 +13,27 @@ export async function GET(req: NextRequest) {
 
   const db = getSupabaseAdmin();
   const [{ data: equipmentRows, error: equipmentError }, { data: linkRows, error: linkError }] = await Promise.all([
-    db.from("equipment").select("*").eq("active", true).order("category", { ascending: true }).order("sort_order", { ascending: true }),
+    db.from("equipment").select("*").order("sort_order", { ascending: true }),
     db.from("schedule_equipment").select("*").eq("schedule_id", scheduleId),
   ]);
   if (equipmentError) return NextResponse.json({ ok: false, error: equipmentError.message }, { status: 500 });
   if (linkError) return NextResponse.json({ ok: false, error: linkError.message }, { status: 500 });
 
   const linkByEquipmentId = new Map((linkRows ?? []).map((row) => [row.equipment_id, row]));
-  const items: PrepEquipmentItem[] = (equipmentRows ?? []).map((eq) => {
+  const items: PrepEquipmentItem[] = (equipmentRows ?? []).filter((eq) => {
+    const link = linkByEquipmentId.get(eq.id);
+    return eq.active || link?.selected === true;
+  }).map((eq) => {
     const link = linkByEquipmentId.get(eq.id);
     return {
       equipmentId: eq.id,
       scheduleEquipmentId: link?.id ?? null,
       name: eq.name,
       category: eq.category,
+      quantity: Math.max(1, Number(eq.quantity) || 1),
+      usage: eq.usage ?? null,
+      note: eq.note ?? null,
+      inactive: !eq.active,
       selected: link?.selected ?? false,
       checked: link?.checked ?? false,
       memo: link?.memo ?? null,

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ token: string }> };
-const ALLOWED_KEYS = new Set(["checklistCompleted", "checklistAssignees", "doctors", "timelineOrder", "hospitalRequestNote", "submitted"]);
+const ALLOWED_KEYS = new Set(["checklistCompleted", "checklistAssignees", "doctors", "timelineOrder", "hospitalRequestNote", "shootTypes", "submitted"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -52,6 +52,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   const currentDoctors = Array.isArray(runResult.data.doctors) ? runResult.data.doctors as ContiDoctor[] : [];
   const nextState = normalizeContiStudioState(runResult.data.studio_state);
   const runPatch: Record<string, unknown> = {};
+
+  if ("shootTypes" in body) {
+    const allowed = new Set(["scene", "profile", "interior"]);
+    if (!Array.isArray(body.shootTypes) || body.shootTypes.some((entry) => typeof entry !== "string" || !allowed.has(entry))) {
+      return NextResponse.json({ ok: false, error: "병원에서는 연출·프로필·인테리어 촬영 종류만 수정할 수 있습니다." }, { status: 400 });
+    }
+    const editable = [...new Set(body.shootTypes)] as Array<"scene" | "profile" | "interior">;
+    nextState.shootSetup.shootTypes = [
+      ...(nextState.shootSetup.shootTypes.includes("group") ? ["group" as const] : []),
+      ...editable,
+    ];
+  }
 
   if ("checklistCompleted" in body) {
     const value = booleanRecord(body.checklistCompleted);

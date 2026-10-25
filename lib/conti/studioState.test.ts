@@ -32,6 +32,16 @@ describe("Conti Studio state", () => {
       timelineOverrides: { "s1:once": { date: null, startTime: "13:20", endTime: null } },
     });
   });
+
+  it("normalizes shoot setup values and equipment checks", () => {
+    expect(normalizeContiStudioState({
+      shootSetup: { shootTypes: ["scene", "invalid", "profile", "scene"], hasVideo: true, profileStyle: "basic" },
+      equipmentChecked: { "Sony a7R5": true, bad: "yes" },
+    })).toMatchObject({
+      shootSetup: { shootTypes: ["scene", "profile"], hasVideo: true, profileStyle: "basic" },
+      equipmentChecked: { "Sony a7R5": true },
+    });
+  });
 });
 describe("Conti checklist derivation", () => {
   it("splits and deduplicates preparation while retaining linked scenes", () => {

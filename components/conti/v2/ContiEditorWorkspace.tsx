@@ -17,6 +17,7 @@ import { getDepartmentContiTitle } from "@/lib/conti/departmentTaxonomy";
 import { summarizeScheduleSegments } from "@/lib/conti/deriveSchedule";
 import { buildContiExportModel } from "@/lib/conti/exportModel";
 import { downloadContiExcel } from "@/lib/conti/excel";
+import type { ProfileStyle, ShootType } from "@/lib/shootSetup/rules";
 
 interface ClientOption { id: string; name: string }
 
@@ -198,6 +199,8 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
         <div>{hospitalEditedAt ? <span className={styles.hospitalEditedNotice}>병원이 {relativeMinutes(hospitalEditedAt)} 전에 수정했습니다. <button type="button" onClick={() => void controller.reload()}>새로고침</button></span> : null}<button type="button" onClick={() => setPreviousOpen(true)}><History size={15} />이전 콘티</button>{shareStatus ? <span role="status">{shareStatus}</span> : null}</div>
       </div>
 
+      <ShootSetupControls controller={controller} />
+
       <nav className={styles.editorTabs} aria-label="콘티 편집 메뉴">
         {([['conti', '콘티'], ['checklist', '준비사항'], ['schedule', '타임테이블']] as const).map(([value, label]) => <button key={value} type="button" aria-current={editorTab === value ? "page" : undefined} onClick={() => setEditorTab(value)}>{label}</button>)}
         <button type="button" onClick={onOpenField}>현장뷰</button>
@@ -215,6 +218,29 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
       {linkOpen ? <div className={styles.linkDialogBackdrop}><section className={styles.linkDialog} role="dialog" aria-modal="true" aria-label="고객 연결"><header><div><span>CANONICAL SAVE</span><h3>고객과 연결하기</h3></div><button type="button" onClick={() => setLinkOpen(false)} aria-label="닫기"><X size={17} /></button></header><p>저장할 고객을 선택하면 현재 콘티가 고객관리에서 바로 열립니다.</p><select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}><option value="">고객을 선택해 주세요</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select><button type="button" className={styles.primarySaveAction} disabled={!selectedClientId || savingLink} onClick={() => void saveCanonical(selectedClientId)}><Check size={14} />{savingLink ? "연결 중…" : "연결하고 저장"}</button></section></div> : null}
     </div>
   );
+}
+
+function ShootSetupControls({ controller }: { controller: ContiStudioController }) {
+  const setup = controller.document?.studioState.shootSetup;
+  if (!setup) return null;
+  const choices: Array<[ShootType, string]> = [["scene", "연출"], ["group", "단체사진"], ["profile", "프로필"], ["interior", "인테리어"]];
+  const toggle = (value: ShootType) => controller.updateStudioState((state) => ({
+    ...state,
+    shootSetup: {
+      ...state.shootSetup,
+      shootTypes: state.shootSetup.shootTypes.includes(value)
+        ? state.shootSetup.shootTypes.filter((entry) => entry !== value)
+        : [...state.shootSetup.shootTypes, value],
+    },
+  }));
+  const setVideo = (hasVideo: boolean) => controller.updateStudioState((state) => ({ ...state, shootSetup: { ...state.shootSetup, hasVideo } }));
+  const setProfileStyle = (profileStyle: ProfileStyle) => controller.updateStudioState((state) => ({ ...state, shootSetup: { ...state.shootSetup, profileStyle } }));
+  const profileEnabled = setup.shootTypes.includes("profile");
+  return <section className={styles.shootSetupControls} aria-label="촬영 세팅">
+    <div><strong>촬영 종류</strong>{choices.map(([value, label]) => <button key={value} type="button" aria-pressed={setup.shootTypes.includes(value)} onClick={() => toggle(value)}>{label}</button>)}</div>
+    <div><strong>영상</strong><button type="button" aria-pressed={!setup.hasVideo} onClick={() => setVideo(false)}>사진만</button><button type="button" aria-pressed={setup.hasVideo} onClick={() => setVideo(true)}>사진 + 영상</button></div>
+    <div aria-disabled={!profileEnabled}><strong>프로필 형태</strong><button type="button" disabled={!profileEnabled} aria-pressed={setup.profileStyle === "studio"} onClick={() => setProfileStyle("studio")}>스튜디오</button><button type="button" disabled={!profileEnabled} aria-pressed={setup.profileStyle === "basic"} onClick={() => setProfileStyle("basic")}>기본</button></div>
+  </section>;
 }
 
 function ScheduleEditor({ controller }: { controller: ContiStudioController }) {

@@ -1,3 +1,5 @@
+import type { ProfileStyle, ShootType } from "@/lib/shootSetup/rules";
+
 export type ContiFieldCardSize = "compact" | "normal" | "large";
 export interface ContiSceneVisual { assetId?: string; imageUrl?: string; source: "library" | "custom" | "ai"; sceneKey?: string }
 export interface ContiSceneMeta {
@@ -31,10 +33,12 @@ export interface ContiStudioState {
   hospitalRequestNote: string;
   fieldCardSize: ContiFieldCardSize;
   sceneMeta: Record<string, ContiSceneMeta>;
+  shootSetup: { shootTypes: ShootType[]; hasVideo: boolean; profileStyle: ProfileStyle };
+  equipmentChecked: Record<string, boolean>;
 }
 
 export function createDefaultContiStudioState(): ContiStudioState {
-  return { version: 2, checklistCompleted: {}, checklistAssignees: {}, extraChecklistItems: [], scheduleSegments: [{ id: "day-1", label: "1일차", startTime: "09:00", endTime: "18:00" }], scheduleBlocks: [], fixedSceneTimes: {}, timelineOrder: [], timelineCompleted: {}, timelineOverrides: {}, hospitalRequestNote: "", fieldCardSize: "normal", sceneMeta: {} };
+  return { version: 2, checklistCompleted: {}, checklistAssignees: {}, extraChecklistItems: [], scheduleSegments: [{ id: "day-1", label: "1일차", startTime: "09:00", endTime: "18:00" }], scheduleBlocks: [], fixedSceneTimes: {}, timelineOrder: [], timelineCompleted: {}, timelineOverrides: {}, hospitalRequestNote: "", fieldCardSize: "normal", sceneMeta: {}, shootSetup: { shootTypes: ["scene", "group"], hasVideo: false, profileStyle: "studio" }, equipmentChecked: {} };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> { return Boolean(value) && typeof value === "object" && !Array.isArray(value); }
@@ -117,5 +121,11 @@ export function normalizeContiStudioState(value: unknown): ContiStudioState {
     if (hasOwn(rawOverride, "endTime")) normalized.endTime = rawOverride.endTime === null || rawOverride.endTime === "" ? null : cleanTime(rawOverride.endTime);
     if (Object.values(normalized).some((entry) => entry !== undefined)) timelineOverrides[rowId] = normalized;
   }
-  return { version: 2, checklistCompleted: normalizeBooleanRecord(value.checklistCompleted), checklistAssignees: normalizeTextRecord(value.checklistAssignees), extraChecklistItems, ...(legacyStart ? { scheduleStartTime: legacyStart } : {}), scheduleSegments, scheduleBlocks, fixedSceneTimes, timelineOrder, timelineCompleted: normalizeBooleanRecord(value.timelineCompleted), timelineOverrides, hospitalRequestNote: cleanText(value.hospitalRequestNote) ?? "", fieldCardSize, sceneMeta };
+  const rawShootSetup = isRecord(value.shootSetup) ? value.shootSetup : {};
+  const allowedShootTypes = new Set<ShootType>(["scene", "group", "profile", "interior"]);
+  const shootTypes = Array.isArray(rawShootSetup.shootTypes)
+    ? [...new Set(rawShootSetup.shootTypes.filter((entry): entry is ShootType => typeof entry === "string" && allowedShootTypes.has(entry as ShootType)))]
+    : fallback.shootSetup.shootTypes;
+  const profileStyle: ProfileStyle = rawShootSetup.profileStyle === "basic" ? "basic" : "studio";
+  return { version: 2, checklistCompleted: normalizeBooleanRecord(value.checklistCompleted), checklistAssignees: normalizeTextRecord(value.checklistAssignees), extraChecklistItems, ...(legacyStart ? { scheduleStartTime: legacyStart } : {}), scheduleSegments, scheduleBlocks, fixedSceneTimes, timelineOrder, timelineCompleted: normalizeBooleanRecord(value.timelineCompleted), timelineOverrides, hospitalRequestNote: cleanText(value.hospitalRequestNote) ?? "", fieldCardSize, sceneMeta, shootSetup: { shootTypes, hasVideo: typeof rawShootSetup.hasVideo === "boolean" ? rawShootSetup.hasVideo : false, profileStyle }, equipmentChecked: normalizeBooleanRecord(value.equipmentChecked) };
 }

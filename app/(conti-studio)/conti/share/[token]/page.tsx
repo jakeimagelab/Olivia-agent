@@ -1,11 +1,15 @@
 import { notFound } from "next/navigation";
 import ContiSceneCard from "@/components/conti/ContiSceneCard";
 import ContiHospitalShareEditor from "@/components/conti/v2/ContiHospitalShareEditor";
+import ContiShootSetupPanels from "@/components/conti/v2/ContiShootSetupPanels";
 import ShareViewPrintButton from "@/components/conti/v2/ShareViewPrintButton";
 import type { ContiGroupRow, ContiRunRow, ContiSceneRow } from "@/components/conti/v2/types";
 import { parsePreparationText } from "@/lib/conti/deriveChecklist";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { CONTI_GROUP_COLORS, getDepartmentContiTitle, getDepartmentLabel } from "@/lib/conti/departmentTaxonomy";
+import { normalizeContiStudioState } from "@/lib/conti/studioState";
+import { getSetups, setupSummary } from "@/lib/shootSetup/rules";
+import { resolveContiShotType } from "@/lib/conti/shotType";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +40,8 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
   const groupById = new Map(groupRows.map((group, index) => [group.id, { name: group.name, color: group.color || CONTI_GROUP_COLORS[index % CONTI_GROUP_COLORS.length] }]));
   const totalMinutes = sceneRows.reduce((sum, scene) => sum + (scene.minutes ?? 0), 0);
   const completed = sceneRows.filter((scene) => scene.completed).length;
+  const studioState = normalizeContiStudioState(runRow.studio_state);
+  const setups = getSetups(studioState.shootSetup);
 
   return (
     <main className="share-shell">
@@ -62,10 +68,12 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
       </header>
       <div className="share-content">
         <section className="share-summary"><strong>{sceneRows.length} Scene · 예상 {formatMinutes(totalMinutes)}</strong><span>표시된 순서가 최신 촬영 순서입니다.</span></section>
+        {isStaff ? <ContiShootSetupPanels input={studioState.shootSetup} checked={studioState.equipmentChecked} /> : null}
         <div className="share-grid">
           {sceneRows.map((scene, index) => {
             const group = scene.group_id ? groupById.get(scene.group_id) : undefined;
-            return <ContiSceneCard key={scene.id} index={index + 1} category={scene.name || "이름 없는 Scene"} duration={scene.minutes != null ? `${scene.minutes}분` : undefined} keyword={isStaff ? scene.keyword || group?.name : group?.name} description={scene.description} location={scene.space_text} personnel={scene.people_text} patientRole={scene.patient_role_text} media={scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "—" : "사진"} preparationItems={isStaff ? parsePreparationText(scene.preparation_text) : undefined} completed={scene.completed} color={{ bg: `${group?.color || "#155855"}18`, text: group?.color || "#155855" }} />;
+            const shotType = resolveContiShotType({ shotType: scene.shot_type, name: scene.name, groupName: group?.name });
+            return <ContiSceneCard key={scene.id} index={index + 1} category={scene.name || "이름 없는 Scene"} duration={scene.minutes != null ? `${scene.minutes}분` : undefined} keyword={isStaff ? scene.keyword || group?.name : group?.name} description={scene.description} location={scene.space_text} personnel={scene.people_text} patientRole={scene.patient_role_text} media={scene.media === "photo_video" ? "사진 + 영상" : scene.media === "none" ? "—" : "사진"} preparationItems={isStaff ? parsePreparationText(scene.preparation_text) : undefined} setup={isStaff ? setupSummary(setups[shotType]) || undefined : undefined} completed={scene.completed} color={{ bg: `${group?.color || "#155855"}18`, text: group?.color || "#155855" }} />;
           })}
         </div>
         <footer className="share-footer no-print">OLIVIA OS · {isStaff ? "현장팀" : "고객"} 공유뷰</footer>

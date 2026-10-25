@@ -6,12 +6,19 @@ import { C, R } from "@/lib/theme";
 import type { EquipmentCategory, PrepEquipmentItem, ScheduleRental } from "@/lib/work-journal/scheduleTypes";
 
 const TAB_LABEL: Record<EquipmentCategory, string> = {
+  CAMERA: "카메라",
+  LENS: "렌즈",
   LIGHT: "조명",
-  CAMERA: "카메라·렌즈",
-  COMPUTER: "노트북·저장장치",
+  STAND: "A스탠드",
+  TRIPOD: "삼각대",
+  SLIDER: "슬라이더",
+  GIMBAL: "짐벌",
+  TRIGGER: "동조기",
+  BATTERY: "배터리",
+  STORAGE: "저장장치",
   ETC: "기타",
 };
-const TAB_ORDER: EquipmentCategory[] = ["LIGHT", "CAMERA", "COMPUTER", "ETC"];
+const TAB_ORDER: EquipmentCategory[] = ["CAMERA", "LENS", "LIGHT", "STAND", "TRIPOD", "SLIDER", "GIMBAL", "TRIGGER", "BATTERY", "STORAGE", "ETC"];
 
 export default function PreparationColumn({
   prepItems,
@@ -30,7 +37,7 @@ export default function PreparationColumn({
   onToggleRental: (id: string, checked: boolean) => void;
   onDeleteRental: (id: string) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<EquipmentCategory>("LIGHT");
+  const [activeTab, setActiveTab] = useState<EquipmentCategory>("CAMERA");
   const [savingLabel, setSavingLabel] = useState<"idle" | "saving" | "saved">("idle");
   const [rentalName, setRentalName] = useState("");
   const [addingRental, setAddingRental] = useState(false);
@@ -54,8 +61,8 @@ export default function PreparationColumn({
   return (
     <div className="pc-card pc-card--padded" style={{ minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
       <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-        <span style={{ fontSize: 13, fontWeight: 900, color: C.ink }}>준비사항</span>
-        <span style={{ fontSize: 10.5, fontWeight: 700, color: savingLabel === "idle" ? "transparent" : C.muted }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>준비사항</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: savingLabel === "idle" ? "transparent" : C.muted }}>
           {savingLabel === "saving" ? "저장 중..." : savingLabel === "saved" ? "저장 완료" : "-"}
         </span>
       </div>
@@ -74,11 +81,11 @@ export default function PreparationColumn({
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 border: "none", borderRadius: R.sm, padding: "8px 10px", cursor: "pointer", textAlign: "left",
                 background: active ? C.mint : "transparent", color: active ? C.teal : C.muted,
-                fontWeight: active ? 800 : 600, fontSize: 12.5,
+                fontWeight: 600, fontSize: 12.5,
               }}
             >
               <span>{TAB_LABEL[cat]}</span>
-              <span style={{ fontSize: 11, fontWeight: 700 }}>{selectedCount} / {items.length}</span>
+              <span style={{ fontSize: 11, fontWeight: 600 }}>{selectedCount} / {items.length}</span>
             </button>
           );
         })}
@@ -93,7 +100,7 @@ export default function PreparationColumn({
           itemsForTab.map((item) => (
             <label
               key={item.equipmentId}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", cursor: "pointer" }}
+              style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 4px", cursor: "pointer", opacity: item.inactive ? 0.62 : 1 }}
             >
               <input
                 type="checkbox"
@@ -101,8 +108,9 @@ export default function PreparationColumn({
                 onChange={(e) => void flashSaving(() => onToggleSelected(item.equipmentId, e.target.checked))}
                 style={{ width: 15, height: 15, accentColor: C.teal, cursor: "pointer" }}
               />
-              <span style={{ fontSize: 12.5, color: item.selected ? C.ink : C.muted, fontWeight: item.selected ? 700 : 500 }}>
-                {item.name}
+              <span style={{ display: "grid", gap: 2, minWidth: 0, fontSize: 12.5, color: item.selected ? C.ink : C.muted, fontWeight: item.selected ? 600 : 500 }}>
+                <span>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ""}{item.inactive ? " · 목록에서 제외됨" : ""}</span>
+                {item.usage || item.note ? <small style={{ color: C.hint, fontSize: 10.5, lineHeight: 1.45, fontWeight: 500 }}>{[item.usage, item.note].filter(Boolean).join(" · ")}</small> : null}
               </span>
             </label>
           ))
@@ -111,11 +119,11 @@ export default function PreparationColumn({
 
       <div style={{ flexShrink: 0, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 12.5, fontWeight: 800, color: C.ink }}>렌탈 장비</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>렌탈 장비</span>
           <button
             type="button"
             onClick={() => setAddingRental((v) => !v)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 26, padding: "0 10px", borderRadius: R.sm, border: "none", background: C.orange, color: "#fff", fontSize: 11, fontWeight: 800, cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 26, padding: "0 10px", borderRadius: R.sm, border: "none", background: C.orange, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
           >
             <Plus size={12} />추가
           </button>
@@ -132,7 +140,7 @@ export default function PreparationColumn({
               style={{ flex: 1, height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, padding: "0 10px", fontSize: 12 }}
             />
             <button type="button" onClick={submitRental} disabled={!rentalName.trim()}
-              style={{ height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 800, cursor: !rentalName.trim() ? "not-allowed" : "pointer", opacity: !rentalName.trim() ? 0.6 : 1 }}>
+              style={{ height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 600, cursor: !rentalName.trim() ? "not-allowed" : "pointer", opacity: !rentalName.trim() ? 0.6 : 1 }}>
               추가
             </button>
           </div>
@@ -150,7 +158,7 @@ export default function PreparationColumn({
                   onChange={(e) => onToggleRental(rental.id, e.target.checked)}
                   style={{ width: 15, height: 15, accentColor: C.teal, cursor: "pointer" }}
                 />
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: rental.checked ? C.ink : C.muted, fontWeight: rental.checked ? 700 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, color: rental.checked ? C.ink : C.muted, fontWeight: rental.checked ? 600 : 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {rental.name}
                 </span>
                 <button type="button" onClick={() => onDeleteRental(rental.id)} aria-label="삭제" title="삭제"

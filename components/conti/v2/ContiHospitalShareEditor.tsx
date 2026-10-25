@@ -48,6 +48,7 @@ export default function ContiHospitalShareEditor({ token, hospitalName, run, gro
           doctors: doctors.map(({ id, name, day }) => ({ id, name, day })),
           timelineOrder: studioState.timelineOrder,
           hospitalRequestNote: studioState.hospitalRequestNote,
+          shootTypes: studioState.shootSetup.shootTypes.filter((value) => value === "scene" || value === "profile" || value === "interior"),
           ...(submitted ? { submitted: true } : {}),
         }),
       });
@@ -87,6 +88,11 @@ export default function ContiHospitalShareEditor({ token, hospitalName, run, gro
       <div><small>{saveState === "saving" ? "저장 중…" : saveState === "failed" ? "저장 실패" : lastSavedAt ? `마지막 저장 ${new Date(lastSavedAt).toLocaleString("ko-KR")}` : "자동저장 준비됨"}</small><button type="button" onClick={() => void save(true)}><Send size={15} />작성 완료 보내기</button></div>
     </header>
     {error ? <p className={styles.hospitalShareError} role="alert">{error}</p> : null}
+    <section className={styles.hospitalShootTypes} aria-label="촬영 종류">
+      <strong>촬영 종류</strong>
+      {([['scene', '연출'], ['profile', '프로필'], ['interior', '인테리어']] as const).map(([value, label]) => <label key={value}><input type="checkbox" checked={studioState.shootSetup.shootTypes.includes(value)} onChange={() => setStudioState((state) => ({ ...state, shootSetup: { ...state.shootSetup, shootTypes: state.shootSetup.shootTypes.includes(value) ? state.shootSetup.shootTypes.filter((entry) => entry !== value) : [...state.shootSetup.shootTypes, value] } }))} /><span><Check size={13} />{label}</span></label>)}
+      <small>단체사진·영상·프로필 형태는 포토클리닉 설정을 유지합니다.</small>
+    </section>
     <nav className={styles.shareEditorTabs}>{([['checklist', '준비사항'], ['conti', '콘티'], ['schedule', '타임테이블']] as const).map(([value, label]) => <button key={value} type="button" aria-current={tab === value ? "page" : undefined} onClick={() => setTab(value)}>{label}</button>)}</nav>
 
     {tab === "checklist" ? <div className={styles.hospitalShareContent}>

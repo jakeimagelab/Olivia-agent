@@ -6,6 +6,7 @@ import { createDefaultContiStudioState, normalizeContiStudioState, type ContiStu
 import { writeWorkflowCheckSafely } from "@/lib/workflowCheckPersistence";
 import { removeUnsupportedContiSceneColumn } from "@/lib/conti/schemaCompatibility";
 import { MANDATORY_OPENING_NAMES, type ContiSceneRecommendation } from "@/lib/conti/sceneRecommendations";
+import { inferContiShotType, isContiShotType } from "@/lib/conti/shotType";
 
 export type CanonicalContiPayload = {
   ok: true;
@@ -149,7 +150,7 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
     procedures: scene.procedures, people_text: scene.peopleText, patient_role_text: scene.patientRoleText,
     preparation_text: scene.preparationText, note: scene.note,
     template_id: scene.templateId?.startsWith("code:") ? null : scene.templateId, field_sources: scene.fieldSources,
-    repeat_scope: scene.repeatScope, media: scene.media,
+    repeat_scope: scene.repeatScope, media: scene.media, shot_type: scene.shotType,
   }));
   let scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");
   if (scenesResult.error && isMissingV2Column(scenesResult.error)) {
@@ -159,6 +160,7 @@ export async function createCanonicalConti(source: CreateCanonicalContiInput): P
       delete legacyScene.scene_code;
       delete legacyScene.repeat_scope;
       delete legacyScene.media;
+      delete legacyScene.shot_type;
       return legacyScene;
     })).select("*");
     warnings.push("DB 마이그레이션이 필요합니다. 준비사항과 새 타임테이블 필드는 이전 형식으로 저장되었습니다.");
@@ -209,11 +211,13 @@ export async function addCanonicalContiScene(
     keyword: suggested?.keyword ?? "", description: suggested?.description ?? "", procedures: [],
     people_text: suggested?.peopleText ?? "", patient_role_text: suggested?.patientRoleText ?? "",
     preparation_text: suggested?.preparationText ?? "", note: "", template_id: null,
-    repeat_scope: "once", media: suggested?.media ?? "photo", field_sources: fieldSources,
+    repeat_scope: "once", media: suggested?.media ?? "photo",
+    shot_type: inferContiShotType({ name: suggested?.name, groupName: suggested?.groupName }),
+    field_sources: fieldSources,
   });
 }
 
-export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean; media?: unknown }) {
+export async function updateCanonicalContiScene(sceneId: string, patch: { fields?: Record<string, unknown>; sort?: number; group_id?: unknown; procedures?: unknown[]; completed?: boolean; media?: unknown; shot_type?: unknown }) {
   const db = getSupabaseAdmin();
   const existing = await db.from("conti_scenes").select("field_sources").eq("id", sceneId).maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
@@ -233,6 +237,7 @@ export async function updateCanonicalContiScene(sceneId: string, patch: { fields
   if (Array.isArray(patch.procedures)) update.procedures = patch.procedures;
   if (typeof patch.completed === "boolean") update.completed = patch.completed;
   if (["photo", "photo_video", "none"].includes(String(patch.media))) update.media = patch.media;
+  if (patch.shot_type === null || isContiShotType(patch.shot_type)) update.shot_type = patch.shot_type;
   if (!Object.keys(update).length) throw new Error("수정할 내용이 없습니다.");
   const result = await db.from("conti_scenes").update(update).eq("id", sceneId).select("*").single();
   if (result.error || !result.data) throw new Error(result.error?.message ?? "수정 실패");
@@ -294,6 +299,7 @@ export async function duplicateCanonicalContiScene(sceneId: string) {
     completed: false,
     repeat_scope: source.repeat_scope ?? "once",
     media: source.media ?? "photo",
+    shot_type: source.shot_type ?? null,
   };
   return insertCanonicalContiScene(insert);
 }
@@ -389,6 +395,7 @@ export async function cloneCanonicalConti(runId: string): Promise<CanonicalConti
       completed: false,
       repeat_scope: scene.repeat_scope ?? "once",
       media: scene.media ?? "photo",
+      shot_type: scene.shot_type ?? inferContiShotType({ name: String(scene.name ?? "") }),
     }));
     const scenesResult = sceneRows.length ? await db.from("conti_scenes").insert(sceneRows).select("*") : { data: [], error: null };
     if (scenesResult.error) throw new Error(scenesResult.error.message);
@@ -467,6 +474,7 @@ export async function importCanonicalConti(source: ImportCanonicalContiInput): P
       completed: false,
       repeat_scope: "once",
       media: "photo",
+      shot_type: inferContiShotType({ name: String(row.category ?? row.name ?? ""), groupName: "가져온 콘티" }),
       field_sources: { name: "user", space_text: "user", minutes: "user", keyword: "user", description: "user", people_text: "user", patient_role_text: "blank", preparation_text: "blank", note: "user" },
     }));
     const scenesResult = await db.from("conti_scenes").insert(sceneRows).select("*");

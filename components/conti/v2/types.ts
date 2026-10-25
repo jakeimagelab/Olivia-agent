@@ -1,4 +1,5 @@
 import type { ContiStudioState } from "@/lib/conti/studioState";
+import type { ContiShotType } from "@/lib/conti/shotType";
 
 export interface ContiRunRow {
   id: string;
@@ -57,6 +58,7 @@ export interface ContiSceneRow {
   completed: boolean;
   repeat_scope?: ContiRepeatScope;
   media?: ContiMedia;
+  shot_type?: ContiShotType | null;
 }
 
 export interface ContiStudioDocument {

@@ -1,17 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { DndContext, KeyboardSensor, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowLeft, Check, GripVertical, LockKeyhole, Share2, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, GripVertical, LockKeyhole, Share2, SlidersHorizontal } from "lucide-react";
 import ContiSceneCard from "@/components/conti/ContiSceneCard";
+import ContiShootSetupPanels from "@/components/conti/v2/ContiShootSetupPanels";
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import type { DerivedContiScheduleRow } from "@/lib/conti/deriveSchedule";
 import { parsePreparationText } from "@/lib/conti/deriveChecklist";
 import type { ContiFieldCardSize } from "@/lib/conti/studioState";
 import { CONTI_GROUP_COLORS, getDepartmentContiTitle, getSurgeryTypeLabel } from "@/lib/conti/departmentTaxonomy";
 import styles from "@/components/conti/v2/ContiV2.module.css";
+import { getSetups, setupSummary } from "@/lib/shootSetup/rules";
+import { resolveContiShotType } from "@/lib/conti/shotType";
 
 type FieldTab = "cards" | "checklist" | "schedule";
 const CARD_SIZES: ContiFieldCardSize[] = ["compact", "normal", "large"];
@@ -26,6 +30,8 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const groupById = useMemo(() => new Map((document?.groups ?? []).map((group, index) => [group.id, { name: group.name, color: CONTI_GROUP_COLORS[index % CONTI_GROUP_COLORS.length] }])), [document?.groups]);
+  const shootSetup = document?.studioState.shootSetup ?? { shootTypes: ["scene", "group"] as const, hasVideo: false, profileStyle: "studio" as const };
+  const setups = getSetups({ ...shootSetup, shootTypes: [...shootSetup.shootTypes] });
   if (!document) return null;
   const activeDocument = document;
   const completed = controller.schedule.filter((row) => row.steps?.length ? row.steps.every((step) => activeDocument.studioState.timelineCompleted[`${row.rowId}:${step.id}`]) : activeDocument.studioState.timelineCompleted[row.rowId]).length;
@@ -55,8 +61,10 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
       <header className={styles.fieldHeader}>
         <div className={styles.fieldTitle}><button type="button" onClick={onBack} aria-label="편집 화면으로"><ArrowLeft size={19} /></button><div><span>FIELD VIEW</span><h2>{fieldTitle}</h2></div></div>
         <div className={styles.fieldProgressCopy}><strong>{completed} / {total} 완료</strong><div><span style={{ transform: `scaleX(${progress})` }} /></div></div>
-        <div className={styles.fieldHeaderActions}>{shareStatus ? <span role="status">{shareStatus}</span> : null}<button type="button" onClick={() => void share()}><Share2 size={16} />공유</button></div>
+        <div className={styles.fieldHeaderActions}>{shareStatus ? <span role="status">{shareStatus}</span> : null}<Link href="/staff-guide" target="_blank"><BookOpen size={16} />스텝 가이드</Link><button type="button" onClick={() => void share()}><Share2 size={16} />공유</button></div>
       </header>
+
+      <ContiShootSetupPanels input={shootSetup} checked={activeDocument.studioState.equipmentChecked} onToggle={(name) => controller.updateStudioState((state) => ({ ...state, equipmentChecked: { ...state.equipmentChecked, [name]: !state.equipmentChecked[name] } }))} />
 
       <div className={styles.fieldControls}>
         <div className={styles.fieldTabs} role="tablist" aria-label="현장뷰 메뉴">
@@ -72,7 +80,8 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
               {controller.schedule.map((row) => {
                 const scene = document.scenes.find((item) => item.id === row.sceneId);
                 const group = scene?.group_id ? groupById.get(scene.group_id) : undefined;
-                return <SortableFieldCard key={row.rowId} row={row} specialty={document.run.specialty || ""} groupName={group?.name || (row.type === "break" ? "고정 일정" : "미지정")} groupColor={group?.color || "#155855"} completed={row.steps?.length ? row.steps.every((step) => document.studioState.timelineCompleted[`${row.rowId}:${step.id}`]) : Boolean(document.studioState.timelineCompleted[row.rowId])} completedMap={document.studioState.timelineCompleted} onComplete={(key) => {
+                const shotType = scene ? resolveContiShotType({ shotType: scene.shot_type, name: scene.name, groupName: group?.name }) : undefined;
+                return <SortableFieldCard key={row.rowId} row={row} specialty={document.run.specialty || ""} groupName={group?.name || (row.type === "break" ? "고정 일정" : "미지정")} groupColor={group?.color || "#155855"} setup={shotType ? setupSummary(setups[shotType]) : ""} completed={row.steps?.length ? row.steps.every((step) => document.studioState.timelineCompleted[`${row.rowId}:${step.id}`]) : Boolean(document.studioState.timelineCompleted[row.rowId])} completedMap={document.studioState.timelineCompleted} onComplete={(key) => {
                   if (key === row.rowId && row.steps?.length) {
                     const allDone = row.steps.every((step) => document.studioState.timelineCompleted[`${row.rowId}:${step.id}`]);
                     for (const step of row.steps) {
@@ -96,7 +105,7 @@ export default function ContiFieldView({ controller, onBack }: { controller: Con
   );
 }
 
-function SortableFieldCard({ row, specialty, groupName, groupColor, completed, completedMap, onComplete }: { row: DerivedContiScheduleRow; specialty: string; groupName: string; groupColor: string; completed: boolean; completedMap: Record<string, boolean>; onComplete: (rowId: string) => void }) {
+function SortableFieldCard({ row, specialty, groupName, groupColor, setup, completed, completedMap, onComplete }: { row: DerivedContiScheduleRow; specialty: string; groupName: string; groupColor: string; setup: string; completed: boolean; completedMap: Record<string, boolean>; onComplete: (rowId: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: row.rowId, disabled: row.locked });
   const surgeryText = row.surgeries?.map((value) => getSurgeryTypeLabel(specialty, value)).join(" · ");
   return <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? .62 : undefined, zIndex: isDragging ? 4 : undefined }}>
@@ -111,6 +120,7 @@ function SortableFieldCard({ row, specialty, groupName, groupColor, completed, c
       patientRole={row.patientRole}
       media={row.media === "photo_video" ? "사진 + 영상" : row.media === "none" ? "—" : "사진"}
       preparationItems={parsePreparationText(row.preparation)}
+      setup={setup || undefined}
       color={{ bg: `${groupColor}18`, text: groupColor }}
       completed={completed}
       headerLeft={row.locked ? <span className={styles.fieldDragHandle} title="고정 일정"><LockKeyhole size={15} /></span> : <button type="button" className={styles.fieldDragHandle} aria-label={`${row.name} 타임 순서 이동`} {...attributes} {...listeners}><GripVertical size={17} /></button>}

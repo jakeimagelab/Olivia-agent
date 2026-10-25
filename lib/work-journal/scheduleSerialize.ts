@@ -19,6 +19,9 @@ export function rowToEquipment(row: Record<string, any>): Equipment {
     id: row.id,
     name: row.name ?? "",
     category: row.category,
+    quantity: Math.max(1, Number(row.quantity) || 1),
+    usage: row.usage ?? null,
+    note: row.note ?? null,
     active: !!row.active,
     sortOrder: row.sort_order ?? 0,
   };

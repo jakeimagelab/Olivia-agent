@@ -4,6 +4,7 @@ const OPTIONAL_CONTI_SCENE_COLUMNS = new Set([
   "completed",
   "repeat_scope",
   "media",
+  "shot_type",
 ]);
 
 type SchemaError = { code?: string; message?: string } | null;

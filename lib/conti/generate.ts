@@ -1,3 +1,5 @@
+import { inferContiShotType, type ContiShotType } from "@/lib/conti/shotType";
+
 // 고정 진료과 taxonomy에서 결정론적으로 장면 골격을 만든다. AI를 호출하지 않는
 // 순수 함수이며, 세부 시술은 procedures로만 보존하고 독립 Scene으로 만들지 않는다.
 //
@@ -86,6 +88,7 @@ export interface DraftScene {
   templateId: string | null;
   repeatScope: ContiRepeatScope;
   media: ContiMedia;
+  shotType: ContiShotType;
   fieldSources: Record<
     "name" | "space_text" | "minutes" | "keyword" | "description" | "people_text" | "patient_role_text" | "preparation_text" | "note",
     FieldSource
@@ -167,6 +170,7 @@ function buildDraftFromTemplate(template: SceneTemplateRow, procedures: string[]
     templateId: template.id,
     repeatScope: template.repeat_scope ?? (template.per_doctor ? "per_doctor" : "once"),
     media: template.media ?? "photo",
+    shotType: inferContiShotType({ name: template.default_name }),
     fieldSources: {
       name: textSource(template.default_name),
       space_text: textSource(template.space_type),
@@ -318,6 +322,7 @@ function buildCustomScene(name: string, sort: number, role?: string): DraftScene
     templateId: null,
     repeatScope: "once",
     media: "photo",
+    shotType: inferContiShotType({ name }),
     fieldSources: {
       name: "user", space_text: "ai", minutes: "ai", keyword: "ai", description: "ai",
       people_text: peopleText ? "user" : "blank", patient_role_text: "blank",
@@ -415,6 +420,7 @@ export function generateContiDraft(input: GenerateContiInput, ctx: GenerateConti
     ...scene,
     sort: index,
     sceneCode: `S${index + 1}`,
+    shotType: inferContiShotType({ name: scene.name, groupName: scene.group }),
     ...(scene.templateId?.endsWith(":doctor-surgery") && doctorAssignments
       ? { preparationText: doctorAssignments, fieldSources: { ...scene.fieldSources, preparation_text: "user" as FieldSource } }
       : {}),

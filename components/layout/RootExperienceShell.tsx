@@ -30,6 +30,7 @@ const BARE_PATH_PREFIXES = [
   "/team-chat/invite/",
   "/select/",
   "/pick/",
+  "/staff-guide",
   "/s/",
 ];
 

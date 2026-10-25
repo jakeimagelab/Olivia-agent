@@ -10,6 +10,7 @@ import type { ContiEditableSceneField, ContiGroupRow, ContiSceneRow } from "@/co
 import type { ContiStudioController } from "@/components/conti/v2/useContiStudio";
 import { CONTI_GROUP_COLORS } from "@/lib/conti/departmentTaxonomy";
 import { sceneShootingTime } from "@/lib/conti/exportModel";
+import { inferContiShotType, type ContiShotType } from "@/lib/conti/shotType";
 import styles from "@/components/conti/v2/ContiV2.module.css";
 
 export default function ContiResultTable({ controller }: { controller: ContiStudioController }) {
@@ -76,6 +77,7 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
                   onUpdate={controller.updateSceneFields}
                   onUpdateGroup={controller.updateSceneGroup}
                   onUpdateMedia={controller.updateSceneMedia}
+                  onUpdateShotType={controller.updateSceneShotType}
                   onUpdateShootingTime={controller.setSceneShootingTime}
                   onDuplicate={controller.duplicateScene}
                   onDelete={async (sceneId) => { if (window.confirm("이 장면을 삭제할까요?")) await controller.deleteScene(sceneId); }}
@@ -94,7 +96,7 @@ export default function ContiResultTable({ controller }: { controller: ContiStud
   );
 }
 
-function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, onUpdate, onUpdateGroup, onUpdateMedia, onUpdateShootingTime, onDuplicate, onDelete }: {
+function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, onUpdate, onUpdateGroup, onUpdateMedia, onUpdateShotType, onUpdateShootingTime, onDuplicate, onDelete }: {
   scene: ContiSceneRow;
   groups: ContiGroupRow[];
   rowIndex: number;
@@ -103,6 +105,7 @@ function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, 
   onUpdate: (sceneId: string, fields: Partial<Record<ContiEditableSceneField, string | number | null>>) => void;
   onUpdateGroup: (sceneId: string, groupId: string | null) => void;
   onUpdateMedia: ContiStudioController["updateSceneMedia"];
+  onUpdateShotType: ContiStudioController["updateSceneShotType"];
   onUpdateShootingTime: ContiStudioController["setSceneShootingTime"];
   onDuplicate: (sceneId: string) => Promise<boolean>;
   onDelete: (sceneId: string) => Promise<void>;
@@ -110,14 +113,19 @@ function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: scene.id });
   const style: React.CSSProperties = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.58 : 1, position: "relative", zIndex: isDragging ? 3 : undefined };
   const groupIndex = Math.max(0, groups.findIndex((group) => group.id === scene.group_id));
+  const groupName = groups.find((group) => group.id === scene.group_id)?.name;
+  const inferredShotType = inferContiShotType({ name: scene.name, groupName });
 
   return (
     <tr ref={setNodeRef} style={style}>
       <td className={styles.numberColumn}><div className={styles.sceneCodeCell}><button type="button" className={styles.dragHandle} aria-label={`${scene.name || "장면"} 순서 이동`} {...attributes} {...listeners}><GripVertical size={15} /></button><span>{scene.scene_code || `S${rowIndex + 1}`}</span><div className={styles.rowActions}><button type="button" title="복제" aria-label={`${scene.name} 복제`} onClick={() => void onDuplicate(scene.id)}><Copy size={12} /></button><button type="button" title="삭제" aria-label={`${scene.name} 삭제`} onClick={() => void onDelete(scene.id)}><Trash2 size={12} /></button></div></div></td>
-      <td><select className={styles.groupSelect} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties} value={scene.group_id ?? ""} aria-label={`${scene.name || "장면"} 구분`} onChange={(event) => onUpdateGroup(scene.id, event.target.value || null)}>
+      <td><div className={styles.groupAndShotType}><select className={styles.groupSelect} style={{ "--group-color": CONTI_GROUP_COLORS[groupIndex % CONTI_GROUP_COLORS.length] } as React.CSSProperties} value={scene.group_id ?? ""} aria-label={`${scene.name || "장면"} 구분`} onChange={(event) => onUpdateGroup(scene.id, event.target.value || null)}>
         <option value="">미지정</option>
         {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-      </select></td>
+      </select><select className={styles.shotTypeSelect} value={scene.shot_type ?? ""} aria-label={`${scene.name || "장면"} 촬영 종류`} onChange={(event) => onUpdateShotType(scene.id, (event.target.value || null) as ContiShotType | null)}>
+        <option value="">없음{scene.shot_type == null ? ` · 자동 ${SHOT_TYPE_LABEL[inferredShotType]}` : ""}</option>
+        <option value="scene">연출</option><option value="group">단체</option><option value="profile">프로필</option><option value="interior">인테리어</option><option value="video">영상</option>
+      </select></div></td>
       <EditableCell scene={scene} field="name" rowIndex={rowIndex} textarea onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
       <td className={styles.timeCell}><CellInput key={shootingTime} value={shootingTime} field="shootingTime" rowIndex={rowIndex} textarea placeholder="촬영시간" onMoveFocus={onMoveFocus} onCommit={(value) => { if (value !== shootingTime) onUpdateShootingTime(scene.id, value); }} /></td>
       <EditableCell scene={scene} field="minutes" rowIndex={rowIndex} numeric onMoveFocus={onMoveFocus} onUpdate={onUpdate} />
@@ -131,6 +139,8 @@ function SortableSceneRow({ scene, groups, rowIndex, shootingTime, onMoveFocus, 
     </tr>
   );
 }
+
+const SHOT_TYPE_LABEL: Record<ContiShotType, string> = { scene: "연출", group: "단체", profile: "프로필", interior: "인테리어", video: "영상" };
 
 function EditableCell({ scene, field, rowIndex, textarea, numeric, onMoveFocus, onUpdate }: {
   scene: ContiSceneRow;

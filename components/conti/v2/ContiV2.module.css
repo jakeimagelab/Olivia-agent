@@ -44,6 +44,12 @@
 .editorToolbar button:hover:not(:disabled) { background: #eaf3f0; color: #155855; }
 .editorToolbar button:disabled { opacity: .35; cursor: default; }
 .editorToolbar span { color: #617c76; font-size: 10px; font-weight: 500; }
+.shootSetupControls { display: flex; flex-wrap: wrap; gap: 9px 18px; align-items: center; border-right: 1px solid rgba(21,88,85,.1); border-left: 1px solid rgba(21,88,85,.1); padding: 9px 14px; background: #fff; }
+.shootSetupControls > div { display: flex; align-items: center; gap: 5px; }
+.shootSetupControls strong { margin-right: 3px; color: #5a7470; font-size: 10px; font-weight: 600; }
+.shootSetupControls button { min-height: 32px; border: 1px solid rgba(21,88,85,.13); border-radius: 999px; padding: 0 10px; background: #fff; color: #5a7470; font-size: 10px; font-weight: 500; cursor: pointer; }
+.shootSetupControls button[aria-pressed="true"] { border-color: #155855; background: #edf5f3; color: #155855; }
+.shootSetupControls button:disabled { border-color: #e0e6e4; background: transparent; color: #a2afac; cursor: not-allowed; }
 .workspaceError { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid #f1c8b8; border-left: 4px solid #c43c2a; padding: 9px 13px; background: #fff6f1; color: #a7462c; font-size: 10.5px; font-weight: 500; }.workspaceError span { display: grid; gap: 3px; }.workspaceError small { color: #8d5b50; font-size: 9px; font-weight: 500; }
 .workspaceError button { border: 0; border-radius: 8px; padding: 5px 9px; background: #e85d2c; color: #fff; font-size: 9.5px; font-weight: 600; cursor: pointer; }
 
@@ -67,6 +73,9 @@
 .groupPill { display: inline-flex; max-width: calc(100% - 12px); min-height: 23px; align-items: center; overflow: hidden; border-radius: 99px; margin: 0 6px; padding: 0 8px; background: color-mix(in srgb, var(--group-color) 11%, white); color: var(--group-color); text-overflow: ellipsis; white-space: nowrap; font-size: 8.5px; font-weight: 600; }
 .groupSelect { width: calc(100% - 12px); min-height: 32px; margin: 0 6px; border: 1px solid color-mix(in srgb, var(--group-color) 28%, #d5dedb); border-radius: 8px; padding: 0 24px 0 8px; background-color: color-mix(in srgb, var(--group-color) 7%, white); color: #155855; font-size: 11.5px; font-weight: 500; cursor: pointer; outline: none; }
 .groupSelect:focus { border-color: #155855; background-color: #fff; box-shadow: 0 0 0 3px rgba(21,88,85,.08); }
+.groupAndShotType { display: grid; gap: 4px; padding: 5px 0; }
+.shotTypeSelect { width: calc(100% - 12px); min-height: 27px; margin: 0 6px; border: 1px solid #d5dedb; border-radius: 7px; padding: 0 21px 0 7px; background: #fff; color: #5a7470; font-size: 9px; outline: none; }
+.shotTypeSelect:focus { border-color: #155855; box-shadow: 0 0 0 3px rgba(21,88,85,.08); }
 .statusToggle { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; border: 0; border-radius: 99px; padding: 0 8px; background: #f0f3f2; color: #7b8f8b; font-size: 9px; font-weight: 600; cursor: pointer; }
 .statusToggle span { display: grid; width: 16px; height: 16px; place-items: center; border: 1px solid #bdcbc8; border-radius: 5px; color: transparent; }
 .statusToggleDone { background: #edf7f2; color: #287653; }.statusToggleDone span { border-color: #3e9c71; background: #3e9c71; color: #fff; }
@@ -269,7 +278,14 @@
 .fieldHeader { display: grid; grid-template-columns: minmax(240px,1fr) minmax(200px,.65fr) minmax(180px,1fr); gap: 18px; align-items: center; min-height: 64px; border: 1px solid rgba(21,88,85,.1); border-radius: 16px 16px 0 0; padding: 8px 12px; background: #fff; }
 .fieldTitle { display: flex; align-items: center; gap: 10px; }.fieldTitle > button { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid rgba(21,88,85,.12); border-radius: 11px; background: #f8faf9; color: #155855; }.fieldTitle span { color: #e85d2c; font-size: 8px; font-weight: 600; letter-spacing: .14em; }.fieldTitle h2 { margin: 2px 0 0; font-size: 16px; }
 .fieldProgressCopy { display: grid; gap: 6px; text-align: center; }.fieldProgressCopy strong { color: #155855; font-size: 11px; }.fieldProgressCopy > div { height: 5px; overflow: hidden; border-radius: 99px; background: #e5efec; }.fieldProgressCopy > div span { display: block; width: 100%; height: 100%; border-radius: inherit; background: #e85d2c; transform-origin: left; transition: transform .3s ease; }
-.fieldHeaderActions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }.fieldHeaderActions > span { color: #66817b; font-size: 9px; font-weight: 500; }.fieldHeaderActions button { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; border: 0; border-radius: 10px; padding: 0 14px; background: #155855; color: #fff; font-size: 10.5px; font-weight: 600; }
+.fieldHeaderActions { display: flex; align-items: center; justify-content: flex-end; gap: 9px; }.fieldHeaderActions > span { color: #66817b; font-size: 9px; font-weight: 500; }.fieldHeaderActions button, .fieldHeaderActions a { display: inline-flex; min-height: 38px; align-items: center; gap: 7px; border: 0; border-radius: 10px; padding: 0 14px; background: #155855; color: #fff; font-size: 10.5px; font-weight: 600; text-decoration: none; }
+.fieldHeaderActions a { border: 1px solid rgba(21,88,85,.15); background: #fff; color: #155855; }
+.shootSetupPanels { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(280px,.6fr); gap: 10px; margin: 10px 0; }
+.shootSetupPanels details { overflow: hidden; border: 1px solid rgba(21,88,85,.11); border-radius: 13px; background: #fff; }
+.shootSetupPanels summary { display: flex; min-height: 45px; align-items: center; justify-content: space-between; padding: 0 13px; color: #155855; cursor: pointer; list-style: none; }
+.shootSetupPanels summary::-webkit-details-marker { display: none; }.shootSetupPanels summary > span { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; }.shootSetupPanels summary small { border-radius: 999px; padding: 2px 6px; background: #edf5f3; color: #5a7470; font-size: 8.5px; font-weight: 500; }.shootSetupPanels details[open] summary > svg { transform: rotate(180deg); }
+.packingGroups { display: grid; gap: 10px; border-top: 1px solid rgba(21,88,85,.08); padding: 12px 13px 14px; }.packingGroups section { display: grid; grid-template-columns: 76px minmax(0,1fr); gap: 8px; align-items: start; }.packingGroups section > strong { padding-top: 5px; color: #5a7470; font-size: 9px; font-weight: 600; }.packingGroups section > div { display: flex; flex-wrap: wrap; gap: 5px; }.packingGroups label { display: inline-flex; min-height: 30px; align-items: center; gap: 5px; border-radius: 8px; padding: 0 8px; background: #f5f8f7; color: #47645f; cursor: pointer; }.packingGroups input { position: absolute; opacity: 0; }.packingGroups label > span { display: grid; width: 15px; height: 15px; place-items: center; border: 1px solid #b9ccc8; border-radius: 4px; color: transparent; }.packingGroups input:checked + span { border-color: #155855; background: #155855; color: #fff; }.packingGroups em { font-size: 9.5px; font-style: normal; }.packingGroups input:checked ~ em { color: #155855; text-decoration: line-through; }
+.cameraRoles { display: grid; gap: 1px; border-top: 1px solid rgba(21,88,85,.08); background: #e7efed; }.cameraRoles article { display: flex; min-height: 48px; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 12px; background: #fff; }.cameraRoles article[data-used="false"] { opacity: .55; }.cameraRoles article div { display: grid; gap: 2px; }.cameraRoles strong { color: #294943; font-size: 10px; font-weight: 600; }.cameraRoles small { color: #8ca09b; font-size: 8px; }.cameraRoles article > span { color: #155855; font-size: 9.5px; font-weight: 600; }
 .fieldControls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 12px; border: 1px solid rgba(21,88,85,.1); border-top: 0; border-radius: 0 0 16px 16px; padding: 8px 11px; background: rgba(255,255,255,.92); }
 .fieldTabs { display: flex; gap: 4px; border-radius: 11px; padding: 3px; background: #edf3f1; }.fieldTabs button { display: inline-flex; min-height: 36px; align-items: center; gap: 7px; border: 0; border-radius: 8px; padding: 0 15px; background: transparent; color: #6c837e; font-size: 10.5px; font-weight: 600; }.fieldTabs button small { border-radius: 99px; padding: 2px 5px; background: rgba(21,88,85,.08); font-size: 8px; }.fieldTabs .fieldTabActive { background: #fff; color: #155855; box-shadow: 0 3px 10px rgba(24,62,57,.07); }
 .cardSizeControl { display: flex; align-items: center; gap: 8px; color: #58736d; font-size: 9px; font-weight: 500; }.cardSizeControl > span { margin-right: 3px; }.cardSizeControl small { color: #9aaba7; font-size: 8px; }.cardSizeControl input { width: 116px; accent-color: #155855; }
@@ -288,6 +304,8 @@
   .compactGrid { grid-template-columns: 1fr; }.compactPanel { height: 190px; }
   .fieldHeader { grid-template-columns: 1fr auto; }.fieldProgressCopy { grid-column: 1/-1; grid-row: 2; }.fieldControls { align-items: stretch; flex-direction: column; }.fieldTabs { display: grid; grid-template-columns: repeat(3,1fr); }.cardSizeControl { justify-content: center; }
   .fieldCardGrid_compact { grid-template-columns: repeat(2,minmax(0,1fr)); }.fieldCardGrid_normal, .fieldCardGrid_large { grid-template-columns: 1fr; }.fieldChecklist { grid-template-columns: 1fr 1fr; }
+  .shootSetupControls { align-items: stretch; flex-direction: column; }.shootSetupControls > div { flex-wrap: wrap; }
+  .shootSetupPanels { grid-template-columns: 1fr; }.packingGroups section { grid-template-columns: 1fr; }
 }
 @media print {
   @page { size: A4 landscape; margin: 0; }
@@ -1032,6 +1050,12 @@
 .hospitalContiTable > div { display: grid; grid-template-columns: 60px 110px 180px 70px minmax(280px,1fr) 140px minmax(220px,.8fr); min-width: 1120px; min-height: 52px; align-items: center; border-bottom: 1px solid #e4eae8; padding: 0 12px; color: #435e59; font-size: 11.5px; }.hospitalContiHead { min-height: 38px !important; background: #f3f7f6; color: #155855 !important; }
 .hospitalTimeline > header { padding: 14px 16px; border-bottom: 1px solid #e4eae8; }.hospitalTimeline h2 { margin: 0 0 4px; font-size: 16px; }.hospitalTimeline p { margin: 0; color: #5a7470; font-size: 11.5px; }
 .hospitalTimeline > div { display: grid; grid-template-columns: 38px 80px 130px minmax(220px,1fr) 180px 160px; min-width: 950px; min-height: 52px; align-items: center; border-bottom: 1px solid #e4eae8; padding: 0 12px; font-size: 11.5px; }.hospitalTimeline > div > button { display: grid; width: 30px; height: 36px; place-items: center; border: 0; background: transparent; color: #81938f; }
+.hospitalShootTypes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 1384px; margin: 14px auto 0; border: 1px solid #d5dedb; border-radius: 12px; padding: 12px 14px; background: #fff; }
+.hospitalShootTypes > strong { margin-right: 4px; color: #155855; font-size: 12px; font-weight: 600; }
+.hospitalShootTypes label { position: relative; }.hospitalShootTypes input { position: absolute; opacity: 0; }
+.hospitalShootTypes label span { display: inline-flex; min-height: 36px; align-items: center; gap: 6px; border: 1px dashed #6f918a; border-radius: 999px; padding: 0 11px; color: #5a7470; font-size: 11.5px; cursor: pointer; }
+.hospitalShootTypes input:checked + span { border-style: solid; border-color: #155855; background: #edf5f3; color: #155855; }
+.hospitalShootTypes small { margin-left: auto; color: #80928e; font-size: 10px; }
 
 @container (max-width: 980px) {
   .appShell[data-conti-surface="workspace"] .createLayout { grid-template-columns: 1fr; }
