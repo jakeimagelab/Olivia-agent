@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BookOpen } from "lucide-react";
 import ContiSceneCard from "@/components/conti/ContiSceneCard";
 import ContiHospitalShareEditor from "@/components/conti/v2/ContiHospitalShareEditor";
 import ContiShootSetupPanels from "@/components/conti/v2/ContiShootSetupPanels";
@@ -53,6 +54,7 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
         .share-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 11px; background: #155855; color: #fff; font-weight: 600; }
         .share-title { min-width: 0; flex: 1; }.share-title strong { display: block; overflow: hidden; color: #173d38; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }.share-title span { display: block; margin-top: 3px; color: #829691; font-size: 10px; }
         .share-progress { color: #155855; font-size: 11px; font-weight: 600; }.share-content { max-width: 1300px; margin: 0 auto; padding: 18px; }
+        .share-guide { display: inline-flex; min-height: 40px; align-items: center; gap: 6px; border: 1px solid #155855; border-radius: 9px; padding: 0 11px; color: #155855; font-size: 11px; font-weight: 500; text-decoration: none; white-space: nowrap; }
         .share-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; border-radius: 14px; padding: 13px 16px; background: #155855; color: #fff; }.share-summary strong { font-size: 13px; }.share-summary span { color: rgba(255,255,255,.62); font-size: 10px; }
         .share-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; align-items: start; }
         .share-footer { padding: 28px 0; color: #8aa09b; text-align: center; font-size: 10px; }
@@ -64,6 +66,7 @@ export default async function ContiShareView({ params }: { params: Promise<{ tok
         <div className="share-mark">O</div>
         <div className="share-title"><strong>{hospitalName || getDepartmentContiTitle(runRow.specialty || "촬영")}</strong><span>{isStaff ? "현장팀용 · 준비사항 포함" : "고객 확인용"} · 읽기 전용</span></div>
         <div className="share-progress">{completed} / {sceneRows.length} 완료</div>
+        {isStaff ? <a className="share-guide" href="/staff-guide" target="_blank" rel="noreferrer"><BookOpen size={15} aria-hidden="true" />스텝 가이드</a> : null}
         <ShareViewPrintButton />
       </header>
       <div className="share-content">

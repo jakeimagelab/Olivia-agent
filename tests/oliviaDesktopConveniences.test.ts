@@ -100,7 +100,7 @@ describe("Olivia desktop convenience controls", () => {
     expect(actions).toContain("useOliviaConversationStore");
     expect(utilityStore).toContain("chatCompact");
     expect(utilityStore).not.toContain("messages:");
-    expect(topBar).toContain('const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "도움말"]');
+    expect(topBar).toContain('const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "가이드", "도움말"]');
     expect(desktopCss).toContain("--desktop-dock-bottom: 18px");
     expect(desktopCss).not.toContain(".desktop:has([data-chat-compact]) .dockArea");
     expect(desktopCss).toMatch(/\.topBarCenter\s*\{[\s\S]*?left:\s*50%[\s\S]*?transform:\s*translateX\(-50%\)/);

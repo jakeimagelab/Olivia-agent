@@ -37,6 +37,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
       "portrait-consent",
       "conti",
+      "staff-guide",
       "photo-workspace",
     ]) {
       const app = getOliviaApp(appId);
@@ -62,6 +63,18 @@ describe("OLIVIA OS app registry navigation", () => {
       app: expect.objectContaining({ id: "conti" }),
       href: "/conti?clientId=client-1",
     });
+  });
+
+  it("opens the staff guide as a hidden OS app without adding it to the Dock or Desktop", () => {
+    expect(getOliviaApp("staff-guide")).toMatchObject({
+      title: "스텝 가이드",
+      route: "/staff-guide",
+      defaultSize: { width: 560, height: 820 },
+      minSize: { width: 380, height: 520 },
+    });
+    expect(getOliviaAppByRoute("/staff-guide")?.id).toBe("staff-guide");
+    expect(getDesktopShortcutApps().some((app) => app.id === "staff-guide")).toBe(false);
+    expect(getDockApps().some((app) => app.id === "staff-guide")).toBe(false);
   });
 
   it("routes the four analysis workspaces to native adapters", () => {

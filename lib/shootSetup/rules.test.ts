@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getCameraRoles, getPackingList, getSetups, type ShootSetupInput } from "./rules";
+import { getCameraRoles, getPackingList, getSetups, setupSummary, type ShootSetupInput } from "./rules";
 
 const input = (patch: Partial<ShootSetupInput>): ShootSetupInput => ({
   shootTypes: [],
@@ -22,14 +22,31 @@ describe("shoot setup rules", () => {
       { name: "TS-5 for Canon", quantity: 1 },
       { name: "Profoto B10x", quantity: 2 },
       { name: "Black Aurora", quantity: 2 },
+      { name: "Silver Stand", quantity: 2 },
     ]));
   });
 
-  it("uses B10x without TS-5 for a basic profile shoot", () => {
+  it("uses B10x, both Canon profile triggers, and the thick Silver Stand for a basic profile shoot", () => {
     const value = input({ shootTypes: ["profile"], profileStyle: "basic" });
-    expect(getPackingList(value)).toContainEqual({ name: "Profoto B10x", quantity: 2 });
-    expect(getPackingList(value).some((item) => item.name === "TS-5 for Canon")).toBe(false);
-    expect(getPackingList(value).some((item) => item.name.startsWith("Sony a7"))).toBe(false);
+    const packingList = getPackingList(value);
+    const setup = getSetups(value).profile;
+    expect(packingList).toEqual(expect.arrayContaining([
+      { name: "Profoto B10x", quantity: 2 },
+      { name: "Silver Stand", quantity: 1 },
+      { name: "Profoto Connect for Canon", quantity: 1 },
+      { name: "Profoto Connect Pro", quantity: 1 },
+    ]));
+    expect(packingList.some((item) => item.name === "TS-5 for Canon")).toBe(false);
+    expect(packingList.some((item) => item.name.startsWith("Sony a7"))).toBe(false);
+    expect(setup?.stands).toEqual(expect.arrayContaining([
+      { name: "Black Aurora", quantity: 2 },
+      { name: "Silver Stand", quantity: 1, note: "두꺼운 것" },
+    ]));
+    expect(setup?.trigger).toEqual([
+      { name: "Profoto Connect for Canon", quantity: 1, note: "캐논에 장착" },
+      { name: "Profoto Connect Pro", quantity: 1, note: "컨트롤" },
+    ]);
+    expect(setupSummary(setup)).toMatch(/ · Connect for Canon \+ Connect Pro$/);
   });
 
   it("assigns video and photo Sony roles and video equipment", () => {

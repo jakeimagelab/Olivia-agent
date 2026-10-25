@@ -30,6 +30,7 @@ import { VideoStudioWindowContent } from "../adapters/VideoStudioWindowContent";
 import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowContent";
 import { ContiWindowContent } from "../adapters/ContiWindowContent";
 import { OliviaBridgeWindowContent } from "../adapters/OliviaBridgeWindowContent";
+import { StaffGuideWindowContent } from "../adapters/StaffGuideWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 단독 앱에서
@@ -220,6 +221,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 760, height: 500 },
     singleton: true,
     component: ContiWindowContent,
+  },
+  {
+    id: "staff-guide",
+    title: "스텝 가이드",
+    icon: appIcon("work-log"),
+    route: "/staff-guide",
+    defaultSize: { width: 560, height: 820 },
+    minSize: { width: 380, height: 520 },
+    singleton: true,
+    component: StaffGuideWindowContent,
   },
   {
     id: "portrait-consent",

@@ -10,8 +10,8 @@ import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import { DesktopTopBarActions } from "./DesktopTopBarActions";
 import styles from "./OliviaDesktop.module.css";
 
-type MenuKey = "파일" | "보기" | "이동" | "도움말";
-const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "도움말"];
+type MenuKey = "파일" | "보기" | "이동" | "가이드" | "도움말";
+const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "가이드", "도움말"];
 
 export function DesktopTopBar({ onOpenOverlay }: {
   onOpenOverlay: (kind: DesktopOverlayKind) => void;
@@ -19,6 +19,7 @@ export function DesktopTopBar({ onOpenOverlay }: {
   const [now, setNow] = useState<Date | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
+  const [guideLinkFallback, setGuideLinkFallback] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
@@ -64,6 +65,18 @@ export function DesktopTopBar({ onOpenOverlay }: {
     onOpenOverlay(kind);
   };
 
+  const copyStaffGuideLink = async () => {
+    const url = `${window.location.origin}/staff-guide`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setGuideLinkFallback("");
+      setOpenMenu(null);
+    } catch {
+      setGuideLinkFallback(url);
+      setOpenMenu("가이드");
+    }
+  };
+
   const renderMenu = () => {
     if (!openMenu) return null;
     if (openMenu === "파일") return <>
@@ -79,6 +92,11 @@ export function DesktopTopBar({ onOpenOverlay }: {
       {getDockApps().map((app) => (
         <button type="button" key={app.id} onClick={() => launch(app.id)}>{app.title}</button>
       ))}
+    </>;
+    if (openMenu === "가이드") return <>
+      <button type="button" onClick={() => launch("staff-guide")}>스텝 가이드</button>
+      <button type="button" onClick={() => void copyStaffGuideLink()}>스텝 가이드 링크 복사</button>
+      {guideLinkFallback ? <label className={styles.menuCopyFallback}>주소를 선택해 복사해 주세요<input value={guideLinkFallback} readOnly onFocus={(event) => event.currentTarget.select()} /></label> : null}
     </>;
     return <button type="button" onClick={() => overlay("help")}>Olivia OS 사용법</button>;
   };
