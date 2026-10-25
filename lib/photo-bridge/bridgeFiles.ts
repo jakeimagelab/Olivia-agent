@@ -16,6 +16,8 @@ export type BridgeFileKind = "jpg" | "raw" | "sidecar" | "other";
 export type BridgeJpgFile = {
   id: string;
   name: string;
+  relativeDirectory: string;
+  relativePath: string;
   extension: string;
   handle: FileSystemFileHandle;
   file: File;
@@ -33,6 +35,13 @@ export type BridgeFolderScan = {
   raws: BridgeRawFile[];
   sidecars: BridgeSidecarFile[];
   ignoredCount: number;
+  nestedJpgCount: number;
+  unreadableFolderCount: number;
+};
+
+export type BridgeFolderScanOptions = {
+  includeNestedJpgs?: boolean;
+  maxDepth?: number;
 };
 
 export type BridgeScene = {
@@ -89,43 +98,90 @@ const naturalSort = (left: { name: string }, right: { name: string }) => left.na
   sensitivity: "base",
 });
 
-export async function scanBridgeFolder(directory: FileSystemDirectoryHandle, folderKey = directory.name): Promise<BridgeFolderScan> {
+const bridgeFileSort = (left: Pick<BridgeJpgFile, "relativePath">, right: Pick<BridgeJpgFile, "relativePath">) => (
+  left.relativePath.localeCompare(right.relativePath, "ko", { numeric: true, sensitivity: "base" })
+);
+
+export async function scanBridgeFolder(
+  directory: FileSystemDirectoryHandle,
+  folderKey = directory.name,
+  options: BridgeFolderScanOptions = {},
+): Promise<BridgeFolderScan> {
+  const includeNestedJpgs = options.includeNestedJpgs === true;
+  const maxDepth = Math.min(10, Math.max(1, Math.trunc(options.maxDepth ?? 5)));
   const folders: FileSystemDirectoryHandle[] = [];
   const jpgs: BridgeJpgFile[] = [];
   const raws: BridgeRawFile[] = [];
   const sidecars: BridgeSidecarFile[] = [];
-  const fileHandles: Array<{ name: string; kind: "jpg" | "raw" | "sidecar"; handle: FileSystemFileHandle }> = [];
+  const fileHandles: Array<{
+    name: string;
+    kind: "jpg" | "raw" | "sidecar";
+    handle: FileSystemFileHandle;
+    relativeDirectory: string;
+  }> = [];
   let ignoredCount = 0;
-  const iterable = directory as FileSystemDirectoryHandle & {
-    entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+  let unreadableFolderCount = 0;
+
+  const collect = async (
+    target: FileSystemDirectoryHandle,
+    relativeDirectory: string,
+    depth: number,
+  ): Promise<void> => {
+    const iterable = target as FileSystemDirectoryHandle & {
+      entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+    };
+    try {
+      for await (const [name, handle] of iterable.entries()) {
+        if (isHiddenSystemFile(name)) {
+          ignoredCount += 1;
+          continue;
+        }
+        if (handle.kind === "directory") {
+          if (depth === 0) folders.push(handle as FileSystemDirectoryHandle);
+          if (includeNestedJpgs && depth < maxDepth) {
+            const nextDirectory = relativeDirectory
+              ? `${relativeDirectory}/${name.normalize("NFC")}`
+              : name.normalize("NFC");
+            await collect(handle as FileSystemDirectoryHandle, nextDirectory, depth + 1);
+          }
+          continue;
+        }
+        const kind = bridgeFileKind(name);
+        if (kind === "other") {
+          ignoredCount += 1;
+          continue;
+        }
+        // RAW와 사이드카는 현재 폴더만 표시한다. 재귀 탐색은 JPG 보기 전용이다.
+        if (depth > 0 && kind !== "jpg") continue;
+        fileHandles.push({
+          name,
+          kind,
+          handle: handle as FileSystemFileHandle,
+          relativeDirectory,
+        });
+      }
+    } catch (error) {
+      if (depth === 0) throw error;
+      unreadableFolderCount += 1;
+    }
   };
-  for await (const [name, handle] of iterable.entries()) {
-    if (isHiddenSystemFile(name)) {
-      ignoredCount += 1;
-      continue;
-    }
-    if (handle.kind === "directory") {
-      folders.push(handle as FileSystemDirectoryHandle);
-      continue;
-    }
-    const kind = bridgeFileKind(name);
-    if (kind === "other") {
-      ignoredCount += 1;
-      continue;
-    }
-    fileHandles.push({ name, kind, handle: handle as FileSystemFileHandle });
-  }
+
+  await collect(directory, "", 0);
   let cursor = 0;
   const workers = Array.from({ length: Math.min(16, Math.max(1, fileHandles.length)) }, async () => {
     while (true) {
       const index = cursor++;
       if (index >= fileHandles.length) return;
-      const { name, kind, handle } = fileHandles[index];
+      const { name, kind, handle, relativeDirectory } = fileHandles[index];
       const file = await handle.getFile();
       const normalizedName = name.normalize("NFC");
+      const normalizedDirectory = relativeDirectory.normalize("NFC");
+      const relativePath = normalizedDirectory ? `${normalizedDirectory}/${normalizedName}` : normalizedName;
       const base = {
-        id: `${folderKey.normalize("NFC")}:${normalizedName}:${file.size}:${file.lastModified}`,
+        id: `${folderKey.normalize("NFC")}:${relativePath}:${file.size}:${file.lastModified}`,
         name: normalizedName,
+        relativeDirectory: normalizedDirectory,
+        relativePath,
         extension: extensionOf(name).toLocaleUpperCase("en-US"),
         handle,
         size: file.size,
@@ -138,10 +194,18 @@ export async function scanBridgeFolder(directory: FileSystemDirectoryHandle, fol
   });
   await Promise.all(workers);
   folders.sort(naturalSort);
-  jpgs.sort(naturalSort);
+  jpgs.sort(bridgeFileSort);
   raws.sort(naturalSort);
   sidecars.sort(naturalSort);
-  return { folders, jpgs, raws, sidecars, ignoredCount };
+  return {
+    folders,
+    jpgs,
+    raws,
+    sidecars,
+    ignoredCount,
+    nestedJpgCount: jpgs.reduce((count, entry) => count + (entry.relativeDirectory ? 1 : 0), 0),
+    unreadableFolderCount,
+  };
 }
 
 export function updateBridgeSelection(input: {

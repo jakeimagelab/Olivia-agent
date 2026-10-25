@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { bridgeGridNavigationTarget, type BridgeGridItem } from "@/lib/photo-bridge/gridNavigation";
 import {
   bridgeRawMatchDefaultFolder,
+  bridgeRawMatchFolderCandidates,
   queryBridgeFolderTrailPermission,
   requestBridgeFolderTrailPermission,
   type BridgeFolderTrailItem,
@@ -64,6 +65,20 @@ describe("Olivia Bridge remembered folders", () => {
     const trail: BridgeFolderTrailItem[] = [{ name: root.name, handle: root }, { name: jpg.name, handle: jpg }];
     expect(bridgeRawMatchDefaultFolder(trail)).toBe(root);
     expect(bridgeRawMatchDefaultFolder([{ name: jpg.name, handle: jpg }])).toBeNull();
+  });
+
+  it("offers only the current folder and up to two known ancestors for RAW discovery", () => {
+    const root = folder("2026-10-26_행사");
+    const day = folder("촬영본");
+    const jpg = folder("JPG");
+    const scene = folder("Scene 1");
+    const trail: BridgeFolderTrailItem[] = [root, day, jpg, scene].map((handle) => ({ name: handle.name, handle }));
+
+    expect(bridgeRawMatchFolderCandidates(trail).map((item) => [item.name, item.distance])).toEqual([
+      ["Scene 1", 0],
+      ["JPG", 1],
+      ["촬영본", 2],
+    ]);
   });
 
   it("distinguishes automatic restore from permission-required restore", async () => {

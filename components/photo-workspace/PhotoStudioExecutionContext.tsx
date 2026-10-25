@@ -33,6 +33,7 @@ import {
 } from "@/lib/photo-bridge/toolLinkage";
 import type { BridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { PhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
+import type { BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
 
 export type RemotePollingState = RemotePhotoPollingState;
 
@@ -56,6 +57,9 @@ type PhotoStudioExecutionValue = {
   /** Bridge가 폴더 트리에서 알고 있는 바로 위 폴더. RAW 원본 검색의 기본값으로만 쓴다. */
   rawMatchDefaultFolder: FileSystemDirectoryHandle | null;
   setRawMatchDefaultFolder: (folder: FileSystemDirectoryHandle | null) => void;
+  /** Bridge가 현재 경로에서 알 수 있는 현재/상위/두 단계 위 폴더. RAW 자동 탐색은 이 범위만 쓴다. */
+  rawMatchFolderCandidates: BridgeRawFolderCandidate[];
+  setRawMatchFolderCandidates: (folders: readonly BridgeRawFolderCandidate[]) => void;
   /** JPG selection is deliberately separate from a folder: RAW matching consumes it, other tools do not. */
   selectedJpgNames: string[];
   setSelectedJpgNames: (names: readonly string[]) => void;
@@ -120,6 +124,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [currentLocalFolder, setCurrentLocalFolderState] = useState<FileSystemDirectoryHandle | null>(null);
   const currentLocalFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const [rawMatchDefaultFolder, setRawMatchDefaultFolder] = useState<FileSystemDirectoryHandle | null>(null);
+  const [rawMatchFolderCandidates, setRawMatchFolderCandidatesState] = useState<BridgeRawFolderCandidate[]>([]);
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
   const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
   const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
@@ -131,6 +136,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     if (currentLocalFolderRef.current === folder) return;
     currentLocalFolderRef.current = folder;
     setCurrentLocalFolderState(folder);
+    setRawMatchFolderCandidatesState([]);
     setSelectedJpgNamesState([]);
     setSelectedJpgFilesState([]);
     setJpgRatingsByNameState({});
@@ -142,6 +148,10 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const setSelectedJpgNames = useCallback((names: readonly string[]) => {
     const next = normalizePhotoToolSelectionNames(names);
     setSelectedJpgNamesState((current) => samePhotoToolSelectionNames(current, next) ? current : next);
+  }, []);
+
+  const setRawMatchFolderCandidates = useCallback((folders: readonly BridgeRawFolderCandidate[]) => {
+    setRawMatchFolderCandidatesState([...folders]);
   }, []);
 
   const setSelectedJpgFiles = useCallback((files: readonly File[]) => {
@@ -270,6 +280,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setCurrentLocalFolder,
     rawMatchDefaultFolder,
     setRawMatchDefaultFolder,
+    rawMatchFolderCandidates,
+    setRawMatchFolderCandidates,
     selectedJpgNames,
     setSelectedJpgNames,
     selectedJpgFiles,
@@ -296,6 +308,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     currentLocalFolder,
     setCurrentLocalFolder,
     rawMatchDefaultFolder,
+    rawMatchFolderCandidates,
+    setRawMatchFolderCandidates,
     workerPollingState,
     workerPresence,
     selectedJpgNames,

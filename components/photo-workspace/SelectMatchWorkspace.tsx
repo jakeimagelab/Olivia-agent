@@ -23,6 +23,7 @@ import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
+import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -219,6 +220,7 @@ export function SelectMatchWorkspace({
   const {
     currentLocalFolder,
     rawMatchDefaultFolder,
+    rawMatchFolderCandidates,
     setCurrentLocalFolder,
     setSelectedJpgNames,
     jpgRatingsByName,
@@ -241,6 +243,12 @@ export function SelectMatchWorkspace({
   const [preflight,  setPreflight]  = useState<Preflight | null>(null);
   const [rawScanCount, setRawScanCount] = useState(0);
   const [rawIndexRef] = useState<{ map: Map<string, RawIndexEntry> }>(() => ({ map: new Map() }));
+  const [rawDiscovery, setRawDiscovery] = useState<{
+    status: "idle" | "searching" | "found" | "not_found" | "error" | "manual";
+    message: string;
+    folderName?: string;
+  }>({ status: "idle", message: "" });
+  const rawDiscoveryKeyRef = useRef("");
 
   useEffect(() => {
     if (!bridgeLinked || rawRootDir || !rawMatchDefaultFolder) return;
@@ -407,6 +415,7 @@ export function SelectMatchWorkspace({
     try {
       const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
       setRawRootDir(dir);
+      setRawDiscovery({ status: "manual", folderName: dir.name, message: `${dir.name} 폴더를 직접 선택했습니다.` });
     } catch (e: any) {
       if (e?.name !== "AbortError") alert("폴더 선택 실패");
     }
@@ -591,6 +600,46 @@ export function SelectMatchWorkspace({
 
     setPreflight(computePreflight(selected, rawIndex));
   }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef]);
+
+  useEffect(() => {
+    if (!bridgeLinked || step !== "raw_pick" || selected.size === 0 || rawMatchFolderCandidates.length === 0) return;
+    const samples = Array.from(selected).slice(0, 2);
+    const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${samples.join("|")}`;
+    if (rawDiscoveryKeyRef.current === discoveryKey) return;
+    rawDiscoveryKeyRef.current = discoveryKey;
+    let disposed = false;
+
+    setRawDiscovery({ status: "searching", message: "현재 폴더와 상위 폴더에서 RAW 원본 위치를 찾고 있습니다." });
+    void discoverRawFolder({
+      candidates: rawMatchFolderCandidates,
+      selectedNames: selected,
+      onCandidate: (candidate) => {
+        if (!disposed) setRawDiscovery({ status: "searching", message: `${candidate.name} 폴더에서 표본 RAW를 확인하고 있습니다.`, folderName: candidate.name });
+      },
+    }).then(async (result) => {
+      if (disposed) return;
+      if (!result.candidate) {
+        setRawDiscovery({ status: "not_found", message: "현재 폴더와 상위 2단계에서 같은 이름의 RAW를 찾지 못했습니다." });
+        return;
+      }
+      const folderName = result.candidate.name;
+      setRawRootDir(result.candidate.handle);
+      setRawDiscovery({
+        status: "found",
+        folderName,
+        message: `${folderName}에서 표본 ${result.matchedSamples}/${result.samples.length}개를 찾았습니다. 전체 선택 파일을 확인합니다.`,
+      });
+      await runPreflight(result.candidate.handle);
+    }).catch((error) => {
+      if (disposed) return;
+      setRawDiscovery({
+        status: "error",
+        message: error instanceof Error ? error.message : "RAW 원본 폴더를 자동으로 찾지 못했습니다.",
+      });
+    });
+
+    return () => { disposed = true; };
+  }, [bridgeLinked, rawMatchFolderCandidates, runPreflight, selected, step]);
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
@@ -1259,12 +1308,15 @@ export function SelectMatchWorkspace({
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked && rawMatchDefaultFolder ? "상위 폴더에서 RAW를 확인합니다" : bridgeLinked ? "현재 Bridge 폴더에서 RAW를 확인합니다" : "RAW 폴더를 선택하세요"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "RAW 원본 폴더를 자동으로 찾습니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
           고객 선택 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
-          {bridgeLinked ? <><strong>{rawMatchDefaultFolder?.name ?? currentLocalFolder?.name ?? rootDir?.name}</strong> 폴더에서 RAW를 먼저 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
+          {bridgeLinked ? <>선택 사진 1~2장을 기준으로 현재 폴더와 상위 2단계까지만 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
+        {bridgeLinked ? <div role="status" style={{ background: groupedSurface, border: `1px solid ${rawDiscovery.status === "not_found" || rawDiscovery.status === "error" ? "rgba(201,74,30,.55)" : uiBorder}`, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: rawDiscovery.status === "not_found" || rawDiscovery.status === "error" ? "#F0A98C" : uiMuted, marginBottom: 14 }}>
+          {rawDiscovery.message || "RAW 원본 위치를 확인할 준비가 됐습니다."}
+        </div> : null}
         <div style={{ background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted, marginBottom: 18 }}>
           <div style={{ fontWeight: 500, color: uiAccent, marginBottom: 4 }}>추출된 파일명 샘플</div>
           {Array.from(selected).slice(0, 5).map(n => (
@@ -1274,10 +1326,11 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          {bridgeLinked && (rawMatchDefaultFolder || currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(rawMatchDefaultFolder ?? currentLocalFolder ?? rootDir ?? undefined)}>{rawMatchDefaultFolder ? "상위 폴더에서 RAW 확인" : "현재 폴더에서 RAW 확인"}</Btn> : null}
+          {bridgeLinked && rawDiscovery.status === "not_found" && (rawMatchDefaultFolder || currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(rawMatchDefaultFolder ?? currentLocalFolder ?? rootDir ?? undefined)}>기본 폴더로 전체 확인</Btn> : null}
           <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={async () => {
             try {
               const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
+              setRawDiscovery({ status: "manual", folderName: dir.name, message: `${dir.name} 폴더를 직접 선택했습니다.` });
               await runPreflight(dir);
             } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
           }}>{bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
@@ -1309,9 +1362,12 @@ export function SelectMatchWorkspace({
   if (step === "preflight") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
-        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
-          🔍 매칭 사전 확인
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
+          <ScanSearch size={16} aria-hidden="true" /> 매칭 사전 확인
         </div>
+        {rawDiscovery.folderName ? <div style={{ padding: "9px 20px", borderBottom: `1px solid ${uiBorder}`, color: uiMuted, fontSize: 11 }}>
+          RAW 원본 폴더 · <strong style={{ color: uiAccent, fontWeight: 600 }}>{rawDiscovery.folderName}</strong>
+        </div> : null}
         {!preflight ? (
           <div style={{ padding: 32, textAlign: "center" }}>
             <div style={{ height: 6, background: uiBorder, borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>

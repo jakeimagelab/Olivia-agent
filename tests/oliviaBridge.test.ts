@@ -83,9 +83,10 @@ describe("Olivia Bridge", () => {
     expect(embeddedTool).toContain("bridgeLinked");
     expect(aiSelect).toContain("initialFolder={currentLocalFolder}");
     expect(aiPanel).toContain("현재 Bridge 폴더");
-    expect(rawMatch).toContain("현재 폴더에서 RAW 확인");
-    expect(rawMatch).toContain("상위 폴더에서 RAW 확인");
+    expect(rawMatch).toContain("RAW 원본 폴더를 자동으로 찾습니다");
+    expect(rawMatch).toContain("discoverRawFolder");
     expect(executionContext).toContain("rawMatchDefaultFolder");
+    expect(executionContext).toContain("rawMatchFolderCandidates");
   });
 
   it("Scene 검토 결과만 스크롤하고 승인 실행 바는 항상 고정한다", () => {
@@ -164,6 +165,41 @@ describe("Olivia Bridge", () => {
     expect(result.sidecars.map((item) => [item.name, item.size])).toEqual([["IMG_1.XMP", 4]]);
     expect(result.folders.map((item) => item.name)).toEqual(["촬영 2일차"]);
     expect(result.ignoredCount).toBe(1);
+    expect(result.nestedJpgCount).toBe(0);
+  });
+
+  it("요청할 때만 하위 폴더 JPG를 재귀 표시하고 RAW·사이드카는 현재 폴더에 한정한다", async () => {
+    const fileHandle = (name: string, size: number) => ({
+      kind: "file",
+      name,
+      getFile: async () => ({ name, size, lastModified: 1234 }) as File,
+    }) as unknown as FileSystemFileHandle;
+    const nested = {
+      kind: "directory",
+      name: "Scene 1",
+      async *entries() {
+        yield ["IMG_2.JPG", fileHandle("IMG_2.JPG", 20)] as [string, FileSystemHandle];
+        yield ["IMG_2.ARW", fileHandle("IMG_2.ARW", 40)] as [string, FileSystemHandle];
+        yield ["IMG_2.XMP", fileHandle("IMG_2.XMP", 4)] as [string, FileSystemHandle];
+      },
+    } as unknown as FileSystemDirectoryHandle;
+    const directory = {
+      kind: "directory",
+      name: "촬영본",
+      async *entries() {
+        yield ["IMG_1.JPG", fileHandle("IMG_1.JPG", 10)] as [string, FileSystemHandle];
+        yield ["Scene 1", nested] as [string, FileSystemHandle];
+      },
+    } as unknown as FileSystemDirectoryHandle;
+
+    const direct = await scanBridgeFolder(directory, "촬영본");
+    expect(direct.jpgs.map((item) => item.relativePath)).toEqual(["IMG_1.JPG"]);
+
+    const recursive = await scanBridgeFolder(directory, "촬영본", { includeNestedJpgs: true });
+    expect(recursive.jpgs.map((item) => item.relativePath)).toEqual(["IMG_1.JPG", "Scene 1/IMG_2.JPG"]);
+    expect(recursive.nestedJpgCount).toBe(1);
+    expect(recursive.raws).toHaveLength(0);
+    expect(recursive.sidecars).toHaveLength(0);
   });
 
   it("OliviaOS 네이티브 앱과 사진 작업 컨텍스트로 등록된다", () => {

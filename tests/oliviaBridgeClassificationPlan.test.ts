@@ -45,6 +45,8 @@ function file(name: string, index: number) {
   return {
     id: name,
     name,
+    relativeDirectory: "",
+    relativePath: name,
     extension: "JPG",
     handle: { kind: "file", name, getFile: async () => value } as unknown as FileSystemFileHandle,
     file: value,

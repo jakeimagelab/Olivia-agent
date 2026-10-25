@@ -82,6 +82,7 @@ import {
 } from "@/lib/photo-bridge/marqueeSelection";
 import {
   bridgeRawMatchDefaultFolder,
+  bridgeRawMatchFolderCandidates,
   clearBridgeFolderTrail,
   queryBridgeFolderTrailPermission,
   readBridgeFolderTrail,
@@ -139,7 +140,15 @@ type MarqueeSession = {
   cards: MarqueeCard[];
 };
 
-const EMPTY_SCAN: BridgeFolderScan = { folders: [], jpgs: [], raws: [], sidecars: [], ignoredCount: 0 };
+const EMPTY_SCAN: BridgeFolderScan = {
+  folders: [],
+  jpgs: [],
+  raws: [],
+  sidecars: [],
+  ignoredCount: 0,
+  nestedJpgCount: 0,
+  unreadableFolderCount: 0,
+};
 
 function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
@@ -465,6 +474,7 @@ export default function OliviaBridgeWorkspace({
     currentLocalFolder,
     setCurrentLocalFolder,
     setRawMatchDefaultFolder,
+    setRawMatchFolderCandidates,
     selectedJpgNames,
     setSelectedJpgNames,
     setSelectedJpgFiles,
@@ -479,6 +489,7 @@ export default function OliviaBridgeWorkspace({
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
   const [scanError, setScanError] = useState<string>();
+  const [includeNestedJpgs, setIncludeNestedJpgs] = useState(false);
   const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
   const [restoreMessage, setRestoreMessage] = useState("");
   const [selectedIds, setSelectedIdsState] = useState<Set<string>>(new Set());
@@ -599,14 +610,21 @@ export default function OliviaBridgeWorkspace({
     }
   }, [colorLabels, excludedIds, folderPath, ratings]);
 
-  const loadDirectory = useCallback(async (directory: FileSystemDirectoryHandle, trail: Breadcrumb[]) => {
+  const loadDirectory = useCallback(async (
+    directory: FileSystemDirectoryHandle,
+    trail: Breadcrumb[],
+    nestedJpgs = includeNestedJpgs,
+  ) => {
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
     setSceneReviewOpen(false);
     try {
       const nextPath = trail.map((item) => item.name).join(" / ");
-      const next = await scanBridgeFolder(directory, nextPath);
+      const next = await scanBridgeFolder(directory, nextPath, {
+        includeNestedJpgs: nestedJpgs,
+        maxDepth: 5,
+      });
       let restoredRatings: Record<string, number> = {};
       try {
         const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; colorLabels?: unknown; excluded?: string[] };
@@ -621,7 +639,6 @@ export default function OliviaBridgeWorkspace({
       }
       setScan(next);
       setBreadcrumbs(trail);
-      setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRestoreTrail([]);
       setRestoreMessage("");
       manualSelectedIdsRef.current = new Set();
@@ -633,6 +650,8 @@ export default function OliviaBridgeWorkspace({
       setPreviewSize(undefined);
       setFileFilter("all");
       setCurrentLocalFolder(directory);
+      setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
+      setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
       const restoredRatingsByName = Object.fromEntries(next.jpgs.flatMap((photo) => {
         const rating = restoredRatings[photo.id];
         return rating ? [[photo.name, rating] as const] : [];
@@ -648,7 +667,13 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setSelectedIds]);
+  }, [includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setSelectedIds]);
+
+  const changeNestedJpgVisibility = useCallback((checked: boolean) => {
+    setIncludeNestedJpgs(checked);
+    if (!activeFolder || !breadcrumbs.length) return;
+    void loadDirectory(activeFolder, breadcrumbs, checked);
+  }, [activeFolder, breadcrumbs, loadDirectory]);
 
   const chooseFolder = useCallback(async () => {
     const directory = await picker.pick("readwrite");
@@ -1112,6 +1137,16 @@ export default function OliviaBridgeWorkspace({
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
           <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => void chooseFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
+          <label className={styles.nestedJpgToggle}>
+            <input
+              type="checkbox"
+              checked={includeNestedJpgs}
+              disabled={!activeFolder || scanStatus === "loading"}
+              onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)}
+            />
+            <span>하위 폴더 JPG 포함</span>
+            {scan.nestedJpgCount ? <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b> : null}
+          </label>
           <div className={styles.folderList}>
             {scan.folders.length ? <small>다른 폴더</small> : null}
             {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><ChevronRight size={12} /></button>)}
@@ -1134,7 +1169,7 @@ export default function OliviaBridgeWorkspace({
 
         <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
-            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일</span></div>
+            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span></div>
             <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
@@ -1207,7 +1242,7 @@ export default function OliviaBridgeWorkspace({
                   const rating = effectiveRatings[photo.id] ?? 0;
                   const colorLabel = colorLabels[photo.id];
                   const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
@@ -1215,7 +1250,7 @@ export default function OliviaBridgeWorkspace({
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
         </section>
 
 

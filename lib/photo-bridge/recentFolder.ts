@@ -3,6 +3,11 @@ export type BridgeFolderTrailItem = {
   handle: FileSystemDirectoryHandle;
 };
 
+export type BridgeRawFolderCandidate = BridgeFolderTrailItem & {
+  /** 현재 폴더는 0, 바로 위는 1, 두 단계 위는 2. */
+  distance: 0 | 1 | 2;
+};
+
 export type BridgeFolderPermission = "granted" | "prompt" | "denied";
 
 const DATABASE_NAME = "olivia-bridge";
@@ -58,6 +63,18 @@ export function bridgeRawMatchDefaultFolder(
   trail: readonly BridgeFolderTrailItem[],
 ): FileSystemDirectoryHandle | null {
   return trail.length > 1 ? trail.at(-2)?.handle ?? null : null;
+}
+
+export function bridgeRawMatchFolderCandidates(
+  trail: readonly BridgeFolderTrailItem[],
+): BridgeRawFolderCandidate[] {
+  const output: BridgeRawFolderCandidate[] = [];
+  for (let distance = 0; distance <= 2; distance += 1) {
+    const item = trail.at(-(distance + 1));
+    if (!item) break;
+    output.push({ ...item, distance: distance as 0 | 1 | 2 });
+  }
+  return output;
 }
 
 export async function saveBridgeFolderTrail(trail: readonly BridgeFolderTrailItem[]): Promise<void> {
