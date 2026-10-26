@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
-import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
 import { SnapZoneOverlay } from "./window/SnapZoneOverlay";
 import { getDesktopContentKey } from "@/lib/olivia/desktopContentKey";
 import styles from "./OliviaDesktop.module.css";
@@ -27,16 +26,12 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
     return () => observer.disconnect();
   }, [setWorkspaceSize]);
 
-  // 최소 키보드 단축키(스펙 2-29) — 브라우저 기본 동작과 크게 충돌하는 것은 넣지 않는다.
+  // Command+W는 브라우저의 탭 닫기 + beforeunload 확인 흐름에 맡긴다.
+  // OS 내부 창은 창의 닫기 버튼이나 상단 메뉴로 닫고, 최소화 단축키만 유지한다.
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey;
-      if (meta && event.key.toLowerCase() === "w" && activeWindowId) {
-        event.preventDefault();
-        const activeWindow = useOliviaDesktopStore.getState().windows[activeWindowId];
-        if (activeWindow?.appId === "olivia-chat") minimizeWindow(activeWindowId);
-        else closeOliviaDesktopWindow(activeWindowId);
-      } else if (meta && event.key.toLowerCase() === "m" && activeWindowId) {
+      if (meta && event.key.toLowerCase() === "m" && activeWindowId) {
         event.preventDefault();
         minimizeWindow(activeWindowId);
       }

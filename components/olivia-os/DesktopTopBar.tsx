@@ -82,7 +82,7 @@ export function DesktopTopBar({ onOpenOverlay }: {
     if (openMenu === "파일") return <>
       <button type="button" onClick={() => launch("all-apps")}>모든 앱 열기</button>
       <span className={styles.menuDivider} />
-      <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeOliviaDesktopWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기 <kbd>⌘W</kbd></button>
+      <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeOliviaDesktopWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기</button>
     </>;
     if (openMenu === "보기") return <>
       <button type="button" onClick={() => { toggleShowDesktop(); setOpenMenu(null); }}>바탕화면 보기</button>

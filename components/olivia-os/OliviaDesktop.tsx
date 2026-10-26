@@ -14,6 +14,7 @@ import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
 import { PhotoTaskStatusBar } from "./PhotoTaskStatusBar";
 import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
+import { requestOliviaDesktopExitConfirmation } from "@/lib/olivia/desktopExitGuard";
 import styles from "./OliviaDesktop.module.css";
 
 const WALLPAPER_KEY = "olivia-os-wallpaper-v1";
@@ -51,6 +52,13 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
 
   // Phase 3 — 활성 창을 Olivia의 LLM 컨텍스트(useOliviaContextStore)로 계속 흘려보낸다.
   useOliviaDesktopContextBridge();
+
+  // 브라우저 탭/창 닫기, 새로고침, 주소 이동을 실수로 실행했을 때 운영체제·브라우저의
+  // 기본 페이지 이탈 확인창을 요청한다. 확인 문구는 브라우저 보안 정책상 직접 지정할 수 없다.
+  useEffect(() => {
+    window.addEventListener("beforeunload", requestOliviaDesktopExitConfirmation);
+    return () => window.removeEventListener("beforeunload", requestOliviaDesktopExitConfirmation);
+  }, []);
 
   // OLIVIA OS가 canonical root인 동안 문서 자체는 움직이지 않고 각 AppWindow만 스크롤한다.
   useEffect(() => {
