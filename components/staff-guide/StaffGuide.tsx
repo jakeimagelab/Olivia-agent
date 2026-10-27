@@ -1,12 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Camera,
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleAlert,
   ClipboardCheck,
+  Images,
   Lightbulb,
   ListChecks,
   PackageCheck,
@@ -43,6 +47,18 @@ const STORAGE_KEY = "pc-staff-guide-v1";
 const TYPE_OPTIONS: ShootType[] = ["scene", "group", "profile", "interior"];
 const SETUP_ORDER: ShootSetupKind[] = ["scene", "group", "profile", "interior", "video"];
 const PROFILE_LIGHT_NUMBERS = ["①", "②", "③"] as const;
+const EQUIPMENT_GUIDE_IMAGES = [
+  { label: "카메라", src: "/assets/staff-guide/equipment/01-camera.png", alt: "Sony R5, Sony M4, Canon 5DMK4 카메라 장비 안내" },
+  { label: "렌즈", src: "/assets/staff-guide/equipment/02-lens.png", alt: "Canon과 Sony 렌즈 장비 안내" },
+  { label: "조명", src: "/assets/staff-guide/equipment/03-light.png", alt: "Profoto와 Rimelight 조명 장비 안내" },
+  { label: "A스탠드", src: "/assets/staff-guide/equipment/04-stand.png", alt: "Silver Stand와 Black Aurora 스탠드 장비 안내" },
+  { label: "삼각대·슬라이더", src: "/assets/staff-guide/equipment/05-tripod-slider.png", alt: "Sirui 삼각대와 E700 슬라이더 장비 안내" },
+  { label: "짐벌", src: "/assets/staff-guide/equipment/06-gimbal.png", alt: "Ronin 4 Mini 짐벌 장비 안내" },
+  { label: "배경세트", src: "/assets/staff-guide/equipment/07-background.png", alt: "인물과 제품 촬영용 배경세트 장비 안내" },
+  { label: "동조기", src: "/assets/staff-guide/equipment/08-trigger.png", alt: "Profoto Connect 동조기 장비 안내" },
+  { label: "배터리", src: "/assets/staff-guide/equipment/09-battery.png", alt: "Sony, Canon, Profoto 배터리 장비 안내" },
+  { label: "저장장치·기타", src: "/assets/staff-guide/equipment/10-storage-etc.png", alt: "메모리 카드와 아이패드 장비 안내" },
+] as const;
 
 export default function StaffGuide({ equipment }: { equipment: StaffGuideEquipment[] }) {
   const [input, setInput] = useState<ShootSetupInput>({
@@ -51,6 +67,7 @@ export default function StaffGuide({ equipment }: { equipment: StaffGuideEquipme
     profileStyle: "studio",
   });
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  const [equipmentImageIndex, setEquipmentImageIndex] = useState(0);
 
   useEffect(() => {
     try {
@@ -69,6 +86,7 @@ export default function StaffGuide({ equipment }: { equipment: StaffGuideEquipme
     const items = packing.filter((item) => getSetupEquipmentCategory(item.name) === category);
     return items.length ? [{ category, items }] : [];
   }), [packing]);
+  const equipmentGuideImage = EQUIPMENT_GUIDE_IMAGES[equipmentImageIndex];
 
   const toggleType = (value: ShootType) => {
     setInput((current) => ({
@@ -137,8 +155,52 @@ export default function StaffGuide({ equipment }: { equipment: StaffGuideEquipme
         })}</div>
       </section>
 
+      <section className={`${styles.card} ${styles.equipmentImageCard}`}>
+        <Heading icon={<Images size={18} />} number="5" title="장비 사진" />
+        <div className={styles.equipmentImageChoices} role="group" aria-label="장비 사진 종류">
+          {EQUIPMENT_GUIDE_IMAGES.map((item, index) => (
+            <button
+              key={item.src}
+              type="button"
+              aria-pressed={equipmentImageIndex === index}
+              onClick={() => setEquipmentImageIndex(index)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <figure className={styles.equipmentImageFigure}>
+          <Image
+            key={equipmentGuideImage.src}
+            src={equipmentGuideImage.src}
+            alt={equipmentGuideImage.alt}
+            width={941}
+            height={1672}
+            sizes="(max-width: 560px) calc(100vw - 48px), 500px"
+            loading="lazy"
+          />
+        </figure>
+        <div className={styles.equipmentImageNavigation}>
+          <button
+            type="button"
+            aria-label="이전 장비 사진"
+            onClick={() => setEquipmentImageIndex((current) => (current - 1 + EQUIPMENT_GUIDE_IMAGES.length) % EQUIPMENT_GUIDE_IMAGES.length)}
+          >
+            <ChevronLeft size={16} aria-hidden="true" />이전
+          </button>
+          <span aria-live="polite">{equipmentImageIndex + 1} / {EQUIPMENT_GUIDE_IMAGES.length}</span>
+          <button
+            type="button"
+            aria-label="다음 장비 사진"
+            onClick={() => setEquipmentImageIndex((current) => (current + 1) % EQUIPMENT_GUIDE_IMAGES.length)}
+          >
+            다음<ChevronRight size={16} aria-hidden="true" />
+          </button>
+        </div>
+      </section>
+
       <section className={styles.card}>
-        <Heading icon={<PackageCheck size={18} />} number="5" title="챙길 장비" />
+        <Heading icon={<PackageCheck size={18} />} number="6" title="챙길 장비" />
         <div className={styles.packingGroups}>{packingGroups.map(({ category, items }) => <section key={category}><h3>{SETUP_CATEGORY_LABEL[category]}</h3><div>{items.map((item) => {
           const detail = equipmentByName.get(item.name);
           return <label key={item.name} className={styles.packingItem}><input type="checkbox" checked={Boolean(checked[item.name])} onChange={() => saveChecked({ ...checked, [item.name]: !checked[item.name] })} /><span className={styles.checkCircle}><Check size={13} aria-hidden="true" /></span><span className={styles.packingCopy}><strong>{item.name}{item.quantity > 1 ? ` × ${item.quantity}` : ""}</strong>{detail?.usage || detail?.note ? <small>{[detail.usage, detail.note].filter(Boolean).join(" · ")}</small> : null}</span></label>;
@@ -147,13 +209,13 @@ export default function StaffGuide({ equipment }: { equipment: StaffGuideEquipme
       </section>
 
       <section className={styles.card}>
-        <Heading icon={<CircleAlert size={18} />} number="6" title="헷갈리기 쉬운 것" />
+        <Heading icon={<CircleAlert size={18} />} number="7" title="헷갈리기 쉬운 것" />
         <div className={styles.noteList}>{EQUIPMENT_CONFUSION_NOTES.map((note) => <p key={note}>{note}</p>)}</div>
       </section>
 
       <section className={styles.card}>
         <details>
-          <summary><Heading icon={<PackageCheck size={18} />} number="7" title="전체 장비 목록" /><ChevronDown size={18} aria-hidden="true" /></summary>
+          <summary><Heading icon={<PackageCheck size={18} />} number="8" title="전체 장비 목록" /><ChevronDown size={18} aria-hidden="true" /></summary>
           {equipment.length ? <div className={styles.tableWrap}><table><thead><tr><th>구분</th><th>장비</th><th>수량</th><th>용도</th><th>비고</th></tr></thead><tbody>{equipment.map((item) => <tr key={`${item.category}:${item.name}`}><td data-label="구분">{SETUP_CATEGORY_LABEL[item.category as keyof typeof SETUP_CATEGORY_LABEL] ?? item.category}</td><td data-label="장비">{item.name}</td><td data-label="수량">{item.quantity}</td><td data-label="용도">{item.usage || "—"}</td><td data-label="비고">{item.note || "—"}</td></tr>)}</tbody></table></div> : <p className={styles.empty}>등록된 장비가 없습니다.</p>}
         </details>
       </section>
