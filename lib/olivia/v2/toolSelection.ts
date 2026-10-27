@@ -59,10 +59,11 @@ function calendarDateCount(text: string): number {
   return new Set(Array.from(text.matchAll(CALENDAR_DATE_PATTERN), (match) => match[0].replace(/\s+/g, ""))).size;
 }
 
-function calendarRegistrationTool(message: string, recentText: string, available: Set<string>): string | undefined {
-  const combined = [recentText, message].filter(Boolean).join("\n");
-  if (!CALENDAR_REGISTRATION_PATTERN.test(combined) || !CALENDAR_EVENT_HINT_PATTERN.test(combined)) return undefined;
-  const dateCount = calendarDateCount(combined);
+function calendarRegistrationTool(message: string, available: Set<string>): string | undefined {
+  // 강제 도구 선택은 현재 요청만 본다. 직전 대화에 일정이 있었다는 이유만으로
+  // "견적서 열어줘"에 calendar_add가 붙는 사고를 막는다.
+  if (!CALENDAR_REGISTRATION_PATTERN.test(message) || !CALENDAR_EVENT_HINT_PATTERN.test(message)) return undefined;
+  const dateCount = calendarDateCount(message);
   if (dateCount === 0) return undefined;
   if (dateCount > 1 && available.has("calendar_add_bulk")) return "calendar_add_bulk";
   return available.has("calendar_add") ? "calendar_add" : undefined;
@@ -212,7 +213,7 @@ export function resolveRequiredFollowupTool(input: { message: string; recentText
   // 명사가 섞여 있어도 client_create를 tool_choice로 강제하지 않는다. 보관은 모델이 공개
   // client_archive를 고르되, 실행 직전 mutation guard가 반대 mutation을 다시 차단한다.
   if (NEGATIVE_MUTATION_PATTERN.test(message)) return undefined;
-  const calendarTool = calendarRegistrationTool(message, recent, available);
+  const calendarTool = calendarRegistrationTool(message, available);
   if (calendarTool) return calendarTool;
   const candidates = [
     { pattern: /(고객\s*등록|고객으로\s*등록|신규\s*고객|거래처\s*등록)/gi, create: "client_create", source: message },

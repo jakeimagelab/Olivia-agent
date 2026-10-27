@@ -35,7 +35,7 @@ export function ClientsWindowContent({
         <div className="olivia-os-clients-window" style={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0, overflow: "hidden" }}>
           <ClientsWorkspace
             initialClientId={context?.clientId}
-            initialWorkflowRunId={context?.projectId}
+            initialWorkflowRunId={context?.workflowRunId ?? context?.projectId}
             initialTab={initialTab}
             surface={resolvedSurface}
           />

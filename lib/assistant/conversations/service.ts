@@ -17,6 +17,7 @@ export async function getOrCreateAssistantConversation(
     .select("id,owner_id")
     .eq("owner_id", ownerId)
     .eq("status", "active")
+    .is("client_id", null)
     .order("last_message_at", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
     .limit(1)
@@ -26,7 +27,7 @@ export async function getOrCreateAssistantConversation(
 
   const { data, error } = await db
     .from("assistant_conversations")
-    .insert({ owner_id: ownerId, status: "active" })
+    .insert({ owner_id: ownerId, status: "active", client_id: null })
     .select("id,owner_id")
     .single();
   if (error?.code === "23505") {
@@ -35,6 +36,7 @@ export async function getOrCreateAssistantConversation(
       .select("id,owner_id")
       .eq("owner_id", ownerId)
       .eq("status", "active")
+      .is("client_id", null)
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .limit(1)

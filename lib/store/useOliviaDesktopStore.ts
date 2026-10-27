@@ -86,6 +86,24 @@ export function areWindowContextsEqual(left?: WindowContext, right?: WindowConte
   return true;
 }
 
+/**
+ * 창의 배치와 고객 문맥은 복원하되, 마지막으로 열었던 문서는 세션을 넘겨 복원하지 않는다.
+ * load 쪽에서도 같은 정리를 적용해 이미 localStorage에 남아 있는 옛 값까지 무시한다.
+ */
+export function withoutPersistedDocumentTarget(context?: WindowContext): WindowContext | undefined {
+  if (!context) return undefined;
+  const safeContext = { ...context };
+  delete safeContext.resourceId;
+  delete safeContext.documentId;
+  if (["quote", "contract", "conti"].includes(safeContext.documentType ?? "")) {
+    // 계약서 새 작성용 견적 ID와 문서 URL도 결국 특정 문서를 가리킨다. 앱 종류는
+    // appId/documentType으로 복원할 수 있으므로, 다음 세션에 문서 대상만 넘기지 않는다.
+    delete safeContext.sourceQuoteId;
+    delete safeContext.routeHref;
+  }
+  return Object.keys(safeContext).length ? safeContext : undefined;
+}
+
 type OliviaDesktopState = {
   windows: Record<string, OliviaWindowState>;
   activeWindowId: string | null;
@@ -513,7 +531,8 @@ export function saveDesktopState() {
       version: DESKTOP_STATE_VERSION,
       windows: top.map((win) => ({
         appId: win.appId, title: win.title, x: win.x, y: win.y, width: win.width, height: win.height,
-        minimized: win.minimized, snapMode: win.snapMode, previousBounds: win.previousBounds, context: win.context,
+        minimized: win.minimized, snapMode: win.snapMode, previousBounds: win.previousBounds,
+        context: withoutPersistedDocumentTarget(win.context),
         parentWindowId: win.parentWindowId,
       })),
       activeAppId: activeWindowId,
@@ -553,7 +572,7 @@ export function loadDesktopState(knownAppIds: Set<string>) {
         id: win.appId, appId: win.appId, title: win.title,
         x: win.x, y: win.y, width: win.width, height: win.height,
         minimized: Boolean(win.minimized), snapMode: win.snapMode ?? "none", previousBounds: win.previousBounds,
-        context: win.context,
+        context: withoutPersistedDocumentTarget(win.context),
         parentWindowId: win.parentWindowId && valid.some((candidate) => candidate.appId === win.parentWindowId) ? win.parentWindowId : undefined,
         zIndex,
       };

@@ -31,7 +31,7 @@ export async function GET(
     return healClientLinkAndRespond(supabase, requestedRunId);
   }
 
-  let [clientRes, runsRes, quotesRes, contractsRes, artifactsRes] = await Promise.all([
+  const [initialClientRes, runsRes, quotesRes, contractsRes, artifactsRes] = await Promise.all([
     supabase.from("clients")
       .select(`id, hospital_name, contact_name, phone, email, specialty, memo, created_at, original_photos_link, retouched_photos_link, total_paid_amount, available_points, total_earned_points, reward_tier, quote_amount, quote_vat, quote_total, contract_amount, contract_vat, contract_total, contract_signed_at, ${EXTENDED_CLIENT_COLUMNS}`)
       .eq("id", id).maybeSingle(),
@@ -40,7 +40,7 @@ export async function GET(
       .order("created_at", { ascending: false }),
     // quotes/contracts 테이블이 아직 없는 프로젝트도 있어 실패해도 전체 응답을 막지 않는다 (아래에서 error는 무시하고 빈 배열로 처리).
     supabase.from("quotes")
-      .select("id, quote_number, title, supply_amount, vat, total_amount, created_at")
+      .select("id, quote_number, title, supply_amount, vat, total_amount, status, created_at")
       .eq("client_id", id)
       .order("created_at", { ascending: false })
       .limit(10),
@@ -56,6 +56,7 @@ export async function GET(
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
+  let clientRes = initialClientRes;
 
   if (isMissingColumnError(clientRes.error)) {
     clientRes = await supabase.from("clients")

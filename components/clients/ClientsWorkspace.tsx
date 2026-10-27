@@ -38,6 +38,7 @@ import type { OliviaUiSurface } from "@/lib/olivia/surfaceContext";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import type { CoreProjectSnapshot } from "@/lib/core/readModels/types";
+import ClientDocumentWorkspace from "@/components/clients/ClientDocumentWorkspace";
 
 // 견적서/계약서/콘티 빌더와 진행상세 모달은 실제로 모달을 열 때만 필요하다 — 고객 목록 첫 화면에는
 // 전혀 안 쓰이는데 지금까지는 정적 import라 항상 초기 JS 번들에 포함됐다. 모달 상태가 열리는
@@ -167,31 +168,12 @@ function SpinBox() {
 
 function ClientsInner({ initialClientId, initialWorkflowRunId, initialTab, surface }: ClientsWorkspaceProps) {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const embedded = useDesktopWindowMode() || surface === "tablet";
-  if (embedded) return (
-    <ClientWorkspaceView
-      embedded
-      openNewOnLoad={false}
-      initialClientId={initialClientId ?? null}
-      initialWorkflowRunId={initialWorkflowRunId}
-      initialTab={initialTab}
-    />
-  );
-  const id = searchParams.get("id");
-  const workflowRunId = initialWorkflowRunId ?? searchParams.get("workflowRunId");
-  // 기존 8탭 상세 화면은 그대로 둔다(?id=) — 이번 개편으로 아직 안 옮긴 기능(문서/갤러리 상세관리 등)의
-  // 도피처. 새 3단 워크스페이스는 기본 진입(/clients, ?clientId=) 경로로 붙인다.
-  const resolvedInitialTab = initialTab ?? searchParams.get("tab") ?? undefined;
-  if (id) return <DetailView clientId={id} workflowRunId={workflowRunId} initialTab={resolvedInitialTab} onBack={() => router.push("/clients")} />;
-  if (workflowRunId) return <DetailView clientId="_by-workflow" workflowRunId={workflowRunId} initialTab={resolvedInitialTab} onBack={() => router.push("/clients")} />;
   return (
-    <ClientWorkspaceView
-      embedded={false}
-      openNewOnLoad={searchParams.get("new") === "1"}
-      initialClientId={searchParams.get("clientId")}
-      initialWorkflowRunId={workflowRunId}
-      initialTab={resolvedInitialTab}
+    <ClientDocumentWorkspace
+      embedded={embedded}
+      initialClientId={initialClientId ?? searchParams.get("clientId") ?? searchParams.get("id")}
+      initialWorkflowRunId={initialWorkflowRunId ?? searchParams.get("workflowRunId")}
     />
   );
 }
@@ -257,7 +239,6 @@ function ClientWorkspaceView({
   openCreateRef.current = openCreate;
   const headerActions = useMemo(() => (
     <>
-      <Link href="/clients/list" className="pc-btn pc-btn--secondary pc-btn--sm"><Building2 size={15} /> 병원 목록</Link>
       <button type="button" className="oa-header__client-create" onClick={() => openCreateRef.current()}>
         <Plus size={15} /> <span>고객 등록</span>
       </button>

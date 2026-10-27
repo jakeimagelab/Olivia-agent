@@ -34,7 +34,8 @@ export interface ContiV2AppProps {
 
 export default function ContiV2App({ surface = "default", clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
-  const retained = retainedWorkspaces.get(persistenceKey);
+  const canRetainWorkspace = persistenceKey !== "new-client:new-workflow:new-resource";
+  const retained = canRetainWorkspace ? retainedWorkspaces.get(persistenceKey) : undefined;
   const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? initialRunId ?? null);
   const [view, setView] = useState<ResultView>(() => retained?.view ?? "table");
   const [notices, setNotices] = useState<string[]>([]);
@@ -45,17 +46,17 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
   useEffect(() => {
     if (!registerRequestClose || !onClose) return;
     registerRequestClose(() => {
-      retainedWorkspaces.delete(persistenceKey);
+      if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
       onClose();
     });
-  }, [onClose, persistenceKey, registerRequestClose]);
+  }, [canRetainWorkspace, onClose, persistenceKey, registerRequestClose]);
 
   useEffect(() => {
-    if (runId) retainedWorkspaces.set(persistenceKey, { runId, view });
-  }, [persistenceKey, runId, view]);
+    if (canRetainWorkspace && runId) retainedWorkspaces.set(persistenceKey, { runId, view });
+  }, [canRetainWorkspace, persistenceKey, runId, view]);
 
   useEffect(() => {
-    if (retainedWorkspaces.has(persistenceKey)) { setResolvingInitial(false); return; }
+    if (canRetainWorkspace && retainedWorkspaces.has(persistenceKey)) { setResolvingInitial(false); return; }
     if (initialRunId) { setResolvingInitial(false); return; }
     if (!resourceId && !workflowRunId) { setResolvingInitial(false); return; }
     const query = new URLSearchParams();
@@ -68,10 +69,10 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
         setRunId(data.run.id);
       }
     }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); }).finally(() => setResolvingInitial(false));
-  }, [clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
+  }, [canRetainWorkspace, clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
 
   const handleGenerated = (id: string, metadata?: { warnings?: string[]; spaceMatchStats?: { matched: number; total: number } }) => {
-    retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
+    if (canRetainWorkspace) retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
     const match = metadata?.spaceMatchStats;
     setNotices([...(metadata?.warnings ?? []), ...(match ? [`병원 공간 자동 매칭 ${match.matched} / ${match.total}개`] : [])]);
     setLegacyResourceId(undefined);
@@ -81,7 +82,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
   };
 
   const openRun = (id: string) => {
-    retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
+    if (canRetainWorkspace) retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
     setLegacyResourceId(undefined);
     setRunId(id);
     setView("table");
@@ -89,7 +90,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
 
   const returnToCreate = () => {
     void controller.flushSave();
-    retainedWorkspaces.delete(persistenceKey);
+    if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
     setRunId(null);
     setNotices([]);
     setView("table");

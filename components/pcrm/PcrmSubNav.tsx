@@ -6,13 +6,11 @@ import {
   Building2,
   Calendar,
   FileText,
-  FolderKanban,
   Heart,
   Home,
   Image as ImageIcon,
   Coins,
   PenLine,
-  Users,
 } from "lucide-react";
 
 type NavItem = {
@@ -25,8 +23,6 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "dashboard", label: "대시보드", icon: Home, href: "/clients" },
-  { key: "list", label: "고객 관리", icon: Users, href: "/clients/list" },
-  { key: "projects", label: "프로젝트", icon: FolderKanban, href: "/clients/list?focus=projects" },
   { key: "documents", label: "문서 관리", icon: FileText, href: "/clients/documents" },
   { key: "calendar", label: "일정 관리", icon: Calendar, href: "/clients/schedule" },
   { key: "gallery", label: "앨범/갤러리", icon: ImageIcon, href: "/clients/gallery" },
@@ -45,18 +41,6 @@ export default function PcrmSubNav() {
     <nav className="pcrm-subnav" aria-label="고객관리 메뉴">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon;
-        const onClientList = pathname.startsWith("/clients/list");
-        const focusProjects = searchParams.get("focus") === "projects";
-
-        if (item.key === "projects") {
-          const active = inProjectView || (onClientList && focusProjects);
-          return (
-            <Link key={item.key} href={item.href!} data-active={active}>
-              <Icon size={16} strokeWidth={1.8} />
-              {item.label}
-            </Link>
-          );
-        }
         if (item.disabled || !item.href) {
           return (
             <button
@@ -70,15 +54,6 @@ export default function PcrmSubNav() {
               <Icon size={16} strokeWidth={1.8} />
               {item.label}
             </button>
-          );
-        }
-        if (item.key === "list") {
-          const active = onClientList && !focusProjects;
-          return (
-            <Link key={item.key} href={item.href} data-active={active}>
-              <Icon size={16} strokeWidth={1.8} />
-              {item.label}
-            </Link>
           );
         }
         const active = item.href === "/clients" ? pathname === "/clients" && !inProjectView : pathname.startsWith(item.href);

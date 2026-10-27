@@ -30,9 +30,9 @@ export async function POST(req: NextRequest) {
   try {
     const db = getSupabaseAdmin();
     const owner = await ensurePrimaryAssistantOwner(db);
-    await db.from("assistant_conversations").update({ status: "archived", updated_at: new Date().toISOString() }).eq("owner_id", owner.id).eq("status", "active");
+    await db.from("assistant_conversations").update({ status: "archived", updated_at: new Date().toISOString() }).eq("owner_id", owner.id).eq("status", "active").is("client_id", null);
     const { data, error } = await db.from("assistant_conversations")
-      .insert({ owner_id: owner.id, status: "active", title: "새 Olivia 대화" })
+      .insert({ owner_id: owner.id, status: "active", client_id: null, title: "새 Olivia 대화" })
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message || "새 대화를 생성하지 못했어요.");

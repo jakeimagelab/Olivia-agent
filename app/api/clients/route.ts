@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
   const weekAgoIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   // 1단계 — 목록 화면에 항상 필요한 것만 먼저 병렬 조회(고객, 워크플로우, 포털 상태).
-  let [clientsRes, runsRes, portalRes] = await Promise.all([
+  const [initialClientsRes, runsRes, portalRes, pendingQuotesRes] = await Promise.all([
     query,
     supabase
       .from("workflow_runs")
@@ -58,7 +58,13 @@ export async function GET(req: NextRequest) {
       .neq("status", "canceled")
       .order("started_at", { ascending: true }),
     supabase.from("client_portal_access").select("client_id, is_active"),
+    supabase.from("quotes")
+      .select("id,hospital_name,contact_name,phone,email,total_amount,created_at,status")
+      .is("client_id", null)
+      .or("status.is.null,status.neq.approved")
+      .order("created_at", { ascending: false }),
   ]);
+  let clientsRes = initialClientsRes;
 
   if (isMissingColumnError(clientsRes.error)) {
     let fallbackQuery = supabase.from("clients").select(BASE_CLIENT_COLUMNS).is("archived_at", null).order("created_at", { ascending: false });
@@ -143,7 +149,7 @@ export async function GET(req: NextRequest) {
 
   if (scope !== "full") {
     return NextResponse.json(
-      { ok: true, clients, dashboard: null },
+      { ok: true, clients, pendingQuotes: pendingQuotesRes.error ? [] : pendingQuotesRes.data ?? [], dashboard: null },
       { headers: { "Cache-Control": "private, no-store, max-age=0" } },
     );
   }
@@ -216,6 +222,7 @@ export async function GET(req: NextRequest) {
     {
       ok: true,
       clients,
+      pendingQuotes: pendingQuotesRes.error ? [] : pendingQuotesRes.data ?? [],
       dashboard: {
         newClientsThisWeek,
         newActiveProjectsThisWeek,

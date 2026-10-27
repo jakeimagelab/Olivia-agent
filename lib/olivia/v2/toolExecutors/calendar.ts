@@ -17,9 +17,13 @@ export const CALENDAR_TOOL_NAMES = [
   "calendar_complete", "calendar_delete", "calendar_availability", "calendar_list_month",
 ] as const;
 
-function verifyCalendarFields(task: Record<string, unknown>, requested: Record<string, unknown>) {
+export function normalizeCalendarComparable(value: unknown) {
+  return value === "" || value === null || value === undefined ? null : value;
+}
+
+export function verifyCalendarFields(task: Record<string, unknown>, requested: Record<string, unknown>) {
   for (const key of ["date", "title", "time", "end_time", "location", "memo", "category"] as const) {
-    if (requested[key] !== undefined && (task[key] ?? null) !== (requested[key] ?? null)) {
+    if (requested[key] !== undefined && normalizeCalendarComparable(task[key]) !== normalizeCalendarComparable(requested[key])) {
       throw new Error(`일정 저장 검증 값이 요청과 일치하지 않아요: ${key}`);
     }
   }
@@ -98,7 +102,7 @@ export async function executeCalendarTool(
     if (updated.id !== task.id) throw new Error("일정 수정 결과를 재조회한 row와 연결하지 못했어요.");
     for (const [key, value] of Object.entries(fields)) {
       if (["id", "date"].includes(key) && value === undefined) continue;
-      if (value !== undefined && key in task && task[key] !== value) throw new Error(`일정 수정 검증이 일치하지 않아요: ${key}`);
+      if (value !== undefined && key in task && normalizeCalendarComparable(task[key]) !== normalizeCalendarComparable(value)) throw new Error(`일정 수정 검증이 일치하지 않아요: ${key}`);
     }
     return { tool: name, success: true, data: { taskId: id, resourceId: id, task, summary: "일정을 수정했어요." }, verification: createVerification({ executed: true, persisted: true, resourceExists: true }) };
   }
