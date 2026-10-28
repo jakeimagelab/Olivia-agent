@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { PencilLine, Scaling } from "lucide-react";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
+import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import type { PhotoFileOpsMode } from "./types";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import styles from "./PhotoWorkspace.module.css";
@@ -28,8 +28,9 @@ export default function PhotoFileOpsWorkspace({ value, onChange }: {
   const { currentLocalFolder } = usePhotoStudioExecution();
   return (
     <div>
-      <SegmentedTabs
+      <WorkspaceSubTabs
         ariaLabel="파일 정리 방식"
+        tone="dark"
         value={value}
         onChange={onChange}
         items={FILE_OPS_TABS.map(({ mode, label, icon: Icon }) => ({

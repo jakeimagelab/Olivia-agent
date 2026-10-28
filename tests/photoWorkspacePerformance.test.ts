@@ -49,4 +49,11 @@ describe("photo workspace rendering safeguards", () => {
     expect(rawMatch).toContain("검색 결과 {matchedCount}장 선택");
     expect(rawMatch).toContain("setSelected(new Set(scenes.flatMap");
   });
+
+  it("uses the shared dark underline tabs for file resize and rename", () => {
+    const fileOps = source("components/photo-workspace/PhotoFileOpsWorkspace.tsx");
+    expect(fileOps).toContain("WorkspaceSubTabs");
+    expect(fileOps).toContain('tone="dark"');
+    expect(fileOps).not.toContain("<SegmentedTabs");
+  });
 });
