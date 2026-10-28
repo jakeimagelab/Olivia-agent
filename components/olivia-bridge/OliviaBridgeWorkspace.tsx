@@ -154,6 +154,11 @@ const EMPTY_SCAN: BridgeFolderScan = {
   unreadableFolderCount: 0,
 };
 
+const THUMBNAIL_SIZE_MIN = 96;
+const THUMBNAIL_SIZE_MAX = 240;
+const THUMBNAIL_SIZE_STEP = 18;
+const THUMBNAIL_SIZE_DEFAULT = 156;
+
 function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
   return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -515,7 +520,7 @@ export default function OliviaBridgeWorkspace({
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
-  const [thumbnailSize, setThumbnailSize] = useState(156);
+  const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
@@ -1022,7 +1027,26 @@ export default function OliviaBridgeWorkspace({
     setFileFilter(filter);
   }, []);
 
+  const resizeThumbnails = useCallback((direction: -1 | 1) => {
+    setThumbnailSize((value) => Math.min(
+      THUMBNAIL_SIZE_MAX,
+      Math.max(THUMBNAIL_SIZE_MIN, value + (direction * THUMBNAIL_SIZE_STEP)),
+    ));
+  }, []);
+
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.metaKey && !event.altKey && !event.ctrlKey) {
+      if (event.code === "Equal" || event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        resizeThumbnails(1);
+        return;
+      }
+      if (event.code === "Minus" || event.key === "-" || event.key === "_") {
+        event.preventDefault();
+        resizeThumbnails(-1);
+        return;
+      }
+    }
     if (isTypingTarget(event.target)) return;
     if (event.altKey && event.metaKey && !event.ctrlKey && !event.shiftKey) {
       const command = bridgeLabelFilterCommandFromShortcutCode(event.code);
@@ -1065,9 +1089,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-    else if (event.key === "+" || event.key === "=") setThumbnailSize((value) => Math.min(240, value + 18));
-    else if (event.key === "-") setThumbnailSize((value) => Math.max(96, value - 18));
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, moveGridFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, moveGridFocus, openFullscreenPreview, resizeThumbnails, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1255,7 +1277,7 @@ export default function OliviaBridgeWorkspace({
         <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
             <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span></div>
-            <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
+            <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
           {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={() => pickFolder()}>다른 폴더 선택</button></div> : <button type="button" onClick={() => pickFolder()}>폴더 선택</button>}</div> : null}
@@ -1335,7 +1357,23 @@ export default function OliviaBridgeWorkspace({
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
-          <footer className={styles.shortcutBar}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</footer>
+          <footer className={styles.shortcutBar}>
+            <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl/Shift 드래그 추가</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
+            <label className={styles.thumbnailGauge} title="⌘ + / ⌘ -">
+              <Minus size={13} aria-hidden="true" />
+              <input
+                type="range"
+                min={THUMBNAIL_SIZE_MIN}
+                max={THUMBNAIL_SIZE_MAX}
+                step={THUMBNAIL_SIZE_STEP}
+                value={thumbnailSize}
+                onChange={(event) => setThumbnailSize(Number(event.currentTarget.value))}
+                aria-label="썸네일 크기"
+              />
+              <Plus size={13} aria-hidden="true" />
+              <span>⌘ + / -</span>
+            </label>
+          </footer>
         </section>
 
 

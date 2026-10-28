@@ -266,6 +266,24 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain('setFileFilter("all")');
   });
 
+  it("Command +/-와 하단 게이지로 썸네일 크기를 조절한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
+
+    expect(workspace).toContain("event.metaKey && !event.altKey && !event.ctrlKey");
+    expect(workspace).toContain('event.code === "Equal"');
+    expect(workspace).toContain('event.code === "Minus"');
+    expect(workspace).toContain("resizeThumbnails(1)");
+    expect(workspace).toContain("resizeThumbnails(-1)");
+    expect(workspace).toContain('type="range"');
+    expect(workspace).toContain("min={THUMBNAIL_SIZE_MIN}");
+    expect(workspace).toContain("max={THUMBNAIL_SIZE_MAX}");
+    expect(workspace).toContain("⌘ + / -");
+    expect(styles).toContain(".thumbnailGauge");
+    expect(styles).toContain("::-webkit-slider-thumb");
+    expect(styles).toContain("::-moz-range-thumb");
+  });
+
   it("기능 창은 Bridge 오른쪽에 열리고 앱 경계 안으로 보정된다", () => {
     const preset = BRIDGE_FLOATING_WINDOW_PRESETS.tool;
     const initial = createBridgeFloatingWindowRect({ width: 1400, height: 900 }, preset);
