@@ -40,6 +40,7 @@ import {
 } from "react";
 
 import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
+import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
@@ -61,6 +62,7 @@ import {
 } from "@/lib/photo-classifier/departmentResolver";
 import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
+import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import {
   bridgeGridNavigationTarget,
   type BridgeGridDirection,
@@ -480,12 +482,14 @@ export default function OliviaBridgeWorkspace({
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
-    setExecutionMode,
+    executionMode,
     stageBridgeClassificationPlan,
     photoDepartmentResolution,
     setPhotoDepartmentResolution,
   } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
+  const [remoteFolder, setRemoteFolder] = useState<RemoteNasSelection | null>(null);
+  const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
   const [scanError, setScanError] = useState<string>();
@@ -638,6 +642,7 @@ export default function OliviaBridgeWorkspace({
         setExcludedIds(new Set());
       }
       setScan(next);
+      setRemoteFolder(null);
       setBreadcrumbs(trail);
       setRestoreTrail([]);
       setRestoreMessage("");
@@ -657,7 +662,6 @@ export default function OliviaBridgeWorkspace({
         return rating ? [[photo.name, rating] as const] : [];
       }));
       setJpgRatingsByName(restoredRatingsByName, { overwrite: true });
-      setExecutionMode("LOCAL_DIRECT");
       setScanStatus("ready");
       void saveBridgeFolderTrail(trail).catch((error) => {
         console.error("[olivia-bridge] Failed to remember the last folder", error);
@@ -667,7 +671,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setSelectedIds]);
+  }, [includeNestedJpgs, setCurrentLocalFolder, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setSelectedIds]);
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -680,6 +684,30 @@ export default function OliviaBridgeWorkspace({
     if (!directory) return;
     await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
   }, [loadDirectory, picker]);
+
+  /** 로컬이면 지금처럼 폴더 피커, 원격이면 NAS 선택기를 연다. */
+  const pickFolder = useCallback(() => {
+    if (executionMode === "REMOTE_WORKER") {
+      setNasPickerOpen(true);
+      return;
+    }
+    void chooseFolder();
+  }, [chooseFolder, executionMode]);
+
+  const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
+    setScanStatus("loading");
+    setScanError(undefined);
+    setToolKey(undefined);
+    setSceneReviewOpen(false);
+    setRemoteFolder(selection);
+    setScan(EMPTY_SCAN);
+    setBreadcrumbs([]);
+    setSelectedIds(new Set());
+    setAnchorId(null);
+    setFocusedId(null);
+    setPreviewSize(undefined);
+    setScanStatus("ready");
+  }, [setSelectedIds]);
 
   useEffect(() => {
     if (restoreAttemptedRef.current) return;
@@ -1116,9 +1144,9 @@ export default function OliviaBridgeWorkspace({
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <header className={styles.bridgeBar}>
         <strong>OLIVIA BRIDGE</strong>
-        <button type="button" className={styles.folderPickerButton} onClick={() => void chooseFolder()}><FolderOpen size={17} /> 폴더 선택</button>
+        <button type="button" className={styles.folderPickerButton} onClick={() => pickFolder()}><FolderOpen size={17} /> 폴더 선택</button>
         <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
-          {breadcrumbs.length ? breadcrumbs.map((item, index) => (
+          {remoteFolder ? <span>NAS · {remoteFolder.displayPath}</span> : breadcrumbs.length ? breadcrumbs.map((item, index) => (
             <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
           )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
         </div>
@@ -1173,10 +1201,10 @@ export default function OliviaBridgeWorkspace({
             <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbnailSize((value) => Math.max(96, value - 18))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => setThumbnailSize((value) => Math.min(240, value + 18))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
-          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : <button type="button" onClick={() => void chooseFolder()}>폴더 선택</button>}</div> : null}
+          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={() => pickFolder()}>다른 폴더 선택</button></div> : <button type="button" onClick={() => pickFolder()}>폴더 선택</button>}</div> : null}
           {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
-          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => void chooseFolder()}>다른 폴더 선택</button></div> : null}
+          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => pickFolder()}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
             <div
               ref={fileAreaRef}
@@ -1339,6 +1367,16 @@ export default function OliviaBridgeWorkspace({
           canMoveNext={focusedIndex >= 0 && focusedIndex < visibleJpgs.length - 1}
           onMove={moveFocus}
           onClose={closeFullscreenPreview}
+        />
+      ) : null}
+
+      {nasPickerOpen ? (
+        <PhotoSourcePicker
+          onCancel={() => setNasPickerOpen(false)}
+          onSelectRemote={(selection) => {
+            setNasPickerOpen(false);
+            void loadRemoteDirectory(selection);
+          }}
         />
       ) : null}
     </div>

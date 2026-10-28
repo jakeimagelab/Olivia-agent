@@ -15,11 +15,12 @@ const TITLE: Record<string, { title: string; description: string }> = {
 };
 
 const MESH_BG = "#f0f4f2";
+const REMOTE_READY_ROUTES = new Set(["/photo-sorting", "/olivia-bridge"]);
 
 function PhotoStudioRouteContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { executionMode } = usePhotoStudioExecution();
-  if (executionMode === "REMOTE_WORKER" && pathname !== "/photo-sorting") {
+  if (executionMode === "REMOTE_WORKER" && !REMOTE_READY_ROUTES.has(pathname)) {
     const feature = TITLE[pathname]?.title ?? "이 기능";
     return <RemoteUnsupportedNotice feature={feature} />;
   }

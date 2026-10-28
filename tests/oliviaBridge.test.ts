@@ -127,6 +127,22 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
 
+  it("원격 모드에서는 Bridge를 유지하고 기존 NAS 폴더 선택기를 연다", () => {
+    const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+
+    expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
+    expect(layout).toContain('!REMOTE_READY_ROUTES.has(pathname)');
+    expect(workspace).toContain('executionMode === "REMOTE_WORKER"');
+    expect(workspace).toContain("<PhotoSourcePicker");
+    expect(workspace).toContain("void loadRemoteDirectory(selection)");
+    expect(workspace).toContain("setRemoteFolder(selection)");
+    expect(workspace).toContain("setScan(EMPTY_SCAN)");
+    expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
+    expect(workspace).not.toContain('setExecutionMode("LOCAL_DIRECT")');
+    expect(workspace).not.toContain('sourceScope="person-select"');
+  });
+
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
 
