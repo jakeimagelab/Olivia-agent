@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, FileText, FolderOpen, ListOrdered, MessageSquare, ScanSearch, Smartphone, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
@@ -237,6 +237,27 @@ export function SelectMatchWorkspace({
   const [scenes,     setScenes]     = useState<SceneFolder[]>([]);
   const [expanded,   setExpanded]   = useState<Set<number>>(new Set());
   const [selected,   setSelected]   = useState<Set<string>>(new Set());
+  const [nameQuery,  setNameQuery]  = useState("");
+  const queryTokens = useMemo(
+    () => nameQuery.toLowerCase().split(/[\s,]+/).map((token) => token.trim()).filter(Boolean),
+    [nameQuery],
+  );
+  /** 검색은 보이는 사진만 거르고 현재 선택은 그대로 유지한다. */
+  const visibleScenes = useMemo(() => {
+    if (!queryTokens.length) return scenes;
+    return scenes
+      .map((scene) => ({
+        ...scene,
+        photos: scene.photos.filter((photo) => (
+          queryTokens.some((token) => photo.basename.toLowerCase().includes(token))
+        )),
+      }))
+      .filter((scene) => scene.photos.length > 0);
+  }, [queryTokens, scenes]);
+  const matchedCount = useMemo(
+    () => visibleScenes.reduce((sum, scene) => sum + scene.photos.length, 0),
+    [visibleScenes],
+  );
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
@@ -264,6 +285,7 @@ export function SelectMatchWorkspace({
   const cancelRef = useRef(false);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sceneThumbnailUrlsRef = useRef(new Set<string>());
+  const searchThumbnailRequestsRef = useRef(new WeakSet<FileSystemDirectoryHandle>());
 
   const releaseSceneThumbnails = useCallback(() => {
     for (const url of sceneThumbnailUrlsRef.current) releaseObjectUrl(url);
@@ -424,6 +446,7 @@ export function SelectMatchWorkspace({
   /* ── 폴더 로드: 이름 규칙 없이 JPG 폴더 재귀 스캔 ── */
   const scanFolder = useCallback(async (dir: FileSystemDirectoryHandle) => {
       releaseSceneThumbnails();
+      searchThumbnailRequestsRef.current = new WeakSet<FileSystemDirectoryHandle>();
       setRootDir(dir);
       setStep("loading");
       setProgress({ cur: 0, total: 0, msg: "JPG 폴더 스캔 중..." });
@@ -574,6 +597,17 @@ export function SelectMatchWorkspace({
     }
     setScenes(prev => prev.map((s, i) => i === sceneIdx ? { ...s, photos: updated } : s));
   }, [scenes]);
+
+  useEffect(() => {
+    if (!queryTokens.length) return;
+    for (const scene of visibleScenes) {
+      if (searchThumbnailRequestsRef.current.has(scene.dirHandle)) continue;
+      const sceneIndex = scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle);
+      if (sceneIndex < 0) continue;
+      searchThumbnailRequestsRef.current.add(scene.dirHandle);
+      void loadSceneThumbs(sceneIndex);
+    }
+  }, [loadSceneThumbs, queryTokens.length, scenes, visibleScenes]);
 
   /* ── 재귀 RAW 스캔 공통 함수 (lib/selectMatch/rawIndex.ts로 추출된 순수 함수의 얇은 wrapper) ── */
   const buildRawIndex = useCallback((
@@ -1556,12 +1590,14 @@ export function SelectMatchWorkspace({
 
       {/* 상단 액션바 */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, padding: "12px 18px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
           <div>
             <span style={{ fontSize: 15, fontWeight: 600, color: uiAccent }}>{selected.size}장 선택됨</span>
-            <span style={{ fontSize: 11, color: uiHint, marginLeft: 8 }}>/ 전체 {totalPhotos}장 ({scenes.length}씬)</span>
+            <span style={{ fontSize: 11, color: uiHint, marginLeft: 8 }}>
+              {queryTokens.length ? `${matchedCount}장 찾음 / 전체 ${totalPhotos}장` : `/ 전체 ${totalPhotos}장 (${scenes.length}씬)`}
+            </span>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             <button
               onClick={() => setSelected(new Set(scenes.flatMap(s => s.photos.map(p => p.basename.toLowerCase()))))}
               style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit" }}
@@ -1570,6 +1606,26 @@ export function SelectMatchWorkspace({
               onClick={() => setSelected(new Set())}
               style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
             >전체 해제</button>
+            <input
+              type="search"
+              value={nameQuery}
+              onChange={(event) => setNameQuery(event.currentTarget.value)}
+              placeholder="파일명 검색 (R5K, DSC…)"
+              aria-label="파일명 검색"
+              autoComplete="off"
+              style={{ width: 190, maxWidth: "100%", padding: "4px 10px", fontSize: 11, background: inputSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, color: uiText, fontFamily: "inherit", outline: "none" }}
+            />
+            {queryTokens.length ? <button
+              type="button"
+              onClick={() => setSelected((previous) => {
+                const next = new Set(previous);
+                for (const scene of visibleScenes) {
+                  for (const photo of scene.photos) next.add(photo.basename.toLowerCase());
+                }
+                return next;
+              })}
+              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit", whiteSpace: "nowrap" }}
+            >검색 결과 {matchedCount}장 선택</button> : null}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1607,19 +1663,27 @@ export function SelectMatchWorkspace({
         <div style={{ textAlign: "center", padding: "60px 0", color: uiHint, fontSize: 13 }}>
           JPG 파일을 찾지 못했습니다. 폴더를 다시 확인해주세요.
         </div>
+      ) : queryTokens.length && visibleScenes.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 0", color: uiHint, fontSize: 13 }}>
+          &quot;{nameQuery.trim()}&quot;와 맞는 파일이 없습니다
+        </div>
       ) : (
-        scenes.map((scene, si) => {
+        visibleScenes.map((scene, si) => {
+          const sourceSceneIndex = queryTokens.length
+            ? scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle)
+            : si;
           const sceneSelCount = scene.photos.filter(p => selected.has(p.basename.toLowerCase())).length;
-          const isExpanded = expanded.has(si);
+          const isExpanded = queryTokens.length > 0 || expanded.has(sourceSceneIndex);
           return (
-            <div key={si} style={{ background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, overflow: "hidden", marginBottom: 10 }}>
+            <div key={sourceSceneIndex} style={{ background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, overflow: "hidden", marginBottom: 10 }}>
               {/* 씬 헤더 */}
               <div
                 onClick={() => {
+                  if (queryTokens.length) return;
                   setExpanded(prev => {
                     const next = new Set(prev);
-                    if (next.has(si)) { next.delete(si); }
-                    else { next.add(si); loadSceneThumbs(si); }
+                    if (next.has(sourceSceneIndex)) { next.delete(sourceSceneIndex); }
+                    else { next.add(sourceSceneIndex); loadSceneThumbs(sourceSceneIndex); }
                     return next;
                   });
                 }}
@@ -1629,7 +1693,7 @@ export function SelectMatchWorkspace({
                   <div style={{
                     width: 32, height: 32, borderRadius: 8, background: sceneSelCount > 0 ? uiAccent : uiBorder,
                     display: "flex", alignItems: "center", justifyContent: "center", color: sceneSelCount > 0 ? "#103E36" : uiMuted, fontSize: 12, fontWeight: 500, transition: "background .2s", flexShrink: 0,
-                  }}>{si + 1}</div>
+                  }}>{sourceSceneIndex + 1}</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: uiText }}>{scene.name}</div>
                     <div style={{ fontSize: 10, color: uiHint }}>{scene.photos.length}장</div>

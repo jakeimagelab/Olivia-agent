@@ -38,4 +38,15 @@ describe("photo workspace rendering safeguards", () => {
     expect(statusBar).toContain("visibleCount === 0 ? 30_000 : 5_000");
     expect(statusBar).not.toContain("setInterval(");
   });
+
+  it("filters RAW matching scenes by basename without replacing the full selection", () => {
+    const rawMatch = source("components/photo-workspace/SelectMatchWorkspace.tsx");
+    expect(rawMatch).toContain("nameQuery.toLowerCase().split(/[\\s,]+/)");
+    expect(rawMatch).toContain("queryTokens.some((token) => photo.basename.toLowerCase().includes(token))");
+    expect(rawMatch).toContain("visibleScenes.map((scene, si)");
+    expect(rawMatch).toContain("queryTokens.length > 0 || expanded.has(sourceSceneIndex)");
+    expect(rawMatch).toContain("const next = new Set(previous)");
+    expect(rawMatch).toContain("검색 결과 {matchedCount}장 선택");
+    expect(rawMatch).toContain("setSelected(new Set(scenes.flatMap");
+  });
 });
