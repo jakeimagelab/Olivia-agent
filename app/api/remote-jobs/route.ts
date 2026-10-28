@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 const ALLOWED_ACTIONS = new Set([
   "PING",
   "PHOTO_SORT",
+  "PHOTO_THUMBS",
   "PHOTO_CHECK_WORK_FOLDER",
   "COPY_TEST",
   "LIST_FOLDER",
@@ -194,6 +195,20 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+  }
+
+  if (action === "PHOTO_THUMBS") {
+    try {
+      const remotePath = normalizeRemoteNasRelativePath(
+        typeof requestedPayload.remote_path === "string" ? requestedPayload.remote_path : "",
+      );
+      if (!remotePath) throw new Error("NAS 촬영 폴더를 선택해 주세요.");
+      const maxCount = finiteNumber(requestedPayload.max_count, "max_count", 1, 400, true) ?? 400;
+      const offset = finiteNumber(requestedPayload.offset, "offset", 0, 100_000, true) ?? 0;
+      payload = { remote_path: remotePath, max_count: maxCount, offset };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 썸네일 요청입니다." }, { status: 400 });
     }
   }
 

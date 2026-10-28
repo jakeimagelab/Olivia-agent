@@ -138,9 +138,20 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("void loadRemoteDirectory(selection)");
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
+    expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
+    expect(workspace).toContain('key === "classification"');
+    expect(workspace).toContain("initialRemoteSelection={remoteProjectSelection}");
     expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
     expect(workspace).not.toContain('setExecutionMode("LOCAL_DIRECT")');
     expect(workspace).not.toContain('sourceScope="person-select"');
+  });
+
+  it("원격 썸네일은 로컬 File 없이도 Bridge 파일로 분석할 수 있다", () => {
+    const bridgeFiles = readFileSync("lib/photo-bridge/bridgeFiles.ts", "utf8");
+    expect(bridgeFiles).toContain("handle?: FileSystemFileHandle");
+    expect(bridgeFiles).toContain("file?: File");
+    expect(bridgeFiles).toContain("thumbnailUrl?: string");
+    expect(bridgeFiles).toContain("await fetch(entry.thumbnailUrl)");
   });
 
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {

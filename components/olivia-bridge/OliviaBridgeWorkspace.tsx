@@ -63,6 +63,8 @@ import {
 import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
+import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
   bridgeGridNavigationTarget,
   type BridgeGridDirection,
@@ -181,6 +183,10 @@ async function createThumbnailUrl(photo: BridgeJpgFile) {
   const cached = thumbnailCache.get(photo.id);
   if (cached) return cached;
   const task = (async () => {
+    if (!photo.file) {
+      if (!photo.thumbnailUrl) throw new Error(`${photo.name} 썸네일 주소가 없습니다.`);
+      return photo.thumbnailUrl;
+    }
     try {
       const bitmap = await createImageBitmap(photo.file, { imageOrientation: "from-image" });
       const max = 420;
@@ -230,6 +236,10 @@ function BridgeThumbnail({ photo, alt = "", eager = false }: { photo: BridgeJpgF
 function BridgePreviewImage({ photo, onSize }: { photo: BridgeJpgFile; onSize?: (size: { width: number; height: number }) => void }) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
+    if (!photo.file) {
+      setUrl(photo.thumbnailUrl);
+      return;
+    }
     const next = URL.createObjectURL(photo.file);
     setUrl(next);
     return () => URL.revokeObjectURL(next);
@@ -531,9 +541,24 @@ export default function OliviaBridgeWorkspace({
   const marqueeFrameRef = useRef<number | null>(null);
   const suppressThumbnailClickRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
+  const remoteLoadGenerationRef = useRef(0);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
-  const folderPath = breadcrumbs.map((item) => item.name).join(" / ");
+  const folderPath = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join(" / ");
+  const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
+  const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const remoteProjectSelection = useMemo<RemoteNasSelection | undefined>(() => {
+    if (!remoteFolder) return undefined;
+    const pathParts = remoteFolder.path.split("/").filter(Boolean);
+    const displayParts = remoteFolder.displayPath.split("/").filter(Boolean);
+    if (pathParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) pathParts.pop();
+    if (displayParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) displayParts.pop();
+    return {
+      ...remoteFolder,
+      path: pathParts.join("/"),
+      displayPath: displayParts.join("/"),
+    };
+  }, [remoteFolder]);
   const effectiveRatings = useMemo(() => ({ ...ratings, ...adobeRatings }), [adobeRatings, ratings]);
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
   const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
@@ -572,7 +597,10 @@ export default function OliviaBridgeWorkspace({
   }, []);
 
   useEffect(() => {
-    setSelectedJpgFiles(scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.file));
+    setSelectedJpgFiles(scan.jpgs
+      .filter((photo) => selectedIds.has(photo.id))
+      .map((photo) => photo.file)
+      .filter((file): file is File => Boolean(file)));
   }, [scan.jpgs, selectedIds, setSelectedJpgFiles]);
 
   useEffect(() => {
@@ -619,6 +647,7 @@ export default function OliviaBridgeWorkspace({
     trail: Breadcrumb[],
     nestedJpgs = includeNestedJpgs,
   ) => {
+    remoteLoadGenerationRef.current += 1;
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
@@ -695,6 +724,7 @@ export default function OliviaBridgeWorkspace({
   }, [chooseFolder, executionMode]);
 
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
+    const generation = ++remoteLoadGenerationRef.current;
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
@@ -702,12 +732,34 @@ export default function OliviaBridgeWorkspace({
     setRemoteFolder(selection);
     setScan(EMPTY_SCAN);
     setBreadcrumbs([]);
+    setCurrentLocalFolder(null);
     setSelectedIds(new Set());
     setAnchorId(null);
     setFocusedId(null);
     setPreviewSize(undefined);
-    setScanStatus("ready");
-  }, [setSelectedIds]);
+    try {
+      const result = await loadRemoteBridgeThumbnails(selection.path);
+      if (generation !== remoteLoadGenerationRef.current) return;
+      const jpgs: BridgeJpgFile[] = result.thumbs.map((thumb) => ({
+        id: `${selection.path}:${thumb.relativePath}:${thumb.size}:${thumb.lastModified}`,
+        name: thumb.name.normalize("NFC"),
+        relativeDirectory: thumb.relativePath.includes("/") ? thumb.relativePath.split("/").slice(0, -1).join("/").normalize("NFC") : "",
+        relativePath: thumb.relativePath.normalize("NFC"),
+        extension: thumb.name.split(".").pop()?.toLocaleUpperCase("en-US") ?? "JPG",
+        thumbnailUrl: thumb.dataUrl,
+        size: thumb.size,
+        lastModified: thumb.lastModified,
+      }));
+      setScan({ ...EMPTY_SCAN, jpgs });
+      setFocusedId(jpgs[0]?.id ?? null);
+      setScanStatus("ready");
+      rootRef.current?.focus();
+    } catch (error) {
+      if (generation !== remoteLoadGenerationRef.current) return;
+      setScanStatus("error");
+      setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
+    }
+  }, [setCurrentLocalFolder, setSelectedIds]);
 
   useEffect(() => {
     if (restoreAttemptedRef.current) return;
@@ -772,7 +824,10 @@ export default function OliviaBridgeWorkspace({
 
     setAdobeSelectionLoading(true);
     try {
-      const found = await collectAdobeBridgeRatings(activeFolder, scan.jpgs, { signal });
+      const localPhotos = scan.jpgs
+        .filter((photo): photo is BridgeJpgFile & { file: File } => Boolean(photo.file))
+        .map((photo) => ({ name: photo.name, file: photo.file }));
+      const found = await collectAdobeBridgeRatings(activeFolder, localPhotos, { signal });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
       const nextRatings: Record<string, number> = {};
       const nextAdobeIds = new Set<string>();
@@ -807,7 +862,7 @@ export default function OliviaBridgeWorkspace({
   }, [scanStatus, syncAdobeBridgeSelection]);
 
   useEffect(() => {
-    if (!activeFolder || scanStatus !== "ready") {
+    if (!hasActiveFolder || scanStatus !== "ready") {
       setSceneState({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
       return;
     }
@@ -828,15 +883,15 @@ export default function OliviaBridgeWorkspace({
         setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: scan.jpgs.length, scenes: [], analysis: null, error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
       });
     return () => controller.abort();
-  }, [activeFolder, folderPath, scan.jpgs, scanStatus, sceneRunKey]);
+  }, [folderPath, hasActiveFolder, scan.jpgs, scanStatus, sceneRunKey]);
 
   useEffect(() => {
-    if (!activeFolder || scanStatus !== "ready") return;
+    if (!hasActiveFolder || !activeFolderName || scanStatus !== "ready") return;
     const controller = new AbortController();
     setDepartmentLoading(true);
     setDepartmentError("");
     setDepartmentPickerOpen(false);
-    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: activeFolder.name }, { signal: controller.signal })
+    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: activeFolderName }, { signal: controller.signal })
       .then((resolution) => {
         setPhotoDepartmentResolution(resolution);
         setDepartmentPickerOpen(resolution.status !== "resolved");
@@ -851,7 +906,7 @@ export default function OliviaBridgeWorkspace({
         if (!controller.signal.aborted) setDepartmentLoading(false);
       });
     return () => controller.abort();
-  }, [activeFolder, clientId, scanStatus, setPhotoDepartmentResolution, workflowRunId]);
+  }, [activeFolderName, clientId, hasActiveFolder, scanStatus, setPhotoDepartmentResolution, workflowRunId]);
 
   const chooseDepartment = useCallback((department: MedicalDepartment) => {
     setPhotoDepartmentResolution(manualPhotoDepartmentResolution(department));
@@ -1015,7 +1070,7 @@ export default function OliviaBridgeWorkspace({
   }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, moveGridFocus, openFullscreenPreview, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
-    if (!currentLocalFolder) return;
+    if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
     setSceneReviewOpen(false);
     if (key === "classification") {
       setToolKey(undefined);
@@ -1024,7 +1079,7 @@ export default function OliviaBridgeWorkspace({
       return;
     }
     setToolKey(key);
-  }, [currentLocalFolder, syncAdobeBridgeSelection]);
+  }, [currentLocalFolder, remoteFolder, syncAdobeBridgeSelection]);
 
   const clearMarqueePresentation = useCallback(() => {
     const fileArea = fileAreaRef.current;
@@ -1119,15 +1174,17 @@ export default function OliviaBridgeWorkspace({
   const scenePlanReady = selectedSceneAnalysisReady && photoDepartmentResolution.status === "resolved" && !departmentLoading && !adobeSelectionLoading;
 
   const applyScenePlan = useCallback(() => {
-    if (!activeFolder || !selectedSceneAnalysis || !scenePlanReady || photoDepartmentResolution.status !== "resolved") return;
+    if (!hasActiveFolder || !selectedSceneAnalysis || !scenePlanReady || photoDepartmentResolution.status !== "resolved") return;
     try {
-      stageBridgeClassificationPlan(createBridgeClassificationPlan({
-        folderKey: folderPath,
-        folderName: activeFolder.name,
-        directory: activeFolder,
-        analysis: selectedSceneAnalysis,
-        departmentResolution: photoDepartmentResolution,
-      }));
+      if (activeFolder) {
+        stageBridgeClassificationPlan(createBridgeClassificationPlan({
+          folderKey: folderPath,
+          folderName: activeFolder.name,
+          directory: activeFolder,
+          analysis: selectedSceneAnalysis,
+          departmentResolution: photoDepartmentResolution,
+        }));
+      }
       setSceneReviewOpen(false);
       setToolKey("classification");
     } catch (error) {
@@ -1138,7 +1195,7 @@ export default function OliviaBridgeWorkspace({
         error: error instanceof Error ? error.message : "Scene 계획을 적용하지 못했습니다.",
       }));
     }
-  }, [activeFolder, folderPath, photoDepartmentResolution, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
+  }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
 
   return (
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
@@ -1152,10 +1209,10 @@ export default function OliviaBridgeWorkspace({
         </div>
         <nav className={styles.toolBar} aria-label="Bridge 사진 도구">
           {TOOL_ITEMS.map(({ key, label, icon: Icon }) => (
-            <button key={key} type="button" onClick={() => openTool(key)} disabled={!activeFolder} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={label}><Icon size={18} strokeWidth={1.8} /></button>
+            <button key={key} type="button" onClick={() => openTool(key)} disabled={!activeFolder && !(remoteFolder && key === "classification")} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={label}><Icon size={18} strokeWidth={1.8} /></button>
           ))}
         </nav>
-        <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { if (!activeFolder) return; setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} disabled={!activeFolder} aria-label={sceneState.stage} title={sceneState.stage}>
+        <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { if (!hasActiveFolder) return; setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} disabled={!hasActiveFolder} aria-label={sceneState.stage} title={sceneState.stage}>
           {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
           <span>{sceneState.status === "running" ? `${sceneState.completed}/${sceneState.total}` : sceneState.stage}</span>
         </button>
@@ -1348,13 +1405,13 @@ export default function OliviaBridgeWorkspace({
         windowId={`tool-${activeTool.key}`}
         variant="tool"
         title={activeTool.label}
-        subtitle={`${activeFolder?.name} · 선택 JPG ${selectedNames.length}장`}
+        subtitle={`${activeFolderName} · 선택 JPG ${selectedNames.length}장`}
         ariaLabel={`${activeTool.label} 도구`}
         containerRef={rootRef}
         rect={floatingWindowRectsRef.current[`tool-${activeTool.key}`]}
         onRectChange={(rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect)}
         onClose={() => setToolKey(undefined)}
-      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} clientId={clientId} workflowRunId={workflowRunId} /></div></BridgeFloatingWindow> : null}
+      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={remoteProjectSelection} /></div></BridgeFloatingWindow> : null}
 
       {fullscreenPreviewOpen && focusedPhoto ? (
         <BridgeFullscreenPreview

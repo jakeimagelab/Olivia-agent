@@ -140,6 +140,21 @@ describe("Mac Studio Worker repository scripts", () => {
     expect(invocation?.killProcessGroup).toBeUndefined();
   });
 
+  it("maps PHOTO_THUMBS to its read-only thumbnail runner", () => {
+    const invocation = createRunnerInvocation(job("PHOTO_THUMBS", {
+      remote_path: "1026_전주푸른안과/JPG전체",
+      max_count: 400,
+      offset: 800,
+    }), repoRoot);
+    expect(invocation?.args).toContain(path.join(repoRoot, "scripts/photo-thumbs-runner.ts"));
+    expect(invocation?.args).toEqual(expect.arrayContaining([
+      "--remote-path", "1026_전주푸른안과/JPG전체",
+      "--max-count", "400",
+      "--offset", "800",
+    ]));
+    expect(invocation?.killProcessGroup).toBeUndefined();
+  });
+
   it("keeps the PHASE 6 action contract visible in both installed shell entrypoints", async () => {
     for (const script of ["worker.sh", "remote-bridge.sh"]) {
       const source = await readFile(path.join(repoRoot, "ops/mac-studio/bin", script), "utf8");

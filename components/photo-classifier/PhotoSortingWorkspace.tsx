@@ -722,18 +722,20 @@ export default function PhotoSortingWorkspace({
   mode = "page",
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
+  initialRemoteSelection,
   onOpenPhotoSelect,
 }: {
   mode?: "page" | "modal" | "embedded";
   clientId?: string;
   workflowRunId?: string;
+  initialRemoteSelection?: RemoteNasSelection;
   resourceId?: string;
   onClose?: () => void;
   onOpenPhotoSelect?: () => void;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} onOpenPhotoSelect={onOpenPhotoSelect} />
+      <PhotoSortingInner mode={mode} modalClientId={modalClientId} modalWorkflowRunId={modalWorkflowRunId} initialRemoteSelection={initialRemoteSelection} onOpenPhotoSelect={onOpenPhotoSelect} />
     </Suspense>
   );
 }
@@ -742,11 +744,13 @@ function PhotoSortingInner({
   mode = "page",
   modalClientId,
   modalWorkflowRunId,
+  initialRemoteSelection,
   onOpenPhotoSelect,
 }: {
   mode?: "page" | "modal" | "embedded";
   modalClientId?: string;
   modalWorkflowRunId?: string;
+  initialRemoteSelection?: RemoteNasSelection;
   onOpenPhotoSelect?: () => void;
 }) {
   const { supported: hasFS, pick: pickPhotoFolder, error: folderPickerError } = usePhotoFolderPicker();
@@ -814,7 +818,11 @@ function PhotoSortingInner({
     if (folderPickerError) setDirPickError(folderPickerError);
   }, [folderPickerError]);
   const [photoSourcePickerOpen, setPhotoSourcePickerOpen] = useState(false);
-  const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
+  const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(initialRemoteSelection ?? null);
+  useEffect(() => {
+    if (!initialRemoteSelection) return;
+    setRemoteSelection(initialRemoteSelection);
+  }, [initialRemoteSelection]);
   // Olivia OS 2.0 PHASE 6 §11 — BACKUP_READY 알림의 "분류 시작"이 NAS 폴더 탐색을 대신 해주는
   // prefill이다. 파라미터가 있으면 폴더 선택 단계만 건너뛰고, department/gap_minutes 등 분류
   // 설정은 그대로 이 화면에서 사용자가 확정하게 둔다(기존 PHOTO_SORT 파라미터 수집 로직 재사용).

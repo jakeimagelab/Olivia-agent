@@ -19,8 +19,9 @@ export type BridgeJpgFile = {
   relativeDirectory: string;
   relativePath: string;
   extension: string;
-  handle: FileSystemFileHandle;
-  file: File;
+  handle?: FileSystemFileHandle;
+  file?: File;
+  thumbnailUrl?: string;
   size: number;
   lastModified: number;
 };
@@ -255,7 +256,7 @@ async function timestampBridgeFiles(
       const index = cursor++;
       if (index >= jpgs.length) return;
       const entry = jpgs[index];
-      const timestamp = await readPhotoTimestamp(entry.file);
+      const timestamp = entry.file ? await readPhotoTimestamp(entry.file) : null;
       output[index] = {
         ...entry,
         mtime: timestamp?.timestamp ?? entry.lastModified,
@@ -279,11 +280,24 @@ export async function analyzeBridgeScenes(input: {
   if (input.jpgs.length === 0) return { files: [], boundaries: [], scenes: [] };
   const files = await timestampBridgeFiles(input.jpgs, input.signal, input.onProgress);
   const settings = getClassificationSettings("default", "precise");
-  const cacheKeys = files.map((entry) => featureCacheKey(input.folderKey, entry.file));
+  const cacheKeys = files.map((entry) => entry.file
+    ? featureCacheKey(input.folderKey, entry.file)
+    : `${input.folderKey}:${entry.relativePath}:${entry.size}:${entry.lastModified}`);
   const cached = await Promise.all(cacheKeys.map((key) => getCachedFeature(key)));
   const missingIndices = cached.flatMap((feature, index) => feature ? [] : [index]);
   const extracted = missingIndices.length ? await extractFeaturesWithWorkers({
-    files: missingIndices.map((index) => files[index].file),
+    files: await Promise.all(missingIndices.map(async (index) => {
+      const entry = files[index];
+      if (entry.file) return entry.file;
+      if (!entry.thumbnailUrl) throw new Error(`${entry.name} 썸네일 주소가 없습니다.`);
+      const response = await fetch(entry.thumbnailUrl);
+      if (!response.ok) throw new Error(`${entry.name} 썸네일을 읽지 못했습니다.`);
+      const blob = await response.blob();
+      return new File([blob], entry.name, {
+        type: blob.type || "image/jpeg",
+        lastModified: entry.lastModified,
+      });
+    })),
     concurrency: settings.maxConcurrentJobs,
     signal: input.signal,
     onProgress: (completed, total) => input.onProgress?.(completed, total, "화면 특징 분석 중"),

@@ -22,6 +22,7 @@ import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
 import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
+import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 
 const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"), {
   ssr: false,
@@ -55,6 +56,7 @@ export type PhotoWorkspaceEmbeddedToolProps = {
   rawMatchMethod?: "filename" | "metadata";
   clientId?: string;
   workflowRunId?: string;
+  initialRemoteSelection?: RemoteNasSelection;
 };
 
 /**
@@ -69,6 +71,7 @@ export function PhotoWorkspaceEmbeddedTool({
   rawMatchMethod = "filename",
   clientId,
   workflowRunId,
+  initialRemoteSelection,
 }: PhotoWorkspaceEmbeddedToolProps) {
   const [mode, setMode] = useState(initialMode);
   const [selectMode, setSelectMode] = useState(initialSelectMode);
@@ -100,7 +103,7 @@ export function PhotoWorkspaceEmbeddedTool({
           <PhotoRawMatchWorkspace bridgeLinked selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
         </div>
       ) : null}
-      {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
+      {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={initialRemoteSelection} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
       {mode === "retouch" ? <DesktopWindowProvider value={true}><PhotoRetouchingWorkspace /></DesktopWindowProvider> : null}
       {mode === "file-ops" ? <PhotoFileOpsWorkspace value={fileOpsMode} onChange={setFileOpsMode} /> : null}
     </WorkPanel>

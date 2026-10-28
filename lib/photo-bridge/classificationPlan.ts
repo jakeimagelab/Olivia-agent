@@ -135,10 +135,13 @@ export function validateBridgeClassificationPlan(
 }
 
 export function buildFieldScenesFromBridgePlan(plan: BridgeClassificationPlan): FieldScene[] {
+  if (plan.files.some((entry) => !entry.handle)) {
+    throw new Error("원격 NAS Scene 계획은 Mac Studio 분류로 실행해 주세요.");
+  }
   const files: SceneFile[] = plan.files.map((entry) => ({
     name: entry.name,
     basename: entry.name.replace(/\.[^.]+$/, ""),
-    handle: entry.handle,
+    handle: entry.handle!,
     mtime: entry.mtime,
     timestampSource: entry.timestampSource,
     thumbUrl: null,
