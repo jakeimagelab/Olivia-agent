@@ -1,9 +1,14 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ACTIVE_WORKFLOW_STEPS } from "@/lib/workflow";
 import { resolveRequiredFollowupTool } from "@/lib/olivia/v2/toolSelection";
 import { normalizeCalendarComparable, verifyCalendarFields } from "@/lib/olivia/v2/toolExecutors/calendar";
 import { withoutPersistedDocumentTarget } from "@/lib/store/useOliviaDesktopStore";
 import { CLIENT_CHAT_TOOLS } from "@/lib/olivia/clientChatTools";
+
+function source(relativePath: string): string {
+  return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
+}
 
 describe("고객 문서 워크스페이스 회귀 방지", () => {
   it("마지막 문서 ID는 데스크톱 세션에 남기지 않는다", () => {
@@ -56,5 +61,15 @@ describe("고객 문서 워크스페이스 회귀 방지", () => {
       "update_quote_payment_terms", "apply_quote_discount", "preview_quote", "request_quote_publish",
       "calendar_list", "calendar_add", "calendar_update", "client_get", "client_update", "get_quote", "get_contract",
     ]);
+  });
+
+  it("고객 작업창만 전체 폭을 쓰고 목록과 일반 견적 화면의 폭 상한은 유지한다", () => {
+    const workspaceStyles = source("components/clients/ClientDocumentWorkspace.module.css");
+    const quoteBuilder = source("components/quote/QuoteBuilder.tsx");
+
+    expect(workspaceStyles).toContain(".listPage{width:min(1380px,100%)");
+    expect(workspaceStyles).toContain(".casePage{width:100%");
+    expect(quoteBuilder).toContain('documentOnly ? "" : "mx-auto max-w-[1500px]"');
+    expect(quoteBuilder).toContain('documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]"');
   });
 });
