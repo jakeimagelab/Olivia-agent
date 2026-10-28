@@ -220,8 +220,8 @@ function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef,
   const client = detail.client;
   const run = detail.workflowRun;
   const ids = detail.resourceIds || {};
-  const quote = detail.quotes?.find((item: any) => item.id === ids.quote) || detail.quotes?.[0];
-  const contract = detail.contracts?.find((item: any) => item.id === ids.contract) || detail.contracts?.[0];
+  const quote = ids.quote ? detail.quotes?.find((item: any) => item.id === ids.quote) : null;
+  const contract = ids.contract ? detail.contracts?.find((item: any) => item.id === ids.contract) : null;
   const contact = [client.manager_name, client.phone].filter(Boolean).join(" ");
   const nextAction = run ? detail.workflowRun?.status === "completed" ? "완료" : (detail.listClient?.next_action?.primaryActionLabel || "지금 할 일 열기") : "진행 중인 촬영 없음";
   const openNext = () => {
@@ -287,9 +287,9 @@ function DocumentWorkspace({ active, setActive, detail, closeEditorRef, refreshA
   return <section className={styles.workCard}>
     <div className={styles.workTabs}>{tabs.map((tab) => <button type="button" key={tab.key} data-active={active === tab.key} disabled={!ids[tab.key]} onClick={() => setActive(tab.key)}>{tab.label}</button>)}</div>
     <div className={styles.editorHost}>
-      {active === "quote" ? <QuoteBuilder mode="modal" {...common} resourceId={ids.quote} /> : null}
-      {active === "contract" ? <ContractBuilder mode="modal" {...common} resourceId={ids.contract} /> : null}
-      {active === "conti" ? <ContiV2App {...common} resourceId={ids.conti} /> : null}
+      {active === "quote" ? <QuoteBuilder key={`quote:${detail.client.id}:${ids.quote}`} mode="modal" documentOnly {...common} resourceId={ids.quote} /> : null}
+      {active === "contract" ? <ContractBuilder key={`contract:${detail.client.id}:${ids.contract}`} mode="modal" documentOnly {...common} resourceId={ids.contract} /> : null}
+      {active === "conti" ? <ContiV2App key={`conti:${detail.client.id}:${ids.conti}`} documentOnly {...common} resourceId={ids.conti} /> : null}
     </div>
   </section>;
 }

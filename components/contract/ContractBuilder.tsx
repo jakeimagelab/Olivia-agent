@@ -47,6 +47,7 @@ const quoteTaxLabel = (taxMode: QuoteData["taxMode"]) => (
 
 export default function ContractBuilder({
   mode = "page",
+  documentOnly = false,
   clientId: modalClientId,
   workflowRunId: modalWorkflowRunId,
   resourceId,
@@ -56,6 +57,8 @@ export default function ContractBuilder({
   registerRequestClose,
 }: {
   mode?: "page" | "modal";
+  /** 고객관리에서 지정된 기존 계약서 한 건만 연다. */
+  documentOnly?: boolean;
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -194,6 +197,14 @@ export default function ContractBuilder({
         })
         .then((json) => {
           const contract = json.data as Record<string, unknown>;
+          const contractClientId = typeof contract.client_id === "string" ? contract.client_id : undefined;
+          const contractWorkflowRunId = typeof contract.workflow_run_id === "string" ? contract.workflow_run_id : undefined;
+          if (documentOnly && modalClientId && contractClientId !== modalClientId) {
+            throw new Error("이 고객에게 연결된 계약서가 아닙니다.");
+          }
+          if (documentOnly && modalWorkflowRunId && contractWorkflowRunId !== modalWorkflowRunId) {
+            throw new Error("이 촬영 건에 연결된 계약서가 아닙니다.");
+          }
           const loadedQuote = normalizeContractQuoteData(contract.quote_data, contract);
           if (!loadedQuote) throw new Error("저장된 계약서에 견적 정보가 없습니다.");
           setContractId(resourceId);
@@ -228,6 +239,11 @@ export default function ContractBuilder({
       };
       window.addEventListener("olivia-resource-refresh", onRefresh);
       return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
+    }
+    if (documentOnly) {
+      setQuote(null);
+      setError("이 고객에게 연결된 계약서가 없습니다.");
+      return;
     }
     if (sourceQuoteId) {
       setError("");
@@ -352,7 +368,7 @@ export default function ContractBuilder({
         console.error("contract client load failed", loadError);
         setError(loadError instanceof Error ? loadError.message : "계약서 고객 정보를 불러오지 못했습니다.");
       });
-  }, [coreQuoteApproved, coreQuoteId, coreSnapshot?.client.name, coreSnapshot?.project.name, coreSnapshotLoading, isModal, linkedWorkflowRunId, modalClientId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
+  }, [coreQuoteApproved, coreQuoteId, coreSnapshot?.client.name, coreSnapshot?.project.name, coreSnapshotLoading, documentOnly, isModal, linkedWorkflowRunId, modalClientId, modalWorkflowRunId, resourceId, setOliviaCurrentDocument, sourceQuoteId]);
 
   useEffect(() => {
     if (isModal) return;

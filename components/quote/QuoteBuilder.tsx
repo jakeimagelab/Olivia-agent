@@ -249,6 +249,8 @@ export type QuoteBuilderHandle = {
 
 type QuoteBuilderProps = {
   mode?: "page" | "modal";
+  /** 고객관리에서 지정된 한 문서만 편집하며 목록·가져오기·새 문서 경로는 노출하지 않는다. */
+  documentOnly?: boolean;
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -265,6 +267,7 @@ type QuoteBuilderProps = {
 // 이걸 mode="page"로 감싸는 얇은 래퍼로만 존재한다.
 const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function QuoteBuilder({
   mode = "page",
+  documentOnly = false,
   clientId,
   workflowRunId,
   resourceId,
@@ -358,6 +361,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
   const [currentQuoteStatus, setCurrentQuoteStatus] = useState("draft");
   const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | undefined>(workflowRunId);
+  const [documentLoading, setDocumentLoading] = useState(documentOnly && Boolean(resourceId));
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
@@ -433,11 +437,13 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [documentScopeError, setDocumentScopeError] = useState("");
   const saveFailureNotice = saveFailureReason
     ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
 
   useEffect(() => {
+    if (documentOnly) return;
     const date = quoteNumberDate();
     const defaultQuoteNumber = createQuoteNumber("photoclinic", date);
     Promise.all([
@@ -459,7 +465,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       })
       .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [documentOnly]);
 
   useEffect(() => {
     const shell = previewShellRef.current;
@@ -569,6 +575,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     () => singleItems.filter((item) => selectedSingleItemIds.includes(item.id)),
     [selectedSingleItemIds, singleItems]
   );
+  const editableSingleItems = documentOnly ? selectedSingleItems : singleItems;
 
   // 제이크이미지연구소 단일항목은 견적마다 직접 금액을 입력한다. 포토클리닉은 기존
   // 카탈로그 고정가를 그대로 쓴다.
@@ -1218,23 +1225,41 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   useEffect(() => {
     const loadResource = () => {
       if (!resourceId) return;
+      if (documentOnly) setDocumentLoading(true);
+      setDocumentScopeError("");
       fetch(`/api/quotes/${resourceId}`)
-        .then((res) => res.json())
-        .then((json) => {
-          if (json.ok) {
-            if (typeof json.quote?.workflow_run_id === "string") {
-              setLinkedWorkflowRunId(json.quote.workflow_run_id);
-            }
-            loadRecentQuote(rowToContractQuoteData(json.quote));
-            setOliviaCurrentDocument(resourceId, "quote", json.quote?.title || json.quote?.hospital_name || "견적서", {
-              clientId: json.quote?.client_id,
-              clientName: json.quote?.hospital_name,
-              projectId: json.quote?.workflow_run_id,
-              projectName: json.quote?.title || json.quote?.hospital_name,
-            });
-          }
+        .then(async (res) => {
+          const json = await res.json().catch(() => null);
+          if (!res.ok || !json?.ok) throw new Error(json?.error || `HTTP ${res.status}`);
+          return json;
         })
-        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
+        .then((json) => {
+          const quoteClientId = typeof json.quote?.client_id === "string" ? json.quote.client_id : undefined;
+          const quoteWorkflowRunId = typeof json.quote?.workflow_run_id === "string" ? json.quote.workflow_run_id : undefined;
+          if (documentOnly && clientId && quoteClientId !== clientId) {
+            throw new Error("이 고객에게 연결된 견적서가 아닙니다.");
+          }
+          if (documentOnly && workflowRunId && quoteWorkflowRunId !== workflowRunId) {
+            throw new Error("이 촬영 건에 연결된 견적서가 아닙니다.");
+          }
+          if (typeof json.quote?.workflow_run_id === "string") {
+            setLinkedWorkflowRunId(json.quote.workflow_run_id);
+          }
+          loadRecentQuote(rowToContractQuoteData(json.quote));
+          setOliviaCurrentDocument(resourceId, "quote", json.quote?.title || json.quote?.hospital_name || "견적서", {
+            clientId: json.quote?.client_id,
+            clientName: json.quote?.hospital_name,
+            projectId: json.quote?.workflow_run_id,
+            projectName: json.quote?.title || json.quote?.hospital_name,
+          });
+        })
+        .catch((error) => {
+          console.error("[OLIVIA] quote document load failed", error);
+          if (documentOnly) setDocumentScopeError(error instanceof Error ? error.message : "이 고객의 견적서를 불러오지 못했습니다.");
+        })
+        .finally(() => {
+          if (documentOnly) setDocumentLoading(false);
+        });
     };
     if (resourceId) {
       loadResource();
@@ -1289,7 +1314,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, clientId, linkedWorkflowRunId, resourceId]);
+  }, [documentOnly, isModal, clientId, linkedWorkflowRunId, resourceId, workflowRunId]);
 
   // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서 — 모달 전용 effect 위에는 아예 없던
   // 리스너라 채팅으로 지금 보고 있는 견적을 수정해도 화면이 그대로였다(콘티와 동일한 버그).
@@ -1923,6 +1948,16 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     setDepositRate,
   }), [selectedSingleItemIds, customItems, finalAmount, depositRate, removeCustomItem, setCustomItems, setDepositRate, setSelectedSingleItemIds, setSingleItemNotes, singleItemPrice, singleItems]);
 
+  if (documentOnly && !resourceId) {
+    return <div className="quote-document-state">이 고객에게 연결된 견적서가 없습니다.</div>;
+  }
+  if (documentLoading) {
+    return <div className="quote-document-state">이 고객의 견적서를 불러오는 중...</div>;
+  }
+  if (documentScopeError) {
+    return <div className="quote-document-state" role="alert">{documentScopeError}</div>;
+  }
+
   return (
     <>
     {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
@@ -1936,7 +1971,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           </span>
         </div>
       ) : null}
-      {isModal && workflowRunId ? (
+      {isModal && workflowRunId && !documentOnly ? (
         <div style={{ padding: "10px 20px 0" }}>
           <ActiveMissionBar workflowRunId={workflowRunId} />
         </div>
@@ -1956,7 +1991,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--quote-ink)]">
                 {cfg.label}
               </span>
-              <button
+              {!documentOnly ? <button
                 type="button"
                 onClick={toggleBrand}
                 className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition hover:-translate-y-0.5"
@@ -1964,7 +1999,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               >
                 <RefreshCcw size={13} />
                 {brand === "photoclinic" ? "제이크이미지연구소로 전환" : "포토클리닉으로 전환"}
-              </button>
+              </button> : <span className="text-xs font-bold text-[#5A7470]">이 고객의 견적서</span>}
             </div>
             <Field label="견적서 제목">
               <textarea
@@ -2044,16 +2079,16 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
-          {brand === "photoclinic" && (
+          {brand === "photoclinic" && (!documentOnly || selectedPackage) && (
             <Panel
-              title="패키지 선택"
+              title={documentOnly ? "적용 패키지" : "패키지 선택"}
               icon={<WalletCards size={18} />}
               collapsible={isDesktopWindow}
               defaultOpen
               summary={selectedPackage?.name ?? "패키지 선택 안 함"}
             >
               <div className="grid gap-3">
-                <button
+                {!documentOnly ? <button
                   type="button"
                   onClick={() => setSelectedPackageId(null)}
                   className={`package-button ${selectedPackageId === null ? "package-button-active" : ""}`}
@@ -2063,8 +2098,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                     <small>단일항목 또는 추가 옵션만으로 견적 구성</small>
                   </span>
                   <b>{won(0)}</b>
-                </button>
-                {packages.map((item) => (
+                </button> : null}
+                {(documentOnly ? selectedPackage ? [selectedPackage] : [] : packages).map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -2088,14 +2123,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </Panel>
           )}
 
-          <Panel title="단일항목 선택">
+          {(!documentOnly || editableSingleItems.length > 0) ? <Panel title={documentOnly ? "촬영 항목" : "단일항목 선택"}>
             {brand === "jakeimage" ? (
               <div className="jake-single-item-headings" aria-hidden="true">
                 <span>항목</span><span>내용</span><span>금액</span>
               </div>
             ) : null}
             <div className="single-item-grid">
-              {singleItems.map((item) => {
+              {editableSingleItems.map((item) => {
                 const isSelected = selectedSingleItemIds.includes(item.id);
 
                 if (brand === "jakeimage") {
@@ -2159,7 +2194,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                 );
               })}
             </div>
-          </Panel>
+          </Panel> : null}
 
           <Panel
             title="추가 옵션"
@@ -2175,7 +2210,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             <div className="grid gap-3">
               {brand === "photoclinic" && (
                 <>
-                  <div onPointerDown={() => setOliviaSelection("quote-item", "profile_shoot")}>
+                  {(!documentOnly || profileCount > 0) ? <div onPointerDown={() => setOliviaSelection("quote-item", "profile_shoot")}>
                     <QuantityField
                       label="프로필 인원 추가"
                       unit="인"
@@ -2183,8 +2218,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       value={profileCount}
                       onChange={setProfileCount}
                     />
-                  </div>
-                  <div onPointerDown={() => setOliviaSelection("quote-item", "staged_shoot")}>
+                  </div> : null}
+                  {(!documentOnly || stagedCount > 0) ? <div onPointerDown={() => setOliviaSelection("quote-item", "staged_shoot")}>
                     <QuantityField
                       label="연출 인원 추가"
                       unit="인"
@@ -2192,22 +2227,22 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       value={stagedCount}
                       onChange={setStagedCount}
                     />
-                  </div>
-                  <QuantityField
+                  </div> : null}
+                  {(!documentOnly || combinedProfileStagedCount > 0) ? <QuantityField
                     label="프로필/연출 추가"
                     unit="인"
                     price="1인당 650,000원"
                     value={combinedProfileStagedCount}
                     onChange={setCombinedProfileStagedCount}
-                  />
-                  <QuantityField
+                  /> : null}
+                  {(!documentOnly || floorCount > 0) ? <QuantityField
                     label="인테리어 층수 추가"
                     unit="층"
                     price="1층당 250,000원"
                     value={floorCount}
                     onChange={setFloorCount}
-                  />
-                  <label className="flex items-center justify-between rounded-lg border border-[#ddd5c9] bg-[#faf7f2] px-4 py-3">
+                  /> : null}
+                  {(!documentOnly || largeHospital) ? <label className="flex items-center justify-between rounded-lg border border-[#ddd5c9] bg-[#faf7f2] px-4 py-3">
                     <span>
                       <span className="block text-sm font-bold text-[var(--quote-ink)]">
                         {cfg.largeScaleLabel}
@@ -2220,14 +2255,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                       onChange={(event) => setLargeHospital(event.target.checked)}
                       className="h-5 w-5 accent-[var(--quote-ink)]"
                     />
-                  </label>
-                  <QuantityField
+                  </label> : null}
+                  {(!documentOnly || droneCount > 0) ? <QuantityField
                     label="드론촬영"
                     unit="회"
                     price="1회당 500,000원"
                     value={droneCount}
                     onChange={setDroneCount}
-                  />
+                  /> : null}
                 </>
               )}
               <div className="custom-items-box">
@@ -2450,7 +2485,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             />
           </Panel>
 
-          <Panel title="기존 견적서 PDF 불러오기" icon={<Upload size={18} />}>
+          {!documentOnly ? <><Panel title="기존 견적서 PDF 불러오기" icon={<Upload size={18} />}>
             <div className="grid gap-3">
               <input
                 ref={quotePdfInputRef}
@@ -2597,7 +2632,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
                 ))}
               </div>
             )}
-          </Panel>
+          </Panel></> : null}
 
           <Panel title="선금 / 잔금 비율">
             <div className="grid gap-3">
@@ -2670,7 +2705,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               <CheckCircle2 size={18} />
               {completingQuote ? "최종완료 처리 중…" : "최종완료"}
             </button>
-            <button
+            {!documentOnly ? <button
               className="primary-button"
               type="button"
               onClick={goToContract}
@@ -2679,11 +2714,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             >
               <FileText size={18} />
               {openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성"}
-            </button>
-            <button className="secondary-button" type="button" onClick={resetForm}>
+            </button> : null}
+            {!documentOnly ? <button className="secondary-button" type="button" onClick={resetForm}>
               <RefreshCcw size={18} />
               초기화
-            </button>
+            </button> : null}
           </div>
           )}
         </div>
@@ -2751,11 +2786,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           <ActionBar
             status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
             actions={[
-              { key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> },
+              ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> }] : []),
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
               { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
               { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
-              { key: "contract", label: openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성", onClick: goToContract, disabled: openingContract, variant: "primary", icon: <FileText size={14} /> },
+              ...(!documentOnly ? [{ key: "contract", label: openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성", onClick: goToContract, disabled: openingContract, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
             ]}
           />
         </div>

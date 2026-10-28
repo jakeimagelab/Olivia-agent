@@ -21,10 +21,11 @@ import type { ProfileStyle, ShootType } from "@/lib/shootSetup/rules";
 
 interface ClientOption { id: string; name: string }
 
-export default function ContiEditorWorkspace({ controller, clientId, workflowRunId, notices = [], onBack, onOpenField, onOpenRun, onPublished }: {
+export default function ContiEditorWorkspace({ controller, clientId, workflowRunId, documentOnly = false, notices = [], onBack, onOpenField, onOpenRun, onPublished }: {
   controller: ContiStudioController;
   clientId?: string;
   workflowRunId?: string;
+  documentOnly?: boolean;
   notices?: string[];
   onBack: () => void;
   onOpenField: () => void;
@@ -196,7 +197,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
 
       <div className={styles.editorToolbar}>
         <div><button type="button" disabled={!controller.canUndo} onClick={controller.undo}><Undo2 size={15} />실행 취소</button><button type="button" disabled={!controller.canRedo} onClick={controller.redo}><Redo2 size={15} />다시 실행</button></div>
-        <div>{hospitalEditedAt ? <span className={styles.hospitalEditedNotice}>병원이 {relativeMinutes(hospitalEditedAt)} 전에 수정했습니다. <button type="button" onClick={() => void controller.reload()}>새로고침</button></span> : null}<button type="button" onClick={() => setPreviousOpen(true)}><History size={15} />이전 콘티</button>{shareStatus ? <span role="status">{shareStatus}</span> : null}</div>
+        <div>{hospitalEditedAt ? <span className={styles.hospitalEditedNotice}>병원이 {relativeMinutes(hospitalEditedAt)} 전에 수정했습니다. <button type="button" onClick={() => void controller.reload()}>새로고침</button></span> : null}{documentOnly ? null : <button type="button" onClick={() => setPreviousOpen(true)}><History size={15} />이전 콘티</button>}{shareStatus ? <span role="status">{shareStatus}</span> : null}</div>
       </div>
 
       <ShootSetupControls controller={controller} />
@@ -214,7 +215,7 @@ export default function ContiEditorWorkspace({ controller, clientId, workflowRun
 
       <ContiPrintDocument model={exportModel} />
 
-      <ContiPreviousDrawer open={previousOpen} onClose={() => setPreviousOpen(false)} onOpen={(runId) => { setPreviousOpen(false); onOpenRun(runId); }} />
+      {documentOnly ? null : <ContiPreviousDrawer open={previousOpen} onClose={() => setPreviousOpen(false)} onOpen={(runId) => { setPreviousOpen(false); onOpenRun(runId); }} />}
       {linkOpen ? <div className={styles.linkDialogBackdrop}><section className={styles.linkDialog} role="dialog" aria-modal="true" aria-label="고객 연결"><header><div><span>CANONICAL SAVE</span><h3>고객과 연결하기</h3></div><button type="button" onClick={() => setLinkOpen(false)} aria-label="닫기"><X size={17} /></button></header><p>저장할 고객을 선택하면 현재 콘티가 고객관리에서 바로 열립니다.</p><select value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}><option value="">고객을 선택해 주세요</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select><button type="button" className={styles.primarySaveAction} disabled={!selectedClientId || savingLink} onClick={() => void saveCanonical(selectedClientId)}><Check size={14} />{savingLink ? "연결 중…" : "연결하고 저장"}</button></section></div> : null}
     </div>
   );

@@ -106,13 +106,13 @@ export async function GET(
     // "관련 앱 열기"/"콘티 작성하기"를 눌렀을 때 빈 문서가 아니라 기존 문서를 불러온다
     // (재현된 버그: 더힐피부과신사점, resourceId 없이 ContiBuilder를 열면 항상 빈 콘티로 시작함).
     workflowRun?.id
-      ? supabase.from("quotes").select("id").eq("workflow_run_id", workflowRun.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      ? supabase.from("quotes").select("id").eq("workflow_run_id", workflowRun.id).eq("client_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     workflowRun?.id
-      ? supabase.from("contracts").select("id").eq("workflow_run_id", workflowRun.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+      ? supabase.from("contracts").select("id").eq("workflow_run_id", workflowRun.id).eq("client_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     workflowRun?.id
-      ? supabase.from("conti_runs").select("id").eq("workflow_run_id", workflowRun.id).order("updated_at", { ascending: false }).limit(1).maybeSingle()
+      ? supabase.from("conti_runs").select("id").eq("workflow_run_id", workflowRun.id).eq("hospital_id", id).order("updated_at", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     workflowRun?.id
       ? supabase.from("client_reviews")

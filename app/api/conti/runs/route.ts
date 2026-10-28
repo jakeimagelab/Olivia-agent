@@ -58,13 +58,15 @@ export async function GET(request: NextRequest) {
   const db = getSupabaseAdmin();
   let query = db.from("conti_runs").select("*").order("updated_at", { ascending: false }).limit(1);
   if (resourceId) query = query.or(`id.eq.${resourceId},legacy_save_id.eq.${resourceId}`);
-  else if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
-  else if (clientId) query = query.eq("hospital_id", clientId);
+  if (workflowRunId) query = query.eq("workflow_run_id", workflowRunId);
+  if (clientId) query = query.eq("hospital_id", clientId);
   let { data, error } = await query.maybeSingle();
   // 신규 연결 컬럼이 아직 적용되지 않은 DB에서도 기존 hospital_id로 마지막 run을 찾는다.
   if (error && isMissingV2Column(error)) {
     if (!clientId) return NextResponse.json({ ok: true, run: null, legacySchema: true });
-    const fallback = await db.from("conti_runs").select("*").eq("hospital_id", clientId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+    let fallbackQuery = db.from("conti_runs").select("*").eq("hospital_id", clientId).order("updated_at", { ascending: false }).limit(1);
+    if (workflowRunId) fallbackQuery = fallbackQuery.eq("workflow_run_id", workflowRunId);
+    const fallback = await fallbackQuery.maybeSingle();
     data = fallback.data;
     error = fallback.error;
   }

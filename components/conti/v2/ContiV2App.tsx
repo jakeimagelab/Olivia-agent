@@ -23,6 +23,8 @@ function workspaceKey(clientId?: string, workflowRunId?: string, resourceId?: st
 export interface ContiV2AppProps {
   /** The workspace surface reuses the editor but removes the standalone, hero-style shell. */
   surface?: "default" | "tablet" | "workspace";
+  /** 고객관리에서 지정된 기존 콘티 한 건만 열고 생성·이전 문서 전환은 막는다. */
+  documentOnly?: boolean;
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
@@ -32,13 +34,14 @@ export interface ContiV2AppProps {
   registerRequestClose?: (fn: () => void) => void;
 }
 
-export default function ContiV2App({ surface = "default", clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
+export default function ContiV2App({ surface = "default", documentOnly = false, clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
   const canRetainWorkspace = persistenceKey !== "new-client:new-workflow:new-resource";
   const retained = canRetainWorkspace ? retainedWorkspaces.get(persistenceKey) : undefined;
   const [runId, setRunId] = useState<string | null>(() => retained?.runId ?? initialRunId ?? null);
   const [view, setView] = useState<ResultView>(() => retained?.view ?? "table");
   const [notices, setNotices] = useState<string[]>([]);
+  const [documentScopeError, setDocumentScopeError] = useState("");
   const [legacyResourceId, setLegacyResourceId] = useState<string | undefined>(initialRunId ? undefined : resourceId);
   const [resolvingInitial, setResolvingInitial] = useState(Boolean(!retained && !initialRunId && (resourceId || workflowRunId)));
   const controller = useContiStudio(runId);
@@ -59,17 +62,29 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
     if (canRetainWorkspace && retainedWorkspaces.has(persistenceKey)) { setResolvingInitial(false); return; }
     if (initialRunId) { setResolvingInitial(false); return; }
     if (!resourceId && !workflowRunId) { setResolvingInitial(false); return; }
+    setDocumentScopeError("");
     const query = new URLSearchParams();
     if (resourceId) query.set("resourceId", resourceId);
     if (workflowRunId) query.set("workflowRunId", workflowRunId);
     if (clientId) query.set("clientId", clientId);
     fetch(`/api/conti/runs?${query.toString()}`).then((response) => response.json()).then((data) => {
       if (data.ok && data.run?.id) {
+        if (documentOnly && clientId && data.run.hospital_id !== clientId) {
+          throw new Error("이 고객에게 연결된 콘티가 아닙니다.");
+        }
+        if (documentOnly && workflowRunId && data.run.workflow_run_id !== workflowRunId) {
+          throw new Error("이 촬영 건에 연결된 콘티가 아닙니다.");
+        }
         setLegacyResourceId(undefined);
         setRunId(data.run.id);
+      } else if (documentOnly) {
+        setDocumentScopeError("이 고객에게 연결된 콘티가 없습니다.");
       }
-    }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); }).finally(() => setResolvingInitial(false));
-  }, [canRetainWorkspace, clientId, initialRunId, persistenceKey, resourceId, workflowRunId]);
+    }).catch((error) => {
+      console.error("[OLIVIA] conti document load failed", error);
+      if (documentOnly) setDocumentScopeError(error instanceof Error ? error.message : "이 고객의 콘티를 불러오지 못했습니다.");
+    }).finally(() => setResolvingInitial(false));
+  }, [canRetainWorkspace, clientId, documentOnly, initialRunId, persistenceKey, resourceId, workflowRunId]);
 
   const handleGenerated = (id: string, metadata?: { warnings?: string[]; spaceMatchStats?: { matched: number; total: number } }) => {
     if (canRetainWorkspace) retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
@@ -82,6 +97,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
   };
 
   const openRun = (id: string) => {
+    if (documentOnly) return;
     if (canRetainWorkspace) retainedWorkspaces.set(persistenceKey, { runId: id, view: "table" });
     setLegacyResourceId(undefined);
     setRunId(id);
@@ -89,6 +105,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
   };
 
   const returnToCreate = () => {
+    if (documentOnly) return;
     void controller.flushSave();
     if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
     setRunId(null);
@@ -108,6 +125,7 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
               notices={notices}
               clientId={clientId}
               workflowRunId={workflowRunId}
+              documentOnly={documentOnly}
               onBack={returnToCreate}
               onOpenField={() => setView("field")}
               onOpenRun={(id) => { void controller.flushSave(); openRun(id); }}
@@ -117,6 +135,8 @@ export default function ContiV2App({ surface = "default", clientId, workflowRunI
             <ContiFieldView controller={controller} onBack={() => setView("table")} />
           )}
         </>
+      ) : documentOnly ? (
+        <div className={styles.studioLoading} role="alert">{documentScopeError || "이 고객에게 연결된 콘티가 없습니다."}</div>
       ) : (
         <ContiCreateScreen surface={surface} onGenerated={handleGenerated} onOpenExisting={openRun} initialClientId={clientId} workflowRunId={workflowRunId} resourceId={legacyResourceId} />
       )}
