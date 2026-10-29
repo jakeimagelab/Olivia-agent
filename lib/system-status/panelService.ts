@@ -171,6 +171,10 @@ export function photoSortingHref(folder: string | null | undefined) {
   return folder?.trim() ? `/photo-sorting?remoteFolder=${encodeURIComponent(folder.trim())}` : "/photo-sorting";
 }
 
+export function bridgeHref(folder: string | null | undefined) {
+  return folder?.trim() ? `/olivia-bridge?remoteFolder=${encodeURIComponent(folder.trim())}` : "/olivia-bridge";
+}
+
 export function isTransientRemoteJobFailure(error: string | null | undefined) {
   if (!error) return false;
   return /(?:curl(?:\s+exit(?:\s+code)?)?\s*[=:]?\s*(?:6|7|28)\b|could not resolve|failed to connect|connection (?:refused|timed out)|operation timed out|network (?:is )?unreachable|\b(?:ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT)\b)/i.test(error);
@@ -221,7 +225,7 @@ function openAction(id: string, label: string, href: string): StatusPanelAction 
 }
 
 function photoActions(project: PhotoProjectRow, options: { retry?: boolean } = {}): StatusPanelAction[] {
-  const href = photoSortingHref(project.source_relative_path);
+  const href = bridgeHref(project.source_relative_path);
   if (options.retry) {
     return [
       apiAction(`retry:${project.id}`, "재시도", `/api/photo-storage/projects/${project.id}/retry`, { tone: "primary" }),
@@ -461,7 +465,7 @@ export function buildStatusPanelCollections(input: {
     }, nowMs)) continue;
     if (project.workflow_run_id) representedRuns.add(project.workflow_run_id);
     const firstApproval = project.status === "READY" || project.status === "DEFERRED";
-    const href = photoSortingHref(project.source_relative_path);
+    const href = bridgeHref(project.source_relative_path);
     myTurn.push({
       id: `photo-action:${project.id}`,
       kind: firstApproval ? "photo_first_approval" : "photo_second_approval",
@@ -633,7 +637,7 @@ export function buildStatusPanelCollections(input: {
   const recentActivity: StatusPanelRecentEntry[] = [];
   for (const backup of backups.slice(0, RECENT_LIMIT)) {
     const project = projectByPath.get(backup.folder_name ?? "");
-    const href = photoSortingHref(backup.folder_name);
+    const href = bridgeHref(backup.folder_name);
     const fileCount = Math.max(0, Number(backup.file_count ?? 0));
     const byteText = formatBytes(backup.total_bytes);
     const actions = project && ["READY", "DEFERRED", "MERGE_COMPLETED"].includes(project.status)

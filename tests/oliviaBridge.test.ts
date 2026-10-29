@@ -130,6 +130,7 @@ describe("Olivia Bridge", () => {
   it("원격 모드에서는 Bridge를 유지하고 기존 NAS 폴더 선택기를 연다", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
     expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
     expect(layout).toContain('!REMOTE_READY_ROUTES.has(pathname)');
@@ -139,11 +140,17 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
     expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
+    expect(workspace).toContain('sp.get("remoteFolder")');
+    expect(workspace).toContain('setExecutionMode("REMOTE_WORKER")');
+    expect(workspace).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
+    expect(workspace).toContain("toRemoteNasDisplayPath(path)");
     expect(workspace).toContain('key === "classification"');
     expect(workspace).toContain("initialRemoteSelection={remoteProjectSelection}");
     expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
     expect(workspace).not.toContain('setExecutionMode("LOCAL_DIRECT")');
     expect(workspace).not.toContain('sourceScope="person-select"');
+    expect(windowAdapter).toContain("DesktopWindowRouteProvider");
+    expect(windowAdapter).toContain("routeHref: context?.routeHref");
   });
 
   it("원격 썸네일은 로컬 File 없이도 Bridge 파일로 분석할 수 있다", () => {

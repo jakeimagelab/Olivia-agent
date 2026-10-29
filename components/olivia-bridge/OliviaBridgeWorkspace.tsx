@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   ChevronLeft,
@@ -62,7 +63,8 @@ import {
 } from "@/lib/photo-classifier/departmentResolver";
 import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
-import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
+import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
@@ -109,6 +111,7 @@ import {
   type BridgeLabelFilterCommand,
 } from "@/lib/photo-bridge/labels";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
@@ -486,6 +489,8 @@ export default function OliviaBridgeWorkspace({
   clientId?: string;
   workflowRunId?: string;
 } = {}) {
+  const sp = useSearchParams();
+  const { routeHref } = useDesktopWindowRoute();
   const picker = usePhotoFolderPicker();
   const {
     currentLocalFolder,
@@ -498,6 +503,7 @@ export default function OliviaBridgeWorkspace({
     jpgRatingsByName,
     setJpgRatingsByName,
     executionMode,
+    setExecutionMode,
     stageBridgeClassificationPlan,
     photoDepartmentResolution,
     setPhotoDepartmentResolution,
@@ -765,6 +771,33 @@ export default function OliviaBridgeWorkspace({
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
   }, [setCurrentLocalFolder, setSelectedIds]);
+
+  const remoteFolderQuery = useMemo(() => {
+    if (!routeHref) return sp.get("remoteFolder");
+    try {
+      return new URL(routeHref, "https://olivia.local").searchParams.get("remoteFolder");
+    } catch {
+      return null;
+    }
+  }, [routeHref, sp]);
+  const remoteFolderPrefillApplied = useRef<string | null>(null);
+  useEffect(() => {
+    if (!remoteFolderQuery || remoteFolderPrefillApplied.current === remoteFolderQuery) return;
+    remoteFolderPrefillApplied.current = remoteFolderQuery;
+    try {
+      const path = normalizeRemoteNasRelativePath(remoteFolderQuery);
+      if (!path) return;
+      restoreAttemptedRef.current = true;
+      setExecutionMode("REMOTE_WORKER");
+      void loadRemoteDirectory({
+        path,
+        displayPath: toRemoteNasDisplayPath(path),
+        rootName: REMOTE_NAS_ROOT_NAME,
+      });
+    } catch {
+      // 잘못된 경로면 조용히 넘기고 사용자가 직접 폴더를 고르게 둔다.
+    }
+  }, [loadRemoteDirectory, remoteFolderQuery, setExecutionMode]);
 
   useEffect(() => {
     if (restoreAttemptedRef.current) return;

@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 
 import { PhotoStudioExecutionProvider } from "@/components/photo-workspace/PhotoStudioExecutionContext";
-import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
+import { DesktopWindowProvider, DesktopWindowRouteProvider } from "@/lib/desktopWindowContext";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 
 const OliviaBridgeWorkspace = dynamic(() => import("@/components/olivia-bridge/OliviaBridgeWorkspace"), {
@@ -14,12 +14,18 @@ const OliviaBridgeWorkspace = dynamic(() => import("@/components/olivia-bridge/O
 export function OliviaBridgeWindowContent({ context }: { context?: WindowContext }) {
   return (
     <DesktopWindowProvider value={true}>
-      <PhotoStudioExecutionProvider>
-        <OliviaBridgeWorkspace
-          clientId={context?.clientId}
-          workflowRunId={context?.projectId ?? context?.workflowRunId}
-        />
-      </PhotoStudioExecutionProvider>
+      <DesktopWindowRouteProvider value={{
+        clientId: context?.clientId,
+        workflowRunId: context?.projectId ?? context?.workflowRunId,
+        routeHref: context?.routeHref,
+      }}>
+        <PhotoStudioExecutionProvider>
+          <OliviaBridgeWorkspace
+            clientId={context?.clientId}
+            workflowRunId={context?.projectId ?? context?.workflowRunId}
+          />
+        </PhotoStudioExecutionProvider>
+      </DesktopWindowRouteProvider>
     </DesktopWindowProvider>
   );
 }

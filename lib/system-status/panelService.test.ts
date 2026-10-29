@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildStatusPanelCollections, isTransientRemoteJobFailure, loadSchemaWarningEntries, photoSortingHref } from "./panelService";
+import { bridgeHref, buildStatusPanelCollections, isTransientRemoteJobFailure, loadSchemaWarningEntries, photoSortingHref } from "./panelService";
 import type { SystemStatusReport } from "./types";
 
 const diagnostics: SystemStatusReport = {
@@ -70,13 +70,13 @@ describe("buildStatusPanelCollections", () => {
       }],
     });
     expect(result.myTurn[0]).toEqual(expect.objectContaining({
-      href: "/photo-sorting?remoteFolder=0927_BLS_TEST%2F%EC%9B%90%EB%B3%B8",
+      href: "/olivia-bridge?remoteFolder=0927_BLS_TEST%2F%EC%9B%90%EB%B3%B8",
       createdAt: "2026-09-27T01:00:00.000Z",
     }));
     expect(result.myTurn[0]?.actions).toEqual([
       expect.objectContaining({ endpoint: "/api/photo-storage/projects/photo-1/approve", kind: "api" }),
       expect.objectContaining({ endpoint: "/api/photo-storage/projects/photo-1/defer", kind: "api" }),
-      expect.objectContaining({ href: "/photo-sorting?remoteFolder=0927_BLS_TEST%2F%EC%9B%90%EB%B3%B8", kind: "open" }),
+      expect.objectContaining({ href: "/olivia-bridge?remoteFolder=0927_BLS_TEST%2F%EC%9B%90%EB%B3%B8", kind: "open" }),
     ]);
     expect(result.myTurn[0]?.actions?.some((action) => action.auto)).toBe(false);
   });
@@ -84,6 +84,33 @@ describe("buildStatusPanelCollections", () => {
   it("폴더 딥링크를 remoteFolder 쿼리로 인코딩한다", () => {
     expect(photoSortingHref("0927 르셀/원본")).toBe("/photo-sorting?remoteFolder=0927%20%EB%A5%B4%EC%85%80%2F%EC%9B%90%EB%B3%B8");
     expect(photoSortingHref(null)).toBe("/photo-sorting");
+    expect(bridgeHref("0927 르셀/원본")).toBe("/olivia-bridge?remoteFolder=0927%20%EB%A5%B4%EC%85%80%2F%EC%9B%90%EB%B3%B8");
+    expect(bridgeHref(null)).toBe("/olivia-bridge");
+  });
+
+  it("확인·백업 열기는 Bridge로, 실패·진행 중 열기는 사진작업실로 보낸다", () => {
+    const result = buildStatusPanelCollections({
+      diagnostics,
+      photoProjects: [
+        { id: "ready", project_name: "확인 대상", source_relative_path: "촬영/확인", status: "READY", workflow_run_id: null, updated_at: null },
+        { id: "failed", project_name: "실패 대상", source_relative_path: "촬영/실패", status: "COPY_FAILED", workflow_run_id: null, updated_at: null },
+        { id: "running", project_name: "진행 대상", source_relative_path: "촬영/진행", status: "CLASSIFYING", workflow_run_id: null, updated_at: null },
+      ],
+      backups: [{
+        id: "backup-1",
+        event_type: "backup",
+        folder_name: "촬영/백업",
+        file_count: 10,
+        total_bytes: null,
+        status: "READY",
+        created_at: "2026-09-27T01:00:00.000Z",
+      }],
+    });
+
+    expect(result.myTurn.find((entry) => entry.projectId === "ready")?.href).toBe("/olivia-bridge?remoteFolder=%EC%B4%AC%EC%98%81%2F%ED%99%95%EC%9D%B8");
+    expect(result.recentActivity.find((entry) => entry.id === "backup:backup-1")?.href).toBe("/olivia-bridge?remoteFolder=%EC%B4%AC%EC%98%81%2F%EB%B0%B1%EC%97%85");
+    expect(result.panelIssues.find((entry) => entry.projectId === "failed")?.href).toBe("/photo-sorting?remoteFolder=%EC%B4%AC%EC%98%81%2F%EC%8B%A4%ED%8C%A8");
+    expect(result.progress.find((entry) => entry.projectId === "running")?.href).toBe("/photo-sorting?remoteFolder=%EC%B4%AC%EC%98%81%2F%EC%A7%84%ED%96%89");
   });
 
   it("네트워크 계열 오류만 일시적 실패로 분류한다", () => {
