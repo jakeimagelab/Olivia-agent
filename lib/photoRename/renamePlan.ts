@@ -83,11 +83,18 @@ export async function collectRenameSourceFiles(
     for await (const entry of (directory as any).entries() as AsyncIterable<[string, FileSystemHandle]>) entries.push(entry);
     entries.sort(([left], [right]) => collator.compare(left, right));
 
-    for (const [name, handle] of entries) {
-      if (handle.kind === "directory") {
-        if (includeSubdirectories) await walk(handle as FileSystemDirectoryHandle, prefix ? `${prefix}/${name}` : name);
-        continue;
+    // 촬영 순서를 나타내는 번호 폴더를 먼저 자연 정렬로 순회한다. 폴더 밖에
+    // 놓인 단독 사진은 모든 하위 폴더 사진 뒤에 이어져야 전체 번호가 촬영
+    // 순서대로 안정적으로 매겨진다.
+    if (includeSubdirectories) {
+      for (const [name, handle] of entries) {
+        if (handle.kind !== "directory") continue;
+        await walk(handle as FileSystemDirectoryHandle, prefix ? `${prefix}/${name}` : name);
       }
+    }
+
+    for (const [name, handle] of entries) {
+      if (handle.kind === "directory") continue;
       if (!isPhoto(name)) continue;
       output.push({
         name,

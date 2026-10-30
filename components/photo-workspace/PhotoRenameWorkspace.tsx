@@ -171,7 +171,7 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
 
           <section className={styles.optionRow}>
             <h3>2. 추가 옵션</h3>
-            <label><input type="checkbox" checked={includeSubdirectories} onChange={(event) => { setIncludeSubdirectories(event.target.checked); invalidate(); }} disabled={running} />하위 폴더까지 모두 처리 <small>각 사진은 언제나 자신의 직속 부모 폴더명을 사용합니다.</small></label>
+            <label><input type="checkbox" checked={includeSubdirectories} onChange={(event) => { setIncludeSubdirectories(event.target.checked); invalidate(); }} disabled={running} />하위 폴더까지 모두 처리 <small>번호 폴더 안의 사진을 순서대로 먼저 처리하고, 폴더 밖 단독 사진은 마지막에 처리합니다.</small></label>
           </section>
         </div>
 
@@ -184,8 +184,8 @@ export default function PhotoRenameWorkspace({ rootDir }: { rootDir: FileSystemD
             <Stat label="오류" value={plan?.errorCount ?? 0} tone="danger" />
           </div>
           <div className={styles.table}>
-            <div className={styles.tableHead}><span>#</span><span>현재 파일명</span><span>변경될 파일명</span><span>상태</span></div>
-            {visibleRows.length === 0 ? <div className={styles.noPreview}>미리보기를 누르면 전체 파일명을 먼저 확인합니다.</div> : visibleRows.map((row, index) => <div className={styles.tableRow} key={`${row.path}:${row.targetName}`}><span>{index + 1}</span><span title={row.path}>{row.name}</span><span title={row.targetName}>{row.targetName}</span><span className={`${styles.badge} ${styles[`badge${row.status[0]}${row.status.slice(1).toLowerCase()}`]}`}>{STATUS_LABEL[row.status]}</span></div>)}
+            <div className={styles.tableHead}><span>#</span><span>현재 경로</span><span>변경될 파일명</span><span>상태</span></div>
+            {visibleRows.length === 0 ? <div className={styles.noPreview}>미리보기를 누르면 전체 파일명을 먼저 확인합니다.</div> : visibleRows.map((row, index) => <div className={styles.tableRow} key={`${row.path}:${row.targetName}`}><span>{index + 1}</span><span title={row.path}>{row.path}</span><span title={row.targetName}>{row.targetName}</span><span className={`${styles.badge} ${styles[`badge${row.status[0]}${row.status.slice(1).toLowerCase()}`]}`}>{STATUS_LABEL[row.status]}</span></div>)}
             {plan && plan.rows.length > visibleRows.length ? <div className={styles.more}>… 외 {plan.rows.length - visibleRows.length}개 파일</div> : null}
           </div>
           {phase === "running" ? <div className={styles.progress}><Loader2 size={15} className="spin-icon" /><span>복사 및 무결성 검사 {progress.current} / {progress.total}</span><small>{progress.name}</small></div> : null}

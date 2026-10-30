@@ -92,6 +92,47 @@ describe("photo rename preflight", () => {
     ]);
   });
 
+  it("renames photos in numbered folders first and loose photos last", async () => {
+    const root = new DirectoryHandleStub("행사사진");
+    root.file("R5K02956.jpg");
+    root.directory("10. Reception").file("IMG_10.JPG");
+    root.directory("2. OpeningRemarks").file("IMG_2.JPG");
+    root.directory("1. DoorsOpen").file("IMG_1.JPG");
+
+    const plan = await buildRenamePlan({
+      root: root as unknown as FileSystemDirectoryHandle,
+      destination: null,
+      settings: base({ mode: "template", template: { text: "event_", startNumber: 1, digits: 3 } }),
+    });
+
+    expect(plan.rows.map((row) => [row.path, row.targetName])).toEqual([
+      ["1. DoorsOpen/IMG_1.JPG", "event_001.JPG"],
+      ["2. OpeningRemarks/IMG_2.JPG", "event_002.JPG"],
+      ["10. Reception/IMG_10.JPG", "event_003.JPG"],
+      ["R5K02956.jpg", "event_004.jpg"],
+    ]);
+  });
+
+  it("keeps loose-file-only mode when subdirectories are excluded", async () => {
+    const root = new DirectoryHandleStub("행사사진");
+    root.directory("1. DoorsOpen").file("IMG_1.JPG");
+    root.file("R5K02956.jpg");
+
+    const plan = await buildRenamePlan({
+      root: root as unknown as FileSystemDirectoryHandle,
+      destination: null,
+      settings: base({
+        mode: "template",
+        includeSubdirectories: false,
+        template: { text: "event_", startNumber: 1, digits: 3 },
+      }),
+    });
+
+    expect(plan.rows.map((row) => [row.path, row.targetName])).toEqual([
+      ["R5K02956.jpg", "event_001.jpg"],
+    ]);
+  });
+
   it("marks an existing destination filename as duplicate and blocks execution", async () => {
     const root = new DirectoryHandleStub("촬영");
     root.file("IMG_1.JPG").file("촬영_IMG_1.JPG");
