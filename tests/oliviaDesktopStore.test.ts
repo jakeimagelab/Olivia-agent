@@ -25,6 +25,21 @@ describe("OLIVIA OS desktop store", () => {
     expect(win.y).toBeGreaterThanOrEqual(12);
   });
 
+  it("returns an active app to Home even when a previous Home stash exists", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({ appId: "customer", title: "고객관리", width: 900, height: 640 });
+    store.toggleShowDesktop();
+    expect(useOliviaDesktopStore.getState().activeWindowId).toBeNull();
+
+    store.restoreWindow("customer");
+    expect(useOliviaDesktopStore.getState().activeWindowId).toBe("customer");
+    store.toggleShowDesktop();
+
+    const homeState = useOliviaDesktopStore.getState();
+    expect(homeState.activeWindowId).toBeNull();
+    expect(homeState.windows.customer.minimized).toBe(true);
+  });
+
   it("invalidates fixed-layout persisted window geometry", () => {
     expect(DESKTOP_STATE_VERSION).toBe(5);
   });

@@ -20,7 +20,6 @@ import { resolveDockLayout, type DockIconSize } from "./dockLayout";
 import styles from "./OliviaDesktop.module.css";
 
 const DOCK_ICONS: Record<string, LucideIcon> = {
-  today: Home,
   customer: UsersRound,
   calendar: CalendarDays,
   "olivia-bridge": Images,
@@ -42,13 +41,14 @@ export function DesktopDock() {
   const openApp = useOliviaDesktopStore((state) => state.openApp);
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
+  const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
   const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const apps = getDockApps();
 
   useEffect(() => {
     const area = dockRef.current?.parentElement;
     if (!area) return;
-    const measure = () => setLayout(resolveDockLayout(area.clientWidth, apps.length + 1, 3));
+    const measure = () => setLayout(resolveDockLayout(area.clientWidth, apps.length + 2, 3));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(area);
@@ -67,9 +67,23 @@ export function DesktopDock() {
     <div className={styles.dockReveal}>
       <span className={styles.dockHint} aria-hidden="true" />
       <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock">
+        <button
+          type="button"
+          className={`${styles.dockButton} ${activeWindowId === null ? styles.active : ""}`}
+          onClick={() => {
+            if (activeWindowId) toggleShowDesktop();
+          }}
+          aria-label="홈"
+          aria-current={activeWindowId === null ? "page" : undefined}
+        >
+          <span className={styles.dockGlyph} aria-hidden="true">
+            <Home size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />
+          </span>
+          <span className={styles.dockLabel}>홈</span>
+        </button>
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
-            {index === 3 || index === 5 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
+            {index === 2 || index === 4 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
             <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={app.title}>
               <span className={styles.dockGlyph} aria-hidden="true">{(() => {
                 const Icon = DOCK_ICONS[app.id] ?? FileText;

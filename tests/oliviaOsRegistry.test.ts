@@ -20,7 +20,6 @@ describe("OLIVIA OS app registry navigation", () => {
   it("uses the focused OS Dock sequence", () => {
     const dockApps = getDockApps();
     expect(dockApps.map((app) => app.id)).toEqual([
-      "today",
       "customer",
       "calendar",
       "olivia-bridge",
@@ -29,6 +28,8 @@ describe("OLIVIA OS app registry navigation", () => {
       "conti",
       "work-journal",
     ]);
+    expect(getOliviaApp("today")).toBeDefined();
+    expect(getOliviaApp("today")?.dockOrder).toBeUndefined();
     expect(dockApps.find((app) => app.id === "olivia-bridge")?.title).toBe("Olivia Bridge");
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });

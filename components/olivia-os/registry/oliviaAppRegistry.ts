@@ -60,7 +60,6 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 520, height: 680 },
     minSize: { width: 360, height: 420 },
     singleton: true,
-    dockOrder: 1,
     component: TodayWindowContent,
   },
   {

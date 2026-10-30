@@ -343,10 +343,10 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     };
   }),
 
-  // Dock 첫 버튼(Home/Desktop) — 토글. 처음 누르면 지금 떠 있는 창들만 minimize하고 그 id를
-  // stash, 다시 누르면 정확히 그 창들만 복원한다("창 전체 닫기"와 혼동 금지, 스펙 2-11).
+  // 활성 앱에서 부르면 Home으로 이동하고, Home 상태에서 다른 OS 동작이 다시 부르면 직전 앱을
+  // 복원한다. 외부 API 이름은 유지하되 stale stash가 활성 앱보다 먼저 복원되지 않게 한다.
   toggleShowDesktop: () => set((state) => {
-    if (state.showDesktopStash) {
+    if (!state.activeWindowId && state.showDesktopStash) {
       const windows = { ...state.windows };
       for (const id of state.showDesktopStash) {
         if (windows[id]) windows[id] = { ...windows[id], minimized: false };
