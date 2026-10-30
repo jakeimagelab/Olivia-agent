@@ -378,7 +378,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     : currentQuoteStatus;
 
   useEffect(() => {
-    if (workflowRunId) setLinkedWorkflowRunId(workflowRunId);
+    setLinkedWorkflowRunId(workflowRunId);
   }, [workflowRunId]);
 
   useEffect(() => {
@@ -906,10 +906,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // Workspace Modal 모드에서는 병원명 문자열매칭이 아니라 이미 알고 있는 정확한
-        // clientId/workflowRunId로 연결한다(app/api/quotes/route.ts가 body.clientId를 우선한다).
+        // clientId와 현재 문서가 실제로 확인한 workflowRunId로 연결한다
+        // (app/api/quotes/route.ts가 body.clientId를 우선한다).
         // lastKnownUpdatedAt은 서버가 저장 충돌을 감지(soft-warn)하는 데만 쓰인다(Phase 5).
         body: JSON.stringify({
-          ...(isModal ? { ...data, clientId, workflowRunId } : data),
+          ...(isModal ? { ...data, clientId, workflowRunId: linkedWorkflowRunId } : data),
           lastKnownUpdatedAt: lastKnownUpdatedAtRef.current,
         }),
       });
@@ -1063,8 +1064,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           saved.hospitalName || "계약서",
           {
             clientId,
-            projectId: workflowRunId,
-            workflowRunId,
+            projectId: linkedWorkflowRunId,
+            workflowRunId: linkedWorkflowRunId,
             sourceQuoteId: saved.id,
             resourceType: "quote",
           },

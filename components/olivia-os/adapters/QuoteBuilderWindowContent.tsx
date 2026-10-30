@@ -18,7 +18,7 @@ const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), {
 export function QuoteBuilderWindowContent({ context }: { context?: WindowContext }) {
   return (
     <DesktopWindowProvider value={true}>
-      <QuoteBuilder mode="modal" clientId={context?.clientId} workflowRunId={context?.projectId} resourceId={context?.resourceId} />
+      <QuoteBuilder mode="modal" clientId={context?.clientId} workflowRunId={context?.workflowRunId} resourceId={context?.resourceId} />
     </DesktopWindowProvider>
   );
 }
