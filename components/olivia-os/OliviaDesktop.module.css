@@ -1894,3 +1894,128 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   .dock,
   .homeTaskList button { transition-duration: .01ms; }
 }
+
+/* OliviaOS common UI theme (2026-10-30)
+   App chrome only: document canvases and photo/video judging surfaces keep their
+   own colors. These rules intentionally stay last because this module retains
+   earlier rollback styles for the legacy desktop shell. */
+.desktop {
+  background: var(--ui-bg, #F4F3EF);
+  color: var(--ui-text, #2F3833);
+}
+
+.topBar,
+.topBar[data-home="true"] {
+  position: relative;
+  inset: auto;
+  width: auto;
+  border-bottom-color: var(--ui-border, #D5DBD3);
+  background: color-mix(in srgb, var(--ui-header, #F8F8F4) 96%, transparent);
+  color: var(--ui-text, #2F3833);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.topBar[data-home="true"] .topBarLocation span,
+.topBar[data-home="true"] .workerChip { color: var(--ui-text-secondary, #626D65); }
+.topBar[data-home="true"] .topBarSearchButton {
+  border-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-text-secondary, #626D65);
+}
+.topBar[data-home="true"] .topBarSearchButton kbd { color: var(--ui-brand-green, #155855); }
+.topBarHistory button:hover,
+.topBarIconButton:hover,
+.topBarOliviaButton:hover,
+.topBar[data-home="true"] .topBarHistory button:hover,
+.topBar[data-home="true"] .topBarIconButton:hover,
+.topBar[data-home="true"] .topBarOliviaButton:hover {
+  background: var(--ui-orange-soft, #FBEAE3);
+  color: var(--ui-orange-strong, #C94C22);
+}
+.topBarOliviaButton,
+.topBarOliviaButtonActive,
+.topBar[data-home="true"] .topBarOliviaButton,
+.topBar[data-home="true"] .topBarOliviaButton:disabled {
+  border: 1px solid var(--ui-orange-strong, #C94C22);
+  background: var(--ui-orange-strong, #C94C22);
+  color: #fff;
+  opacity: 1;
+}
+.topBarOliviaButton:focus-visible,
+.topBarIconButton:focus-visible,
+.topBarSearchButton:focus-visible,
+.topBarHistory button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 24%, transparent);
+  outline-offset: 2px;
+}
+
+.homeChat {
+  background-color: var(--ui-bg, #F4F3EF);
+  background-image: none !important;
+  color: var(--ui-text, #2F3833);
+}
+.homeChat::before { display: none; }
+.homeChatEyebrow,
+.homeChatSubline { color: var(--ui-text-secondary, #626D65); }
+.homeTodaySummary { border-block-color: var(--ui-border, #D5DBD3); }
+.homeTodaySummary > button,
+.homeTodaySummary > article { color: var(--ui-text, #2F3833); }
+.homeTodaySummary > :not(:first-child) { border-left-color: var(--ui-border, #D5DBD3); }
+.homeTodaySummary span { color: var(--ui-text-secondary, #626D65); }
+.homeTodaySummary b { color: var(--ui-orange-strong, #C94C22); }
+.homeTodaySummary > button:hover { background: var(--ui-orange-soft, #FBEAE3); }
+.homeTodaySummary > button:focus-visible {
+  outline: 2px solid var(--ui-orange, #E85D2C);
+  outline-offset: -2px;
+}
+.homeTaskList button {
+  border-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-workspace, #E8EBE5);
+  color: var(--ui-text, #2F3833);
+  backdrop-filter: none;
+}
+.homeTaskList button:hover { background: var(--ui-orange-soft, #FBEAE3); }
+.homeTaskList small { color: var(--ui-text-secondary, #626D65); }
+.homeChatDock :global(.olivia-composer) {
+  border: 1px solid var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+}
+.homeChatDock :global(.olivia-conversation__suggestions button) {
+  border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 45%, var(--ui-border, #D5DBD3));
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-orange-strong, #C94C22);
+}
+.homeChatDock :global(.olivia-conversation__suggestions button:hover) { background: var(--ui-orange-soft, #FBEAE3); }
+.homeChatDock :global(.olivia-composer > button.is-send) {
+  background: var(--ui-orange-strong, #C94C22);
+  color: #fff;
+}
+
+.appChatPanel {
+  border-left-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+}
+.appChatClose { color: var(--ui-text-secondary, #626D65); }
+.appChatClose:hover { background: var(--ui-orange-soft, #FBEAE3); color: var(--ui-orange-strong, #C94C22); }
+
+.dockHint,
+.desktop:not([data-home="true"]) .dockHint { background: color-mix(in srgb, var(--ui-brand-green, #155855) 32%, transparent); }
+.dock {
+  border-color: color-mix(in srgb, var(--ui-border, #D5DBD3) 88%, transparent);
+  background: color-mix(in srgb, var(--ui-header, #F8F8F4) 96%, transparent);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.dockButton { color: var(--ui-text-secondary, #626D65); }
+.dockButton:hover {
+  background: var(--ui-orange-soft, #FBEAE3);
+  color: var(--ui-orange-strong, #C94C22);
+}
+.dockButton.active {
+  background: var(--ui-orange-soft, #FBEAE3);
+  color: var(--ui-orange-strong, #C94C22);
+}
+.dockDivider { background: var(--ui-border, #D5DBD3); }
+.dockIndicator { background: var(--ui-orange, #E85D2C); }

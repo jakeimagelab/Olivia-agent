@@ -3,7 +3,7 @@
 
 import { Suspense, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { BarChart3, ChevronLeft, ChevronRight, Plus, Trash2, Check, Pencil, Share2 } from "lucide-react";
+import { AlertTriangle, BarChart3, Bell, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, Pencil, Plus, Share2, Trash2 } from "lucide-react";
 import GlobalHeader from "@/components/GlobalHeader";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import ActiveMissionBar from "@/components/dashboard/ActiveMissionBar";
@@ -39,11 +39,11 @@ type CalTask = {
 
 /* ─── constants ───────────────────────────────────────── */
 const C = {
-  teal: "#0F4440", orange: "#B7791F",
-  bg: "#DCE9E6", surface: "#FFFFFF", border: "#A9C6C1",
-  cellBg: "#FAFCFB",
-  muted: "#3D5C58", hint: "#6B8F89", txt: "#111E1C", mint: "#E4F2EF",
-  todayRed: "#155855",
+  teal: "#155855", orange: "#E85D2C",
+  bg: "#F4F3EF", workspace: "#E8EBE5", surface: "#FCFBF8", border: "#D5DBD3",
+  cellBg: "#FCFBF8",
+  muted: "#626D65", hint: "#7C887F", txt: "#2F3833", mint: "#E2EBE3",
+  todayRed: "#C94C22",
 };
 
 // 공유 카드 전용 — 포토클리닉 공식 브랜드 컬러(로고와 동일한 값)를 그대로 고정해서 쓴다.
@@ -249,7 +249,7 @@ function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes, isM
     <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#B7791F55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF9ED" : "#FAFCFB" }}>
       <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), cursor: hasTime ? "pointer" : "not-allowed" }}>
         <input type="checkbox" checked={enabled} disabled={!hasTime} onChange={(event) => onEnabled(event.target.checked)} style={{ accentColor: C.orange }} />
-        <span>🔔 올리비아 텔레그램 알람</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Bell size={13} /> 올리비아 텔레그램 알람</span>
       </label>
       {enabled ? (
         <select aria-label="알람 시점" value={minutes} onChange={(event) => onMinutes(Number(event.target.value) as CalendarReminderMinutes)}
@@ -285,7 +285,7 @@ function TaskItem({
       overflow: "hidden",
     }}>
       {task.time && <span style={{ fontSize: mfz(9, isMobile), color: cat.color, fontWeight: mfw(800, isMobile), flexShrink: 0 }}>{task.time.slice(0,5)}</span>}
-      {task.reminder_enabled ? <span aria-label="알람 설정됨" style={{ fontSize: mfz(9, isMobile), flexShrink: 0 }}>🔔</span> : null}
+      {task.reminder_enabled ? <Bell aria-label="알람 설정됨" size={11} style={{ flexShrink: 0, color: C.orange }} /> : null}
       <span style={{ fontSize: mfz(10, isMobile), color: C.txt, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         textDecoration: task.completed ? "line-through" : "none", opacity: task.completed ? 0.55 : 1, fontWeight: mfw(700, isMobile) }}>
         {task.title}
@@ -326,15 +326,15 @@ function TaskItem({
             <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: cat.color, background: cat.bg,
               padding: "1px 7px", borderRadius: 99 }}>{cat.label}</span>
             {task.time && (
-              <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(700, isMobile), color: C.teal }}>
-                ⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: mfz(11, isMobile), fontWeight: mfw(600, isMobile), color: C.teal }}>
+                <Clock3 size={11} /> {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
               </span>
             )}
             {task.reminder_enabled && (
-              <span style={{ fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: C.orange }}>🔔 {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: mfz(11, isMobile), fontWeight: mfw(600, isMobile), color: C.orange }}><Bell size={11} /> {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</span>
             )}
             {task.location && (
-              <span style={{ fontSize: mfz(11, isMobile), color: C.muted }}>📍 {task.location}</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: mfz(11, isMobile), color: C.muted }}><MapPin size={11} /> {task.location}</span>
             )}
           </div>
         </div>
@@ -358,13 +358,13 @@ function TaskItem({
         <div style={{ borderTop: `1px solid ${cat.color}20`, background: cat.bg + "60",
           padding: "10px 14px 12px 44px", display: "flex", flexDirection: "column", gap: 6 }}>
           {task.time && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.txt, fontWeight: mfw(700, isMobile) }}>
-            <span style={{ color: C.teal }}>⏰</span>
+            <Clock3 size={13} style={{ color: C.teal }} />
             {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}
           </div>}
           {task.location && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.txt }}>
-            <span>📍</span>{task.location}
+            <MapPin size={13} />{task.location}
           </div>}
-          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.orange, fontWeight: mfw(800, isMobile) }}><span>🔔</span>올리비아가 {reminderTimingPhrase(task.reminder_minutes_before ?? 30)} 텔레그램으로 알려드려요.</div>}
+          {task.reminder_enabled && <div style={{ display: "flex", gap: 6, fontSize: mfz(12, isMobile), color: C.orange, fontWeight: mfw(600, isMobile) }}><Bell size={13} />올리비아가 {reminderTimingPhrase(task.reminder_minutes_before ?? 30)} 텔레그램으로 알려드려요.</div>}
           {task.memo && (
             <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.7,
               borderLeft: `2px solid ${cat.color}`, paddingLeft: 10, marginTop: 2,
@@ -484,8 +484,8 @@ function AddTaskForm({ date, onAdd, triggerKey = 0, defaultTime, isMobile = fals
         placeholder="메모 (선택) — 상담 내용, 준비물, 특이사항 등" rows={2}
         style={{ fontSize: mfz(12, isMobile), color: C.muted, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "8px 10px", resize: "none", background: "#FAFAFA", outline: "none" }}/>
-      {err && <div style={{ fontSize: mfz(11, isMobile), color: "#E85D2C", background: "#FFF0EB",
-        borderRadius: 6, padding: "6px 10px" }}>⚠️ {err}</div>}
+      {err && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: mfz(11, isMobile), color: "#E85D2C", background: "#FFF0EB",
+        borderRadius: 6, padding: "6px 10px" }}><AlertTriangle size={13} /> {err}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={submit} disabled={busy || !title.trim()} className="pc-btn pc-btn--primary pc-btn--sm" style={{ flex: 1 }}>{busy ? "저장 중…" : "저장"}</button>
         <button onClick={() => setOpen(false)} className="pc-btn pc-btn--secondary pc-btn--sm" style={{ width: 70 }}>취소</button>
@@ -540,7 +540,7 @@ function EditTaskForm({ task, onSave, onCancel, isMobile = false }: {
     <div style={{ background: C.surface, border: `1.5px solid ${C.teal}`,
       borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(900, isMobile), color: C.teal, letterSpacing: ".06em" }}>✏️ 편집</div>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: mfz(10, isMobile), fontWeight: mfw(600, isMobile), color: C.teal, letterSpacing: ".06em" }}><Pencil size={12} /> 편집</div>
         <div style={{ marginLeft: "auto", fontSize: mfz(11, isMobile), fontWeight: mfw(800, isMobile), color: C.muted,
           background: C.mint, padding: "3px 10px", borderRadius: 20 }}>
           {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
@@ -576,8 +576,8 @@ function EditTaskForm({ task, onSave, onCancel, isMobile = false }: {
         placeholder="메모 (선택)" rows={2}
         style={{ fontSize: mfz(12, isMobile), color: C.muted, border: `1px solid ${C.border}`,
           borderRadius: 8, padding: "8px 10px", resize: "none", background: "#FAFAFA", outline: "none" }}/>
-      {err && <div style={{ fontSize: mfz(11, isMobile), color: "#E85D2C", background: "#FFF0EB",
-        borderRadius: 6, padding: "6px 10px" }}>⚠️ {err}</div>}
+      {err && <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: mfz(11, isMobile), color: "#E85D2C", background: "#FFF0EB",
+        borderRadius: 6, padding: "6px 10px" }}><AlertTriangle size={13} /> {err}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={submit} disabled={busy || !title.trim()} className="pc-btn pc-btn--primary pc-btn--sm" style={{ flex: 1 }}>{busy ? "저장 중…" : "수정 저장"}</button>
         <button onClick={onCancel} className="pc-btn pc-btn--secondary pc-btn--sm" style={{ width: 70 }}>취소</button>
@@ -747,12 +747,12 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: mfz(13, isMobile), color: C.muted }}>
-        <div>📅 {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}><CalendarDays size={13} /> {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}</div>
         {task.time && (
-          <div>⏰ {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}><Clock3 size={13} /> {task.time.slice(0,5)}{task.end_time ? ` – ${task.end_time.slice(0,5)}` : ""}</div>
         )}
-        {task.location && <div>📍 {task.location}</div>}
-        {task.reminder_enabled && <div style={{ color: C.orange, fontWeight: mfw(800, isMobile) }}>🔔 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
+        {task.location && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><MapPin size={13} /> {task.location}</div>}
+        {task.reminder_enabled && <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.orange, fontWeight: mfw(600, isMobile) }}><Bell size={13} /> 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
       </div>
       {task.memo && (
         <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
@@ -808,8 +808,8 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
             <div style={{ width: 56, height: 6, borderRadius: 3, background: BRAND_ORANGE, marginBottom: 30 }} />
 
             {task.location && (
-              <div style={{ fontSize: 19, fontWeight: 700, color: "#1C2B28", marginBottom: 12 }}>
-                📍 {task.location}
+              <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 19, fontWeight: 600, color: "#1C2B28", marginBottom: 12 }}>
+                <MapPin size={19} /> {task.location}
               </div>
             )}
             {task.memo && (
@@ -916,7 +916,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
           </div>
           {adding ? <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <input autoFocus value={todoTitle} maxLength={160} onChange={event => setTodoTitle(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTodo(); } }} placeholder="할 일을 입력하세요" style={{ minWidth: 0, flex: 1, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", color: C.txt, font: "inherit", fontSize: 11, outline: "none" }}/>
-            <button type="button" onClick={() => void submitTodo()} disabled={saving || !todoTitle.trim()} style={{ border: 0, borderRadius: 8, padding: "0 10px", background: C.teal, color: "#fff", fontSize: 10, fontWeight: 800, cursor: "pointer", opacity: saving || !todoTitle.trim() ? .45 : 1 }}>추가</button>
+            <button type="button" onClick={() => void submitTodo()} disabled={saving || !todoTitle.trim()} style={{ border: `1px solid ${saving || !todoTitle.trim() ? C.border : "#C94C22"}`, borderRadius: 8, padding: "0 10px", background: saving || !todoTitle.trim() ? "transparent" : "#C94C22", color: saving || !todoTitle.trim() ? C.muted : "#fff", fontSize: 10, fontWeight: 600, cursor: saving || !todoTitle.trim() ? "not-allowed" : "pointer" }}>추가</button>
           </div> : null}
           {todoError ? <div role="alert" style={{ color: "#9A514A", background: "#FBF2F0", borderRadius: 8, padding: "7px 9px", fontSize: 10.5, marginBottom: 8 }}>{todoError}</div> : null}
           {todosLoading ? <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>할 일을 불러오는 중…</div> : sortedTodos.length === 0 ? (
@@ -2061,8 +2061,8 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
                       {t.title}
                     </div>
                     {t.location && (
-                      <div style={{ fontSize: mfz(isMobile ? 10 : 9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
-                        📍 {t.location}
+                      <div style={{ display: "flex", alignItems: "center", gap: 3, fontSize: mfz(isMobile ? 10 : 9, isMobile), color: "rgba(255,255,255,.75)", marginTop: 1 }}>
+                        <MapPin size={9} /> {t.location}
                       </div>
                     )}
                     {/* Action buttons */}
@@ -2723,7 +2723,7 @@ export default function CalendarWorkspace() {
           flexShrink: 0, maxWidth: 1440, margin: "0 auto", width: "100%", boxSizing: "border-box",
           padding: "12px 20px", background: C.surface, borderTop: `1px solid ${C.border}`,
         }}>
-          <div style={{ fontSize: 10, fontWeight: 900, color: C.hint, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}>⏰ 데일리 루틴</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 600, color: C.hint, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}><Clock3 size={12} /> 데일리 루틴</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 22 }}>
             {DAILY_ROUTINE.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>

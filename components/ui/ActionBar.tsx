@@ -25,14 +25,14 @@ const barStyle: CSSProperties = {
   justifyContent: "space-between",
   gap: 12,
   padding: "10px 20px",
-  borderTop: ".5px solid var(--line)",
-  background: "var(--ivory)",
+  borderTop: "1px solid var(--ui-border, #D5DBD3)",
+  background: "var(--ui-header, #F8F8F4)",
 };
 
 const statusStyle: CSSProperties = {
   fontSize: 12,
-  fontWeight: 700,
-  color: "var(--muted)",
+  fontWeight: 500,
+  color: "var(--ui-text-secondary, #626D65)",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",

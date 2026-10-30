@@ -1084,3 +1084,156 @@
   .hospitalShareHeader { align-items: flex-start; flex-direction: column; }.hospitalShareHeader > div:last-child { width: 100%; align-items: stretch; flex-direction: column; }.hospitalShareHeader button { justify-content: center; }
   .hospitalChecklistRow { grid-template-columns: 34px 1fr; }.hospitalChecklistRow small, .hospitalChecklistRow > input { grid-column: 2; }.hospitalDoctorRow { grid-template-columns: 1fr; }.hospitalEditPanel > header { align-items: flex-start; flex-direction: column; justify-content: center; gap: 3px; }
 }
+
+/* Common OliviaOS theme: screen controls only. Print/PDF rules above keep the
+   actual conti document palette unchanged. */
+@media screen {
+  .appShell {
+    color: var(--ui-text, #2F3833);
+    background: var(--ui-bg, #F4F3EF);
+  }
+
+  .formShell,
+  .previewShell,
+  .resultShell,
+  .fieldCurrentShell,
+  .fieldNextShell {
+    background: var(--ui-workspace, #E8EBE5);
+    box-shadow: inset 0 0 0 1px var(--ui-border, #D5DBD3);
+  }
+  .formPanel {
+    background: var(--ui-workspace, #E8EBE5);
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  }
+  .formHero {
+    color: var(--ui-text, #2F3833);
+    background: var(--ui-header, #F8F8F4);
+  }
+  .formHero::after { display: none; }
+  .eyebrow { color: var(--ui-orange-strong, #C94C22); }
+  .formHero p { color: var(--ui-text-secondary, #626D65); }
+  .heroMark {
+    color: var(--ui-orange-strong, #C94C22);
+    background: var(--ui-orange-soft, #FBEAE3);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-orange, #E85D2C) 24%, transparent);
+  }
+  .fieldSection { box-shadow: inset 0 -1px var(--ui-border, #D5DBD3); }
+  .stepNumber { color: var(--ui-brand-green, #155855); background: var(--ui-green-soft, #E2EBE3); }
+  .fieldLabel { color: var(--ui-text, #2F3833); }
+  .optional,
+  .selectionSummary,
+  .hint { color: var(--ui-text-secondary, #626D65); }
+  .control {
+    background: var(--ui-surface, #FCFBF8) !important;
+    box-shadow: inset 0 0 0 1px var(--ui-border, #D5DBD3) !important;
+    color: var(--ui-text, #2F3833) !important;
+  }
+  .control:focus-visible {
+    background: var(--ui-surface, #FCFBF8) !important;
+    box-shadow: inset 0 0 0 1.5px var(--ui-orange-strong, #C94C22), 0 0 0 4px color-mix(in srgb, var(--ui-orange, #E85D2C) 14%, transparent) !important;
+  }
+  .stepper { background: color-mix(in srgb, var(--ui-workspace, #E8EBE5) 70%, var(--ui-surface, #FCFBF8)); }
+  .stepper button,
+  .smallButton {
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-orange-strong, #C94C22);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-orange, #E85D2C) 28%, var(--ui-border, #D5DBD3));
+  }
+  .choice span,
+  .detailChoice span,
+  .category { background: var(--ui-surface, #FCFBF8); }
+  .choice input:checked + span,
+  .detailChoice input:checked + span,
+  .categoryToggle:checked + .categoryCheck { background: var(--ui-brand-green, #155855); }
+  .categorySelected {
+    background: var(--ui-green-soft, #E2EBE3);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ui-brand-green, #155855) 34%, transparent);
+  }
+  .primaryButton,
+  .primarySaveAction,
+  .sceneAddPrimary {
+    border-color: var(--ui-orange-strong, #C94C22);
+    background: var(--ui-orange-strong, #C94C22);
+    color: #fff;
+  }
+  .primarySaveAction { box-shadow: 0 7px 18px color-mix(in srgb, var(--ui-orange, #E85D2C) 18%, transparent); }
+  .primaryButton:disabled,
+  .appShell[data-conti-surface="workspace"] .primaryButton:disabled,
+  .primarySaveAction:disabled,
+  .sceneAddPrimary:disabled {
+    border: 1px solid var(--ui-border, #D5DBD3);
+    background: transparent;
+    color: var(--ui-text-secondary, #626D65);
+    box-shadow: none;
+    opacity: 1;
+  }
+  .secondaryAction,
+  .iconButton,
+  .tableFooter button,
+  .doctorTableActions > button,
+  .doctorTableActions > div > button,
+  .scheduleEditor > header button,
+  .segmentFields button {
+    border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 42%, var(--ui-border, #D5DBD3));
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+
+  .previewPanel {
+    color: var(--ui-text, #2F3833);
+    background: var(--ui-surface, #FCFBF8);
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  }
+  .previewStats strong,
+  .sceneInfo strong { color: var(--ui-text, #2F3833); }
+  .previewStats span,
+  .sceneInfo span,
+  .sceneTime,
+  .emptyPreview { color: var(--ui-text-secondary, #626D65); }
+  .liveBadge {
+    background: var(--ui-orange-soft, #FBEAE3);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+  .sceneRow { box-shadow: inset 0 1px var(--ui-border, #D5DBD3); }
+  .sceneNumber { color: var(--ui-orange-strong, #C94C22); background: var(--ui-orange-soft, #FBEAE3); }
+
+  .editorWorkspace { color: var(--ui-text, #2F3833); }
+  .editorHeader,
+  .editorTabs,
+  .shootSetupControls,
+  .tableSection,
+  .tableViewport,
+  .resultPanel,
+  .compactPanel,
+  .scheduleEditor {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  }
+  .editorToolbar,
+  .segmentControls { background: var(--ui-workspace, #E8EBE5); }
+  .editorTitleBlock h2 { color: var(--ui-text, #2F3833); }
+  .editorTitleBlock small,
+  .editorToolbar span { color: var(--ui-text-secondary, #626D65); }
+  .actionPopover,
+  .actionPopover button,
+  .sceneAddDialog,
+  .segmentControls article { background: var(--ui-surface, #FCFBF8); }
+  .actionPopover,
+  .sceneAddDialog { border-color: var(--ui-border, #D5DBD3); box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06)); }
+  .actionPopover button:hover,
+  .editorToolbar button:hover:not(:disabled),
+  .rowActions button:hover { background: var(--ui-orange-soft, #FBEAE3); color: var(--ui-orange-strong, #C94C22); }
+  .editorTabs button[aria-current="page"] { color: var(--ui-orange-strong, #C94C22); }
+  .editorTabs button[aria-current="page"]::after { background: var(--ui-orange, #E85D2C); }
+  .resultTable th,
+  .timelineHead { background: var(--ui-green-soft, #E2EBE3); color: var(--ui-brand-green, #155855); }
+  .resultTable td { background: var(--ui-surface, #FCFBF8); }
+  .resultTable tbody tr:hover td { background: color-mix(in srgb, var(--ui-orange-soft, #FBEAE3) 58%, var(--ui-surface, #FCFBF8)); }
+  .cellInput:focus,
+  .resultTable input:focus-visible,
+  .resultTable textarea:focus-visible {
+    background: var(--ui-surface, #FCFBF8) !important;
+    box-shadow: inset 0 0 0 1.5px var(--ui-orange-strong, #C94C22), 0 0 0 3px color-mix(in srgb, var(--ui-orange, #E85D2C) 14%, transparent);
+  }
+}

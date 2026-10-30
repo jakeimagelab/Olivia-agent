@@ -9,18 +9,35 @@
      떨어지는 사고가 났다(2026-08-18) — var()에 명시적 폴백을 줘서 :root에서부터 항상 유효한
      값이 되게 고정한다. */
   --font-sans: "Pretendard Variable", "Pretendard", var(--font-nanum-square, "NanumSquare"), "NanumSquare", "Noto Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
-  --deep-green: #155855;
+  /* OliviaOS 공통 조작 UI 토큰. 문서 지면과 사진·영상 원본에는 직접 적용하지 않는다. */
+  --ui-bg: #F4F3EF;
+  --ui-header: #F8F8F4;
+  --ui-workspace: #E8EBE5;
+  --ui-surface: #FCFBF8;
+  --ui-border: #D5DBD3;
+  --ui-text: #2F3833;
+  --ui-text-secondary: #626D65;
+  --ui-brand-green: #155855;
+  --ui-green-soft: #E2EBE3;
+  --ui-orange: #E85D2C;
+  --ui-orange-strong: #C94C22;
+  --ui-orange-soft: #FBEAE3;
+  --ui-radius-control: 10px;
+  --ui-radius-panel: 16px;
+  --ui-shadow-panel: 0 6px 24px rgba(40, 55, 45, 0.06);
+
+  --deep-green: var(--ui-brand-green);
   --ui-teal: #103A62;
   --ui-teal-soft: #E8F0F5;
-  --orange: #E85D2C;
+  --orange: var(--ui-orange);
   --orange-soft: #EB754C;
   --gold: #EB8F22;
   --sage: #569082;
-  --ivory: #faf7f2;
-  --paper: #ffffff;
-  --ink: #1c2b28;
-  --muted-green: #5A7470;
-  --soft-mint: #EAF4F2;
+  --ivory: var(--ui-bg);
+  --paper: var(--ui-surface);
+  --ink: var(--ui-text);
+  --muted-green: var(--ui-text-secondary);
+  --soft-mint: var(--ui-green-soft);
   /* OLIVIA OS Desktop UI 제안서 2단계(1.9) — 위 토큰들과 이름만 다른 중복을 새로 만들지 않고,
      문서가 요구하는 이름을 기존 값에 alias한다(--deep-green이 이미 74곳에서 쓰이고 있어
      이름을 바꾸면 그만큼 건드려야 한다). --ink는 기존 값(#222222)의 실사용처가 7곳뿐이라
@@ -34,11 +51,11 @@
   --teal-soft: #9BB5B0;
   --teal-mid: #22876A;
   --danger: #DC2626;
-  --line: rgba(0, 0, 0, .09);
+  --line: var(--ui-border);
   /* 3단계 — 제안서 1.5(그 외 화면 배경)와 유형 C(점수 카드) 절이 구체적인 hex를 직접
      지정하고 있어 그대로 토큰화한다 — 새로 만든 색이 아니라 문서가 이미 정한 값이다. */
-  --content-bg: #FDFCFA;
-  --panel-bg: #F7F5F1;
+  --content-bg: var(--ui-bg);
+  --panel-bg: var(--ui-workspace);
   --score-good: #4C9A5C;
   --score-normal: #E9A227;
   --score-risk: #C0473F;
@@ -72,7 +89,7 @@ html {
 
 body {
   margin: 0;
-  background: var(--ivory);
+  background: var(--ui-bg);
   color: var(--ink);
   font-family: var(--font-sans);
   word-break: keep-all;
@@ -105,13 +122,32 @@ button {
   cursor: pointer;
 }
 
+.olivia-ui-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.olivia-ui-button[data-ui-variant="primary"]:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--ui-orange-strong) 82%, #000);
+  background: color-mix(in srgb, var(--ui-orange-strong) 88%, #000);
+}
+
+.olivia-ui-button[data-ui-variant="secondary"]:not(:disabled):hover {
+  border-color: var(--ui-orange);
+  background: var(--ui-orange-soft);
+}
+
+.olivia-ui-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ui-orange) 24%, transparent);
+  outline-offset: 2px;
+}
+
 input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 select {
   width: 100%;
-  border: 1px solid rgba(21, 88, 85, .16);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .78);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius-control);
+  background: var(--ui-surface);
   color: var(--ink);
   outline: none;
   transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
@@ -146,9 +182,9 @@ textarea {
 input:focus,
 textarea:focus,
 select:focus {
-  border-color: var(--deep-green);
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(21, 88, 85, 0.12);
+  border-color: var(--ui-orange-strong);
+  background: var(--ui-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-orange) 16%, transparent);
 }
 
 ::selection {
@@ -9513,5 +9549,225 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   body .olivia-os-chat-dock .olivia-message-guide {
     width: 30px;
     padding-inline: 2px;
+  }
+}
+
+/* ── OliviaOS common UI theme (2026-10-30) ─────────────────
+   Screen chrome only. Actual quote/contract/conti paper canvases and media
+   previews retain their own brand and source colors. */
+@media screen {
+  .contract-app--jakeimage {
+    --ui-orange: #2f4a73;
+    --ui-orange-strong: #2f4a73;
+    --ui-orange-soft: #eef2f7;
+  }
+
+  .pc-btn { border-radius: var(--ui-radius-control, 10px); }
+  .pc-btn--primary,
+  .pc-btn--orange {
+    border: 1px solid var(--ui-orange-strong, #C94C22);
+    background: var(--ui-orange-strong, #C94C22);
+    color: #fff;
+    box-shadow: none;
+  }
+  .pc-btn--secondary {
+    border: 1px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 44%, var(--ui-border, #D5DBD3));
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-orange-strong, #C94C22);
+    box-shadow: none;
+  }
+  .pc-btn--secondary:hover,
+  .pc-btn--ghost:hover {
+    border-color: var(--ui-orange, #E85D2C);
+    background: var(--ui-orange-soft, #FBEAE3);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+  .pc-btn:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 24%, transparent);
+    outline-offset: 2px;
+  }
+  .pc-btn:disabled {
+    border-color: var(--ui-border, #D5DBD3);
+    background: transparent;
+    color: var(--ui-text-secondary, #626D65);
+    opacity: 1;
+  }
+
+  .pc-header {
+    border-bottom-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-header, #F8F8F4);
+    box-shadow: 0 1px 0 rgba(40,55,45,.04);
+  }
+  .pc-header-back {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-text-secondary, #626D65);
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .pc-header-back:hover {
+    border-color: var(--ui-orange, #E85D2C);
+    background: var(--ui-orange-soft, #FBEAE3);
+    color: var(--ui-orange-strong, #C94C22);
+    box-shadow: none;
+  }
+  .pc-header-divider { background: var(--ui-border, #D5DBD3); }
+  .pc-header-title { color: var(--ui-text-secondary, #626D65); }
+  .pc-page-actions {
+    border-bottom-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+    box-shadow: none;
+  }
+  .pc-tabs {
+    border-bottom-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+  }
+
+  /* Quote editor. The .quote-page document itself is intentionally untouched. */
+  .quote-app { color: var(--ui-text, #2F3833); background: var(--ui-bg, #F4F3EF); }
+  .quote-app.preview-shell {
+    background: var(--ui-workspace, #E8EBE5);
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  }
+  .quote-app.preview-shell--fullscreen { background: var(--ui-workspace, #E8EBE5); }
+  .quote-app > section > div:first-child {
+    align-self: start;
+    border: 1px solid var(--ui-border, #D5DBD3);
+    border-radius: var(--ui-radius-panel, 16px);
+    padding: 14px;
+    background: var(--ui-workspace, #E8EBE5);
+  }
+  .quote-app > section > div:first-child > header,
+  .quote-app > section > div:first-child > section {
+    border-color: var(--ui-border, #D5DBD3) !important;
+    border-radius: var(--ui-radius-panel, 16px) !important;
+    background: var(--ui-surface, #FCFBF8) !important;
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06)) !important;
+  }
+  .quote-app:not(.quote-app--jakeimage) > section .primary-button,
+  .quote-app:not(.quote-app--jakeimage) > .action-button-bar .primary-button {
+    border-color: var(--ui-orange-strong, #C94C22) !important;
+    background: var(--ui-orange-strong, #C94C22) !important;
+    color: #fff !important;
+    box-shadow: none;
+  }
+  .quote-app:not(.quote-app--jakeimage) > section .secondary-button,
+  .quote-app:not(.quote-app--jakeimage) > .action-button-bar .secondary-button {
+    border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 44%, var(--ui-border, #D5DBD3));
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+  .quote-app:not(.quote-app--jakeimage) > section .secondary-button:hover,
+  .quote-app:not(.quote-app--jakeimage) > .action-button-bar .secondary-button:hover {
+    border-color: var(--ui-orange, #E85D2C);
+    background: var(--ui-orange-soft, #FBEAE3);
+  }
+  .quote-app .action-button-bar {
+    border-top-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-header, #F8F8F4);
+  }
+  .quote-app .preview-zoom-controls button {
+    color: var(--ui-orange-strong, #C94C22);
+  }
+
+  /* Calendar workspace. Category colors remain defined by the calendar data. */
+  .calendar-page-shell { background: var(--ui-bg, #F4F3EF); color: var(--ui-text, #2F3833); }
+  .calendar-main-toolbar {
+    border-bottom-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+  }
+  .calendar-main-toolbar button {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+  }
+  .calendar-main-toolbar button:hover { background: var(--ui-orange-soft, #FBEAE3); }
+  .calendar-main-toolbar button.is-active {
+    border-color: var(--ui-orange, #E85D2C);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+  .calendar-page-shell :where(.calendar-productivity-panel, .calendar-day-side-panel) {
+    border-color: var(--ui-border, #D5DBD3) !important;
+    background: var(--ui-surface, #FCFBF8) !important;
+  }
+
+  /* Customer management surfaces and popups. Inline card styles read the
+     mirrored values from lib/theme.ts. */
+  .pcrm-dashboard,
+  .pcrm-client-dashboard { color: var(--ui-text, #2F3833); }
+  .pcrm-project-panel,
+  .pcrm-side-card,
+  .pcrm-activity-card,
+  .pcrm-inquiry-card,
+  .pcrm-per-card,
+  .pcrm-client-progress-card,
+  .pcrm-client-approval-card,
+  .pcrm-client-resource-card,
+  .pcrm-client-gallery-preview,
+  .pcrm-client-side-column > section {
+    border-color: var(--ui-border, #D5DBD3) !important;
+    background: var(--ui-surface, #FCFBF8) !important;
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06)) !important;
+  }
+  .pcrm-project-panel > header,
+  .pcrm-side-card > header,
+  .pcrm-activity-card > header,
+  .pcrm-inquiry-card > header,
+  .pcrm-per-card > header,
+  .pcrm-project-row--head {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+  }
+  .pcrm-dashboard-actions > button,
+  .pcrm-project-dialog footer button[type="submit"] {
+    border-color: var(--ui-orange-strong, #C94C22);
+    background: var(--ui-orange-strong, #C94C22);
+    color: #fff;
+  }
+  .pcrm-dashboard-actions label,
+  .pcrm-row-menu__panel,
+  .pcrm-project-dialog,
+  .pcrm-form-section {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+  }
+  .pcrm-form-modal {
+    border: 1px solid var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+    box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  }
+  .pcrm-form-modal__head > button,
+  .pcrm-project-dialog header > button,
+  .pcrm-project-dialog footer button {
+    border-color: var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+  }
+  .pcrm-form-modal__head > button:hover,
+  .pcrm-project-dialog header > button:hover,
+  .pcrm-row-menu__panel button:hover {
+    background: var(--ui-orange-soft, #FBEAE3);
+    color: var(--ui-orange-strong, #C94C22);
+  }
+
+  /* OS chat portal is shared by Home and contextual panels. */
+  .olivia-os-chat-dock .olivia-conversation,
+  .olivia-os-chat-dock .olivia-conversation__messages,
+  .olivia-os-chat-dock .olivia-conversation__stage { background: var(--ui-bg, #F4F3EF); }
+  .olivia-os-chat-dock .olivia-conversation__header { background: var(--ui-header, #F8F8F4); }
+  .olivia-os-chat-dock .olivia-message.is-user .olivia-message__body {
+    border: 1px solid var(--ui-border, #D5DBD3);
+    background: var(--ui-workspace, #E8EBE5);
+    color: var(--ui-text, #2F3833);
+    box-shadow: none;
+  }
+  .olivia-os-chat-dock .olivia-message.is-assistant .olivia-message__body {
+    border: 1px solid var(--ui-border, #D5DBD3);
+    background: var(--ui-surface, #FCFBF8);
+    color: var(--ui-text, #2F3833);
+  }
+  .olivia-os-chat-dock .olivia-composer { background: var(--ui-surface, #FCFBF8); }
+  .olivia-os-chat-dock .olivia-composer > button.is-send {
+    background: var(--ui-orange-strong, #C94C22);
+    color: #fff;
   }
 }

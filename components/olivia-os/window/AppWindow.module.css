@@ -3,18 +3,18 @@
   display: flex;
   flex-direction: column;
   /* 순백색 대신 아주 살짝 톤 다운된 warm white — wallpaper 위에서 카드가 아니라 뜬 앱처럼. */
-  background: rgba(253, 254, 253, 0.96);
-  border: .5px solid rgba(255, 255, 255, .64);
-  border-radius: 10px;
+  background: var(--ui-surface, #FCFBF8);
+  border: 1px solid var(--ui-border, #D5DBD3);
+  border-radius: var(--ui-radius-panel, 16px);
   /* 기본값은 비활성 창. focus된 창만 아래 .active에서 더 깊어진다. */
-  box-shadow: 0 16px 40px rgba(0, 0, 0, .28), 0 2px 6px rgba(0, 0, 0, .16);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40, 55, 45, .06));
   transition: border-color 180ms ease, box-shadow 180ms cubic-bezier(.22, 1, .36, 1);
   pointer-events: auto;
 }
 
 .window.active {
-  border-color: rgba(255, 255, 255, .82);
-  box-shadow: 0 24px 64px rgba(0, 0, 0, .38), 0 2px 8px rgba(0, 0, 0, .22);
+  border-color: color-mix(in srgb, var(--ui-brand-green, #155855) 32%, var(--ui-border, #D5DBD3));
+  box-shadow: 0 9px 30px rgba(40, 55, 45, .09);
 }
 
 /* 창 관리 껍데기 없이 활성 앱 하나가 DesktopSurface를 그대로 채운다. 기존 .window 규칙은
@@ -56,8 +56,8 @@
   height: 38px;
   padding: 0 12px;
   flex-shrink: 0;
-  background: rgba(246, 246, 243, .97);
-  border-bottom: .5px solid rgba(35, 47, 44, .12);
+  background: var(--ui-header, #F8F8F4);
+  border-bottom: 1px solid var(--ui-border, #D5DBD3);
   cursor: grab;
   user-select: none;
 }
@@ -135,7 +135,7 @@
   min-width: 0;
   font-size: 12px;
   font-weight: 400;
-  color: #9B9A94;
+  color: var(--ui-text-secondary, #626D65);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -143,7 +143,7 @@
 }
 
 .window.active .title {
-  color: #1C2B28;
+  color: var(--ui-text, #2F3833);
   font-weight: 600;
 }
 
@@ -156,7 +156,7 @@
   background: var(--panel-bg);
   color: var(--muted);
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   cursor: help;
   outline: none;
@@ -206,6 +206,7 @@
   isolation: isolate;
   contain: layout paint;
   container-type: size;
+  background: var(--ui-bg, #F4F3EF);
 }
 
 .content > * {

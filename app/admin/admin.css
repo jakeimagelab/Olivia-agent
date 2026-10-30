@@ -1602,6 +1602,176 @@
   }
 }
 
+/* OliviaOS common UI theme — chat chrome only. Conversation behavior,
+   streaming, resource cards and message ordering are unchanged. */
+.olivia-conversation,
+.olivia-conversation--drawer,
+.olivia-conversation--home {
+  border-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-bg, #F4F3EF);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.olivia-conversation__header {
+  border-bottom-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-header, #F8F8F4);
+}
+.olivia-chat-context-banner {
+  border-bottom-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-workspace, #E8EBE5);
+  color: var(--ui-brand-green, #155855);
+}
+.olivia-chat-context-banner span,
+.olivia-chat-context-banner button { font-weight: 600; }
+.olivia-chat-context-banner button {
+  border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 42%, var(--ui-border, #D5DBD3));
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-orange-strong, #C94C22);
+}
+.olivia-conversation__messages { background: var(--ui-bg, #F4F3EF); }
+.olivia-message__body,
+.olivia-message.is-assistant .olivia-message__body {
+  border: 1px solid var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-text, #2F3833);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+}
+.olivia-message.is-user .olivia-message__body {
+  border: 1px solid color-mix(in srgb, var(--ui-brand-green, #155855) 18%, var(--ui-border, #D5DBD3));
+  background: var(--ui-workspace, #E8EBE5);
+  color: var(--ui-text, #2F3833);
+  box-shadow: none;
+}
+.olivia-message.is-user .olivia-message__body::selection,
+.olivia-message.is-user .olivia-message__body *::selection {
+  background: var(--ui-orange-soft, #FBEAE3);
+  color: var(--ui-text, #2F3833);
+}
+.olivia-resource-card--desktop,
+.olivia-approval-card {
+  border-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-text, #2F3833);
+}
+.olivia-resource-card--desktop:hover { background: var(--ui-orange-soft, #FBEAE3); }
+.olivia-conversation__suggestions button,
+.olivia-conversation--home .olivia-conversation__suggestions button {
+  border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 38%, var(--ui-border, #D5DBD3));
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-orange-strong, #C94C22);
+  box-shadow: none;
+}
+.olivia-conversation__suggestions button:hover,
+.olivia-conversation--home .olivia-conversation__suggestions button:hover { background: var(--ui-orange-soft, #FBEAE3); }
+.olivia-composer {
+  border-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+}
+.olivia-composer:focus-within {
+  border-color: var(--ui-orange-strong, #C94C22);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-orange, #E85D2C) 15%, transparent);
+}
+.olivia-composer textarea { color: var(--ui-text, #2F3833); font-weight: 500; }
+.olivia-composer textarea::placeholder { color: var(--ui-text-secondary, #626D65); }
+.olivia-composer > button.is-send,
+.olivia-conversation--home .olivia-composer > button.is-send {
+  background: var(--ui-orange-strong, #C94C22);
+  color: #fff;
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ui-orange, #E85D2C) 22%, transparent);
+}
+.olivia-composer > button:focus-visible,
+.olivia-conversation__controls button:focus-visible,
+.olivia-conversation__suggestions button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 24%, transparent);
+  outline-offset: 2px;
+}
+.olivia-message-guide {
+  border-left: 1px solid var(--ui-border, #D5DBD3);
+  background: var(--ui-header, #F8F8F4);
+}
+.olivia-message-guide__ticks > button > span {
+  background: var(--ui-border, #D5DBD3);
+}
+.olivia-message-guide__ticks > button:hover > span,
+.olivia-message-guide__ticks > button[aria-pressed="true"] > span,
+.olivia-message-guide__ticks > button.is-active > span {
+  background: var(--ui-orange, #E85D2C);
+}
+.olivia-message-guide__ticks > button.is-active > span {
+  box-shadow: 0 0 0 1px var(--ui-orange-strong, #C94C22);
+}
+.olivia-message-guide__topic { font-weight: 600; }
+.olivia-message-guide__jump {
+  background: var(--ui-orange-strong, #C94C22);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Shared page header, dropdown and command controls. */
+.oa-header,
+.oa-header.oa-header--page {
+  border-bottom-color: var(--ui-border, #D5DBD3);
+  background: var(--ui-header, #F8F8F4);
+  box-shadow: 0 1px 0 rgba(40,55,45,.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.oa-header--page .oa-header__title,
+.oa-header--calendar .oa-header__title { color: var(--ui-text, #2F3833); font-weight: 600; }
+.oa-header--page .oa-header__description { color: var(--ui-text-secondary, #626D65); }
+.oa-header-search__field,
+.oa-header-search--loading,
+.oa-header-action-button,
+.oa-header-quick-trigger,
+.oa-header-search__mobile-trigger {
+  border: 1px solid var(--ui-border, #D5DBD3);
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-text-secondary, #626D65);
+  box-shadow: none;
+}
+.oa-header-search__field:focus-within {
+  border-color: var(--ui-orange-strong, #C94C22);
+  background: var(--ui-surface, #FCFBF8);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-orange, #E85D2C) 15%, transparent);
+  transform: none;
+}
+.oa-header-action-button:hover,
+.oa-header-quick-trigger:hover,
+.oa-header-search__mobile-trigger:hover {
+  background: var(--ui-orange-soft, #FBEAE3);
+  color: var(--ui-orange-strong, #C94C22);
+  transform: none;
+}
+.oa-header-search__popover,
+.oa-header-popover,
+.oa-header-popover--quick {
+  border: 1px solid var(--ui-border, #D5DBD3);
+  background: var(--ui-workspace, #E8EBE5);
+  box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.oa-header-search__group,
+.oa-header-search__empty,
+.oa-header-popover header,
+.oa-header-notification-list,
+.oa-header-popover--quick > a {
+  background: var(--ui-surface, #FCFBF8);
+}
+.oa-header-search__group a:hover,
+.oa-header-search__group a.is-active,
+.oa-header-notification-list > a:hover,
+.oa-header-popover--quick > a:hover {
+  background: var(--ui-orange-soft, #FBEAE3);
+  transform: none;
+}
+.oa-header-popover__footer {
+  background: var(--ui-orange-strong, #C94C22);
+  color: #fff;
+}
+
 /* ============================================================
    통합 작업실 1차 Launcher (2026-09-02)
    기존 독립 기능 카드 규칙은 아래 섹션에서 그대로 재사용하고, 업무 단위 Workspace만
@@ -2135,22 +2305,22 @@
 
 /* Olivia Agent 2.0 adaptive stage */
 :root {
-  --olivia-green: #155855;
-  --olivia-orange: #E85D2C;
+  --olivia-green: var(--ui-brand-green, #155855);
+  --olivia-orange: var(--ui-orange, #E85D2C);
   --olivia-secondary: #569082;
-  --olivia-mint: #EAF4F2;
-  --olivia-bg: #F8FAF9;
-  --olivia-surface: rgba(255,255,255,.94);
-  --olivia-border: rgba(21,88,85,.1);
-  --olivia-text: #1c2b28;
-  --olivia-muted: #7c8f8b;
+  --olivia-mint: var(--ui-green-soft, #E2EBE3);
+  --olivia-bg: var(--ui-bg, #F4F3EF);
+  --olivia-surface: var(--ui-surface, #FCFBF8);
+  --olivia-border: var(--ui-border, #D5DBD3);
+  --olivia-text: var(--ui-text, #2F3833);
+  --olivia-muted: var(--ui-text-secondary, #626D65);
 
   /* UI/UX 통일 개편(2026-08-18) 공통 토큰 — MissionStatusBar 등 신규 공유 컴포넌트가 사용 */
   --olivia-radius-sm: 10px;
   --olivia-radius-md: 16px;
   --olivia-radius-lg: 22px;
-  --olivia-shadow-card: 0 16px 38px rgba(21,88,85,.08);
-  --olivia-shadow-floating: 0 20px 48px rgba(21,88,85,.14);
+  --olivia-shadow-card: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
+  --olivia-shadow-floating: 0 12px 36px rgba(40,55,45,.1);
 
   /* UI/UX 통일 개편 V2(2026-08-18) — 레퍼런스 요청서가 지정한 정식 토큰 이름. 위 --olivia-*
      토큰과 값 계열은 같되(중복 유지보수 최소화를 위해 유사 값 재사용), 요청서가 명시한

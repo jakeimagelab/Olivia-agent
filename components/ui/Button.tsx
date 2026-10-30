@@ -21,42 +21,49 @@ function styleFor(variant: ButtonVariant, disabled?: boolean): CSSProperties {
     gap: 6,
     height: 34,
     padding: variant === "primary" ? "0 16px" : "0 14px",
-    borderRadius: 8,
-    fontWeight: variant === "primary" ? 800 : 700,
+    borderRadius: "var(--ui-radius-control, 10px)",
+    fontWeight: 600,
     fontSize: 12.5,
     fontFamily: "inherit",
     cursor: disabled ? "not-allowed" : "pointer",
-    transition: "transform 160ms cubic-bezier(.32,.72,0,1), background 160ms cubic-bezier(.32,.72,0,1)",
+    transition: "transform 160ms cubic-bezier(.32,.72,0,1), background 160ms cubic-bezier(.32,.72,0,1), border-color 160ms ease, color 160ms ease",
   };
   if (variant === "primary") {
     return {
       ...base,
-      border: "1px solid var(--orange)",
-      background: disabled ? "#F2B79B" : "var(--orange)",
-      color: "#fff",
+      border: "1px solid var(--ui-orange-strong, #C94C22)",
+      background: disabled ? "transparent" : "var(--ui-orange-strong, #C94C22)",
+      color: disabled ? "var(--ui-text-secondary, #626D65)" : "#fff",
     };
   }
   if (variant === "danger") {
     return {
       ...base,
       border: "1px solid rgba(220,38,38,.35)",
-      background: "#fff",
+      background: "var(--ui-surface, #FCFBF8)",
       color: "var(--danger)",
-      opacity: disabled ? 0.5 : 1,
+      opacity: 1,
     };
   }
   return {
     ...base,
-    border: ".5px solid var(--line)",
-    background: "#fff",
-    color: "var(--teal)",
-    opacity: disabled ? 0.5 : 1,
+    border: `1px solid ${disabled ? "var(--ui-border, #D5DBD3)" : "color-mix(in srgb, var(--ui-orange, #E85D2C) 48%, var(--ui-border, #D5DBD3))"}`,
+    background: "var(--ui-surface, #FCFBF8)",
+    color: disabled ? "var(--ui-text-secondary, #626D65)" : "var(--ui-orange-strong, #C94C22)",
+    opacity: 1,
   };
 }
 
-export default function Button({ variant = "secondary", icon, children, style, disabled, ...rest }: ButtonProps) {
+export default function Button({ variant = "secondary", icon, children, style, disabled, className, ...rest }: ButtonProps) {
   return (
-    <button type="button" disabled={disabled} style={{ ...styleFor(variant, disabled), ...style }} {...rest}>
+    <button
+      type="button"
+      disabled={disabled}
+      data-ui-variant={variant}
+      className={["olivia-ui-button", className].filter(Boolean).join(" ")}
+      style={{ ...styleFor(variant, disabled), ...style }}
+      {...rest}
+    >
       {icon}
       {children}
     </button>
