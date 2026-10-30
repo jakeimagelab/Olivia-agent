@@ -59,11 +59,12 @@ describe("Olivia AppWindow header ownership", () => {
     expect(globalCss).toContain(".olivia-embedded .oa-header");
   });
 
-  it("marks only compatibility iframe windows with an accessible limitation tooltip", () => {
+  it("preserves the old compatibility header for rollback but does not render window chrome", () => {
     const appWindow = source("components/olivia-os/window/AppWindow.tsx");
     const windowHeader = source("components/olivia-os/window/WindowHeader.tsx");
 
-    expect(appWindow).toContain('compatibilityMode={win.appId === "legacy-route"}');
+    expect(appWindow).not.toContain("<WindowHeader");
+    expect(appWindow).not.toContain("useWindowInteractions");
     expect(windowHeader).toContain("호환 화면");
     expect(windowHeader).toContain("단축키와 대화 컨텍스트 연동이 제한됩니다");
     expect(windowHeader).toContain('role="tooltip"');

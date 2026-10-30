@@ -13,7 +13,7 @@ describe("Olivia OS exit confirmation", () => {
     expect(event.returnValue).toBe("");
   });
 
-  it("leaves Command+W to the browser and preserves Command+M minimize", () => {
+  it("leaves Command+W to the browser and replaces minimize with history navigation", () => {
     const desktop = readFileSync("components/olivia-os/OliviaDesktop.tsx", "utf8");
     const surface = readFileSync("components/olivia-os/DesktopSurface.tsx", "utf8");
     const topBar = readFileSync("components/olivia-os/DesktopTopBar.tsx", "utf8");
@@ -21,7 +21,9 @@ describe("Olivia OS exit confirmation", () => {
     expect(desktop).toContain('window.addEventListener("beforeunload", requestOliviaDesktopExitConfirmation)');
     expect(desktop).toContain('window.removeEventListener("beforeunload", requestOliviaDesktopExitConfirmation)');
     expect(surface).not.toContain('event.key.toLowerCase() === "w"');
-    expect(surface).toContain('event.key.toLowerCase() === "m"');
+    expect(surface).not.toContain('event.key.toLowerCase() === "m"');
+    expect(surface).toContain('event.code === "BracketLeft"');
+    expect(surface).toContain('event.code === "BracketRight"');
     expect(topBar).not.toContain("<kbd>⌘W</kbd>");
   });
 });

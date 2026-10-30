@@ -76,7 +76,7 @@ describe("Olivia desktop convenience controls", () => {
     expect(useOliviaDesktopStore.getState().tiledSnapshot).toBeNull();
   });
 
-  it("keeps the original search shortcut and compacts the existing Olivia chat window", () => {
+  it("keeps the original search shortcut and compact chat while removing window chrome", () => {
     const root = process.cwd();
     const search = readFileSync(resolve(root, "components/olivia-os/DesktopGlobalSearch.tsx"), "utf8");
     const desktop = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.tsx"), "utf8");
@@ -90,12 +90,14 @@ describe("Olivia desktop convenience controls", () => {
     expect(search).toContain("useOliviaDesktopUtilityStore");
     expect(desktop).not.toContain("OliviaMiniChat");
     expect(appWindow).toContain("data-chat-compact");
-    expect(appWindow).toContain('win.appId === "olivia-chat" ? () => setChatCompact(true)');
     expect(appWindow).toContain('aria-label="채팅창 다시 키우기"');
-    expect(appWindow).toContain('bottom: isChatCompact ? "var(--desktop-dock-bottom)" : "auto"');
+    expect(appWindow).toContain('bottom: "var(--desktop-dock-bottom)"');
     expect(appWindow).toContain("new ResizeObserver(measureDock)");
+    expect(appWindow).not.toContain("<WindowHeader");
+    expect(appWindow).not.toContain("useWindowInteractions");
     expect(appWindowCss).toContain(":global(.olivia-composer-shell)");
     expect(appWindowCss).toContain(".chatCompactRestore");
+    expect(appWindowCss).toContain(".fullScreen");
     expect(actions).toContain("toggleCompactChat");
     expect(actions).toContain("useOliviaConversationStore");
     expect(utilityStore).toContain("chatCompact");
