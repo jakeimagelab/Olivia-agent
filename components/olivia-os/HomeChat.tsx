@@ -11,8 +11,6 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import styles from "./OliviaDesktop.module.css";
 
 type Gallery = {
-  hospital_name?: string;
-  shoot_date?: string;
   gallery_type?: string;
   publication?: { status?: string } | null;
   items?: Array<{ thumbnail_url?: string }>;
@@ -137,7 +135,6 @@ export function HomeChat() {
         </div>
         <OliviaChatDockTarget id="desktop-home" priority={90} className={styles.homeChatDock} />
       </div>
-      {gallery ? <p className={styles.homePhotoCredit}>{gallery.hospital_name ?? "최근 촬영"}{gallery.shoot_date ? ` · ${gallery.shoot_date}` : ""}</p> : null}
     </section>
   );
 }

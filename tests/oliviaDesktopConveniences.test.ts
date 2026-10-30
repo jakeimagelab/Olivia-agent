@@ -109,6 +109,20 @@ describe("Olivia desktop convenience controls", () => {
     expect(desktopCss).toContain('.dockReveal:hover .dock');
   });
 
+  it("keeps the home chat compact without exposing the background gallery name", () => {
+    const root = process.cwd();
+    const home = readFileSync(resolve(root, "components/olivia-os/HomeChat.tsx"), "utf8");
+    const desktopCss = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.module.css"), "utf8");
+
+    expect(home).not.toContain("homePhotoCredit");
+    expect(desktopCss).not.toContain(".homePhotoCredit");
+    expect(desktopCss).toContain("min-height: 104px;");
+    expect(desktopCss).toContain("min-height: 64px;");
+    expect(desktopCss).toContain("flex-basis: 42px;");
+    expect(desktopCss).toContain('@media (max-width: 900px)');
+    expect(desktopCss).toContain("min-height: 74px;");
+  });
+
   it("fits compact chat beside the centered Dock without moving the Dock", () => {
     expect(calculateCompactChatWidth(1440, 680)).toBe(350);
     expect(calculateCompactChatWidth(1024, 524)).toBe(220);
