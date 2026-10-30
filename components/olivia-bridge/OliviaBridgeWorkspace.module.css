@@ -55,6 +55,49 @@
 
 .folderPickerButton:hover { background: rgba(255, 255, 255, .14); }
 
+.folderSourceOverlay {
+  position: absolute;
+  z-index: 90;
+  inset: 0;
+}
+
+.folderSourceChooser {
+  position: absolute;
+  top: 50px;
+  left: 128px;
+  width: min(310px, calc(100% - 24px));
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 11px;
+  color: #fff;
+  background: var(--bridge-panel);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, .42);
+}
+
+.folderSourceChooser > header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 8px 7px 14px;
+  border-bottom: 1px solid var(--bridge-line);
+  background: #123336;
+}
+
+.folderSourceChooser > header > div { min-width: 0; display: grid; gap: 4px; }
+.folderSourceChooser > header strong { font-size: 12px; font-weight: 600; }
+.folderSourceChooser > header span { color: rgba(255, 255, 255, .5); font-size: 9px; }
+.folderSourceChooser > header button { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 8px; color: rgba(255, 255, 255, .78); background: transparent; cursor: pointer; }
+.folderSourceChooser > header button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.folderSourceChooser > div { display: grid; gap: 6px; padding: 8px; }
+.folderSourceChooser > div > button { min-height: 58px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 8px; border: 1px solid transparent; border-radius: 8px; padding: 8px 10px; color: rgba(255, 255, 255, .78); background: transparent; text-align: left; cursor: pointer; }
+.folderSourceChooser > div > button:hover { color: #fff; border-color: rgba(79, 216, 184, .28); background: rgba(79, 216, 184, .08); }
+.folderSourceChooser > div > button > svg { justify-self: center; color: var(--bridge-mint); }
+.folderSourceChooser > div > button > span { min-width: 0; display: grid; gap: 5px; }
+.folderSourceChooser > div > button strong { font-size: 11px; font-weight: 600; }
+.folderSourceChooser > div > button small { color: rgba(255, 255, 255, .45); font-size: 9px; }
+
 .breadcrumbs {
   min-width: 80px;
   flex: 1;
@@ -471,6 +514,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 
 @container olivia-bridge (max-width: 1240px) {
   .bridgeBar > strong { display: none; }
+  .folderSourceChooser { left: 10px; }
 }
 
 @container olivia-bridge (max-width: 980px) {

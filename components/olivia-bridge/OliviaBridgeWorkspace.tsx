@@ -11,11 +11,13 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  HardDrive,
   Images,
   LayoutGrid,
   Link2,
   LoaderCircle,
   Minus,
+  Monitor,
   PencilLine,
   Plus,
   RefreshCw,
@@ -120,6 +122,11 @@ const EmbeddedPhotoTool = dynamic(
     ssr: false,
     loading: () => <div className={styles.toolLoading}><LoaderCircle size={18} /> 기존 사진 도구를 여는 중...</div>,
   },
+);
+
+const PhotoSourcePicker = dynamic(
+  () => import("@/components/photo-classifier/PhotoSourcePicker"),
+  { ssr: false },
 );
 
 type Breadcrumb = { name: string; handle: FileSystemDirectoryHandle };
@@ -538,6 +545,8 @@ export default function OliviaBridgeWorkspace({
   const [departmentError, setDepartmentError] = useState("");
   const [departmentPickerOpen, setDepartmentPickerOpen] = useState(false);
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
+  const [folderSourceOpen, setFolderSourceOpen] = useState(false);
+  const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
@@ -721,29 +730,27 @@ export default function OliviaBridgeWorkspace({
   const chooseFolder = useCallback(async () => {
     const directory = await picker.pick("readwrite");
     if (!directory) return;
-    await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
-  }, [loadDirectory, picker]);
-
-  /** Bridge의 폴더 선택은 항상 현재 기기의 로컬 폴더 피커를 연다. */
-  const pickFolder = useCallback(() => {
-    if (remoteFolder) {
-      remoteLoadGenerationRef.current += 1;
-      setRemoteFolder(null);
-      setScan(EMPTY_SCAN);
-      setBreadcrumbs([]);
-      setSelectedIds(new Set());
-      setAnchorId(null);
-      setFocusedId(null);
-      setPreviewSize(undefined);
-    }
     navigate?.("/olivia-bridge", "Olivia Bridge", {
       clientId,
       projectId: workflowRunId,
       workflowRunId,
     });
-    setExecutionMode("LOCAL_DIRECT");
+    await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
+  }, [clientId, loadDirectory, navigate, picker, workflowRunId]);
+
+  const openFolderSourceChooser = useCallback(() => {
+    setFolderSourceOpen(true);
+  }, []);
+
+  const pickLocalFolder = useCallback(() => {
+    setFolderSourceOpen(false);
     void chooseFolder();
-  }, [chooseFolder, clientId, navigate, remoteFolder, setExecutionMode, setSelectedIds, workflowRunId]);
+  }, [chooseFolder]);
+
+  const pickNasFolder = useCallback(() => {
+    setFolderSourceOpen(false);
+    setNasPickerOpen(true);
+  }, []);
 
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
     const generation = ++remoteLoadGenerationRef.current;
@@ -1079,6 +1086,13 @@ export default function OliviaBridgeWorkspace({
   }, []);
 
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen)) {
+      event.preventDefault();
+      setFolderSourceOpen(false);
+      setNasPickerOpen(false);
+      rootRef.current?.focus();
+      return;
+    }
     if (event.metaKey && !event.altKey && !event.ctrlKey) {
       if (event.code === "Equal" || event.key === "+" || event.key === "=") {
         event.preventDefault();
@@ -1133,7 +1147,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, fullscreenPreviewOpen, moveFocus, moveGridFocus, openFullscreenPreview, resizeThumbnails, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, resizeThumbnails, sceneReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1280,7 +1294,7 @@ export default function OliviaBridgeWorkspace({
     <div ref={rootRef} className={styles.bridge} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <header className={styles.bridgeBar}>
         <strong>OLIVIA BRIDGE</strong>
-        <button type="button" className={styles.folderPickerButton} onClick={() => pickFolder()}><FolderOpen size={17} /> 폴더 선택</button>
+        <button type="button" className={styles.folderPickerButton} onClick={(event) => { event.stopPropagation(); openFolderSourceChooser(); }} aria-haspopup="dialog" aria-expanded={folderSourceOpen}><FolderOpen size={17} /> 폴더 선택</button>
         <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
           {remoteFolder ? <span>NAS · {remoteFolder.displayPath}</span> : breadcrumbs.length ? breadcrumbs.map((item, index) => (
             <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
@@ -1299,7 +1313,7 @@ export default function OliviaBridgeWorkspace({
 
       <main ref={workspaceRef} className={styles.workspace}>
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
-          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => pickFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
+          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={openFolderSourceChooser} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <label className={styles.nestedJpgToggle}>
             <input
@@ -1339,10 +1353,10 @@ export default function OliviaBridgeWorkspace({
             <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
           </div>
 
-          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={() => pickFolder()}>다른 폴더 선택</button></div> : <button type="button" onClick={() => pickFolder()}>폴더 선택</button>}</div> : null}
+          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : <button type="button" onClick={openFolderSourceChooser}>폴더 선택</button>}</div> : null}
           {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
-          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={() => pickFolder()}>다른 폴더 선택</button></div> : null}
+          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
             <div
               ref={fileAreaRef}
@@ -1521,6 +1535,35 @@ export default function OliviaBridgeWorkspace({
           canMoveNext={focusedIndex >= 0 && focusedIndex < visibleJpgs.length - 1}
           onMove={moveFocus}
           onClose={closeFullscreenPreview}
+        />
+      ) : null}
+
+      {folderSourceOpen ? (
+        <div className={styles.folderSourceOverlay} onClick={() => setFolderSourceOpen(false)}>
+          <section className={styles.folderSourceChooser} role="dialog" aria-modal="true" aria-labelledby="bridge-folder-source-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><strong id="bridge-folder-source-title">폴더 선택</strong><span>사진이 있는 위치를 선택해 주세요.</span></div>
+              <button type="button" onClick={() => setFolderSourceOpen(false)} aria-label="폴더 선택 닫기"><X size={18} /></button>
+            </header>
+            <div>
+              <button type="button" onClick={pickLocalFolder}><Monitor size={19} /><span><strong>이 Mac의 폴더</strong><small>현재 기기에 있는 폴더를 엽니다.</small></span></button>
+              <button type="button" onClick={pickNasFolder}><HardDrive size={19} /><span><strong>NAS 폴더</strong><small>Mac Studio에서 NAS 폴더를 엽니다.</small></span></button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {nasPickerOpen ? (
+        <PhotoSourcePicker
+          onCancel={() => {
+            setNasPickerOpen(false);
+            rootRef.current?.focus();
+          }}
+          onSelectRemote={(selection) => {
+            setNasPickerOpen(false);
+            setExecutionMode("REMOTE_WORKER");
+            void loadRemoteDirectory(selection);
+          }}
         />
       ) : null}
 

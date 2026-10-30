@@ -127,17 +127,22 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
 
-  it("Bridge 폴더 선택은 로컬 피커를 열고 원격 링크는 NAS 폴더를 직접 연다", () => {
+  it("Bridge 폴더 선택은 로컬과 NAS를 고르고 원격 링크도 NAS 폴더를 직접 연다", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
     expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
     expect(layout).toContain('!REMOTE_READY_ROUTES.has(pathname)');
-    expect(workspace).toContain('setExecutionMode("LOCAL_DIRECT")');
+    expect(workspace).toContain("openFolderSourceChooser");
+    expect(workspace).toContain("이 Mac의 폴더");
+    expect(workspace).toContain("NAS 폴더");
+    expect(workspace).toContain("pickLocalFolder");
+    expect(workspace).toContain("pickNasFolder");
     expect(workspace).toContain("void chooseFolder()");
-    expect(workspace).not.toContain("<PhotoSourcePicker");
-    expect(workspace).toMatch(/const pickFolder[\s\S]*setRemoteFolder\(null\)[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"/);
+    expect(workspace).toContain("<PhotoSourcePicker");
+    expect(workspace).toContain('aria-label="폴더 선택 닫기"');
+    expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
     expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
