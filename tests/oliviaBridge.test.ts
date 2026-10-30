@@ -137,6 +137,7 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain('setExecutionMode("LOCAL_DIRECT")');
     expect(workspace).toContain("void chooseFolder()");
     expect(workspace).not.toContain("<PhotoSourcePicker");
+    expect(workspace).toMatch(/const pickFolder[\s\S]*setRemoteFolder\(null\)[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"/);
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
     expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
@@ -150,6 +151,8 @@ describe("Olivia Bridge", () => {
     expect(workspace).not.toContain('sourceScope="person-select"');
     expect(windowAdapter).toContain("DesktopWindowRouteProvider");
     expect(windowAdapter).toContain("routeHref: context?.routeHref");
+    expect(windowAdapter).toContain("navigate,");
+    expect(windowAdapter).toContain('title: title ?? "Olivia Bridge"');
   });
 
   it("원격 썸네일은 로컬 File 없이도 Bridge 파일로 분석할 수 있다", () => {

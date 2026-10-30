@@ -489,7 +489,7 @@ export default function OliviaBridgeWorkspace({
   workflowRunId?: string;
 } = {}) {
   const sp = useSearchParams();
-  const { routeHref } = useDesktopWindowRoute();
+  const { routeHref, navigate } = useDesktopWindowRoute();
   const picker = usePhotoFolderPicker();
   const {
     currentLocalFolder,
@@ -501,7 +501,6 @@ export default function OliviaBridgeWorkspace({
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
-    executionMode,
     setExecutionMode,
     stageBridgeClassificationPlan,
     photoDepartmentResolution,
@@ -727,9 +726,24 @@ export default function OliviaBridgeWorkspace({
 
   /** Bridge의 폴더 선택은 항상 현재 기기의 로컬 폴더 피커를 연다. */
   const pickFolder = useCallback(() => {
+    if (remoteFolder) {
+      remoteLoadGenerationRef.current += 1;
+      setRemoteFolder(null);
+      setScan(EMPTY_SCAN);
+      setBreadcrumbs([]);
+      setSelectedIds(new Set());
+      setAnchorId(null);
+      setFocusedId(null);
+      setPreviewSize(undefined);
+    }
+    navigate?.("/olivia-bridge", "Olivia Bridge", {
+      clientId,
+      projectId: workflowRunId,
+      workflowRunId,
+    });
     setExecutionMode("LOCAL_DIRECT");
     void chooseFolder();
-  }, [chooseFolder, setExecutionMode]);
+  }, [chooseFolder, clientId, navigate, remoteFolder, setExecutionMode, setSelectedIds, workflowRunId]);
 
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
     const generation = ++remoteLoadGenerationRef.current;
