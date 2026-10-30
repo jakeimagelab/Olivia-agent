@@ -39,6 +39,7 @@ fi
 
 required_runners=(
   scripts/mac-studio-remote-bridge.ts
+  scripts/photo-thumbs-runner.ts
   scripts/remote-photo-sort-runner.ts
   scripts/photo-prepare-source-runner.ts
   scripts/photo-stage-jpg-runner.ts
@@ -123,13 +124,18 @@ STATE_DIR="$WORKER_HOME/state"
 mkdir -p "$STATE_DIR"
 INSTALLED_REV="$(git -C "$REPO_ROOT" rev-parse HEAD 2>/dev/null || print unknown)"
 INSTALLED_AT="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+INSTALLED_REPO_ROOT="$REPO_ROOT"
 REV_TEMP="$STATE_DIR/.installed-rev.$$.tmp"
 AT_TEMP="$STATE_DIR/.installed-at.$$.tmp"
+ROOT_TEMP="$STATE_DIR/.installed-repo-root.$$.tmp"
 print -- "$INSTALLED_REV" > "$REV_TEMP"
 print -- "$INSTALLED_AT" > "$AT_TEMP"
+print -- "$INSTALLED_REPO_ROOT" > "$ROOT_TEMP"
 mv "$REV_TEMP" "$STATE_DIR/installed-rev"
 mv "$AT_TEMP" "$STATE_DIR/installed-at"
+mv "$ROOT_TEMP" "$STATE_DIR/installed-repo-root"
 print -- "[install] 설치 revision 기록: ${INSTALLED_REV[1,12]} ($INSTALLED_AT)"
+print -- "[install] 실행 repository 고정: $INSTALLED_REPO_ROOT"
 
 if [[ "$RESTART_WORKER" == "1" ]]; then
   WORKER_SERVICE="gui/$(id -u)/com.olivia.macstudio.oliviaworker"

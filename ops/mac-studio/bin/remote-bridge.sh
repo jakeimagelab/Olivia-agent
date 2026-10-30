@@ -19,7 +19,15 @@ if (( $# == 0 )); then
   while true; do sleep 3600; done
 fi
 
-REPO_ROOT="${OLIVIA_REPO_ROOT:-$HOME/UGnasync/Cloade/Olivia-agent-main}"
+# 설치기가 검증하고 revision을 기록한 repository를 실제 job 실행에도 사용한다.
+# worker.env의 오래된 OLIVIA_REPO_ROOT가 남아 있어도 "최신" 진단과 구버전
+# runner 실행이 엇갈리지 않게 한다.
+INSTALLED_REPO_ROOT_FILE="$WORKER_HOME/state/installed-repo-root"
+INSTALLED_REPO_ROOT=""
+if [[ -f "$INSTALLED_REPO_ROOT_FILE" ]]; then
+  IFS= read -r INSTALLED_REPO_ROOT < "$INSTALLED_REPO_ROOT_FILE" || true
+fi
+REPO_ROOT="${INSTALLED_REPO_ROOT:-${OLIVIA_REPO_ROOT:-$HOME/UGnasync/Cloade/Olivia-agent-main}}"
 BRIDGE_RUNNER="$REPO_ROOT/scripts/mac-studio-remote-bridge.ts"
 typeset -A PHASE6_RUNNERS=(
   PHOTO_PREPARE_SOURCE photo-prepare-source-runner.ts
@@ -33,6 +41,10 @@ if [[ ! -d "$REPO_ROOT" ]]; then
 fi
 if [[ ! -f "$BRIDGE_RUNNER" ]]; then
   print -u2 -- "[remote-bridge] 실행기를 찾을 수 없습니다: $BRIDGE_RUNNER"
+  exit 1
+fi
+if [[ ! -f "$REPO_ROOT/scripts/photo-thumbs-runner.ts" ]]; then
+  print -u2 -- "[remote-bridge] PHOTO_THUMBS runner를 찾을 수 없습니다: $REPO_ROOT/scripts/photo-thumbs-runner.ts"
   exit 1
 fi
 for action runner_name in "${(@kv)PHASE6_RUNNERS}"; do

@@ -183,8 +183,12 @@ describe("Mac Studio Worker repository scripts", () => {
     expect(worker).toContain("x-olivia-photo-watcher-progress");
     expect(worker).toContain("x-olivia-worker-rev");
     expect(installer).toContain("installed-rev");
+    expect(installer).toContain("installed-repo-root");
     expect(installer).toContain("git -C \"$REPO_ROOT\" rev-parse HEAD");
+    expect(installer).toContain("scripts/photo-thumbs-runner.ts");
     expect(installer).toContain("scripts/video-interview-runner.ts");
+    expect(bridge).toContain("$WORKER_HOME/state/installed-repo-root");
+    expect(bridge).toContain("scripts/photo-thumbs-runner.ts");
   });
 
   it("makes resident NAS watcher startup failures visible and terminal", async () => {
