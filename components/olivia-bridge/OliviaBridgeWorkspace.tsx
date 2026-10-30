@@ -41,7 +41,6 @@ import {
 } from "react";
 
 import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
-import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
@@ -510,7 +509,6 @@ export default function OliviaBridgeWorkspace({
   } = usePhotoStudioExecution();
   const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
   const [remoteFolder, setRemoteFolder] = useState<RemoteNasSelection | null>(null);
-  const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
   const [scanError, setScanError] = useState<string>();
@@ -660,6 +658,7 @@ export default function OliviaBridgeWorkspace({
     nestedJpgs = includeNestedJpgs,
   ) => {
     remoteLoadGenerationRef.current += 1;
+    setExecutionMode("LOCAL_DIRECT");
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
@@ -712,7 +711,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [includeNestedJpgs, setCurrentLocalFolder, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setSelectedIds]);
+  }, [includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setSelectedIds]);
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -726,14 +725,11 @@ export default function OliviaBridgeWorkspace({
     await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
   }, [loadDirectory, picker]);
 
-  /** 로컬이면 지금처럼 폴더 피커, 원격이면 NAS 선택기를 연다. */
+  /** Bridge의 폴더 선택은 항상 현재 기기의 로컬 폴더 피커를 연다. */
   const pickFolder = useCallback(() => {
-    if (executionMode === "REMOTE_WORKER") {
-      setNasPickerOpen(true);
-      return;
-    }
+    setExecutionMode("LOCAL_DIRECT");
     void chooseFolder();
-  }, [chooseFolder, executionMode]);
+  }, [chooseFolder, setExecutionMode]);
 
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
     const generation = ++remoteLoadGenerationRef.current;
@@ -1289,7 +1285,7 @@ export default function OliviaBridgeWorkspace({
 
       <main ref={workspaceRef} className={styles.workspace}>
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
-          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => void chooseFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
+          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => pickFolder()} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <label className={styles.nestedJpgToggle}>
             <input
@@ -1514,15 +1510,6 @@ export default function OliviaBridgeWorkspace({
         />
       ) : null}
 
-      {nasPickerOpen ? (
-        <PhotoSourcePicker
-          onCancel={() => setNasPickerOpen(false)}
-          onSelectRemote={(selection) => {
-            setNasPickerOpen(false);
-            void loadRemoteDirectory(selection);
-          }}
-        />
-      ) : null}
     </div>
   );
 }
