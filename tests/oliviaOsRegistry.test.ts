@@ -17,14 +17,13 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("uses the ten-slot OS Dock sequence", () => {
+  it("uses the focused OS Dock sequence", () => {
     const dockApps = getDockApps();
     expect(dockApps.map((app) => app.id)).toEqual([
       "today",
       "customer",
       "calendar",
       "olivia-bridge",
-      "photo-workspace",
       "video-studio",
       "quote",
       "conti",
@@ -53,7 +52,7 @@ describe("OLIVIA OS app registry navigation", () => {
     expect(getOliviaApp("olivia-bridge")).toMatchObject({ title: "Olivia Bridge", route: "/olivia-bridge" });
     expect(getOliviaApp("photo-workspace")).toMatchObject({ route: "/photo-sorting" });
     expect(getOliviaApp("photo-workspace")?.desktopShortcutOrder).toBeUndefined();
-    expect(getOliviaApp("photo-workspace")?.dockOrder).toBe(5);
+    expect(getOliviaApp("photo-workspace")?.dockOrder).toBeUndefined();
   });
 
   it("keeps conti and portrait consent standalone while mapping old video production", () => {

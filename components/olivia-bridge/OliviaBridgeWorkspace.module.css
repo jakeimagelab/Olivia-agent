@@ -220,6 +220,7 @@
 
 .folderList { min-height: 0; overflow: auto; padding: 5px 11px 12px; scrollbar-color: rgba(255, 255, 255, .22) transparent; scrollbar-width: thin; }
 .folderList > small, .filterList > small { display: block; margin: 4px 8px 8px; color: rgba(255, 255, 255, .4); font-size: 9px; }
+.filterList > small:not(:first-child) { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bridge-line); }
 .folderList button { width: 100%; min-height: 38px; display: grid; grid-template-columns: 18px minmax(0, 1fr) 14px; align-items: center; gap: 7px; padding: 0 8px; border: 0; border-radius: 7px; color: rgba(255, 255, 255, .67); background: transparent; font: 500 10.5px/1 inherit; text-align: left; cursor: pointer; }
 .folderList button:hover { color: #fff; background: rgba(255, 255, 255, .06); }
 .folderList button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

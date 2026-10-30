@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowUp, Maximize2, Minimize2, Minus, Paperclip, Plus, Search, Square } from "lucide-react";
+import { ArrowRight, ArrowUp, Maximize2, Minimize2, Minus, Paperclip, Plus, Search, Square } from "lucide-react";
 import { MarkdownText, OliviaIcon } from "@/components/olivia/OliviaChatPrimitives";
 import { messageText, type OliviaMessageBlock } from "@/lib/olivia/v2/types";
 import { executeOliviaAction } from "@/lib/olivia/agent/actionRouter";
@@ -568,7 +568,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             ref={textareaRef}
             value={input}
             rows={1}
-            placeholder={isHome ? "무엇을 도와드릴까요?" : "Olivia에게 무엇이든 말해보세요…"}
+            placeholder={activeDockId === "desktop-home" ? "무엇이든 시키세요" : isHome ? "무엇을 도와드릴까요?" : "Olivia에게 무엇이든 말해보세요…"}
             onChange={(event) => onInput(event.target.value)}
             onFocus={() => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); setChatFocused(true); }}
             onBlur={() => { blurTimerRef.current = setTimeout(() => setChatFocused(false), 450); }}
@@ -591,7 +591,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
             onClick={isStreaming ? stopResponse : submit}
             disabled={!isStreaming && !input.trim() && !pendingAttachments.some((item) => item.status === "ready")}
           >
-            {isStreaming ? <Square size={13} fill="currentColor" /> : <ArrowUp size={16} />}
+            {isStreaming ? <Square size={13} fill="currentColor" /> : activeDockId === "desktop-home" ? <ArrowRight size={17} /> : <ArrowUp size={16} />}
           </button>
         </div>
         </div>

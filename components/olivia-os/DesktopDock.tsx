@@ -1,13 +1,38 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Grid3X3 } from "lucide-react";
+import {
+  CalendarDays,
+  FileText,
+  Film,
+  Home,
+  Images,
+  LayoutPanelTop,
+  NotebookText,
+  Search,
+  UsersRound,
+  type LucideIcon,
+} from "lucide-react";
 import { getDockApps } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
-import { AppIcon } from "./AppIcon";
 import { resolveDockLayout, type DockIconSize } from "./dockLayout";
 import styles from "./OliviaDesktop.module.css";
+
+const DOCK_ICONS: Record<string, LucideIcon> = {
+  today: Home,
+  customer: UsersRound,
+  calendar: CalendarDays,
+  "olivia-bridge": Images,
+  "video-studio": Film,
+  quote: FileText,
+  conti: LayoutPanelTop,
+  "work-journal": NotebookText,
+};
+
+const DOCK_LABELS: Record<string, string> = {
+  "olivia-bridge": "Bridge",
+};
 
 export function DesktopDock() {
   const dockRef = useRef<HTMLDivElement>(null);
@@ -44,17 +69,20 @@ export function DesktopDock() {
       <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock">
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
-            {index === 3 || index === 6 || index === 9 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
+            {index === 3 || index === 5 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
             <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={app.title}>
-              <AppIcon icon={app.icon} size={layout.iconSize} active={activeWindowId === app.id} />
-              <span className={styles.dockLabel}>{app.title}</span>
+              <span className={styles.dockGlyph} aria-hidden="true">{(() => {
+                const Icon = DOCK_ICONS[app.id] ?? FileText;
+                return <Icon size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />;
+              })()}</span>
+              <span className={styles.dockLabel}>{DOCK_LABELS[app.id] ?? app.title}</span>
               {windows[app.id] ? <i className={styles.dockIndicator} /> : null}
             </button>
           </div>
         ))}
         <span className={styles.dockDivider} aria-hidden="true" />
         <button type="button" className={styles.dockButton} onClick={() => setGlobalSearchOpen(true)} aria-label="모든 앱">
-          <span className={styles.dockAllAppsIcon}><Grid3X3 size={25} /></span>
+          <span className={styles.dockGlyph}><Search size={24} strokeWidth={1.75} /></span>
           <span className={styles.dockLabel}>모든 앱</span>
         </button>
       </div>

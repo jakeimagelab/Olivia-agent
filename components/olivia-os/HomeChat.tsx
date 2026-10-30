@@ -21,6 +21,11 @@ function greeting(now: Date) {
   return `${now.toLocaleDateString("ko-KR", { weekday: "long" })} ${period}입니다.`;
 }
 
+function taskCountSentence(count: number) {
+  const labels = ["없습니다", "한 건 있습니다", "두 건 있습니다", "세 건 있습니다", "네 건 있습니다"];
+  return labels[count] ?? `${count}건 있습니다`;
+}
+
 export function HomeChat() {
   const [status, setStatus] = useState<StatusPanelData | null>(null);
   const [gallery, setGallery] = useState<Gallery | null>(null);
@@ -54,24 +59,25 @@ export function HomeChat() {
   return (
     <section className={styles.homeChat} style={photo ? { backgroundImage: `linear-gradient(180deg, rgba(22,48,43,.64), rgba(22,48,43,.91)), url("${photo}")` } : undefined}>
       <div className={styles.homeChatCenter}>
-        <p className={styles.homeChatEyebrow}>{dateLine}</p>
-        <h1>{greeting(now)} <span>먼저 볼 게 {tasks.length ? `${tasks.length}건` : "없습니다"}.</span></h1>
-        <p className={styles.homeChatSubline}>오늘의 일과 촬영 작업을 한곳에서 이어갑니다.</p>
-        <div className={styles.homeTaskList} aria-label="내 차례">
-          {tasks.map((entry) => (
-            <button
-              type="button"
-              key={entry.id}
-              onClick={() => entry.href && launchHref(entry.href, entry.title, {
-                clientId: entry.clientId ?? undefined,
-                workflowRunId: entry.workflowRunId ?? undefined,
-                projectId: entry.projectId ?? undefined,
-              })}
-            >
-              <span><strong>{entry.title}</strong>{entry.detail ? <small>{entry.detail}</small> : null}</span>
-              <ChevronRight size={17} />
-            </button>
-          ))}
+        <div className={styles.homeChatOverview}>
+          <h1>{greeting(now)} <span>먼저 볼 게 {taskCountSentence(tasks.length)}.</span></h1>
+          <p className={styles.homeChatSubline}>{dateLine} · 오늘의 일과 촬영 작업을 한곳에서 이어갑니다.</p>
+          <div className={styles.homeTaskList} aria-label="내 차례">
+            {tasks.map((entry) => (
+              <button
+                type="button"
+                key={entry.id}
+                onClick={() => entry.href && launchHref(entry.href, entry.title, {
+                  clientId: entry.clientId ?? undefined,
+                  workflowRunId: entry.workflowRunId ?? undefined,
+                  projectId: entry.projectId ?? undefined,
+                })}
+              >
+                <span><strong>{entry.title}</strong>{entry.detail ? <small>{entry.detail}</small> : null}</span>
+                <ChevronRight size={17} />
+              </button>
+            ))}
+          </div>
         </div>
         <OliviaChatDockTarget id="desktop-home" priority={90} className={styles.homeChatDock} />
       </div>

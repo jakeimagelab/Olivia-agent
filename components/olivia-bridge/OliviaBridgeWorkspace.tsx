@@ -99,8 +99,7 @@ import {
   BRIDGE_COLOR_LABELS,
   bridgeLabelFilterCommandFromShortcutCode,
   bridgeLabelFilterName,
-  countBridgeLabeledFiles,
-  hasBridgeLabel,
+  matchesBridgeSelectionView,
   matchesBridgeLabelFilter,
   normalizeBridgeColorLabels,
   toggleBridgeColorLabel,
@@ -109,6 +108,7 @@ import {
   type BridgeColorLabels,
   type BridgeLabelFilter,
   type BridgeLabelFilterCommand,
+  type BridgeSelectionView,
 } from "@/lib/photo-bridge/labels";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
@@ -134,7 +134,7 @@ type SceneState = {
   error?: string;
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
-type FileFilter = "all" | "jpg" | "raw" | "sidecar" | "rated" | "labeled" | "excluded";
+type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
   pointerId: number;
@@ -575,8 +575,9 @@ export default function OliviaBridgeWorkspace({
   const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
     if (labelFilter) return matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, colorLabels);
     if (fileFilter === "raw" || fileFilter === "sidecar") return false;
-    if (fileFilter === "rated") return Boolean(effectiveRatings[photo.id]);
-    if (fileFilter === "labeled") return hasBridgeLabel(photo.id, effectiveRatings, colorLabels);
+    if (fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected") {
+      return matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, colorLabels);
+    }
     if (fileFilter === "excluded") return excludedIds.has(photo.id);
     return true;
   }), [colorLabels, effectiveRatings, excludedIds, fileFilter, labelFilter, scan.jpgs]);
@@ -1205,16 +1206,29 @@ export default function OliviaBridgeWorkspace({
     if (marqueeFrameRef.current !== null) cancelAnimationFrame(marqueeFrameRef.current);
   }, []);
 
-  const labeledCount = countBridgeLabeledFiles(scan.jpgs.map((photo) => photo.id), effectiveRatings, colorLabels);
+  const selectionCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
+    const hasStar = matchesBridgeSelectionView(photo.id, "starred", effectiveRatings, colorLabels);
+    const hasColor = matchesBridgeSelectionView(photo.id, "colored", effectiveRatings, colorLabels);
+    if (hasStar) counts.starred += 1;
+    if (hasColor) counts.colored += 1;
+    if (hasStar || hasColor) counts.selected += 1;
+    else counts.unselected += 1;
+    return counts;
+  }, { starred: 0, colored: 0, selected: 0, unselected: 0 }), [colorLabels, effectiveRatings, scan.jpgs]);
+  const labeledCount = selectionCounts.selected;
   const activeLabelFilterName = labelFilter ? bridgeLabelFilterName(labelFilter) : null;
-  const filters: Array<{ key: FileFilter; label: string; count: number }> = [
+  const fileFilters: Array<{ key: FileFilter; label: string; count: number }> = [
     { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
     { key: "jpg", label: "JPG", count: scan.jpgs.length },
     { key: "raw", label: "RAW", count: scan.raws.length },
     { key: "sidecar", label: "사이드카", count: scan.sidecars.length },
-    { key: "rated", label: "별점", count: Object.keys(effectiveRatings).length },
-    { key: "labeled", label: "레이블 있음", count: labeledCount },
     { key: "excluded", label: "제외", count: excludedIds.size },
+  ];
+  const selectionFilters: Array<{ key: FileFilter; label: string; count: number }> = [
+    { key: "starred", label: "별 셀렉 사진만 보기", count: selectionCounts.starred },
+    { key: "colored", label: "컬러 셀렉 사진만 보기", count: selectionCounts.colored },
+    { key: "selected", label: "모든 셀렉 사진만 보기", count: labeledCount },
+    { key: "unselected", label: "셀렉 사진 제외하고 보기", count: selectionCounts.unselected },
   ];
   const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
   const selectedSceneAnalysis = useMemo(() => {
@@ -1294,7 +1308,9 @@ export default function OliviaBridgeWorkspace({
           </div>
           <div className={styles.filterList}>
             <small>파일 필터</small>
-            {filters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+            {fileFilters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+            <small>셀렉 보기</small>
+            {selectionFilters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
           </div>
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
         </aside>

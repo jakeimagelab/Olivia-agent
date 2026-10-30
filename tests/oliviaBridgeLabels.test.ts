@@ -5,6 +5,7 @@ import {
   bridgeLabelFilterName,
   countBridgeLabeledFiles,
   hasBridgeLabel,
+  matchesBridgeSelectionView,
   matchesBridgeLabelFilter,
   normalizeBridgeColorLabels,
   toggleBridgeColorLabel,
@@ -47,6 +48,16 @@ describe("Olivia Bridge labels", () => {
     expect(hasBridgeLabel("c", ratings, colors)).toBe(true);
     expect(hasBridgeLabel("d", ratings, colors)).toBe(false);
     expect(countBridgeLabeledFiles(["a", "b", "c", "d"], ratings, colors)).toBe(3);
+  });
+
+  it("separates star, color, all selection, and unselected views", () => {
+    const ratings = { star: 5, both: 2 };
+    const colors = { color: 8, both: 6 } as const;
+
+    expect(["star", "color", "both", "none"].filter((id) => matchesBridgeSelectionView(id, "starred", ratings, colors))).toEqual(["star", "both"]);
+    expect(["star", "color", "both", "none"].filter((id) => matchesBridgeSelectionView(id, "colored", ratings, colors))).toEqual(["color", "both"]);
+    expect(["star", "color", "both", "none"].filter((id) => matchesBridgeSelectionView(id, "selected", ratings, colors))).toEqual(["star", "color", "both"]);
+    expect(["star", "color", "both", "none"].filter((id) => matchesBridgeSelectionView(id, "unselected", ratings, colors))).toEqual(["none"]);
   });
 
   it("maps macOS shortcut codes to exact label filters", () => {

@@ -12,6 +12,7 @@ export type BridgeLabelFilter =
   | { kind: "rating"; rating: BridgeRating }
   | { kind: "color"; label: BridgeColorLabel };
 export type BridgeLabelFilterCommand = BridgeLabelFilter | { kind: "all" };
+export type BridgeSelectionView = "starred" | "colored" | "selected" | "unselected";
 
 export function updateBridgeRatings(
   current: Readonly<Record<string, number>>,
@@ -69,6 +70,20 @@ export function countBridgeLabeledFiles(
   colorLabels: Readonly<BridgeColorLabels>,
 ) {
   return ids.reduce((count, id) => count + (hasBridgeLabel(id, ratings, colorLabels) ? 1 : 0), 0);
+}
+
+export function matchesBridgeSelectionView(
+  id: string,
+  view: BridgeSelectionView,
+  ratings: Readonly<Record<string, number>>,
+  colorLabels: Readonly<BridgeColorLabels>,
+) {
+  const hasStar = Boolean(ratings[id]);
+  const hasColor = isBridgeColorLabel(colorLabels[id]);
+  if (view === "starred") return hasStar;
+  if (view === "colored") return hasColor;
+  if (view === "selected") return hasStar || hasColor;
+  return !hasStar && !hasColor;
 }
 
 export function bridgeLabelFilterCommandFromShortcutCode(code: string): BridgeLabelFilterCommand | null {

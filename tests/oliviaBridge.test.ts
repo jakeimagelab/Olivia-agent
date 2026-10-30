@@ -241,7 +241,8 @@ describe("Olivia Bridge", () => {
     expect(getDesktopShortcutApps().map((app) => app.id)).toContain("olivia-bridge");
     expect(getDesktopShortcutApps().map((app) => app.id)).not.toContain("photo-workspace");
     expect(getDockApps().map((app) => app.id)).toContain("olivia-bridge");
-    expect(getDockApps().map((app) => app.id)).toContain("photo-workspace");
+    expect(getDockApps().map((app) => app.id)).not.toContain("photo-workspace");
+    expect(getOliviaAppByRoute("/photo-sorting")).toMatchObject({ id: "photo-workspace" });
     expect(DESKTOP_APP_TO_WORKSPACE["olivia-bridge"]).toBe("photo-sort");
   });
 

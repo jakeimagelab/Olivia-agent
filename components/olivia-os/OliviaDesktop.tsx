@@ -21,6 +21,7 @@ import styles from "./OliviaDesktop.module.css";
 
 function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
   const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
+  const [appChatMounted, setAppChatMounted] = useState(false);
   const handledInitialLaunchRef = useRef<OliviaRootLaunch | null>(null);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
@@ -67,13 +68,22 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
 
   const showAppChat = Boolean(activeWindowId && appChatOpen && activeWindowId !== "olivia-chat");
 
+  useEffect(() => {
+    if (showAppChat) {
+      setAppChatMounted(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setAppChatMounted(false), 300);
+    return () => window.clearTimeout(timer);
+  }, [showAppChat]);
+
   return (
     <div className={styles.desktop} data-home={!activeWindowId} data-olivia-desktop-root>
       <DesktopTopBar onOpenOverlay={setOverlay} />
       <HomeDashboardDataProvider>
         <div className={styles.desktopBody} data-chat-open={showAppChat}>
           <DesktopSurface />
-          {showAppChat ? <DesktopAppChatPanel onClose={() => setAppChatOpen(false)} /> : null}
+          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} onClose={() => setAppChatOpen(false)} /> : null}
         </div>
       </HomeDashboardDataProvider>
       <div className={styles.dockArea}><DesktopDock /></div>

@@ -20,8 +20,8 @@ describe("Olivia Desktop responsive Dock", () => {
     expect(resolveDockLayout(420, 11)).toEqual({ iconSize: 34, scrollable: true });
   });
 
-  it("accounts for the wider labelled ten-slot Dock", () => {
-    expect(resolveDockLayout(720, 10).iconSize).toBe(34);
-    expect(resolveDockLayout(780, 10).iconSize).toBe(40);
+  it("accounts for the labelled focused Dock", () => {
+    expect(resolveDockLayout(650, 9).iconSize).toBe(34);
+    expect(resolveDockLayout(660, 9).iconSize).toBe(40);
   });
 });
