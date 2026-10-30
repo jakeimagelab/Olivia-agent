@@ -15,10 +15,13 @@ type DesktopUtilityNotice = {
 
 type OliviaDesktopUtilityState = {
   globalSearchOpen: boolean;
+  appChatOpen: boolean;
   chatCompact: boolean;
   captureInProgress: boolean;
   notice: DesktopUtilityNotice | null;
   setGlobalSearchOpen: (open: boolean) => void;
+  setAppChatOpen: (open: boolean) => void;
+  toggleAppChat: () => void;
   setChatCompact: (compact: boolean) => void;
   toggleChatCompact: () => void;
   setCaptureInProgress: (inProgress: boolean) => void;
@@ -30,10 +33,13 @@ let noticeId = 0;
 
 export const useOliviaDesktopUtilityStore = create<OliviaDesktopUtilityState>((set, get) => ({
   globalSearchOpen: false,
+  appChatOpen: false,
   chatCompact: false,
   captureInProgress: false,
   notice: null,
   setGlobalSearchOpen: (open) => set({ globalSearchOpen: open }),
+  setAppChatOpen: (appChatOpen) => set({ appChatOpen }),
+  toggleAppChat: () => set({ appChatOpen: !get().appChatOpen }),
   setChatCompact: (chatCompact) => set({ chatCompact }),
   toggleChatCompact: () => set({ chatCompact: !get().chatCompact }),
   setCaptureInProgress: (captureInProgress) => set({ captureInProgress }),

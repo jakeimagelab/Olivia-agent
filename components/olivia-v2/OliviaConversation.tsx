@@ -26,6 +26,7 @@ import {
 } from "@/lib/olivia/chatAttachments";
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
+const DESKTOP_HOME_SUGGESTIONS = ["지관서가 씬 분류", "청담스시 계약서 만들어", "이번 주 촬영 뭐 있지", "전주푸른안과 콘티 보여줘"];
 const MOBILE_SUGGESTIONS = ["견적 만들어줘", "오늘 일정 알려줘", "메모 남겨줘"];
 
 // PHASE 4 작업 1(2026-09-25) — Hermes 실패 뒤 안전한 대체 경로로 처리했음을 접었다 펼치는 배지로 보여준다.
@@ -82,7 +83,11 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   // Desktop 앱이 있으면 그 앱 전용 제안으로 바꾼다. Desktop 밖(다른 라우트)에서는 이 값이 항상
   // null이라 기존 기본값 그대로 나온다.
   const effectiveDesktopApp = useOliviaDesktopEffectiveActiveApp();
-  const suggestions = variant === "mobile" ? MOBILE_SUGGESTIONS : (effectiveDesktopApp && DESKTOP_APP_SUGGESTIONS[effectiveDesktopApp.appId]) || DEFAULT_SUGGESTIONS;
+  const suggestions = activeDockId === "desktop-home"
+    ? DESKTOP_HOME_SUGGESTIONS
+    : variant === "mobile"
+      ? MOBILE_SUGGESTIONS
+      : (effectiveDesktopApp && DESKTOP_APP_SUGGESTIONS[effectiveDesktopApp.appId]) || DEFAULT_SUGGESTIONS;
   const isHydrated = useOliviaConversationStore((state) => state.isHydrated);
   const isSending = useOliviaConversationStore((state) => state.isSending);
   const isStreaming = useOliviaConversationStore((state) => state.isStreaming);
@@ -593,8 +598,12 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       </div>
       {isHome && isEmpty ? (
         <div className="olivia-conversation__suggestions olivia-conversation__suggestions--below-composer">
-          <button type="button" onClick={() => prefillHomePrompt("업무 요청: ")}><Paperclip size={15} strokeWidth={1.7} /> 업무 요청</button>
-          <button type="button" onClick={() => prefillHomePrompt("정보 검색: ")}><Search size={15} strokeWidth={1.7} /> 정보 검색</button>
+          {activeDockId === "desktop-home" ? DESKTOP_HOME_SUGGESTIONS.map((prompt) => (
+            <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
+          )) : <>
+            <button type="button" onClick={() => prefillHomePrompt("업무 요청: ")}><Paperclip size={15} strokeWidth={1.7} /> 업무 요청</button>
+            <button type="button" onClick={() => prefillHomePrompt("정보 검색: ")}><Search size={15} strokeWidth={1.7} /> 정보 검색</button>
+          </>}
         </div>
       ) : null}
         </div>

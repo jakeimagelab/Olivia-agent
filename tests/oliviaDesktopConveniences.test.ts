@@ -76,7 +76,7 @@ describe("Olivia desktop convenience controls", () => {
     expect(useOliviaDesktopStore.getState().tiledSnapshot).toBeNull();
   });
 
-  it("keeps the original search shortcut and compact chat while removing window chrome", () => {
+  it("uses command search and the full-screen app chat panel while retaining compact-chat compatibility", () => {
     const root = process.cwd();
     const search = readFileSync(resolve(root, "components/olivia-os/DesktopGlobalSearch.tsx"), "utf8");
     const desktop = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.tsx"), "utf8");
@@ -86,7 +86,7 @@ describe("Olivia desktop convenience controls", () => {
     const utilityStore = readFileSync(resolve(root, "lib/store/useOliviaDesktopUtilityStore.ts"), "utf8");
     const topBar = readFileSync(resolve(root, "components/olivia-os/DesktopTopBar.tsx"), "utf8");
     const desktopCss = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.module.css"), "utf8");
-    expect(search).toContain("(event.metaKey || event.ctrlKey) && event.key.toLowerCase() === \"f\"");
+    expect(search).toContain('["k", "f"].includes(event.key.toLowerCase())');
     expect(search).toContain("useOliviaDesktopUtilityStore");
     expect(desktop).not.toContain("OliviaMiniChat");
     expect(appWindow).toContain("data-chat-compact");
@@ -102,10 +102,11 @@ describe("Olivia desktop convenience controls", () => {
     expect(actions).toContain("useOliviaConversationStore");
     expect(utilityStore).toContain("chatCompact");
     expect(utilityStore).not.toContain("messages:");
-    expect(topBar).toContain('const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "가이드", "도움말"]');
+    expect(topBar).toContain('어디로 갈까요');
+    expect(topBar).toContain('toggleAppChat');
     expect(desktopCss).toContain("--desktop-dock-bottom: 18px");
-    expect(desktopCss).not.toContain(".desktop:has([data-chat-compact]) .dockArea");
-    expect(desktopCss).toMatch(/\.topBarCenter\s*\{[\s\S]*?left:\s*50%[\s\S]*?transform:\s*translateX\(-50%\)/);
+    expect(desktopCss).toContain('.desktopBody[data-chat-open="true"]');
+    expect(desktopCss).toContain('.dockReveal:hover .dock');
   });
 
   it("fits compact chat beside the centered Dock without moving the Dock", () => {

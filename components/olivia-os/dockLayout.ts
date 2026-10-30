@@ -9,14 +9,14 @@ export type DockLayout = {
 
 const DOCK_GAP = 6;
 const DOCK_HORIZONTAL_PADDING = 20;
-const DOCK_BUTTON_EXTRA_WIDTH = 4;
+const DOCK_BUTTON_EXTRA_WIDTH = 14;
 const DOCK_DIVIDER_WIDTH = 7;
 const DOCK_MAX_WIDTH_RATIO = 0.9;
 
 export function getRequiredDockWidth(
   iconSize: DockIconSize,
   buttonCount: number,
-  dividerCount = 2,
+  dividerCount = 3,
 ) {
   const childCount = buttonCount + dividerCount;
   const gapsWidth = Math.max(0, childCount - 1) * DOCK_GAP;
@@ -30,7 +30,7 @@ export function getRequiredDockWidth(
 export function resolveDockLayout(
   availableWidth: number,
   buttonCount: number,
-  dividerCount = 2,
+  dividerCount = 3,
 ): DockLayout {
   const widthLimit = Math.max(0, availableWidth) * DOCK_MAX_WIDTH_RATIO;
   const fittingSize = DOCK_ICON_SIZES.find(

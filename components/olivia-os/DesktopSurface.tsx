@@ -5,6 +5,7 @@ import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
 import { getDesktopContentKey } from "@/lib/olivia/desktopContentKey";
+import { HomeChat } from "./HomeChat";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
@@ -14,6 +15,7 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const setWorkspaceSize = useOliviaDesktopStore((state) => state.setWorkspaceSize);
+  const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const visitHistoryRef = useRef<string[]>([]);
   const visitIndexRef = useRef(-1);
@@ -125,6 +127,19 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [moveThroughHistory]);
 
+  useEffect(() => {
+    const move = (event: Event) => {
+      const direction = (event as CustomEvent<{ direction?: -1 | 1 }>).detail?.direction;
+      if (!direction) return;
+      if (moveThroughHistory(direction)) return;
+      const state = useOliviaDesktopStore.getState();
+      if (direction === -1 && state.activeWindowId) toggleShowDesktop();
+      else if (direction === 1 && !state.activeWindowId && state.showDesktopStash?.length) toggleShowDesktop();
+    };
+    window.addEventListener("olivia-desktop-history", move);
+    return () => window.removeEventListener("olivia-desktop-history", move);
+  }, [moveThroughHistory, toggleShowDesktop]);
+
   const activeWindow = activeWindowId ? windows[activeWindowId] : undefined;
   const activeApp = activeWindow
     ? oliviaAppRegistry.find((candidate) => candidate.id === activeWindow.appId)
@@ -153,7 +168,7 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
               context={activeWindow.context}
             />
           </AppWindow>
-        ) : null}
+        ) : <HomeChat />}
       </div>
     </main>
   );

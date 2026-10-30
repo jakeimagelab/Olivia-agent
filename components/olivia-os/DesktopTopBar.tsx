@@ -1,128 +1,72 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import { getDockApps, getOliviaApp } from "./registry/oliviaAppRegistry";
+import { useCallback, useEffect, useState } from "react";
+import { ChevronLeft, ChevronRight, CircleHelp, MessageCircle, Search } from "lucide-react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
 import { StatusPanelButton } from "./StatusPanelButton";
-import { closeOliviaDesktopWindow } from "@/lib/olivia/desktop/windowLifecycle";
-import { DesktopTopBarActions } from "./DesktopTopBarActions";
 import styles from "./OliviaDesktop.module.css";
 
-type MenuKey = "파일" | "보기" | "이동" | "가이드" | "도움말";
-const MENU_LABELS: MenuKey[] = ["파일", "보기", "이동", "가이드", "도움말"];
+type WorkerStatus = { online: boolean; nas_connected: boolean | null };
 
-export function DesktopTopBar({ onOpenOverlay }: {
-  onOpenOverlay: (kind: DesktopOverlayKind) => void;
-}) {
-  const [now, setNow] = useState<Date | null>(null);
-  const [online, setOnline] = useState<boolean | null>(null);
-  const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  const [guideLinkFallback, setGuideLinkFallback] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
+export function DesktopTopBar({ onOpenOverlay }: { onOpenOverlay: (kind: DesktopOverlayKind) => void }) {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
-  const openApp = useOliviaDesktopStore((state) => state.openApp);
-  const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
+  const activeWindow = useOliviaDesktopStore((state) => activeWindowId ? state.windows[activeWindowId] : undefined);
+  const setSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
+  const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
+  const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
+  const [worker, setWorker] = useState<WorkerStatus | null>(null);
 
   useEffect(() => {
-    setNow(new Date());
-    setOnline(navigator.onLine);
-    const timer = window.setInterval(() => setNow(new Date()), 30_000);
-    const updateOnline = () => setOnline(navigator.onLine);
-    window.addEventListener("online", updateOnline);
-    window.addEventListener("offline", updateOnline);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("online", updateOnline);
-      window.removeEventListener("offline", updateOnline);
-    };
+    let disposed = false;
+    const load = () => fetch("/api/remote-workers/status", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload) => { if (!disposed) setWorker(payload?.worker ?? null); })
+      .catch(() => { if (!disposed) setWorker(null); });
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => { disposed = true; window.clearInterval(timer); };
   }, []);
 
-  useEffect(() => {
-    if (!openMenu) return;
-    const close = (event: PointerEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setOpenMenu(null);
-    };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpenMenu(null); };
-    document.addEventListener("pointerdown", close);
-    window.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("pointerdown", close);
-      window.removeEventListener("keydown", escape);
-    };
-  }, [openMenu]);
-
-  const launch = (appId: string) => {
-    const app = getOliviaApp(appId);
-    if (!app) return;
-    openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height });
-    setOpenMenu(null);
-  };
-
-  const overlay = (kind: Exclude<DesktopOverlayKind, null>) => {
-    setOpenMenu(null);
-    onOpenOverlay(kind);
-  };
-
-  const copyStaffGuideLink = async () => {
-    const url = `${window.location.origin}/staff-guide`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setGuideLinkFallback("");
-      setOpenMenu(null);
-    } catch {
-      setGuideLinkFallback(url);
-      setOpenMenu("가이드");
-    }
-  };
-
-  const renderMenu = () => {
-    if (!openMenu) return null;
-    if (openMenu === "파일") return <>
-      <button type="button" onClick={() => launch("all-apps")}>모든 앱 열기</button>
-      <span className={styles.menuDivider} />
-      <button type="button" disabled={!activeWindowId} onClick={() => { if (activeWindowId) closeOliviaDesktopWindow(activeWindowId); setOpenMenu(null); }}>활성 창 닫기</button>
-    </>;
-    if (openMenu === "보기") return <>
-      <button type="button" onClick={() => { toggleShowDesktop(); setOpenMenu(null); }}>바탕화면 보기</button>
-      <button type="button" onClick={() => overlay("wallpaper")}>배경화면 변경</button>
-    </>;
-    if (openMenu === "이동") return <>
-      {getDockApps().map((app) => (
-        <button type="button" key={app.id} onClick={() => launch(app.id)}>{app.title}</button>
-      ))}
-    </>;
-    if (openMenu === "가이드") return <>
-      <button type="button" onClick={() => launch("staff-guide")}>스텝 가이드</button>
-      <button type="button" onClick={() => void copyStaffGuideLink()}>스텝 가이드 링크 복사</button>
-      {guideLinkFallback ? <label className={styles.menuCopyFallback}>주소를 선택해 복사해 주세요<input value={guideLinkFallback} readOnly onFocus={(event) => event.currentTarget.select()} /></label> : null}
-    </>;
-    return <button type="button" onClick={() => overlay("help")}>Olivia OS 사용법</button>;
-  };
+  const moveHistory = useCallback((direction: -1 | 1) => {
+    window.dispatchEvent(new CustomEvent("olivia-desktop-history", { detail: { direction } }));
+  }, []);
+  const workerLabel = !worker
+    ? "Mac Studio 확인 중 · NAS 확인 중"
+    : !worker.online
+      ? "Mac Studio 꺼짐 · NAS 미확인"
+      : worker.nas_connected === false
+        ? "Mac Studio 연결 · NAS 끊김"
+        : "Mac Studio · NAS";
 
   return (
-    <div className={styles.topBar}>
+    <header className={styles.topBar} data-home={!activeWindowId}>
       <div className={styles.topBarLeft}>
-        <span className={styles.topBarBrandMark}><Image src="/assets/photoclinic-mark.png" alt="" width={26} height={26} priority /></span>
-        <span className={styles.topBarBrand}>OLIVIA</span>
-        <div className={styles.menuBar} role="menubar" aria-label="시스템 메뉴" ref={menuRef}>
-          {MENU_LABELS.map((label) => (
-            <div className={styles.menuBarGroup} key={label}>
-              <button type="button" className={`${styles.menuBarItem} ${openMenu === label ? styles.menuBarItemOpen : ""}`} role="menuitem" aria-haspopup="menu" aria-expanded={openMenu === label} onClick={() => setOpenMenu((current) => current === label ? null : label)}>
-                {label}
-              </button>
-              {openMenu === label ? <div className={styles.menuDropdown} role="menu">{renderMenu()}</div> : null}
-            </div>
-          ))}
+        {activeWindowId ? (
+          <div className={styles.topBarHistory}>
+            <button type="button" onClick={() => moveHistory(-1)} aria-label="뒤로"><ChevronLeft size={17} /></button>
+            <button type="button" onClick={() => moveHistory(1)} aria-label="앞으로"><ChevronRight size={17} /></button>
+          </div>
+        ) : null}
+        <div className={styles.topBarLocation}>
+          <strong>{activeWindow?.title ?? "OLIVIA"}</strong>
+          {activeWindow?.context?.documentTitle || activeWindow?.context?.projectName || activeWindow?.context?.clientName ? (
+            <span>{activeWindow.context.documentTitle ?? activeWindow.context.projectName ?? activeWindow.context.clientName}</span>
+          ) : null}
         </div>
       </div>
-      <DesktopTopBarActions />
       <div className={styles.topBarRight}>
+        <button type="button" className={styles.topBarSearchButton} onClick={() => setSearchOpen(true)}>
+          <Search size={14} /><span>어디로 갈까요</span><kbd>⌘K</kbd>
+        </button>
         <StatusPanelButton />
-        {online !== null ? <span className={styles.topBarStatus} role="status" aria-label={online ? "온라인" : "오프라인"} title={online ? "온라인" : "오프라인"}><span className={`${styles.topBarStatusDot} ${!online ? styles.topBarStatusDotOffline : ""}`} /></span> : null}
-        {now ? <span className={styles.topBarClock}>{now.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span> : null}
+        <span className={styles.workerChip} data-online={Boolean(worker?.online)} data-nas={worker?.nas_connected !== false}>
+          <i />{workerLabel}
+        </span>
+        <button type="button" className={styles.topBarIconButton} onClick={() => onOpenOverlay("help")} aria-label="도움말"><CircleHelp size={17} /></button>
+        <button type="button" className={`${styles.topBarOliviaButton} ${appChatOpen ? styles.topBarOliviaButtonActive : ""}`} onClick={toggleAppChat} disabled={!activeWindowId} aria-label="Olivia 불러오기"><MessageCircle size={18} /></button>
       </div>
-    </div>
+    </header>
   );
 }

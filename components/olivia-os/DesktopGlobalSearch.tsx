@@ -48,7 +48,7 @@ export function DesktopGlobalSearch() {
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       if (isEditableKeyboardTarget(event.target)) return;
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+      if ((event.metaKey || event.ctrlKey) && ["k", "f"].includes(event.key.toLowerCase())) {
         event.preventDefault();
         setOpen(true);
       } else if (event.key === "Escape") {
@@ -59,7 +59,7 @@ export function DesktopGlobalSearch() {
     return () => window.removeEventListener("keydown", keydown);
   }, [setOpen]);
 
-  // The icon and the existing ⌘F listener both use the same open state. Focusing
+  // The top bar, Dock, and ⌘K listener all use the same open state. Focusing
   // here means opening from either entry point behaves identically.
   useEffect(() => {
     if (!open) return;
@@ -156,7 +156,7 @@ export function DesktopGlobalSearch() {
         />
       {loading ? <LoaderCircle className={styles.desktopSearchSpinner} size={13} aria-label="검색 중" /> : query ? (
         <button type="button" onClick={() => { setQuery(""); inputRef.current?.focus(); }} aria-label="검색어 지우기"><X size={13} /></button>
-      ) : <kbd>⌘F</kbd>}
+      ) : <kbd>⌘K</kbd>}
       <button type="button" className={styles.desktopSearchClose} onClick={() => setOpen(false)} aria-label="닫기">
         <X size={18} strokeWidth={2} />
       </button>

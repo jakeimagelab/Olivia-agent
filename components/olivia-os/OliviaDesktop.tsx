@@ -1,105 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loadDesktopState, useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { HomeDashboardDataProvider } from "@/components/dashboard/HomeDashboardData";
+import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
+import { requestOliviaDesktopExitConfirmation } from "@/lib/olivia/desktopExitGuard";
 import { useOliviaDesktopContextBridge } from "./useOliviaDesktopContextBridge";
 import { DesktopTopBar } from "./DesktopTopBar";
 import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopUtilityToast } from "./DesktopUtilityToast";
-import { DesktopSystemOverlay, type DesktopOverlayKind, type WallpaperMode } from "./DesktopSystemOverlay";
+import { DesktopSystemOverlay, type DesktopOverlayKind } from "./DesktopSystemOverlay";
+import { DesktopAppChatPanel } from "./DesktopAppChatPanel";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
 import { PhotoTaskStatusBar } from "./PhotoTaskStatusBar";
-import { clearOliviaRootLaunchParams, type OliviaRootLaunch } from "@/lib/olivia/navigation/clientRoute";
-import { requestOliviaDesktopExitConfirmation } from "@/lib/olivia/desktopExitGuard";
 import styles from "./OliviaDesktop.module.css";
 
-const WALLPAPER_KEY = "olivia-os-wallpaper-v1";
-const CUSTOM_WALLPAPER_KEY = "olivia-os-custom-wallpaper-v1";
-
-async function optimizeWallpaper(file: File): Promise<string> {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    image.src = objectUrl;
-    await image.decode();
-    const scale = Math.min(1, 2560 / image.naturalWidth, 1600 / image.naturalHeight);
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("배경화면을 처리할 수 없습니다.");
-    context.fillStyle = "#082e2b";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL("image/jpeg", .86);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-// OLIVIA OS Phase 1 루트 셸 — TopBar + Surface(shortcuts+windows) + Dock 조립.
-// height:100dvh overflow:hidden으로 body가 page처럼 길어지지 않게 한다(스펙 1-1).
 function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
   const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
-  const [wallpaper, setWallpaper] = useState<WallpaperMode>("original");
-  const [customWallpaper, setCustomWallpaper] = useState<string>();
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number }>();
   const handledInitialLaunchRef = useRef<OliviaRootLaunch | null>(null);
+  const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
+  const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
+  const setAppChatOpen = useOliviaDesktopUtilityStore((state) => state.setAppChatOpen);
 
-  // Phase 3 — 활성 창을 Olivia의 LLM 컨텍스트(useOliviaContextStore)로 계속 흘려보낸다.
   useOliviaDesktopContextBridge();
 
-  // 브라우저 탭/창 닫기, 새로고침, 주소 이동을 실수로 실행했을 때 운영체제·브라우저의
-  // 기본 페이지 이탈 확인창을 요청한다. 확인 문구는 브라우저 보안 정책상 직접 지정할 수 없다.
   useEffect(() => {
     window.addEventListener("beforeunload", requestOliviaDesktopExitConfirmation);
     return () => window.removeEventListener("beforeunload", requestOliviaDesktopExitConfirmation);
   }, []);
 
-  // OLIVIA OS가 canonical root인 동안 문서 자체는 움직이지 않고 각 AppWindow만 스크롤한다.
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
     const previousBodyOverflow = document.body.style.overflow;
-    if (document.pointerLockElement) document.exitPointerLock?.();
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
     loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)));
-    try {
-      // localStorage를 먼저 읽어 화면을 바로 그린다(깜빡임 방지) — DB 조회가 끝나면 그 값으로
-      // 덮어써서 컴퓨터마다 배경이 다르던 문제를 없앤다(DB가 always-wins 소스).
-      const savedWallpaper = window.localStorage.getItem(WALLPAPER_KEY);
-      const savedCustomWallpaper = window.localStorage.getItem(CUSTOM_WALLPAPER_KEY) || undefined;
-      setCustomWallpaper(savedCustomWallpaper);
-      if (savedWallpaper === "custom" && savedCustomWallpaper) setWallpaper("custom");
-      else if (savedWallpaper === "original" || savedWallpaper === "soft") setWallpaper(savedWallpaper);
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    fetch("/api/desktop-settings")
-      .then((response) => response.json())
-      .then((data) => {
-        if (!data.ok) return;
-        const { wallpaper_mode, custom_wallpaper_data_url } = data.settings;
-        if (custom_wallpaper_data_url) setCustomWallpaper(custom_wallpaper_data_url);
-        if (wallpaper_mode === "custom" ? custom_wallpaper_data_url : wallpaper_mode === "original" || wallpaper_mode === "soft") {
-          setWallpaper(wallpaper_mode);
-        }
-        try {
-          window.localStorage.setItem(WALLPAPER_KEY, wallpaper_mode);
-          if (custom_wallpaper_data_url) window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, custom_wallpaper_data_url);
-        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-      })
-      .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-    const ensureOliviaFrame = window.requestAnimationFrame(() => {
-      const state = useOliviaDesktopStore.getState();
-      if (state.windows["olivia-chat"]) return;
-      const app = oliviaAppRegistry.find((candidate) => candidate.id === "olivia-chat");
-      if (app) state.openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height, placement: "right" });
-    });
     return () => {
-      window.cancelAnimationFrame(ensureOliviaFrame);
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
     };
@@ -125,72 +65,22 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
     window.history.replaceState(window.history.state, "", clearOliviaRootLaunchParams(window.location.href));
   }, [initialLaunch]);
 
-  const syncWallpaperSettings = useCallback((body: { wallpaperMode?: WallpaperMode; customWallpaperDataUrl?: string }) => {
-    fetch("/api/desktop-settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }).catch((error) => console.error("[desktop-settings] 동기화 실패:", error));
-  }, []);
-
-  const selectWallpaper = useCallback((mode: WallpaperMode) => {
-    if (mode === "custom" && !customWallpaper) return;
-    setWallpaper(mode);
-    try { window.localStorage.setItem(WALLPAPER_KEY, mode); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    syncWallpaperSettings({ wallpaperMode: mode });
-  }, [customWallpaper, syncWallpaperSettings]);
-
-  const selectCustomWallpaper = useCallback(async (file: File) => {
-    try {
-      const dataUrl = await optimizeWallpaper(file);
-      setCustomWallpaper(dataUrl);
-      setWallpaper("custom");
-      try {
-        window.localStorage.setItem(CUSTOM_WALLPAPER_KEY, dataUrl);
-        window.localStorage.setItem(WALLPAPER_KEY, "custom");
-      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-      syncWallpaperSettings({ wallpaperMode: "custom", customWallpaperDataUrl: dataUrl });
-    } catch {
-      window.alert("PNG, JPG 또는 WebP 이미지를 선택해 주세요.");
-    }
-  }, [syncWallpaperSettings]);
-
-  const openAllApps = useCallback(() => {
-    const app = oliviaAppRegistry.find((candidate) => candidate.id === "all-apps");
-    if (app) useOliviaDesktopStore.getState().openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height });
-    setContextMenu(undefined);
-  }, []);
+  const showAppChat = Boolean(activeWindowId && appChatOpen && activeWindowId !== "olivia-chat");
 
   return (
-    <div className={styles.desktop} data-wallpaper={wallpaper} data-olivia-desktop-root>
-      {/* Wallpaper Asset Integration §24 — pseudo-element(::before/::after)는 stacking
-          규칙상 다른 static 요소보다 위로 그려지는 버그를 한 번 만든 적이 있어서(Visual Polish
-          Pass), 실제 배경 이미지 레이어부터는 진짜 DOM 엘리먼트로 분리해 그 문제 자체를 없앤다. */}
-      <div className={styles.wallpaperLayer} style={wallpaper === "custom" && customWallpaper ? { backgroundImage: `url("${customWallpaper}")` } : undefined} aria-hidden="true" />
-      <div className={styles.overlayLayer} aria-hidden="true" />
-      <div className={styles.vignetteLayer} aria-hidden="true" />
+    <div className={styles.desktop} data-home={!activeWindowId} data-olivia-desktop-root>
       <DesktopTopBar onOpenOverlay={setOverlay} />
       <HomeDashboardDataProvider>
-        <div className={styles.desktopBody}>
-          <DesktopSurface onDesktopContextMenu={(x, y) => setContextMenu({ x, y })} />
+        <div className={styles.desktopBody} data-chat-open={showAppChat}>
+          <DesktopSurface />
+          {showAppChat ? <DesktopAppChatPanel onClose={() => setAppChatOpen(false)} /> : null}
         </div>
       </HomeDashboardDataProvider>
-      <div className={styles.dockArea}>
-        <DesktopDock onOpenOverlay={setOverlay} />
-      </div>
+      <div className={styles.dockArea}><DesktopDock /></div>
       <DesktopGlobalSearch />
       <DesktopUtilityToast />
       <PhotoTaskStatusBar />
-      {contextMenu ? (
-        <div className={styles.desktopContextMenuBackdrop} onPointerDown={() => setContextMenu(undefined)} onContextMenu={(event) => event.preventDefault()}>
-          <div className={styles.desktopContextMenu} style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
-            <button type="button" onClick={openAllApps}>모든 앱</button>
-            <span />
-            <button type="button" onClick={() => { setOverlay("wallpaper"); setContextMenu(undefined); }}>바탕화면 설정…</button>
-          </div>
-        </div>
-      ) : null}
-      <DesktopSystemOverlay kind={overlay} wallpaper={wallpaper} customWallpaper={customWallpaper} onWallpaperChange={selectWallpaper} onCustomWallpaper={selectCustomWallpaper} onClose={() => setOverlay(null)} />
+      <DesktopSystemOverlay kind={overlay} onClose={() => setOverlay(null)} />
     </div>
   );
 }

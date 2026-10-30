@@ -17,14 +17,18 @@ describe("OLIVIA OS app registry navigation", () => {
     ]);
   });
 
-  it("uses the requested Dock app sequence and keeps Olivia as its utility button", () => {
+  it("uses the ten-slot OS Dock sequence", () => {
     const dockApps = getDockApps();
     expect(dockApps.map((app) => app.id)).toEqual([
-      "calendar",
+      "today",
       "customer",
-      "documents",
+      "calendar",
       "olivia-bridge",
+      "photo-workspace",
       "video-studio",
+      "quote",
+      "conti",
+      "work-journal",
     ]);
     expect(dockApps.find((app) => app.id === "olivia-bridge")?.title).toBe("Olivia Bridge");
     expect(getOliviaApp("olivia-chat")).toBeDefined();
@@ -32,13 +36,11 @@ describe("OLIVIA OS app registry navigation", () => {
 
   it("keeps non-Dock apps registered for All Apps", () => {
     for (const appId of [
-      "quote", "contract", "memo", "today", "all-apps", "legacy-route", "metadata-select", "review-studio",
+      "contract", "memo", "all-apps", "legacy-route", "metadata-select", "review-studio",
       "brand-analysis", "trend-dashboard", "hospital-brand-image-diagnosis", "channel-analyzer",
-      "select-galleries", "seo-delivery", "mailing", "work-journal", "report",
+      "select-galleries", "seo-delivery", "mailing", "report",
       "portrait-consent",
-      "conti",
       "staff-guide",
-      "photo-workspace",
     ]) {
       const app = getOliviaApp(appId);
       expect(app).toBeDefined();
@@ -51,7 +53,7 @@ describe("OLIVIA OS app registry navigation", () => {
     expect(getOliviaApp("olivia-bridge")).toMatchObject({ title: "Olivia Bridge", route: "/olivia-bridge" });
     expect(getOliviaApp("photo-workspace")).toMatchObject({ route: "/photo-sorting" });
     expect(getOliviaApp("photo-workspace")?.desktopShortcutOrder).toBeUndefined();
-    expect(getOliviaApp("photo-workspace")?.dockOrder).toBeUndefined();
+    expect(getOliviaApp("photo-workspace")?.dockOrder).toBe(5);
   });
 
   it("keeps conti and portrait consent standalone while mapping old video production", () => {

@@ -15,6 +15,7 @@ import {
   Server,
   Square,
   UserRoundCheck,
+  X,
 } from "lucide-react";
 import { usePhotoProjectNotifications } from "@/components/photo-storage/PhotoProjectNotificationProvider";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
@@ -577,13 +578,14 @@ function StatusPanelButtonContent() {
       ) : null}
       <button
         type="button"
-        className={styles.topBarIconButton}
+        className={`${styles.topBarIconButton} ${styles.statusPanelTrigger}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={effectiveBadge.count ? `시스템 상태, 확인 ${effectiveBadge.count}건` : "시스템 상태"}
         onClick={() => setOpen((current) => !current)}
       >
-        <Server size={15} />
+        <UserRoundCheck size={15} />
+        <span>내 차례 {data?.myTurn.length ?? 0}</span>
         {effectiveBadge.tone !== "none" ? (
           <span className={`${styles.statusPanelBadge} ${styles[`statusPanelBadge_${effectiveBadge.tone}`]}`}>
             {effectiveBadge.count > 9 ? "9+" : effectiveBadge.count}
@@ -597,6 +599,9 @@ function StatusPanelButtonContent() {
           <button type="button" className={styles.statusPanelRefresh} onClick={() => void refreshAll()} aria-label="새로고침" disabled={loading}>
             <RefreshCw size={13} className={loading ? styles.statusPanelSpin : undefined} />
             <span>새로고침</span>
+          </button>
+          <button type="button" className={styles.statusPanelRefresh} onClick={() => setOpen(false)} aria-label="상태 및 알림 닫기">
+            <X size={14} />
           </button>
         </div>
 

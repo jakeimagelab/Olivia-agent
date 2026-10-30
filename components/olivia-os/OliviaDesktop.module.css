@@ -16,6 +16,194 @@
   cursor: default;
 }
 
+/* OS shell redesign — the PDF reference uses one full-screen app, a 42px command
+   bar, a hidden labelled Dock, and Olivia as the home surface. */
+.desktop {
+  --desktop-dock-bottom: 58px;
+  background: #fdfcfa;
+}
+
+.topBar {
+  flex: 0 0 42px;
+  height: 42px;
+  padding: 0 14px;
+  gap: 12px;
+  border-bottom: 1px solid rgba(21, 88, 85, .12);
+  background: rgba(253, 252, 250, .96);
+  box-shadow: none;
+  color: #183c37;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.topBar[data-home="true"] {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  border-bottom-color: rgba(255,255,255,.1);
+  background: rgba(22,48,43,.38);
+  color: #fff;
+}
+.topBarLeft { flex: 1; gap: 10px; }
+.topBarRight { flex: 0 0 auto; gap: 7px; }
+.topBarHistory { display: inline-flex; align-items: center; gap: 2px; }
+.topBarHistory button,
+.topBarIconButton,
+.topBarOliviaButton {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.topBarHistory button:hover,
+.topBarIconButton:hover,
+.topBarOliviaButton:hover { background: rgba(21,88,85,.08); }
+.topBar[data-home="true"] .topBarHistory button:hover,
+.topBar[data-home="true"] .topBarIconButton:hover,
+.topBar[data-home="true"] .topBarOliviaButton:hover { background: rgba(255,255,255,.1); }
+.topBarOliviaButton { color: #fff; background: #c94a1e; }
+.topBarOliviaButton:hover,
+.topBarOliviaButtonActive { background: #a73c18; }
+.topBarOliviaButton:disabled { opacity: .42; cursor: default; }
+.topBarLocation { min-width: 0; display: flex; align-items: baseline; gap: 9px; }
+.topBarLocation strong { font-size: 12px; font-weight: 600; letter-spacing: .01em; white-space: nowrap; }
+.topBarLocation span { max-width: min(40vw, 420px); overflow: hidden; color: #5a7470; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.topBar[data-home="true"] .topBarLocation span { color: rgba(255,255,255,.62); }
+.topBarSearchButton {
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid rgba(21,88,85,.13);
+  border-radius: 8px;
+  background: rgba(255,255,255,.68);
+  color: #5a7470;
+  font: 500 10.5px/1 inherit;
+  cursor: pointer;
+}
+.topBarSearchButton kbd { color: #155855; font: 500 9.5px/1 inherit; }
+.topBar[data-home="true"] .topBarSearchButton { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: rgba(255,255,255,.8); }
+.topBar[data-home="true"] .topBarSearchButton kbd { color: #fff; }
+.workerChip { min-width: 0; display: inline-flex; align-items: center; gap: 6px; color: #5a7470; font-size: 10px; white-space: nowrap; }
+.workerChip i { width: 7px; height: 7px; border-radius: 50%; background: #c94a1e; }
+.workerChip[data-online="true"][data-nas="true"] i { background: #37a579; }
+.topBar[data-home="true"] .workerChip { color: rgba(255,255,255,.72); }
+.statusPanelTrigger { width: auto; min-width: 84px; padding: 0 8px; display: inline-flex; gap: 5px; color: #155855; }
+.statusPanelTrigger > span:not(.statusPanelBadge) { font-size: 10.5px; white-space: nowrap; }
+.topBar[data-home="true"] .statusPanelTrigger { color: #fff; }
+
+.desktopBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  transition: grid-template-columns 220ms ease;
+}
+.desktopBody[data-chat-open="true"] { grid-template-columns: minmax(0, 1fr) 420px; }
+.surface { grid-column: 1; grid-row: 1; }
+
+.homeChat {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 72px 28px 86px;
+  background-color: #16302b;
+  background-position: center;
+  background-size: cover;
+  color: #fff;
+  pointer-events: auto;
+}
+.homeChat::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 12%, rgba(255,255,255,.06), transparent 45%), linear-gradient(180deg, rgba(22,48,43,.05), rgba(22,48,43,.34));
+  pointer-events: none;
+}
+.homeChatCenter { position: relative; width: min(760px, 84vw); display: flex; flex-direction: column; align-items: center; text-align: center; }
+.homeChatEyebrow { margin: 0 0 12px; color: rgba(255,255,255,.58); font-size: 11px; }
+.homeChat h1 { margin: 0; font: 500 clamp(34px, 4.1vw, 50px)/1.26 "Nanum Myeongjo", serif; letter-spacing: -.04em; text-wrap: balance; }
+.homeChat h1 span { display: block; }
+.homeChatSubline { margin: 15px 0 22px; color: rgba(255,255,255,.65); font-size: 11.5px; }
+.homeTaskList { width: min(650px, 100%); display: grid; gap: 7px; margin-bottom: 20px; }
+.homeTaskList button { min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 8px 14px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: rgba(255,255,255,.065); color: #fff; text-align: left; cursor: pointer; backdrop-filter: blur(14px); }
+.homeTaskList button:hover { background: rgba(255,255,255,.11); }
+.homeTaskList button > span { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.homeTaskList strong { overflow: hidden; font-size: 11.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.homeTaskList small { overflow: hidden; color: rgba(255,255,255,.55); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.homeChatDock { width: min(720px, 100%); min-height: 88px; }
+.homeChatDock :global(.olivia-chat-portal-host),
+.homeChatDock :global(.olivia-conversation) { width: 100%; height: auto; min-height: 0; background: transparent; }
+.homeChatDock :global(.olivia-conversation__header),
+.homeChatDock :global(.olivia-conversation__stage),
+.homeChatDock :global(.olivia-conversation__messages) { background: transparent; }
+.homeChatDock :global(.olivia-conversation__header),
+.homeChatDock :global(.olivia-conversation__messages) { display: none; }
+.homeChatDock :global(.olivia-composer-shell) { border: 0; background: transparent; }
+.homeChatDock :global(.olivia-composer) { border: 0; border-radius: 14px; background: #fff; box-shadow: 0 18px 50px rgba(0,0,0,.2); }
+.homeChatDock :global(.olivia-conversation__suggestions--below-composer) { justify-content: center; }
+.homeChatDock :global(.olivia-conversation__suggestions button) { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.07); color: rgba(255,255,255,.82); }
+.homePhotoCredit { position: absolute; left: 22px; bottom: 20px; z-index: 1; margin: 0; color: rgba(255,255,255,.58); font-size: 9.5px; }
+
+.appChatPanel { position: relative; z-index: 200; grid-column: 2; grid-row: 1; min-width: 0; min-height: 0; overflow: hidden; border-left: 1px solid rgba(21,88,85,.13); background: #fff; }
+.appChatDock { width: 100%; height: 100%; min-height: 0; }
+.appChatDock :global(.olivia-chat-portal-host),
+.appChatDock :global(.olivia-conversation) { width: 100%; height: 100%; min-height: 0; }
+.appChatClose { position: absolute; z-index: 4; top: 8px; right: 8px; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #5a7470; cursor: pointer; }
+.appChatClose:hover { background: #edf5f3; color: #155855; }
+
+.dockArea { left: 50%; right: auto; bottom: 58px; width: min(920px, calc(100vw - 24px)); height: 38px; transform: translateX(-50%); pointer-events: none; }
+.dockReveal { position: relative; width: 100%; height: 38px; display: flex; justify-content: center; pointer-events: auto; }
+.dockHint { position: absolute; left: 50%; bottom: 5px; width: 148px; height: 3px; border-radius: 99px; background: rgba(255,255,255,.42); transform: translateX(-50%); transition: opacity 160ms ease; }
+.desktop:not([data-home="true"]) .dockHint { background: rgba(21,88,85,.28); }
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: 34px;
+  max-width: calc(100vw - 24px);
+  gap: 2px;
+  padding: 8px 10px 7px;
+  align-items: stretch;
+  border: 1px solid rgba(255,255,255,.46);
+  border-radius: 20px;
+  background: rgba(238,244,241,.86);
+  box-shadow: 0 18px 46px rgba(7,39,35,.26), inset 0 1px 0 rgba(255,255,255,.75);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(100% + 48px));
+  transition: transform 190ms ease, opacity 150ms ease;
+}
+.dockReveal:hover .dock,
+.dockReveal:focus-within .dock { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.dockReveal:hover .dockHint,
+.dockReveal:focus-within .dockHint { opacity: 0; }
+.dockItemGroup { display: flex; align-items: stretch; }
+.dockButton { width: 62px; min-height: 61px; flex: 0 0 62px; justify-content: flex-start; gap: 3px; padding: 0 3px 5px; border-radius: 10px; color: #155855; }
+.dockButton:hover { background: rgba(21,88,85,.07); transform: translateY(-2px); }
+.dockLabel { width: 100%; overflow: hidden; color: #345f59; font-size: 9.5px; line-height: 1.1; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.dockAllAppsIcon { width: var(--dock-icon-size); height: var(--dock-icon-size); display: grid; place-items: center; border-radius: 12px; background: #155855; color: #fff; }
+.dockDivider { width: 1px; height: 42px; align-self: center; margin: 0 5px; background: rgba(21,88,85,.14); }
+.dockIndicator { bottom: 0; background: #155855; box-shadow: none; }
+
+@media (max-width: 900px) {
+  .topBarSearchButton span,
+  .workerChip,
+  .statusPanelTrigger > span:not(.statusPanelBadge) { display: none; }
+  .statusPanelTrigger { min-width: 30px; padding: 0; }
+  .desktopBody[data-chat-open="true"] { grid-template-columns: minmax(0, 1fr); }
+  .appChatPanel { position: absolute; inset: 0 0 0 auto; width: min(420px, 92vw); }
+  .homeTaskList { max-height: 228px; overflow: auto; }
+}
+
 .photoTaskStatusBar {
   position: fixed;
   z-index: 90;
@@ -1437,4 +1625,32 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   .wallpaperChoices { grid-template-columns: 1fr; }
   .desktopSearchOverlay { padding-top: 78px; }
   .allAppsGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Keep the shell overrides last: the retained legacy window styles above remain
+   available for rollback but must not win the full-screen shell cascade. */
+.desktop { --desktop-dock-bottom: 58px; background: #fdfcfa; }
+.topBar { flex: 0 0 42px; height: 42px; padding: 0 14px; gap: 12px; border-bottom: 1px solid rgba(21,88,85,.12); background: rgba(253,252,250,.96); box-shadow: none; color: #183c37; }
+.topBar[data-home="true"] { position: absolute; inset: 0 0 auto; width: 100%; border-bottom-color: rgba(255,255,255,.1); background: rgba(22,48,43,.38); color: #fff; }
+.desktopBody { display: grid; grid-template-columns: minmax(0,1fr); padding: 0; }
+.desktopBody[data-chat-open="true"] { display: grid; grid-template-columns: minmax(0,1fr) 420px; }
+.dockArea,
+.desktop:has(.assistantCollapsed) .dockArea { left: 50%; right: auto; bottom: 58px; width: min(920px,calc(100vw - 24px)); height: 38px; transform: translateX(-50%); }
+.dock { position: absolute; left: 50%; bottom: 34px; min-height: 0; max-width: calc(100vw - 24px); gap: 2px; padding: 8px 10px 7px; align-items: stretch; border: 1px solid rgba(255,255,255,.46); border-radius: 20px; background: rgba(238,244,241,.86); opacity: 0; pointer-events: none; transform: translate(-50%,calc(100% + 48px)); }
+.dockReveal:hover .dock,
+.dockReveal:focus-within .dock { opacity: 1; pointer-events: auto; transform: translate(-50%,0); }
+.dockButton { width: 62px; min-height: 61px; flex: 0 0 62px; justify-content: flex-start; gap: 3px; padding: 0 3px 5px; }
+.dockButton:hover { background: rgba(21,88,85,.07); transform: translateY(-2px); }
+.dockDivider { width: 1px; height: 42px; align-self: center; margin: 0 5px; background: rgba(21,88,85,.14); }
+.statusPanelTrigger { width: auto; min-width: 84px; padding: 0 8px; display: inline-flex; gap: 5px; color: #155855; }
+.statusPanelTrigger > span:not(.statusPanelBadge) { display: inline; font-size: 10.5px; white-space: nowrap; }
+.topBar[data-home="true"] .statusPanelTrigger { color: #fff; }
+.homeChatDock :global(.olivia-composer) { min-height: 76px; padding: 12px 14px; }
+.homeChatDock :global(.olivia-composer > button.is-send) { background: #c94a1e; color: #fff; }
+.homeChatDock :global(.olivia-conversation__suggestions--below-composer) { gap: 7px; padding: 10px 0 0; }
+@media (max-width: 900px) {
+  .desktopBody[data-chat-open="true"] { grid-template-columns: minmax(0,1fr); }
+  .dockLabel { display: block; }
+  .statusPanelTrigger { min-width: 30px; padding: 0; }
+  .statusPanelTrigger > span:not(.statusPanelBadge) { display: none; }
 }

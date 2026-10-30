@@ -1,22 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Check, CircleHelp, ImagePlus, Images } from "lucide-react";
+import { useEffect } from "react";
+import { CircleHelp } from "lucide-react";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
 import styles from "./OliviaDesktop.module.css";
 
-export type DesktopOverlayKind = "wallpaper" | "help" | null;
-export type WallpaperMode = "original" | "soft" | "custom";
+export type DesktopOverlayKind = "help" | null;
 
-export function DesktopSystemOverlay({ kind, wallpaper, customWallpaper, onWallpaperChange, onCustomWallpaper, onClose }: {
-  kind: DesktopOverlayKind;
-  wallpaper: WallpaperMode;
-  onWallpaperChange: (mode: WallpaperMode) => void;
-  customWallpaper?: string;
-  onCustomWallpaper: (file: File) => void;
-  onClose: () => void;
-}) {
-  const fileRef = useRef<HTMLInputElement>(null);
+export function DesktopSystemOverlay({ kind, onClose }: { kind: DesktopOverlayKind; onClose: () => void }) {
   useEffect(() => {
     if (!kind) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -28,55 +19,17 @@ export function DesktopSystemOverlay({ kind, wallpaper, customWallpaper, onWallp
 
   return (
     <div className={styles.systemPopoverBackdrop} onPointerDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
-      <section className={styles.systemPopover} aria-label={kind === "wallpaper" ? "배경화면" : "도움말"}>
+      <section className={styles.systemPopover} aria-label="도움말">
         <header>
-          <span>{kind === "wallpaper" ? <Images size={15} /> : <CircleHelp size={15} />}</span>
-          <div>
-            <strong>{kind === "wallpaper" ? "배경화면" : "Olivia OS 도움말"}</strong>
-            <small>{kind === "wallpaper" ? "승인된 Olivia 배경 표현을 선택하세요." : "기본 창 조작 안내"}</small>
-          </div>
+          <span><CircleHelp size={15} /></span>
+          <div><strong>Olivia OS 도움말</strong><small>화면 이동과 Olivia 사용 안내</small></div>
           <ModalCloseButton onClick={onClose} />
         </header>
-
-        {kind === "wallpaper" ? (
-          <div className={styles.wallpaperChoices}>
-            {(["original", "soft"] as const).map((mode) => (
-              <button type="button" key={mode} className={wallpaper === mode ? styles.wallpaperSelected : ""} onClick={() => onWallpaperChange(mode)}>
-                <span className={`${styles.wallpaperPreview} ${mode === "soft" ? styles.wallpaperPreviewSoft : ""}`} />
-                <strong>{mode === "original" ? "Olivia Original" : "Olivia Soft"}</strong>
-                {wallpaper === mode ? <Check size={14} /> : null}
-              </button>
-            ))}
-            <button type="button" className={wallpaper === "custom" ? styles.wallpaperSelected : ""} onClick={() => fileRef.current?.click()}>
-              <span
-                className={`${styles.wallpaperPreview} ${styles.wallpaperPreviewCustom}`}
-                style={customWallpaper ? { backgroundImage: `url("${customWallpaper}")` } : undefined}
-              ><ImagePlus size={24} /></span>
-              <strong>{customWallpaper ? "커스텀 배경화면" : "이미지 선택"}</strong>
-              {wallpaper === "custom" ? <Check size={14} /> : null}
-            </button>
-            <input
-              ref={fileRef}
-              className={styles.visuallyHidden}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onCustomWallpaper(file);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-        ) : null}
-
-        {kind === "help" ? (
-          <dl className={styles.helpList}>
-            <div><dt>앱 열기</dt><dd>Dock 또는 모든 앱에서 선택</dd></div>
-            <div><dt>창 이동</dt><dd>창 제목 막대를 드래그</dd></div>
-            <div><dt>창 닫기</dt><dd>⌘W 또는 빨간 버튼</dd></div>
-            <div><dt>Olivia</dt><dd>오른쪽 하단 아이콘으로 열고 다른 창처럼 이동·최소화</dd></div>
-          </dl>
-        ) : null}
+        <dl className={styles.helpList}>
+          <div><dt>앱 열기</dt><dd>아래 Dock 또는 ⌘K로 이동</dd></div>
+          <div><dt>뒤로·앞으로</dt><dd>⌘[ · ⌘] 또는 위쪽 화살표 버튼</dd></div>
+          <div><dt>Olivia</dt><dd>오른쪽 위 말풍선 버튼으로 현재 화면 전용 대화 열기</dd></div>
+        </dl>
       </section>
     </div>
   );
