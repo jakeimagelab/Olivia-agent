@@ -663,6 +663,20 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   font-size: 10px;
 }
 .bridge[data-desktop-ui="true"] .folderPickerButton:hover { background: #F4F8F5; }
+.bridge[data-desktop-ui="true"] .folderSourceChooser {
+  border-color: #D5DBD3;
+  color: #2F3833;
+  background: #FCFBF8;
+}
+.bridge[data-desktop-ui="true"] .folderSourceChooser > header { color: #fff; }
+.bridge[data-desktop-ui="true"] .folderSourceChooser > div > button { color: #2F3833; }
+.bridge[data-desktop-ui="true"] .folderSourceChooser > div > button:hover {
+  color: #155855;
+  border-color: #D5DBD3;
+  background: #E2EBE3;
+}
+.bridge[data-desktop-ui="true"] .folderSourceChooser > div > button > svg { color: #155855; }
+.bridge[data-desktop-ui="true"] .folderSourceChooser > div > button small { color: #626D65; }
 .bridge[data-desktop-ui="true"] .breadcrumbs {
   grid-column: 1;
   grid-row: 2;
