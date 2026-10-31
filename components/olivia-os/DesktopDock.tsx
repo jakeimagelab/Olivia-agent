@@ -32,6 +32,7 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
 
 const DOCK_LABELS: Record<string, string> = {
   "olivia-bridge": "Bridge",
+  "video-studio": "영상",
 };
 
 export function DesktopDock() {
@@ -129,7 +130,6 @@ export function DesktopDock() {
                 return <Icon size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />;
               })()}</span>
               <span className={styles.dockLabel}>{DOCK_LABELS[app.id] ?? app.title}</span>
-              {windows[app.id] ? <i className={styles.dockIndicator} /> : null}
             </button>
           </div>
         ))}

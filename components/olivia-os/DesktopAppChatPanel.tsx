@@ -15,7 +15,7 @@ export function DesktopAppChatPanel({ open, screenTitle, onClose }: { open: bool
         <button type="button" onClick={() => void startNewConversation()} aria-label="새 대화"><Plus size={16} /></button>
         <button type="button" onClick={onClose} aria-label="Olivia 닫기"><ChevronRight size={19} /></button>
       </header>
-      <div className={styles.appChatScope}>지금 보는 화면 · <strong>{screenTitle}</strong></div>
+      <div className={styles.appChatScope}>지금 보는 화면 · <strong>{screenTitle}</strong> — 여기선 뭐든 시킬 수 있습니다.</div>
       <OliviaChatDockTarget id="desktop-panel" priority={95} className={styles.appChatDock} />
     </aside>
   );

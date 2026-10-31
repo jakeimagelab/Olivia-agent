@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
+  ArrowUpRight,
   CalendarDays,
   FileText,
   FolderOpen,
@@ -10,7 +11,6 @@ import {
   Images,
   LayoutGrid,
   Maximize,
-  MessageCircle,
   SlidersHorizontal,
   UsersRound,
   X,
@@ -80,7 +80,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   const launchHref = useDesktopAppLauncher();
   const [detail, setDetail] = useState<CasePayload | null>(null);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<"info" | "olivia">("info");
   const [focusMode, setFocusMode] = useState(false);
   const [localTab, setLocalTab] = useState(appId === "home" ? "home" : appId);
@@ -104,7 +104,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   }, [caseEnabled, clientId, workflowRunId]);
 
   useEffect(() => {
-    setPanelOpen(false);
+    setPanelOpen(true);
     setPanelTab("info");
     setFocusMode(false);
     setLocalTab(appId === "home" ? "home" : appId);
@@ -169,7 +169,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     : children;
 
   return (
-    <div className={styles.caseChrome} data-panel-open={panelOpen && !focusMode} data-focus={focusMode}>
+    <div className={styles.caseChrome} data-panel-open={panelOpen && !focusMode} data-focus={focusMode} data-has-tabs={tabs.length > 1}>
       <section className={styles.caseChromeStage}>
         {tabs.length > 1 ? (
           <nav className={styles.caseTabs} role="tablist" aria-label={`${appLabel} 보기`}>
@@ -207,11 +207,29 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
           <header className={styles.casePanelHeader}><strong>{PANEL_LABELS[appId] ?? "작업 정보"}</strong><button type="button" onClick={() => setPanelOpen(false)} aria-label="패널 닫기"><X size={16} /></button></header>
           <div className={styles.casePanelTabs} role="tablist" aria-label="오른쪽 패널">
             <button type="button" role="tab" aria-selected={panelTab === "info"} onClick={() => setPanelTab("info")}>작업 정보</button>
-            <button type="button" role="tab" aria-selected={panelTab === "olivia"} onClick={() => setPanelTab("olivia")}><MessageCircle size={14} /> Olivia</button>
+            <button type="button" role="tab" aria-selected={panelTab === "olivia"} onClick={() => setPanelTab("olivia")}>Olivia</button>
           </div>
           {panelTab === "info" ? (
             <div className={styles.casePanelInfo}>
-              <section><span>{clientName ?? appLabel}</span><strong>{selection?.title ?? contextTitle}</strong><small>{selection?.subtitle ?? contextSubtitle}</small></section>
+              <section>
+                <span>{clientName ?? appLabel}</span>
+                <strong>{selection?.title ?? contextTitle}</strong>
+                <small>{selection?.subtitle ?? contextSubtitle}</small>
+                {selection?.href ? (
+                  <div className={styles.casePanelActions}>
+                    <button
+                      type="button"
+                      className={styles.casePanelPrimary}
+                      onClick={() => launchHref(selection.href!, selection.title, {
+                        clientId: context?.clientId,
+                        workflowRunId: context?.workflowRunId ?? context?.projectId,
+                      })}
+                    >
+                      <ArrowUpRight size={14} /> 이어 열기
+                    </button>
+                  </div>
+                ) : null}
+              </section>
               <dl>
                 <div><dt>현재 상태</dt><dd>{run?.status === "completed" ? "완료" : "진행 중"}</dd></div>
                 {progress ? <div><dt>진행</dt><dd>{progress.done ?? 0} / {progress.total ?? 18} 완료</dd></div> : null}

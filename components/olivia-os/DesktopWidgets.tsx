@@ -89,7 +89,7 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
       <header className={styles.homeHeading}>
         <div><h1>오늘의 작업</h1><span>{dateHeading()} · 하던 작업을 이어갑니다.</span></div>
         <button type="button" className={styles.homePrimaryAction} disabled={!selectedEntry?.href} onClick={openSelected}>
-          <ArrowUpRight size={14} /> 이어서 열기
+          <ArrowUpRight size={14} /> 이어 열기
         </button>
       </header>
 
