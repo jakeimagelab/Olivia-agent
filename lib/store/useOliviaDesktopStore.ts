@@ -25,6 +25,8 @@ export type WindowContext = {
   documentTitle?: string;
   /** Canonical route (including query) used to initialize native window adapters. */
   routeHref?: string;
+  /** Feature-owned selected row, scene, file, schedule, or app card. */
+  featureItemId?: string;
 };
 
 export type OliviaWindowState = {

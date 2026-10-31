@@ -17,8 +17,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
-import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
+import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
+import { getOliviaApp } from "./registry/oliviaAppRegistry";
+import type { ShellSelection, ShellSelectionEventDetail } from "@/lib/olivia/desktop/shellSelection";
+import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import styles from "./OliviaDesktop.module.css";
 
 type CasePayload = {
@@ -29,8 +33,7 @@ type CasePayload = {
   resourceIds?: { quote?: string | null; conti?: string | null };
 };
 
-type Gallery = { id: string; title?: string | null };
-type ShellSelection = { title: string; subtitle?: string; next?: string; href?: string };
+type Gallery = { id: string; title?: string | null; workflow_run_id?: string | null };
 type ShellTab = {
   key: string;
   label: string;
@@ -79,28 +82,49 @@ function todayLabel() {
 
 export function DesktopCaseChrome({ appId, context, children }: { appId: string; context?: WindowContext; children: ReactNode }) {
   const launchHref = useDesktopAppLauncher();
+  const openApp = useOliviaDesktopStore((state) => state.openApp);
   const [detail, setDetail] = useState<CasePayload | null>(null);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
+  const [caseLoadState, setCaseLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [panelOpen, setPanelOpen] = useState(!DEDICATED_INSPECTOR_APPS.has(appId));
   const [panelTab, setPanelTab] = useState<"info" | "olivia">("info");
   const [focusMode, setFocusMode] = useState(false);
   const [localTab, setLocalTab] = useState(appId === "home" ? "home" : appId);
   const [selection, setSelection] = useState<ShellSelection | null>(null);
+  const selectedEntityId = useOliviaContextStore((state) => state.selectedEntityId);
+  const selectedEntityType = useOliviaContextStore((state) => state.selectedEntityType);
   const clientId = context?.clientId;
   const workflowRunId = context?.workflowRunId ?? context?.projectId;
   const caseEnabled = Boolean(clientId && workflowRunId && CASE_APPS.has(appId));
 
   useEffect(() => {
-    if (!caseEnabled || !clientId || !workflowRunId) return;
+    if (!caseEnabled || !clientId || !workflowRunId) {
+      setDetail(null);
+      setGalleries([]);
+      setCaseLoadState("idle");
+      return;
+    }
     let active = true;
+    setDetail(null);
+    setGalleries([]);
+    setCaseLoadState("loading");
     Promise.all([
       fetch(`/api/clients/${encodeURIComponent(clientId)}?workflowRunId=${encodeURIComponent(workflowRunId)}`, { cache: "no-store" }).then((response) => response.json()),
       fetch(`/api/select-galleries?workflowRunId=${encodeURIComponent(workflowRunId)}`, { cache: "no-store" }).then((response) => response.json()),
     ]).then(([clientPayload, galleryPayload]) => {
       if (!active) return;
-      if (clientPayload?.ok) setDetail(clientPayload);
-      if (galleryPayload?.ok) setGalleries(galleryPayload.galleries ?? []);
-    }).catch(() => undefined);
+      const clientMatches = !clientPayload?.client?.id || clientPayload.client.id === clientId;
+      const runMatches = !clientPayload?.workflowRun?.id || clientPayload.workflowRun.id === workflowRunId;
+      if (!clientPayload?.ok || !clientMatches || !runMatches) {
+        setCaseLoadState("error");
+        return;
+      }
+      setDetail(clientPayload);
+      const ownedGalleries = (galleryPayload?.ok ? galleryPayload.galleries ?? [] : [])
+        .filter((gallery: Gallery) => !gallery.workflow_run_id || gallery.workflow_run_id === workflowRunId);
+      setGalleries(ownedGalleries);
+      setCaseLoadState("ready");
+    }).catch(() => { if (active) setCaseLoadState("error"); });
     return () => { active = false; };
   }, [caseEnabled, clientId, workflowRunId]);
 
@@ -114,12 +138,43 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
 
   useEffect(() => {
     const updateSelection = (event: Event) => {
-      const next = (event as CustomEvent<ShellSelection>).detail;
-      if (next?.title) setSelection(next);
+      const next = (event as CustomEvent<ShellSelectionEventDetail>).detail;
+      const expectedWindowId = appId === "home" ? "home" : appId;
+      if (!next || next.sourceAppId !== appId || next.sourceWindowId !== expectedWindowId) return;
+      if ("clear" in next && next.clear) setSelection(null);
+      else if (next.title) setSelection(next);
     };
     window.addEventListener("olivia-shell-selection", updateSelection);
     return () => window.removeEventListener("olivia-shell-selection", updateSelection);
-  }, []);
+  }, [appId]);
+
+  useEffect(() => {
+    const matchesQuote = appId === "quote" && selectedEntityType === "quote-item";
+    const matchesConti = appId === "conti" && selectedEntityType === "conti-shot";
+    if (!selectedEntityId || (!matchesQuote && !matchesConti)) return;
+    setSelection({
+      sourceAppId: appId,
+      sourceWindowId: appId,
+      itemId: selectedEntityId,
+      title: matchesQuote ? "선택한 견적 항목" : "선택한 콘티 장면",
+      subtitle: selectedEntityId,
+      next: matchesQuote ? "선택 항목의 수량과 금액을 편집합니다." : "선택 장면의 촬영 내용을 편집합니다.",
+      appId,
+      context: { ...context, featureItemId: selectedEntityId },
+      featureItemId: selectedEntityId,
+    });
+  }, [appId, context, selectedEntityId, selectedEntityType]);
+
+  useEffect(() => {
+    if (appId !== "calendar") return;
+    const syncView = (event: Event) => {
+      const viewMode = (event as CustomEvent<{ viewMode?: string }>).detail?.viewMode;
+      if (viewMode === "month") setLocalTab("calendar");
+      if (viewMode === "week") setLocalTab("calendar-week");
+    };
+    window.addEventListener("olivia-calendar-view-mode", syncView);
+    return () => window.removeEventListener("olivia-calendar-view-mode", syncView);
+  }, [appId]);
 
   const clientName = detail?.client?.name ?? detail?.client?.hospital_name ?? context?.clientName;
   const run = detail?.workflowRun;
@@ -160,6 +215,25 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
       return;
     }
     window.dispatchEvent(new CustomEvent("olivia-shell-tab", { detail: { appId, tab: tab.key } }));
+  };
+
+  const openSelection = () => {
+    if (!selection) return;
+    const selectionContext: WindowContext = {
+      ...selection.context,
+      clientId: selection.context?.clientId ?? context?.clientId,
+      workflowRunId: selection.context?.workflowRunId ?? context?.workflowRunId ?? context?.projectId,
+      projectId: selection.context?.projectId ?? context?.projectId ?? context?.workflowRunId,
+      featureItemId: selection.featureItemId ?? selection.itemId,
+    };
+    if (selection.href) {
+      launchHref(selection.href, selection.title, selectionContext);
+      return;
+    }
+    if (!selection.appId) return;
+    const app = getOliviaApp(selection.appId);
+    if (!app) return;
+    openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height, context: selectionContext });
   };
 
   const appLabel = APP_LABELS[appId] ?? appId;
@@ -216,15 +290,12 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
                 <span>{clientName ?? appLabel}</span>
                 <strong>{selection?.title ?? contextTitle}</strong>
                 <small>{selection?.subtitle ?? contextSubtitle}</small>
-                {selection?.href ? (
+                {selection?.href || selection?.appId ? (
                   <div className={styles.casePanelActions}>
                     <button
                       type="button"
                       className={styles.casePanelPrimary}
-                      onClick={() => launchHref(selection.href!, selection.title, {
-                        clientId: context?.clientId,
-                        workflowRunId: context?.workflowRunId ?? context?.projectId,
-                      })}
+                      onClick={openSelection}
                     >
                       <ArrowUpRight size={14} /> 이어 열기
                     </button>
@@ -232,7 +303,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
                 ) : null}
               </section>
               <dl>
-                <div><dt>현재 상태</dt><dd>{run?.status === "completed" ? "완료" : "진행 중"}</dd></div>
+                <div><dt>현재 상태</dt><dd>{caseLoadState === "loading" ? "불러오는 중" : caseLoadState === "error" ? "정보를 불러오지 못함" : run?.status === "completed" ? "완료" : run ? "진행 중" : "선택 정보"}</dd></div>
                 {progress ? <div><dt>진행</dt><dd>{progress.done ?? 0} / {progress.total ?? 18} 완료</dd></div> : null}
                 <div><dt>연결 자료</dt><dd>{tabs.map((tab) => tab.label).join(" · ")}</dd></div>
               </dl>
@@ -247,5 +318,31 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
 }
 
 function DesktopRecentNotice() {
-  return <div><History size={20} /><strong>최근 작업</strong><p>독과 홈의 이어할 작업에서 최근 문서와 촬영건을 다시 열 수 있습니다.</p></div>;
+  const launchHref = useDesktopAppLauncher();
+  const [entries, setEntries] = useState<StatusPanelEntry[]>([]);
+  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/olivia-os/status-panel", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((payload: StatusPanelData & { ok?: boolean }) => {
+        if (!active) return;
+        if (!payload?.ok) throw new Error("status panel");
+        const seen = new Set<string>();
+        setEntries((payload.recentActivity ?? []).filter((entry) => {
+          if (!entry.href || seen.has(entry.href)) return false;
+          seen.add(entry.href);
+          return true;
+        }).slice(0, 8));
+        setState("ready");
+      })
+      .catch(() => { if (active) setState("error"); });
+    return () => { active = false; };
+  }, []);
+
+  if (state === "loading") return <div><History size={20} /><strong>최근 작업을 불러오는 중입니다</strong></div>;
+  if (state === "error") return <div><History size={20} /><strong>최근 작업을 불러오지 못했습니다</strong><p>홈의 이어할 작업에서 다시 확인할 수 있습니다.</p></div>;
+  if (!entries.length) return <div><History size={20} /><strong>최근 작업이 없습니다</strong></div>;
+  return <div><History size={20} /><strong>최근 작업</strong><div>{entries.map((entry) => <button key={entry.id} type="button" onClick={() => entry.href && launchHref(entry.href, entry.title, { clientId: entry.clientId ?? undefined, workflowRunId: entry.workflowRunId ?? undefined, projectId: entry.workflowRunId ?? undefined, featureItemId: entry.id })}><span><b>{entry.title}</b><small>{entry.detail}</small></span><ArrowUpRight size={14} /></button>)}</div></div>;
 }

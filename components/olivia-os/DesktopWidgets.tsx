@@ -5,6 +5,8 @@ import { ArrowUpRight, FileText, Images, LayoutPanelTop, LoaderCircle } from "lu
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
+import { resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "./OliviaDesktop.module.css";
 
 type HomeFilter = "all" | "document" | "media";
@@ -65,15 +67,28 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
   const selectedEntry = continueEntries.find((entry) => entry.id === selectedEntryId) ?? continueEntries[0] ?? null;
 
   useEffect(() => {
-    if (!selectedEntry) return;
-    window.dispatchEvent(new CustomEvent("olivia-shell-selection", {
-      detail: {
-        title: selectedEntry.title,
-        subtitle: selectedEntry.detail || "이어서 확인하세요",
-        next: selectedEntry.detail || "선택한 작업을 이어서 확인합니다.",
-        href: selectedEntry.href,
+    if (!selectedEntry) {
+      emitShellSelection({ clear: true, sourceAppId: "home", sourceWindowId: "home" });
+      return;
+    }
+    emitShellSelection({
+      sourceAppId: "home",
+      sourceWindowId: "home",
+      itemId: selectedEntry.id,
+      title: selectedEntry.title,
+      subtitle: selectedEntry.detail || "이어서 확인하세요",
+      next: selectedEntry.detail || "선택한 작업을 이어서 확인합니다.",
+      href: selectedEntry.href,
+      appId: selectedEntry.href ? resolveOliviaAppRoute(selectedEntry.href)?.app.id : undefined,
+      context: {
+        clientId: selectedEntry.clientId ?? undefined,
+        workflowRunId: selectedEntry.workflowRunId ?? undefined,
+        projectId: selectedEntry.workflowRunId ?? undefined,
+        routeHref: selectedEntry.href ?? undefined,
+        featureItemId: selectedEntry.id,
       },
-    }));
+      featureItemId: selectedEntry.id,
+    });
   }, [selectedEntry]);
 
   const openSelected = () => {

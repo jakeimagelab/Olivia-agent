@@ -11,6 +11,7 @@ import PcrmActivityTimeline from "@/app/(client-hub)/clients/_components/PcrmAct
 import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "./ClientDocumentWorkspace.module.css";
 
 const loadingEditor = () => <div className={styles.editorLoading}><LoaderCircle size={22} /> 문서를 불러오는 중...</div>;
@@ -126,6 +127,26 @@ export default function ClientDocumentWorkspace({
     if (workflowRunId) url.searchParams.set("workflowRunId", workflowRunId); else url.searchParams.delete("workflowRunId");
     window.history.replaceState(null, "", `${url.pathname}${url.search}`);
   }, [clientId, embedded, workflowRunId]);
+
+  useEffect(() => {
+    if (!clientId || !detail?.client) {
+      emitShellSelection({ clear: true, sourceAppId: "customer", sourceWindowId: "customer" });
+      return;
+    }
+    const ownedRunId = detail.workflowRun?.id ?? workflowRunId ?? undefined;
+    emitShellSelection({
+      sourceAppId: "customer",
+      sourceWindowId: "customer",
+      itemId: ownedRunId ?? clientId,
+      title: detail.client.name ?? detail.client.hospital_name ?? "선택 고객",
+      subtitle: detail.workflowRun?.project_name ?? "고객 정보",
+      next: detail.listClient?.next_action?.label ?? "고객과 촬영건 자료를 확인합니다.",
+      appId: "customer",
+      href: `/clients?clientId=${encodeURIComponent(clientId)}${ownedRunId ? `&workflowRunId=${encodeURIComponent(ownedRunId)}` : ""}`,
+      context: { clientId, clientName: detail.client.name ?? detail.client.hospital_name, workflowRunId: ownedRunId, projectId: ownedRunId, projectName: detail.workflowRun?.project_name, featureItemId: ownedRunId ?? clientId },
+      featureItemId: ownedRunId ?? clientId,
+    });
+  }, [clientId, detail, workflowRunId]);
 
   const clients = useMemo(() => list.clients
     .filter((client) => !query.trim() || client.hospital_name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))

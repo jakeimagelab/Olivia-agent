@@ -74,6 +74,20 @@ export function DesktopDock() {
   }, [cancelHide]);
 
   useEffect(() => {
+    const revealFromEdge = (event: PointerEvent) => {
+      if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+      if (event.clientY >= window.innerHeight - 92) {
+        cancelHide();
+        setRevealed(true);
+      } else if (!dockRef.current?.contains(event.target as Node)) {
+        scheduleHide(300);
+      }
+    };
+    window.addEventListener("pointermove", revealFromEdge, { passive: true });
+    return () => window.removeEventListener("pointermove", revealFromEdge);
+  }, [cancelHide, scheduleHide]);
+
+  useEffect(() => {
     const area = dockRef.current?.parentElement;
     if (!area) return;
     const measure = () => setLayout(resolveDockLayout(area.clientWidth, apps.length + 3, 4));
@@ -95,15 +109,13 @@ export function DesktopDock() {
   return (
     <div
       className={`${styles.dockReveal} ${revealed ? styles.dockRevealOpen : ""}`}
-      onPointerEnter={() => { cancelHide(); setRevealed(true); }}
-      onPointerLeave={() => scheduleHide()}
       onFocusCapture={() => { cancelHide(); setRevealed(true); }}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleHide();
       }}
     >
-      <span className={styles.dockHint} aria-hidden="true" />
-      <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock">
+      <button type="button" className={styles.dockHint} onClick={() => { cancelHide(); setRevealed(true); }} aria-label="Dock 열기" />
+      <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock" onPointerEnter={() => { cancelHide(); setRevealed(true); }} onPointerLeave={() => scheduleHide()}>
         <button
           type="button"
           className={`${styles.dockButton} ${activeWindowId === null ? styles.active : ""}`}

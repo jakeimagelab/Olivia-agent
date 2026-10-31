@@ -15,6 +15,7 @@ export function DesktopTopBar() {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const activeWindow = useOliviaDesktopStore((state) => activeWindowId ? state.windows[activeWindowId] : undefined);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
+  const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
@@ -41,6 +42,7 @@ export function DesktopTopBar() {
   const openWorkspace = () => {
     const app = getOliviaApp("all-apps");
     if (!app) return;
+    setGlobalSearchOpen(false);
     openApp({
       appId: app.id,
       title: app.title,

@@ -127,6 +127,43 @@
 }
 .toolBar button:hover:not(:disabled), .toolBar button.activeTool { color: #fff; border-color: rgba(79, 216, 184, .45); background: rgba(79, 216, 184, .16); }
 .toolBar button:disabled { color: rgba(255, 255, 255, .25); cursor: not-allowed; }
+.toolMore { position: relative; }
+.toolMoreMenu,
+.filterMenu {
+  position: absolute;
+  z-index: 40;
+  display: grid;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid var(--bridge-line);
+  border-radius: 9px;
+  background: var(--bridge-panel);
+  box-shadow: 0 18px 42px rgba(0,0,0,.32);
+}
+.toolMoreMenu { top: calc(100% + 7px); right: 0; width: 220px; }
+.toolMoreMenu button,
+.filterMenu button {
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.toolMoreMenu button:hover:not(:disabled),
+.filterMenu button:hover { background: rgba(79,216,184,.1); }
+.toolMoreMenu button:disabled { opacity: .45; cursor: not-allowed; }
+.toolMoreMenu button > span { min-width: 0; display: grid; gap: 3px; }
+.toolMoreMenu strong { font-size: 10px; font-weight: 600; }
+.toolMoreMenu small { color: rgba(255,255,255,.46); font-size: 8px; line-height: 1.35; }
 
 .sceneStatusButton {
   min-width: 128px;
@@ -322,7 +359,8 @@
 .plainFileSection > header strong { color: rgba(255, 255, 255, .82); font-size: 10.5px; font-weight: 600; }
 .plainFileSection > header span { color: rgba(255, 255, 255, .34); font-size: 8.5px; }
 .plainFileSection > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; }
-.plainFileCard { min-width: 0; min-height: 116px; display: grid; grid-template-rows: 1fr auto auto auto; justify-items: start; gap: 4px; padding: 13px 12px 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 7px; color: rgba(255, 255, 255, .64); background: rgba(255, 255, 255, .035); }
+.plainFileCard { min-width: 0; min-height: 116px; display: grid; grid-template-rows: 1fr auto auto auto; justify-items: start; gap: 4px; padding: 13px 12px 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 7px; color: rgba(255, 255, 255, .64); background: rgba(255, 255, 255, .035); font: inherit; text-align: left; cursor: pointer; }
+.plainFileCard[data-active="true"] { border-color: var(--bridge-mint); }
 .plainFileCard > svg { align-self: center; justify-self: center; color: rgba(255, 255, 255, .55); }
 .plainFileCard > span { padding: 3px 6px; border-radius: 4px; color: #dffff6; background: rgba(79, 216, 184, .14); font-size: 8px; }
 .plainFileCard strong { width: 100%; overflow: hidden; color: rgba(255, 255, 255, .76); font-size: 9px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
@@ -356,6 +394,32 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .previewEmpty { grid-row: 1 / -1; display: grid; place-content: center; justify-items: center; gap: 8px; padding: 24px; color: rgba(255, 255, 255, .34); text-align: center; }
 .previewEmpty strong { color: rgba(255, 255, 255, .7); font-size: 11px; font-weight: 600; }
 .previewEmpty span { font-size: 9px; }
+.previewFileInfo { grid-row: 3 / -1; display: grid; place-content: center; justify-items: center; gap: 9px; padding: 22px; text-align: center; }
+.previewFileInfo > svg { color: var(--bridge-green); }
+.previewFileInfo strong { max-width: 100%; overflow-wrap: anywhere; font-size: 11px; font-weight: 600; }
+.previewFileInfo span,
+.previewFileInfo p { margin: 0; color: #7A8A83; font-size: 9px; line-height: 1.5; }
+.previewRatings { grid-column: 1 / -1; display: flex; align-items: center; gap: 2px; }
+.previewRatings button { width: 25px; height: 25px; display: grid; place-items: center; padding: 0; border: 0; color: #A7B5AE; background: transparent; cursor: pointer; }
+.previewRatings button[aria-pressed="true"] { color: #C94A1E; }
+.previewRatings button:last-child { width: auto; margin-left: 5px; padding: 0 5px; color: #64736C; font-size: 9px; }
+.previewExpandButton { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--bridge-line); border-radius: 7px; color: var(--bridge-green); background: transparent; font: 500 9px/1 inherit; cursor: pointer; }
+.previewOlivia { grid-row: 3 / -1; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr); overflow: hidden; }
+.previewOlivia > div:first-child { display: grid; gap: 3px; padding: 10px 14px; border-bottom: 1px solid var(--bridge-line); }
+.previewOlivia > div:first-child strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.previewOlivia > div:first-child span { overflow: hidden; color: #7A8A83; font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }
+.previewOliviaDock { min-height: 0; overflow: hidden; }
+.compactPreviewButton,
+.compactPreviewClose { display: none; }
+.browserActions { position: relative; display: flex; align-items: center; gap: 6px; }
+.filterMenuHost { position: relative; }
+.filterMenuButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--bridge-line); border-radius: 7px; color: #64736C; background: var(--bridge-panel); font: 500 9px/1 inherit; cursor: pointer; }
+.filterMenu { top: calc(100% + 7px); right: 0; width: 248px; color: #2F3833; }
+.filterMenu > small { padding: 6px 8px 2px; color: #7A8A83; font-size: 8px; }
+.filterMenu label { min-height: 38px; display: grid; grid-template-columns: 18px minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 6px 9px; font-size: 9px; }
+.filterMenu button { justify-content: initial; }
+.filterMenu button > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filterMenu b { color: #7A8A83; font-size: 8px; font-weight: 500; }
 
 .fullscreenPreview {
   position: absolute;
@@ -614,7 +678,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   justify-self: start;
   z-index: 1;
   gap: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid #D5DBD3;
   border-radius: 8px;
   background: #FCFBF8;
@@ -631,8 +695,11 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   color: #64736C;
   background: transparent;
 }
-.bridge[data-desktop-ui="true"] .toolBar button:nth-child(n+5) { display: none; }
 .bridge[data-desktop-ui="true"] .toolBar button span { display: inline; font-size: 9.5px; }
+.bridge[data-desktop-ui="true"] .toolMoreMenu button { height: auto; min-height: 40px; border: 0; border-radius: 7px; }
+.bridge[data-desktop-ui="true"] .toolMoreMenu button > span { display: grid; }
+.bridge[data-desktop-ui="true"] .toolMoreMenu strong { color: #2F3833; }
+.bridge[data-desktop-ui="true"] .toolMoreMenu small { color: #7A8A83; }
 .bridge[data-desktop-ui="true"] .toolBar button:hover:not(:disabled),
 .bridge[data-desktop-ui="true"] .toolBar button.activeTool { color: #155855; border-color: #D5DBD3; background: #E2EBE3; }
 .bridge[data-desktop-ui="true"] .toolBar button:disabled { color: #A7B5AE; }
@@ -691,7 +758,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .fileTypeTabs button[aria-selected="true"] { border-bottom-color: #155855; color: #155855; }
 .bridge[data-desktop-ui="true"] .fileTypeTabs span { color: #8B9892; font-size: 8.5px; }
 .bridge[data-desktop-ui="true"] .fileArea { padding: 12px 16px 18px; scrollbar-color: #B8C2BD transparent; }
-.bridge[data-desktop-ui="true"] .thumbnailGrid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px; }
+.bridge[data-desktop-ui="true"] .thumbnailGrid { gap: 10px; }
 .bridge[data-desktop-ui="true"] .thumbnailCard {
   min-height: 128px;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -716,6 +783,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .plainFileSection > header strong { color: #2F3833; }
 .bridge[data-desktop-ui="true"] .plainFileSection > header span { color: #7A8A83; }
 .bridge[data-desktop-ui="true"] .plainFileCard { border-color: #D5DBD3; color: #64736C; background: #FCFBF8; }
+.bridge[data-desktop-ui="true"] .plainFileCard[data-active="true"] { border-color: #E85D2C; box-shadow: inset 0 0 0 1px #E85D2C; }
 .bridge[data-desktop-ui="true"] .plainFileCard > svg,
 .bridge[data-desktop-ui="true"] .plainFileCard strong { color: #64736C; }
 .bridge[data-desktop-ui="true"] .plainFileCard > span { color: #155855; background: #E2EBE3; }
@@ -732,6 +800,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .previewHeader { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: #2F3833; }
 .bridge[data-desktop-ui="true"] .previewHeader strong { font-size: 12px; font-weight: 600; }
 .bridge[data-desktop-ui="true"] .previewHeader svg { color: #155855; }
+.bridge[data-desktop-ui="true"] .previewHeader button { border: 0; color: #155855; background: transparent; }
 .bridge[data-desktop-ui="true"] .previewTabs { display: flex; align-items: end; gap: 18px; padding: 0 18px; border-bottom: 1px solid #D5DBD3; }
 .bridge[data-desktop-ui="true"] .previewTabs button { height: 36px; border: 0; border-bottom: 2px solid transparent; padding: 0; color: #626D65; background: transparent; font: 500 9.5px/1 inherit; }
 .bridge[data-desktop-ui="true"] .previewTabs button[aria-selected="true"] { border-bottom-color: #155855; color: #155855; }
@@ -748,8 +817,11 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .emptyState button { border-color: #BBD0C2; color: #155855; background: #FCFBF8; }
 
 @container olivia-bridge (max-width: 900px) {
-  .bridge[data-desktop-ui="true"] .workspace { grid-template-columns: minmax(0, 1fr); }
+  .bridge[data-desktop-ui="true"] .workspace { position: relative; grid-template-columns: minmax(0, 1fr); }
   .bridge[data-desktop-ui="true"] .workspace > .paneDivider,
   .bridge[data-desktop-ui="true"] .previewPanel { display: none; }
-  .bridge[data-desktop-ui="true"] .thumbnailGrid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .bridge[data-desktop-ui="true"] .workspace[data-compact-preview="true"] .previewPanel { position: absolute; z-index: 25; inset: 0 0 0 auto; width: min(330px, 92%); display: grid; border-left: 1px solid #D5DBD3; box-shadow: -16px 0 34px rgba(40,55,45,.12); }
+  .bridge[data-desktop-ui="true"] .compactPreviewButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid #D5DBD3; border-radius: 7px; color: #155855; background: #FCFBF8; font: 500 9px/1 inherit; }
+  .bridge[data-desktop-ui="true"] .compactPreviewClose { display: grid; place-items: center; }
+  .bridge[data-desktop-ui="true"] .previewHeader > svg { display: none; }
 }

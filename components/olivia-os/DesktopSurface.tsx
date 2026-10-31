@@ -141,12 +141,6 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
     return () => window.removeEventListener("olivia-desktop-history", move);
   }, [moveThroughHistory, toggleShowDesktop]);
 
-  const activeWindow = activeWindowId ? windows[activeWindowId] : undefined;
-  const activeApp = activeWindow
-    ? oliviaAppRegistry.find((candidate) => candidate.id === activeWindow.appId)
-    : undefined;
-  const ActiveContent = activeApp?.component;
-
   return (
     <main
       ref={surfaceRef}
@@ -162,20 +156,29 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
       }}
     >
       <div className={styles.windowLayer}>
-        {activeWindow && activeApp && ActiveContent && !activeWindow.minimized ? (
-          <AppWindow windowId={activeWindow.id} workspaceRef={surfaceRef} minWidth={activeApp.minSize?.width} minHeight={activeApp.minSize?.height}>
-            <DesktopCaseChrome appId={activeWindow.appId} context={activeWindow.context}>
-              <ActiveContent
-                key={getDesktopContentKey({ windowId: activeWindow.id, appId: activeWindow.appId, context: activeWindow.context })}
-                context={activeWindow.context}
-              />
-            </DesktopCaseChrome>
-          </AppWindow>
-        ) : (
+        {Object.values(windows).map((win) => {
+          const app = oliviaAppRegistry.find((candidate) => candidate.id === win.appId);
+          if (!app?.component) return null;
+          const Content = app.component;
+          const active = win.id === activeWindowId && !win.minimized;
+          return (
+            <div key={win.id} className={styles.surfaceAppSlot} data-active={active ? "true" : "false"} aria-hidden={!active} inert={active ? undefined : true}>
+              <AppWindow windowId={win.id} workspaceRef={surfaceRef} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
+                <DesktopCaseChrome appId={win.appId} context={win.context}>
+                  <Content
+                    key={getDesktopContentKey({ windowId: win.id, appId: win.appId, context: win.context })}
+                    context={win.context}
+                  />
+                </DesktopCaseChrome>
+              </AppWindow>
+            </div>
+          );
+        })}
+        {!activeWindowId || !windows[activeWindowId] || windows[activeWindowId].minimized ? (
           <DesktopCaseChrome appId="home">
             <TodayWindowContent />
           </DesktopCaseChrome>
-        )}
+        ) : null}
       </div>
     </main>
   );

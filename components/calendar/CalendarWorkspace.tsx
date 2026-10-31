@@ -21,6 +21,7 @@ import {
   preserveCalendarDuration,
   type CalendarDragGrid,
 } from "@/lib/calendarDrag";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 
 /* ─── types ──────────────────────────────────────────── */
 type ViewMode = "day" | "week" | "month" | "year";
@@ -166,8 +167,19 @@ function layoutOverlappingTasks(tasks: CalTask[]): Map<string, TimedLayout> {
   return result;
 }
 
-function formatTimeKo(t: string): string {
-  const [hStr, mStr] = t.split(":");
+function isValidClockTime(t: string | null | undefined): boolean {
+  if (!t) return false;
+  const match = /^(\d{1,2}):(\d{2})/.exec(t.trim());
+  if (!match) return false;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  return Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+}
+
+function formatTimeKo(t: string | null | undefined): string {
+  const value = t ?? "";
+  if (!isValidClockTime(value)) return value.trim() || "시간 미정";
+  const [hStr, mStr] = value.split(":");
   const h = Number(hStr);
   const m = Number(mStr);
   const period = h < 12 ? "오전" : "오후";
@@ -663,7 +675,7 @@ function EventPopover({ mode, date, task, anchor, bounds, isMobile, defaultTime,
           </div>
         )}
         {!isMobile && (
-          <div style={{ fontSize: 11, fontWeight: 800, color: C.hint, marginBottom: 10 }}>{dateLabel}</div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.hint, marginBottom: 10 }}>{dateLabel}</div>
         )}
         {mode === "add" ? (
           <AddTaskForm key={`add-${date}-${anchor?.x}-${anchor?.y}`} date={date}
@@ -792,17 +804,17 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
               <img src="/assets/photoclinic-mark.png" alt="" style={{ width: 52, height: 52, objectFit: "contain" }} />
               <span style={{
-                fontSize: 15, fontWeight: 900, color: "#fff", letterSpacing: 0.5,
+                fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: 0.5,
                 background: cat.color, padding: "7px 16px", borderRadius: 999,
               }}>{cat.label} 일정 안내</span>
             </div>
 
-            <div style={{ fontSize: 20, fontWeight: 800, color: BRAND_TEAL, marginBottom: 16, letterSpacing: 0.2 }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: BRAND_TEAL, marginBottom: 16, letterSpacing: 0.2 }}>
               {new Date(task.date + "T12:00:00").toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
               {task.time ? ` · ${task.time.slice(0, 5)}${task.end_time ? ` ~ ${task.end_time.slice(0, 5)}` : ""}` : ""}
             </div>
 
-            <div style={{ fontSize: 42, fontWeight: 900, color: "#1C2B28", lineHeight: 1.38, marginBottom: 14, wordBreak: "keep-all" }}>
+            <div style={{ fontSize: 42, fontWeight: 600, color: "#1C2B28", lineHeight: 1.38, marginBottom: 14, wordBreak: "keep-all" }}>
               {task.title || "일정"}
             </div>
             <div style={{ width: 56, height: 6, borderRadius: 3, background: BRAND_ORANGE, marginBottom: 30 }} />
@@ -871,7 +883,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
       <div style={{ padding: "16px 18px 13px", flexShrink: 0, background: isToday ? C.mint : "#FAFCFB", borderBottom: `1px solid ${C.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {isToday && (
-            <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: C.teal, padding: "2px 8px", borderRadius: 99 }}>오늘</span>
+            <span style={{ fontSize: 9, fontWeight: 600, color: "#fff", background: C.teal, padding: "2px 8px", borderRadius: 99 }}>오늘</span>
           )}
           <strong style={{ fontSize: 16, color: C.txt, letterSpacing: "-.03em" }}>{dateLabel}</strong>
         </div>
@@ -882,7 +894,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
         <section aria-labelledby="calendar-today-heading">
           <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
             <strong id="calendar-today-heading" style={{ flex: 1, color: C.teal, fontSize: 12 }}>오늘 일정</strong>
-            <span style={{ minWidth: 24, padding: "2px 7px", borderRadius: 99, background: C.mint, color: C.teal, fontSize: 10, fontWeight: 800, textAlign: "center" }}>{tasks.length}</span>
+            <span style={{ minWidth: 24, padding: "2px 7px", borderRadius: 99, background: C.mint, color: C.teal, fontSize: 10, fontWeight: 600, textAlign: "center" }}>{tasks.length}</span>
           </div>
           {loading ? (
             <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>일정을 불러오는 중…</div>
@@ -895,7 +907,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
                 return <div key={task.id} style={{ display: "grid", gridTemplateColumns: "45px minmax(0,1fr)", gap: 9, padding: "9px 10px", border: `1px solid ${cat.color}20`, borderRadius: 10, background: cat.bg }}>
                   <strong style={{ color: cat.color, fontSize: 10.5, paddingTop: 1 }}>{task.time?.slice(0, 5) ?? "종일"}</strong>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ color: C.txt, fontSize: 11.5, fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.completed ? "line-through" : undefined, opacity: task.completed ? .58 : 1 }}>{task.title}</div>
+                    <div style={{ color: C.txt, fontSize: 11.5, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: task.completed ? "line-through" : undefined, opacity: task.completed ? .58 : 1 }}>{task.title}</div>
                     <div style={{ display: "flex", gap: 5, marginTop: 3, color: C.muted, fontSize: 9.5 }}>
                       <span>{cat.label}</span>{task.location ? <span>· {task.location}</span> : null}
                     </div>
@@ -912,7 +924,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <strong id="calendar-todo-heading" style={{ flex: 1, color: C.teal, fontSize: 12 }}>해야 할 일</strong>
             <span style={{ color: C.hint, fontSize: 9.5 }}>{todos.filter(todo => !todo.completed).length}개 남음</span>
-            <button type="button" onClick={() => setAdding(value => !value)} style={{ display: "inline-flex", alignItems: "center", gap: 3, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 8px", background: C.surface, color: C.teal, fontSize: 10, fontWeight: 800, cursor: "pointer" }}><Plus size={12}/> 할 일 추가</button>
+            <button type="button" onClick={() => setAdding(value => !value)} style={{ display: "inline-flex", alignItems: "center", gap: 3, border: `1px solid ${C.border}`, borderRadius: 8, padding: "5px 8px", background: C.surface, color: C.teal, fontSize: 10, fontWeight: 600, cursor: "pointer" }}><Plus size={12}/> 할 일 추가</button>
           </div>
           {adding ? <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
             <input autoFocus value={todoTitle} maxLength={160} onChange={event => setTodoTitle(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); void submitTodo(); } }} placeholder="할 일을 입력하세요" style={{ minWidth: 0, flex: 1, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", color: C.txt, font: "inherit", fontSize: 11, outline: "none" }}/>
@@ -1491,9 +1503,10 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
   };
 
   const durationPx = (s: string, e: string | null | undefined) => {
-    if (!e) return HOUR_HEIGHT;
+    if (!isValidClockTime(e)) return HOUR_HEIGHT;
+    const end = e ?? "";
     const [sh, sm] = s.split(":").map(Number);
-    const [eh, em] = e.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
     return Math.max(28, ((eh * 60 + em) - (sh * 60 + sm)) / 60 * HOUR_HEIGHT);
   };
 
@@ -1557,7 +1570,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
         <div style={{ fontSize: mfz(9, isMobile), color: C.hint, paddingTop: 6, textAlign: "right", paddingRight: isMobile ? 4 : 8 }}>종일</div>
         {weekDates.map((d, i) => {
           const ds = toYMD(d);
-          const allDay = (tasksByDate[ds] ?? []).filter(t => !t.time);
+          const allDay = (tasksByDate[ds] ?? []).filter(t => !isValidClockTime(t.time));
           return (
             <div key={i} style={{ padding: "3px 2px", display: "flex", flexDirection: "column", gap: 1.5,
               borderLeft: `1px solid ${C.border}30`, minHeight: 24 }}>
@@ -1597,7 +1610,7 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
           {weekDates.map((d, colIdx) => {
             const ds = toYMD(d);
             const isToday = ds === todayStr;
-            const timedTasks = (tasksByDate[ds] ?? []).filter(t => !!t.time);
+            const timedTasks = (tasksByDate[ds] ?? []).filter(t => isValidClockTime(t.time));
             const timedLayout = layoutOverlappingTasks(timedTasks);
             return (
               <div key={colIdx} ref={el => { dayColRefs.current[colIdx] = el; }} style={{ position: "relative", borderLeft: `1px solid ${C.border}30` }}>
@@ -1808,8 +1821,8 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   const d = new Date(dateStr + "T12:00:00");
   const dow = d.getDay();
   const holidayName = getKoreanHoliday(dateStr);
-  const allDay = tasks.filter(t => !t.time);
-  const timed  = tasks.filter(t => !!t.time);
+  const allDay = tasks.filter(t => !isValidClockTime(t.time));
+  const timed  = tasks.filter(t => isValidClockTime(t.time));
   const timedLayout = useMemo(() => layoutOverlappingTasks(timed), [timed]);
 
   const [dragging, setDragging] = useState<{
@@ -1848,9 +1861,10 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
   };
 
   const durationPx = (s: string, e: string | null | undefined) => {
-    if (!e) return HOUR_HEIGHT;
+    if (!isValidClockTime(e)) return HOUR_HEIGHT;
+    const end = e ?? "";
     const [sh, sm] = s.split(":").map(Number);
-    const [eh, em] = e.split(":").map(Number);
+    const [eh, em] = end.split(":").map(Number);
     return Math.max(MIN_H, ((eh * 60 + em) - (sh * 60 + sm)) / 60 * HOUR_HEIGHT);
   };
 
@@ -2288,6 +2302,23 @@ export default function CalendarWorkspace() {
   useEffect(() => { window.localStorage.setItem(CALENDAR_VIEW_STORAGE_KEY, viewMode); }, [viewMode]);
 
   useEffect(() => {
+    if (!embedded) return;
+    window.dispatchEvent(new CustomEvent("olivia-calendar-view-mode", { detail: { viewMode } }));
+  }, [embedded, viewMode]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    const handleShellTab = (event: Event) => {
+      const detail = (event as CustomEvent<{ appId?: string; tab?: string }>).detail;
+      if (detail?.appId !== "calendar") return;
+      if (detail.tab === "calendar") setViewMode("month");
+      if (detail.tab === "calendar-week" && !isMobile) setViewMode("week");
+    };
+    window.addEventListener("olivia-shell-tab", handleShellTab);
+    return () => window.removeEventListener("olivia-shell-tab", handleShellTab);
+  }, [embedded, isMobile]);
+
+  useEffect(() => {
     if (!confirmDeleteId) return;
     const close = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
@@ -2315,6 +2346,21 @@ export default function CalendarWorkspace() {
     }
     return map;
   }, [allTasks]);
+
+  useEffect(() => {
+    if (!embedded) return;
+    emitShellSelection({
+      sourceAppId: "calendar",
+      sourceWindowId: "calendar",
+      itemId: selectedDate,
+      title: selectedDate,
+      subtitle: `${VIEW_LABELS[viewMode]} 보기 · 일정 ${tasksByDate[selectedDate]?.length ?? 0}개`,
+      next: "선택한 날짜의 일정과 할 일을 확인합니다.",
+      appId: "calendar",
+      context: { featureItemId: selectedDate },
+      featureItemId: selectedDate,
+    });
+  }, [embedded, selectedDate, tasksByDate, viewMode]);
 
   // 일정 분석 — 지금 보고 있는 달(year/month) 기준으로 카테고리별 건수를 센다.
   // 뷰(월/주/일/연) 모드와 무관하게 상단 nav의 year/month가 항상 "현재 기준 월"을 가리키므로 그대로 쓴다.
@@ -2728,7 +2774,7 @@ export default function CalendarWorkspace() {
             {DAILY_ROUTINE.map((r, i) => (
               <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.teal, flexShrink: 0 }}/>
-                <span style={{ fontSize: 12, fontWeight: 800, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: C.teal, whiteSpace: "nowrap" }}>{formatTimeKo(r.time)}</span>
                 <span style={{ fontSize: 12, fontWeight: 600, color: C.txt, whiteSpace: "nowrap" }}>{r.label}</span>
               </div>
             ))}

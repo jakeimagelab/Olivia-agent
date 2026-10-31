@@ -22,7 +22,8 @@ import {
 import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import { AppIcon } from "../../AppIcon";
-import { getOliviaApp, type OliviaAppDefinition } from "../../registry/oliviaAppRegistry";
+import { getOliviaApp, resolveOliviaAppRoute, type OliviaAppDefinition } from "../../registry/oliviaAppRegistry";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "./AllAppsWindowContent.module.css";
 
 const TOOL_ICON_BY_HREF: Record<string, IconName> = {
@@ -225,7 +226,7 @@ export function AllAppsWindowContent() {
   const groups = useMemo(() => groupToolsByCategory(APP_TOOLS).filter((group) => group.items.length > 0), []);
   const desktop = useMemo(desktopEntries, []);
   const desktopByKey = useMemo(() => new Map(desktop.map((entry) => [entry.key, entry])), [desktop]);
-  const [activeCategory, setActiveCategory] = useState<AppTab>("favorites");
+  const [activeCategory, setActiveCategory] = useState<AppTab>("all");
   const [favoriteKeys, setFavoriteKeys] = useState<string[]>([...DEFAULT_DESKTOP_FAVORITE_KEYS]);
   const [menu, setMenu] = useState<MenuState>();
   const [saving, setSaving] = useState(false);
@@ -297,19 +298,24 @@ export function AllAppsWindowContent() {
 
   const selectEntry = useCallback((entry: DisplayEntry) => {
     setSelectedKey(entry.key);
-    window.dispatchEvent(new CustomEvent("olivia-shell-selection", {
-      detail: {
-        title: entry.title,
-        subtitle: entry.description,
-        next: "선택한 앱을 현재 작업 화면으로 엽니다.",
-        href: entry.kind === "tool" ? entry.tool.href : undefined,
-      },
-    }));
+    emitShellSelection({
+      sourceAppId: "all-apps",
+      sourceWindowId: "all-apps",
+      itemId: entry.key,
+      title: entry.title,
+      subtitle: entry.description,
+      next: "선택한 앱을 현재 작업 화면으로 엽니다.",
+      href: entry.kind === "tool" ? entry.tool.href : undefined,
+      appId: entry.kind === "desktop" ? entry.app.id : resolveOliviaAppRoute(entry.tool.href)?.app.id,
+      context: entry.kind === "tool" ? { routeHref: entry.tool.href, featureItemId: entry.key } : { featureItemId: entry.key },
+      featureItemId: entry.key,
+    });
   }, []);
 
   useEffect(() => {
     const selected = visibleEntries.find((entry) => entry.key === selectedKey);
     if (selected) selectEntry(selected);
+    else emitShellSelection({ clear: true, sourceAppId: "all-apps", sourceWindowId: "all-apps" });
   }, [selectEntry, selectedKey, visibleEntries]);
 
   const openFavoriteMenu = useCallback((entry: DisplayEntry, clientX: number, clientY: number) => {

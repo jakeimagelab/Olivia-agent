@@ -34,6 +34,8 @@ export function DesktopGlobalSearch() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const deferredQuery = useDeferredValue(query.trim());
   const inputRef = useRef<HTMLInputElement>(null);
+  const focusFrameRef = useRef<number | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const launchHref = useDesktopAppLauncher();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
   const localTools = useMemo(() => filterAdminTools(getWorkspaceAwareTools(), deferredQuery).slice(0, 8), [deferredQuery]);
@@ -47,6 +49,7 @@ export function DesktopGlobalSearch() {
 
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
+      if (event.isComposing || event.key === "Process") return;
       if (isEditableKeyboardTarget(event.target)) return;
       if ((event.metaKey || event.ctrlKey) && ["k", "f"].includes(event.key.toLowerCase())) {
         event.preventDefault();
@@ -62,11 +65,29 @@ export function DesktopGlobalSearch() {
   // The top bar, Dock, and ⌘K listener all use the same open state. Focusing
   // here means opening from either entry point behaves identically.
   useEffect(() => {
-    if (!open) return;
-    window.requestAnimationFrame(() => {
+    if (!open) {
+      if (focusFrameRef.current !== null) {
+        window.cancelAnimationFrame(focusFrameRef.current);
+        focusFrameRef.current = null;
+      }
+      openerRef.current?.focus();
+      openerRef.current = null;
+      return;
+    }
+
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusFrameRef.current = window.requestAnimationFrame(() => {
+      focusFrameRef.current = null;
+      if (!useOliviaDesktopUtilityStore.getState().globalSearchOpen) return;
       inputRef.current?.focus();
       inputRef.current?.select();
     });
+
+    return () => {
+      if (focusFrameRef.current === null) return;
+      window.cancelAnimationFrame(focusFrameRef.current);
+      focusFrameRef.current = null;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -125,6 +146,7 @@ export function DesktopGlobalSearch() {
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing || event.key === "Process") return;
     if (event.key === "Escape") { setOpen(false); inputRef.current?.blur(); return; }
     if (!flatResults.length) return;
     if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => (index + 1) % flatResults.length); }

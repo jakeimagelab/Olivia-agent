@@ -66,9 +66,14 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   }, [initialLaunch]);
 
   const showAppChat = Boolean(appChatOpen && activeWindowId !== "olivia-chat");
+  const chatScreenTitle = [
+    activeWindow?.title ?? "홈",
+    activeWindow?.context?.documentTitle ?? activeWindow?.context?.projectName ?? activeWindow?.context?.clientName,
+  ].filter(Boolean).join(" · ");
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.isComposing || event.key === "Process") return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
         event.preventDefault();
         setAppChatOpen(!useOliviaDesktopUtilityStore.getState().appChatOpen);
@@ -99,7 +104,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
             <DesktopTopBar />
             <DesktopSurface />
           </section>
-          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={activeWindow?.title ?? "홈"} onClose={() => setAppChatOpen(false)} /> : null}
+          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={chatScreenTitle} onClose={() => setAppChatOpen(false)} /> : null}
         </div>
       </HomeDashboardDataProvider>
       <div className={styles.dockArea}><DesktopDock /></div>

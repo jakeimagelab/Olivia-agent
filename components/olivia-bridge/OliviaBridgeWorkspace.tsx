@@ -16,14 +16,17 @@ import {
   LayoutGrid,
   Link2,
   LoaderCircle,
+  Maximize2,
   Minus,
   Monitor,
+  MoreHorizontal,
   PencilLine,
   Plus,
   RefreshCw,
   Scaling,
   ScanSearch,
   Scissors,
+  SlidersHorizontal,
   Sparkles,
   Star,
   WandSparkles,
@@ -113,6 +116,9 @@ import {
 } from "@/lib/photo-bridge/labels";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
+import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
@@ -141,6 +147,7 @@ type SceneState = {
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
+type PreviewTab = "preview" | "olivia";
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
   pointerId: number;
@@ -310,14 +317,14 @@ function BridgeFullscreenPreview({
   );
 }
 
-function PlainFileCard({ file }: { file: BridgeRawFile }) {
+function PlainFileCard({ file, active, onClick }: { file: BridgeRawFile; active: boolean; onClick: () => void }) {
   return (
-    <article className={styles.plainFileCard}>
+    <button type="button" className={styles.plainFileCard} data-active={active} onClick={onClick}>
       <File size={30} strokeWidth={1.5} aria-hidden="true" />
       <span>{file.extension}</span>
       <strong title={file.name}>{file.name}</strong>
       <small>{formatBytes(file.size)}</small>
-    </article>
+    </button>
   );
 }
 
@@ -548,6 +555,11 @@ export default function OliviaBridgeWorkspace({
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
+  const [toolMenuOpen, setToolMenuOpen] = useState(false);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [previewTab, setPreviewTab] = useState<PreviewTab>("preview");
+  const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
+  const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
@@ -591,7 +603,12 @@ export default function OliviaBridgeWorkspace({
   const showRaws = !labelFilter && (fileFilter === "all" || fileFilter === "raw");
   const showSidecars = !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
-  const focusedPhoto = scan.jpgs.find((photo) => photo.id === focusedId) ?? null;
+  const focusedPhoto = visibleJpgs.find((photo) => photo.id === focusedId) ?? null;
+  const visiblePlainFiles = useMemo(() => [
+    ...(showRaws ? scan.raws : []),
+    ...(showSidecars ? scan.sidecars : []),
+  ], [scan.raws, scan.sidecars, showRaws, showSidecars]);
+  const focusedPlainFile = visiblePlainFiles.find((file) => file.id === focusedPlainId) ?? null;
   const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
 
   const commitSelectedIds = useCallback((manual: ReadonlySet<string>, adobe: ReadonlySet<string>) => {
@@ -645,12 +662,42 @@ export default function OliviaBridgeWorkspace({
   }, [jpgRatingsByName, scan.jpgs]);
 
   useEffect(() => {
-    if (!labelFilter || focusedIndex >= 0) return;
+    if (focusedIndex >= 0) return;
     const next = visibleJpgs[0] ?? null;
     setFocusedId(next?.id ?? null);
     setAnchorId(next?.id ?? null);
     setPreviewSize(undefined);
-  }, [focusedIndex, labelFilter, visibleJpgs]);
+  }, [focusedIndex, visibleJpgs]);
+
+  useEffect(() => {
+    if (focusedPlainFile || !visiblePlainFiles.length) return;
+    setFocusedPlainId(visiblePlainFiles[0].id);
+  }, [focusedPlainFile, visiblePlainFiles]);
+
+  useEffect(() => {
+    const context = useOliviaContextStore.getState();
+    context.setWorkspace("photo-sort", folderPath || undefined);
+    context.setSelection(focusedPhoto ? "file" : focusedPlainFile ? "file" : undefined, focusedPhoto?.id ?? focusedPlainFile?.id);
+  }, [focusedPhoto, focusedPlainFile, folderPath, selectedNames]);
+
+  useEffect(() => {
+    const focused = focusedPhoto ?? focusedPlainFile;
+    if (!focused) {
+      emitShellSelection({ clear: true, sourceAppId: "olivia-bridge", sourceWindowId: "olivia-bridge" });
+      return;
+    }
+    emitShellSelection({
+      sourceAppId: "olivia-bridge",
+      sourceWindowId: "olivia-bridge",
+      itemId: focused.id,
+      title: focused.name,
+      subtitle: `${focused.extension} · ${formatBytes(focused.size)} · 선택 JPG ${selectedNames.length}장`,
+      next: focusedPhoto ? "미리보기와 별점, 선택 상태를 확인합니다." : "RAW와 사이드카 파일 정보를 확인합니다.",
+      appId: "olivia-bridge",
+      context: { clientId, workflowRunId, projectId: workflowRunId, resourceId: folderPath || undefined, resourceType: "photo-folder", featureItemId: focused.id },
+      featureItemId: focused.id,
+    });
+  }, [clientId, focusedPhoto, focusedPlainFile, folderPath, selectedNames.length, workflowRunId]);
 
   useEffect(() => {
     if (!folderPath) return;
@@ -976,6 +1023,8 @@ export default function OliviaBridgeWorkspace({
     setSelectedIds(next);
     setAnchorId(photo.id);
     setFocusedId(photo.id);
+    setFocusedPlainId(null);
+    setPreviewTab("preview");
     setPreviewSize(undefined);
   }, [anchorId, selectedIds, setSelectedIds, visibleJpgs]);
 
@@ -985,6 +1034,7 @@ export default function OliviaBridgeWorkspace({
     const nextIndex = Math.max(0, Math.min(visibleJpgs.length - 1, current + delta));
     const next = visibleJpgs[nextIndex];
     setFocusedId(next.id);
+    setFocusedPlainId(null);
     setSelectedIds(new Set([next.id]));
     setAnchorId(next.id);
     setPreviewSize(undefined);
@@ -1077,6 +1127,7 @@ export default function OliviaBridgeWorkspace({
   const chooseFileFilter = useCallback((filter: FileFilter) => {
     setLabelFilter(null);
     setFileFilter(filter);
+    setFilterMenuOpen(false);
   }, []);
 
   const resizeThumbnails = useCallback((direction: -1 | 1) => {
@@ -1161,6 +1212,24 @@ export default function OliviaBridgeWorkspace({
     }
     setToolKey(key);
   }, [currentLocalFolder, remoteFolder, syncAdobeBridgeSelection]);
+
+  const toolDisabledReason = useCallback((key: ToolKey) => {
+    if (activeFolder) return undefined;
+    if (remoteFolder && key === "classification") return undefined;
+    if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
+    return "사진 폴더를 먼저 선택해 주세요.";
+  }, [activeFolder, remoteFolder]);
+
+  useEffect(() => {
+    if (!toolMenuOpen && !filterMenuOpen) return;
+    const closeMenus = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-bridge-popover]")) return;
+      setToolMenuOpen(false);
+      setFilterMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeMenus);
+    return () => document.removeEventListener("pointerdown", closeMenus);
+  }, [filterMenuOpen, toolMenuOpen]);
 
   const clearMarqueePresentation = useCallback(() => {
     const fileArea = fileAreaRef.current;
@@ -1302,9 +1371,18 @@ export default function OliviaBridgeWorkspace({
           )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
         </div>
         <nav className={styles.toolBar} aria-label="Bridge 사진 도구">
-          {TOOL_ITEMS.map(({ key, label, icon: Icon }) => (
-            <button key={key} type="button" onClick={() => openTool(key)} disabled={!activeFolder && !(remoteFolder && key === "classification")} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={label}><Icon size={18} strokeWidth={1.8} /><span>{label}</span></button>
+          {TOOL_ITEMS.slice(0, 4).map(({ key, label, icon: Icon }) => (
+            <button key={key} type="button" onClick={() => openTool(key)} disabled={Boolean(toolDisabledReason(key))} className={toolKey === key || (key === "classification" && sceneReviewOpen) ? styles.activeTool : ""} aria-label={label} title={toolDisabledReason(key) ?? label}><Icon size={18} strokeWidth={1.8} /><span>{label}</span></button>
           ))}
+          <div className={styles.toolMore} data-bridge-popover>
+            <button type="button" aria-haspopup="menu" aria-expanded={toolMenuOpen} onClick={() => setToolMenuOpen((value) => !value)} title="더보기"><MoreHorizontal size={18} /><span>더보기</span></button>
+            {toolMenuOpen ? <div className={styles.toolMoreMenu} role="menu">
+              {TOOL_ITEMS.slice(4).map(({ key, label, icon: Icon }) => {
+                const disabledReason = toolDisabledReason(key);
+                return <button key={key} type="button" role="menuitem" disabled={Boolean(disabledReason)} title={disabledReason ?? label} onClick={() => { setToolMenuOpen(false); openTool(key); }}><Icon size={16} /><span><strong>{label}</strong>{disabledReason ? <small>{disabledReason}</small> : null}</span></button>;
+              })}
+            </div> : null}
+          </div>
         </nav>
         <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { if (!hasActiveFolder) return; setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} disabled={!hasActiveFolder} aria-label={sceneState.stage} title={sceneState.stage}>
           {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
@@ -1312,7 +1390,7 @@ export default function OliviaBridgeWorkspace({
         </button>
       </header>
 
-      <main ref={workspaceRef} className={styles.workspace}>
+      <main ref={workspaceRef} className={styles.workspace} data-compact-preview={compactPreviewOpen ? "true" : "false"}>
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
           <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={openFolderSourceChooser} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
@@ -1351,7 +1429,19 @@ export default function OliviaBridgeWorkspace({
         <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
             <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span></div>
-            <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
+            <div className={styles.browserActions}>
+              <div className={styles.filterMenuHost} data-bridge-popover>
+                <button type="button" className={styles.filterMenuButton} aria-haspopup="menu" aria-expanded={filterMenuOpen} onClick={() => setFilterMenuOpen((value) => !value)}><SlidersHorizontal size={15} /> 폴더·필터</button>
+                {filterMenuOpen ? <div className={styles.filterMenu} role="menu">
+                  <label><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span><b>{scan.nestedJpgCount}</b></label>
+                  {scan.folders.length ? <><small>하위 폴더</small>{scan.folders.map((folder) => <button key={folder.name} type="button" role="menuitem" onClick={() => { setFilterMenuOpen(false); void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }]); }}><Folder size={14} /><span>{folder.name}</span><ChevronRight size={12} /></button>)}</> : null}
+                  <small>셀렉 보기</small>
+                  {[...selectionFilters, fileFilters[4]].map((filter) => <button key={filter.key} type="button" role="menuitemradio" aria-checked={!labelFilter && fileFilter === filter.key} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+                </div> : null}
+              </div>
+              <button type="button" className={styles.compactPreviewButton} onClick={() => setCompactPreviewOpen(true)} aria-label="미리보기 열기"><Maximize2 size={15} /> 미리보기</button>
+              <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
+            </div>
           </div>
           <div className={styles.fileTypeTabs} role="tablist" aria-label="파일 형식">
             {fileFilters.slice(0, 4).map((filter) => <button key={filter.key} type="button" role="tab" aria-selected={!labelFilter && fileFilter === filter.key} onClick={() => chooseFileFilter(filter.key)}>{filter.label} <span>{filter.count.toLocaleString("ko-KR")}</span></button>)}
@@ -1429,8 +1519,8 @@ export default function OliviaBridgeWorkspace({
                   return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} /><span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}{selected ? <span className={styles.selectMark} aria-label="선택됨" /> : null}</button>;
                 })}
               </div> : null}
-              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
-              {showSidecars && scan.sidecars.length ? <section className={styles.plainFileSection}><header><strong>사이드카</strong><span>원본과 함께 유지되는 설정 파일</span></header><div>{scan.sidecars.map((file) => <PlainFileCard key={file.id} file={file} />)}</div></section> : null}
+              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); setPreviewTab("preview"); }} />)}</div></section> : null}
+              {showSidecars && scan.sidecars.length ? <section className={styles.plainFileSection}><header><strong>사이드카</strong><span>원본과 함께 유지되는 설정 파일</span></header><div>{scan.sidecars.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); setPreviewTab("preview"); }} />)}</div></section> : null}
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
           ) : null}
@@ -1463,12 +1553,14 @@ export default function OliviaBridgeWorkspace({
         />
 
         <aside ref={previewPanelRef} id="olivia-bridge-preview-panel" className={styles.previewPanel} aria-label="선택한 사진 미리보기">
-          <header className={styles.previewHeader}><strong>선택한 파일</strong><LayoutGrid size={15} aria-hidden="true" /></header>
+          <header className={styles.previewHeader}><strong>선택한 파일</strong><button type="button" className={styles.compactPreviewClose} onClick={() => setCompactPreviewOpen(false)} aria-label="미리보기 닫기"><X size={15} /></button><LayoutGrid size={15} aria-hidden="true" /></header>
           <div className={styles.previewTabs} role="tablist" aria-label="선택한 파일 패널">
-            <button type="button" role="tab" aria-selected="true">미리보기</button>
-            <button type="button" role="tab" aria-selected="false">Olivia</button>
+            <button type="button" role="tab" aria-selected={previewTab === "preview"} onClick={() => setPreviewTab("preview")}>미리보기</button>
+            <button type="button" role="tab" aria-selected={previewTab === "olivia"} onClick={() => setPreviewTab("olivia")}>Olivia</button>
           </div>
-          {focusedPhoto ? <><div className={styles.previewCanvas}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span><button type="button" className={styles.previewSelectButton} onClick={() => setSelectedIds((current) => { const next = new Set(current); if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id); else next.add(focusedPhoto.id); return next; })}><Check size={13} />{selectedIds.has(focusedPhoto.id) ? "선택됨" : "선택"}</button></div></> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 JPG를 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
+          {previewTab === "olivia" ? (
+            <div className={styles.previewOlivia}><div><strong>{folderPath || "폴더 미선택"}</strong><span>{focusedPhoto?.name ?? focusedPlainFile?.name ?? "파일 미선택"} · 선택 JPG {selectedNames.length}장</span></div><OliviaChatDockTarget id="olivia-bridge-preview" priority={92} className={styles.previewOliviaDock} /></div>
+          ) : focusedPhoto ? <><div className={styles.previewCanvas} onDoubleClick={openFullscreenPreview}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span><div className={styles.previewRatings} aria-label="별점">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating} onClick={() => applyRating(rating, true)}><Star size={15} fill={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating ? "currentColor" : "none"} /></button>)}<button type="button" onClick={() => applyRating(0, true)}>해제</button></div><button type="button" className={styles.previewSelectButton} onClick={() => setSelectedIds((current) => { const next = new Set(current); if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id); else next.add(focusedPhoto.id); return next; })}><Check size={13} />{selectedIds.has(focusedPhoto.id) ? "선택됨" : "선택"}</button><button type="button" className={styles.previewExpandButton} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button></div></> : focusedPlainFile ? <div className={styles.previewFileInfo}><File size={42} /><strong>{focusedPlainFile.name}</strong><span>{focusedPlainFile.extension} · {formatBytes(focusedPlainFile.size)}</span><p>RAW와 사이드카는 파일 정보만 표시하며 미리보기를 만들지 않습니다.</p></div> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 파일을 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
         </aside>
       </main>
 

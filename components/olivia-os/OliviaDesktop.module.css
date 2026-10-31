@@ -671,7 +671,7 @@
 .statusPanelActiveChip b { flex: 0 0 auto; font-size: 9px; font-variant-numeric: tabular-nums; }
 .statusPanelActiveGauge { position: absolute; left: 9px; right: 9px; bottom: 3px; height: 2px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.22); }
 .statusPanelActiveGauge > i { display: block; height: 100%; border-radius: inherit; background: #5be0bd; transition: width .24s ease; }
-.statusPanelActiveCancel { display: inline-flex; align-items: center; gap: 3px; height: 25px; padding: 0 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(166,54,34,.44); color: #fff; font: inherit; font-size: 9px; font-weight: 750; cursor: pointer; }
+.statusPanelActiveCancel { display: inline-flex; align-items: center; gap: 3px; height: 25px; padding: 0 7px; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; background: rgba(166,54,34,.44); color: #fff; font: inherit; font-size: 9px; font-weight: 600; cursor: pointer; }
 .statusPanelActiveCancel:hover { background: rgba(189,68,42,.64); }
 .statusPanelPhotoProgressDetail { margin: 8px; padding: 10px; border: 1px solid rgba(21,88,85,.14); border-radius: 12px; background: rgba(235,248,243,.94); }
 .statusPanelPhotoProgressDetailHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; color: #1c5d52; font-size: 11px; font-weight: 600; }
@@ -888,7 +888,7 @@
   min-height: 30px;
   padding: 0 2px 4px;
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 600;
 }
 .statusPanelRefresh {
   width: auto;
@@ -923,7 +923,7 @@
 .statusPanelSectionButton:hover { background: rgba(238, 247, 245, .72); }
 .statusPanelSectionLabel,
 .statusPanelSectionSummary { display: inline-flex; align-items: center; gap: 6px; }
-.statusPanelSectionLabel { color: #17332e; font-size: 11.5px; font-weight: 730; }
+.statusPanelSectionLabel { color: #17332e; font-size: 11.5px; font-weight: 600; }
 .statusPanelSectionSummary { color: #718984; font-size: 10.5px; white-space: nowrap; }
 .statusPanelSectionBody { display: grid; gap: 5px; padding: 0 7px 7px; }
 
@@ -940,7 +940,7 @@
   justify-content: space-between;
   color: #a83f1e;
   font-size: 11.5px;
-  font-weight: 760;
+  font-weight: 600;
 }
 .statusPanelUrgentTitle span { display: inline-flex; align-items: center; gap: 6px; }
 .statusPanelUrgentTitle b {
@@ -1166,7 +1166,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   margin: 0;
   color: #183c37;
   font-size: 11.5px;
-  font-weight: 760;
+  font-weight: 600;
   letter-spacing: -.015em;
 }
 
@@ -1234,7 +1234,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
 .scheduleRow { grid-template-columns: 40px minmax(0, 1fr); }
 .taskRow { grid-template-columns: 9px minmax(0, 1fr); }
 .scheduleRow:hover, .taskRow:hover { background: rgba(229, 241, 237, .72); }
-.scheduleRow > time { color: #17665d; font-size: 9px; font-weight: 760; }
+.scheduleRow > time { color: #17665d; font-size: 9px; font-weight: 600; }
 .scheduleRow > span, .taskRow > span, .activityRow > span { min-width: 0; }
 .scheduleRow strong, .taskRow strong, .activityRow strong {
   display: block;
@@ -1377,7 +1377,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   flex: 1;
   flex-direction: column;
 }
-.assistantIdentity strong { color: #203a35; font-size: 12px; font-weight: 760; }
+.assistantIdentity strong { color: #203a35; font-size: 12px; font-weight: 600; }
 .assistantIdentity small { margin-top: 1px; color: #8a9995; font-size: 8.5px; }
 .assistantHeader button {
   width: 27px;
@@ -1403,7 +1403,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   background: #f5faf8;
   overflow: hidden;
 }
-.assistantContext span { color: #e27042; font-size: 7.5px; font-weight: 820; letter-spacing: .12em; }
+.assistantContext span { color: #e27042; font-size: 7.5px; font-weight: 600; letter-spacing: .12em; }
 .assistantContext strong { min-width: 0; overflow: hidden; color: #4e6a64; font-size: 9.5px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
 
 .assistantConversation {
@@ -1440,7 +1440,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   display: block;
   color: #71857f;
   font-size: 8px;
-  font-weight: 820;
+  font-weight: 600;
   letter-spacing: .18em;
   writing-mode: vertical-rl;
   transform: translateX(-50%);
@@ -1580,7 +1580,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
 
 .helpList { display: grid; gap: 1px; margin: 0; overflow: hidden; border: 1px solid rgba(21, 88, 85, .08); border-radius: 10px; }
 .helpList div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; padding: 10px 12px; background: #fff; }
-.helpList dt { color: #284d46; font-size: 10px; font-weight: 750; }
+.helpList dt { color: #284d46; font-size: 10px; font-weight: 600; }
 .helpList dd { margin: 0; color: #768984; font-size: 10px; }
 
 @media (max-width: 1500px) {
@@ -2072,10 +2072,18 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
 .casePanelNext span { color: var(--ui-text-secondary, #626D65); font-size: 9px; }
 .casePanelNext p { margin: 0; color: var(--ui-text, #2F3833); font-size: 10px; line-height: 1.6; }
 .casePanelInfo > p { margin-top: auto; }
-.recentWorkspace { height: 100%; display: grid; place-items: center; padding: 24px; color: var(--ui-text-secondary, #626D65); }
-.recentWorkspace > div { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.recentWorkspace { height: 100%; display: grid; place-items: start center; overflow: auto; padding: 28px clamp(20px,2.4vw,40px); color: var(--ui-text-secondary, #626D65); }
+.recentWorkspace > div { width: min(900px,100%); display: grid; justify-items: stretch; gap: 10px; text-align: left; }
+.recentWorkspace > div > svg { color: var(--ui-brand-green, #155855); }
 .recentWorkspace strong { color: var(--ui-text, #2F3833); font-size: 12px; font-weight: 600; }
 .recentWorkspace p { margin: 0; font-size: 10px; }
+.recentWorkspace > div > div { display: grid; overflow: hidden; border: 1px solid var(--ui-border, #D5DBD3); border-radius: 10px; background: var(--ui-surface, #FCFBF8); }
+.recentWorkspace button { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 14px; border: 0; border-bottom: 1px solid var(--ui-border, #D5DBD3); color: var(--ui-text, #2F3833); background: transparent; text-align: left; cursor: pointer; }
+.recentWorkspace button:last-child { border-bottom: 0; }
+.recentWorkspace button:hover { background: var(--ui-green-soft, #E2EBE3); }
+.recentWorkspace button > span { min-width: 0; display: grid; gap: 3px; }
+.recentWorkspace button b { overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.recentWorkspace button small { overflow: hidden; color: var(--ui-text-secondary, #626D65); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 
 .homeWorkspace {
   padding: 20px 34px 28px;
@@ -2729,6 +2737,8 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   background: var(--ui-workspace, #E8EBE5);
 }
 .desktop .windowLayer { width: 100%; height: 100%; min-height: 0; }
+.desktop .surfaceAppSlot { position: absolute; inset: 0; display: none; min-width: 0; min-height: 0; }
+.desktop .surfaceAppSlot[data-active="true"] { display: block; }
 
 .desktop .caseChrome {
   grid-template-columns: minmax(0, 1fr);
@@ -3015,13 +3025,14 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   width: 100%;
   height: 96px;
   transform: none;
-  pointer-events: auto;
+  pointer-events: none;
 }
 .desktop .dockReveal {
   width: 100%;
   height: 96px;
   align-items: flex-end;
   padding: 0 16px 14px;
+  pointer-events: none;
 }
 .desktop .dockHint,
 .desktop:not([data-home="true"]) .dockHint {
@@ -3033,6 +3044,10 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   border-radius: 999px;
   background: rgba(47,56,51,.17);
   transform: translateX(-50%);
+  padding: 0;
+  border: 0;
+  pointer-events: auto;
+  cursor: pointer;
 }
 .desktop .dock {
   position: absolute;
@@ -3095,8 +3110,9 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   .desktop .appChatPanel { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); height: 100dvh; }
   .desktop .caseTabs { padding-inline: clamp(20px, 2.4vw, 40px); overflow-x: auto; }
   .desktop .caseContextBar { padding-inline: clamp(20px, 2.4vw, 40px); }
-  .desktop .caseChrome[data-panel-open="true"] { grid-template-columns: minmax(0, 1fr) 248px; }
-  .desktop .caseSidePanel { position: static; z-index: auto; inset: auto; width: auto; box-shadow: none; }
+  .desktop .caseChrome[data-panel-open="true"] { position: relative; grid-template-columns: minmax(0, 1fr); }
+  .desktop .caseSidePanel { position: absolute; z-index: 30; top: 122px; right: 0; bottom: 38px; width: min(340px,92%); box-shadow: -12px 0 30px rgba(40,55,45,.1); }
+  .desktop .caseChrome[data-has-tabs="false"] .caseSidePanel { top: 60px; }
   .desktop .workerChip { display: inline-flex; }
   .desktop .topBarOliviaButton,
   .desktop .topBarOliviaButtonActive { min-width: 79px; width: auto; padding: 8px 10px; }

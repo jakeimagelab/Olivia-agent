@@ -13,6 +13,7 @@ import { todayStr } from "@/lib/work-journal/dateLabel";
 import type { CalendarEvent, UpcomingEntry } from "@/lib/work-journal/types";
 import type { PrepEquipmentItem, ScheduleRental, ScheduleTodo } from "@/lib/work-journal/scheduleTypes";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 
 // 서버가 500 등으로 죽으면 응답 본문이 JSON이 아닐 수 있다 — 항상 사람이 읽을 수 있는 메시지로 바꾼다.
 async function fetchJson(url: string, init?: RequestInit): Promise<any> {
@@ -44,7 +45,7 @@ function rowToCalendarEvent(row: Record<string, any>): CalendarEvent {
 function SpinBox() {
   return (
     <div style={{ padding: "80px 0", textAlign: "center", color: C.hint }}>
-      <div style={{ fontSize: 13, fontWeight: 700 }}>불러오는 중...</div>
+      <div style={{ fontSize: 13, fontWeight: 600 }}>불러오는 중...</div>
     </div>
   );
 }
@@ -219,6 +220,36 @@ function WorkJournalInner({ hideHeader, syncRoute }: { hideHeader: boolean; sync
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSchedule?.id, selectedSchedule?.category]);
+
+  useEffect(() => {
+    if (!hideHeader) return;
+    if (!selectedSchedule) {
+      emitShellSelection({
+        sourceAppId: "work-journal",
+        sourceWindowId: "work-journal",
+        itemId: selectedDate,
+        title: selectedDate,
+        subtitle: "선택 날짜",
+        next: "날짜를 고른 뒤 업무 기록과 준비사항을 확인합니다.",
+        appId: "work-journal",
+        context: { featureItemId: selectedDate },
+        featureItemId: selectedDate,
+      });
+      return;
+    }
+    emitShellSelection({
+      sourceAppId: "work-journal",
+      sourceWindowId: "work-journal",
+      itemId: selectedSchedule.id,
+      title: selectedSchedule.title,
+      subtitle: `${selectedSchedule.date}${selectedSchedule.time ? ` · ${selectedSchedule.time}` : ""}`,
+      next: "선택 일정의 할 일과 준비사항을 확인합니다.",
+      appId: "work-journal",
+      href: `/work-journal?date=${encodeURIComponent(selectedSchedule.date)}&schedule=${encodeURIComponent(selectedSchedule.id)}`,
+      context: { resourceId: selectedSchedule.id, resourceType: "schedule", routeHref: `/work-journal?date=${encodeURIComponent(selectedSchedule.date)}&schedule=${encodeURIComponent(selectedSchedule.id)}`, featureItemId: selectedSchedule.id },
+      featureItemId: selectedSchedule.id,
+    });
+  }, [hideHeader, selectedDate, selectedSchedule]);
 
   const handleAddTodo = async (input: { title: string; assignee?: string }) => {
     if (!selectedSchedule) return;
