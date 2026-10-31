@@ -12,7 +12,6 @@ import { DesktopSurface } from "./DesktopSurface";
 import { DesktopDock } from "./DesktopDock";
 import { DesktopGlobalSearch } from "./DesktopGlobalSearch";
 import { DesktopUtilityToast } from "./DesktopUtilityToast";
-import { DesktopSystemOverlay, type DesktopOverlayKind } from "./DesktopSystemOverlay";
 import { DesktopAppChatPanel } from "./DesktopAppChatPanel";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
@@ -20,7 +19,6 @@ import { PhotoTaskStatusBar } from "./PhotoTaskStatusBar";
 import styles from "./OliviaDesktop.module.css";
 
 function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
-  const [overlay, setOverlay] = useState<DesktopOverlayKind>(null);
   const [appChatMounted, setAppChatMounted] = useState(false);
   const handledInitialLaunchRef = useRef<OliviaRootLaunch | null>(null);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
@@ -95,10 +93,12 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
 
   return (
     <div className={styles.desktop} data-home={!activeWindowId} data-olivia-desktop-root>
-      <DesktopTopBar onOpenOverlay={setOverlay} />
       <HomeDashboardDataProvider>
         <div className={styles.desktopBody} data-chat-open={showAppChat}>
-          <DesktopSurface />
+          <section className={styles.desktopStage}>
+            <DesktopTopBar />
+            <DesktopSurface />
+          </section>
           {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={activeWindow?.title ?? "홈"} onClose={() => setAppChatOpen(false)} /> : null}
         </div>
       </HomeDashboardDataProvider>
@@ -106,7 +106,6 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
       <DesktopGlobalSearch />
       <DesktopUtilityToast />
       <PhotoTaskStatusBar />
-      <DesktopSystemOverlay kind={overlay} onClose={() => setOverlay(null)} />
     </div>
   );
 }

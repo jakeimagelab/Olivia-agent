@@ -171,7 +171,11 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
               />
             </DesktopCaseChrome>
           </AppWindow>
-        ) : <TodayWindowContent />}
+        ) : (
+          <DesktopCaseChrome appId="home">
+            <TodayWindowContent />
+          </DesktopCaseChrome>
+        )}
       </div>
     </main>
   );

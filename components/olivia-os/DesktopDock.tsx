@@ -107,6 +107,7 @@ export function DesktopDock() {
         <button
           type="button"
           className={`${styles.dockButton} ${activeWindowId === null ? styles.active : ""}`}
+          onPointerUp={(event) => event.currentTarget.blur()}
           onClick={() => {
             if (activeWindowId) toggleShowDesktop();
             scheduleHide(900);
@@ -122,7 +123,7 @@ export function DesktopDock() {
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
             {index === 2 || index === 4 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
-            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={app.title}>
+            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={app.title}>
               <span className={styles.dockGlyph} aria-hidden="true">{(() => {
                 const Icon = DOCK_ICONS[app.id] ?? FileText;
                 return <Icon size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />;
@@ -133,12 +134,12 @@ export function DesktopDock() {
           </div>
         ))}
         <span className={styles.dockDivider} aria-hidden="true" />
-        <button type="button" className={styles.dockButton} onClick={() => { setGlobalSearchOpen(true); scheduleHide(900); }} aria-label="모든 앱">
+        <button type="button" className={styles.dockButton} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => { setGlobalSearchOpen(true); scheduleHide(900); }} aria-label="모든 앱">
           <span className={styles.dockGlyph}><Grid2X2 size={22} strokeWidth={1.75} /></span>
           <span className={styles.dockLabel}>모든 앱</span>
         </button>
         <span className={styles.dockDivider} aria-hidden="true" />
-        <button type="button" className={`${styles.dockButton} ${appChatOpen ? styles.active : ""}`} onClick={() => { toggleAppChat(); scheduleHide(900); }} aria-label="Olivia">
+        <button type="button" className={`${styles.dockButton} ${appChatOpen ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => { toggleAppChat(); scheduleHide(900); }} aria-label="Olivia">
           <span className={styles.dockGlyph}><MessageCircle size={23} strokeWidth={1.75} /></span>
           <span className={styles.dockLabel}>Olivia</span>
         </button>

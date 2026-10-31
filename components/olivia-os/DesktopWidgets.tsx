@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, CalendarDays, CheckCircle2, FileText, Images, LayoutPanelTop, LoaderCircle } from "lucide-react";
+import { ArrowUpRight, FileText, Images, LayoutPanelTop, LoaderCircle } from "lucide-react";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
@@ -38,6 +38,7 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
   const [panel, setPanel] = useState<StatusPanelData | null>(null);
   const [panelLoaded, setPanelLoaded] = useState(false);
   const [filter, setFilter] = useState<HomeFilter>("all");
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -61,11 +62,35 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
   const confirmations = panel?.myTurn.slice(0, 3) ?? [];
   const schedule = data?.todayTasks.slice(0, 3) ?? [];
   const loading = state === "loading" && !panel;
+  const selectedEntry = continueEntries.find((entry) => entry.id === selectedEntryId) ?? continueEntries[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedEntry) return;
+    window.dispatchEvent(new CustomEvent("olivia-shell-selection", {
+      detail: {
+        title: selectedEntry.title,
+        subtitle: selectedEntry.detail || "이어서 확인하세요",
+        next: selectedEntry.detail || "선택한 작업을 이어서 확인합니다.",
+        href: selectedEntry.href,
+      },
+    }));
+  }, [selectedEntry]);
+
+  const openSelected = () => {
+    if (!selectedEntry?.href) return;
+    launchHref(selectedEntry.href, selectedEntry.title, {
+      clientId: selectedEntry.clientId ?? undefined,
+      workflowRunId: selectedEntry.workflowRunId ?? undefined,
+    });
+  };
 
   return (
     <main className={`${styles.homeWorkspace} ${windowMode ? styles.homeWorkspaceWindow : ""}`}>
       <header className={styles.homeHeading}>
-        <div><p>HOME</p><h1>오늘의 작업</h1><span>{dateHeading()} · 하던 작업을 이어갑니다.</span></div>
+        <div><h1>오늘의 작업</h1><span>{dateHeading()} · 하던 작업을 이어갑니다.</span></div>
+        <button type="button" className={styles.homePrimaryAction} disabled={!selectedEntry?.href} onClick={openSelected}>
+          <ArrowUpRight size={14} /> 이어서 열기
+        </button>
       </header>
 
       <section className={styles.homeContinue} aria-labelledby="home-continue-title">
@@ -81,7 +106,15 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
           {loading ? <p className={styles.homeEmpty}><LoaderCircle size={16} /> 작업을 불러오는 중이에요</p> : null}
           {!loading && continueEntries.length === 0 ? <p className={styles.homeEmpty}>이어할 작업이 없습니다.</p> : null}
           {continueEntries.map((entry) => (
-            <button key={entry.id} type="button" className={styles.homeWorkRow} onClick={() => launchHref(entry.href!, entry.title, { clientId: entry.clientId ?? undefined, workflowRunId: entry.workflowRunId ?? undefined })}>
+            <button
+              key={entry.id}
+              type="button"
+              className={styles.homeWorkRow}
+              data-selected={selectedEntry?.id === entry.id}
+              aria-pressed={selectedEntry?.id === entry.id}
+              onClick={() => setSelectedEntryId(entry.id)}
+              onDoubleClick={() => launchHref(entry.href!, entry.title, { clientId: entry.clientId ?? undefined, workflowRunId: entry.workflowRunId ?? undefined })}
+            >
               <span className={styles.homeWorkIcon}><EntryIcon entry={entry} /></span>
               <span className={styles.homeWorkText}><strong>{entry.title}</strong><small>{entry.detail || "이어서 확인하세요"}</small></span>
               <time>{relativeTime(entry.createdAt)}</time><ArrowUpRight className={styles.homeWorkArrow} size={16} />
@@ -92,7 +125,7 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
 
       <div className={styles.homeLowerGrid}>
         <section className={styles.homeSummaryCard}>
-          <header><span><CalendarDays size={16} /> 오늘 일정</span></header>
+          <header><span>오늘 일정</span></header>
           <div>
             {state === "loading" ? <p className={styles.homeEmpty}>일정을 불러오는 중이에요</p> : null}
             {state !== "loading" && schedule.length === 0 ? <p className={styles.homeEmpty}>오늘 예정된 일정이 없습니다.</p> : null}
@@ -100,7 +133,7 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
           </div>
         </section>
         <section className={styles.homeSummaryCard}>
-          <header><span><CheckCircle2 size={16} /> 대표님 확인</span></header>
+          <header><span>대표님 확인</span></header>
           <div>
             {!panelLoaded ? <p className={styles.homeEmpty}>확인할 내용을 불러오는 중이에요</p> : null}
             {panelLoaded && !panel ? <p className={styles.homeEmpty}>확인할 내용을 불러오지 못했어요.</p> : null}
