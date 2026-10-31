@@ -263,7 +263,14 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
         <div className={styles.caseContextBar}>
           <div><strong>{contextTitle}</strong><span aria-hidden="true">›</span><small>{contextSubtitle}</small></div>
           <div className={styles.caseContextActions}>
-            <button type="button" data-active={panelOpen && !focusMode} onClick={() => { setFocusMode(false); setPanelOpen((value) => !value); }} aria-pressed={panelOpen && !focusMode}>
+            <button type="button" data-active={panelOpen && !focusMode} onClick={() => {
+              if (DEDICATED_INSPECTOR_APPS.has(appId)) {
+                window.dispatchEvent(new CustomEvent("olivia-bridge-open-inspector"));
+                return;
+              }
+              setFocusMode(false);
+              setPanelOpen((value) => !value);
+            }} aria-pressed={panelOpen && !focusMode}>
               <SlidersHorizontal size={15} /> {PANEL_LABELS[appId] ?? "작업 정보"}
             </button>
             <button type="button" data-active={focusMode} onClick={() => { setFocusMode((value) => !value); setPanelOpen(false); }} aria-pressed={focusMode}>

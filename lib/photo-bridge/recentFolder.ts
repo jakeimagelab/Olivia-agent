@@ -77,6 +77,33 @@ export function bridgeRawMatchFolderCandidates(
   return output;
 }
 
+type ResolvableDirectoryHandle = FileSystemDirectoryHandle & {
+  resolve?: (possibleDescendant: FileSystemHandle) => Promise<string[] | null>;
+};
+
+/**
+ * 네이티브 폴더 선택기로 받은 상위 폴더 권한에서 현재 사진 폴더까지의 trail을 복원한다.
+ * 브라우저는 자식 handle만으로 부모를 알 수 없으므로, RAW 매칭 전에 사용자가 상위 폴더를
+ * 한 번 허용했을 때만 이 방향으로 경로를 확인한다.
+ */
+export async function resolveBridgeFolderTrail(
+  root: FileSystemDirectoryHandle,
+  current: FileSystemDirectoryHandle,
+): Promise<BridgeFolderTrailItem[] | null> {
+  const resolve = (root as ResolvableDirectoryHandle).resolve;
+  if (typeof resolve !== "function") return null;
+  const segments = await resolve.call(root, current);
+  if (!segments) return null;
+
+  const trail: BridgeFolderTrailItem[] = [{ name: root.name, handle: root }];
+  let directory = root;
+  for (const segment of segments) {
+    directory = await directory.getDirectoryHandle(segment);
+    trail.push({ name: directory.name, handle: directory });
+  }
+  return trail;
+}
+
 export async function saveBridgeFolderTrail(trail: readonly BridgeFolderTrailItem[]): Promise<void> {
   if (!trail.length) return;
   await transact("readwrite", (store) => store.put(trail.map((item) => ({ name: item.name, handle: item.handle })), LAST_FOLDER_KEY));

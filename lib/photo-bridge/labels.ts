@@ -8,6 +8,8 @@ export const BRIDGE_COLOR_LABELS = {
 export type BridgeColorLabel = keyof typeof BRIDGE_COLOR_LABELS;
 export type BridgeColorLabels = Record<string, BridgeColorLabel>;
 export type BridgeRating = 1 | 2 | 3 | 4 | 5;
+export type BridgeRatingEdit = 0 | BridgeRating;
+export type BridgeRatingEdits = Record<string, BridgeRatingEdit>;
 export type BridgeLabelFilter =
   | { kind: "rating"; rating: BridgeRating }
   | { kind: "color"; label: BridgeColorLabel };
@@ -22,6 +24,42 @@ export function updateBridgeRatings(
   if (!targetIds.size) return current;
   const next = { ...current };
   for (const id of targetIds) {
+    if (rating === 0) delete next[id];
+    else next[id] = rating;
+  }
+  return next;
+}
+
+export function updateBridgeRatingEdits(
+  current: Readonly<BridgeRatingEdits>,
+  targetIds: ReadonlySet<string>,
+  rating: number,
+): BridgeRatingEdits {
+  if (!targetIds.size || !Number.isInteger(rating) || rating < 0 || rating > 5) return current;
+  const next = { ...current };
+  for (const id of targetIds) next[id] = rating as BridgeRatingEdit;
+  return next;
+}
+
+export function normalizeBridgeRatingEdits(value: unknown): BridgeRatingEdits {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const edits: BridgeRatingEdits = {};
+  for (const [id, rating] of Object.entries(value)) {
+    if (Number.isInteger(rating) && Number(rating) >= 0 && Number(rating) <= 5) {
+      edits[id] = Number(rating) as BridgeRatingEdit;
+    }
+  }
+  return edits;
+}
+
+/** Adobe 값과 앱 편집값을 분리하고, 앱의 0점도 명시적인 해제 상태로 유지한다. */
+export function resolveBridgeRatings(
+  base: Readonly<Record<string, number>>,
+  adobe: Readonly<Record<string, number>>,
+  edits: Readonly<BridgeRatingEdits>,
+) {
+  const next = { ...base, ...adobe };
+  for (const [id, rating] of Object.entries(edits)) {
     if (rating === 0) delete next[id];
     else next[id] = rating;
   }

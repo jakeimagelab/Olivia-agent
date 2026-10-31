@@ -61,6 +61,51 @@
   --score-risk: #C0473F;
 }
 
+@media print {
+  /* Printing can start from inside Olivia OS, where legacy aliases point at
+     the dark UI palette. Keep every paper canvas on its original light brand
+     palette for browser print and PDF generation. */
+  .quote-page,
+  .quote-print-page,
+  [data-portrait-consent-page],
+  [data-conti-print-document="true"] {
+    --ui-bg: #F4F3EF;
+    --ui-header: #F8F8F4;
+    --ui-workspace: #E8EBE5;
+    --ui-surface: #FCFBF8;
+    --ui-border: #D5DBD3;
+    --ui-text: #2F3833;
+    --ui-text-secondary: #626D65;
+    --ui-brand-green: #155855;
+    --ui-green-soft: #E2EBE3;
+    --ui-orange: #E85D2C;
+    --ui-orange-strong: #C94C22;
+    --ui-orange-soft: #FBEAE3;
+    --deep-green: #155855;
+    --paper: #FCFBF8;
+    --ink: #2F3833;
+    --muted-green: #626D65;
+    --soft-mint: #E2EBE3;
+    color-scheme: light;
+  }
+}
+
+html[data-olivia-embedded="true"] {
+  --ui-bg: #090D0C;
+  --ui-header: #141D19;
+  --ui-workspace: #111A16;
+  --ui-surface: #19231F;
+  --ui-border: #2A3732;
+  --ui-text: #E9EFEB;
+  --ui-text-secondary: #9BAEA3;
+  --ui-brand-green: #6FC3A9;
+  --ui-green-soft: #1E2D27;
+  --ui-orange: #E8653A;
+  --ui-orange-strong: #E8653A;
+  --ui-orange-soft: #2F1D16;
+  color-scheme: dark;
+}
+
 /* Native hospital channel analysis */
 .channel-native-page{min-height:100dvh;background:#f5f0e8;color:var(--ink);font-family:var(--font-sans)}.channel-native-header{position:sticky;top:0;z-index:30}.channel-native-tabs{position:sticky;top:70px;z-index:29;display:flex;justify-content:center;gap:8px;padding:10px 18px;border-bottom:1px solid rgba(21,88,85,.08);background:rgba(244,248,247,.94);backdrop-filter:blur(14px)}.channel-native-tabs button{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;border-radius:10px;padding:9px 16px;background:transparent;color:#617b76;font:inherit;font-size:12px;font-weight:850;cursor:pointer}.channel-native-tabs button.is-active{border-color:rgba(232,93,44,.22);background:#fff;color:var(--orange);box-shadow:0 5px 16px rgba(21,88,85,.06)}
 .channel-native-main{width:min(1160px,calc(100% - 36px));margin:0 auto;padding:24px 0 70px}.channel-native-hero{min-height:220px;display:flex;align-items:center;justify-content:space-between;gap:30px;border-radius:26px;padding:34px 40px;background:var(--teal);color:#fff;box-shadow:0 18px 46px rgba(21,88,85,.16)}.channel-native-hero>div>span,.channel-section-heading>div>span,.channel-report-cover>div>span{color:#eb8f22;font-size:9px;font-weight:950;letter-spacing:.16em}.channel-native-hero h1{margin:8px 0;color:#fff;font-size:32px;line-height:1.2;letter-spacing:-.045em}.channel-native-hero p{max-width:600px;margin:0;color:rgba(255,255,255,.68);font-size:12px;line-height:1.7}.channel-hero-mark{width:116px;height:116px;display:grid;place-items:center;align-content:center;gap:8px;flex:none;border-radius:30px;background:rgba(255,255,255,.09);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}.channel-hero-mark small{font-size:8px;letter-spacing:.14em}
@@ -9556,10 +9601,29 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
    Screen chrome only. Actual quote/contract/conti paper canvases and media
    previews retain their own brand and source colors. */
 @media screen {
-  .contract-app--jakeimage {
-    --ui-orange: #2f4a73;
-    --ui-orange-strong: #2f4a73;
-    --ui-orange-soft: #eef2f7;
+  /* 출력 지면은 Olivia OS 조작 UI의 다크 토큰을 상속하지 않는다. */
+  .quote-page,
+  .quote-print-page,
+  [data-portrait-consent-page],
+  [data-conti-print-document="true"] {
+    --ui-bg: #F4F3EF;
+    --ui-header: #F8F8F4;
+    --ui-workspace: #E8EBE5;
+    --ui-surface: #FCFBF8;
+    --ui-border: #D5DBD3;
+    --ui-text: #2F3833;
+    --ui-text-secondary: #626D65;
+    --ui-brand-green: #155855;
+    --ui-green-soft: #E2EBE3;
+    --ui-orange: #E85D2C;
+    --ui-orange-strong: #C94C22;
+    --ui-orange-soft: #FBEAE3;
+    --deep-green: #155855;
+    --paper: #FCFBF8;
+    --ink: #2F3833;
+    --muted-green: #626D65;
+    --soft-mint: #E2EBE3;
+    color-scheme: light;
   }
 
   .pc-btn { border-radius: var(--ui-radius-control, 10px); }
@@ -9567,8 +9631,8 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   .pc-btn--orange {
     border: 1px solid var(--ui-orange-strong, #C94C22);
     background: var(--ui-orange-strong, #C94C22);
-    color: #fff;
-    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
+    color: #111A16;
+    box-shadow: none;
   }
   .pc-btn--secondary {
     border: 1px solid color-mix(in srgb, var(--ui-brand-green, #155855) 34%, var(--ui-border, #D5DBD3));
@@ -9653,12 +9717,18 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     background: var(--ui-surface, #FCFBF8) !important;
     box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06)) !important;
   }
+  .quote-app > section > div:first-child :where(input, textarea, select) {
+    border-color: var(--ui-border, #D5DBD3) !important;
+    background: var(--ui-surface, #FCFBF8) !important;
+    color: var(--ui-text, #2F3833) !important;
+    box-shadow: none !important;
+  }
   .quote-app:not(.quote-app--jakeimage) > section .primary-button,
   .quote-app:not(.quote-app--jakeimage) > .action-button-bar .primary-button {
     border-color: var(--ui-orange-strong, #C94C22) !important;
     background: var(--ui-orange-strong, #C94C22) !important;
-    color: #fff !important;
-    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
+    color: #111A16 !important;
+    box-shadow: none;
   }
   .quote-app:not(.quote-app--jakeimage) > section .secondary-button,
   .quote-app:not(.quote-app--jakeimage) > .action-button-bar .secondary-button {
@@ -9730,8 +9800,8 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   .pcrm-project-dialog footer button[type="submit"] {
     border-color: var(--ui-orange-strong, #C94C22);
     background: var(--ui-orange-strong, #C94C22);
-    color: #fff;
-    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
+    color: #111A16;
+    box-shadow: none;
   }
   .pcrm-dashboard-actions label,
   .pcrm-row-menu__panel,
@@ -9757,6 +9827,18 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     background: var(--ui-green-soft, #E2EBE3);
     color: var(--ui-brand-green, #155855);
   }
+  .pcrm-dashboard :where(input, textarea, select),
+  .pcrm-client-dashboard :where(input, textarea, select),
+  .pcrm-form-modal :where(input, textarea, select),
+  .pcrm-project-dialog :where(input, textarea, select) {
+    border-color: var(--ui-border, #D5DBD3) !important;
+    background: var(--ui-surface, #FCFBF8) !important;
+    color: var(--ui-text, #2F3833) !important;
+  }
+  .pcrm-dashboard :where(.pcrm-row-menu__trigger, .pcrm-row-actions button, .pcrm-filter-bar button),
+  .pcrm-client-dashboard :where(button, a) {
+    border-color: var(--ui-border, #D5DBD3);
+  }
 
   /* OS chat portal is shared by Home and contextual panels. */
   .olivia-os-chat-dock .olivia-conversation,
@@ -9777,6 +9859,6 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   .olivia-os-chat-dock .olivia-composer { background: var(--ui-surface, #FCFBF8); }
   .olivia-os-chat-dock .olivia-composer > button.is-send {
     background: var(--ui-orange-strong, #C94C22);
-    color: #fff;
+    color: #111A16;
   }
 }

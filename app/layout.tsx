@@ -47,6 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="ko">
       <head>
+        <script dangerouslySetInnerHTML={{ __html: "if(new URLSearchParams(location.search).get('oliviaEmbedded')==='1'){document.documentElement.dataset.oliviaEmbedded='true'}" }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

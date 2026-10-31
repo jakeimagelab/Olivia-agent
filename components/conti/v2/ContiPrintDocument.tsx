@@ -14,7 +14,7 @@ export default function ContiPrintDocument({ model }: { model: ContiExportModel 
   for (const row of model.contiRows) if (!groupColors.has(row.group)) groupColors.set(row.group, CONTI_GROUP_COLORS[groupColors.size % CONTI_GROUP_COLORS.length]);
   if (!mounted) return null;
 
-  return createPortal(<div className={styles.printDocument}>
+  return createPortal(<div className={styles.printDocument} data-conti-print-document="true">
     <PrintPage title={model.title} subtitle="상세 촬영 콘티" page="1 / 3">
       <table className={`${styles.printTable} ${styles.printContiTable}`}>
         <thead><tr>{["No", "구분", "장면", "촬영시간", "분", "사진/영상", "키워드", "설명", "장소", "인물", "환자 역할", "준비사항"].map((label) => <th key={label}>{label}</th>)}</tr></thead>

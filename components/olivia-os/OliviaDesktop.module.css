@@ -1,4 +1,24 @@
 .desktop {
+  --ui-bg: #090D0C;
+  --ui-header: #141D19;
+  --ui-workspace: #111A16;
+  --ui-surface: #19231F;
+  --ui-border: #2A3732;
+  --ui-text: #E9EFEB;
+  --ui-text-secondary: #9BAEA3;
+  --ui-brand-green: #6FC3A9;
+  --ui-green-soft: #1E2D27;
+  --ui-orange: #E8653A;
+  --ui-orange-strong: #E8653A;
+  --ui-orange-soft: #2F1D16;
+  /* Legacy app surfaces still read these semantic aliases. Output canvases
+     reset them to their paper palette in globals.css. */
+  --deep-green: var(--ui-brand-green);
+  --paper: var(--ui-surface);
+  --ink: var(--ui-text);
+  --muted-green: var(--ui-text-secondary);
+  --soft-mint: var(--ui-green-soft);
+  --ui-shadow-panel: 0 8px 28px rgba(0, 0, 0, .22);
   --desktop-edge: 22px;
   --desktop-gap: 20px;
   --desktop-dock-bottom: 18px;
@@ -10,8 +30,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #082e2b;
-  color: #1c2b28;
+  background: var(--ui-bg);
+  color: var(--ui-text);
   font-family: var(--font-sans);
   cursor: default;
 }
@@ -20,7 +40,7 @@
    bar, a hidden labelled Dock, and Olivia as the home surface. */
 .desktop {
   --desktop-dock-bottom: 58px;
-  background: #fdfcfa;
+  background: var(--ui-bg);
 }
 
 .topBar {
@@ -2786,7 +2806,7 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .casePanelInfo section > strong { margin-top: 7px; font-size: 18px; line-height: 1.35; }
 .desktop .casePanelInfo section > small { margin-top: 7px; font-size: 12px; line-height: 1.5; }
 .desktop .casePanelActions { display: flex; gap: 7px; margin: 10px 0 0; }
-.desktop .casePanelPrimary { height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ui-orange-strong, #C94C22); border-radius: 8px; background: var(--ui-orange-strong, #C94C22); color: #fff; box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16); font: 400 12px/1 inherit; cursor: pointer; }
+.desktop .casePanelPrimary { height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ui-orange-strong, #E8653A); border-radius: 8px; background: var(--ui-orange-strong, #E8653A); color: #111A16; box-shadow: none; font: 400 12px/1 inherit; cursor: pointer; }
 .desktop .casePanelInfo dl { display: grid; gap: 0; margin: 17px 0 18px; padding: 0; border: 0; }
 .desktop .casePanelInfo dl > div { display: grid; grid-template-columns: 50px minmax(0, 1fr); gap: 10px; padding: 3px 0; font-size: 11px; line-height: 1.7; }
 .desktop .casePanelInfo dt { color: var(--ui-text-secondary, #626D65); }
@@ -2842,7 +2862,7 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .homeHeading { max-width: none; min-height: 55px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 0 0 22px; }
 .desktop .homeHeading h1 { margin: 0 0 7px; font-size: 25px; line-height: 30px; font-weight: 600; letter-spacing: -.03em; }
 .desktop .homeHeading span { display: block; margin: 0; font-size: 12px; line-height: 18px; }
-.desktop .homePrimaryAction { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ui-orange-strong, #C94C22); border-radius: 8px; background: var(--ui-orange-strong, #C94C22); color: #fff; box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16); font: 400 12px/1 inherit; cursor: pointer; }
+.desktop .homePrimaryAction { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ui-orange-strong, #E8653A); border-radius: 8px; background: var(--ui-orange-strong, #E8653A); color: #111A16; box-shadow: none; font: 400 12px/1 inherit; cursor: pointer; }
 .desktop .homePrimaryAction:disabled { border: 1px solid var(--ui-border, #D5DBD3); background: transparent; box-shadow: none; color: var(--ui-text-secondary, #626D65); cursor: default; }
 .desktop .homeContinue,
 .desktop .homeLowerGrid { max-width: none; }
@@ -2934,7 +2954,7 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   color: #fff;
 }
 .desktop .appChatDock :global(.olivia-conversation__main),
-.desktop .appChatDock :global(.olivia-conversation__messages) { background: #fff; }
+.desktop .appChatDock :global(.olivia-conversation__messages) { background: var(--ui-workspace); }
 .desktop .appChatDock :global(.olivia-engine-bg),
 .desktop .appChatDock :global(.olivia-history-nav),
 .desktop .appChatDock :global(.olivia-message-guide) { display: none; }
@@ -2947,24 +2967,24 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .appChatDock :global(.olivia-message__body) {
   padding: 11px 13px;
   border-radius: 13px 13px 13px 4px;
-  color: #2F3833;
-  background: #F2F4F1;
+  color: var(--ui-text);
+  background: var(--ui-surface);
   box-shadow: none;
   font-size: 12.5px;
   line-height: 1.65;
 }
 .desktop .appChatDock :global(.olivia-message.is-user .olivia-message__body) {
   border-radius: 13px 13px 4px 13px;
-  background: #D54A1D;
-  color: #fff;
+  background: var(--ui-orange-soft);
+  color: var(--ui-text);
   box-shadow: none;
 }
 .desktop .appChatDock :global(.olivia-message__body strong) { font-weight: 600 !important; }
 .desktop .appChatDock :global(.olivia-resource-card--desktop),
 .desktop .appChatDock :global(.olivia-approval-card) {
-  border-color: #D7E5DE;
+  border-color: var(--ui-border);
   border-radius: 11px;
-  background: #E5F1E9;
+  background: var(--ui-green-soft);
   box-shadow: none;
 }
 .desktop .appChatDock :global(.olivia-conversation__welcome) { margin: auto 0 0; padding: 18px 12px 8px; text-align: left; }
@@ -2975,10 +2995,10 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .appChatDock :global(.olivia-conversation__suggestions button) {
   min-height: 31px;
   padding: 0 11px;
-  border: 1px solid #D5DBD3;
+  border: 1px solid var(--ui-border);
   border-radius: 999px;
-  color: #49615A;
-  background: #fff;
+  color: var(--ui-text-secondary);
+  background: var(--ui-surface);
   font-size: 9.5px;
 }
 .desktop .appChatDock :global(.olivia-conversation__suggestions--desktop-panel) {
@@ -2987,23 +3007,23 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   flex-wrap: wrap;
   margin: 0;
   padding: 4px 12px 10px;
-  background: #fff;
+  background: var(--ui-workspace);
 }
 .desktop .appChatDock :global(.olivia-composer-shell) {
   padding: 10px 12px 14px;
-  border-top: 1px solid #D5DBD3;
-  background: #fff;
+  border-top: 1px solid var(--ui-border);
+  background: var(--ui-workspace);
 }
 .desktop .appChatDock :global(.olivia-composer) {
   min-height: 88px;
   grid-template-columns: minmax(0, 1fr) 42px;
   gap: 10px;
   padding: 5px;
-  border: 2px solid #B8D0C3;
+  border: 2px solid var(--ui-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--ui-surface);
 }
-.desktop .appChatDock :global(.olivia-composer:focus-within) { border-color: #8AB39E; box-shadow: 0 0 0 4px rgba(21,88,85,.07); }
+.desktop .appChatDock :global(.olivia-composer:focus-within) { border-color: var(--ui-brand-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-brand-green) 18%, transparent); }
 .desktop .appChatDock :global(.olivia-composer textarea) {
   min-height: 74px;
   padding: 12px 10px;
@@ -3019,8 +3039,8 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   height: 42px;
   align-self: end;
   border-radius: 11px;
-  background: #D54A1D;
-  color: #fff;
+  background: var(--ui-orange);
+  color: #111A16;
 }
 .desktop .dockArea,
 .desktop:has(.assistantCollapsed) .dockArea {
@@ -3042,17 +3062,24 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .dockHint,
 .desktop:not([data-home="true"]) .dockHint {
   position: fixed;
-  left: 50%;
-  bottom: 7px;
-  width: 132px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(47,56,51,.17);
-  transform: translateX(-50%);
+  left: auto;
+  right: 10px;
+  bottom: 9px;
+  width: 58px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid var(--ui-border);
+  border-radius: 8px;
+  background: var(--ui-surface);
+  color: var(--ui-text-secondary);
+  transform: none;
   padding: 0;
-  border: 0;
   pointer-events: auto;
   cursor: pointer;
+  font-size: 9px;
 }
 .desktop .dock {
   position: absolute;
@@ -3062,7 +3089,7 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   padding: 7px;
   border: 1px solid var(--ui-border, #D5DBD3);
   border-radius: 16px;
-  background: var(--ui-surface, #FCFBF8);
+  background: var(--ui-surface, #19231F);
   box-shadow: var(--ui-shadow-panel, 0 6px 24px rgba(40,55,45,.06));
   opacity: 0;
   visibility: visible;
@@ -3080,12 +3107,12 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
   padding: 7px 11px;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: #64736C;
+  color: var(--ui-text-secondary);
   font-size: 11px;
   line-height: 16.5px;
 }
 .desktop .dockButton.active {
-  border-color: #BBD0C2;
+  border-color: var(--ui-brand-green);
   background: var(--ui-green-soft, #E2EBE3);
   color: var(--ui-text, #2F3833);
 }

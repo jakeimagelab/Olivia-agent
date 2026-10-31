@@ -1,37 +1,37 @@
 // lib/theme.ts — Olivia Agent 전역 디자인 토큰
 export const C = {
   // ── Brand Colors ──────────────────────────────────────
-  teal:    '#155855',   // Primary
-  orange:  '#E85D2C',   // Accent / CTA
+  teal:    'var(--ui-brand-green, #155855)',   // Primary
+  orange:  'var(--ui-orange, #E85D2C)',   // Accent / CTA
   gold:    '#EB8F22',   // Warning / Highlight
-  sage:    '#569082',   // Secondary
+  sage:    'var(--ui-brand-green, #569082)',   // Secondary
 
   // ── Surface ──────────────────────────────────────────
-  bg:      '#F4F3EF',   // 페이지 배경 (웜화이트)
-  white:   '#FCFBF8',   // 카드·입력 표면
-  mint:    '#E2EBE3',   // 옅은 그린 상태 배경
+  bg:      'var(--ui-bg, #F4F3EF)',   // 페이지 배경 (웜화이트)
+  white:   'var(--ui-surface, #FCFBF8)',   // 카드·입력 표면
+  mint:    'var(--ui-green-soft, #E2EBE3)',   // 옅은 그린 상태 배경
   dark:    '#1C2B28',   // 미디어 판단 패널 / 역상 UI
 
   // ── Text ────────────────────────────────────────────
-  ink:     '#2F3833',   // 본문
-  muted:   '#626D65',   // 보조
-  hint:    '#9BB5B0',   // 비활성 / 플레이스홀더
+  ink:     'var(--ui-text, #2F3833)',   // 본문
+  muted:   'var(--ui-text-secondary, #626D65)',   // 보조
+  hint:    'var(--ui-text-secondary, #9BB5B0)',   // 비활성 / 플레이스홀더
 
   // ── Border ──────────────────────────────────────────
-  border:  '#D5DBD3',
+  border:  'var(--ui-border, #D5DBD3)',
 
   // ── Semantic ─────────────────────────────────────────
-  success: '#22876A',
+  success: 'var(--ui-brand-green, #22876A)',
   danger:  '#DC2626',
   purple:  '#7C3AED',
 
   // ── Aliases — 기존 페이지별 const C가 쓰던 다른 키 이름을
   // 값 변경 없이 그대로 받아주기 위한 별칭. 새 코드는 위 표준 키를 쓸 것.
-  surface: '#FCFBF8',        // = white
-  txt:     '#2F3833',        // = ink
-  light:   '#E2EBE3',        // = mint
+  surface: 'var(--ui-surface, #FCFBF8)',        // = white
+  txt:     'var(--ui-text, #2F3833)',        // = ink
+  light:   'var(--ui-green-soft, #E2EBE3)',        // = mint
   yellow:  '#EB8F22',        // = gold
-  green:   '#22876A',        // = success
+  green:   'var(--ui-brand-green, #22876A)',        // = success
   red:     '#DC2626',        // = danger
 } as const;
 
