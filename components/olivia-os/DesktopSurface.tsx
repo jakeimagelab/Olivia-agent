@@ -5,7 +5,8 @@ import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { AppWindow } from "./window/AppWindow";
 import { getDesktopContentKey } from "@/lib/olivia/desktopContentKey";
-import { HomeChat } from "./HomeChat";
+import { TodayWindowContent } from "./adapters/TodayWindowContent";
+import { DesktopCaseChrome } from "./DesktopCaseChrome";
 import styles from "./OliviaDesktop.module.css";
 
 export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?: (x: number, y: number) => void }) {
@@ -163,12 +164,14 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
       <div className={styles.windowLayer}>
         {activeWindow && activeApp && ActiveContent && !activeWindow.minimized ? (
           <AppWindow windowId={activeWindow.id} workspaceRef={surfaceRef} minWidth={activeApp.minSize?.width} minHeight={activeApp.minSize?.height}>
-            <ActiveContent
-              key={getDesktopContentKey({ windowId: activeWindow.id, appId: activeWindow.appId, context: activeWindow.context })}
-              context={activeWindow.context}
-            />
+            <DesktopCaseChrome appId={activeWindow.appId} context={activeWindow.context}>
+              <ActiveContent
+                key={getDesktopContentKey({ windowId: activeWindow.id, appId: activeWindow.appId, context: activeWindow.context })}
+                context={activeWindow.context}
+              />
+            </DesktopCaseChrome>
           </AppWindow>
-        ) : <HomeChat />}
+        ) : <TodayWindowContent />}
       </div>
     </main>
   );

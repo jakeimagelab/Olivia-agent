@@ -26,11 +26,11 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  animation: olivia-app-enter 280ms cubic-bezier(.22, 1, .36, 1) both;
+  animation: olivia-app-enter 260ms cubic-bezier(.22, 1, .36, 1) both;
 }
 
 @keyframes olivia-app-enter {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(7px); }
   to { opacity: 1; transform: translateY(0); }
 }
 

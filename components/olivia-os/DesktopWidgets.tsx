@@ -1,139 +1,118 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { CalendarDays, CheckCircle2, Clock3, History, RefreshCw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowUpRight, CalendarDays, CheckCircle2, FileText, Images, LayoutPanelTop, LoaderCircle } from "lucide-react";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
-import { getOliviaApp } from "./registry/oliviaAppRegistry";
-import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
+import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
-type ActivityItem = {
-  id: string;
-  title: string;
-  detail: string;
-  createdAt: string;
-};
+type HomeFilter = "all" | "document" | "media";
 
-function relativeTime(value: string) {
-  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
-  const minutes = Math.floor(elapsed / 60_000);
-  if (minutes < 1) return "방금";
-  if (minutes < 60) return `${minutes}분 전`;
-  if (minutes < 1_440) return `${Math.floor(minutes / 60)}시간 전`;
-  return `${Math.floor(minutes / 1_440)}일 전`;
+function dateHeading() {
+  return new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "long", day: "numeric", weekday: "long" }).format(new Date());
 }
 
-function WidgetFrame({ icon, title, action, children }: {
-  icon: ReactNode;
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className={styles.desktopWidget} aria-label={title}>
-      <header className={styles.widgetHeader}>
-        <span className={styles.widgetTitleIcon}>{icon}</span>
-        <h2>{title}</h2>
-        {action ? <span className={styles.widgetAction}>{action}</span> : null}
-      </header>
-      <div className={styles.widgetBody}>{children}</div>
-    </section>
-  );
+function relativeTime(value?: string | null) {
+  if (!value) return "최근";
+  const days = Math.floor(Math.max(0, Date.now() - new Date(value).getTime()) / 86_400_000);
+  if (days === 0) return "오늘";
+  if (days === 1) return "어제";
+  return `${days}일 전`;
+}
+
+function entryKind(entry: StatusPanelEntry): Exclude<HomeFilter, "all"> {
+  const value = `${entry.kind} ${entry.href ?? ""}`.toLowerCase();
+  return /(photo|bridge|gallery|select|video|sorting|raw)/.test(value) ? "media" : "document";
+}
+
+function EntryIcon({ entry }: { entry: StatusPanelEntry }) {
+  if (entryKind(entry) === "media") return <Images size={17} />;
+  if (/conti/.test(`${entry.kind} ${entry.href ?? ""}`)) return <LayoutPanelTop size={17} />;
+  return <FileText size={17} />;
 }
 
 export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean }) {
   const { data, state } = useHomeDashboardData();
-  const openApp = useOliviaDesktopStore((store) => store.openApp);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [activitiesLoading, setActivitiesLoading] = useState(true);
+  const launchHref = useDesktopAppLauncher();
+  const [panel, setPanel] = useState<StatusPanelData | null>(null);
+  const [panelLoaded, setPanelLoaded] = useState(false);
+  const [filter, setFilter] = useState<HomeFilter>("all");
 
-  const loadActivities = useCallback(() => {
+  useEffect(() => {
     let active = true;
-    setActivitiesLoading(true);
-    fetch("/api/admin/recent-activity", { cache: "no-store" })
+    fetch("/api/olivia-os/status-panel", { cache: "no-store" })
       .then((response) => response.json())
-      .then((payload) => {
-        if (active && payload?.ok) setActivities(payload.items ?? []);
-      })
+      .then((payload) => { if (active && payload?.ok) setPanel(payload as StatusPanelData); })
       .catch(() => undefined)
-      .finally(() => { if (active) setActivitiesLoading(false); });
+      .finally(() => { if (active) setPanelLoaded(true); });
     return () => { active = false; };
   }, []);
 
-  useEffect(() => {
-    const cleanup = loadActivities();
-    return cleanup;
-  }, [loadActivities]);
-
-  const openCalendar = () => {
-    const app = getOliviaApp("calendar");
-    if (app) openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height });
-  };
-
-  const schedule = data?.todayTasks.slice(0, 4) ?? [];
-  const tasks = data?.workspaceTodayTasks?.slice(0, 4) ?? [];
-  const loading = state === "loading";
+  const continueEntries = useMemo(() => {
+    const merged = [...(panel?.myTurn ?? []), ...(panel?.recentActivity ?? [])];
+    const seen = new Set<string>();
+    return merged.filter((entry) => {
+      if (!entry.href || seen.has(entry.href)) return false;
+      seen.add(entry.href);
+      return filter === "all" || entryKind(entry) === filter;
+    }).slice(0, 4);
+  }, [filter, panel]);
+  const confirmations = panel?.myTurn.slice(0, 3) ?? [];
+  const schedule = data?.todayTasks.slice(0, 3) ?? [];
+  const loading = state === "loading" && !panel;
 
   return (
-    <aside className={windowMode ? styles.todayWindow : styles.leftRail} aria-label="오늘의 업무 요약">
-      <WidgetFrame
-        icon={<CalendarDays size={14} />}
-        title="오늘 일정"
-        action={<button type="button" onClick={openCalendar}>전체보기</button>}
-      >
-        {loading ? <p className={styles.widgetEmpty}>일정을 불러오는 중…</p> : null}
-        {!loading && schedule.length === 0 ? <p className={styles.widgetEmpty}>오늘 예정된 일정이 없습니다.</p> : null}
-        {schedule.map((item) => (
-          <button type="button" className={styles.scheduleRow} key={item.id} onClick={openCalendar}>
-            <time>{item.time?.slice(0, 5) || "종일"}</time>
-            <span>
-              <strong>{item.title}</strong>
-              <small>{[item.category, item.location].filter(Boolean).join(" · ") || "일정"}</small>
-            </span>
-          </button>
-        ))}
-      </WidgetFrame>
+    <main className={`${styles.homeWorkspace} ${windowMode ? styles.homeWorkspaceWindow : ""}`}>
+      <header className={styles.homeHeading}>
+        <div><p>HOME</p><h1>오늘의 작업</h1><span>{dateHeading()} · 하던 작업을 이어갑니다.</span></div>
+      </header>
 
-      <WidgetFrame
-        icon={<CheckCircle2 size={14} />}
-        title="오늘 할 일"
-        action={<button type="button" onClick={openCalendar}>열기</button>}
-      >
-        {loading ? <p className={styles.widgetEmpty}>할 일을 불러오는 중…</p> : null}
-        {!loading && tasks.length === 0 ? <p className={styles.widgetEmpty}>오늘 마감할 일이 없습니다.</p> : null}
-        {tasks.map((item) => (
-          <button type="button" className={styles.taskRow} key={item.id} onClick={openCalendar}>
-            <span className={styles.taskStatus} aria-hidden="true" />
-            <span>
-              <strong>{item.title}</strong>
-              <small>{item.checklistProgress ? `${item.checklistProgress.done}/${item.checklistProgress.total} 완료` : "진행 중"}</small>
-            </span>
-          </button>
-        ))}
-      </WidgetFrame>
+      <section className={styles.homeContinue} aria-labelledby="home-continue-title">
+        <div className={styles.homeSectionHead}>
+          <h2 id="home-continue-title">이어할 작업</h2>
+          <div className={styles.homeFilters} role="group" aria-label="작업 종류">
+            {([['all', '전체'], ['document', '문서'], ['media', '사진·영상']] as const).map(([key, label]) => (
+              <button key={key} type="button" data-active={filter === key} onClick={() => setFilter(key)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div className={styles.homeWorkList}>
+          {loading ? <p className={styles.homeEmpty}><LoaderCircle size={16} /> 작업을 불러오는 중이에요</p> : null}
+          {!loading && continueEntries.length === 0 ? <p className={styles.homeEmpty}>이어할 작업이 없습니다.</p> : null}
+          {continueEntries.map((entry) => (
+            <button key={entry.id} type="button" className={styles.homeWorkRow} onClick={() => launchHref(entry.href!, entry.title, { clientId: entry.clientId ?? undefined, workflowRunId: entry.workflowRunId ?? undefined })}>
+              <span className={styles.homeWorkIcon}><EntryIcon entry={entry} /></span>
+              <span className={styles.homeWorkText}><strong>{entry.title}</strong><small>{entry.detail || "이어서 확인하세요"}</small></span>
+              <time>{relativeTime(entry.createdAt)}</time><ArrowUpRight className={styles.homeWorkArrow} size={16} />
+            </button>
+          ))}
+        </div>
+      </section>
 
-      <WidgetFrame
-        icon={<History size={14} />}
-        title="최근 작업"
-        action={(
-          <button type="button" onClick={() => { loadActivities(); }} aria-label="최근 작업 새로고침" disabled={activitiesLoading}>
-            <RefreshCw size={12} className={activitiesLoading ? styles.spinning : undefined} />
-          </button>
-        )}
-      >
-        {activitiesLoading ? <p className={styles.widgetEmpty}>최근 작업을 불러오는 중…</p> : null}
-        {!activitiesLoading && activities.length === 0 ? <p className={styles.widgetEmpty}>최근 작업 기록이 없습니다.</p> : null}
-        {activities.slice(0, 4).map((item) => (
-          <article className={styles.activityRow} key={item.id}>
-            <span className={styles.activityIcon}><Clock3 size={11} /></span>
-            <span>
-              <strong>{item.title}</strong>
-              <small>{item.detail}</small>
-            </span>
-            <time>{relativeTime(item.createdAt)}</time>
-          </article>
-        ))}
-      </WidgetFrame>
-    </aside>
+      <div className={styles.homeLowerGrid}>
+        <section className={styles.homeSummaryCard}>
+          <header><span><CalendarDays size={16} /> 오늘 일정</span></header>
+          <div>
+            {state === "loading" ? <p className={styles.homeEmpty}>일정을 불러오는 중이에요</p> : null}
+            {state !== "loading" && schedule.length === 0 ? <p className={styles.homeEmpty}>오늘 예정된 일정이 없습니다.</p> : null}
+            {schedule.map((item) => <div className={styles.homeSummaryRow} key={item.id}><time>{item.time?.slice(0, 5) || "종일"}</time><span><strong>{item.title}</strong><small>{item.location || item.category || "일정"}</small></span></div>)}
+          </div>
+        </section>
+        <section className={styles.homeSummaryCard}>
+          <header><span><CheckCircle2 size={16} /> 대표님 확인</span></header>
+          <div>
+            {!panelLoaded ? <p className={styles.homeEmpty}>확인할 내용을 불러오는 중이에요</p> : null}
+            {panelLoaded && !panel ? <p className={styles.homeEmpty}>확인할 내용을 불러오지 못했어요.</p> : null}
+            {panel && confirmations.length === 0 ? <p className={styles.homeEmpty}>지금 확인할 내용이 없습니다.</p> : null}
+            {confirmations.map((entry) => (
+              <button key={entry.id} type="button" className={styles.homeSummaryRow} disabled={!entry.href} onClick={() => entry.href && launchHref(entry.href, entry.title)}>
+                <span className={styles.homeCheckDot} /><span><strong>{entry.title}</strong><small>{entry.detail || "확인이 필요합니다"}</small></span>{entry.href ? <ArrowUpRight size={14} /> : null}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }

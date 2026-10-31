@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   CalendarDays,
   FileText,
   Film,
+  Grid2X2,
   Home,
   Images,
   LayoutPanelTop,
+  MessageCircle,
   NotebookText,
-  Search,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -35,7 +36,9 @@ const DOCK_LABELS: Record<string, string> = {
 
 export function DesktopDock() {
   const dockRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<number | null>(null);
   const [layout, setLayout] = useState<{ iconSize: DockIconSize; scrollable: boolean }>({ iconSize: 48, scrollable: false });
+  const [revealed, setRevealed] = useState(false);
   const windows = useOliviaDesktopStore((state) => state.windows);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
@@ -43,12 +46,37 @@ export function DesktopDock() {
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
   const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
+  const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
+  const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
   const apps = getDockApps();
+
+  const cancelHide = useCallback(() => {
+    if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = null;
+  }, []);
+
+  const scheduleHide = useCallback((delay = 260) => {
+    cancelHide();
+    hideTimerRef.current = window.setTimeout(() => {
+      setRevealed(false);
+      hideTimerRef.current = null;
+    }, delay);
+  }, [cancelHide]);
+
+  useEffect(() => {
+    const revealTimer = window.setTimeout(() => setRevealed(true), 480);
+    const hideTimer = window.setTimeout(() => setRevealed(false), 2_100);
+    return () => {
+      window.clearTimeout(revealTimer);
+      window.clearTimeout(hideTimer);
+      cancelHide();
+    };
+  }, [cancelHide]);
 
   useEffect(() => {
     const area = dockRef.current?.parentElement;
     if (!area) return;
-    const measure = () => setLayout(resolveDockLayout(area.clientWidth, apps.length + 2, 3));
+    const measure = () => setLayout(resolveDockLayout(area.clientWidth, apps.length + 3, 4));
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(area);
@@ -60,11 +88,20 @@ export function DesktopDock() {
     if (!win) openApp({ appId, title, width, height });
     else if (win.minimized) restoreWindow(appId);
     else focusWindow(appId);
+    scheduleHide(900);
   };
   const style = { "--dock-icon-size": `${layout.iconSize}px` } as CSSProperties;
 
   return (
-    <div className={styles.dockReveal}>
+    <div
+      className={`${styles.dockReveal} ${revealed ? styles.dockRevealOpen : ""}`}
+      onPointerEnter={() => { cancelHide(); setRevealed(true); }}
+      onPointerLeave={() => scheduleHide()}
+      onFocusCapture={() => { cancelHide(); setRevealed(true); }}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleHide();
+      }}
+    >
       <span className={styles.dockHint} aria-hidden="true" />
       <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock">
         <button
@@ -72,6 +109,7 @@ export function DesktopDock() {
           className={`${styles.dockButton} ${activeWindowId === null ? styles.active : ""}`}
           onClick={() => {
             if (activeWindowId) toggleShowDesktop();
+            scheduleHide(900);
           }}
           aria-label="홈"
           aria-current={activeWindowId === null ? "page" : undefined}
@@ -95,9 +133,14 @@ export function DesktopDock() {
           </div>
         ))}
         <span className={styles.dockDivider} aria-hidden="true" />
-        <button type="button" className={styles.dockButton} onClick={() => setGlobalSearchOpen(true)} aria-label="모든 앱">
-          <span className={styles.dockGlyph}><Search size={24} strokeWidth={1.75} /></span>
+        <button type="button" className={styles.dockButton} onClick={() => { setGlobalSearchOpen(true); scheduleHide(900); }} aria-label="모든 앱">
+          <span className={styles.dockGlyph}><Grid2X2 size={22} strokeWidth={1.75} /></span>
           <span className={styles.dockLabel}>모든 앱</span>
+        </button>
+        <span className={styles.dockDivider} aria-hidden="true" />
+        <button type="button" className={`${styles.dockButton} ${appChatOpen ? styles.active : ""}`} onClick={() => { toggleAppChat(); scheduleHide(900); }} aria-label="Olivia">
+          <span className={styles.dockGlyph}><MessageCircle size={23} strokeWidth={1.75} /></span>
+          <span className={styles.dockLabel}>Olivia</span>
         </button>
       </div>
     </div>

@@ -34,6 +34,7 @@ function styleFor(variant: ButtonVariant, disabled?: boolean): CSSProperties {
       border: "1px solid var(--ui-orange-strong, #C94C22)",
       background: disabled ? "transparent" : "var(--ui-orange-strong, #C94C22)",
       color: disabled ? "var(--ui-text-secondary, #626D65)" : "#fff",
+      boxShadow: disabled ? "none" : "0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16)",
     };
   }
   if (variant === "danger") {
@@ -47,9 +48,9 @@ function styleFor(variant: ButtonVariant, disabled?: boolean): CSSProperties {
   }
   return {
     ...base,
-    border: `1px solid ${disabled ? "var(--ui-border, #D5DBD3)" : "color-mix(in srgb, var(--ui-orange, #E85D2C) 48%, var(--ui-border, #D5DBD3))"}`,
+    border: `1px solid ${disabled ? "var(--ui-border, #D5DBD3)" : "color-mix(in srgb, var(--ui-brand-green, #155855) 34%, var(--ui-border, #D5DBD3))"}`,
     background: "var(--ui-surface, #FCFBF8)",
-    color: disabled ? "var(--ui-text-secondary, #626D65)" : "var(--ui-orange-strong, #C94C22)",
+    color: disabled ? "var(--ui-text-secondary, #626D65)" : "var(--ui-brand-green, #155855)",
     opacity: 1,
   };
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, CircleHelp, MessageCircle, Search } from "lucide-react";
+import Image from "next/image";
+import { ChevronDown, ChevronLeft, ChevronRight, CircleHelp, MessageCircle, Search } from "lucide-react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import type { DesktopOverlayKind } from "./DesktopSystemOverlay";
@@ -49,14 +50,18 @@ export function DesktopTopBar({ onOpenOverlay }: { onOpenOverlay: (kind: Desktop
             <button type="button" onClick={() => moveHistory(1)} aria-label="앞으로"><ChevronRight size={17} /></button>
           </div>
         ) : null}
+        <Image className={styles.topBarLogo} src="/assets/photoclinic-logo.png" alt="포토클리닉" width={307} height={276} priority />
+        <button type="button" className={styles.workspaceLauncher} onClick={() => setSearchOpen(true)}>
+          작업실 <ChevronDown size={13} />
+        </button>
+      </div>
+      <div className={styles.topBarRight}>
         <div className={styles.topBarLocation}>
-          <strong>{activeWindow?.title ?? "OLIVIA"}</strong>
+          <strong>{activeWindow?.title ?? "홈"}</strong>
           {activeWindow?.context?.documentTitle || activeWindow?.context?.projectName || activeWindow?.context?.clientName ? (
             <span>{activeWindow.context.documentTitle ?? activeWindow.context.projectName ?? activeWindow.context.clientName}</span>
           ) : null}
         </div>
-      </div>
-      <div className={styles.topBarRight}>
         <button type="button" className={styles.topBarSearchButton} onClick={() => setSearchOpen(true)}>
           <Search size={14} /><span>어디로 갈까요</span><kbd>⌘K</kbd>
         </button>
@@ -65,7 +70,7 @@ export function DesktopTopBar({ onOpenOverlay }: { onOpenOverlay: (kind: Desktop
           <i />{workerLabel}
         </span>
         <button type="button" className={styles.topBarIconButton} onClick={() => onOpenOverlay("help")} aria-label="도움말"><CircleHelp size={17} /></button>
-        <button type="button" className={`${styles.topBarOliviaButton} ${appChatOpen ? styles.topBarOliviaButtonActive : ""}`} onClick={toggleAppChat} disabled={!activeWindowId} aria-label="Olivia 불러오기"><MessageCircle size={18} /></button>
+        <button type="button" className={`${styles.topBarOliviaButton} ${appChatOpen ? styles.topBarOliviaButtonActive : ""}`} onClick={toggleAppChat} aria-label="Olivia 불러오기"><MessageCircle size={17} /><span>Olivia</span></button>
       </div>
     </header>
   );

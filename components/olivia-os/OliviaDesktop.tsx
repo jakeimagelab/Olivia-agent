@@ -24,6 +24,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   const [appChatMounted, setAppChatMounted] = useState(false);
   const handledInitialLaunchRef = useRef<OliviaRootLaunch | null>(null);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
+  const activeWindow = useOliviaDesktopStore((state) => activeWindowId ? state.windows[activeWindowId] : undefined);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const setAppChatOpen = useOliviaDesktopUtilityStore((state) => state.setAppChatOpen);
 
@@ -66,14 +67,29 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
     window.history.replaceState(window.history.state, "", clearOliviaRootLaunchParams(window.location.href));
   }, [initialLaunch]);
 
-  const showAppChat = Boolean(activeWindowId && appChatOpen && activeWindowId !== "olivia-chat");
+  const showAppChat = Boolean(appChatOpen && activeWindowId !== "olivia-chat");
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
+        event.preventDefault();
+        setAppChatOpen(!useOliviaDesktopUtilityStore.getState().appChatOpen);
+        return;
+      }
+      if (event.key === "Escape" && useOliviaDesktopUtilityStore.getState().appChatOpen) {
+        setAppChatOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setAppChatOpen]);
 
   useEffect(() => {
     if (showAppChat) {
       setAppChatMounted(true);
       return;
     }
-    const timer = window.setTimeout(() => setAppChatMounted(false), 300);
+    const timer = window.setTimeout(() => setAppChatMounted(false), 340);
     return () => window.clearTimeout(timer);
   }, [showAppChat]);
 
@@ -83,7 +99,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
       <HomeDashboardDataProvider>
         <div className={styles.desktopBody} data-chat-open={showAppChat}>
           <DesktopSurface />
-          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} onClose={() => setAppChatOpen(false)} /> : null}
+          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={activeWindow?.title ?? "홈"} onClose={() => setAppChatOpen(false)} /> : null}
         </div>
       </HomeDashboardDataProvider>
       <div className={styles.dockArea}><DesktopDock /></div>

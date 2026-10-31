@@ -9568,22 +9568,22 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     border: 1px solid var(--ui-orange-strong, #C94C22);
     background: var(--ui-orange-strong, #C94C22);
     color: #fff;
-    box-shadow: none;
+    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
   }
   .pc-btn--secondary {
-    border: 1px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 44%, var(--ui-border, #D5DBD3));
+    border: 1px solid color-mix(in srgb, var(--ui-brand-green, #155855) 34%, var(--ui-border, #D5DBD3));
     background: var(--ui-surface, #FCFBF8);
-    color: var(--ui-orange-strong, #C94C22);
+    color: var(--ui-brand-green, #155855);
     box-shadow: none;
   }
   .pc-btn--secondary:hover,
   .pc-btn--ghost:hover {
-    border-color: var(--ui-orange, #E85D2C);
-    background: var(--ui-orange-soft, #FBEAE3);
-    color: var(--ui-orange-strong, #C94C22);
+    border-color: var(--ui-brand-green, #155855);
+    background: var(--ui-green-soft, #E2EBE3);
+    color: var(--ui-brand-green, #155855);
   }
   .pc-btn:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--ui-orange, #E85D2C) 24%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--ui-brand-green, #155855) 22%, transparent);
     outline-offset: 2px;
   }
   .pc-btn:disabled {
@@ -9607,9 +9607,9 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     -webkit-backdrop-filter: none;
   }
   .pc-header-back:hover {
-    border-color: var(--ui-orange, #E85D2C);
-    background: var(--ui-orange-soft, #FBEAE3);
-    color: var(--ui-orange-strong, #C94C22);
+    border-color: var(--ui-brand-green, #155855);
+    background: var(--ui-green-soft, #E2EBE3);
+    color: var(--ui-brand-green, #155855);
     box-shadow: none;
   }
   .pc-header-divider { background: var(--ui-border, #D5DBD3); }
@@ -9623,6 +9623,14 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     border-bottom-color: var(--ui-border, #D5DBD3);
     background: var(--ui-workspace, #E8EBE5);
   }
+  .pc-tab--active,
+  .pc-section-tabs .pc-tab--active {
+    border-color: color-mix(in srgb, var(--ui-brand-green, #155855) 26%, transparent);
+    background: var(--ui-green-soft, #E2EBE3);
+    color: var(--ui-brand-green, #155855);
+    box-shadow: inset 0 -2px var(--ui-brand-green, #155855);
+  }
+  .pc-tab-icon { color: #7A8A83; }
 
   /* Quote editor. The .quote-page document itself is intentionally untouched. */
   .quote-app { color: var(--ui-text, #2F3833); background: var(--ui-bg, #F4F3EF); }
@@ -9650,25 +9658,25 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     border-color: var(--ui-orange-strong, #C94C22) !important;
     background: var(--ui-orange-strong, #C94C22) !important;
     color: #fff !important;
-    box-shadow: none;
+    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
   }
   .quote-app:not(.quote-app--jakeimage) > section .secondary-button,
   .quote-app:not(.quote-app--jakeimage) > .action-button-bar .secondary-button {
-    border-color: color-mix(in srgb, var(--ui-orange, #E85D2C) 44%, var(--ui-border, #D5DBD3));
+    border-color: color-mix(in srgb, var(--ui-brand-green, #155855) 34%, var(--ui-border, #D5DBD3));
     background: var(--ui-surface, #FCFBF8);
-    color: var(--ui-orange-strong, #C94C22);
+    color: var(--ui-brand-green, #155855);
   }
   .quote-app:not(.quote-app--jakeimage) > section .secondary-button:hover,
   .quote-app:not(.quote-app--jakeimage) > .action-button-bar .secondary-button:hover {
-    border-color: var(--ui-orange, #E85D2C);
-    background: var(--ui-orange-soft, #FBEAE3);
+    border-color: var(--ui-brand-green, #155855);
+    background: var(--ui-green-soft, #E2EBE3);
   }
   .quote-app .action-button-bar {
     border-top-color: var(--ui-border, #D5DBD3);
     background: var(--ui-header, #F8F8F4);
   }
   .quote-app .preview-zoom-controls button {
-    color: var(--ui-orange-strong, #C94C22);
+    color: #7A8A83;
   }
 
   /* Calendar workspace. Category colors remain defined by the calendar data. */
@@ -9681,10 +9689,10 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     border-color: var(--ui-border, #D5DBD3);
     background: var(--ui-surface, #FCFBF8);
   }
-  .calendar-main-toolbar button:hover { background: var(--ui-orange-soft, #FBEAE3); }
+  .calendar-main-toolbar button:hover { background: var(--ui-green-soft, #E2EBE3); }
   .calendar-main-toolbar button.is-active {
-    border-color: var(--ui-orange, #E85D2C);
-    color: var(--ui-orange-strong, #C94C22);
+    border-color: var(--ui-brand-green, #155855);
+    color: var(--ui-brand-green, #155855);
   }
   .calendar-page-shell :where(.calendar-productivity-panel, .calendar-day-side-panel) {
     border-color: var(--ui-border, #D5DBD3) !important;
@@ -9723,6 +9731,7 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
     border-color: var(--ui-orange-strong, #C94C22);
     background: var(--ui-orange-strong, #C94C22);
     color: #fff;
+    box-shadow: 0 1px 2px rgba(201,76,34,.22), 0 6px 16px rgba(201,76,34,.16);
   }
   .pcrm-dashboard-actions label,
   .pcrm-row-menu__panel,
@@ -9745,8 +9754,8 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   .pcrm-form-modal__head > button:hover,
   .pcrm-project-dialog header > button:hover,
   .pcrm-row-menu__panel button:hover {
-    background: var(--ui-orange-soft, #FBEAE3);
-    color: var(--ui-orange-strong, #C94C22);
+    background: var(--ui-green-soft, #E2EBE3);
+    color: var(--ui-brand-green, #155855);
   }
 
   /* OS chat portal is shared by Home and contextual panels. */

@@ -55,7 +55,7 @@ const appIcon = (name: IconName) => createElement(AppIcon, { name, size: 26, "ar
 export const oliviaAppRegistry: OliviaAppDefinition[] = [
   {
     id: "today",
-    title: "오늘",
+    title: "홈",
     icon: appIcon("today"),
     defaultSize: { width: 520, height: 680 },
     minSize: { width: 360, height: 420 },
