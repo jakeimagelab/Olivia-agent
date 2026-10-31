@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
+import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { StatusPanelButton } from "./StatusPanelButton";
 import styles from "./OliviaDesktop.module.css";
 
@@ -13,7 +14,7 @@ type WorkerStatus = { online: boolean; nas_connected: boolean | null };
 export function DesktopTopBar() {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const activeWindow = useOliviaDesktopStore((state) => activeWindowId ? state.windows[activeWindowId] : undefined);
-  const setSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
+  const openApp = useOliviaDesktopStore((state) => state.openApp);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
   const [worker, setWorker] = useState<WorkerStatus | null>(null);
@@ -37,11 +38,22 @@ export function DesktopTopBar() {
         ? "Mac Studio 연결 · NAS 끊김"
         : "Mac Studio · NAS";
 
+  const openWorkspace = () => {
+    const app = getOliviaApp("all-apps");
+    if (!app) return;
+    openApp({
+      appId: app.id,
+      title: app.title,
+      width: app.defaultSize.width,
+      height: app.defaultSize.height,
+    });
+  };
+
   return (
     <header className={styles.topBar} data-home={!activeWindowId}>
       <div className={styles.topBarLeft}>
         <Image className={styles.topBarLogo} src="/assets/photoclinic-logo.png" alt="포토클리닉" width={307} height={276} priority />
-        <button type="button" className={styles.workspaceLauncher} onClick={() => setSearchOpen(true)}>
+        <button type="button" className={styles.workspaceLauncher} onClick={openWorkspace}>
           작업실 <ChevronDown size={13} />
         </button>
       </div>
