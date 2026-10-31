@@ -929,8 +929,13 @@ export default function OliviaBridgeWorkspace({
     setAdobeSelectionLoading(true);
     try {
       const localPhotos = scan.jpgs
-        .filter((photo): photo is BridgeJpgFile & { file: File } => Boolean(photo.file))
-        .map((photo) => ({ name: photo.name, file: photo.file }));
+        .filter((photo) => Boolean(photo.handle || photo.file))
+        .map((photo) => ({
+          name: photo.name,
+          file: photo.file,
+          handle: photo.handle,
+          relativeDirectory: photo.relativeDirectory,
+        }));
       const found = await collectAdobeBridgeRatings(activeFolder, localPhotos, { signal });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
       const nextRatings: Record<string, number> = {};

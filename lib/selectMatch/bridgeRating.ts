@@ -38,8 +38,21 @@ export async function readRatingEmbedded(file: File): Promise<number | null> {
 
 export type AdobeBridgeRatingCandidate = {
   name: string;
-  file: File;
+  file?: File;
+  handle?: FileSystemFileHandle;
+  relativeDirectory?: string;
 };
+
+async function resolveRatingDirectory(
+  root: FileSystemDirectoryHandle,
+  relativeDirectory: string | undefined,
+): Promise<FileSystemDirectoryHandle> {
+  let current = root;
+  for (const segment of relativeDirectory?.split("/").filter(Boolean) ?? []) {
+    current = await current.getDirectoryHandle(segment);
+  }
+  return current;
+}
 
 export async function collectAdobeBridgeRatings(
   directory: FileSystemDirectoryHandle,
@@ -56,9 +69,16 @@ export async function collectAdobeBridgeRatings(
       if (index >= photos.length) return;
       const photo = photos[index];
       const basename = photo.name.replace(/\.[^.]+$/, "");
-      const rating = await readRatingSidecar(directory, basename)
-        ?? await readRatingEmbedded(photo.file);
-      if (rating !== null) ratings.set(normalizePhotoToolFileKey(photo.name), rating);
+      try {
+        const ratingDirectory = await resolveRatingDirectory(directory, photo.relativeDirectory);
+        const freshFile = photo.handle ? await photo.handle.getFile() : photo.file;
+        const rating = await readRatingSidecar(ratingDirectory, basename)
+          ?? (freshFile ? await readRatingEmbedded(freshFile) : null);
+        if (rating !== null) ratings.set(normalizePhotoToolFileKey(photo.name), rating);
+      } catch {
+        // 외부 앱이 파일을 갱신하는 순간 잠시 읽을 수 없는 항목은 건너뛰고
+        // 다음 창 포커스 때 다시 동기화한다.
+      }
     }
   };
 
