@@ -125,11 +125,6 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   // 좁은 PWA 화면에서는 이 세로 가이드가 말풍선 폭을 빼앗는다. 대화 기록 탐색은 데스크탑
   // 전용으로 남기고, 모바일은 메시지 영역 전체를 사용한다.
   const showConversationGuide = variant !== "home" && variant !== "mobile" && exchanges.length >= 4;
-  const exchangeByUserMessageId = useMemo(() => {
-    const map = new Map<string, (typeof exchanges)[number]>();
-    for (const exchange of exchanges) map.set(exchange.userMessageId, exchange);
-    return map;
-  }, [exchanges]);
   const [activeMessageId, setActiveMessageId] = useState<string>();
   const [selectedGuideId, setSelectedGuideId] = useState<string>();
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -553,6 +548,14 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
         <button type="button" className="olivia-jump-to-bottom" onClick={() => scrollToBottom()}>
           새 메시지 ↓
         </button>
+      ) : null}
+
+      {activeDockId === "desktop-panel" && !isEmpty ? (
+        <div className="olivia-conversation__suggestions olivia-conversation__suggestions--desktop-panel">
+          {suggestions.slice(0, 3).map((prompt) => (
+            <button key={prompt} type="button" onClick={() => void sendMessage(prompt)}>{prompt}</button>
+          ))}
+        </div>
       ) : null}
 
       <div className={`olivia-composer-shell${isMobile ? " olivia-composer-shell--mobile" : ""}`}>

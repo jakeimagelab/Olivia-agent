@@ -8,7 +8,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Star } from "lucide-react";
+import { ArrowUpRight, Search, Star } from "lucide-react";
 import { ALL_TOOLS, groupToolsByCategory, type NavCategory, type ToolDef } from "@/lib/toolNav";
 import { WORKSPACE_GROUPS, isIntegratedToolHref } from "@/lib/workspaceGroups";
 import type { IconName } from "@/components/Icon";
@@ -112,11 +112,15 @@ const APP_TABS: { value: AppTab; label: string }[] = [
 function FavoriteAppButton({
   entry,
   favorite,
+  selected,
+  onSelect,
   onLaunch,
   onOpenMenu,
 }: {
   entry: DisplayEntry;
   favorite: boolean;
+  selected: boolean;
+  onSelect: () => void;
   onLaunch: () => void;
   onOpenMenu: (clientX: number, clientY: number) => void;
 }) {
@@ -148,44 +152,58 @@ function FavoriteAppButton({
     if (origin && Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 8) cancelLongPress();
   };
 
+  const category = entry.kind === "desktop" ? "Olivia" : entry.tool.meta || "기능";
+
   return (
-    <button
-      type="button"
-      className={styles.appButton}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={cancelLongPress}
-      onPointerCancel={cancelLongPress}
-      onPointerLeave={cancelLongPress}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        cancelLongPress();
-        onOpenMenu(event.clientX, event.clientY);
-      }}
-      onClick={(event) => {
-        if (suppressClickRef.current) {
-          suppressClickRef.current = false;
+    <article className={styles.appCard} data-selected={selected}>
+      <button
+        type="button"
+        className={styles.appButton}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={cancelLongPress}
+        onPointerCancel={cancelLongPress}
+        onPointerLeave={cancelLongPress}
+        onContextMenu={(event) => {
           event.preventDefault();
-          return;
-        }
-        onLaunch();
-      }}
-      title={entry.description}
-      aria-haspopup="menu"
-    >
-      <span className={styles.iconWrap}>
-        {entry.kind === "desktop" ? (
-          <AppIcon icon={entry.app.icon} size={42} />
-        ) : (
-          <AppIcon
-            icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[entry.tool.href] ?? "workspace"} size={24} aria-hidden focusable={false} />}
-            size={42}
-          />
-        )}
-        {favorite ? <Star className={styles.favoriteMark} size={12} fill="currentColor" aria-label="즐겨찾기" /> : null}
-      </span>
-      <span>{entry.title}</span>
-    </button>
+          cancelLongPress();
+          onOpenMenu(event.clientX, event.clientY);
+        }}
+        onClick={(event) => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false;
+            event.preventDefault();
+            return;
+          }
+          onSelect();
+        }}
+        onDoubleClick={onLaunch}
+        title={entry.description}
+        aria-haspopup="menu"
+        aria-pressed={selected}
+      >
+        <span className={styles.cardMeta}>{category}</span>
+        <span className={styles.iconWrap}>
+          {entry.kind === "desktop" ? (
+            <AppIcon icon={entry.app.icon} size={30} />
+          ) : (
+            <AppIcon
+              icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[entry.tool.href] ?? "workspace"} size={19} aria-hidden focusable={false} />}
+              size={30}
+            />
+          )}
+        </span>
+        <strong>{entry.title}</strong>
+        <small>{entry.description}</small>
+      </button>
+      <footer>
+        <button type="button" onClick={(event) => { event.stopPropagation(); onOpenMenu(event.clientX, event.clientY); }} aria-label={`${entry.title} 즐겨찾기 설정`}>
+          <Star size={12} fill={favorite ? "currentColor" : "none"} />
+          {favorite ? "즐겨찾기" : "즐겨찾기 추가"}
+        </button>
+        <button type="button" className={styles.launchButton} onClick={onLaunch} aria-label={`${entry.title} 열기`}><ArrowUpRight size={13} /></button>
+      </footer>
+    </article>
   );
 }
 
@@ -212,6 +230,8 @@ export function AllAppsWindowContent() {
   const [menu, setMenu] = useState<MenuState>();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
+  const [query, setQuery] = useState("");
+  const [selectedKey, setSelectedKey] = useState<string>();
   const favoriteSet = useMemo(() => new Set(favoriteKeys), [favoriteKeys]);
 
   useEffect(() => {
@@ -252,6 +272,21 @@ export function AllAppsWindowContent() {
     return group?.items.map((tool) => toolEntry(tool)) ?? [];
   }, [activeCategory, desktop, desktopByKey, favoriteKeys, groups]);
 
+  const visibleEntries = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("ko-KR");
+    if (!normalized) return entries;
+    return entries.filter((entry) => `${entry.title} ${entry.description}`.toLocaleLowerCase("ko-KR").includes(normalized));
+  }, [entries, query]);
+
+  useEffect(() => {
+    const preferred = visibleEntries.find((entry) => entry.title === "Olivia Bridge") ?? visibleEntries[0];
+    if (!preferred) {
+      setSelectedKey(undefined);
+      return;
+    }
+    if (!selectedKey || !visibleEntries.some((entry) => entry.key === selectedKey)) setSelectedKey(preferred.key);
+  }, [selectedKey, visibleEntries]);
+
   const launchEntry = useCallback((entry: DisplayEntry) => {
     if (entry.kind === "tool") {
       launchHref(entry.tool.href, entry.tool.title);
@@ -259,6 +294,23 @@ export function AllAppsWindowContent() {
     }
     openApp({ appId: entry.app.id, title: entry.app.title, width: entry.app.defaultSize.width, height: entry.app.defaultSize.height });
   }, [launchHref, openApp]);
+
+  const selectEntry = useCallback((entry: DisplayEntry) => {
+    setSelectedKey(entry.key);
+    window.dispatchEvent(new CustomEvent("olivia-shell-selection", {
+      detail: {
+        title: entry.title,
+        subtitle: entry.description,
+        next: "선택한 앱을 현재 작업 화면으로 엽니다.",
+        href: entry.kind === "tool" ? entry.tool.href : undefined,
+      },
+    }));
+  }, []);
+
+  useEffect(() => {
+    const selected = visibleEntries.find((entry) => entry.key === selectedKey);
+    if (selected) selectEntry(selected);
+  }, [selectEntry, selectedKey, visibleEntries]);
 
   const openFavoriteMenu = useCallback((entry: DisplayEntry, clientX: number, clientY: number) => {
     const root = rootRef.current;
@@ -303,24 +355,34 @@ export function AllAppsWindowContent() {
 
   return (
     <div ref={rootRef} className={styles.root} onPointerDown={() => { if (menu) setMenu(undefined); }}>
-      <SegmentedTabs ariaLabel="앱 분류" value={activeCategory} onChange={setActiveCategory} items={APP_TABS} style={{ marginBottom: 16 }} />
+      <header className={styles.pageHeader}>
+        <div><h1>{activeCategory === "favorites" ? "즐겨찾기" : "모든 앱"}</h1><p>{activeCategory === "favorites" ? "자주 사용하는 작업을 가까이 둡니다." : "등록된 기능 전체를 한곳에서 찾습니다."}</p></div>
+        <SegmentedTabs ariaLabel="앱 분류" value={activeCategory} onChange={setActiveCategory} items={APP_TABS.slice(0, 2)} />
+      </header>
+      <label className={styles.searchField}>
+        <Search size={16} aria-hidden="true" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="앱 이름이나 필요한 기능 검색" />
+      </label>
 
       {error ? <p className={styles.error} role="status">{error}</p> : null}
-      {entries.length > 0 ? (
+      {visibleEntries.length > 0 ? (
         <div className={styles.grid} role="tabpanel">
-          {entries.map((entry) => (
+          {visibleEntries.map((entry) => (
             <FavoriteAppButton
               key={entry.key}
               entry={entry}
               favorite={favoriteSet.has(entry.key)}
+              selected={selectedKey === entry.key}
+              onSelect={() => selectEntry(entry)}
               onLaunch={() => launchEntry(entry)}
               onOpenMenu={(x, y) => openFavoriteMenu(entry, x, y)}
             />
           ))}
         </div>
       ) : (
-        <div className={styles.empty}>앱 아이콘을 우클릭하거나 길게 눌러 즐겨찾기에 추가하세요.</div>
+        <div className={styles.empty}>{query ? "검색과 맞는 앱이 없습니다." : "앱 아이콘을 우클릭하거나 길게 눌러 즐겨찾기에 추가하세요."}</div>
       )}
+      <footer className={styles.countFooter}>{visibleEntries.length.toLocaleString("ko-KR")}개 앱</footer>
 
       {menu ? (
         <div

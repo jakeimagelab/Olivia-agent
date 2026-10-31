@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
+import { DesktopWindowProvider, useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AudioLines,
@@ -197,6 +197,7 @@ export default function VideoStudio({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const { executionMode, availableModes, setExecutionMode } = usePhotoStudioExecution();
+  const desktopWindowMode = useDesktopWindowMode();
   const { jobs, error, results, loadResult, startJob } = useVideoStudioJobs();
   const { workerId, selectWorker, workers, selectedPresence } = useVideoStudioWorkers();
   const [editRoot, setEditRoot] = useStoredText(EDIT_ROOT_KEY);
@@ -253,7 +254,7 @@ export default function VideoStudio({
   const remote = executionMode === "REMOTE_WORKER";
   const wrongMode = requiredMode !== undefined && requiredMode !== executionMode;
   const needsResult = (tool === "reels" || tool === "magazine") && !result;
-  const tone = LIGHT_TOOLS.has(tool) ? "light" : "dark";
+  const tone = desktopWindowMode || LIGHT_TOOLS.has(tool) ? "light" : "dark";
   const sectionTools = VIDEO_STUDIO_TOOLS[section];
 
   let body: ReactElement;

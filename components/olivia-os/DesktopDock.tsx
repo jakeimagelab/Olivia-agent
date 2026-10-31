@@ -46,7 +46,6 @@ export function DesktopDock() {
   const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
   const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
-  const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
   const apps = getDockApps();
@@ -134,7 +133,7 @@ export function DesktopDock() {
           </div>
         ))}
         <span className={styles.dockDivider} aria-hidden="true" />
-        <button type="button" className={styles.dockButton} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => { setGlobalSearchOpen(true); scheduleHide(900); }} aria-label="모든 앱">
+        <button type="button" className={`${styles.dockButton} ${activeWindowId === "all-apps" ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open("all-apps", "모든 앱", 1240, 780)} aria-label="모든 앱">
           <span className={styles.dockGlyph}><Grid2X2 size={22} strokeWidth={1.75} /></span>
           <span className={styles.dockLabel}>모든 앱</span>
         </button>

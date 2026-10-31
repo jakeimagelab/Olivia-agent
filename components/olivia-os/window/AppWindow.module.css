@@ -20,6 +20,9 @@
 /* 창 관리 껍데기 없이 활성 앱 하나가 DesktopSurface를 그대로 채운다. 기존 .window 규칙은
    compact chat 롤백과 구형 창 파일을 위해 남기고, 전체화면일 때만 위치·테두리를 덮는다. */
 .fullScreen {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
   inset: 0;
   width: 100%;
   height: 100%;

@@ -1,8 +1,9 @@
 .shell{--teal:#155855;--orange:#C94A1E;--muted:#5A7470;--line:rgba(21,88,85,.14);--soft:#F0F6F4;width:100%;height:100%;min-height:0;background:#FDFCFA;color:#173633;overflow:auto;font-family:inherit}
+.shell[data-embedded=true]{background:#E8EBE5}
 .shell *{box-sizing:border-box}
 .listPage{width:min(1380px,100%);min-height:100%;margin:0 auto;padding:28px 32px 48px}
 .casePage{width:100%;min-height:100%;margin:0;padding:28px 40px 48px}
-.shell[data-embedded=true] .listPage,.shell[data-embedded=true] .casePage{padding:18px 20px 34px}
+.shell[data-embedded=true] .listPage,.shell[data-embedded=true] .casePage{padding:18px 20px 34px;background:#E8EBE5}
 .listHeader,.caseHeader{display:flex;align-items:center;gap:20px;margin-bottom:24px}
 .listHeader>div:first-child{flex:1}
 .eyebrow{margin:0 0 5px;color:var(--orange);font-size:11px;font-weight:600}

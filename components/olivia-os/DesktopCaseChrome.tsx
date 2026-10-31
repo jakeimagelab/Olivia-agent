@@ -41,6 +41,7 @@ type ShellTab = {
 };
 
 const CASE_APPS = new Set(["quote", "conti", "select-galleries"]);
+const DEDICATED_INSPECTOR_APPS = new Set(["olivia-bridge"]);
 const APP_LABELS: Record<string, string> = {
   home: "홈",
   customer: "고객관리",
@@ -80,7 +81,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   const launchHref = useDesktopAppLauncher();
   const [detail, setDetail] = useState<CasePayload | null>(null);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(!DEDICATED_INSPECTOR_APPS.has(appId));
   const [panelTab, setPanelTab] = useState<"info" | "olivia">("info");
   const [focusMode, setFocusMode] = useState(false);
   const [localTab, setLocalTab] = useState(appId === "home" ? "home" : appId);
@@ -104,7 +105,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   }, [caseEnabled, clientId, workflowRunId]);
 
   useEffect(() => {
-    setPanelOpen(true);
+    setPanelOpen(!DEDICATED_INSPECTOR_APPS.has(appId));
     setPanelTab("info");
     setFocusMode(false);
     setLocalTab(appId === "home" ? "home" : appId);

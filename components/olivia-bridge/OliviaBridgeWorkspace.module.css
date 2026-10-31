@@ -554,3 +554,202 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .departmentStatus small { width: 100%; margin-left: 21px; white-space: normal; }
   .departmentPicker label { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Olivia OS v3 밝은 Bridge 표면. 독립 Bridge 경로의 색판과 작업 기능은 그대로 둔다. */
+.bridge[data-desktop-ui="true"] {
+  --bridge-green: #155855;
+  --bridge-mint: #155855;
+  --bridge-action: #C94A1E;
+  --bridge-bg: #E8EBE5;
+  --bridge-panel: #FCFBF8;
+  --bridge-panel-soft: #F4F3EF;
+  --bridge-line: #D5DBD3;
+  grid-template-rows: 112px minmax(0, 1fr);
+  color: #2F3833;
+  background: #E8EBE5;
+}
+
+.bridge[data-desktop-ui="true"] .bridgeBar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 32px 18px 38px;
+  gap: 0 18px;
+  padding: 8px clamp(20px, 2.4vw, 40px);
+  border-bottom: 0;
+  color: #2F3833;
+  background: #E8EBE5;
+}
+.bridge[data-desktop-ui="true"] .bridgeBar > strong {
+  display: block;
+  align-self: end;
+  color: #2F3833;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+.bridge[data-desktop-ui="true"] .folderPickerButton {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+  min-height: 34px;
+  border-color: #D5DBD3;
+  border-radius: 8px;
+  color: #155855;
+  background: #FCFBF8;
+  font-size: 10px;
+}
+.bridge[data-desktop-ui="true"] .folderPickerButton:hover { background: #F4F8F5; }
+.bridge[data-desktop-ui="true"] .breadcrumbs {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  min-width: 0;
+  color: #626D65;
+  font-size: 9.5px;
+}
+.bridge[data-desktop-ui="true"] .toolBar {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: end;
+  justify-self: start;
+  z-index: 1;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #D5DBD3;
+  border-radius: 8px;
+  background: #FCFBF8;
+}
+.bridge[data-desktop-ui="true"] .toolBar button {
+  width: auto;
+  height: 34px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 0 11px;
+  border: 0;
+  border-right: 1px solid #D5DBD3;
+  border-radius: 0;
+  color: #64736C;
+  background: transparent;
+}
+.bridge[data-desktop-ui="true"] .toolBar button:nth-child(n+5) { display: none; }
+.bridge[data-desktop-ui="true"] .toolBar button span { display: inline; font-size: 9.5px; }
+.bridge[data-desktop-ui="true"] .toolBar button:hover:not(:disabled),
+.bridge[data-desktop-ui="true"] .toolBar button.activeTool { color: #155855; border-color: #D5DBD3; background: #E2EBE3; }
+.bridge[data-desktop-ui="true"] .toolBar button:disabled { color: #A7B5AE; }
+.bridge[data-desktop-ui="true"] .sceneStatusButton {
+  grid-column: 2;
+  grid-row: 3;
+  align-self: end;
+  min-width: 142px;
+  min-height: 34px;
+  border-color: #D5DBD3;
+  color: #155855;
+  background: #FCFBF8;
+}
+.bridge[data-desktop-ui="true"] .workspace {
+  --bridge-preview-width: 290px;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(248px, var(--bridge-preview-width));
+  border-top: 1px solid #D5DBD3;
+  background: #E8EBE5;
+}
+.bridge[data-desktop-ui="true"] .folderPanel,
+.bridge[data-desktop-ui="true"] .folderPanel + .paneDivider { display: none; }
+.bridge[data-desktop-ui="true"] .paneDivider { min-width: 1px; background: #D5DBD3; }
+.bridge[data-desktop-ui="true"] .paneDivider::after { display: none; }
+.bridge[data-desktop-ui="true"] .browserPanel {
+  grid-template-rows: 46px 36px minmax(0, 1fr) 32px;
+  background: #E8EBE5;
+}
+.bridge[data-desktop-ui="true"] .browserHeader {
+  padding: 0 18px;
+  border-bottom: 0;
+  background: #E8EBE5;
+}
+.bridge[data-desktop-ui="true"] .browserHeader strong { color: #2F3833; font-size: 12px; }
+.bridge[data-desktop-ui="true"] .browserHeader span { color: #7A8A83; font-size: 9px; }
+.bridge[data-desktop-ui="true"] .thumbnailControls button { color: #7A8A83; }
+.bridge[data-desktop-ui="true"] .thumbnailControls button:hover { color: #155855; background: #E2EBE3; }
+.bridge[data-desktop-ui="true"] .thumbnailControls > svg { color: #7A8A83; }
+.fileTypeTabs { display: none; }
+.bridge[data-desktop-ui="true"] .fileTypeTabs {
+  display: flex;
+  align-items: end;
+  gap: 16px;
+  padding: 0 18px;
+  border-bottom: 1px solid #D5DBD3;
+}
+.bridge[data-desktop-ui="true"] .fileTypeTabs button {
+  height: 36px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 0;
+  color: #626D65;
+  background: transparent;
+  font: 500 9.5px/1 inherit;
+  cursor: pointer;
+}
+.bridge[data-desktop-ui="true"] .fileTypeTabs button[aria-selected="true"] { border-bottom-color: #155855; color: #155855; }
+.bridge[data-desktop-ui="true"] .fileTypeTabs span { color: #8B9892; font-size: 8.5px; }
+.bridge[data-desktop-ui="true"] .fileArea { padding: 12px 16px 18px; scrollbar-color: #B8C2BD transparent; }
+.bridge[data-desktop-ui="true"] .thumbnailGrid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 10px; }
+.bridge[data-desktop-ui="true"] .thumbnailCard {
+  min-height: 128px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 0;
+  padding: 0;
+  border: 1px solid #D5DBD3;
+  border-radius: 8px;
+  color: #2F3833;
+  background: #FCFBF8;
+  box-shadow: 0 2px 6px rgba(40,55,45,.025);
+}
+.bridge[data-desktop-ui="true"] .thumbnailCard:hover { background: #fff; box-shadow: 0 5px 14px rgba(40,55,45,.06); }
+.bridge[data-desktop-ui="true"] .thumbnailCard.focused,
+.bridge[data-desktop-ui="true"] .thumbnailCard.selected { border: 2px solid #E85D2C; background: #FCFBF8; }
+.bridge[data-desktop-ui="true"] .thumbnailMedia { min-height: 82px; border-radius: 7px 7px 0 0; background: #F4F3EF; }
+.bridge[data-desktop-ui="true"] .photoName { min-height: 32px; display: flex; align-items: center; padding: 0 10px; color: #2F3833; font-size: 9.5px; font-weight: 600; }
+.bridge[data-desktop-ui="true"] .photoPath { padding: 0 10px 8px; color: #7A8A83; }
+.bridge[data-desktop-ui="true"] .selectMark { top: 7px; left: 7px; right: auto; width: 20px; height: 20px; border-radius: 5px; background: #C94A1E; box-shadow: none; }
+.bridge[data-desktop-ui="true"] .selectMark::after { content: ""; position: absolute; top: 5px; left: 7px; width: 5px; height: 8px; border-right: 1.5px solid #fff; border-bottom: 1.5px solid #fff; transform: rotate(45deg); }
+.bridge[data-desktop-ui="true"] .rating { bottom: 7px; left: auto; right: 7px; color: #E85D2C; background: transparent; }
+.bridge[data-desktop-ui="true"] .plainFileSection { border-top-color: #D5DBD3; }
+.bridge[data-desktop-ui="true"] .plainFileSection > header strong { color: #2F3833; }
+.bridge[data-desktop-ui="true"] .plainFileSection > header span { color: #7A8A83; }
+.bridge[data-desktop-ui="true"] .plainFileCard { border-color: #D5DBD3; color: #64736C; background: #FCFBF8; }
+.bridge[data-desktop-ui="true"] .plainFileCard > svg,
+.bridge[data-desktop-ui="true"] .plainFileCard strong { color: #64736C; }
+.bridge[data-desktop-ui="true"] .plainFileCard > span { color: #155855; background: #E2EBE3; }
+.bridge[data-desktop-ui="true"] .plainFileCard small { color: #8B9892; }
+.bridge[data-desktop-ui="true"] .shortcutBar { min-height: 32px; border-top-color: #D5DBD3; color: #7A8A83; background: #FCFBF8; }
+.bridge[data-desktop-ui="true"] .shortcutHints { padding-block: 4px; }
+.bridge[data-desktop-ui="true"] .shortcutHints span:nth-of-type(n+5) { display: none; }
+.bridge[data-desktop-ui="true"] .thumbnailGauge { min-width: 180px; border-left-color: #D5DBD3; color: #64736C; background: #FCFBF8; }
+.bridge[data-desktop-ui="true"] .thumbnailGauge input::-webkit-slider-runnable-track { background: #D5DBD3; }
+.bridge[data-desktop-ui="true"] .thumbnailGauge input::-webkit-slider-thumb { border-color: #D7E5DE; background: #155855; }
+.bridge[data-desktop-ui="true"] .previewPanel { grid-template-rows: 46px 36px minmax(0, 1fr) auto; border-left: 0; background: #FCFBF8; }
+.previewHeader { display: none; }
+.previewTabs { display: none; }
+.bridge[data-desktop-ui="true"] .previewHeader { display: flex; align-items: center; justify-content: space-between; padding: 0 18px; color: #2F3833; }
+.bridge[data-desktop-ui="true"] .previewHeader strong { font-size: 12px; font-weight: 600; }
+.bridge[data-desktop-ui="true"] .previewHeader svg { color: #155855; }
+.bridge[data-desktop-ui="true"] .previewTabs { display: flex; align-items: end; gap: 18px; padding: 0 18px; border-bottom: 1px solid #D5DBD3; }
+.bridge[data-desktop-ui="true"] .previewTabs button { height: 36px; border: 0; border-bottom: 2px solid transparent; padding: 0; color: #626D65; background: transparent; font: 500 9.5px/1 inherit; }
+.bridge[data-desktop-ui="true"] .previewTabs button[aria-selected="true"] { border-bottom-color: #155855; color: #155855; }
+.bridge[data-desktop-ui="true"] .previewCanvas { margin: 14px 18px 8px; padding: 12px; border: 1px solid #D5DBD3; border-radius: 8px; background: #F4F3EF; }
+.bridge[data-desktop-ui="true"] .previewMeta { min-height: 126px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px; padding: 12px 18px 18px; border-top: 0; color: #626D65; }
+.bridge[data-desktop-ui="true"] .previewMeta strong { grid-column: 1 / -1; color: #2F3833; font-size: 11px; }
+.bridge[data-desktop-ui="true"] .previewMeta i { display: none; }
+.previewSelectButton { display: none; }
+.bridge[data-desktop-ui="true"] .previewSelectButton { grid-column: 1 / -1; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 5px; border: 1px solid #BBD0C2; border-radius: 7px; color: #155855; background: #E2EBE3; font: 500 9.5px/1 inherit; cursor: pointer; }
+.bridge[data-desktop-ui="true"] .previewEmpty { color: #7A8A83; }
+.bridge[data-desktop-ui="true"] .previewEmpty strong { color: #2F3833; }
+.bridge[data-desktop-ui="true"] .emptyState { grid-row: 3; color: #7A8A83; }
+.bridge[data-desktop-ui="true"] .emptyState strong { color: #2F3833; }
+.bridge[data-desktop-ui="true"] .emptyState button { border-color: #BBD0C2; color: #155855; background: #FCFBF8; }
+
+@container olivia-bridge (max-width: 900px) {
+  .bridge[data-desktop-ui="true"] .workspace { grid-template-columns: minmax(0, 1fr); }
+  .bridge[data-desktop-ui="true"] .workspace > .paneDivider,
+  .bridge[data-desktop-ui="true"] .previewPanel { display: none; }
+  .bridge[data-desktop-ui="true"] .thumbnailGrid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}

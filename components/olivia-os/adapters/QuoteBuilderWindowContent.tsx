@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import QuoteBuilder from "@/components/quote/QuoteBuilder";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 
@@ -10,11 +10,6 @@ import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 // 알려진 한계: OpenAppInput이 clientId/resourceId를 아직 안 실어 나르므로(§42 targetWindowId류
 // 확장은 이번 phase 범위 밖), 지금은 항상 빈 새 견적서로 열린다 — 특정 고객/문서로 바로 열리게
 // 하려면 useOliviaDesktopStore.openApp의 입력을 확장하는 후속 작업이 필요하다.
-const QuoteBuilder = dynamic(() => import("@/components/quote/QuoteBuilder"), {
-  ssr: false,
-  loading: () => <div style={{ padding: 24, fontSize: 12, color: "#5A7470" }}>견적서를 준비하는 중...</div>,
-});
-
 export function QuoteBuilderWindowContent({ context }: { context?: WindowContext }) {
   return (
     <DesktopWindowProvider value={true}>
