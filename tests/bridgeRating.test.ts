@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { collectAdobeBridgeRatings, readBridgeRatingsManifestText } from "@/lib/selectMatch/bridgeRating";
+import { collectAdobeBridgeRatings } from "@/lib/selectMatch/bridgeRating";
 
 function xmpFile(rating?: number) {
   const text = rating
@@ -28,20 +28,6 @@ function directory(input: {
 }
 
 describe("Adobe Bridge rating sync", () => {
-  it("reads Adobe Bridge's folder rating manifest", () => {
-    const result = readBridgeRatingsManifestText(`<?xml version='1.0' encoding='UTF-8'?>
-      <bridgedata><ratings>
-        <item key='IMG_1001.JPG' rating='5'/>
-        <item rating="3" key="IMG_1002"/>
-        <item key='ignored.jpg' rating='0'/>
-      </ratings></bridgedata>`);
-
-    expect([...result.entries()]).toEqual([
-      ["img_1001.jpg", 5],
-      ["img_1002", 3],
-    ]);
-  });
-
   it("re-reads the file handle so ratings written after the folder scan are visible", async () => {
     const getFile = vi.fn(async () => xmpFile(4));
     const root = directory({});
@@ -70,20 +56,20 @@ describe("Adobe Bridge rating sync", () => {
     expect(result.get("img_2001")).toBe(5);
   });
 
-  it("uses a .BridgeLabelsAndRatings entry when Bridge cannot write XMP into the photo", async () => {
+  it("does not mistake a folder rating for a photo rating", async () => {
     const root = directory({
       files: {
         ".BridgeLabelsAndRatings": new Blob([
-          "<bridgedata><ratings><item key='IMG_3001.JPG' rating='4'/></ratings></bridgedata>",
+          "<bridgedata><ratings><item key='Profile' rating='5'/></ratings></bridgedata>",
         ]) as File,
       },
     });
 
     const result = await collectAdobeBridgeRatings(root, [{
-      name: "IMG_3001.JPG",
+      name: "Profile.JPG",
       file: xmpFile(),
     }]);
 
-    expect(result.get("img_3001")).toBe(4);
+    expect(result.size).toBe(0);
   });
 });
