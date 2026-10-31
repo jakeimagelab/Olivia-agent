@@ -215,6 +215,9 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       addNumber(args, "--max-count", numberValue(payload, "max_count"));
       addNumber(args, "--offset", numberValue(payload, "offset"));
       return runner(repoRoot, "photo-thumbs-runner.ts", args);
+    case "PHOTO_XMP_RATINGS":
+      addString(args, "--remote-path", stringValue(payload, "remote_path", true));
+      return runner(repoRoot, "photo-xmp-ratings-runner.ts", args);
     case "PHOTO_PREPARE_SOURCE":
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
       return runner(repoRoot, "photo-prepare-source-runner.ts", args);

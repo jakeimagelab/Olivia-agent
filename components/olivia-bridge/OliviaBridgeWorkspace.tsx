@@ -69,6 +69,7 @@ import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } fr
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
+import { loadRemoteBridgeRatings } from "@/lib/photo-bridge/remoteRatings";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
@@ -919,10 +920,36 @@ export default function OliviaBridgeWorkspace({
 
   const syncAdobeBridgeSelection = useCallback(async (signal?: AbortSignal) => {
     const generation = ++adobeSelectionGenerationRef.current;
-    if (!activeFolder || !scan.jpgs.length) {
+    if (!scan.jpgs.length || (!activeFolder && !remoteFolder)) {
       setAdobeRatings({});
       commitSelectedIds(manualSelectedIdsRef.current, new Set());
       setAdobeSelectionLoading(false);
+      return;
+    }
+
+    // 원격(NAS)은 브라우저가 파일을 못 여니 맥스튜디오 워커가 XMP 별점을 읽어서 넘긴다.
+    if (!activeFolder && remoteFolder) {
+      setAdobeSelectionLoading(true);
+      try {
+        const remote = await loadRemoteBridgeRatings(remoteFolder.path, { signal });
+        if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
+        const byKey = new Map(remote.ratings.map((item) => [item.key, item.rating]));
+        const nextRatings: Record<string, number> = {};
+        const nextAdobeIds = new Set<string>();
+        for (const photo of scan.jpgs) {
+          const rating = byKey.get(normalizePhotoToolFileKey(photo.name));
+          if (!rating) continue;
+          nextRatings[photo.id] = rating;
+          nextAdobeIds.add(photo.id);
+        }
+        setAdobeRatings(nextRatings);
+        commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
+      } catch (error) {
+        if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
+        console.error("[olivia-bridge] Failed to sync remote Adobe Bridge ratings", error);
+      } finally {
+        if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
+      }
       return;
     }
 
@@ -936,17 +963,23 @@ export default function OliviaBridgeWorkspace({
           handle: photo.handle,
           relativeDirectory: photo.relativeDirectory,
         }));
-      const found = await collectAdobeBridgeRatings(activeFolder, localPhotos, { signal });
+      const found = await collectAdobeBridgeRatings(activeFolder!, localPhotos, { signal });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
       const nextRatings: Record<string, number> = {};
       const nextAdobeIds = new Set<string>();
+      // 파일명 기준 공용 저장소에도 넣는다. 손으로 준 별점은 applyRating이 넣고 있는데
+      // 어도비에서 읽어온 별점만 빠져 있어서, RAW 매칭·사진 셀렉이 그 별점을 못 받았다.
+      const sharedRatings: Record<string, number> = {};
       for (const photo of scan.jpgs) {
         const rating = found.get(normalizePhotoToolFileKey(photo.name));
         if (!rating) continue;
         nextRatings[photo.id] = rating;
         nextAdobeIds.add(photo.id);
+        sharedRatings[photo.name] = rating;
       }
       setAdobeRatings(nextRatings);
+      // 방금 파일에서 직접 읽은 값이라 저장소의 옛 값보다 새롭다.
+      if (Object.keys(sharedRatings).length) setJpgRatingsByName(sharedRatings, { overwrite: true });
       commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
@@ -954,7 +987,7 @@ export default function OliviaBridgeWorkspace({
     } finally {
       if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
     }
-  }, [activeFolder, commitSelectedIds, scan.jpgs]);
+  }, [activeFolder, commitSelectedIds, remoteFolder, scan.jpgs, setJpgRatingsByName]);
 
   useEffect(() => {
     if (scanStatus !== "ready") return;
