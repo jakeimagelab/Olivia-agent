@@ -76,8 +76,9 @@ export function DesktopDock() {
   useEffect(() => {
     const revealFromEdge = (event: PointerEvent) => {
       if (event.pointerType && event.pointerType !== "mouse" && event.pointerType !== "pen") return;
-      const inDockCorner = event.clientY >= window.innerHeight - 54 && event.clientX >= window.innerWidth - 76;
-      if (inDockCorner) {
+      const inDockHandle = event.clientY >= window.innerHeight - 28
+        && Math.abs(event.clientX - (window.innerWidth / 2)) <= 90;
+      if (inDockHandle) {
         cancelHide();
         setRevealed(true);
       } else if (!dockRef.current?.contains(event.target as Node)) {
@@ -115,7 +116,7 @@ export function DesktopDock() {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) scheduleHide();
       }}
     >
-      <button type="button" className={styles.dockHint} onClick={() => { cancelHide(); setRevealed(true); }} aria-label="Dock 열기"><Grid2X2 size={13} /><span>Dock</span></button>
+      <button type="button" className={styles.dockHint} onClick={() => { cancelHide(); setRevealed(true); }} aria-label="Dock 열기" />
       <div ref={dockRef} className={`${styles.dock} ${layout.scrollable ? styles.dockScrollable : ""}`} style={style} role="toolbar" aria-label="Dock" onPointerEnter={() => { cancelHide(); setRevealed(true); }} onPointerLeave={() => scheduleHide()}>
         <button
           type="button"

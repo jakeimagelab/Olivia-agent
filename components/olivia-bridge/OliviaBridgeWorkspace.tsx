@@ -1515,7 +1515,6 @@ export default function OliviaBridgeWorkspace({
             <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
           )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
         </div>
-        <label className={styles.nestedJpgPathToggle}><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span></label>
         <span className={styles.fileCountSummary}>보이는 중 {centerFileCount.toLocaleString("ko-KR")} · 전체 {(scan.jpgs.length + scan.raws.length + scan.sidecars.length).toLocaleString("ko-KR")}장</span>
         <button type="button" className={styles.compactFilterEntry} onClick={() => folderPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}><ListFilter size={14} /> 필터</button>
         <button type="button" className={styles.compactInspectorEntry} onClick={() => { setPreviewTab("selection"); setCompactPreviewOpen(true); }}><Check size={14} /> 선택한 파일</button>
@@ -1533,7 +1532,7 @@ export default function OliviaBridgeWorkspace({
               onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)}
             />
             <span>하위 폴더 JPG 포함</span>
-            {scan.nestedJpgCount ? <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b> : null}
+            <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b>
           </label>
           <div className={styles.folderList}>
             {scan.folders.length ? <small>다른 폴더</small> : null}

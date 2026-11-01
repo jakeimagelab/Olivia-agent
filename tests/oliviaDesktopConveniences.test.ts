@@ -109,6 +109,16 @@ describe("Olivia desktop convenience controls", () => {
     expect(desktopCss).toContain('.dockReveal:hover .dock');
   });
 
+  it("keeps the Dock trigger centered instead of pinning it to a corner", () => {
+    const root = process.cwd();
+    const dock = readFileSync(resolve(root, "components/olivia-os/DesktopDock.tsx"), "utf8");
+    const desktopCss = readFileSync(resolve(root, "components/olivia-os/OliviaDesktop.module.css"), "utf8");
+
+    expect(dock).toContain("Math.abs(event.clientX - (window.innerWidth / 2)) <= 90");
+    expect(dock).not.toContain("inDockCorner");
+    expect(desktopCss).toMatch(/\.desktop \.dockHint,[\s\S]*?left:\s*50%;[\s\S]*?width:\s*132px;[\s\S]*?height:\s*3px;/);
+  });
+
   it("keeps the home chat compact without exposing the background gallery name", () => {
     const root = process.cwd();
     const home = readFileSync(resolve(root, "components/olivia-os/HomeChat.tsx"), "utf8");

@@ -317,7 +317,7 @@
 .folderSummary span { display: grid; gap: 3px; color: var(--os-faint); font-size: 9.5px; text-align: center; }
 .folderSummary b { color: var(--os-dim); font-size: 11px; font-weight: 600; }
 
-.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr) 40px; overflow: hidden; background: var(--photo-bg); }
+.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr); overflow: hidden; background: var(--photo-bg); }
 .browserHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid var(--bridge-line); background: var(--os-mint-soft); }
 .browserHeader > div { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .browserHeader strong { overflow: hidden; color: var(--os-text); font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -688,8 +688,6 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .oliviaEntry { min-height: 32px; border: 1px solid var(--os-text); border-radius: 8px; padding: 0 11px; color: var(--os-text); background: var(--os-panel); font: 500 11px/1 inherit; }
 .oliviaEntry:hover { border-color: var(--os-run); color: var(--os-run); }
 .pathBar { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--bridge-line); background: var(--os-panel); }
-.nestedJpgPathToggle { display: inline-flex; align-items: center; gap: 6px; color: var(--os-dim); font-size: 11px; white-space: nowrap; }
-.nestedJpgPathToggle input { accent-color: var(--os-pick); }
 .fileCountSummary { color: var(--os-dim); font-size: 11px; white-space: nowrap; }
 .compactFilterEntry,
 .compactInspectorEntry { display: none; }
@@ -775,11 +773,18 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   border-top: 0;
   background: var(--os-bg);
 }
-.bridge[data-desktop-ui="true"] .folderPanel { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; background: var(--os-panel); }
+.bridge[data-desktop-ui="true"] .folderPanel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; background: var(--os-panel); }
 .bridge[data-desktop-ui="true"] .panelTitle,
 .bridge[data-desktop-ui="true"] .rootFolder,
-.bridge[data-desktop-ui="true"] .nestedJpgToggle,
 .bridge[data-desktop-ui="true"] .folderList { display: none; }
+.bridge[data-desktop-ui="true"] .nestedJpgToggle {
+  min-height: 38px;
+  margin: 10px 12px 4px;
+  border-color: var(--os-line);
+  color: var(--os-dim);
+  background: var(--os-bg);
+}
+.bridge[data-desktop-ui="true"] .nestedJpgToggle:hover { color: var(--os-text); background: var(--os-card); }
 .bridge[data-desktop-ui="true"] .filterList { overflow: auto; padding-block: 6px; border-top: 0; }
 .bridge[data-desktop-ui="true"] .filterList > small { margin-block: 3px 5px; }
 .bridge[data-desktop-ui="true"] .filterList > small:not(:first-child) { margin-top: 3px; padding-top: 5px; }
@@ -789,7 +794,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .paneDivider { min-width: 1px; background: var(--os-panel); }
 .bridge[data-desktop-ui="true"] .paneDivider::after { display: none; }
 .bridge[data-desktop-ui="true"] .browserPanel {
-  grid-template-rows: 46px 36px minmax(0, 1fr);
+  grid-template-rows: 46px minmax(0, 1fr);
   background: var(--photo-bg);
 }
 .bridge[data-desktop-ui="true"] .browserHeader {
@@ -878,7 +883,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .previewSelectButton { grid-column: 1 / -1; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; margin-top: 5px; border: 1px solid var(--os-line); border-radius: 7px; color: var(--os-pick); background: var(--os-panel); font: 500 9.5px/1 inherit; cursor: pointer; }
 .bridge[data-desktop-ui="true"] .previewEmpty { color: var(--os-dim); }
 .bridge[data-desktop-ui="true"] .previewEmpty strong { color: var(--os-text); }
-.bridge[data-desktop-ui="true"] .emptyState { grid-row: 3; color: var(--os-dim); }
+.bridge[data-desktop-ui="true"] .emptyState { grid-row: 2; color: var(--os-dim); }
 .bridge[data-desktop-ui="true"] .emptyState strong { color: var(--os-text); }
 .bridge[data-desktop-ui="true"] .emptyState button { border-color: var(--os-line); color: var(--os-pick); background: var(--os-run); }
 
@@ -891,7 +896,6 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .bridge[data-desktop-ui="true"] .compactPreviewButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--os-text); border-radius: 7px; color: var(--os-pick); background: var(--os-panel); font: 500 9px/1 inherit; }
   .bridge[data-desktop-ui="true"] .compactPreviewClose { display: grid; place-items: center; }
   .bridge[data-desktop-ui="true"] .previewHeader > svg { display: none; }
-  .bridge[data-desktop-ui="true"] .nestedJpgPathToggle,
   .bridge[data-desktop-ui="true"] .fileCountSummary { display: none; }
   .bridge[data-desktop-ui="true"] .compactFilterEntry,
   .bridge[data-desktop-ui="true"] .compactInspectorEntry { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--os-text); border-radius: 7px; padding: 0 8px; color: var(--os-dim); background: var(--os-panel); font: 500 9px/1 inherit; }
