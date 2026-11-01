@@ -63,16 +63,16 @@
   /* ── 한 벌 토큰 ────────────────────────────────────────────────
      화면마다 색을 손으로 칠하지 않는다. 새로 쓰는 코드는 이것만 쓴다.
      기존 하드코딩은 그 화면을 손댈 때 같이 바꾼다. */
-  --ui2-bg: #F4F8F5;
-  --ui2-card: #FFFFFF;
-  --ui2-sunk: #E9F0EB;
-  --ui2-line: #DFE8E2;
-  --ui2-line-strong: #CDDAD3;
-  --ui2-text: #1B2A27;
-  --ui2-dim: #5A7470;
-  --ui2-faint: #93A5A0;
+  --ui2-bg: #E3EBE2;
+  --ui2-card: #F1F5EE;
+  --ui2-sunk: #EAF0E7;
+  --ui2-line: #C8D5C8;
+  --ui2-line-strong: #C8D5C8;
+  --ui2-text: #293E34;
+  --ui2-dim: #617565;
+  --ui2-faint: #617565;
   --ui2-green: #155855;
-  --ui2-green-soft: #EAF2EE;
+  --ui2-green-soft: #D5E3D4;
   --ui2-run: #C94A1E;
   --ui2-on-run: #FFFFFF;
   --ui2-run-soft: #FBEAE3;
@@ -1293,7 +1293,7 @@ main:has(> .pc-header) {
   min-height: 68px;
   padding: 9px 20px;
   border-bottom: 1px solid var(--ui2-line);
-  background: var(--ui2-card);
+  background: var(--ui2-sunk);
   flex: 0 0 auto;
 }
 .calendar-main-toolbar__nav,
@@ -9785,7 +9785,7 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   .calendar-page-shell { background: var(--ui2-bg); color: var(--ui2-text); }
   .calendar-main-toolbar {
     border-bottom-color: var(--ui2-line);
-    background: var(--ui2-card);
+    background: var(--ui2-sunk);
   }
   .calendar-main-toolbar button {
     border-color: var(--ui2-line-strong);
@@ -9799,7 +9799,7 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   }
   .calendar-page-shell :where(.calendar-productivity-panel, .calendar-day-side-panel) {
     border-color: var(--ui2-line) !important;
-    background: var(--ui2-card) !important;
+    background: var(--ui2-sunk) !important;
   }
 
   /* Customer management surfaces and popups. Inline card styles read the

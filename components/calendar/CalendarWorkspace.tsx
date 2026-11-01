@@ -40,10 +40,20 @@ type CalTask = {
 
 /* ─── constants ───────────────────────────────────────── */
 const C = {
-  teal: "#155855", orange: "#C94A1E",
-  bg: "#F4F8F5", workspace: "#E9F0EB", surface: "#FFFFFF", border: "#DFE8E2",
-  cellBg: "#FFFFFF",
-  muted: "#5A7470", hint: "#93A5A0", txt: "#1B2A27", mint: "#EAF2EE",
+  teal: "#155855",
+  orange: "#C94A1E",
+
+  bg: "#E3EBE2",
+  workspace: "#EAF0E7",
+  surface: "#F1F5EE",
+  cellBg: "#F1F5EE",
+  border: "#C8D5C8",
+
+  muted: "#617565",
+  hint: "#617565",
+  txt: "#293E34",
+  mint: "#D5E3D4",
+
   todayRed: "#C94C22",
 };
 
@@ -264,14 +274,14 @@ function ReminderControls({ enabled, minutes, hasTime, onEnabled, onMinutes, isM
   isMobile?: boolean;
 }) {
   return (
-    <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#B7791F55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF9ED" : "#FAFCFB" }}>
+    <div style={{ display: "grid", gap: 8, border: `1px solid ${enabled ? "#B7791F55" : C.border}`, borderRadius: 10, padding: "10px 11px", background: enabled ? "#FFF9ED" : C.surface }}>
       <label style={{ display: "flex", alignItems: "center", gap: 8, color: hasTime ? C.txt : C.hint, fontSize: mfz(12, isMobile), fontWeight: mfw(800, isMobile), cursor: hasTime ? "pointer" : "not-allowed" }}>
         <input type="checkbox" checked={enabled} disabled={!hasTime} onChange={(event) => onEnabled(event.target.checked)} style={{ accentColor: C.orange }} />
         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><Bell size={13} /> 올리비아 텔레그램 알람</span>
       </label>
       {enabled ? (
         <select aria-label="알람 시점" value={minutes} onChange={(event) => onMinutes(Number(event.target.value) as CalendarReminderMinutes)}
-          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", background: "#fff", color: C.txt, fontSize: mfz(12, isMobile), fontFamily: "inherit" }}>
+          style={{ width: "100%", border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 9px", background: C.surface, color: C.txt, fontSize: mfz(12, isMobile), fontFamily: "inherit" }}>
           {CALENDAR_REMINDER_MINUTES.map((value) => <option key={value} value={value}>{CALENDAR_REMINDER_LABEL[value]}</option>)}
         </select>
       ) : !hasTime ? <small style={{ color: C.hint, fontSize: mfz(10, isMobile) }}>시작 시간을 선택하면 알람을 켤 수 있습니다.</small> : null}
@@ -773,7 +783,7 @@ function EventDetailView({ task, onEdit, onToggle, isMobile = false }: { task: C
         {task.reminder_enabled && <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.orange, fontWeight: mfw(600, isMobile) }}><Bell size={13} /> 올리비아 텔레그램 · {CALENDAR_REMINDER_LABEL[task.reminder_minutes_before ?? 30]}</div>}
       </div>
       {task.memo && (
-        <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.6, background: "#FAFCFB",
+        <div style={{ fontSize: mfz(12, isMobile), color: C.muted, lineHeight: 1.6, background: C.surface,
           border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", whiteSpace: "pre-wrap" }}>
           {task.memo}
         </div>
@@ -885,8 +895,8 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
   };
 
   return (
-    <aside className="calendar-productivity-panel" style={{ display: "flex", flexDirection: "column", height: "100%", background: C.surface }}>
-      <div style={{ padding: "16px 18px 13px", flexShrink: 0, background: isToday ? C.mint : "#FAFCFB", borderBottom: `1px solid ${C.border}` }}>
+    <aside className="calendar-productivity-panel" style={{ display: "flex", flexDirection: "column", height: "100%", background: C.workspace }}>
+      <div style={{ padding: "16px 18px 13px", flexShrink: 0, background: isToday ? C.mint : C.workspace, borderBottom: `1px solid ${C.border}` }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {isToday && (
             <span style={{ fontSize: 9, fontWeight: 600, color: "#fff", background: C.teal, padding: "2px 8px", borderRadius: 99 }}>오늘</span>
@@ -905,7 +915,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
           {loading ? (
             <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>일정을 불러오는 중…</div>
           ) : tasks.length === 0 ? (
-            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "20px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: "#FAFCFB" }}>오늘 등록된 일정이 없습니다</div>
+            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "20px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: C.surface }}>오늘 등록된 일정이 없습니다</div>
           ) : (
             <div style={{ display: "grid", gap: 7 }}>
               {sortedTasks.map(task => {
@@ -938,7 +948,7 @@ function ProductivityPanel({ dateStr, tasks, loading, todayStr, todos, todosLoad
           </div> : null}
           {todoError ? <div role="alert" style={{ color: "#9A514A", background: "#FBF2F0", borderRadius: 8, padding: "7px 9px", fontSize: 10.5, marginBottom: 8 }}>{todoError}</div> : null}
           {todosLoading ? <div style={{ color: C.hint, padding: "18px 4px", fontSize: 12 }}>할 일을 불러오는 중…</div> : sortedTodos.length === 0 ? (
-            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "18px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: "#FAFCFB" }}>등록된 할 일이 없습니다</div>
+            <div style={{ border: `1px dashed ${C.border}`, borderRadius: 11, padding: "18px 12px", color: C.hint, fontSize: 11.5, textAlign: "center", background: C.surface }}>등록된 할 일이 없습니다</div>
           ) : <div style={{ display: "grid", gap: 5 }}>
             {sortedTodos.map(todo => <div key={todo.id} style={{ display: "flex", alignItems: "center", gap: 8, minHeight: 36, padding: "6px 7px", borderRadius: 9, background: todo.completed ? "#F4F7F6" : C.surface, border: `1px solid ${todo.completed ? "#E4EAE8" : `${C.border}70`}` }}>
               <button type="button" aria-label={todo.completed ? `${todo.title} 미완료로 변경` : `${todo.title} 완료`} onClick={() => void onToggleTodo(todo)} style={{ width: 19, height: 19, borderRadius: 6, border: `1.5px solid ${todo.completed ? C.teal : C.border}`, background: todo.completed ? C.teal : "transparent", color: "#fff", display: "grid", placeItems: "center", flexShrink: 0, cursor: "pointer" }}>{todo.completed ? <Check size={11} strokeWidth={3}/> : null}</button>
@@ -1099,7 +1109,15 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
               }}
               style={{
                 overflow: "hidden", padding: "6px 5px 4px", cursor: "pointer",
-                background: isDragOver ? "#D4EDE8" : isToday ? "#F0F8F6" : isSelected ? "#EAF4F2" : dimmed ? "#F3F6F5" : C.surface,
+                background: isDragOver
+                  ? C.mint
+                  : isToday
+                    ? C.mint
+                    : isSelected
+                      ? C.mint
+                      : dimmed
+                        ? C.bg
+                        : C.cellBg,
                 transition: "background .1s",
                 outline: isDragOver ? `2px solid ${C.teal}` : isSelected ? `2px solid ${C.teal}` : "none",
                 outlineOffset: "-2px",
@@ -1625,7 +1643,11 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
                 {HOURS.map(h => (
                   <div key={h}
                     style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
-                      background: isToday ? "#F4FAF8" : h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
+                      background: isToday
+                        ? C.mint
+                        : h % 2 === 0
+                          ? C.workspace
+                          : C.cellBg,
                       cursor: dragging ? CURSOR_GRABBING : "pointer" }}
                     onDoubleClick={e => { if (!dragging) onOpenAdd(ds, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                   />
@@ -2017,7 +2039,9 @@ function DayView({ dateStr, tasks, loading, todayStr, onToggle, onDelete, onAdd,
               {HOURS.map(h => (
                 <div key={h}
                   style={{ height: HOUR_HEIGHT, borderBottom: `1px solid ${C.border}20`,
-                    background: h % 2 === 0 ? "#FAFCFB" : "#FFFFFF",
+                    background: h % 2 === 0
+                      ? C.workspace
+                      : C.cellBg,
                     cursor: dragging ? CURSOR_GRABBING : onOpenAdd ? "pointer" : "default" }}
                   onDoubleClick={e => { if (!dragging) onOpenAdd?.(dateStr, e.clientX, e.clientY, `${String(h).padStart(2,"0")}:00`); }}
                 />
@@ -2761,7 +2785,7 @@ export default function CalendarWorkspace() {
             그리드 밑 얇은 줄(독립 페이지)을 차지했는데, 그 자리를 선택일 일정+TO DO로 바꾸고
             데일리 루틴은 항상 하단 전체너비 바로 내렸다(아래 참고). 900px 미만은 CSS로 접는다. */}
         {!isMobile && (
-          <div className="calendar-day-side-panel" style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflow: "hidden", background: C.surface }}>
+          <div className="calendar-day-side-panel" style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.border}`, overflow: "hidden", background: C.workspace }}>
             <ProductivityPanel dateStr={selectedDate} tasks={dayTasks} loading={dayLoading} todayStr={todayStr}
               todos={calendarTodos} todosLoading={todosLoading} todoError={todoError}
               onToggleTodo={toggleCalendarTodo} onAddTodo={addCalendarTodo} onDeleteTodo={deleteCalendarTodo}/>
@@ -2773,7 +2797,7 @@ export default function CalendarWorkspace() {
       {!isMobile && (
         <div className="calendar-daily-routine-bar" style={{
           flexShrink: 0, maxWidth: 1440, margin: "0 auto", width: "100%", boxSizing: "border-box",
-          padding: "12px 20px", background: C.surface, borderTop: `1px solid ${C.border}`,
+          padding: "12px 20px", background: C.workspace, borderTop: `1px solid ${C.border}`,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 600, color: C.hint, letterSpacing: ".06em", textTransform: "uppercase", marginBottom: 8 }}><Clock3 size={12} /> 데일리 루틴</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 22 }}>

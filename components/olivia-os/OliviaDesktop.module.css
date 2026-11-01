@@ -1,6 +1,6 @@
 .desktop {
   --ui-bg: var(--ui2-bg);
-  --ui-header: var(--ui2-card);
+  --ui-header: var(--ui2-sunk);
   --ui-workspace: var(--ui2-bg);
   --ui-surface: var(--ui2-card);
   --ui-border: var(--ui2-line);
@@ -3174,6 +3174,13 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 }
 
 .desktop .desktopStage,
+.desktop .homeWorkList,
+.desktop .homeFilters button {
+  border-color: var(--ui2-line);
+  background: var(--ui2-card);
+  color: var(--ui2-text);
+}
+
 .desktop .topBar,
 .desktop .topBar[data-home="true"],
 .desktop .caseTabs,
@@ -3183,22 +3190,24 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .appChatPanel,
 .desktop .appChatDock :global(.olivia-conversation),
 .desktop .appChatDock :global(.olivia-conversation__stage),
-.desktop .homeWorkList,
-.desktop .homeFilters button,
 .desktop .dock {
   border-color: var(--ui2-line);
-  background: var(--ui2-card);
+  background: var(--ui2-sunk);
   color: var(--ui2-text);
 }
 
 .desktop .caseContextBar,
-.desktop .caseTabs button[aria-selected="true"],
-.desktop .homeFilters button[data-active="true"],
-.desktop .homeWorkRow[data-selected="true"],
-.desktop .dockButton.active,
 .desktop .appChatHeader small,
 .desktop .casePanelChat :global(.olivia-chat-context-banner) {
   background: var(--ui2-sunk);
+  color: var(--ui2-green);
+}
+
+.desktop .caseTabs button[aria-selected="true"],
+.desktop .homeFilters button[data-active="true"],
+.desktop .homeWorkRow[data-selected="true"],
+.desktop .dockButton.active {
+  background: var(--ui2-green-soft);
   color: var(--ui2-green);
 }
 
