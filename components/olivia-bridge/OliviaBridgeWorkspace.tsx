@@ -17,6 +17,7 @@ import {
   Link2,
   LoaderCircle,
   Maximize2,
+  ListFilter,
   Minus,
   Monitor,
   PencilLine,
@@ -25,7 +26,6 @@ import {
   Scaling,
   ScanSearch,
   Scissors,
-  SlidersHorizontal,
   Sparkles,
   Star,
   WandSparkles,
@@ -562,7 +562,6 @@ export default function OliviaBridgeWorkspace({
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptMessage, setRawRootPromptMessage] = useState("");
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [previewTab, setPreviewTab] = useState<PreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
@@ -1253,7 +1252,6 @@ export default function OliviaBridgeWorkspace({
   const chooseFileFilter = useCallback((filter: FileFilter) => {
     setLabelFilter(null);
     setFileFilter(filter);
-    setFilterMenuOpen(false);
   }, []);
 
   const resizeThumbnails = useCallback((direction: -1 | 1) => {
@@ -1352,15 +1350,6 @@ export default function OliviaBridgeWorkspace({
     return "사진 폴더를 먼저 선택해 주세요.";
   }, [activeFolder, remoteFolder]);
 
-  useEffect(() => {
-    if (!filterMenuOpen) return;
-    const closeMenus = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest("[data-bridge-popover]")) return;
-      setFilterMenuOpen(false);
-    };
-    document.addEventListener("pointerdown", closeMenus);
-    return () => document.removeEventListener("pointerdown", closeMenus);
-  }, [filterMenuOpen]);
 
   const clearMarqueePresentation = useCallback(() => {
     const fileArea = fileAreaRef.current;
@@ -1528,7 +1517,7 @@ export default function OliviaBridgeWorkspace({
         </div>
         <label className={styles.nestedJpgPathToggle}><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span></label>
         <span className={styles.fileCountSummary}>보이는 중 {centerFileCount.toLocaleString("ko-KR")} · 전체 {(scan.jpgs.length + scan.raws.length + scan.sidecars.length).toLocaleString("ko-KR")}장</span>
-        <button type="button" className={styles.compactFilterEntry} onClick={() => setFilterMenuOpen((value) => !value)}><SlidersHorizontal size={14} /> 필터</button>
+        <button type="button" className={styles.compactFilterEntry} onClick={() => folderPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}><ListFilter size={14} /> 필터</button>
         <button type="button" className={styles.compactInspectorEntry} onClick={() => { setPreviewTab("selection"); setCompactPreviewOpen(true); }}><Check size={14} /> 선택한 파일</button>
       </div>
 
@@ -1553,9 +1542,9 @@ export default function OliviaBridgeWorkspace({
           </div>
           <div className={styles.filterList}>
             <small>파일 필터</small>
-            {fileFilters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+            {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
             <small>셀렉 보기</small>
-            {selectionFilters.map((filter) => <button key={filter.key} type="button" className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
+            {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
           </div>
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
           <label className={styles.folderThumbnailGauge} title="썸네일 크기">
@@ -1577,27 +1566,14 @@ export default function OliviaBridgeWorkspace({
           <div className={styles.browserHeader}>
             <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span></div>
             <div className={styles.browserActions}>
-              <div className={styles.filterMenuHost} data-bridge-popover>
-                <button type="button" className={styles.filterMenuButton} aria-haspopup="menu" aria-expanded={filterMenuOpen} onClick={() => setFilterMenuOpen((value) => !value)}><SlidersHorizontal size={15} /> 폴더·필터</button>
-                {filterMenuOpen ? <div className={styles.filterMenu} role="menu">
-                  <label><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span><b>{scan.nestedJpgCount}</b></label>
-                  {scan.folders.length ? <><small>하위 폴더</small>{scan.folders.map((folder) => <button key={folder.name} type="button" role="menuitem" onClick={() => { setFilterMenuOpen(false); void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }]); }}><Folder size={14} /><span>{folder.name}</span><ChevronRight size={12} /></button>)}</> : null}
-                  <small>셀렉 보기</small>
-                  {[...selectionFilters, fileFilters[4]].map((filter) => <button key={filter.key} type="button" role="menuitemradio" aria-checked={!labelFilter && fileFilter === filter.key} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count}</b></button>)}
-                </div> : null}
-              </div>
               <button type="button" className={styles.compactPreviewButton} onClick={() => setCompactPreviewOpen(true)} aria-label="미리보기 열기"><Maximize2 size={15} /> 미리보기</button>
               <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
             </div>
           </div>
-          <div className={styles.fileTypeTabs} role="tablist" aria-label="파일 형식">
-            {fileFilters.slice(0, 4).map((filter) => <button key={filter.key} type="button" role="tab" aria-selected={!labelFilter && fileFilter === filter.key} onClick={() => chooseFileFilter(filter.key)}>{filter.label} <span>{filter.count.toLocaleString("ko-KR")}</span></button>)}
-          </div>
-
           {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : <button type="button" onClick={openFolderSourceChooser}>폴더 선택</button>}</div> : null}
           {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
-          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{scanError}</p><button type="button" onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : null}
+          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{/* 브라우저 원문(영문)을 그대로 보여주지 않는다. 자세한 내용은 콘솔에 남는다. */}폴더가 옮겨졌거나 이름이 바뀌었을 수 있습니다. 다시 골라 주세요.</p><button type="button" onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : null}
           {scanStatus === "ready" ? (
             <div
               ref={fileAreaRef}
