@@ -186,7 +186,7 @@ function FavoriteAppButton({
         <span className={styles.cardMeta}>{category}</span>
         <span className={styles.iconWrap}>
           {entry.kind === "desktop" ? (
-            <AppIcon icon={entry.app.icon} size={30} />
+            <AppIcon icon={entry.app.icon} size={30} className={styles.appGlyph} />
           ) : (
             <AppIcon
               icon={<ColorAppIcon name={TOOL_ICON_BY_HREF[entry.tool.href] ?? "workspace"} size={19} aria-hidden focusable={false} />}

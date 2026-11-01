@@ -1,6 +1,6 @@
 "use client";
 
-import { C } from "@/lib/theme";
+import { C } from "@/components/work-journal/theme";
 
 export default function ScheduleDetailCard() {
   return (

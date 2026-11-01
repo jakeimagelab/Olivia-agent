@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Check, Download, File as FileIcon, Plus, Trash2, X } from "lucide-react";
-import { C, R } from "@/lib/theme";
+import { C, R } from "@/components/work-journal/theme";
 import type { Task, TaskDetail, TaskPriority, TaskStatus } from "@/lib/work-journal/types";
 
 const STATUS_LABEL: Record<TaskStatus, string> = { todo: "대기", in_progress: "진행 중", done: "완료" };

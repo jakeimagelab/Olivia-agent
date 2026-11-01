@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Check, Plus } from "lucide-react";
-import { C, R } from "@/lib/theme";
+import { C, R } from "@/components/work-journal/theme";
 import { todayStr } from "@/lib/work-journal/dateLabel";
 import type { TaskListItem } from "@/lib/work-journal/types";
 
@@ -110,6 +110,7 @@ export default function GeneralTasksPanel() {
           </span>
         </div>
         <button
+          data-wj-action="primary"
           type="button"
           onClick={() => setAdding((v) => !v)}
           style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 28, padding: "0 10px", borderRadius: R.sm, border: "none", background: C.orange, color: "#fff", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}
@@ -130,7 +131,7 @@ export default function GeneralTasksPanel() {
             placeholder="할 일 제목"
             style={{ flex: 1, height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, padding: "0 10px", fontSize: 12.5 }}
           />
-          <button type="button" onClick={submit} disabled={!title.trim() || submitting}
+          <button data-wj-action="secondary" type="button" onClick={submit} disabled={!title.trim() || submitting}
             style={{ height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 800, cursor: !title.trim() || submitting ? "not-allowed" : "pointer", opacity: !title.trim() || submitting ? 0.6 : 1 }}>
             {submitting ? "추가 중..." : "추가"}
           </button>

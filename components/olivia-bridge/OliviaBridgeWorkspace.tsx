@@ -10,14 +10,12 @@ import {
   File,
   Folder,
   FolderOpen,
-  FolderPlus,
   HardDrive,
   Images,
   LayoutGrid,
   Link2,
   LoaderCircle,
   Maximize2,
-  ListFilter,
   Minus,
   Monitor,
   PencilLine,
@@ -48,6 +46,7 @@ import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingW
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
+  bridgeFileKind,
   rebuildBridgeSceneAnalysis,
   scanBridgeFolder,
   updateBridgeSelection,
@@ -178,6 +177,28 @@ const THUMBNAIL_SIZE_MIN = 96;
 const THUMBNAIL_SIZE_MAX = 240;
 const THUMBNAIL_SIZE_STEP = 18;
 const THUMBNAIL_SIZE_DEFAULT = 156;
+
+async function countBridgeFolderImages(directory: FileSystemDirectoryHandle, depth = 0): Promise<number> {
+  if (depth > 5) return 0;
+  let count = 0;
+  const iterable = directory as FileSystemDirectoryHandle & {
+    entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+  };
+  try {
+    for await (const [name, handle] of iterable.entries()) {
+      if (name.startsWith(".")) continue;
+      if (handle.kind === "directory") {
+        count += await countBridgeFolderImages(handle as FileSystemDirectoryHandle, depth + 1);
+        continue;
+      }
+      const kind = bridgeFileKind(name);
+      if (kind === "jpg" || kind === "raw") count += 1;
+    }
+  } catch {
+    return count;
+  }
+  return count;
+}
 
 function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
@@ -529,7 +550,7 @@ export default function OliviaBridgeWorkspace({
   const [remoteFolder, setRemoteFolder] = useState<RemoteNasSelection | null>(null);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
-  const [scanError, setScanError] = useState<string>();
+  const [, setScanError] = useState<string>();
   const [includeNestedJpgs, setIncludeNestedJpgs] = useState(false);
   const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
   const [restoreMessage, setRestoreMessage] = useState("");
@@ -562,6 +583,7 @@ export default function OliviaBridgeWorkspace({
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptMessage, setRawRootPromptMessage] = useState("");
+  const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
   const [previewTab, setPreviewTab] = useState<PreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
@@ -779,6 +801,7 @@ export default function OliviaBridgeWorkspace({
       });
       rootRef.current?.focus();
     } catch (error) {
+      console.error("[olivia-bridge] Failed to read local folder", error);
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
@@ -887,6 +910,7 @@ export default function OliviaBridgeWorkspace({
       rootRef.current?.focus();
     } catch (error) {
       if (generation !== remoteLoadGenerationRef.current) return;
+      console.error("[olivia-bridge] Failed to read remote folder", error);
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
@@ -1344,12 +1368,28 @@ export default function OliviaBridgeWorkspace({
   }, [breadcrumbs.length, currentLocalFolder, remoteFolder, syncAdobeBridgeSelection]);
 
   const toolDisabledReason = useCallback((key: ToolKey) => {
+    if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";
+    if (!selectedIds.size) return "사진을 먼저 선택해 주세요.";
     if (activeFolder) return undefined;
     if (remoteFolder && key === "classification") return undefined;
     if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
     return "사진 폴더를 먼저 선택해 주세요.";
-  }, [activeFolder, remoteFolder]);
+  }, [activeFolder, remoteFolder, scanStatus, selectedIds.size]);
 
+  useEffect(() => {
+    let disposed = false;
+    if (!activeFolder || !scan.folders.length) {
+      setFolderImageCounts({});
+      return;
+    }
+    void Promise.all(scan.folders.map(async (folder) => [
+      folder.name.normalize("NFC"),
+      await countBridgeFolderImages(folder),
+    ] as const)).then((entries) => {
+      if (!disposed) setFolderImageCounts(Object.fromEntries(entries));
+    });
+    return () => { disposed = true; };
+  }, [activeFolder, scan.folders]);
 
   const clearMarqueePresentation = useCallback(() => {
     const fileArea = fileAreaRef.current;
@@ -1494,35 +1534,31 @@ export default function OliviaBridgeWorkspace({
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <header className={styles.bridgeBar}>
         <strong>Bridge</strong>
-        <div className={styles.sourceTabs} role="group" aria-label="폴더 소스">
-          <button type="button" data-active={remoteFolder ? "true" : "false"} onClick={pickNasFolder}>NAS 폴더</button>
-          <button type="button" data-active={activeFolder ? "true" : "false"} onClick={pickLocalFolder}>이 Mac의 폴더</button>
-        </div>
         <div className={styles.bridgeHeaderStatus}>
-          <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { if (!hasActiveFolder) return; setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} disabled={!hasActiveFolder} aria-label={sceneState.stage} title={sceneState.stage}>
+          {hasActiveFolder ? <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} aria-label={sceneState.stage} title={sceneState.stage}>
             {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
             <span>{sceneState.status === "running" ? `${sceneState.completed}/${sceneState.total}` : sceneState.stage}</span>
-          </button>
+          </button> : null}
           <span className={styles.connectionState}><i />{remoteFolder ? "NAS 연결" : activeFolder ? "Mac 연결" : "폴더 미연결"}</span>
           <button type="button" className={styles.oliviaEntry} onClick={() => { setPreviewTab("olivia"); setCompactPreviewOpen(true); }}>Olivia</button>
         </div>
       </header>
 
       <div className={styles.pathBar}>
-        <button type="button" className={styles.folderPickerButton} onClick={(event) => { event.stopPropagation(); openFolderSourceChooser(); }} aria-haspopup="dialog" aria-expanded={folderSourceOpen}><FolderOpen size={17} /> 폴더 선택</button>
+        <button type="button" className={styles.folderPickerButton} onClick={(event) => { event.stopPropagation(); openFolderSourceChooser(); }} aria-haspopup="dialog" aria-expanded={folderSourceOpen}><FolderOpen size={17} /> {hasActiveFolder ? "폴더 바꾸기" : "폴더 선택"}</button>
         <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
           {remoteFolder ? <span>NAS · {remoteFolder.displayPath}</span> : breadcrumbs.length ? breadcrumbs.map((item, index) => (
             <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
           )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
         </div>
+        <label className={styles.nestedJpgPathToggle}><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span></label>
         <span className={styles.fileCountSummary}>보이는 중 {centerFileCount.toLocaleString("ko-KR")} · 전체 {(scan.jpgs.length + scan.raws.length + scan.sidecars.length).toLocaleString("ko-KR")}장</span>
-        <button type="button" className={styles.compactFilterEntry} onClick={() => folderPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })}><ListFilter size={14} /> 필터</button>
         <button type="button" className={styles.compactInspectorEntry} onClick={() => { setPreviewTab("selection"); setCompactPreviewOpen(true); }}><Check size={14} /> 선택한 파일</button>
       </div>
 
       <main ref={workspaceRef} className={styles.workspace} data-compact-preview={compactPreviewOpen ? "true" : "false"}>
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
-          <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={openFolderSourceChooser} aria-label="폴더 추가"><FolderPlus size={17} /></button></div>
+          <div className={styles.panelTitle}><span>폴더</span></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <label className={styles.nestedJpgToggle}>
             <input
@@ -1532,18 +1568,18 @@ export default function OliviaBridgeWorkspace({
               onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)}
             />
             <span>하위 폴더 JPG 포함</span>
-            <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b>
+            {scan.nestedJpgCount ? <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b> : null}
           </label>
-          <div className={styles.folderList}>
-            {scan.folders.length ? <small>다른 폴더</small> : null}
-            {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><ChevronRight size={12} /></button>)}
-            {activeFolder && !scan.folders.length ? <p>하위 폴더가 없습니다.</p> : null}
-          </div>
           <div className={styles.filterList}>
             <small>파일 필터</small>
             {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
             <small>셀렉 보기</small>
             {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
+          </div>
+          <div className={styles.folderList}>
+            {scan.folders.length ? <small>하위 폴더</small> : null}
+            {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><b>{(folderImageCounts[folder.name.normalize("NFC")] ?? 0).toLocaleString("ko-KR")}</b><ChevronRight size={12} /></button>)}
+            {activeFolder && !scan.folders.length ? <p>하위 폴더가 없습니다.</p> : null}
           </div>
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
           <label className={styles.folderThumbnailGauge} title="썸네일 크기">
@@ -1569,10 +1605,11 @@ export default function OliviaBridgeWorkspace({
               <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
             </div>
           </div>
-          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button><button type="button" className={styles.restoreSecondary} onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : <button type="button" onClick={openFolderSourceChooser}>폴더 선택</button>}</div> : null}
+
+          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button></div> : null}</div> : null}
           {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
           {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
-          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>{/* 브라우저 원문(영문)을 그대로 보여주지 않는다. 자세한 내용은 콘솔에 남는다. */}폴더가 옮겨졌거나 이름이 바뀌었을 수 있습니다. 다시 골라 주세요.</p><button type="button" onClick={openFolderSourceChooser}>다른 폴더 선택</button></div> : null}
+          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>폴더가 옮겨졌거나 이름이 바뀌었을 수 있습니다. 다시 골라 주세요.</p></div> : null}
           {scanStatus === "ready" ? (
             <div
               ref={fileAreaRef}
@@ -1699,7 +1736,7 @@ export default function OliviaBridgeWorkspace({
         <nav className={styles.actionTools}>
           {TOOL_ITEMS.map(({ key, label, icon: Icon }) => {
             const disabledReason = toolDisabledReason(key);
-            return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={toolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => openTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={15} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
+            return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={toolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => openTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={12} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
           })}
         </nav>
       </section>

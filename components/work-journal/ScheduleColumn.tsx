@@ -1,7 +1,7 @@
 "use client";
 
 import MiniCalendar from "@/components/work-journal/MiniCalendar";
-import { C, R } from "@/lib/theme";
+import { C, R } from "@/components/work-journal/theme";
 import type { CalendarEvent, UpcomingEntry } from "@/lib/work-journal/types";
 
 // app/calendar/page.tsx의 카테고리 색상표와 동일 — 페이지 파일에서 export하지 않는 작은 룩업이라

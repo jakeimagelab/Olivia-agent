@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { C, R } from "@/lib/theme";
+import { C, R } from "@/components/work-journal/theme";
 import type { EquipmentCategory, PrepEquipmentItem, ScheduleRental } from "@/lib/work-journal/scheduleTypes";
 
 const TAB_LABEL: Record<EquipmentCategory, string> = {
@@ -121,6 +121,7 @@ export default function PreparationColumn({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>렌탈 장비</span>
           <button
+            data-wj-action="secondary"
             type="button"
             onClick={() => setAddingRental((v) => !v)}
             style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 26, padding: "0 10px", borderRadius: R.sm, border: "none", background: C.orange, color: "#fff", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
@@ -139,7 +140,7 @@ export default function PreparationColumn({
               placeholder="렌탈 장비명 입력"
               style={{ flex: 1, height: 30, borderRadius: R.sm, border: `1px solid ${C.border}`, padding: "0 10px", fontSize: 12 }}
             />
-            <button type="button" onClick={submitRental} disabled={!rentalName.trim()}
+            <button data-wj-action="secondary" type="button" onClick={submitRental} disabled={!rentalName.trim()}
               style={{ height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 600, cursor: !rentalName.trim() ? "not-allowed" : "pointer", opacity: !rentalName.trim() ? 0.6 : 1 }}>
               추가
             </button>

@@ -8,7 +8,7 @@ import ScheduleColumn from "@/components/work-journal/ScheduleColumn";
 import TodoColumn from "@/components/work-journal/TodoColumn";
 import PreparationColumn from "@/components/work-journal/PreparationColumn";
 import ScheduleDetailCard from "@/components/work-journal/ScheduleDetailCard";
-import { C } from "@/lib/theme";
+import { C } from "@/components/work-journal/theme";
 import { todayStr } from "@/lib/work-journal/dateLabel";
 import type { CalendarEvent, UpcomingEntry } from "@/lib/work-journal/types";
 import type { PrepEquipmentItem, ScheduleRental, ScheduleTodo } from "@/lib/work-journal/scheduleTypes";
@@ -345,13 +345,13 @@ function WorkJournalInner({ hideHeader, syncRoute }: { hideHeader: boolean; sync
   const isShooting = selectedSchedule?.category === "shooting";
 
   return (
-    <main className="pc-page" style={{ color: C.ink, fontFamily: "var(--font-sans)", minHeight: hideHeader ? "100%" : undefined }}>
+    <main className="pc-page work-journal-shell" style={{ color: C.ink, fontFamily: "var(--font-sans)", minHeight: hideHeader ? "100%" : undefined }}>
       {hideHeader ? null : <GlobalHeader title="업무일지" description="촬영 일정별 To-do와 장비·렌탈 준비사항을 관리합니다." />}
       <div className="pc-content pc-content--wide">
-        <p style={{ fontSize: 13, color: C.muted, margin: "-8px 0 20px" }}>
+        <p style={{ fontSize: "var(--ui2-f3)", color: C.muted, margin: "-8px 0 20px" }}>
           일정을 선택하면 To-do를 관리할 수 있고, 촬영 일정은 준비사항(장비·렌탈)도 함께 관리할 수 있습니다.
         </p>
-        {error ? <p style={{ fontSize: 12, color: C.danger, marginBottom: 12 }}>{error}</p> : null}
+        {error ? <p style={{ fontSize: "var(--ui2-f2)", color: C.danger, marginBottom: 12 }}>{error}</p> : null}
 
         <GeneralTasksPanel />
 
@@ -400,13 +400,70 @@ function WorkJournalInner({ hideHeader, syncRoute }: { hideHeader: boolean; sync
             />
           ) : (
             <div className="pc-card pc-card--padded" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 200 }}>
-              <p style={{ fontSize: 12.5, color: C.hint, textAlign: "center" }}>촬영 일정에서만<br />준비사항을 관리합니다.</p>
+              <p style={{ fontSize: "var(--ui2-f2)", color: C.hint, textAlign: "center" }}>촬영 일정에서만<br />준비사항을 관리합니다.</p>
             </div>
           )}
         </div>
       </div>
 
       <style jsx global>{`
+        .work-journal-shell {
+          background: var(--ui2-bg) !important;
+          color: var(--ui2-text);
+        }
+        .work-journal-shell .pc-content { background: var(--ui2-bg); }
+        .work-journal-shell .pc-card {
+          background: var(--ui2-card) !important;
+          border-color: var(--ui2-line) !important;
+          box-shadow: 0 5px 18px rgba(21, 88, 85, .045) !important;
+        }
+        .work-journal-shell input,
+        .work-journal-shell select,
+        .work-journal-shell textarea {
+          background: var(--ui2-sunk) !important;
+          border-color: var(--ui2-line-strong) !important;
+          color: var(--ui2-text) !important;
+          font-size: var(--ui2-f2) !important;
+        }
+        .work-journal-shell input:focus-visible,
+        .work-journal-shell select:focus-visible,
+        .work-journal-shell textarea:focus-visible,
+        .work-journal-shell button:focus-visible {
+          outline: 2px solid var(--ui2-green) !important;
+          outline-offset: 2px;
+        }
+        .work-journal-shell [style*="font-weight: 7"],
+        .work-journal-shell [style*="font-weight: 8"],
+        .work-journal-shell [style*="font-weight: 9"] {
+          font-weight: 600 !important;
+        }
+        .work-journal-shell [style*="font-size: 10px"],
+        .work-journal-shell [style*="font-size: 10.5px"] { font-size: var(--ui2-f1) !important; }
+        .work-journal-shell [style*="font-size: 11px"],
+        .work-journal-shell [style*="font-size: 11.5px"],
+        .work-journal-shell [style*="font-size: 12px"],
+        .work-journal-shell [style*="font-size: 12.5px"] { font-size: var(--ui2-f2) !important; }
+        .work-journal-shell [style*="font-size: 13px"],
+        .work-journal-shell [style*="font-size: 13.5px"],
+        .work-journal-shell [style*="font-size: 14px"] { font-size: var(--ui2-f3) !important; }
+        .work-journal-shell [style*="font-size: 18px"] { font-size: var(--ui2-f4) !important; }
+        .work-journal-shell [data-wj-action="primary"] {
+          background: var(--ui2-run) !important;
+          border: 1px solid var(--ui2-run) !important;
+          color: var(--ui2-on-run) !important;
+        }
+        .work-journal-shell [data-wj-action="secondary"] {
+          background: transparent !important;
+          border: 1px solid var(--ui2-line-strong) !important;
+          color: var(--ui2-green) !important;
+          opacity: 1 !important;
+        }
+        .work-journal-shell [data-wj-action="secondary"]:disabled {
+          background: transparent !important;
+          border-color: var(--ui2-line) !important;
+          color: var(--ui2-faint) !important;
+          opacity: 1 !important;
+        }
         @media (max-width: 1100px) {
           .wj-columns {
             grid-template-columns: 1fr !important;

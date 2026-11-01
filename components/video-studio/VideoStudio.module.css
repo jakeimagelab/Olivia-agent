@@ -1,6 +1,24 @@
 /* 영상작업실 — 레이아웃·버튼·가이드는 사진작업실(PhotoWorkspace.module.css)을 그대로 쓰고,
    여기에는 인터뷰 분석 전용 요소만 둔다. 작업 패널(workPanel)은 사진작업실과 같은 어두운 톤. */
 
+.videoStudioTheme {
+  --ui-bg: var(--ui2-bg);
+  --ui-workspace: var(--ui2-sunk);
+  --ui-surface: var(--ui2-card);
+  --ui-border: var(--ui2-line);
+  --ui-text: var(--ui2-text);
+  --ui-text-secondary: var(--ui2-dim);
+  --ui-brand-green: var(--ui2-green);
+  --ui-green-soft: var(--ui2-green-soft);
+  --ui-orange: var(--ui2-green);
+  --ui-orange-strong: var(--ui2-green);
+  --ui-orange-soft: var(--ui2-green-soft);
+  --deep-green: var(--ui2-green);
+  min-height: 100%;
+  background: var(--ui2-bg);
+  color: var(--ui2-text);
+}
+
 .panel { padding: 22px 24px 26px; color: rgba(255, 255, 255, .86); }
 .panelIntro { margin: 0 0 18px; color: rgba(255, 255, 255, .55); font-size: 12px; line-height: 1.7; }
 .sectionTitle { margin: 22px 0 10px; color: #fff; font-size: 13px; font-weight: 600; }
@@ -35,12 +53,12 @@
 :global([data-tone="light"]) .sectionTitle { color: #1c2b28; }
 :global([data-tone="light"]) .notice { background: #edf7f4; color: #285b52; }
 
-.embeddedWorkspace { min-width: 0; background: #fff; color: #1c2b28; }
+.embeddedWorkspace { min-width: 0; background: var(--ui2-card); color: var(--ui2-text); }
 .embeddedWorkspace > :global(main),
 .embeddedWorkspace > :global(div) { min-height: 0 !important; }
 .embeddedWorkspace :global(.pc-content) { max-width: none; }
 .canvasWorkspace > :global(main) { height: min(760px, calc(100dvh - 210px)) !important; min-height: 560px !important; }
-.aiVideoWorkspace { background: #2a2a2a; color: #fff; }
+.aiVideoWorkspace { background: var(--ui2-bg); color: var(--ui2-text); }
 
 /* 최근 작업 */
 .jobList { display: grid; gap: 7px; }
@@ -83,16 +101,16 @@
 .filter { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid rgba(255, 255, 255, .14); border-radius: 99px; background: transparent; color: rgba(255, 255, 255, .62); font: inherit; font-size: 11.5px; font-weight: 500; cursor: pointer; }
 .filter[aria-pressed="true"] { border-color: #4fd8b8; background: rgba(79, 216, 184, .12); color: #fff; }
 .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.dot[data-kind="qa"] { background: #5b9bd5; }
-.dot[data-kind="reel"] { background: #e5534b; }
-.dot[data-kind="edit"] { background: #5fb37a; }
-.dot[data-kind="cut"] { background: #d9b34a; }
-.dot[data-kind="compliance"] { background: #a07be0; }
+.dot[data-kind="qa"] { background: var(--ui2-green); }
+.dot[data-kind="reel"] { background: var(--ui2-risk); }
+.dot[data-kind="edit"] { background: var(--ui2-ok); }
+.dot[data-kind="cut"] { background: var(--ui2-warn); }
+.dot[data-kind="compliance"] { background: var(--ui2-dim); }
 
 /* 결과 목록 */
 .items { display: grid; gap: 6px; }
 .item { display: grid; grid-template-columns: 8px 120px minmax(0, 1fr) 30px; gap: 12px; align-items: start; padding: 11px 12px; border: 1px solid rgba(21, 88, 85, .1); border-radius: 11px; background: #fbfcfc; color: #1c2b28; }
-.item[data-kind="qa"] { border-left: 3px solid #5b9bd5; }
+.item[data-kind="qa"] { border-left: 3px solid var(--ui2-green); }
 .item .dot { margin-top: 6px; }
 .tc { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; font-variant-numeric: tabular-nums; color: #155855; line-height: 1.5; }
 .tc small { display: block; color: #8a9c98; font-size: 10.5px; }

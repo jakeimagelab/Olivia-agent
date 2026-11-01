@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { C, R } from "@/lib/theme";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { C, R } from "@/components/work-journal/theme";
 import type { UpcomingEntry } from "@/lib/work-journal/types";
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -73,7 +73,7 @@ export default function MiniCalendar({
     <div style={{ display: "flex", flexDirection: "column", gap: hideUpcoming ? 0 : 12, height: "100%" }}>
       <div className="pc-card pc-card--padded" style={compact ? { padding: "10px 12px" } : undefined}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: compact ? 6 : 12 }}>
-          <span style={{ fontSize: 13.5, fontWeight: 900, color: C.ink }}>📅 캘린더</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: C.ink }}><CalendarDays size={15} color={C.teal} />캘린더</span>
           <button
             type="button"
             onClick={() => { onMonthChange(today.slice(0, 7)); onSelectDate(today); }}
@@ -125,7 +125,7 @@ export default function MiniCalendar({
                       <span style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#fff" : allDone ? C.success : C.orange }} />
                     ) : null}
                     {hasEvent ? (
-                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#fff" : "#2563EB" }} />
+                      <span style={{ width: 4, height: 4, borderRadius: "50%", background: active ? "#fff" : C.teal }} />
                     ) : null}
                   </span>
                 ) : null}
@@ -139,7 +139,7 @@ export default function MiniCalendar({
               <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.orange }} />업무
             </span>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, color: C.muted, fontWeight: 700 }}>
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#2563EB" }} />캘린더 일정
+              <span style={{ width: 5, height: 5, borderRadius: "50%", background: C.teal }} />캘린더 일정
             </span>
           </div>
         ) : null}
@@ -159,7 +159,7 @@ export default function MiniCalendar({
                 style={{ display: "flex", alignItems: "center", gap: 8, border: "none", background: "transparent", padding: 0, cursor: "pointer", textAlign: "left" }}
               >
                 <span style={{ fontSize: 10.5, fontWeight: 800, color: C.muted, flexShrink: 0, width: 56 }}>{relativeDayLabel(entry.date)}</span>
-                <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.kind === "event" ? "#2563EB" : entry.done ? C.success : C.orange, flexShrink: 0 }} />
+                <span style={{ width: 5, height: 5, borderRadius: "50%", background: entry.kind === "event" ? C.teal : entry.done ? C.success : C.gold, flexShrink: 0 }} />
                 <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</span>
                 {entry.time ? <span style={{ fontSize: 10, color: C.hint, flexShrink: 0 }}>{entry.time}</span> : null}
               </button>

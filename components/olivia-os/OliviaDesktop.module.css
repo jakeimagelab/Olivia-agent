@@ -1,16 +1,16 @@
 .desktop {
-  --ui-bg: #090D0C;
-  --ui-header: #141D19;
-  --ui-workspace: #111A16;
-  --ui-surface: #19231F;
-  --ui-border: #2A3732;
-  --ui-text: #E9EFEB;
-  --ui-text-secondary: #9BAEA3;
-  --ui-brand-green: #6FC3A9;
-  --ui-green-soft: #1E2D27;
-  --ui-orange: #E8653A;
-  --ui-orange-strong: #E8653A;
-  --ui-orange-soft: #2F1D16;
+  --ui-bg: var(--ui2-bg);
+  --ui-header: var(--ui2-card);
+  --ui-workspace: var(--ui2-bg);
+  --ui-surface: var(--ui2-card);
+  --ui-border: var(--ui2-line);
+  --ui-text: var(--ui2-text);
+  --ui-text-secondary: var(--ui2-dim);
+  --ui-brand-green: var(--ui2-green);
+  --ui-green-soft: var(--ui2-green-soft);
+  --ui-orange: var(--ui2-run);
+  --ui-orange-strong: var(--ui2-run);
+  --ui-orange-soft: var(--ui2-run-soft);
   /* Legacy app surfaces still read these semantic aliases. Output canvases
      reset them to their paper palette in globals.css. */
   --deep-green: var(--ui-brand-green);
@@ -18,7 +18,7 @@
   --ink: var(--ui-text);
   --muted-green: var(--ui-text-secondary);
   --soft-mint: var(--ui-green-soft);
-  --ui-shadow-panel: 0 8px 28px rgba(0, 0, 0, .22);
+  --ui-shadow-panel: 0 6px 24px rgba(21, 88, 85, .06);
   --desktop-edge: 22px;
   --desktop-gap: 20px;
   --desktop-dock-bottom: 18px;
@@ -387,7 +387,7 @@
   box-shadow: 0 8px 18px rgba(3, 30, 27, .22);
   color: #fff;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
   pointer-events: none;
   opacity: 0;
@@ -402,7 +402,7 @@
   flex: 0 0 auto;
   color: rgba(255, 255, 255, .96);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: .04em;
 }
 
@@ -534,7 +534,7 @@
   box-shadow: 0 14px 32px rgba(2,31,28,.24);
   color: #1d4f47;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   transform: translateX(-50%);
 }
 .desktopUtilityToast[data-tone="error"] { border-color: rgba(190,69,40,.35); background: #fff4ef; color: #9d3b28; }
@@ -592,7 +592,7 @@
   color: #29423d;
 }
 .desktopSearchResults section + section { margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(21, 88, 85, .08); }
-.desktopSearchResults h2 { margin: 0; padding: 6px 8px 4px; color: #81918d; font-size: 8px; font-weight: 600; letter-spacing: .08em; }
+.desktopSearchResults h2 { margin: 0; padding: 6px 8px 4px; color: #81918d; font-size: 9.5px; font-weight: 600; letter-spacing: .08em; }
 .desktopSearchResults section > button { width: 100%; min-height: 43px; display: grid; grid-template-columns: 29px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 7px; border: 0; border-radius: 8px; background: transparent; color: #29423d; text-align: left; cursor: pointer; }
 .desktopSearchResults section > button:hover,
 .desktopSearchResults .desktopSearchResultActive { background: #e8f2ef; }
@@ -600,7 +600,7 @@
 .desktopSearchResults section > button > div { min-width: 0; }
 .desktopSearchResults strong, .desktopSearchResults small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .desktopSearchResults strong { font-size: 10px; }
-.desktopSearchResults small { margin-top: 2px; color: #80918d; font-size: 8.5px; }
+.desktopSearchResults small { margin-top: 2px; color: #80918d; font-size: 9.5px; }
 .desktopSearchResults > p { margin: 0; padding: 20px; color: #82928e; font-size: 10px; text-align: center; }
 
 .topBarSearch {
@@ -684,7 +684,7 @@
   overflow: hidden;
   flex: 1;
   font-size: 9.5px;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -741,7 +741,7 @@
   justify-content: space-between;
   padding: 0 2px;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   color: #17332e;
 }
 
@@ -833,10 +833,10 @@
   font-size: 11px;
   color: #5a7470;
 }
-.statusPanelBad { color: #c0473f; font-weight: 650; }
+.statusPanelBad { color: #c0473f; font-weight: 600; }
 
 .statusPanelSection { display: grid; gap: 6px; }
-.statusPanelSectionTitle { font-size: 11px; font-weight: 650; color: #5a7470; }
+.statusPanelSectionTitle { font-size: 11px; font-weight: 600; color: #5a7470; }
 
 .statusPanelList { display: grid; gap: 5px; list-style: none; margin: 0; padding: 0; }
 .statusPanelList li {
@@ -868,7 +868,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11.5px;
-  font-weight: 620;
+  font-weight: 600;
   color: #17332e;
 }
 .statusPanelListMeta { flex: 0 0 auto; font-size: 10px; color: #849a96; }
@@ -888,7 +888,7 @@
   border: 1.5px solid #155855;
   border-radius: 999px;
   color: #fff;
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1015,7 +1015,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   overflow: hidden;
   color: #17332e;
   font-size: 11.5px;
-  font-weight: 690;
+  font-weight: 600;
   line-height: 1.35;
   text-overflow: ellipsis;
 }
@@ -1254,7 +1254,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
 .scheduleRow { grid-template-columns: 40px minmax(0, 1fr); }
 .taskRow { grid-template-columns: 9px minmax(0, 1fr); }
 .scheduleRow:hover, .taskRow:hover { background: rgba(229, 241, 237, .72); }
-.scheduleRow > time { color: #17665d; font-size: 9px; font-weight: 600; }
+.scheduleRow > time { color: #17665d; font-size: 9.5px; font-weight: 600; }
 .scheduleRow > span, .taskRow > span, .activityRow > span { min-width: 0; }
 .scheduleRow strong, .taskRow strong, .activityRow strong {
   display: block;
@@ -1270,7 +1270,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   margin-top: 2px;
   overflow: hidden;
   color: #84938f;
-  font-size: 8.5px;
+  font-size: 9.5px;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -1301,7 +1301,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   background: #f0f5f3;
   color: #56726c;
 }
-.activityRow > time { color: #9aa6a3; font-size: 7.5px; white-space: nowrap; }
+.activityRow > time { color: #9aa6a3; font-size: 9.5px; white-space: nowrap; }
 
 .spinning { animation: widget-spin .8s linear infinite; }
 @keyframes widget-spin { to { transform: rotate(360deg); } }
@@ -1398,7 +1398,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   flex-direction: column;
 }
 .assistantIdentity strong { color: #203a35; font-size: 12px; font-weight: 600; }
-.assistantIdentity small { margin-top: 1px; color: #8a9995; font-size: 8.5px; }
+.assistantIdentity small { margin-top: 1px; color: #8a9995; font-size: 9.5px; }
 .assistantHeader button {
   width: 27px;
   height: 27px;
@@ -1423,8 +1423,8 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   background: #f5faf8;
   overflow: hidden;
 }
-.assistantContext span { color: #e27042; font-size: 7.5px; font-weight: 600; letter-spacing: .12em; }
-.assistantContext strong { min-width: 0; overflow: hidden; color: #4e6a64; font-size: 9.5px; font-weight: 650; white-space: nowrap; text-overflow: ellipsis; }
+.assistantContext span { color: #e27042; font-size: 9.5px; font-weight: 600; letter-spacing: .12em; }
+.assistantContext strong { min-width: 0; overflow: hidden; color: #4e6a64; font-size: 9.5px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }
 
 .assistantConversation {
   flex: 1;
@@ -1459,7 +1459,7 @@ button.statusPanelEntry:hover { background: #f2f8f6; }
   left: 50%;
   display: block;
   color: #71857f;
-  font-size: 8px;
+  font-size: 9.5px;
   font-weight: 600;
   letter-spacing: .18em;
   writing-mode: vertical-rl;
@@ -3151,4 +3151,222 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 
 @media (max-width: 620px) {
   .desktop .homeLowerGrid { grid-template-columns: 1fr; }
+}
+
+/* ── 한 벌 UI2: 공통 셸 의미 잠금 ───────────────────────────────
+   이전 시안의 롤백용 규칙은 남겨 두되 실제 셸은 공통 토큰만 쓴다. */
+.desktop {
+  background: var(--ui2-bg);
+  color: var(--ui2-text);
+  font-size: var(--ui2-f2);
+}
+
+.desktop .desktopBody,
+.desktop .surface,
+.desktop .caseChrome,
+.desktop .caseChromeContent,
+.desktop .homeWorkspace,
+.desktop .appChatDock :global(.olivia-conversation__main),
+.desktop .appChatDock :global(.olivia-conversation__messages),
+.desktop .appChatDock :global(.olivia-conversation__suggestions--desktop-panel),
+.desktop .appChatDock :global(.olivia-composer-shell) {
+  background: var(--ui2-bg);
+}
+
+.desktop .desktopStage,
+.desktop .topBar,
+.desktop .topBar[data-home="true"],
+.desktop .caseTabs,
+.desktop .caseStatusBar,
+.desktop .caseSidePanel,
+.desktop .casePanelChat,
+.desktop .appChatPanel,
+.desktop .appChatDock :global(.olivia-conversation),
+.desktop .appChatDock :global(.olivia-conversation__stage),
+.desktop .homeWorkList,
+.desktop .homeFilters button,
+.desktop .dock {
+  border-color: var(--ui2-line);
+  background: var(--ui2-card);
+  color: var(--ui2-text);
+}
+
+.desktop .caseContextBar,
+.desktop .caseTabs button[aria-selected="true"],
+.desktop .homeFilters button[data-active="true"],
+.desktop .homeWorkRow[data-selected="true"],
+.desktop .dockButton.active,
+.desktop .appChatHeader small,
+.desktop .casePanelChat :global(.olivia-chat-context-banner) {
+  background: var(--ui2-sunk);
+  color: var(--ui2-green);
+}
+
+.desktop .topBar,
+.desktop .topBar[data-home="true"] {
+  color: var(--ui2-text);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.desktop .topBarLocation strong,
+.desktop .workspaceLauncher,
+.desktop .homeHeading h1,
+.desktop .homeSectionHead h2,
+.desktop .homeWorkText strong,
+.desktop .homeSummaryCard > header span,
+.desktop .casePanelHeader strong,
+.desktop .casePanelInfo section > strong {
+  color: var(--ui2-text);
+}
+
+.desktop .topBarLocation span,
+.desktop .workerChip,
+.desktop .caseContextBar span,
+.desktop .caseContextBar small,
+.desktop .caseStatusBar,
+.desktop .homeHeading span,
+.desktop .homeWorkText small,
+.desktop .homeSummaryRow time,
+.desktop .casePanelInfo section > span,
+.desktop .casePanelInfo section > small,
+.desktop .casePanelInfo dt,
+.desktop .casePanelNext span,
+.desktop .casePanelInfo > p,
+.desktop .dockButton {
+  color: var(--ui2-dim);
+}
+
+.desktop .topBarOliviaButton,
+.desktop .topBarOliviaButtonActive,
+.desktop .topBar[data-home="true"] .topBarOliviaButton,
+.desktop .topBar[data-home="true"] .topBarOliviaButton:disabled,
+.desktop .casePanelPrimary {
+  border: 1px solid var(--ui2-line-strong);
+  background: transparent;
+  color: var(--ui2-green);
+  box-shadow: none;
+}
+
+.desktop .topBarOliviaButton:hover,
+.desktop .topBarOliviaButtonActive,
+.desktop .topBar[data-home="true"] .topBarOliviaButton:hover,
+.desktop .casePanelPrimary:hover {
+  border-color: var(--ui2-green);
+  background: var(--ui2-green-soft);
+  color: var(--ui2-green);
+}
+
+.desktop .caseTabs button[aria-selected="true"]::after,
+.desktop .homeWorkRow[data-selected="true"]::before,
+.desktop .dockButton.active::after,
+.desktop .dockIndicator {
+  background: var(--ui2-green);
+}
+
+.desktop .homeWorkRow:hover .homeWorkArrow {
+  color: var(--ui2-green);
+}
+
+.desktop .homePrimaryAction,
+.desktop .appChatDock :global(.olivia-composer .is-send),
+.desktop .appChatDock :global(.olivia-composer .is-stop) {
+  border-color: var(--ui2-run);
+  background: var(--ui2-run);
+  color: var(--ui2-on-run);
+  box-shadow: 0 1px 2px rgba(201, 74, 30, .22), 0 6px 16px rgba(201, 74, 30, .16);
+}
+
+.desktop .homePrimaryAction:disabled {
+  border-color: var(--ui2-line);
+  background: transparent;
+  color: var(--ui2-dim);
+  box-shadow: none;
+}
+
+.desktop .workerChip i { background: var(--ui2-risk); }
+.desktop .workerChip[data-online="true"][data-nas="true"] i { background: var(--ui2-ok); }
+.desktop .statusPanelSeverity_error { background: var(--ui2-risk); }
+.desktop .statusPanelSeverity_warning,
+.desktop .statusPanelSeverity_unknown { background: var(--ui2-warn); }
+.desktop .statusPanelSeverity_info { background: var(--ui2-green); }
+
+.desktop .topBar,
+.desktop .workspaceLauncher,
+.desktop .caseTabs button,
+.desktop .casePanelHeader strong,
+.desktop .homeSectionHead h2,
+.desktop .homeWorkText strong,
+.desktop .homeSummaryCard > header span,
+.desktop .appChatDock :global(.olivia-composer textarea) {
+  font-size: var(--ui2-f3);
+}
+
+.desktop .topBarLocation strong,
+.desktop .topBarLocation span,
+.desktop .workerChip,
+.desktop .caseContextBar strong,
+.desktop .caseContextBar span,
+.desktop .caseContextBar small,
+.desktop .caseContextBar button,
+.desktop .casePanelTabs button,
+.desktop .casePanelInfo section > span,
+.desktop .casePanelInfo section > small,
+.desktop .casePanelInfo dl > div,
+.desktop .casePanelNext span,
+.desktop .casePanelNext p,
+.desktop .casePanelInfo > p,
+.desktop .homeHeading span,
+.desktop .homeFilters button,
+.desktop .homeWorkText small,
+.desktop .homeSummaryRow,
+.desktop .appChatDock :global(.olivia-message__body),
+.desktop .appChatDock :global(.olivia-conversation__welcome p) {
+  font-size: var(--ui2-f2);
+}
+
+.desktop .caseStatusBar,
+.desktop .dockLabel,
+.desktop .appChatHeader small,
+.desktop .appChatDock :global(.olivia-conversation__suggestions button) {
+  font-size: var(--ui2-f1);
+}
+
+.desktop .casePanelInfo section > strong { font-size: var(--ui2-f4); }
+.desktop .homeHeading h1 { font-size: var(--ui2-f5); }
+.desktop .dockLabel { line-height: 1.1; }
+
+.desktop :where(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--ui2-green);
+  outline-offset: 2px;
+}
+
+.desktop :where(.casePanelInfo dd, .caseStatusBar, .homeSummaryRow time, .statusPanelBadge) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 롤백용 규칙의 더 높은 상세도보다 최종 다섯 단계가 우선한다. */
+.desktop .topBar,
+.desktop .topBarLeft,
+.desktop .topBarRight,
+.desktop .topBarLocation,
+.desktop .statusPanelGroup,
+.desktop .topBarOliviaButton,
+.desktop .topBarOliviaButtonActive {
+  font-size: var(--ui2-f3) !important;
+}
+
+.desktop .topBarLocation strong,
+.desktop .topBarLocation span,
+.desktop .statusPanelTrigger,
+.desktop .statusPanelTrigger *,
+.desktop .statusPanelError,
+.desktop .statusPanelError *,
+.desktop .workerChip,
+.desktop .homeSummaryRow time {
+  font-size: var(--ui2-f2) !important;
+}
+
+.desktop .homeSummaryRow small {
+  font-size: var(--ui2-f1) !important;
 }

@@ -341,7 +341,7 @@ export default function VideoStudio({
   }
 
   return (
-    <WorkspaceShell>
+    <WorkspaceShell className={styles.videoStudioTheme}>
       <ExecutionBar visible={requiredMode !== undefined} />
       <WorkspaceContent>
         {hideHeader ? null : (

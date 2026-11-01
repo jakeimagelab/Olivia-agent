@@ -60,47 +60,35 @@
   --score-normal: #E9A227;
   --score-risk: #C0473F;
 
-  /* ── 한 벌 토큰 ────────────────────────────────────────────────────────
-     화면마다 색을 손으로 칠하지 않는다. 내부 OS는 어두운 한 벌, 고객이 보는
-     화면은 밝은 한 벌, 사진을 실제로 보는 패널만 중성 회색이다.
-     (UI(Skill)/작업실_UI통일_요청서.md 의 어두운 패널 값을 그대로 쓴다) */
-  --os-bg: #0F1715;
-  --os-panel: #16211E;
-  --os-card: rgba(255, 255, 255, .04);
-  --os-line: rgba(255, 255, 255, .10);
-  --os-line-strong: rgba(255, 255, 255, .18);
-  --os-text: rgba(255, 255, 255, .88);
-  --os-dim: rgba(255, 255, 255, .46);
-  --os-faint: rgba(255, 255, 255, .30);
-  --os-mint: #37C39D;
-  --os-on-mint: #103E36;
-  --os-pick: #4FD8B8;
-  --os-mint-soft: rgba(55, 195, 157, .12);
-  /* 주 실행은 주황이다. 어두운 바탕에서도 잘 보이고 로고와 같은 계열이다.
-     민트는 "선택·현재 위치"만 맡는다 — 뜻이 겹치지 않아 같이 써도 안 섞인다.
-     사진을 실제로 보는 패널 안에서만 주황 대신 민트를 쓴다(사진 색과 싸운다). */
-  --os-run: #E85D2C;
-  --os-on-run: #FFFFFF;
-  --os-run-soft: rgba(232, 93, 44, .14);
-  /* 사진이 놓이는 바닥. 좌우 패널보다 어두워야 사진이 우물에 들어앉는다.
-     바깥이 아이보리였을 때는 중성 회색(#2A2A2A)이었지만, 바깥이 어두운 지금은
-     회색 판이 끼어든 것처럼 보인다. 크게 보기에서만 중성 회색을 쓴다. */
-  --photo-bg: #0C1211;
-  /* 상태 — 기능별이 아니라 뜻별이다. 어느 화면에서든 같은 뜻으로 쓴다. */
-  --os-ok: #4C9A5C;
-  --os-warn: #E9A227;
-  --os-warn-soft: rgba(233, 162, 39, .14);
-  --os-risk: #E0705C;
-  --os-risk-soft: rgba(224, 112, 92, .14);
+  /* ── 한 벌 토큰 ────────────────────────────────────────────────
+     화면마다 색을 손으로 칠하지 않는다. 새로 쓰는 코드는 이것만 쓴다.
+     기존 하드코딩은 그 화면을 손댈 때 같이 바꾼다. */
+  --ui2-bg: #F4F8F5;
+  --ui2-card: #FFFFFF;
+  --ui2-sunk: #E9F0EB;
+  --ui2-line: #DFE8E2;
+  --ui2-line-strong: #CDDAD3;
+  --ui2-text: #1B2A27;
+  --ui2-dim: #5A7470;
+  --ui2-faint: #93A5A0;
+  --ui2-green: #155855;
+  --ui2-green-soft: #EAF2EE;
+  --ui2-run: #C94A1E;
+  --ui2-on-run: #FFFFFF;
+  --ui2-run-soft: #FBEAE3;
+  /* 사진·영상을 실제로 보는 칸만. 그라데이션을 넣지 않는다. */
+  --ui2-photo: #2A2A2A;
+  /* 상태 — 기능별이 아니라 뜻별. 어느 화면에서나 같은 뜻으로 쓴다. */
+  --ui2-ok: #4C9A5C;
+  --ui2-warn: #E9A227;
+  --ui2-risk: #C0473F;
 
-  /* 고객이 보는 화면 — 병원 사람들이 여는 포털·동의서·셀렉 공개 페이지 */
-  --pub-bg: #FDFCFA;
-  --pub-surface: #FFFFFF;
-  --pub-line: #D5DBD3;
-  --pub-text: #2F3833;
-  --pub-dim: #5A7470;
-  --pub-green: #155855;
-  --pub-run: #C94A1E;
+  /* 글자 다섯 단계 */
+  --ui2-f1: 9.5px;
+  --ui2-f2: 11px;
+  --ui2-f3: 13px;
+  --ui2-f4: 18px;
+  --ui2-f5: 24px;
 }
 
 @media print {
@@ -1267,6 +1255,8 @@ main:has(> .pc-header) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: var(--ui2-text);
+  background: var(--ui2-bg);
   font-family: var(--font-sans);
 }
 .calendar-page-shell--embedded {
@@ -1302,8 +1292,8 @@ main:has(> .pc-header) {
   gap: 16px;
   min-height: 68px;
   padding: 9px 20px;
-  border-bottom: 1px solid rgba(21,88,85,.12);
-  background: rgba(255,255,255,.97);
+  border-bottom: 1px solid var(--ui2-line);
+  background: var(--ui2-card);
   flex: 0 0 auto;
 }
 .calendar-main-toolbar__nav,
@@ -1318,23 +1308,23 @@ main:has(> .pc-header) {
   align-items: center;
   justify-content: center;
   gap: 5px;
-  border: 1px solid rgba(21,88,85,.13);
+  border: 1px solid var(--ui2-line-strong);
   border-radius: 8px;
   padding: 0 9px;
-  background: #fff;
-  color: #355a54;
-  font: 700 11px/1 var(--font-sans);
+  background: transparent;
+  color: var(--ui2-green);
+  font: 500 var(--ui2-f2)/1 var(--font-sans);
   cursor: pointer;
 }
 .calendar-main-toolbar__nav button:hover,
 .calendar-main-toolbar__actions button:hover,
-.calendar-main-toolbar__views button:hover { background: #edf6f3; color: #0f4440; }
+.calendar-main-toolbar__views button:hover { background: var(--ui2-green-soft); color: var(--ui2-green); }
 .calendar-main-toolbar__today { min-width: 46px !important; }
 .calendar-main-toolbar__center { display: grid; justify-items: center; gap: 6px; }
-.calendar-main-toolbar__center > strong { color: #183d38; font-size: 14px; font-weight: 800; letter-spacing: -.025em; white-space: nowrap; }
-.calendar-main-toolbar__views { padding: 2px; border: 1px solid rgba(21,88,85,.14); border-radius: 9px; background: #edf4f2; }
+.calendar-main-toolbar__center > strong { color: var(--ui2-text); font-size: var(--ui2-f3); font-weight: 600; letter-spacing: -.025em; white-space: nowrap; }
+.calendar-main-toolbar__views { padding: 2px; border: 1px solid var(--ui2-line-strong); border-radius: 9px; background: var(--ui2-sunk); }
 .calendar-main-toolbar__views button { min-width: 34px; height: 27px; border: 0; background: transparent; box-shadow: none; }
-.calendar-main-toolbar__views button.is-active { background: #0f4440; color: #fff; box-shadow: 0 3px 9px rgba(15,68,64,.18); }
+.calendar-main-toolbar__views button.is-active { background: var(--ui2-card); color: var(--ui2-green); box-shadow: inset 0 -2px var(--ui2-green); }
 .calendar-main-toolbar__actions { justify-content: flex-end; }
 
 @media (min-width: 768px) {
@@ -9792,23 +9782,24 @@ body .olivia-os-chat-dock .olivia-message-guide__popover {
   }
 
   /* Calendar workspace. Category colors remain defined by the calendar data. */
-  .calendar-page-shell { background: var(--ui-bg, #F4F3EF); color: var(--ui-text, #2F3833); }
+  .calendar-page-shell { background: var(--ui2-bg); color: var(--ui2-text); }
   .calendar-main-toolbar {
-    border-bottom-color: var(--ui-border, #D5DBD3);
-    background: var(--ui-workspace, #E8EBE5);
+    border-bottom-color: var(--ui2-line);
+    background: var(--ui2-card);
   }
   .calendar-main-toolbar button {
-    border-color: var(--ui-border, #D5DBD3);
-    background: var(--ui-surface, #FCFBF8);
+    border-color: var(--ui2-line-strong);
+    background: transparent;
   }
-  .calendar-main-toolbar button:hover { background: var(--ui-green-soft, #E2EBE3); }
+  .calendar-main-toolbar button:hover { background: var(--ui2-green-soft); }
   .calendar-main-toolbar button.is-active {
-    border-color: var(--ui-brand-green, #155855);
-    color: var(--ui-brand-green, #155855);
+    border-color: var(--ui2-line-strong);
+    color: var(--ui2-green);
+    background: var(--ui2-card);
   }
   .calendar-page-shell :where(.calendar-productivity-panel, .calendar-day-side-panel) {
-    border-color: var(--ui-border, #D5DBD3) !important;
-    background: var(--ui-surface, #FCFBF8) !important;
+    border-color: var(--ui2-line) !important;
+    background: var(--ui2-card) !important;
   }
 
   /* Customer management surfaces and popups. Inline card styles read the

@@ -40,10 +40,10 @@ type CalTask = {
 
 /* ─── constants ───────────────────────────────────────── */
 const C = {
-  teal: "#155855", orange: "#E85D2C",
-  bg: "#F4F3EF", workspace: "#E8EBE5", surface: "#FCFBF8", border: "#D5DBD3",
-  cellBg: "#FCFBF8",
-  muted: "#626D65", hint: "#7C887F", txt: "#2F3833", mint: "#E2EBE3",
+  teal: "#155855", orange: "#C94A1E",
+  bg: "#F4F8F5", workspace: "#E9F0EB", surface: "#FFFFFF", border: "#DFE8E2",
+  cellBg: "#FFFFFF",
+  muted: "#5A7470", hint: "#93A5A0", txt: "#1B2A27", mint: "#EAF2EE",
   todayRed: "#C94C22",
 };
 
@@ -54,11 +54,11 @@ const BRAND_ORANGE = "#E85D2C";
 // 이 키(shooting/client/admin/personal/general)는 app/api/olivia/v2/stream/route.ts의
 // 시스템 프롬프트 캘린더 카테고리 안내와 동기화돼야 한다 — 값을 추가/변경하면 거기도 같이 고친다.
 const CATS: Record<string, { label: string; color: string; bg: string }> = {
-  shooting: { label: "촬영",    color: "#E85D2C", bg: "#FFF0EB" },
+  shooting: { label: "촬영",    color: "#C94A1E", bg: "#FBEAE3" },
   client:   { label: "고객",    color: "#155855", bg: "#EAF4F2" },
   admin:    { label: "행정",    color: "#EB8F22", bg: "#FFF3E0" },
   personal: { label: "개인",    color: "#5A7470", bg: "#F3F4F6" },
-  general:  { label: "기타",    color: "#426D9C", bg: "#EDF3FA" },
+  general:  { label: "기타",    color: "#5A7470", bg: "#E9F0EB" },
 };
 
 /* 일정 드래그용 커스텀 마우스 커서 — 기본 OS grab/grabbing 손 아이콘 대신 그라디언트+그림자로
@@ -178,10 +178,10 @@ function isValidClockTime(t: string | null | undefined): boolean {
 
 function formatTimeKo(t: string | null | undefined): string {
   const value = t ?? "";
-  if (!isValidClockTime(value)) return value.trim() || "시간 미정";
-  const [hStr, mStr] = value.split(":");
-  const h = Number(hStr);
-  const m = Number(mStr);
+  const match = /^(\d{1,2}):(\d{2})/.exec(value.trim());
+  if (!match || !isValidClockTime(value)) return "시간 미정";
+  const h = Number(match[1]);
+  const m = Number(match[2]);
   const period = h < 12 ? "오전" : "오후";
   let h12 = h % 12;
   if (h12 === 0) h12 = 12;
@@ -196,10 +196,16 @@ function monthLabel(m: number) { return `${m+1}월`; }
 // 그대로 감싸면 된다 — mfz/mfw는 "최종적으로 뽑힌 값"에만 작용해서 desktop 쪽 숫자는 건드리지
 // 않고, mobile 쪽만 15% 더 줄이거나 400으로 낮춘다(이중 적용 아님).
 function mfz(px: number, isMobile: boolean): number {
-  return isMobile ? Math.round(px * 0.85 * 10) / 10 : px;
+  if (isMobile) return Math.round(px * 0.85 * 10) / 10;
+  if (px <= 9.5) return 9.5;
+  if (px <= 12) return 11;
+  if (px <= 15) return 13;
+  if (px <= 20) return 18;
+  return 24;
 }
 function mfw(weight: number, isMobile: boolean): number {
-  return isMobile && weight >= 500 ? 400 : weight;
+  if (isMobile && weight >= 500) return 400;
+  return Math.min(weight, 600);
 }
 
 function getWeekDates(dateStr: string): Date[] {
@@ -1006,7 +1012,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
         background: C.surface, borderBottom: "1px solid rgba(21,88,85,.1)", flexShrink: 0 }}>
         {WEEKDAYS.map((w, i) => (
           <div key={w} style={{ textAlign: "center", fontSize: mfz(12, isMobile), fontWeight: mfw(900, isMobile), padding: "8px 0 7px",
-            color: i===0 ? "#9A655E" : i===6 ? "#426D9C" : C.muted }}>
+            color: i===0 ? "#9A655E" : i===6 ? C.teal : C.muted }}>
             {w}
           </div>
         ))}
@@ -1109,7 +1115,7 @@ function MonthView({ year, month, todayStr, selectedDate, tasksByDate, onSelectD
                     fontSize: mfz(14, isMobile),
                     fontWeight: mfw(isToday ? 900 : isSelected ? 800 : 600, isMobile),
                     opacity: dimmed ? 0.38 : 1,
-                    color: isToday ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt,
+                    color: isToday ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? C.teal : C.txt,
                   }}>{cell.day}</span>
                 </div>
               </div>
@@ -1544,12 +1550,12 @@ function WeekView({ weekDates, todayStr, selectedDate, tasksByDate, onSelectDate
             <div key={i} onClick={() => onSelectDate(ds)}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "6px 2px", cursor: "pointer" }}>
               <span style={{ fontSize: mfz(10, isMobile), fontWeight: mfw(700, isMobile), marginBottom: 2,
-                color: (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.muted }}>{WEEKDAYS[dow]}</span>
+                color: (dow===0 || holidayName) ? "#9A655E" : dow===6 ? C.teal : C.muted }}>{WEEKDAYS[dow]}</span>
               <div style={{ width: 26, height: 26, borderRadius: "50%",
                 background: isToday ? C.todayRed : isSelected ? C.teal : "transparent",
                 display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ fontSize: mfz(13, isMobile), fontWeight: mfw((isToday||isSelected) ? 900 : 700, isMobile),
-                  color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt }}>
+                  color: (isToday||isSelected) ? "#fff" : (dow===0 || holidayName) ? "#9A655E" : dow===6 ? C.teal : C.txt }}>
                   {d.getDate()}
                 </span>
               </div>
@@ -2169,7 +2175,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
         {WEEKDAYS.map((w, i) => (
           <div key={w} style={{ textAlign: "center", fontSize: mfz(7.5, isMobile), fontWeight: mfw(700, isMobile), paddingBottom: 2,
-            color: i===0 ? "#9A655E" : i===6 ? "#426D9C" : C.hint }}>{w}</div>
+            color: i===0 ? "#9A655E" : i===6 ? C.teal : C.hint }}>{w}</div>
         ))}
         {cells.map((cell, idx) => {
           if (!cell.isCurrent) return <div key={idx}/>;
@@ -2194,7 +2200,7 @@ function MiniMonth({ year, m, todayStr, selectedDate, tasksByDate, onSelectDate,
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <span style={{ fontSize: mfz(8, isMobile), fontWeight: mfw(isToday || isSelected ? 900 : 600, isMobile),
-                  color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#9A655E" : dow===6 ? "#426D9C" : C.txt }}>
+                  color: isToday || isSelected ? "#fff" : (dow===0 || isHoliday) ? "#9A655E" : dow===6 ? C.teal : C.txt }}>
                   {cell.day}
                 </span>
               </div>

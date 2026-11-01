@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
-import { C, R } from "@/lib/theme";
+import { C, R } from "@/components/work-journal/theme";
 import { dateHeaderLabel, timeRangeLabel } from "@/lib/work-journal/dateLabel";
 import type { CalendarEvent } from "@/lib/work-journal/types";
 import type { ScheduleTodo } from "@/lib/work-journal/scheduleTypes";
@@ -64,6 +64,7 @@ export default function TodoColumn({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
           <span style={{ fontSize: 14, fontWeight: 900, color: C.ink }}>{schedule.title}</span>
           <button
+          data-wj-action="secondary"
             type="button"
             onClick={() => setAdding((v) => !v)}
             style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 30, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.orange, color: "#fff", fontSize: 11.5, fontWeight: 800, cursor: "pointer" }}
@@ -102,7 +103,7 @@ export default function TodoColumn({
           />
           <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
             <button type="button" onClick={() => setAdding(false)} style={{ height: 28, padding: "0 10px", borderRadius: R.sm, border: `1px solid ${C.border}`, background: "#fff", color: C.muted, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>취소</button>
-            <button type="button" onClick={submit} disabled={!title.trim() || submitting} style={{ height: 28, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 800, cursor: !title.trim() || submitting ? "not-allowed" : "pointer", opacity: !title.trim() || submitting ? 0.6 : 1 }}>
+            <button data-wj-action="secondary" type="button" onClick={submit} disabled={!title.trim() || submitting} style={{ height: 28, padding: "0 12px", borderRadius: R.sm, border: "none", background: C.teal, color: "#fff", fontSize: 11, fontWeight: 600, cursor: !title.trim() || submitting ? "not-allowed" : "pointer" }}>
               {submitting ? "추가 중..." : "추가"}
             </button>
           </div>
