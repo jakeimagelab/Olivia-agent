@@ -1962,7 +1962,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   return (
     <>
     {isModal ? null : <GlobalHeader title="견적서 생성기" description="촬영 패키지와 옵션을 선택해 견적서 PDF를 생성합니다." />}
-    <main className={`${isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
+    <main className={`${isDesktopWindow ? "flex h-full min-h-0 flex-col overflow-hidden" : isModal ? "" : "min-h-screen"} text-[#222222] quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""}`} style={isModal ? undefined : { background: "var(--mesh-bg)" }}>
       {/* isDesktopWindow에서는 이 상태 텍스트가 하단 WorkspaceActionBar의 status로 옮겨간다 —
           기존 채팅 분할뷰 모달(isModal && !isDesktopWindow)은 그대로 상단에 유지한다. */}
       {isModal && !isDesktopWindow ? (
@@ -1985,8 +1985,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           리포트). 미리보기 안쪽 A4 페이지는 이미 ResizeObserver로 실제 폭에 맞춰 scale을 다시
           계산하므로(위 previewShellRef 참고) 그리드 하한만 낮춰도 잘림 없이 계속 축소된다 —
           /quote 풀페이지는 폭이 넉넉해 fr 비율로 그대로 채워지므로 시각적으로 변화가 없다. */}
-      <section className={`${documentOnly ? "" : "mx-auto max-w-[1500px]"} grid min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]" : "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
-        <div className="min-w-0 space-y-5">
+      <section className={`${documentOnly ? "" : "mx-auto max-w-[1500px]"} ${isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden" : ""} grid min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]" : "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
+        <div
+          className={`min-w-0 space-y-5 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : ""}`}
+          style={isDesktopWindow ? { alignSelf: "stretch" } : undefined}
+        >
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <span className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--quote-ink)]">
@@ -2724,7 +2727,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           )}
         </div>
 
-        <aside className="min-w-0 md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]">
+        <aside className={`min-w-0 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : "md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]"}`}>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
