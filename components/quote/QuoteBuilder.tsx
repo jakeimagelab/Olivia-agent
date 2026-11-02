@@ -166,7 +166,7 @@ const numberValue = (value: string) => {
 
 const displayDate = (date: string) => date || "-";
 
-const RECENT_QUOTES_DISPLAY_LIMIT = 10;
+const RECENT_QUOTES_DISPLAY_LIMIT = 2;
 
 const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => ({
   id: row.id,
@@ -1899,30 +1899,29 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
 
   const recentQuotesPanelNode = !documentOnly ? (
-    <Panel title={`최근 생성 견적 (최근 ${RECENT_QUOTES_DISPLAY_LIMIT}개)`}>
+    <Panel title={`최근 견적 ${RECENT_QUOTES_DISPLAY_LIMIT}개`}>
       {recentQuoteMessage ? (
         <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">{recentQuoteMessage}</div>
       ) : null}
       {recentQuotes.length === 0 ? (
         <p className="empty-text">PDF 다운로드 또는 계약서 생성을 누르면 최근 견적이 자동 보관됩니다.</p>
       ) : (
-        <div className="grid gap-3">
+        <div className="quote-recent-list">
           {recentQuotes.map((item) => (
-            <div key={item.id} className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4 shadow-sm">
+            <div key={item.id} className="quote-recent-card">
               <div className="min-w-0">
-                <div className="mb-2 inline-flex rounded-full bg-[var(--quote-tint)] px-3 py-1 text-xs font-extrabold text-[var(--quote-ink)]">최근 견적</div>
-                <strong className="block truncate text-base font-extrabold text-[var(--quote-ink)]">{item.hospitalName || `${cfg.entityLabel} 없음`}</strong>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6f6961]"><span>{item.quoteNumber}</span><span className="text-[#c7bbad]">|</span><span>{displayDate(item.quoteDate)}</span></div>
-                <b className="mt-2 block text-lg font-extrabold text-[var(--quote-accent)]">{won(item.totalAmount)}</b>
+                <strong className="quote-recent-name">{item.hospitalName || `${cfg.entityLabel} 없음`}</strong>
+                <div className="quote-recent-meta"><span>{item.quoteNumber}</span><span>{displayDate(item.quoteDate)}</span></div>
+                <b className="quote-recent-amount">{won(item.totalAmount)}</b>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]" onClick={() => {
+              <div className="quote-recent-actions">
+                <button type="button" onClick={() => {
                   if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
                   loadRecentQuote(item);
                   setRecentPanelOpen(false);
                 }}>불러오기</button>
-                <button type="button" className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5" onClick={() => void openContractWithQuote(item)} disabled={openingContract}><FileText size={15} />{openingContract ? "준비 중" : "계약서"}</button>
-                <button type="button" disabled={publishingQuoteId === item.id} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void publishQuoteToPortal(item)}>{publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}</button>
+                <button type="button" className="quote-recent-contract" onClick={() => void openContractWithQuote(item)} disabled={openingContract}><FileText size={13} />{openingContract ? "준비 중" : "계약서"}</button>
+                <button type="button" disabled={publishingQuoteId === item.id} onClick={() => void publishQuoteToPortal(item)}>{publishingQuoteId === item.id ? "공개 중" : item.status === "published" ? "다시 공개" : "포털 공개"}</button>
               </div>
             </div>
           ))}

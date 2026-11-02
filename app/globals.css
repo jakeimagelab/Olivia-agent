@@ -124,8 +124,8 @@ main.quote-app { container-name: quote-app; container-type: inline-size; }
 .quote-preview-pane,
 .quote-recent-pane { min-width: 0; min-height: 0; }
 .quote-workspace-layout--embedded .quote-editor-pane,
-.quote-workspace-layout--embedded .quote-preview-pane,
-.quote-workspace-layout--embedded .quote-recent-pane { overflow: auto; overscroll-behavior: contain; }
+.quote-workspace-layout--embedded .quote-preview-pane { overflow: auto; overscroll-behavior: contain; }
+.quote-workspace-layout--embedded .quote-recent-pane { overflow: visible; }
 .quote-preview-pane { display: grid; grid-template-rows: auto minmax(0, 1fr); }
 @container quote-app (max-width: 759px) {
   .quote-workspace-layout[data-compact-pane="preview"] .quote-editor-pane,
@@ -134,15 +134,49 @@ main.quote-app { container-name: quote-app; container-type: inline-size; }
 .quote-recent-pane {
   display: none;
   position: absolute;
-  overflow: auto;
+  overflow: visible;
   z-index: 30;
-  inset: 56px 12px 12px;
+  inset: 56px 12px auto;
   padding: 8px;
   border: 1px solid var(--ui-border, #D5DBD3);
   border-radius: 14px;
   background: var(--ui-workspace, #E8EBE5);
   box-shadow: 0 18px 50px rgba(31, 50, 42, .18);
 }
+.quote-recent-list { display: grid; gap: 7px; }
+.quote-recent-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #d8d0c4;
+  border-radius: 10px;
+  background: #fffdfa;
+  box-shadow: 0 1px 4px rgba(31, 50, 42, .05);
+}
+.quote-recent-name { display: block; overflow: hidden; color: var(--quote-ink); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.quote-recent-meta { display: flex; justify-content: space-between; gap: 6px; margin-top: 3px; color: #6f6961; font-size: 9.5px; }
+.quote-recent-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quote-recent-amount { display: block; margin-top: 4px; color: var(--quote-accent); font-size: 14px; font-weight: 800; }
+.quote-recent-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.quote-recent-actions button {
+  min-width: 0;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid #d8d0c4;
+  border-radius: 7px;
+  padding: 0 5px;
+  background: #fff;
+  color: var(--quote-ink);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.quote-recent-actions button:disabled { cursor: not-allowed; opacity: .55; }
+.quote-recent-actions .quote-recent-contract { border-color: var(--quote-ink); background: var(--quote-accent); color: #fff; }
 .quote-workspace-layout[data-recent-open="true"] .quote-recent-pane { display: block; }
 .quote-recent-close {
   position: sticky;
@@ -185,7 +219,7 @@ main.quote-app { container-name: quote-app; container-type: inline-size; }
 
 @container quote-app (min-width: 1180px) {
   .quote-workspace-layout:not(.quote-workspace-layout--document) {
-    grid-template-columns: minmax(260px, 290px) minmax(360px, 420px) minmax(420px, 1fr);
+    grid-template-columns: minmax(200px, 220px) minmax(360px, 420px) minmax(420px, 1fr);
     grid-template-rows: minmax(0, 1fr);
   }
   .quote-workspace-layout:not(.quote-workspace-layout--document) .quote-layout-switcher { display: none; }

@@ -323,14 +323,26 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     }
   }, []);
 
+  const projectOpenRequestRef = useRef(0);
   const openProject = (p: Project) => {
+    const requestId = projectOpenRequestRef.current + 1;
+    projectOpenRequestRef.current = requestId;
     setCurrentProject(p);
-    loadScenes(p.id);
     newScene();
     setSceneView("editor");
     setMode("scenes");
+    void loadScenes(p.id).then((loadedScenes) => {
+      if (projectOpenRequestRef.current !== requestId) return;
+      const initialScene = loadedScenes.find((scene) => !scene.isDraft && !scene.is_shot)
+        ?? loadedScenes.find((scene) => !scene.isDraft);
+      if (initialScene) openScene(initialScene);
+    });
   };
-  const backToProjects = () => { loadProjects(); setMode("projects"); };
+  const backToProjects = () => {
+    projectOpenRequestRef.current += 1;
+    loadProjects();
+    setMode("projects");
+  };
 
   const newScene = () => {
     skipNextAutoSaveRef.current = true;
@@ -848,7 +860,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
 
   /* ── 저장/삭제 ── */
   const saveScene = async (silent = false) => {
-    if (!text.trim() || saving || !currentProject) return;
+    if (!text.trim() || saving || !currentProject) return false;
     setSaving(true);
     try {
       const cleaned = editorMode === "text" && (multiSpeakerMode || gestureEditorEnabled)
@@ -868,14 +880,27 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
         setIsShot(Boolean(res.script.is_shot ?? isShot));
         setLastAutoSavedAt(Date.now());
         await loadScenes(currentProject.id);
+        return true;
       } else if (!silent) {
         alert(res.error || "저장에 실패했습니다.");
       } else {
         console.error("자동저장 실패:", res.error);
       }
+      return false;
+    } catch (error) {
+      if (!silent) alert(error instanceof Error ? error.message : "저장에 실패했습니다.");
+      else console.error("자동저장 실패:", error);
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const runEditedScene = async () => {
+    if (!text.trim() || saving) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    const saved = await saveScene();
+    if (saved) enterPromptMode();
   };
 
   const updateSceneDataField = (id: string, field: "title" | "subject" | "content", value: string) => {
@@ -1089,7 +1114,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
           <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
           <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
           {!saving && lastAutoSavedAt ? <span className="pt-save-status">저장됨 · 방금 전</span> : null}
-          <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행</button>
+          <button onClick={() => void runEditedScene()} className="pt-btn pt-btn-primary" disabled={!text.trim() || saving}>{saving ? "저장 중..." : "편집 후 실행"}</button>
         </>
       ) : (
         <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>
@@ -1143,7 +1168,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
           pageActions={sceneActions}
         />}
         {embedded ? <div className="pt-embedded-actions" aria-label="프롬프터 작업 도구">{sceneActions}</div> : null}
-        <div className="oa-page">
+        <div className="oa-page pt-scenes-page">
           <div className="pt-scene-project-banner">
             <Building2 size={16} />
             <span>{currentProject?.name}</span>
