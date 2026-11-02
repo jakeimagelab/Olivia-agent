@@ -98,6 +98,51 @@
 .folderSourceChooser > div > button strong { font-size: 11px; font-weight: 600; }
 .folderSourceChooser > div > button small { color: rgba(255, 255, 255, .45); font-size: 9px; }
 
+.customerSelectionOverlay { background: rgba(25, 43, 37, .24); }
+.customerSelectionChooser {
+  top: 50%;
+  left: 50%;
+  width: min(520px, calc(100% - 32px));
+  max-height: min(620px, calc(100% - 32px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  transform: translate(-50%, -50%);
+}
+.customerSelectionBody { min-height: 160px; overflow: auto; padding: 10px !important; }
+.customerSelectionEvents { display: grid; gap: 6px; }
+.customerSelectionEvents > button {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--ui2-line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: var(--ui2-text);
+  background: var(--ui2-card);
+  text-align: left;
+  cursor: pointer;
+}
+.customerSelectionEvents > button:hover:not(:disabled) { border-color: var(--ui2-line-strong); background: var(--ui2-green-soft); }
+.customerSelectionEvents > button:disabled { border-color: var(--ui2-line); color: var(--ui2-faint); background: transparent; cursor: not-allowed; }
+.customerSelectionEvents > button > svg:first-child { justify-self: center; color: var(--ui2-green); }
+.customerSelectionEvents > button > span { min-width: 0; display: grid; gap: 5px; }
+.customerSelectionEvents > button strong { overflow: hidden; font-size: var(--ui2-f2); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.customerSelectionEvents > button small { color: var(--ui2-dim); font-size: var(--ui2-f1); }
+.customerSelectionEvents > button > svg:last-child { color: var(--ui2-faint); }
+.customerSelectionState { min-height: 150px; display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ui2-dim); font-size: var(--ui2-f2); text-align: center; }
+.customerSelectionState > button,
+.customerSelectionResult > button { min-height: 32px; border: 1px solid var(--ui2-line-strong); border-radius: 7px; padding: 0 10px; color: var(--ui2-green); background: transparent; font: 500 var(--ui2-f1)/1 inherit; cursor: pointer; }
+.customerSelectionResult { display: grid; gap: 10px; color: var(--ui2-text); }
+.customerSelectionResult > strong { font-size: var(--ui2-f3); font-weight: 600; }
+.customerSelectionResult > p { margin: 0; padding: 11px 12px; border: 1px solid var(--ui2-line-strong); border-radius: 8px; color: var(--ui2-green); background: var(--ui2-green-soft); font-size: var(--ui2-f2); line-height: 1.55; }
+.customerSelectionResult > div { min-height: 0; display: grid; gap: 7px; }
+.customerSelectionResult > div > span,
+.customerSelectionResult > small { color: var(--ui2-dim); font-size: var(--ui2-f1); }
+.customerSelectionResult ul { max-height: 260px; margin: 0; overflow: auto; padding: 8px 8px 8px 27px; border: 1px solid var(--ui2-line); border-radius: 8px; background: var(--ui2-sunk); color: var(--ui2-text); font-size: var(--ui2-f1); line-height: 1.7; }
+.customerSelectionResult > button { justify-self: start; }
+
 .breadcrumbs {
   min-width: 80px;
   flex: 1;
@@ -700,13 +745,14 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .actionBar { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 18px; border-top: 1px solid var(--bridge-line); background: var(--ui2-card); }
 .actionSummary { display: flex; align-items: center; gap: 12px; color: var(--ui2-dim); font-size: var(--ui2-f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .actionSummary b { color: var(--ui2-text); }
-.actionTools { min-width: 0; display: grid; grid-template-columns: repeat(8, minmax(72px, 1fr)); gap: 4px; }
+.actionTools { min-width: 0; display: grid; grid-template-columns: repeat(8, minmax(72px, 1fr)) minmax(118px, 1.35fr); gap: 4px; }
 .actionTools button { min-width: 0; min-height: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; border: 1px solid var(--ui2-line-strong); border-radius: 7px; padding: 0 8px; color: var(--ui2-green); background: transparent; font: 500 10.5px/1 inherit; }
 .actionTools button:hover:not(:disabled),
 .actionTools button[data-active="true"] { border-color: var(--ui2-green); color: var(--ui2-green); background: var(--ui2-green-soft); }
 .actionTools button[data-primary="true"] { min-height: 28px; height: 28px; border-color: var(--ui2-run); padding-inline: 11px; color: var(--ui2-on-run); background: var(--ui2-run); font-size: var(--ui2-f2); }
 .actionTools button:disabled { border-color: var(--ui2-line); color: var(--ui2-faint); background: transparent; cursor: not-allowed; opacity: 1; }
 .actionTools button small { display: none; }
+.actionTools .customerSelectionButton { min-width: 118px; }
 .folderThumbnailGauge { display: grid; gap: 4px; padding: 7px 14px 8px; border-top: 1px solid var(--bridge-line); color: var(--ui2-dim); font-size: var(--ui2-f1); }
 .folderThumbnailGauge input { width: 100%; accent-color: var(--ui2-green); }
 .folderThumbnailGauge small { color: var(--ui2-faint); font-size: var(--ui2-f1); }
@@ -919,10 +965,10 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .bridge[data-desktop-ui="true"] .compactInspectorEntry { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.2); border-radius: 7px; padding: 0 8px; color: rgba(255,255,255,.72); background: rgba(255,255,255,.06); font: 500 var(--ui2-f1)/1 inherit; }
   .bridge[data-desktop-ui="true"] .actionBar { grid-template-columns: minmax(0, 1fr); gap: 7px; }
   .bridge[data-desktop-ui="true"] .actionSummary { display: none; }
-  .bridge[data-desktop-ui="true"] .actionTools { grid-template-columns: repeat(8, minmax(72px, 1fr)); overflow-x: auto; }
+  .bridge[data-desktop-ui="true"] .actionTools { grid-template-columns: repeat(8, minmax(72px, 1fr)) minmax(118px, 1.35fr); overflow-x: auto; }
 }
 
 @container olivia-bridge (min-width: 901px) and (max-width: 1180px) {
   .bridge[data-desktop-ui="true"] .workspace { --bridge-folder-width: 190px; --bridge-preview-width: 280px; }
-  .bridge[data-desktop-ui="true"] .actionTools { grid-template-columns: repeat(8, minmax(72px, 1fr)); overflow-x: auto; }
+  .bridge[data-desktop-ui="true"] .actionTools { grid-template-columns: repeat(8, minmax(72px, 1fr)) minmax(118px, 1.35fr); overflow-x: auto; }
 }

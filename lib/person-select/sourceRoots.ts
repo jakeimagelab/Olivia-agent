@@ -25,6 +25,7 @@ function isInside(root: string, candidate: string): boolean {
 function friendlyRootLabel(root: string): string {
   if (root === "/Volumes/Workstation(M.2SSD)") return "Workstation(M.2SSD)";
   if (root === "/Users/jakemacstudio/UGnasync") return "UGnasync";
+  if (root === "/Volumes/Agentstation(M.2SSD)") return "Agentstation(M.2SSD)";
   return path.basename(root) || root;
 }
 
@@ -102,6 +103,49 @@ export async function resolvePersonSelectSourcePath(input: string, raw = process
   const matched = canonicalRoots.find((root) => isInside(root.canonicalPath, canonicalPath));
   if (!matched) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
   return { root: matched, canonicalPath, relativePath: path.relative(matched.canonicalPath, canonicalPath).split(path.sep).join("/") };
+}
+
+/**
+ * 사진 작업 러너용 경로 해석.
+ * "root-N/..." 으로 시작하면 허용 루트 목록에서 찾고,
+ * 그 밖은 기존 SOURCE_ROOT 기준으로 해석한다.
+ */
+export async function resolvePhotoWorkPath(remotePath: string): Promise<{
+  canonicalPath: string;
+  /** 경로 탈출 검사에 쓸 기준 폴더 */
+  rootPath: string;
+  /** 사람에게 보여줄 경로 */
+  displayPath: string;
+}> {
+  const requested = remotePath.trim();
+  if (!requested) throw new Error("--remote-path가 필요합니다.");
+  if (containsTraversal(requested)) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+
+  const normalized = requested.replace(/\\/g, "/");
+  const [first] = normalized.split("/").filter(Boolean);
+  if (/^root-\d+$/.test(first ?? "")) {
+    const resolved = await resolvePersonSelectSourcePath(normalized);
+    const displayPath = resolved.relativePath
+      ? `${resolved.root.label}/${resolved.relativePath.split("/").map((part) => part.normalize("NFC")).join("/")}`
+      : resolved.root.label;
+    return { canonicalPath: resolved.canonicalPath, rootPath: resolved.root.canonicalPath, displayPath };
+  }
+
+  const sourceRoot = process.env.SOURCE_ROOT?.trim() || process.env.OLIVIA_PHOTO_SOURCE_ROOT?.trim();
+  if (!sourceRoot) throw new Error("SOURCE_ROOT 또는 OLIVIA_PHOTO_SOURCE_ROOT가 설정되어 있지 않습니다.");
+
+  let rootPath: string;
+  try {
+    // 기존 사진 러너와 같이 SOURCE_ROOT 자체는 realpath로만 정규화한다.
+    rootPath = await realpath(sourceRoot);
+  } catch (error) {
+    throw sourceError(error);
+  }
+  const candidate = path.resolve(rootPath, ...normalized.split("/").filter(Boolean));
+  if (!isInside(rootPath, candidate)) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+  const canonicalPath = await canonicalDirectory(candidate);
+  if (!isInside(rootPath, canonicalPath)) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+  return { canonicalPath, rootPath, displayPath: normalized };
 }
 
 export function toPersonSelectVirtualPath(root: PersonSelectRoot, relativePath = "") {

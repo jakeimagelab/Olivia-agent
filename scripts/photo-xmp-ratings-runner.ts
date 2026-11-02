@@ -5,6 +5,7 @@ import { lstat, open, readdir, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
+import { resolvePhotoWorkPath } from "@/lib/person-select/sourceRoots";
 import { readRatingFromXmpText } from "@/lib/selectMatch/bridgeRating";
 
 loadEnvConfig(process.cwd());
@@ -74,19 +75,13 @@ async function readSidecarRating(directory: string, basename: string): Promise<n
 }
 
 export async function readPhotoXmpRatings(input: {
-  sourceRoot: string;
   remotePath: string;
   onProgress?: (current: number, total: number, message: string) => void;
 }) {
-  const sourceRoot = await realpath(input.sourceRoot);
   const remotePath = normalizeRemoteNasRelativePath(input.remotePath);
   if (!remotePath) throw new Error("--remote-path가 필요합니다.");
-  const selected = path.resolve(sourceRoot, ...remotePath.split("/").filter(Boolean));
-  if (!isInside(sourceRoot, selected)) throw new Error("PHOTO_XMP_RATINGS 경로가 SOURCE_ROOT 밖입니다.");
-  const selectedMetadata = await lstat(selected);
-  if (selectedMetadata.isSymbolicLink() || !selectedMetadata.isDirectory()) throw new Error("선택한 경로가 안전한 폴더가 아닙니다.");
-  const canonicalSelected = await realpath(selected);
-  if (!isInside(sourceRoot, canonicalSelected)) throw new Error("PHOTO_XMP_RATINGS 경로가 SOURCE_ROOT 밖을 가리킵니다.");
+  const resolved = await resolvePhotoWorkPath(remotePath);
+  const canonicalSelected = resolved.canonicalPath;
 
   const jpgFolder = path.basename(canonicalSelected).normalize("NFC") === JPG_INTEGRATED_DIRECTORY
     ? canonicalSelected
@@ -94,7 +89,7 @@ export async function readPhotoXmpRatings(input: {
   const jpgMetadata = await lstat(jpgFolder);
   if (jpgMetadata.isSymbolicLink() || !jpgMetadata.isDirectory()) throw new Error(`${JPG_INTEGRATED_DIRECTORY} 폴더를 찾을 수 없습니다.`);
   const canonicalJpgFolder = await realpath(jpgFolder);
-  if (!isInside(sourceRoot, canonicalJpgFolder)) throw new Error(`${JPG_INTEGRATED_DIRECTORY} 폴더가 SOURCE_ROOT 밖을 가리킵니다.`);
+  if (!isInside(resolved.rootPath, canonicalJpgFolder)) throw new Error(`${JPG_INTEGRATED_DIRECTORY} 폴더가 SOURCE_ROOT 밖을 가리킵니다.`);
 
   const names = (await readdir(canonicalJpgFolder, { withFileTypes: true }))
     .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && !entry.name.startsWith(".") && /\.(?:jpe?g)$/i.test(entry.name))
@@ -139,11 +134,9 @@ export async function readPhotoXmpRatings(input: {
 
 async function main() {
   const values = args();
-  const sourceRoot = process.env.SOURCE_ROOT?.trim() || process.env.OLIVIA_PHOTO_SOURCE_ROOT?.trim();
-  if (!sourceRoot) throw new Error("SOURCE_ROOT 또는 OLIVIA_PHOTO_SOURCE_ROOT가 설정되어 있지 않습니다.");
   const remotePath = values["remote-path"];
   if (!remotePath) throw new Error("--remote-path가 필요합니다.");
-  const result = await readPhotoXmpRatings({ sourceRoot, remotePath, onProgress: progress });
+  const result = await readPhotoXmpRatings({ remotePath, onProgress: progress });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 

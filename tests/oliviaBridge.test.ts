@@ -18,6 +18,7 @@ import {
   normalizePhotoToolSelectionNames,
   samePhotoToolSelectionNames,
 } from "@/lib/photo-bridge/toolLinkage";
+import { matchPersonSelectFileNames } from "@/lib/photo-bridge/personSelectImport";
 
 describe("Olivia Bridge", () => {
   it("JPG·RAW·사이드카를 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
@@ -75,6 +76,28 @@ describe("Olivia Bridge", () => {
     const fromXmp = mergePhotoToolRatings({ img_0001: 5 }, { "IMG_0001.JPG": 2, "IMG_0002.JPG": 3 });
     expect(fromXmp).toEqual({ img_0001: 5, img_0002: 3 });
     expect(mergePhotoToolRatings(fromXmp, { "IMG_0001.JPG": 0 }, { overwrite: true })).toEqual({ img_0002: 3 });
+  });
+
+  it("고객 선택 파일명을 현재 Bridge 폴더와 대조하고 못 찾은 파일을 유지한다", () => {
+    expect(matchPersonSelectFileNames(
+      ["R5K_0001.JPG", "r5k_0001.jpg", "R5K_0002.JPG", "R5K_9999.JPG"],
+      ["R5K_0001.JPG", "R5K_0002.jpeg", "R5K_0003.JPG"],
+    )).toEqual({
+      fileNames: ["R5K_0001.JPG", "R5K_0002.JPG", "R5K_9999.JPG"],
+      total: 3,
+      found: 2,
+      missing: ["R5K_9999.JPG"],
+    });
+  });
+
+  it("개인별 사진 셀렉 행사를 Bridge 선택 통로로 불러온다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    expect(workspace).toContain("고객 선택 불러오기");
+    expect(workspace).toContain('fetch("/api/person-select"');
+    expect(workspace).toContain("/exports/selected");
+    expect(workspace).toContain("지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?");
+    expect(workspace).toContain("setSelectedJpgNames(match.fileNames)");
+    expect(workspace).toContain("못 찾은 파일");
   });
 
   it("기능 창의 SVG 닫기 아이콘은 헤더 드래그로 처리하지 않는다", () => {
@@ -165,7 +188,7 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain('key === "classification"');
     expect(workspace).toContain("initialRemoteSelection={remoteProjectSelection}");
     expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
-    expect(workspace).not.toContain('sourceScope="person-select"');
+    expect(workspace).toContain('sourceScope="person-select"');
     expect(windowAdapter).toContain("DesktopWindowRouteProvider");
     expect(windowAdapter).toContain("routeHref: context?.routeHref");
     expect(windowAdapter).toContain("navigate,");

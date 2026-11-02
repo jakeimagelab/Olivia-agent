@@ -26,6 +26,7 @@ import {
   Scissors,
   Sparkles,
   Star,
+  Users,
   WandSparkles,
   X,
   type LucideIcon,
@@ -76,6 +77,7 @@ import {
   type BridgeGridDirection,
 } from "@/lib/photo-bridge/gridNavigation";
 import { mergePhotoToolSelectionSources, normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
+import { matchPersonSelectFileNames, type PersonSelectImportMatch } from "@/lib/photo-bridge/personSelectImport";
 import {
   BRIDGE_PANE_DEFAULT_WIDTH,
   bridgePaneWidthFromPointer,
@@ -152,6 +154,13 @@ type SceneState = {
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
 type PreviewTab = "selection" | "preview" | "olivia";
+type PersonSelectEventSummary = {
+  id: string;
+  title: string;
+  people_count: number;
+  submitted_count: number;
+};
+type PersonSelectImportResult = PersonSelectImportMatch & { eventTitle: string };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
   pointerId: number;
@@ -582,6 +591,12 @@ export default function OliviaBridgeWorkspace({
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
+  const [personSelectDialogOpen, setPersonSelectDialogOpen] = useState(false);
+  const [personSelectEvents, setPersonSelectEvents] = useState<PersonSelectEventSummary[]>([]);
+  const [personSelectEventsLoading, setPersonSelectEventsLoading] = useState(false);
+  const [personSelectImportingId, setPersonSelectImportingId] = useState("");
+  const [personSelectError, setPersonSelectError] = useState("");
+  const [personSelectResult, setPersonSelectResult] = useState<PersonSelectImportResult | null>(null);
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptMessage, setRawRootPromptMessage] = useState("");
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
@@ -1297,10 +1312,11 @@ export default function OliviaBridgeWorkspace({
   }, [focusedId, setSelectedIds, visibleJpgs]);
 
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || rawRootPromptOpen)) {
+    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || personSelectDialogOpen || rawRootPromptOpen)) {
       event.preventDefault();
       setFolderSourceOpen(false);
       setNasPickerOpen(false);
+      setPersonSelectDialogOpen(false);
       setRawRootPromptOpen(false);
       rootRef.current?.focus();
       return;
@@ -1360,7 +1376,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, rawRootPromptOpen, resizeThumbnails, sceneReviewOpen, selectAllVisibleJpgs, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, personSelectDialogOpen, rawRootPromptOpen, resizeThumbnails, sceneReviewOpen, selectAllVisibleJpgs, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1396,6 +1412,55 @@ export default function OliviaBridgeWorkspace({
     if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
     return "사진 폴더를 먼저 선택해 주세요.";
   }, [activeFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);
+
+  const loadPersonSelectEvents = useCallback(async () => {
+    setPersonSelectEventsLoading(true);
+    setPersonSelectError("");
+    try {
+      const response = await fetch("/api/person-select", { cache: "no-store" });
+      const body = await response.json().catch(() => ({})) as { ok?: boolean; events?: PersonSelectEventSummary[]; error?: string };
+      if (!response.ok || !body.ok) throw new Error(body.error || "개인별 사진 셀렉 행사를 불러오지 못했습니다.");
+      setPersonSelectEvents(Array.isArray(body.events) ? body.events : []);
+    } catch (error) {
+      setPersonSelectError(error instanceof Error ? error.message : "개인별 사진 셀렉 행사를 불러오지 못했습니다.");
+    } finally {
+      setPersonSelectEventsLoading(false);
+    }
+  }, []);
+
+  const openPersonSelectImport = useCallback(() => {
+    if (!hasActiveFolder || scanStatus !== "ready") return;
+    setPersonSelectDialogOpen(true);
+    setPersonSelectResult(null);
+    void loadPersonSelectEvents();
+  }, [hasActiveFolder, loadPersonSelectEvents, scanStatus]);
+
+  const closePersonSelectImport = useCallback(() => {
+    setPersonSelectDialogOpen(false);
+    setPersonSelectError("");
+    setPersonSelectImportingId("");
+    rootRef.current?.focus();
+  }, []);
+
+  const importPersonSelectEvent = useCallback(async (event: PersonSelectEventSummary) => {
+    const manualCount = manualSelectedIdsRef.current.size;
+    if (manualCount && !window.confirm(`지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?`)) return;
+    setPersonSelectImportingId(event.id);
+    setPersonSelectError("");
+    try {
+      const response = await fetch(`/api/person-select/${event.id}/exports/selected`, { cache: "no-store" });
+      const body = await response.json().catch(() => ({})) as { ok?: boolean; eventTitle?: string; fileNames?: unknown; error?: string };
+      if (!response.ok || !body.ok) throw new Error(body.error || "고객 선택을 불러오지 못했습니다.");
+      const fileNames = Array.isArray(body.fileNames) ? body.fileNames.filter((name): name is string => typeof name === "string") : [];
+      const match = matchPersonSelectFileNames(fileNames, scan.jpgs.map((photo) => photo.name));
+      setSelectedJpgNames(match.fileNames);
+      setPersonSelectResult({ ...match, eventTitle: body.eventTitle || event.title });
+    } catch (error) {
+      setPersonSelectError(error instanceof Error ? error.message : "고객 선택을 불러오지 못했습니다.");
+    } finally {
+      setPersonSelectImportingId("");
+    }
+  }, [scan.jpgs, setSelectedJpgNames]);
 
   useEffect(() => {
     let disposed = false;
@@ -1759,6 +1824,7 @@ export default function OliviaBridgeWorkspace({
             const disabledReason = toolDisabledReason(key);
             return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={toolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => openTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={12} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
           })}
+          <button type="button" className={styles.customerSelectionButton} onClick={openPersonSelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "고객 선택 불러오기: 사진 폴더를 먼저 선택해 주세요." : "고객 선택 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "개인별 사진 셀렉에서 고객이 고른 사진을 불러옵니다."}><Users size={12} strokeWidth={1.8} /><span>고객 선택 불러오기</span></button>
         </nav>
       </section>
 
@@ -1856,6 +1922,33 @@ export default function OliviaBridgeWorkspace({
         </div>
       ) : null}
 
+      {personSelectDialogOpen ? (
+        <div className={`${styles.folderSourceOverlay} ${styles.customerSelectionOverlay}`} onClick={closePersonSelectImport}>
+          <section className={`${styles.folderSourceChooser} ${styles.customerSelectionChooser}`} role="dialog" aria-modal="true" aria-labelledby="bridge-person-select-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><strong id="bridge-person-select-title">고객 선택 불러오기</strong><span>개인별 사진 셀렉 행사를 고르면 현재 폴더에서 같은 파일명을 찾습니다.</span></div>
+              <button type="button" onClick={closePersonSelectImport} aria-label="고객 선택 불러오기 닫기"><X size={18} /></button>
+            </header>
+            <div className={styles.customerSelectionBody}>
+              {personSelectResult ? (
+                <section className={styles.customerSelectionResult} aria-live="polite">
+                  <strong>{personSelectResult.eventTitle}</strong>
+                  <p>고객 선택 {personSelectResult.total.toLocaleString("ko-KR")}장 중 지금 폴더에서 {personSelectResult.found.toLocaleString("ko-KR")}장을 찾았습니다. ({personSelectResult.missing.length.toLocaleString("ko-KR")}장 못 찾음)</p>
+                  {personSelectResult.missing.length ? <div><span>못 찾은 파일</span><ul>{personSelectResult.missing.map((name) => <li key={name}>{name}</li>)}</ul></div> : <small>모든 고객 선택 사진을 찾았습니다.</small>}
+                  <button type="button" onClick={() => setPersonSelectResult(null)}>다른 행사 고르기</button>
+                </section>
+              ) : personSelectEventsLoading ? (
+                <div className={styles.customerSelectionState}><LoaderCircle className={styles.spin} size={17} />행사 목록을 불러오는 중입니다.</div>
+              ) : personSelectError ? (
+                <div className={styles.customerSelectionState} role="alert"><CircleAlert size={17} />{personSelectError}<button type="button" onClick={() => void loadPersonSelectEvents()}>다시 불러오기</button></div>
+              ) : personSelectEvents.length ? (
+                <div className={styles.customerSelectionEvents}>{personSelectEvents.map((event) => <button key={event.id} type="button" disabled={Boolean(personSelectImportingId)} onClick={() => void importPersonSelectEvent(event)}><Users size={17} /><span><strong>{event.title}</strong><small>인원 {event.people_count.toLocaleString("ko-KR")}명 · 제출 {event.submitted_count.toLocaleString("ko-KR")}명</small></span>{personSelectImportingId === event.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div>
+              ) : <div className={styles.customerSelectionState}>등록된 개인별 사진 셀렉 행사가 없습니다.</div>}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {rawRootPromptOpen ? (
         <div className={styles.folderSourceOverlay} onClick={() => setRawRootPromptOpen(false)}>
           <section className={styles.folderSourceChooser} role="dialog" aria-modal="true" aria-labelledby="bridge-raw-root-title" onClick={(event) => event.stopPropagation()}>
@@ -1873,6 +1966,7 @@ export default function OliviaBridgeWorkspace({
 
       {nasPickerOpen ? (
         <PhotoSourcePicker
+          sourceScope="person-select"
           onCancel={() => {
             setNasPickerOpen(false);
             rootRef.current?.focus();

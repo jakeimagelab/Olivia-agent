@@ -32,6 +32,31 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     }
     return csvResponse([["이름", "제출", "상품", "내용", "수량", "단가(원)", "금액(원)"], ...rows, ["합계", "", "", "", "", "", total]], `${event.title}-추가주문.csv`);
   }
+  if (kind === "selected") {
+    const { data: choices } = await db
+      .from("person_select_choices")
+      .select("person_id,category_key,person_select_images(original_file_name,source_rel_path)")
+      .eq("event_id", eventId);
+    const names = new Map((people ?? []).map((item) => [item.id, item]));
+    const rows = (choices ?? []).map((choice) => {
+      const image = choice.person_select_images as unknown as { original_file_name: string; source_rel_path: string } | null;
+      const person = names.get(choice.person_id);
+      return {
+        fileName: image?.original_file_name ?? "",
+        relativePath: image?.source_rel_path ?? "",
+        personName: person?.display_name ?? "",
+        groupLabel: person?.group_label ?? "",
+        categoryKey: choice.category_key,
+      };
+    }).filter((row) => row.fileName);
+    return Response.json({
+      ok: true,
+      eventTitle: event.title,
+      total: rows.length,
+      fileNames: [...new Set(rows.map((row) => row.fileName))],
+      rows,
+    });
+  }
   if (kind !== "retouch") return Response.json({ ok: false, error: "없는 내보내기 형식입니다." }, { status: 404 });
   const { data: choices } = await db.from("person_select_choices").select("person_id,category_key,retouch_keys,memo,updated_at,person_select_images(original_file_name,source_rel_path)").eq("event_id", eventId).order("updated_at");
   const names = new Map((people ?? []).map((item) => [item.id, item])); const labels = new Map((event.retouch_options as { key: string; label: string }[]).map((item) => [item.key, item.label])); const categoryLabels = new Map(((event.categories ?? []) as { key: string; label: string }[]).map((item) => [item.key, item.label]));
