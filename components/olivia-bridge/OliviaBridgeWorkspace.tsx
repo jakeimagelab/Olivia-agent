@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
+  ArrowDown,
+  ArrowUp,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -76,6 +78,15 @@ import {
   bridgeGridNavigationTarget,
   type BridgeGridDirection,
 } from "@/lib/photo-bridge/gridNavigation";
+import {
+  bridgeKeyboardRangeSelection,
+  bridgeReviewDeckWindow,
+  bridgeReviewLayout,
+  cycleBridgeReviewIndex,
+  removeBridgeReviewItem,
+  restoreBridgeReviewItem,
+  type BridgeReviewRemovedItem,
+} from "@/lib/photo-bridge/reviewMode";
 import { mergePhotoToolSelectionSources, normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import { matchPersonSelectFileNames, type PersonSelectImportMatch } from "@/lib/photo-bridge/personSelectImport";
 import {
@@ -161,6 +172,7 @@ type PersonSelectEventSummary = {
   submitted_count: number;
 };
 type PersonSelectImportResult = PersonSelectImportMatch & { eventTitle: string };
+type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
   pointerId: number;
@@ -348,6 +360,76 @@ function BridgeFullscreenPreview({
         </div>
         <p>1–5 별점 · 0 해제 · 6–9 컬러 · ⌥⌘ 숫자만 보기 · ⌥⌘A 전체</p>
       </div>
+    </section>
+  );
+}
+
+function BridgeSelectionReview({
+  photos,
+  activeId,
+  rating,
+  colorLabel,
+  excluded,
+  removedCount,
+  onFocus,
+  onMove,
+  onRemove,
+  onRestore,
+  onOpenFullscreen,
+  onClose,
+}: {
+  photos: BridgeJpgFile[];
+  activeId: string | null;
+  rating: number;
+  colorLabel?: BridgeColorLabel;
+  excluded: boolean;
+  removedCount: number;
+  onFocus: (id: string) => void;
+  onMove: (delta: -1 | 1) => void;
+  onRemove: () => void;
+  onRestore: () => void;
+  onOpenFullscreen: () => void;
+  onClose: () => void;
+}) {
+  const layout = bridgeReviewLayout(photos.length);
+  const activeIndex = Math.max(0, photos.findIndex((photo) => photo.id === activeId));
+  const activePhoto = photos[activeIndex] ?? null;
+  const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
+  const deck = bridgeReviewDeckWindow(photos, activePhoto ? activeIndex : -1);
+
+  const photoCard = (photo: BridgeJpgFile, active: boolean) => (
+    <button key={photo.id} type="button" className={styles.reviewPhotoCard} data-active={active ? "true" : "false"} onClick={() => onFocus(photo.id)} aria-label={`${photo.name}${active ? ", 현재 사진" : ""}`}>
+      <BridgePreviewImage photo={photo} />
+      <span><strong>{photo.name}</strong>{active ? <small>현재 사진</small> : null}</span>
+    </button>
+  );
+
+  return (
+    <section className={styles.selectionReview} role="dialog" aria-modal="true" aria-label="선택 사진 리뷰">
+      <header className={styles.reviewHeader}>
+        <div><strong>선택 사진 리뷰</strong><span>{photos.length.toLocaleString("ko-KR")}장 · {layout === "deck" ? "로테이션" : layout === "grid" ? "비교 보기" : "한 장 보기"}</span></div>
+        <button type="button" onClick={onClose} aria-label="리뷰 나가기"><X size={22} /></button>
+      </header>
+      <div className={styles.reviewStage} data-layout={layout}>
+        {!photos.length ? <div className={styles.reviewEmpty}><Images size={34} /><strong>모든 사진을 선택 해제했습니다.</strong><span>↑ 키로 마지막 사진을 다시 선택할 수 있어요.</span></div> : null}
+        {layout === "single" && activePhoto ? photoCard(activePhoto, true) : null}
+        {layout === "grid" ? <div className={styles.reviewGrid}>{photos.map((photo) => photoCard(photo, photo.id === activePhoto?.id))}</div> : null}
+        {layout === "deck" ? <div className={styles.reviewDeck}>{deck.map(({ item, offset }) => {
+          const active = offset === 0;
+          return <button key={item.id} type="button" className={styles.reviewDeckCard} data-offset={offset} data-active={active ? "true" : "false"} onClick={() => onFocus(item.id)} aria-label={`${item.name}${active ? ", 현재 사진" : ""}`}>{active ? <BridgePreviewImage photo={item} /> : <BridgeThumbnail photo={item} alt={item.name} eager />}<span>{item.name}</span></button>;
+        })}</div> : null}
+      </div>
+      <footer className={styles.reviewFooter}>
+        <div className={styles.reviewCurrent}><strong>{activePhoto?.name ?? "선택 사진 없음"}</strong><span>{activePhoto ? `${activeIndex + 1} / ${photos.length}` : "↑ 복원 가능"}</span>{rating ? <b><Star size={12} fill="currentColor" /> {rating}</b> : null}{color ? <b><i style={{ background: color.color }} />{color.name}</b> : null}{excluded ? <b className={styles.reviewExcluded}>X 제외</b> : null}</div>
+        <div className={styles.reviewControls}>
+          <button type="button" disabled={!photos.length} onClick={() => onMove(-1)} aria-label="이전 사진"><ChevronLeft size={18} /></button>
+          <button type="button" disabled={!photos.length} onClick={onRemove}><ArrowDown size={17} /> 선택 해제</button>
+          <button type="button" disabled={!removedCount} onClick={onRestore}><ArrowUp size={17} /> 다시 선택</button>
+          <button type="button" disabled={!activePhoto} onClick={onOpenFullscreen}><Maximize2 size={16} /> 크게 보기</button>
+          <button type="button" disabled={!photos.length} onClick={() => onMove(1)} aria-label="다음 사진"><ChevronRight size={18} /></button>
+        </div>
+        <p>←→ 이동 · ↓ 해제 · ↑ 복원 · Space 크게 보기 · 1–5 별점 · 0 해제 · 6–9 컬러 · X 제외 · ESC 나가기</p>
+      </footer>
     </section>
   );
 }
@@ -573,6 +655,9 @@ export default function OliviaBridgeWorkspace({
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
+  const [selectionReviewOpen, setSelectionReviewOpen] = useState(false);
+  const [reviewActiveId, setReviewActiveId] = useState<string | null>(null);
+  const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedSource[]>([]);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
@@ -648,6 +733,12 @@ export default function OliviaBridgeWorkspace({
     if (fileFilter === "excluded") return excludedIds.has(photo.id);
     return true;
   }), [colorLabels, effectiveRatings, excludedIds, fileFilter, labelFilter, scan.jpgs]);
+  const reviewPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
+  const resolvedReviewActiveId = reviewActiveId && reviewPhotos.some((photo) => photo.id === reviewActiveId)
+    ? reviewActiveId
+    : reviewPhotos[0]?.id ?? null;
+  const reviewActiveIndex = reviewPhotos.findIndex((photo) => photo.id === resolvedReviewActiveId);
+  const reviewActivePhoto = reviewPhotos[reviewActiveIndex] ?? null;
   const showRaws = !labelFilter && (fileFilter === "all" || fileFilter === "raw");
   const showSidecars = !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
@@ -1183,7 +1274,7 @@ export default function OliviaBridgeWorkspace({
     document.querySelector<HTMLElement>(`[data-bridge-photo-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [focusedIndex, setSelectedIds, visibleJpgs]);
 
-  const moveGridFocus = useCallback((direction: BridgeGridDirection) => {
+  const moveGridFocus = useCallback((direction: BridgeGridDirection, extendRange = false) => {
     const fileArea = fileAreaRef.current;
     if (!fileArea || !visibleJpgs.length) return;
     const visibleIds = new Set(visibleJpgs.map((photo) => photo.id));
@@ -1205,12 +1296,80 @@ export default function OliviaBridgeWorkspace({
     });
     if (!targetId || targetId === focusedId) return;
     setFocusedId(targetId);
-    setSelectedIds(new Set([targetId]));
-    setAnchorId(targetId);
+    if (extendRange) {
+      const orderedIds = visibleJpgs.map((photo) => photo.id);
+      const rangeAnchor = anchorId && orderedIds.includes(anchorId) ? anchorId : focusedId && orderedIds.includes(focusedId) ? focusedId : targetId;
+      setSelectedIds(bridgeKeyboardRangeSelection({ orderedIds, anchorId: rangeAnchor, targetId }));
+      if (!anchorId) setAnchorId(rangeAnchor);
+    } else {
+      setSelectedIds(new Set([targetId]));
+      setAnchorId(targetId);
+    }
     setPreviewSize(undefined);
     elements.find((element) => element.dataset.bridgePhotoId === targetId)
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [focusedId, setSelectedIds, visibleJpgs]);
+  }, [anchorId, focusedId, setSelectedIds, visibleJpgs]);
+
+  const focusReviewPhoto = useCallback((id: string) => {
+    setReviewActiveId(id);
+    setFocusedId(id);
+    setFocusedPlainId(null);
+    setPreviewSize(undefined);
+  }, []);
+
+  const openSelectionReview = useCallback(() => {
+    const first = focusedId && selectedIds.has(focusedId)
+      ? focusedId
+      : scan.jpgs.find((photo) => selectedIds.has(photo.id))?.id ?? null;
+    if (!first) return;
+    setReviewRemoved([]);
+    setReviewActiveId(first);
+    setFocusedId(first);
+    setSelectionReviewOpen(true);
+  }, [focusedId, scan.jpgs, selectedIds]);
+
+  const closeSelectionReview = useCallback(() => {
+    setSelectionReviewOpen(false);
+    setReviewRemoved([]);
+    setAnchorId(resolvedReviewActiveId);
+    requestAnimationFrame(() => rootRef.current?.focus());
+  }, [resolvedReviewActiveId]);
+
+  const moveReview = useCallback((delta: -1 | 1) => {
+    if (!reviewPhotos.length) return;
+    const nextIndex = cycleBridgeReviewIndex(reviewActiveIndex, reviewPhotos.length, delta);
+    const next = reviewPhotos[nextIndex];
+    if (next) focusReviewPhoto(next.id);
+  }, [focusReviewPhoto, reviewActiveIndex, reviewPhotos]);
+
+  const removeReviewPhoto = useCallback(() => {
+    const activeId = resolvedReviewActiveId;
+    if (!activeId) return;
+    const result = removeBridgeReviewItem(reviewPhotos.map((photo) => photo.id), activeId);
+    const removed = result.removed;
+    if (!removed) return;
+    const manual = new Set(manualSelectedIdsRef.current);
+    const adobe = new Set(adobeSelectedIdsRef.current);
+    const wasManual = manual.delete(activeId);
+    const wasAdobe = adobe.delete(activeId);
+    commitSelectedIds(manual, adobe);
+    setReviewRemoved((current) => [...current, { ...removed, wasManual, wasAdobe }]);
+    setReviewActiveId(result.nextActiveId);
+    setFocusedId(result.nextActiveId);
+  }, [commitSelectedIds, resolvedReviewActiveId, reviewPhotos]);
+
+  const restoreReviewPhoto = useCallback(() => {
+    const removed = reviewRemoved.at(-1);
+    if (!removed) return;
+    const restored = restoreBridgeReviewItem(reviewPhotos.map((photo) => photo.id), removed);
+    const manual = new Set(manualSelectedIdsRef.current);
+    const adobe = new Set(adobeSelectedIdsRef.current);
+    if (removed.wasManual || !removed.wasAdobe) manual.add(removed.id);
+    if (removed.wasAdobe) adobe.add(removed.id);
+    commitSelectedIds(manual, adobe);
+    setReviewRemoved((current) => current.slice(0, -1));
+    if (restored.activeId) focusReviewPhoto(restored.activeId);
+  }, [commitSelectedIds, focusReviewPhoto, reviewPhotos, reviewRemoved]);
 
   const labelTargets = useCallback((focusedOnly = false) => {
     if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
@@ -1254,8 +1413,8 @@ export default function OliviaBridgeWorkspace({
     });
   }, [labelTargets]);
 
-  const toggleExcluded = useCallback(() => {
-    const targets = selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
+  const toggleExcluded = useCallback((focusedOnly = false) => {
+    const targets = labelTargets(focusedOnly);
     if (!targets.size) return;
     setExcludedIds((previous) => {
       const next = new Set(previous);
@@ -1266,7 +1425,7 @@ export default function OliviaBridgeWorkspace({
       }
       return next;
     });
-  }, [focusedId, selectedIds]);
+  }, [labelTargets]);
 
   const closeFullscreenPreview = useCallback(() => {
     setFullscreenPreviewOpen(false);
@@ -1274,9 +1433,14 @@ export default function OliviaBridgeWorkspace({
   }, []);
 
   const openFullscreenPreview = useCallback(() => {
-    if (!focusedPhoto || focusedIndex < 0) return;
+    if (selectionReviewOpen ? !reviewActivePhoto : !focusedPhoto || focusedIndex < 0) return;
     setFullscreenPreviewOpen(true);
-  }, [focusedIndex, focusedPhoto]);
+  }, [focusedIndex, focusedPhoto, reviewActivePhoto, selectionReviewOpen]);
+
+  const moveFullscreenPreview = useCallback((delta: number) => {
+    if (selectionReviewOpen) moveReview(delta < 0 ? -1 : 1);
+    else moveFocus(delta);
+  }, [moveFocus, moveReview, selectionReviewOpen]);
 
   const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
     if (fullscreenPreviewOpen) closeFullscreenPreview();
@@ -1334,6 +1498,11 @@ export default function OliviaBridgeWorkspace({
       }
     }
     if (isTypingTarget(event.target)) return;
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyB") {
+      event.preventDefault();
+      if (!toolKey && !sceneReviewOpen && !selectionReviewOpen) openSelectionReview();
+      return;
+    }
     if (event.altKey && event.metaKey && !event.ctrlKey && !event.shiftKey) {
       const command = bridgeLabelFilterCommandFromShortcutCode(event.code);
       if (command) {
@@ -1348,17 +1517,32 @@ export default function OliviaBridgeWorkspace({
         closeFullscreenPreview();
       } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
         event.preventDefault();
-        moveFocus(-1);
+        moveFullscreenPreview(-1);
       } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
         event.preventDefault();
-        moveFocus(1);
+        moveFullscreenPreview(1);
       } else if (/^[0-5]$/.test(event.key)) {
         event.preventDefault();
         applyRating(Number(event.key), true);
       } else if (/^[6-9]$/.test(event.key)) {
         event.preventDefault();
         applyColorLabel(Number(event.key) as BridgeColorLabel, true);
+      } else if (event.key.toLocaleLowerCase("en-US") === "x") {
+        event.preventDefault();
+        toggleExcluded(true);
       }
+      return;
+    }
+    if (selectionReviewOpen) {
+      if (event.key === "Escape") { event.preventDefault(); closeSelectionReview(); }
+      else if (event.key === "ArrowLeft") { event.preventDefault(); moveReview(-1); }
+      else if (event.key === "ArrowRight") { event.preventDefault(); moveReview(1); }
+      else if (event.key === "ArrowDown") { event.preventDefault(); removeReviewPhoto(); }
+      else if (event.key === "ArrowUp") { event.preventDefault(); restoreReviewPhoto(); }
+      else if (event.key === " ") { event.preventDefault(); openFullscreenPreview(); }
+      else if (/^[0-5]$/.test(event.key)) { event.preventDefault(); applyRating(Number(event.key), true); }
+      else if (/^[6-9]$/.test(event.key)) { event.preventDefault(); applyColorLabel(Number(event.key) as BridgeColorLabel, true); }
+      else if (event.key.toLocaleLowerCase("en-US") === "x") { event.preventDefault(); toggleExcluded(true); }
       return;
     }
     if (event.key === "Escape") {
@@ -1368,15 +1552,15 @@ export default function OliviaBridgeWorkspace({
     }
     if (toolKey || sceneReviewOpen) return;
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA") { event.preventDefault(); selectAllVisibleJpgs(); }
-    else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left"); }
-    else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right"); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up"); }
-    else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down"); }
+    else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left", event.shiftKey); }
+    else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right", event.shiftKey); }
+    else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up", event.shiftKey); }
+    else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down", event.shiftKey); }
     else if (event.key === " " && isSpaceShortcutTarget(event.target, event.currentTarget)) { event.preventDefault(); openFullscreenPreview(); }
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, personSelectDialogOpen, rawRootPromptOpen, resizeThumbnails, sceneReviewOpen, selectAllVisibleJpgs, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, closeSelectionReview, folderSourceOpen, fullscreenPreviewOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1557,6 +1741,9 @@ export default function OliviaBridgeWorkspace({
   }, { starred: 0, colored: 0, selected: 0, unselected: 0 }), [colorLabels, effectiveRatings, scan.jpgs]);
   const labeledCount = selectionCounts.selected;
   const selectedPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
+  const fullscreenPhoto = selectionReviewOpen ? reviewActivePhoto : focusedPhoto;
+  const fullscreenIndex = selectionReviewOpen ? reviewActiveIndex : focusedIndex;
+  const fullscreenTotal = selectionReviewOpen ? reviewPhotos.length : visibleJpgs.length;
   const adobeSelectedCount = selectedPhotos.reduce((count, photo) => count + (adobeSelectedIdsRef.current.has(photo.id) ? 1 : 0), 0);
   const manualSelectedCount = selectedPhotos.length - adobeSelectedCount;
   const selectedRatingValues = selectedPhotos.map((photo) => effectiveRatings[photo.id] ?? 0);
@@ -1807,7 +1994,7 @@ export default function OliviaBridgeWorkspace({
                 <div className={styles.bulkColorButtons}>{(Object.entries(BRIDGE_COLOR_LABELS) as Array<[string, { name: string; color: string }]>).map(([label, value]) => <button key={label} type="button" disabled={!selectedPhotos.length} aria-label={`${value.name} 레이블`} aria-pressed={!selectedColorMixed && commonSelectedColor === Number(label)} style={{ background: value.color }} onClick={() => applyColorLabel(Number(label) as BridgeColorLabel)} />)}<button type="button" className={styles.clearColorButton} disabled={!selectedPhotos.length} aria-label="컬러 레이블 해제" onClick={clearColorLabels}><X size={14} /></button></div>
               </section>
               <div className={styles.selectionInspectorActions}>
-                <button type="button" disabled={!selectedPhotos.length} onClick={toggleExcluded}>{allSelectedExcluded ? "선택 파일 제외 해제" : "선택 파일 제외"}</button>
+                <button type="button" disabled={!selectedPhotos.length} onClick={() => toggleExcluded()}>{allSelectedExcluded ? "선택 파일 제외 해제" : "선택 파일 제외"}</button>
                 <button type="button" disabled={!focusedPhoto} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button>
               </div>
             </div>
@@ -1829,7 +2016,7 @@ export default function OliviaBridgeWorkspace({
       </section>
 
       <footer className={styles.shortcutBar}>
-        <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
+        <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
       </footer>
 
       {sceneReviewOpen ? <BridgeFloatingWindow
@@ -1893,16 +2080,31 @@ export default function OliviaBridgeWorkspace({
         onClose={() => setToolKey(undefined)}
       ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={remoteProjectSelection} /></div></BridgeFloatingWindow> : null}
 
-      {fullscreenPreviewOpen && focusedPhoto ? (
+      {selectionReviewOpen ? <BridgeSelectionReview
+        photos={reviewPhotos}
+        activeId={resolvedReviewActiveId}
+        rating={reviewActivePhoto ? effectiveRatings[reviewActivePhoto.id] ?? 0 : 0}
+        colorLabel={reviewActivePhoto ? colorLabels[reviewActivePhoto.id] : undefined}
+        excluded={Boolean(reviewActivePhoto && excludedIds.has(reviewActivePhoto.id))}
+        removedCount={reviewRemoved.length}
+        onFocus={focusReviewPhoto}
+        onMove={moveReview}
+        onRemove={removeReviewPhoto}
+        onRestore={restoreReviewPhoto}
+        onOpenFullscreen={openFullscreenPreview}
+        onClose={closeSelectionReview}
+      /> : null}
+
+      {fullscreenPreviewOpen && fullscreenPhoto ? (
         <BridgeFullscreenPreview
-          photo={focusedPhoto}
-          position={focusedIndex + 1}
-          total={visibleJpgs.length}
-          rating={effectiveRatings[focusedPhoto.id] ?? 0}
-          colorLabel={colorLabels[focusedPhoto.id]}
-          canMovePrevious={focusedIndex > 0}
-          canMoveNext={focusedIndex >= 0 && focusedIndex < visibleJpgs.length - 1}
-          onMove={moveFocus}
+          photo={fullscreenPhoto}
+          position={fullscreenIndex + 1}
+          total={fullscreenTotal}
+          rating={effectiveRatings[fullscreenPhoto.id] ?? 0}
+          colorLabel={colorLabels[fullscreenPhoto.id]}
+          canMovePrevious={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex > 0}
+          canMoveNext={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex >= 0 && fullscreenIndex < fullscreenTotal - 1}
+          onMove={moveFullscreenPreview}
           onClose={closeFullscreenPreview}
         />
       ) : null}
