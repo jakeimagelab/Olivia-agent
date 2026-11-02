@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { signedImageUrls, getPublicSessionContext } from "@/lib/person-select/server";
-import { eventIsLocked } from "@/lib/person-select/core";
+import { effectiveExtraMax, eventIsLocked, extraPickCount, pickLimit, priceOrder, requiredPickCount } from "@/lib/person-select/core";
 
 export const dynamic = "force-dynamic";
 export const preferredRegion = ["icn1"];
@@ -30,23 +30,39 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     return count ?? 0;
     })),
   ]);
+  const extraMax = effectiveExtraMax(ctx.event);
   const categories = ctx.event.categories.map((category, index) => {
-    const choice = (choices ?? []).find((item) => item.category_key === category.key) as Record<string, unknown> | undefined;
-    const image = choice?.person_select_images as { original_file_name?: string; thumb_path?: string } | null | undefined;
+    const imageCount = counts[index] ?? 0;
+    const own = (choices ?? [])
+      .filter((item) => item.category_key === category.key)
+      .sort((a, b) => String(a.updated_at).localeCompare(String(b.updated_at)));
     return {
       ...category,
-      image_count: counts[index] ?? 0,
-      choice: choice ? {
-        id: choice.id,
-        image_id: choice.image_id,
-        original_file_name: image?.original_file_name ?? "",
-        thumb_url: image?.thumb_path ? signedThumbs.get(image.thumb_path) ?? null : null,
-        retouch_keys: choice.retouch_keys,
-        memo: choice.memo,
-        updated_at: choice.updated_at,
-      } : null,
+      image_count: imageCount,
+      // 고객이 실제로 골라야 하는 장수 (올라온 사진이 수량보다 적으면 있는 만큼)
+      need: requiredPickCount(category.pick, imageCount),
+      // 추가 보정까지 포함해 고를 수 있는 최대 장수
+      max: Math.min(imageCount, pickLimit(category.pick, extraMax)),
+      choices: own.map((choice) => {
+        const image = choice.person_select_images as unknown as { original_file_name?: string; thumb_path?: string } | null;
+        return {
+          id: choice.id,
+          image_id: choice.image_id,
+          original_file_name: image?.original_file_name ?? "",
+          thumb_url: image?.thumb_path ? signedThumbs.get(image.thumb_path) ?? null : null,
+          retouch_keys: choice.retouch_keys,
+          memo: choice.memo,
+          updated_at: choice.updated_at,
+        };
+      }),
     };
   });
+  // 추가 주문: 추가 보정 장수는 고른 장수로 자동 계산하고, 상품 주문은 저장된 내역으로 계산한다.
+  const offers = ctx.event.offers ?? [];
+  const chosenCounts = Object.fromEntries(categories.map((category) => [category.key, category.choices.length]));
+  const photoNames = Object.fromEntries(categories.flatMap((category) => category.choices.map((choice) => [choice.image_id, choice.original_file_name])));
+  const orderItems = ctx.person.orders ?? [];
+  const priced = priceOrder({ offers, items: orderItems, extraCount: extraPickCount(ctx.event.categories, chosenCounts), extraPrice: Number(ctx.event.extra_price) || 0, photoNames });
   await db.from("person_select_people").update({ last_seen_at: new Date().toISOString() }).eq("id", ctx.person.id);
   return Response.json({
     ok: true,
@@ -55,10 +71,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       slug: ctx.event.slug,
       deadline_at: ctx.event.deadline_at,
       status: ctx.event.status,
+      source_layout: ctx.event.source_layout ?? "school",
       retouch_options: ctx.event.retouch_options,
       memo_max: ctx.event.memo_max,
       locked: eventIsLocked(ctx.event),
+      offer_notice: ctx.event.offer_notice ?? "",
+      extra_price: Number(ctx.event.extra_price) || 0,
+      extra_max: extraMax,
+      offers,
     },
+    order: { items: orderItems, lines: priced.lines, total: priced.total },
     person: { display_name: ctx.person.display_name, group_label: ctx.person.group_label, submitted_at: ctx.person.submitted_at },
     categories,
   });

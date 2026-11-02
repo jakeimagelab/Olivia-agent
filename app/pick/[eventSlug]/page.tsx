@@ -7,7 +7,7 @@ export default async function Page({ params }: { params: Promise<{ eventSlug: st
   const { eventSlug } = await params;
   const { data: event } = await getSupabaseAdmin()
     .from("person_select_events")
-    .select("title,slug,deadline_at,status")
+    .select("title,slug,deadline_at,status,source_layout")
     .eq("slug", eventSlug)
     .maybeSingle();
   return <PersonSelectLogin slug={eventSlug} event={event} />;

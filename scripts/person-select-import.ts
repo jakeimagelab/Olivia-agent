@@ -6,7 +6,8 @@ import { readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createUniquePin, normalizeLoginName, normalizeNfc, parseGroupFolderName, parsePersonFolderName } from "@/lib/person-select/core";
+import { classifyPersonFolderName, createUniquePin, normalizeLoginName, normalizeNfc, parseGroupFolderName, parsePersonFolderName, PERSON_FOLDER_JPG_DIRECTORIES } from "@/lib/person-select/core";
+import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-select/types";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 
@@ -23,7 +24,8 @@ function readArgs() {
     if (!folder || !category || !["person", "group"].includes(owner)) throw new Error(`올바르지 않은 --map 값입니다: ${value}`);
     return { folder, category, owner: owner as "person" | "group" };
   });
-  return { eventSlug: take("--event"), eventId: take("--event-id"), root: take("--root"), sourceRelativePath: take("--source-relative-path"), mappings, dryRun: values.includes("--dry-run") };
+  const layout = take("--layout") === "person-folders" ? "person-folders" as const : "school" as const;
+  return { eventSlug: take("--event"), eventId: take("--event-id"), root: take("--root"), sourceRelativePath: take("--source-relative-path"), mappings, layout, dryRun: values.includes("--dry-run") };
 }
 
 function report(current: number, total: number, message: string) {
@@ -63,25 +65,96 @@ export async function findSkippedFolders(root: string, mappings: Mapping[]) {
   }
 }
 
+const JPG_FILE = /\.jpe?g$/i;
+
+async function listJpgs(folder: string) {
+  try {
+    const entries = await readdir(folder, { withFileTypes: true, encoding: "utf8" });
+    return entries.filter((entry) => entry.isFile() && !entry.name.startsWith(".") && JPG_FILE.test(entry.name)).map((entry) => entry.name);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * 이름 폴더 구조: 촬영폴더/김춘자/JPG원본/*.jpg (RAW는 김춘자 폴더 안 다른 곳에 그대로 둔다)
+ * JPG원본 폴더가 없으면 이름 폴더 바로 아래 JPG를 쓴다.
+ * 그룹N 폴더는 작가가 직접 고르므로 올리지 않고, 개인N 폴더는 이름을 아직 안 바꾼 것으로 보고 건너뛴다.
+ */
+export async function scanPersonFolders(root: string) {
+  const files: Candidate[] = [];
+  const groupFolders: string[] = [];
+  const unnamedFolders: string[] = [];
+  const emptyFolders: string[] = [];
+  const entries = await readdir(root, { withFileTypes: true, encoding: "utf8" });
+  for (const dir of entries) {
+    if (!dir.isDirectory()) continue;
+    const kind = classifyPersonFolderName(dir.name);
+    if (kind.kind === "skip") continue;
+    if (kind.kind === "group") { groupFolders.push(normalizeNfc(dir.name)); continue; }
+    if (kind.kind === "unnamed") { unnamedFolders.push(normalizeNfc(dir.name)); continue; }
+    const personDir = path.join(root, dir.name);
+    let jpgDir = personDir;
+    let names: string[] = [];
+    const children = await readdir(personDir, { withFileTypes: true, encoding: "utf8" });
+    for (const candidate of PERSON_FOLDER_JPG_DIRECTORIES) {
+      const child = children.find((entry) => entry.isDirectory() && normalizeNfc(entry.name).toLocaleLowerCase("ko-KR") === candidate.toLocaleLowerCase("ko-KR"));
+      if (!child) continue;
+      const found = await listJpgs(path.join(personDir, child.name));
+      if (found.length) { jpgDir = path.join(personDir, child.name); names = found; break; }
+    }
+    if (!names.length) names = await listJpgs(personDir);
+    if (!names.length) { emptyFolders.push(kind.name); continue; }
+    for (const name of names) {
+      const absolutePath = path.join(jpgDir, name);
+      files.push({ absolutePath, relPath: normalizeNfc(path.relative(root, absolutePath).split(path.sep).join("/")), fileName: normalizeNfc(name), category: PERSON_FOLDER_CATEGORY.key, ownerName: kind.name, ownerGroup: null });
+    }
+  }
+  return { files: files.sort((a, b) => a.relPath.localeCompare(b.relPath, "ko")), groupFolders, unnamedFolders, emptyFolders };
+}
+
 async function main() {
   const input = readArgs();
-  if (!input.mappings.length) throw new Error("가져오기 항목 매핑이 필요합니다.");
+  if (input.layout === "school" && !input.mappings.length) throw new Error("가져오기 항목 매핑이 필요합니다.");
   const root = input.root
     ? (await resolvePersonSelectSourcePath(input.root)).canonicalPath
     : (await resolvePersonSelectSourcePath(input.sourceRelativePath ?? "")).canonicalPath;
   const db = getSupabaseAdmin();
-  const query = db.from("person_select_events").select("id,slug");
+  const query = db.from("person_select_events").select("id,slug,categories");
   const { data: event, error: eventError } = input.eventId ? await query.eq("id", input.eventId).single() : await query.eq("slug", input.eventSlug ?? "").single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   const eventId = event.id;
-  const files = await scanPersonSelectFolders(root, input.mappings);
-  const skippedFolders = await findSkippedFolders(root, input.mappings);
+  let files: Candidate[];
+  let skippedFolders: string[] = [];
+  let groupFolders: string[] = [];
+  let unnamedFolders: string[] = [];
+  let emptyFolders: string[] = [];
+  if (input.layout === "person-folders") {
+    const scanned = await scanPersonFolders(root);
+    ({ files, groupFolders, unnamedFolders, emptyFolders } = scanned);
+  } else {
+    files = await scanPersonSelectFolders(root, input.mappings);
+    skippedFolders = await findSkippedFolders(root, input.mappings);
+  }
   const peopleNames = [...new Set(files.map((file) => file.ownerName).filter((value): value is string => Boolean(value)))];
   if (input.dryRun) {
-    process.stdout.write(`${JSON.stringify({ ok: true, dryRun: true, root, photoCount: files.length, people: peopleNames, skippedFolders, byCategory: Object.fromEntries(input.mappings.map((item) => [item.category, files.filter((file) => file.category === item.category).length])) })}\n`);
+    process.stdout.write(`${JSON.stringify({ ok: true, dryRun: true, root, photoCount: files.length, people: peopleNames, skippedFolders, groupFolders, unnamedFolders, emptyFolders, byCategory: Object.fromEntries([...new Set(files.map((file) => file.category))].map((category) => [category, files.filter((file) => file.category === category).length])) })}\n`);
     return;
   }
   await ensurePersonSelectBucket();
+  // 다음 단계(RAW 매칭)가 같은 폴더에서 원본을 찾도록 가져온 폴더와 방식을 행사에 남긴다.
+  const eventUpdate: Record<string, unknown> = { source_layout: input.layout, updated_at: new Date().toISOString() };
+  if (input.sourceRelativePath) eventUpdate.source_relative_path = input.sourceRelativePath;
+  if (input.layout === "person-folders") {
+    const categories = (Array.isArray(event.categories) ? event.categories : []) as PersonSelectCategory[];
+    if (!categories.some((category) => category.key === PERSON_FOLDER_CATEGORY.key)) {
+      const { count } = await db.from("person_select_images").select("id", { count: "exact", head: true }).eq("event_id", eventId);
+      // 아직 사진이 하나도 없는 행사라면 학교용 기본 항목 대신 "사진" 항목 하나만 둔다.
+      eventUpdate.categories = (count ?? 0) === 0 ? [PERSON_FOLDER_CATEGORY] : [...categories, PERSON_FOLDER_CATEGORY];
+    }
+  }
+  const { error: eventUpdateError } = await db.from("person_select_events").update(eventUpdate).eq("id", eventId);
+  if (eventUpdateError) throw eventUpdateError;
   const { data: currentPeople } = await db.from("person_select_people").select("id,display_name,login_name,pin_code").eq("event_id", eventId);
   const people = new Map((currentPeople ?? []).map((person) => [person.login_name, person]));
   const usedPins = new Set((currentPeople ?? []).map((person) => person.pin_code));
@@ -117,7 +190,7 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, Math.max(1, pending.length)) }, () => worker()));
-  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: people.size, createdPeople, skippedFolders, failedCount: failed.length, failed };
+  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: people.size, createdPeople, skippedFolders, groupFolders, unnamedFolders, emptyFolders, failedCount: failed.length, failed };
   process.stdout.write(`${JSON.stringify(result)}\n`); if (failed.length) process.exitCode = 1;
 }
 

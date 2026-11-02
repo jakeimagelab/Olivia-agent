@@ -21,7 +21,7 @@ type PhotoJob = {
   completed_at?: string | null;
 };
 
-const PHOTO_ACTIONS = new Set(["PHOTO_SORT", "PHOTO_PREPARE_SOURCE", "PHOTO_STAGE_JPG", "PHOTO_CLASSIFY_WORK", "PERSON_SELECT_IMPORT"]);
+const PHOTO_ACTIONS = new Set(["PHOTO_SORT", "PHOTO_PREPARE_SOURCE", "PHOTO_STAGE_JPG", "PHOTO_CLASSIFY_WORK", "PERSON_SELECT_IMPORT", "PERSON_SELECT_RAW_MATCH"]);
 const DISMISSED_JOB_STORAGE_KEY = "olivia.photo-task.dismissed-job-ids.v1";
 const MAX_DISMISSED_JOB_IDS = 500;
 const STAGE_LABEL: Record<string, string> = {
@@ -41,6 +41,7 @@ const STAGE_LABEL: Record<string, string> = {
 
 function operationLabel(job: PhotoJob): string {
   if (job.action === "PERSON_SELECT_IMPORT") return "개인별 사진 올리기";
+  if (job.action === "PERSON_SELECT_RAW_MATCH") return "개인별 셀렉 RAW 매칭";
   if (job.action === "PHOTO_PREPARE_SOURCE") return "JPG정리";
   if (job.action === "PHOTO_STAGE_JPG") return "JPG정리";
   if (job.payload?.only === "연출" || job.payload?.only === "프로필" || job.payload?.only === "인테리어") return `${job.payload.only}정리`;

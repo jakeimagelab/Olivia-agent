@@ -24,6 +24,7 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_AI_SELECT",
   "PHOTO_RETOUCH",
   "PERSON_SELECT_IMPORT",
+  "PERSON_SELECT_RAW_MATCH",
   "PERSON_SELECT_LIST_FOLDER",
   "VIDEO_INTERVIEW_ANALYZE",
   "VIDEO_AUDIO_EXTRACT",
@@ -365,16 +366,28 @@ export async function POST(request: NextRequest) {
       if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
       const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
       if (!sourceRelativePath) throw new Error("학교전달 폴더를 선택해 주세요.");
-      const mappings = requestedPayload.mappings;
-      if (!Array.isArray(mappings) || mappings.length === 0 || mappings.some((entry) => {
-        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return true;
-        const value = entry as Record<string, unknown>;
-        return typeof value.folder !== "string" || typeof value.category !== "string" || !["person", "group"].includes(String(value.owner));
-      })) throw new Error("가져오기 항목 매핑이 올바르지 않습니다.");
-      payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, mappings };
+      if (requestedPayload.layout === "person-folders") {
+        // 이름 폴더 구조(김춘자/JPG원본)는 매핑 없이 폴더 이름으로 사람을 정한다.
+        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, layout: "person-folders" };
+      } else {
+        const mappings = requestedPayload.mappings;
+        if (!Array.isArray(mappings) || mappings.length === 0 || mappings.some((entry) => {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) return true;
+          const value = entry as Record<string, unknown>;
+          return typeof value.folder !== "string" || typeof value.category !== "string" || !["person", "group"].includes(String(value.owner));
+        })) throw new Error("가져오기 항목 매핑이 올바르지 않습니다.");
+        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, mappings };
+      }
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 가져오기 요청입니다." }, { status: 400 });
     }
+  }
+
+  if (action === "PERSON_SELECT_RAW_MATCH") {
+    if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) {
+      return Response.json({ ok: false, error: "올바른 event_id가 필요합니다." }, { status: 400 });
+    }
+    payload = { event_id: requestedPayload.event_id };
   }
 
   if (action === "PERSON_SELECT_LIST_FOLDER") {

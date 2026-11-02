@@ -40,7 +40,7 @@ export async function getPublicSessionContext(request: NextRequest, slug: string
   const db = getSupabaseAdmin();
   const [{ data: event }, { data: person }] = await Promise.all([
     db.from("person_select_events").select("*").eq("id", session.eventId).eq("slug", slug).maybeSingle(),
-    db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at").eq("id", session.personId).eq("event_id", session.eventId).maybeSingle(),
+    db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,orders").eq("id", session.personId).eq("event_id", session.eventId).maybeSingle(),
   ]);
   if (!event || !person) return null;
   return { event: event as PersonSelectEvent, person: person as PersonSelectPerson };

@@ -167,6 +167,12 @@ describe("person select importer", () => {
   it("records the previous choice before every overwrite", async () => {
     const source = await readFile(path.join(process.cwd(), "app/api/pick/[eventSlug]/choices/[category]/route.ts"), "utf8");
     expect(source.indexOf("person_select_choice_history")).toBeGreaterThan(-1);
-    expect(source.indexOf("person_select_choice_history")).toBeLessThan(source.indexOf(".upsert(payload"));
+    // 같은 사진 수정과, 1장 항목에서 다른 사진으로 바꾸기 모두 덮어쓰기 전에 이력을 남긴다.
+    for (const overwrite of [".update(values)", ".update({ image_id: body.image_id"]) {
+      const at = source.indexOf(overwrite);
+      expect(at).toBeGreaterThan(-1);
+      expect(source.lastIndexOf("person_select_choice_history", at)).toBeGreaterThan(-1);
+      expect(source.slice(source.lastIndexOf("historyRow(", at), at)).toContain("historyRow(");
+    }
   });
 });

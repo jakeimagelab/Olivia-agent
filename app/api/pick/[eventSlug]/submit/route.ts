@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { eventIsLocked, requiredCategoryKeys } from "@/lib/person-select/core";
+import { effectiveExtraMax, eventIsLocked, findPickShortage, pickShortageMessage } from "@/lib/person-select/core";
 import { getPublicSessionContext } from "@/lib/person-select/server";
 
 export const preferredRegion = ["icn1"];
@@ -18,15 +18,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     query = category.key === "homeroom" ? query.eq("owner_group", ctx.person.group_label || "__none__") : query.eq("owner_person_id", ctx.person.id);
     counts[category.key] = (await query).count ?? 0;
   }));
-  const required = requiredCategoryKeys({ categories: ctx.event.categories, groupLabel: ctx.person.group_label, imageCounts: counts });
   const { data: choices } = await db.from("person_select_choices").select("id,category_key,image_id,retouch_keys,memo")
     .eq("person_id", ctx.person.id).eq("event_id", ctx.event.id);
-  const chosen = new Set((choices ?? []).map((item) => item.category_key));
-  const missing = required.find((key) => !chosen.has(key));
-  if (missing) {
-    const label = ctx.event.categories.find((item) => item.key === missing)?.label ?? missing;
-    return Response.json({ ok: false, error: `${label}을 먼저 골라주세요.` }, { status: 400 });
-  }
+  const chosenCounts = (choices ?? []).reduce<Record<string, number>>((acc, item) => { acc[item.category_key] = (acc[item.category_key] ?? 0) + 1; return acc; }, {});
+  const shortage = findPickShortage({ categories: ctx.event.categories, groupLabel: ctx.person.group_label, imageCounts: counts, chosenCounts, extraMax: effectiveExtraMax(ctx.event) });
+  if (shortage) return Response.json({ ok: false, error: pickShortageMessage(shortage) }, { status: 400 });
   const now = new Date().toISOString();
   await db.from("person_select_people").update({ submitted_at: now, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
   if ((choices ?? []).length) {
