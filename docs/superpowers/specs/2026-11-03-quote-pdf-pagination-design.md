@@ -26,8 +26,10 @@
 ## 구현 범위
 
 - `app/quote-print/[id]/page.module.css`의 인쇄 규칙에서 고정 높이와 `overflow: hidden`을 제거한다.
+- `app/globals.css`의 견적 인쇄용 `html/body` 고정 높이도 인쇄 매체에서 해제한다.
 - 인쇄 시 `.quote-page`를 페이지 분할 가능한 블록 흐름으로 바꾸고, 좌측 레일을 고정 반복 요소로 둔다.
 - 표 머리글 반복과 행·하단 영역의 `break-inside` 보호 규칙을 추가한다.
+- `QuoteDocument`에서 합계·계약 안내·브랜드 서명을 하나의 최종 블록으로 묶어 페이지 경계에서 함께 이동시킨다.
 - `tests/quoteNativePdf.test.ts`에 인쇄 페이지가 고정 높이로 잘리지 않고 페이지 분할 규칙을 유지하는 회귀 검사를 추가한다.
 
 ## 검증

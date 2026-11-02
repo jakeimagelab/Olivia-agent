@@ -142,4 +142,18 @@ describe("native quote PDF source policy", () => {
     expect(mobile).toContain('/render`');
     expect(publish).toContain("renderQuoteBuffer(quoteBeforePublish");
   });
+
+  it("lets long print documents paginate without clipping rows or totals", () => {
+    const printCss = readFileSync("app/quote-print/[id]/page.module.css", "utf8");
+    const globalCss = readFileSync("app/globals.css", "utf8");
+    expect(printCss).toContain("height: auto;");
+    expect(printCss).toContain("overflow: visible;");
+    expect(printCss).toContain("position: fixed;");
+    expect(printCss).toContain("display: table-header-group;");
+    expect(printCss).toContain("break-inside: avoid;");
+    expect(printCss).toContain("break-after: avoid;");
+    expect(globalCss).toContain("body:has(.quote-print-page)");
+    expect(globalCss).toContain("min-height: calc(210mm - 1px);");
+    expect(readFileSync("components/quote/QuoteDocument.tsx", "utf8")).toContain('className="quote-final-block"');
+  });
 });

@@ -186,6 +186,25 @@ body:has(.quote-print-page) {
   background: #ffffff;
 }
 
+@media print {
+  html:has(.quote-print-page),
+  body:has(.quote-print-page) {
+    height: auto;
+    min-height: calc(210mm - 1px);
+    overflow: visible;
+  }
+
+  body:has(.quote-print-page)::before {
+    content: "";
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 0;
+    width: 180px;
+    height: 100vh;
+    background: var(--teal);
+  }
+}
+
 button,
 input,
 textarea,
@@ -3035,12 +3054,18 @@ main:has(> .pc-header) {
   border-bottom: 0;
 }
 
+.quote-final-block {
+  display: grid;
+  gap: 9px;
+  margin-top: auto;
+}
+
 .quote-bottom {
   display: grid;
   grid-template-columns: 270px 290px 1fr;
   align-items: start;
   gap: 20px;
-  margin-top: auto;
+  margin-top: 0;
   border-top: 2px solid var(--sage);
   padding-top: 12px;
 }
@@ -3258,7 +3283,7 @@ main:has(> .pc-header) {
   align-items: end;
   justify-items: center;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 0;
   padding: 0 8px 8px;
 }
 

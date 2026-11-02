@@ -100,30 +100,32 @@ export default function QuoteDocument({ data, scale = 1, pageRef }: { data: Quot
           </table>
         </section>
 
-        <footer className="quote-bottom">
-          <div className="payment-box">
-            <div className="payment-terms-note"><strong>결제조건</strong><span>선금 {depositRate}%, 잔금 {100 - depositRate}% 기준<br />세부 조건은 상호 협의 가능</span></div>
-            <div className="payment-terms-rows">
-              <div className="payment-row">{depositRate > 0 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span><span>{amount(depositAmount)}</span></> : null}</div>
-              <div className="payment-row">{depositRate < 100 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100 - depositRate}%</strong></span><span>{amount(balanceAmount)}</span></> : null}</div>
+        <div className="quote-final-block">
+          <footer className="quote-bottom">
+            <div className="payment-box">
+              <div className="payment-terms-note"><strong>결제조건</strong><span>선금 {depositRate}%, 잔금 {100 - depositRate}% 기준<br />세부 조건은 상호 협의 가능</span></div>
+              <div className="payment-terms-rows">
+                <div className="payment-row">{depositRate > 0 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>선금{depositRate}%</strong></span><span>{amount(depositAmount)}</span></> : null}</div>
+                <div className="payment-row">{depositRate < 100 ? <><span className="payment-label"><span className="payment-icon" aria-hidden="true">₩</span><strong>잔금{100 - depositRate}%</strong></span><span>{amount(balanceAmount)}</span></> : null}</div>
+              </div>
             </div>
-          </div>
-          <div className="total-signature"><div className="total-box">
-            {!itemPricesHidden ? <div><span>항목 합계</span><strong>{amount(contentSubtotal)}</strong></div> : null}
-            {discountTotal > 0 ? <div><span>할인 합계</span><strong>−{amount(discountTotal)}</strong></div> : null}
-            {specialAdjustmentAmount !== 0 && !itemPricesHidden ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
-            {roundDownAmount > 0 ? <div><span>절삭</span><strong>−{amount(roundDownAmount)}</strong></div> : null}
-            <div><span>공급가액</span><strong>{amount(supplyAmount)}</strong></div>
-            {taxMode !== "excluded" ? <div><span>{taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"}</span><strong>{amount(vat)}</strong></div> : null}
-            <div className="grand-total"><span>KRW</span><strong>{amount(finalAmount)}</strong></div>
-          </div></div>
-          <div className="contract-note"><Quote className="contract-note-icon" aria-hidden="true" /><div><strong>계약 안내</strong><p>본 견적서는 상호 협의 및 선금 입금 시 계약서의 효력을 대신할 수 있습니다. 촬영 범위 변경 시 최종 금액은 조정될 수 있습니다.</p>{memo.trim() ? <small>{memo}</small> : null}</div></div>
-        </footer>
+            <div className="total-signature"><div className="total-box">
+              {!itemPricesHidden ? <div><span>항목 합계</span><strong>{amount(contentSubtotal)}</strong></div> : null}
+              {discountTotal > 0 ? <div><span>할인 합계</span><strong>−{amount(discountTotal)}</strong></div> : null}
+              {specialAdjustmentAmount !== 0 && !itemPricesHidden ? <div><span>특별조정</span><strong>{specialAdjustmentAmount > 0 ? "+" : "−"}{amount(Math.abs(specialAdjustmentAmount))}</strong></div> : null}
+              {roundDownAmount > 0 ? <div><span>절삭</span><strong>−{amount(roundDownAmount)}</strong></div> : null}
+              <div><span>공급가액</span><strong>{amount(supplyAmount)}</strong></div>
+              {taxMode !== "excluded" ? <div><span>{taxMode === "included" ? "부가세 포함(10%)" : "부가세(10%)"}</span><strong>{amount(vat)}</strong></div> : null}
+              <div className="grand-total"><span>KRW</span><strong>{amount(finalAmount)}</strong></div>
+            </div></div>
+            <div className="contract-note"><Quote className="contract-note-icon" aria-hidden="true" /><div><strong>계약 안내</strong><p>본 견적서는 상호 협의 및 선금 입금 시 계약서의 효력을 대신할 수 있습니다. 촬영 범위 변경 시 최종 금액은 조정될 수 있습니다.</p>{memo.trim() ? <small>{memo}</small> : null}</div></div>
+          </footer>
 
-        <div className="quote-brand-mark">
-          <div className="brand-mark-spacer" aria-hidden="true" />
-          <div className="brand-logo-stack"><img src={cfg.logo} alt={cfg.label} className="brand-logo-image" /><p>{cfg.brandMarkCaption}</p></div>
-          <div className="signature-area brand-signature"><span>Director Signature</span><img src="/assets/ceo-signature.png" alt="Director Signature" /></div>
+          <div className="quote-brand-mark">
+            <div className="brand-mark-spacer" aria-hidden="true" />
+            <div className="brand-logo-stack"><img src={cfg.logo} alt={cfg.label} className="brand-logo-image" /><p>{cfg.brandMarkCaption}</p></div>
+            <div className="signature-area brand-signature"><span>Director Signature</span><img src="/assets/ceo-signature.png" alt="Director Signature" /></div>
+          </div>
         </div>
       </div>
     </div>

@@ -21,9 +21,73 @@
 
 @media print {
   .printPage {
+    position: relative;
+    z-index: 1;
     width: 297mm;
-    height: 210mm;
+    height: auto;
+    min-height: calc(210mm - 1px);
+    overflow: visible;
+    background: transparent;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+
+  /* 화면 미리보기는 1장 캔버스를 유지하되, PDF에서는 내용 높이만큼 문서를
+     늘려 Chromium이 A4 가로 페이지로 자연스럽게 나누게 한다. */
+  .printPage :global(.quote-page) {
+    display: block;
+    width: 297mm;
+    min-height: calc(210mm - 1px);
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
+
+  /* fixed 요소는 Chromium 인쇄에서 매 페이지에 반복된다. 견적 내용은 기존
+     180px 레일 폭만큼 왼쪽 여백을 두므로 서로 겹치지 않는다. */
+  .printPage :global(.brand-rail) {
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 180px;
+    height: calc(210mm - 1px);
+    min-height: calc(210mm - 1px);
+  }
+
+  .printPage :global(.quote-content) {
+    display: block;
+    width: calc(297mm - 180px);
+    min-height: calc(210mm - 1px);
+    margin-left: 180px;
+    background: #ffffff;
+    box-sizing: border-box;
+  }
+
+  .printPage :global(.client-strip),
+  .printPage :global(.estimate-table-wrap),
+  .printPage :global(.quote-final-block) {
+    margin-top: 9px;
+  }
+
+  .printPage :global(.quote-final-block) {
+    display: block;
+  }
+
+  .printPage :global(.quote-brand-mark) {
+    margin-top: 9px;
+  }
+
+  .printPage :global(.quote-table thead) {
+    display: table-header-group;
+  }
+
+  .printPage :global(.quote-table tbody tr),
+  .printPage :global(.quote-final-block) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .printPage :global(.quote-table .category-row) {
+    break-after: avoid;
+    page-break-after: avoid;
   }
 }
