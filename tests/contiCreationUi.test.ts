@@ -52,4 +52,11 @@ describe("conti creation UI", () => {
     expect(first).toBe("conti");
     expect(second).toBe(first);
   });
+
+  it("does not remount the customer host when customer or document context changes", () => {
+    const first = getDesktopContentKey({ windowId: "customer", appId: "customer", context: { clientId: "client-a", projectId: "run-a", resourceId: "quote-a" } });
+    const second = getDesktopContentKey({ windowId: "customer", appId: "customer", context: { clientId: "client-b", projectId: "run-b", resourceId: "contract-b" } });
+    expect(first).toBe("customer");
+    expect(second).toBe(first);
+  });
 });

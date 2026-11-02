@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { getOliviaApp, resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
-import { contextFromHref, mergeDefinedWindowContext } from "@/lib/olivia/desktop/windowContext";
+import { contextFromHref, mergeDefinedWindowContext, withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 import { attachOliviaChatToDocumentWindow, isChatLinkedDocumentWindow } from "@/lib/olivia/desktop/windowLifecycle";
 
 export function useDesktopAppLauncher() {
@@ -22,12 +22,13 @@ export function useDesktopAppLauncher() {
       const documentContext = documentType
         ? { ...mergedContext, documentId: mergedContext.resourceId, documentType }
         : mergedContext;
+      const scopedContext = withWindowContextScope(documentContext);
       openApp({
         appId: app.id,
         title: title && title !== app.title ? `${app.title} · ${title}` : app.title,
         width: app.defaultSize.width,
         height: app.defaultSize.height,
-        context: Object.values(documentContext).some(Boolean) ? documentContext : undefined,
+        context: scopedContext,
       });
       if (isChatLinkedDocumentWindow(useOliviaDesktopStore.getState().windows[app.id])) {
         attachOliviaChatToDocumentWindow(app.id);
@@ -45,7 +46,7 @@ export function useDesktopAppLauncher() {
       title: title || "포토클리닉",
       width: compatibilityApp.defaultSize.width,
       height: compatibilityApp.defaultSize.height,
-      context: { ...context, resourceId: href, resourceType: "route" },
+      context: withWindowContextScope({ ...context, resourceId: href, resourceType: "route" }),
     });
   }, [openApp]);
 }

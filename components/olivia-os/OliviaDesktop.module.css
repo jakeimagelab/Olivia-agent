@@ -2800,7 +2800,10 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .casePanelTabs { flex: 0 0 35px; height: 35px; gap: 15px; margin: -2px 0 20px; padding: 0; }
 .desktop .casePanelTabs button { height: 34px; padding: 7px 1px; font-size: 12px; line-height: 18px; }
 .desktop .casePanelTabs button::after { inset: auto 0 -1px; }
-.desktop .casePanelInfo { gap: 0; padding: 0; overflow: hidden; }
+.desktop .casePanelInfo { gap: 0; padding: 0 3px 0 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.desktop .casePanelHeader,
+.desktop .casePanelTabs { flex: 0 0 auto; }
+.desktop .casePanelInfo > * { flex-shrink: 0; }
 .desktop .casePanelInfo section { padding: 0 0 17px; border: 0; border-bottom: 1px solid var(--ui-border, #D5DBD3); border-radius: 0; background: transparent; }
 .desktop .casePanelInfo section > span { font-size: 11px; line-height: 1.5; }
 .desktop .casePanelInfo section > strong { margin-top: 7px; font-size: 18px; line-height: 1.35; }

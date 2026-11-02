@@ -1248,6 +1248,34 @@
   .mkt-brief-row { grid-template-columns: 1fr; }
 }
 
+/* OS 안 프롬프터는 전역 헤더를 숨기되, 그 안의 실제 저장·실행 액션은 잃지 않는다. */
+.pt-embedded-page {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pt-embedded-page > .oa-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.pt-embedded-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(21, 88, 85, .12);
+  background: #f5f8f7;
+}
+.pt-save-status { align-self: center; color: #718b86; font-size: 11px; }
+@media (max-height: 640px) {
+  .pt-basic-controls { gap: 6px !important; padding-block: 7px !important; }
+}
+
 /* 프롬프터(Teleprompter) */
 .pt-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: 1px solid #E0E8E6; background: #fff; font-size: 13px; font-weight: 600; color: #3a5c58; cursor: pointer; }
 .pt-btn-primary { background: #155855; color: #fff; border-color: #155855; }

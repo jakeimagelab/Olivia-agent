@@ -50,6 +50,7 @@ export function useOliviaDesktopContextBridge() {
   const windowDocumentId = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentId : undefined);
   const windowDocumentType = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentType : undefined);
   const windowDocumentTitle = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentTitle : undefined);
+  const windowContextScope = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.contextScope : undefined);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const activeProjectId = useOliviaContextStore((state) => state.activeProjectId);
@@ -81,9 +82,10 @@ export function useOliviaDesktopContextBridge() {
       windowId: effectiveWindowId,
       windowValue: { id: windowClientId, name: windowClientName },
       activeValue: { id: context.activeClientId, name: context.activeClientName },
+      clearWhenEmpty: windowContextScope === "none",
     });
     if (seed) context.setClient(seed.id, seed.name);
-  }, [effectiveWindowId, windowClientId, windowClientName]);
+  }, [effectiveWindowId, windowClientId, windowClientName, windowContextScope]);
 
   // Project sync. Client와 분리해 project만 바뀔 때 setClient가 호출되지 않는다.
   useEffect(() => {
@@ -92,9 +94,10 @@ export function useOliviaDesktopContextBridge() {
       windowId: effectiveWindowId,
       windowValue: { id: windowProjectId, name: windowProjectName },
       activeValue: { id: context.activeProjectId, name: context.activeProjectName },
+      clearWhenEmpty: windowContextScope === "none",
     });
     if (seed) context.setProject(seed.id, seed.name);
-  }, [effectiveWindowId, windowProjectId, windowProjectName]);
+  }, [effectiveWindowId, windowProjectId, windowProjectName, windowContextScope]);
 
   // Current document sync. 문서가 닫혀 id/type이 비워진 경우도 실제 변화로 처리한다.
   useEffect(() => {

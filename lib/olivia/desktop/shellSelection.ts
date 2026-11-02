@@ -14,7 +14,7 @@ export type ShellSelection = {
 };
 
 export type ShellSelectionEventDetail =
-  | { clear: true; sourceAppId: string; sourceWindowId: string }
+  | { clear: true; sourceAppId: string; sourceWindowId: string; context?: WindowContext }
   | ({ clear?: false } & ShellSelection);
 
 export function emitShellSelection(detail: ShellSelectionEventDetail) {

@@ -4,9 +4,9 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ChevronRight, Download, FileCheck2, FileImage, FileSpreadsheet,
-  FileText, LoaderCircle, MessageCircle, Plus, Search, Send, UserRound,
+  FileText, LoaderCircle, MessageCircle, PencilLine, Plus, Search, Send, UserRound,
 } from "lucide-react";
-import ClientFormModal from "@/app/(client-hub)/clients/_components/ClientFormModal";
+import ClientFormModal, { type ClientEditSource } from "@/app/(client-hub)/clients/_components/ClientFormModal";
 import PcrmActivityTimeline from "@/app/(client-hub)/clients/_components/PcrmActivityTimeline";
 import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow";
 import { buildStepAppLink } from "@/lib/clientAppLinks";
@@ -89,6 +89,9 @@ export default function ClientDocumentWorkspace({
   const [approvalChoice, setApprovalChoice] = useState<{ quoteId: string; clientId: string; candidates: Array<{ id: string; hospital_name: string }> } | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const closeEditorRef = useRef<null | (() => void)>(null);
+  const pendingNavigationRef = useRef<null | (() => void)>(null);
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const detailGenerationRef = useRef(0);
 
   const loadList = useCallback(async () => {
     setError("");
@@ -104,22 +107,35 @@ export default function ClientDocumentWorkspace({
     }
   }, []);
 
-  const loadDetail = useCallback(async () => {
-    if (!clientId) { setDetail(null); return; }
-    const params = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
+  const loadDetail = useCallback(async (targetClientId: string | null, targetWorkflowRunId: string | null) => {
+    const generation = ++detailGenerationRef.current;
+    detailAbortRef.current?.abort();
+    if (!targetClientId) { setDetail(null); return; }
+    const controller = new AbortController();
+    detailAbortRef.current = controller;
+    const params = targetWorkflowRunId
+      ? `?workflowRunId=${encodeURIComponent(targetWorkflowRunId)}&strictWorkflowRunId=1`
+      : "";
     try {
-      const response = await fetch(`/api/clients/${clientId}${params}`, { cache: "no-store" });
+      const response = await fetch(`/api/clients/${targetClientId}${params}`, { cache: "no-store", signal: controller.signal });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "고객 문서를 불러오지 못했습니다.");
+      if (payload.client?.id !== targetClientId) throw new Error("요청한 고객과 다른 고객 정보가 반환되었습니다.");
+      if (targetWorkflowRunId && payload.workflowRun?.id !== targetWorkflowRunId) throw new Error("요청한 촬영 건을 찾을 수 없습니다.");
+      if (generation !== detailGenerationRef.current || controller.signal.aborted) return;
       setDetail(payload);
       setWorkflowRunId(payload.workflowRun?.id ?? null);
     } catch (err) {
+      if (controller.signal.aborted || generation !== detailGenerationRef.current) return;
       setError(err instanceof Error ? err.message : "고객 문서를 불러오지 못했습니다.");
     }
-  }, [clientId, workflowRunId]);
+  }, []);
 
   useEffect(() => { void loadList(); }, [loadList]);
-  useEffect(() => { void loadDetail(); setWorkDoc(null); }, [clientId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    void loadDetail(clientId, workflowRunId);
+    return () => detailAbortRef.current?.abort();
+  }, [clientId, loadDetail, workflowRunId]);
   useEffect(() => {
     if (!clientId || embedded) return;
     const url = new URL(window.location.href);
@@ -129,8 +145,22 @@ export default function ClientDocumentWorkspace({
   }, [clientId, embedded, workflowRunId]);
 
   useEffect(() => {
-    if (!clientId || !detail?.client) {
-      emitShellSelection({ clear: true, sourceAppId: "customer", sourceWindowId: "customer" });
+    if (!clientId) {
+      emitShellSelection({ clear: true, sourceAppId: "customer", sourceWindowId: "customer", context: { contextScope: "none", routeHref: "/clients" } });
+      return;
+    }
+    if (!detail?.client) {
+      emitShellSelection({
+        sourceAppId: "customer",
+        sourceWindowId: "customer",
+        itemId: clientId,
+        title: "고객 정보 불러오는 중",
+        subtitle: "선택한 고객과 촬영 건을 확인하고 있습니다.",
+        next: "고객 정보를 불러온 뒤 문서를 이어서 작업합니다.",
+        appId: "customer",
+        context: { contextScope: "client", clientId, workflowRunId: workflowRunId ?? undefined, projectId: workflowRunId ?? undefined },
+        featureItemId: workflowRunId ?? clientId,
+      });
       return;
     }
     const ownedRunId = detail.workflowRun?.id ?? workflowRunId ?? undefined;
@@ -143,7 +173,7 @@ export default function ClientDocumentWorkspace({
       next: detail.listClient?.next_action?.label ?? "고객과 촬영건 자료를 확인합니다.",
       appId: "customer",
       href: `/clients?clientId=${encodeURIComponent(clientId)}${ownedRunId ? `&workflowRunId=${encodeURIComponent(ownedRunId)}` : ""}`,
-      context: { clientId, clientName: detail.client.name ?? detail.client.hospital_name, workflowRunId: ownedRunId, projectId: ownedRunId, projectName: detail.workflowRun?.project_name, featureItemId: ownedRunId ?? clientId },
+      context: { contextScope: "client", clientId, clientName: detail.client.name ?? detail.client.hospital_name, workflowRunId: ownedRunId, projectId: ownedRunId, projectName: detail.workflowRun?.project_name, featureItemId: ownedRunId ?? clientId },
       featureItemId: ownedRunId ?? clientId,
     });
   }, [clientId, detail, workflowRunId]);
@@ -178,10 +208,50 @@ export default function ClientDocumentWorkspace({
     }
   };
 
-  if (loading) return <div className={styles.state}><LoaderCircle size={24} /> 고객 문서를 준비하는 중...</div>;
+  const finishEditorClose = () => {
+    closeEditorRef.current = null;
+    setWorkDoc(null);
+    const next = pendingNavigationRef.current;
+    pendingNavigationRef.current = null;
+    next?.();
+  };
+  const protectEditorNavigation = (next: () => void) => {
+    if (workDoc && closeEditorRef.current) {
+      pendingNavigationRef.current = next;
+      closeEditorRef.current();
+      return;
+    }
+    next();
+  };
+  const returnToList = () => protectEditorNavigation(() => {
+    setClientId(null); setWorkflowRunId(null); setDetail(null); setWorkDoc(null);
+    if (!embedded) window.history.replaceState(null, "", "/clients");
+  });
+  const refreshAll = () => { void loadList(); void loadDetail(clientId, workflowRunId); };
 
-  const returnToList = () => { setClientId(null); setWorkflowRunId(null); setDetail(null); setWorkDoc(null); if (!embedded) window.history.replaceState(null, "", "/clients"); };
-  const refreshAll = () => { void loadList(); void loadDetail(); };
+  useEffect(() => {
+    if ((initialClientId ?? null) === clientId && (initialWorkflowRunId ?? null) === workflowRunId) return;
+    if (!initialClientId) return;
+    protectEditorNavigation(() => {
+      setDetail(null);
+      setClientId(initialClientId);
+      setWorkflowRunId(initialWorkflowRunId ?? null);
+    });
+    // The navigation guard intentionally owns the current editor dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialClientId, initialWorkflowRunId]);
+
+  useEffect(() => {
+    const onShellTab = (event: Event) => {
+      const next = (event as CustomEvent<{ appId?: string; tab?: string }>).detail;
+      if (next?.appId !== "customer") return;
+      if (next.tab === "customer") returnToList();
+    };
+    window.addEventListener("olivia-shell-tab", onShellTab);
+    return () => window.removeEventListener("olivia-shell-tab", onShellTab);
+  });
+
+  if (loading) return <div className={styles.state}><LoaderCircle size={24} /> 고객 문서를 준비하는 중...</div>;
 
   return (
     <div className={styles.shell} data-embedded={embedded}>
@@ -212,7 +282,7 @@ export default function ClientDocumentWorkspace({
             <div className={styles.clientList}>{clients.map((client) => {
               const run = client.active_run;
               const myTurn = client.next_action && !["run_current_step", "completed"].includes(client.next_action.primaryAction);
-              return <button className={styles.clientRow} type="button" key={client.id} onClick={() => { setClientId(client.id); setWorkflowRunId(run?.id ?? null); }}>
+              return <button className={styles.clientRow} type="button" key={client.id} onClick={() => protectEditorNavigation(() => { setDetail(null); setClientId(client.id); setWorkflowRunId(run?.id ?? null); })}>
                 <span className={styles.clientIdentity}><strong>{client.hospital_name}</strong><small>{client.department || client.specialty || "진료과 미정"}</small></span>
                 <span>{run?.shoot_date ? shortDate(run.shoot_date) : "촬영일 미정"}</span>
                 <span className={styles.nextAction}>{myTurn ? <i>내 차례</i> : null}{client.next_action?.label || (run ? "문서를 확인하세요" : "진행 중인 촬영 없음")}</span>
@@ -225,18 +295,21 @@ export default function ClientDocumentWorkspace({
         </main>
       ) : detail ? (
         <ClientCase
-          detail={{ ...detail, listClient: list.clients.find((client) => client.id === clientId) }} workDoc={workDoc} setWorkDoc={setWorkDoc} returnToList={returnToList}
+          detail={{ ...detail, listClient: list.clients.find((client) => client.id === clientId) }} workDoc={workDoc} returnToList={returnToList}
           closeEditorRef={closeEditorRef} refreshAll={refreshAll} launchHref={launchHref}
+          requestDocument={(doc) => protectEditorNavigation(() => setWorkDoc(doc))} onEditorClosed={finishEditorClose}
         />
       ) : <div className={styles.state}><LoaderCircle size={24} /> 고객 문서를 불러오는 중...</div>}
     </div>
   );
 }
 
-function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef, refreshAll, launchHref }: {
-  detail: any; workDoc: DocumentType | null; setWorkDoc: (doc: DocumentType | null) => void;
+function ClientCase({ detail, workDoc, returnToList, closeEditorRef, refreshAll, launchHref, requestDocument, onEditorClosed }: {
+  detail: any; workDoc: DocumentType | null;
   returnToList: () => void; closeEditorRef: React.MutableRefObject<null | (() => void)>; refreshAll: () => void;
   launchHref: (href: string, title?: string) => void;
+  requestDocument: (doc: DocumentType | null) => void;
+  onEditorClosed: () => void;
 }) {
   const client = detail.client;
   const run = detail.workflowRun;
@@ -245,9 +318,27 @@ function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef,
   const contract = ids.contract ? detail.contracts?.find((item: any) => item.id === ids.contract) : null;
   const contact = [client.manager_name, client.phone].filter(Boolean).join(" ");
   const nextAction = run ? detail.workflowRun?.status === "completed" ? "완료" : (detail.listClient?.next_action?.primaryActionLabel || "지금 할 일 열기") : "진행 중인 촬영 없음";
+  const [editOpen, setEditOpen] = useState(false);
+  const editClient: ClientEditSource = {
+    id: client.id,
+    name: client.name ?? client.hospital_name ?? "",
+    director_name: client.director_name ?? "",
+    manager_name: client.manager_name ?? client.contact_name ?? "",
+    phone: client.phone ?? "",
+    department: client.department ?? client.specialty ?? "",
+    email: client.email ?? "",
+    address: client.address ?? "",
+    website_url: client.website_url ?? "",
+    instagram_url: client.instagram_url ?? "",
+    naver_place_url: client.naver_place_url ?? "",
+    manager_staff: client.manager_staff ?? "",
+    referral_source: client.referral_source ?? "",
+    notes: client.notes ?? "",
+    memo: client.memo ?? "",
+  };
   const openNext = () => {
     const key = getWorkflowDisplayStepKey(run?.current_step_key || "");
-    if (key && ["quote", "contract", "conti"].includes(key)) setWorkDoc(key as DocumentType);
+    if (key && ["quote", "contract", "conti"].includes(key)) requestDocument(key as DocumentType);
     else if (run) launchHref(buildStepAppLink({ stepKey: run.current_step_key, clientId: client.id, workflowRunId: run.id }), client.name);
   };
 
@@ -262,19 +353,19 @@ function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef,
   return (
     <main className={styles.casePage} data-working={Boolean(workDoc)}>
       {workDoc ? <div className={styles.collapsedHeader}>
-        <button type="button" onClick={() => closeEditorRef.current ? closeEditorRef.current() : setWorkDoc(null)}><ArrowLeft size={14} /> 닫기</button>
+        <button type="button" onClick={() => requestDocument(null)}><ArrowLeft size={14} /> 닫기</button>
         <strong>{client.name}</strong><span>{client.department || "진료과 미정"} · {run?.shoot_date ? shortDate(run.shoot_date) : "촬영일 미정"} · {STEP_LABELS[getWorkflowDisplayStepKey(run?.current_step_key || "") || ""] || "문서"}</span>
         <Progress run={run} compact />
       </div> : <header className={styles.caseHeader}>
         <button className={styles.backButton} type="button" onClick={returnToList}><ArrowLeft size={15} /> 고객관리</button>
-        <div className={styles.caseTitle}><h1>{client.name}</h1><p>{client.department || "진료과 미정"} · {run?.shoot_date ? shortDate(run.shoot_date) : "촬영일 미정"} {contact ? `· ${contact}` : ""}</p></div>
+        <div className={styles.caseTitle}><div className={styles.caseTitleLine}><h1>{client.name}</h1><button type="button" onClick={() => setEditOpen(true)}><PencilLine size={13} /> 고객 정보 수정</button></div><p>{client.department || "진료과 미정"} · {run?.shoot_date ? shortDate(run.shoot_date) : "촬영일 미정"} {contact ? `· ${contact}` : ""}</p></div>
         <Progress run={run} />
         <button className={styles.primaryButton} type="button" disabled={!run || run.status === "completed"} onClick={openNext}>{nextAction}</button>
       </header>}
 
       <div className={styles.caseGrid}>
         <section className={styles.caseMain}>
-          {workDoc ? <DocumentWorkspace active={workDoc} setActive={setWorkDoc} detail={detail} closeEditorRef={closeEditorRef} refreshAll={refreshAll} /> : <>
+          {workDoc ? <DocumentWorkspace active={workDoc} requestActive={requestDocument} detail={detail} closeEditorRef={closeEditorRef} refreshAll={refreshAll} onEditorClosed={onEditorClosed} /> : <>
             <section className={styles.documentsCard}>
               <div className={styles.cardHeader}><strong>문서</strong><span>누르면 아래에 작업창이 열립니다</span></div>
               {docs.map((doc) => {
@@ -282,7 +373,7 @@ function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef,
                 const href = doc.key === "original" ? client.original_photos_link : doc.key === "final" ? client.retouched_photos_link : null;
                 return <div className={styles.documentRow} data-muted={!doc.exists} key={doc.key}>
                   <span className={styles.documentIcon}><Icon size={16} /></span><span><strong>{doc.label}</strong><small>{doc.status}</small></span>
-                  {doc.key === "quote" || doc.key === "contract" || doc.key === "conti" ? <button type="button" disabled={!doc.exists} onClick={() => setWorkDoc(doc.key)}>수정</button>
+                  {doc.key === "quote" || doc.key === "contract" || doc.key === "conti" ? <button type="button" disabled={!doc.exists} onClick={() => requestDocument(doc.key)}>수정</button>
                     : <a href={href || undefined} aria-disabled={!href} target="_blank" rel="noreferrer">열기</a>}
                 </div>;
               })}
@@ -292,21 +383,23 @@ function ClientCase({ detail, workDoc, setWorkDoc, returnToList, closeEditorRef,
         </section>
         <ClientChatPanel client={client} run={run} documentType={workDoc} onChanged={refreshAll} />
       </div>
+      <ClientFormModal open={editOpen} mode="edit" client={editClient} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); refreshAll(); }} />
     </main>
   );
 }
 
-function DocumentWorkspace({ active, setActive, detail, closeEditorRef, refreshAll }: {
-  active: DocumentType; setActive: (doc: DocumentType | null) => void; detail: any;
+function DocumentWorkspace({ active, requestActive, detail, closeEditorRef, refreshAll, onEditorClosed }: {
+  active: DocumentType; requestActive: (doc: DocumentType | null) => void; detail: any;
   closeEditorRef: React.MutableRefObject<null | (() => void)>; refreshAll: () => void;
+  onEditorClosed: () => void;
 }) {
   const ids = detail.resourceIds || {};
   const tabs: Array<{ key: DocumentType; label: string }> = [{ key: "quote", label: "견적서" }, { key: "contract", label: "계약서" }, { key: "conti", label: "콘티" }];
-  const registerClose = useCallback((fn: () => void) => { closeEditorRef.current = fn; }, [closeEditorRef]);
+  const registerClose = useCallback((fn: (() => void) | null) => { closeEditorRef.current = fn; }, [closeEditorRef]);
   useEffect(() => () => { closeEditorRef.current = null; }, [closeEditorRef]);
-  const common = { clientId: detail.client.id, workflowRunId: detail.workflowRun?.id, onClose: () => { setActive(null); refreshAll(); }, onPublished: refreshAll, registerRequestClose: registerClose };
+  const common = { clientId: detail.client.id, workflowRunId: detail.workflowRun?.id, onClose: () => { onEditorClosed(); refreshAll(); }, onPublished: refreshAll, registerRequestClose: registerClose };
   return <section className={styles.workCard}>
-    <div className={styles.workTabs}>{tabs.map((tab) => <button type="button" key={tab.key} data-active={active === tab.key} disabled={!ids[tab.key]} onClick={() => setActive(tab.key)}>{tab.label}</button>)}</div>
+    <div className={styles.workTabs}>{tabs.map((tab) => <button type="button" key={tab.key} data-active={active === tab.key} disabled={!ids[tab.key]} onClick={() => requestActive(tab.key)}>{tab.label}</button>)}</div>
     <div className={styles.editorHost}>
       {active === "quote" ? <QuoteBuilder key={`quote:${detail.client.id}:${ids.quote}`} mode="modal" documentOnly {...common} resourceId={ids.quote} /> : null}
       {active === "contract" ? <ContractBuilder key={`contract:${detail.client.id}:${ids.contract}`} mode="modal" documentOnly {...common} resourceId={ids.contract} /> : null}

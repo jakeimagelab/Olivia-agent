@@ -25,7 +25,7 @@ export type WorkspaceBuilderProps = {
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
-  registerRequestClose?: (fn: () => void) => void;
+  registerRequestClose?: (fn: (() => void) | null) => void;
 };
 
 export type WorkspaceRegistryEntry = {

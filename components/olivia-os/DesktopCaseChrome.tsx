@@ -20,6 +20,7 @@ import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
+import { withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 import type { ShellSelection, ShellSelectionEventDetail } from "@/lib/olivia/desktop/shellSelection";
 import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -45,6 +46,7 @@ type ShellTab = {
 
 const CASE_APPS = new Set(["quote", "conti", "select-galleries"]);
 const DEDICATED_INSPECTOR_APPS = new Set(["olivia-bridge"]);
+const DEFAULT_CLOSED_PANEL_APPS = new Set(["olivia-bridge", "quote"]);
 const APP_LABELS: Record<string, string> = {
   home: "홈",
   customer: "고객관리",
@@ -54,6 +56,7 @@ const APP_LABELS: Record<string, string> = {
   quote: "견적서",
   conti: "촬영 콘티",
   "select-galleries": "사진 셀렉",
+  "person-select": "개인별 사진 셀렉",
   "work-journal": "업무일지",
   "all-apps": "모든 앱",
 };
@@ -63,8 +66,9 @@ const PANEL_LABELS: Record<string, string> = {
   calendar: "일정 정보",
   "olivia-bridge": "사진 정보",
   "video-studio": "작업 정보",
-  quote: "항목 편집",
-  conti: "장면 편집",
+  quote: "견적 정보",
+  conti: "콘티 정보",
+  "person-select": "행사 정보",
   "select-galleries": "사진 정보",
   "work-journal": "기록 정보",
   "all-apps": "앱 정보",
@@ -83,10 +87,11 @@ function todayLabel() {
 export function DesktopCaseChrome({ appId, context, children }: { appId: string; context?: WindowContext; children: ReactNode }) {
   const launchHref = useDesktopAppLauncher();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
+  const updateWindowContext = useOliviaDesktopStore((state) => state.updateWindowContext);
   const [detail, setDetail] = useState<CasePayload | null>(null);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [caseLoadState, setCaseLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [panelOpen, setPanelOpen] = useState(!DEDICATED_INSPECTOR_APPS.has(appId));
+  const [panelOpen, setPanelOpen] = useState(!DEFAULT_CLOSED_PANEL_APPS.has(appId));
   const [panelTab, setPanelTab] = useState<"info" | "olivia">("info");
   const [focusMode, setFocusMode] = useState(false);
   const [localTab, setLocalTab] = useState(appId === "home" ? "home" : appId);
@@ -129,24 +134,31 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   }, [caseEnabled, clientId, workflowRunId]);
 
   useEffect(() => {
-    setPanelOpen(!DEDICATED_INSPECTOR_APPS.has(appId));
+    setPanelOpen(!DEFAULT_CLOSED_PANEL_APPS.has(appId));
     setPanelTab("info");
     setFocusMode(false);
     setLocalTab(appId === "home" ? "home" : appId);
     setSelection(null);
-  }, [appId, clientId, workflowRunId]);
+  }, [appId]);
 
   useEffect(() => {
     const updateSelection = (event: Event) => {
       const next = (event as CustomEvent<ShellSelectionEventDetail>).detail;
       const expectedWindowId = appId === "home" ? "home" : appId;
       if (!next || next.sourceAppId !== appId || next.sourceWindowId !== expectedWindowId) return;
-      if ("clear" in next && next.clear) setSelection(null);
-      else if (next.title) setSelection(next);
+      if ("clear" in next && next.clear) {
+        setSelection(null);
+        if (appId === "customer") setLocalTab("customer");
+        if (next.context) updateWindowContext(expectedWindowId, withWindowContextScope(next.context));
+      } else if (next.title) {
+        setSelection(next);
+        if (appId === "customer") setLocalTab("customer-selected");
+        if (next.context) updateWindowContext(expectedWindowId, withWindowContextScope(next.context));
+      }
     };
     window.addEventListener("olivia-shell-selection", updateSelection);
     return () => window.removeEventListener("olivia-shell-selection", updateSelection);
-  }, [appId]);
+  }, [appId, updateWindowContext]);
 
   useEffect(() => {
     const matchesQuote = appId === "quote" && selectedEntityType === "quote-item";
@@ -191,7 +203,12 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     ];
     if (appId === "customer") {
       const result: ShellTab[] = [{ key: "customer", label: "고객관리", subtitle: "전체 촬영건", icon: UsersRound }];
-      if (context?.clientName) result.push({ key: "customer-selected", label: context.clientName, subtitle: context.projectName ?? "선택한 촬영건", icon: FolderOpen });
+      if (context?.clientName) result.push({
+        key: "customer-selected",
+        label: context.clientName,
+        subtitle: context.projectName && context.projectName !== context.clientName ? context.projectName : "고객 상세",
+        icon: FolderOpen,
+      });
       return result;
     }
     if (caseEnabled && clientId && workflowRunId) {
@@ -205,7 +222,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
       if (gallery || appId === "select-galleries") result.push({ key: "select-galleries", label: "사진 셀렉", subtitle: gallery?.title ?? clientName, icon: Images, href: gallery ? `/select-galleries/${gallery.id}` : "/select-galleries", context: { ...base, resourceId: gallery?.id, routeHref: gallery ? `/select-galleries/${gallery.id}` : "/select-galleries" } });
       return result;
     }
-    return [{ key: appId, label: APP_LABELS[appId] ?? appId, subtitle: context?.projectName ?? context?.documentTitle, icon: appId === "olivia-bridge" || appId === "video-studio" ? Images : FileText }];
+    return [{ key: appId, label: getOliviaApp(appId)?.title ?? APP_LABELS[appId] ?? appId, subtitle: context?.documentTitle ?? context?.projectName, icon: appId === "olivia-bridge" || appId === "video-studio" ? Images : FileText }];
   }, [appId, caseEnabled, clientId, clientName, context?.clientName, context?.documentTitle, context?.projectName, context?.resourceId, detail, galleries, workflowRunId]);
 
   const handleTab = (tab: ShellTab) => {
@@ -219,13 +236,13 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
 
   const openSelection = () => {
     if (!selection) return;
-    const selectionContext: WindowContext = {
+    const selectionContext: WindowContext = withWindowContextScope({
       ...selection.context,
       clientId: selection.context?.clientId ?? context?.clientId,
       workflowRunId: selection.context?.workflowRunId ?? context?.workflowRunId ?? context?.projectId,
       projectId: selection.context?.projectId ?? context?.projectId ?? context?.workflowRunId,
       featureItemId: selection.featureItemId ?? selection.itemId,
-    };
+    });
     if (selection.href) {
       launchHref(selection.href, selection.title, selectionContext);
       return;
@@ -236,9 +253,9 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     openApp({ appId: app.id, title: app.title, width: app.defaultSize.width, height: app.defaultSize.height, context: selectionContext });
   };
 
-  const appLabel = APP_LABELS[appId] ?? appId;
-  const contextTitle = selection?.title ?? clientName ?? appLabel;
-  const contextSubtitle = selection?.subtitle ?? run?.project_name ?? context?.projectName ?? context?.documentTitle ?? (appId === "home" ? todayLabel() : "현재 작업");
+  const appLabel = getOliviaApp(appId)?.title ?? APP_LABELS[appId] ?? appId;
+  const contextTitle = appLabel;
+  const contextSubtitle = selection?.title ?? context?.documentTitle ?? clientName ?? run?.project_name ?? context?.projectName ?? (appId === "home" ? todayLabel() : "목록");
   const currentChildren = appId === "home" && localTab === "recent"
     ? <div className={styles.recentWorkspace}><DesktopRecentNotice /></div>
     : children;
@@ -294,9 +311,11 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
           {panelTab === "info" ? (
             <div className={styles.casePanelInfo}>
               <section>
-                <span>{clientName ?? appLabel}</span>
-                <strong>{selection?.title ?? contextTitle}</strong>
-                <small>{selection?.subtitle ?? contextSubtitle}</small>
+                <span>{appLabel}</span>
+                <strong>{selection?.title ?? contextSubtitle}</strong>
+                {(selection?.subtitle ?? contextSubtitle) !== (selection?.title ?? contextSubtitle)
+                  ? <small>{selection?.subtitle ?? contextSubtitle}</small>
+                  : null}
                 {selection?.href || selection?.appId ? (
                   <div className={styles.casePanelActions}>
                     <button

@@ -1,4 +1,5 @@
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
+import { inferWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 
 export type NamedContextValue = {
   id?: string;
@@ -37,12 +38,18 @@ export function resolveNamedContextSeed({
   windowId,
   windowValue,
   activeValue,
+  clearWhenEmpty = false,
 }: {
   windowId?: string;
   windowValue: NamedContextValue;
   activeValue: NamedContextValue;
+  clearWhenEmpty?: boolean;
 }): NamedContextValue | null {
-  if (!windowId || (!windowValue.id && !windowValue.name)) return null;
+  if (!windowId) return null;
+  if (!windowValue.id && !windowValue.name) {
+    if (!clearWhenEmpty || (!activeValue.id && !activeValue.name)) return null;
+    return { id: undefined, name: undefined };
+  }
   if (windowValue.id === activeValue.id && windowValue.name === activeValue.name) return null;
   return windowValue;
 }
@@ -93,6 +100,19 @@ export function buildWindowContextFromOlivia({
   windowContext?: WindowContext;
   oliviaContext: OliviaBridgeContext;
 }): WindowContext {
+  const scope = inferWindowContextScope(windowContext);
+  if (scope === "none") {
+    const next = { ...windowContext, contextScope: "none" as const };
+    delete next.clientId;
+    delete next.clientName;
+    delete next.projectId;
+    delete next.projectName;
+    delete next.workflowRunId;
+    delete next.documentId;
+    delete next.documentType;
+    delete next.documentTitle;
+    return next;
+  }
   const customerOwnsSelection = appId === "customer";
   return {
     ...windowContext,

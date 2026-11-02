@@ -30,3 +30,14 @@ export function mergeDefinedWindowContext(base: WindowContext, override?: Window
   }
   return merged;
 }
+
+export function inferWindowContextScope(context?: WindowContext): NonNullable<WindowContext["contextScope"]> {
+  if (context?.contextScope) return context.contextScope;
+  if (context?.documentId || context?.documentType) return "document";
+  if (context?.clientId || context?.workflowRunId || context?.projectId) return "client";
+  return "none";
+}
+
+export function withWindowContextScope(context: WindowContext): WindowContext {
+  return { ...context, contextScope: inferWindowContextScope(context) };
+}

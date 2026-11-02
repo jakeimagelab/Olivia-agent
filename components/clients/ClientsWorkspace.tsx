@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Building2, Camera, ChevronLeft, ChevronRight, ClipboardList, Copy, Download, Eye, Link2, LoaderCircle, Mail, MoreVertical, Paperclip, Pencil, Plus, Search, Settings, Trash2, UserRound } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -352,6 +352,9 @@ function InlineClientProjectPanel({
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
+  const registerToolBuilderRequestClose = useCallback((fn: (() => void) | null) => {
+    setToolBuilderRequestClose(fn ? () => fn : null);
+  }, []);
   const snapshotWorkflowRunId = pageData?.workflowRun?.id as string | undefined;
   const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(snapshotWorkflowRunId);
 
@@ -511,17 +514,17 @@ function InlineClientProjectPanel({
 
       {toolModal?.type === "quote" ? (
         <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 견적서 작성`}>
-          <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+          <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={registerToolBuilderRequestClose} />
         </WorkspaceModal>
       ) : null}
       {toolModal?.type === "contract" ? (
         <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 계약서 작성`}>
-          <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+          <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={registerToolBuilderRequestClose} />
         </WorkspaceModal>
       ) : null}
       {toolModal?.type === "conti" ? (
         <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
-          <ContiWorkspace clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={setToolBuilderRequestClose} />
+          <ContiWorkspace clientId={clientId} workflowRunId={workflowRun?.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); refresh(); }} onPublished={refresh} registerRequestClose={registerToolBuilderRequestClose} />
         </WorkspaceModal>
       ) : null}
     </section>
@@ -567,6 +570,9 @@ function DetailView({
   // 빈 콘티가 또 열림).
   const [toolModal, setToolModal] = useState<{ type: "quote" | "contract" | "conti"; resourceId?: string } | null>(null);
   const [toolBuilderRequestClose, setToolBuilderRequestClose] = useState<(() => void) | null>(null);
+  const registerToolBuilderRequestClose = useCallback((fn: (() => void) | null) => {
+    setToolBuilderRequestClose(fn ? () => fn : null);
+  }, []);
   const snapshotWorkflowRunId = workflowRunId || (pageData?.workflowRun?.id as string | undefined);
   const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(snapshotWorkflowRunId || undefined);
 
@@ -735,17 +741,17 @@ function DetailView({
         />
         {toolModal?.type === "quote" ? (
           <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 견적서 작성`}>
-            <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+            <QuoteBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={registerToolBuilderRequestClose} />
           </WorkspaceModal>
         ) : null}
         {toolModal?.type === "contract" ? (
           <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 계약서 작성`}>
-            <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+            <ContractBuilder mode="modal" clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={registerToolBuilderRequestClose} />
           </WorkspaceModal>
         ) : null}
         {toolModal?.type === "conti" ? (
           <WorkspaceModal open onClose={() => toolBuilderRequestClose?.()} title={`${client.name} · 콘티 작성`}>
-            <ContiWorkspace clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={setToolBuilderRequestClose} />
+            <ContiWorkspace clientId={clientId} workflowRunId={workflowRun.id} resourceId={toolModal.resourceId} onClose={() => { setToolModal(null); load(); }} onPublished={load} registerRequestClose={registerToolBuilderRequestClose} />
           </WorkspaceModal>
         ) : null}
       </div>
@@ -942,7 +948,7 @@ function DetailView({
             resourceId={toolModal.resourceId}
             onClose={() => { setToolModal(null); load(); }}
             onPublished={load}
-            registerRequestClose={setToolBuilderRequestClose}
+            registerRequestClose={registerToolBuilderRequestClose}
           />
         </WorkspaceModal>
       ) : null}
@@ -956,7 +962,7 @@ function DetailView({
             resourceId={toolModal.resourceId}
             onClose={() => { setToolModal(null); load(); }}
             onPublished={load}
-            registerRequestClose={setToolBuilderRequestClose}
+            registerRequestClose={registerToolBuilderRequestClose}
           />
         </WorkspaceModal>
       ) : null}
@@ -969,7 +975,7 @@ function DetailView({
             resourceId={toolModal.resourceId}
             onClose={() => { setToolModal(null); load(); }}
             onPublished={load}
-            registerRequestClose={setToolBuilderRequestClose}
+            registerRequestClose={registerToolBuilderRequestClose}
           />
         </WorkspaceModal>
       ) : null}

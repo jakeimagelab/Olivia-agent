@@ -7,6 +7,7 @@ import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
 import { DEFAULT_PERSON_SELECT_EXTRA_MAX, DEFAULT_PERSON_SELECT_EXTRA_PRICE, DEFAULT_PERSON_SELECT_NOTICE, DEFAULT_PERSON_SELECT_OFFERS, type PersonSelectOffer } from "@/lib/person-select/types";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Choice = { id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
@@ -65,17 +66,24 @@ export default function PersonSelectDetailPage() {
     return true;
   }), [data, filter]);
   const selectedPerson = data?.people.find((person) => person.id === selectedId) ?? null;
-  // 올리비아 OS 오른쪽 패널(작업 정보)에 고른 사람을 보여준다.
+  // Olivia OS에는 이전 고객이 아니라 이 창이 실제로 연 행사만 전달한다.
   useEffect(() => {
-    if (!selectedPerson || !data) return;
-    const need = Object.values(selectedPerson.need_counts ?? {}).reduce((sum, value) => sum + value, 0);
-    const retouch = selectedPerson.choices.reduce((sum, choice) => sum + choice.retouch_keys.length, 0);
-    const memos = selectedPerson.choices.filter((choice) => choice.memo).map((choice) => `${choice.person_select_images?.original_file_name ?? ""}: ${choice.memo}`);
-    window.dispatchEvent(new CustomEvent("olivia-shell-selection", { detail: {
-      title: selectedPerson.display_name,
-      subtitle: `${selectedPerson.status_label} · 고른 사진 ${selectedPerson.choices.length} / ${need}장 · 보정 요청 ${retouch}개${selectedPerson.order?.total ? ` · 추가 주문 ${won(selectedPerson.order.total)}` : ""}`,
-      next: memos.length ? memos.join(" / ") : "남긴 메모가 없습니다.",
-    } }));
+    if (!data) return;
+    const need = selectedPerson ? Object.values(selectedPerson.need_counts ?? {}).reduce((sum, value) => sum + value, 0) : 0;
+    const retouch = selectedPerson?.choices.reduce((sum, choice) => sum + choice.retouch_keys.length, 0) ?? 0;
+    const memos = selectedPerson?.choices.filter((choice) => choice.memo).map((choice) => `${choice.person_select_images?.original_file_name ?? ""}: ${choice.memo}`) ?? [];
+    emitShellSelection({
+      sourceAppId: "person-select",
+      sourceWindowId: "person-select",
+      itemId: selectedPerson?.id ?? data.event.id,
+      title: data.event.title,
+      subtitle: selectedPerson
+        ? `${selectedPerson.display_name} · ${selectedPerson.status_label} · 고른 사진 ${selectedPerson.choices.length} / ${need}장 · 보정 요청 ${retouch}개${selectedPerson.order?.total ? ` · 추가 주문 ${won(selectedPerson.order.total)}` : ""}`
+        : `마감 ${formatSeoulDeadline(data.event.deadline_at)} · ${data.people.length}명`,
+      next: memos.length ? memos.join(" / ") : "행사 진행 현황과 고객 선택을 확인합니다.",
+      context: { contextScope: "none", routeHref: `/person-select/${data.event.id}`, resourceId: data.event.id, resourceType: "person-select-event", documentTitle: data.event.title, featureItemId: selectedPerson?.id ?? data.event.id },
+      featureItemId: selectedPerson?.id ?? data.event.id,
+    });
   }, [selectedPerson, data]);
   if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
   const currentData = data;

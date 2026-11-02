@@ -22,7 +22,9 @@ export async function GET(
 ) {
   const supabase = getSupabaseAdmin();
   const { id } = await params;
-  const requestedRunId = new URL(req.url).searchParams.get("workflowRunId");
+  const searchParams = new URL(req.url).searchParams;
+  const requestedRunId = searchParams.get("workflowRunId");
+  const strictWorkflowRunId = searchParams.get("strictWorkflowRunId") === "1";
 
   // client_id가 없어서 프론트가 자리표시자("_by-workflow")로 보낸 경우,
   // 잘못된 UUID로 clients 테이블을 조회하지 않고 곧바로 자가치유 경로로 진입한다.
@@ -81,6 +83,9 @@ export async function GET(
   const c = withClientDetailDefaults(clientRes.data);
   const hospitalName = (c.hospital_name ?? "") as string;
   const workflowRuns = runsRes.data ?? [];
+  if (requestedRunId && strictWorkflowRunId && !workflowRuns.some((run) => run.id === requestedRunId)) {
+    return NextResponse.json({ ok: false, error: "요청한 고객의 촬영 건을 찾을 수 없습니다." }, { status: 404 });
+  }
   const workflowRun = workflowRuns.find((run) => run.id === requestedRunId)
     ?? workflowRuns.find((run) => run.status === "active" && run.run_kind !== "additional_shooting")
     ?? workflowRuns.find((run) => run.status === "active")

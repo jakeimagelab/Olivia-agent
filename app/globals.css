@@ -91,6 +91,120 @@
   --ui2-f5: 24px;
 }
 
+/* 견적서 앱은 OS 우측 패널을 제외하고 실제로 받은 콘텐츠 폭을 기준으로 재배치한다. */
+main.quote-app { container-name: quote-app; container-type: inline-size; }
+.quote-workspace-layout {
+  width: min(100%, 1720px);
+  min-width: 0;
+  margin-inline: auto;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
+  position: relative;
+}
+.quote-workspace-layout--embedded { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.quote-layout-switcher { display: flex; gap: 6px; min-width: 0; }
+.quote-layout-switcher button {
+  min-height: 34px;
+  border: 1px solid var(--ui-border, #D5DBD3);
+  border-radius: 9px;
+  padding: 0 12px;
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-brand-green, #155855);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.quote-layout-switcher button[aria-pressed="true"],
+.quote-layout-switcher button[aria-expanded="true"] { border-color: var(--ui-brand-green, #155855); background: var(--ui-green-soft, #E2EBE3); }
+.quote-editor-pane,
+.quote-preview-pane,
+.quote-recent-pane { min-width: 0; min-height: 0; }
+.quote-workspace-layout--embedded .quote-editor-pane,
+.quote-workspace-layout--embedded .quote-preview-pane,
+.quote-workspace-layout--embedded .quote-recent-pane { overflow: auto; overscroll-behavior: contain; }
+.quote-preview-pane { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+@container quote-app (max-width: 759px) {
+  .quote-workspace-layout[data-compact-pane="preview"] .quote-editor-pane,
+  .quote-workspace-layout[data-compact-pane="edit"] .quote-preview-pane { display: none; }
+}
+.quote-recent-pane {
+  display: none;
+  position: absolute;
+  overflow: auto;
+  z-index: 30;
+  inset: 56px 12px 12px;
+  padding: 8px;
+  border: 1px solid var(--ui-border, #D5DBD3);
+  border-radius: 14px;
+  background: var(--ui-workspace, #E8EBE5);
+  box-shadow: 0 18px 50px rgba(31, 50, 42, .18);
+}
+.quote-workspace-layout[data-recent-open="true"] .quote-recent-pane { display: block; }
+.quote-recent-close {
+  position: sticky;
+  top: 2px;
+  z-index: 2;
+  margin: 0 0 6px auto;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--ui-border, #D5DBD3);
+  border-radius: 9px;
+  background: var(--ui-surface, #FCFBF8);
+  color: var(--ui-brand-green, #155855);
+  cursor: pointer;
+}
+.quote-preview-pane > .preview-shell,
+.quote-preview-pane > .quote-app.preview-shell { min-height: 0; height: 100%; }
+.quote-preview-viewport { flex: 0 0 auto; }
+.quote-app.preview-shell {
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+@container quote-app (min-width: 760px) {
+  .quote-workspace-layout {
+    grid-template-columns: minmax(340px, 420px) minmax(360px, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .quote-layout-switcher { grid-column: 1 / -1; }
+  .quote-pane-toggle { display: none; }
+  .quote-workspace-layout .quote-editor-pane,
+  .quote-workspace-layout .quote-preview-pane { display: block; }
+  .quote-workspace-layout .quote-preview-pane { display: grid; }
+  .quote-workspace-layout--document { grid-template-columns: minmax(340px, 420px) minmax(360px, 1fr); }
+}
+
+@container quote-app (min-width: 1180px) {
+  .quote-workspace-layout:not(.quote-workspace-layout--document) {
+    grid-template-columns: minmax(260px, 290px) minmax(360px, 420px) minmax(420px, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .quote-workspace-layout:not(.quote-workspace-layout--document) .quote-layout-switcher { display: none; }
+  .quote-workspace-layout:not(.quote-workspace-layout--document) .quote-recent-pane {
+    display: block;
+    position: static;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .quote-workspace-layout:not(.quote-workspace-layout--document) .quote-recent-close { display: none; }
+}
+
+@media (max-height: 640px) {
+  .quote-workspace-layout { padding-block: 10px; }
+}
+
 @media print {
   /* Printing can start from inside Olivia OS, where legacy aliases point at
      the dark UI palette. Keep every paper canvas on its original light brand

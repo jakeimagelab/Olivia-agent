@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { DEFAULT_PERSON_SELECT_CATEGORIES, DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS } from "@/lib/person-select/types";
 import { defaultSeoulDeadlineInput, formatSeoulDeadline } from "@/lib/person-select/date";
+import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type EventRow = { id: string; title: string; slug: string; deadline_at: string; status: string; people_count: number; submitted_count: number };
@@ -17,6 +18,17 @@ export default function PersonSelectPage() {
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const load = () => fetch("/api/person-select").then((r) => r.json()).then((data) => { if (data.ok) setEvents(data.events); else setError(data.error); }).finally(() => setLoading(false));
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    emitShellSelection({
+      sourceAppId: "person-select",
+      sourceWindowId: "person-select",
+      itemId: "event-list",
+      title: "행사 목록",
+      subtitle: "개인별 사진 셀렉 행사",
+      next: "행사를 고르면 진행 현황과 사진을 확인할 수 있습니다.",
+      context: { contextScope: "none", routeHref: "/person-select", documentTitle: "행사 목록" },
+    });
+  }, []);
   async function create() {
     setError(""); const response = await fetch("/api/person-select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, categories: DEFAULT_PERSON_SELECT_CATEGORIES, retouch_options: DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS }) }); const data = await response.json();
     if (!response.ok) return setError(data.error || "행사를 만들지 못했어요."); navigate(`/person-select/${data.event.id}`);

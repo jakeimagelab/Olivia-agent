@@ -57,6 +57,9 @@
 .embeddedWorkspace > :global(main),
 .embeddedWorkspace > :global(div) { min-height: 0 !important; }
 .embeddedWorkspace :global(.pc-content) { max-width: none; }
+.prompterWorkspace { position: relative; height: 100%; min-height: 0; overflow: hidden; }
+.prompterWorkspace > :global(main),
+.prompterWorkspace > :global(div) { height: 100%; min-height: 0; }
 .canvasWorkspace > :global(main) { height: min(760px, calc(100dvh - 210px)) !important; min-height: 560px !important; }
 .aiVideoWorkspace { background: var(--ui2-bg); color: var(--ui2-text); }
 

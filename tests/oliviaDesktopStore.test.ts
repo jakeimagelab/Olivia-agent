@@ -151,4 +151,27 @@ describe("OLIVIA OS persisted workspace migration", () => {
     expect(state.windows["portrait-consent"].context).toBeUndefined();
     expect(state.activeWindowId).toBe("video-studio");
   });
+
+  it("removes a stale customer from a restored person-select list window", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    values.set("olivia-os-desktop-state", JSON.stringify({
+      version: DESKTOP_STATE_VERSION,
+      activeAppId: "person-select",
+      windows: [{
+        appId: "person-select", title: "개인별 사진 셀렉", x: 10, y: 20, width: 900, height: 600,
+        minimized: false, snapMode: "none",
+        context: { routeHref: "/person-select", clientId: "client-old", clientName: "이전 병원", workflowRunId: "run-old" },
+      }],
+    }));
+
+    loadDesktopState(new Set(["person-select"]));
+    expect(useOliviaDesktopStore.getState().windows["person-select"].context).toEqual({ routeHref: "/person-select", contextScope: "none" });
+  });
 });

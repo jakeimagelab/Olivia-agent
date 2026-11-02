@@ -88,7 +88,7 @@ export default function ContiBuilder({
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
-  registerRequestClose?: (fn: () => void) => void;
+  registerRequestClose?: (fn: (() => void) | null) => void;
 } = {}) {
   const isModal = mode === "modal";
   // 레거시 호환용 모달/페이지 구현. 신규 사용자 진입점에서는 더 이상 호출하지 않는다.
@@ -931,7 +931,8 @@ export default function ContiBuilder({
   };
   useEffect(() => {
     if (!isModal) return;
-    registerRequestClose?.(() => handleModalClose);
+    registerRequestClose?.(handleModalClose);
+    return () => registerRequestClose?.(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, registerRequestClose, dirty]);
 

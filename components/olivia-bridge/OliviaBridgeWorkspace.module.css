@@ -801,6 +801,8 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .fileCountSummary { color: var(--ui2-dim); font-size: var(--ui2-f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .compactFilterEntry,
 .compactInspectorEntry { display: none; }
+.compactFilterClose,
+.compactFilterBackdrop { display: none; }
 .actionBar { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; padding: 6px 18px; border-top: 1px solid var(--bridge-line); background: var(--ui2-card); }
 .actionSummary { display: flex; align-items: center; gap: 12px; color: var(--ui2-dim); font-size: var(--ui2-f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .actionSummary b { color: var(--ui2-text); }
@@ -1025,11 +1027,14 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .reviewControls { justify-content: flex-start; overflow-x: auto; }
   .reviewControls button { flex: 0 0 auto; }
   .reviewFooter > p { display: none; }
-  .bridge[data-desktop-ui="true"] .workspace { position: relative; grid-template-columns: minmax(0, 1fr); }
+  .bridge[data-desktop-ui="true"] .workspace { position: relative; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   .bridge[data-desktop-ui="true"] .folderPanel,
   .bridge[data-desktop-ui="true"] .workspace > .paneDivider,
   .bridge[data-desktop-ui="true"] .previewPanel { display: none; }
   .bridge[data-desktop-ui="true"] .workspace[data-compact-preview="true"] .previewPanel { position: absolute; z-index: 25; inset: 0 0 0 auto; width: min(330px, 92%); display: grid; border-left: 1px solid var(--ui2-line); box-shadow: -16px 0 34px rgba(27,42,39,.16); }
+  .bridge[data-desktop-ui="true"] .folderPanel[data-compact-open="true"] { position: absolute; z-index: 31; inset: 0 auto 0 0; width: min(310px, 92%); display: grid; grid-template-rows: 42px auto auto auto minmax(72px,1fr) auto auto; border-right: 1px solid var(--ui2-line); box-shadow: 16px 0 34px rgba(27,42,39,.18); outline: 0; }
+  .bridge[data-desktop-ui="true"] .compactFilterBackdrop { position: absolute; z-index: 30; inset: 0; display: block; border: 0; background: rgba(16,62,54,.18); }
+  .bridge[data-desktop-ui="true"] .compactFilterClose { display: grid; width: 30px; height: 30px; margin-left: auto; place-items: center; border: 0; border-radius: 7px; color: var(--ui2-green); background: transparent; }
   .bridge[data-desktop-ui="true"] .compactPreviewButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.2); border-radius: 7px; color: #fff; background: rgba(255,255,255,.06); font: 500 var(--ui2-f1)/1 inherit; }
   .bridge[data-desktop-ui="true"] .compactPreviewClose { display: grid; place-items: center; }
   .bridge[data-desktop-ui="true"] .previewHeader > svg { display: none; }

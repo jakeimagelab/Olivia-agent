@@ -63,13 +63,13 @@ describe("고객 문서 워크스페이스 회귀 방지", () => {
     ]);
   });
 
-  it("고객 작업창만 전체 폭을 쓰고 목록과 일반 견적 화면의 폭 상한은 유지한다", () => {
+  it("고객 작업창은 전체 폭을 쓰고 견적서는 실제 앱 폭을 기준으로 배치한다", () => {
     const workspaceStyles = source("components/clients/ClientDocumentWorkspace.module.css");
     const quoteBuilder = source("components/quote/QuoteBuilder.tsx");
 
     expect(workspaceStyles).toContain(".listPage{width:min(1380px,100%)");
     expect(workspaceStyles).toContain(".casePage{width:100%");
-    expect(quoteBuilder).toContain('documentOnly ? "" : "mx-auto max-w-[1500px]"');
-    expect(quoteBuilder).toContain('documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]"');
+    expect(quoteBuilder).toContain("quote-workspace-layout");
+    expect(quoteBuilder).toContain("quote-workspace-layout--document");
   });
 });

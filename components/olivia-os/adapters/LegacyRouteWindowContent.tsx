@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LoaderCircle, RefreshCw } from "lucide-react";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import styles from "./LegacyRouteWindowContent.module.css";
+import { createLegacyRouteLoadController } from "@/lib/olivia/legacyRouteLoad";
 
 type FrameState = "loading" | "ready" | "failed";
 
@@ -20,33 +21,35 @@ function embeddedHref(href: string) {
 // 우선하므로 이 경로를 자동으로 벗어난다.
 export function LegacyRouteWindowContent({ context }: { context?: WindowContext }) {
   const href = context?.resourceType === "route" ? context.resourceId : undefined;
-  const [state, setState] = useState<FrameState>("loading");
+  const [view, setView] = useState<{ state: FrameState; attemptId: number }>({ state: "loading", attemptId: 0 });
   const [attempt, setAttempt] = useState(0);
+  const [controller] = useState(() => createLegacyRouteLoadController(LOAD_TIMEOUT_MS));
 
   useEffect(() => {
     if (!href) return;
-    setState("loading");
-    const timeout = window.setTimeout(() => setState("failed"), LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(timeout);
-  }, [attempt, href]);
+    const attemptId = controller.begin((timedOutAttempt) => setView((current) => current.attemptId === timedOutAttempt ? { state: "failed", attemptId: timedOutAttempt } : current));
+    setView({ state: "loading", attemptId });
+    return () => controller.cancel(attemptId);
+  }, [attempt, controller, href]);
+  useEffect(() => () => controller.dispose(), [controller]);
 
   if (!href) return <div className={styles.empty}>열 수 있는 화면 정보가 없습니다.</div>;
 
   return (
-    <div className={styles.shell} data-state={state}>
+    <div className={styles.shell} data-state={view.state}>
       <iframe
-        key={`${href}:${attempt}`}
+        key={`${href}:${attempt}:${view.attemptId}`}
         className={styles.frame}
         src={embeddedHref(href)}
         title="포토클리닉 기능"
         allow="clipboard-read; clipboard-write; microphone; camera"
-        onLoad={() => setState("ready")}
-        onError={() => setState("failed")}
+        onLoad={() => { if (controller.settle(view.attemptId)) setView((current) => current.attemptId === view.attemptId ? { ...current, state: "ready" } : current); }}
+        onError={() => { if (controller.settle(view.attemptId)) setView((current) => current.attemptId === view.attemptId ? { ...current, state: "failed" } : current); }}
       />
 
-      {state !== "ready" ? (
-        <div className={styles.status} role={state === "failed" ? "alert" : "status"}>
-          {state === "loading" ? (
+      {view.state !== "ready" ? (
+        <div className={styles.status} role={view.state === "failed" ? "alert" : "status"}>
+          {view.state === "loading" ? (
             <>
               <LoaderCircle className={styles.spinner} size={24} aria-hidden="true" />
               <strong>화면을 불러오는 중입니다</strong>

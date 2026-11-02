@@ -26,6 +26,7 @@ import {
   Scaling,
   ScanSearch,
   Scissors,
+  SlidersHorizontal,
   Sparkles,
   Star,
   Users,
@@ -687,11 +688,13 @@ export default function OliviaBridgeWorkspace({
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
   const [previewTab, setPreviewTab] = useState<PreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
+  const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const folderPanelRef = useRef<HTMLElement>(null);
+  const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const fileAreaRef = useRef<HTMLDivElement>(null);
   const marqueeRef = useRef<HTMLDivElement>(null);
@@ -1475,7 +1478,22 @@ export default function OliviaBridgeWorkspace({
     setAnchorId(nextFocusedId);
   }, [focusedId, setSelectedIds, visibleJpgs]);
 
+  const closeCompactFilters = useCallback(() => {
+    setCompactFiltersOpen(false);
+    window.requestAnimationFrame(() => compactFilterButtonRef.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (!compactFiltersOpen) return;
+    folderPanelRef.current?.focus();
+  }, [compactFiltersOpen]);
+
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape" && compactFiltersOpen) {
+      event.preventDefault();
+      closeCompactFilters();
+      return;
+    }
     if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || personSelectDialogOpen || rawRootPromptOpen)) {
       event.preventDefault();
       setFolderSourceOpen(false);
@@ -1560,7 +1578,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, closeSelectionReview, folderSourceOpen, fullscreenPreviewOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1826,12 +1844,14 @@ export default function OliviaBridgeWorkspace({
         </div>
         <label className={styles.nestedJpgPathToggle}><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span></label>
         <span className={styles.fileCountSummary}>보이는 중 {centerFileCount.toLocaleString("ko-KR")} · 전체 {(scan.jpgs.length + scan.raws.length + scan.sidecars.length).toLocaleString("ko-KR")}장</span>
+        <button ref={compactFilterButtonRef} type="button" className={styles.compactFilterEntry} aria-expanded={compactFiltersOpen} aria-controls="olivia-bridge-folder-panel" onClick={() => setCompactFiltersOpen(true)}><SlidersHorizontal size={14} /> 필터</button>
         <button type="button" className={styles.compactInspectorEntry} onClick={() => { setPreviewTab("selection"); setCompactPreviewOpen(true); }}><Check size={14} /> 선택한 파일</button>
       </div>
 
       <main ref={workspaceRef} className={styles.workspace} data-compact-preview={compactPreviewOpen ? "true" : "false"}>
-        <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} aria-label="폴더와 파일 필터">
-          <div className={styles.panelTitle}><span>폴더</span></div>
+        {compactFiltersOpen ? <button type="button" className={styles.compactFilterBackdrop} aria-label="필터 닫기" onClick={closeCompactFilters} /> : null}
+        <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} data-compact-open={compactFiltersOpen ? "true" : "false"} tabIndex={-1} aria-label="폴더와 파일 필터">
+          <div className={styles.panelTitle}><span>폴더와 필터</span><button type="button" className={styles.compactFilterClose} onClick={closeCompactFilters} aria-label="필터 닫기"><X size={15} /></button></div>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <label className={styles.nestedJpgToggle}>
             <input

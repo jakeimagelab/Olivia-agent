@@ -33,17 +33,21 @@ export function PhotoWorkspaceWindowContent({ context }: { context?: WindowConte
   return (
     <DesktopWindowProvider value={true}>
       <PhotoStudioExecutionProvider>
-        <PhotoStudioExecutionBar />
-        <PhotoWorkspace
-          hideHeader
-          initialMode={initialMode ?? undefined}
-          initialTool={initialTool}
-          initialSelectMode={initialSelectMode ?? undefined}
-          initialFileOpsMode={initialFileOpsMode ?? undefined}
-          clientId={context?.clientId}
-          workflowRunId={context?.projectId ?? context?.workflowRunId}
-          resourceId={context?.resourceId ?? context?.documentId}
-        />
+        <div data-photo-workspace-window style={{ width: "100%", height: "100%", minHeight: 0, display: "grid", gridTemplateRows: "auto minmax(0, 1fr)", overflow: "hidden" }}>
+          <PhotoStudioExecutionBar />
+          <div style={{ minHeight: 0, overflow: "auto" }}>
+            <PhotoWorkspace
+              hideHeader
+              initialMode={initialMode ?? undefined}
+              initialTool={initialTool}
+              initialSelectMode={initialSelectMode ?? undefined}
+              initialFileOpsMode={initialFileOpsMode ?? undefined}
+              clientId={context?.clientId}
+              workflowRunId={context?.projectId ?? context?.workflowRunId}
+              resourceId={context?.resourceId ?? context?.documentId}
+            />
+          </div>
+        </div>
       </PhotoStudioExecutionProvider>
     </DesktopWindowProvider>
   );

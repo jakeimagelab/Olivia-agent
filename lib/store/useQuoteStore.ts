@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createContext, createElement, useContext, useState, type ReactNode } from "react";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 
@@ -113,7 +114,8 @@ const emptyCustomer = (): CustomerInfo => ({
   quoteNumber: "",
 });
 
-export const useQuoteStore = create<QuoteStoreState>((set, get) => {
+export function createQuoteStore() {
+  return create<QuoteStoreState>((set, get) => {
   // 값 하나를 set하면서 그 필드를 dirty로 표시하는 setter를 만든다 — human 쪽 JSX onChange와
   // resetForm()/loadRecentQuote() 안의 호출부가 정확히 같은 함수를 부르지만(마이그레이션 시
   // 변수명을 그대로 유지했다), 후자는 함수 끝에서 clearDirty()를 호출해 이 dirty 표시를
@@ -195,4 +197,25 @@ export const useQuoteStore = create<QuoteStoreState>((set, get) => {
     setMemo: dirtySetter("memo"),
     setDepositRate: dirtySetter("depositRate"),
   };
-});
+  });
+}
+
+/** Agent가 직접 다루는 독립 견적 앱의 기본 store. */
+export const useQuoteStore = createQuoteStore();
+
+const QuoteStoreContext = createContext<typeof useQuoteStore | null>(null);
+
+/** 고객관리 인라인 편집기는 독립 견적 앱과 폼·자동저장·PDF 대상을 공유하지 않는다. */
+export function QuoteStoreScope({ isolated, children }: { isolated: boolean; children: ReactNode }) {
+  const [localStore] = useState(() => isolated ? createQuoteStore() : null);
+  return createElement(QuoteStoreContext.Provider, { value: localStore }, children);
+}
+
+export function useQuoteFormStore<T>(selector: (state: QuoteStoreState) => T) {
+  const store = useContext(QuoteStoreContext) ?? useQuoteStore;
+  return store(selector);
+}
+
+export function useQuoteStoreApi() {
+  return useContext(QuoteStoreContext) ?? useQuoteStore;
+}

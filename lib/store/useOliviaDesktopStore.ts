@@ -10,6 +10,8 @@ import { calculateWindowTileBounds } from "@/lib/olivia/desktop/windowTiling";
 export type { SnapMode };
 
 export type WindowContext = {
+  /** 목록 화면은 none, 고객 작업은 client, 특정 문서는 document로 구분한다. */
+  contextScope?: "none" | "client" | "document";
   clientId?: string;
   clientName?: string;
   projectId?: string;
@@ -102,6 +104,16 @@ export function withoutPersistedDocumentTarget(context?: WindowContext): WindowC
     // appId/documentType으로 복원할 수 있으므로, 다음 세션에 문서 대상만 넘기지 않는다.
     delete safeContext.sourceQuoteId;
     delete safeContext.routeHref;
+  }
+  if (safeContext.contextScope === "none") {
+    delete safeContext.clientId;
+    delete safeContext.clientName;
+    delete safeContext.projectId;
+    delete safeContext.projectName;
+    delete safeContext.workflowRunId;
+    delete safeContext.documentId;
+    delete safeContext.documentType;
+    delete safeContext.documentTitle;
   }
   return Object.keys(safeContext).length ? safeContext : undefined;
 }
@@ -196,7 +208,7 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
     const win: OliviaWindowState = {
       id: input.appId, appId: input.appId, title: input.title,
       x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height),
-      minimized: false, snapMode: "none", zIndex, context: input.context,
+      minimized: false, snapMode: "none", zIndex, context: input.context ?? { contextScope: "none" },
     };
     set((state) => ({
       windows: { ...state.windows, [win.id]: win },
@@ -490,6 +502,17 @@ const LEGACY_WORKSPACE_WINDOWS: Readonly<Record<string, {
 };
 
 function migratePersistedWindow(win: PersistedWindow): PersistedWindow {
+  if (win.appId === "person-select") {
+    return {
+      ...win,
+      context: withoutPersistedDocumentTarget({
+        ...win.context,
+        routeHref: win.context?.routeHref || "/person-select",
+        contextScope: "none",
+      }),
+      parentWindowId: migratePersistedAppId(win.parentWindowId) ?? undefined,
+    };
+  }
   if (win.appId === "photo-workspace" && win.context?.documentType === "conti") {
     return {
       ...win,

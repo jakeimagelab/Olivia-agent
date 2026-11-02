@@ -215,15 +215,18 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("setFocusedId(null)");
   });
 
-  it("중앙 파일 영역은 남은 높이를 쓰고 필터 옵션은 왼쪽 패널에 둔다", () => {
+  it("중앙 파일 영역은 남은 높이를 쓰고 좁은 창에서도 같은 필터를 연다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px minmax\(0, 1fr\)/);
     expect(styles).not.toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px 36px minmax\(0, 1fr\)/);
-    expect(workspace).not.toContain("styles.nestedJpgPathToggle");
+    expect(workspace).toContain("styles.nestedJpgPathToggle");
     expect(workspace).toContain("styles.nestedJpgToggle");
-    expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto auto/);
+    expect(workspace).toContain("styles.compactFilterEntry");
+    expect(workspace).toContain('data-compact-open={compactFiltersOpen ? "true" : "false"}');
+    expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px auto auto auto minmax\(72px, 1fr\) auto auto/);
+    expect(styles).toMatch(/max-width:\s*900px[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
   });
 
   it("폴더 스캔은 JPG·RAW·사이드카 메타데이터와 하위 폴더를 유지한다", async () => {

@@ -13,7 +13,7 @@ import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
-import { useQuoteStore } from "@/lib/store/useQuoteStore";
+import { QuoteStoreScope, useQuoteFormStore, useQuoteStoreApi } from "@/lib/store/useQuoteStore";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
@@ -257,7 +257,7 @@ type QuoteBuilderProps = {
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
-  registerRequestClose?: (fn: () => void) => void;
+  registerRequestClose?: (fn: (() => void) | null) => void;
 };
 
 // mode="page"(기본값)면 /photoclinic, /quote 라우트에서 그대로 쓰던 것과 100% 동일하게 동작한다.
@@ -265,7 +265,7 @@ type QuoteBuilderProps = {
 // 추가로 개입한다. Next.js page.tsx의 default export는 PageProps 타입 제약을 받기 때문에
 // 이 컴포넌트는 일반 컴포넌트 파일로 두고, app/photoclinic/page.tsx·app/quote/page.tsx는
 // 이걸 mode="page"로 감싸는 얇은 래퍼로만 존재한다.
-const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function QuoteBuilder({
+const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function QuoteBuilder({
   mode = "page",
   documentOnly = false,
   clientId,
@@ -291,63 +291,64 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const previewShellRef = useRef<HTMLDivElement>(null);
   const quotePdfInputRef = useRef<HTMLInputElement>(null);
+  const quoteStore = useQuoteStoreApi();
   // Agent가 채팅에서 건드려야 하는 필드는 QuoteBuilder만의 로컬 useState가 아니라 공유
-  // useQuoteStore(Zustand)에 둔다 — Olivia Agent(actionRouter.ts)가 같은 store를 patch하면
+  // useQuoteFormStore(Zustand)에 둔다 — Olivia Agent(actionRouter.ts)가 같은 store를 patch하면
   // Form도 Preview도 즉시 같은 값을 본다(Phase 3). 변수명은 기존 useState 시절과 동일하게
   // 유지해 아래 JSX/핸들러는 전혀 손대지 않는다.
-  const customer = useQuoteStore((state) => state.customer);
-  const setCustomer = useQuoteStore((state) => state.setCustomer);
-  const brand = useQuoteStore((state) => state.brand);
-  const setBrand = useQuoteStore((state) => state.setBrand);
+  const customer = useQuoteFormStore((state) => state.customer);
+  const setCustomer = useQuoteFormStore((state) => state.setCustomer);
+  const brand = useQuoteFormStore((state) => state.brand);
+  const setBrand = useQuoteFormStore((state) => state.setBrand);
   const cfg = BRAND_CONFIG[brand];
   // 브랜드별 단일항목 목록(제이크이미지연구소는 스케치촬영 추가 + 브랜드필름/포인트영상을
   // 영상촬영으로 통합) — 아래는 전부 이 브랜드별 목록을 그대로 쓴다(이름만 기존 그대로 유지).
   const singleItems = getSingleItems(brand);
-  const quoteTitle = useQuoteStore((state) => state.quoteTitle);
-  const setQuoteTitle = useQuoteStore((state) => state.setQuoteTitle);
-  const selectedPackageId = useQuoteStore((state) => state.selectedPackageId);
-  const setSelectedPackageId = useQuoteStore((state) => state.setSelectedPackageId);
-  const selectedSingleItemIds = useQuoteStore((state) => state.selectedSingleItemIds);
-  const setSelectedSingleItemIds = useQuoteStore((state) => state.setSelectedSingleItemIds);
-  const singleItemNotes = useQuoteStore((state) => state.singleItemNotes);
-  const setSingleItemNotes = useQuoteStore((state) => state.setSingleItemNotes);
-  const singleItemAmounts = useQuoteStore((state) => state.singleItemAmounts);
-  const setSingleItemAmounts = useQuoteStore((state) => state.setSingleItemAmounts);
-  const profileCount = useQuoteStore((state) => state.profileCount);
-  const setProfileCount = useQuoteStore((state) => state.setProfileCount);
-  const stagedCount = useQuoteStore((state) => state.stagedCount);
-  const setStagedCount = useQuoteStore((state) => state.setStagedCount);
-  const combinedProfileStagedCount = useQuoteStore((state) => state.combinedProfileStagedCount);
-  const setCombinedProfileStagedCount = useQuoteStore((state) => state.setCombinedProfileStagedCount);
-  const floorCount = useQuoteStore((state) => state.floorCount);
-  const setFloorCount = useQuoteStore((state) => state.setFloorCount);
-  const largeHospital = useQuoteStore((state) => state.largeHospital);
-  const setLargeHospital = useQuoteStore((state) => state.setLargeHospital);
-  const droneCount = useQuoteStore((state) => state.droneCount);
-  const setDroneCount = useQuoteStore((state) => state.setDroneCount);
-  const customItems = useQuoteStore((state) => state.customItems);
-  const setCustomItems = useQuoteStore((state) => state.setCustomItems);
-  const benefitItems = useQuoteStore((state) => state.benefitItems);
-  const setBenefitItems = useQuoteStore((state) => state.setBenefitItems);
-  const discountLabel = useQuoteStore((state) => state.discountLabel);
-  const setDiscountLabel = useQuoteStore((state) => state.setDiscountLabel);
-  const discountRate = useQuoteStore((state) => state.discountRate);
-  const setDiscountRate = useQuoteStore((state) => state.setDiscountRate);
-  const extraDiscount = useQuoteStore((state) => state.extraDiscount);
-  const setExtraDiscount = useQuoteStore((state) => state.setExtraDiscount);
-  const fixedTotal = useQuoteStore((state) => state.fixedTotal);
-  const setFixedTotal = useQuoteStore((state) => state.setFixedTotal);
-  const roundDownUnit = useQuoteStore((state) => state.roundDownUnit);
-  const setRoundDownUnit = useQuoteStore((state) => state.setRoundDownUnit);
-  const taxMode = useQuoteStore((state) => state.taxMode);
-  const setTaxMode = useQuoteStore((state) => state.setTaxMode);
-  const itemPricesHidden = useQuoteStore((state) => state.itemPricesHidden);
-  const setItemPricesHidden = useQuoteStore((state) => state.setItemPricesHidden);
-  const memo = useQuoteStore((state) => state.memo);
-  const setMemo = useQuoteStore((state) => state.setMemo);
-  const depositRate = useQuoteStore((state) => state.depositRate);
-  const setDepositRate = useQuoteStore((state) => state.setDepositRate);
-  const dirtyFields = useQuoteStore((state) => state.dirtyFields);
+  const quoteTitle = useQuoteFormStore((state) => state.quoteTitle);
+  const setQuoteTitle = useQuoteFormStore((state) => state.setQuoteTitle);
+  const selectedPackageId = useQuoteFormStore((state) => state.selectedPackageId);
+  const setSelectedPackageId = useQuoteFormStore((state) => state.setSelectedPackageId);
+  const selectedSingleItemIds = useQuoteFormStore((state) => state.selectedSingleItemIds);
+  const setSelectedSingleItemIds = useQuoteFormStore((state) => state.setSelectedSingleItemIds);
+  const singleItemNotes = useQuoteFormStore((state) => state.singleItemNotes);
+  const setSingleItemNotes = useQuoteFormStore((state) => state.setSingleItemNotes);
+  const singleItemAmounts = useQuoteFormStore((state) => state.singleItemAmounts);
+  const setSingleItemAmounts = useQuoteFormStore((state) => state.setSingleItemAmounts);
+  const profileCount = useQuoteFormStore((state) => state.profileCount);
+  const setProfileCount = useQuoteFormStore((state) => state.setProfileCount);
+  const stagedCount = useQuoteFormStore((state) => state.stagedCount);
+  const setStagedCount = useQuoteFormStore((state) => state.setStagedCount);
+  const combinedProfileStagedCount = useQuoteFormStore((state) => state.combinedProfileStagedCount);
+  const setCombinedProfileStagedCount = useQuoteFormStore((state) => state.setCombinedProfileStagedCount);
+  const floorCount = useQuoteFormStore((state) => state.floorCount);
+  const setFloorCount = useQuoteFormStore((state) => state.setFloorCount);
+  const largeHospital = useQuoteFormStore((state) => state.largeHospital);
+  const setLargeHospital = useQuoteFormStore((state) => state.setLargeHospital);
+  const droneCount = useQuoteFormStore((state) => state.droneCount);
+  const setDroneCount = useQuoteFormStore((state) => state.setDroneCount);
+  const customItems = useQuoteFormStore((state) => state.customItems);
+  const setCustomItems = useQuoteFormStore((state) => state.setCustomItems);
+  const benefitItems = useQuoteFormStore((state) => state.benefitItems);
+  const setBenefitItems = useQuoteFormStore((state) => state.setBenefitItems);
+  const discountLabel = useQuoteFormStore((state) => state.discountLabel);
+  const setDiscountLabel = useQuoteFormStore((state) => state.setDiscountLabel);
+  const discountRate = useQuoteFormStore((state) => state.discountRate);
+  const setDiscountRate = useQuoteFormStore((state) => state.setDiscountRate);
+  const extraDiscount = useQuoteFormStore((state) => state.extraDiscount);
+  const setExtraDiscount = useQuoteFormStore((state) => state.setExtraDiscount);
+  const fixedTotal = useQuoteFormStore((state) => state.fixedTotal);
+  const setFixedTotal = useQuoteFormStore((state) => state.setFixedTotal);
+  const roundDownUnit = useQuoteFormStore((state) => state.roundDownUnit);
+  const setRoundDownUnit = useQuoteFormStore((state) => state.setRoundDownUnit);
+  const taxMode = useQuoteFormStore((state) => state.taxMode);
+  const setTaxMode = useQuoteFormStore((state) => state.setTaxMode);
+  const itemPricesHidden = useQuoteFormStore((state) => state.itemPricesHidden);
+  const setItemPricesHidden = useQuoteFormStore((state) => state.setItemPricesHidden);
+  const memo = useQuoteFormStore((state) => state.memo);
+  const setMemo = useQuoteFormStore((state) => state.setMemo);
+  const depositRate = useQuoteFormStore((state) => state.depositRate);
+  const setDepositRate = useQuoteFormStore((state) => state.setDepositRate);
+  const dirtyFields = useQuoteFormStore((state) => state.dirtyFields);
   const setOliviaCurrentDocumentTotal = useOliviaContextStore((state) => state.setCurrentDocumentTotal);
   const setOliviaCurrentDocument = useOliviaContextStore((state) => state.setCurrentDocument);
   const setOliviaPageContext = useOliviaContextStore((state) => state.setPageContext);
@@ -422,6 +423,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
+  const [recentPanelOpen, setRecentPanelOpen] = useState(false);
+  const [compactQuotePane, setCompactQuotePane] = useState<"edit" | "preview">("edit");
   const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
   const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
@@ -477,15 +480,19 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
         Number.parseFloat(style.paddingLeft || "0") + Number.parseFloat(style.paddingRight || "0");
       const borderX =
         Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
+      const paddingY =
+        Number.parseFloat(style.paddingTop || "0") + Number.parseFloat(style.paddingBottom || "0");
+      const borderY =
+        Number.parseFloat(style.borderTopWidth || "0") + Number.parseFloat(style.borderBottomWidth || "0");
       const shellWidth = shell.getBoundingClientRect().width;
+      const shellHeight = shell.getBoundingClientRect().height;
       const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      // OLIVIA OS 1차 작업 지시서 3단계 — OS 창(isDesktopWindow)에서는 창이 넓어질수록 실제
-      // 사이즈(scale=1, 1123px)까지 계속 커지던 걸 0.7로 막는다. .preview-shell이 이미
-      // place-items:center라 남는 폭은 자동으로 가운데 정렬 여백이 된다. /quote 풀페이지·
-      // 기존 채팅 분할뷰 모달은 이번 지시서 범위가 아니므로 기존 상한(1)을 그대로 둔다
-      // (전체화면 미리보기의 updateFullscreenScale은 별개 로직이라 여기서 안 건드린다).
-      const maxScale = isDesktopWindow ? 0.7 : 1;
-      const nextScale = Math.min(maxScale, Math.max(0.12, availableWidth / 1123));
+      const availableHeight = Math.max(0, shellHeight - paddingY - borderY - 2);
+      // 100%는 실제 캔버스에 가로·세로가 모두 들어오는 "화면 맞춤"이다. OS 안에서도
+      // 임의의 70% 상한을 두지 않고, 현재 패널·창 크기를 관찰해 다시 계산한다.
+      const widthScale = availableWidth / 1123;
+      const heightScale = availableHeight > 0 ? availableHeight / 794 : widthScale;
+      const nextScale = Math.min(1, Math.max(0.12, Math.min(widthScale, heightScale)));
       setBasePreviewScale(Number(nextScale.toFixed(3)));
     };
 
@@ -527,8 +534,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   }, [showFullscreenPreview]);
 
   const getPreviewZoomMax = () => {
-    if (typeof window === "undefined") return 1.8;
-    return window.matchMedia("(max-width: 768px)").matches ? 1.35 : 1.8;
+    if (typeof window === "undefined") return 2;
+    return window.matchMedia("(max-width: 768px)").matches ? 1.35 : 2;
   };
 
   const keepZoomControlsReachable = () => {
@@ -556,7 +563,10 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   const resetPreviewZoom = () => {
     setPreviewZoom(1);
     window.requestAnimationFrame(() => {
-      if (previewShellRef.current) previewShellRef.current.scrollLeft = 0;
+      if (previewShellRef.current) {
+        previewShellRef.current.scrollLeft = 0;
+        previewShellRef.current.scrollTop = 0;
+      }
     });
   };
 
@@ -784,7 +794,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
     // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
     // 가드가 여기서 잘못 dirty로 남은 필드를 영구히 못 건드리게 되는 걸 막는다).
-    useQuoteStore.getState().clearDirty();
+    quoteStore.getState().clearDirty();
   };
 
   // useQuoteStore는 모듈 전역 싱글턴이라, useState였을 때와 달리 컴포넌트를 다시 마운트해도
@@ -936,7 +946,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       // 저장이 실제로 성공한 지금이 새 기준선이다 — dirtyFields를 비워서 Agent가 이후 이
       // 필드들을 다시 patch할 수 있게 한다(모드에 상관없이 적용, page 모드는 지금까지
       // dirty 추적 자체가 없었다).
-      useQuoteStore.getState().clearDirty();
+      quoteStore.getState().clearDirty();
       // 저장은 됐지만 그 사이 다른 곳에서 먼저 저장했을 수 있다 — 막지 않고 알려만 준다.
       if (body.conflictDetected) {
         setRecentQuoteMessage("⚠️ 저장했지만, 그 사이 다른 곳에서 이 견적서가 먼저 수정됐어요. 최신 상태인지 확인해주세요.");
@@ -1044,7 +1054,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     }
     // resetForm()과 같은 이유로, 방금 불러온 값을 새 기준선으로 삼는다 — 사람이 편집 중이던
     // 값을 dirty로 남겨서 이후 Agent patch를 영구히 막지 않도록 한다.
-    useQuoteStore.getState().clearDirty();
+    quoteStore.getState().clearDirty();
   };
 
   const [openingContract, setOpeningContract] = useState(false);
@@ -1149,6 +1159,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       setAutosaveStatus("error");
     }
     setManualSaving(false);
+    return Boolean(saved);
   };
   useSaveShortcut(handleManualSave);
 
@@ -1272,7 +1283,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           // 불러온다.
           if (detail?.after && typeof detail.after === "object") {
             const afterRow = detail.after as Record<string, unknown>;
-            useQuoteStore.getState().patchFromAgent(afterRow);
+            quoteStore.getState().patchFromAgent(afterRow);
             // Agent가 방금 이 시각으로 저장했다 — 사람의 다음 저장이 이 값을 기준으로 충돌
             // 여부를 판단하게 최신화한다(Phase 5). 그대로면 실제로는 이미 반영된 Agent 변경을
             // "충돌"로 잘못 경고하게 된다.
@@ -1328,7 +1339,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       if (detail?.resourceId && detail.resourceId !== currentQuoteId) return;
       if (detail?.after && typeof detail.after === "object") {
         const afterRow = detail.after as Record<string, unknown>;
-        useQuoteStore.getState().patchFromAgent(afterRow);
+        quoteStore.getState().patchFromAgent(afterRow);
         if (typeof afterRow.updated_at === "string") lastKnownUpdatedAtRef.current = afterRow.updated_at;
         return;
       }
@@ -1401,7 +1412,8 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
   };
   useEffect(() => {
     if (!isModal) return;
-    registerRequestClose?.(() => handleModalClose);
+    registerRequestClose?.(handleModalClose);
+    return () => registerRequestClose?.(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, registerRequestClose, dirty]);
 
@@ -1798,11 +1810,11 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       new Promise<{ success: boolean; error?: string }>((resolve) => {
         void downloadPdfRef.current((result) => resolve(result));
       });
-    useQuoteStore.getState().registerPdfHandler(handler);
+    quoteStore.getState().registerPdfHandler(handler);
     return () => {
-      if (useQuoteStore.getState().pdfHandler === handler) useQuoteStore.getState().registerPdfHandler(null);
+      if (quoteStore.getState().pdfHandler === handler) quoteStore.getState().registerPdfHandler(null);
     };
-  }, []);
+  }, [quoteStore]);
 
   /* ── Excel 다운로드 (열너비 적용, 2시트) — 코드 요청서 3차 2번 항목, 콘티의
      handleSpreadsheetDownload과 같은 패턴(xlsx 패키지, aoa_to_sheet) ── */
@@ -1885,6 +1897,39 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
     depositRate,
     memo,
   };
+
+  const recentQuotesPanelNode = !documentOnly ? (
+    <Panel title={`최근 생성 견적 (최근 ${RECENT_QUOTES_DISPLAY_LIMIT}개)`}>
+      {recentQuoteMessage ? (
+        <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">{recentQuoteMessage}</div>
+      ) : null}
+      {recentQuotes.length === 0 ? (
+        <p className="empty-text">PDF 다운로드 또는 계약서 생성을 누르면 최근 견적이 자동 보관됩니다.</p>
+      ) : (
+        <div className="grid gap-3">
+          {recentQuotes.map((item) => (
+            <div key={item.id} className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4 shadow-sm">
+              <div className="min-w-0">
+                <div className="mb-2 inline-flex rounded-full bg-[var(--quote-tint)] px-3 py-1 text-xs font-extrabold text-[var(--quote-ink)]">최근 견적</div>
+                <strong className="block truncate text-base font-extrabold text-[var(--quote-ink)]">{item.hospitalName || `${cfg.entityLabel} 없음`}</strong>
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6f6961]"><span>{item.quoteNumber}</span><span className="text-[#c7bbad]">|</span><span>{displayDate(item.quoteDate)}</span></div>
+                <b className="mt-2 block text-lg font-extrabold text-[var(--quote-accent)]">{won(item.totalAmount)}</b>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]" onClick={() => {
+                  if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
+                  loadRecentQuote(item);
+                  setRecentPanelOpen(false);
+                }}>불러오기</button>
+                <button type="button" className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5" onClick={() => void openContractWithQuote(item)} disabled={openingContract}><FileText size={15} />{openingContract ? "준비 중" : "계약서"}</button>
+                <button type="button" disabled={publishingQuoteId === item.id} className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => void publishQuoteToPortal(item)}>{publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
+  ) : null;
 
   const quotePreviewShellNode = (
           <div
@@ -1985,9 +2030,24 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           리포트). 미리보기 안쪽 A4 페이지는 이미 ResizeObserver로 실제 폭에 맞춰 scale을 다시
           계산하므로(위 previewShellRef 참고) 그리드 하한만 낮춰도 잘림 없이 계속 축소된다 —
           /quote 풀페이지는 폭이 넉넉해 fr 비율로 그대로 채워지므로 시각적으로 변화가 없다. */}
-      <section className={`${documentOnly ? "" : "mx-auto max-w-[1500px]"} ${isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden" : ""} grid min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]" : "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
+      <section
+        className={`quote-workspace-layout ${documentOnly ? "quote-workspace-layout--document" : ""} ${isDesktopWindow ? "quote-workspace-layout--embedded" : ""}`}
+        data-recent-open={recentPanelOpen ? "true" : "false"}
+        data-compact-pane={compactQuotePane}
+      >
+        <div className="quote-layout-switcher" aria-label="견적서 보기 전환">
+          {!documentOnly ? <button type="button" className="quote-recent-toggle" onClick={() => setRecentPanelOpen((value) => !value)} aria-expanded={recentPanelOpen}>최근 견적</button> : null}
+          <button type="button" className="quote-pane-toggle" onClick={() => setCompactQuotePane("edit")} aria-pressed={compactQuotePane === "edit"}>편집</button>
+          <button type="button" className="quote-pane-toggle" onClick={() => setCompactQuotePane("preview")} aria-pressed={compactQuotePane === "preview"}>미리보기</button>
+        </div>
+        {!documentOnly ? (
+          <aside className="quote-recent-pane" aria-label="최근 생성 견적">
+            <button type="button" className="quote-recent-close" onClick={() => setRecentPanelOpen(false)} aria-label="최근 견적 닫기"><X size={16} /></button>
+            {recentQuotesPanelNode}
+          </aside>
+        ) : null}
         <div
-          className={`min-w-0 space-y-5 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : ""}`}
+          className="quote-editor-pane min-w-0 space-y-5"
           style={isDesktopWindow ? { alignSelf: "stretch" } : undefined}
         >
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
@@ -2575,68 +2635,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
             </div>
           </Panel>
 
-          <Panel title={`최근 생성 견적 (최근 ${RECENT_QUOTES_DISPLAY_LIMIT}개 표시 · 전체 이력은 Supabase에 보관)`}>
-            {recentQuoteMessage ? (
-              <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">
-                {recentQuoteMessage}
-              </div>
-            ) : null}
-            {recentQuotes.length === 0 ? (
-              <p className="empty-text">PDF 다운로드 또는 계약서 생성을 누르면 최근 견적이 자동 보관됩니다.</p>
-            ) : (
-              <div className="grid gap-3">
-                {recentQuotes.map((item) => (
-                  <div
-                    key={item.id}
-                    className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                  >
-                    <div className="min-w-0">
-                      <div className="mb-2 inline-flex rounded-full bg-[var(--quote-tint)] px-3 py-1 text-xs font-extrabold text-[var(--quote-ink)]">
-                        최근 견적
-                      </div>
-                      <strong className="block truncate text-base font-extrabold text-[var(--quote-ink)]">
-                        {item.hospitalName || `${cfg.entityLabel} 없음`}
-                      </strong>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6f6961]">
-                        <span>{item.quoteNumber}</span>
-                        <span className="text-[#c7bbad]">|</span>
-                        <span>{displayDate(item.quoteDate)}</span>
-                      </div>
-                      <b className="mt-2 block text-lg font-extrabold text-[var(--quote-accent)]">
-                        {won(item.totalAmount)}
-                      </b>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:w-[172px]">
-                      <button
-                        type="button"
-                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]"
-                        onClick={() => loadRecentQuote(item)}
-                      >
-                        불러오기
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => void openContractWithQuote(item)}
-                        disabled={openingContract}
-                      >
-                        <FileText size={15} />
-                        {openingContract ? "준비 중" : "계약서"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={publishingQuoteId === item.id}
-                        className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-                        onClick={() => void publishQuoteToPortal(item)}
-                      >
-                        {publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Panel></> : null}
+          </> : null}
 
           <Panel title="선금 / 잔금 비율">
             <div className="grid gap-3">
@@ -2727,7 +2726,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
           )}
         </div>
 
-        <aside className={`min-w-0 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : "md:sticky md:top-4 md:self-start md:max-h-[calc(100vh-32px)] md:overflow-y-auto md:pr-1 lg:top-6 lg:max-h-[calc(100vh-48px)]"}`}>
+        <aside className="quote-preview-pane min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
@@ -2811,7 +2810,7 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
               style={{ height: 40, borderRadius: 9, border: "1px solid rgba(21,88,85,.12)", background: "#fff", color: "#155855", fontWeight: 800, cursor: "pointer" }}>
               계속 작성
             </button>
-            <button type="button" onClick={async () => { await handleManualSave(); setCloseConfirmOpen(false); onClose?.(); }}
+            <button type="button" onClick={async () => { if (await handleManualSave()) { setCloseConfirmOpen(false); onClose?.(); } }}
               style={{ height: 40, borderRadius: 9, border: "none", background: "#155855", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
               임시 저장 후 닫기
             </button>
@@ -2825,6 +2824,14 @@ const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function 
       document.body,
     ) : null}
     </>
+  );
+});
+
+const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function ScopedQuoteBuilder(props, ref) {
+  return (
+    <QuoteStoreScope isolated={Boolean(props.documentOnly)}>
+      <QuoteBuilderInner {...props} ref={ref} />
+    </QuoteStoreScope>
   );
 });
 

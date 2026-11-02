@@ -51,6 +51,9 @@
 .caseHeader{display:grid;grid-template-columns:auto minmax(220px,1fr) minmax(190px,260px) auto;padding-bottom:18px;border-bottom:1px solid var(--line)}
 .backButton,.collapsedHeader button{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--teal);font:inherit;font-size:12px;font-weight:600;cursor:pointer}
 .caseTitle p{margin:5px 0 0;color:var(--muted);font-size:11px}
+.caseTitleLine{display:flex;align-items:center;gap:10px}
+.caseTitleLine button{min-height:30px;display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:8px;padding:0 10px;background:var(--surface);color:var(--teal);font:inherit;font-size:10.5px;font-weight:600;cursor:pointer}
+.caseTitleLine button:hover{background:var(--soft)}
 .caseGrid{display:grid;grid-template-columns:minmax(0,1fr) 330px;align-items:start;gap:20px}
 .caseMain{min-width:0}
 .cardHeader{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid rgba(21,88,85,.09);color:var(--teal);font-size:12px}
@@ -76,6 +79,11 @@
 .workTabs button[data-active=true]{background:var(--ui-green-soft,#fff);color:var(--text);box-shadow:0 0 0 1px var(--line)}
 .workTabs button:disabled{opacity:.4;cursor:default}
 .editorHost{min-height:680px;background:var(--surface)}
+.shell[data-embedded=true] .casePage[data-working=true]{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:18px}
+.shell[data-embedded=true] .casePage[data-working=true] .caseGrid{flex:1;min-height:0;align-items:stretch}
+.shell[data-embedded=true] .casePage[data-working=true] .caseMain,.shell[data-embedded=true] .casePage[data-working=true] .workCard{height:100%;min-height:0}
+.shell[data-embedded=true] .casePage[data-working=true] .workCard{display:grid;grid-template-rows:auto minmax(0,1fr)}
+.shell[data-embedded=true] .casePage[data-working=true] .editorHost{min-height:0;overflow:auto}
 .editorLoading{min-height:400px;display:flex;align-items:center;justify-content:center;gap:9px;color:var(--muted);font-size:12px}
 .chat{position:sticky;top:12px;height:min(640px,calc(100vh - 145px));min-height:440px;display:flex;flex-direction:column}
 .chat header{display:flex;align-items:flex-start;justify-content:space-between;padding:16px 17px;border-bottom:1px solid var(--line);color:var(--teal)}

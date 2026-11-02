@@ -23,6 +23,8 @@ function workspaceKey(clientId?: string, workflowRunId?: string, resourceId?: st
 export interface ContiV2AppProps {
   /** The workspace surface reuses the editor but removes the standalone, hero-style shell. */
   surface?: "default" | "tablet" | "workspace";
+  /** 실제 DesktopWindow 안에서만 고정 높이와 내부 스크롤을 사용한다. */
+  embedded?: boolean;
   /** 고객관리에서 지정된 기존 콘티 한 건만 열고 생성·이전 문서 전환은 막는다. */
   documentOnly?: boolean;
   clientId?: string;
@@ -31,10 +33,10 @@ export interface ContiV2AppProps {
   initialRunId?: string;
   onClose?: () => void;
   onPublished?: () => void;
-  registerRequestClose?: (fn: () => void) => void;
+  registerRequestClose?: (fn: (() => void) | null) => void;
 }
 
-export default function ContiV2App({ surface = "default", documentOnly = false, clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
+export default function ContiV2App({ surface = "default", embedded = false, documentOnly = false, clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
   const canRetainWorkspace = persistenceKey !== "new-client:new-workflow:new-resource";
   const retained = canRetainWorkspace ? retainedWorkspaces.get(persistenceKey) : undefined;
@@ -49,10 +51,14 @@ export default function ContiV2App({ surface = "default", documentOnly = false, 
   useEffect(() => {
     if (!registerRequestClose || !onClose) return;
     registerRequestClose(() => {
-      if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
-      onClose();
+      void controller.flushSave().then((saved) => {
+        if (!saved) return;
+        if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
+        onClose();
+      });
     });
-  }, [canRetainWorkspace, onClose, persistenceKey, registerRequestClose]);
+    return () => registerRequestClose(null);
+  }, [canRetainWorkspace, controller.flushSave, onClose, persistenceKey, registerRequestClose]);
 
   useEffect(() => {
     if (canRetainWorkspace && runId) retainedWorkspaces.set(persistenceKey, { runId, view });
@@ -104,9 +110,9 @@ export default function ContiV2App({ surface = "default", documentOnly = false, 
     setView("table");
   };
 
-  const returnToCreate = () => {
+  const returnToCreate = async () => {
     if (documentOnly) return;
-    void controller.flushSave();
+    if (!await controller.flushSave()) return;
     if (canRetainWorkspace) retainedWorkspaces.delete(persistenceKey);
     setRunId(null);
     setNotices([]);
@@ -116,7 +122,7 @@ export default function ContiV2App({ surface = "default", documentOnly = false, 
   if (resolvingInitial || (runId && controller.loading)) return <div className={styles.studioLoading}>콘티 스튜디오를 준비하는 중…</div>;
 
   return (
-    <div className={styles.appShell} data-conti-surface={surface}>
+    <div className={styles.appShell} data-conti-surface={surface} data-conti-embedded={embedded}>
       {runId ? (
         <>
           {view === "table" ? (
@@ -126,9 +132,9 @@ export default function ContiV2App({ surface = "default", documentOnly = false, 
               clientId={clientId}
               workflowRunId={workflowRunId}
               documentOnly={documentOnly}
-              onBack={returnToCreate}
+              onBack={() => void returnToCreate()}
               onOpenField={() => setView("field")}
-              onOpenRun={(id) => { void controller.flushSave(); openRun(id); }}
+              onOpenRun={(id) => { void controller.flushSave().then((saved) => { if (saved) openRun(id); }); }}
               onPublished={onPublished}
             />
           ) : (

@@ -603,7 +603,9 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     if (mode !== "prompt") return;
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+      if (e.isComposing || target?.isContentEditable || (target && (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement))) return;
+      // OS 안에서는 현재 프롬프터 실행 화면에 포커스가 있을 때만 전역 단축키를 받는다.
+      if (embedded && promptRootRef.current && !promptRootRef.current.contains(document.activeElement)) return;
       if (editorMode === "slides") {
         if (e.key === "ArrowRight") setSlideIndex((i) => Math.min(i + 1, slides.length - 1));
         if (e.key === "ArrowLeft") setSlideIndex((i) => Math.max(i - 1, 0));
@@ -617,7 +619,11 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mode, editorMode, slides.length]);
+  }, [embedded, mode, editorMode, slides.length]);
+
+  useEffect(() => {
+    if (mode === "prompt") promptRootRef.current?.focus({ preventScroll: true });
+  }, [mode]);
 
   const resetTimer = () => {
     setElapsed(0);
@@ -1063,10 +1069,40 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     </div>
   );
 
+  const sceneActions = (
+    <>
+      <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
+      <button
+        onClick={() => setSceneView((view) => view === "editor" ? "data" : "editor")}
+        className="pt-btn"
+        style={sceneView === "data" ? { color: "#155855", borderColor: "#8BB7B0", background: "#EAF4F2" } : undefined}
+      >
+        <TableProperties size={15} /> {sceneView === "data" ? "대본 편집" : "실제 데이터 편집"}
+      </button>
+      {currentProject?.public_share_token ? (
+        <button onClick={() => setShowShareModal(true)} className="pt-btn" style={{ color: "#155855", borderColor: "#B8D4CF" }}><Share2 size={15} /> 공유 중</button>
+      ) : (
+        <button onClick={shareProject} className="pt-btn" disabled={sharing}><Share2 size={15} /> {sharing ? "공유 중..." : "공유"}</button>
+      )}
+      {sceneView === "editor" ? (
+        <>
+          <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
+          <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
+          {!saving && lastAutoSavedAt ? <span className="pt-save-status">저장됨 · 방금 전</span> : null}
+          <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행</button>
+        </>
+      ) : (
+        <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>
+          <Save size={15} /> {savingDataTable ? "저장 중..." : "변경사항 저장"}
+        </button>
+      )}
+    </>
+  );
+
   /* ── 프로젝트 목록 화면 ── */
   if (mode === "projects") {
     return (
-      <main style={{ minHeight: "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
+      <main className={embedded ? "pt-embedded-page" : undefined} style={{ minHeight: embedded ? 0 : "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
         {embedded ? null : <GlobalHeader title="프롬프터" description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다." />}
         <div className="oa-page pt-projects-page">
           <button onClick={() => openProjectModal("create")} className="pt-new-project-btn">새 프로젝트</button>
@@ -1100,40 +1136,13 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
   /* ── 씬 편집 화면 ── */
   if (mode === "scenes") {
     return (
-      <main style={{ minHeight: "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
+      <main className={embedded ? "pt-embedded-page" : undefined} style={{ minHeight: embedded ? 0 : "100vh", background: embedded ? "#FDFCFA" : "var(--mesh-bg)" }}>
         {embedded ? null : <GlobalHeader
           title="프롬프터"
           description="대본을 입력해 반전·자동스크롤·타이머와 함께 읽으며 동시 녹화합니다."
-          pageActions={<>
-            <button onClick={backToProjects} className="pt-btn"><ChevronLeft size={15} /> 프로젝트 목록</button>
-            <button
-              onClick={() => setSceneView((view) => view === "editor" ? "data" : "editor")}
-              className="pt-btn"
-              style={sceneView === "data" ? { color: "#155855", borderColor: "#8BB7B0", background: "#EAF4F2" } : undefined}
-            >
-              <TableProperties size={15} /> {sceneView === "data" ? "대본 편집" : "실제 데이터 편집"}
-            </button>
-            {currentProject?.public_share_token ? (
-              <button onClick={() => setShowShareModal(true)} className="pt-btn" style={{ color: "#155855", borderColor: "#B8D4CF" }}><Share2 size={15} /> 공유 중</button>
-            ) : (
-              <button onClick={shareProject} className="pt-btn" disabled={sharing}><Share2 size={15} /> {sharing ? "공유 중..." : "공유"}</button>
-            )}
-            {sceneView === "editor" ? (
-              <>
-                <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
-                <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
-                {!saving && lastAutoSavedAt ? (
-                  <span style={{ fontSize: 11, color: "#8aa39f", alignSelf: "center" }}>저장됨 · 방금 전</span>
-                ) : null}
-                <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행</button>
-              </>
-            ) : (
-              <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>
-                <Save size={15} /> {savingDataTable ? "저장 중..." : "변경사항 저장"}
-              </button>
-            )}
-          </>}
+          pageActions={sceneActions}
         />}
+        {embedded ? <div className="pt-embedded-actions" aria-label="프롬프터 작업 도구">{sceneActions}</div> : null}
         <div className="oa-page">
           <div className="pt-scene-project-banner">
             <Building2 size={16} />
@@ -1441,12 +1450,16 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
   /* ── 프롬프터(전체화면) 실행 모드 ── */
   const isSlideMode = editorMode === "slides";
   return (
-    <div ref={promptRootRef} style={{ position: "fixed", inset: 0, background: bgColor, zIndex: 999, isolation: "isolate" }}>
+    <div
+      ref={promptRootRef}
+      tabIndex={-1}
+      style={{ position: embedded ? "absolute" : "fixed", inset: 0, minHeight: 0, overflow: "hidden", background: bgColor, zIndex: 999, isolation: "isolate", outline: "none" }}
+    >
       {isSlideMode ? (
         <div style={{
           height: "100%", display: "flex", flexDirection: "column",
           justifyContent: vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center",
-          padding: "0 8vw",
+          padding: "72px 8vw 82px",
           transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
         }}>
           <p style={{ fontSize, color: fontColor, fontFamily, lineHeight, whiteSpace: "pre-wrap", margin: 0, textAlign: hAlign, width: "100%" }}>
@@ -1460,7 +1473,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
           style={{
             height: "100%", overflowY: "auto", position: "relative", zIndex: 2,
             // 첫·마지막 문단도 현재 가이드 위치까지 이동할 수 있도록 최소 스크롤 여백을 확보한다.
-            padding: `max(${V_ALIGN_PADDING[vAlign].top}, ${guidePosition}vh) 8vw max(${V_ALIGN_PADDING[vAlign].bottom}, ${100 - guidePosition}vh)`,
+            padding: `max(${V_ALIGN_PADDING[vAlign].top}, ${guidePosition}vh) 8vw max(${V_ALIGN_PADDING[vAlign].bottom}, calc(${100 - guidePosition}vh + 82px))`,
             transform: `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`,
           }}
           onScroll={syncScrollProgress}
@@ -1499,7 +1512,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
       )}
 
       {/* 상단 바 — 타이머는 왼쪽 */}
-      <div style={{ position: "fixed", top: 16, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, pointerEvents: "none" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div className="pt-timer-badge">{fmtTime(elapsed)}</div>
@@ -1522,35 +1535,22 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
 
       {/* 가이드(1) < 텍스트(2) < 조작 UI(4): 명시적인 로컬 stacking context로 클릭과 시각 순서를 분리한다. */}
       {guideEnabled && !isSlideMode && (
-        <div style={{ position: "fixed", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 1 }} />
+        <div style={{ position: "absolute", top: `${guidePosition}%`, left: 0, right: 0, borderTop: "2px dashed rgba(232,93,44,.85)", pointerEvents: "none", zIndex: 1 }} />
       )}
 
       {/* 녹화 미리보기 (작은 창) */}
       {recording && (
-        <video ref={videoPreviewRef} muted style={{ position: "fixed", bottom: 100, right: 16, width: 160, borderRadius: 10, border: "2px solid #fff", zIndex: 5 }} />
+        <video ref={videoPreviewRef} muted style={{ position: "absolute", bottom: showControls ? 190 : 82, right: 16, width: 160, borderRadius: 10, border: "2px solid #fff", zIndex: 5 }} />
       )}
 
       {/* 하단 컨트롤 바 */}
       {showControls && (
         <div style={{
-          position: "fixed", left: 0, right: 0, bottom: 0, padding: "14px 24px",
+          position: "absolute", left: 0, right: 0, bottom: 64, maxHeight: "42%", overflowY: "auto", padding: "14px 24px",
           background: "rgba(0,0,0,.75)", display: "flex", flexWrap: "wrap", gap: 16, alignItems: "center", zIndex: 4, pointerEvents: "auto",
         }}>
-          {isSlideMode ? (
+          {!isSlideMode ? (
             <>
-              <button onClick={() => setSlideIndex((i) => Math.max(i - 1, 0))} disabled={slideIndex === 0} className="pt-ctrl-btn"><ChevronLeft size={18} /> 이전</button>
-              <button onClick={() => setSlideIndex((i) => Math.min(i + 1, slides.length - 1))} disabled={slideIndex >= slides.length - 1} className="pt-ctrl-btn">다음 <ChevronRight size={18} /></button>
-              <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
-            </>
-          ) : (
-            <>
-              <button onClick={togglePlayback} className="pt-ctrl-btn">
-                {scrolling ? <Pause size={18} /> : <Play size={18} />} {scrolling ? "일시정지" : "재생"}
-              </button>
-              <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
-              <button onClick={() => jumpParagraph(-1)} disabled={paragraphIndex === 0} className="pt-ctrl-btn"><ChevronUp size={16} /> 이전 문단</button>
-              <button onClick={() => jumpParagraph(1)} disabled={paragraphIndex >= paragraphs.length - 1} className="pt-ctrl-btn"><ChevronDown size={16} /> 다음 문단</button>
-
               <label className="pt-ctrl-label"><Gauge size={14} /> 속도
                 <input
                   type="range" min={1} max={10} step={1} value={levelOf(speed, SPEED_LEVELS)}
@@ -1581,7 +1581,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
                 </>
               )}
             </>
-          )}
+          ) : null}
 
           <button onClick={() => setFlipH((v) => !v)} className={`pt-ctrl-btn${flipH ? " active" : ""}`}><FlipHorizontal size={16} /> 좌우반전</button>
           <button onClick={() => setFlipV((v) => !v)} className={`pt-ctrl-btn${flipV ? " active" : ""}`}><FlipVertical size={16} /> 상하반전</button>
@@ -1634,13 +1634,31 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
             {FONT_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
           </select>
 
-          {!recording ? (
-            <button onClick={startRecording} className="pt-ctrl-btn pt-rec-btn"><Circle size={16} /> 녹화 시작</button>
-          ) : (
-            <button onClick={stopRecording} className="pt-ctrl-btn pt-rec-btn active"><Square size={16} /> 녹화 종료</button>
-          )}
+          {!recording ? <button onClick={startRecording} className="pt-ctrl-btn pt-rec-btn"><Circle size={16} /> 녹화 시작</button> : null}
         </div>
       )}
+
+      {/* 설정을 접어도 촬영 중 꼭 필요한 조작은 항상 남긴다. */}
+      <div className="pt-basic-controls" style={{ position: "absolute", left: 0, right: 0, bottom: 0, minHeight: 64, padding: "10px 18px", background: "rgba(0,0,0,.88)", display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", zIndex: 6, pointerEvents: "auto" }}>
+        {isSlideMode ? (
+          <>
+            <button onClick={() => setSlideIndex((i) => Math.max(i - 1, 0))} disabled={slideIndex === 0} className="pt-ctrl-btn"><ChevronLeft size={18} /> 이전</button>
+            <button onClick={() => setSlideIndex((i) => Math.min(i + 1, slides.length - 1))} disabled={slideIndex >= slides.length - 1} className="pt-ctrl-btn">다음 <ChevronRight size={18} /></button>
+            <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
+          </>
+        ) : (
+          <>
+            <button onClick={togglePlayback} className="pt-ctrl-btn">{scrolling ? <Pause size={18} /> : <Play size={18} />} {scrolling ? "일시정지" : "재생"}</button>
+            <button onClick={resetTimer} className="pt-ctrl-btn"><RotateCcw size={18} /> 처음으로</button>
+            <button onClick={() => jumpParagraph(-1)} disabled={paragraphIndex === 0} className="pt-ctrl-btn"><ChevronUp size={16} /> 이전 문단</button>
+            <button onClick={() => jumpParagraph(1)} disabled={paragraphIndex >= paragraphs.length - 1} className="pt-ctrl-btn"><ChevronDown size={16} /> 다음 문단</button>
+          </>
+        )}
+        <span style={{ flex: 1 }} />
+        {recording ? <button onClick={stopRecording} className="pt-ctrl-btn pt-rec-btn active"><Square size={16} /> 녹화 종료</button> : null}
+        <button onClick={() => setShowControls((value) => !value)} className={`pt-ctrl-btn${showControls ? " active" : ""}`}>{showControls ? "설정 접기" : "설정 열기"}</button>
+        <button onClick={exitPromptMode} className="pt-ctrl-btn"><X size={16} /> 편집 화면</button>
+      </div>
 
       {/* 리모컨 QR/코드 */}
       {showRemoteInfo && sessionCode && (

@@ -333,7 +333,7 @@ export default function VideoStudio({
   } else if (tool === "broll") {
     body = <div className={styles.embeddedWorkspace}><BrollPromptWorkspace /></div>;
   } else if (tool === "prompter") {
-    body = <div className={styles.embeddedWorkspace}><PrompterWorkspace embedded /></div>;
+    body = <div className={`${styles.embeddedWorkspace} ${styles.prompterWorkspace}`}><PrompterWorkspace embedded /></div>;
   } else if (tool === "ai-video") {
     body = <div className={`${styles.embeddedWorkspace} ${styles.aiVideoWorkspace}`}><VideoProductionWorkspace embedded /></div>;
   } else {

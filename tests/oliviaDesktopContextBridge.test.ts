@@ -100,6 +100,32 @@ describe("useOliviaDesktopContextBridge — customer source ownership", () => {
     expect(areWindowContextsEqual(customerWindow, nextWindow)).toBe(true);
     expect(namedSeed(nextWindow, { id: "client-b", name: "고객 B" })).toBeNull();
   });
+
+  it("고객 없는 목록 창은 마지막 전역 고객을 명시적으로 해제한다", () => {
+    expect(resolveNamedContextSeed({
+      windowId: "person-select",
+      windowValue: {},
+      activeValue: { id: "client-old", name: "이전 병원" },
+      clearWhenEmpty: true,
+    })).toEqual({ id: undefined, name: undefined });
+
+    expect(buildWindowContextFromOlivia({
+      appId: "person-select",
+      mappedWorkspace: "photo-sort",
+      windowContext: { contextScope: "none", routeHref: "/person-select" },
+      oliviaContext: { clientId: "client-old", clientName: "이전 병원", projectId: "run-old" },
+    })).toEqual({ contextScope: "none", routeHref: "/person-select" });
+  });
+
+  it("명시적으로 연결해 연 문서 창은 실제 고객과 문서 문맥을 유지한다", () => {
+    const next = buildWindowContextFromOlivia({
+      appId: "quote",
+      mappedWorkspace: "quote",
+      windowContext: { contextScope: "document", clientId: "client-b", workflowRunId: "run-b", resourceId: "quote-b", documentType: "quote" },
+      oliviaContext: { clientId: "client-b", clientName: "고객 B", projectId: "run-b", workspace: "quote", resourceId: "quote-b", documentId: "quote-b", documentType: "quote", documentTitle: "B 견적서" },
+    });
+    expect(next).toMatchObject({ contextScope: "document", clientId: "client-b", workflowRunId: "run-b", resourceId: "quote-b", documentId: "quote-b", documentTitle: "B 견적서" });
+  });
 });
 
 describe("useOliviaDesktopContextBridge — 문서 창 제목", () => {

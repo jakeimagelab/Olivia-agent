@@ -66,7 +66,7 @@ export default function ContractBuilder({
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
-  registerRequestClose?: (fn: () => void) => void;
+  registerRequestClose?: (fn: (() => void) | null) => void;
 } = {}) {
   const isModal = mode === "modal";
   const isDesktopWindow = isModal && useDesktopWindowMode();
@@ -815,7 +815,8 @@ export default function ContractBuilder({
   };
   useEffect(() => {
     if (!isModal) return;
-    registerRequestClose?.(() => handleModalClose);
+    registerRequestClose?.(handleModalClose);
+    return () => registerRequestClose?.(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModal, registerRequestClose, dirty]);
 
@@ -847,7 +848,7 @@ export default function ContractBuilder({
     <>
     <div
       className={`contract-app${brand === "jakeimage" ? " contract-app--jakeimage" : ""}`}
-      style={isModal ? { background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" } : { minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
+      style={isModal ? { width: "100%", height: "100%", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" } : { minHeight: "100vh", background: C.bg, fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif" }}
     >
 
       {isModal ? (
@@ -1126,7 +1127,7 @@ export default function ContractBuilder({
               style={{ height: 40, borderRadius: 9, border: "1px solid rgba(21,88,85,.12)", background: "#fff", color: "#155855", fontWeight: 800, cursor: "pointer" }}>
               계속 작성
             </button>
-            <button type="button" onClick={async () => { await handleSave(); setCloseConfirmOpen(false); onClose?.(); }}
+            <button type="button" onClick={async () => { if (await handleSave()) { setCloseConfirmOpen(false); onClose?.(); } }}
               style={{ height: 40, borderRadius: 9, border: "none", background: "#155855", color: "#fff", fontWeight: 800, cursor: "pointer" }}>
               임시 저장 후 닫기
             </button>
