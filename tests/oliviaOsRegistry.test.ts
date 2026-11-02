@@ -23,6 +23,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "customer",
       "calendar",
       "olivia-bridge",
+      "person-select",
       "video-studio",
       "quote",
       "conti",

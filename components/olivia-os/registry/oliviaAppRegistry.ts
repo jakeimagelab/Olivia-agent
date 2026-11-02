@@ -139,6 +139,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1120, height: 760 },
     minSize: { width: 620, height: 440 },
     singleton: true,
+    dockOrder: 5,
     component: PersonSelectWindowContent,
   },
   {
@@ -169,7 +170,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1180, height: 760 },
     minSize: { width: 620, height: 440 },
     singleton: true,
-    dockOrder: 8,
+    dockOrder: 9,
     component: WorkJournalWindowContent,
   },
   {
@@ -190,7 +191,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1200, height: 760 },
     minSize: { width: 420, height: 440 },
     singleton: true,
-    dockOrder: 5,
+    dockOrder: 6,
     component: VideoStudioWindowContent,
   },
   {
@@ -201,7 +202,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1000, height: 720 },
     minSize: { width: 640, height: 420 },
     singleton: true,
-    dockOrder: 6,
+    dockOrder: 7,
     component: QuoteBuilderWindowContent,
   },
   {
@@ -222,7 +223,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1420, height: 820 },
     minSize: { width: 760, height: 500 },
     singleton: true,
-    dockOrder: 7,
+    dockOrder: 8,
     component: ContiWindowContent,
   },
   {

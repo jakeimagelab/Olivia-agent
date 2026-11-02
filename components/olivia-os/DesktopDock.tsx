@@ -11,6 +11,7 @@ import {
   LayoutPanelTop,
   MessageCircle,
   NotebookText,
+  UserCheck,
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
   customer: UsersRound,
   calendar: CalendarDays,
   "olivia-bridge": Images,
+  "person-select": UserCheck,
   "video-studio": Film,
   quote: FileText,
   conti: LayoutPanelTop,
