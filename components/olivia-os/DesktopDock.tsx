@@ -33,7 +33,8 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
 };
 
 const DOCK_LABELS: Record<string, string> = {
-  "olivia-bridge": "Bridge",
+  "olivia-bridge": "브릿지",
+  "person-select": "사진선택",
   "video-studio": "영상",
 };
 
@@ -139,7 +140,7 @@ export function DesktopDock() {
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
             {index === 2 || index === 4 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
-            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={app.title}>
+            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={DOCK_LABELS[app.id] ?? app.title}>
               <span className={styles.dockGlyph} aria-hidden="true">{(() => {
                 const Icon = DOCK_ICONS[app.id] ?? FileText;
                 return <Icon size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />;
