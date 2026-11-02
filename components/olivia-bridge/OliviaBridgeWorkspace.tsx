@@ -48,6 +48,7 @@ import {
   analyzeBridgeScenes,
   bridgeFileKind,
   rebuildBridgeSceneAnalysis,
+  resolveBridgeToolSelection,
   scanBridgeFolder,
   updateBridgeSelection,
   type BridgeFolderScan,
@@ -1285,6 +1286,16 @@ export default function OliviaBridgeWorkspace({
     ));
   }, []);
 
+  const selectAllVisibleJpgs = useCallback(() => {
+    if (!visibleJpgs.length) return;
+    const next = new Set(visibleJpgs.map((photo) => photo.id));
+    setSelectedIds(next);
+    const nextFocusedId = focusedId && next.has(focusedId) ? focusedId : visibleJpgs[0].id;
+    setFocusedId(nextFocusedId);
+    setFocusedPlainId(null);
+    setAnchorId(nextFocusedId);
+  }, [focusedId, setSelectedIds, visibleJpgs]);
+
   const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || rawRootPromptOpen)) {
       event.preventDefault();
@@ -1340,7 +1351,8 @@ export default function OliviaBridgeWorkspace({
       return;
     }
     if (toolKey || sceneReviewOpen) return;
-    if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left"); }
+    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA") { event.preventDefault(); selectAllVisibleJpgs(); }
+    else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left"); }
     else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right"); }
     else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up"); }
     else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down"); }
@@ -1348,10 +1360,19 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, rawRootPromptOpen, resizeThumbnails, sceneReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeFullscreenPreview, folderSourceOpen, fullscreenPreviewOpen, moveFocus, moveGridFocus, nasPickerOpen, openFullscreenPreview, rawRootPromptOpen, resizeThumbnails, sceneReviewOpen, selectAllVisibleJpgs, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
+    const toolSelection = resolveBridgeToolSelection(selectedIdsRef.current, visibleJpgs.map((photo) => photo.id));
+    if (!toolSelection.size) return;
+    if (!selectedIdsRef.current.size) {
+      setSelectedIds(toolSelection);
+      setSelectedJpgFiles(visibleJpgs
+        .filter((photo) => toolSelection.has(photo.id))
+        .map((photo) => photo.file)
+        .filter((file): file is File => Boolean(file)));
+    }
     setSceneReviewOpen(false);
     if (key === "classification") {
       setToolKey(undefined);
@@ -1365,16 +1386,16 @@ export default function OliviaBridgeWorkspace({
       return;
     }
     setToolKey(key);
-  }, [breadcrumbs.length, currentLocalFolder, remoteFolder, syncAdobeBridgeSelection]);
+  }, [breadcrumbs.length, currentLocalFolder, remoteFolder, setSelectedIds, setSelectedJpgFiles, syncAdobeBridgeSelection, visibleJpgs]);
 
   const toolDisabledReason = useCallback((key: ToolKey) => {
     if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";
-    if (!selectedIds.size) return "사진을 먼저 선택해 주세요.";
+    if (!selectedIds.size && !visibleJpgs.length) return "현재 화면에 작업할 JPG가 없습니다.";
     if (activeFolder) return undefined;
     if (remoteFolder && key === "classification") return undefined;
     if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
     return "사진 폴더를 먼저 선택해 주세요.";
-  }, [activeFolder, remoteFolder, scanStatus, selectedIds.size]);
+  }, [activeFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);
 
   useEffect(() => {
     let disposed = false;
@@ -1742,7 +1763,7 @@ export default function OliviaBridgeWorkspace({
       </section>
 
       <footer className={styles.shortcutBar}>
-        <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
+        <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
       </footer>
 
       {sceneReviewOpen ? <BridgeFloatingWindow

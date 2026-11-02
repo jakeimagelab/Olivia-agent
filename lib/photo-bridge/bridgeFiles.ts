@@ -238,6 +238,11 @@ export function updateBridgeSelection(input: {
   return next;
 }
 
+/** 명시 선택이 없으면 현재 화면에 보이는 JPG 전체를 도구 입력으로 사용한다. */
+export function resolveBridgeToolSelection(current: ReadonlySet<string>, visibleIds: readonly string[]) {
+  return current.size ? new Set(current) : new Set(visibleIds);
+}
+
 type TimestampedBridgeFile = BridgeJpgFile & {
   mtime: number;
   timestampSource: TimestampSource;

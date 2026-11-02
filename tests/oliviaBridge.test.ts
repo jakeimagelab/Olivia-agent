@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { bridgeFileKind, partitionBridgeFileNames, scanBridgeFolder, updateBridgeSelection } from "@/lib/photo-bridge/bridgeFiles";
+import { bridgeFileKind, partitionBridgeFileNames, resolveBridgeToolSelection, scanBridgeFolder, updateBridgeSelection } from "@/lib/photo-bridge/bridgeFiles";
 import {
   BRIDGE_FLOATING_WINDOW_PRESETS,
   clampBridgeFloatingWindowRect,
@@ -45,6 +45,18 @@ describe("Olivia Bridge", () => {
     expect([...addedRange]).toEqual(["a", "b", "c", "d"]);
     const removed = updateBridgeSelection({ current: new Set(["b", "d"]), orderedIds: ids, clickedId: "b", anchorId: "d", additive: true, range: false });
     expect([...removed]).toEqual(["d"]);
+  });
+
+  it("명시 선택이 없으면 현재 보이는 JPG 전체를 도구 입력으로 사용한다", () => {
+    expect([...resolveBridgeToolSelection(new Set(), ["visible-a", "visible-b"])]).toEqual(["visible-a", "visible-b"]);
+    expect([...resolveBridgeToolSelection(new Set(["picked"]), ["visible-a", "visible-b"])]).toEqual(["picked"]);
+  });
+
+  it("Command 또는 Ctrl+A로 현재 보이는 JPG 전체 선택을 실행한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    expect(workspace).toContain('(event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA"');
+    expect(workspace).toContain("selectAllVisibleJpgs()");
+    expect(workspace).toContain("⌘/Ctrl+A 전체 선택");
   });
 
   it("Bridge와 사진 도구의 파일명·선택·별점을 같은 키로 연결한다", () => {
