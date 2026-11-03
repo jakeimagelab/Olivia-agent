@@ -215,7 +215,7 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
       const base = { clientId, clientName, workflowRunId, projectId: workflowRunId };
       const result: ShellTab[] = [];
       const quoteId = detail?.resourceIds?.quote ?? (appId === "quote" ? context?.resourceId : null);
-      if (quoteId || appId === "quote") result.push({ key: "quote", label: "견적서", subtitle: clientName, icon: FileText, href: "/quote", context: { ...base, resourceId: quoteId ?? undefined, documentType: "quote" } });
+      if (quoteId) result.push({ key: "quote", label: "견적서", subtitle: clientName, icon: FileText, href: "/quote", context: { ...base, resourceId: quoteId, documentId: quoteId, documentType: "quote" } });
       const contiId = detail?.resourceIds?.conti ?? (appId === "conti" ? context?.resourceId : null);
       if (contiId || appId === "conti") result.push({ key: "conti", label: "촬영 콘티", subtitle: clientName, icon: LayoutGrid, href: "/conti", context: { ...base, resourceId: contiId ?? undefined, documentType: "conti" } });
       const gallery = galleries[0] ?? (appId === "select-galleries" && context?.resourceId ? { id: context.resourceId } : null);

@@ -90,16 +90,17 @@ export function areWindowContextsEqual(left?: WindowContext, right?: WindowConte
   return true;
 }
 
-/**
- * 창의 배치와 고객 문맥은 복원하되, 마지막으로 열었던 문서는 세션을 넘겨 복원하지 않는다.
- * load 쪽에서도 같은 정리를 적용해 이미 localStorage에 남아 있는 옛 값까지 무시한다.
- */
+/** 목록 화면의 오염된 문맥은 지우되, 검증 가능한 견적 UUID가 있는 편집창은 그대로 복원한다. */
 export function withoutPersistedDocumentTarget(context?: WindowContext): WindowContext | undefined {
   if (!context) return undefined;
   const safeContext = { ...context };
-  delete safeContext.resourceId;
-  delete safeContext.documentId;
-  if (["quote", "contract", "conti"].includes(safeContext.documentType ?? "")) {
+  const restoresExactQuote = safeContext.documentType === "quote"
+    && Boolean(safeContext.documentId || safeContext.resourceId);
+  if (!restoresExactQuote) {
+    delete safeContext.resourceId;
+    delete safeContext.documentId;
+  }
+  if (!restoresExactQuote && ["quote", "contract", "conti"].includes(safeContext.documentType ?? "")) {
     // 계약서 새 작성용 견적 ID와 문서 URL도 결국 특정 문서를 가리킨다. 앱 종류는
     // appId/documentType으로 복원할 수 있으므로, 다음 세션에 문서 대상만 넘기지 않는다.
     delete safeContext.sourceQuoteId;

@@ -126,6 +126,19 @@ describe("useOliviaDesktopContextBridge — customer source ownership", () => {
     });
     expect(next).toMatchObject({ contextScope: "document", clientId: "client-b", workflowRunId: "run-b", resourceId: "quote-b", documentId: "quote-b", documentTitle: "B 견적서" });
   });
+
+  it("현재 견적에 고객·촬영 건이 없으면 이전 창의 연결을 남기지 않는다", () => {
+    const next = buildWindowContextFromOlivia({
+      appId: "quote",
+      mappedWorkspace: "quote",
+      windowContext: { contextScope: "document", clientId: "client-a", workflowRunId: "run-a", resourceId: "quote-b", documentType: "quote" },
+      oliviaContext: { workspace: "quote", resourceId: "quote-b", documentId: "quote-b", documentType: "quote", documentTitle: "B 견적서" },
+    });
+
+    expect(next.clientId).toBeUndefined();
+    expect(next.workflowRunId).toBeUndefined();
+    expect(next).toMatchObject({ resourceId: "quote-b", documentId: "quote-b", documentTitle: "B 견적서" });
+  });
 });
 
 describe("useOliviaDesktopContextBridge — 문서 창 제목", () => {

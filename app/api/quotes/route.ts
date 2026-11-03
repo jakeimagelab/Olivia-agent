@@ -67,10 +67,53 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, skipped: true, error: "빈 견적은 저장하지 않습니다." }, { status: 400 });
     }
 
-    const clientId = body.clientId || await resolveClientId(supabase, body.hospitalName);
-    const workflowRunId = await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
-
     const provided = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+    const quoteId = typeof body.quoteId === "string" && body.quoteId.trim() ? body.quoteId.trim() : null;
+    let existing: {
+      id: string;
+      client_id: string | null;
+      workflow_run_id: string | null;
+      created_at: string;
+      updated_at: string;
+    } | null = null;
+
+    if (quoteId) {
+      const { data, error } = await supabase
+        .from("quotes")
+        .select("id,client_id,workflow_run_id,created_at,updated_at")
+        .eq("id", quoteId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return NextResponse.json({ ok: false, error: "수정할 견적서를 찾을 수 없습니다." }, { status: 404 });
+      existing = data;
+
+      const requestedClientId = typeof body.clientId === "string" ? body.clientId : null;
+      const requestedWorkflowRunId = typeof body.workflowRunId === "string" ? body.workflowRunId : null;
+      if (provided("clientId") && requestedClientId !== (existing.client_id ?? null)) {
+        return NextResponse.json({ ok: false, error: "현재 견적서의 고객 연결과 저장 요청이 다릅니다." }, { status: 409 });
+      }
+      if (provided("workflowRunId") && requestedWorkflowRunId !== (existing.workflow_run_id ?? null)) {
+        return NextResponse.json({ ok: false, error: "현재 견적서의 촬영 건 연결과 저장 요청이 다릅니다." }, { status: 409 });
+      }
+      if (
+        typeof body.lastKnownUpdatedAt === "string"
+        && new Date(existing.updated_at).getTime() !== new Date(body.lastKnownUpdatedAt).getTime()
+      ) {
+        return NextResponse.json({
+          ok: false,
+          conflictDetected: true,
+          error: "다른 곳에서 이 견적서가 먼저 수정됐습니다. 다시 불러온 뒤 저장해주세요.",
+        }, { status: 409 });
+      }
+    }
+
+    // 기존 문서는 DB에 저장된 소유 관계를 유지한다. 신규 문서만 명시 고객 또는 병원명으로 연결한다.
+    const clientId = existing
+      ? existing.client_id
+      : body.clientId || await resolveClientId(supabase, body.hospitalName);
+    const workflowRunId = existing
+      ? existing.workflow_run_id
+      : await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
     const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
@@ -96,51 +139,60 @@ export async function POST(req: NextRequest) {
       form_state:      body.formState ?? null,
     };
 
-    const { data: existing, error: findError } = await supabase
-      .from("quotes")
-      .select("id, updated_at")
-      .eq("quote_number", body.quoteNumber)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (findError) throw new Error(findError.message);
-
-    // 사람의 저장(수동/자동)과 Agent tool의 직접 DB write가 서로 다른 경로로 같은 행을 건드릴
-    // 수 있다(§45/46) — 여기서는 막지 않고(하드 리젝트는 이 충돌을 다루는 기존 테스트가 없어
-    // false-positive로 정상 저장까지 막을 위험이 더 크다고 판단) 감지만 해서 알려준다.
-    // updated_at 컬럼에는 지금까지 UPDATE 시 자동 갱신 트리거가 없었으므로 여기서 직접 채운다.
-    const conflictDetected = Boolean(
-      existing?.id && typeof body.lastKnownUpdatedAt === "string" && existing.updated_at &&
-      new Date(existing.updated_at).getTime() !== new Date(body.lastKnownUpdatedAt).getTime()
-    );
-    if (conflictDetected) {
-      console.warn("[quotes] 저장 충돌 감지 — 다른 곳에서 먼저 저장됨", {
-        quoteId: existing!.id,
-        knownUpdatedAt: body.lastKnownUpdatedAt,
-        actualUpdatedAt: existing!.updated_at,
-      });
+    const nextUpdatedAt = new Date().toISOString();
+    let saved: { id: string; created_at: string; updated_at: string } | null = null;
+    if (existing) {
+      // 조회 뒤 다른 저장이 끼어드는 경쟁도 updated_at 조건으로 막는다.
+      const { data, error } = await supabase
+        .from("quotes")
+        .update({ ...payload, updated_at: nextUpdatedAt })
+        .eq("id", existing.id)
+        .eq("updated_at", existing.updated_at)
+        .select("id,created_at,updated_at")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) {
+        return NextResponse.json({
+          ok: false,
+          conflictDetected: true,
+          error: "저장 중 다른 곳에서 견적서가 수정됐습니다. 다시 불러온 뒤 저장해주세요.",
+        }, { status: 409 });
+      }
+      saved = data;
+    } else {
+      const { data, error } = await supabase
+        .from("quotes")
+        .insert(payload)
+        .select("id,created_at,updated_at")
+        .single();
+      if (error) throw new Error(error.message);
+      saved = data;
     }
 
-    const query = existing?.id
-      ? supabase.from("quotes").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", existing.id)
-      : supabase.from("quotes").insert(payload);
-    const { data, error } = await query.select("id, created_at, updated_at").single();
-
-    if (error) throw new Error(error.message);
+    if (!saved) throw new Error("견적 저장 결과를 확인하지 못했습니다.");
     // 재시도로 같은 견적을 덮어쓸 때마다 알림이 쌓이지 않도록 신규 생성일 때만 포털에 기록한다.
-    if (!existing?.id && clientId) {
-      await logPortalEvent({ clientId, eventType: "quote_ready", targetType: "quotes", targetId: data.id }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
+    if (!existing && clientId) {
+      await logPortalEvent({ clientId, eventType: "quote_ready", targetType: "quotes", targetId: saved.id }).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
     }
     if (!clientId && payload.hospital_name) {
       after(() => registerClientCandidate(supabase, {
         hospitalName: payload.hospital_name,
         sourceType: "quote",
-        sourceRecordId: data.id,
+        sourceRecordId: saved.id,
       }).catch((candidateError) => console.error("[quotes] 신규 고객 감지 실패", candidateError)));
     }
     // 저장(자동저장 포함)은 임시저장일 뿐 — 워크플로우 전진은 /api/quotes/[id]/publish
     // ("포털 공개")에서만 일어난다.
-    return NextResponse.json({ ok: true, id: data.id, createdAt: data.created_at, updatedAt: data.updated_at, updated: Boolean(existing?.id), conflictDetected });
+    return NextResponse.json({
+      ok: true,
+      id: saved.id,
+      createdAt: saved.created_at,
+      updatedAt: saved.updated_at,
+      clientId,
+      workflowRunId,
+      updated: Boolean(existing),
+      conflictDetected: false,
+    });
   } catch (error) {
     return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 저장 실패") }, { status: 500 });
   }

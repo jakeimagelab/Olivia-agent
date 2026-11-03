@@ -48,6 +48,12 @@ const QUOTE_FORM_KEYS = [
   "discountRate", "extraDiscount", "fixedTotal", "roundDownUnit", "taxMode", "itemPricesHidden", "memo", "depositRate",
 ] as const satisfies readonly (keyof QuoteFormState)[];
 
+/** 자동저장 기준선에는 store의 핸들러·dirty 메타데이터가 아니라 실제 폼 값만 넣는다. */
+export function quoteFormSnapshot(state: Partial<QuoteFormState>): string {
+  const form = Object.fromEntries(QUOTE_FORM_KEYS.map((key) => [key, state[key]]));
+  return JSON.stringify(form);
+}
+
 type Updater<T> = T | ((prev: T) => T);
 
 function resolveUpdater<T>(value: Updater<T>, prev: T): T {

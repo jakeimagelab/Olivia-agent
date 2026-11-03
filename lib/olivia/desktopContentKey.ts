@@ -5,6 +5,6 @@ export function getDesktopContentKey(input: {
   appId: string;
   context?: WindowContext;
 }): string {
-  if (input.appId === "conti" || input.appId === "customer") return input.windowId;
+  if (input.appId === "conti" || input.appId === "customer" || input.appId === "quote") return input.windowId;
   return `${input.appId}:${input.context?.resourceId ?? ""}:${input.context?.clientId ?? ""}:${input.context?.projectId ?? ""}`;
 }

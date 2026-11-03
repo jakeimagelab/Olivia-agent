@@ -11,9 +11,12 @@ import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 // 확장은 이번 phase 범위 밖), 지금은 항상 빈 새 견적서로 열린다 — 특정 고객/문서로 바로 열리게
 // 하려면 useOliviaDesktopStore.openApp의 입력을 확장하는 후속 작업이 필요하다.
 export function QuoteBuilderWindowContent({ context }: { context?: WindowContext }) {
+  const quoteResourceId = context?.documentType === "quote"
+    ? context.documentId ?? context.resourceId
+    : context?.resourceId;
   return (
     <DesktopWindowProvider value={true}>
-      <QuoteBuilder mode="modal" clientId={context?.clientId} workflowRunId={context?.workflowRunId} resourceId={context?.resourceId} />
+      <QuoteBuilder mode="modal" clientId={context?.clientId} workflowRunId={context?.workflowRunId} resourceId={quoteResourceId} />
     </DesktopWindowProvider>
   );
 }

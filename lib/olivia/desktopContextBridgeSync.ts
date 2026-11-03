@@ -114,20 +114,26 @@ export function buildWindowContextFromOlivia({
     return next;
   }
   const customerOwnsSelection = appId === "customer";
+  const documentOwnsSelection = scope === "document"
+    && Boolean(mappedWorkspace)
+    && oliviaContext.workspace === mappedWorkspace;
   return {
     ...windowContext,
-    clientId: customerOwnsSelection
+    clientId: customerOwnsSelection || documentOwnsSelection
       ? oliviaContext.clientId
       : oliviaContext.clientId ?? windowContext?.clientId,
-    clientName: customerOwnsSelection
+    clientName: customerOwnsSelection || documentOwnsSelection
       ? oliviaContext.clientName
       : oliviaContext.clientName ?? windowContext?.clientName,
-    projectId: customerOwnsSelection
+    projectId: customerOwnsSelection || documentOwnsSelection
       ? oliviaContext.projectId
       : oliviaContext.projectId ?? windowContext?.projectId,
-    projectName: customerOwnsSelection
+    projectName: customerOwnsSelection || documentOwnsSelection
       ? oliviaContext.projectName
       : oliviaContext.projectName ?? windowContext?.projectName,
+    workflowRunId: documentOwnsSelection
+      ? oliviaContext.projectId
+      : windowContext?.workflowRunId,
     resourceId: mappedWorkspace && oliviaContext.workspace === mappedWorkspace
       ? oliviaContext.resourceId
       : windowContext?.resourceId,

@@ -11,7 +11,7 @@ function source(relativePath: string): string {
 }
 
 describe("고객 문서 워크스페이스 회귀 방지", () => {
-  it("마지막 문서 ID는 데스크톱 세션에 남기지 않는다", () => {
+  it("실제 UUID가 있는 견적 편집창은 고객만 남긴 신규 폼으로 바꾸지 않고 그대로 복원한다", () => {
     expect(withoutPersistedDocumentTarget({
       clientId: "client-1",
       workflowRunId: "run-1",
@@ -20,7 +20,15 @@ describe("고객 문서 워크스페이스 회귀 방지", () => {
       documentType: "quote",
       sourceQuoteId: "quote-source-1",
       routeHref: "/quote?resourceId=quote-1&sourceQuoteId=quote-source-1",
-    })).toEqual({ clientId: "client-1", workflowRunId: "run-1", documentType: "quote" });
+    })).toEqual({
+      clientId: "client-1",
+      workflowRunId: "run-1",
+      resourceId: "quote-1",
+      documentId: "quote-1",
+      documentType: "quote",
+      sourceQuoteId: "quote-source-1",
+      routeHref: "/quote?resourceId=quote-1&sourceQuoteId=quote-source-1",
+    });
   });
 
   it("직전 일정 대화 때문에 현재 견적 요청에 일정 도구를 강제하지 않는다", () => {
@@ -69,7 +77,7 @@ describe("고객 문서 워크스페이스 회귀 방지", () => {
 
     expect(workspaceStyles).toContain(".listPage{width:min(1380px,100%)");
     expect(workspaceStyles).toContain(".casePage{width:100%");
-    expect(quoteBuilder).toContain("quote-workspace-layout");
-    expect(quoteBuilder).toContain("quote-workspace-layout--document");
+    expect(quoteBuilder).toContain('documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]"');
+    expect(quoteBuilder).toContain('isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden"');
   });
 });

@@ -59,4 +59,11 @@ describe("conti creation UI", () => {
     expect(first).toBe("customer");
     expect(second).toBe(first);
   });
+
+  it("does not remount a quote editor when its verified document context updates", () => {
+    const first = getDesktopContentKey({ windowId: "quote", appId: "quote", context: { clientId: "client-a", resourceId: "quote-a" } });
+    const second = getDesktopContentKey({ windowId: "quote", appId: "quote", context: { clientId: "client-b", projectId: "run-b", resourceId: "quote-b", documentId: "quote-b" } });
+    expect(first).toBe("quote");
+    expect(second).toBe(first);
+  });
 });

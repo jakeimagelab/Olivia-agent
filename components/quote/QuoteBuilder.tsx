@@ -13,7 +13,7 @@ import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
-import { QuoteStoreScope, useQuoteFormStore, useQuoteStoreApi } from "@/lib/store/useQuoteStore";
+import { QuoteStoreScope, quoteFormSnapshot, useQuoteFormStore, useQuoteStoreApi } from "@/lib/store/useQuoteStore";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
 import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from "@/lib/quote/quoteFormTypes";
@@ -21,6 +21,16 @@ import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/q
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { pricingStateAfterManualCustomItemEdit } from "@/lib/quote/manualQuoteEdit";
 import { hasMeaningfulQuoteContent } from "@/lib/quote/quoteDraft";
+import {
+  beginExistingQuoteLoad,
+  canApplyClientPrefill,
+  completeExistingQuoteLoad,
+  createNewQuoteSession,
+  failExistingQuoteLoad,
+  isSameQuoteSession,
+  quoteSaveIdentity,
+  type QuoteEditorSession,
+} from "@/lib/quote/quoteEditorSession";
 import { createQuoteNumber, nextQuoteNumber, quoteNumberDate } from "@/lib/quote/quoteNumber";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import QuoteDocument from "@/components/quote/QuoteDocument";
@@ -58,6 +68,8 @@ type ContractQuoteItem = {
 
 type ContractQuoteData = {
   id: string;
+  /** DB에 저장된 실제 UUID. 신규 폼의 임시 id와 구분한다. */
+  quoteId?: string;
   savedAt: string;
   title: string;
   hospitalName: string;
@@ -80,10 +92,12 @@ type ContractQuoteData = {
   memos: string | null;
   status?: string;
   portalUrl?: string;
-  // 저장 충돌(soft-warn) 감지용 — DB row의 updated_at을 그대로 들고 있다가 다음 저장 때
-  // lastKnownUpdatedAt으로 함께 보낸다(Phase 5). 사람이 새로 입력 중인 값이 아니라 서버가
+  // 저장 충돌 감지용 — DB row의 updated_at을 그대로 들고 있다가 다음 저장 때
+  // lastKnownUpdatedAt으로 함께 보낸다. 사람이 새로 입력 중인 값이 아니라 서버가
   // 마지막으로 알려준 시각일 뿐이라 폼 계산에는 전혀 쓰이지 않는다.
   updatedAt?: string;
+  clientId?: string | null;
+  workflowRunId?: string | null;
   formState?: {
     customer: CustomerInfo;
     quoteTitle: string;
@@ -171,6 +185,7 @@ const RECENT_QUOTES_DISPLAY_LIMIT = 10;
 
 const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => ({
   id: row.id,
+  quoteId: row.id,
   savedAt: row.created_at ?? new Date().toISOString(),
   title: row.title ?? "",
   hospitalName: row.hospital_name ?? "",
@@ -194,6 +209,8 @@ const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => 
   status: row.status ?? "draft",
   formState: row.form_state ? quoteRowToFormState(row) : undefined,
   updatedAt: row.updated_at ?? undefined,
+  clientId: typeof row.client_id === "string" ? row.client_id : null,
+  workflowRunId: typeof row.workflow_run_id === "string" ? row.workflow_run_id : null,
 });
 
 const uniqueQuoteItems = (items: string[]) => Array.from(new Set(items.map((item) => item.trim()).filter(Boolean)));
@@ -286,8 +303,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const isDesktopWindow = isModal && isDesktopWindowMode;
   const launchDesktopApp = useDesktopAppLauncher();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
-  const setOliviaClient = useOliviaContextStore((state) => state.setClient);
-  const setOliviaProject = useOliviaContextStore((state) => state.setProject);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const previewShellRef = useRef<HTMLDivElement>(null);
@@ -358,12 +373,19 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const [pdfImportMessage, setPdfImportMessage] = useState("");
   const [manualPdfQuote, setManualPdfQuote] = useState<ImportedPdfQuote | null>(null);
   const [recentQuoteMessage, setRecentQuoteMessage] = useState("");
-  // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서의 id — 채팅이 지금 이 견적서를
-  // 찾아 수정할 수 있게(activeResourceId) 하고, 수정 후 실시간 반영에도 쓴다.
-  const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
+  const initialEditorSession = useMemo(() => {
+    const fresh = createNewQuoteSession({ clientId, workflowRunId });
+    return resourceId ? beginExistingQuoteLoad(fresh, resourceId) : fresh;
+    // 최초 대상만 초기화한다. 이후 명시적인 resourceId 변경은 로드 effect가 처리한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const [editorSession, setEditorSessionState] = useState<QuoteEditorSession>(initialEditorSession);
+  const editorSessionRef = useRef<QuoteEditorSession>(initialEditorSession);
+  const replaceEditorSession = useCallback((next: QuoteEditorSession) => {
+    editorSessionRef.current = next;
+    setEditorSessionState(next);
+  }, []);
   const [currentQuoteStatus, setCurrentQuoteStatus] = useState("draft");
-  const [linkedWorkflowRunId, setLinkedWorkflowRunId] = useState<string | undefined>(workflowRunId);
-  const [documentLoading, setDocumentLoading] = useState(documentOnly && Boolean(resourceId));
   const [basePreviewScale, setBasePreviewScale] = useState(0.48);
   const [previewZoom, setPreviewZoom] = useState(1);
   // startInPreview는 채팅에서 "미리보기 보여줘"(preview_quote)로 이 워크스페이스가 방금 새로
@@ -371,7 +393,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
-  const quoteDocumentId = resourceId || currentQuoteId || undefined;
+  const quoteDocumentId = editorSession.quoteId ?? undefined;
+  const editorClientId = editorSession.clientId ?? undefined;
+  const linkedWorkflowRunId = editorSession.workflowRunId ?? undefined;
+  const documentLoading = editorSession.loadState === "loading";
   const quoteContextClientName = customer.hospitalName || undefined;
   const { snapshot: coreSnapshot, refresh: refreshCoreSnapshot } = useCoreProjectSnapshot(linkedWorkflowRunId);
   const snapshotQuote = coreSnapshot?.resources.quote;
@@ -380,17 +405,15 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     : currentQuoteStatus;
 
   useEffect(() => {
-    setLinkedWorkflowRunId(workflowRunId);
-  }, [workflowRunId]);
-
-  useEffect(() => {
     setOliviaCurrentDocument(
       quoteDocumentId,
       "quote",
       quoteTitle || quoteContextClientName || "견적서",
       {
-        ...(clientId ? { clientId, clientName: quoteContextClientName } : {}),
-        ...(linkedWorkflowRunId ? { projectId: linkedWorkflowRunId, projectName: quoteTitle || quoteContextClientName } : {}),
+        clientId: editorClientId,
+        clientName: editorClientId ? quoteContextClientName : undefined,
+        projectId: linkedWorkflowRunId,
+        projectName: linkedWorkflowRunId ? quoteTitle || quoteContextClientName : undefined,
       },
     );
     setOliviaPageContext({
@@ -401,7 +424,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       canEdit: effectiveQuoteStatus !== "archived",
       canFinalize: effectiveQuoteStatus !== "published" && effectiveQuoteStatus !== "final" && effectiveQuoteStatus !== "archived",
     });
-  }, [brand, clientId, effectiveQuoteStatus, linkedWorkflowRunId, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, editorClientId, effectiveQuoteStatus, linkedWorkflowRunId, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
     const current = useOliviaContextStore.getState();
@@ -412,16 +435,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     };
   }, [quoteDocumentId, setOliviaWorkspace]);
 
-  useEffect(() => {
-    setOliviaWorkspace("quote", resourceId);
-    if (workflowRunId) setOliviaProject(workflowRunId);
-    return () => {
-      const current = useOliviaContextStore.getState();
-      if (current.activeWorkspace === "quote" && current.activeResourceId === resourceId) {
-        current.setWorkspace(undefined, undefined);
-      }
-    };
-  }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
@@ -432,9 +445,14 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // Workspace Modal 모드 전용 — dirty 추적/자동저장/닫기 확인 (mode="page"일 땐 전부 미사용).
   const lastSavedFormStateRef = useRef<string>("");
   // 서버가 마지막으로 알려준 이 견적의 updated_at — 저장할 때 함께 보내 다른 곳(Agent 또는
-  // 다른 탭)이 그 사이 먼저 저장했는지 서버가 감지하게 한다(soft-warn, Phase 5). 폼 계산에는
+  // 다른 탭)이 그 사이 먼저 저장했는지 서버가 감지하고 충돌 저장을 거부하게 한다. 폼 계산에는
   // 쓰이지 않으므로 store가 아니라 ref로 둔다.
   const lastKnownUpdatedAtRef = useRef<string | undefined>(undefined);
+  const documentLoadAbortRef = useRef<AbortController | null>(null);
+  const clientPrefillTokenRef = useRef(0);
+  const clientPrefillAbortRef = useRef<AbortController | null>(null);
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingSaveRef = useRef<Promise<ContractQuoteData | null> | null>(null);
   const [dirty, setDirty] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveFailureReason, setSaveFailureReason] = useState("");
@@ -443,6 +461,12 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const saveFailureNotice = saveFailureReason
     ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
+
+  useEffect(() => () => {
+    documentLoadAbortRef.current?.abort();
+    clientPrefillAbortRef.current?.abort();
+    clientPrefillTokenRef.current += 1;
+  }, []);
 
   useEffect(() => {
     if (documentOnly) return;
@@ -858,8 +882,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       }))
     ];
 
+    const existingQuoteId = editorSessionRef.current.quoteId;
     return {
-      id: `${customer.quoteNumber || "quote"}-${Date.now()}`,
+      id: existingQuoteId ?? `${customer.quoteNumber || "quote"}-${Date.now()}`,
+      quoteId: existingQuoteId ?? undefined,
       savedAt: new Date().toISOString(),
       title: quoteTitle,
       hospitalName: customer.hospitalName,
@@ -880,6 +906,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       balanceAmount,
       depositRate,
       memos:        memo || null,
+      clientId: editorSessionRef.current.clientId,
+      workflowRunId: editorSessionRef.current.workflowRunId,
       formState: {
         customer,
         quoteTitle,
@@ -909,65 +937,102 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     };
   };
 
-  const saveRecentQuote = async (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
+  const saveRecentQuote = (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
     if (!hasMeaningfulQuoteContent(data)) {
       setRecentQuoteMessage("병원명이나 견적 항목을 먼저 입력해주세요.");
-      return null;
+      return Promise.resolve(null);
     }
-    try {
-      const response = await fetch("/api/quotes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Workspace Modal 모드에서는 병원명 문자열매칭이 아니라 이미 알고 있는 정확한
-        // clientId와 현재 문서가 실제로 확인한 workflowRunId로 연결한다
-        // (app/api/quotes/route.ts가 body.clientId를 우선한다).
-        // lastKnownUpdatedAt은 서버가 저장 충돌을 감지(soft-warn)하는 데만 쓰인다(Phase 5).
-        body: JSON.stringify({
-          ...(isModal ? { ...data, clientId, workflowRunId: linkedWorkflowRunId } : data),
-          lastKnownUpdatedAt: lastKnownUpdatedAtRef.current,
-        }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok || !body?.ok) throw new Error(body?.error ?? "서버 오류");
-
-      const savedData = { ...data, id: body.id ?? data.id, savedAt: body.createdAt ?? data.savedAt, updatedAt: body.updatedAt ?? data.updatedAt };
-      lastKnownUpdatedAtRef.current = savedData.updatedAt;
-      setRecentQuotes((current) => [
-        savedData,
-        ...current.filter((quote) => quote.quoteNumber !== savedData.quoteNumber),
-      ].slice(0, RECENT_QUOTES_DISPLAY_LIMIT));
-
-      const todayPrefix = `${BRAND_CONFIG[brand].quoteNumberPrefix}${quoteNumberDate()}-`;
-      if (data.quoteNumber.startsWith(todayPrefix)) {
-        setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
-      }
-      if (isModal) {
-        lastSavedFormStateRef.current = JSON.stringify(savedData.formState ?? null);
-        setDirty(false);
-      }
-      setSaveFailureReason("");
-      // 저장이 실제로 성공한 지금이 새 기준선이다 — dirtyFields를 비워서 Agent가 이후 이
-      // 필드들을 다시 patch할 수 있게 한다(모드에 상관없이 적용, page 모드는 지금까지
-      // dirty 추적 자체가 없었다).
-      quoteStore.getState().clearDirty();
-      // 저장은 됐지만 그 사이 다른 곳에서 먼저 저장했을 수 있다 — 막지 않고 알려만 준다.
-      if (body.conflictDetected) {
-        setRecentQuoteMessage("⚠️ 저장했지만, 그 사이 다른 곳에서 이 견적서가 먼저 수정됐어요. 최신 상태인지 확인해주세요.");
-      }
-      if (linkedWorkflowRunId) {
-        notifyCoreSnapshotUpdated(linkedWorkflowRunId);
-        await refreshCoreSnapshot();
-      }
-      return savedData;
-    } catch (error) {
-      const reason = error instanceof Error ? error.message : "네트워크 오류";
-      setSaveFailureReason(reason);
-      setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${reason}`);
-      return null;
+    const sessionAtRequest = editorSessionRef.current;
+    if (sessionAtRequest.loadState !== "ready") {
+      setRecentQuoteMessage("견적서를 불러오는 중에는 저장할 수 없습니다.");
+      return Promise.resolve(null);
     }
+    const sentSnapshot = data.formState ? quoteFormSnapshot(data.formState) : "";
+
+    const execute = async (): Promise<ContractQuoteData | null> => {
+      // 앞선 저장이 끝나기를 기다리는 사이 다른 문서로 이동했다면 이 저장 자체를 보내지 않는다.
+      const requestSession = editorSessionRef.current;
+      if (!isSameQuoteSession(requestSession, sessionAtRequest) || requestSession.loadState !== "ready") return null;
+      try {
+        // 같은 문서의 앞선 저장이 갱신한 updated_at을 실행 시점에 채택한다.
+        const identity = quoteSaveIdentity(requestSession);
+        const response = await fetch("/api/quotes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, ...identity }),
+        });
+        const body = await response.json().catch(() => null);
+        if (!response.ok || !body?.ok) throw new Error(body?.error ?? "서버 오류");
+        if (requestSession.quoteId && body.id !== requestSession.quoteId) {
+          throw new Error("저장된 견적서 ID가 현재 문서와 다릅니다.");
+        }
+        if (
+          requestSession.quoteId
+          && (typeof body.clientId === "string" ? body.clientId : null) !== requestSession.clientId
+        ) throw new Error("저장된 견적서의 고객 연결이 현재 문서와 다릅니다.");
+        if (
+          requestSession.quoteId
+          && (typeof body.workflowRunId === "string" ? body.workflowRunId : null) !== requestSession.workflowRunId
+        ) throw new Error("저장된 견적서의 촬영 건 연결이 현재 문서와 다릅니다.");
+        if (!isSameQuoteSession(editorSessionRef.current, requestSession)) return null;
+
+        const nextSession: QuoteEditorSession = {
+          mode: "existing",
+          quoteId: body.id,
+          clientId: typeof body.clientId === "string" ? body.clientId : null,
+          workflowRunId: typeof body.workflowRunId === "string" ? body.workflowRunId : null,
+          quoteNumber: data.quoteNumber,
+          updatedAt: body.updatedAt ?? data.updatedAt ?? null,
+          loadState: "ready",
+          requestToken: requestSession.requestToken,
+        };
+        replaceEditorSession(nextSession);
+        lastKnownUpdatedAtRef.current = nextSession.updatedAt ?? undefined;
+
+        const savedData: ContractQuoteData = {
+          ...data,
+          id: body.id,
+          quoteId: body.id,
+          clientId: nextSession.clientId,
+          workflowRunId: nextSession.workflowRunId,
+          savedAt: body.createdAt ?? data.savedAt,
+          updatedAt: nextSession.updatedAt ?? undefined,
+        };
+        setRecentQuotes((current) => [
+          savedData,
+          ...current.filter((quote) => quote.id !== savedData.id),
+        ].slice(0, RECENT_QUOTES_DISPLAY_LIMIT));
+
+        const todayPrefix = `${BRAND_CONFIG[brand].quoteNumberPrefix}${quoteNumberDate()}-`;
+        if (data.quoteNumber.startsWith(todayPrefix)) {
+          setTodayQuoteNumbers((prev) => Array.from(new Set([...prev, data.quoteNumber])));
+        }
+        const currentSnapshot = quoteFormSnapshot(quoteStore.getState());
+        lastSavedFormStateRef.current = sentSnapshot;
+        const hasNewerEdits = currentSnapshot !== sentSnapshot;
+        setDirty(hasNewerEdits);
+        if (!hasNewerEdits) quoteStore.getState().clearDirty();
+        setSaveFailureReason("");
+        if (nextSession.workflowRunId) {
+          notifyCoreSnapshotUpdated(nextSession.workflowRunId);
+          if (nextSession.workflowRunId === linkedWorkflowRunId) await refreshCoreSnapshot();
+        }
+        return savedData;
+      } catch (error) {
+        if (!isSameQuoteSession(editorSessionRef.current, requestSession)) return null;
+        const reason = error instanceof Error ? error.message : "네트워크 오류";
+        setSaveFailureReason(reason);
+        setRecentQuoteMessage(`⚠️ 견적 저장 실패 — ${reason}`);
+        return null;
+      }
+    };
+
+    const savePromise = saveQueueRef.current.catch(() => undefined).then(execute);
+    saveQueueRef.current = savePromise.then(() => undefined, () => undefined);
+    return savePromise;
   };
 
-  const loadRecentQuote = (data: ContractQuoteData) => {
+  const applyQuoteToForm = (data: ContractQuoteData) => {
     lastKnownUpdatedAtRef.current = data.updatedAt;
     if (data.formState && !data.formState.agentOverrideItems) {
       setBrand(data.formState.brand ?? "photoclinic");
@@ -1045,30 +1110,88 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       setDepositRate(data.depositRate ?? 50);
     }
 
-    setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
-    // 페이지 모드에서 불러온 뒤에도 채팅이 "지금 이 견적서"를 찾아 수정할 수 있도록 컨텍스트를
-    // 맞춰준다(모달 모드는 resourceId prop으로 이미 되고 있음) — components/conti/ContiBuilder.tsx의
-    // 같은 패턴(불러오기 클릭 시 setOliviaWorkspace) 참고.
-    if (data.id) {
-      setCurrentQuoteId(data.id);
-      setCurrentQuoteStatus(data.status || "draft");
-      setOliviaWorkspace("quote", data.id);
-      if (data.hospitalName) setOliviaClient(undefined, data.hospitalName);
-    }
-    // resetForm()과 같은 이유로, 방금 불러온 값을 새 기준선으로 삼는다 — 사람이 편집 중이던
-    // 값을 dirty로 남겨서 이후 Agent patch를 영구히 막지 않도록 한다.
     quoteStore.getState().clearDirty();
+    lastSavedFormStateRef.current = quoteFormSnapshot(quoteStore.getState());
+    setDirty(false);
+    setAutosaveStatus("idle");
+  };
+
+  const loadExistingQuote = async (
+    quoteId: string,
+    expected?: { clientId?: string; workflowRunId?: string },
+  ) => {
+    // 기존 고객 프리필과 이전 문서 조회는 이 시점부터 현재 폼을 건드릴 권한이 없다.
+    clientPrefillAbortRef.current?.abort();
+    clientPrefillTokenRef.current += 1;
+    documentLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    documentLoadAbortRef.current = controller;
+
+    const loadingSession = beginExistingQuoteLoad(editorSessionRef.current, quoteId);
+    replaceEditorSession(loadingSession);
+    pendingSaveRef.current = null;
+    setDirty(false);
+    setAutosaveStatus("idle");
+    setSaveFailureReason("");
+    setDocumentScopeError("");
+    quoteStore.getState().clearDirty();
+
+    try {
+      const response = await fetch(`/api/quotes/${encodeURIComponent(quoteId)}`, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+      if (json.quote?.id !== quoteId) throw new Error("요청한 견적서와 다른 문서가 반환됐습니다.");
+
+      const quoteClientId = typeof json.quote.client_id === "string" ? json.quote.client_id : null;
+      const quoteWorkflowRunId = typeof json.quote.workflow_run_id === "string" ? json.quote.workflow_run_id : null;
+      if (expected?.clientId !== undefined && quoteClientId !== expected.clientId) {
+        throw new Error("이 고객에게 연결된 견적서가 아닙니다.");
+      }
+      if (expected?.workflowRunId !== undefined && quoteWorkflowRunId !== expected.workflowRunId) {
+        throw new Error("이 촬영 건에 연결된 견적서가 아닙니다.");
+      }
+
+      const completed = completeExistingQuoteLoad(
+        editorSessionRef.current,
+        loadingSession.requestToken,
+        {
+          id: quoteId,
+          clientId: quoteClientId,
+          workflowRunId: quoteWorkflowRunId,
+          quoteNumber: json.quote.quote_number ?? "",
+          updatedAt: typeof json.quote.updated_at === "string" ? json.quote.updated_at : null,
+        },
+      );
+      if (!completed || controller.signal.aborted) return;
+
+      const data = rowToContractQuoteData(json.quote);
+      applyQuoteToForm(data);
+      setCurrentQuoteStatus(data.status || "draft");
+      replaceEditorSession(completed);
+      setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      const failed = failExistingQuoteLoad(editorSessionRef.current, loadingSession.requestToken, quoteId);
+      if (!failed) return;
+      replaceEditorSession(failed);
+      const reason = error instanceof Error ? error.message : "견적서를 불러오지 못했습니다.";
+      setDocumentScopeError(reason);
+      setRecentQuoteMessage(`⚠️ ${reason}`);
+      console.error("[OLIVIA] quote document load failed", error);
+    }
   };
 
   const [openingContract, setOpeningContract] = useState(false);
-  const openContractWithQuote = async (data: ContractQuoteData) => {
+  const openContractWithQuote = async (data: ContractQuoteData, saveCurrent = true) => {
     if (openingContract) return;
     setOpeningContract(true);
     setRecentQuoteMessage("");
     try {
-      // 계약서에는 현재 화면의 임시 JSON이 아니라 DB에 저장된 정확한 견적을 넘긴다.
-      // 저장이 실패하면 예전 /contract 페이지를 열어 빈 계약서를 보여주지 않는다.
-      const saved = await saveRecentQuote(data);
+      // 현재 폼은 먼저 저장하고, 최근 목록의 다른 견적은 이미 저장된 해당 UUID를 그대로 쓴다.
+      const saved = saveCurrent ? await saveRecentQuote(data) : data.quoteId ? data : null;
       if (!saved?.id) return;
 
       if (isDesktopWindow) {
@@ -1076,9 +1199,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           `/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`,
           saved.hospitalName || "계약서",
           {
-            clientId,
-            projectId: linkedWorkflowRunId,
-            workflowRunId: linkedWorkflowRunId,
+            clientId: saved.clientId ?? undefined,
+            projectId: saved.workflowRunId ?? undefined,
+            workflowRunId: saved.workflowRunId ?? undefined,
             sourceQuoteId: saved.id,
             resourceType: "quote",
           },
@@ -1122,7 +1245,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       setRecentQuotes((prev) =>
         prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
       );
-      if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
+      if (item.id === quoteDocumentId) setCurrentQuoteStatus("published");
       if (linkedWorkflowRunId) {
         notifyCoreSnapshotUpdated(linkedWorkflowRunId);
         await refreshCoreSnapshot();
@@ -1212,7 +1335,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         ? json.workflowRunId
         : linkedWorkflowRunId;
       if (completedWorkflowRunId) {
-        setLinkedWorkflowRunId(completedWorkflowRunId);
+        const current = editorSessionRef.current;
+        replaceEditorSession({ ...current, workflowRunId: completedWorkflowRunId });
         notifyCoreSnapshotUpdated(completedWorkflowRunId);
         await refreshCoreSnapshot();
       }
@@ -1236,134 +1360,120 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
 
   // ── 기존 문서/고객 프리필 ──
 
-  // 1) 프리필: resourceId가 있으면 기존 견적서를 불러오고, clientId만 있으면 고객 정보만 채운다.
+  // 명시적인 문서 ID가 바뀔 때만 기존 문서를 연다. 뒤이어 OS 고객 문맥이 갱신돼도 재로드하지 않는다.
   useEffect(() => {
-    const loadResource = () => {
-      if (!resourceId) return;
-      if (documentOnly) setDocumentLoading(true);
-      setDocumentScopeError("");
-      fetch(`/api/quotes/${resourceId}`)
-        .then(async (res) => {
-          const json = await res.json().catch(() => null);
-          if (!res.ok || !json?.ok) throw new Error(json?.error || `HTTP ${res.status}`);
-          return json;
-        })
-        .then((json) => {
-          const quoteClientId = typeof json.quote?.client_id === "string" ? json.quote.client_id : undefined;
-          const quoteWorkflowRunId = typeof json.quote?.workflow_run_id === "string" ? json.quote.workflow_run_id : undefined;
-          if (documentOnly && clientId && quoteClientId !== clientId) {
-            throw new Error("이 고객에게 연결된 견적서가 아닙니다.");
-          }
-          if (documentOnly && workflowRunId && quoteWorkflowRunId !== workflowRunId) {
-            throw new Error("이 촬영 건에 연결된 견적서가 아닙니다.");
-          }
-          if (typeof json.quote?.workflow_run_id === "string") {
-            setLinkedWorkflowRunId(json.quote.workflow_run_id);
-          }
-          loadRecentQuote(rowToContractQuoteData(json.quote));
-          setOliviaCurrentDocument(resourceId, "quote", json.quote?.title || json.quote?.hospital_name || "견적서", {
-            clientId: json.quote?.client_id,
-            clientName: json.quote?.hospital_name,
-            projectId: json.quote?.workflow_run_id,
-            projectName: json.quote?.title || json.quote?.hospital_name,
-          });
-        })
-        .catch((error) => {
-          console.error("[OLIVIA] quote document load failed", error);
-          if (documentOnly) setDocumentScopeError(error instanceof Error ? error.message : "이 고객의 견적서를 불러오지 못했습니다.");
-        })
-        .finally(() => {
-          if (documentOnly) setDocumentLoading(false);
-        });
-    };
-    if (resourceId) {
-      loadResource();
-      const onRefresh = (event: Event) => {
-        const detail = (event as CustomEvent<{ resource?: string; resourceId?: string; after?: unknown }>).detail;
-        if ((!detail?.resource || detail.resource === "quote") && (!detail?.resourceId || detail.resourceId === resourceId)) {
-          // after(방금 저장된 DB row)가 실려 있으면 다시 fetch하지 않고 dirty하지 않은 필드만
-          // 즉시 patch한다 — 없을 때만(다른 리소스 타입이 재사용하는 경우 등) 기존처럼 다시
-          // 불러온다.
-          if (detail?.after && typeof detail.after === "object") {
-            const afterRow = detail.after as Record<string, unknown>;
-            quoteStore.getState().patchFromAgent(afterRow);
-            // Agent가 방금 이 시각으로 저장했다 — 사람의 다음 저장이 이 값을 기준으로 충돌
-            // 여부를 판단하게 최신화한다(Phase 5). 그대로면 실제로는 이미 반영된 Agent 변경을
-            // "충돌"로 잘못 경고하게 된다.
-            if (typeof afterRow.updated_at === "string") lastKnownUpdatedAtRef.current = afterRow.updated_at;
-          } else {
-            loadResource();
-          }
-        }
-      };
-      window.addEventListener("olivia-resource-refresh", onRefresh);
-      const onPreview = (event: Event) => {
-        const detail = (event as CustomEvent<{ resourceId?: string }>).detail;
-        if (!detail?.resourceId || detail.resourceId === resourceId) setShowFullscreenPreview(true);
-      };
-      window.addEventListener("olivia-quote-preview", onPreview);
-      return () => {
-        window.removeEventListener("olivia-resource-refresh", onRefresh);
-        window.removeEventListener("olivia-quote-preview", onPreview);
-      };
-    }
-    if (!isModal) return;
-    if (clientId) {
-      const suffix = linkedWorkflowRunId
-        ? `?workflowRunId=${encodeURIComponent(linkedWorkflowRunId)}`
-        : "";
-      fetch(`/api/clients/${clientId}${suffix}`)
-        .then((res) => res.json())
-        .then((json) => {
-          if (!json.ok) return;
-          if (typeof json.workflowRun?.id === "string") setLinkedWorkflowRunId(json.workflowRun.id);
-          setCustomer((prev) => ({
-            ...prev,
-            hospitalName: json.client?.name || prev.hospitalName,
-            managerName: json.client?.manager_name || prev.managerName,
-            phone: json.client?.phone || prev.phone,
-            email: json.client?.email || prev.email,
-            shootDate: json.workflowRun?.shoot_date || prev.shootDate,
-          }));
-        })
-        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-    }
+    if (!resourceId) return;
+    const current = editorSessionRef.current;
+    if (current.quoteId === resourceId && current.loadState === "ready") return;
+    if (current.quoteId === resourceId && current.loadState === "loading" && documentLoadAbortRef.current) return;
+    void loadExistingQuote(resourceId, documentOnly ? { clientId, workflowRunId } : undefined);
+    return () => documentLoadAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentOnly, isModal, clientId, linkedWorkflowRunId, resourceId, workflowRunId]);
+  }, [resourceId]);
 
-  // 페이지 모드(/photoclinic)에서 "불러오기"로 연 견적서 — 모달 전용 effect 위에는 아예 없던
-  // 리스너라 채팅으로 지금 보고 있는 견적을 수정해도 화면이 그대로였다(콘티와 동일한 버그).
-  // currentQuoteId가 있을 때(견적을 한 번이라도 불러온 뒤)만 듣고 새로고침 없이 다시 불러온다.
+  // 고객 자동 입력은 문서 ID가 없는 명시적 신규 작성 세션에서만 허용한다.
   useEffect(() => {
-    if (isModal || !currentQuoteId) return;
+    if (resourceId) return;
+    const current = editorSessionRef.current;
+    if (current.mode !== "new" || current.quoteId || current.loadState !== "ready") return;
+    const next: QuoteEditorSession = {
+      ...current,
+      clientId: clientId ?? null,
+      workflowRunId: workflowRunId ?? null,
+    };
+    replaceEditorSession(next);
+    if (!isModal || !clientId) return;
+
+    clientPrefillAbortRef.current?.abort();
+    const controller = new AbortController();
+    clientPrefillAbortRef.current = controller;
+    const requestToken = next.requestToken;
+    const prefillToken = ++clientPrefillTokenRef.current;
+    const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
+
+    fetch(`/api/clients/${encodeURIComponent(clientId)}${suffix}`, { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
+        return json;
+      })
+      .then((json) => {
+        if (
+          controller.signal.aborted
+          || prefillToken !== clientPrefillTokenRef.current
+          || !canApplyClientPrefill(editorSessionRef.current, requestToken)
+        ) return;
+        const session = editorSessionRef.current;
+        replaceEditorSession({
+          ...session,
+          clientId,
+          workflowRunId: typeof json.workflowRun?.id === "string" ? json.workflowRun.id : session.workflowRunId,
+        });
+        setCustomer((previous) => ({
+          ...previous,
+          hospitalName: json.client?.name || previous.hospitalName,
+          managerName: json.client?.manager_name || previous.managerName,
+          phone: json.client?.phone || previous.phone,
+          email: json.client?.email || previous.email,
+          shootDate: json.workflowRun?.shoot_date || previous.shootDate,
+        }));
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) console.error("[OLIVIA] quote client prefill failed", error);
+      });
+
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, isModal, resourceId, workflowRunId]);
+
+  // Agent refresh도 현재 문서 UUID와 소유 고객·촬영 건이 모두 맞을 때만 적용한다.
+  useEffect(() => {
+    if (!quoteDocumentId || editorSession.loadState !== "ready") return;
     const onRefresh = (event: Event) => {
       const detail = (event as CustomEvent<{ resource?: string; resourceId?: string; after?: unknown }>).detail;
       if (detail?.resource && detail.resource !== "quote") return;
-      if (detail?.resourceId && detail.resourceId !== currentQuoteId) return;
-      if (detail?.after && typeof detail.after === "object") {
-        const afterRow = detail.after as Record<string, unknown>;
-        quoteStore.getState().patchFromAgent(afterRow);
-        if (typeof afterRow.updated_at === "string") lastKnownUpdatedAtRef.current = afterRow.updated_at;
+      if (!detail?.resourceId || detail.resourceId !== quoteDocumentId) return;
+      if (!detail.after || typeof detail.after !== "object") {
+        if (quoteStore.getState().dirtyFields.size === 0) void loadExistingQuote(quoteDocumentId);
         return;
       }
-      fetch(`/api/quotes/${currentQuoteId}`)
-        .then((r) => r.json())
-        .then((json) => {
-          if (json.ok) loadRecentQuote(rowToContractQuoteData(json.quote));
-        })
-        .catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
+      const afterRow = detail.after as Record<string, unknown>;
+      if (typeof afterRow.id === "string" && afterRow.id !== quoteDocumentId) return;
+      const rowClientId = typeof afterRow.client_id === "string" ? afterRow.client_id : null;
+      const rowWorkflowRunId = typeof afterRow.workflow_run_id === "string" ? afterRow.workflow_run_id : null;
+      if (Object.hasOwn(afterRow, "client_id") && rowClientId !== editorSessionRef.current.clientId) return;
+      if (Object.hasOwn(afterRow, "workflow_run_id") && rowWorkflowRunId !== editorSessionRef.current.workflowRunId) return;
+      const hadDirtyFields = quoteStore.getState().dirtyFields.size > 0;
+      quoteStore.getState().patchFromAgent(afterRow);
+      if (typeof afterRow.updated_at === "string") {
+        lastKnownUpdatedAtRef.current = afterRow.updated_at;
+        const current = editorSessionRef.current;
+        if (current.quoteId === quoteDocumentId) replaceEditorSession({ ...current, updatedAt: afterRow.updated_at });
+      }
+      if (!hadDirtyFields) {
+        lastSavedFormStateRef.current = quoteFormSnapshot(quoteStore.getState());
+        setDirty(false);
+      }
+    };
+    const onPreview = (event: Event) => {
+      const detail = (event as CustomEvent<{ resourceId?: string }>).detail;
+      if (detail?.resourceId === quoteDocumentId) setShowFullscreenPreview(true);
     };
     window.addEventListener("olivia-resource-refresh", onRefresh);
-    return () => window.removeEventListener("olivia-resource-refresh", onRefresh);
+    window.addEventListener("olivia-quote-preview", onPreview);
+    return () => {
+      window.removeEventListener("olivia-resource-refresh", onRefresh);
+      window.removeEventListener("olivia-quote-preview", onPreview);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal, currentQuoteId]);
+  }, [editorSession.loadState, quoteDocumentId]);
 
   // 2) dirty 추적: formState 스냅샷을 마지막 저장본과 비교한다(id/savedAt은 매번 달라 formState만 비교).
   useEffect(() => {
-    if (!isModal) return;
+    if (!isModal || editorSession.loadState !== "ready") return;
     const data = buildContractQuoteData();
-    const snapshot = JSON.stringify(data.formState ?? null);
-    if (!resourceId && !currentQuoteId && !hasMeaningfulQuoteContent(data)) {
+    const snapshot = data.formState ? quoteFormSnapshot(data.formState) : "";
+    if (editorSession.mode === "new" && !editorSession.quoteId && !hasMeaningfulQuoteContent(data)) {
       lastSavedFormStateRef.current = snapshot;
       setDirty(false);
       quoteStore.getState().clearDirty();
@@ -1375,7 +1485,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, itemPricesHidden, memo, depositRate, brand,
-    currentQuoteId, resourceId,
+    editorSession.loadState, editorSession.mode, editorSession.quoteId,
   ]);
 
   // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
@@ -1389,14 +1499,12 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // dirty는 저장이 끝나야(=fetch 응답 이후) false가 되므로, "저장 중" 상태에서 곧바로 닫으면
   // 워크플로우 자동 전진(서버의 completeOpenStepTasksForManualSave/maybeAdvanceWorkflow)이
   // 아직 반영되기 전에 부모 화면이 새로고침되어 "다음 할 일"이 낡은 값으로 보일 수 있다.
-  const pendingSaveRef = useRef<Promise<ContractQuoteData | null> | null>(null);
-
   useEffect(() => {
-    if (!isModal || !dirty) return;
+    if (!isModal || !dirty || editorSession.loadState !== "ready") return;
     const timer = setTimeout(() => {
       const data = buildContractQuoteData();
-      if (!resourceId && !currentQuoteId && !hasMeaningfulQuoteContent(data)) {
-        lastSavedFormStateRef.current = JSON.stringify(data.formState ?? null);
+      if (editorSession.mode === "new" && !editorSession.quoteId && !hasMeaningfulQuoteContent(data)) {
+        lastSavedFormStateRef.current = data.formState ? quoteFormSnapshot(data.formState) : "";
         setDirty(false);
         setAutosaveStatus("idle");
         quoteStore.getState().clearDirty();
@@ -1416,7 +1524,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, itemPricesHidden, memo, depositRate, brand,
-    currentQuoteId, resourceId,
+    editorSession.loadState, editorSession.mode, editorSession.quoteId,
   ]);
 
   // 4) 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면
@@ -1425,7 +1533,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const handleModalClose = async () => {
     if (!isModal) return;
     if (pendingSaveRef.current) await pendingSaveRef.current;
-    const stillDirty = JSON.stringify(buildContractQuoteData().formState ?? null) !== lastSavedFormStateRef.current;
+    const currentFormState = buildContractQuoteData().formState;
+    const stillDirty = (currentFormState ? quoteFormSnapshot(currentFormState) : "") !== lastSavedFormStateRef.current;
     if (!stillDirty) { onClose?.(); return; }
     setCloseConfirmOpen(true);
   };
@@ -2003,9 +2112,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           </span>
         </div>
       ) : null}
-      {isModal && workflowRunId && !documentOnly ? (
+      {isModal && linkedWorkflowRunId && !documentOnly ? (
         <div style={{ padding: "10px 20px 0" }}>
-          <ActiveMissionBar workflowRunId={workflowRunId} />
+          <ActiveMissionBar workflowRunId={linkedWorkflowRunId} />
         </div>
       ) : null}
       {/* 이 그리드의 minmax() 하한이 곧 "이 아래로는 못 줄어든다"는 실제 폭 마지노선이다.
@@ -2643,7 +2752,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                         className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]"
                         onClick={() => {
                           if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
-                          loadRecentQuote(item);
+                          void loadExistingQuote(item.id);
                         }}
                       >
                         불러오기
@@ -2651,7 +2760,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => void openContractWithQuote(item)}
+                        onClick={() => void openContractWithQuote(item, false)}
                         disabled={openingContract}
                       >
                         <FileText size={15} />
