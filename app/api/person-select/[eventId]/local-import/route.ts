@@ -154,16 +154,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const thumbPath = `${eventId}/${imageId}_thumb.jpg`;
   const previewPath = `${eventId}/${imageId}_preview.jpg`;
   const storage = db.storage.from(PERSON_SELECT_BUCKET);
-  const uploaded: string[] = [];
-  const thumbUpload = await storage.upload(thumbPath, thumbBuffer, { contentType: "image/jpeg" });
-  if (thumbUpload.error) return Response.json({ ok: false, error: thumbUpload.error.message }, { status: 500 });
-  uploaded.push(thumbPath);
-  const previewUpload = await storage.upload(previewPath, previewBuffer, { contentType: "image/jpeg" });
-  if (previewUpload.error) {
+  const [thumbUpload, previewUpload] = await Promise.all([
+    storage.upload(thumbPath, thumbBuffer, { contentType: "image/jpeg" }),
+    storage.upload(previewPath, previewBuffer, { contentType: "image/jpeg" }),
+  ]);
+  const uploaded = [
+    ...(!thumbUpload.error ? [thumbPath] : []),
+    ...(!previewUpload.error ? [previewPath] : []),
+  ];
+  if (thumbUpload.error || previewUpload.error) {
     await storage.remove(uploaded);
-    return Response.json({ ok: false, error: previewUpload.error.message }, { status: 500 });
+    return Response.json({ ok: false, error: thumbUpload.error?.message || previewUpload.error?.message || "사진 저장에 실패했습니다." }, { status: 500 });
   }
-  uploaded.push(previewPath);
 
   const { error: insertError } = await db.from("person_select_images").insert({
     id: imageId,

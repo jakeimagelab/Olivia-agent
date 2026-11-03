@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveLocalImportRecord, scanLocalPersonSelectFiles, type LocalPersonSelectSource } from "@/lib/person-select/localImport";
+import { deriveLocalImportRecord, parseJpegMetadata, scanLocalPersonSelectFiles, type LocalPersonSelectSource } from "@/lib/person-select/localImport";
 
 function source(relativePath: string): LocalPersonSelectSource {
   return { file: { name: relativePath.split("/").at(-1) } as File, relativePath };
@@ -46,5 +46,39 @@ describe("person select local folder scan", () => {
     expect(deriveLocalImportRecord("person-folders", "김춘자/.숨김/A.JPG")).toBeNull();
     expect(deriveLocalImportRecord("person-folders", "김춘자/RAW/A.JPG")).toBeNull();
     expect(deriveLocalImportRecord("school", "학생사진/학생_가연/A.JPG")).toBeNull();
+  });
+});
+
+describe("person select local JPEG resize metadata", () => {
+  it("reads dimensions without decoding the full JPEG", () => {
+    const jpeg = new Uint8Array([
+      0xff, 0xd8,
+      0xff, 0xc0, 0x00, 0x11,
+      0x08, 0x0f, 0xa0, 0x17, 0x70,
+      0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+      0xff, 0xd9,
+    ]);
+    expect(parseJpegMetadata(jpeg)).toEqual({ width: 6000, height: 4000, orientation: 1 });
+  });
+
+  it("applies the EXIF orientation stored before the size header", () => {
+    const jpeg = new Uint8Array([
+      0xff, 0xd8,
+      0xff, 0xe1, 0x00, 0x22,
+      0x45, 0x78, 0x69, 0x66, 0x00, 0x00,
+      0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00,
+      0x01, 0x00,
+      0x12, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      0xff, 0xc0, 0x00, 0x11,
+      0x08, 0x0f, 0xa0, 0x17, 0x70,
+      0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+      0xff, 0xd9,
+    ]);
+    expect(parseJpegMetadata(jpeg)).toEqual({ width: 6000, height: 4000, orientation: 6 });
+  });
+
+  it("rejects non-JPEG data", () => {
+    expect(parseJpegMetadata(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBeNull();
   });
 });
