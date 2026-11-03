@@ -273,6 +273,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   resourceId,
   startInPreview,
   onClose,
+  onPublished,
   registerRequestClose,
 }, ref) {
   const isModal = mode === "modal";
@@ -422,9 +423,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
-  const [selectedRecentQuoteId, setSelectedRecentQuoteId] = useState("");
-  const [recentPanelOpen, setRecentPanelOpen] = useState(false);
-  const [compactQuotePane, setCompactQuotePane] = useState<"edit" | "preview">("edit");
+  const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
   const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
@@ -1087,6 +1086,55 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       window.open(`/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`, "_blank");
     } finally {
       setOpeningContract(false);
+    }
+  };
+
+  const publishQuoteToPortal = async (
+    item: ContractQuoteData,
+    overrides?: { forceClientId?: string; forceCreateNew?: boolean },
+  ) => {
+    setPublishingQuoteId(item.id);
+    setRecentQuoteMessage("");
+    try {
+      const response = await fetch(`/api/quotes/${item.id}/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(overrides ?? {}),
+      });
+      const json = await response.json();
+      if (!response.ok || !json.ok) {
+        if (json.needsConfirmation && json.candidate) {
+          const useExisting = window.confirm(
+            `비슷한 이름의 기존 고객 "${json.candidate.hospital_name}"이(가) 있습니다.\n이 고객에 연결할까요? (취소하면 새 고객으로 생성합니다)`,
+          );
+          setPublishingQuoteId(null);
+          await publishQuoteToPortal(item, useExisting ? { forceClientId: json.candidate.id } : { forceCreateNew: true });
+          return;
+        }
+        setRecentQuoteMessage(json.error || "포털 공개에 실패했습니다.");
+        return;
+      }
+      setRecentQuotes((prev) =>
+        prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
+      );
+      if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
+      if (linkedWorkflowRunId) {
+        notifyCoreSnapshotUpdated(linkedWorkflowRunId);
+        await refreshCoreSnapshot();
+      }
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(json.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
+        setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");
+      } else {
+        setRecentQuoteMessage(`포털에 공개했습니다: ${json.portalUrl}`);
+      }
+      if (isModal) {
+        setTimeout(() => { onPublished?.(); onClose?.(); }, 700);
+      }
+    } catch (error) {
+      setRecentQuoteMessage(error instanceof Error ? error.message : "포털 공개 중 오류가 발생했습니다.");
+    } finally {
+      setPublishingQuoteId(null);
     }
   };
 
@@ -1848,46 +1896,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     memo,
   };
 
-  const selectedRecentQuote = recentQuotes.find((item) => item.id === selectedRecentQuoteId) ?? recentQuotes[0] ?? null;
-  const recentQuotesPanelNode = !documentOnly ? (
-    <Panel title="최근 견적 불러오기">
-      {recentQuoteMessage ? (
-        <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">{recentQuoteMessage}</div>
-      ) : null}
-      {recentQuotes.length === 0 ? (
-        <p className="empty-text">견적서를 저장하거나 다운로드하면 최근 견적에 자동 보관됩니다.</p>
-      ) : (
-        <div className="quote-recent-picker">
-          <label htmlFor="quote-recent-select">불러올 견적</label>
-          <select
-            id="quote-recent-select"
-            className="quote-recent-select"
-            value={selectedRecentQuote?.id ?? ""}
-            onChange={(event) => setSelectedRecentQuoteId(event.target.value)}
-          >
-            {recentQuotes.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.hospitalName || `${cfg.entityLabel} 없음`} · {item.quoteNumber} · {displayDate(item.quoteDate)}
-              </option>
-            ))}
-          </select>
-          {selectedRecentQuote ? (
-            <div className="quote-recent-summary">
-              <span>{selectedRecentQuote.hospitalName || `${cfg.entityLabel} 없음`}</span>
-              <strong>{won(selectedRecentQuote.totalAmount)}</strong>
-            </div>
-          ) : null}
-          <button type="button" className="quote-recent-load" disabled={!selectedRecentQuote} onClick={() => {
-            if (!selectedRecentQuote) return;
-            if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
-            loadRecentQuote(selectedRecentQuote);
-            setRecentPanelOpen(false);
-          }}>불러오기</button>
-        </div>
-      )}
-    </Panel>
-  ) : null;
-
   const quotePreviewShellNode = (
           <div
             className={`quote-app${brand === "jakeimage" ? " quote-app--jakeimage" : ""} ${showFullscreenPreview ? "preview-shell preview-shell--fullscreen" : isDesktopWindow ? "preview-shell preview-shell--embedded" : "preview-shell"}`}
@@ -1987,24 +1995,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           리포트). 미리보기 안쪽 A4 페이지는 이미 ResizeObserver로 실제 폭에 맞춰 scale을 다시
           계산하므로(위 previewShellRef 참고) 그리드 하한만 낮춰도 잘림 없이 계속 축소된다 —
           /quote 풀페이지는 폭이 넉넉해 fr 비율로 그대로 채워지므로 시각적으로 변화가 없다. */}
-      <section
-        className={`quote-workspace-layout ${documentOnly ? "quote-workspace-layout--document" : ""} ${isDesktopWindow ? "quote-workspace-layout--embedded" : ""}`}
-        data-recent-open={recentPanelOpen ? "true" : "false"}
-        data-compact-pane={compactQuotePane}
-      >
-        <div className="quote-layout-switcher" aria-label="견적서 보기 전환">
-          {!documentOnly ? <button type="button" className="quote-recent-toggle" onClick={() => setRecentPanelOpen((value) => !value)} aria-expanded={recentPanelOpen}>최근 견적</button> : null}
-          <button type="button" className="quote-pane-toggle" onClick={() => setCompactQuotePane("edit")} aria-pressed={compactQuotePane === "edit"}>편집</button>
-          <button type="button" className="quote-pane-toggle" onClick={() => setCompactQuotePane("preview")} aria-pressed={compactQuotePane === "preview"}>미리보기</button>
-        </div>
-        {!documentOnly ? (
-          <aside className="quote-recent-pane" aria-label="최근 생성 견적">
-            <button type="button" className="quote-recent-close" onClick={() => setRecentPanelOpen(false)} aria-label="최근 견적 닫기"><X size={16} /></button>
-            {recentQuotesPanelNode}
-          </aside>
-        ) : null}
+      <section className={`${documentOnly ? "" : "mx-auto max-w-[1500px]"} ${isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden" : ""} grid min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]" : "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
         <div
-          className="quote-editor-pane min-w-0 space-y-5"
+          className={`min-w-0 space-y-5 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : ""}`}
           style={isDesktopWindow ? { alignSelf: "stretch" } : undefined}
         >
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
@@ -2592,6 +2585,72 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
             </div>
           </Panel>
 
+          <Panel title={`최근 생성 견적 (최근 ${RECENT_QUOTES_DISPLAY_LIMIT}개 표시 · 전체 이력은 Supabase에 보관)`}>
+            {recentQuoteMessage ? (
+              <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">
+                {recentQuoteMessage}
+              </div>
+            ) : null}
+            {recentQuotes.length === 0 ? (
+              <p className="empty-text">PDF 다운로드 또는 계약서 생성을 누르면 최근 견적이 자동 보관됩니다.</p>
+            ) : (
+              <div className="grid gap-3">
+                {recentQuotes.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid gap-3 rounded-xl border border-[#d8d0c4] bg-[#fffdfa] p-4 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  >
+                    <div className="min-w-0">
+                      <div className="mb-2 inline-flex rounded-full bg-[var(--quote-tint)] px-3 py-1 text-xs font-extrabold text-[var(--quote-ink)]">
+                        최근 견적
+                      </div>
+                      <strong className="block truncate text-base font-extrabold text-[var(--quote-ink)]">
+                        {item.hospitalName || `${cfg.entityLabel} 없음`}
+                      </strong>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6f6961]">
+                        <span>{item.quoteNumber}</span>
+                        <span className="text-[#c7bbad]">|</span>
+                        <span>{displayDate(item.quoteDate)}</span>
+                      </div>
+                      <b className="mt-2 block text-lg font-extrabold text-[var(--quote-accent)]">
+                        {won(item.totalAmount)}
+                      </b>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:w-[172px]">
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d8d0c4] bg-white px-3 text-sm font-extrabold text-[var(--quote-ink)] transition hover:-translate-y-0.5 hover:border-[var(--quote-ink)]"
+                        onClick={() => {
+                          if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
+                          loadRecentQuote(item);
+                        }}
+                      >
+                        불러오기
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
+                        onClick={() => void openContractWithQuote(item)}
+                        disabled={openingContract}
+                      >
+                        <FileText size={15} />
+                        {openingContract ? "준비 중" : "계약서"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={publishingQuoteId === item.id}
+                        className="col-span-2 inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[#155855] bg-white px-3 text-sm font-extrabold text-[#155855] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => void publishQuoteToPortal(item)}
+                      >
+                        {publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
           </> : null}
 
           <Panel title="선금 / 잔금 비율">
@@ -2683,7 +2742,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           )}
         </div>
 
-        <aside className="quote-preview-pane min-w-0">
+        <aside className="min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
