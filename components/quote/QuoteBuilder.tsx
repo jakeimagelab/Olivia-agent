@@ -810,10 +810,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     setBrand(nextBrand);
   };
 
-  const resetForm = () => {
+  const resetForm = (quoteNumber = createNextQuoteNumber()) => {
     setCustomer({
       ...initialCustomer(),
-      quoteNumber: createNextQuoteNumber()
+      quoteNumber,
     });
     setQuoteTitle("");
     setSelectedPackageId(null);
@@ -836,6 +836,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     setTaxMode("separate");
     setItemPricesHidden(false);
     setMemo("");
+    setDepositRate(50);
     // 위 setter들은 사람이 직접 입력할 때 쓰는 것과 같은 함수라 각 필드를 dirty로 표시했다 —
     // 여기는 "새 기준선을 세우는 것"이지 편집이 아니므로 끝에서 지운다(Phase 3, patchFromAgent
     // 가드가 여기서 잘못 dirty로 남은 필드를 영구히 못 건드리게 되는 걸 막는다).
@@ -996,6 +997,51 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         brand
       }
     };
+  };
+
+  const resetToNewQuote = () => {
+    const currentData = buildContractQuoteData();
+    const hasCurrentWork = Boolean(editorSessionRef.current.quoteId)
+      || dirty
+      || hasMeaningfulQuoteContent(currentData);
+    if (hasCurrentWork && !window.confirm("현재 견적 내용을 지우고 새 견적서를 작성할까요?")) return;
+
+    // 초기화는 폼 값만 비우는 동작이 아니라 새 편집 세션으로 전환하는 동작이다.
+    // 이전 문서/고객 요청과 대기 저장을 먼저 무효화해 새 견적에 늦게 반영되지 않게 한다.
+    documentLoadAbortRef.current?.abort();
+    documentLoadAbortRef.current = null;
+    clientPrefillAbortRef.current?.abort();
+    clientPrefillAbortRef.current = null;
+    clientPrefillTokenRef.current += 1;
+    pendingSaveRef.current = null;
+
+    // 아직 저장하지 않은 신규 견적에서 다시 초기화해도 같은 번호를 재사용하지 않는다.
+    const nextNumber = nextQuoteNumber(
+      brand,
+      Array.from(new Set([...todayQuoteNumbers, customer.quoteNumber].filter(Boolean))),
+    );
+    const nextSession = beginNewQuoteSession(editorSessionRef.current, { quoteNumber: nextNumber });
+    replaceEditorSession(nextSession);
+    resetForm(nextNumber);
+    lastSavedFormStateRef.current = quoteFormSnapshot(quoteStore.getState());
+    lastKnownUpdatedAtRef.current = undefined;
+    quoteStore.getState().clearDirty();
+    setCurrentQuoteStatus("draft");
+    setDocumentScopeError("");
+    setRecentQuoteMessage("새 견적서를 시작했습니다.");
+    setDirty(false);
+    setAutosaveStatus("idle");
+    setSaveFailureReason("");
+    setShowDownloadMenu(false);
+    setShowFullscreenPreview(false);
+    setPreviewZoom(1);
+    setOliviaSelection();
+    onTargetVerified?.({
+      quoteId: null,
+      clientId: null,
+      workflowRunId: null,
+      documentTitle: "견적서",
+    });
   };
 
   const saveRecentQuote = (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
@@ -2945,7 +2991,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               <FileText size={18} />
               {openingContract ? "계약서 준비 중…" : "고객 승인 후 계약서 생성"}
             </button> : null}
-            {!documentOnly ? <button className="secondary-button" type="button" onClick={resetForm}>
+            {!documentOnly ? <button className="secondary-button" type="button" onClick={resetToNewQuote}>
               <RefreshCcw size={18} />
               초기화
             </button> : null}
@@ -3016,7 +3062,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           <ActionBar
             status={autosaveStatus === "saving" ? "저장 중..." : autosaveStatus === "saved" ? "저장됨" : autosaveStatus === "error" ? saveFailureNotice : dirty ? "저장 안 된 변경사항 있음" : ""}
             actions={[
-              ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetForm, icon: <RefreshCcw size={14} /> }] : []),
+              ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetToNewQuote, icon: <RefreshCcw size={14} /> }] : []),
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
               { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
               { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },

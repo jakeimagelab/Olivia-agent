@@ -86,6 +86,33 @@ describe("quote editor session", () => {
     expect(completeExistingQuoteLoad(fresh, loading.requestToken, quote("a", "client-a", "run-a"))).toBeNull();
   });
 
+  it("초기화는 기존 견적의 저장 대상을 버리고 새 견적번호를 가진 신규 세션을 만든다", () => {
+    const loading = beginExistingQuoteLoad(createNewQuoteSession(), "quote-a");
+    const existing = completeExistingQuoteLoad(
+      loading,
+      loading.requestToken,
+      quote("quote-a", "client-a", "run-a"),
+    )!;
+    const fresh = beginNewQuoteSession(existing, { quoteNumber: "PCQ-20261103-0020" });
+
+    expect(fresh).toMatchObject({
+      mode: "new",
+      quoteId: null,
+      clientId: null,
+      workflowRunId: null,
+      quoteNumber: "PCQ-20261103-0020",
+      updatedAt: null,
+      loadState: "ready",
+    });
+    expect(isSameQuoteSession(fresh, existing)).toBe(false);
+    expect(quoteSaveIdentity(fresh)).toEqual({
+      quoteId: null,
+      clientId: null,
+      workflowRunId: null,
+      lastKnownUpdatedAt: null,
+    });
+  });
+
   it("고객만 프리필할 때는 client-only 조회를 사용하고 촬영 건 자동 선택 응답을 거부한다", () => {
     expect(quoteClientPrefillUrl("client-a")).toBe("/api/clients/client-a?workflowMode=client-only");
     expect(verifyQuoteClientPrefill({ client: { id: "client-a" }, workflowRun: null }, "client-a")).toEqual({ clientId: "client-a", workflowRunId: null });
