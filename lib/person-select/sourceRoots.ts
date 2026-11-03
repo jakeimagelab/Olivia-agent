@@ -88,21 +88,28 @@ export async function resolvePersonSelectSourcePath(input: string, raw = process
   if (!requested) throw new Error("학교전달 폴더를 선택해 주세요.");
   if (containsTraversal(requested)) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
   const roots = getPersonSelectRoots(raw);
-  const canonicalRoots = await Promise.all(roots.map(async (root) => ({ ...root, canonicalPath: await canonicalDirectory(root.path) })));
-
-  let candidate: string;
+  let selectedRoot: PersonSelectRoot | undefined;
+  let requestedParts: string[] = [];
   if (path.isAbsolute(requested)) {
-    candidate = path.resolve(requested);
+    const absolute = path.resolve(requested);
+    selectedRoot = roots.find((root) => isInside(root.path, absolute));
+    if (!selectedRoot) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+    requestedParts = path.relative(selectedRoot.path, absolute).split(path.sep).filter(Boolean);
   } else {
     const [first, ...rest] = requested.replace(/\\/g, "/").split("/").filter(Boolean);
-    const matchedRoot = canonicalRoots.find((root) => root.id === first);
-    candidate = matchedRoot ? path.resolve(matchedRoot.canonicalPath, ...rest) : path.resolve(canonicalRoots[0].canonicalPath, first, ...rest);
+    const matchedRoot = roots.find((root) => root.id === first);
+    selectedRoot = matchedRoot ?? roots[0];
+    requestedParts = matchedRoot ? rest : [first, ...rest].filter(Boolean);
   }
+  if (!selectedRoot) throw new Error("드라이브가 연결되어 있지 않아요.");
 
+  // 선택하지 않은 다른 허용 드라이브가 빠져 있어도 현재 드라이브 조회는 계속되어야 한다.
+  // 선택한 루트만 실경로로 확인하되 기존 symlink·경로 탈출 검사는 그대로 유지한다.
+  const canonicalRoot = { ...selectedRoot, canonicalPath: await canonicalDirectory(selectedRoot.path) };
+  const candidate = path.resolve(canonicalRoot.canonicalPath, ...requestedParts);
   const canonicalPath = await canonicalDirectory(candidate);
-  const matched = canonicalRoots.find((root) => isInside(root.canonicalPath, canonicalPath));
-  if (!matched) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
-  return { root: matched, canonicalPath, relativePath: path.relative(matched.canonicalPath, canonicalPath).split(path.sep).join("/") };
+  if (!isInside(canonicalRoot.canonicalPath, canonicalPath)) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
+  return { root: canonicalRoot, canonicalPath, relativePath: path.relative(canonicalRoot.canonicalPath, canonicalPath).split(path.sep).join("/") };
 }
 
 /**

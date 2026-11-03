@@ -147,6 +147,20 @@ describe("person select importer", () => {
     }
   });
 
+  it("opens an available configured drive even when another configured drive is disconnected", async () => {
+    const available = await mkdtemp(path.join(tmpdir(), "person-select-available-"));
+    const missing = path.join(tmpdir(), `person-select-missing-${Date.now()}`);
+    const env = JSON.stringify([missing, available]);
+    try {
+      await mkdir(path.join(available, "촬영폴더"));
+      await expect(resolvePersonSelectSourcePath("root-1/촬영폴더", env)).resolves.toMatchObject({ relativePath: "촬영폴더" });
+      await expect(resolvePersonSelectSourcePath(path.join(available, "촬영폴더"), env)).resolves.toMatchObject({ relativePath: "촬영폴더" });
+      await expect(resolvePersonSelectSourcePath("root-0", env)).rejects.toThrow("드라이브가 연결되어 있지 않아요");
+    } finally {
+      await rm(available, { recursive: true, force: true });
+    }
+  });
+
   it("stores KST datetime-local values as timestamptz and formats deadline without seconds", () => {
     expect(parseSeoulDateTime("2026-10-31T18:00")).toBe("2026-10-31T09:00:00.000Z");
     expect(formatSeoulDateTimeInput("2026-10-31T09:00:00.000Z")).toBe("2026-10-31T18:00");

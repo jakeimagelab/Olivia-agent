@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, ArrowLeft, Clipboard, Download, FolderOpen, Info, Link2, Plus, RefreshCw, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Activity, ArrowLeft, Clipboard, Download, FolderOpen, Info, Link2, Monitor, Plus, RefreshCw, Server, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
 import { DEFAULT_PERSON_SELECT_EXTRA_MAX, DEFAULT_PERSON_SELECT_EXTRA_PRICE, DEFAULT_PERSON_SELECT_NOTICE, DEFAULT_PERSON_SELECT_OFFERS, type PersonSelectOffer } from "@/lib/person-select/types";
+import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, createPersonSelectDerivatives, type LocalPersonSelectScan } from "@/lib/person-select/localImport";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -16,8 +17,10 @@ type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[] };
 type Layout = "school" | "person-folders";
+type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
 type Filter = "all" | "done" | "saving" | "unseen";
+const LOCAL_IMPORT_CONCURRENCY = 3;
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString("ko-KR")}원`;
@@ -44,6 +47,13 @@ export default function PersonSelectDetailPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [picker, setPicker] = useState(false);
   const [path, setPath] = useState("");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("local");
+  const [localFolderName, setLocalFolderName] = useState("");
+  const [localScan, setLocalScan] = useState<LocalPersonSelectScan | null>(null);
+  const [localBusy, setLocalBusy] = useState(false);
+  const [localProgress, setLocalProgress] = useState({ current: 0, total: 0, fileName: "" });
+  const localInputRef = useRef<HTMLInputElement>(null);
+  const localRunRef = useRef(0);
   const [workerOnline, setWorkerOnline] = useState<boolean | null>(null);
   const [jobId, setJobId] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -59,6 +69,7 @@ export default function PersonSelectDetailPage() {
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
   useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
   useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
+  useEffect(() => () => { localRunRef.current += 1; }, []);
   const filtered = useMemo(() => (data?.people ?? []).filter((person) => {
     if (filter === "done") return person.status_label.includes("제출");
     if (filter === "saving") return person.status_label === "저장 중";
@@ -97,10 +108,114 @@ export default function PersonSelectDetailPage() {
   const totalPhotos = data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
-  async function startImport() {
+  async function selectLocalFolder() {
+    const showDirectoryPicker = (window as Window & { showDirectoryPicker?: (options?: { mode?: "read" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
+    if (!showDirectoryPicker) { localInputRef.current?.click(); return; }
+    try {
+      // 폴더 선택기는 사용자 클릭의 첫 await에서 바로 열어야 브라우저가 차단하지 않는다.
+      const directory = await showDirectoryPicker({ mode: "read" });
+      setError("");
+      const selected = await collectLocalPersonSelectFolder(directory, currentLayout);
+      setLocalFolderName(selected.folderName);
+      setLocalScan(selected.scan);
+      setResult(null);
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "AbortError") return;
+      setError(cause instanceof Error ? cause.message : "로컬 폴더를 읽지 못했습니다.");
+    }
+  }
+  function selectLocalFileList(files: FileList | null) {
+    if (!files?.length) return;
+    try {
+      const selected = collectLocalPersonSelectFileList(files, currentLayout);
+      setError("");
+      setLocalFolderName(selected.folderName);
+      setLocalScan(selected.scan);
+      setResult(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "로컬 폴더를 읽지 못했습니다.");
+    } finally {
+      if (localInputRef.current) localInputRef.current.value = "";
+    }
+  }
+  async function startRemoteImport() {
     if (!path) return setError(isSchool ? "학교전달 폴더를 선택해 주세요." : "촬영 폴더를 선택해 주세요."); setError(""); setResult(null);
     const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload: isSchool ? { event_id: id, source_relative_path: path, mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }, { folder: "담임선생님", category: "homeroom", owner: "group" }] } : { event_id: id, source_relative_path: path, layout: "person-folders" } }) }); const body = await response.json(); if (!response.ok) return setError(body.error); setJobId(body.job?.id || body.id); setResult({ message: "사진 가져오기를 시작했어요." });
   }
+  async function startLocalImport() {
+    if (!localScan?.files.length) return setError("JPG가 들어 있는 로컬 폴더를 선택해 주세요.");
+    const runId = localRunRef.current + 1;
+    localRunRef.current = runId;
+    setLocalBusy(true); setError(""); setResult(null); setLocalProgress({ current: 0, total: localScan.files.length, fileName: "" });
+    try {
+      const prepareResponse = await fetch(`/api/person-select/${id}/local-import`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ layout: currentLayout, files: localScan.files.map((file) => ({ relativePath: file.relativePath, fileName: file.fileName })) }),
+      });
+      const prepared = await prepareResponse.json();
+      if (!prepareResponse.ok) throw new Error(prepared.error || "로컬 사진 가져오기를 준비하지 못했습니다.");
+      if (localRunRef.current !== runId) return;
+      const existing = new Set(Array.isArray(prepared.existingPaths) ? prepared.existingPaths.map(String) : []);
+      const pending = localScan.files
+        .map((candidate, sortOrder) => ({ candidate, sortOrder }))
+        .filter(({ candidate }) => !existing.has(candidate.relativePath));
+      setLocalProgress({ current: 0, total: pending.length, fileName: "" });
+      const failed: { file: string; reason: string }[] = [];
+      let imported = 0;
+      let cursor = 0;
+      let completed = 0;
+      async function worker() {
+        while (localRunRef.current === runId) {
+          const item = pending[cursor];
+          cursor += 1;
+          if (!item) return;
+          const { candidate, sortOrder } = item;
+          try {
+            const derivative = await createPersonSelectDerivatives(candidate.file);
+            const form = new FormData();
+            form.set("layout", currentLayout);
+            form.set("relativePath", candidate.relativePath);
+            form.set("sortOrder", String(sortOrder));
+            form.set("sourceWidth", String(derivative.sourceWidth));
+            form.set("sourceHeight", String(derivative.sourceHeight));
+            form.set("thumb", derivative.thumb, `${candidate.fileName}.thumb.jpg`);
+            form.set("preview", derivative.preview, `${candidate.fileName}.preview.jpg`);
+            const response = await fetch(`/api/person-select/${id}/local-import`, { method: "POST", body: form });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error || "업로드 실패");
+            if (!body.skipped) imported += 1;
+          } catch (cause) {
+            failed.push({ file: candidate.relativePath, reason: cause instanceof Error ? cause.message : "업로드 실패" });
+          }
+          completed += 1;
+          setLocalProgress({ current: completed, total: pending.length, fileName: candidate.fileName });
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(LOCAL_IMPORT_CONCURRENCY, Math.max(1, pending.length)) }, () => worker()));
+      if (localRunRef.current !== runId) return;
+      setResult({
+        ok: failed.length === 0,
+        photoCount: localScan.files.length,
+        importedCount: imported,
+        skippedCount: existing.size,
+        peopleCount: Number(prepared.peopleCount ?? 0),
+        createdPeople: Array.isArray(prepared.createdPeople) ? prepared.createdPeople : [],
+        skippedFolders: localScan.skippedFolders,
+        groupFolders: localScan.groupFolders,
+        unnamedFolders: localScan.unnamedFolders,
+        emptyFolders: localScan.emptyFolders,
+        failedCount: failed.length,
+        failed,
+      });
+      await load();
+    } catch (cause) {
+      if (localRunRef.current === runId) setError(cause instanceof Error ? cause.message : "로컬 사진 가져오기에 실패했습니다.");
+    } finally {
+      if (localRunRef.current === runId) setLocalBusy(false);
+    }
+  }
+  function startImport() { return sourceMode === "local" ? startLocalImport() : startRemoteImport(); }
   async function startRawMatch() {
     setError(""); setRawResult(null);
     const notSubmitted = currentData.people.filter((person) => !person.submitted_at).length;
@@ -124,7 +239,7 @@ export default function PersonSelectDetailPage() {
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
-  const rawDisabledReason = counts.done === 0 ? "최종 제출한 사람이 없어요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
+  const rawDisabledReason = counts.done === 0 ? "최종 제출한 사람이 없어요." : !data.event.source_relative_path ? "Mac Studio에서 같은 원본 폴더를 연결해 주세요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
   return <main className={styles.shell}>
     <section className={styles.body}>
       <div className={styles.crumb}><button className={styles.crumbBack} onClick={() => navigate("/person-select")}><ArrowLeft size={14} />개인별 셀렉</button>{sourceFolder ? <><span aria-hidden="true">›</span><span>{sourceFolder}</span></> : null}</div>
@@ -135,7 +250,7 @@ export default function PersonSelectDetailPage() {
           <a className={styles.secondary} href={`/api/person-select/${id}/exports/pins`}><Download size={15} />비밀번호 목록</a>
           <a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a>
           <a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a>
-          <button className={styles.primary} disabled={workerOnline === false || rawBusy || counts.done === 0} title={rawDisabledReason} onClick={startRawMatch}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>
+          <button className={styles.primary} disabled={workerOnline === false || rawBusy || counts.done === 0 || !data.event.source_relative_path} title={rawDisabledReason} onClick={startRawMatch}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>
         </div>
       </div>
       <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
@@ -174,13 +289,19 @@ export default function PersonSelectDetailPage() {
       {tab === "upload" ? <div className={styles.uploadGrid}>
         <section className={styles.uploadCard}>
           <h2>폴더에서 사진 올리기</h2>
-          <div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["person-folders", "이름 폴더 (김춘자/JPG원본)", UserRound], ["school", "학교 (선생님프로필·담임선생님)", UsersRound]] as const).map(([key, label, Icon]) => <button key={key} className={currentLayout === key ? styles.segmentActive : ""} onClick={() => setLayout(key)}><Icon size={15} />{label}</button>)}</div>
-          <p className={styles.summary}>Mac Studio에서 {isSchool ? "학교전달" : "촬영"} 폴더를 골라 썸네일과 1600px 미리보기만 올립니다.</p>
-          {workerOnline === false ? <div className={styles.warning}>Mac Studio가 꺼져 있어요. 켜진 뒤 다시 시도해 주세요.</div> : null}
-          <div className={styles.selectedPath}>{path || "선택된 폴더가 없습니다."}</div>
-          <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={workerOnline === false} onClick={() => setPicker(true)}><FolderOpen size={15} />폴더 선택</button><button className={styles.primary} disabled={workerOnline === false || !path || Boolean(jobId && !result?.error && !result?.photoCount)} onClick={startImport}><Upload size={15} />사진 올리기</button></div>
-          {!path && workerOnline !== false ? <p className={styles.disabledReason}>사진을 올리려면 {isSchool ? "학교전달" : "촬영"} 폴더를 먼저 선택하세요.</p> : null}
-          <div className={styles.field} style={{ marginTop: 20 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(e) => setPath(e.target.value)} placeholder={isSchool ? "/Users/jakemacstudio/UGnasync/.../학교전달" : "/Users/jakemacstudio/UGnasync/.../1031_촬영폴더"} /><small className={styles.summary}>Mac Studio의 폴더 경로를 그대로 붙여넣어도 돼요.</small></div>
+          <div className={styles.field}><label>사진이 있는 위치</label><div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["local", "이 기기", Monitor], ["remote", "Mac Studio", Server]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={sourceMode === key ? styles.segmentActive : ""} onClick={() => setSourceMode(key)}><Icon size={15} />{label}</button>)}</div></div>
+          <div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["person-folders", "이름 폴더 (김춘자/JPG원본)", UserRound], ["school", "학교 (선생님프로필·담임선생님)", UsersRound]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={currentLayout === key ? styles.segmentActive : ""} onClick={() => { setLayout(key); setLocalFolderName(""); setLocalScan(null); }}><Icon size={15} />{label}</button>)}</div>
+          <p className={styles.summary}>{sourceMode === "local" ? "지금 Olivia를 연 기기" : "Mac Studio"}에서 {isSchool ? "학교전달" : "촬영"} 폴더를 골라 썸네일과 1600px 미리보기만 올립니다.</p>
+          {sourceMode === "remote" && workerOnline === false ? <div className={styles.warning}>Mac Studio가 꺼져 있어요. 켜진 뒤 다시 시도해 주세요.</div> : null}
+          <div className={styles.selectedPath}>{sourceMode === "local" ? localFolderName || "선택된 로컬 폴더가 없습니다." : path || "선택된 Mac Studio 폴더가 없습니다."}</div>
+          <input ref={(input) => { localInputRef.current = input; input?.setAttribute("webkitdirectory", ""); input?.setAttribute("directory", ""); }} type="file" accept="image/jpeg,.jpg,.jpeg" multiple className={styles.hiddenInput} onChange={(event) => selectLocalFileList(event.currentTarget.files)} />
+          <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={sourceMode === "remote" ? workerOnline === false : localBusy} onClick={() => sourceMode === "local" ? void selectLocalFolder() : setPicker(true)}><FolderOpen size={15} />폴더 선택</button><button className={styles.primary} disabled={sourceMode === "local" ? localBusy || !localScan?.files.length : workerOnline === false || !path || Boolean(jobId && !result?.error && !result?.photoCount)} onClick={() => void startImport()}><Upload size={15} />{localBusy ? "사진 올리는 중" : "사진 올리기"}</button></div>
+          {sourceMode === "local" && localScan ? <p className={styles.summary}>올릴 JPG {localScan.files.length.toLocaleString()}장{localScan.groupFolders.length ? ` · 그룹 폴더 ${localScan.groupFolders.length}개 제외` : ""}{localScan.unnamedFolders.length ? ` · 이름 미변경 ${localScan.unnamedFolders.length}개 제외` : ""}</p> : null}
+          {sourceMode === "local" && localBusy ? <div className={styles.result}>로컬 사진 {localProgress.current.toLocaleString()} / {localProgress.total.toLocaleString()}장 처리 중{localProgress.fileName ? ` · ${localProgress.fileName}` : ""}</div> : null}
+          {sourceMode === "local" && !localScan?.files.length ? <p className={styles.disabledReason}>사진을 올리려면 이 기기의 {isSchool ? "학교전달" : "촬영"} 폴더를 먼저 선택하세요.</p> : null}
+          {sourceMode === "remote" && !path && workerOnline !== false ? <p className={styles.disabledReason}>사진을 올리려면 Mac Studio의 {isSchool ? "학교전달" : "촬영"} 폴더를 먼저 선택하세요.</p> : null}
+          {sourceMode === "remote" ? <div className={styles.field} style={{ marginTop: 20 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(e) => setPath(e.target.value)} placeholder={isSchool ? "/Users/jakemacstudio/UGnasync/.../학교전달" : "/Volumes/Agentstation(M.2SSD)/.../1031_촬영폴더"} /><small className={styles.summary}>Mac Studio의 폴더 경로를 그대로 붙여넣어도 돼요.</small></div> : null}
+          {sourceMode === "local" && !data.event.source_relative_path ? <p className={styles.summary}>RAW 매칭은 같은 원본 폴더를 Mac Studio 위치에서 다시 선택해 사진 올리기를 실행하면 연결됩니다. 이미 올라온 사진은 건너뜁니다.</p> : null}
           {result ? <div className={styles.result}>{result.photoCount !== undefined ? <><div>{`사진 ${Number(result.photoCount).toLocaleString()}장 · ${isSchool ? "선생님" : "사람"} ${Number(result.peopleCount).toLocaleString()}명 등록 · 새 비밀번호 ${Array.isArray(result.createdPeople) ? result.createdPeople.length : 0}개 발급 · 실패 ${Number(result.failedCount ?? 0)}장`}</div>{Array.isArray(result.skippedFolders) && result.skippedFolders.length ? <div className={styles.skippedFolders}>건너뛴 폴더: {result.skippedFolders.map(String).join(" / ")}</div> : null}{unnamedFolders.length ? <div className={styles.warning}>이름을 아직 안 바꾼 폴더라 올리지 않았어요: {unnamedFolders.join(" / ")}</div> : null}{groupFolders.length ? <div className={styles.skippedFolders}>그룹 사진은 고객에게 올리지 않았어요: {groupFolders.join(" / ")}</div> : null}{Array.isArray(result.emptyFolders) && result.emptyFolders.length ? <div className={styles.skippedFolders}>JPG가 없어 건너뛴 폴더: {result.emptyFolders.map(String).join(" / ")}</div> : null}{Array.isArray(result.failed) && result.failed.length ? <ul className={styles.failureList}>{result.failed.map((item, index) => { const failed = item as Record<string, unknown>; return <li key={`${String(failed.file || "file")}-${index}`}>{String(failed.file || "파일")}: {String(failed.reason || "가져오기 실패")}</li>; })}</ul> : null}</> : String(result.message || result.error || "처리 중이에요.")}</div> : null}
         </section>
         <aside className={styles.uploadCard}><h2>가져오는 항목</h2>{isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>

@@ -89,6 +89,7 @@
 .uploadCard { padding: 20px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
 .uploadCard h2 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
 .selectedPath { margin: 16px 0; padding: 12px 14px; border-radius: 8px; background: var(--ps-header); border: 1px solid var(--ps-border); color: var(--ps-text); font-size: 12px; word-break: break-all; }
+.hiddenInput { display: none; }
 .notice { margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--ps-green); border-radius: 0; background: var(--ps-soft); color: var(--ps-text); font-size: 12.5px; line-height: 1.7; }
 .warning { margin: 0 0 14px; padding: 11px 14px; border: 1px solid var(--ps-orange-border); border-radius: 8px; background: var(--ps-orange-soft); color: #A23E1A; font-size: 12.5px; }
 .result { margin: 0 0 14px; padding: 13px 15px; border: 1px solid var(--ps-soft-border); border-radius: 8px; color: var(--ps-green); background: var(--ps-soft); font-size: 12.5px; }
