@@ -29,16 +29,25 @@ function formatShootDate(value?: string | null) {
 }
 
 type ActiveMissionBarProps = {
-  /** 특정 워크플로우로 고정하고 싶을 때(견적/콘티 빌더가 이미 그 대상을 알 때) 지정한다.
-   *  생략하면 가장 최근에 업데이트된 활성 워크플로우를 자동으로 보여준다. */
+  /** 특정 워크플로우로 고정하고 싶을 때(견적/콘티 빌더가 이미 그 대상을 알 때) 지정한다. */
   workflowRunId?: string;
+  /** 일반 작업창은 explicit, 홈/일정의 추천 영역만 recommendation을 명시한다. */
+  mode?: "explicit" | "recommendation";
 };
 
-// 홈/캘린더/견적/콘티가 함께 쓰는 MissionStatusBar 데이터 래퍼 — 기본은 가장 최근에
-// 업데이트된 활성 워크플로우를 "현재 미션"으로 노출한다(기존 RecentProjects가 쓰는
-// /api/workflow/summary 그대로 재사용, 페이지별로 새로 데이터를 만들지 않는다 — 40절).
-export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProps = {}) {
-  const [summaryRun, setSummaryRun] = useState<WorkflowRun | null | undefined>(workflowRunId ? null : undefined);
+export function shouldLoadMissionSummary(mode: NonNullable<ActiveMissionBarProps["mode"]>, workflowRunId?: string) {
+  return mode === "recommendation" && !workflowRunId;
+}
+
+export function missionSnapshotMatches(requestedRunId: string | undefined, snapshotRunId: string | undefined) {
+  return Boolean(requestedRunId && snapshotRunId && requestedRunId === snapshotRunId);
+}
+
+// 홈/캘린더/견적/콘티가 함께 쓰는 MissionStatusBar 데이터 래퍼. 일반 작업창은 정확한
+// workflowRunId만 표시하고, 최근 활성 미션 추천은 opt-in한 화면에서만 조회한다.
+export default function ActiveMissionBar({ workflowRunId, mode = "explicit" }: ActiveMissionBarProps = {}) {
+  const recommendation = mode === "recommendation";
+  const [summaryRun, setSummaryRun] = useState<WorkflowRun | null | undefined>(workflowRunId || !recommendation ? null : undefined);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const setContextLink = useOliviaContextStore((state) => state.setContextLink);
@@ -46,7 +55,7 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
   const { snapshot, loading: snapshotLoading } = useCoreProjectSnapshot(selectedWorkflowRunId);
 
   useEffect(() => {
-    if (workflowRunId) {
+    if (!shouldLoadMissionSummary(mode, workflowRunId)) {
       setSummaryRun(null);
       return;
     }
@@ -63,12 +72,13 @@ export default function ActiveMissionBar({ workflowRunId }: ActiveMissionBarProp
       })
       .catch(() => { if (!cancelled) setSummaryRun(null); });
     return () => { cancelled = true; };
-  }, [workflowRunId]);
+  }, [mode, recommendation, workflowRunId]);
 
-  if ((!workflowRunId && summaryRun === undefined) || (selectedWorkflowRunId && snapshotLoading && !snapshot)) {
+  if (!selectedWorkflowRunId) return null;
+  if ((!workflowRunId && recommendation && summaryRun === undefined) || (snapshotLoading && !snapshot)) {
     return <MissionStatusBar title="" loading />;
   }
-  if (!snapshot) return null;
+  if (!snapshot || !missionSnapshotMatches(selectedWorkflowRunId, snapshot.project.workflowRunId)) return null;
 
   const clientName = snapshot.client.name || "이름 없는 고객";
   const projectName = snapshot.project.name || "프로젝트";

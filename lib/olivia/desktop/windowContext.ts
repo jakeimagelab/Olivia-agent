@@ -41,3 +41,54 @@ export function inferWindowContextScope(context?: WindowContext): NonNullable<Wi
 export function withWindowContextScope(context: WindowContext): WindowContext {
   return { ...context, contextScope: inferWindowContextScope(context) };
 }
+
+let launchSequence = 0;
+
+export function createWindowLaunchRequestId() {
+  launchSequence += 1;
+  return `${Date.now().toString(36)}-${launchSequence.toString(36)}`;
+}
+
+const TARGET_PARAMS = [
+  "clientId", "client_id", "projectId", "workflowRunId", "workflow_run_id",
+  "resourceId", "documentId", "sourceQuoteId", "quoteId", "reviewId", "contentId",
+  "memoId", "galleryId",
+];
+
+/** 일반 실행 URL에서 이전 고객·촬영 건·문서 대상만 제거하고 기능 탭/도구 쿼리는 보존한다. */
+export function normalizeGeneralRouteHref(href?: string) {
+  if (!href) return undefined;
+  const url = new URL(href, "https://olivia.local");
+  TARGET_PARAMS.forEach((key) => url.searchParams.delete(key));
+  const query = url.searchParams.toString();
+  return `${url.pathname}${query ? `?${query}` : ""}${url.hash}`;
+}
+
+export function createGeneralWindowContext(routeHref?: string, extra?: Pick<WindowContext, "featureItemId">): WindowContext {
+  return {
+    contextScope: "none",
+    launchIntent: "new",
+    launchRequestId: createWindowLaunchRequestId(),
+    targetVerified: false,
+    routeHref: normalizeGeneralRouteHref(routeHref),
+    featureItemId: extra?.featureItemId,
+  };
+}
+
+/** URL/호출자가 명시한 대상을 launch intent와 함께 정규화한다. */
+export function prepareWindowContextForLaunch(context: WindowContext, documentType?: string): WindowContext {
+  const documentId = context.documentId ?? (documentType ? context.resourceId : undefined);
+  const hasDocument = Boolean(documentId || context.resourceId || context.sourceQuoteId);
+  const hasClientTarget = Boolean(context.clientId || context.workflowRunId || context.projectId);
+  if (!hasDocument && !hasClientTarget) {
+    return createGeneralWindowContext(context.routeHref, { featureItemId: context.featureItemId });
+  }
+  return {
+    ...context,
+    ...(documentType ? { documentType, documentId } : {}),
+    contextScope: hasDocument ? "document" : "client",
+    launchIntent: hasDocument ? "document" : "client-new",
+    launchRequestId: createWindowLaunchRequestId(),
+    targetVerified: false,
+  };
+}

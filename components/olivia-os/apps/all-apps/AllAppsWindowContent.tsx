@@ -24,6 +24,7 @@ import { useDesktopAppLauncher } from "../../useDesktopAppLauncher";
 import { AppIcon } from "../../AppIcon";
 import { getOliviaApp, resolveOliviaAppRoute, type OliviaAppDefinition } from "../../registry/oliviaAppRegistry";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
+import { createGeneralWindowContext } from "@/lib/olivia/desktop/windowContext";
 import styles from "./AllAppsWindowContent.module.css";
 
 const TOOL_ICON_BY_HREF: Record<string, IconName> = {
@@ -293,7 +294,13 @@ export function AllAppsWindowContent() {
       launchHref(entry.tool.href, entry.tool.title);
       return;
     }
-    openApp({ appId: entry.app.id, title: entry.app.title, width: entry.app.defaultSize.width, height: entry.app.defaultSize.height });
+    openApp({
+      appId: entry.app.id,
+      title: entry.app.title,
+      width: entry.app.defaultSize.width,
+      height: entry.app.defaultSize.height,
+      context: createGeneralWindowContext(entry.app.route),
+    });
   }, [launchHref, openApp]);
 
   const selectEntry = useCallback((entry: DisplayEntry) => {

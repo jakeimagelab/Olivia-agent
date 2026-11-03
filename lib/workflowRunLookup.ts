@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+export class WorkflowRunValidationError extends Error {
+  readonly status = 400;
+}
+
 // 고객의 "활성" workflow_run 1건을 찾는다 — quote/contract/conti 저장 API가 요청에
 // workflowRunId가 명시되지 않았을 때 clientId만으로 어느 프로젝트에 연결할지 추론하기
 // 위해 쓴다. 활성 프로젝트가 없으면(예: 고객 등록 전에 견적만 먼저 만드는 경우) null을
@@ -47,4 +51,29 @@ export async function resolveWorkflowRunId(
     });
   }
   return findActiveWorkflowRunId(db, clientId);
+}
+
+/**
+ * 문서 저장용 엄격 조회. 추천용 resolveWorkflowRunId와 달리 빠진 촬영 건을 자동으로 고르지
+ * 않고, 명시된 ID가 해당 고객 소유가 아니면 저장 자체를 거부한다.
+ */
+export async function resolveDocumentWorkflowRunId(
+  db: SupabaseClient,
+  requestedWorkflowRunId: unknown,
+  clientId: string | null,
+): Promise<string | null> {
+  if (requestedWorkflowRunId === undefined || requestedWorkflowRunId === null || requestedWorkflowRunId === "") return null;
+  if (typeof requestedWorkflowRunId !== "string" || !requestedWorkflowRunId.trim()) {
+    throw new WorkflowRunValidationError("올바른 촬영 건 ID가 아닙니다.");
+  }
+  if (!clientId) throw new WorkflowRunValidationError("촬영 건을 연결하려면 고객을 먼저 선택해주세요.");
+  const requestedId = requestedWorkflowRunId.trim();
+  const { data, error } = await db
+    .from("workflow_runs")
+    .select("id, client_id")
+    .eq("id", requestedId)
+    .maybeSingle();
+  if (error || !data?.id) throw new WorkflowRunValidationError("요청한 촬영 건을 찾을 수 없습니다.");
+  if (data.client_id !== clientId) throw new WorkflowRunValidationError("요청한 촬영 건이 선택한 고객 소유가 아닙니다.");
+  return data.id;
 }

@@ -21,6 +21,10 @@ export function useOliviaDesktopEffectiveActiveApp(): { windowId: string; appId:
   ), [activeAppId, activeWindowId]);
 
   useEffect(() => {
+    if (activeWindowId === null) {
+      lastRef.current = null;
+      return;
+    }
     if (activeAppId && activeAppId !== "olivia-chat") {
       lastRef.current = { windowId: activeWindowId as string, appId: activeAppId };
     }
@@ -31,6 +35,7 @@ export function useOliviaDesktopEffectiveActiveApp(): { windowId: string; appId:
     lastRef.current = null;
   }
 
+  if (activeWindowId === null) return null;
   if (current) return current;
   return lastRef.current;
 }

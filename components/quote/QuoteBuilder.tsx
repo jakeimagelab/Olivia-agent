@@ -11,6 +11,7 @@ import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { QuoteStoreScope, quoteFormSnapshot, useQuoteFormStore, useQuoteStoreApi } from "@/lib/store/useQuoteStore";
@@ -23,12 +24,15 @@ import { pricingStateAfterManualCustomItemEdit } from "@/lib/quote/manualQuoteEd
 import { hasMeaningfulQuoteContent } from "@/lib/quote/quoteDraft";
 import {
   beginExistingQuoteLoad,
+  beginNewQuoteSession,
   canApplyClientPrefill,
   completeExistingQuoteLoad,
   createNewQuoteSession,
   failExistingQuoteLoad,
   isSameQuoteSession,
   quoteSaveIdentity,
+  quoteClientPrefillUrl,
+  verifyQuoteClientPrefill,
   type QuoteEditorSession,
 } from "@/lib/quote/quoteEditorSession";
 import { createQuoteNumber, nextQuoteNumber, quoteNumberDate } from "@/lib/quote/quoteNumber";
@@ -272,6 +276,15 @@ type QuoteBuilderProps = {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  launchIntent?: "new" | "client-new" | "document" | "resume";
+  launchRequestId?: string;
+  onTargetVerified?: (target: {
+    quoteId: string | null;
+    clientId: string | null;
+    clientName?: string;
+    workflowRunId: string | null;
+    documentTitle?: string;
+  }) => void;
   startInPreview?: boolean;
   onClose?: () => void;
   onPublished?: () => void;
@@ -289,6 +302,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   clientId,
   workflowRunId,
   resourceId,
+  launchIntent,
+  launchRequestId,
+  onTargetVerified,
   startInPreview,
   onClose,
   onPublished,
@@ -301,6 +317,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // 분할뷰 모달의 레이아웃(상단 상태바 + 인라인 액션 바)이 그대로 유지된다.
   const isDesktopWindowMode = useDesktopWindowMode();
   const isDesktopWindow = isModal && isDesktopWindowMode;
+  const activeDesktopWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
+  const canPublishOliviaContext = !isDesktopWindow || activeDesktopWindowId === "quote";
   const launchDesktopApp = useDesktopAppLauncher();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
@@ -405,6 +423,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     : currentQuoteStatus;
 
   useEffect(() => {
+    if (!canPublishOliviaContext) return;
     setOliviaCurrentDocument(
       quoteDocumentId,
       "quote",
@@ -424,16 +443,17 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       canEdit: effectiveQuoteStatus !== "archived",
       canFinalize: effectiveQuoteStatus !== "published" && effectiveQuoteStatus !== "final" && effectiveQuoteStatus !== "archived",
     });
-  }, [brand, editorClientId, effectiveQuoteStatus, linkedWorkflowRunId, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
+  }, [brand, canPublishOliviaContext, editorClientId, effectiveQuoteStatus, linkedWorkflowRunId, quoteContextClientName, quoteDocumentId, quoteTitle, setOliviaCurrentDocument, setOliviaPageContext]);
 
   useEffect(() => {
+    if (!canPublishOliviaContext) return;
     const current = useOliviaContextStore.getState();
     if (current.activeWorkspace !== "quote" || current.activeResourceId !== quoteDocumentId) setOliviaWorkspace("quote", quoteDocumentId);
     return () => {
       const current = useOliviaContextStore.getState();
       if (current.activeWorkspace === "quote" && current.activeResourceId === quoteDocumentId) current.setWorkspace(undefined, undefined);
     };
-  }, [quoteDocumentId, setOliviaWorkspace]);
+  }, [canPublishOliviaContext, quoteDocumentId, setOliviaWorkspace]);
 
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
@@ -451,6 +471,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const documentLoadAbortRef = useRef<AbortController | null>(null);
   const clientPrefillTokenRef = useRef(0);
   const clientPrefillAbortRef = useRef<AbortController | null>(null);
+  const handledLaunchRequestRef = useRef(launchRequestId);
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const pendingSaveRef = useRef<Promise<ContractQuoteData | null> | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -696,8 +717,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // Agent가 총액을 스스로 계산해서 말하지 않고 지금 화면의 실제 값을 그대로 전달하게 한다
   // (PHASE 2 스펙 §21, §40) — 편집할 때마다(dirtyFields도 함께) 최신 값으로 갱신한다.
   useEffect(() => {
+    if (!canPublishOliviaContext) return;
     setOliviaCurrentDocumentTotal(finalAmount, dirtyFields.size > 0);
-  }, [finalAmount, dirtyFields, setOliviaCurrentDocumentTotal]);
+  }, [canPublishOliviaContext, finalAmount, dirtyFields, setOliviaCurrentDocumentTotal]);
 
   const updateCustomer = (key: keyof CustomerInfo, value: string) => {
     setCustomer((prev) => ({ ...prev, [key]: value }));
@@ -829,6 +851,45 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     resetForm();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 앱당 하나인 견적창에 Dock/모든 앱의 일반 실행이 다시 들어오면 단순 focus가 아니라
+  // 명시적인 새 작성 세션으로 전환한다. 공통 Olivia 상태 변화만으로는 절대 실행하지 않는다.
+  useEffect(() => {
+    if (!launchRequestId || handledLaunchRequestRef.current === launchRequestId) return;
+    handledLaunchRequestRef.current = launchRequestId;
+    if (launchIntent !== "new" && launchIntent !== "client-new") return;
+    if (dirty && !window.confirm("저장하지 않은 견적 변경사항이 있습니다. 새 견적을 작성할까요?")) {
+      onTargetVerified?.({
+        quoteId: editorSessionRef.current.quoteId,
+        clientId: editorSessionRef.current.clientId,
+        clientName: customer.hospitalName || undefined,
+        workflowRunId: editorSessionRef.current.workflowRunId,
+        documentTitle: quoteTitle || customer.hospitalName || "견적서",
+      });
+      return;
+    }
+
+    documentLoadAbortRef.current?.abort();
+    clientPrefillAbortRef.current?.abort();
+    clientPrefillTokenRef.current += 1;
+    pendingSaveRef.current = null;
+    const next = beginNewQuoteSession(editorSessionRef.current, {
+      clientId: launchIntent === "client-new" ? clientId ?? null : null,
+      workflowRunId: launchIntent === "client-new" ? workflowRunId ?? null : null,
+    });
+    replaceEditorSession(next);
+    resetForm();
+    lastSavedFormStateRef.current = quoteFormSnapshot(quoteStore.getState());
+    lastKnownUpdatedAtRef.current = undefined;
+    setCurrentQuoteStatus("draft");
+    setDocumentScopeError("");
+    setRecentQuoteMessage("");
+    setDirty(false);
+    setAutosaveStatus("idle");
+    setSaveFailureReason("");
+  // resetForm은 store setter 묶음이라 launchRequestId가 바뀔 때만 실행해야 한다.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [launchRequestId]);
 
   const buildContractQuoteData = (): ContractQuoteData => {
     const visibleItems: ContractQuoteItem[] = [
@@ -1017,6 +1078,13 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           notifyCoreSnapshotUpdated(nextSession.workflowRunId);
           if (nextSession.workflowRunId === linkedWorkflowRunId) await refreshCoreSnapshot();
         }
+        onTargetVerified?.({
+          quoteId: nextSession.quoteId,
+          clientId: nextSession.clientId,
+          clientName: data.hospitalName || undefined,
+          workflowRunId: nextSession.workflowRunId,
+          documentTitle: data.title || data.hospitalName || "견적서",
+        });
         return savedData;
       } catch (error) {
         if (!isSameQuoteSession(editorSessionRef.current, requestSession)) return null;
@@ -1171,6 +1239,13 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
       applyQuoteToForm(data);
       setCurrentQuoteStatus(data.status || "draft");
       replaceEditorSession(completed);
+      onTargetVerified?.({
+        quoteId,
+        clientId: quoteClientId,
+        clientName: data.hospitalName || undefined,
+        workflowRunId: quoteWorkflowRunId,
+        documentTitle: data.title || data.hospitalName || "견적서",
+      });
       setRecentQuoteMessage("선택한 견적서를 입력 폼에 불러왔습니다.");
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -1389,9 +1464,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     clientPrefillAbortRef.current = controller;
     const requestToken = next.requestToken;
     const prefillToken = ++clientPrefillTokenRef.current;
-    const suffix = workflowRunId ? `?workflowRunId=${encodeURIComponent(workflowRunId)}` : "";
-
-    fetch(`/api/clients/${encodeURIComponent(clientId)}${suffix}`, { cache: "no-store", signal: controller.signal })
+    fetch(quoteClientPrefillUrl(clientId, workflowRunId), { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const json = await response.json().catch(() => null);
         if (!response.ok || !json?.ok) throw new Error(json?.error || `HTTP ${response.status}`);
@@ -1403,11 +1476,12 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           || prefillToken !== clientPrefillTokenRef.current
           || !canApplyClientPrefill(editorSessionRef.current, requestToken)
         ) return;
+        verifyQuoteClientPrefill(json, clientId, workflowRunId);
         const session = editorSessionRef.current;
         replaceEditorSession({
           ...session,
           clientId,
-          workflowRunId: typeof json.workflowRun?.id === "string" ? json.workflowRun.id : session.workflowRunId,
+          workflowRunId: workflowRunId ?? null,
         });
         setCustomer((previous) => ({
           ...previous,
@@ -1415,8 +1489,15 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           managerName: json.client?.manager_name || previous.managerName,
           phone: json.client?.phone || previous.phone,
           email: json.client?.email || previous.email,
-          shootDate: json.workflowRun?.shoot_date || previous.shootDate,
+          shootDate: workflowRunId ? json.workflowRun?.shoot_date || previous.shootDate : previous.shootDate,
         }));
+        onTargetVerified?.({
+          quoteId: null,
+          clientId,
+          clientName: json.client?.name || undefined,
+          workflowRunId: workflowRunId ?? null,
+          documentTitle: json.client?.name ? `${json.client.name} 견적서` : "견적서",
+        });
       })
       .catch((error) => {
         if (!controller.signal.aborted) console.error("[OLIVIA] quote client prefill failed", error);
@@ -2975,7 +3056,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
 
 const QuoteBuilder = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(function ScopedQuoteBuilder(props, ref) {
   return (
-    <QuoteStoreScope isolated={Boolean(props.documentOnly)}>
+    <QuoteStoreScope isolated={props.mode === "modal" || Boolean(props.documentOnly)}>
       <QuoteBuilderInner {...props} ref={ref} />
     </QuoteStoreScope>
   );

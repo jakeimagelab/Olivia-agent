@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { getDockApps } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
+import { createGeneralWindowContext } from "@/lib/olivia/desktop/windowContext";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { resolveDockLayout, type DockIconSize } from "./dockLayout";
 import styles from "./OliviaDesktop.module.css";
@@ -43,11 +44,8 @@ export function DesktopDock() {
   const hideTimerRef = useRef<number | null>(null);
   const [layout, setLayout] = useState<{ iconSize: DockIconSize; scrollable: boolean }>({ iconSize: 48, scrollable: false });
   const [revealed, setRevealed] = useState(false);
-  const windows = useOliviaDesktopStore((state) => state.windows);
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const openApp = useOliviaDesktopStore((state) => state.openApp);
-  const focusWindow = useOliviaDesktopStore((state) => state.focusWindow);
-  const restoreWindow = useOliviaDesktopStore((state) => state.restoreWindow);
   const toggleShowDesktop = useOliviaDesktopStore((state) => state.toggleShowDesktop);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
@@ -102,11 +100,8 @@ export function DesktopDock() {
     return () => observer.disconnect();
   }, [apps.length]);
 
-  const open = (appId: string, title: string, width: number, height: number) => {
-    const win = windows[appId];
-    if (!win) openApp({ appId, title, width, height });
-    else if (win.minimized) restoreWindow(appId);
-    else focusWindow(appId);
+  const open = (appId: string, title: string, width: number, height: number, routeHref?: string) => {
+    openApp({ appId, title, width, height, context: createGeneralWindowContext(routeHref) });
     scheduleHide(900);
   };
   const style = { "--dock-icon-size": `${layout.iconSize}px` } as CSSProperties;
@@ -140,7 +135,7 @@ export function DesktopDock() {
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
             {index === 2 || index === 4 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
-            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height)} aria-label={DOCK_LABELS[app.id] ?? app.title}>
+            <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height, app.route)} aria-label={DOCK_LABELS[app.id] ?? app.title}>
               <span className={styles.dockGlyph} aria-hidden="true">{(() => {
                 const Icon = DOCK_ICONS[app.id] ?? FileText;
                 return <Icon size={Math.min(24, Math.round(layout.iconSize * .55))} strokeWidth={1.75} />;

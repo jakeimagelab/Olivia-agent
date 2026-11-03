@@ -4,7 +4,7 @@ import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
 import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
 import { hasMeaningfulQuoteContent } from "@/lib/quote/quoteDraft";
-import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
+import { resolveDocumentWorkflowRunId, WorkflowRunValidationError } from "@/lib/workflowRunLookup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       : body.clientId || await resolveClientId(supabase, body.hospitalName);
     const workflowRunId = existing
       ? existing.workflow_run_id
-      : await resolveWorkflowRunId(supabase, body.workflowRunId, clientId);
+      : await resolveDocumentWorkflowRunId(supabase, body.workflowRunId, clientId);
     const payload = {
       quote_number:    body.quoteNumber,
       title:           body.title ?? "",
@@ -194,6 +194,9 @@ export async function POST(req: NextRequest) {
       conflictDetected: false,
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 저장 실패") }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: quoteErrorMessage(error, "견적 저장 실패") },
+      { status: error instanceof WorkflowRunValidationError ? error.status : 500 },
+    );
   }
 }

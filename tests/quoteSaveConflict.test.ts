@@ -2,7 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/clientLookup", () => ({ resolveClientId: vi.fn(async () => "client-new") }));
-vi.mock("@/lib/workflowRunLookup", () => ({ resolveWorkflowRunId: vi.fn(async () => "run-new") }));
+vi.mock("@/lib/workflowRunLookup", () => ({
+  WorkflowRunValidationError: class WorkflowRunValidationError extends Error { status = 400; },
+  resolveDocumentWorkflowRunId: vi.fn(async (_db, requested) => typeof requested === "string" ? requested : null),
+}));
 vi.mock("@/lib/clientPortal", () => ({ logPortalEvent: vi.fn(async () => {}) }));
 vi.mock("@/lib/olivia/clientCandidate", () => ({ registerClientCandidate: vi.fn(async () => {}) }));
 
@@ -79,14 +82,23 @@ describe("POST /api/quotes — UUID와 문서 소유 관계 보호", () => {
     await expect(response.json()).resolves.toMatchObject({ ok: false, skipped: true });
   });
 
-  it("신규 견적은 UUID와 고객·촬영 건을 돌려준다", async () => {
+  it("고객만 있는 신규 견적은 촬영 건을 자동 선택하지 않는다", async () => {
     const response = await POST(request({ quoteNumber: "PCQ-20261103-0020", hospitalName: "신규의원" }));
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      ok: true, id: "quote-new-1", clientId: "client-new", workflowRunId: "run-new", updated: false,
+      ok: true, id: "quote-new-1", clientId: "client-new", workflowRunId: null, updated: false,
     });
     expect(insertedCount).toBe(1);
     expect(updatedIds).toEqual([]);
+  });
+
+  it("명시한 촬영 건만 신규 견적에 연결한다", async () => {
+    const response = await POST(request({
+      quoteNumber: "PCQ-20261103-0021", hospitalName: "신규의원", workflowRunId: "run-explicit",
+    }));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ workflowRunId: "run-explicit" });
+    expect(updatePayload).toBeNull();
   });
 
   it("기존 견적은 견적번호가 아니라 요청한 UUID 한 건만 수정하고 소유 관계를 유지한다", async () => {

@@ -100,10 +100,16 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   const selectedEntityType = useOliviaContextStore((state) => state.selectedEntityType);
   const clientId = context?.clientId;
   const workflowRunId = context?.workflowRunId ?? context?.projectId;
-  const caseEnabled = Boolean(clientId && workflowRunId && CASE_APPS.has(appId));
+  const caseRequested = Boolean(
+    clientId
+    && workflowRunId
+    && CASE_APPS.has(appId)
+    && (context?.launchIntent === "client-new" || context?.launchIntent === "document" || context?.targetVerified),
+  );
+  const caseEnabled = caseRequested && caseLoadState === "ready";
 
   useEffect(() => {
-    if (!caseEnabled || !clientId || !workflowRunId) {
+    if (!caseRequested || !clientId || !workflowRunId) {
       setDetail(null);
       setGalleries([]);
       setCaseLoadState("idle");
@@ -114,24 +120,34 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     setGalleries([]);
     setCaseLoadState("loading");
     Promise.all([
-      fetch(`/api/clients/${encodeURIComponent(clientId)}?workflowRunId=${encodeURIComponent(workflowRunId)}`, { cache: "no-store" }).then((response) => response.json()),
+      fetch(`/api/clients/${encodeURIComponent(clientId)}?workflowRunId=${encodeURIComponent(workflowRunId)}&strictWorkflowRunId=1`, { cache: "no-store" }).then((response) => response.json()),
       fetch(`/api/select-galleries?workflowRunId=${encodeURIComponent(workflowRunId)}`, { cache: "no-store" }).then((response) => response.json()),
     ]).then(([clientPayload, galleryPayload]) => {
       if (!active) return;
-      const clientMatches = !clientPayload?.client?.id || clientPayload.client.id === clientId;
-      const runMatches = !clientPayload?.workflowRun?.id || clientPayload.workflowRun.id === workflowRunId;
+      const clientMatches = clientPayload?.client?.id === clientId;
+      const runMatches = clientPayload?.workflowRun?.id === workflowRunId;
       if (!clientPayload?.ok || !clientMatches || !runMatches) {
         setCaseLoadState("error");
         return;
       }
       setDetail(clientPayload);
       const ownedGalleries = (galleryPayload?.ok ? galleryPayload.galleries ?? [] : [])
-        .filter((gallery: Gallery) => !gallery.workflow_run_id || gallery.workflow_run_id === workflowRunId);
+        .filter((gallery: Gallery) => gallery.workflow_run_id === workflowRunId);
       setGalleries(ownedGalleries);
       setCaseLoadState("ready");
+      const latest = useOliviaDesktopStore.getState().windows[appId]?.context;
+      const latestRunId = latest?.workflowRunId ?? latest?.projectId;
+      if (latest?.clientId === clientId && latestRunId === workflowRunId && !latest.targetVerified) {
+        updateWindowContext(appId, {
+          ...latest,
+          targetVerified: true,
+          clientName: clientPayload.client.name ?? clientPayload.client.hospital_name ?? latest.clientName,
+          projectName: clientPayload.workflowRun.project_name ?? latest.projectName,
+        });
+      }
     }).catch(() => { if (active) setCaseLoadState("error"); });
     return () => { active = false; };
-  }, [caseEnabled, clientId, workflowRunId]);
+  }, [appId, caseRequested, clientId, updateWindowContext, workflowRunId]);
 
   useEffect(() => {
     setPanelOpen(!DEFAULT_CLOSED_PANEL_APPS.has(appId));
@@ -140,6 +156,11 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     setLocalTab(appId === "home" ? "home" : appId);
     setSelection(null);
   }, [appId]);
+
+  // 같은 앱 안에서 일반 실행/다른 문서로 대상이 바뀌면 이전 행 선택과 설명을 즉시 폐기한다.
+  useEffect(() => {
+    setSelection(null);
+  }, [context?.contextScope, context?.documentId, context?.launchRequestId, context?.resourceId, clientId, workflowRunId]);
 
   useEffect(() => {
     const updateSelection = (event: Event) => {
@@ -188,7 +209,10 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
     return () => window.removeEventListener("olivia-calendar-view-mode", syncView);
   }, [appId]);
 
-  const clientName = detail?.client?.name ?? detail?.client?.hospital_name ?? context?.clientName;
+  const verifiedTargetVisible = context?.targetVerified === true || caseEnabled;
+  const clientName = caseEnabled
+    ? detail?.client?.name ?? detail?.client?.hospital_name
+    : verifiedTargetVisible ? context?.clientName : undefined;
   const run = detail?.workflowRun;
   const progress = detail?.workflowCheckProgress;
 
@@ -222,8 +246,8 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
       if (gallery || appId === "select-galleries") result.push({ key: "select-galleries", label: "사진 셀렉", subtitle: gallery?.title ?? clientName, icon: Images, href: gallery ? `/select-galleries/${gallery.id}` : "/select-galleries", context: { ...base, resourceId: gallery?.id, routeHref: gallery ? `/select-galleries/${gallery.id}` : "/select-galleries" } });
       return result;
     }
-    return [{ key: appId, label: getOliviaApp(appId)?.title ?? APP_LABELS[appId] ?? appId, subtitle: context?.documentTitle ?? context?.projectName, icon: appId === "olivia-bridge" || appId === "video-studio" ? Images : FileText }];
-  }, [appId, caseEnabled, clientId, clientName, context?.clientName, context?.documentTitle, context?.projectName, context?.resourceId, detail, galleries, workflowRunId]);
+    return [{ key: appId, label: getOliviaApp(appId)?.title ?? APP_LABELS[appId] ?? appId, subtitle: verifiedTargetVisible ? context?.documentTitle ?? context?.projectName : undefined, icon: appId === "olivia-bridge" || appId === "video-studio" ? Images : FileText }];
+  }, [appId, caseEnabled, clientId, clientName, context?.clientName, context?.documentTitle, context?.projectName, context?.resourceId, detail, galleries, verifiedTargetVisible, workflowRunId]);
 
   const handleTab = (tab: ShellTab) => {
     setLocalTab(tab.key);
@@ -255,7 +279,9 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
 
   const appLabel = getOliviaApp(appId)?.title ?? APP_LABELS[appId] ?? appId;
   const contextTitle = appLabel;
-  const contextSubtitle = selection?.title ?? context?.documentTitle ?? clientName ?? run?.project_name ?? context?.projectName ?? (appId === "home" ? todayLabel() : "목록");
+  const contextSubtitle = selection?.title
+    ?? (verifiedTargetVisible ? context?.documentTitle ?? clientName ?? run?.project_name ?? context?.projectName : undefined)
+    ?? (appId === "home" ? todayLabel() : "목록");
   const currentChildren = appId === "home" && localTab === "recent"
     ? <div className={styles.recentWorkspace}><DesktopRecentNotice /></div>
     : children;

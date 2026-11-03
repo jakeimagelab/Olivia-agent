@@ -117,6 +117,16 @@ describe("useOliviaDesktopContextBridge — customer source ownership", () => {
     })).toEqual({ contextScope: "none", routeHref: "/person-select" });
   });
 
+  it("검증 대기 중인 문서 창에는 전역의 이전 고객을 역주입하지 않는다", () => {
+    const pending = { contextScope: "document" as const, launchIntent: "document" as const, targetVerified: false, resourceId: "quote-b", documentId: "quote-b", documentType: "quote" };
+    expect(buildWindowContextFromOlivia({
+      appId: "quote",
+      mappedWorkspace: "quote",
+      windowContext: pending,
+      oliviaContext: { clientId: "client-a", clientName: "이전 고객", projectId: "run-a", workspace: "quote", resourceId: "quote-b" },
+    })).toEqual(pending);
+  });
+
   it("명시적으로 연결해 연 문서 창은 실제 고객과 문서 문맥을 유지한다", () => {
     const next = buildWindowContextFromOlivia({
       appId: "quote",

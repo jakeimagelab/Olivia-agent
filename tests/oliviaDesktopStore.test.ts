@@ -41,7 +41,7 @@ describe("OLIVIA OS desktop store", () => {
   });
 
   it("invalidates fixed-layout persisted window geometry", () => {
-    expect(DESKTOP_STATE_VERSION).toBe(5);
+    expect(DESKTOP_STATE_VERSION).toBe(6);
   });
 
   it("moves a docked Olivia child with its main window and detaches it independently", () => {
@@ -93,6 +93,22 @@ describe("OLIVIA OS desktop store", () => {
     expect(updated.context?.resourceId).toBe("quote-2");
     expect(updated.x).toBe(firstBounds.x);
     expect(updated.y).toBe(firstBounds.y);
+  });
+
+  it("일반 실행은 같은 singleton 창의 위치를 보존하면서 이전 고객·문서 문맥을 교체한다", () => {
+    const store = useOliviaDesktopStore.getState();
+    store.openApp({
+      appId: "quote", title: "견적서 · 이전 병원", width: 1000, height: 700,
+      context: { contextScope: "document", clientId: "client-a", workflowRunId: "run-a", documentId: "quote-a" },
+    });
+    const before = useOliviaDesktopStore.getState().windows.quote;
+    store.openApp({
+      appId: "quote", title: "견적서", width: 1000, height: 700,
+      context: { contextScope: "none", launchIntent: "new", launchRequestId: "launch-new", targetVerified: false },
+    });
+    const after = useOliviaDesktopStore.getState().windows.quote;
+    expect(after).toMatchObject({ x: before.x, y: before.y, width: before.width, height: before.height, title: "견적서" });
+    expect(after.context).toEqual({ contextScope: "none", launchIntent: "new", launchRequestId: "launch-new", targetVerified: false });
   });
 
   it("reuses the contract window while replacing its source quote", () => {
@@ -172,6 +188,63 @@ describe("OLIVIA OS persisted workspace migration", () => {
     }));
 
     loadDesktopState(new Set(["person-select"]));
-    expect(useOliviaDesktopStore.getState().windows["person-select"].context).toEqual({ routeHref: "/person-select", contextScope: "none" });
+    expect(useOliviaDesktopStore.getState().windows["person-select"].context).toEqual({
+      routeHref: "/person-select", contextScope: "none", launchIntent: "new", targetVerified: false,
+    });
+  });
+
+  it("v5의 대상 없는 견적창은 레이아웃을 유지하면서 일반 새 작성 문맥으로 마이그레이션한다", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    values.set("olivia-os-desktop-state", JSON.stringify({
+      version: 5,
+      activeAppId: "quote",
+      windows: [{
+        appId: "quote", title: "견적서 · 이전 병원", x: 42, y: 31, width: 900, height: 600,
+        minimized: false, snapMode: "none",
+        context: { contextScope: "document", documentType: "quote", clientId: "client-old", clientName: "이전 병원", workflowRunId: "run-old" },
+      }],
+    }));
+
+    loadDesktopState(new Set(["quote"]));
+    const win = useOliviaDesktopStore.getState().windows.quote;
+    expect(win).toMatchObject({ title: "견적서", x: 42, y: 31, width: 900, height: 600 });
+    expect(win.context).toMatchObject({ contextScope: "none", launchIntent: "new", targetVerified: false });
+    expect(win.context?.clientId).toBeUndefined();
+    expect(JSON.parse(values.get("olivia-os-desktop-state") ?? "{}").version).toBe(6);
+  });
+
+  it("v5의 정확한 견적 UUID는 유지하되 오래된 고객·촬영 건은 문서 재조회 전까지 제거한다", () => {
+    const quoteId = "018e2f30-92af-78b1-8f21-67f4404f5027";
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    values.set("olivia-os-desktop-state", JSON.stringify({
+      version: 5,
+      activeAppId: "quote",
+      windows: [{
+        appId: "quote", title: "견적서 · 잘못된 병원", x: 10, y: 20, width: 900, height: 600,
+        minimized: false, snapMode: "none",
+        context: { contextScope: "document", documentType: "quote", documentId: quoteId, resourceId: quoteId, clientId: "client-a", workflowRunId: "run-a" },
+      }],
+    }));
+
+    loadDesktopState(new Set(["quote"]));
+    const win = useOliviaDesktopStore.getState().windows.quote;
+    expect(win.title).toBe("견적서");
+    expect(win.context).toMatchObject({ documentId: quoteId, resourceId: quoteId, launchIntent: "document", targetVerified: false });
+    expect(win.context?.clientId).toBeUndefined();
+    expect(win.context?.workflowRunId).toBeUndefined();
   });
 });

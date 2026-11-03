@@ -12,6 +12,12 @@ export type { SnapMode };
 export type WindowContext = {
   /** 목록 화면은 none, 고객 작업은 client, 특정 문서는 document로 구분한다. */
   contextScope?: "none" | "client" | "document";
+  /** 일반 새 작업, 고객을 지정한 새 작업, 정확한 문서 열기, 기존 작업 복귀를 구분한다. */
+  launchIntent?: "new" | "client-new" | "document" | "resume";
+  /** 같은 singleton 앱에 들어온 새 실행 요청을 편집기가 한 번만 처리하기 위한 식별자. */
+  launchRequestId?: string;
+  /** 고객/촬영 건 또는 문서 소유 관계를 서버 응답으로 확인했을 때만 true다. */
+  targetVerified?: boolean;
   clientId?: string;
   clientName?: string;
   projectId?: string;
@@ -94,9 +100,30 @@ export function areWindowContextsEqual(left?: WindowContext, right?: WindowConte
 export function withoutPersistedDocumentTarget(context?: WindowContext): WindowContext | undefined {
   if (!context) return undefined;
   const safeContext = { ...context };
+  const persistedQuoteId = safeContext.documentId ?? safeContext.resourceId;
   const restoresExactQuote = safeContext.documentType === "quote"
-    && Boolean(safeContext.documentId || safeContext.resourceId);
-  if (!restoresExactQuote) {
+    && typeof persistedQuoteId === "string"
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(persistedQuoteId);
+  const restoresVerifiedClientWork = safeContext.contextScope === "client"
+    && safeContext.launchIntent === "client-new"
+    && safeContext.targetVerified === true
+    && Boolean(safeContext.clientId);
+  if (restoresExactQuote) {
+    // UUID만 복원하고 고객·촬영 건은 문서를 다시 조회한 결과로 채운다. 오래된 전역 고객값을
+    // 신뢰하면 정확한 문서를 열기 전 잠깐이라도 다른 병원이 상단과 Olivia에 노출된다.
+    safeContext.contextScope = "document";
+    safeContext.launchIntent = "document";
+    safeContext.targetVerified = false;
+    const quoteId = persistedQuoteId;
+    safeContext.routeHref = quoteId ? `/quote?resourceId=${encodeURIComponent(quoteId)}` : "/quote";
+    delete safeContext.clientId;
+    delete safeContext.clientName;
+    delete safeContext.projectId;
+    delete safeContext.projectName;
+    delete safeContext.workflowRunId;
+    delete safeContext.documentTitle;
+    delete safeContext.sourceQuoteId;
+  } else {
     delete safeContext.resourceId;
     delete safeContext.documentId;
   }
@@ -106,7 +133,10 @@ export function withoutPersistedDocumentTarget(context?: WindowContext): WindowC
     delete safeContext.sourceQuoteId;
     delete safeContext.routeHref;
   }
-  if (safeContext.contextScope === "none") {
+  if (!restoresExactQuote && !restoresVerifiedClientWork) {
+    safeContext.contextScope = "none";
+    safeContext.launchIntent = "new";
+    safeContext.targetVerified = false;
     delete safeContext.clientId;
     delete safeContext.clientName;
     delete safeContext.projectId;
@@ -480,7 +510,8 @@ export const useOliviaDesktopStore = create<OliviaDesktopState>((set, get) => ({
 // 들이지 않고 수동 localStorage read/write로 구현한다. FileSystemHandle/File/Blob/DOM
 // 참조/ReactNode/함수는 OliviaWindowState 자체에 애초에 없으므로(각 앱의 내부 상태일 뿐) 직렬화
 // 위험이 구조적으로 없다.
-export const DESKTOP_STATE_VERSION = 5;
+export const DESKTOP_STATE_VERSION = 6;
+const MIGRATABLE_DESKTOP_STATE_VERSIONS = new Set([5, DESKTOP_STATE_VERSION]);
 const MAX_RESTORED_WINDOWS = 20;
 
 type PersistedWindow = {
@@ -525,7 +556,17 @@ function migratePersistedWindow(win: PersistedWindow): PersistedWindow {
   }
   const replacement = LEGACY_WORKSPACE_WINDOWS[win.appId];
   const parentWindowId = migratePersistedAppId(win.parentWindowId) ?? undefined;
-  if (!replacement) return parentWindowId === win.parentWindowId ? win : { ...win, parentWindowId };
+  if (!replacement) {
+    const context = withoutPersistedDocumentTarget(win.context);
+    const canonicalTitle: Record<string, string> = { quote: "견적서", contract: "계약서", conti: "콘티" };
+    const shouldNormalizeTitle = context?.contextScope === "none" || context?.targetVerified === false;
+    return {
+      ...win,
+      title: shouldNormalizeTitle ? canonicalTitle[win.appId] ?? win.title : win.title,
+      context,
+      parentWindowId,
+    };
+  }
   return {
     ...win,
     appId: replacement.appId,
@@ -580,7 +621,7 @@ export function loadDesktopState(knownAppIds: Set<string>) {
     const parsed = JSON.parse(raw) as Partial<PersistedState>;
     // 버전이 다르거나 형태가 깨져 있으면 통째로 버리고 빈 Desktop으로 시작한다(스펙 2-37) —
     // Desktop 전체가 깨지는 것보다 낫다.
-    if (parsed.version !== DESKTOP_STATE_VERSION || !Array.isArray(parsed.windows)) return;
+    if (!MIGRATABLE_DESKTOP_STATE_VERSIONS.has(Number(parsed.version)) || !Array.isArray(parsed.windows)) return;
     // 삭제된 단독 앱은 창 자체를 버리지 않고 통합 작업실의 정확한 탭으로 옮긴다. 같은 통합
     // 작업실 창이 여러 개 남는 경우에는 z-order상 마지막 창의 위치/문맥을 사용한다.
     const migrated = parsed.windows
@@ -608,6 +649,8 @@ export function loadDesktopState(knownAppIds: Set<string>) {
     useOliviaDesktopStore.setState({
       windows, activeWindowId: activeAppId, nextZIndex: zIndex, openCount: valid.length,
     });
+    // v5의 오염된 고객명/문서 없는 document scope를 한 번 정리한 뒤 즉시 v6으로 저장한다.
+    saveDesktopState();
   } catch {
     // 파싱 실패 등 오염된 state는 조용히 버린다(스펙 2-37).
   }

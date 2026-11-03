@@ -10,5 +10,6 @@ const ContiWorkspaceAdapter = dynamic(() => import("@/components/conti/v2/ContiW
 });
 
 export function ContiWindowContent({ context }: { context?: WindowContext }) {
-  return <DesktopWindowProvider value={true}><ContiWorkspaceAdapter clientId={context?.clientId} workflowRunId={context?.projectId} resourceId={context?.resourceId} /></DesktopWindowProvider>;
+  const scoped = context?.contextScope === "client" || context?.contextScope === "document";
+  return <DesktopWindowProvider value={true}><ContiWorkspaceAdapter clientId={scoped ? context?.clientId : undefined} workflowRunId={scoped ? context?.workflowRunId ?? context?.projectId : undefined} resourceId={context?.contextScope === "document" ? context?.documentId ?? context?.resourceId : undefined} launchIntent={context?.launchIntent} launchRequestId={context?.launchRequestId} /></DesktopWindowProvider>;
 }

@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { getOliviaApp, resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore, type WindowContext } from "@/lib/store/useOliviaDesktopStore";
-import { contextFromHref, mergeDefinedWindowContext, withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
+import { contextFromHref, mergeDefinedWindowContext, prepareWindowContextForLaunch, withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 import { attachOliviaChatToDocumentWindow, isChatLinkedDocumentWindow } from "@/lib/olivia/desktop/windowLifecycle";
 
 export function useDesktopAppLauncher() {
@@ -19,10 +19,7 @@ export function useDesktopAppLauncher() {
       const documentType = ["quote", "contract", "conti"].includes(app.id)
         ? app.id
         : undefined;
-      const documentContext = documentType
-        ? { ...mergedContext, documentId: mergedContext.resourceId, documentType }
-        : mergedContext;
-      const scopedContext = withWindowContextScope(documentContext);
+      const scopedContext = prepareWindowContextForLaunch(mergedContext, documentType);
       openApp({
         appId: app.id,
         title: title && title !== app.title ? `${app.title} · ${title}` : app.title,

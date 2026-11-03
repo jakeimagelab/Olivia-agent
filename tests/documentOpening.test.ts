@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDocumentOpenTarget } from "@/lib/olivia/documents/openDocument";
-import { contextFromHref, mergeDefinedWindowContext } from "@/lib/olivia/desktop/windowContext";
+import { contextFromHref, createGeneralWindowContext, mergeDefinedWindowContext, prepareWindowContextForLaunch } from "@/lib/olivia/desktop/windowContext";
 
 describe("document opening", () => {
   it.each([
@@ -52,5 +52,19 @@ describe("document opening", () => {
     expect(context.clientId).toBe("client-1");
     expect(context.projectId).toBe("run-1");
     expect(context.workflowRunId).toBe("run-1");
+  });
+
+  it("일반 실행은 URL의 이전 고객·촬영 건·문서 대상을 제거하고 새 요청으로 만든다", () => {
+    const context = createGeneralWindowContext("/quote?clientId=old&workflowRunId=run-old&resourceId=quote-old&tab=form");
+    expect(context).toMatchObject({ contextScope: "none", launchIntent: "new", targetVerified: false, routeHref: "/quote?tab=form" });
+    expect(context.clientId).toBeUndefined();
+    expect(context.resourceId).toBeUndefined();
+  });
+
+  it("정확한 문서 열기와 고객 지정 새 작성을 서로 다른 진입 의도로 표시한다", () => {
+    expect(prepareWindowContextForLaunch({ routeHref: "/quote?resourceId=quote-b", resourceId: "quote-b" }, "quote"))
+      .toMatchObject({ contextScope: "document", launchIntent: "document", documentId: "quote-b", targetVerified: false });
+    expect(prepareWindowContextForLaunch({ routeHref: "/quote?clientId=client-a", clientId: "client-a" }, "quote"))
+      .toMatchObject({ contextScope: "client", launchIntent: "client-new", clientId: "client-a", targetVerified: false });
   });
 });

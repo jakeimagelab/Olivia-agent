@@ -11,23 +11,24 @@ function source(relativePath: string): string {
 }
 
 describe("고객 문서 워크스페이스 회귀 방지", () => {
-  it("실제 UUID가 있는 견적 편집창은 고객만 남긴 신규 폼으로 바꾸지 않고 그대로 복원한다", () => {
+  it("실제 UUID가 있는 견적 편집창은 UUID만 복원하고 소유관계는 서버 재조회 전까지 신뢰하지 않는다", () => {
+    const quoteId = "018e2f30-92af-78b1-8f21-67f4404f5027";
     expect(withoutPersistedDocumentTarget({
       clientId: "client-1",
       workflowRunId: "run-1",
-      resourceId: "quote-1",
-      documentId: "quote-1",
+      resourceId: quoteId,
+      documentId: quoteId,
       documentType: "quote",
       sourceQuoteId: "quote-source-1",
-      routeHref: "/quote?resourceId=quote-1&sourceQuoteId=quote-source-1",
+      routeHref: `/quote?resourceId=${quoteId}&sourceQuoteId=quote-source-1`,
     })).toEqual({
-      clientId: "client-1",
-      workflowRunId: "run-1",
-      resourceId: "quote-1",
-      documentId: "quote-1",
+      contextScope: "document",
+      launchIntent: "document",
+      targetVerified: false,
+      resourceId: quoteId,
+      documentId: quoteId,
       documentType: "quote",
-      sourceQuoteId: "quote-source-1",
-      routeHref: "/quote?resourceId=quote-1&sourceQuoteId=quote-source-1",
+      routeHref: `/quote?resourceId=${quoteId}`,
     });
   });
 

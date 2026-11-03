@@ -51,6 +51,7 @@ export function useOliviaDesktopContextBridge() {
   const windowDocumentType = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentType : undefined);
   const windowDocumentTitle = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.documentTitle : undefined);
   const windowContextScope = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.contextScope : undefined);
+  const windowTargetVerified = useOliviaDesktopStore((state) => effectiveWindowId ? state.windows[effectiveWindowId]?.context?.targetVerified : undefined);
   const activeClientId = useOliviaContextStore((state) => state.activeClientId);
   const activeClientName = useOliviaContextStore((state) => state.activeClientName);
   const activeProjectId = useOliviaContextStore((state) => state.activeProjectId);
@@ -60,6 +61,17 @@ export function useOliviaDesktopContextBridge() {
   const currentDocumentId = useOliviaContextStore((state) => state.currentDocumentId);
   const currentDocumentType = useOliviaContextStore((state) => state.currentDocumentType);
   const currentDocumentTitle = useOliviaContextStore((state) => state.currentDocumentTitle);
+
+  // 홈(활성 창 없음)은 Olivia 채팅 입력 포커스와 다르다. 홈으로 명시적으로 이동했으면
+  // 마지막 작업창의 고객·프로젝트·문서를 현재 대상으로 계속 들고 있지 않는다.
+  useEffect(() => {
+    if (effectiveWindowId) return;
+    const context = useOliviaContextStore.getState();
+    context.setClient(undefined, undefined);
+    context.setProject(undefined, undefined);
+    context.setWorkspace(undefined, undefined);
+    context.setCurrentDocument(undefined, undefined, undefined);
+  }, [effectiveWindowId]);
 
   // Workspace/resource sync. 이 effect는 app 또는 window resource가 바뀔 때만 실행된다.
   useEffect(() => {
@@ -80,24 +92,24 @@ export function useOliviaDesktopContextBridge() {
     const context = useOliviaContextStore.getState();
     const seed = resolveNamedContextSeed({
       windowId: effectiveWindowId,
-      windowValue: { id: windowClientId, name: windowClientName },
+      windowValue: windowTargetVerified === false ? {} : { id: windowClientId, name: windowClientName },
       activeValue: { id: context.activeClientId, name: context.activeClientName },
-      clearWhenEmpty: windowContextScope === "none",
+      clearWhenEmpty: windowContextScope === "none" || windowTargetVerified === false,
     });
     if (seed) context.setClient(seed.id, seed.name);
-  }, [effectiveWindowId, windowClientId, windowClientName, windowContextScope]);
+  }, [effectiveWindowId, windowClientId, windowClientName, windowContextScope, windowTargetVerified]);
 
   // Project sync. Client와 분리해 project만 바뀔 때 setClient가 호출되지 않는다.
   useEffect(() => {
     const context = useOliviaContextStore.getState();
     const seed = resolveNamedContextSeed({
       windowId: effectiveWindowId,
-      windowValue: { id: windowProjectId, name: windowProjectName },
+      windowValue: windowTargetVerified === false ? {} : { id: windowProjectId, name: windowProjectName },
       activeValue: { id: context.activeProjectId, name: context.activeProjectName },
-      clearWhenEmpty: windowContextScope === "none",
+      clearWhenEmpty: windowContextScope === "none" || windowTargetVerified === false,
     });
     if (seed) context.setProject(seed.id, seed.name);
-  }, [effectiveWindowId, windowProjectId, windowProjectName, windowContextScope]);
+  }, [effectiveWindowId, windowProjectId, windowProjectName, windowContextScope, windowTargetVerified]);
 
   // Current document sync. 문서가 닫혀 id/type이 비워진 경우도 실제 변화로 처리한다.
   useEffect(() => {

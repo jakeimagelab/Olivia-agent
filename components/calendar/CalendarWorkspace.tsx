@@ -2725,7 +2725,7 @@ export default function CalendarWorkspace() {
 
       {!embedded && !isMobile ? (
         <div className="calendar-mission-shell" style={{ maxWidth: 1440, margin: "0 auto 10px", width: "100%", padding: "0 20px" }}>
-          <ActiveMissionBar />
+          <ActiveMissionBar mode="recommendation" />
         </div>
       ) : null}
 

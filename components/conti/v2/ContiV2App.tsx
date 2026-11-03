@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ContiCreateScreen from "@/components/conti/v2/ContiCreateScreen";
 import ContiEditorWorkspace from "@/components/conti/v2/ContiEditorWorkspace";
 import ContiFieldView from "@/components/conti/v2/ContiFieldView";
@@ -30,13 +30,15 @@ export interface ContiV2AppProps {
   clientId?: string;
   workflowRunId?: string;
   resourceId?: string;
+  launchIntent?: "new" | "client-new" | "document" | "resume";
+  launchRequestId?: string;
   initialRunId?: string;
   onClose?: () => void;
   onPublished?: () => void;
   registerRequestClose?: (fn: (() => void) | null) => void;
 }
 
-export default function ContiV2App({ surface = "default", embedded = false, documentOnly = false, clientId, workflowRunId, resourceId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
+export default function ContiV2App({ surface = "default", embedded = false, documentOnly = false, clientId, workflowRunId, resourceId, launchIntent, launchRequestId, initialRunId, onClose, onPublished, registerRequestClose }: ContiV2AppProps = {}) {
   const persistenceKey = workspaceKey(clientId, workflowRunId, resourceId ?? initialRunId);
   const canRetainWorkspace = persistenceKey !== "new-client:new-workflow:new-resource";
   const retained = canRetainWorkspace ? retainedWorkspaces.get(persistenceKey) : undefined;
@@ -47,6 +49,25 @@ export default function ContiV2App({ surface = "default", embedded = false, docu
   const [legacyResourceId, setLegacyResourceId] = useState<string | undefined>(initialRunId ? undefined : resourceId);
   const [resolvingInitial, setResolvingInitial] = useState(Boolean(!retained && !initialRunId && (resourceId || workflowRunId)));
   const controller = useContiStudio(runId);
+  const flushSave = controller.flushSave;
+  const handledLaunchRequestRef = useRef(launchRequestId);
+
+  useEffect(() => {
+    if (!launchRequestId || handledLaunchRequestRef.current === launchRequestId) return;
+    handledLaunchRequestRef.current = launchRequestId;
+    if (launchIntent !== "new") return;
+    let active = true;
+    void flushSave().then((saved) => {
+      if (!active || !saved) return;
+      setRunId(null);
+      setView("table");
+      setLegacyResourceId(undefined);
+      setResolvingInitial(false);
+      setDocumentScopeError("");
+      setNotices([]);
+    });
+    return () => { active = false; };
+  }, [flushSave, launchIntent, launchRequestId]);
 
   useEffect(() => {
     if (!registerRequestClose || !onClose) return;

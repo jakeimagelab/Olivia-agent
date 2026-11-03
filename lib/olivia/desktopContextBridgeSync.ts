@@ -113,6 +113,9 @@ export function buildWindowContextFromOlivia({
     delete next.documentTitle;
     return next;
   }
+  // 명시된 대상이라도 서버가 소유 관계를 확인하기 전에는 이전 전역 고객/프로젝트를 창으로
+  // 역주입하지 않는다. 해당 창의 로더가 검증 완료 후 targetVerified를 올린다.
+  if (windowContext?.targetVerified === false) return { ...windowContext };
   const customerOwnsSelection = appId === "customer";
   const documentOwnsSelection = scope === "document"
     && Boolean(mappedWorkspace)
