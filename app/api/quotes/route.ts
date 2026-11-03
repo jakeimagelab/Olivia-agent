@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { resolveClientId } from "@/lib/clientLookup";
 import { logPortalEvent } from "@/lib/clientPortal";
 import { registerClientCandidate } from "@/lib/olivia/clientCandidate";
+import { hasMeaningfulQuoteContent } from "@/lib/quote/quoteDraft";
 import { resolveWorkflowRunId } from "@/lib/workflowRunLookup";
 
 export const dynamic = "force-dynamic";
@@ -36,10 +37,15 @@ export async function GET(req: NextRequest) {
       .from("quotes")
       .select("*")
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(Math.min(500, Math.max(limit * 5, limit)));
 
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, quotes: data ?? [] });
+    const quotes = (data ?? []).filter((row) => hasMeaningfulQuoteContent({
+      hospitalName: row.hospital_name,
+      items: row.items,
+      totalAmount: row.total_amount,
+    })).slice(0, limit);
+    return NextResponse.json({ ok: true, quotes });
   } catch (error) {
     return NextResponse.json({ ok: false, error: quoteErrorMessage(error, "견적 조회 실패") }, { status: 500 });
   }
@@ -52,6 +58,13 @@ export async function POST(req: NextRequest) {
 
     if (typeof body.quoteNumber !== "string" || !body.quoteNumber.trim()) {
       return NextResponse.json({ ok: false, error: "견적번호를 입력해주세요." }, { status: 400 });
+    }
+    if (!hasMeaningfulQuoteContent({
+      hospitalName: body.hospitalName,
+      items: body.items,
+      totalAmount: body.totalAmount,
+    })) {
+      return NextResponse.json({ ok: false, skipped: true, error: "빈 견적은 저장하지 않습니다." }, { status: 400 });
     }
 
     const clientId = body.clientId || await resolveClientId(supabase, body.hospitalName);

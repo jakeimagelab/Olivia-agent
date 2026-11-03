@@ -20,6 +20,7 @@ import type { Brand, BenefitItem, CustomItem, CustomerInfo, QuoteTaxMode } from 
 import { packages, getSingleItems, BRAND_CONFIG, type SingleItem } from "@/lib/quote/quoteCatalog";
 import { computeQuoteTotals } from "@/lib/quote/computeQuoteTotals";
 import { pricingStateAfterManualCustomItemEdit } from "@/lib/quote/manualQuoteEdit";
+import { hasMeaningfulQuoteContent } from "@/lib/quote/quoteDraft";
 import { createQuoteNumber, nextQuoteNumber, quoteNumberDate } from "@/lib/quote/quoteNumber";
 import { quoteRowToFormState } from "@/lib/quote/quoteRowMapping";
 import QuoteDocument from "@/components/quote/QuoteDocument";
@@ -909,6 +910,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   };
 
   const saveRecentQuote = async (data: ContractQuoteData): Promise<ContractQuoteData | null> => {
+    if (!hasMeaningfulQuoteContent(data)) {
+      setRecentQuoteMessage("병원명이나 견적 항목을 먼저 입력해주세요.");
+      return null;
+    }
     try {
       const response = await fetch("/api/quotes", {
         method: "POST",
@@ -1358,12 +1363,19 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     if (!isModal) return;
     const data = buildContractQuoteData();
     const snapshot = JSON.stringify(data.formState ?? null);
+    if (!resourceId && !currentQuoteId && !hasMeaningfulQuoteContent(data)) {
+      lastSavedFormStateRef.current = snapshot;
+      setDirty(false);
+      quoteStore.getState().clearDirty();
+      return;
+    }
     setDirty(snapshot !== lastSavedFormStateRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isModal, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, itemPricesHidden, memo, depositRate, brand,
+    currentQuoteId, resourceId,
   ]);
 
   // 3) 자동저장: dirty가 1000ms 유지되면 기존 saveRecentQuote()를 그대로 재사용해 저장한다.
@@ -1382,8 +1394,16 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   useEffect(() => {
     if (!isModal || !dirty) return;
     const timer = setTimeout(() => {
-      setAutosaveStatus("saving");
       const data = buildContractQuoteData();
+      if (!resourceId && !currentQuoteId && !hasMeaningfulQuoteContent(data)) {
+        lastSavedFormStateRef.current = JSON.stringify(data.formState ?? null);
+        setDirty(false);
+        setAutosaveStatus("idle");
+        quoteStore.getState().clearDirty();
+        pendingSaveRef.current = null;
+        return;
+      }
+      setAutosaveStatus("saving");
       const savePromise = saveRecentQuote(data).then((saved) => {
         setAutosaveStatus(saved ? "saved" : "error");
         return saved;
@@ -1396,6 +1416,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     isModal, dirty, customer, quoteTitle, selectedPackageId, selectedSingleItemIds, singleItemNotes, singleItemAmounts,
     profileCount, stagedCount, combinedProfileStagedCount, floorCount, largeHospital, droneCount,
     customItems, benefitItems, discountLabel, discountRate, extraDiscount, fixedTotal, roundDownUnit, itemPricesHidden, memo, depositRate, brand,
+    currentQuoteId, resourceId,
   ]);
 
   // 4) 닫기 정책: 진행 중인 자동저장이 있으면 먼저 기다리고, 저장 안 된 변경사항이 남아있으면

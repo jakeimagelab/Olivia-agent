@@ -40,6 +40,20 @@ function request(body: Record<string, unknown>) {
 // POST /api/quotes는 사람의 저장(수동/자동)과 Agent tool의 직접 DB write가 같은 행을 다르게
 // 건드릴 수 있다는 걸 감지만 하고 막지는 않는다(soft-warn, §45/46) — Phase 5.
 describe("POST /api/quotes — 저장 충돌 감지(soft-warn)", () => {
+  it("병원명·항목·금액이 모두 없는 초기 폼은 저장하지 않는다", async () => {
+    existingRow = null;
+    const res = await POST(request({
+      quoteNumber: "PCQ-20261103-0002",
+      hospitalName: "",
+      items: [],
+      totalAmount: 0,
+      formState: { customer: { quoteNumber: "PCQ-20261103-0002" } },
+    }));
+    const json = await res.json();
+    expect(res.status).toBe(400);
+    expect(json).toMatchObject({ ok: false, skipped: true, error: "빈 견적은 저장하지 않습니다." });
+  });
+
   it("신규 견적(기존 row 없음)은 항상 conflictDetected가 없다", async () => {
     existingRow = null;
     const res = await POST(request({ quoteNumber: "PC-20260827-001", hospitalName: "히어산부인과" }));
