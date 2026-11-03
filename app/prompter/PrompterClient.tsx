@@ -333,7 +333,10 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     setMode("scenes");
     void loadScenes(p.id).then((loadedScenes) => {
       if (projectOpenRequestRef.current !== requestId) return;
-      const initialScene = loadedScenes.find((scene) => !scene.isDraft && !scene.is_shot)
+      const hasContent = (scene: Scene) => Boolean(scene.content?.trim());
+      const initialScene = loadedScenes.find((scene) => !scene.isDraft && !scene.is_shot && hasContent(scene))
+        ?? loadedScenes.find((scene) => !scene.isDraft && hasContent(scene))
+        ?? loadedScenes.find((scene) => !scene.isDraft && !scene.is_shot)
         ?? loadedScenes.find((scene) => !scene.isDraft);
       if (initialScene) openScene(initialScene);
     });
@@ -896,13 +899,6 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
     }
   };
 
-  const runEditedScene = async () => {
-    if (!text.trim() || saving) return;
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    const saved = await saveScene();
-    if (saved) enterPromptMode();
-  };
-
   const updateSceneDataField = (id: string, field: "title" | "subject" | "content", value: string) => {
     setScenes((prev) => prev.map((scene) => scene.id === id ? { ...scene, [field]: value } : scene));
     if (sceneId !== id) return;
@@ -1114,7 +1110,7 @@ export function PrompterWorkspace({ embedded = false }: { embedded?: boolean }) 
           <button onClick={runAiReview} className="pt-btn" disabled={!text.trim() || aiReviewLoading}><Sparkles size={15} /> {aiReviewLoading ? "검토 중..." : "AI 검토"}</button>
           <button onClick={() => saveScene()} className="pt-btn" disabled={!text.trim() || saving}><Save size={16} /> {saving ? "저장 중..." : "저장"}</button>
           {!saving && lastAutoSavedAt ? <span className="pt-save-status">저장됨 · 방금 전</span> : null}
-          <button onClick={() => void runEditedScene()} className="pt-btn pt-btn-primary" disabled={!text.trim() || saving}>{saving ? "저장 중..." : "편집 후 실행"}</button>
+          <button onClick={enterPromptMode} className="pt-btn pt-btn-primary" disabled={!text.trim()}>편집 후 실행</button>
         </>
       ) : (
         <button onClick={saveSceneDataTable} className="pt-btn pt-btn-primary" disabled={savingDataTable}>

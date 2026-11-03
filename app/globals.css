@@ -143,40 +143,43 @@ main.quote-app { container-name: quote-app; container-type: inline-size; }
   background: var(--ui-workspace, #E8EBE5);
   box-shadow: 0 18px 50px rgba(31, 50, 42, .18);
 }
-.quote-recent-list { display: grid; gap: 7px; }
-.quote-recent-card {
+.quote-recent-picker {
   display: grid;
-  gap: 8px;
-  padding: 10px;
+  gap: 9px;
+  padding: 11px;
   border: 1px solid #d8d0c4;
   border-radius: 10px;
   background: #fffdfa;
   box-shadow: 0 1px 4px rgba(31, 50, 42, .05);
 }
-.quote-recent-name { display: block; overflow: hidden; color: var(--quote-ink); font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
-.quote-recent-meta { display: flex; justify-content: space-between; gap: 6px; margin-top: 3px; color: #6f6961; font-size: 9.5px; }
-.quote-recent-meta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.quote-recent-amount { display: block; margin-top: 4px; color: var(--quote-accent); font-size: 14px; font-weight: 800; }
-.quote-recent-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
-.quote-recent-actions button {
-  min-width: 0;
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
+.quote-recent-picker > label { color: #6f6961; font-size: 10px; font-weight: 800; }
+.quote-recent-select {
+  width: 100%;
+  min-height: 34px;
   border: 1px solid #d8d0c4;
   border-radius: 7px;
-  padding: 0 5px;
+  padding: 0 28px 0 9px;
   background: #fff;
   color: var(--quote-ink);
   font: inherit;
-  font-size: 9.5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.quote-recent-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #6f6961; font-size: 10px; }
+.quote-recent-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quote-recent-summary strong { flex: none; color: var(--quote-accent); font-size: 12px; }
+.quote-recent-load {
+  min-height: 32px;
+  border: 1px solid var(--quote-ink);
+  border-radius: 7px;
+  background: var(--quote-ink);
+  color: #fff;
+  font: inherit;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
 }
-.quote-recent-actions button:disabled { cursor: not-allowed; opacity: .55; }
-.quote-recent-actions .quote-recent-contract { border-color: var(--quote-ink); background: var(--quote-accent); color: #fff; }
+.quote-recent-load:disabled { cursor: not-allowed; opacity: .55; }
 .quote-workspace-layout[data-recent-open="true"] .quote-recent-pane { display: block; }
 .quote-recent-close {
   position: sticky;

@@ -166,7 +166,7 @@ const numberValue = (value: string) => {
 
 const displayDate = (date: string) => date || "-";
 
-const RECENT_QUOTES_DISPLAY_LIMIT = 2;
+const RECENT_QUOTES_DISPLAY_LIMIT = 10;
 
 const rowToContractQuoteData = (row: Record<string, any>): ContractQuoteData => ({
   id: row.id,
@@ -273,7 +273,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   resourceId,
   startInPreview,
   onClose,
-  onPublished,
   registerRequestClose,
 }, ref) {
   const isModal = mode === "modal";
@@ -423,9 +422,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   }, [resourceId, setOliviaProject, setOliviaWorkspace, workflowRunId]);
   const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
+  const [selectedRecentQuoteId, setSelectedRecentQuoteId] = useState("");
   const [recentPanelOpen, setRecentPanelOpen] = useState(false);
   const [compactQuotePane, setCompactQuotePane] = useState<"edit" | "preview">("edit");
-  const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
   const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
   const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
   const previewPercent = Math.round(previewZoom * 100);
@@ -1091,55 +1090,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     }
   };
 
-  const publishQuoteToPortal = async (
-    item: ContractQuoteData,
-    overrides?: { forceClientId?: string; forceCreateNew?: boolean },
-  ) => {
-    setPublishingQuoteId(item.id);
-    setRecentQuoteMessage("");
-    try {
-      const response = await fetch(`/api/quotes/${item.id}/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(overrides ?? {}),
-      });
-      const json = await response.json();
-      if (!response.ok || !json.ok) {
-        if (json.needsConfirmation && json.candidate) {
-          const useExisting = window.confirm(
-            `비슷한 이름의 기존 고객 "${json.candidate.hospital_name}"이(가) 있습니다.\n이 고객에 연결할까요? (취소하면 새 고객으로 생성합니다)`,
-          );
-          setPublishingQuoteId(null);
-          await publishQuoteToPortal(item, useExisting ? { forceClientId: json.candidate.id } : { forceCreateNew: true });
-          return;
-        }
-        setRecentQuoteMessage(json.error || "포털 공개에 실패했습니다.");
-        return;
-      }
-      setRecentQuotes((prev) =>
-        prev.map((quote) => (quote.id === item.id ? { ...quote, status: "published", portalUrl: json.portalUrl } : quote)),
-      );
-      if (item.id === (resourceId || currentQuoteId)) setCurrentQuoteStatus("published");
-      if (linkedWorkflowRunId) {
-        notifyCoreSnapshotUpdated(linkedWorkflowRunId);
-        await refreshCoreSnapshot();
-      }
-      if (typeof navigator !== "undefined" && navigator.clipboard) {
-        await navigator.clipboard.writeText(json.portalUrl).catch((error) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-        setRecentQuoteMessage("포털에 공개했습니다. 포털 링크를 클립보드에 복사했습니다.");
-      } else {
-        setRecentQuoteMessage(`포털에 공개했습니다: ${json.portalUrl}`);
-      }
-      if (isModal) {
-        setTimeout(() => { onPublished?.(); onClose?.(); }, 700);
-      }
-    } catch (error) {
-      setRecentQuoteMessage(error instanceof Error ? error.message : "포털 공개 중 오류가 발생했습니다.");
-    } finally {
-      setPublishingQuoteId(null);
-    }
-  };
-
   // 계약서 생성 페이지로 이동 (견적 데이터 전달)
   const goToContract = () => {
     const data = buildContractQuoteData();
@@ -1513,7 +1463,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     });
 
     saveRecentQuote(data);
-    setPdfImportMessage("입력한 내용으로 최근 견적 목록에 추가했습니다. 목록에서 계약서를 눌러 생성할 수 있습니다.");
+    setPdfImportMessage("입력한 내용으로 최근 견적 목록에 추가했습니다. 최근 견적에서 다시 불러올 수 있습니다.");
     setManualPdfQuote(null);
   };
 
@@ -1599,7 +1549,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
 
       const data = createContractQuoteFromImportedPdf(parsed);
       saveRecentQuote(data);
-      setPdfImportMessage("PDF 내용을 읽어 최근 견적 목록에 추가했습니다. 목록에서 계약서를 눌러 생성할 수 있습니다.");
+      setPdfImportMessage("PDF 내용을 읽어 최근 견적 목록에 추가했습니다. 최근 견적에서 다시 불러올 수 있습니다.");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setPdfImportMessage(`PDF 불러오기에 실패했습니다: ${message}`);
@@ -1898,33 +1848,41 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     memo,
   };
 
+  const selectedRecentQuote = recentQuotes.find((item) => item.id === selectedRecentQuoteId) ?? recentQuotes[0] ?? null;
   const recentQuotesPanelNode = !documentOnly ? (
-    <Panel title={`최근 견적 ${RECENT_QUOTES_DISPLAY_LIMIT}개`}>
+    <Panel title="최근 견적 불러오기">
       {recentQuoteMessage ? (
         <div className="mb-3 rounded-lg border border-[var(--quote-tint-border)] bg-[var(--quote-tint)] px-4 py-3 text-sm font-bold text-[var(--quote-ink)]">{recentQuoteMessage}</div>
       ) : null}
       {recentQuotes.length === 0 ? (
-        <p className="empty-text">PDF 다운로드 또는 계약서 생성을 누르면 최근 견적이 자동 보관됩니다.</p>
+        <p className="empty-text">견적서를 저장하거나 다운로드하면 최근 견적에 자동 보관됩니다.</p>
       ) : (
-        <div className="quote-recent-list">
-          {recentQuotes.map((item) => (
-            <div key={item.id} className="quote-recent-card">
-              <div className="min-w-0">
-                <strong className="quote-recent-name">{item.hospitalName || `${cfg.entityLabel} 없음`}</strong>
-                <div className="quote-recent-meta"><span>{item.quoteNumber}</span><span>{displayDate(item.quoteDate)}</span></div>
-                <b className="quote-recent-amount">{won(item.totalAmount)}</b>
-              </div>
-              <div className="quote-recent-actions">
-                <button type="button" onClick={() => {
-                  if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
-                  loadRecentQuote(item);
-                  setRecentPanelOpen(false);
-                }}>불러오기</button>
-                <button type="button" className="quote-recent-contract" onClick={() => void openContractWithQuote(item)} disabled={openingContract}><FileText size={13} />{openingContract ? "준비 중" : "계약서"}</button>
-                <button type="button" disabled={publishingQuoteId === item.id} onClick={() => void publishQuoteToPortal(item)}>{publishingQuoteId === item.id ? "공개 중" : item.status === "published" ? "다시 공개" : "포털 공개"}</button>
-              </div>
+        <div className="quote-recent-picker">
+          <label htmlFor="quote-recent-select">불러올 견적</label>
+          <select
+            id="quote-recent-select"
+            className="quote-recent-select"
+            value={selectedRecentQuote?.id ?? ""}
+            onChange={(event) => setSelectedRecentQuoteId(event.target.value)}
+          >
+            {recentQuotes.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.hospitalName || `${cfg.entityLabel} 없음`} · {item.quoteNumber} · {displayDate(item.quoteDate)}
+              </option>
+            ))}
+          </select>
+          {selectedRecentQuote ? (
+            <div className="quote-recent-summary">
+              <span>{selectedRecentQuote.hospitalName || `${cfg.entityLabel} 없음`}</span>
+              <strong>{won(selectedRecentQuote.totalAmount)}</strong>
             </div>
-          ))}
+          ) : null}
+          <button type="button" className="quote-recent-load" disabled={!selectedRecentQuote} onClick={() => {
+            if (!selectedRecentQuote) return;
+            if (dirtyFields.size > 0 && !window.confirm("현재 입력한 내용이 최근 견적으로 바뀝니다. 계속할까요?")) return;
+            loadRecentQuote(selectedRecentQuote);
+            setRecentPanelOpen(false);
+          }}>불러오기</button>
         </div>
       )}
     </Panel>
