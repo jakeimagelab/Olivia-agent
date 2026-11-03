@@ -212,3 +212,25 @@
 .pcOrderLink strong { color: #C94C22; font-weight: 600; }
 .pcOrderLink:hover { border-color: #C94C22; }
 .orderAdd { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+/* 추가 주문 상품 예시 사진 */
+.offerImages, .offerImagesTwo { display: grid; gap: 8px; }
+.offerImagesTwo { grid-template-columns: 1fr; }
+.offerImage { display: grid; gap: 6px; padding: 0; border: 2px solid transparent; border-radius: 10px; background: none; color: #5F6B62; font: inherit; font-size: 12px; text-align: left; cursor: zoom-in; }
+.offerImage img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 8px; background: #2A2A2A; }
+.offerImage span { padding: 0 2px 2px; }
+.offerImageActive { border-color: #C94C22; }
+.offerImageActive span { color: #C94C22; font-weight: 600; }
+.offerImageViewer { position: fixed; inset: 0; z-index: 60; display: grid; place-content: center; gap: 10px; padding: 20px; background: rgba(20, 20, 20, .92); color: #fff; font-size: 13px; text-align: center; }
+.offerImageViewer img { max-width: 100%; max-height: 80vh; border-radius: 8px; }
+.offerImageClose { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); color: #fff; }
+
+/* 액자·앨범 2칸 나란히 */
+.offerGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 0 14px; align-items: stretch; }
+.offerGrid .orderCard { margin: 0; }
+.offerTile { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+.offerTile h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+.offerTilePrice { color: #C94C22; font-size: 13px; font-weight: 600; }
+.offerTileNote { margin: 0; color: #5F6B62; font-size: 12px; line-height: 1.5; white-space: pre-line; }
+.offerTile .orderAdd { margin-top: auto; }
+.orderLineTitle { flex-basis: 100%; font-size: 14px; font-weight: 600; }

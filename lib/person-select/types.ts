@@ -104,14 +104,31 @@ export const DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS: PersonSelectRetouchOption[] 
 
 export const PERSON_SELECT_ORDER_MAX_QTY = 20;
 
-export const DEFAULT_PERSON_SELECT_NOTICE = "한 분당 보정본 1장을 드립니다. 더 원하시면 사진을 추가로 고르시거나 아래에서 액자·앨범을 신청해 주세요.";
+export const DEFAULT_PERSON_SELECT_NOTICE = "한 분당 보정본 1장 드립니다.\n추가로 원하시면 사진을 더 선택하시거나\n아래에서 액자/앨범을 신청해주세요.";
 export const DEFAULT_PERSON_SELECT_EXTRA_PRICE = 50_000;
 export const DEFAULT_PERSON_SELECT_EXTRA_MAX = 10;
+/**
+ * 추가 주문 상품 예시 사진 (public/person-select/offers).
+ * 상품 구분값(offer_key)과 선택지(option_keys)로 찾는다. option_keys가 null이면 그 상품 전체에 쓴다.
+ */
+export type PersonSelectOfferImage = { offer_key: string; option_keys: string[] | null; src: string; caption: string };
+export const PERSON_SELECT_OFFER_IMAGES: PersonSelectOfferImage[] = [
+  { offer_key: "frame", option_keys: ["6r"], src: "/person-select/offers/frame-6r.jpg", caption: "6R (6x8inch) 아크릴 액자" },
+  { offer_key: "frame", option_keys: ["16r", "20r"], src: "/person-select/offers/frame-16r-20r.jpg", caption: "16R · 20R 액자" },
+  { offer_key: "album", option_keys: null, src: "/person-select/offers/album.jpg", caption: "앨범 미리보기" },
+];
+
+/** 상품에 보여줄 예시 사진들. 상품에 있는 선택지와 맞는 사진만 고른다. */
+export function offerImagesFor(offer: { key: string; options: { key: string }[] }) {
+  const optionKeys = new Set(offer.options.map((option) => option.key));
+  return PERSON_SELECT_OFFER_IMAGES.filter((image) => image.offer_key === offer.key && (!image.option_keys || image.option_keys.some((key) => optionKeys.has(key))));
+}
+
 export const DEFAULT_PERSON_SELECT_OFFERS: PersonSelectOffer[] = [
   { key: "frame", label: "액자 제작", unit: "개", price: 0, note: "", needs_photo: true, options: [
     { key: "6r", label: "6R (6x8inch)", price: 30_000 },
     { key: "16r", label: "16R (16x20inch)", price: 100_000 },
     { key: "20r", label: "20R (20x24inch)", price: 150_000 },
   ] },
-  { key: "album", label: "앨범 제작", unit: "권", price: 200_000, note: "20P 블랙가죽\n5x7inch 액자 포함\n공연사진 10장 추가 포함", needs_photo: false, options: [] },
+  { key: "album", label: "앨범 제작", unit: "권", price: 200_000, note: "20페이지 · 블랙가죽 · 벨라비타 금장로고\n· 프로필(스튜디오촬영본)\n· 11기 공연 정보\n· 졸업공연 개인사진 20컷\n· 입학식\n· 졸업여행\n· 졸업공연 단체사진 및 교수진 사진", needs_photo: false, options: [] },
 ];

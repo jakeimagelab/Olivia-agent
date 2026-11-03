@@ -59,3 +59,14 @@ describe("주문·상품 검사", () => {
     expect(validateOffers([{ key: "a", label: "액자", unit: "개", price: 0, note: "", needs_photo: true, options: [{ key: "x", label: "6R", price: -1 }] }])).toContain("가격");
   });
 });
+
+describe("offerImagesFor", () => {
+  it("액자는 크기별 사진 두 장, 앨범은 한 장", async () => {
+    const { offerImagesFor, DEFAULT_PERSON_SELECT_OFFERS } = await import("@/lib/person-select/types");
+    const [frame, album] = DEFAULT_PERSON_SELECT_OFFERS;
+    expect(offerImagesFor(frame).map((image) => image.src)).toEqual(["/person-select/offers/frame-6r.jpg", "/person-select/offers/frame-16r-20r.jpg"]);
+    expect(offerImagesFor(album)).toHaveLength(1);
+    expect(offerImagesFor({ key: "frame", options: [{ key: "6r" }] })).toHaveLength(1);
+    expect(offerImagesFor({ key: "mug", options: [] })).toHaveLength(0);
+  });
+});
