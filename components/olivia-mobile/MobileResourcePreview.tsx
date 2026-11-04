@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Download, MessageCircle, Share2, UserPlus, X } from "lucide-react";
 import type { MobileNavigationState } from "@/lib/olivia/mobile/navigation";
+import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useCoreProjectSnapshot } from "@/lib/core/client/useCoreProjectSnapshot";
 import { notifyCoreSnapshotUpdated } from "@/lib/core/client/projectSnapshotEvents";
@@ -40,7 +41,7 @@ export default function MobileResourcePreview({
   onClose,
 }: {
   resource: PreviewNavigation;
-  onRequestEdit: () => void;
+  onRequestEdit: (target: MobileOliviaTarget) => void;
   onClose: () => void;
 }) {
   const [data, setData] = useState<ResourceRow | null>(null);
@@ -319,7 +320,17 @@ export default function MobileResourcePreview({
       ...(resolvedClientId ? { clientId: resolvedClientId, clientName: resolvedClientName } : {}),
       ...(contextProjectId ? { projectId: contextProjectId, projectName: resolvedProjectName } : {}),
     });
-    onRequestEdit();
+    const source = resource.resourceType === "storyboard" ? "conti" : resource.resourceType === "quote" ? "quote" : resource.resourceType === "contract" ? "contract" : "screen";
+    onRequestEdit({
+      source,
+      title: `${resource.resourceType === "quote" ? "견적서" : resource.resourceType === "contract" ? "계약서" : resource.resourceType === "storyboard" ? "촬영 콘티" : "문서"} · ${String(data?.quote_number || data?.title || data?.hospital_name || resource.resourceId)}`,
+      documentId: resource.resourceId,
+      documentType: workspace,
+      documentNumber: optionalString(data?.quote_number),
+      clientId: resolvedClientId,
+      clientName: resolvedClientName,
+      workflowRunId: contextProjectId,
+    });
   };
 
   const approve = async () => {

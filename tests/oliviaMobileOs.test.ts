@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
 import { buildMobileNavigationUrl, parseMobileNavigation, primaryViewForNavigation } from "@/lib/olivia/mobile/navigation";
+import { mobileCapabilityFor, visibleMobileCapabilities } from "@/lib/olivia/mobile/appCapabilities";
 import { normalizeMobileDocument, resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
 import {
   createMobileResourceShareToken,
@@ -32,6 +33,28 @@ describe("Olivia Mobile OS", () => {
       .toContain("mobileView=photo-workspace");
     expect(parseMobileNavigation("?mobileView=photo-pending")).toEqual({ view: "photo-pending" });
     expect(primaryViewForNavigation({ view: "photo-pending" })).toBe("home");
+  });
+
+  it("persists an explicitly selected mobile target and clears it on a general app launch", () => {
+    const eventHref = buildMobileNavigationUrl("https://olivia.photoclinic.kr/?mobilePreview=1", {
+      view: "person-select", targetId: "event-22",
+    });
+    expect(parseMobileNavigation(new URL(eventHref, "https://olivia.photoclinic.kr").search))
+      .toEqual({ view: "person-select", targetId: "event-22" });
+    const generalHref = buildMobileNavigationUrl(`https://olivia.photoclinic.kr${eventHref}`, { view: "person-select" });
+    expect(generalHref).not.toContain("mobileTargetId");
+    expect(parseMobileNavigation(new URL(generalHref, "https://olivia.photoclinic.kr").search))
+      .toEqual({ view: "person-select" });
+  });
+
+  it("centralizes mobile capabilities instead of mounting desktop editors", () => {
+    expect(mobileCapabilityFor("customer")?.modes).toEqual(["manage", "full"]);
+    expect(mobileCapabilityFor("person-select")?.mobileView).toBe("person-select");
+    expect(mobileCapabilityFor("quote")?.modes).toEqual(["viewer", "request"]);
+    expect(mobileCapabilityFor("olivia-bridge")?.modes).toEqual(["status", "request"]);
+    expect(mobileCapabilityFor("prompter")?.modes).toEqual(["full"]);
+    expect(new Set(visibleMobileCapabilities().map((item) => item.appId)).size)
+      .toBe(visibleMobileCapabilities().length);
   });
 
   it("normalizes canonical document references without creating a copied resource", () => {

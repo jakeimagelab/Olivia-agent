@@ -7,10 +7,10 @@ import styles from "./OliviaMobileShell.module.css";
 
 const ITEMS: Array<{ view: MobilePrimaryView; label: string; iconName?: IconName; calendar?: boolean }> = [
   { view: "home", label: "홈", iconName: "today" },
-  { view: "calendar", label: "캘린더", calendar: true },
-  { view: "memo", label: "메모", iconName: "memo" },
-  { view: "documents", label: "문서", iconName: "library" },
-  { view: "chat", label: "올리비아 채팅", iconName: "olivia" },
+  { view: "clients", label: "고객", iconName: "clients" },
+  { view: "calendar", label: "일정", calendar: true },
+  { view: "person-select", label: "사진선택", iconName: "select-gallery" },
+  { view: "chat", label: "Olivia", iconName: "olivia" },
 ];
 
 export default function MobileBottomNav({

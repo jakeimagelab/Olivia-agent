@@ -37,7 +37,7 @@ describe("Olivia mobile PWA shell", () => {
     ];
 
     expect(shell).toContain('navigation.view === "preview" || navigation.view === "chat" ? null');
-    expect(shell).toContain('onClose={() => navigate({ view: "home" }, "replace")}');
+    expect(shell).toContain('onClose={() => navigate(chatReturnRef.current, "replace")}');
     expect(conversation).toContain('variant !== "mobile" && exchanges.length >= 4');
     expect(conversation).toContain("if (isMobile) return;");
     for (const screen of nonHomeScreens) expect(read(screen)).not.toContain("<MobileHeader");
@@ -111,7 +111,7 @@ describe("Olivia mobile PWA shell", () => {
     expect(photoNotification).not.toContain('aria-label="알림 닫기" onClick={() => void runAction("defer")}');
   });
 
-  it("keeps mobile client management read-only and links to the device phone and message apps", () => {
+  it("supports mobile client detail editing and links to connected documents and device apps", () => {
     const clients = read("components/olivia-mobile/MobileClients.tsx");
     const home = read("components/olivia-mobile/MobileHome.tsx");
     const navigation = read("lib/olivia/mobile/navigation.ts");
@@ -120,10 +120,12 @@ describe("Olivia mobile PWA shell", () => {
     expect(clients).toContain('fetch(`/api/clients/${encodeURIComponent(clientId)}`');
     expect(clients).toContain('href={`tel:${phoneHref(phone)}`}');
     expect(clients).toContain('href={`sms:${phoneHref(phone)}`}');
-    expect(clients).not.toContain('method: "POST"');
-    expect(clients).not.toContain('method: "PATCH"');
-    expect(clients).not.toContain('method: "DELETE"');
-    expect(home).toContain('{ id: "clients", label: "고객관리"');
+    expect(clients).toContain("ClientFormModal");
+    expect(clients).toContain('mode="edit"');
+    expect(clients).toContain("onOpenPreview");
+    expect(clients).toContain("onOpenConti");
+    expect(clients).toContain("onOpenPersonSelect");
+    expect(home).toContain('{ id: "clients", label: "고객"');
     expect(navigation).toContain('"clients"');
   });
 
@@ -132,7 +134,8 @@ describe("Olivia mobile PWA shell", () => {
     const styles = read("components/olivia-mobile/OliviaMobileShell.module.css");
 
     expect(home).toContain('onNavigate("clients")');
-    expect(home).toContain('onNavigate("photo-workspace")');
+    expect(home).toContain('"photo-workspace"');
+    expect(home).toContain('onNavigate("person-select")');
     expect(home).toContain("pendingPhotoCount > 0");
     expect(home).toContain("normalizeMobileDocument");
     expect(home).toContain("normalizeQuoteResource");
@@ -142,8 +145,9 @@ describe("Olivia mobile PWA shell", () => {
     expect(home).toContain("recentDocumentList");
     expect(home).toContain('navigator.permissions.query({ name: "geolocation" })');
     expect(home).toContain('permission.state !== "granted"');
-    expect(home).toContain("openTemporaryResources");
-    expect(styles).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
+    expect(home).toContain("personSelectEvents");
+    expect(home).toContain("activePersonSelect");
+    expect(styles).toContain("grid-template-columns: repeat(2, minmax(0, 1fr))");
     expect(styles).toContain(".pendingPhotoCard");
   });
 

@@ -1,20 +1,54 @@
-export type MobilePrimaryView = "home" | "calendar" | "memo" | "documents" | "chat" | "voice" | "photo-workspace" | "photo-pending" | "clients" | "conti";
+export type MobilePrimaryView =
+  | "home"
+  | "clients"
+  | "calendar"
+  | "person-select"
+  | "chat"
+  | "all-apps"
+  | "memo"
+  | "documents"
+  | "voice"
+  | "photo-workspace"
+  | "video-workspace"
+  | "bridge"
+  | "prompter"
+  | "photo-pending"
+  | "conti";
 export type MobileResourceType = "quote" | "contract" | "document" | "storyboard";
 
+export type MobileOliviaTarget = {
+  source: "screen" | "quote" | "contract" | "conti" | "bridge" | "photo" | "video" | "person-select";
+  title: string;
+  documentId?: string;
+  documentType?: string;
+  documentNumber?: string;
+  sceneId?: string;
+  clientId?: string;
+  clientName?: string;
+  workflowRunId?: string;
+  eventId?: string;
+  bridgeSelectionId?: string;
+};
+
 export type MobileNavigationState =
-  | { view: MobilePrimaryView }
+  | { view: MobilePrimaryView; targetId?: string }
   | { view: "preview"; resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string };
 
 const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
   "home",
+  "clients",
   "calendar",
+  "person-select",
+  "all-apps",
   "memo",
   "documents",
   "chat",
   "voice",
   "photo-workspace",
+  "video-workspace",
+  "bridge",
+  "prompter",
   "photo-pending",
-  "clients",
   "conti",
 ]);
 const RESOURCE_TYPES = new Set<MobileResourceType>(["quote", "contract", "document", "storyboard"]);
@@ -30,8 +64,9 @@ export function parseMobileNavigation(search: string): MobileNavigationState {
       return { view, resourceType, resourceId, ...(temporaryDocumentId ? { temporaryDocumentId } : {}) };
     }
   }
+  const targetId = params.get("mobileTargetId")?.trim() || undefined;
   return PRIMARY_VIEWS.has(view as MobilePrimaryView)
-    ? { view: view as MobilePrimaryView }
+    ? { view: view as MobilePrimaryView, ...(targetId ? { targetId } : {}) }
     : { view: "home" };
 }
 
@@ -45,10 +80,13 @@ export function buildMobileNavigationUrl(currentHref: string, state: MobileNavig
     url.searchParams.set("resourceId", state.resourceId);
     if (state.temporaryDocumentId) url.searchParams.set("temporaryDocumentId", state.temporaryDocumentId);
     else url.searchParams.delete("temporaryDocumentId");
+    url.searchParams.delete("mobileTargetId");
   } else {
     url.searchParams.delete("resourceType");
     url.searchParams.delete("resourceId");
     url.searchParams.delete("temporaryDocumentId");
+    if (state.targetId) url.searchParams.set("mobileTargetId", state.targetId);
+    else url.searchParams.delete("mobileTargetId");
   }
   return `${url.pathname}${url.search}${url.hash}`;
 }

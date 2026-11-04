@@ -4,13 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { MessageSquarePlus, X } from "lucide-react";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import type { MobileResourceType } from "@/lib/olivia/mobile/navigation";
+import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import styles from "./OliviaMobileShell.module.css";
 
 export default function MobileOliviaChat({
+  target,
   onOpenPreview,
   onClose,
 }: {
+  target: MobileOliviaTarget | null;
   onOpenPreview: (resource: { resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string }) => void;
   onClose: () => void;
 }) {
@@ -18,6 +22,26 @@ export default function MobileOliviaChat({
   const startNewConversation = useOliviaConversationStore((state) => state.startNewConversation);
   const [newConversationBusy, setNewConversationBusy] = useState(false);
   const [newConversationError, setNewConversationError] = useState("");
+
+  useEffect(() => {
+    const store = useOliviaContextStore.getState();
+    // 화면에서 명시적으로 받은 대상만 채팅 문맥으로 쓴다. 이전 고객·촬영 건은 먼저 지운다.
+    store.clearWindowLink();
+    if (!target) return;
+    const resourceId = target.documentId || target.eventId || target.bridgeSelectionId;
+    store.setWorkspace(target.source, resourceId);
+    if (target.documentId) {
+      store.setCurrentDocument(target.documentId, target.documentType || target.source, target.title, {
+        clientId: target.clientId,
+        clientName: target.clientName,
+        projectId: target.workflowRunId,
+        projectName: target.title,
+      });
+    } else if (target.clientId || target.workflowRunId) {
+      store.setContextLink({ clientId: target.clientId, clientName: target.clientName, projectId: target.workflowRunId, projectName: target.title });
+    }
+    if (target.sceneId) store.setSelectedScene(target.sceneId);
+  }, [target]);
 
   const createConversation = async () => {
     if (newConversationBusy) return;
@@ -95,6 +119,7 @@ export default function MobileOliviaChat({
       <button type="button" className={styles.chatClose} onClick={onClose} aria-label="채팅 닫고 홈으로 이동"><X size={19} /></button>
       <button type="button" className={styles.chatNewConversation} onClick={() => void createConversation()} disabled={newConversationBusy} aria-label="새 대화 시작"><MessageSquarePlus size={17} /><span>{newConversationBusy ? "준비 중" : "새 대화"}</span></button>
       {newConversationError ? <div className={styles.chatActionError} role="alert">{newConversationError}</div> : null}
+      <div className={styles.mobileChatTarget}><small>현재 대상</small><strong>{target?.title || "홈"}</strong></div>
       <OliviaChatDockTarget id="mobile-os" priority={70} className={styles.chatDock} />
     </section>
   );

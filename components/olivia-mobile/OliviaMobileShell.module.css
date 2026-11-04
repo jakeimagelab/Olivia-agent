@@ -886,3 +886,165 @@
 @media (prefers-reduced-motion: reduce) {
   .shell * { scroll-behavior: auto !important; }
 }
+
+/* 2026-11-04 모바일 관리·Viewer 공통 레이어 */
+.mobilePageHeading,
+.mobileSubHeader {
+  flex: 0 0 auto;
+  min-height: calc(76px + env(safe-area-inset-top, 0px));
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) calc(18px + env(safe-area-inset-right, 0px)) 13px calc(18px + env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--mobile-line);
+  background: #eef5f1;
+}
+.mobilePageHeading > div,
+.mobileSubHeader > div { min-width: 0; display: grid; gap: 2px; }
+.mobilePageHeading small,
+.mobileSubHeader small { color: var(--mobile-muted); font-size: 10px; font-weight: 650; }
+.mobilePageHeading h1,
+.mobileSubHeader h1 { overflow: hidden; margin: 0; color: var(--mobile-ink); font-size: 22px; font-weight: 730; letter-spacing: -.04em; text-overflow: ellipsis; white-space: nowrap; }
+.mobilePageHeading > button,
+.mobileSubHeader > button { min-width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid var(--mobile-line); border-radius: 14px; padding: 0 12px; background: #fff; color: var(--mobile-green); font: 700 11px/1 inherit; }
+.mobileSubHeader { display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: end; }
+.mobileSubHeader > div { align-self: center; }
+.mobileSubHeader > button:first-child { padding: 0; }
+
+.mobileProgressBar { position: relative; width: 100%; height: 7px; display: block; overflow: hidden; border-radius: 999px; background: #dfe9e4; }
+.mobileProgressBar i { display: block; width: 0; height: 100%; border-radius: inherit; background: var(--mobile-green); transition: width 240ms ease; }
+.mobileProgressLabel { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mobileProgressLabel strong,
+.mobileProgressLabel b { color: var(--mobile-green); font-size: 12px; font-weight: 720; }
+.mobileProgressLabel span,
+.mobileProgressLabel small { color: var(--mobile-muted); font-size: 10px; }
+.mobilePrimaryAction,
+.mobileSecondaryAction { width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid var(--mobile-green); border-radius: 15px; padding: 0 16px; background: var(--mobile-orange); color: #fff; font: 720 13px/1 inherit; }
+.mobilePrimaryAction:disabled { opacity: .45; }
+.mobileSecondaryAction { margin: 10px 0; background: #fff; color: var(--mobile-green); }
+.mobileNotice { margin: 0; border-radius: 12px; padding: 10px 12px; background: #e9f3ee; color: var(--mobile-green); font-size: 11px; line-height: 1.5; }
+
+.mobileHomePersonSelect { width: 100%; display: grid; gap: 10px; border: 1px solid var(--mobile-line); border-radius: 18px; padding: 16px; background: #fff; color: var(--mobile-ink); text-align: left; font: inherit; box-shadow: 0 7px 20px rgba(20,63,57,.04); }
+.mobileHomePersonSelect > span:first-child { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mobileHomePersonSelect > span:first-child strong { font-size: 14px; font-weight: 720; }
+.mobileHomePersonSelect > span:first-child small { color: var(--mobile-muted); font-size: 10px; }
+
+.mobilePersonSelectBody,
+.mobileStatusBody,
+.mobileAllAppsBody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: grid; align-content: start; gap: 14px; padding: 16px calc(16px + env(safe-area-inset-right, 0px)) var(--mobile-dock-content-padding) calc(16px + env(safe-area-inset-left, 0px)); }
+.mobileEventList { display: grid; gap: 11px; }
+.mobileEventList > button { display: grid; gap: 10px; border: 1px solid var(--mobile-line); border-radius: 18px; padding: 15px; background: #fff; color: var(--mobile-ink); text-align: left; font: inherit; box-shadow: 0 7px 20px rgba(20,63,57,.035); }
+.mobileEventCardTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.mobileEventCardTop strong { font-size: 14px; font-weight: 720; line-height: 1.4; }
+.mobileEventCardTop em { flex: none; border-radius: 999px; padding: 5px 8px; background: #e6efea; color: var(--mobile-green); font-size: 9px; font-style: normal; font-weight: 700; }
+.mobileEventCardTop em[data-status="closed"] { background: #ecefed; color: #71807c; }
+.mobileEventCardTop em[data-status="open"] { background: #e8f3ee; }
+.mobileEventMeta { color: var(--mobile-muted); font-size: 10.5px; }
+
+.mobileEventSummary,
+.mobileEventControls { display: grid; gap: 14px; border: 1px solid var(--mobile-line); border-radius: 19px; padding: 16px; background: #fff; box-shadow: 0 7px 20px rgba(20,63,57,.035); }
+.mobileEventStats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.mobileEventStats span { display: grid; place-items: center; gap: 3px; border-radius: 13px; padding: 11px 4px; background: #f2f7f4; }
+.mobileEventStats strong { color: var(--mobile-green); font-size: 18px; }
+.mobileEventStats small { color: var(--mobile-muted); font-size: 9px; }
+.mobileEventDeadline,
+.mobileEventLink { min-width: 0; display: flex; align-items: center; gap: 10px; border-top: 1px solid var(--mobile-line); padding-top: 12px; color: var(--mobile-green); }
+.mobileEventDeadline span,
+.mobileEventLink > span { min-width: 0; flex: 1; display: grid; gap: 3px; }
+.mobileEventDeadline small,
+.mobileEventLink small { color: var(--mobile-muted); font-size: 9px; }
+.mobileEventDeadline strong,
+.mobileEventLink strong { overflow: hidden; color: var(--mobile-ink); font-size: 11.5px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileEventLink button { min-width: 74px; min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 0; border-radius: 12px; background: var(--mobile-green); color: #fff; font: 700 10px/1 inherit; }
+.mobileEventControls label { display: grid; gap: 6px; color: var(--mobile-muted); font-size: 10px; }
+.mobileEventControls input,
+.mobileSheetField input,
+.mobileCompactSearch input { min-width: 0; min-height: 46px; border: 1px solid var(--mobile-line); border-radius: 12px; padding: 0 12px; background: #f8fbf9; color: var(--mobile-ink); font: 500 16px/1.2 inherit; }
+.mobileEventControls > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mobileEventControls button { min-height: 44px; border: 1px solid var(--mobile-green); border-radius: 12px; background: #fff; color: var(--mobile-green); font: 700 11px/1 inherit; }
+.mobileEventControls button:last-child { border-color: #d8a08b; color: #9b462a; }
+.mobileEventControls button:disabled { opacity: .35; }
+.mobilePersonToolbar { display: grid; gap: 10px; }
+.mobileCompactSearch { min-height: 46px; display: flex; align-items: center; gap: 8px; border: 1px solid var(--mobile-line); border-radius: 13px; padding: 0 11px; background: #fff; color: var(--mobile-muted); }
+.mobileCompactSearch input { flex: 1; border: 0; padding: 0; background: transparent; outline: 0; }
+.mobilePeopleList { display: grid; overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 18px; background: #fff; }
+.mobilePeopleList > button { min-width: 0; min-height: 66px; display: grid; grid-template-columns: 44px minmax(0,1fr) auto 18px; align-items: center; gap: 9px; border: 0; border-bottom: 1px solid var(--mobile-line); padding: 10px 12px; background: #fff; color: var(--mobile-ink); text-align: left; font: inherit; }
+.mobilePeopleList > button:last-child { border-bottom: 0; }
+.mobilePeopleList > button > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.mobilePeopleList strong { overflow: hidden; font-size: 12px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.mobilePeopleList small { overflow: hidden; color: var(--mobile-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.mobilePeopleList em { border-radius: 999px; padding: 5px 7px; background: #eef1ef; color: #75847f; font-size: 8.5px; font-style: normal; white-space: nowrap; }
+.mobilePeopleList em[data-done="true"] { background: #e3f0ea; color: var(--mobile-green); }
+.mobilePersonThumb { width: 44px; height: 44px; display: grid; place-items: center; overflow: hidden; border-radius: 12px; background: #edf4f0; color: var(--mobile-green); }
+.mobilePersonThumb img { width: 100%; height: 100%; object-fit: cover; }
+
+.mobileSheetBackdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; background: rgba(14,36,32,.42); }
+.mobileBottomSheet { position: relative; width: 100%; max-height: min(82dvh,720px); overflow-y: auto; display: grid; gap: 14px; border-radius: 24px 24px 0 0; padding: 16px calc(18px + env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px)) calc(18px + env(safe-area-inset-left,0px)); background: #fff; color: var(--mobile-ink); box-shadow: 0 -16px 44px rgba(9,52,47,.18); }
+.mobileSheetHandle { width: 42px; height: 4px; justify-self: center; border-radius: 999px; background: #cbd7d2; }
+.mobileSheetClose { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 14px; background: #f0f5f2; color: var(--mobile-green); }
+.mobileBottomSheet h2 { margin: 5px 48px 0 0; font-size: 20px; }
+.mobileBottomSheet > p { margin: -8px 0 0; color: var(--mobile-muted); font-size: 10.5px; }
+.mobileChoiceGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.mobileChoiceGrid article { min-width: 0; display: grid; gap: 5px; }
+.mobileChoiceGrid img { width: 100%; aspect-ratio: 4/3; border-radius: 11px; object-fit: cover; background: #edf2ef; }
+.mobileChoiceGrid strong { overflow: hidden; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileChoiceGrid small { color: var(--mobile-muted); font-size: 9px; line-height: 1.45; }
+.mobileSheetField { display: grid; gap: 6px; color: var(--mobile-muted); font-size: 10px; font-weight: 650; }
+.mobileFormError { margin: 0; color: #ad4528; font-size: 10px; }
+
+.mobileConnectionCard { display: grid; gap: 1px; overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 18px; background: var(--mobile-line); }
+.mobileConnectionCard > span { min-height: 54px; display: grid; grid-template-columns: 30px 1fr auto; align-items: center; gap: 8px; padding: 0 14px; background: #fff; color: var(--mobile-green); }
+.mobileConnectionCard strong { color: var(--mobile-ink); font-size: 12px; }
+.mobileConnectionCard em { border-radius: 999px; padding: 5px 8px; background: #f0f2f1; color: #7a8985; font-size: 9px; font-style: normal; font-weight: 700; }
+.mobileConnectionCard em[data-online="true"] { background: #e4f1eb; color: var(--mobile-green); }
+.mobileCurrentJobCard,
+.mobileStageCard { display: grid; gap: 11px; border: 1px solid var(--mobile-line); border-radius: 19px; padding: 16px; background: #fff; box-shadow: 0 7px 20px rgba(20,63,57,.035); }
+.mobileCurrentJobCard > small { color: var(--mobile-muted); font-size: 9.5px; font-weight: 650; }
+.mobileCurrentJobCard h2,
+.mobileStageCard h2 { margin: 0; color: var(--mobile-ink); font-size: 17px; font-weight: 730; }
+.mobileCurrentJobCard p { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; margin: -4px 0 0; color: var(--mobile-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileFileCounts { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 6px; }
+.mobileFileCounts span { display: grid; place-items: center; gap: 3px; border-radius: 12px; padding: 10px 2px; background: #f1f6f3; }
+.mobileFileCounts strong { color: var(--mobile-green); font-size: 14px; }
+.mobileFileCounts small { color: var(--mobile-muted); font-size: 8.5px; }
+.mobileJobStatus { color: var(--mobile-green); font-size: 10px; font-weight: 680; }
+.mobileStageCard > div { min-height: 38px; display: grid; grid-template-columns: 24px minmax(0,1fr) auto; align-items: center; gap: 6px; border-top: 1px solid var(--mobile-line); color: #8a9793; }
+.mobileStageCard > div:nth-child(2) { border-top: 0; }
+.mobileStageCard > div span:nth-child(2) { color: var(--mobile-ink); font-size: 11px; font-weight: 650; }
+.mobileStageCard > div small { font-size: 9px; }
+.mobileStageCard > div[data-state="done"] { color: var(--mobile-green); }
+.mobileStageCard > div[data-state="running"] { color: var(--mobile-orange); }
+.mobileRunningDot { width: 9px; height: 9px; border-radius: 50%; background: var(--mobile-orange); box-shadow: 0 0 0 5px rgba(232,93,44,.12); }
+
+.mobileAllAppsBody { gap: 22px; }
+.mobileAppGroup { display: grid; gap: 10px; }
+.mobileAppGroup h2 { margin: 0 2px; color: var(--mobile-green); font-size: 12px; font-weight: 730; }
+.mobileAppGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; }
+.mobileAppGrid > button { min-width: 0; min-height: 94px; display: grid; grid-template-columns: 38px minmax(0,1fr); align-content: center; gap: 9px; border: 1px solid var(--mobile-line); border-radius: 17px; padding: 12px; background: #fff; color: var(--mobile-ink); text-align: left; font: inherit; }
+.mobileAppGrid > button > span:nth-child(2) { min-width: 0; display: grid; gap: 4px; }
+.mobileAppGrid strong { font-size: 11px; font-weight: 720; }
+.mobileAppGrid small { color: var(--mobile-muted); font-size: 8.5px; line-height: 1.35; }
+.mobileAppGrid > button > svg { display: none; }
+.mobileAppIcon { width: 38px; height: 38px; display: grid; place-items: center; }
+
+.mobileClientEdit { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--mobile-green); border-radius: 13px; padding: 0 14px; background: #fff; color: var(--mobile-green); font: 700 11px/1 inherit; }
+.mobileClientDocuments { width: 100%; display: grid; overflow: hidden; border: 1px solid var(--mobile-line); border-radius: 18px; background: #fff; }
+.mobileClientDocuments h2 { margin: 0; padding: 15px 14px 8px; color: var(--mobile-green); font-size: 12px; }
+.mobileClientDocuments button { min-height: 58px; display: grid; grid-template-columns: 28px minmax(0,1fr) 18px; align-items: center; gap: 8px; border: 0; border-top: 1px solid var(--mobile-line); padding: 9px 13px; background: #fff; color: var(--mobile-green); text-align: left; font: inherit; }
+.mobileClientDocuments button > span { min-width: 0; display: grid; gap: 3px; }
+.mobileClientDocuments strong { color: var(--mobile-ink); font-size: 11px; }
+.mobileClientDocuments small { overflow: hidden; color: var(--mobile-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileClientDocuments button:disabled { opacity: .42; }
+
+.mobileChatTarget { position: fixed; top: calc(env(safe-area-inset-top,0px) + 55px); left: 50%; z-index: 24; transform: translateX(-50%); max-width: calc(100% - 32px); display: flex; align-items: center; gap: 7px; border: 1px solid var(--mobile-line); border-radius: 999px; padding: 7px 11px; background: #fff; box-shadow: 0 5px 16px rgba(20,63,57,.08); }
+.mobileChatTarget small { color: var(--mobile-muted); font-size: 8px; }
+.mobileChatTarget strong { overflow: hidden; color: var(--mobile-green); font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.chatDock :global(.olivia-conversation--mobile .olivia-conversation__messages) { padding-top: calc(env(safe-area-inset-top,0px) + 94px); }
+.mobilePrompter { position: relative; overflow: hidden; }
+.mobilePrompter > :global(main),
+.mobilePrompter > :global(div) { min-height: 0 !important; height: 100%; }
+
+@media (min-width: 600px) {
+  .mobilePersonSelectBody, .mobileStatusBody, .mobileAllAppsBody { padding-left: max(24px, calc((100vw - 560px)/2)); padding-right: max(24px, calc((100vw - 560px)/2)); }
+}

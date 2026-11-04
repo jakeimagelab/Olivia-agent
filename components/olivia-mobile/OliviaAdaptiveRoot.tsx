@@ -49,7 +49,7 @@ export default function OliviaAdaptiveRoot() {
   const [initialLaunch, setInitialLaunch] = useState<OliviaRootLaunch | null>(null);
 
   useEffect(() => {
-    const viewportQuery = window.matchMedia("(max-width: 820px)");
+    const viewportQuery = window.matchMedia("(max-width: 768px)");
     const coarseQuery = window.matchMedia("(pointer: coarse)");
     const update = () => {
       setInitialLaunch((current) => current ?? parseOliviaRootLaunch(window.location.search));
@@ -80,13 +80,15 @@ export default function OliviaAdaptiveRoot() {
     <PhotoProjectNotificationProvider>
       <VoiceSessionProvider>
         <PhotoStudioBackgroundJobBridge />
-        {surface !== "desktop" ? <PhotoProjectNotification /> : null}
-        {surface !== "desktop" ? <BackgroundJobsWidget /> : null}
+        {/* 모바일은 홈·사진작업실의 전용 상태 카드에서 같은 작업을 관리한다. 데스크톱형
+            플로팅 알림을 겹쳐 띄우지 않고, 기존 태블릿 동작만 유지한다. */}
+        {surface === "tablet" ? <PhotoProjectNotification /> : null}
+        {surface === "tablet" ? <BackgroundJobsWidget /> : null}
       {/* 코드 요청서(2026-09-19) 작업 A — OliviaDesktop 안에서만 마운트되면 mobile/tablet
           surface에서는 아예 렌더링되지 않는다. PhotoProjectNotification과 같은 레벨(surface
           분기 밖)로 올려서 로그인한 사용자가 어떤 화면에 있든 뜨게 한다. */}
         <Suspense fallback={null}>
-          {surface !== "desktop" ? <BackupReadyNotifications /> : null}
+          {surface === "tablet" ? <BackupReadyNotifications /> : null}
         </Suspense>
         {surface === "mobile"
           ? <OliviaMobileShell initialLaunch={initialLaunch} />

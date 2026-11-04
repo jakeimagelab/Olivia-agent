@@ -1,7 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, ChevronLeft, ChevronRight, MessageCircle, Phone, Search, UserRound } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, FileSignature, FileText, Images, MessageCircle, Pencil, Phone, Search, UserRound } from "lucide-react";
+import ClientFormModal, { type ClientEditSource } from "@/app/(client-hub)/clients/_components/ClientFormModal";
+import type { MobileResourceType } from "@/lib/olivia/mobile/navigation";
+import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import styles from "./OliviaMobileShell.module.css";
 
 type ClientListItem = {
@@ -12,6 +15,16 @@ type ClientListItem = {
   manager_name?: string | null;
   phone?: string | null;
   specialty?: string | null;
+  email?: string | null;
+  director_name?: string | null;
+  address?: string | null;
+  website_url?: string | null;
+  instagram_url?: string | null;
+  naver_place_url?: string | null;
+  manager_staff?: string | null;
+  referral_source?: string | null;
+  notes?: string | null;
+  memo?: string | null;
   created_at?: string | null;
   next_action?: { currentStepName?: string; label?: string; progress?: number } | null;
   active_run?: { current_step_key?: string | null; status?: string | null; updated_at?: string | null } | null;
@@ -26,6 +39,15 @@ type ClientDetail = {
   phone?: string | null;
   email?: string | null;
   specialty?: string | null;
+  director_name?: string | null;
+  address?: string | null;
+  website_url?: string | null;
+  instagram_url?: string | null;
+  naver_place_url?: string | null;
+  manager_staff?: string | null;
+  referral_source?: string | null;
+  notes?: string | null;
+  memo?: string | null;
 };
 
 type ClientDetailResponse = {
@@ -36,7 +58,13 @@ type ClientDetailResponse = {
     phases?: Array<{ name?: string; status?: "active" | "completed" | "pending" }>;
   } | null;
   activities?: Array<{ id: string; title?: string | null; description?: string | null; created_at?: string | null }>;
+  resourceIds?: { quote?: string | null; contract?: string | null; conti?: string | null };
+  quotes?: Array<{ id: string; quote_number?: string | null; title?: string | null }>;
+  contracts?: Array<{ id: string; quote_number?: string | null }>;
+  personSelectEvent?: { id: string; title: string } | null;
 };
+
+type ClientFilter = "all" | "active" | "shooting" | "completed";
 
 function clientName(client: Pick<ClientListItem | ClientDetail, "hospital_name" | "name">) {
   return client.hospital_name || client.name || "이름 없는 고객";
@@ -64,18 +92,23 @@ function progressText(client: ClientListItem) {
   return client.active_run ? "프로젝트 진행 중" : "최근 진행 기록이 없습니다.";
 }
 
-function initialClientId() {
-  return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("clientId");
-}
-
-export default function MobileClients() {
+export default function MobileClients({ initialClientId, onClientChange, onOpenPreview, onOpenConti, onOpenPersonSelect }: {
+  initialClientId?: string | null;
+  onClientChange?: (clientId: string | null) => void;
+  onOpenPreview: (resource: { resourceType: MobileResourceType; resourceId: string }) => void;
+  onOpenConti: (runId: string) => void;
+  onOpenPersonSelect: (eventId: string) => void;
+}) {
   const [clients, setClients] = useState<ClientListItem[]>([]);
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState<string | null>(initialClientId);
+  const [filter, setFilter] = useState<ClientFilter>("all");
+  const [selectedId, setSelectedId] = useState<string | null>(initialClientId ?? null);
   const [detail, setDetail] = useState<ClientDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
+  const detailRequestRef = useRef(0);
 
   const loadClients = useCallback(async () => {
     setLoading(true);
@@ -93,28 +126,49 @@ export default function MobileClients() {
   }, []);
 
   const openClient = useCallback(async (clientId: string) => {
+    const requestId = ++detailRequestRef.current;
     setSelectedId(clientId);
     setDetail(null);
     setDetailLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/clients/${encodeURIComponent(clientId)}`, { cache: "no-store" });
-      const payload = await response.json().catch(() => null);
+      const [response, eventsResponse] = await Promise.all([
+        fetch(`/api/clients/${encodeURIComponent(clientId)}`, { cache: "no-store" }),
+        fetch("/api/person-select", { cache: "no-store" }).catch(() => null),
+      ]);
+      const [payload, eventsPayload] = await Promise.all([response.json().catch(() => null), eventsResponse?.json().catch(() => null)]);
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || "고객 정보를 불러오지 못했어요.");
-      setDetail(payload);
+      if (detailRequestRef.current !== requestId) return;
+      const personSelectEvent = Array.isArray(eventsPayload?.events) ? eventsPayload.events.find((event: { client_id?: string | null }) => event.client_id === clientId) ?? null : null;
+      setDetail({ ...payload, personSelectEvent });
+      const client = payload.client as ClientDetail;
+      useOliviaContextStore.getState().setWorkspace("clients", clientId);
+      useOliviaContextStore.getState().setContextLink({
+        clientId,
+        clientName: clientName(client),
+        projectId: payload.workflowRun?.id,
+        projectName: payload.workflowRun?.project_name,
+        clientSource: "explicit",
+      });
     } catch (loadError) {
+      if (detailRequestRef.current !== requestId) return;
       setError(loadError instanceof Error ? loadError.message : "고객 정보를 불러오지 못했어요.");
     } finally {
-      setDetailLoading(false);
+      if (detailRequestRef.current === requestId) setDetailLoading(false);
     }
   }, []);
 
   useEffect(() => { void loadClients(); }, [loadClients]);
   useEffect(() => {
-    if (selectedId) void openClient(selectedId);
-    // URL에서 전달된 고객은 최초 진입 시 한 번만 연다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (initialClientId) {
+      void openClient(initialClientId);
+      return;
+    }
+    detailRequestRef.current += 1;
+    setSelectedId(null);
+    setDetail(null);
+    setDetailLoading(false);
+  }, [initialClientId, openClient]);
   useEffect(() => {
     const refresh = () => void loadClients();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
@@ -128,9 +182,13 @@ export default function MobileClients() {
 
   const filteredClients = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("ko-KR");
-    if (!normalized) return clients;
-    return clients.filter((client) => `${clientName(client)} ${contactName(client)} ${client.phone || ""}`.toLocaleLowerCase("ko-KR").includes(normalized));
-  }, [clients, query]);
+    return clients.filter((client) => {
+      if (filter === "active" && (!client.active_run || client.active_run.status === "completed")) return false;
+      if (filter === "shooting" && !/shoot|촬영/i.test(`${client.active_run?.current_step_key || ""} ${client.next_action?.currentStepName || ""}`)) return false;
+      if (filter === "completed" && client.active_run?.status !== "completed") return false;
+      return !normalized || `${clientName(client)} ${contactName(client)} ${client.phone || ""}`.toLocaleLowerCase("ko-KR").includes(normalized);
+    });
+  }, [clients, filter, query]);
 
   if (selectedId) {
     const fallback = clients.find((client) => client.id === selectedId) || null;
@@ -140,15 +198,32 @@ export default function MobileClients() {
     const workflow = detail?.workflowSummary;
     const currentPhase = workflow?.phases?.find((phase) => phase.status === "active")
       ?? workflow?.phases?.find((phase) => phase.status === "completed");
+    const editClient: ClientEditSource | null = client ? {
+      id: client.id,
+      name: clientName(client),
+      director_name: client.director_name || "",
+      manager_name: contactName(client) === "담당자 미등록" ? "" : contactName(client),
+      phone: client.phone || "",
+      department: client.specialty || "",
+      email: client.email || "",
+      address: client.address || "",
+      website_url: client.website_url || "",
+      instagram_url: client.instagram_url || "",
+      naver_place_url: client.naver_place_url || "",
+      manager_staff: client.manager_staff || "",
+      referral_source: client.referral_source || "",
+      notes: client.notes || "",
+      memo: client.memo || "",
+    } : null;
     return (
       <section className={`${styles.screen} ${styles.mobileClientsScreen}`} aria-label="모바일 고객 상세" data-mobile-swipe-lock>
         <button type="button" className={styles.mobileClientsBack} onClick={() => {
+          detailRequestRef.current += 1;
+          useOliviaContextStore.getState().clearWindowLink();
           setSelectedId(null);
           setDetail(null);
           setError("");
-          const url = new URL(window.location.href);
-          url.searchParams.delete("clientId");
-          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+          onClientChange?.(null);
         }}>
           <ChevronLeft size={18} /> 고객 목록
         </button>
@@ -159,6 +234,7 @@ export default function MobileClients() {
             <span className={styles.mobileClientAvatar}><Building2 size={23} /></span>
             <h1>{clientName(client)}</h1>
             <p>{contactName(client)}{client.specialty ? ` · ${client.specialty}` : ""}</p>
+            <button type="button" className={styles.mobileClientEdit} onClick={() => setEditOpen(true)}><Pencil size={16} />고객 정보 수정</button>
 
             <div className={styles.mobileClientInfo}>
               <span><UserRound size={16} />담당자</span><strong>{contactName(client)}</strong>
@@ -175,8 +251,16 @@ export default function MobileClients() {
               {typeof workflow?.progressPercent === "number" ? <div><i style={{ width: `${Math.max(0, Math.min(100, workflow.progressPercent))}%` }} /><small>{workflow.progressPercent}%</small></div> : null}
               {activity?.title || activity?.description ? <p>{activity.title || activity.description}</p> : <p>최근 활동 기록이 없습니다.</p>}
             </section>
+            <section className={styles.mobileClientDocuments}>
+              <h2>연결 문서</h2>
+              <button type="button" disabled={!detail?.resourceIds?.quote && !detail?.quotes?.[0]?.id} onClick={() => { const id = detail?.resourceIds?.quote || detail?.quotes?.[0]?.id; if (id) onOpenPreview({ resourceType: "quote", resourceId: id }); }}><FileText size={18} /><span><strong>견적서</strong><small>{detail?.resourceIds?.quote || detail?.quotes?.[0]?.id ? "문서 확인" : "연결 문서 없음"}</small></span><ChevronRight size={17} /></button>
+              <button type="button" disabled={!detail?.resourceIds?.contract && !detail?.contracts?.[0]?.id} onClick={() => { const id = detail?.resourceIds?.contract || detail?.contracts?.[0]?.id; if (id) onOpenPreview({ resourceType: "contract", resourceId: id }); }}><FileSignature size={18} /><span><strong>계약서</strong><small>{detail?.resourceIds?.contract || detail?.contracts?.[0]?.id ? "서명·공개 상태 확인" : "연결 문서 없음"}</small></span><ChevronRight size={17} /></button>
+              <button type="button" disabled={!detail?.resourceIds?.conti} onClick={() => detail?.resourceIds?.conti && onOpenConti(detail.resourceIds.conti)}><CalendarDays size={18} /><span><strong>촬영 콘티</strong><small>{detail?.resourceIds?.conti ? "장면 확인" : "연결 문서 없음"}</small></span><ChevronRight size={17} /></button>
+              <button type="button" disabled={!detail?.personSelectEvent} onClick={() => detail?.personSelectEvent && onOpenPersonSelect(detail.personSelectEvent.id)}><Images size={18} /><span><strong>사진선택</strong><small>{detail?.personSelectEvent?.title || "연결 행사 없음"}</small></span><ChevronRight size={17} /></button>
+            </section>
           </article>
         )}
+        <ClientFormModal open={editOpen} mode="edit" client={editClient} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); void loadClients(); void openClient(selectedId); }} />
       </section>
     );
   }
@@ -185,9 +269,10 @@ export default function MobileClients() {
     <section className={`${styles.screen} ${styles.mobileClientsScreen}`} aria-label="모바일 고객관리" data-mobile-swipe-lock>
       <div className={styles.mobileClientsTitle}><div><span>고객관리</span><small>최근 등록 순</small></div><span>{loading ? "" : `${filteredClients.length}`}</span></div>
       <label className={styles.searchField}><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="병원명 또는 담당자 검색" /></label>
+      <div className={styles.filterChips}>{(["all", "active", "shooting", "completed"] as const).map((item) => <button type="button" key={item} className={filter === item ? styles.filterActive : undefined} onClick={() => setFilter(item)}>{item === "all" ? "전체" : item === "active" ? "진행 중" : item === "shooting" ? "촬영 예정" : "완료"}</button>)}</div>
       {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void loadClients()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>고객을 불러오고 있어요...</div> : filteredClients.length ? (
         <div className={styles.mobileClientList}>{filteredClients.map((client) => (
-          <button type="button" key={client.id} onClick={() => void openClient(client.id)}>
+          <button type="button" key={client.id} onClick={() => onClientChange ? onClientChange(client.id) : void openClient(client.id)}>
             <span className={styles.mobileClientAvatar}><Building2 size={19} /></span>
             <span className={styles.mobileClientCopy}><strong>{clientName(client)}</strong><small>{contactName(client)}</small><p>{progressText(client)}</p></span>
             <span className={styles.mobileClientDate}>{recentDate(client.active_run?.updated_at || client.created_at)}<ChevronRight size={16} /></span>

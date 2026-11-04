@@ -1,5 +1,5 @@
-export const OLIVIA_MOBILE_MAX_WIDTH = 820;
-export const OLIVIA_COARSE_PORTRAIT_MAX_WIDTH = 900;
+export const OLIVIA_MOBILE_MAX_WIDTH = 768;
+export const OLIVIA_COARSE_PORTRAIT_MAX_WIDTH = 768;
 
 export type OliviaSurface = "mobile" | "tablet" | "desktop";
 

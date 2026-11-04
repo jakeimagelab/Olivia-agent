@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, LayoutGrid, MapPin, StickyNote, UserRound, Users } from "lucide-react";
+import { Camera, Check, ChevronLeft, ChevronRight, ClipboardList, Clock3, LayoutGrid, MapPin, Sparkles, StickyNote, UserRound, Users } from "lucide-react";
 import type { ContiGroupRow, ContiRunRow, ContiSceneRow } from "@/components/conti/v2/types";
+import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
 import styles from "./OliviaMobileShell.module.css";
 
 type FieldMode = 1 | 4 | 8;
@@ -56,9 +57,9 @@ function SceneInformation({ icon, label, value }: { icon: "place" | "framing" | 
   return <span className={styles.mobileContiSceneInfo}><Icon size={15} /><small>{label}</small><strong>{value}</strong></span>;
 }
 
-export default function MobileContiFieldView() {
+export default function MobileContiFieldView({ initialRunId = null, onRunChange, onRequestOlivia }: { initialRunId?: string | null; onRunChange?: (runId: string | null) => void; onRequestOlivia: (target: MobileOliviaTarget) => void }) {
   const [runs, setRuns] = useState<ListedRun[]>([]);
-  const [runId, setRunId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(initialRunId);
   const [run, setRun] = useState<ContiRunRow | null>(null);
   const [groups, setGroups] = useState<ContiGroupRow[]>([]);
   const [scenes, setScenes] = useState<ContiSceneRow[]>([]);
@@ -113,6 +114,7 @@ export default function MobileContiFieldView() {
   }, []);
 
   useEffect(() => { void loadCandidates(); }, [loadCandidates]);
+  useEffect(() => { setRunId(initialRunId); }, [initialRunId]);
   useEffect(() => { if (runId) void loadRun(runId); }, [loadRun, runId]);
 
   useEffect(() => {
@@ -162,12 +164,26 @@ export default function MobileContiFieldView() {
     });
   }, [runId]);
 
+  const requestOlivia = useCallback((scene?: ContiSceneRow | null) => {
+    if (!run) return;
+    onRequestOlivia({
+      source: "conti",
+      title: `촬영 콘티 · ${run.hospital_name || "현재 콘티"}${scene ? ` · ${scene.name}` : ""}`,
+      documentId: run.id,
+      documentType: "conti",
+      sceneId: scene?.id,
+      clientId: run.hospital_id || undefined,
+      clientName: run.hospital_name || undefined,
+      workflowRunId: run.workflow_run_id || undefined,
+    });
+  }, [onRequestOlivia, run]);
+
   if (loading) return <section className={styles.screen}><div className={styles.emptyState}>현장 콘티를 준비하고 있어요...</div></section>;
   if (error) return <section className={styles.screen}><div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => runId ? void loadRun(runId) : void loadCandidates()}>다시 시도</button></div></section>;
   if (!runId || !run) return (
     <section className={`${styles.screen} ${styles.mobileContiPicker}`} aria-label="현장 콘티 선택" data-mobile-swipe-lock>
       <div className={styles.mobileContiPickerHeading}><ClipboardList size={22} /><div><h1>현장 콘티</h1><p>오늘 촬영할 콘티를 선택하세요.</p></div></div>
-      {runs.length ? <div className={styles.mobileContiRunList}>{runs.map((candidate) => <button type="button" key={candidate.id} onClick={() => setRunId(candidate.id)}>
+      {runs.length ? <div className={styles.mobileContiRunList}>{runs.map((candidate) => <button type="button" key={candidate.id} onClick={() => { setRunId(candidate.id); onRunChange?.(candidate.id); }}>
         <span><strong>{candidate.hospital_name || "이름 없는 콘티"}</strong><small>{displayDate(candidate.shooting_date || candidate.shoot_date || candidate.updated_at)} · 장면 {candidate.scene_count ?? 0}개</small></span>
         <span>열기</span>
       </button>)}</div> : <div className={styles.emptyState}>열 수 있는 콘티가 없습니다.</div>}
@@ -218,12 +234,14 @@ export default function MobileContiFieldView() {
           </span>
           {activeScene.note ? <span className={styles.mobileContiDetailNote}><small><StickyNote size={14} /> 추가 메모</small><strong>{activeScene.note}</strong></span> : null}
         </button>
+        <button type="button" className={styles.mobileSecondaryAction} onClick={() => requestOlivia(activeScene)}><Sparkles size={16} />이 장면 수정 요청</button>
         <nav className={styles.mobileContiScenePager} aria-label="콘티 장면 이동">
           <button type="button" disabled={activeSceneIndex === 0} onClick={() => setActiveSceneIndex((current) => Math.max(0, current - 1))}><ChevronLeft size={17} /> 이전 장면</button>
           <strong>{activeSceneIndex + 1} / {sortedScenes.length}</strong>
           <button type="button" disabled={activeSceneIndex >= sortedScenes.length - 1} onClick={() => setActiveSceneIndex((current) => Math.min(sortedScenes.length - 1, current + 1))}>다음 장면 <ChevronRight size={17} /></button>
         </nav>
       </> : <div className={styles.mobileContiSceneGrid}>{sortedScenes.map(renderCompactScene)}</div>}
+      <button type="button" className={styles.mobilePrimaryAction} onClick={() => requestOlivia()}><Sparkles size={17} />Olivia에게 콘티 수정 요청</button>
     </section>
   );
 }

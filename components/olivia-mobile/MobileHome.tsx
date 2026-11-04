@@ -6,7 +6,6 @@ import {
   Bell,
   ChevronRight,
   Clock3,
-  Eye,
   FolderOpen,
   Search,
 } from "lucide-react";
@@ -31,43 +30,21 @@ import styles from "./OliviaMobileShell.module.css";
 
 type CalendarTask = { id: string; title: string; time?: string | null; location?: string | null };
 type MobileWeather = { temperature: number; label: string; symbol: string; location: string | null };
+type PersonSelectEvent = { id: string; title: string; deadline_at: string; status: string; people_count: number; submitted_count: number };
 
 const QUICK_ITEMS = [
-  { id: "voice", label: "음성 기록", description: "현장 음성 메모", iconName: "work-log" },
-  { id: "clients", label: "고객관리", description: "고객과 진행 상황", iconName: "clients" },
-  { id: "quote-contract", label: "견적/계약", description: "문서 확인" },
-  { id: "conti", label: "촬영 콘티", description: "사진작업실 · 기획", iconName: "photo-studio" },
-  { id: "photo-workspace", label: "사진작업실", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
-  { id: "preview", label: "미리보기", description: "현재 작업 결과 확인" },
+  { id: "clients", label: "고객", description: "고객과 진행 상황", iconName: "clients" },
+  { id: "person-select", label: "사진선택", description: "행사 제출 관리", iconName: "select-gallery" },
+  { id: "bridge", label: "Bridge 상태", description: "Mac Studio 원격 작업", iconName: "photo-studio" },
+  { id: "all-apps", label: "전체 기능", description: "모든 모바일 기능", iconName: "workspace" },
 ] as const;
 
 function QuickMenuIcon({
-  id,
   iconName,
-  resource,
 }: {
   id: typeof QUICK_ITEMS[number]["id"];
   iconName?: IconName;
-  resource: MobileResource | null;
 }) {
-  if (id === "quote-contract") return (
-    <span className={styles.quickIconPair} aria-hidden="true">
-      <DesktopAppIcon name="quote" size={31} />
-      <DesktopAppIcon name="contract" size={31} />
-    </span>
-  );
-  if (id === "preview") {
-    const resourceIcon: IconName | undefined = resource?.type === "quote"
-      ? "quote"
-      : resource?.type === "contract"
-        ? "contract"
-        : resource?.type === "storyboard"
-          ? "storyboard"
-          : resource
-            ? "library"
-            : undefined;
-    return resourceIcon ? <DesktopAppIcon name={resourceIcon} size={42} /> : <Eye size={21} strokeWidth={1.7} />;
-  }
   return iconName ? <DesktopAppIcon name={iconName} size={42} /> : null;
 }
 
@@ -134,6 +111,7 @@ export default function MobileHome({
   const [todayTasks, setTodayTasks] = useState<CalendarTask[]>([]);
   const [resource, setResource] = useState<MobileResource | null>(null);
   const [recentResources, setRecentResources] = useState<MobileResource[]>([]);
+  const [personSelectEvents, setPersonSelectEvents] = useState<PersonSelectEvent[]>([]);
   const [weather, setWeather] = useState<MobileWeather | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -142,18 +120,18 @@ export default function MobileHome({
   const load = useCallback(async () => {
     setError("");
     try {
-      const [calendarPayload, contextualResource, temporaryPayload, quotesPayload, contractsPayload] = await Promise.all([
+      const [calendarPayload, contextualResource, temporaryPayload, quotesPayload, contractsPayload, personSelectPayload] = await Promise.all([
         jsonRequest(`/api/calendar?date=${seoulDate()}`),
         loadContextResource(currentDocumentType, currentDocumentId).catch(() => null),
         jsonRequest("/api/documents/search?temporary=true&limit=5").catch(() => ({ documents: [] })),
         jsonRequest("/api/quotes?limit=10").catch(() => ({ quotes: [] })),
         jsonRequest("/api/contracts?limit=10").catch(() => ({ contracts: [] })),
+        jsonRequest("/api/person-select").catch(() => ({ events: [] })),
       ]);
       setTodayTasks(calendarPayload.tasks || []);
       const temporaryResources = (temporaryPayload.documents || [])
         .map((row: Record<string, unknown>) => normalizeMobileDocument(row))
         .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
-      const openTemporaryResources = temporaryResources.filter((item: MobileResource) => !["linked", "archived"].includes(item.status?.toLowerCase() || ""));
       const quoteResources = (quotesPayload.quotes || [])
         .map((row: Record<string, unknown>) => normalizeQuoteResource(row))
         .filter((item: MobileResource | null): item is MobileResource => Boolean(item));
@@ -168,17 +146,12 @@ export default function MobileHome({
           if (!uniqueResources.has(key)) uniqueResources.set(key, item);
         });
       setRecentResources([...uniqueResources.values()].slice(0, 2));
+      setPersonSelectEvents(Array.isArray(personSelectPayload.events) ? personSelectPayload.events : []);
       if (contextualResource && isOpenMobileResourceStatus(contextualResource.status)) {
         setResource(contextualResource);
       } else {
-        const temporary = openTemporaryResources[0] || null;
-        const canonical = [
-          ...quoteResources,
-          ...contractResources,
-        ]
-          .filter((item): item is MobileResource => Boolean(item) && isOpenMobileResourceStatus(item.status))
-          .sort((left, right) => new Date(right.updatedAt || 0).getTime() - new Date(left.updatedAt || 0).getTime())[0] || null;
-        setResource(temporary || canonical);
+        // 최근 문서를 현재 작업으로 자동 승격하지 않는다. 명시적으로 연 문서만 현재 대상이다.
+        setResource(null);
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "홈을 불러오지 못했어요.");
@@ -237,15 +210,10 @@ export default function MobileHome({
   const pendingPhotoCount = useMemo(() => projects.filter((project) => isPhotoProjectPendingVisible(project)).length, [projects]);
 
   const handleQuick = (id: typeof QUICK_ITEMS[number]["id"]) => {
-    if (id === "quote-contract") return onOpenDocuments("quote-contract");
-    if (id === "photo-workspace") return onNavigate("photo-workspace");
-    if (id === "preview") {
-      if (resource) onOpenPreview({ resourceType: resource.type, resourceId: resource.id, temporaryDocumentId: resource.temporaryDocumentId });
-      else onOpenDocuments("quote-contract");
-      return;
-    }
     onNavigate(id);
   };
+
+  const activePersonSelect = personSelectEvents.find((event) => event.status === "open") || null;
 
   return (
     <section className={`${styles.screen} ${styles.homeScreen}`} aria-label="Olivia 모바일 홈">
@@ -305,13 +273,22 @@ export default function MobileHome({
       />
 
       <section className={styles.homeSection}>
+        <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>사진선택</h2><button type="button" onClick={() => onNavigate("person-select")}>전체 보기 <ChevronRight size={14} /></button></div>
+        {activePersonSelect ? <button type="button" className={styles.mobileHomePersonSelect} onClick={() => onNavigate("person-select")}>
+          <span><strong>{activePersonSelect.title}</strong><small>{activePersonSelect.submitted_count} / {activePersonSelect.people_count} 제출</small></span>
+          <span className={styles.mobileProgressLabel}><b>{activePersonSelect.people_count ? Math.round(activePersonSelect.submitted_count / activePersonSelect.people_count * 100) : 0}%</b><small>{new Date(activePersonSelect.deadline_at).getTime() - Date.now() < 3 * 86400000 ? "마감 임박" : "진행 중"}</small></span>
+          <span className={styles.mobileProgressBar}><i style={{ width: `${activePersonSelect.people_count ? Math.round(activePersonSelect.submitted_count / activePersonSelect.people_count * 100) : 0}%` }} /></span>
+        </button> : <div className={styles.emptyState}>진행 중인 사진선택 행사가 없어요.</div>}
+      </section>
+
+      <section className={styles.homeSection}>
         <div className={styles.homeSectionHeading}><h2 className={styles.sectionLabel}>빠른 메뉴</h2></div>
         <div className={styles.quickGrid}>
           {QUICK_ITEMS.map(({ id, label, description, ...item }) => (
             <button type="button" key={id} onClick={() => handleQuick(id)}>
-              <span className={styles.quickIcon}><QuickMenuIcon id={id} iconName={"iconName" in item ? item.iconName : undefined} resource={resource} /></span>
+              <span className={styles.quickIcon}><QuickMenuIcon id={id} iconName={"iconName" in item ? item.iconName : undefined} /></span>
               <strong>{label}</strong>
-              <small>{id === "preview" && !resource ? "현재 작업 없음" : description}</small>
+              <small>{description}</small>
             </button>
           ))}
         </div>
