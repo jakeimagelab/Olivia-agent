@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { createUniquePin } from "@/lib/person-select/core";
 import { normalizeLoginName } from "@/lib/person-select/folderRules";
 import { deriveLocalImportRecord, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
+import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-select/types";
 
@@ -55,9 +56,13 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   catch (error) { return Response.json({ ok: false, error: error instanceof Error ? error.message : "사진 목록을 확인해 주세요." }, { status: 400 }); }
 
   const db = getSupabaseAdmin();
-  const [{ data: event, error: eventError }, { data: existingRows }, { data: peopleRows }] = await Promise.all([
+  const [{ data: event, error: eventError }, existingRows, { data: peopleRows }] = await Promise.all([
     db.from("person_select_events").select("id,categories").eq("id", eventId).maybeSingle(),
-    db.from("person_select_images").select("source_rel_path").eq("event_id", eventId),
+    readAllPersonSelectRows((from, to) => db.from("person_select_images")
+      .select("id,source_rel_path")
+      .eq("event_id", eventId)
+      .order("id")
+      .range(from, to)),
     db.from("person_select_people").select("id,display_name,login_name,pin_code").eq("event_id", eventId),
   ]);
   if (eventError || !event) return Response.json({ ok: false, error: eventError?.message || "행사를 찾을 수 없습니다." }, { status: 404 });

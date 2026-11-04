@@ -10,6 +10,7 @@ import { classifyPersonFolderName, createUniquePin, normalizeLoginName, normaliz
 import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-select/types";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
+import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 
 type Mapping = { folder: string; category: string; owner: "person" | "group" };
 type Candidate = { absolutePath: string; relPath: string; fileName: string; category: string; ownerName: string | null; ownerGroup: string | null };
@@ -166,8 +167,12 @@ async function main() {
     if (error) throw error;
     people.set(loginName, person); createdPeople.push({ name: displayName, pin });
   }
-  const { data: existingRows } = await db.from("person_select_images").select("source_rel_path").eq("event_id", eventId);
-  const existing = new Set((existingRows ?? []).map((row) => row.source_rel_path));
+  const existingRows = await readAllPersonSelectRows((from, to) => db.from("person_select_images")
+    .select("id,source_rel_path")
+    .eq("event_id", eventId)
+    .order("id")
+    .range(from, to));
+  const existing = new Set(existingRows.map((row) => row.source_rel_path));
   const pending = files.filter((file) => !existing.has(file.relPath));
   const failed: { file: string; reason: string }[] = [];
   let imported = 0; let cursor = 0;
