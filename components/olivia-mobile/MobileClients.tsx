@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, CalendarDays, ChevronLeft, ChevronRight, FileSignature, FileText, Images, MessageCircle, Pencil, Phone, Search, UserRound } from "lucide-react";
+import { Building2, CalendarDays, ChevronLeft, ChevronRight, FileSignature, FileText, Images, Layers3, MessageCircle, Pencil, Phone, Plus, Search, UserRound } from "lucide-react";
 import ClientFormModal, { type ClientEditSource } from "@/app/(client-hub)/clients/_components/ClientFormModal";
 import type { MobileResourceType } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import MobileBottomSheet from "./MobileBottomSheet";
 import styles from "./OliviaMobileShell.module.css";
 
 type ClientListItem = {
@@ -52,7 +53,8 @@ type ClientDetail = {
 
 type ClientDetailResponse = {
   client: ClientDetail;
-  workflowRun?: { current_step_key?: string | null; status?: string | null; updated_at?: string | null } | null;
+  workflowRun?: { id: string; project_name?: string | null; current_step_key?: string | null; status?: string | null; updated_at?: string | null; created_at?: string | null } | null;
+  workflowRuns?: Array<{ id: string; project_name?: string | null; client_name?: string | null; current_step_key?: string | null; status?: string | null; updated_at?: string | null; created_at?: string | null }>;
   workflowSummary?: {
     progressPercent?: number;
     phases?: Array<{ name?: string; status?: "active" | "completed" | "pending" }>;
@@ -92,9 +94,11 @@ function progressText(client: ClientListItem) {
   return client.active_run ? "프로젝트 진행 중" : "최근 진행 기록이 없습니다.";
 }
 
-export default function MobileClients({ initialClientId, onClientChange, onOpenPreview, onOpenConti, onOpenPersonSelect }: {
+export default function MobileClients({ initialClientId, initialWorkflowRunId, onClientChange, onWorkflowRunChange, onOpenPreview, onOpenConti, onOpenPersonSelect }: {
   initialClientId?: string | null;
+  initialWorkflowRunId?: string | null;
   onClientChange?: (clientId: string | null) => void;
+  onWorkflowRunChange?: (workflowRunId: string | null) => void;
   onOpenPreview: (resource: { resourceType: MobileResourceType; resourceId: string }) => void;
   onOpenConti: (runId: string) => void;
   onOpenPersonSelect: (eventId: string) => void;
@@ -108,6 +112,8 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
   const [editOpen, setEditOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [runSheetOpen, setRunSheetOpen] = useState(false);
   const detailRequestRef = useRef(0);
 
   const loadClients = useCallback(async () => {
@@ -125,7 +131,7 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
     }
   }, []);
 
-  const openClient = useCallback(async (clientId: string) => {
+  const openClient = useCallback(async (clientId: string, workflowRunId?: string | null) => {
     const requestId = ++detailRequestRef.current;
     setSelectedId(clientId);
     setDetail(null);
@@ -133,7 +139,7 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
     setError("");
     try {
       const [response, eventsResponse] = await Promise.all([
-        fetch(`/api/clients/${encodeURIComponent(clientId)}`, { cache: "no-store" }),
+        fetch(`/api/clients/${encodeURIComponent(clientId)}?${workflowRunId ? `workflowRunId=${encodeURIComponent(workflowRunId)}&strictWorkflowRunId=1` : "workflowMode=client-only"}`, { cache: "no-store" }),
         fetch("/api/person-select", { cache: "no-store" }).catch(() => null),
       ]);
       const [payload, eventsPayload] = await Promise.all([response.json().catch(() => null), eventsResponse?.json().catch(() => null)]);
@@ -146,7 +152,7 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
       useOliviaContextStore.getState().setContextLink({
         clientId,
         clientName: clientName(client),
-        projectId: payload.workflowRun?.id,
+        projectId: workflowRunId ? payload.workflowRun?.id : undefined,
         projectName: payload.workflowRun?.project_name,
         clientSource: "explicit",
       });
@@ -161,14 +167,14 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
   useEffect(() => { void loadClients(); }, [loadClients]);
   useEffect(() => {
     if (initialClientId) {
-      void openClient(initialClientId);
+      void openClient(initialClientId, initialWorkflowRunId);
       return;
     }
     detailRequestRef.current += 1;
     setSelectedId(null);
     setDetail(null);
     setDetailLoading(false);
-  }, [initialClientId, openClient]);
+  }, [initialClientId, initialWorkflowRunId, openClient]);
   useEffect(() => {
     const refresh = () => void loadClients();
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
@@ -223,18 +229,22 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
           setSelectedId(null);
           setDetail(null);
           setError("");
+          onWorkflowRunChange?.(null);
           onClientChange?.(null);
         }}>
           <ChevronLeft size={18} /> 고객 목록
         </button>
-        {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void openClient(selectedId)}>다시 시도</button></div> : detailLoading || !client ? (
+        {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void openClient(selectedId, initialWorkflowRunId)}>다시 시도</button></div> : detailLoading || !client ? (
           <div className={styles.emptyState}>고객 정보를 확인하고 있어요...</div>
         ) : (
           <article className={styles.mobileClientDetail}>
             <span className={styles.mobileClientAvatar}><Building2 size={23} /></span>
             <h1>{clientName(client)}</h1>
             <p>{contactName(client)}{client.specialty ? ` · ${client.specialty}` : ""}</p>
-            <button type="button" className={styles.mobileClientEdit} onClick={() => setEditOpen(true)}><Pencil size={16} />고객 정보 수정</button>
+            <div className={styles.mobileClientDetailActions}>
+              <button type="button" className={styles.mobileClientEdit} onClick={() => setEditOpen(true)}><Pencil size={16} />고객 정보 수정</button>
+              <button type="button" className={styles.mobileClientEdit} onClick={() => setRunSheetOpen(true)}><Layers3 size={16} />{detail?.workflowRun ? "촬영 건 변경" : "촬영 건 선택"}</button>
+            </div>
 
             <div className={styles.mobileClientInfo}>
               <span><UserRound size={16} />담당자</span><strong>{contactName(client)}</strong>
@@ -260,14 +270,28 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
             </section>
           </article>
         )}
-        <ClientFormModal open={editOpen} mode="edit" client={editClient} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); void loadClients(); void openClient(selectedId); }} />
+        <ClientFormModal open={editOpen} mode="edit" client={editClient} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); void loadClients(); void openClient(selectedId, detail?.workflowRun?.id); }} />
+        <MobileBottomSheet open={runSheetOpen} title="촬영 건 선택" description="선택한 촬영 건의 진행 단계와 연결 문서만 표시합니다." onClose={() => setRunSheetOpen(false)}>
+          <div className={styles.mobileRunList}>
+            <button type="button" data-active={!detail?.workflowRun} onClick={() => {
+              setRunSheetOpen(false);
+              if (onWorkflowRunChange) onWorkflowRunChange(null);
+              else void openClient(selectedId, null);
+            }}><span><strong>고객 정보만 보기</strong><small>촬영 건을 연결하지 않음</small></span><ChevronRight size={17} /></button>
+            {(detail?.workflowRuns || []).map((run) => <button type="button" key={run.id} data-active={detail?.workflowRun?.id === run.id} onClick={() => {
+              setRunSheetOpen(false);
+              if (onWorkflowRunChange) onWorkflowRunChange(run.id);
+              else void openClient(selectedId, run.id);
+            }}><span><strong>{run.project_name || run.client_name || "촬영 건"}</strong><small>{run.current_step_key || "단계 미설정"} · {run.status || "상태 미설정"}</small></span><ChevronRight size={17} /></button>)}
+          </div>
+        </MobileBottomSheet>
       </section>
     );
   }
 
   return (
     <section className={`${styles.screen} ${styles.mobileClientsScreen}`} aria-label="모바일 고객관리" data-mobile-swipe-lock>
-      <div className={styles.mobileClientsTitle}><div><span>고객관리</span><small>최근 등록 순</small></div><span>{loading ? "" : `${filteredClients.length}`}</span></div>
+      <div className={styles.mobileClientsTitle}><div><span>고객관리</span><small>최근 등록 순</small></div><div className={styles.mobileClientsTitleActions}><span>{loading ? "" : `${filteredClients.length}`}</span><button type="button" onClick={() => setCreateOpen(true)} aria-label="고객 등록"><Plus size={18} />등록</button></div></div>
       <label className={styles.searchField}><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="병원명 또는 담당자 검색" /></label>
       <div className={styles.filterChips}>{(["all", "active", "shooting", "completed"] as const).map((item) => <button type="button" key={item} className={filter === item ? styles.filterActive : undefined} onClick={() => setFilter(item)}>{item === "all" ? "전체" : item === "active" ? "진행 중" : item === "shooting" ? "촬영 예정" : "완료"}</button>)}</div>
       {error ? <div className={styles.errorState}><span>{error}</span><button type="button" onClick={() => void loadClients()}>다시 시도</button></div> : loading ? <div className={styles.emptyState}>고객을 불러오고 있어요...</div> : filteredClients.length ? (
@@ -279,6 +303,11 @@ export default function MobileClients({ initialClientId, onClientChange, onOpenP
           </button>
         ))}</div>
       ) : <div className={styles.emptyState}><Building2 size={22} /><span>{query ? "검색 결과가 없어요." : "등록된 고객이 없어요."}</span></div>}
+      <ClientFormModal open={createOpen} mode="create" onClose={() => setCreateOpen(false)} onSaved={(clientId) => {
+        setCreateOpen(false);
+        void loadClients();
+        onClientChange?.(clientId);
+      }} />
     </section>
   );
 }

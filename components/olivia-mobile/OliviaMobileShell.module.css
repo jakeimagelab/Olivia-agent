@@ -1,21 +1,29 @@
 .shell {
+  --ui2-bg: #E3EBE2;
+  --ui2-sunk: #EAF0E7;
+  --ui2-card: #F1F5EE;
+  --ui2-green-soft: #D5E3D4;
+  --ui2-line: #C8D5C8;
+  --ui2-text: #293E34;
+  --ui2-dim: #617565;
+  --ui2-green: #155855;
+  --ui2-run: #E85D2C;
   --mobile-green: #155855;
-  --mobile-green-deep: #0d4743;
-  --mobile-orange: #e85d2c;
-  --mobile-mint: #eef7f5;
-  --mobile-bg: #f7fbfa;
-  --mobile-ink: #17332e;
-  --mobile-muted: #718580;
-  --mobile-line: rgba(21, 88, 85, .11);
-  --mobile-dock-height: 62px;
+  --mobile-green-deep: #155855;
+  --mobile-orange: #E85D2C;
+  --mobile-mint: #D5E3D4;
+  --mobile-bg: #E3EBE2;
+  --mobile-ink: #293E34;
+  --mobile-muted: #617565;
+  --mobile-line: #C8D5C8;
+  --mobile-dock-height: 64px;
   --mobile-dock-space: calc(var(--mobile-dock-height) + env(safe-area-inset-bottom, 0px));
   --mobile-dock-content-padding: calc(var(--mobile-dock-space) + var(--olivia-global-recording-bar-height, 0px) + 26px);
-  position: fixed;
-  inset: 0;
+  position: relative;
   z-index: 10000;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow: hidden;
+  overflow-x: clip;
   background: var(--mobile-bg);
   color: var(--mobile-ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Pretendard Variable", Pretendard, sans-serif;
@@ -23,37 +31,25 @@
 }
 
 .viewport {
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-  touch-action: pan-y;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
 }
 
-.swipeTrack { --mobile-swipe-offset: 0px; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--mobile-bg); }
-.swipePanel { position: absolute; inset: 0; width: 100%; height: 100%; will-change: transform; }
-.swipePanelCurrent { transform: translate3d(var(--mobile-swipe-offset), 0, 0); }
-.swipePanelTarget[data-direction="next"] { transform: translate3d(calc(100% + var(--mobile-swipe-offset)), 0, 0); }
-.swipePanelTarget[data-direction="previous"] { transform: translate3d(calc(-100% + var(--mobile-swipe-offset)), 0, 0); }
-.swipeTrack[data-settling] .swipePanel { transition: transform 250ms cubic-bezier(.16,.72,.25,1); }
-
 .screen {
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  min-height: 100vh;
+  min-height: 100dvh;
   padding:
     calc(env(safe-area-inset-top, 0px) + 18px)
     calc(env(safe-area-inset-right, 0px) + 18px)
     var(--mobile-dock-content-padding)
     calc(env(safe-area-inset-left, 0px) + 18px);
-  background:
-    radial-gradient(circle at 86% 0%, rgba(185, 225, 215, .2), transparent 32%),
-    var(--mobile-bg);
+  background: var(--mobile-bg);
 }
 
 .screenWithHeader {
-  height: 100%;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: var(--mobile-bg);
@@ -62,8 +58,7 @@
 .scrollBody {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   padding:
     calc(env(safe-area-inset-top, 0px) + 16px)
     calc(env(safe-area-inset-right, 0px) + 18px)
@@ -76,17 +71,15 @@
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 48px;
-  align-items: end;
+  align-items: center;
   gap: 4px;
   padding:
     calc(env(safe-area-inset-top, 0px) + 8px)
     calc(env(safe-area-inset-right, 0px) + 12px)
     9px
     calc(env(safe-area-inset-left, 0px) + 12px);
-  border-bottom: 1px solid rgba(255, 255, 255, .1);
-  background: rgba(13, 71, 67, .98);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--mobile-line);
+  background: var(--ui2-card);
 }
 
 .screenHeaderSide {
@@ -101,14 +94,14 @@
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 14px;
+  border-radius: 10px;
   background: transparent;
-  color: #fff;
+  color: var(--mobile-green);
 }
 
 .screenHeaderTitle { min-width: 0; align-self: center; text-align: center; }
-.screenHeaderTitle h1 { margin: 0; color: #fff; font-size: 16px; font-weight: 680; letter-spacing: -.02em; }
-.screenHeaderTitle p { margin: 3px 0 0; overflow: hidden; color: rgba(255,255,255,.68); font-size: 9.5px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.screenHeaderTitle h1 { margin: 0; color: var(--mobile-ink); font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+.screenHeaderTitle p { margin: 3px 0 0; overflow: hidden; color: var(--mobile-muted); font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 
 .bottomNav {
   position: fixed;
@@ -125,12 +118,10 @@
     env(safe-area-inset-bottom, 0px)
     calc(env(safe-area-inset-left, 0px) + 10px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .72);
-  border-radius: 22px 22px 0 0;
-  background: rgba(246, 251, 249, .5);
-  box-shadow: 0 16px 40px rgba(9, 52, 47, .2), inset 0 1px 0 rgba(255,255,255,.92), 0 0 0 1px rgba(21,88,85,.08);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 0;
+  border-top: 1px solid var(--mobile-line);
+  border-radius: 0;
+  background: var(--ui2-card);
   transition: transform 180ms ease;
 }
 
@@ -144,10 +135,10 @@
   justify-content: center;
   gap: 2px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 3px 1px;
   background: transparent;
-  color: #84938f;
+  color: var(--mobile-muted);
   font: inherit;
   transition: transform 220ms cubic-bezier(.32,.72,0,1), background-color 220ms cubic-bezier(.32,.72,0,1), color 220ms cubic-bezier(.32,.72,0,1);
 }
@@ -159,14 +150,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(7.5px, 2.3vw, 9px);
-  font-weight: 600;
+  font-size: clamp(9px, 2.5vw, 11px);
+  font-weight: 650;
   letter-spacing: -.03em;
 }
 
-.bottomNavIcon { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; }
-.bottomNavIcon > svg { width: 25px; height: 25px; }
-.bottomNav .bottomNavActive { color: #84938f; background: transparent; box-shadow: none; }
+.bottomNavIcon { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; }
+.bottomNavIcon > svg { width: 24px; height: 24px; }
+.bottomNav .bottomNavActive { color: var(--mobile-green); background: var(--ui2-green-soft); box-shadow: none; }
 .bottomNav .bottomNavActive::after {
   content: "";
   position: absolute;
@@ -176,7 +167,6 @@
   height: 5px;
   border-radius: 50%;
   background: var(--mobile-orange);
-  box-shadow: 0 1px 3px rgba(232, 93, 44, .35);
   transform: translateX(-50%);
 }
 
@@ -184,9 +174,8 @@
 .muted { color: var(--mobile-muted); }
 .card {
   border: 1px solid var(--mobile-line);
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 7px 22px rgba(20, 63, 57, .035);
+  border-radius: 12px;
+  background: var(--ui2-card);
 }
 .emptyState, .errorState {
   min-height: 132px;
@@ -195,9 +184,9 @@
   align-content: center;
   gap: 9px;
   border: 1px solid var(--mobile-line);
-  border-radius: 18px;
+  border-radius: 12px;
   padding: 22px;
-  background: #fff;
+  background: var(--ui2-card);
   color: var(--mobile-muted);
   text-align: center;
   font-size: 13px;
@@ -205,17 +194,16 @@
 .errorState button, .secondaryButton, .primaryButton {
   min-height: 44px;
   border: 1px solid var(--mobile-line);
-  border-radius: 13px;
+  border-radius: 10px;
   padding: 0 16px;
-  background: #fff;
+  background: var(--ui2-card);
   color: var(--mobile-green);
   font: 650 13px/1 inherit;
 }
 .primaryButton { border-color: var(--mobile-green); background: var(--mobile-green); color: #fff; }
 
 .homeScreen {
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: visible;
   padding:
     0
     calc(env(safe-area-inset-right, 0px) + 16px)
@@ -1048,3 +1036,289 @@
 @media (min-width: 600px) {
   .mobilePersonSelectBody, .mobileStatusBody, .mobileAllAppsBody { padding-left: max(24px, calc((100vw - 560px)/2)); padding-right: max(24px, calc((100vw - 560px)/2)); }
 }
+
+/* 2026-11-05 모바일 전용 presentation layer.
+   데스크톱 창을 축소하지 않고, 모바일 문서 흐름과 PC OS 토큰을 그대로 사용한다. */
+.shell :where(input, textarea, select) { font-size: 16px; }
+
+.mobilePageHeading,
+.mobileSubHeader {
+  min-height: calc(68px + env(safe-area-inset-top, 0px));
+  align-items: center;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 8px calc(16px + env(safe-area-inset-left, 0px));
+  background: var(--ui2-sunk);
+}
+.mobilePageHeading h1,
+.mobileSubHeader h1 { font-size: 20px; font-weight: 700; }
+.mobilePageHeading > button,
+.mobileSubHeader > button {
+  border-radius: 10px;
+  background: var(--ui2-card);
+}
+
+.mobilePersonSelectBody,
+.mobileStatusBody,
+.mobileAllAppsBody {
+  flex: none;
+  min-height: auto;
+  overflow: visible;
+  overscroll-behavior: auto;
+}
+
+.homeHeaderActions button,
+.quickGrid button,
+.recentDocumentList,
+.pendingPhotoCard,
+.mobilePendingItem,
+.mobileClientList > button,
+.mobileClientDetail,
+.mobileHomePersonSelect,
+.mobileEventList > button,
+.mobileEventSummary,
+.mobileEventControls,
+.mobileCurrentJobCard,
+.mobileStageCard {
+  border-color: var(--ui2-line);
+  border-radius: 12px;
+  background: var(--ui2-card);
+  box-shadow: none;
+}
+.mobileClientAvatar,
+.mobilePendingIcon,
+.mobilePersonThumb,
+.mobileFileCounts span,
+.mobileEventStats span { border-radius: 10px; background: var(--ui2-green-soft); color: var(--ui2-green); }
+.mobileClientDetail > .mobileClientAvatar { border-radius: 12px; }
+.mobileClientProgress,
+.photoProgressCard,
+.mobilePendingDetail { background: var(--ui2-sunk); }
+.mobileClientProgress > div,
+.mobileProgressBar { background: var(--ui2-line); }
+.currentWorkActions button,
+.mobilePendingActions button,
+.mobileClientEdit,
+.mobileClientContactActions a,
+.mobileClientDocuments,
+.mobileClientDocuments button,
+.mobileEventControls button,
+.mobileCompactSearch,
+.mobilePeopleList,
+.mobilePeopleList > button,
+.mobileConnectionCard > span,
+.mobileSecondaryAction {
+  border-color: var(--ui2-line);
+  background: var(--ui2-card);
+  box-shadow: none;
+}
+.mobileClientDocuments,
+.mobilePeopleList,
+.mobileConnectionCard { border-radius: 12px; }
+.mobileClientDetailActions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mobileClientDetailActions .mobileClientEdit { width: 100%; padding: 0 8px; }
+.mobileClientsTitleActions { display: flex; align-items: center; gap: 8px; }
+.mobileClientsTitleActions > span { min-width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; background: var(--ui2-green-soft); color: var(--ui2-green); font-size: 11px; font-weight: 700; }
+.mobileClientsTitleActions > button { min-height: 44px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--ui2-green); border-radius: 10px; padding: 0 12px; background: var(--ui2-card); color: var(--ui2-green); font: 700 12px/1 inherit; }
+.mobileRunList { display: grid; overflow: hidden; border: 1px solid var(--ui2-line); border-radius: 12px; background: var(--ui2-card); }
+.mobileRunList > button { min-height: 62px; display: grid; grid-template-columns: minmax(0, 1fr) 18px; align-items: center; gap: 8px; border: 0; border-bottom: 1px solid var(--ui2-line); padding: 10px 12px; background: transparent; color: var(--ui2-text); text-align: left; font: inherit; }
+.mobileRunList > button:last-child { border-bottom: 0; }
+.mobileRunList > button[data-active="true"] { background: var(--ui2-green-soft); color: var(--ui2-green); }
+.mobileRunList > button > span { min-width: 0; display: grid; gap: 4px; }
+.mobileRunList strong { font-size: 12px; }
+.mobileRunList small { overflow: hidden; color: var(--ui2-dim); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+
+.mobilePrimaryAction { border-color: var(--ui2-run); border-radius: 10px; background: var(--ui2-run); }
+.mobileSecondaryAction { border-radius: 10px; color: var(--ui2-green); }
+.mobileNotice { border: 1px solid var(--ui2-line); border-radius: 10px; background: var(--ui2-green-soft); }
+
+.mobileSheetBackdrop { background: rgba(25, 45, 36, .42); }
+.mobileBottomSheet {
+  max-height: min(86dvh, 720px);
+  gap: 12px;
+  border: 1px solid var(--ui2-line);
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: var(--ui2-card);
+  box-shadow: none;
+  outline: none;
+  transition: transform 150ms ease-out;
+}
+.mobileSheetDragArea { min-height: 22px; display: grid; place-items: center; margin: -10px 48px -4px; touch-action: none; cursor: grab; }
+.mobileSheetHandle { background: var(--ui2-line); }
+.mobileSheetClose { border: 1px solid var(--ui2-line); border-radius: 10px; background: var(--ui2-sunk); }
+.mobileSheetHeading { display: grid; gap: 4px; }
+.mobileSheetHeading h2 { margin: 0 48px 0 0; color: var(--ui2-text); font-size: 18px; }
+.mobileSheetHeading p { margin: 0; color: var(--ui2-dim); font-size: 11px; line-height: 1.5; }
+
+.mobileConnectionCard { background: var(--ui2-line); }
+.mobileStageCard > div[data-state="unsupported"] { color: var(--ui2-dim); }
+.mobileStageCard > div[data-state="failed"] { color: var(--ui2-run); }
+
+.mobileAppGrid > button { border-radius: 12px; background: var(--ui2-card); }
+
+.previewActions {
+  height: calc(68px + env(safe-area-inset-bottom, 0px));
+  border-top-color: var(--ui2-line);
+  background: var(--ui2-card);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.previewActions[data-compact="true"] { grid-template-columns: minmax(92px, .72fr) minmax(0, 1.28fr); }
+.previewActions button { min-height: 48px; flex-direction: row; gap: 6px; border-radius: 10px; background: var(--ui2-card); font-size: 11px; }
+.previewActions .previewEdit { border-color: var(--ui2-run); background: var(--ui2-run); }
+.previewApprovalPrompt { border-radius: 12px; background: var(--ui2-card); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.previewNotice { border-radius: 10px; background: var(--ui2-text); box-shadow: none; }
+
+.chatScreen { background: var(--ui2-bg); }
+.mobileChatHeader {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 25;
+  min-height: calc(64px + env(safe-area-inset-top, 0px));
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 8px calc(12px + env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--ui2-line);
+  background: var(--ui2-card);
+}
+.mobileChatHeader > div { min-width: 0; display: grid; gap: 2px; }
+.mobileChatHeader h1 { margin: 0; color: var(--ui2-text); font-size: 16px; }
+.mobileChatHeader p { min-width: 0; display: flex; gap: 6px; margin: 0; overflow: hidden; color: var(--ui2-green); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.mobileChatHeader p span { color: var(--ui2-dim); }
+.chatClose,
+.chatNewConversation { position: static; min-width: 44px; height: 44px; border-color: var(--ui2-line); border-radius: 10px; background: var(--ui2-sunk); box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.chatNewConversation { min-width: 88px; padding: 0 10px; }
+.chatActionError { top: calc(env(safe-area-inset-top, 0px) + 72px); border-radius: 10px; box-shadow: none; }
+.chatDock :global(.olivia-conversation--mobile) { background: var(--ui2-bg); }
+.chatDock :global(.olivia-conversation--mobile .olivia-conversation__messages) { padding-top: calc(env(safe-area-inset-top, 0px) + 76px); }
+.chatDock :global(.olivia-conversation--mobile .olivia-message__body) { border-color: var(--ui2-line); border-radius: 12px 12px 12px 4px; background: var(--ui2-card); box-shadow: none; }
+.chatDock :global(.olivia-conversation--mobile .olivia-message.is-user .olivia-message__body) { border-radius: 12px 12px 4px 12px; }
+.chatDock :global(.olivia-conversation--mobile .olivia-composer-shell--mobile) { background: var(--ui2-sunk); }
+.chatDock :global(.olivia-chat-attach-button),
+.chatDock :global(.olivia-conversation--mobile .olivia-composer) { border-radius: 10px; background: var(--ui2-card); box-shadow: none; }
+
+@media (max-width: 380px) {
+  .mobileClientDetailActions { grid-template-columns: 1fr; }
+  .mobileAppGrid { grid-template-columns: 1fr; }
+  .chatNewConversation span { display: none; }
+  .chatNewConversation { min-width: 44px; padding: 0; }
+}
+
+/* Remaining mobile views use the same flat PC OS surfaces. */
+.commandCard,
+.mobileContiRunList > button,
+.mobileContiSceneGrid > button,
+.mobileContiDetailCard,
+.segmented,
+.weekStrip button,
+.monthGrid,
+.scheduleList > button,
+.todoComposer,
+.todoList > div,
+.calendarTimelineSection,
+.calendarEventHero,
+.calendarDetailList,
+.calendarEventMemo,
+.calendarSettingRow,
+.calendarDateTimeGroup,
+.memoList > button,
+.searchField,
+.resourceList > button,
+.folderGrid button,
+.fileList > button {
+  border-color: var(--ui2-line);
+  border-radius: 10px;
+  background: var(--ui2-card);
+  box-shadow: none;
+}
+
+.commandCard {
+  border: 1px solid var(--ui2-green);
+  background: var(--ui2-green);
+}
+
+.mobileContiPickerHeading > svg,
+.mobileContiSceneNumber,
+.mobileContiSceneArrow,
+.mobileContiSceneInfo,
+.mobileContiDetailNote > strong,
+.mobileContiCompactMeta > small,
+.memoList > button > span:first-child,
+.folderGrid button > span,
+.fileList > button > span:first-child {
+  border-radius: 10px;
+  background: var(--ui2-green-soft);
+}
+
+.mobileContiModeSelector {
+  border-color: var(--ui2-line);
+  border-radius: 10px;
+  background: var(--ui2-card);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.mobileContiModeSelector > span,
+.mobileContiModeSelector > button { border-radius: 8px; }
+.mobileContiModeSelector > button[aria-pressed="true"] { background: var(--ui2-green); box-shadow: none; }
+.mobileContiDetailCard { min-height: 0; }
+.mobileContiScenePager > button { border-color: var(--ui2-line); border-radius: 10px; background: var(--ui2-card); }
+.mobileContiScenePager > button:last-child { border-color: var(--ui2-green); background: var(--ui2-green); }
+
+.segmented { border: 1px solid var(--ui2-line); background: var(--ui2-sunk); }
+.segmented .segmentedActive { background: var(--ui2-card); box-shadow: none; }
+.calendarBody .weekStrip .dateSelected strong { background: var(--ui2-green); }
+.calendarAllDayLane { background: var(--ui2-sunk); }
+.calendarAllDayLane button { background: var(--ui2-green-soft); }
+.calendarTimelineEvent { box-shadow: none; }
+.calendarEventScreen { background: var(--ui2-bg); }
+.calendarEventHeader,
+.calendarSaveBar {
+  border-color: var(--ui2-line);
+  background: var(--ui2-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.calendarEventHero { border: 1px solid var(--ui2-line); }
+.calendarEventMemo { border: 1px solid var(--ui2-line); }
+.calendarField input,
+.calendarField textarea,
+.calendarField select { border-radius: 10px; background: var(--ui2-card); font-size: 16px; }
+.calendarSettingRow,
+.calendarDateTimeGroup { background: var(--ui2-card); }
+.calendarPickerField { background: var(--ui2-sunk); }
+.calendarSettingRow > button[role="switch"] i { box-shadow: none; }
+.calendarSaveBar button { border-radius: 10px; background: var(--ui2-run); }
+
+.mobileMemoForm { display: grid; gap: 12px; }
+.mobileMemoForm label { display: grid; gap: 6px; color: var(--ui2-dim); font-size: 11px; font-weight: 650; }
+.mobileMemoForm input,
+.mobileMemoForm textarea,
+.mobileMemoForm select {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--ui2-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: 0;
+  background: var(--ui2-sunk);
+  color: var(--ui2-text);
+  font: 500 16px/1.5 inherit;
+}
+.mobileMemoForm textarea { resize: vertical; }
+.sheetSave { border-radius: 10px; background: var(--ui2-run); }
+
+.folderGrid .folderActive { border-color: var(--ui2-green); background: var(--ui2-green-soft); box-shadow: none; }
+.previewScreen { background: var(--ui2-bg); }
+.previewClose {
+  border-color: var(--ui2-line);
+  border-radius: 10px;
+  background: var(--ui2-card);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.canonicalDocumentHost,
+.previewPaper { border-color: var(--ui2-line); border-radius: 10px; box-shadow: none; }

@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { ArrowLeft, CalendarClock, ChevronRight, Clipboard, Plus, Search, UserCheck, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, ChevronRight, Clipboard, Plus, Search, UserCheck } from "lucide-react";
 import { defaultSeoulDeadlineInput, formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
 import { DEFAULT_PERSON_SELECT_CATEGORIES, DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS } from "@/lib/person-select/types";
 import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import MobileBottomSheet from "./MobileBottomSheet";
 import styles from "./OliviaMobileShell.module.css";
 
 type EventRow = {
@@ -188,15 +189,12 @@ export default function MobilePersonSelect({ initialEventId = null, onEventChang
           {notice ? <p className={styles.mobileNotice}>{notice}</p> : null}
         </>}
       </div>
-      {selectedPerson ? <div className={styles.mobileSheetBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedPerson(null); }}>
-        <section className={styles.mobileBottomSheet} role="dialog" aria-modal="true" aria-label={`${selectedPerson.display_name} 선택 결과`}>
-          <div className={styles.mobileSheetHandle} />
-          <button type="button" className={styles.mobileSheetClose} onClick={() => setSelectedPerson(null)} aria-label="닫기"><X size={20} /></button>
-          <h2>{selectedPerson.display_name}</h2><p>{selectedPerson.submitted_at ? "제출 완료" : selectedPerson.status_label} · 선택 {selectedPerson.choices.length}장</p>
+      <MobileBottomSheet open={Boolean(selectedPerson)} title={selectedPerson?.display_name || "선택 결과"} description={selectedPerson ? `${selectedPerson.submitted_at ? "제출 완료" : selectedPerson.status_label} · 선택 ${selectedPerson.choices.length}장` : undefined} onClose={() => setSelectedPerson(null)}>
+        {selectedPerson ? <>
           <div className={styles.mobileChoiceGrid}>{selectedPerson.choices.map((choice) => <article key={choice.id}>{choice.person_select_images?.thumb_url ? <Image src={choice.person_select_images.thumb_url} alt={choice.person_select_images.original_file_name} width={640} height={420} unoptimized /> : null}<strong>{choice.person_select_images?.original_file_name || "사진"}</strong>{choice.memo ? <small>{choice.memo}</small> : null}</article>)}</div>
           {!selectedPerson.choices.length ? <div className={styles.emptyState}>아직 고른 사진이 없어요.</div> : null}
-        </section>
-      </div> : null}
+        </> : null}
+      </MobileBottomSheet>
     </section>;
   }
 
@@ -215,14 +213,12 @@ export default function MobilePersonSelect({ initialEventId = null, onEventChang
       })}</div>}
       {!loading && !error && !filteredEvents.length ? <div className={styles.emptyState}>해당하는 행사가 없어요.</div> : null}
     </div>
-    {creating ? <div className={styles.mobileSheetBackdrop} onMouseDown={(event) => { if (event.target === event.currentTarget) setCreating(false); }}><section className={styles.mobileBottomSheet} role="dialog" aria-modal="true" aria-label="새 사진선택 행사">
-      <div className={styles.mobileSheetHandle} /><button type="button" className={styles.mobileSheetClose} onClick={() => setCreating(false)} aria-label="닫기"><X size={20} /></button>
-      <h2>새 사진선택 행사</h2>
+    <MobileBottomSheet open={creating} title="새 사진선택 행사" onClose={() => setCreating(false)}>
       <label className={styles.mobileSheetField}><span>행사명</span><input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="예: 서공예 선생님 사진" /></label>
       <label className={styles.mobileSheetField}><span>공개 주소</span><input value={form.slug} onChange={(event) => setForm({ ...form, slug: event.target.value })} placeholder="seogongye-2026" /></label>
       <label className={styles.mobileSheetField}><span>마감</span><input type="datetime-local" value={form.deadline_at} onChange={(event) => setForm({ ...form, deadline_at: event.target.value })} /></label>
       {error ? <p className={styles.mobileFormError}>{error}</p> : null}
       <button type="button" className={styles.mobilePrimaryAction} disabled={busy} onClick={() => void createEvent()}>{busy ? "만드는 중" : "행사 만들기"}</button>
-    </section></div> : null}
+    </MobileBottomSheet>
   </section>;
 }

@@ -421,11 +421,11 @@ export default function MobileResourcePreview({
           <button type="button" className={styles.previewRegister} onClick={() => void registerClient()} disabled={busy !== null}>{busy === "register" ? "등록 중" : "고객 등록"}</button>
         </div>
       ) : null}
-      <div className={styles.previewActions}>
-        <button type="button" onClick={() => void share()} disabled={busy !== null}><Share2 size={18} /><span>{busy === "share" ? "준비 중" : "공유"}</span></button>
-        <button type="button" onClick={() => void download()} disabled={busy !== null}><Download size={18} /><span>{busy === "download" ? "생성 중" : "다운로드"}</span></button>
-        <button type="button" className={styles.previewEdit} onClick={requestEdit} disabled={busy !== null}><MessageCircle size={18} /><span>수정 요청</span></button>
-        <button type="button" className={styles.previewApprove} onClick={() => void approve()} disabled={busy !== null || !resource.temporaryDocumentId || registrationComplete} title={!resource.temporaryDocumentId ? "고객등록 대기 문서에서 사용할 수 있어요." : undefined}><CheckCircle2 size={18} /><span>{approvalLabel}</span></button>
+      <div className={styles.previewActions} data-compact={!resource.temporaryDocumentId || undefined}>
+        {resource.temporaryDocumentId ? <button type="button" onClick={() => void share()} disabled={busy !== null}><Share2 size={18} /><span>{busy === "share" ? "준비 중" : "공유"}</span></button> : null}
+        <button type="button" onClick={() => void download()} disabled={busy !== null}><Download size={18} /><span>{busy === "download" ? "생성 중" : "PDF"}</span></button>
+        <button type="button" className={styles.previewEdit} onClick={requestEdit} disabled={busy !== null}><MessageCircle size={18} /><span>Olivia에게 수정 요청</span></button>
+        {resource.temporaryDocumentId ? <button type="button" className={styles.previewApprove} onClick={() => void approve()} disabled={busy !== null || registrationComplete}><CheckCircle2 size={18} /><span>{approvalLabel}</span></button> : null}
       </div>
     </section>
   );

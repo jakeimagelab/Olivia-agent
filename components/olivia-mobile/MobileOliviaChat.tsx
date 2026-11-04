@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MessageSquarePlus, X } from "lucide-react";
+import { ArrowLeft, MessageSquarePlus } from "lucide-react";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import type { MobileResourceType } from "@/lib/olivia/mobile/navigation";
 import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
@@ -41,6 +41,15 @@ export default function MobileOliviaChat({
       store.setContextLink({ clientId: target.clientId, clientName: target.clientName, projectId: target.workflowRunId, projectName: target.title });
     }
     if (target.sceneId) store.setSelectedScene(target.sceneId);
+    if (target.bridgeSelectionId) store.setSelection("bridge-folder", target.bridgeSelectionId);
+    if (target.bridgeContext) {
+      const context = target.bridgeContext;
+      store.pushRecentAction({
+        type: `Bridge ${context.folder} · ${context.source} · JPG ${context.jpgCount} · RAW ${context.rawCount} · 선택 ${context.selectedCount} · 제외 ${context.excludedCount} · 완료 ${context.completedStages.join(", ") || "없음"} · worker ${context.workerOnline ? "online" : "offline"}`,
+        at: new Date().toISOString(),
+        entityId: target.bridgeSelectionId,
+      });
+    }
   }, [target]);
 
   const createConversation = async () => {
@@ -116,10 +125,12 @@ export default function MobileOliviaChat({
 
   return (
     <section ref={rootRef} className={`${styles.screenWithHeader} ${styles.chatScreen}`} aria-label="올리비아 채팅">
-      <button type="button" className={styles.chatClose} onClick={onClose} aria-label="채팅 닫고 홈으로 이동"><X size={19} /></button>
-      <button type="button" className={styles.chatNewConversation} onClick={() => void createConversation()} disabled={newConversationBusy} aria-label="새 대화 시작"><MessageSquarePlus size={17} /><span>{newConversationBusy ? "준비 중" : "새 대화"}</span></button>
+      <header className={styles.mobileChatHeader}>
+        <button type="button" className={styles.chatClose} onClick={onClose} aria-label="Olivia 닫고 이전 화면으로 이동"><ArrowLeft size={20} /></button>
+        <div><h1>Olivia</h1><p><span>현재 대상</span>{target?.title || "홈"}</p></div>
+        <button type="button" className={styles.chatNewConversation} onClick={() => void createConversation()} disabled={newConversationBusy} aria-label="새 대화 시작"><MessageSquarePlus size={17} /><span>{newConversationBusy ? "준비 중" : "새 대화"}</span></button>
+      </header>
       {newConversationError ? <div className={styles.chatActionError} role="alert">{newConversationError}</div> : null}
-      <div className={styles.mobileChatTarget}><small>현재 대상</small><strong>{target?.title || "홈"}</strong></div>
       <OliviaChatDockTarget id="mobile-os" priority={70} className={styles.chatDock} />
     </section>
   );

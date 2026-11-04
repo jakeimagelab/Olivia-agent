@@ -37,7 +37,8 @@ describe("Olivia mobile PWA shell", () => {
     ];
 
     expect(shell).toContain('navigation.view === "preview" || navigation.view === "chat" ? null');
-    expect(shell).toContain('onClose={() => navigate(chatReturnRef.current, "replace")}');
+    expect(shell).toContain("onClose={closeOlivia}");
+    expect(shell).toContain("window.history.back()");
     expect(conversation).toContain('variant !== "mobile" && exchanges.length >= 4');
     expect(conversation).toContain("if (isMobile) return;");
     for (const screen of nonHomeScreens) expect(read(screen)).not.toContain("<MobileHeader");
@@ -59,25 +60,19 @@ describe("Olivia mobile PWA shell", () => {
     expect(styles).toContain("var(--mobile-dock-content-padding)");
   });
 
-  it("keeps the dock out of the chat and protects calendar gestures while enabling primary-tab swipes", () => {
+  it("keeps the dock out of chat, preserves calendar gestures, and leaves page scrolling to the browser", () => {
     const shell = read("components/olivia-mobile/OliviaMobileShell.tsx");
     const calendar = read("components/olivia-mobile/MobileCalendar.tsx");
     const styles = read("components/olivia-mobile/OliviaMobileShell.module.css");
 
-    expect(shell).toContain("SWIPEABLE_PRIMARY_VIEWS");
-    expect(shell).toContain("IOS_BACK_GESTURE_EDGE_PX");
-    expect(shell).toContain("onPointerDown={onSwipePointerDown}");
-    expect(shell).toContain("onPointerMove={onSwipePointerMove}");
-    expect(shell).toContain("setPointerCapture");
-    expect(shell).toContain("SWIPE_FLING_VELOCITY_PX_PER_MS");
-    expect(shell).toContain("SWIPE_COMPLETION_RATIO");
-    expect(shell).toContain("swipeTrack");
-    expect(shell).toContain("finishSwipe");
-    expect(shell).toContain("swipe.axis === \"vertical\"");
+    expect(shell).not.toContain("SWIPEABLE_PRIMARY_VIEWS");
+    expect(shell).not.toContain('document.body.style.overflow = "hidden"');
+    expect(styles).toContain("position: relative");
+    expect(styles).toContain("overflow: visible");
     expect(shell).toContain("navigation.view === \"chat\"");
     expect(calendar).toContain("data-mobile-swipe-lock");
     expect(calendar).toContain("selectedSchedulePanel");
-    expect(calendar).toContain('useState<CalendarView>("month")');
+    expect(calendar).toContain('useState<CalendarView>("today")');
     expect(calendar).toContain("calendarEventScreen");
     expect(calendar).toContain("calendarTimelineEvent");
     expect(calendar).toContain('role="switch"');
@@ -117,11 +112,15 @@ describe("Olivia mobile PWA shell", () => {
     const navigation = read("lib/olivia/mobile/navigation.ts");
 
     expect(clients).toContain('fetch("/api/clients?scope=list"');
-    expect(clients).toContain('fetch(`/api/clients/${encodeURIComponent(clientId)}`');
+    expect(clients).toContain('fetch(`/api/clients/${encodeURIComponent(clientId)}?${workflowRunId');
+    expect(clients).toContain('strictWorkflowRunId=1');
+    expect(clients).toContain('workflowMode=client-only');
     expect(clients).toContain('href={`tel:${phoneHref(phone)}`}');
     expect(clients).toContain('href={`sms:${phoneHref(phone)}`}');
     expect(clients).toContain("ClientFormModal");
     expect(clients).toContain('mode="edit"');
+    expect(clients).toContain('mode="create"');
+    expect(clients).toContain("MobileBottomSheet");
     expect(clients).toContain("onOpenPreview");
     expect(clients).toContain("onOpenConti");
     expect(clients).toContain("onOpenPersonSelect");

@@ -91,6 +91,58 @@
   --ui2-f5: 24px;
 }
 
+/* Olivia mobile shell: the shared client form is portalled to body, so its mobile
+   presentation must be scoped from the root class rather than a CSS module ancestor. */
+html.olivia-mobile-os .pcrm-form-modal-backdrop {
+  z-index: 10080;
+  align-items: flex-end;
+  padding: 0;
+  background: rgba(25, 45, 36, .42);
+}
+html.olivia-mobile-os .pcrm-form-modal {
+  width: 100%;
+  max-height: 88dvh;
+  overflow: hidden;
+  border: 1px solid #C8D5C8;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: #EAF0E7;
+  box-shadow: none;
+}
+html.olivia-mobile-os .pcrm-form-modal__head { padding: 16px 16px 0; }
+html.olivia-mobile-os .pcrm-form-modal__body {
+  max-height: calc(88dvh - 88px);
+  gap: 12px;
+  padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior: contain;
+}
+html.olivia-mobile-os .pcrm-form-section {
+  border-color: #C8D5C8;
+  border-radius: 10px;
+  background: #F1F5EE;
+}
+html.olivia-mobile-os .pcrm-form-field input,
+html.olivia-mobile-os .pcrm-form-memo {
+  min-height: 44px;
+  border-color: #C8D5C8;
+  border-radius: 10px;
+  background: #F1F5EE;
+  color: #293E34;
+  font-size: 16px;
+}
+html.olivia-mobile-os .pcrm-form-modal__footer {
+  position: sticky;
+  bottom: 0;
+  padding-top: 10px;
+  background: #EAF0E7;
+}
+html.olivia-mobile-os .pcrm-form-modal__footer button { min-height: 44px; }
+html.olivia-mobile-os .pcrm-form-modal .pc-btn--orange {
+  border-color: #E85D2C;
+  background: #E85D2C;
+  color: #FFFFFF;
+}
+
 /* 견적서 앱은 OS 우측 패널을 제외하고 실제로 받은 콘텐츠 폭을 기준으로 재배치한다. */
 main.quote-app { container-name: quote-app; container-type: inline-size; }
 .quote-workspace-layout {

@@ -28,10 +28,20 @@ export type MobileOliviaTarget = {
   workflowRunId?: string;
   eventId?: string;
   bridgeSelectionId?: string;
+  bridgeContext?: {
+    source: "local" | "nas" | "remote";
+    folder: string;
+    jpgCount: number;
+    rawCount: number;
+    selectedCount: number;
+    excludedCount: number;
+    completedStages: string[];
+    workerOnline: boolean;
+  };
 };
 
 export type MobileNavigationState =
-  | { view: MobilePrimaryView; targetId?: string }
+  | { view: MobilePrimaryView; targetId?: string; workflowRunId?: string }
   | { view: "preview"; resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string };
 
 const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
@@ -65,8 +75,9 @@ export function parseMobileNavigation(search: string): MobileNavigationState {
     }
   }
   const targetId = params.get("mobileTargetId")?.trim() || undefined;
+  const workflowRunId = params.get("mobileWorkflowRunId")?.trim() || undefined;
   return PRIMARY_VIEWS.has(view as MobilePrimaryView)
-    ? { view: view as MobilePrimaryView, ...(targetId ? { targetId } : {}) }
+    ? { view: view as MobilePrimaryView, ...(targetId ? { targetId } : {}), ...(workflowRunId ? { workflowRunId } : {}) }
     : { view: "home" };
 }
 
@@ -81,12 +92,15 @@ export function buildMobileNavigationUrl(currentHref: string, state: MobileNavig
     if (state.temporaryDocumentId) url.searchParams.set("temporaryDocumentId", state.temporaryDocumentId);
     else url.searchParams.delete("temporaryDocumentId");
     url.searchParams.delete("mobileTargetId");
+    url.searchParams.delete("mobileWorkflowRunId");
   } else {
     url.searchParams.delete("resourceType");
     url.searchParams.delete("resourceId");
     url.searchParams.delete("temporaryDocumentId");
     if (state.targetId) url.searchParams.set("mobileTargetId", state.targetId);
     else url.searchParams.delete("mobileTargetId");
+    if (state.workflowRunId) url.searchParams.set("mobileWorkflowRunId", state.workflowRunId);
+    else url.searchParams.delete("mobileWorkflowRunId");
   }
   return `${url.pathname}${url.search}${url.hash}`;
 }

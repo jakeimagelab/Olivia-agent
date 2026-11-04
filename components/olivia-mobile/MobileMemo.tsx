@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Search, StickyNote } from "lucide-react";
+import MobileBottomSheet from "./MobileBottomSheet";
 import styles from "./OliviaMobileShell.module.css";
 
 type Memo = { id: string; hospital_id?: string | null; title: string; raw_memo?: string; summary?: string; created_at?: string; updated_at?: string };
@@ -101,16 +102,14 @@ export default function MobileMemo() {
         <Plus size={18} /><span>메모 추가</span>
       </button>
 
-      {draft ? <div className={styles.sheetBackdrop} onPointerDown={() => setDraft(null)}>
-        <form className={styles.sheet} onSubmit={(event) => { event.preventDefault(); void save(); }} onPointerDown={(event) => event.stopPropagation()}>
-          <div className={styles.sheetHandle} />
-          <header><h2>{draft.id ? "메모 수정" : "새 메모"}</h2><button type="button" onClick={() => setDraft(null)}>닫기</button></header>
+      <MobileBottomSheet open={Boolean(draft)} title={draft?.id ? "메모 수정" : "새 메모"} description="업무 메모를 저장하고 필요한 경우 고객과 연결합니다." onClose={() => setDraft(null)}>
+        {draft ? <form className={styles.mobileMemoForm} onSubmit={(event) => { event.preventDefault(); void save(); }}>
           <label><span>제목</span><input autoFocus value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="메모 제목" /></label>
           <label><span>내용</span><textarea rows={7} value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} placeholder="아이디어와 업무 내용을 적어주세요." /></label>
           <label><span>관련 고객 (선택)</span><select value={draft.clientId} onChange={(event) => setDraft({ ...draft, clientId: event.target.value })}><option value="">연결하지 않음</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.hospital_name}</option>)}</select></label>
           <button type="submit" className={styles.sheetSave} disabled={saving || !draft.title.trim()}>{saving ? "저장 중..." : "저장"}</button>
-        </form>
-      </div> : null}
+        </form> : null}
+      </MobileBottomSheet>
     </section>
   );
 }

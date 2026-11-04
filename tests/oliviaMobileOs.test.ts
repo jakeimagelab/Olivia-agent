@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
 import { buildMobileNavigationUrl, parseMobileNavigation, primaryViewForNavigation } from "@/lib/olivia/mobile/navigation";
-import { mobileCapabilityFor, visibleMobileCapabilities } from "@/lib/olivia/mobile/appCapabilities";
+import { auditMobileCapabilityCoverage, mobileCapabilityFor, visibleMobileCapabilities } from "@/lib/olivia/mobile/appCapabilities";
 import { normalizeMobileDocument, resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
+import { oliviaAppRegistry } from "@/components/olivia-os/registry/oliviaAppRegistry";
+import { MOBILE_BRIDGE_STAGES, mobileBridgeStageState, safeBridgeDisplayPath } from "@/components/olivia-mobile/MobileBridgeStatus";
 import {
   createMobileResourceShareToken,
   MOBILE_RESOURCE_SHARE_DAYS,
@@ -47,14 +49,42 @@ describe("Olivia Mobile OS", () => {
       .toEqual({ view: "person-select" });
   });
 
+  it("keeps an explicitly selected shooting run with its client and clears it on a general client launch", () => {
+    const detailHref = buildMobileNavigationUrl("https://olivia.photoclinic.kr/?mobilePreview=1", {
+      view: "clients", targetId: "client-a", workflowRunId: "run-a",
+    });
+    expect(parseMobileNavigation(new URL(detailHref, "https://olivia.photoclinic.kr").search)).toEqual({
+      view: "clients", targetId: "client-a", workflowRunId: "run-a",
+    });
+    const listHref = buildMobileNavigationUrl(`https://olivia.photoclinic.kr${detailHref}`, { view: "clients" });
+    expect(listHref).not.toContain("mobileWorkflowRunId");
+    expect(listHref).not.toContain("mobileTargetId");
+  });
+
   it("centralizes mobile capabilities instead of mounting desktop editors", () => {
     expect(mobileCapabilityFor("customer")?.modes).toEqual(["manage", "full"]);
     expect(mobileCapabilityFor("person-select")?.mobileView).toBe("person-select");
     expect(mobileCapabilityFor("quote")?.modes).toEqual(["viewer", "request"]);
     expect(mobileCapabilityFor("olivia-bridge")?.modes).toEqual(["status", "request"]);
     expect(mobileCapabilityFor("prompter")?.modes).toEqual(["full"]);
+    expect(mobileCapabilityFor("legacy-route")?.modes).toEqual(["desktop-only"]);
     expect(new Set(visibleMobileCapabilities().map((item) => item.appId)).size)
       .toBe(visibleMobileCapabilities().length);
+    expect(auditMobileCapabilityCoverage(oliviaAppRegistry.map((app) => app.id))).toEqual({ missing: [], unknown: [] });
+  });
+
+  it("derives Bridge stage state from real jobs and marks unsupported stages honestly", () => {
+    const jobs = [
+      { action: "PHOTO_SORT", status: "COMPLETED" },
+      { action: "PHOTO_RAW_MATCH", status: "RUNNING" },
+      { action: "PHOTO_RETOUCH", status: "FAILED" },
+    ];
+    expect(mobileBridgeStageState(MOBILE_BRIDGE_STAGES[0], jobs)).toBe("done");
+    expect(mobileBridgeStageState(MOBILE_BRIDGE_STAGES[2], jobs)).toBe("running");
+    expect(mobileBridgeStageState(MOBILE_BRIDGE_STAGES[6], jobs)).toBe("failed");
+    expect(mobileBridgeStageState(MOBILE_BRIDGE_STAGES[3], jobs)).toBe("unsupported");
+    expect(safeBridgeDisplayPath("/Volumes/Agentstation(M.2SSD)/촬영/병원A")).toBe("Agentstation(M.2SSD)/촬영/병원A");
+    expect(safeBridgeDisplayPath("/Users/jakemacstudio/UGnasync/촬영A")).toBe("UGnasync/촬영A");
   });
 
   it("normalizes canonical document references without creating a copied resource", () => {

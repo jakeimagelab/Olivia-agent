@@ -328,7 +328,7 @@ function CalendarEventScreen({ task, draft, saving, deleting, error, onBack, onE
 }
 
 export default function MobileCalendar() {
-  const [view, setView] = useState<CalendarView>("month");
+  const [view, setView] = useState<CalendarView>("today");
   const [selectedDate, setSelectedDate] = useState(mobileCalendarDateKey);
   const [tasks, setTasks] = useState<CalendarTask[]>([]);
   const [loading, setLoading] = useState(true);
