@@ -3,9 +3,10 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extraPickCount, priceOrder, requiredPickCount, selectionStatus, validateCategoryPicks, validateOffers } from "@/lib/person-select/core";
 import type { PersonSelectCategory, PersonSelectOffer, PersonSelectOrderItem } from "@/lib/person-select/types";
-import { signedImageUrl } from "@/lib/person-select/server";
+import { signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
+import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +22,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       .order("id")
       .range(from, to)),
     readAllPersonSelectRows((from, to) => db.from("person_select_images")
-      .select("id,owner_person_id,owner_group,category_key")
+      .select("id,owner_person_id,owner_group,category_key,original_file_name,source_rel_path,thumb_path,sort_order")
       .eq("event_id", eventId)
+      .order("sort_order")
       .order("id")
       .range(from, to)),
   ]);
@@ -44,6 +46,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     counts[row.category_key] = (counts[row.category_key] ?? 0) + 1;
     personCounts.set(row.owner_person_id, counts);
   }
+  const representativeImages = firstPersonSelectImageByOwner(imageGroups);
+  const categoryRepresentativeImages = firstPersonSelectImageByCategory(imageGroups);
+  const representativeUrls = await signedImageUrls([
+    ...representativeImages.values(),
+    ...categoryRepresentativeImages.values(),
+  ].map((image) => image.thumb_path));
+  const publicRepresentative = (image: typeof imageGroups[number]) => ({
+    category_key: image.category_key,
+    original_file_name: image.original_file_name,
+    source_rel_path: image.source_rel_path,
+    thumb_url: representativeUrls.get(image.thumb_path) ?? "",
+  });
   const categories = (event.categories ?? []) as PersonSelectCategory[];
   const peopleRows = (people ?? []).map((person) => {
     const ownChoices = choiceRows.filter((choice) => choice.person_id === person.id);
@@ -56,6 +70,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       choices: ownChoices,
       image_counts: imageCounts,
       need_counts: needCounts,
+      representative_image: (() => {
+        const image = representativeImages.get(person.id);
+        return image ? publicRepresentative(image) : null;
+      })(),
+      representative_images: Object.fromEntries(categories.flatMap((category) => {
+        const image = categoryRepresentativeImages.get(`${person.id}\u0000${category.key}`);
+        return image ? [[category.key, publicRepresentative(image)]] : [];
+      })),
       order: (() => {
         const chosenCounts = ownChoices.reduce<Record<string, number>>((acc, choice) => { acc[choice.category_key] = (acc[choice.category_key] ?? 0) + 1; return acc; }, {});
         const photoNames = Object.fromEntries(ownChoices.map((choice) => [choice.image_id, choice.person_select_images?.original_file_name ?? ""]));

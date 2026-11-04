@@ -65,6 +65,7 @@
 .table .rowSelected, .table .rowSelected:hover { background: var(--ps-orange-soft); box-shadow: inset 2px 0 0 var(--ps-orange); }
 .thumbs { display: inline-flex; align-items: center; gap: 6px; }
 .thumb { width: 26px; height: 38px; border-radius: 4px; object-fit: cover; background: var(--ps-ph); display: inline-block; }
+.thumbRegistered { opacity: .78; outline: 1px dashed var(--ps-green); outline-offset: 1px; }
 .thumbEmpty { width: 26px; height: 38px; border-radius: 4px; border: 1px dashed var(--ps-border); display: inline-block; box-sizing: border-box; }
 .thumbCount { margin-left: 4px; color: var(--ps-sub); font-size: 12px; white-space: nowrap; }
 .file { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -72,6 +73,24 @@
 .infoChips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .infoChip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border: 1px solid var(--ps-border); border-radius: 999px; background: var(--ps-surface); color: var(--ps-sub); font-size: 11.5px; }
 .infoChip b { color: var(--ps-text); font-weight: 500; }
+/* 사진을 올린 뒤 폴더 이름과 대표 사진을 먼저 확인한다. */
+.matchingPanel { display: grid; gap: 14px; }
+.matchingHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
+.matchingHeader h2 { margin: 0 0 5px; font-size: 16px; font-weight: 600; }
+.matchingHeader p { margin: 0; color: var(--ps-sub); font-size: 12px; }
+.matchingGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.matchingCard { min-width: 0; overflow: hidden; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
+.matchingPhoto, .matchingPhotoEmpty { display: flex; width: 100%; aspect-ratio: 3 / 2; background: var(--ps-ph); }
+.matchingPhoto { object-fit: cover; }
+.matchingPhotoEmpty { align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--ps-sub); font-size: 11px; }
+.matchingMeta { display: grid; gap: 5px; padding: 12px 14px 14px; }
+.matchingMeta > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.matchingMeta strong { overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.matchingMeta span { flex: none; color: var(--ps-green); font-size: 12px; font-weight: 500; }
+.matchingMeta p, .matchingMeta small { margin: 0; overflow: hidden; color: var(--ps-sub); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.matchingEmpty { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 30px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); color: var(--ps-sub); text-align: center; }
+.matchingEmpty strong { color: var(--ps-text); font-size: 14px; }
+.matchingEmpty span { font-size: 12px; }
 /* 입력 */
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
 .field { display: grid; gap: 7px; }
@@ -128,6 +147,12 @@
   .eventList { overflow-x: auto; }
   .eventRow { min-width: 760px; }
   .header { align-items: flex-start; flex-direction: column; }
+  .matchingHeader { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 520px) {
+  .matchingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .matchingMeta { padding: 10px; }
 }
 
 /* 전역 입력칸 스타일을 이 화면의 토큰 색으로 덮는다 */

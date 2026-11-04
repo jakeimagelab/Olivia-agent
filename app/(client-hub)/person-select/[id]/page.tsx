@@ -12,7 +12,8 @@ import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Choice = { id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
-type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[] ; order?: { lines: OrderLine[]; total: number } };
+type RepresentativeImage = { category_key: string; original_file_name: string; source_rel_path: string; thumb_url: string };
+type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number } };
 type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[] };
@@ -39,11 +40,20 @@ function folderName(value: string | null | undefined) {
   return value.split("/").filter(Boolean).at(-1) ?? value;
 }
 
+function matchingFolderName(value: string | null | undefined) {
+  if (!value) return "폴더 확인 필요";
+  return value.split("/").filter(Boolean)[0] ?? "폴더 확인 필요";
+}
+
+function personPhotoCount(person: Person) {
+  return Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((sum, [, count]) => sum + count, 0);
+}
+
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
   const routePath = windowRoute.routeHref ? new URL(windowRoute.routeHref, "https://olivia.local").pathname : ""; const routeId = routePath.match(/^\/person-select\/([^/]+)\/?$/)?.[1]; const id = routeId || params.id;
   const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[] } | null>(null);
-  const [tab, setTab] = useState<"progress" | "upload" | "settings">("progress");
+  const [tab, setTab] = useState<"matching" | "progress" | "upload" | "settings">("matching");
   const [filter, setFilter] = useState<Filter>("all");
   const [picker, setPicker] = useState(false);
   const [path, setPath] = useState("");
@@ -67,7 +77,7 @@ export default function PersonSelectDetailPage() {
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const load = useCallback(() => fetch(`/api/person-select/${id}`).then((r) => r.json()).then((body) => { if (!body.ok) throw new Error(body.error); setData(body); setAssignments(Object.fromEntries((body.groups as Group[]).map((group) => [group.label, (body.people as Person[]).find((person) => person.group_label === group.label)?.id ?? ""]))); }), [id]);
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
-  useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
+  useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); setJobId(""); await load(); if (body.job?.status === "COMPLETED") setTab("matching"); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
   useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
   useEffect(() => () => { localRunRef.current += 1; }, []);
   const filtered = useMemo(() => (data?.people ?? []).filter((person) => {
@@ -209,6 +219,7 @@ export default function PersonSelectDetailPage() {
         failed,
       });
       await load();
+      setTab("matching");
     } catch (cause) {
       if (localRunRef.current === runId) setError(cause instanceof Error ? cause.message : "로컬 사진 가져오기에 실패했습니다.");
     } finally {
@@ -234,7 +245,7 @@ export default function PersonSelectDetailPage() {
   const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
   const loginGuide = isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
   const notice = `주소: ${typeof location !== "undefined" ? location.origin : ""}/pick/${data.event.slug} / ${loginGuide} / 마감: ${formatSeoulDeadline(data.event.deadline_at)}`;
-  const tabs = [["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "행사 설정", SlidersHorizontal]] as const;
+  const tabs = [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "행사 설정", SlidersHorizontal]] as const;
   const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "저장 중", counts.saving], ["unseen", "미접속", counts.unseen]];
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
@@ -256,6 +267,20 @@ export default function PersonSelectDetailPage() {
       <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
       {error ? <div className={styles.warning}>{error}</div> : null}
       <RawMatchResult result={rawResult ?? data.event.raw_match_result ?? null} at={rawResult ? null : data.event.raw_matched_at ?? null} />
+      {tab === "matching" ? <section className={styles.matchingPanel}>
+        <div className={styles.matchingHeader}>
+          <div><h2>인원 매칭 확인</h2><p>폴더 이름과 대표 사진을 비교해 올바른 사람에게 연결됐는지 먼저 확인하세요.</p></div>
+          {data.people.length ? <button className={styles.primary} onClick={() => setTab("progress")}>확인하고 진행 현황 보기</button> : <button className={styles.primary} onClick={() => setTab("upload")}>사진 올리기</button>}
+        </div>
+        {data.people.length ? <div className={styles.matchingGrid}>{data.people.map((person) => {
+          const representative = person.representative_image;
+          const photoCount = personPhotoCount(person);
+          return <article className={styles.matchingCard} key={person.id}>
+            {representative?.thumb_url ? <img className={styles.matchingPhoto} src={representative.thumb_url} alt={`${person.display_name} 대표 사진`} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}><UserRound size={28} /><span>등록 사진 없음</span></div>}
+            <div className={styles.matchingMeta}><div><strong>{person.display_name}</strong><span>{photoCount.toLocaleString()}장</span></div><p>원본 폴더 · {matchingFolderName(representative?.source_rel_path)}</p>{representative ? <small>{representative.original_file_name}</small> : null}</div>
+          </article>;
+        })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 대표 사진 한 장씩 보여드려요.</span></div>}
+      </section> : null}
       {tab === "progress" ? <>
         <div className={styles.underTabs}>{filters.map(([key, label, count]) => <button key={key} className={filter === key ? styles.underTabActive : ""} onClick={() => setFilter(key)}>{label}<small>{count}</small></button>)}</div>
         <section className={styles.panel}><div className={styles.tableWrap}><table className={styles.table}>
@@ -268,8 +293,9 @@ export default function PersonSelectDetailPage() {
               {categories.map((category) => {
                 const own = person.choices.filter((choice) => choice.category_key === category.key);
                 const need = person.need_counts?.[category.key] ?? 0;
+                const registered = person.representative_images?.[category.key];
                 if (need === 0) return <td key={category.key} className={styles.muted}>해당 없음</td>;
-                return <td key={category.key}><span className={styles.thumbs}>{Array.from({ length: Math.min(Math.max(need, own.length), 4) }, (_, index) => { const thumb = own[index]?.person_select_images?.thumb_url; return thumb ? <img key={index} className={styles.thumb} src={thumb} alt="" /> : <span key={index} className={own[index] ? styles.thumb : styles.thumbEmpty} />; })}<span className={styles.thumbCount}>{own.length > need ? `${own.length}장 (기본 ${need} + 추가 ${own.length - need})` : `${own.length} / ${need}장`}</span></span></td>;
+                return <td key={category.key}><span className={styles.thumbs}>{Array.from({ length: Math.min(Math.max(need, own.length), 4) }, (_, index) => { const chosenThumb = own[index]?.person_select_images?.thumb_url; const registeredThumb = index === 0 && !chosenThumb ? registered?.thumb_url : ""; return chosenThumb ? <img key={index} className={styles.thumb} src={chosenThumb} alt="고른 사진" /> : registeredThumb ? <img key={index} className={`${styles.thumb} ${styles.thumbRegistered}`} src={registeredThumb} alt={`${person.display_name} 등록 확인 사진`} title={`${registered?.original_file_name} · 고객 선택 전 등록 확인 사진`} /> : <span key={index} className={styles.thumbEmpty} />; })}<span className={styles.thumbCount}>{own.length > need ? `${own.length}장 (기본 ${need} + 추가 ${own.length - need})` : `${own.length} / ${need}장`}</span></span></td>;
               })}
               <td className={styles.muted}>{requests ? `${requests}개${person.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}` : person.choices.length ? "기본 보정" : "—"}</td>
               <td className={person.order?.total ? styles.orderTotal : styles.muted} title={person.order?.lines.map((line) => `${line.label} ${line.detail} ×${line.qty}`).join("\n") ?? ""}>{person.order?.total ? won(person.order.total) : "—"}</td>
