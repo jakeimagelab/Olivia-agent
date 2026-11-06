@@ -91,6 +91,20 @@
 .matchingEmpty { min-height: 280px; display: grid; place-items: center; align-content: center; gap: 8px; padding: 30px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); color: var(--ps-sub); text-align: center; }
 .matchingEmpty strong { color: var(--ps-text); font-size: 14px; }
 .matchingEmpty span { font-size: 12px; }
+.sharedPhotoPanel { display: grid; gap: 12px; padding: 14px; border-radius: 10px; background: #2A2A2A; color: #fff; }
+.sharedPhotoHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sharedPhotoHeader strong { font-size: 14px; font-weight: 600; }
+.sharedPhotoHeader span { color: rgba(255,255,255,.58); font-size: 11px; }
+.sharedPhotoGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.sharedPhotoCard { min-width: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.12); border-radius: 8px; background: #343434; }
+.sharedPhotoCard > img, .sharedPhotoEmpty { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #202020; }
+.sharedPhotoEmpty { display: grid; place-items: center; color: rgba(255,255,255,.5); font-size: 11px; }
+.sharedPhotoCard > div:last-child { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; padding: 8px 9px 9px; }
+.sharedPhotoCard strong { overflow: hidden; color: rgba(255,255,255,.88); font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.sharedPhotoCard span { color: rgba(255,255,255,.45); font-size: 10px; }
+.sharedPhotoCard small { grid-column: 1 / -1; overflow: hidden; color: rgba(255,255,255,.45); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.sharedPhotoMore { min-height: 42px; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; background: transparent; color: rgba(255,255,255,.82); font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+.sharedPhotoMore:hover { border-color: #4FD8B8; color: #4FD8B8; }
 /* 입력 */
 .formGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
 .field { display: grid; gap: 7px; }
@@ -153,6 +167,8 @@
 @media (max-width: 520px) {
   .matchingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .matchingMeta { padding: 10px; }
+  .sharedPhotoPanel { padding: 10px; }
+  .sharedPhotoGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* 전역 입력칸 스타일을 이 화면의 토큰 색으로 덮는다 */

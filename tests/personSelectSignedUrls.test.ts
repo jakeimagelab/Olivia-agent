@@ -42,4 +42,21 @@ describe("person select signed image urls", () => {
     await expect(signedImageUrls([], 600)).resolves.toEqual(new Map());
     expect(createSignedUrlsMock).not.toHaveBeenCalled();
   });
+
+  it("splits more than 1000 paths into storage-safe batches", async () => {
+    const paths = Array.from({ length: 1_645 }, (_, index) => `event/photo-${index}.jpg`);
+    createSignedUrlsMock.mockImplementation(async (batch: string[]) => ({
+      data: batch.map((path) => ({ signedUrl: `signed:${path}` })),
+      error: null,
+    }));
+
+    const result = await signedImageUrls(paths, 600);
+
+    expect(storageFromMock).toHaveBeenCalledOnce();
+    expect(createSignedUrlsMock).toHaveBeenCalledTimes(2);
+    expect(createSignedUrlsMock.mock.calls[0]?.[0]).toHaveLength(1_000);
+    expect(createSignedUrlsMock.mock.calls[1]?.[0]).toHaveLength(645);
+    expect(result).toHaveLength(1_645);
+    expect(result.get("event/photo-1644.jpg")).toBe("signed:event/photo-1644.jpg");
+  });
 });

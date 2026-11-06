@@ -20,7 +20,8 @@ type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null };
 type SharedSelectionItem = { image_id: string; customer_rating: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
-type SharedAdminData = { image_count: number; selection: { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] } | null };
+type SharedAdminImage = { id: string; original_file_name: string; source_rel_path: string; thumb_url: string };
+type SharedAdminData = { image_count: number; images: SharedAdminImage[]; selection: { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] } | null };
 type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
@@ -76,6 +77,7 @@ export default function PersonSelectDetailPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
   const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
+  const [sharedPhotoLimit, setSharedPhotoLimit] = useState(120);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const load = useCallback(() => fetch(`/api/person-select/${id}`).then((r) => r.json()).then((body) => { if (!body.ok) throw new Error(body.error); setData(body); setAssignments(Object.fromEntries((body.groups as Group[]).map((group) => [group.label, (body.people as Person[]).find((person) => person.group_label === group.label)?.id ?? ""]))); }), [id]);
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
@@ -250,6 +252,14 @@ export default function PersonSelectDetailPage() {
       {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>공용 링크에서는 개인 계정이나 PIN을 만들지 않고 프로젝트 전체 사진을 함께 봅니다.</p></div><button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div>
         <div className={styles.uploadGrid}><article className={styles.uploadCard}><h2>등록 사진</h2><p className={styles.title}>{totalPhotos.toLocaleString()}장</p><p className={styles.summary}>폴더의 상대경로를 유지해 같은 파일명의 다른 사진을 구분합니다.</p></article><article className={styles.uploadCard}><h2>고객 셀렉</h2><p className={styles.title}>{(data.shared?.selection?.items.length ?? 0).toLocaleString()}장</p><p className={styles.summary}>{data.shared?.selection ? `${new Date(data.shared.selection.submitted_at).toLocaleString("ko-KR")} 제출` : "아직 최종 제출 전"}</p></article></div>
+        {data.shared?.images?.length ? <div className={styles.sharedPhotoPanel}>
+          <div className={styles.sharedPhotoHeader}><strong>등록된 사진</strong><span>{Math.min(sharedPhotoLimit, data.shared.images.length).toLocaleString()} / {data.shared.images.length.toLocaleString()}장 표시</span></div>
+          <div className={styles.sharedPhotoGrid}>{data.shared.images.slice(0, sharedPhotoLimit).map((image, index) => <article className={styles.sharedPhotoCard} key={image.id}>
+            {image.thumb_url ? <img src={image.thumb_url} alt={image.original_file_name} loading="lazy" /> : <div className={styles.sharedPhotoEmpty}>사진 확인 필요</div>}
+            <div><strong>{image.original_file_name}</strong><span>{index + 1}</span><small>{image.source_rel_path}</small></div>
+          </article>)}</div>
+          {sharedPhotoLimit < data.shared.images.length ? <button type="button" className={styles.sharedPhotoMore} onClick={() => setSharedPhotoLimit((value) => Math.min(value + 120, data.shared!.images.length))}>다음 사진 {Math.min(120, data.shared.images.length - sharedPhotoLimit).toLocaleString()}장 보기</button> : null}
+        </div> : <div className={styles.matchingEmpty}><Info size={28} /><strong>등록된 사진이 없어요.</strong><span>사진 올리기에서 프로젝트 폴더를 선택해 주세요.</span></div>}
       </section> : null}
       {tab === "matching" && !isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}>

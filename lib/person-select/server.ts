@@ -6,6 +6,7 @@ import { canAccessImageRecord } from "./core";
 import { isIndividualPersonSelectAccessAllowed } from "./projectSettings";
 
 export const PERSON_SELECT_BUCKET = "person-select";
+const PERSON_SELECT_SIGNED_URL_BATCH_SIZE = 1_000;
 
 export async function ensurePersonSelectBucket() {
   const storage = getSupabaseAdmin().storage;
@@ -29,10 +30,16 @@ export async function signedImageUrl(path: string, expiresIn = 600) {
 export async function signedImageUrls(paths: string[], expiresIn = 600) {
   const uniquePaths = [...new Set(paths.filter(Boolean))];
   if (!uniquePaths.length) return new Map<string, string>();
-  const { data, error } = await getSupabaseAdmin().storage.from(PERSON_SELECT_BUCKET).createSignedUrls(uniquePaths, expiresIn);
-  if (error) throw error;
-  if (!data || data.length !== uniquePaths.length) throw new Error("사진 주소를 모두 만들지 못했어요.");
-  return new Map(uniquePaths.map((path, index) => [path, data[index]?.signedUrl ?? ""]));
+  const bucket = getSupabaseAdmin().storage.from(PERSON_SELECT_BUCKET);
+  const signed = new Map<string, string>();
+  for (let offset = 0; offset < uniquePaths.length; offset += PERSON_SELECT_SIGNED_URL_BATCH_SIZE) {
+    const batch = uniquePaths.slice(offset, offset + PERSON_SELECT_SIGNED_URL_BATCH_SIZE);
+    const { data, error } = await bucket.createSignedUrls(batch, expiresIn);
+    if (error) throw error;
+    if (!data || data.length !== batch.length) throw new Error("사진 주소를 모두 만들지 못했어요.");
+    batch.forEach((path, index) => signed.set(path, data[index]?.signedUrl ?? ""));
+  }
+  return signed;
 }
 
 export async function getPublicSessionContext(request: NextRequest, slug: string) {

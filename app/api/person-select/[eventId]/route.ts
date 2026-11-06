@@ -92,7 +92,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
   let shared: Record<string, unknown> | null = null;
   if (event.access_mode === "project_shared") {
-    const { data: selection } = await db.from("person_select_shared_selections").select("id,submitted_at,customer_memo").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+    const [{ data: selection }, sharedImageUrls] = await Promise.all([
+      db.from("person_select_shared_selections").select("id,submitted_at,customer_memo").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
+      signedImageUrls(imageGroups.map((image) => image.thumb_path)),
+    ]);
     const { data: selectedItems } = selection
       ? await db.from("person_select_shared_selection_items").select("image_id,customer_rating,memo,person_select_images(original_file_name,source_rel_path,thumb_path)").eq("selection_id", selection.id)
       : { data: [] };
@@ -103,6 +106,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     const itemUrls = await signedImageUrls(itemImages.map((image) => image.thumb_path));
     shared = {
       image_count: imageGroups.length,
+      images: imageGroups.map((image) => ({
+        id: image.id,
+        original_file_name: image.original_file_name,
+        source_rel_path: image.source_rel_path,
+        thumb_url: sharedImageUrls.get(image.thumb_path) ?? "",
+      })),
       selection: selection ? {
         ...selection,
         items: (selectedItems ?? []).map((item) => {
