@@ -347,7 +347,6 @@ export default function CustomerBridgeSelect({
     [folderView, images, location.kind],
   );
   const childFolders = location.kind === "root" ? rootView.folders : folderView?.folders ?? EMPTY_FOLDERS;
-  const representativeByFolder = useMemo(() => new Map(childFolders.map((folder) => [folder.path, folder.representativeImageId ? imageById.get(folder.representativeImageId) ?? null : null])), [childFolders, imageById]);
   const customerSelectedIds = useMemo(() => customerBridgeRatedIds(customerRatings), [customerRatings]);
   const visibleImages = useMemo(() => folderImages.filter((image) => {
     if (filter === "selected") return customerSelectedIds.has(image.id);
@@ -790,11 +789,11 @@ export default function CustomerBridgeSelect({
         <div ref={gridRef} className={styles.fileArea} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
           {childFolders.length || (location.kind === "root" && rootView.images.length) ? <div className={styles.folderCardGrid}>
             {location.kind === "root" && rootView.images.length ? <button type="button" className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: "" })}>
-              <span className={styles.folderCardMedia}>{rootView.images[0] ? <img src={rootView.images[0].thumbnail_url ?? rootView.images[0].image_url} alt="" loading="lazy" onError={() => handleImageError(rootView.images[0].id)} /> : <Folder size={30} />}</span><span><strong>루트 사진</strong><small>{rootView.images.length.toLocaleString("ko-KR")}장</small></span>
+              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>루트 사진</strong><small>{rootView.images.length.toLocaleString("ko-KR")}장</small></span>
             </button> : null}
-            {childFolders.map((folder) => { const representative = representativeByFolder.get(folder.path); return <button type="button" key={folder.path} className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: folder.path })}>
-              <span className={styles.folderCardMedia}>{representative ? <img src={representative.thumbnail_url ?? representative.image_url} alt="" loading="lazy" onError={() => handleImageError(representative.id)} /> : <Folder size={30} />}</span><span><strong>{folder.name}</strong><small>{folder.totalCount.toLocaleString("ko-KR")}장</small></span>
-            </button>; })}
+            {childFolders.map((folder) => <button type="button" key={folder.path} className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: folder.path })}>
+              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>{folder.name}</strong><small>{folder.totalCount.toLocaleString("ko-KR")}장</small></span>
+            </button>)}
           </div> : null}
           <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))` }}>
             {renderedImages.map((image) => {
