@@ -6,7 +6,7 @@ import {
   PERSON_FOLDER_JPG_DIRECTORIES,
 } from "./folderRules";
 
-export type PersonSelectImportLayout = "school" | "person-folders";
+export type PersonSelectImportLayout = "school" | "person-folders" | "project";
 
 export type LocalPersonSelectSource = {
   file: File;
@@ -46,6 +46,10 @@ export function deriveLocalImportRecord(layout: PersonSelectImportLayout, relati
   const segments = pathSegments(relativePath);
   if (!segments || !JPG_FILE.test(segments.at(-1) ?? "")) return null;
   const fileName = segments.at(-1)!;
+
+  if (layout === "project") {
+    return { relativePath: segments.join("/"), fileName, category: "photo", ownerName: null, ownerGroup: null };
+  }
 
   if (layout === "person-folders") {
     if (segments.length !== 2 && segments.length !== 3) return null;
@@ -87,6 +91,7 @@ export function scanLocalPersonSelectFiles(
   const personFolders: string[] = [];
 
   for (const folder of normalizedTop) {
+    if (layout === "project") continue;
     if (layout === "school") {
       if (!(folder in SCHOOL_MAPPINGS) && !folder.startsWith(".")) skippedFolders.push(folder);
       continue;
@@ -138,7 +143,22 @@ async function jpgFilesIn(directory: FileSystemDirectoryHandle, prefix: string) 
   return files;
 }
 
+async function jpgFilesRecursive(directory: FileSystemDirectoryHandle, prefix = ""): Promise<LocalPersonSelectSource[]> {
+  const files: LocalPersonSelectSource[] = [];
+  for await (const [name, handle] of (directory as DirectoryWithEntries).entries()) {
+    if (name.startsWith(".")) continue;
+    const path = prefix ? `${prefix}/${normalizeNfc(name)}` : normalizeNfc(name);
+    if (handle.kind === "file" && JPG_FILE.test(name)) files.push({ file: await (handle as FileSystemFileHandle).getFile(), relativePath: path });
+    else if (handle.kind === "directory") files.push(...await jpgFilesRecursive(handle as FileSystemDirectoryHandle, path));
+  }
+  return files;
+}
+
 export async function collectLocalPersonSelectFolder(root: FileSystemDirectoryHandle, layout: PersonSelectImportLayout) {
+  if (layout === "project") {
+    const sources = await jpgFilesRecursive(root);
+    return { folderName: normalizeNfc(root.name), scan: scanLocalPersonSelectFiles(sources, layout) };
+  }
   const sources: LocalPersonSelectSource[] = [];
   const topLevelFolders: string[] = [];
   for await (const [rootName, rootHandle] of (root as DirectoryWithEntries).entries()) {

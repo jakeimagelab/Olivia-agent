@@ -23,6 +23,7 @@ const SKIP_DIRECTORIES = new Set([PERSON_SELECT_RAW_OUTPUT.toLowerCase(), "jpg�
 
 type RawFile = { path: string; relPath: string; name: string; size: number };
 type ChoiceRow = { person_id: string; category_key: string; person_select_images: { original_file_name: string; source_rel_path: string } | null };
+type SharedChoiceRow = { person_select_images: { original_file_name: string; source_rel_path: string } | null };
 
 function readArgs() {
   const values = process.argv.slice(2);
@@ -94,21 +95,34 @@ async function main() {
   const { eventId } = readArgs();
   if (!eventId) throw new Error("--event-id가 필요합니다.");
   const db = getSupabaseAdmin();
-  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path").eq("id", eventId).single();
+  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode").eq("id", eventId).single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   if (!event.source_relative_path) throw new Error("사진을 가져온 폴더 기록이 없습니다. 사진 올리기를 한 번 다시 해주세요.");
   const root = (await resolvePersonSelectSourcePath(event.source_relative_path)).canonicalPath;
 
-  const [{ data: people, error: peopleError }, { data: choices, error: choiceError }] = await Promise.all([
-    db.from("person_select_people").select("id,display_name,submitted_at").eq("event_id", eventId),
-    db.from("person_select_choices").select("person_id,category_key,person_select_images(original_file_name,source_rel_path)").eq("event_id", eventId),
-  ]);
-  if (peopleError) throw peopleError;
-  if (choiceError) throw choiceError;
-  const submitted = new Map((people ?? []).filter((person) => person.submitted_at).map((person) => [person.id, person.display_name as string]));
-  const notSubmitted = (people ?? []).filter((person) => !person.submitted_at).map((person) => person.display_name as string);
-  const targets = ((choices ?? []) as unknown as ChoiceRow[]).filter((choice) => submitted.has(choice.person_id) && choice.person_select_images);
-  if (!targets.length) throw new Error("최종 제출한 사람이 없어 RAW 매칭할 사진이 없습니다.");
+  const targets: { name: string; image: { original_file_name: string; source_rel_path: string } }[] = [];
+  let submittedPeople = 0;
+  let notSubmitted: string[] = [];
+  if (event.access_mode === "project_shared") {
+    const { data: selection } = await db.from("person_select_shared_selections").select("id").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+    if (!selection) throw new Error("최종 제출된 프로젝트 셀렉이 없습니다.");
+    const { data: choices, error } = await db.from("person_select_shared_selection_items").select("person_select_images(original_file_name,source_rel_path)").eq("selection_id", selection.id);
+    if (error) throw error;
+    for (const choice of (choices ?? []) as unknown as SharedChoiceRow[]) if (choice.person_select_images) targets.push({ name: "프로젝트", image: choice.person_select_images });
+    submittedPeople = 1;
+  } else {
+    const [{ data: people, error: peopleError }, { data: choices, error: choiceError }] = await Promise.all([
+      db.from("person_select_people").select("id,display_name,submitted_at").eq("event_id", eventId),
+      db.from("person_select_choices").select("person_id,category_key,person_select_images(original_file_name,source_rel_path)").eq("event_id", eventId),
+    ]);
+    if (peopleError) throw peopleError;
+    if (choiceError) throw choiceError;
+    const submitted = new Map((people ?? []).filter((person) => person.submitted_at).map((person) => [person.id, person.display_name as string]));
+    notSubmitted = (people ?? []).filter((person) => !person.submitted_at).map((person) => person.display_name as string);
+    for (const choice of (choices ?? []) as unknown as ChoiceRow[]) if (submitted.has(choice.person_id) && choice.person_select_images) targets.push({ name: submitted.get(choice.person_id)!, image: choice.person_select_images });
+    submittedPeople = submitted.size;
+  }
+  if (!targets.length) throw new Error("RAW 매칭할 최종 선택 사진이 없습니다.");
 
   report("SCANNING", 0, targets.length, "촬영 폴더에서 RAW를 찾는 중입니다.");
   const rawIndex = await indexRawFiles(root);
@@ -121,8 +135,8 @@ async function main() {
   const conflicts: { name: string; raw: string }[] = [];
   let done = 0;
   for (const choice of targets) {
-    const image = choice.person_select_images!;
-    const name = submitted.get(choice.person_id)!;
+    const image = choice.image;
+    const name = choice.name;
     const picked = pickRawCandidate(rawIndex.get(rawBasename(image.original_file_name)) ?? [], personFolderOf(image.source_rel_path));
     if (picked.status === "missing") missing.push({ name, jpg: image.original_file_name });
     else if (picked.status === "ambiguous") ambiguous.push({ name, jpg: image.original_file_name, candidates: picked.files.map((file) => file.relPath) });
@@ -147,7 +161,7 @@ async function main() {
     ok: missing.length === 0 && ambiguous.length === 0 && conflicts.length === 0,
     eventId,
     outputRelativePath: PERSON_SELECT_RAW_OUTPUT,
-    submittedPeople: submitted.size,
+    submittedPeople,
     notSubmitted,
     selectedCount: targets.length,
     matchedCount: matched.length,

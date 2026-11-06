@@ -9,6 +9,7 @@ import { deriveLocalImportRecord, type PersonSelectImportLayout } from "@/lib/pe
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-select/types";
+import { refreshPersonSelectUploadJob } from "@/lib/person-select/uploadJobsServer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ const MAX_PREVIEW_BYTES = 3_500_000;
 type ManifestItem = { relativePath: string; fileName: string };
 
 function layoutValue(value: unknown): PersonSelectImportLayout | null {
-  return value === "school" || value === "person-folders" ? value : null;
+  return value === "school" || value === "person-folders" || value === "project" ? value : null;
 }
 
 function parseManifest(value: unknown, layout: PersonSelectImportLayout) {
@@ -57,7 +58,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
 
   const db = getSupabaseAdmin();
   const [{ data: event, error: eventError }, existingRows, { data: peopleRows }] = await Promise.all([
-    db.from("person_select_events").select("id,categories").eq("id", eventId).maybeSingle(),
+    db.from("person_select_events").select("id,categories,access_mode").eq("id", eventId).maybeSingle(),
     readAllPersonSelectRows((from, to) => db.from("person_select_images")
       .select("id,source_rel_path")
       .eq("event_id", eventId)
@@ -70,7 +71,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   await ensurePersonSelectBucket();
   const people = new Map((peopleRows ?? []).map((person) => [person.login_name, person]));
   const usedPins = new Set((peopleRows ?? []).map((person) => person.pin_code).filter((pin): pin is string => typeof pin === "string"));
-  const ownerNames = [...new Set(items.flatMap((item) => {
+  const ownerNames = event.access_mode === "project_shared" ? [] : [...new Set(items.flatMap((item) => {
     const derived = deriveLocalImportRecord(layout, item.relativePath);
     return derived?.ownerName ? [derived.ownerName] : [];
   }))];
@@ -121,6 +122,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const sourceHeight = Number(form.get("sourceHeight"));
   const thumb = form.get("thumb");
   const preview = form.get("preview");
+  const uploadJobId = String(form.get("uploadJobId") ?? "").trim();
   if (!layout || !Number.isInteger(sortOrder) || sortOrder < 0 || sortOrder >= MAX_MANIFEST_FILES) return Response.json({ ok: false, error: "사진 업로드 정보가 올바르지 않습니다." }, { status: 400 });
   const derived = deriveLocalImportRecord(layout, relativePath);
   if (!derived) return Response.json({ ok: false, error: "안전하지 않거나 지원하지 않는 사진 경로입니다." }, { status: 400 });
@@ -136,15 +138,31 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   }
 
   const db = getSupabaseAdmin();
-  const [{ data: event }, { data: existing }] = await Promise.all([
-    db.from("person_select_events").select("id").eq("id", eventId).maybeSingle(),
+  const [{ data: event }, { data: existing }, { data: uploadJob }] = await Promise.all([
+    db.from("person_select_events").select("id,access_mode").eq("id", eventId).maybeSingle(),
     db.from("person_select_images").select("id").eq("event_id", eventId).eq("source_rel_path", derived.relativePath).maybeSingle(),
+    uploadJobId
+      ? db.from("person_select_upload_jobs").select("id,status").eq("id", uploadJobId).eq("event_id", eventId).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   if (!event) return Response.json({ ok: false, error: "행사를 찾을 수 없습니다." }, { status: 404 });
-  if (existing) return Response.json({ ok: true, skipped: true, imageId: existing.id });
+  if (uploadJobId && !uploadJob) return Response.json({ ok: false, error: "업로드 작업을 찾을 수 없습니다." }, { status: 404 });
+  if (uploadJob && (uploadJob.status === "canceled" || uploadJob.status === "paused")) return Response.json({ ok: false, error: uploadJob.status === "paused" ? "업로드가 일시정지되었습니다." : "취소된 업로드입니다." }, { status: 409 });
+  if (uploadJobId) {
+    const { data: fileRow } = await db.from("person_select_upload_job_files").select("id,status").eq("job_id", uploadJobId).eq("relative_path", derived.relativePath).maybeSingle();
+    if (!fileRow) return Response.json({ ok: false, error: "업로드 목록에 없는 파일입니다." }, { status: 409 });
+  }
+  if (existing) {
+    if (uploadJobId) {
+      const now = new Date().toISOString();
+      await db.from("person_select_upload_job_files").update({ status: "completed", image_id: existing.id, error: null, completed_at: now, updated_at: now }).eq("job_id", uploadJobId).eq("relative_path", derived.relativePath);
+      await refreshPersonSelectUploadJob(uploadJobId);
+    }
+    return Response.json({ ok: true, skipped: true, imageId: existing.id });
+  }
 
   let ownerPersonId: string | null = null;
-  if (derived.ownerName) {
+  if (derived.ownerName && event.access_mode !== "project_shared") {
     const { data: person } = await db.from("person_select_people")
       .select("id")
       .eq("event_id", eventId)
@@ -189,6 +207,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   if (insertError) {
     await storage.remove(uploaded);
     return Response.json({ ok: false, error: insertError.message }, { status: 500 });
+  }
+  if (uploadJobId) {
+    const now = new Date().toISOString();
+    await db.from("person_select_upload_job_files").update({ status: "completed", image_id: imageId, error: null, completed_at: now, updated_at: now }).eq("job_id", uploadJobId).eq("relative_path", derived.relativePath);
+    await refreshPersonSelectUploadJob(uploadJobId);
   }
   return Response.json({ ok: true, imageId });
 }

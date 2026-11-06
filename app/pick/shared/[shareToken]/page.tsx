@@ -1,0 +1,21 @@
+import SharedProjectSelect from "@/components/person-select/SharedProjectSelect";
+import { getLatestSharedPersonSelectSelection, getSharedPersonSelectEvent, getSharedPersonSelectImages, sharedDraftResponse } from "@/lib/person-select/sharedPublic";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+export default async function Page({ params }: { params: Promise<{ shareToken: string }> }) {
+  const { shareToken } = await params;
+  try {
+    const db = getSupabaseAdmin();
+    const event = await getSharedPersonSelectEvent(db, shareToken);
+    const [images, { data: draft }, selection] = await Promise.all([
+      getSharedPersonSelectImages(db, event.id),
+      db.from("person_select_shared_drafts").select("*").eq("event_id", event.id).maybeSingle(),
+      getLatestSharedPersonSelectSelection(db, event.id),
+    ]);
+    return <SharedProjectSelect shareToken={shareToken} event={event} images={images} draft={sharedDraftResponse(draft)} selection={selection} />;
+  } catch (error) {
+    return <main style={{ minHeight: "100dvh", display: "grid", placeItems: "center", padding: 24, background: "#E3EBE2", color: "#293E34" }}><section style={{ maxWidth: 440, padding: 24, border: "1px solid #C8D5C8", borderRadius: 12, background: "#F1F5EE", textAlign: "center" }}><h1 style={{ margin: "0 0 8px", fontSize: 21 }}>사진선택 링크를 열 수 없습니다.</h1><p style={{ margin: 0, color: "#617565" }}>{error instanceof Error ? error.message : "링크를 다시 확인해 주세요."}</p></section></main>;
+  }
+}

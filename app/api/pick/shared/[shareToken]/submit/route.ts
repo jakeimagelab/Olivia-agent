@@ -1,0 +1,28 @@
+import { NextRequest } from "next/server";
+import { enforcePublicSelectionRateLimit, parsePublicSelectionSubmit, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
+import { getLatestSharedPersonSelectSelection, getSharedPersonSelectEvent, getSharedPersonSelectImageIds } from "@/lib/person-select/sharedPublic";
+import { getSupabaseAdmin } from "@/lib/supabase";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(request: NextRequest, context: { params: Promise<{ shareToken: string }> }) {
+  const { shareToken } = await context.params;
+  try {
+    const db = getSupabaseAdmin();
+    await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-submit", limit: 15, windowSeconds: 300 });
+    const event = await getSharedPersonSelectEvent(db, shareToken);
+    const imageIds = await getSharedPersonSelectImageIds(db, event.id);
+    const parsed = parsePublicSelectionSubmit(await readPublicSelectionJson(request), new Set(imageIds));
+    const { data, error } = await db.rpc("submit_person_select_shared", {
+      p_event_id: event.id,
+      p_request_key: parsed.requestKey,
+      p_items: parsed.items.map((item) => ({ image_id: item.imageId, rating: item.rating, memo: item.memo })),
+      p_customer_memo: parsed.customerMemo,
+    });
+    if (error) throw error;
+    const result = Array.isArray(data) ? data[0] : data;
+    const selection = await getLatestSharedPersonSelectSelection(db, event.id);
+    if (!result?.selection_id || !selection) throw new Error("제출 결과를 확인하지 못했습니다.");
+    return Response.json({ ok: true, created: Boolean(result.created), selection });
+  } catch (error) { return publicSelectionErrorResponse(error); }
+}

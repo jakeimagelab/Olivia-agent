@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
+    const relativePaths = formData.getAll("relative_paths").map((value) => String(value));
     const sceneName = (formData.get("scene_name") as string) ?? "";
     const sceneType = (formData.get("scene_type") as string) ?? "";
     const folderName = (formData.get("folder_name") as string) ?? "";
@@ -30,11 +31,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const inserted: any[] = [];
     let sortBase = Date.now();
 
-    for (const file of files) {
+    for (const [fileIndex, file] of files.entries()) {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
       const basename = file.name.replace(/\.[^.]+$/, "");
       const safeFileName = `${sortBase}-${toAsciiStorageSegment(file.name, `image.${ext}`)}`;
       const storagePath = `${id}/${safeFileName}`;
+      const requestedRelativePath = relativePaths[fileIndex] || (folderName ? `${folderName}/${file.name}` : "");
+      const relativeParts = requestedRelativePath.normalize("NFC").replace(/\\/g, "/").split("/").filter(Boolean);
+      const relativePath = requestedRelativePath
+        && requestedRelativePath.length <= 1_000
+        && !requestedRelativePath.startsWith("/")
+        && !relativeParts.some((part) => part === "." || part === "..")
+        ? relativeParts.join("/")
+        : null;
 
       const arrayBuffer = await file.arrayBuffer();
       const { error: upErr } = await sb.storage
@@ -48,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const row = {
         gallery_id: id,
         original_file_name: file.name,
+        relative_path: relativePath,
         basename,
         extension: ext,
         scene_name: normalizeSelectionCategory(sceneType || sceneName, folderName),

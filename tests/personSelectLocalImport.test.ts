@@ -47,6 +47,20 @@ describe("person select local folder scan", () => {
     expect(deriveLocalImportRecord("person-folders", "김춘자/RAW/A.JPG")).toBeNull();
     expect(deriveLocalImportRecord("school", "학생사진/학생_가연/A.JPG")).toBeNull();
   });
+
+  it("keeps arbitrary shared-project subfolders without creating a person owner", () => {
+    const result = scanLocalPersonSelectFiles([
+      source("Scene 1/IMG_0001.JPG"),
+      source("Scene 2/detail/IMG_0001.JPG"),
+      source("Scene 2/detail/RAW_0001.CR3"),
+    ], "project");
+
+    expect(result.files.map((file) => ({ path: file.relativePath, owner: file.ownerName, category: file.category }))).toEqual([
+      { path: "Scene 1/IMG_0001.JPG", owner: null, category: "photo" },
+      { path: "Scene 2/detail/IMG_0001.JPG", owner: null, category: "photo" },
+    ]);
+    expect(deriveLocalImportRecord("project", "../Scene 1/IMG_0001.JPG")).toBeNull();
+  });
 });
 
 describe("person select local JPEG resize metadata", () => {

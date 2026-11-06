@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { AlertTriangle, Archive, Camera, Check, CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, Folder, Link2, Monitor, Search, Upload, X } from "lucide-react";
 import {
@@ -9,6 +9,7 @@ import {
   normalizeSelectionCategory,
   type SelectionCategoryKey,
 } from "@/lib/select-core";
+import CustomerBridgeSelect, { type CustomerBridgeDraft } from "@/components/select-gallery/CustomerBridgeSelect";
 
 /* ══════════════════════════
    TYPES
@@ -21,12 +22,14 @@ interface GalleryInfo {
   allow_download_zip: boolean; allow_resubmit: boolean;
   total_jpg_count: number; file_expires_at: string; files_expired: boolean;
   nas_link?: string;
+  view_mode?: "classic" | "bridge";
 }
 interface GalleryImage {
   id: string; gallery_id: string;
   original_file_name: string; basename: string; extension: string;
   scene_name?: string; folder_name?: string;
   image_url: string; thumbnail_url?: string;
+  relative_path?: string | null;
   sort_order: number;
 }
 
@@ -57,6 +60,7 @@ export default function SelectPage() {
   const [gallery, setGallery] = useState<GalleryInfo | null>(null);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [selection, setSelection] = useState<any>(null);
+  const [draft, setDraft] = useState<CustomerBridgeDraft | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [view, setView] = useState<"home" | "web" | "upload" | "done">("home");
@@ -66,7 +70,7 @@ export default function SelectPage() {
       .then(r => r.json())
       .then(d => {
         if (!d.ok) { setError(d.error ?? "오류가 발생했습니다"); }
-        else { setGallery(d.gallery); setImages(d.images ?? []); setSelection(d.selection); }
+        else { setGallery(d.gallery); setImages(d.images ?? []); setSelection(d.selection); setDraft(d.draft ?? null); }
       })
       .catch(() => setError("네트워크 오류가 발생했습니다"))
       .finally(() => setLoading(false));
@@ -95,6 +99,17 @@ export default function SelectPage() {
   );
   if (view === "done") return (
     <DoneScreen gallery={gallery} selection={selection} onResubmit={gallery.allow_resubmit ? () => { setSelection(null); setView("home"); } : undefined} />
+  );
+
+  if (gallery.view_mode === "bridge") return (
+    <CustomerBridgeSelect
+      shareToken={shareToken}
+      gallery={gallery}
+      images={images}
+      initialDraft={draft}
+      initialSelection={selection}
+      onSubmitted={(submitted) => { setSelection(submitted); setView("done"); }}
+    />
   );
 
   return (
@@ -184,7 +199,7 @@ function HomeScreen({ gallery, onWebSelect, onUpload }: {
             <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
               {gallery.allow_download_zip && !gallery.files_expired && (
                 <a
-                  href={`/api/select-galleries/${gallery.id}/download-zip?token=${gallery.share_token}`}
+                  href={`/api/select/${gallery.share_token}/download`}
                   style={{ display: "block", background: "rgba(21,88,85,.2)", color: C.white, border: `1px solid ${C.teal}`, padding: "11px 16px", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight:600, textDecoration: "none" }}
                 >
                   <Archive size={16} style={{ verticalAlign: "-3px", marginRight: 6 }} />전체 JPG 다운로드 ({gallery.total_jpg_count}장)
@@ -225,24 +240,26 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
   const [submitting, setSubmitting] = useState(false);
   const [category, setCategory] = useState<SelectionCategoryKey>("profile");
   const [zoom, setZoom] = useState(1);
+  const submitRequestKeyRef = useRef(`classic_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
   const imageCategory = (image: GalleryImage) => normalizeSelectionCategory(image.scene_name, image.folder_name);
   const selectedCategoryCounts = countSelectionsByCategory(
-    images.filter((image) => selected.has(image.original_file_name)).map((image) => ({ category: imageCategory(image) })),
+    images.filter((image) => selected.has(image.id)).map((image) => ({ category: imageCategory(image) })),
   );
   const missingRequiredCategories = missingRequiredSelectionCategories(
     images.map((image) => ({ category: imageCategory(image) })),
-    images.filter((image) => selected.has(image.original_file_name)).map((image) => ({ category: imageCategory(image) })),
+    images.filter((image) => selected.has(image.id)).map((image) => ({ category: imageCategory(image) })),
   );
   const displayed = images.filter(img => {
     if (imageCategory(img) !== category) return false;
-    if (filter === "selected" && !selected.has(img.original_file_name)) return false;
+    if (filter === "selected" && !selected.has(img.id)) return false;
     return true;
   });
 
   const toggle = (name: string) => setSelected(prev => {
     const n = new Set(prev);
-    n.has(name) ? n.delete(name) : n.add(name);
+    if (n.has(name)) n.delete(name);
+    else n.add(name);
     return n;
   });
 
@@ -252,7 +269,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowRight") setLightbox(v => v !== null ? Math.min(v + 1, displayed.length - 1) : null);
       if (e.key === "ArrowLeft")  setLightbox(v => v !== null ? Math.max(v - 1, 0) : null);
-      if (e.key === " ") { e.preventDefault(); if (lightbox !== null) toggle(displayed[lightbox].original_file_name); }
+      if (e.key === " ") { e.preventDefault(); if (lightbox !== null) toggle(displayed[lightbox].id); }
       if (e.key === "Escape") setLightbox(null);
     };
     window.addEventListener("keydown", handler);
@@ -262,26 +279,27 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
   const submit = async () => {
     if (!selected.size) return;
     setSubmitting(true);
-    const res = await fetch(`/api/select-galleries/${gallery.id}/submit-web-select`, {
+    const res = await fetch(`/api/select/${gallery.share_token}/submit`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        selected_files: Array.from(selected),
-        selected_items: images
-          .filter((image) => selected.has(image.original_file_name))
+        revision: 0,
+        requestKey: submitRequestKeyRef.current,
+        items: images
+          .filter((image) => selected.has(image.id))
           .map((image) => ({
-            image_id: image.id,
-            file_name: image.original_file_name,
-            category: imageCategory(image),
-            memo: imageNotes[image.original_file_name] ?? "",
-            retouch_keys: [],
+            imageId: image.id,
+            rating: null,
+            memo: imageNotes[image.id] ?? "",
           })),
-        customer_memo: memo,
-        share_token: gallery.share_token,
+        customerMemo: memo,
       }),
     });
     const d = await res.json();
     setSubmitting(false);
-    if (d.ok) onDone(d.selection);
+    if (d.ok) {
+      submitRequestKeyRef.current = `classic_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      onDone(d.selection);
+    }
     else alert("오류: " + d.error);
   };
 
@@ -318,7 +336,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
       {/* 썸네일 그리드 */}
       <div style={{ padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))", gap: 6 }}>
         {displayed.map((img, idx) => {
-          const isSel = selected.has(img.original_file_name);
+          const isSel = selected.has(img.id);
           return (
             <div key={img.id} style={{ position: "relative", aspectRatio: "3/2", borderRadius: 6, overflow: "hidden", border: `2px solid ${isSel ? C.teal : "transparent"}`, cursor: "pointer" }}
               onClick={() => setLightbox(idx)}>
@@ -327,7 +345,7 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {/* 선택 체크박스 */}
               <div style={{ position: "absolute", top: 6, left: 6 }}
-                onClick={e => { e.stopPropagation(); toggle(img.original_file_name); }}>
+                onClick={e => { e.stopPropagation(); toggle(img.id); }}>
                 <div style={{ width: 22, height: 22, borderRadius: 5, border: `2px solid ${isSel ? C.teal : "rgba(255,255,255,.6)"}`, background: isSel ? C.teal : "rgba(0,0,0,.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: C.white }}>
                   {isSel && <Check size={13} strokeWidth={2.2} aria-hidden="true" />}
                 </div>
@@ -369,8 +387,8 @@ function WebViewerPage({ gallery, images, onBack, onDone }: {
           onPrev={() => setLightbox(v => Math.max(0, (v ?? 0) - 1))}
           onNext={() => setLightbox(v => Math.min(displayed.length - 1, (v ?? 0) + 1))}
           onToggle={(name) => toggle(name)}
-          note={imageNotes[displayed[lightbox]?.original_file_name] ?? ""}
-          onNoteChange={(name, value) => setImageNotes((current) => ({ ...current, [name]: value.slice(0, 1_000) }))}
+          note={imageNotes[displayed[lightbox]?.id] ?? ""}
+          onNoteChange={(id, value) => setImageNotes((current) => ({ ...current, [id]: value.slice(0, 1_000) }))}
           zoom={zoom} setZoom={setZoom}
         />
       )}
@@ -389,7 +407,7 @@ function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, 
 }) {
   const img = images[index];
   if (!img) return null;
-  const isSel = selected.has(img.original_file_name);
+  const isSel = selected.has(img.id);
 
   // 터치 스와이프
   const touchStartX = useRef(0);
@@ -410,7 +428,7 @@ function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, 
         <button onClick={() => setZoom(zoom === 1 ? 2 : 1)} style={{ background: "rgba(255,255,255,.1)", border: "none", color: C.white, cursor: "pointer", padding: "5px 10px", borderRadius: 6, fontSize: 12 }}>
           <Search size={13} style={{ verticalAlign: "middle", marginRight: 5 }} />{zoom === 1 ? "확대" : "원래 크기"}
         </button>
-        <button onClick={() => onToggle(img.original_file_name)}
+        <button onClick={() => onToggle(img.id)}
           style={{ display: "inline-flex", alignItems: "center", gap: 5, background: isSel ? "rgba(79,216,184,.18)" : "rgba(255,255,255,.1)", border: `1px solid ${isSel ? "#4FD8B8" : "rgba(255,255,255,.2)"}`, color: C.white, cursor: "pointer", padding: "6px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600 }}>
           {isSel ? <><Check size={14} /> 선택됨</> : "사진 선택"}
         </button>
@@ -428,7 +446,7 @@ function Lightbox({ images, index, selected, onClose, onPrev, onNext, onToggle, 
         <div style={{ background: "rgba(21,88,85,.8)", padding: "10px 16px", fontSize: 12, color: C.white, flexShrink: 0 }}>
           <label style={{ display: "grid", gap: 6, maxWidth: 720, margin: "0 auto" }}>
             <span style={{ fontWeight: 600 }}>이 사진의 보정 메모</span>
-            <textarea value={note} onChange={(event) => onNoteChange(img.original_file_name, event.target.value)} maxLength={1_000} rows={2}
+            <textarea value={note} onChange={(event) => onNoteChange(img.id, event.target.value)} maxLength={1_000} rows={2}
               placeholder="이 사진에 필요한 보정 내용을 적어주세요."
               style={{ width: "100%", boxSizing: "border-box", border: "1px solid rgba(255,255,255,.18)", borderRadius: 7, background: "rgba(0,0,0,.22)", color: C.white, padding: "9px 11px", font: "inherit", resize: "vertical" }} />
             <small style={{ color: "rgba(255,255,255,.62)", textAlign: "right" }}>{note.length} / 1000</small>
@@ -452,6 +470,7 @@ function UploadPage({ gallery, onBack, onDone }: {
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const submitRequestKeyRef = useRef(`upload_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
   const addFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
@@ -474,14 +493,21 @@ function UploadPage({ gallery, onBack, onDone }: {
   const submit = async () => {
     if (!files.length) return;
     setSubmitting(true);
-    const fd = new FormData();
-    fd.append("share_token", gallery.share_token);
-    fd.append("customer_memo", memo);
-    files.forEach(f => fd.append("files", f));
-    const res = await fetch(`/api/select-galleries/${gallery.id}/upload-selected`, { method: "POST", body: fd });
+    const res = await fetch(`/api/select/${gallery.share_token}/upload`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requestKey: submitRequestKeyRef.current,
+        fileNames: files.map((file) => file.name),
+        customerMemo: memo,
+      }),
+    });
     const d = await res.json();
     setSubmitting(false);
-    if (d.ok) onDone(d.selection);
+    if (d.ok) {
+      submitRequestKeyRef.current = `upload_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      onDone(d.selection);
+    }
     else alert("오류: " + d.error);
   };
 
@@ -547,7 +573,7 @@ function UploadPage({ gallery, onBack, onDone }: {
 /* ══════════════════════════
    DONE / ALREADY DONE
 ══════════════════════════ */
-function DoneScreen({ gallery, selection, onResubmit }: { gallery: GalleryInfo; selection: any; onResubmit?: () => void }) {
+function DoneScreen({ selection, onResubmit }: { gallery: GalleryInfo; selection: any; onResubmit?: () => void }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
@@ -575,7 +601,7 @@ function DoneScreen({ gallery, selection, onResubmit }: { gallery: GalleryInfo; 
   );
 }
 
-function AlreadyDoneScreen({ gallery, selection }: { gallery: GalleryInfo; selection: any }) {
+function AlreadyDoneScreen({ selection }: { gallery: GalleryInfo; selection: any }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: FONT, color: C.white, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 420, textAlign: "center" }}>

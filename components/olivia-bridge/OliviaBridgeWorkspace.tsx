@@ -91,6 +91,14 @@ import {
 import { mergePhotoToolSelectionSources, normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import { matchPersonSelectFileNames, type PersonSelectImportMatch } from "@/lib/photo-bridge/personSelectImport";
 import {
+  customerSelectionComparisonCounts,
+  matchCustomerSelectionToBridgeFiles,
+  matchesCustomerSelectionComparison,
+  type CustomerSelectionComparisonFilter,
+  type CustomerSelectionMatchItem,
+  type CustomerSelectionMatchResult,
+} from "@/lib/select-gallery/customerBridge";
+import {
   BRIDGE_PANE_DEFAULT_WIDTH,
   bridgePaneWidthFromPointer,
   clampBridgePaneWidth,
@@ -171,8 +179,26 @@ type PersonSelectEventSummary = {
   title: string;
   people_count: number;
   submitted_count: number;
+  access_mode?: "individual" | "project_shared";
+  shared_submitted_at?: string | null;
 };
 type PersonSelectImportResult = PersonSelectImportMatch & { eventTitle: string };
+type SelectGallerySummary = {
+  id: string;
+  title: string;
+  hospital_name?: string | null;
+  shooting_name?: string | null;
+  status: string;
+  selected_count?: number | null;
+  submitted_at?: string | null;
+  bridge_source?: "local" | "remote" | null;
+  bridge_folder_display_path?: string | null;
+};
+type GalleryCustomerSelectionResult = {
+  gallery: SelectGallerySummary;
+  total: number;
+  match: CustomerSelectionMatchResult;
+};
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -683,6 +709,17 @@ export default function OliviaBridgeWorkspace({
   const [personSelectImportingId, setPersonSelectImportingId] = useState("");
   const [personSelectError, setPersonSelectError] = useState("");
   const [personSelectResult, setPersonSelectResult] = useState<PersonSelectImportResult | null>(null);
+  const [gallerySelectDialogOpen, setGallerySelectDialogOpen] = useState(false);
+  const [selectGalleries, setSelectGalleries] = useState<SelectGallerySummary[]>([]);
+  const [sharedSelectProjects, setSharedSelectProjects] = useState<PersonSelectEventSummary[]>([]);
+  const [selectGalleriesLoading, setSelectGalleriesLoading] = useState(false);
+  const [gallerySelectImportingId, setGallerySelectImportingId] = useState("");
+  const [gallerySelectError, setGallerySelectError] = useState("");
+  const [galleryCustomerResult, setGalleryCustomerResult] = useState<GalleryCustomerSelectionResult | null>(null);
+  const [customerSelectedIds, setCustomerSelectedIds] = useState<Set<string>>(new Set());
+  const [customerRatings, setCustomerRatings] = useState<Record<string, number>>({});
+  const [customerNotes, setCustomerNotes] = useState<Record<string, string>>({});
+  const [comparisonFilter, setComparisonFilter] = useState<CustomerSelectionComparisonFilter>("all");
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptMessage, setRawRootPromptMessage] = useState("");
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
@@ -728,22 +765,30 @@ export default function OliviaBridgeWorkspace({
   );
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
   const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
-    if (labelFilter) return matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, colorLabels);
-    if (fileFilter === "raw" || fileFilter === "sidecar") return false;
-    if (fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected") {
-      return matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, colorLabels);
-    }
-    if (fileFilter === "excluded") return excludedIds.has(photo.id);
-    return true;
-  }), [colorLabels, effectiveRatings, excludedIds, fileFilter, labelFilter, scan.jpgs]);
+    const passesFileFilter = labelFilter
+      ? matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, colorLabels)
+      : fileFilter === "raw" || fileFilter === "sidecar"
+        ? false
+        : fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected"
+          ? matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, colorLabels)
+          : fileFilter === "excluded"
+            ? excludedIds.has(photo.id)
+            : true;
+    if (!passesFileFilter) return false;
+    return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
+  }), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, labelFilter, scan.jpgs, selectedIds]);
+  const comparisonCounts = useMemo(
+    () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
+    [customerSelectedIds, scan.jpgs, selectedIds],
+  );
   const reviewPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
   const resolvedReviewActiveId = reviewActiveId && reviewPhotos.some((photo) => photo.id === reviewActiveId)
     ? reviewActiveId
     : reviewPhotos[0]?.id ?? null;
   const reviewActiveIndex = reviewPhotos.findIndex((photo) => photo.id === resolvedReviewActiveId);
   const reviewActivePhoto = reviewPhotos[reviewActiveIndex] ?? null;
-  const showRaws = !labelFilter && (fileFilter === "all" || fileFilter === "raw");
-  const showSidecars = !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
+  const showRaws = comparisonFilter === "all" && !labelFilter && (fileFilter === "all" || fileFilter === "raw");
+  const showSidecars = comparisonFilter === "all" && !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
   const focusedPhoto = visibleJpgs.find((photo) => photo.id === focusedId) ?? null;
   const visiblePlainFiles = useMemo(() => [
@@ -1494,11 +1539,12 @@ export default function OliviaBridgeWorkspace({
       closeCompactFilters();
       return;
     }
-    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || personSelectDialogOpen || rawRootPromptOpen)) {
+    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || personSelectDialogOpen || gallerySelectDialogOpen || rawRootPromptOpen)) {
       event.preventDefault();
       setFolderSourceOpen(false);
       setNasPickerOpen(false);
       setPersonSelectDialogOpen(false);
+      setGallerySelectDialogOpen(false);
       setRawRootPromptOpen(false);
       rootRef.current?.focus();
       return;
@@ -1578,7 +1624,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1663,6 +1709,168 @@ export default function OliviaBridgeWorkspace({
       setPersonSelectImportingId("");
     }
   }, [scan.jpgs, setSelectedJpgNames]);
+
+  const loadSelectGalleries = useCallback(async () => {
+    setSelectGalleriesLoading(true);
+    setGallerySelectError("");
+    try {
+      const [galleryResponse, projectResponse] = await Promise.all([
+        fetch("/api/select-galleries", { cache: "no-store" }),
+        fetch("/api/person-select", { cache: "no-store" }),
+      ]);
+      const galleryBody = await galleryResponse.json().catch(() => ({})) as { ok?: boolean; galleries?: SelectGallerySummary[]; error?: string };
+      const projectBody = await projectResponse.json().catch(() => ({})) as { ok?: boolean; events?: PersonSelectEventSummary[]; error?: string };
+      if (!galleryResponse.ok || !galleryBody.ok) throw new Error(galleryBody.error || "사진선택 갤러리를 불러오지 못했습니다.");
+      if (!projectResponse.ok || !projectBody.ok) throw new Error(projectBody.error || "공유 프로젝트를 불러오지 못했습니다.");
+      setSelectGalleries(Array.isArray(galleryBody.galleries) ? galleryBody.galleries : []);
+      setSharedSelectProjects((Array.isArray(projectBody.events) ? projectBody.events : []).filter((event) => event.access_mode === "project_shared"));
+    } catch (error) {
+      setGallerySelectError(error instanceof Error ? error.message : "사진선택 갤러리를 불러오지 못했습니다.");
+    } finally {
+      setSelectGalleriesLoading(false);
+    }
+  }, []);
+
+  const openGallerySelectImport = useCallback(() => {
+    if (!hasActiveFolder || scanStatus !== "ready") return;
+    setGallerySelectDialogOpen(true);
+    setGallerySelectError("");
+    void loadSelectGalleries();
+  }, [hasActiveFolder, loadSelectGalleries, scanStatus]);
+
+  const closeGallerySelectImport = useCallback(() => {
+    setGallerySelectDialogOpen(false);
+    setGallerySelectImportingId("");
+    setGallerySelectError("");
+    rootRef.current?.focus();
+  }, []);
+
+  const importGalleryCustomerSelection = useCallback(async (gallery: SelectGallerySummary) => {
+    setGallerySelectImportingId(gallery.id);
+    setGallerySelectError("");
+    try {
+      const detailResponse = await fetch(`/api/select-galleries/${gallery.id}`, { cache: "no-store" });
+      const detail = await detailResponse.json().catch(() => ({})) as {
+        ok?: boolean;
+        gallery?: SelectGallerySummary;
+        images?: Array<{ id: string; original_file_name: string; relative_path?: string | null }>;
+        selection?: { items?: Array<{ image_id: string; file_name: string; customer_rating?: number | null; memo?: string | null }> } | null;
+        error?: string;
+      };
+      if (!detailResponse.ok || !detail.ok || !detail.gallery) throw new Error(detail.error || "갤러리 제출 결과를 불러오지 못했습니다.");
+      const submittedItems = detail.selection?.items ?? [];
+      if (!submittedItems.length) throw new Error("이 갤러리에 제출된 고객 셀렉이 없습니다.");
+      const relativePathById = new Map((detail.images ?? []).map((image) => [image.id, image.relative_path ?? null]));
+      const matchItems: CustomerSelectionMatchItem[] = submittedItems.map((item) => ({
+        imageId: item.image_id,
+        fileName: item.file_name,
+        relativePath: relativePathById.get(item.image_id),
+        rating: item.customer_rating,
+        memo: item.memo,
+      }));
+      const match = matchCustomerSelectionToBridgeFiles(matchItems, scan.jpgs.map((photo) => ({
+        id: photo.id,
+        name: photo.name,
+        relativeDirectory: photo.relativeDirectory,
+      })));
+      const linkResponse = await fetch(`/api/select-galleries/${gallery.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(remoteFolder ? {
+          bridge_source: "remote",
+          bridge_folder_path: remoteFolder.path,
+          bridge_folder_display_path: remoteFolder.displayPath,
+        } : {
+          bridge_source: "local",
+          bridge_folder_path: null,
+          bridge_folder_display_path: activeFolderName,
+        }),
+      });
+      const linked = await linkResponse.json().catch(() => ({})) as { ok?: boolean; error?: string };
+      if (!linkResponse.ok || !linked.ok) throw new Error(linked.error || "갤러리와 현재 폴더를 연결하지 못했습니다.");
+
+      setCustomerSelectedIds(new Set(match.matchedBridgeIds));
+      setCustomerRatings(match.ratingsByBridgeId);
+      setCustomerNotes(match.notesByBridgeId);
+      setGalleryCustomerResult({ gallery: detail.gallery, total: submittedItems.length, match });
+      setComparisonFilter("customer");
+      try {
+        localStorage.setItem(`olivia-bridge-gallery-folder:${gallery.id}`, JSON.stringify({
+          source: remoteFolder ? "remote" : "local",
+          displayPath: remoteFolder?.displayPath ?? activeFolderName,
+        }));
+      } catch (storageError) {
+        if (process.env.NODE_ENV !== "production") console.debug("[olivia-bridge] gallery folder memory unavailable", storageError);
+      }
+    } catch (error) {
+      setGallerySelectError(error instanceof Error ? error.message : "고객 셀렉을 불러오지 못했습니다.");
+    } finally {
+      setGallerySelectImportingId("");
+    }
+  }, [activeFolderName, remoteFolder, scan.jpgs]);
+
+  const importSharedProjectSelection = useCallback(async (project: PersonSelectEventSummary) => {
+    setGallerySelectImportingId(project.id);
+    setGallerySelectError("");
+    try {
+      const response = await fetch(`/api/person-select/${project.id}`, { cache: "no-store" });
+      const body = await response.json().catch(() => ({})) as {
+        ok?: boolean;
+        event?: { id: string; title: string; status: string };
+        shared?: { selection?: { submitted_at?: string | null; items?: Array<{ image_id: string; customer_rating?: number | null; memo?: string | null; image?: { original_file_name: string; source_rel_path?: string | null } | null }> } | null };
+        error?: string;
+      };
+      if (!response.ok || !body.ok || !body.event) throw new Error(body.error || "공유 프로젝트 셀렉을 불러오지 못했습니다.");
+      const selection = body.shared?.selection;
+      const submittedItems = selection?.items ?? [];
+      if (!selection?.submitted_at || !submittedItems.length) throw new Error("이 공유 프로젝트에 제출된 고객 셀렉이 없습니다.");
+      const matchItems: CustomerSelectionMatchItem[] = submittedItems.flatMap((item) => item.image ? [{
+        imageId: item.image_id,
+        fileName: item.image.original_file_name,
+        relativePath: item.image.source_rel_path ?? null,
+        rating: item.customer_rating,
+        memo: item.memo,
+      }] : []);
+      const match = matchCustomerSelectionToBridgeFiles(matchItems, scan.jpgs.map((photo) => ({
+        id: photo.id,
+        name: photo.name,
+        relativeDirectory: photo.relativeDirectory,
+      })));
+      setCustomerSelectedIds(new Set(match.matchedBridgeIds));
+      setCustomerRatings(match.ratingsByBridgeId);
+      setCustomerNotes(match.notesByBridgeId);
+      setGalleryCustomerResult({
+        gallery: {
+          id: body.event.id,
+          title: body.event.title,
+          status: body.event.status,
+          selected_count: submittedItems.length,
+          submitted_at: selection.submitted_at,
+        },
+        total: submittedItems.length,
+        match,
+      });
+      setComparisonFilter("customer");
+    } catch (error) {
+      setGallerySelectError(error instanceof Error ? error.message : "공유 프로젝트 셀렉을 불러오지 못했습니다.");
+    } finally {
+      setGallerySelectImportingId("");
+    }
+  }, [scan.jpgs]);
+
+  const addCustomerSelectionToAdminSelection = useCallback(() => {
+    if (!customerSelectedIds.size) return;
+    setSelectedIds((current) => new Set([...current, ...customerSelectedIds]));
+    setComparisonFilter("all");
+  }, [customerSelectedIds, setSelectedIds]);
+
+  useEffect(() => {
+    setCustomerSelectedIds(new Set());
+    setCustomerRatings({});
+    setCustomerNotes({});
+    setGalleryCustomerResult(null);
+    setComparisonFilter("all");
+  }, [folderPath]);
 
   useEffect(() => {
     let disposed = false;
@@ -1868,6 +2076,15 @@ export default function OliviaBridgeWorkspace({
             {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
             <small>셀렉 보기</small>
             {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
+            <small>고객 셀렉 비교{galleryCustomerResult ? ` · ${galleryCustomerResult.gallery.title}` : ""}</small>
+            {([
+              ["all", "전체"],
+              ["admin", "내 셀렉"],
+              ["customer", "고객 셀렉"],
+              ["common", "공통 셀렉"],
+              ["admin-only", "나만 선택"],
+              ["customer-only", "고객만 선택"],
+            ] as Array<[CustomerSelectionComparisonFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult} data-zero={comparisonCounts[key] === 0 ? "true" : undefined} className={comparisonFilter === key ? styles.activeFilter : ""} onClick={() => setComparisonFilter(key)}><span>{label}</span><b>{comparisonCounts[key].toLocaleString("ko-KR")}</b></button>)}
           </div>
           <div className={styles.folderList}>
             {scan.folders.length ? <small>하위 폴더</small> : null}
@@ -1963,6 +2180,7 @@ export default function OliviaBridgeWorkspace({
               {visibleJpgs.length ? <div data-bridge-thumbnail-grid className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
                 {visibleJpgs.map((photo) => {
                   const selected = selectedIds.has(photo.id);
+                  const customerSelected = customerSelectedIds.has(photo.id);
                   const focused = focusedId === photo.id;
                   const adobeSelected = selected && adobeSelectedIdsRef.current.has(photo.id);
                   const manualSelected = selected && !adobeSelected;
@@ -1970,7 +2188,7 @@ export default function OliviaBridgeWorkspace({
                   const rating = effectiveRatings[photo.id] ?? 0;
                   const colorLabel = colorLabels[photo.id];
                   const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
@@ -2002,6 +2220,7 @@ export default function OliviaBridgeWorkspace({
                 <div><strong>{selectedPhotos.length}장</strong><span> 선택됨</span></div>
                 <p>마지막으로 고른 것 · {focusedPhoto?.name ?? focusedPlainFile?.name ?? "없음"}</p>
                 <div className={styles.selectionSourceCounts}><span>Adobe {adobeSelectedCount}장</span><span>직접 고름 {manualSelectedCount}장</span></div>
+                {focusedPhoto && customerSelectedIds.has(focusedPhoto.id) ? <div className={styles.customerSelectionFocus}><b>고객 셀렉{customerRatings[focusedPhoto.id] ? ` · ${customerRatings[focusedPhoto.id]}점` : ""}</b>{customerNotes[focusedPhoto.id] ? <span>{customerNotes[focusedPhoto.id]}</span> : null}</div> : null}
               </section>
               <section className={styles.bulkControl} aria-label="선택한 사진 별점">
                 <header><span>앱에 별점 적용</span>{selectedRatingMixed ? <b>혼합</b> : <b>{commonSelectedRating ? `${commonSelectedRating}점` : "없음"}</b>}</header>
@@ -2031,7 +2250,8 @@ export default function OliviaBridgeWorkspace({
             const disabledReason = toolDisabledReason(key);
             return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={toolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => openTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={12} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
           })}
-          <button type="button" className={styles.customerSelectionButton} onClick={openPersonSelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "고객 선택 불러오기: 사진 폴더를 먼저 선택해 주세요." : "고객 선택 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "개인별 사진 셀렉에서 고객이 고른 사진을 불러옵니다."}><Users size={12} strokeWidth={1.8} /><span>고객 선택 불러오기</span></button>
+          <button type="button" className={styles.customerSelectionButton} onClick={openGallerySelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "갤러리 고객 셀렉: 사진 폴더를 먼저 선택해 주세요." : "갤러리 고객 셀렉 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "사진선택 갤러리에 제출된 고객 셀렉을 비교합니다."}><Users size={12} strokeWidth={1.8} /><span>갤러리 고객 셀렉</span></button>
+          <button type="button" className={styles.customerSelectionButton} onClick={openPersonSelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "고객 선택 불러오기: 사진 폴더를 먼저 선택해 주세요." : "개인별 사진선택 행사 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "개인별 사진 셀렉 행사에서 고객이 고른 사진을 불러옵니다."}><Users size={12} strokeWidth={1.8} /><span>고객 선택 불러오기</span></button>
         </nav>
       </section>
 
@@ -2144,12 +2364,47 @@ export default function OliviaBridgeWorkspace({
         </div>
       ) : null}
 
+      {gallerySelectDialogOpen ? (
+        <div className={`${styles.folderSourceOverlay} ${styles.customerSelectionOverlay}`} onClick={closeGallerySelectImport}>
+          <section className={`${styles.folderSourceChooser} ${styles.customerSelectionChooser}`} role="dialog" aria-modal="true" aria-labelledby="bridge-gallery-select-title" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><strong id="bridge-gallery-select-title">갤러리 고객 셀렉 비교</strong><span>현재 폴더와 연결할 갤러리를 직접 선택합니다. 내 셀렉과 고객 셀렉은 서로 바뀌지 않습니다.</span></div>
+              <button type="button" onClick={closeGallerySelectImport} aria-label="갤러리 고객 셀렉 닫기"><X size={18} /></button>
+            </header>
+            <div className={styles.customerSelectionBody}>
+              {galleryCustomerResult ? (
+                <section className={styles.customerSelectionResult} aria-live="polite">
+                  <strong>{galleryCustomerResult.gallery.title}</strong>
+                  <p>고객 선택 {galleryCustomerResult.total.toLocaleString("ko-KR")}장 중 현재 폴더에서 {galleryCustomerResult.match.matchedBridgeIds.size.toLocaleString("ko-KR")}장을 정확히 찾았습니다. · 누락 {galleryCustomerResult.match.missing.length.toLocaleString("ko-KR")}장 · 중복 확인 {galleryCustomerResult.match.ambiguous.length.toLocaleString("ko-KR")}장</p>
+                  {galleryCustomerResult.match.missing.length ? <div><span>못 찾은 파일</span><ul>{galleryCustomerResult.match.missing.map((item) => <li key={item.imageId}>{item.relativePath || item.fileName}</li>)}</ul></div> : null}
+                  {galleryCustomerResult.match.ambiguous.length ? <div><span>동명 파일이라 확인이 필요한 항목</span><ul>{galleryCustomerResult.match.ambiguous.map((item) => <li key={item.imageId}>{item.relativePath || item.fileName} · 후보 {item.candidateIds.length}개</li>)}</ul></div> : null}
+                  {!galleryCustomerResult.match.missing.length && !galleryCustomerResult.match.ambiguous.length ? <small>모든 고객 선택 사진을 정확히 찾았습니다.</small> : <small>누락 또는 중복 파일은 자동 선택하지 않았습니다.</small>}
+                  <div className={styles.customerSelectionResultActions}>
+                    <button type="button" disabled={!galleryCustomerResult.match.matchedBridgeIds.size} onClick={addCustomerSelectionToAdminSelection}>찾은 사진을 내 셀렉에 추가</button>
+                    <button type="button" onClick={() => { setGalleryCustomerResult(null); setComparisonFilter("all"); }}>다른 갤러리 고르기</button>
+                  </div>
+                </section>
+              ) : selectGalleriesLoading ? (
+                <div className={styles.customerSelectionState}><LoaderCircle className={styles.spin} size={17} />갤러리 목록을 불러오는 중입니다.</div>
+              ) : gallerySelectError ? (
+                <div className={styles.customerSelectionState} role="alert"><CircleAlert size={17} />{gallerySelectError}<button type="button" onClick={() => void loadSelectGalleries()}>다시 불러오기</button></div>
+              ) : selectGalleries.length || sharedSelectProjects.length ? (
+                <div className={styles.customerSelectionSources}>
+                  {selectGalleries.length ? <section><strong>셀렉 갤러리</strong><div className={styles.customerSelectionEvents}>{selectGalleries.map((gallery) => <button key={gallery.id} type="button" disabled={Boolean(gallerySelectImportingId) || !gallery.submitted_at} onClick={() => void importGalleryCustomerSelection(gallery)}><Images size={17} /><span><strong>{gallery.title}</strong><small>{gallery.hospital_name || gallery.shooting_name || "고객 미연결"} · {gallery.submitted_at ? `고객 제출 ${Number(gallery.selected_count ?? 0).toLocaleString("ko-KR")}장` : "제출 전"}{gallery.bridge_folder_display_path ? ` · 연결 ${gallery.bridge_folder_display_path}` : ""}</small></span>{gallerySelectImportingId === gallery.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div></section> : null}
+                  {sharedSelectProjects.length ? <section><strong>공유 사진선택 프로젝트</strong><div className={styles.customerSelectionEvents}>{sharedSelectProjects.map((project) => <button key={project.id} type="button" disabled={Boolean(gallerySelectImportingId) || !project.shared_submitted_at} onClick={() => void importSharedProjectSelection(project)}><Users size={17} /><span><strong>{project.title}</strong><small>{project.shared_submitted_at ? "공동 셀렉 제출 완료" : "제출 전"}</small></span>{gallerySelectImportingId === project.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div></section> : null}
+                </div>
+              ) : <div className={styles.customerSelectionState}>등록된 사진선택 갤러리나 공유 프로젝트가 없습니다.</div>}
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {personSelectDialogOpen ? (
         <div className={`${styles.folderSourceOverlay} ${styles.customerSelectionOverlay}`} onClick={closePersonSelectImport}>
           <section className={`${styles.folderSourceChooser} ${styles.customerSelectionChooser}`} role="dialog" aria-modal="true" aria-labelledby="bridge-person-select-title" onClick={(event) => event.stopPropagation()}>
             <header>
-              <div><strong id="bridge-person-select-title">고객 선택 불러오기</strong><span>개인별 사진 셀렉 행사를 고르면 현재 폴더에서 같은 파일명을 찾습니다.</span></div>
-              <button type="button" onClick={closePersonSelectImport} aria-label="고객 선택 불러오기 닫기"><X size={18} /></button>
+              <div><strong id="bridge-person-select-title">개인별 사진선택 행사 불러오기</strong><span>개인별 사진 셀렉 행사를 고르면 현재 폴더에서 같은 파일명을 찾습니다.</span></div>
+              <button type="button" onClick={closePersonSelectImport} aria-label="개인별 사진선택 행사 닫기"><X size={18} /></button>
             </header>
             <div className={styles.customerSelectionBody}>
               {personSelectResult ? (

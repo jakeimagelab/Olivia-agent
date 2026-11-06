@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
           imageRows.push({
             gallery_id: gallery.id,
             original_file_name: img.originalFileName,
+            relative_path: scene.folderName ? `${scene.folderName}/${img.originalFileName}` : img.originalFileName,
             basename: img.basename,
             extension: img.originalFileName?.split(".").pop()?.toLowerCase() ?? "jpg",
             scene_name: normalizeSelectionCategory(scene.sceneType ?? scene.sceneName, scene.folderName),

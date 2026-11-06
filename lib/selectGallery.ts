@@ -19,6 +19,9 @@ export type GalleryStatus =
   | "files_expired"
   | "expired";
 
+export type SelectGalleryViewMode = "classic" | "bridge";
+export type SelectGalleryBridgeSource = "local" | "remote";
+
 export interface SelectGallery {
   id: string;
   client_id?: string;
@@ -28,6 +31,8 @@ export interface SelectGallery {
   shooting_name?: string;
   shooting_date?: string;
   share_token: string;
+  share_token_version?: number;
+  view_mode?: SelectGalleryViewMode;
   status: GalleryStatus;
   allow_web_select: boolean;
   allow_download_upload: boolean;
@@ -40,12 +45,18 @@ export interface SelectGallery {
   updated_at: string;
   submitted_at?: string;
   nas_link?: string;
+  selection_revision?: number;
+  bridge_source?: SelectGalleryBridgeSource | null;
+  bridge_folder_path?: string | null;
+  bridge_folder_display_path?: string | null;
+  photo_storage_project_id?: string | null;
 }
 
 export interface SelectGalleryImage {
   id: string;
   gallery_id: string;
   original_file_name: string;
+  relative_path?: string | null;
   basename: string;
   extension: string;
   scene_id?: string;
@@ -86,6 +97,19 @@ export interface ClientPhotoSelectionItem {
   category: string;
   memo: string;
   retouch_keys: string[];
+  customer_rating?: number | null;
+}
+
+export interface SelectGalleryDraft {
+  gallery_id: string;
+  token_version: number;
+  revision: number;
+  selected_image_ids: string[];
+  ratings: Record<string, number>;
+  image_notes: Record<string, string>;
+  customer_memo: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SelectRawMatch {
@@ -100,6 +124,8 @@ export interface SelectRawMatch {
   raw_extension?: string;
   status: "matched" | "raw_missing" | "duplicate_raw" | "jpg_missing";
   note?: string;
+  invalidated_at?: string | null;
+  invalidated_by_selection_id?: string | null;
   created_at: string;
 }
 
@@ -132,12 +158,22 @@ export async function getGalleryImages(
   sb: SupabaseClient,
   galleryId: string
 ): Promise<SelectGalleryImage[]> {
-  const { data } = await sb
-    .from("select_gallery_images")
-    .select("*")
-    .eq("gallery_id", galleryId)
-    .order("sort_order");
-  return data ?? [];
+  const pageSize = 1_000;
+  const images: SelectGalleryImage[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb
+      .from("select_gallery_images")
+      .select("*")
+      .eq("gallery_id", galleryId)
+      .order("sort_order")
+      .order("id")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    const page = (data ?? []) as SelectGalleryImage[];
+    images.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return images;
 }
 
 export async function getLatestSelection(
@@ -146,7 +182,7 @@ export async function getLatestSelection(
 ): Promise<ClientPhotoSelection | null> {
   const { data } = await sb
     .from("client_photo_selections")
-    .select("*")
+    .select("*,items:client_photo_selection_items(*)")
     .eq("gallery_id", galleryId)
     .order("submitted_at", { ascending: false })
     .limit(1)
@@ -154,15 +190,32 @@ export async function getLatestSelection(
   return data ?? null;
 }
 
+export async function getGalleryDraft(
+  sb: SupabaseClient,
+  galleryId: string,
+  tokenVersion: number,
+): Promise<SelectGalleryDraft | null> {
+  const { data } = await sb
+    .from("select_gallery_drafts")
+    .select("*")
+    .eq("gallery_id", galleryId)
+    .eq("token_version", tokenVersion)
+    .maybeSingle();
+  return data ?? null;
+}
+
 export async function getRawMatches(
   sb: SupabaseClient,
-  galleryId: string
+  galleryId: string,
+  options: { includeInvalidated?: boolean } = {},
 ): Promise<SelectRawMatch[]> {
-  const { data } = await sb
+  let query = sb
     .from("select_raw_matches")
     .select("*")
     .eq("gallery_id", galleryId)
     .order("created_at");
+  if (!options.includeInvalidated) query = query.is("invalidated_at", null);
+  const { data } = await query;
   return data ?? [];
 }
 

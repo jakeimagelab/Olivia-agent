@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import GlobalHeader from "@/components/GlobalHeader";
 import PcrmSubNav from "@/components/pcrm/PcrmSubNav";
 import { PcrmHeaderActionsProvider, usePcrmHeaderActionsSlot, usePcrmHeaderTitleSlot } from "@/components/pcrm/PcrmHeaderActionsSlot";
+import { PersonSelectUploadProvider } from "@/components/person-select/upload/PersonSelectUploadManager";
+import { PersonSelectUploadStatus } from "@/components/person-select/upload/PersonSelectUploadStatus";
 
 const TITLE: Record<string, string> = {
   "/clients":          "고객관리",
@@ -60,7 +62,7 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
 
   if (isPcrmSection) {
     return (
-      <div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
+      <PersonSelectUploadProvider><div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
         <PcrmHeaderActionsProvider>
           {!inIframe && <PcrmSectionHeader />}
           {!inIframe && <Suspense fallback={null}><PcrmSubNav /></Suspense>}
@@ -68,18 +70,18 @@ export default function ClientHubLayout({ children }: { children: React.ReactNod
             {children}
           </div>
         </PcrmHeaderActionsProvider>
-      </div>
+      </div><PersonSelectUploadStatus /></PersonSelectUploadProvider>
     );
   }
 
   return (
-    <div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
+    <PersonSelectUploadProvider><div ref={shellRef} style={{ minHeight, background: MESH_BG, fontFamily: "var(--font-sans)", color: "#1C2B28" }}>
       {!inIframe && <GlobalHeader title={title} description={description} />}
 
       <div className="pc-page-content">
         {children}
       </div>
-    </div>
+    </div><PersonSelectUploadStatus /></PersonSelectUploadProvider>
   );
 }
 

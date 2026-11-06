@@ -1,0 +1,24 @@
+.shell { min-height: 100dvh; color: #293E34; background: #E3EBE2; font-family: var(--font-sans); }
+.header { position: sticky; z-index: 20; top: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 70px; padding: 12px clamp(14px, 3vw, 32px); border-bottom: 1px solid #C8D5C8; background: rgba(227,235,226,.96); }
+.header h1 { margin: 0; font-size: clamp(18px, 3vw, 24px); font-weight: 600; }
+.header p { margin: 3px 0 0; color: #617565; font-size: 12px; }
+.header strong { color: #155855; font-size: 13px; white-space: nowrap; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px clamp(14px, 3vw, 32px); border-bottom: 1px solid #C8D5C8; background: #EAF0E7; }
+.toolbar button { min-height: 38px; padding: 0 12px; border: 1px solid #C8D5C8; border-radius: 8px; background: transparent; color: #155855; font: inherit; font-size: 12px; cursor: pointer; }
+.toolbar .active { border-color: #155855; background: #D5E3D4; }
+.grid { --shared-size: 190px; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--shared-size)), 1fr)); gap: 9px; padding: 14px clamp(14px, 3vw, 32px) 150px; }
+.card { position: relative; min-width: 0; overflow: hidden; padding: 0; border: 1px solid #C8D5C8; border-radius: 10px; background: #F1F5EE; color: #293E34; text-align: left; cursor: pointer; }
+.card[data-selected="true"] { border: 2px solid #E85D2C; }
+.card img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #D5E3D4; }
+.card span { display: block; overflow: hidden; padding: 9px 10px; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.check { position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; color: #fff; background: #E85D2C; font-size: 15px; font-weight: 700; }
+.footer { position: fixed; z-index: 25; right: 0; bottom: 0; left: 0; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 10px clamp(14px, 3vw, 32px) calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid #C8D5C8; background: #F1F5EE; }
+.footer textarea { min-height: 44px; max-height: 90px; padding: 10px 12px; border: 1px solid #C8D5C8; border-radius: 8px; background: #EAF0E7; color: #293E34; font: inherit; font-size: 16px; resize: vertical; }
+.footer button { min-height: 44px; padding: 0 18px; border: 1px solid #E85D2C; border-radius: 8px; background: #E85D2C; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+.state { grid-column: 1 / -1; color: #617565; font-size: 11px; }
+.done { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: #E3EBE2; color: #293E34; text-align: center; }
+.done > div { max-width: 420px; padding: 28px; border: 1px solid #C8D5C8; border-radius: 12px; background: #F1F5EE; }
+.done h1 { margin: 0 0 8px; font-size: 22px; }
+.done p { color: #617565; }
+.done button { min-height: 44px; padding: 0 16px; border: 1px solid #155855; border-radius: 8px; background: transparent; color: #155855; font: inherit; }
+@media (max-width: 560px) { .header { align-items: flex-start; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: 190px; } .footer { grid-template-columns: 1fr; } .footer button { width: 100%; } }

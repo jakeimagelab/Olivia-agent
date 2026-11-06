@@ -4332,6 +4332,7 @@ function PhotoSortingInner({
                       try {
                         const file = await item.handle.getFile();
                         fd.append("files", file, item.name);
+                        fd.append("relative_paths", `${item.folderName}/${item.name}`);
                       } catch { failed.push(item.name); }
                     }
                     fd.set("scene_name", batch[0]?.sceneName ?? "");

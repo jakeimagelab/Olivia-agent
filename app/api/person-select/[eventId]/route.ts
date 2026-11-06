@@ -1,12 +1,14 @@
 import { NextRequest } from "next/server";
+import { randomBytes } from "node:crypto";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extraPickCount, priceOrder, requiredPickCount, selectionStatus, validateCategoryPicks, validateOffers } from "@/lib/person-select/core";
-import type { PersonSelectCategory, PersonSelectOffer, PersonSelectOrderItem } from "@/lib/person-select/types";
+import { isPersonSelectAccessMode, isPersonSelectCustomerViewMode, isPersonSelectProjectType, type PersonSelectAccessMode, type PersonSelectCategory, type PersonSelectOffer, type PersonSelectOrderItem } from "@/lib/person-select/types";
 import { signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
+import { accessModeChangeProblem } from "@/lib/person-select/projectSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -88,14 +90,39 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     };
   });
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
-  return Response.json({ ok: true, event, people: peopleRows, groups });
+  let shared: Record<string, unknown> | null = null;
+  if (event.access_mode === "project_shared") {
+    const { data: selection } = await db.from("person_select_shared_selections").select("id,submitted_at,customer_memo").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle();
+    const { data: selectedItems } = selection
+      ? await db.from("person_select_shared_selection_items").select("image_id,customer_rating,memo,person_select_images(original_file_name,source_rel_path,thumb_path)").eq("selection_id", selection.id)
+      : { data: [] };
+    const itemImages = (selectedItems ?? []).flatMap((item) => {
+      const image = item.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
+      return image ? [image] : [];
+    });
+    const itemUrls = await signedImageUrls(itemImages.map((image) => image.thumb_path));
+    shared = {
+      image_count: imageGroups.length,
+      selection: selection ? {
+        ...selection,
+        items: (selectedItems ?? []).map((item) => {
+          const image = item.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
+          return { ...item, image: image ? { ...image, thumb_url: itemUrls.get(image.thumb_path) ?? "" } : null };
+        }),
+      } : null,
+    };
+  }
+  return Response.json({ ok: true, event, people: peopleRows, groups, shared });
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers"];
+  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "shared_link_active", "shared_token_expires_at"];
   const update = Object.fromEntries(allowed.filter((key) => body[key] !== undefined).map((key) => [key, body[key]]));
+  if (body.project_type !== undefined && !isPersonSelectProjectType(body.project_type)) return Response.json({ ok: false, error: "올바른 프로젝트 유형을 선택해 주세요." }, { status: 400 });
+  if (body.customer_view_mode !== undefined && !isPersonSelectCustomerViewMode(body.customer_view_mode)) return Response.json({ ok: false, error: "올바른 고객 화면 방식을 선택해 주세요." }, { status: 400 });
+  if (body.access_mode !== undefined && !isPersonSelectAccessMode(body.access_mode)) return Response.json({ ok: false, error: "올바른 접근 방식을 선택해 주세요." }, { status: 400 });
   if (body.deadline_at !== undefined) {
     const deadlineAt = parseSeoulDateTime(body.deadline_at);
     if (!deadlineAt) return Response.json({ ok: false, error: "올바른 마감일을 입력해 주세요." }, { status: 400 });
@@ -115,6 +142,29 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
     if (problem) return Response.json({ ok: false, error: problem }, { status: 400 });
   }
   if (update.status && !["draft", "open", "closed"].includes(String(update.status))) return Response.json({ ok: false, error: "올바르지 않은 행사 상태입니다." }, { status: 400 });
+  if (body.access_mode !== undefined) {
+    const db = getSupabaseAdmin();
+    const [{ data: current }, { count: peopleCount }, { count: imageCount }, { count: choiceCount }, { count: sharedDraftCount }, { count: sharedSelectionCount }] = await Promise.all([
+      db.from("person_select_events").select("access_mode,shared_token").eq("id", eventId).maybeSingle(),
+      db.from("person_select_people").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      db.from("person_select_images").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      db.from("person_select_choices").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      db.from("person_select_shared_drafts").select("event_id", { count: "exact", head: true }).eq("event_id", eventId),
+      db.from("person_select_shared_selections").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+    ]);
+    if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+    const problem = accessModeChangeProblem({
+      current: (current.access_mode ?? "individual") as PersonSelectAccessMode,
+      next: body.access_mode,
+      peopleCount: peopleCount ?? 0,
+      imageCount: imageCount ?? 0,
+      choiceCount: choiceCount ?? 0,
+      sharedDraftCount: sharedDraftCount ?? 0,
+      sharedSelectionCount: sharedSelectionCount ?? 0,
+    });
+    if (problem) return Response.json({ ok: false, error: problem }, { status: 409 });
+    if (body.access_mode === "project_shared" && !current.shared_token) update.shared_token = randomBytes(32).toString("hex");
+  }
   update.updated_at = new Date().toISOString();
   const { data, error } = await getSupabaseAdmin().from("person_select_events").update(update).eq("id", eventId).select("*").single();
   if (error) return Response.json({ ok: false, error: error.message }, { status: 400 });

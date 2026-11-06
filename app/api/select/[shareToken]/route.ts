@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { getGalleryImages, getLatestSelection } from "@/lib/selectGallery";
+import { getGalleryDraft, getGalleryImages, getLatestSelection } from "@/lib/selectGallery";
 import { assertWrite } from "@/lib/db/assertWrite";
+import { enforcePublicSelectionRateLimit, publicSelectionErrorResponse } from "@/lib/select-gallery/publicSelection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ shareToken: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ shareToken: string }> }) {
   const { shareToken } = await params;
   try {
     const sb = getSupabaseAdmin();
+    await enforcePublicSelectionRateLimit({ db: sb, request: req, token: shareToken, action: "gallery-read", limit: 180 });
     const { data: gallery } = await sb
       .from("select_galleries")
       .select("*")
@@ -25,9 +27,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sha
     const expiresAt = new Date(gallery.file_expires_at);
     const filesExpired = expiresAt < now;
 
-    const [images, selection] = await Promise.all([
+    const [images, selection, draft] = await Promise.all([
       filesExpired ? [] : getGalleryImages(sb, gallery.id),
       getLatestSelection(sb, gallery.id),
+      getGalleryDraft(sb, gallery.id, Number(gallery.share_token_version ?? 1)),
     ]);
 
     if (gallery.status === "draft" || gallery.status === "mail_sent") {
@@ -48,6 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sha
         shooting_name: gallery.shooting_name,
         shooting_date: gallery.shooting_date,
         share_token: gallery.share_token,
+        view_mode: gallery.view_mode === "bridge" ? "bridge" : "classic",
         status: gallery.status,
         allow_web_select: gallery.allow_web_select,
         allow_download_upload: gallery.allow_download_upload,
@@ -60,8 +64,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ sha
       },
       images,
       selection,
+      draft: draft ? {
+        revision: draft.revision,
+        selectedImageIds: draft.selected_image_ids,
+        ratings: draft.ratings,
+        imageNotes: draft.image_notes,
+        customerMemo: draft.customer_memo,
+        updatedAt: draft.updated_at,
+      } : null,
     });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+  } catch (error) {
+    return publicSelectionErrorResponse(error);
   }
 }

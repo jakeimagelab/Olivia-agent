@@ -4,6 +4,10 @@ export type PersonSelectCategory = {
   pick: number;
 };
 
+export type PersonSelectProjectType = "general" | "school" | "medical" | "business";
+export type PersonSelectAccessMode = "individual" | "project_shared";
+export type PersonSelectCustomerViewMode = "classic" | "bridge";
+
 export type PersonSelectRetouchOption = {
   key: string;
   label: string;
@@ -19,10 +23,18 @@ export type PersonSelectEvent = {
   memo_max: number;
   deadline_at: string;
   status: "draft" | "open" | "closed";
+  /** 프로젝트 성격, 로그인 단위, 고객 화면은 서로 독립된 설정이다. */
+  project_type?: PersonSelectProjectType;
+  access_mode?: PersonSelectAccessMode;
+  customer_view_mode?: PersonSelectCustomerViewMode;
+  shared_token?: string | null;
+  shared_token_version?: number;
+  shared_link_active?: boolean;
+  shared_token_expires_at?: string | null;
   /** 사진을 가져온 Mac Studio 폴더. RAW 매칭이 같은 폴더에서 원본을 찾는다. */
   source_relative_path?: string | null;
   /** school: 선생님프로필/담임선생님 구조, person-folders: 이름 폴더/JPG원본 구조 */
-  source_layout?: "school" | "person-folders";
+  source_layout?: "school" | "person-folders" | "project";
   raw_match_result?: Record<string, unknown> | null;
   raw_matched_at?: string | null;
   /** 고객 화면 맨 위에 보이는 안내 문구 */
@@ -84,6 +96,42 @@ export const DEFAULT_PERSON_SELECT_CATEGORIES: PersonSelectCategory[] = [
   { key: "homeroom", label: "담임 사진", pick: 1 },
 ];
 
+/** 새 일반 프로젝트는 학교·특정 행사의 문구를 물려받지 않는다. */
+export const GENERAL_PERSON_SELECT_CATEGORIES: PersonSelectCategory[] = [
+  { key: "photo", label: "사진", pick: 1 },
+];
+
+export const PERSON_SELECT_CATEGORY_RECOMMENDATIONS: Record<PersonSelectProjectType, PersonSelectCategory[]> = {
+  general: GENERAL_PERSON_SELECT_CATEGORIES,
+  school: DEFAULT_PERSON_SELECT_CATEGORIES,
+  medical: [
+    { key: "profile", label: "프로필", pick: 1 },
+    { key: "staged", label: "진료 연출", pick: 1 },
+    { key: "group", label: "단체사진", pick: 1 },
+  ],
+  business: [
+    { key: "profile", label: "프로필", pick: 1 },
+    { key: "group", label: "단체사진", pick: 1 },
+  ],
+};
+
+/** 프로젝트 생성 시 추천값을 복사해 다른 프로젝트와 배열 참조를 공유하지 않는다. */
+export function categoriesForProjectType(projectType: PersonSelectProjectType): PersonSelectCategory[] {
+  return PERSON_SELECT_CATEGORY_RECOMMENDATIONS[projectType].map((category) => ({ ...category }));
+}
+
+export function isPersonSelectProjectType(value: unknown): value is PersonSelectProjectType {
+  return value === "general" || value === "school" || value === "medical" || value === "business";
+}
+
+export function isPersonSelectAccessMode(value: unknown): value is PersonSelectAccessMode {
+  return value === "individual" || value === "project_shared";
+}
+
+export function isPersonSelectCustomerViewMode(value: unknown): value is PersonSelectCustomerViewMode {
+  return value === "classic" || value === "bridge";
+}
+
 /** 이름 폴더 구조로 가져온 사진이 들어가는 항목. 수량은 관리자 화면에서 바꾼다. */
 export const PERSON_FOLDER_CATEGORY: PersonSelectCategory = { key: "photo", label: "사진", pick: 1 };
 
@@ -107,6 +155,12 @@ export const PERSON_SELECT_ORDER_MAX_QTY = 20;
 export const DEFAULT_PERSON_SELECT_NOTICE = "한 분당 보정본 1장 드립니다.\n추가로 원하시면 사진을 더 선택하시거나\n아래에서 액자/앨범을 신청해주세요.";
 export const DEFAULT_PERSON_SELECT_EXTRA_PRICE = 50_000;
 export const DEFAULT_PERSON_SELECT_EXTRA_MAX = 10;
+
+/** 특정 행사 템플릿을 적용하지 않은 새 프로젝트의 중립 상품 설정. */
+export const NEUTRAL_PERSON_SELECT_NOTICE = "";
+export const NEUTRAL_PERSON_SELECT_EXTRA_PRICE = 0;
+export const NEUTRAL_PERSON_SELECT_EXTRA_MAX = 0;
+export const NEUTRAL_PERSON_SELECT_OFFERS: PersonSelectOffer[] = [];
 /**
  * 추가 주문 상품 예시 사진 (public/person-select/offers).
  * 상품 구분값(offer_key)과 선택지(option_keys)로 찾는다. option_keys가 null이면 그 상품 전체에 쓴다.

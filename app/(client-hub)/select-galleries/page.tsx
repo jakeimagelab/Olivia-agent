@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GALLERY_STATUS_COLOR, GALLERY_STATUS_LABEL, type SelectGallery } from "@/lib/selectGallery";
 import { C } from "@/lib/theme";
@@ -47,7 +47,7 @@ function SelectGalleriesWorkspace({
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: "", hospital_name: "", shooting_name: "", shooting_date: "", expire_days: 3 });
+  const [form, setForm] = useState({ title: "", hospital_name: "", shooting_name: "", shooting_date: "", expire_days: 3, view_mode: "classic" as "classic" | "bridge" });
   const [showForm, setShowForm] = useState(false);
 
   // clientId 없이(고객 워크플로우를 거치지 않고) 이 페이지에 바로 들어온 경우에도
@@ -83,15 +83,15 @@ function SelectGalleriesWorkspace({
     setClientQuery("");
   };
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     const qs = clientId ? `?clientId=${clientId}` : "";
     fetch(`/api/select-galleries${qs}`).then(r => r.json()).then(d => {
       if (d.ok) setGalleries(d.galleries);
     }).finally(() => setLoading(false));
-  };
+  }, [clientId]);
 
-  useEffect(() => { load(); }, [clientId]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     if (!clientId) return;
@@ -238,6 +238,20 @@ function SelectGalleriesWorkspace({
             ))}
           </div>
           <div style={{ marginBottom: 16 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 6 }}>고객 화면 방식</label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+              {([[
+                "classic", "기존 방식", "기존 웹 선택과 선택 JPG 업로드",
+              ], [
+                "bridge", "Bridge 방식", "별점·리뷰·전체화면을 포함한 고객 Bridge",
+              ]] as const).map(([value, label, description]) => (
+                <button key={value} type="button" onClick={() => setForm((previous) => ({ ...previous, view_mode: value }))}
+                  aria-pressed={form.view_mode === value}
+                  style={{ minHeight: 70, display: "grid", gap: 4, padding: "10px 12px", border: `1.5px solid ${form.view_mode === value ? C.teal : C.border}`, borderRadius: 8, color: form.view_mode === value ? C.teal : C.txt, background: form.view_mode === value ? C.mint : C.white, textAlign: "left", cursor: "pointer", fontFamily: "inherit" }}>
+                  <strong style={{ fontSize: 13 }}>{label}</strong><span style={{ color: C.muted, fontSize: 11, lineHeight: 1.45 }}>{description}</span>
+                </button>
+              ))}
+            </div>
             <label style={{ fontSize: 11, fontWeight: 700, color: C.muted, display: "block", marginBottom: 4 }}>파일 보관 기간</label>
             <div style={{ display: "flex", gap: 8 }}>
               {[3, 5, 7].map(d => (
@@ -288,6 +302,7 @@ function SelectGalleriesWorkspace({
                     {g.hospital_name && <span>🏥 {g.hospital_name}</span>}
                     {g.shooting_date && <span>📅 {g.shooting_date}</span>}
                     <span>📸 {g.total_jpg_count}장</span>
+                    <span>화면 {g.view_mode === "bridge" ? "Bridge" : "기존"}</span>
                     {g.selected_count > 0 && <span>✅ {g.selected_count}장 선택</span>}
                     <span style={{ color: new Date(g.file_expires_at) < new Date() ? C.red : C.muted }}>
                       🗓 만료 {new Date(g.file_expires_at).toLocaleDateString("ko-KR")}

@@ -60,6 +60,7 @@ function SelectGalleryDetailWorkspace({
   const [images, setImages] = useState<SelectGalleryImage[]>([]);
   const [selection, setSelection] = useState<ClientPhotoSelection | null>(null);
   const [rawMatches, setRawMatches] = useState<SelectRawMatch[]>([]);
+  const [invalidatedRawMatchCount, setInvalidatedRawMatchCount] = useState(0);
   const [client, setClient] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -96,6 +97,7 @@ function SelectGalleryDetailWorkspace({
           setImages(d.images ?? []);
           setSelection(d.selection ?? null);
           setRawMatches(d.rawMatches ?? []);
+          setInvalidatedRawMatchCount(Number(d.invalidatedRawMatchCount ?? 0));
         }
       })
       .finally(() => setLoading(false));
@@ -114,7 +116,7 @@ function SelectGalleryDetailWorkspace({
   useEffect(() => {
     if (client && !mailEmail && client.email) setMailEmail(client.email);
     if (client && !mailName && (client.manager_name || client.name)) setMailName(client.manager_name ?? client.name ?? "");
-  }, [client]);
+  }, [client, mailEmail, mailName]);
 
   /* ── 링크 복사 ── */
   const copyLink = () => {
@@ -122,6 +124,29 @@ function SelectGalleryDetailWorkspace({
     const url = `${window.location.origin}/select/${gallery.share_token}`;
     navigator.clipboard.writeText(url);
     alert("셀렉 링크 복사됨:\n" + url);
+  };
+
+  const setViewMode = async (viewMode: "classic" | "bridge") => {
+    if (!gallery || gallery.view_mode === viewMode) return;
+    const response = await fetch(`/api/select-galleries/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ view_mode: viewMode }),
+    });
+    const body = await response.json();
+    if (!body.ok) return alert(`화면 방식을 변경하지 못했습니다: ${body.error}`);
+    setGallery(body.gallery);
+  };
+
+  const regenerateShareToken = async () => {
+    if (!gallery || !window.confirm("기존 고객 링크를 즉시 무효화하고 새 링크를 만들까요?")) return;
+    const response = await fetch(`/api/select-galleries/${id}/regenerate-token`, { method: "POST" });
+    const body = await response.json();
+    if (!body.ok) return alert(`링크를 재발급하지 못했습니다: ${body.error}`);
+    setGallery((current) => current ? { ...current, ...body.gallery } : current);
+    const nextUrl = `${window.location.origin}/select/${body.gallery.share_token}`;
+    await navigator.clipboard.writeText(nextUrl);
+    alert(`새 셀렉 링크를 복사했습니다.\n${nextUrl}`);
   };
 
   /* ── 이미지 업로드 ── */
@@ -135,7 +160,10 @@ function SelectGalleryDetailWorkspace({
     for (let i = 0; i < files.length; i += BATCH) {
       const batch = files.slice(i, i + BATCH);
       const fd = new FormData();
-      batch.forEach(f => fd.append("files", f));
+      batch.forEach((f) => {
+        fd.append("files", f);
+        fd.append("relative_paths", f.webkitRelativePath || f.name);
+      });
       const res = await fetch(`/api/select-galleries/${id}/upload-images`, { method: "POST", body: fd });
       const d = await res.json();
       done += d.uploaded ?? 0;
@@ -375,6 +403,22 @@ function SelectGalleryDetailWorkspace({
               style={{ display: "inline-flex", alignItems: "center", padding: "9px 16px", fontSize: 13, fontWeight:600, color: C.teal, border: `1.5px solid ${C.teal}`, borderRadius: 8, textDecoration: "none" }}>
               <Eye size={15} style={{ marginRight:6 }} />고객 화면 보기
             </a>
+            <Btn onClick={regenerateShareToken} variant="secondary">링크 재발급</Btn>
+          </div>
+          <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, marginBottom: 7 }}>고객 화면 방식</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {([[
+                "classic", "기존 방식", "기존 웹 선택·JPG 업로드",
+              ], [
+                "bridge", "Bridge 방식", "별점·리뷰·전체화면 고객 Bridge",
+              ]] as const).map(([value, label, detail]) => (
+                <button key={value} type="button" onClick={() => setViewMode(value)} aria-pressed={(gallery.view_mode ?? "classic") === value}
+                  style={{ minHeight: 58, display: "grid", gap: 3, padding: "8px 11px", border: `1.5px solid ${(gallery.view_mode ?? "classic") === value ? C.teal : C.border}`, borderRadius: 8, color: (gallery.view_mode ?? "classic") === value ? C.teal : C.txt, background: (gallery.view_mode ?? "classic") === value ? C.mint : C.white, textAlign: "left", fontFamily: "inherit", cursor: "pointer" }}>
+                  <strong style={{ fontSize: 12 }}>{label}</strong><span style={{ color: C.muted, fontSize: 10 }}>{detail}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </Card>
 
@@ -472,6 +516,11 @@ function SelectGalleryDetailWorkspace({
         {/* RAW 자동 매칭 */}
         {selection && (
           <Card title="RAW 자동 매칭">
+            {invalidatedRawMatchCount > 0 ? (
+              <div style={{ marginBottom: 12, padding: "10px 13px", border: `1px solid ${C.orange}`, borderRadius: 8, background: "#FFF4EE", color: C.orange, fontSize: 12 }}>
+                고객 재제출로 이전 RAW 매칭 {invalidatedRawMatchCount}건이 무효화되었습니다. 새 선택을 확인한 뒤 다시 승인해 주세요.
+              </div>
+            ) : null}
             {copySummary ? (
               <div style={{ marginBottom:12, padding:"12px 14px", border:`1px solid ${copySummary.failed.length ? C.orange : C.green}`, borderRadius:8, background:copySummary.failed.length ? "#FFF4EE" : "#EDF5F3" }}>
                 <div style={{ fontSize:13, fontWeight:600, color:copySummary.failed.length ? C.orange : C.green }}>

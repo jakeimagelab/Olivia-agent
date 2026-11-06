@@ -6,9 +6,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
-import { DEFAULT_PERSON_SELECT_EXTRA_MAX, DEFAULT_PERSON_SELECT_EXTRA_PRICE, DEFAULT_PERSON_SELECT_NOTICE, DEFAULT_PERSON_SELECT_OFFERS, type PersonSelectOffer } from "@/lib/person-select/types";
-import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, createPersonSelectDerivatives, type LocalPersonSelectScan } from "@/lib/person-select/localImport";
+import { DEFAULT_PERSON_SELECT_EXTRA_MAX, DEFAULT_PERSON_SELECT_EXTRA_PRICE, DEFAULT_PERSON_SELECT_NOTICE, DEFAULT_PERSON_SELECT_OFFERS, type PersonSelectAccessMode, type PersonSelectCustomerViewMode, type PersonSelectOffer, type PersonSelectProjectType } from "@/lib/person-select/types";
+import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type LocalPersonSelectScan } from "@/lib/person-select/localImport";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
+import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
+import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Choice = { id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
@@ -16,12 +18,13 @@ type RepresentativeImage = { category_key: string; original_file_name: string; s
 type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number } };
 type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
-type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[] };
-type Layout = "school" | "person-folders";
+type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null };
+type SharedSelectionItem = { image_id: string; customer_rating: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
+type SharedAdminData = { image_count: number; selection: { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] } | null };
+type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
 type Filter = "all" | "done" | "saving" | "unseen";
-const LOCAL_IMPORT_CONCURRENCY = 3;
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString("ko-KR")}원`;
@@ -52,7 +55,7 @@ function personPhotoCount(person: Person) {
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
   const routePath = windowRoute.routeHref ? new URL(windowRoute.routeHref, "https://olivia.local").pathname : ""; const routeId = routePath.match(/^\/person-select\/([^/]+)\/?$/)?.[1]; const id = routeId || params.id;
-  const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[] } | null>(null);
+  const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null } | null>(null);
   const [tab, setTab] = useState<"matching" | "progress" | "upload" | "settings">("matching");
   const [filter, setFilter] = useState<Filter>("all");
   const [picker, setPicker] = useState(false);
@@ -60,10 +63,9 @@ export default function PersonSelectDetailPage() {
   const [sourceMode, setSourceMode] = useState<SourceMode>("local");
   const [localFolderName, setLocalFolderName] = useState("");
   const [localScan, setLocalScan] = useState<LocalPersonSelectScan | null>(null);
-  const [localBusy, setLocalBusy] = useState(false);
-  const [localProgress, setLocalProgress] = useState({ current: 0, total: 0, fileName: "" });
   const localInputRef = useRef<HTMLInputElement>(null);
-  const localRunRef = useRef(0);
+  const handledUploadJobRef = useRef<string | null>(null);
+  const uploadManager = usePersonSelectUploadManager();
   const [workerOnline, setWorkerOnline] = useState<boolean | null>(null);
   const [jobId, setJobId] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -79,7 +81,21 @@ export default function PersonSelectDetailPage() {
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
   useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); setJobId(""); await load(); if (body.job?.status === "COMPLETED") setTab("matching"); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
   useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
-  useEffect(() => () => { localRunRef.current += 1; }, []);
+  const eventUploadJob = uploadManager.jobs.find((job) => job.event_id === id) ?? null;
+  const localBusy = Boolean(eventUploadJob && (eventUploadJob.status === "queued" || eventUploadJob.status === "uploading"));
+  const localProgress = eventUploadJob ? { current: eventUploadJob.success_count, total: eventUploadJob.total_count, fileName: "" } : { current: 0, total: 0, fileName: "" };
+  useEffect(() => {
+    if (!eventUploadJob || handledUploadJobRef.current === eventUploadJob.id || !["completed", "partial_failed", "failed"].includes(eventUploadJob.status)) return;
+    handledUploadJobRef.current = eventUploadJob.id;
+    setResult({
+      photoCount: eventUploadJob.total_count,
+      importedCount: eventUploadJob.success_count,
+      failedCount: eventUploadJob.failed_count,
+      message: eventUploadJob.status === "completed" ? "사진 업로드가 완료됐어요." : eventUploadJob.status === "partial_failed" ? "일부 사진을 올리지 못했어요." : "사진 업로드에 실패했어요.",
+    });
+    void load();
+    if (eventUploadJob.status === "completed") setTab("matching");
+  }, [eventUploadJob, load]);
   const filtered = useMemo(() => (data?.people ?? []).filter((person) => {
     if (filter === "done") return person.status_label.includes("제출");
     if (filter === "saving") return person.status_label === "저장 중";
@@ -109,14 +125,15 @@ export default function PersonSelectDetailPage() {
   if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
   const currentData = data;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
-  const currentLayout: Layout = layout ?? (data.people.length && data.event.source_layout === "school" ? "school" : "person-folders");
+  const isShared = data.event.access_mode === "project_shared";
+  const currentLayout: Layout = layout ?? (isShared ? "project" : data.people.length && data.event.source_layout === "school" ? "school" : "person-folders");
   const isSchool = currentLayout === "school";
   const personWord = isSchool ? "선생님" : "이름";
   const categories = data.event.categories ?? [];
   const categoryLabels = new Map(categories.map((item) => [item.key, item.label]));
   const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "저장 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length };
-  const totalPhotos = data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
-  const pickText = categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
+  const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
+  const pickText = isShared ? `프로젝트 공용 셀렉${data.shared?.selection ? ` · 고객 선택 ${data.shared.selection.items.length}장` : ""}` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
   async function selectLocalFolder() {
     const showDirectoryPicker = (window as Window & { showDirectoryPicker?: (options?: { mode?: "read" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
@@ -150,80 +167,21 @@ export default function PersonSelectDetailPage() {
   }
   async function startRemoteImport() {
     if (!path) return setError(isSchool ? "학교전달 폴더를 선택해 주세요." : "촬영 폴더를 선택해 주세요."); setError(""); setResult(null);
-    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload: isSchool ? { event_id: id, source_relative_path: path, mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }, { folder: "담임선생님", category: "homeroom", owner: "group" }] } : { event_id: id, source_relative_path: path, layout: "person-folders" } }) }); const body = await response.json(); if (!response.ok) return setError(body.error); setJobId(body.job?.id || body.id); setResult({ message: "사진 가져오기를 시작했어요." });
+    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload: isSchool ? { event_id: id, source_relative_path: path, mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }, { folder: "담임선생님", category: "homeroom", owner: "group" }] } : { event_id: id, source_relative_path: path, layout: currentLayout } }) }); const body = await response.json(); if (!response.ok) return setError(body.error); setJobId(body.job?.id || body.id); setResult({ message: "사진 가져오기를 시작했어요." });
   }
   async function startLocalImport() {
     if (!localScan?.files.length) return setError("JPG가 들어 있는 로컬 폴더를 선택해 주세요.");
-    const runId = localRunRef.current + 1;
-    localRunRef.current = runId;
-    setLocalBusy(true); setError(""); setResult(null); setLocalProgress({ current: 0, total: localScan.files.length, fileName: "" });
+    setError(""); setResult(null);
     try {
-      const prepareResponse = await fetch(`/api/person-select/${id}/local-import`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ layout: currentLayout, files: localScan.files.map((file) => ({ relativePath: file.relativePath, fileName: file.fileName })) }),
-      });
-      const prepared = await prepareResponse.json();
-      if (!prepareResponse.ok) throw new Error(prepared.error || "로컬 사진 가져오기를 준비하지 못했습니다.");
-      if (localRunRef.current !== runId) return;
-      const existing = new Set(Array.isArray(prepared.existingPaths) ? prepared.existingPaths.map(String) : []);
-      const pending = localScan.files
-        .map((candidate, sortOrder) => ({ candidate, sortOrder }))
-        .filter(({ candidate }) => !existing.has(candidate.relativePath));
-      setLocalProgress({ current: 0, total: pending.length, fileName: "" });
-      const failed: { file: string; reason: string }[] = [];
-      let imported = 0;
-      let cursor = 0;
-      let completed = 0;
-      async function worker() {
-        while (localRunRef.current === runId) {
-          const item = pending[cursor];
-          cursor += 1;
-          if (!item) return;
-          const { candidate, sortOrder } = item;
-          try {
-            const derivative = await createPersonSelectDerivatives(candidate.file);
-            const form = new FormData();
-            form.set("layout", currentLayout);
-            form.set("relativePath", candidate.relativePath);
-            form.set("sortOrder", String(sortOrder));
-            form.set("sourceWidth", String(derivative.sourceWidth));
-            form.set("sourceHeight", String(derivative.sourceHeight));
-            form.set("thumb", derivative.thumb, `${candidate.fileName}.thumb.jpg`);
-            form.set("preview", derivative.preview, `${candidate.fileName}.preview.jpg`);
-            const response = await fetch(`/api/person-select/${id}/local-import`, { method: "POST", body: form });
-            const body = await response.json();
-            if (!response.ok) throw new Error(body.error || "업로드 실패");
-            if (!body.skipped) imported += 1;
-          } catch (cause) {
-            failed.push({ file: candidate.relativePath, reason: cause instanceof Error ? cause.message : "업로드 실패" });
-          }
-          completed += 1;
-          setLocalProgress({ current: completed, total: pending.length, fileName: candidate.fileName });
-        }
+      if (eventUploadJob && !["completed", "canceled"].includes(eventUploadJob.status) && (eventUploadJob.needs_file_reselection || eventUploadJob.failed_count > 0)) {
+        await uploadManager.reattachLocalFiles(eventUploadJob.id, localScan);
+        setResult({ message: "완료된 사진은 건너뛰고 남은 사진을 이어서 올립니다." });
+      } else {
+        await uploadManager.startLocalUpload({ eventId: id, projectTitle: currentData.event.title, layout: currentLayout, sourceName: localFolderName || "로컬 폴더", scan: localScan });
+        setResult({ message: "업로드를 시작했어요. 다른 OS 앱으로 이동해도 이 탭이 열려 있는 동안 계속됩니다." });
       }
-      await Promise.all(Array.from({ length: Math.min(LOCAL_IMPORT_CONCURRENCY, Math.max(1, pending.length)) }, () => worker()));
-      if (localRunRef.current !== runId) return;
-      setResult({
-        ok: failed.length === 0,
-        photoCount: localScan.files.length,
-        importedCount: imported,
-        skippedCount: existing.size,
-        peopleCount: Number(prepared.peopleCount ?? 0),
-        createdPeople: Array.isArray(prepared.createdPeople) ? prepared.createdPeople : [],
-        skippedFolders: localScan.skippedFolders,
-        groupFolders: localScan.groupFolders,
-        unnamedFolders: localScan.unnamedFolders,
-        emptyFolders: localScan.emptyFolders,
-        failedCount: failed.length,
-        failed,
-      });
-      await load();
-      setTab("matching");
     } catch (cause) {
-      if (localRunRef.current === runId) setError(cause instanceof Error ? cause.message : "로컬 사진 가져오기에 실패했습니다.");
-    } finally {
-      if (localRunRef.current === runId) setLocalBusy(false);
+      setError(cause instanceof Error ? cause.message : "로컬 사진 가져오기에 실패했습니다.");
     }
   }
   function startImport() { return sourceMode === "local" ? startLocalImport() : startRemoteImport(); }
@@ -242,32 +200,46 @@ export default function PersonSelectDetailPage() {
     }
     const response = await fetch(`/api/person-select/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); const body = await response.json(); if (!response.ok) setError(body.error); else await load();
   }
+  async function regenerateSharedLink() {
+    if (!isShared || !window.confirm("기존 공용 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?")) return;
+    setError("");
+    const response = await fetch(`/api/person-select/${id}/regenerate-shared-token`, { method: "POST" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) return setError(body.error || "공용 링크를 다시 만들지 못했습니다.");
+    await load();
+  }
   const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
-  const loginGuide = isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
-  const notice = `주소: ${typeof location !== "undefined" ? location.origin : ""}/pick/${data.event.slug} / ${loginGuide} / 마감: ${formatSeoulDeadline(data.event.deadline_at)}`;
-  const tabs = [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "행사 설정", SlidersHorizontal]] as const;
+  const loginGuide = isShared ? "공용 링크에서 프로젝트 사진을 함께 선택해 주세요" : isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
+  const publicPath = isShared && data.event.shared_token ? `/pick/shared/${data.event.shared_token}` : `/pick/${data.event.slug}`;
+  const notice = `주소: ${typeof location !== "undefined" ? location.origin : ""}${publicPath} / ${loginGuide} / 마감: ${formatSeoulDeadline(data.event.deadline_at)}`;
+  const tabs = isShared
+    ? [["matching", "사진 확인", UsersRound], ["progress", "고객 셀렉", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const
+    : [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const;
   const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "저장 중", counts.saving], ["unseen", "미접속", counts.unseen]];
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
-  const rawDisabledReason = counts.done === 0 ? "최종 제출한 사람이 없어요." : !data.event.source_relative_path ? "Mac Studio에서 같은 원본 폴더를 연결해 주세요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
+  const submittedCount = isShared ? (data.shared?.selection ? 1 : 0) : counts.done;
+  const rawDisabledReason = submittedCount === 0 ? "최종 제출된 고객 셀렉이 없어요." : !data.event.source_relative_path ? "Mac Studio에서 같은 원본 폴더를 연결해 주세요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : isShared ? "고객이 고른 사진의 RAW를 기존 승인 흐름으로 매칭합니다." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
   return <main className={styles.shell}>
     <section className={styles.body}>
-      <div className={styles.crumb}><button className={styles.crumbBack} onClick={() => navigate("/person-select")}><ArrowLeft size={14} />개인별 셀렉</button>{sourceFolder ? <><span aria-hidden="true">›</span><span>{sourceFolder}</span></> : null}</div>
+      <div className={styles.crumb}><button className={styles.crumbBack} onClick={() => navigate("/person-select")}><ArrowLeft size={14} />사진선택</button>{sourceFolder ? <><span aria-hidden="true">›</span><span>{sourceFolder}</span></> : null}</div>
       <div className={styles.titleRow}>
-        <div><h1 className={styles.title}>{data.event.title}</h1><p className={styles.subtitle}>마감 {formatSeoulDeadline(data.event.deadline_at)} · {data.people.length}명 · {pickText}{totalPhotos ? ` · 사진 ${totalPhotos.toLocaleString()}장` : ""}</p></div>
+        <div><h1 className={styles.title}>{data.event.title}</h1><p className={styles.subtitle}>마감 {formatSeoulDeadline(data.event.deadline_at)} · {isShared ? PERSON_SELECT_ACCESS_MODE_LABELS.project_shared : `${data.people.length}명`} · {pickText}{totalPhotos ? ` · 사진 ${totalPhotos.toLocaleString()}장` : ""}</p></div>
         <div className={styles.actions}>
           <button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button>
-          <a className={styles.secondary} href={`/api/person-select/${id}/exports/pins`}><Download size={15} />비밀번호 목록</a>
-          <a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a>
-          <a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a>
-          <button className={styles.primary} disabled={workerOnline === false || rawBusy || counts.done === 0 || !data.event.source_relative_path} title={rawDisabledReason} onClick={startRawMatch}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>
+          {!isShared ? <><a className={styles.secondary} href={`/api/person-select/${id}/exports/pins`}><Download size={15} />비밀번호 목록</a><a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a><a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a></> : null}
+          <button className={styles.primary} disabled={workerOnline === false || rawBusy || submittedCount === 0 || !data.event.source_relative_path} title={rawDisabledReason} onClick={startRawMatch}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>
         </div>
       </div>
       <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
       {error ? <div className={styles.warning}>{error}</div> : null}
       <RawMatchResult result={rawResult ?? data.event.raw_match_result ?? null} at={rawResult ? null : data.event.raw_matched_at ?? null} />
-      {tab === "matching" ? <section className={styles.matchingPanel}>
+      {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
+        <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>공용 링크에서는 개인 계정이나 PIN을 만들지 않고 프로젝트 전체 사진을 함께 봅니다.</p></div><button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div>
+        <div className={styles.uploadGrid}><article className={styles.uploadCard}><h2>등록 사진</h2><p className={styles.title}>{totalPhotos.toLocaleString()}장</p><p className={styles.summary}>폴더의 상대경로를 유지해 같은 파일명의 다른 사진을 구분합니다.</p></article><article className={styles.uploadCard}><h2>고객 셀렉</h2><p className={styles.title}>{(data.shared?.selection?.items.length ?? 0).toLocaleString()}장</p><p className={styles.summary}>{data.shared?.selection ? `${new Date(data.shared.selection.submitted_at).toLocaleString("ko-KR")} 제출` : "아직 최종 제출 전"}</p></article></div>
+      </section> : null}
+      {tab === "matching" && !isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}>
           <div><h2>인원 매칭 확인</h2><p>폴더 이름과 대표 사진을 비교해 올바른 사람에게 연결됐는지 먼저 확인하세요.</p></div>
           {data.people.length ? <button className={styles.primary} onClick={() => setTab("progress")}>확인하고 진행 현황 보기</button> : <button className={styles.primary} onClick={() => setTab("upload")}>사진 올리기</button>}
@@ -281,7 +253,12 @@ export default function PersonSelectDetailPage() {
           </article>;
         })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 대표 사진 한 장씩 보여드려요.</span></div>}
       </section> : null}
-      {tab === "progress" ? <>
+      {tab === "progress" && isShared ? <section className={styles.matchingPanel}>
+        <div className={styles.matchingHeader}><div><h2>프로젝트 고객 셀렉</h2><p>{data.shared?.selection ? `${data.shared.selection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "고객이 최종 제출하면 선택 사진과 메모가 여기에 표시됩니다."}</p></div>{data.shared?.selection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div>
+        {data.shared?.selection?.customer_memo ? <div className={styles.notice}>전체 메모<br />{data.shared.selection.customer_memo}</div> : null}
+        {data.shared?.selection?.items.length ? <div className={styles.matchingGrid}>{data.shared.selection.items.map((item) => <article className={styles.matchingCard} key={item.image_id}>{item.image?.thumb_url ? <img className={styles.matchingPhoto} src={item.image.thumb_url} alt={item.image.original_file_name} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}>사진 확인 필요</div>}<div className={styles.matchingMeta}><div><strong>{item.image?.original_file_name ?? item.image_id}</strong><span>{item.customer_rating ? `${item.customer_rating}점` : "선택"}</span></div><p>{item.image?.source_rel_path ?? "상대경로 없음"}</p>{item.memo ? <small>{item.memo}</small> : null}</div></article>)}</div> : <div className={styles.matchingEmpty}><Info size={28} /><strong>제출된 사진이 없어요.</strong><span>공용 링크의 자동 저장 초안과 최종 제출은 구분됩니다.</span></div>}
+      </section> : null}
+      {tab === "progress" && !isShared ? <>
         <div className={styles.underTabs}>{filters.map(([key, label, count]) => <button key={key} className={filter === key ? styles.underTabActive : ""} onClick={() => setFilter(key)}>{label}<small>{count}</small></button>)}</div>
         <section className={styles.panel}><div className={styles.tableWrap}><table className={styles.table}>
           <thead><tr><th>{personWord}</th>{data.groups.length ? <th>담임 반</th> : null}{categories.map((category) => <th key={category.key}>{categories.length === 1 ? "고른 사진" : category.label} ({category.pick}장)</th>)}<th>보정 요청</th><th>추가 주문</th><th>상태</th><th>최근 활동</th><th /></tr></thead>
@@ -316,32 +293,37 @@ export default function PersonSelectDetailPage() {
         <section className={styles.uploadCard}>
           <h2>폴더에서 사진 올리기</h2>
           <div className={styles.field}><label>사진이 있는 위치</label><div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["local", "이 기기", Monitor], ["remote", "Mac Studio", Server]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={sourceMode === key ? styles.segmentActive : ""} onClick={() => setSourceMode(key)}><Icon size={15} />{label}</button>)}</div></div>
-          <div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["person-folders", "이름 폴더 (김춘자/JPG원본)", UserRound], ["school", "학교 (선생님프로필·담임선생님)", UsersRound]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={currentLayout === key ? styles.segmentActive : ""} onClick={() => { setLayout(key); setLocalFolderName(""); setLocalScan(null); }}><Icon size={15} />{label}</button>)}</div>
-          <p className={styles.summary}>{sourceMode === "local" ? "지금 Olivia를 연 기기" : "Mac Studio"}에서 {isSchool ? "학교전달" : "촬영"} 폴더를 골라 썸네일과 1600px 미리보기만 올립니다.</p>
+          <div className={styles.segment} style={{ margin: "6px 0 12px" }}>{(isShared ? [["project", "프로젝트 전체 폴더", UsersRound]] as const : [["person-folders", "이름 폴더 (김춘자/JPG원본)", UserRound], ["school", "학교 (선생님프로필·담임선생님)", UsersRound]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={currentLayout === key ? styles.segmentActive : ""} onClick={() => { setLayout(key); setLocalFolderName(""); setLocalScan(null); }}><Icon size={15} />{label}</button>)}</div>
+          <p className={styles.summary}>{sourceMode === "local" ? "지금 Olivia를 연 기기" : "Mac Studio"}에서 {isShared ? "프로젝트" : isSchool ? "학교전달" : "촬영"} 폴더를 골라 썸네일과 1600px 미리보기만 올립니다.</p>
           {sourceMode === "remote" && workerOnline === false ? <div className={styles.warning}>Mac Studio가 꺼져 있어요. 켜진 뒤 다시 시도해 주세요.</div> : null}
           <div className={styles.selectedPath}>{sourceMode === "local" ? localFolderName || "선택된 로컬 폴더가 없습니다." : path || "선택된 Mac Studio 폴더가 없습니다."}</div>
           <input ref={(input) => { localInputRef.current = input; input?.setAttribute("webkitdirectory", ""); input?.setAttribute("directory", ""); }} type="file" accept="image/jpeg,.jpg,.jpeg" multiple className={styles.hiddenInput} onChange={(event) => selectLocalFileList(event.currentTarget.files)} />
-          <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={sourceMode === "remote" ? workerOnline === false : localBusy} onClick={() => sourceMode === "local" ? void selectLocalFolder() : setPicker(true)}><FolderOpen size={15} />폴더 선택</button><button className={styles.primary} disabled={sourceMode === "local" ? localBusy || !localScan?.files.length : workerOnline === false || !path || Boolean(jobId && !result?.error && !result?.photoCount)} onClick={() => void startImport()}><Upload size={15} />{localBusy ? "사진 올리는 중" : "사진 올리기"}</button></div>
+          <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={sourceMode === "remote" ? workerOnline === false : localBusy} onClick={() => sourceMode === "local" ? void selectLocalFolder() : setPicker(true)}><FolderOpen size={15} />{eventUploadJob?.needs_file_reselection ? "같은 폴더 다시 선택" : "폴더 선택"}</button><button className={styles.primary} disabled={sourceMode === "local" ? localBusy || !localScan?.files.length : workerOnline === false || !path || Boolean(jobId && !result?.error && !result?.photoCount)} onClick={() => void startImport()}><Upload size={15} />{localBusy ? "업로드 진행 중" : eventUploadJob?.needs_file_reselection ? "남은 사진 이어서 올리기" : "사진 올리기"}</button></div>
           {sourceMode === "local" && localScan ? <p className={styles.summary}>올릴 JPG {localScan.files.length.toLocaleString()}장{localScan.groupFolders.length ? ` · 그룹 폴더 ${localScan.groupFolders.length}개 제외` : ""}{localScan.unnamedFolders.length ? ` · 이름 미변경 ${localScan.unnamedFolders.length}개 제외` : ""}</p> : null}
           {sourceMode === "local" && localBusy ? <div className={styles.result}>로컬 사진 {localProgress.current.toLocaleString()} / {localProgress.total.toLocaleString()}장 처리 중{localProgress.fileName ? ` · ${localProgress.fileName}` : ""}</div> : null}
+          {sourceMode === "local" && eventUploadJob?.status === "paused" ? <div className={styles.warning}>업로드가 일시정지됐어요. <button className={styles.secondary} onClick={() => void uploadManager.resume(eventUploadJob.id).catch((cause) => setError(cause.message))}>계속</button></div> : null}
+          {sourceMode === "local" && eventUploadJob?.needs_file_reselection && !localScan?.files.length ? <div className={styles.warning}>새로고침 뒤에는 브라우저가 로컬 파일 권한을 잃습니다. 같은 원본 폴더를 다시 선택하면 이미 성공한 사진은 건너뛰고 이어서 올립니다.</div> : null}
           {sourceMode === "local" && !localScan?.files.length ? <p className={styles.disabledReason}>사진을 올리려면 이 기기의 {isSchool ? "학교전달" : "촬영"} 폴더를 먼저 선택하세요.</p> : null}
           {sourceMode === "remote" && !path && workerOnline !== false ? <p className={styles.disabledReason}>사진을 올리려면 Mac Studio의 {isSchool ? "학교전달" : "촬영"} 폴더를 먼저 선택하세요.</p> : null}
           {sourceMode === "remote" ? <div className={styles.field} style={{ marginTop: 20 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(e) => setPath(e.target.value)} placeholder={isSchool ? "/Users/jakemacstudio/UGnasync/.../학교전달" : "/Volumes/Agentstation(M.2SSD)/.../1031_촬영폴더"} /><small className={styles.summary}>Mac Studio의 폴더 경로를 그대로 붙여넣어도 돼요.</small></div> : null}
           {sourceMode === "local" && !data.event.source_relative_path ? <p className={styles.summary}>RAW 매칭은 같은 원본 폴더를 Mac Studio 위치에서 다시 선택해 사진 올리기를 실행하면 연결됩니다. 이미 올라온 사진은 건너뜁니다.</p> : null}
-          {result ? <div className={styles.result}>{result.photoCount !== undefined ? <><div>{`사진 ${Number(result.photoCount).toLocaleString()}장 · ${isSchool ? "선생님" : "사람"} ${Number(result.peopleCount).toLocaleString()}명 등록 · 새 비밀번호 ${Array.isArray(result.createdPeople) ? result.createdPeople.length : 0}개 발급 · 실패 ${Number(result.failedCount ?? 0)}장`}</div>{Array.isArray(result.skippedFolders) && result.skippedFolders.length ? <div className={styles.skippedFolders}>건너뛴 폴더: {result.skippedFolders.map(String).join(" / ")}</div> : null}{unnamedFolders.length ? <div className={styles.warning}>이름을 아직 안 바꾼 폴더라 올리지 않았어요: {unnamedFolders.join(" / ")}</div> : null}{groupFolders.length ? <div className={styles.skippedFolders}>그룹 사진은 고객에게 올리지 않았어요: {groupFolders.join(" / ")}</div> : null}{Array.isArray(result.emptyFolders) && result.emptyFolders.length ? <div className={styles.skippedFolders}>JPG가 없어 건너뛴 폴더: {result.emptyFolders.map(String).join(" / ")}</div> : null}{Array.isArray(result.failed) && result.failed.length ? <ul className={styles.failureList}>{result.failed.map((item, index) => { const failed = item as Record<string, unknown>; return <li key={`${String(failed.file || "file")}-${index}`}>{String(failed.file || "파일")}: {String(failed.reason || "가져오기 실패")}</li>; })}</ul> : null}</> : String(result.message || result.error || "처리 중이에요.")}</div> : null}
+          {result ? <div className={styles.result}>{result.photoCount !== undefined ? <><div>{`사진 ${Number(result.photoCount).toLocaleString()}장 · 저장 완료 ${Number(result.importedCount ?? eventUploadJob?.success_count ?? 0).toLocaleString()}장 · 실패 ${Number(result.failedCount ?? 0).toLocaleString()}장`}</div>{result.message ? <div>{String(result.message)}</div> : null}{Array.isArray(result.skippedFolders) && result.skippedFolders.length ? <div className={styles.skippedFolders}>건너뛴 폴더: {result.skippedFolders.map(String).join(" / ")}</div> : null}{unnamedFolders.length ? <div className={styles.warning}>이름을 아직 안 바꾼 폴더라 올리지 않았어요: {unnamedFolders.join(" / ")}</div> : null}{groupFolders.length ? <div className={styles.skippedFolders}>그룹 사진은 고객에게 올리지 않았어요: {groupFolders.join(" / ")}</div> : null}</> : String(result.message || result.error || "처리 중이에요.")}</div> : null}
         </section>
-        <aside className={styles.uploadCard}><h2>가져오는 항목</h2>{isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
+        <aside className={styles.uploadCard}><h2>가져오는 항목</h2>{isShared ? <><div className={styles.notice}>선택한 프로젝트 폴더의 JPG를 하위 폴더까지 가져옵니다.<br />사람 계정이나 개인별 PIN은 만들지 않습니다.</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 상대경로를 보존한 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
       </div> : null}
       {tab === "settings" ? <section className={styles.panel} style={{ padding: 22 }}>
         <div className={styles.formGrid}>
-          <div className={`${styles.field} ${styles.fieldFull}`}><label>행사명</label><input className={styles.input} value={data.event.title} onChange={(e) => setData({ ...data, event: { ...data.event, title: e.target.value } })} /></div>
+          <div className={`${styles.field} ${styles.fieldFull}`}><label>프로젝트명</label><input className={styles.input} value={data.event.title} onChange={(e) => setData({ ...data, event: { ...data.event, title: e.target.value } })} /></div>
           <div className={styles.field}><label>마감일 (KST)</label><input className={styles.input} type="datetime-local" value={formatSeoulDateTimeInput(data.event.deadline_at)} onChange={(e) => setData({ ...data, event: { ...data.event, deadline_at: e.target.value } })} /></div>
           <div className={styles.field}><label>상태</label><select className={styles.select} value={data.event.status} onChange={(e) => setData({ ...data, event: { ...data.event, status: e.target.value } })}><option value="draft">준비 중 (고객 접속 안 됨)</option><option value="open">열림 (고객 선택 가능)</option><option value="closed">마감</option></select></div>
-          <div className={`${styles.field} ${styles.fieldFull}`}><label>고를 사진 수량</label><div className={styles.groupRows}>{categories.map((category, index) => <div className={styles.groupRow} key={category.key}><strong>{category.label}</strong><select className={styles.select} value={category.pick} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, pick: Number(e.target.value) } : item) } })}>{Array.from({ length: 20 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}장</option>)}</select><span>한 사람당</span></div>)}</div><small className={styles.summary}>올라온 사진이 수량보다 적은 사람은 있는 만큼만 고르면 됩니다.</small></div>
-          <OfferSettings event={data.event} onChange={(patch) => setData({ ...data, event: { ...data.event, ...patch } })} />
-          <div className={`${styles.field} ${styles.fieldFull}`}><label>접속 안내 (고객에게 보낼 주소·비밀번호 안내)</label><div className={styles.notice}>주소: {typeof location !== "undefined" ? location.origin : ""}/pick/{data.event.slug}<br />{loginGuide}.<br />마감: {formatSeoulDeadline(data.event.deadline_at)}</div><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button></div>
+          <div className={styles.field}><label>프로젝트 유형</label><select className={styles.select} value={data.event.project_type ?? "general"} onChange={(e) => setData({ ...data, event: { ...data.event, project_type: e.target.value as PersonSelectProjectType } })}>{Object.entries(PERSON_SELECT_PROJECT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          <div className={styles.field}><label>접근 방식</label><select className={styles.select} value={data.event.access_mode ?? "individual"} onChange={(e) => setData({ ...data, event: { ...data.event, access_mode: e.target.value as PersonSelectAccessMode } })}>{Object.entries(PERSON_SELECT_ACCESS_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className={styles.summary}>참가자나 선택 내역이 생긴 뒤에는 노출 사고를 막기 위해 변경할 수 없습니다.</small></div>
+          <div className={styles.field}><label>고객 화면 방식</label><select className={styles.select} value={data.event.customer_view_mode ?? "classic"} onChange={(e) => setData({ ...data, event: { ...data.event, customer_view_mode: e.target.value as PersonSelectCustomerViewMode } })}>{Object.entries(PERSON_SELECT_CUSTOMER_VIEW_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          <div className={`${styles.field} ${styles.fieldFull}`}><label>사진선택 항목</label><div className={styles.groupRows}>{categories.map((category, index) => <div className={styles.groupRow} key={category.key}><input className={styles.input} aria-label="항목 이름" value={category.label} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item) } })} /><select className={styles.select} value={category.pick} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, pick: Number(e.target.value) } : item) } })}>{Array.from({ length: 50 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}장</option>)}</select><button type="button" className={styles.weak} disabled={categories.length <= 1} aria-label={`${category.label} 삭제`} onClick={() => setData({ ...data, event: { ...data.event, categories: categories.filter((_, itemIndex) => itemIndex !== index) } })}><Trash2 size={15} /></button></div>)}</div><button type="button" className={styles.secondary} style={{ marginTop: 10 }} onClick={() => setData({ ...data, event: { ...data.event, categories: [...categories, { key: `item_${Date.now()}`, label: "새 사진 항목", pick: 1 }] } })}><Plus size={14} />항목 추가</button><small className={styles.summary}>{isShared ? "공유 프로젝트의 항목은 안내·분류에 사용하며 사람별 수량으로 해석하지 않습니다." : "올라온 사진이 수량보다 적은 사람은 있는 만큼만 고르면 됩니다."}</small></div>
+          {!isShared ? <OfferSettings event={data.event} onChange={(patch) => setData({ ...data, event: { ...data.event, ...patch } })} /> : null}
+          <div className={`${styles.field} ${styles.fieldFull}`}><label>고객 화면 및 접속 안내</label><div className={styles.notice}>주소: {typeof location !== "undefined" ? location.origin : ""}{publicPath}<br />{loginGuide}.<br />화면: {PERSON_SELECT_CUSTOMER_VIEW_LABELS[data.event.customer_view_mode ?? "classic"]}<br />마감: {formatSeoulDeadline(data.event.deadline_at)}</div><div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button>{isShared ? <button className={styles.weak} onClick={() => void regenerateSharedLink()}><RefreshCw size={15} />공용 링크 재발급</button> : null}</div></div>
         </div>
-        <div className={styles.formActions}><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
+        <div className={styles.formActions}><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
     {picker ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPicker(false)} onSelectRemote={(selection) => { setPath(selection.path); setPicker(false); }} /> : null}

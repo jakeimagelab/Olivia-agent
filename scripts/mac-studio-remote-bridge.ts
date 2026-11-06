@@ -272,8 +272,8 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     case "PERSON_SELECT_IMPORT": {
       addString(args, "--event-id", stringValue(payload, "event_id", true));
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
-      if (payload.layout === "person-folders") {
-        addString(args, "--layout", "person-folders");
+      if (payload.layout === "person-folders" || payload.layout === "project") {
+        addString(args, "--layout", payload.layout);
         return runner(repoRoot, "person-select-import.ts", args);
       }
       if (!Array.isArray(payload.mappings) || payload.mappings.length === 0) throw new Error("PERSON_SELECT_IMPORT에는 mappings가 필요합니다.");

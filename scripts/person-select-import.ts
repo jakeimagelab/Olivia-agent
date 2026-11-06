@@ -25,7 +25,8 @@ function readArgs() {
     if (!folder || !category || !["person", "group"].includes(owner)) throw new Error(`올바르지 않은 --map 값입니다: ${value}`);
     return { folder, category, owner: owner as "person" | "group" };
   });
-  const layout = take("--layout") === "person-folders" ? "person-folders" as const : "school" as const;
+  const requestedLayout = take("--layout");
+  const layout = requestedLayout === "person-folders" || requestedLayout === "project" ? requestedLayout : "school" as const;
   return { eventSlug: take("--event"), eventId: take("--event-id"), root: take("--root"), sourceRelativePath: take("--source-relative-path"), mappings, layout, dryRun: values.includes("--dry-run") };
 }
 
@@ -77,6 +78,23 @@ async function listJpgs(folder: string) {
   }
 }
 
+/** 공용 프로젝트는 사람 폴더 규칙을 강제하지 않고 선택한 폴더의 JPG를 재귀 순회한다. */
+export async function scanProjectFolder(root: string) {
+  const files: Candidate[] = [];
+  const visit = async (directory: string): Promise<void> => {
+    const entries = await readdir(directory, { withFileTypes: true, encoding: "utf8" });
+    for (const entry of entries) {
+      if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) { await visit(absolutePath); continue; }
+      if (!entry.isFile() || !JPG_FILE.test(entry.name)) continue;
+      files.push({ absolutePath, relPath: normalizeNfc(path.relative(root, absolutePath).split(path.sep).join("/")), fileName: normalizeNfc(entry.name), category: PERSON_FOLDER_CATEGORY.key, ownerName: null, ownerGroup: null });
+    }
+  };
+  await visit(root);
+  return files.sort((a, b) => a.relPath.localeCompare(b.relPath, "ko"));
+}
+
 /**
  * 이름 폴더 구조: 촬영폴더/김춘자/JPG원본/*.jpg (RAW는 김춘자 폴더 안 다른 곳에 그대로 둔다)
  * JPG원본 폴더가 없으면 이름 폴더 바로 아래 JPG를 쓴다.
@@ -121,23 +139,26 @@ async function main() {
     ? (await resolvePersonSelectSourcePath(input.root)).canonicalPath
     : (await resolvePersonSelectSourcePath(input.sourceRelativePath ?? "")).canonicalPath;
   const db = getSupabaseAdmin();
-  const query = db.from("person_select_events").select("id,slug,categories");
+  const query = db.from("person_select_events").select("id,slug,categories,access_mode");
   const { data: event, error: eventError } = input.eventId ? await query.eq("id", input.eventId).single() : await query.eq("slug", input.eventSlug ?? "").single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   const eventId = event.id;
+  const accessMode = event.access_mode;
   let files: Candidate[];
   let skippedFolders: string[] = [];
   let groupFolders: string[] = [];
   let unnamedFolders: string[] = [];
   let emptyFolders: string[] = [];
-  if (input.layout === "person-folders") {
+  if (input.layout === "project") {
+    files = await scanProjectFolder(root);
+  } else if (input.layout === "person-folders") {
     const scanned = await scanPersonFolders(root);
     ({ files, groupFolders, unnamedFolders, emptyFolders } = scanned);
   } else {
     files = await scanPersonSelectFolders(root, input.mappings);
     skippedFolders = await findSkippedFolders(root, input.mappings);
   }
-  const peopleNames = [...new Set(files.map((file) => file.ownerName).filter((value): value is string => Boolean(value)))];
+  const peopleNames = event.access_mode === "project_shared" ? [] : [...new Set(files.map((file) => file.ownerName).filter((value): value is string => Boolean(value)))];
   if (input.dryRun) {
     process.stdout.write(`${JSON.stringify({ ok: true, dryRun: true, root, photoCount: files.length, people: peopleNames, skippedFolders, groupFolders, unnamedFolders, emptyFolders, byCategory: Object.fromEntries([...new Set(files.map((file) => file.category))].map((category) => [category, files.filter((file) => file.category === category).length])) })}\n`);
     return;
@@ -187,7 +208,7 @@ async function main() {
         const thumbPath = `${eventId}/${imageId}_thumb.jpg`; const previewPath = `${eventId}/${imageId}_preview.jpg`; const storage = db.storage.from(PERSON_SELECT_BUCKET);
         const [a, b] = await Promise.all([storage.upload(thumbPath, thumb, { contentType: "image/jpeg" }), storage.upload(previewPath, preview, { contentType: "image/jpeg" })]);
         if (a.error || b.error) throw a.error || b.error;
-        const owner = file.ownerName ? people.get(normalizeLoginName(file.ownerName)) : null;
+        const owner = accessMode !== "project_shared" && file.ownerName ? people.get(normalizeLoginName(file.ownerName)) : null;
         const { error } = await db.from("person_select_images").insert({ id: imageId, event_id: eventId, category_key: file.category, owner_person_id: owner?.id ?? null, owner_group: file.ownerGroup, original_file_name: file.fileName, source_rel_path: file.relPath, thumb_path: thumbPath, preview_path: previewPath, width: metadata.width ?? null, height: metadata.height ?? null, sort_order: index });
         if (error) throw error; imported += 1;
       } catch (error) { failed.push({ file: file.relPath, reason: error instanceof Error ? error.message : "가져오기 실패" }); }

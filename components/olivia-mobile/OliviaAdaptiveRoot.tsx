@@ -11,6 +11,8 @@ import PhotoStudioBackgroundJobBridge from "@/components/photo-workspace/PhotoSt
 import BackgroundJobsWidget from "@/components/olivia/BackgroundJobsWidget";
 import { BackupReadyNotifications } from "@/components/olivia-os/BackupReadyNotifications";
 import { VoiceSessionProvider } from "@/components/voice/VoiceSessionProvider";
+import { PersonSelectUploadProvider } from "@/components/person-select/upload/PersonSelectUploadManager";
+import { PersonSelectUploadStatus } from "@/components/person-select/upload/PersonSelectUploadStatus";
 import styles from "./OliviaAdaptiveRoot.module.css";
 
 const OliviaDesktop = dynamic(() => import("@/components/olivia-os/OliviaDesktop"), {
@@ -79,6 +81,7 @@ export default function OliviaAdaptiveRoot() {
   return (
     <PhotoProjectNotificationProvider>
       <VoiceSessionProvider>
+        <PersonSelectUploadProvider>
         <PhotoStudioBackgroundJobBridge />
         {/* 모바일은 홈·사진작업실의 전용 상태 카드에서 같은 작업을 관리한다. 데스크톱형
             플로팅 알림을 겹쳐 띄우지 않고, 기존 태블릿 동작만 유지한다. */}
@@ -95,6 +98,8 @@ export default function OliviaAdaptiveRoot() {
           : surface === "tablet"
             ? <OliviaTabletShell initialLaunch={initialLaunch} />
             : <OliviaDesktop initialLaunch={initialLaunch} />}
+        <PersonSelectUploadStatus />
+        </PersonSelectUploadProvider>
       </VoiceSessionProvider>
     </PhotoProjectNotificationProvider>
   );
