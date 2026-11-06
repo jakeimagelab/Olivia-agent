@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { sessionFromRequest } from "./session";
 import type { PersonSelectEvent, PersonSelectPerson } from "./types";
 import { canAccessImageRecord } from "./core";
+import { isIndividualPersonSelectAccessAllowed } from "./projectSettings";
 
 export const PERSON_SELECT_BUCKET = "person-select";
 
@@ -42,7 +43,7 @@ export async function getPublicSessionContext(request: NextRequest, slug: string
     db.from("person_select_events").select("*").eq("id", session.eventId).eq("slug", slug).maybeSingle(),
     db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,orders").eq("id", session.personId).eq("event_id", session.eventId).maybeSingle(),
   ]);
-  if (!event || !person) return null;
+  if (!event || !person || !isIndividualPersonSelectAccessAllowed(event.access_mode)) return null;
   return { event: event as PersonSelectEvent, person: person as PersonSelectPerson };
 }
 

@@ -198,7 +198,19 @@ export default function PersonSelectDetailPage() {
       const unassigned = currentData.groups.filter((group) => !assignments[group.label]);
       if (unassigned.length && !window.confirm(`담임 선생님이 연결되지 않은 반이 ${unassigned.length}개 있습니다. 그래도 행사를 열까요?`)) return;
     }
-    const response = await fetch(`/api/person-select/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }); const body = await response.json(); if (!response.ok) setError(body.error); else await load();
+    setError("");
+    const requestSave = async (confirmed = false): Promise<void> => {
+      const payload = confirmed ? { ...patch, confirm_access_mode_impact: true } : patch;
+      const response = await fetch(`/api/person-select/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok) { await load(); return; }
+      if (body.code === "ACCESS_MODE_CONFIRMATION_REQUIRED") {
+        if (window.confirm(body.warning || body.error || "공용 링크 전환의 영향을 확인하고 계속할까요?")) await requestSave(true);
+        return;
+      }
+      setError(body.error || "설정을 저장하지 못했습니다.");
+    };
+    await requestSave();
   }
   async function regenerateSharedLink() {
     if (!isShared || !window.confirm("기존 공용 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?")) return;
@@ -317,7 +329,7 @@ export default function PersonSelectDetailPage() {
           <div className={styles.field}><label>마감일 (KST)</label><input className={styles.input} type="datetime-local" value={formatSeoulDateTimeInput(data.event.deadline_at)} onChange={(e) => setData({ ...data, event: { ...data.event, deadline_at: e.target.value } })} /></div>
           <div className={styles.field}><label>상태</label><select className={styles.select} value={data.event.status} onChange={(e) => setData({ ...data, event: { ...data.event, status: e.target.value } })}><option value="draft">준비 중 (고객 접속 안 됨)</option><option value="open">열림 (고객 선택 가능)</option><option value="closed">마감</option></select></div>
           <div className={styles.field}><label>프로젝트 유형</label><select className={styles.select} value={data.event.project_type ?? "general"} onChange={(e) => setData({ ...data, event: { ...data.event, project_type: e.target.value as PersonSelectProjectType } })}>{Object.entries(PERSON_SELECT_PROJECT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-          <div className={styles.field}><label>접근 방식</label><select className={styles.select} value={data.event.access_mode ?? "individual"} onChange={(e) => setData({ ...data, event: { ...data.event, access_mode: e.target.value as PersonSelectAccessMode } })}>{Object.entries(PERSON_SELECT_ACCESS_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className={styles.summary}>참가자나 선택 내역이 생긴 뒤에는 노출 사고를 막기 위해 변경할 수 없습니다.</small></div>
+          <div className={styles.field}><label>접근 방식</label><select className={styles.select} value={data.event.access_mode ?? "individual"} onChange={(e) => setData({ ...data, event: { ...data.event, access_mode: e.target.value as PersonSelectAccessMode } })}>{Object.entries(PERSON_SELECT_ACCESS_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className={styles.summary}>사진만 올린 상태는 그대로 유지하며 변경할 수 있습니다. 실제 접속·선택·메모·주문·제출이 있거나 개인별 소유자/PIN이 불완전하면 정확한 이유를 안내하고 변경을 막습니다.</small></div>
           <div className={styles.field}><label>고객 화면 방식</label><select className={styles.select} value={data.event.customer_view_mode ?? "classic"} onChange={(e) => setData({ ...data, event: { ...data.event, customer_view_mode: e.target.value as PersonSelectCustomerViewMode } })}>{Object.entries(PERSON_SELECT_CUSTOMER_VIEW_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           <div className={`${styles.field} ${styles.fieldFull}`}><label>사진선택 항목</label><div className={styles.groupRows}>{categories.map((category, index) => <div className={styles.groupRow} key={category.key}><input className={styles.input} aria-label="항목 이름" value={category.label} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item) } })} /><select className={styles.select} value={category.pick} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, pick: Number(e.target.value) } : item) } })}>{Array.from({ length: 50 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}장</option>)}</select><button type="button" className={styles.weak} disabled={categories.length <= 1} aria-label={`${category.label} 삭제`} onClick={() => setData({ ...data, event: { ...data.event, categories: categories.filter((_, itemIndex) => itemIndex !== index) } })}><Trash2 size={15} /></button></div>)}</div><button type="button" className={styles.secondary} style={{ marginTop: 10 }} onClick={() => setData({ ...data, event: { ...data.event, categories: [...categories, { key: `item_${Date.now()}`, label: "새 사진 항목", pick: 1 }] } })}><Plus size={14} />항목 추가</button><small className={styles.summary}>{isShared ? "공유 프로젝트의 항목은 안내·분류에 사용하며 사람별 수량으로 해석하지 않습니다." : "올라온 사진이 수량보다 적은 사람은 있는 만큼만 고르면 됩니다."}</small></div>
           {!isShared ? <OfferSettings event={data.event} onChange={(patch) => setData({ ...data, event: { ...data.event, ...patch } })} /> : null}

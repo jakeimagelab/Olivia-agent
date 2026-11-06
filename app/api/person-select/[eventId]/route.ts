@@ -8,7 +8,7 @@ import { signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
-import { accessModeChangeProblem } from "@/lib/person-select/projectSettings";
+import { assessAccessModeChange, normalizeAccessModeChangeFacts } from "@/lib/person-select/projectSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -144,26 +144,37 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
   if (update.status && !["draft", "open", "closed"].includes(String(update.status))) return Response.json({ ok: false, error: "올바르지 않은 행사 상태입니다." }, { status: 400 });
   if (body.access_mode !== undefined) {
     const db = getSupabaseAdmin();
-    const [{ data: current }, { count: peopleCount }, { count: imageCount }, { count: choiceCount }, { count: sharedDraftCount }, { count: sharedSelectionCount }] = await Promise.all([
+    const [{ data: current }, factsResult] = await Promise.all([
       db.from("person_select_events").select("access_mode,shared_token").eq("id", eventId).maybeSingle(),
-      db.from("person_select_people").select("id", { count: "exact", head: true }).eq("event_id", eventId),
-      db.from("person_select_images").select("id", { count: "exact", head: true }).eq("event_id", eventId),
-      db.from("person_select_choices").select("id", { count: "exact", head: true }).eq("event_id", eventId),
-      db.from("person_select_shared_drafts").select("event_id", { count: "exact", head: true }).eq("event_id", eventId),
-      db.from("person_select_shared_selections").select("id", { count: "exact", head: true }).eq("event_id", eventId),
+      db.rpc("person_select_access_mode_facts", { p_event_id: eventId }),
     ]);
     if (!current) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
-    const problem = accessModeChangeProblem({
-      current: (current.access_mode ?? "individual") as PersonSelectAccessMode,
-      next: body.access_mode,
-      peopleCount: peopleCount ?? 0,
-      imageCount: imageCount ?? 0,
-      choiceCount: choiceCount ?? 0,
-      sharedDraftCount: sharedDraftCount ?? 0,
-      sharedSelectionCount: sharedSelectionCount ?? 0,
-    });
-    if (problem) return Response.json({ ok: false, error: problem }, { status: 409 });
-    if (body.access_mode === "project_shared" && !current.shared_token) update.shared_token = randomBytes(32).toString("hex");
+    const currentMode = (current.access_mode ?? "individual") as PersonSelectAccessMode;
+    if (currentMode !== body.access_mode) {
+      if (factsResult.error) return Response.json({ ok: false, error: `접근 방식 변경 상태를 확인하지 못했습니다: ${factsResult.error.message}` }, { status: 500 });
+      const facts = normalizeAccessModeChangeFacts(factsResult.data);
+      const assessment = assessAccessModeChange({ current: currentMode, next: body.access_mode, ...facts });
+      if (!assessment.allowed) return Response.json({ ok: false, code: "ACCESS_MODE_CHANGE_BLOCKED", error: assessment.reason, facts }, { status: 409 });
+      const confirmed = body.confirm_access_mode_impact === true;
+      if (assessment.requiresConfirmation && !confirmed) {
+        return Response.json({ ok: false, code: "ACCESS_MODE_CONFIRMATION_REQUIRED", error: assessment.warning, warning: assessment.warning, facts }, { status: 409 });
+      }
+      const sharedToken = body.access_mode === "project_shared" && !current.shared_token ? randomBytes(32).toString("hex") : current.shared_token;
+      const { data: transitionData, error: transitionError } = await db.rpc("apply_person_select_access_mode_change", {
+        p_event_id: eventId,
+        p_expected_mode: currentMode,
+        p_next_mode: body.access_mode,
+        p_expected_facts: facts,
+        p_confirmed: confirmed,
+        p_shared_token: sharedToken,
+        p_actor: "admin_session",
+      });
+      if (transitionError) return Response.json({ ok: false, error: `접근 방식을 변경하지 못했습니다: ${transitionError.message}` }, { status: 500 });
+      const transition = transitionData as { ok?: boolean; code?: string; error?: string; event?: Record<string, unknown> } | null;
+      if (!transition?.ok) return Response.json({ ok: false, code: transition?.code ?? "ACCESS_MODE_CHANGE_FAILED", error: transition?.error ?? "접근 방식을 변경하지 못했습니다." }, { status: 409 });
+      delete update.access_mode;
+      if (Object.keys(update).length === 0) return Response.json({ ok: true, event: transition.event });
+    }
   }
   update.updated_at = new Date().toISOString();
   const { data, error } = await getSupabaseAdmin().from("person_select_events").update(update).eq("id", eventId).select("*").single();

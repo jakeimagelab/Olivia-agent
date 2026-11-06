@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { constantTimePinEqual, isLoginRateLimited, normalizeLoginName } from "@/lib/person-select/core";
 import { createPersonSelectSession, PERSON_SELECT_COOKIE, PERSON_SELECT_SESSION_SECONDS } from "@/lib/person-select/session";
+import { isIndividualPersonSelectAccessAllowed } from "@/lib/person-select/projectSettings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const body = await request.json().catch(() => ({})) as { name?: unknown; pin?: unknown };
   const name = typeof body.name === "string" ? normalizeLoginName(body.name) : "";
   const pin = typeof body.pin === "string" ? body.pin.trim() : "";
-  const { data: event } = await db.from("person_select_events").select("id,status").eq("slug", eventSlug).maybeSingle();
+  const { data: event } = await db.from("person_select_events").select("id,status,access_mode").eq("slug", eventSlug).maybeSingle();
   if (!event) return NextResponse.json({ ok: false, error: "행사를 찾을 수 없어요." }, { status: 404 });
+  if (!isIndividualPersonSelectAccessAllowed(event.access_mode)) return NextResponse.json({ ok: false, error: "이 프로젝트는 공용 링크에서 접속해 주세요." }, { status: 403 });
   if (event.status === "draft") return NextResponse.json({ ok: false, error: "아직 열리지 않았어요." }, { status: 403 });
 
   const { data: matches } = await db.from("person_select_people")
