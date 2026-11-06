@@ -24,7 +24,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       .order("id")
       .range(from, to)),
     readAllPersonSelectRows((from, to) => db.from("person_select_images")
-      .select("id,owner_person_id,owner_group,category_key,original_file_name,source_rel_path,thumb_path,sort_order")
+      .select("id,owner_person_id,owner_group,category_key,original_file_name,source_rel_path,thumb_path,preview_path,sort_order")
       .eq("event_id", eventId)
       .order("sort_order")
       .order("id")
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   if (event.access_mode === "project_shared") {
     const [{ data: selection }, sharedImageUrls] = await Promise.all([
       db.from("person_select_shared_selections").select("id,submitted_at,customer_memo").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
-      signedImageUrls(imageGroups.map((image) => image.thumb_path)),
+      signedImageUrls(imageGroups.flatMap((image) => [image.thumb_path, image.preview_path])),
     ]);
     const { data: selectedItems } = selection
       ? await db.from("person_select_shared_selection_items").select("image_id,customer_rating,memo,person_select_images(original_file_name,source_rel_path,thumb_path)").eq("selection_id", selection.id)
@@ -109,8 +109,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       images: imageGroups.map((image) => ({
         id: image.id,
         original_file_name: image.original_file_name,
-        source_rel_path: image.source_rel_path,
-        thumb_url: sharedImageUrls.get(image.thumb_path) ?? "",
+        relative_path: image.source_rel_path,
+        thumbnail_url: sharedImageUrls.get(image.thumb_path) ?? "",
+        image_url: sharedImageUrls.get(image.preview_path) ?? sharedImageUrls.get(image.thumb_path) ?? "",
+        sort_order: image.sort_order,
       })),
       selection: selection ? {
         ...selection,

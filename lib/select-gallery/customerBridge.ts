@@ -37,7 +37,92 @@ export type CustomerSelectionMatchResult = {
   ambiguous: Array<CustomerSelectionMatchItem & { candidateIds: string[] }>;
 };
 
+export type CustomerBridgeFolderImage = {
+  id: string;
+  relative_path?: string | null;
+};
+
+export type CustomerBridgeFolder = {
+  path: string;
+  name: string;
+  directCount: number;
+  totalCount: number;
+  representativeImageId: string | null;
+};
+
+export type CustomerBridgeFolderView<T extends CustomerBridgeFolderImage> = {
+  currentPath: string;
+  breadcrumbs: Array<{ name: string; path: string }>;
+  folders: CustomerBridgeFolder[];
+  images: T[];
+};
+
 const SLASHES = /[\\/]+/g;
+
+/** 화면 표시에 쓸 상대경로. 대소문자와 폴더 이름은 보존하고 탈출 조각만 제거한다. */
+export function displayGalleryRelativePath(value: string | null | undefined) {
+  if (!value) return "";
+  return value
+    .normalize("NFC")
+    .replace(SLASHES, "/")
+    .split("/")
+    .map((part) => part.trim())
+    .filter((part) => part && part !== "." && part !== "..")
+    .join("/");
+}
+
+export function galleryFolderPath(value: string | null | undefined) {
+  const parts = displayGalleryRelativePath(value).split("/").filter(Boolean);
+  return parts.length > 1 ? parts.slice(0, -1).join("/") : "";
+}
+
+/**
+ * 업로드 때 보존한 source_rel_path를 그대로 폴더 브라우저로 만든다.
+ * 폴더 순서는 사진의 sort_order 순서에서 처음 등장한 순서를 유지한다.
+ */
+export function customerBridgeFolderView<T extends CustomerBridgeFolderImage>(
+  images: readonly T[],
+  requestedPath: string | null | undefined,
+): CustomerBridgeFolderView<T> {
+  const currentPath = displayGalleryRelativePath(requestedPath);
+  const currentParts = currentPath.split("/").filter(Boolean);
+  const folders = new Map<string, CustomerBridgeFolder>();
+  const directImages: T[] = [];
+
+  for (const image of images) {
+    const folderPath = galleryFolderPath(image.relative_path);
+    const folderParts = folderPath.split("/").filter(Boolean);
+    const isInside = currentParts.every((part, index) => folderParts[index] === part);
+    if (!isInside) continue;
+
+    if (folderParts.length === currentParts.length) {
+      directImages.push(image);
+      continue;
+    }
+
+    const childParts = folderParts.slice(0, currentParts.length + 1);
+    const childPath = childParts.join("/");
+    const existing = folders.get(childPath);
+    if (existing) {
+      existing.totalCount += 1;
+      if (folderParts.length === currentParts.length + 1) existing.directCount += 1;
+    } else {
+      folders.set(childPath, {
+        path: childPath,
+        name: childParts.at(-1) ?? childPath,
+        directCount: folderParts.length === currentParts.length + 1 ? 1 : 0,
+        totalCount: 1,
+        representativeImageId: image.id,
+      });
+    }
+  }
+
+  const breadcrumbs = currentParts.map((name, index) => ({
+    name,
+    path: currentParts.slice(0, index + 1).join("/"),
+  }));
+  return { currentPath, breadcrumbs, folders: [...folders.values()], images: directImages };
+}
 
 export function normalizeGalleryRelativePath(value: string | null | undefined) {
   if (!value) return "";

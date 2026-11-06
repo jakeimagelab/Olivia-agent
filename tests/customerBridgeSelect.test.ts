@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addCustomerBridgeRange,
   applyCustomerBridgeRating,
+  customerBridgeFolderView,
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
@@ -29,6 +30,38 @@ describe("customer Bridge selection", () => {
       anchorId: "b",
       targetId: "d",
     })]).toEqual(["z", "b", "c", "d"]);
+  });
+});
+
+describe("customer Bridge folder browser", () => {
+  const images = [
+    { id: "root", relative_path: "cover.jpg" },
+    { id: "s1-a", relative_path: "Scene 1/A.jpg" },
+    { id: "s1-detail", relative_path: "Scene 1/Detail/B.jpg" },
+    { id: "s2-a", relative_path: "Scene 2/A.jpg" },
+    { id: "s1-c", relative_path: "Scene 1/C.jpg" },
+  ];
+
+  it("preserves the uploaded folder hierarchy, names, order, and subtree counts", () => {
+    const root = customerBridgeFolderView(images, "");
+    expect(root.images.map((image) => image.id)).toEqual(["root"]);
+    expect(root.folders).toEqual([
+      { path: "Scene 1", name: "Scene 1", directCount: 2, totalCount: 3, representativeImageId: "s1-a" },
+      { path: "Scene 2", name: "Scene 2", directCount: 1, totalCount: 1, representativeImageId: "s2-a" },
+    ]);
+
+    const scene = customerBridgeFolderView(images, "Scene 1");
+    expect(scene.images.map((image) => image.id)).toEqual(["s1-a", "s1-c"]);
+    expect(scene.folders).toEqual([
+      { path: "Scene 1/Detail", name: "Detail", directCount: 1, totalCount: 1, representativeImageId: "s1-detail" },
+    ]);
+    expect(scene.breadcrumbs).toEqual([{ name: "Scene 1", path: "Scene 1" }]);
+  });
+
+  it("normalizes separators without lowercasing display folder names", () => {
+    const view = customerBridgeFolderView(images, "Scene 1\\Detail");
+    expect(view.currentPath).toBe("Scene 1/Detail");
+    expect(view.images.map((image) => image.id)).toEqual(["s1-detail"]);
   });
 });
 
