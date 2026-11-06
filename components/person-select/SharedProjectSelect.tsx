@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "./SharedProjectSelect.module.css";
 
@@ -46,7 +46,13 @@ function SharedClassicSelect({ shareToken, event, images, draft, selection, onSu
 
 export default function SharedProjectSelect({ shareToken, event, images, draft, selection }: { shareToken: string; event: SharedEvent; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection }) {
   const [submitted, setSubmitted] = useState(false);
+  const refreshImageUrl = useCallback(async (imageId: string) => {
+    const response = await fetch(`/api/pick/shared/${shareToken}/images/${encodeURIComponent(imageId)}`);
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.image?.image_url) throw new Error(result.error || "사진 주소를 갱신하지 못했습니다.");
+    return { image_url: String(result.image.image_url), thumbnail_url: result.image.thumbnail_url ? String(result.image.thumbnail_url) : null };
+  }, [shareToken]);
   if (submitted) return <main className={styles.done}><div><h1>사진 선택을 제출했어요.</h1><p>선택 내용과 메모가 안전하게 저장됐습니다.</p><button type="button" onClick={() => setSubmitted(false)}>선택 다시 확인</button></div></main>;
   if (event.customer_view_mode !== "bridge") return <SharedClassicSelect shareToken={shareToken} event={event} images={images} draft={draft} selection={selection} onSubmitted={() => setSubmitted(true)} />;
-  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${shareToken}`} apiBase={`/api/pick/shared/${shareToken}`} gallery={{ id: event.id, title: event.title, total_jpg_count: images.length, allow_resubmit: true }} images={images} initialDraft={draft} initialSelection={selection} onSubmitted={() => setSubmitted(true)} />;
+  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${shareToken}`} apiBase={`/api/pick/shared/${shareToken}`} gallery={{ id: event.id, title: event.title, total_jpg_count: images.length, allow_resubmit: true }} images={images} initialDraft={draft} initialSelection={selection} onSubmitted={() => setSubmitted(true)} refreshImageUrl={refreshImageUrl} />;
 }
