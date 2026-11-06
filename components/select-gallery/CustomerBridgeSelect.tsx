@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import {
   Check,
   ChevronLeft,
@@ -7,8 +9,11 @@ import {
   Expand,
   Folder,
   FolderOpen,
-  Grid3X3,
   Images,
+  LayoutGrid,
+  Minus,
+  PanelLeft,
+  Plus,
   RotateCcw,
   Star,
   X,
@@ -19,13 +24,18 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   addCustomerBridgeRange,
-  applyCustomerBridgeRating,
+  applyCustomerRatings,
+  customerBridgeFolderTree,
   customerBridgeFolderView,
-  toggleCustomerBridgeSelection,
+  customerBridgeRatedIds,
+  customerBridgeRatingTargets,
+  customerBridgeSelectionItems,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
 import {
@@ -72,26 +82,21 @@ export type CustomerBridgeDraft = {
 
 type SaveState = "idle" | "saving" | "saved" | "error" | "conflict";
 type PhotoFilter = "all" | "selected" | "unselected";
+type ReviewRemovedRating = BridgeReviewRemovedItem & { rating: CustomerBridgeRating };
 
 const PAGE_SIZE = 240;
+const THUMB_MIN = 112;
+const THUMB_MAX = 260;
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
-function validRatings(value: Record<string, number> | undefined) {
+function validRatings(value: Record<string, number> | undefined, allowed?: ReadonlySet<string>) {
   return Object.fromEntries(
-    Object.entries(value ?? {}).filter(([, rating]) => Number.isInteger(rating) && rating >= 1 && rating <= 5),
+    Object.entries(value ?? {}).filter(([id, rating]) => (!allowed || allowed.has(id)) && Number.isInteger(rating) && rating >= 1 && rating <= 5),
   ) as Record<string, CustomerBridgeRating>;
-}
-
-function selectionItems(
-  ids: ReadonlySet<string>,
-  ratings: Record<string, CustomerBridgeRating>,
-  notes: Record<string, string>,
-) {
-  return [...ids].map((imageId) => ({ imageId, rating: ratings[imageId] ?? null, memo: notes[imageId] ?? "" }));
 }
 
 function createRequestKey() {
@@ -121,36 +126,36 @@ export default function CustomerBridgeSelect({
   initialDraft?: CustomerBridgeDraft | null;
   initialSelection?: { items?: Array<{ image_id: string; customer_rating?: number | null; memo?: string | null }>; customer_memo?: string | null } | null;
   onSubmitted: (selection: unknown) => void;
-  /** select-gallery 외의 프로젝트 공유 셀렉도 같은 실제 조작 UI를 재사용한다. */
   apiBase?: string;
   storageScope?: string;
-  /** 관리자 사진 확인에서는 같은 Bridge를 쓰되 고객 선택 데이터는 변경하지 않는다. */
   readOnly?: boolean;
-  /** Olivia OS 패널 안에 들어갈 때 100dvh 대신 부모 작업영역을 사용한다. */
   embedded?: boolean;
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
   const imageIds = useMemo(() => new Set(images.map((image) => image.id)), [images]);
-  const seedIds = useMemo(() => {
-    if (initialDraft) return initialDraft.selectedImageIds.filter((id) => imageIds.has(id));
-    return (initialSelection?.items ?? []).map((item) => item.image_id).filter((id) => imageIds.has(id));
-  }, [imageIds, initialDraft, initialSelection]);
+  const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
   const seedRatings = useMemo(() => validRatings(
     initialDraft?.ratings
       ?? Object.fromEntries((initialSelection?.items ?? []).map((item) => [item.image_id, item.customer_rating ?? 0])),
-  ), [initialDraft, initialSelection]);
+    imageIds,
+  ), [imageIds, initialDraft, initialSelection]);
   const seedNotes = useMemo(() => initialDraft?.imageNotes
     ?? Object.fromEntries((initialSelection?.items ?? []).filter((item) => item.memo).map((item) => [item.image_id, item.memo ?? ""])), [initialDraft, initialSelection]);
 
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(seedIds));
-  const [ratings, setRatings] = useState<Record<string, CustomerBridgeRating>>(seedRatings);
+  // 포커스/작업 대상/고객 셀렉은 서로 독립된 상태다.
+  const [focusedImageId, setFocusedImageId] = useState<string | null>(images[0]?.id ?? null);
+  const [activeImageIds, setActiveImageIds] = useState<Set<string>>(() => new Set());
+  const [customerRatings, setCustomerRatings] = useState<Record<string, CustomerBridgeRating>>(seedRatings);
   const [notes, setNotes] = useState<Record<string, string>>(seedNotes);
   const [customerMemo, setCustomerMemo] = useState(initialDraft?.customerMemo ?? initialSelection?.customer_memo ?? "");
+  const [anchorId, setAnchorId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PhotoFilter>("all");
-  const [thumbSize, setThumbSize] = useState(168);
-  const [focusedId, setFocusedId] = useState<string | null>(seedIds[0] ?? images[0]?.id ?? null);
-  const [anchorId, setAnchorId] = useState<string | null>(seedIds[0] ?? null);
+  const [thumbSize, setThumbSize] = useState(156);
+  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>(null);
+  const [folderWidth, setFolderWidth] = useState(210);
+  const [previewWidth, setPreviewWidth] = useState(320);
+  const [compactFoldersOpen, setCompactFoldersOpen] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -159,9 +164,9 @@ export default function CustomerBridgeSelect({
   const [zoomed, setZoomed] = useState(false);
   const [reviewIds, setReviewIds] = useState<string[] | null>(null);
   const [reviewActiveId, setReviewActiveId] = useState<string | null>(null);
-  const [reviewRemoved, setReviewRemoved] = useState<BridgeReviewRemovedItem | null>(null);
+  const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedRating | null>(null);
   const [mobile, setMobile] = useState(false);
-  const [currentFolderPath, setCurrentFolderPath] = useState<string | null>("");
+  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
   const revisionRef = useRef(initialDraft?.revision ?? 0);
   const dirtyRef = useRef(false);
@@ -175,22 +180,27 @@ export default function CustomerBridgeSelect({
     start: { x: number; y: number };
     initial: Set<string>;
     additive: boolean;
-    active: boolean;
   } | null>(null);
-  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
-  const folderView = useMemo(() => customerBridgeFolderView(images, currentFolderPath ?? ""), [currentFolderPath, images]);
-  const folderImages = currentFolderPath === null ? images : folderView.images;
+  const folderTree = useMemo(() => customerBridgeFolderTree(images), [images]);
+  const folderView = useMemo(() => currentFolderPath === null ? null : customerBridgeFolderView(images, currentFolderPath), [currentFolderPath, images]);
+  const folderImages = useMemo(
+    () => currentFolderPath === null ? images : folderView?.images ?? [],
+    [currentFolderPath, folderView, images],
+  );
+  const customerSelectedIds = useMemo(() => customerBridgeRatedIds(customerRatings), [customerRatings]);
   const visibleImages = useMemo(() => folderImages.filter((image) => {
-    if (filter === "selected") return selectedIds.has(image.id);
-    if (filter === "unselected") return !selectedIds.has(image.id);
+    if (filter === "selected") return customerSelectedIds.has(image.id);
+    if (filter === "unselected") return !customerSelectedIds.has(image.id);
     return true;
-  }), [filter, folderImages, selectedIds]);
+  }), [customerSelectedIds, filter, folderImages]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const renderedImages = visibleImages.slice(0, renderLimit);
-  const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (selectedIds.has(image.id) ? 1 : 0), 0), [folderImages, selectedIds]);
-  const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
+  const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
+  const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
+  const fullscreenImage = fullscreenId ? imageById.get(fullscreenId) ?? null : null;
   const fullscreenIndex = fullscreenId ? visibleImages.findIndex((image) => image.id === fullscreenId) : -1;
+  const reviewImages = (reviewIds ?? []).map((id) => imageById.get(id)).filter(Boolean) as CustomerBridgeImage[];
 
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
@@ -199,44 +209,52 @@ export default function CustomerBridgeSelect({
     setSaveMessage("");
   }, []);
 
-  const toggle = useCallback((id: string) => {
-    if (readOnly) return;
-    setFocusedId(id);
-    setAnchorId(id);
-    setSelectedIds((currentIds) => {
-      const next = toggleCustomerBridgeSelection({ selectedIds: currentIds, ratings }, id);
-      setRatings(next.ratings);
-      return next.selectedIds;
-    });
+  const applyRatingTo = useCallback((targetIds: ReadonlySet<string>, rating: 0 | CustomerBridgeRating) => {
+    if (readOnly || !targetIds.size) return;
+    setCustomerRatings((current) => applyCustomerRatings(current, targetIds, rating));
     markDirty();
-  }, [markDirty, ratings, readOnly]);
+  }, [markDirty, readOnly]);
 
-  const setRating = useCallback((id: string, rating: 0 | CustomerBridgeRating) => {
-    if (readOnly) return;
-    setFocusedId(id);
-    setAnchorId(id);
-    setSelectedIds((currentIds) => {
-      const next = applyCustomerBridgeRating({ selectedIds: currentIds, ratings }, new Set([id]), rating);
-      setRatings(next.ratings);
-      return next.selectedIds;
-    });
-    markDirty();
-  }, [markDirty, ratings, readOnly]);
+  const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
+    applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
+  }, [activeImageIds, applyRatingTo, focusedImageId]);
 
   const moveFullscreen = useCallback((delta: -1 | 1) => {
     if (!visibleImages.length) return;
     const current = fullscreenIndex >= 0 ? fullscreenIndex : 0;
-    setFullscreenId(visibleImages[(current + delta + visibleImages.length) % visibleImages.length].id);
+    const next = visibleImages[(current + delta + visibleImages.length) % visibleImages.length];
+    setFullscreenId(next.id);
+    setFocusedImageId(next.id);
     setZoomed(false);
   }, [fullscreenIndex, visibleImages]);
 
   const openReview = useCallback(() => {
-    const ids = images.filter((image) => selectedIds.has(image.id)).map((image) => image.id);
+    const ids = images.filter((image) => customerSelectedIds.has(image.id)).map((image) => image.id);
     if (!ids.length) return;
     setReviewIds(ids);
-    setReviewActiveId(focusedId && ids.includes(focusedId) ? focusedId : ids[0]);
+    setReviewActiveId(focusedImageId && ids.includes(focusedImageId) ? focusedImageId : ids[0]);
     setReviewRemoved(null);
-  }, [focusedId, images, selectedIds]);
+  }, [customerSelectedIds, focusedImageId, images]);
+
+  const removeFromReview = useCallback((id: string) => {
+    if (!reviewIds) return;
+    const rating = customerRatings[id];
+    if (!rating) return;
+    const removed = removeBridgeReviewItem(reviewIds, id);
+    setReviewIds(removed.remainingIds);
+    setReviewActiveId(removed.nextActiveId);
+    setReviewRemoved(removed.removed ? { ...removed.removed, rating } : null);
+    applyRatingTo(new Set([id]), 0);
+  }, [applyRatingTo, customerRatings, reviewIds]);
+
+  const restoreReviewItem = useCallback(() => {
+    if (!reviewIds || !reviewRemoved) return;
+    const restored = restoreBridgeReviewItem(reviewIds, reviewRemoved);
+    setReviewIds(restored.restoredIds);
+    setReviewActiveId(restored.activeId);
+    applyRatingTo(new Set([reviewRemoved.id]), reviewRemoved.rating);
+    setReviewRemoved(null);
+  }, [applyRatingTo, reviewIds, reviewRemoved]);
 
   const saveDraft = useCallback(async (options?: { quiet?: boolean }) => {
     if (readOnly) return true;
@@ -253,11 +271,7 @@ export default function CustomerBridgeSelect({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
-          body: JSON.stringify({
-            revision: revisionRef.current,
-            items: selectionItems(selectedIds, ratings, notes),
-            customerMemo,
-          }),
+          body: JSON.stringify({ revision: revisionRef.current, items: customerBridgeSelectionItems(images, customerRatings, notes), customerMemo }),
         });
         const result = await response.json();
         if (response.status === 409) {
@@ -267,10 +281,10 @@ export default function CustomerBridgeSelect({
         }
         if (!response.ok || !result.ok) throw new Error(result.error ?? "선택을 저장하지 못했습니다.");
         revisionRef.current = Number(result.draft?.revision ?? revisionRef.current + 1);
-        const isLatestEdit = editVersionRef.current === editVersion;
-        if (isLatestEdit) dirtyRef.current = false;
-        setSaveState(isLatestEdit ? "saved" : "idle");
-        setSaveMessage(isLatestEdit ? "저장됨" : "추가 변경 저장 대기");
+        const latest = editVersionRef.current === editVersion;
+        if (latest) dirtyRef.current = false;
+        setSaveState(latest ? "saved" : "idle");
+        setSaveMessage(latest ? "저장됨" : "추가 변경 저장 대기");
         try { localStorage.removeItem(`customer-bridge-draft:${localStorageScope}`); } catch (error) { reportOptionalStorageError("draft-clear", error); }
         return true;
       } catch (error) {
@@ -278,9 +292,7 @@ export default function CustomerBridgeSelect({
         setSaveState("error");
         setSaveMessage(error instanceof Error ? error.message : "저장 실패 · 다시 시도");
         try {
-          localStorage.setItem(`customer-bridge-draft:${localStorageScope}`, JSON.stringify({
-            selectedImageIds: [...selectedIds], ratings, imageNotes: notes, customerMemo,
-          }));
+          localStorage.setItem(`customer-bridge-draft:${localStorageScope}`, JSON.stringify({ selectedImageIds: [...customerBridgeRatedIds(customerRatings)], ratings: customerRatings, imageNotes: notes, customerMemo }));
         } catch (storageError) { reportOptionalStorageError("draft-backup", storageError); }
         return false;
       }
@@ -291,31 +303,22 @@ export default function CustomerBridgeSelect({
       if (saveInFlightRef.current === request) saveInFlightRef.current = null;
       if (saveAbortRef.current === controller) saveAbortRef.current = null;
     }
-  }, [customerMemo, endpointBase, localStorageScope, notes, ratings, readOnly, selectedIds]);
+  }, [customerMemo, customerRatings, endpointBase, images, localStorageScope, notes, readOnly]);
 
   useEffect(() => {
-    if (readOnly) return;
-    if (!dirtyRef.current) return;
+    if (readOnly || !dirtyRef.current) return;
     const timer = window.setTimeout(() => { void saveDraft({ quiet: true }); }, 550);
     return () => window.clearTimeout(timer);
-  }, [customerMemo, notes, ratings, readOnly, saveDraft, selectedIds]);
+  }, [customerMemo, customerRatings, notes, readOnly, saveDraft]);
 
   useEffect(() => () => saveAbortRef.current?.abort(), []);
 
   useEffect(() => {
-    if (readOnly) return;
-    if (initialDraft || initialSelection) return;
+    if (readOnly || initialDraft || initialSelection) return;
     try {
-      const stored = JSON.parse(localStorage.getItem(`customer-bridge-draft:${localStorageScope}`) || "null") as {
-        selectedImageIds?: string[];
-        ratings?: Record<string, number>;
-        imageNotes?: Record<string, string>;
-        customerMemo?: string;
-      } | null;
+      const stored = JSON.parse(localStorage.getItem(`customer-bridge-draft:${localStorageScope}`) || "null") as { ratings?: Record<string, number>; imageNotes?: Record<string, string>; customerMemo?: string } | null;
       if (!stored) return;
-      const restoredIds = new Set((stored.selectedImageIds ?? []).filter((id) => imageIds.has(id)));
-      setSelectedIds(restoredIds);
-      setRatings(validRatings(stored.ratings));
+      setCustomerRatings(validRatings(stored.ratings, imageIds));
       setNotes(stored.imageNotes ?? {});
       setCustomerMemo(stored.customerMemo ?? "");
       dirtyRef.current = true;
@@ -344,15 +347,28 @@ export default function CustomerBridgeSelect({
 
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || renderLimit >= visibleImages.length) return;
+    const root = gridRef.current;
+    if (!node || !root || renderLimit >= visibleImages.length) return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => current + PAGE_SIZE);
-    }, { rootMargin: "500px" });
+      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => Math.min(visibleImages.length, current + PAGE_SIZE));
+    }, { root, rootMargin: "700px 0px" });
     observer.observe(node);
     return () => observer.disconnect();
   }, [renderLimit, visibleImages.length]);
 
-  useEffect(() => setRenderLimit(PAGE_SIZE), [filter, currentFolderPath]);
+  useEffect(() => {
+    setRenderLimit(PAGE_SIZE);
+    gridRef.current?.scrollTo({ top: 0 });
+  }, [currentFolderPath, filter]);
+
+  const openFolder = useCallback((path: string | null) => {
+    setCurrentFolderPath(path);
+    const next = path === null ? images : customerBridgeFolderView(images, path).images;
+    setFocusedImageId(next[0]?.id ?? null);
+    setActiveImageIds(new Set());
+    setAnchorId(null);
+    setCompactFoldersOpen(false);
+  }, [images]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -360,6 +376,7 @@ export default function CustomerBridgeSelect({
       if (event.key === "Escape") {
         if (fullscreenId) setFullscreenId(null);
         else if (reviewIds) setReviewIds(null);
+        else setCompactFoldersOpen(false);
         return;
       }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
@@ -367,20 +384,28 @@ export default function CustomerBridgeSelect({
         openReview();
         return;
       }
-      if (event.key === " " && focusedId && !reviewIds) {
+      if (event.key === " " && (reviewActiveId || focusedImageId)) {
         event.preventDefault();
-        setFullscreenId(focusedId);
+        setFullscreenId(reviewActiveId ?? focusedImageId);
         return;
       }
-      const activeId = fullscreenId ?? reviewActiveId ?? focusedId;
-      if (!readOnly && /^[0-5]$/.test(event.key) && activeId) {
-        event.preventDefault();
-        setRating(activeId, Number(event.key) as 0 | CustomerBridgeRating);
-        if (reviewIds && event.key === "0") {
-          const removed = removeBridgeReviewItem(reviewIds, activeId);
-          setReviewIds(removed.remainingIds);
-          setReviewActiveId(removed.nextActiveId);
-          setReviewRemoved(removed.removed);
+      if (!readOnly && /^[0-5]$/.test(event.key)) {
+        const rating = Number(event.key) as 0 | CustomerBridgeRating;
+        if (reviewIds && reviewActiveId) {
+          event.preventDefault();
+          if (rating === 0) removeFromReview(reviewActiveId);
+          else applyRatingTo(new Set([reviewActiveId]), rating);
+          return;
+        }
+        if (fullscreenId) {
+          event.preventDefault();
+          applyRatingTo(new Set([fullscreenId]), rating);
+          return;
+        }
+        const targets = customerBridgeRatingTargets(activeImageIds, focusedImageId);
+        if (targets.size) {
+          event.preventDefault();
+          applyRatingTo(targets, rating);
         }
         return;
       }
@@ -392,18 +417,10 @@ export default function CustomerBridgeSelect({
           setReviewActiveId(reviewIds[(index + delta + reviewIds.length) % reviewIds.length]);
         } else if (event.key === "ArrowDown" && reviewActiveId) {
           event.preventDefault();
-          const removed = removeBridgeReviewItem(reviewIds, reviewActiveId);
-          setReviewIds(removed.remainingIds);
-          setReviewActiveId(removed.nextActiveId);
-          setReviewRemoved(removed.removed);
-          setRating(reviewActiveId, 0);
+          removeFromReview(reviewActiveId);
         } else if (event.key === "ArrowUp" && reviewRemoved) {
           event.preventDefault();
-          const restored = restoreBridgeReviewItem(reviewIds, reviewRemoved);
-          setReviewIds(restored.restoredIds);
-          setReviewActiveId(restored.activeId);
-          setReviewRemoved(null);
-          if (restored.activeId) toggle(restored.activeId);
+          restoreReviewItem();
         }
         return;
       }
@@ -412,41 +429,53 @@ export default function CustomerBridgeSelect({
         moveFullscreen(event.key === "ArrowLeft" ? -1 : 1);
         return;
       }
-      if (!focusedId || !event.key.startsWith("Arrow")) return;
-      const currentIndex = orderedIds.indexOf(focusedId);
+      if (!focusedImageId || !event.key.startsWith("Arrow")) return;
+      const currentIndex = orderedIds.indexOf(focusedImageId);
       if (currentIndex < 0) return;
-      const columnCount = Math.max(1, Math.round((gridRef.current?.clientWidth ?? thumbSize) / (thumbSize + 8)));
-      const delta = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" ? -columnCount : columnCount;
+      const columns = Math.max(1, Math.floor((gridRef.current?.clientWidth ?? thumbSize) / (thumbSize + 10)));
+      const delta = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" ? -columns : columns;
       const nextId = orderedIds[Math.max(0, Math.min(orderedIds.length - 1, currentIndex + delta))];
       if (!nextId) return;
       event.preventDefault();
-      if (event.shiftKey && !readOnly) {
-        const nextSelected = addCustomerBridgeRange({ current: selectedIds, orderedIds, anchorId: anchorId ?? focusedId, targetId: nextId });
-        setSelectedIds(nextSelected);
-        markDirty();
-      } else {
-        setAnchorId(nextId);
-      }
-      setFocusedId(nextId);
-      document.querySelector<HTMLElement>(`[data-bridge-image-id="${CSS.escape(nextId)}"]`)?.scrollIntoView({ block: "nearest" });
+      if (event.shiftKey && !readOnly) setActiveImageIds((current) => addCustomerBridgeRange({ current, orderedIds, anchorId: anchorId ?? focusedImageId, targetId: nextId }));
+      else setAnchorId(nextId);
+      setFocusedImageId(nextId);
+      gridRef.current?.querySelector<HTMLElement>(`[data-bridge-image-id="${CSS.escape(nextId)}"]`)?.scrollIntoView({ block: "nearest" });
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [anchorId, focusedId, fullscreenId, markDirty, moveFullscreen, openReview, orderedIds, readOnly, reviewActiveId, reviewIds, reviewRemoved, selectedIds, setRating, thumbSize, toggle]);
+  }, [activeImageIds, anchorId, applyRatingTo, focusedImageId, fullscreenId, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize]);
 
-  const handlePhotoClick = (image: CustomerBridgeImage, event: React.MouseEvent) => {
-    setFocusedId(image.id);
+  const handlePhotoClick = (image: CustomerBridgeImage, event: ReactMouseEvent) => {
+    setFocusedImageId(image.id);
     if (mobile) {
       setFullscreenId(image.id);
       return;
     }
-    if (readOnly) return;
     if (event.shiftKey && anchorId) {
-      setSelectedIds(addCustomerBridgeRange({ current: selectedIds, orderedIds, anchorId, targetId: image.id }));
-      markDirty();
+      setActiveImageIds((current) => addCustomerBridgeRange({ current, orderedIds, anchorId, targetId: image.id }));
       return;
     }
-    toggle(image.id);
+    if (event.metaKey || event.ctrlKey) {
+      setActiveImageIds((current) => {
+        const next = new Set(current);
+        if (next.has(image.id)) next.delete(image.id);
+        else next.add(image.id);
+        return next;
+      });
+    } else setActiveImageIds(new Set([image.id]));
+    setAnchorId(image.id);
+  };
+
+  const toggleActive = (id: string) => {
+    setFocusedImageId(id);
+    setAnchorId(id);
+    setActiveImageIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -454,43 +483,55 @@ export default function CustomerBridgeSelect({
     const rect = event.currentTarget.getBoundingClientRect();
     pointerRef.current = {
       start: { x: event.clientX - rect.left + event.currentTarget.scrollLeft, y: event.clientY - rect.top + event.currentTarget.scrollTop },
-      initial: new Set(selectedIds),
+      initial: new Set(activeImageIds),
       additive: bridgeMarqueeUsesAdditiveSelection(event),
-      active: true,
     };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const pointer = pointerRef.current;
-    if (!pointer?.active || !gridRef.current) return;
-    const rect = gridRef.current.getBoundingClientRect();
-    const end = { x: event.clientX - rect.left + gridRef.current.scrollLeft, y: event.clientY - rect.top + gridRef.current.scrollTop };
+    const root = gridRef.current;
+    if (!pointer || !root) return;
+    const rect = root.getBoundingClientRect();
+    const end = { x: event.clientX - rect.left + root.scrollLeft, y: event.clientY - rect.top + root.scrollTop };
     const box = bridgeRectangleFromPoints(pointer.start, end);
     setMarquee({ left: box.left, top: box.top, width: box.right - box.left, height: box.bottom - box.top });
     const hits = new Set<string>();
-    gridRef.current.querySelectorAll<HTMLElement>("[data-bridge-image-id]").forEach((node) => {
+    root.querySelectorAll<HTMLElement>("[data-bridge-image-id]").forEach((node) => {
       const nodeRect = node.getBoundingClientRect();
-      const candidate = {
-        left: nodeRect.left - rect.left + gridRef.current!.scrollLeft,
-        top: nodeRect.top - rect.top + gridRef.current!.scrollTop,
-        right: nodeRect.right - rect.left + gridRef.current!.scrollLeft,
-        bottom: nodeRect.bottom - rect.top + gridRef.current!.scrollTop,
-      };
+      const candidate = { left: nodeRect.left - rect.left + root.scrollLeft, top: nodeRect.top - rect.top + root.scrollTop, right: nodeRect.right - rect.left + root.scrollLeft, bottom: nodeRect.bottom - rect.top + root.scrollTop };
       if (bridgeRectanglesIntersect(box, candidate)) hits.add(node.dataset.bridgeImageId ?? "");
     });
-    setSelectedIds(bridgeMarqueeSelection({ initial: pointer.initial, hits, additive: pointer.additive }));
+    setActiveImageIds(bridgeMarqueeSelection({ initial: pointer.initial, hits, additive: pointer.additive }));
   };
 
   const handlePointerUp = () => {
-    if (pointerRef.current?.active) markDirty();
     pointerRef.current = null;
     setMarquee(null);
   };
 
+  const beginResize = (pane: "folder" | "preview", event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const start = pane === "folder" ? folderWidth : previewWidth;
+    const onMove = (moveEvent: PointerEvent) => {
+      const delta = moveEvent.clientX - startX;
+      if (pane === "folder") setFolderWidth(Math.max(160, Math.min(340, start + delta)));
+      else setPreviewWidth(Math.max(250, Math.min(520, start - delta)));
+    };
+    const onEnd = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onEnd);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onEnd, { once: true });
+  };
+
   const submit = async () => {
-    if (!selectedIds.size || submitting) return;
-    if (!window.confirm(`${selectedIds.size}장을 최종 제출할까요?`)) return;
+    const selectedCount = customerSelectedIds.size;
+    if (!selectedCount || submitting) return;
+    if (!window.confirm(`${selectedCount}장을 최종 제출할까요?`)) return;
     setSubmitting(true);
     const saved = await saveDraft();
     if (!saved) { setSubmitting(false); return; }
@@ -498,12 +539,7 @@ export default function CustomerBridgeSelect({
       const response = await fetch(`${endpointBase}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          revision: revisionRef.current,
-          requestKey: requestKeyRef.current,
-          items: selectionItems(selectedIds, ratings, notes),
-          customerMemo,
-        }),
+        body: JSON.stringify({ revision: revisionRef.current, requestKey: requestKeyRef.current, items: customerBridgeSelectionItems(images, customerRatings, notes), customerMemo }),
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error ?? "최종 제출에 실패했습니다.");
@@ -518,230 +554,90 @@ export default function CustomerBridgeSelect({
     }
   };
 
-  const activeFullscreen = fullscreenId ? imageById.get(fullscreenId) : null;
-  const reviewImages = (reviewIds ?? []).map((id) => imageById.get(id)).filter(Boolean) as CustomerBridgeImage[];
-
-  const openFolder = (path: string | null) => {
-    setCurrentFolderPath(path);
-    const nextImages = path === null ? images : customerBridgeFolderView(images, path).images;
-    setFocusedId(nextImages[0]?.id ?? null);
-    setAnchorId(null);
-  };
+  const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
+  const locationLabel = currentFolderPath === null ? "전체 사진" : currentFolderPath || "루트 사진";
 
   return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""}`}>
-    <header className={styles.header}>
-      <div className={styles.brand}>PHOTO CLINIC · Olivia Bridge</div>
-      <div className={styles.titleRow}>
-        <div>
-          <h1>{gallery.shooting_name ?? gallery.title}</h1>
-          <p>{[gallery.hospital_name, `${images.length.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</p>
-        </div>
-        <div className={styles.saveState} data-state={saveState}>{readOnly ? "관리자 사진 확인" : saveMessage || "변경하면 자동 저장됩니다"}</div>
-      </div>
-      <div className={styles.toolbar}>
-        <button className={styles.toolButton} type="button" aria-pressed={currentFolderPath !== null} onClick={() => openFolder("")}><FolderOpen size={16} /> 폴더</button>
-        <button className={styles.toolButton} type="button" aria-pressed={currentFolderPath === null} onClick={() => openFolder(null)}><Grid3X3 size={16} /> 전체 사진</button>
-        {currentFolderPath === null || !folderView.folders.length ? <div className={styles.segment} aria-label="사진 필터">
-          {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>
-            {value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `선택 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}
-          </button>)}
-        </div> : null}
-        <label className={styles.sizeControl}>썸네일 <input type="range" min={120} max={260} step={8} value={thumbSize} onChange={(event) => setThumbSize(Number(event.target.value))} /></label>
-        <button className={styles.toolButton} type="button" disabled={!selectedIds.size} onClick={openReview}><Images size={16} /> 리뷰</button>
-        <button className={styles.toolButton} type="button" disabled={!focusedId} onClick={() => focusedId && setFullscreenId(focusedId)}><Expand size={16} /> 전체화면</button>
-      </div>
-      <nav className={styles.folderBar} aria-label="사진 폴더 경로">
-        <button type="button" aria-current={currentFolderPath === "" ? "page" : undefined} onClick={() => openFolder("")}>프로젝트</button>
-        {currentFolderPath === null ? <><span>›</span><strong>전체 사진</strong></> : folderView.breadcrumbs.map((crumb) => <span className={styles.folderCrumb} key={crumb.path}><span>›</span><button type="button" aria-current={crumb.path === currentFolderPath ? "page" : undefined} onClick={() => openFolder(crumb.path)}>{crumb.name}</button></span>)}
-      </nav>
+    <header className={styles.bridgeBar}>
+      <div><strong>Olivia Bridge</strong><span>고객 사진 셀렉</span></div>
+      <div className={styles.projectTitle}><strong>{gallery.shooting_name ?? gallery.title}</strong><span>{[gallery.hospital_name, `${images.length.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</span></div>
+      <div className={styles.saveState} data-state={saveState}>{readOnly ? "관리자 사진 확인" : saveMessage || "변경하면 자동 저장됩니다"}</div>
     </header>
 
-    <section className={styles.workspace}>
-      <div className={styles.gridPane}>
-        <div
-          ref={gridRef}
-          className={styles.grid}
-          style={{ "--bridge-thumb": `${thumbSize}px` } as React.CSSProperties}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-        >
-          {currentFolderPath !== null ? folderView.folders.map((folder) => {
-            const representative = folder.representativeImageId ? imageById.get(folder.representativeImageId) : null;
-            return <button type="button" className={styles.folderCard} key={folder.path} onClick={() => openFolder(folder.path)}>
-              <div className={styles.folderPreview}>{representative ? <img src={representative.thumbnail_url ?? representative.image_url} alt="" loading="lazy" /> : null}<span><Folder size={28} /></span></div>
-              <div className={styles.folderMeta}><strong>{folder.name}</strong><span>{folder.totalCount.toLocaleString("ko-KR")}장</span></div>
-              <small>{folder.path}</small>
-            </button>;
-          }) : null}
-          {renderedImages.map((image) => {
-            const selected = selectedIds.has(image.id);
-            const focused = focusedId === image.id;
-            const rating = ratings[image.id] ?? 0;
-            return <article key={image.id} data-bridge-card data-bridge-image-id={image.id} className={styles.photoCard} data-selected={selected || undefined} data-focused={focused || undefined} onClick={(event) => handlePhotoClick(image, event)}>
-              <div className={styles.thumb}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.thumbnail_url ?? image.image_url} alt={image.original_file_name} loading="lazy" decoding="async" />
-                {!readOnly ? <button className={styles.checkButton} type="button" aria-label={`${image.original_file_name} ${selected ? "선택 해제" : "선택"}`} aria-pressed={selected} onClick={(event) => { event.stopPropagation(); toggle(image.id); }}>{selected ? <Check size={15} /> : null}</button> : selected ? <span className={styles.readOnlySelected}><Check size={14} /></span> : null}
-                {rating ? <span className={styles.rating}><Star size={12} fill="currentColor" />{rating}</span> : null}
-              </div>
-              <div className={styles.fileName}>{image.original_file_name}</div>
-            </article>;
-          })}
-          {marquee ? <div className={styles.marquee} style={marquee} /> : null}
-          {!visibleImages.length && (currentFolderPath === null || !folderView.folders.length) ? <div className={styles.empty}>이 폴더에 사진이 없습니다.</div> : null}
-          <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
-        </div>
+    <div className={styles.pathBar}>
+      <button type="button" className={styles.mobileFolderButton} aria-expanded={compactFoldersOpen} onClick={() => setCompactFoldersOpen(true)}><PanelLeft size={15} /> 폴더</button>
+      <div className={styles.breadcrumbs}><FolderOpen size={15} /><span>{gallery.title}</span><ChevronRight size={12} /><strong>{locationLabel}</strong></div>
+      <div className={styles.topFilters} aria-label="고객 셀렉 필터">
+        {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}</button>)}
       </div>
+      <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size} onClick={openReview}><Images size={14} /> 리뷰</button>
+      <button type="button" className={styles.headerAction} disabled={!focusedImageId} onClick={() => setFullscreenId(focusedImageId)}><Expand size={14} /> 전체화면</button>
+    </div>
 
-      <aside className={styles.inspector}>
-        {focusedId && imageById.get(focusedId) ? <>
-          <div className={styles.preview} onClick={() => setFullscreenId(focusedId)}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageById.get(focusedId)!.image_url} alt={imageById.get(focusedId)!.original_file_name} />
+    <section className={styles.workspace} style={workspaceStyle}>
+      {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}
+      <aside className={styles.folderPanel} data-compact-open={compactFoldersOpen || undefined}>
+        <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => setCompactFoldersOpen(false)} aria-label="폴더 닫기"><X size={15} /></button></div>
+        <button type="button" className={currentFolderPath === null ? styles.rootFolderActive : styles.rootFolder} onClick={() => openFolder(null)}><Images size={17} /><span>전체 사진</span><b>{images.length}</b></button>
+        <div className={styles.folderList}>
+          <button type="button" className={currentFolderPath === "" ? styles.activeFolder : ""} onClick={() => openFolder("")}><FolderOpen size={15} /><span>루트 사진</span><b>{customerBridgeFolderView(images, "").images.length}</b></button>
+          {folderTree.map((folder) => <button key={folder.path} type="button" className={currentFolderPath === folder.path ? styles.activeFolder : ""} style={{ "--folder-depth": folder.depth } as CSSProperties} onClick={() => openFolder(folder.path)}><Folder size={15} /><span>{folder.name}</span><b>{folder.directCount}</b></button>)}
+        </div>
+        <div className={styles.filterList}><small>고객 셀렉</small>{(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} onClick={() => setFilter(value)}><span>{value === "all" ? "전체 사진" : value === "selected" ? "선택한 사진" : "선택하지 않은 사진"}</span><b>{value === "all" ? folderImages.length : value === "selected" ? selectedInFolder : folderImages.length - selectedInFolder}</b></button>)}</div>
+        <div className={styles.folderSummary}><span>전체<b>{images.length}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
+      </aside>
+
+      <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
+
+      <section className={styles.browserPanel}>
+        <header className={styles.browserHeader}><div><strong>{locationLabel}</strong><span>{visibleImages.length.toLocaleString("ko-KR")}장</span></div><div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbSize((size) => Math.max(THUMB_MIN, size - 12))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} /><button type="button" onClick={() => setThumbSize((size) => Math.min(THUMB_MAX, size + 12))} aria-label="썸네일 크게"><Plus size={15} /></button></div></header>
+        <div ref={gridRef} className={styles.fileArea} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
+          <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))` }}>
+            {renderedImages.map((image) => {
+              const active = activeImageIds.has(image.id);
+              const focused = focusedImageId === image.id;
+              const rating = customerRatings[image.id] ?? 0;
+              return <article key={image.id} role="button" tabIndex={0} data-bridge-card data-bridge-image-id={image.id} className={`${styles.thumbnailCard} ${active ? styles.activeThumbnail : ""} ${focused ? styles.focusedThumbnail : ""}`} onClick={(event) => handlePhotoClick(image, event)} onKeyDown={(event) => { if (event.key !== "Enter") return; event.preventDefault(); setFocusedImageId(image.id); if (mobile) setFullscreenId(image.id); else { setActiveImageIds(new Set([image.id])); setAnchorId(image.id); } }} aria-label={`${image.original_file_name}${rating ? `, 고객 ${rating}점 셀렉` : ""}${active ? ", 작업 대상" : ""}`}>
+                <span className={styles.thumbnailMedia}><img src={image.thumbnail_url ?? image.image_url} alt={image.original_file_name} loading="lazy" decoding="async" /></span>
+                <button type="button" className={styles.workTargetButton} aria-label={`${image.original_file_name} 작업 대상 ${active ? "해제" : "추가"}`} aria-pressed={active} onClick={(event) => { event.stopPropagation(); toggleActive(image.id); }}>{active ? <Check size={13} /> : null}</button>
+                {rating ? <span className={styles.ratingBadge}><Star size={11} fill="currentColor" />{rating}</span> : null}<span className={styles.photoName}>{image.original_file_name}</span>
+              </article>;
+            })}
           </div>
-          <strong>{imageById.get(focusedId)!.original_file_name}</strong>
-          {!readOnly ? <><div className={styles.ratingButtons} aria-label="고객 별점">
-            {[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={ratings[focusedId] === rating} onClick={() => setRating(focusedId, rating as CustomerBridgeRating)}>{rating}</button>)}
-            <button type="button" aria-label="별점과 선택 해제" onClick={() => setRating(focusedId, 0)}>0</button>
-          </div>
-          <button className={selectedIds.has(focusedId) ? styles.selectedButton : styles.selectButton} type="button" onClick={() => toggle(focusedId)}>{selectedIds.has(focusedId) ? <><Check size={16} /> 선택됨</> : "이 사진 선택"}</button>
-          <label className={styles.memoLabel}>사진별 보정 메모<textarea value={notes[focusedId] ?? ""} maxLength={1000} onChange={(event) => { setNotes((current) => ({ ...current, [focusedId]: event.target.value })); markDirty(); }} placeholder="이 사진에 필요한 보정 내용을 적어주세요." /></label>
-          </> : notes[focusedId] ? <p className={styles.readOnlyMemo}>{notes[focusedId]}</p> : null}
-        </> : <div className={styles.emptyInspector}><Grid3X3 size={22} /><span>사진을 누르면 크게 확인할 수 있습니다.</span></div>}
+          {!visibleImages.length ? <div className={styles.empty}>이 폴더에 표시할 사진이 없습니다.</div> : null}
+          {marquee ? <div className={styles.selectionMarquee} style={marquee} /> : null}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
+        </div>
+        <footer className={styles.shortcutBar}><span>클릭 작업 대상 · Shift 범위 · ⌘/Ctrl 추가 · 숫자 1–5 셀렉 · 0 해제 · ⌘/Ctrl+B 리뷰</span><label>썸네일 <input type="range" min={THUMB_MIN} max={THUMB_MAX} step={4} value={thumbSize} onChange={(event) => setThumbSize(Number(event.currentTarget.value))} /></label></footer>
+      </section>
+
+      <button type="button" className={styles.paneDivider} aria-label="미리보기 패널 너비 조절" onPointerDown={(event) => beginResize("preview", event)} />
+
+      <aside className={styles.previewPanel}>
+        <header><strong>미리보기</strong><span>{activeImageIds.size ? `작업 대상 ${activeImageIds.size}장` : "사진을 선택해 주세요"}</span></header>
+        {focusedImage ? <><div className={styles.previewCanvas} onDoubleClick={() => setFullscreenId(focusedImage.id)}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.max(0, index - 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) <= 0} aria-label="이전 사진"><ChevronLeft size={20} /></button><img src={focusedImage.image_url} alt={focusedImage.original_file_name} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.min(orderedIds.length - 1, index + 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) >= orderedIds.length - 1} aria-label="다음 사진"><ChevronRight size={20} /></button></div>
+          <div className={styles.previewMeta}><strong>{focusedImage.original_file_name}</strong><span>{focusedImage.relative_path ?? ""}</span><button type="button" onClick={() => setFullscreenId(focusedImage.id)}><Expand size={13} /> 크게 보기</button></div>
+          {!readOnly ? <div className={styles.previewControls}><div><span>{activeImageIds.size > 1 ? `${activeImageIds.size}장에 별점 적용` : "고객 별점"}</span><div className={styles.ratingButtons}>{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={customerRatings[focusedImage.id] === rating} onClick={() => applyMainRating(rating as CustomerBridgeRating)}><Star size={15} fill={customerRatings[focusedImage.id] === rating ? "currentColor" : "none"} /></button>)}<button type="button" aria-label="별점 해제" onClick={() => applyMainRating(0)}>0</button></div></div><label>사진별 보정 메모<textarea value={notes[focusedImage.id] ?? ""} maxLength={1000} onChange={(event) => { setNotes((current) => ({ ...current, [focusedImage.id]: event.target.value })); markDirty(); }} placeholder="이 사진에 필요한 보정 내용을 적어주세요." /></label></div> : notes[focusedImage.id] ? <p className={styles.readOnlyMemo}>{notes[focusedImage.id]}</p> : null}
+        </> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 사진을 선택해 주세요</strong></div>}
       </aside>
     </section>
 
-    {!readOnly ? <footer className={styles.footer}>
-      <label className={styles.overallMemo}>전체 메모<input value={customerMemo} maxLength={5000} onChange={(event) => { setCustomerMemo(event.target.value); markDirty(); }} placeholder="전체 보정 요청이 있으면 적어주세요." /></label>
-      <div className={styles.footerSummary}><strong>{selectedIds.size}장 선택</strong><span>{saveMessage || "자동 저장"}</span></div>
-      <button className={styles.reviewButton} type="button" disabled={!selectedIds.size} onClick={openReview}>리뷰</button>
-      <button className={styles.submitButton} type="button" disabled={!selectedIds.size || submitting || saveState === "conflict"} onClick={() => void submit()}>{submitting ? "제출 중" : "최종 제출"}</button>
-    </footer> : null}
+    {!readOnly ? <footer className={styles.footer}><label className={styles.overallMemo}>전체 메모<input value={customerMemo} maxLength={5000} onChange={(event) => { setCustomerMemo(event.target.value); markDirty(); }} placeholder="전체 보정 요청이 있으면 적어주세요." /></label><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{saveMessage || "자동 저장"}</span></div><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict"} onClick={() => void submit()}>{submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
 
-    {activeFullscreen ? <PhotoOverlay
-      image={activeFullscreen}
-      index={fullscreenIndex}
-      total={visibleImages.length}
-      selected={selectedIds.has(activeFullscreen.id)}
-      rating={ratings[activeFullscreen.id] ?? 0}
-      note={notes[activeFullscreen.id] ?? ""}
-      zoomed={zoomed}
-      onZoom={() => setZoomed((value) => !value)}
-      onClose={() => setFullscreenId(null)}
-      onPrev={() => moveFullscreen(-1)}
-      onNext={() => moveFullscreen(1)}
-      onToggle={() => toggle(activeFullscreen.id)}
-      onRate={(rating) => setRating(activeFullscreen.id, rating)}
-      onNote={(value) => { setNotes((current) => ({ ...current, [activeFullscreen.id]: value })); markDirty(); }}
-      readOnly={readOnly}
-    /> : null}
-
-    {reviewIds ? <ReviewOverlay
-      images={reviewImages}
-      activeId={reviewActiveId}
-      removed={reviewRemoved}
-      selectedIds={selectedIds}
-      ratings={ratings}
-      onActive={setReviewActiveId}
-      onClose={() => setReviewIds(null)}
-      onRemove={(id) => {
-        const removed = removeBridgeReviewItem(reviewIds, id);
-        setReviewIds(removed.remainingIds);
-        setReviewActiveId(removed.nextActiveId);
-        setReviewRemoved(removed.removed);
-        setRating(id, 0);
-      }}
-      onRestore={() => {
-        const restored = restoreBridgeReviewItem(reviewIds, reviewRemoved);
-        setReviewIds(restored.restoredIds);
-        setReviewActiveId(restored.activeId);
-        setReviewRemoved(null);
-        if (restored.activeId && !selectedIds.has(restored.activeId)) toggle(restored.activeId);
-      }}
-      onRate={setRating}
-    /> : null}
+    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); markDirty(); }} readOnly={readOnly} /> : null}
+    {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onFullscreen={(id) => setFullscreenId(id)} /> : null}
   </main>;
 }
 
-function PhotoOverlay({ image, index, total, selected, rating, note, zoomed, onZoom, onClose, onPrev, onNext, onToggle, onRate, onNote, readOnly }: {
-  image: CustomerBridgeImage;
-  index: number;
-  total: number;
-  selected: boolean;
-  rating: number;
-  note: string;
-  zoomed: boolean;
-  onZoom: () => void;
-  onClose: () => void;
-  onPrev: () => void;
-  onNext: () => void;
-  onToggle: () => void;
-  onRate: (rating: 0 | CustomerBridgeRating) => void;
-  onNote: (value: string) => void;
-  readOnly: boolean;
-}) {
+function PhotoOverlay({ image, index, total, rating, note, zoomed, onZoom, onClose, onPrev, onNext, onRate, onNote, readOnly }: { image: CustomerBridgeImage; index: number; total: number; rating: number; note: string; zoomed: boolean; onZoom: () => void; onClose: () => void; onPrev: () => void; onNext: () => void; onRate: (rating: 0 | CustomerBridgeRating) => void; onNote: (value: string) => void; readOnly: boolean; }) {
   const touchStart = useRef<number | null>(null);
-  return <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="사진 전체화면" onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) onPrev(); else if (delta < -55) onNext(); touchStart.current = null; }}>
-    <div className={styles.overlayHeader}>
-      <button type="button" aria-label="닫기" onClick={onClose}><X /></button>
-      <div><strong>{image.original_file_name}</strong><span>{index + 1} / {total}</span></div>
-      <button type="button" onClick={onZoom}>{zoomed ? "화면 맞춤" : "확대"}</button>
-    </div>
-    <div className={zoomed ? styles.overlayImageZoomed : styles.overlayImage} onDoubleClick={onZoom}>
-      <button type="button" aria-label="이전" onClick={onPrev}><ChevronLeft /></button>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image.image_url} alt={image.original_file_name} />
-      <button type="button" aria-label="다음" onClick={onNext}><ChevronRight /></button>
-    </div>
-    {!readOnly ? <div className={styles.overlayControls}>
-      <div className={styles.ratingButtons}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={rating === value} onClick={() => onRate(value as CustomerBridgeRating)}>{value}</button>)}<button type="button" onClick={() => onRate(0)}>0</button></div>
-      <button className={selected ? styles.selectedButton : styles.selectButton} type="button" onClick={onToggle}>{selected ? <><Check size={16} /> 선택됨</> : "사진 선택"}</button>
-      <textarea value={note} maxLength={1000} onChange={(event) => onNote(event.target.value)} placeholder="사진별 보정 메모" />
-    </div> : null}
-  </div>;
+  return <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="사진 전체화면" onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) onPrev(); else if (delta < -55) onNext(); touchStart.current = null; }}><div className={styles.overlayHeader}><button type="button" aria-label="닫기" onClick={onClose}><X /></button><div><strong>{image.original_file_name}</strong><span>{Math.max(0, index) + 1} / {total} · {rating ? `고객 ${rating}점` : "미선택"}</span></div><button type="button" onClick={onZoom}>{zoomed ? "화면 맞춤" : "확대"}</button></div><div className={zoomed ? styles.overlayImageZoomed : styles.overlayImage} onDoubleClick={onZoom}><button type="button" aria-label="이전" onClick={onPrev}><ChevronLeft /></button><img src={image.image_url} alt={image.original_file_name} /><button type="button" aria-label="다음" onClick={onNext}><ChevronRight /></button></div>{!readOnly ? <div className={styles.overlayControls}><div className={styles.ratingButtons}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={rating === value} onClick={() => onRate(value as CustomerBridgeRating)}>{value}</button>)}<button type="button" onClick={() => onRate(0)}>0</button></div><strong>{rating ? `고객 셀렉 · ${rating}점` : "별점을 눌러 고객 셀렉"}</strong><textarea value={note} maxLength={1000} onChange={(event) => onNote(event.target.value)} placeholder="사진별 보정 메모" /></div> : null}</div>;
 }
 
-function ReviewOverlay({ images, activeId, removed, selectedIds, ratings, onActive, onClose, onRemove, onRestore, onRate }: {
-  images: CustomerBridgeImage[];
-  activeId: string | null;
-  removed: BridgeReviewRemovedItem | null;
-  selectedIds: ReadonlySet<string>;
-  ratings: Record<string, CustomerBridgeRating>;
-  onActive: (id: string) => void;
-  onClose: () => void;
-  onRemove: (id: string) => void;
-  onRestore: () => void;
-  onRate: (id: string, rating: 0 | CustomerBridgeRating) => void;
-}) {
+function ReviewOverlay({ images, activeId, removed, ratings, onActive, onClose, onRemove, onRestore, onRate, onFullscreen }: { images: CustomerBridgeImage[]; activeId: string | null; removed: ReviewRemovedRating | null; ratings: Record<string, CustomerBridgeRating>; onActive: (id: string) => void; onClose: () => void; onRemove: (id: string) => void; onRestore: () => void; onRate: (id: string, rating: 0 | CustomerBridgeRating) => void; onFullscreen: (id: string) => void; }) {
   const touchStart = useRef<number | null>(null);
   const layout = bridgeReviewLayout(images.length);
   const activeIndex = Math.max(0, images.findIndex((image) => image.id === activeId));
   const displayed = layout === "deck" ? bridgeReviewDeckWindow(images, activeIndex) : images.map((image) => ({ item: image, offset: 0 }));
-  const moveActive = (delta: -1 | 1) => {
-    if (!images.length) return;
-    onActive(images[(activeIndex + delta + images.length) % images.length].id);
-  };
-  return <div className={styles.reviewOverlay} role="dialog" aria-modal="true" aria-label="선택 사진 리뷰">
-    <div className={styles.overlayHeader}>
-      <button type="button" aria-label="닫기" onClick={onClose}><X /></button>
-      <div><strong>선택 사진 리뷰</strong><span>{images.length}장 · {layout === "single" ? "한 장" : layout === "grid" ? "비교" : "로테이션"}</span></div>
-      <button type="button" disabled={!removed} onClick={onRestore}><RotateCcw size={15} /> 복원</button>
-    </div>
-    <div className={`${styles.reviewStage} ${styles[`review_${layout}`]}`} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) moveActive(-1); else if (delta < -55) moveActive(1); touchStart.current = null; }}>
-      {displayed.map(({ item, offset }) => <button key={item.id} type="button" className={styles.reviewPhoto} data-active={item.id === activeId || undefined} style={layout === "deck" ? { "--deck-offset": offset } as React.CSSProperties : undefined} onClick={() => onActive(item.id)}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={item.image_url} alt={item.original_file_name} />
-        <span>{item.original_file_name}</span>
-      </button>)}
-      {!images.length ? <div className={styles.reviewEmpty}>모든 사진을 제외했습니다. 위의 복원 버튼으로 직전 사진을 되돌릴 수 있습니다.</div> : null}
-    </div>
-    {activeId ? <div className={styles.reviewControls}>
-      <button type="button" className={styles.reviewMoveButton} onClick={() => moveActive(-1)} aria-label="이전 사진"><ChevronLeft size={17} /></button>
-      <div className={styles.ratingButtons}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={ratings[activeId] === value} onClick={() => onRate(activeId, value as CustomerBridgeRating)}>{value}</button>)}</div>
-      <button type="button" className={styles.reviewMoveButton} onClick={() => moveActive(1)} aria-label="다음 사진"><ChevronRight size={17} /></button>
-      <button type="button" className={styles.removeButton} disabled={!selectedIds.has(activeId)} onClick={() => onRemove(activeId)}>선택 해제</button>
-    </div> : null}
-  </div>;
+  const move = (delta: -1 | 1) => { if (images.length) onActive(images[(activeIndex + delta + images.length) % images.length].id); };
+  return <div className={styles.reviewOverlay} role="dialog" aria-modal="true" aria-label="고객 셀렉 리뷰"><div className={styles.overlayHeader}><button type="button" aria-label="닫기" onClick={onClose}><X /></button><div><strong>고객 셀렉 리뷰</strong><span>{images.length}장 · {layout === "single" ? "한 장" : layout === "grid" ? "비교" : "로테이션"}</span></div><button type="button" disabled={!removed} onClick={onRestore}><RotateCcw size={15} /> 복원</button></div><div className={`${styles.reviewStage} ${styles[`review_${layout}`]}`} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) move(-1); else if (delta < -55) move(1); touchStart.current = null; }}>{displayed.map(({ item, offset }) => <button key={item.id} type="button" className={styles.reviewPhoto} data-active={item.id === activeId || undefined} style={layout === "deck" ? { "--deck-offset": offset } as CSSProperties : undefined} onClick={() => onActive(item.id)} onDoubleClick={() => onFullscreen(item.id)}><img src={item.image_url} alt={item.original_file_name} /><span>{item.original_file_name} · {ratings[item.id]}점</span></button>)}{!images.length ? <div className={styles.reviewEmpty}>모든 사진을 제외했습니다. 위의 복원으로 직전 사진과 별점을 되돌릴 수 있습니다.</div> : null}</div>{activeId ? <div className={styles.reviewControls}><button type="button" className={styles.reviewMoveButton} onClick={() => move(-1)} aria-label="이전 사진"><ChevronLeft size={17} /></button><div className={styles.ratingButtons}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-pressed={ratings[activeId] === value} onClick={() => onRate(activeId, value as CustomerBridgeRating)}>{value}</button>)}</div><button type="button" className={styles.reviewMoveButton} onClick={() => move(1)} aria-label="다음 사진"><ChevronRight size={17} /></button><button type="button" className={styles.removeButton} onClick={() => onRemove(activeId)}>셀렉 제외</button></div> : null}</div>;
 }

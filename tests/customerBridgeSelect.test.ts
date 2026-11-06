@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   addCustomerBridgeRange,
+  applyCustomerRatings,
   applyCustomerBridgeRating,
+  customerBridgeFolderTree,
   customerBridgeFolderView,
+  customerBridgeRatedIds,
+  customerBridgeRatingTargets,
+  customerBridgeSelectionItems,
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
@@ -30,6 +35,31 @@ describe("customer Bridge selection", () => {
       anchorId: "b",
       targetId: "d",
     })]).toEqual(["z", "b", "c", "d"]);
+  });
+
+  it("keeps work targets separate until a number rating is applied", () => {
+    const activeImageIds = new Set(["a", "b", "c"]);
+    expect(customerBridgeRatedIds({}).size).toBe(0);
+    const ratings = applyCustomerRatings({}, customerBridgeRatingTargets(activeImageIds, "a"), 3);
+    expect(ratings).toEqual({ a: 3, b: 3, c: 3 });
+    expect([...customerBridgeRatedIds(ratings)]).toEqual(["a", "b", "c"]);
+  });
+
+  it("uses the focused photo only when there is no work target and 0 removes only targets", () => {
+    expect([...customerBridgeRatingTargets(new Set(), "focused")]).toEqual(["focused"]);
+    const ratings = applyCustomerRatings({ a: 5, b: 4, c: 2 }, new Set(["a", "c"]), 0);
+    expect(ratings).toEqual({ b: 4 });
+  });
+
+  it("submits only rated photos with their path, rating, and memo", () => {
+    expect(customerBridgeSelectionItems([
+      { id: "a", relative_path: "C1/a.jpg" },
+      { id: "b", relative_path: "C2/b.jpg" },
+      { id: "c", relative_path: "C3/c.jpg" },
+    ], { a: 5, c: 3 }, { a: "피부 정리", b: "제출되면 안 됨" })).toEqual([
+      { imageId: "a", relativePath: "C1/a.jpg", rating: 5, memo: "피부 정리" },
+      { imageId: "c", relativePath: "C3/c.jpg", rating: 3, memo: "" },
+    ]);
   });
 });
 
@@ -62,6 +92,14 @@ describe("customer Bridge folder browser", () => {
     const view = customerBridgeFolderView(images, "Scene 1\\Detail");
     expect(view.currentPath).toBe("Scene 1/Detail");
     expect(view.images.map((image) => image.id)).toEqual(["s1-detail"]);
+  });
+
+  it("builds the left folder hierarchy without rendering folder cards in the photo grid", () => {
+    expect(customerBridgeFolderTree(images)).toEqual([
+      { path: "Scene 1", name: "Scene 1", depth: 0, directCount: 2, totalCount: 3, representativeImageId: "s1-a" },
+      { path: "Scene 1/Detail", name: "Detail", depth: 1, directCount: 1, totalCount: 1, representativeImageId: "s1-detail" },
+      { path: "Scene 2", name: "Scene 2", depth: 0, directCount: 1, totalCount: 1, representativeImageId: "s2-a" },
+    ]);
   });
 });
 

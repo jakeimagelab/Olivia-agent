@@ -42,6 +42,13 @@ export type CustomerBridgeFolderImage = {
   relative_path?: string | null;
 };
 
+export type CustomerBridgeSelectionItem = {
+  imageId: string;
+  relativePath: string | null;
+  rating: CustomerBridgeRating;
+  memo: string;
+};
+
 export type CustomerBridgeFolder = {
   path: string;
   name: string;
@@ -55,6 +62,10 @@ export type CustomerBridgeFolderView<T extends CustomerBridgeFolderImage> = {
   breadcrumbs: Array<{ name: string; path: string }>;
   folders: CustomerBridgeFolder[];
   images: T[];
+};
+
+export type CustomerBridgeFolderTreeItem = CustomerBridgeFolder & {
+  depth: number;
 };
 
 const SLASHES = /[\\/]+/g;
@@ -122,6 +133,86 @@ export function customerBridgeFolderView<T extends CustomerBridgeFolderImage>(
     path: currentParts.slice(0, index + 1).join("/"),
   }));
   return { currentPath, breadcrumbs, folders: [...folders.values()], images: directImages };
+}
+
+/** 관리자 Bridge의 왼쪽 탐색 패널처럼 전체 폴더를 한 번에 보여 주는 평면 트리. */
+export function customerBridgeFolderTree<T extends CustomerBridgeFolderImage>(
+  images: readonly T[],
+): CustomerBridgeFolderTreeItem[] {
+  const folders = new Map<string, CustomerBridgeFolderTreeItem>();
+  for (const image of images) {
+    const parts = galleryFolderPath(image.relative_path).split("/").filter(Boolean);
+    parts.forEach((name, index) => {
+      const path = parts.slice(0, index + 1).join("/");
+      const existing = folders.get(path);
+      if (existing) {
+        existing.totalCount += 1;
+        if (index === parts.length - 1) existing.directCount += 1;
+        return;
+      }
+      folders.set(path, {
+        path,
+        name,
+        depth: index,
+        directCount: index === parts.length - 1 ? 1 : 0,
+        totalCount: 1,
+        representativeImageId: image.id,
+      });
+    });
+  }
+  return [...folders.values()];
+}
+
+/** 작업 대상이 있으면 그 전체를, 없으면 포커스 사진 한 장을 별점 대상으로 삼는다. */
+export function customerBridgeRatingTargets(
+  activeImageIds: ReadonlySet<string>,
+  focusedImageId: string | null,
+) {
+  if (activeImageIds.size) return new Set(activeImageIds);
+  return focusedImageId ? new Set([focusedImageId]) : new Set<string>();
+}
+
+/** 고객 셀렉은 별점 1~5가 있는 사진으로만 정의한다. */
+export function customerBridgeRatedIds(
+  ratings: Readonly<Record<string, number>>,
+) {
+  return new Set(
+    Object.entries(ratings)
+      .filter(([, rating]) => Number.isInteger(rating) && rating >= 1 && rating <= 5)
+      .map(([id]) => id),
+  );
+}
+
+/** 작업 대상의 고객 별점만 변경한다. 마우스 작업 대상 집합은 건드리지 않는다. */
+export function applyCustomerRatings(
+  current: Readonly<Record<string, CustomerBridgeRating>>,
+  targetIds: ReadonlySet<string>,
+  rating: 0 | CustomerBridgeRating,
+) {
+  const ratings = { ...current };
+  for (const id of targetIds) {
+    if (rating === 0) delete ratings[id];
+    else ratings[id] = rating;
+  }
+  return ratings;
+}
+
+/** 저장·제출에는 고객 별점이 있는 사진만 원래 사진 순서대로 포함한다. */
+export function customerBridgeSelectionItems<T extends CustomerBridgeFolderImage>(
+  images: readonly T[],
+  ratings: Readonly<Record<string, number>>,
+  notes: Readonly<Record<string, string>>,
+): CustomerBridgeSelectionItem[] {
+  return images.flatMap((image) => {
+    const rating = ratings[image.id];
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return [];
+    return [{
+      imageId: image.id,
+      relativePath: image.relative_path ?? null,
+      rating: rating as CustomerBridgeRating,
+      memo: notes[image.id] ?? "",
+    }];
+  });
 }
 
 export function normalizeGalleryRelativePath(value: string | null | undefined) {
