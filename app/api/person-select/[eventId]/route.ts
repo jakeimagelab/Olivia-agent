@@ -9,6 +9,7 @@ import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
 import { assessAccessModeChange, normalizeAccessModeChangeFacts } from "@/lib/person-select/projectSettings";
+import { normalizeNasDownloadUrl } from "@/lib/person-select/reviewers";
 
 export const dynamic = "force-dynamic";
 
@@ -92,18 +93,65 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
   let shared: Record<string, unknown> | null = null;
   if (event.access_mode === "project_shared") {
-    const [{ data: selection }, sharedImageUrls] = await Promise.all([
-      db.from("person_select_shared_selections").select("id,submitted_at,customer_memo").eq("event_id", eventId).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
+    const [{ data: reviewers, error: reviewersError }, { data: drafts, error: draftsError }, { data: selections, error: selectionsError }, sharedImageUrls] = await Promise.all([
+      db.from("person_select_shared_reviewers").select("id,display_name,role_label,token_version,active,is_legacy,last_seen_at,created_at,updated_at").eq("event_id", eventId).order("is_legacy", { ascending: false }).order("created_at"),
+      db.from("person_select_shared_drafts").select("reviewer_id,revision,items,customer_memo,updated_at").eq("event_id", eventId),
+      db.from("person_select_shared_selections").select("id,reviewer_id,submitted_at,customer_memo,revision").eq("event_id", eventId).order("submitted_at", { ascending: false }),
       signedImageUrls(imageGroups.flatMap((image) => [image.thumb_path, image.preview_path])),
     ]);
-    const { data: selectedItems } = selection
-      ? await db.from("person_select_shared_selection_items").select("image_id,customer_rating,memo,person_select_images(original_file_name,source_rel_path,thumb_path)").eq("selection_id", selection.id)
-      : { data: [] };
-    const itemImages = (selectedItems ?? []).flatMap((item) => {
-      const image = item.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
-      return image ? [image] : [];
+    if (reviewersError || draftsError || selectionsError) throw reviewersError ?? draftsError ?? selectionsError;
+    const latestByReviewer = new Map<string, NonNullable<typeof selections>[number]>();
+    for (const selection of selections ?? []) if (!latestByReviewer.has(selection.reviewer_id)) latestByReviewer.set(selection.reviewer_id, selection);
+    const latestSelectionIds = [...latestByReviewer.values()].map((selection) => selection.id);
+    const { data: selectedItems, error: selectedItemsError } = latestSelectionIds.length
+      ? await db.from("person_select_shared_selection_items").select("selection_id,reviewer_id,image_id,customer_rating,customer_color_label,memo").in("selection_id", latestSelectionIds)
+      : { data: [], error: null };
+    if (selectedItemsError) throw selectedItemsError;
+    const imageById = new Map(imageGroups.map((image) => [image.id, image]));
+    const itemsFor = (selectionId: string) => (selectedItems ?? []).filter((item) => item.selection_id === selectionId).map((item) => {
+      const image = imageById.get(item.image_id);
+      return {
+        ...item,
+        image: image ? {
+          original_file_name: image.original_file_name,
+          source_rel_path: image.source_rel_path,
+          thumb_url: sharedImageUrls.get(image.thumb_path) ?? "",
+        } : null,
+      };
     });
-    const itemUrls = await signedImageUrls(itemImages.map((image) => image.thumb_path));
+    const draftByReviewer = new Map((drafts ?? []).map((draft) => [draft.reviewer_id, draft]));
+    const reviewerRows = (reviewers ?? []).map((reviewer) => {
+      const draft = draftByReviewer.get(reviewer.id);
+      const selection = latestByReviewer.get(reviewer.id);
+      const draftItems = Array.isArray(draft?.items) ? draft.items as Array<Record<string, unknown>> : [];
+      return {
+        ...reviewer,
+        draft: draft ? {
+          revision: draft.revision,
+          selected_count: draftItems.length,
+          selectedImageIds: draftItems.map((item) => String(item.image_id ?? "")).filter(Boolean),
+          ratings: Object.fromEntries(draftItems.flatMap((item) => {
+            const imageId = String(item.image_id ?? "");
+            const rating = Number(item.customer_rating);
+            return imageId && Number.isInteger(rating) && rating >= 1 && rating <= 5 ? [[imageId, rating]] : [];
+          })),
+          colorLabels: Object.fromEntries(draftItems.flatMap((item) => {
+            const imageId = String(item.image_id ?? "");
+            const color = Number(item.customer_color_label);
+            return imageId && Number.isInteger(color) && color >= 6 && color <= 9 ? [[imageId, color]] : [];
+          })),
+          imageNotes: Object.fromEntries(draftItems.flatMap((item) => {
+            const imageId = String(item.image_id ?? "");
+            const memo = typeof item.memo === "string" ? item.memo : "";
+            return imageId && memo ? [[imageId, memo]] : [];
+          })),
+          customerMemo: typeof draft.customer_memo === "string" ? draft.customer_memo : "",
+          updated_at: draft.updated_at,
+        } : null,
+        selection: selection ? { ...selection, items: itemsFor(selection.id) } : null,
+      };
+    });
+    const latestSelection = (selections ?? [])[0] ?? null;
     shared = {
       image_count: imageGroups.length,
       images: imageGroups.map((image) => ({
@@ -114,13 +162,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
         image_url: sharedImageUrls.get(image.preview_path) ?? sharedImageUrls.get(image.thumb_path) ?? "",
         sort_order: image.sort_order,
       })),
-      selection: selection ? {
-        ...selection,
-        items: (selectedItems ?? []).map((item) => {
-          const image = item.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
-          return { ...item, image: image ? { ...image, thumb_url: itemUrls.get(image.thumb_path) ?? "" } : null };
-        }),
-      } : null,
+      selection: latestSelection ? { ...latestSelection, items: itemsFor(latestSelection.id) } : null,
+      reviewers: reviewerRows,
     };
   }
   return Response.json({ ok: true, event, people: peopleRows, groups, shared });
@@ -129,11 +172,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "shared_link_active", "shared_token_expires_at"];
+  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "shared_link_active", "shared_token_expires_at", "nas_download_url"];
   const update = Object.fromEntries(allowed.filter((key) => body[key] !== undefined).map((key) => [key, body[key]]));
   if (body.project_type !== undefined && !isPersonSelectProjectType(body.project_type)) return Response.json({ ok: false, error: "올바른 프로젝트 유형을 선택해 주세요." }, { status: 400 });
   if (body.customer_view_mode !== undefined && !isPersonSelectCustomerViewMode(body.customer_view_mode)) return Response.json({ ok: false, error: "올바른 고객 화면 방식을 선택해 주세요." }, { status: 400 });
   if (body.access_mode !== undefined && !isPersonSelectAccessMode(body.access_mode)) return Response.json({ ok: false, error: "올바른 접근 방식을 선택해 주세요." }, { status: 400 });
+  if (body.nas_download_url !== undefined) {
+    const normalized = normalizeNasDownloadUrl(body.nas_download_url);
+    if ("error" in normalized) return Response.json({ ok: false, error: normalized.error }, { status: 400 });
+    update.nas_download_url = normalized.value;
+  }
   if (body.deadline_at !== undefined) {
     const deadlineAt = parseSeoulDateTime(body.deadline_at);
     if (!deadlineAt) return Response.json({ ok: false, error: "올바른 마감일을 입력해 주세요." }, { status: 400 });

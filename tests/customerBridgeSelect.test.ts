@@ -2,17 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import {
   addCustomerBridgeRange,
+  applyCustomerColorLabels,
   applyCustomerRatings,
   applyCustomerBridgeRating,
   customerBridgeFolderTree,
   customerBridgeFolderView,
   customerBridgeRatedIds,
   customerBridgeRatingTargets,
+  customerBridgeSelectedIds,
   customerBridgeSelectionItems,
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
   normalizeGalleryRelativePath,
+  normalizeCustomerBridgeSelectionMarks,
   toggleCustomerBridgeSelection,
 } from "@/lib/select-gallery/customerBridge";
 
@@ -56,10 +59,39 @@ describe("customer Bridge selection", () => {
       { id: "a", relative_path: "C1/a.jpg" },
       { id: "b", relative_path: "C2/b.jpg" },
       { id: "c", relative_path: "C3/c.jpg" },
-    ], { a: 5, c: 3 }, { a: "피부 정리", b: "제출되면 안 됨" })).toEqual([
-      { imageId: "a", relativePath: "C1/a.jpg", rating: 5, memo: "피부 정리" },
-      { imageId: "c", relativePath: "C3/c.jpg", rating: 3, memo: "" },
+    ], { a: 5, c: 3 }, {}, { a: "피부 정리", b: "제출되면 안 됨" })).toEqual([
+      { imageId: "a", relativePath: "C1/a.jpg", rating: 5, colorLabel: null, memo: "피부 정리" },
+      { imageId: "c", relativePath: "C3/c.jpg", rating: 3, colorLabel: null, memo: "" },
     ]);
+  });
+
+  it("keeps 6–9 color selections independent and counts the union once", () => {
+    const ratings = { a: 5, b: 3 } as const;
+    const colors = applyCustomerColorLabels({}, new Set(["b", "c"]), 8);
+    expect(colors).toEqual({ b: 8, c: 8 });
+    expect([...customerBridgeSelectedIds(ratings, colors)]).toEqual(["a", "b", "c"]);
+    expect(customerBridgeSelectionItems([
+      { id: "a", relative_path: "C1/a.jpg" },
+      { id: "b", relative_path: "C1/b.jpg" },
+      { id: "c", relative_path: "C1/c.jpg" },
+    ], ratings, colors, {})).toEqual([
+      { imageId: "a", relativePath: "C1/a.jpg", rating: 5, colorLabel: null, memo: "" },
+      { imageId: "b", relativePath: "C1/b.jpg", rating: 3, colorLabel: 8, memo: "" },
+      { imageId: "c", relativePath: "C1/c.jpg", rating: null, colorLabel: 8, memo: "" },
+    ]);
+    expect(applyCustomerColorLabels(colors, new Set(["c"]), 8)).toEqual({ b: 8, c: 8 });
+  });
+
+  it("keeps classic selections when switching to Bridge without overwriting real marks", () => {
+    expect(normalizeCustomerBridgeSelectionMarks({
+      selectedImageIds: ["classic", "rated", "colored", "outside"],
+      ratings: { rated: 4 },
+      colorLabels: { colored: 7 },
+      allowedImageIds: new Set(["classic", "rated", "colored"]),
+    })).toEqual({
+      ratings: { rated: 4, classic: 1 },
+      colorLabels: { colored: 7 },
+    });
   });
 });
 

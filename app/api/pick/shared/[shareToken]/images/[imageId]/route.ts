@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { signedImageUrls } from "@/lib/person-select/server";
-import { getSharedPersonSelectEvent } from "@/lib/person-select/sharedPublic";
+import { resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
 import {
   enforcePublicSelectionRateLimit,
   PublicSelectionRequestError,
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sha
   try {
     const db = getSupabaseAdmin();
     await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-image-refresh", limit: 2_000 });
-    const event = await getSharedPersonSelectEvent(db, shareToken);
+    const { event } = await resolveSharedPersonSelectAccess(db, shareToken);
     const { data: image, error } = await db
       .from("person_select_images")
       .select("id,thumb_path,preview_path")

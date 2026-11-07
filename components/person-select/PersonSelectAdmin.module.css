@@ -169,3 +169,15 @@
 .offerFoot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .check { display: inline-flex; align-items: center; gap: 7px; color: var(--ps-text); font-size: 12.5px; font-weight: 400 !important; }
 .orderTotal { color: var(--ps-orange); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.reviewerCreate { display: grid; grid-template-columns: minmax(180px,1fr) minmax(160px,.8fr) auto; gap: 8px; margin-top: 10px; }
+.reviewerList { display: grid; gap: 8px; margin-top: 10px; }
+.reviewerRow { display: grid; grid-template-columns: minmax(180px,.8fr) minmax(240px,1.4fr) auto; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
+.reviewerRow[data-inactive] { background: var(--ps-header); }
+.reviewerRow > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.reviewerRow strong { color: var(--ps-text); font-size: 13px; font-weight: 600; }
+.reviewerRow span, .reviewerRow small { color: var(--ps-sub); font-size: 11px; }
+.reviewerSecurity { padding: 9px 10px; border: 1px solid var(--ps-border); border-radius: 8px; background: var(--ps-header); }
+
+@media (max-width: 900px) {
+  .reviewerCreate, .reviewerRow { grid-template-columns: 1fr; }
+}

@@ -16,12 +16,12 @@ describe("public selection validation", () => {
       revision: 2,
       requestKey: "request_12345678",
       customerMemo: "전체 메모",
-      items: [{ imageId: "img-a", rating: 5, memo: "피부 정리" }],
+      items: [{ imageId: "img-a", rating: 5, colorLabel: null, memo: "피부 정리" }],
     }, allowed)).toEqual({
       revision: 2,
       requestKey: "request_12345678",
       customerMemo: "전체 메모",
-      items: [{ imageId: "img-a", rating: 5, memo: "피부 정리" }],
+      items: [{ imageId: "img-a", rating: 5, colorLabel: null, memo: "피부 정리" }],
     });
   });
 
@@ -29,6 +29,15 @@ describe("public selection validation", () => {
     expect(() => parsePublicSelectionDraft({ revision: 0, items: [{ imageId: "other" }] }, allowed)).toThrow("없는 사진");
     expect(() => parsePublicSelectionDraft({ revision: 0, items: [{ imageId: "img-a" }, { imageId: "img-a" }] }, allowed)).toThrow("두 번");
     expect(() => parsePublicSelectionDraft({ revision: 0, items: [{ imageId: "img-a", rating: 6 }] }, allowed)).toThrow("1점부터 5점");
+    expect(() => parsePublicSelectionDraft({ revision: 0, items: [{ imageId: "img-a", colorLabel: 5 }] }, allowed)).toThrow("6번부터 9번");
+  });
+
+  it("accepts color-only customer selections", () => {
+    expect(parsePublicSelectionDraft({ revision: 1, items: [{ imageId: "img-b", colorLabel: 9, memo: "후보" }] }, allowed)).toEqual({
+      revision: 1,
+      customerMemo: "",
+      items: [{ imageId: "img-b", rating: null, colorLabel: 9, memo: "후보" }],
+    });
   });
 
   it("requires at least one item only for final submit", () => {

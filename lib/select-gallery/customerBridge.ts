@@ -1,4 +1,5 @@
 export type CustomerBridgeRating = 1 | 2 | 3 | 4 | 5;
+export type CustomerBridgeColorLabel = 6 | 7 | 8 | 9;
 
 export type CustomerBridgeSelectionState = {
   selectedIds: Set<string>;
@@ -45,8 +46,14 @@ export type CustomerBridgeFolderImage = {
 export type CustomerBridgeSelectionItem = {
   imageId: string;
   relativePath: string | null;
-  rating: CustomerBridgeRating;
+  rating: CustomerBridgeRating | null;
+  colorLabel: CustomerBridgeColorLabel | null;
   memo: string;
+};
+
+export type CustomerBridgeSelectionMarks = {
+  ratings: Record<string, CustomerBridgeRating>;
+  colorLabels: Record<string, CustomerBridgeColorLabel>;
 };
 
 export type CustomerBridgeFolder = {
@@ -183,6 +190,47 @@ export function customerBridgeRatedIds(
   );
 }
 
+/** 고객 셀렉은 별점 또는 컬러 레이블이 하나라도 있는 사진의 합집합이다. */
+export function customerBridgeSelectedIds(
+  ratings: Readonly<Record<string, number>>,
+  colorLabels: Readonly<Record<string, number>>,
+) {
+  return new Set([
+    ...customerBridgeRatedIds(ratings),
+    ...Object.entries(colorLabels)
+      .filter(([, label]) => Number.isInteger(label) && label >= 6 && label <= 9)
+      .map(([id]) => id),
+  ]);
+}
+
+/**
+ * 기존 classic 셀렉은 선택 여부만 저장되어 별점·컬러가 없을 수 있다.
+ * Bridge로 화면 방식을 바꿔도 그 선택을 잃지 않도록 표시 가능한 1점 셀렉으로 승계한다.
+ */
+export function normalizeCustomerBridgeSelectionMarks(input: {
+  selectedImageIds?: readonly string[];
+  ratings?: Readonly<Record<string, number>>;
+  colorLabels?: Readonly<Record<string, number>>;
+  allowedImageIds?: ReadonlySet<string>;
+}): CustomerBridgeSelectionMarks {
+  const allowed = input.allowedImageIds;
+  const ratings = Object.fromEntries(
+    Object.entries(input.ratings ?? {}).filter(([id, rating]) => (
+      (!allowed || allowed.has(id)) && Number.isInteger(rating) && rating >= 1 && rating <= 5
+    )),
+  ) as Record<string, CustomerBridgeRating>;
+  const colorLabels = Object.fromEntries(
+    Object.entries(input.colorLabels ?? {}).filter(([id, label]) => (
+      (!allowed || allowed.has(id)) && Number.isInteger(label) && label >= 6 && label <= 9
+    )),
+  ) as Record<string, CustomerBridgeColorLabel>;
+
+  for (const id of input.selectedImageIds ?? []) {
+    if ((!allowed || allowed.has(id)) && !ratings[id] && !colorLabels[id]) ratings[id] = 1;
+  }
+  return { ratings, colorLabels };
+}
+
 /** 작업 대상의 고객 별점만 변경한다. 마우스 작업 대상 집합은 건드리지 않는다. */
 export function applyCustomerRatings(
   current: Readonly<Record<string, CustomerBridgeRating>>,
@@ -197,19 +245,45 @@ export function applyCustomerRatings(
   return ratings;
 }
 
-/** 저장·제출에는 고객 별점이 있는 사진만 원래 사진 순서대로 포함한다. */
+/** 작업 대상에 6–9 컬러 셀렉을 적용한다. 해제는 0 키만 사용한다. */
+export function applyCustomerColorLabels(
+  current: Readonly<Record<string, CustomerBridgeColorLabel>>,
+  targetIds: ReadonlySet<string>,
+  colorLabel: CustomerBridgeColorLabel,
+) {
+  const colorLabels = { ...current };
+  for (const id of targetIds) colorLabels[id] = colorLabel;
+  return colorLabels;
+}
+
+/** 0 키는 작업 대상의 별점과 컬러를 함께 지운다. */
+export function clearCustomerBridgeMarks<T extends number>(
+  current: Readonly<Record<string, T>>,
+  targetIds: ReadonlySet<string>,
+) {
+  const next = { ...current };
+  for (const id of targetIds) delete next[id];
+  return next;
+}
+
+/** 저장·제출에는 고객 별점 또는 컬러 셀렉이 있는 사진만 원래 사진 순서대로 포함한다. */
 export function customerBridgeSelectionItems<T extends CustomerBridgeFolderImage>(
   images: readonly T[],
   ratings: Readonly<Record<string, number>>,
+  colorLabels: Readonly<Record<string, number>>,
   notes: Readonly<Record<string, string>>,
 ): CustomerBridgeSelectionItem[] {
   return images.flatMap((image) => {
     const rating = ratings[image.id];
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) return [];
+    const colorLabel = colorLabels[image.id];
+    const validRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
+    const validColor = Number.isInteger(colorLabel) && colorLabel >= 6 && colorLabel <= 9;
+    if (!validRating && !validColor) return [];
     return [{
       imageId: image.id,
       relativePath: image.relative_path ?? null,
-      rating: rating as CustomerBridgeRating,
+      rating: validRating ? rating as CustomerBridgeRating : null,
+      colorLabel: validColor ? colorLabel as CustomerBridgeColorLabel : null,
       memo: notes[image.id] ?? "",
     }];
   });

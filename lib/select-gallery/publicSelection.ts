@@ -9,6 +9,7 @@ export const PUBLIC_SELECTION_CUSTOMER_MEMO_LIMIT = 5_000;
 export type PublicSelectionItemInput = {
   imageId: string;
   rating: number | null;
+  colorLabel: number | null;
   memo: string;
 };
 
@@ -71,11 +72,18 @@ function parseItems(value: unknown, allowedImageIds: ReadonlySet<string>) {
     if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
       throw new PublicSelectionRequestError("별점은 1점부터 5점까지만 저장할 수 있습니다.");
     }
+    const rawColorLabel = record.colorLabel ?? record.color_label;
+    const colorLabel = rawColorLabel === null || rawColorLabel === undefined || rawColorLabel === 0
+      ? null
+      : Number(rawColorLabel);
+    if (colorLabel !== null && (!Number.isInteger(colorLabel) || colorLabel < 6 || colorLabel > 9)) {
+      throw new PublicSelectionRequestError("컬러 셀렉은 6번부터 9번까지만 저장할 수 있습니다.");
+    }
     const memo = typeof record.memo === "string" ? record.memo : "";
     if (memo.length > PUBLIC_SELECTION_IMAGE_MEMO_LIMIT) {
       throw new PublicSelectionRequestError(`사진별 메모는 ${PUBLIC_SELECTION_IMAGE_MEMO_LIMIT}자까지 적을 수 있습니다.`);
     }
-    items.push({ imageId, rating, memo });
+    items.push({ imageId, rating, colorLabel, memo });
   }
   return items;
 }

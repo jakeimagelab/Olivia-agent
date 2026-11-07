@@ -11,7 +11,7 @@ import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type 
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
-import CustomerBridgeSelect, { type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Choice = { id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
@@ -19,9 +19,11 @@ type RepresentativeImage = { category_key: string; original_file_name: string; s
 type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number } };
 type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
-type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null };
-type SharedSelectionItem = { image_id: string; customer_rating: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
-type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] } | null };
+type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null };
+type SharedSelectionItem = { image_id: string; customer_rating: number | null; customer_color_label?: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
+type SharedSelection = { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] };
+type SharedReviewer = { id: string; display_name: string; role_label: string | null; active: boolean; is_legacy: boolean; last_seen_at: string | null; draft: (CustomerBridgeDraft & { selected_count: number; updated_at: string }) | null; selection: SharedSelection | null };
+type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: SharedSelection | null; reviewers: SharedReviewer[] };
 type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
@@ -77,9 +79,19 @@ export default function PersonSelectDetailPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
   const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
+  const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
+  const [reviewerName, setReviewerName] = useState("");
+  const [reviewerRole, setReviewerRole] = useState("");
+  const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const load = useCallback(() => fetch(`/api/person-select/${id}`).then((r) => r.json()).then((body) => { if (!body.ok) throw new Error(body.error); setData(body); setAssignments(Object.fromEntries((body.groups as Group[]).map((group) => [group.label, (body.people as Person[]).find((person) => person.group_label === group.label)?.id ?? ""]))); }), [id]);
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
+  useEffect(() => {
+    const reviewers = data?.shared?.reviewers ?? [];
+    if (!reviewers.length) { setSelectedReviewerId(null); return; }
+    if (selectedReviewerId && reviewers.some((reviewer) => reviewer.id === selectedReviewerId)) return;
+    setSelectedReviewerId((reviewers.find((reviewer) => !reviewer.is_legacy) ?? reviewers[0]).id);
+  }, [data?.shared?.reviewers, selectedReviewerId]);
   useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); setJobId(""); await load(); if (body.job?.status === "COMPLETED") setTab("matching"); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
   useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
   const eventUploadJob = uploadManager.jobs.find((job) => job.event_id === id) ?? null;
@@ -127,6 +139,9 @@ export default function PersonSelectDetailPage() {
   const currentData = data;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
   const isShared = data.event.access_mode === "project_shared";
+  const sharedReviewers = data.shared?.reviewers ?? [];
+  const selectedReviewer = sharedReviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? sharedReviewers[0] ?? null;
+  const selectedSharedSelection = selectedReviewer?.selection ?? null;
   const currentLayout: Layout = layout ?? (isShared ? "project" : data.people.length && data.event.source_layout === "school" ? "school" : "person-folders");
   const isSchool = currentLayout === "school";
   const personWord = isSchool ? "선생님" : "이름";
@@ -134,7 +149,7 @@ export default function PersonSelectDetailPage() {
   const categoryLabels = new Map(categories.map((item) => [item.key, item.label]));
   const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "저장 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length };
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
-  const pickText = isShared ? `프로젝트 공용 셀렉${data.shared?.selection ? ` · 고객 선택 ${data.shared.selection.items.length}장` : ""}` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
+  const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
   async function selectLocalFolder() {
     const showDirectoryPicker = (window as Window & { showDirectoryPicker?: (options?: { mode?: "read" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
@@ -221,6 +236,40 @@ export default function PersonSelectDetailPage() {
     if (!response.ok || !body.ok) return setError(body.error || "공용 링크를 다시 만들지 못했습니다.");
     await load();
   }
+  async function createReviewer() {
+    if (!reviewerName.trim()) return setError("검토자 이름을 입력해 주세요.");
+    setError("");
+    const response = await fetch(`/api/person-select/${id}/reviewers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: reviewerName, roleLabel: reviewerRole }) });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) return setError(body.error || "검토자를 추가하지 못했습니다.");
+    setIssuedReviewerTokens((current) => ({ ...current, [body.reviewer.id]: body.token }));
+    setSelectedReviewerId(body.reviewer.id);
+    setReviewerName("");
+    setReviewerRole("");
+    await load();
+  }
+  async function regenerateReviewerLink(reviewer: SharedReviewer) {
+    if (!window.confirm(`${reviewer.display_name}의 기존 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?`)) return;
+    setError("");
+    const response = await fetch(`/api/person-select/${id}/reviewers/${reviewer.id}/regenerate-token`, { method: "POST" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) return setError(body.error || "검토자 링크를 다시 만들지 못했습니다.");
+    setIssuedReviewerTokens((current) => ({ ...current, [reviewer.id]: body.token }));
+    await load();
+  }
+  async function setReviewerActive(reviewer: SharedReviewer, active: boolean) {
+    setError("");
+    const response = await fetch(`/api/person-select/${id}/reviewers/${reviewer.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) return setError(body.error || "검토자 상태를 바꾸지 못했습니다.");
+    await load();
+  }
+  async function copyReviewerLink(reviewerId: string) {
+    const token = issuedReviewerTokens[reviewerId];
+    if (!token) return setError("보안상 링크는 발급 직후에만 확인됩니다. 링크 재발급 후 복사해 주세요.");
+    await navigator.clipboard.writeText(`${location.origin}/pick/shared/${token}`);
+    setError("검토자 링크를 복사했습니다.");
+  }
   const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
   const loginGuide = isShared ? "공용 링크에서 프로젝트 사진을 함께 선택해 주세요" : isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
   const publicPath = isShared && data.event.shared_token ? `/pick/shared/${data.event.shared_token}` : `/pick/${data.event.slug}`;
@@ -232,7 +281,7 @@ export default function PersonSelectDetailPage() {
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
-  const submittedCount = isShared ? (data.shared?.selection ? 1 : 0) : counts.done;
+  const submittedCount = isShared ? sharedReviewers.filter((reviewer) => Boolean(reviewer.selection)).length : counts.done;
   const rawDisabledReason = submittedCount === 0 ? "최종 제출된 고객 셀렉이 없어요." : !data.event.source_relative_path ? "Mac Studio에서 같은 원본 폴더를 연결해 주세요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : isShared ? "고객이 고른 사진의 RAW를 기존 승인 흐름으로 매칭합니다." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
   return <main className={styles.shell}>
     <section className={styles.body}>
@@ -249,13 +298,18 @@ export default function PersonSelectDetailPage() {
       {error ? <div className={styles.warning}>{error}</div> : null}
       <RawMatchResult result={rawResult ?? data.event.raw_match_result ?? null} at={rawResult ? null : data.event.raw_matched_at ?? null} />
       {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
-        <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>공용 링크에서는 개인 계정이나 PIN을 만들지 않고 프로젝트 전체 사진을 함께 봅니다.</p></div><button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div>
+        <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>검토자별 셀렉은 서로 독립적으로 보존되며 오른쪽 대화 탭은 모든 참여자가 함께 사용합니다.</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select> : null}<button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div></div>
         {data.shared?.images?.length ? <CustomerBridgeSelect
+          key={`${selectedReviewer?.id ?? "project"}:${selectedReviewer?.draft?.revision ?? 0}:${selectedSharedSelection?.id ?? "draft"}`}
           shareToken=""
-          storageScope={`person-select-admin:${id}`}
-          gallery={{ id, title: data.event.title, total_jpg_count: data.shared.images.length, allow_resubmit: false }}
+          apiBase={`/api/person-select/${id}`}
+          storageScope={`person-select-admin:${id}:${selectedReviewer?.id ?? "project"}`}
+          gallery={{ id, title: data.event.title, total_jpg_count: data.shared.images.length, allow_resubmit: false, nas_download_url: data.event.nas_download_url }}
           images={data.shared.images}
-          initialSelection={data.shared.selection}
+          initialDraft={selectedReviewer?.draft ?? null}
+          initialSelection={selectedSharedSelection}
+          reviewer={selectedReviewer}
+          messagesEnabled
           onSubmitted={() => undefined}
           readOnly
           embedded
@@ -276,9 +330,9 @@ export default function PersonSelectDetailPage() {
         })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 대표 사진 한 장씩 보여드려요.</span></div>}
       </section> : null}
       {tab === "progress" && isShared ? <section className={styles.matchingPanel}>
-        <div className={styles.matchingHeader}><div><h2>프로젝트 고객 셀렉</h2><p>{data.shared?.selection ? `${data.shared.selection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "고객이 최종 제출하면 선택 사진과 메모가 여기에 표시됩니다."}</p></div>{data.shared?.selection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div>
-        {data.shared?.selection?.customer_memo ? <div className={styles.notice}>전체 메모<br />{data.shared.selection.customer_memo}</div> : null}
-        {data.shared?.selection?.items.length ? <div className={styles.matchingGrid}>{data.shared.selection.items.map((item) => <article className={styles.matchingCard} key={item.image_id}>{item.image?.thumb_url ? <img className={styles.matchingPhoto} src={item.image.thumb_url} alt={item.image.original_file_name} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}>사진 확인 필요</div>}<div className={styles.matchingMeta}><div><strong>{item.image?.original_file_name ?? item.image_id}</strong><span>{item.customer_rating ? `${item.customer_rating}점` : "선택"}</span></div><p>{item.image?.source_rel_path ?? "상대경로 없음"}</p>{item.memo ? <small>{item.memo}</small> : null}</div></article>)}</div> : <div className={styles.matchingEmpty}><Info size={28} /><strong>제출된 사진이 없어요.</strong><span>공용 링크의 자동 저장 초안과 최종 제출은 구분됩니다.</span></div>}
+        <div className={styles.matchingHeader}><div><h2>검토자별 고객 셀렉</h2><p>{selectedSharedSelection ? `${selectedReviewer?.display_name ?? "검토자"}가 ${selectedSharedSelection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "검토자를 선택해 자동 저장 수와 최종 제출 결과를 확인하세요."}</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="셀렉을 확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""} · {reviewer.selection ? `제출 ${reviewer.selection.items.length}장` : `저장 ${reviewer.draft?.selected_count ?? 0}장`}</option>)}</select> : null}{selectedSharedSelection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div></div>
+        {selectedSharedSelection?.customer_memo ? <div className={styles.notice}>전체 메모<br />{selectedSharedSelection.customer_memo}</div> : null}
+        {selectedSharedSelection?.items.length ? <div className={styles.matchingGrid}>{selectedSharedSelection.items.map((item) => <article className={styles.matchingCard} key={item.image_id}>{item.image?.thumb_url ? <img className={styles.matchingPhoto} src={item.image.thumb_url} alt={item.image.original_file_name} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}>사진 확인 필요</div>}<div className={styles.matchingMeta}><div><strong>{item.image?.original_file_name ?? item.image_id}</strong><span>{item.customer_rating ? `${item.customer_rating}점` : item.customer_color_label ? `${item.customer_color_label}번 컬러` : "선택"}</span></div><p>{item.image?.source_rel_path ?? "상대경로 없음"}</p>{item.memo ? <small>{item.memo}</small> : null}</div></article>)}</div> : <div className={styles.matchingEmpty}><Info size={28} /><strong>제출된 사진이 없어요.</strong><span>{selectedReviewer?.draft?.selected_count ? `${selectedReviewer.display_name}의 자동 저장 초안 ${selectedReviewer.draft.selected_count}장은 보존되어 있습니다.` : "공용 링크의 자동 저장 초안과 최종 제출은 구분됩니다."}</span></div>}
       </section> : null}
       {tab === "progress" && !isShared ? <>
         <div className={styles.underTabs}>{filters.map(([key, label, count]) => <button key={key} className={filter === key ? styles.underTabActive : ""} onClick={() => setFilter(key)}>{label}<small>{count}</small></button>)}</div>
@@ -341,11 +395,26 @@ export default function PersonSelectDetailPage() {
           <div className={styles.field}><label>프로젝트 유형</label><select className={styles.select} value={data.event.project_type ?? "general"} onChange={(e) => setData({ ...data, event: { ...data.event, project_type: e.target.value as PersonSelectProjectType } })}>{Object.entries(PERSON_SELECT_PROJECT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           <div className={styles.field}><label>접근 방식</label><select className={styles.select} value={data.event.access_mode ?? "individual"} onChange={(e) => setData({ ...data, event: { ...data.event, access_mode: e.target.value as PersonSelectAccessMode } })}>{Object.entries(PERSON_SELECT_ACCESS_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className={styles.summary}>사진만 올린 상태는 그대로 유지하며 변경할 수 있습니다. 실제 접속·선택·메모·주문·제출이 있거나 개인별 소유자/PIN이 불완전하면 정확한 이유를 안내하고 변경을 막습니다.</small></div>
           <div className={styles.field}><label>고객 화면 방식</label><select className={styles.select} value={data.event.customer_view_mode ?? "classic"} onChange={(e) => setData({ ...data, event: { ...data.event, customer_view_mode: e.target.value as PersonSelectCustomerViewMode } })}>{Object.entries(PERSON_SELECT_CUSTOMER_VIEW_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          {isShared ? <div className={`${styles.field} ${styles.fieldFull}`}><label>원본 다운로드 NAS 공유 링크</label><input className={styles.input} type="url" inputMode="url" value={data.event.nas_download_url ?? ""} onChange={(event) => setData({ ...data, event: { ...data.event, nas_download_url: event.target.value } })} placeholder="https://..." /><small className={styles.summary}>관리자가 만든 HTTPS 공유 링크만 고객 Bridge의 ‘원본 다운로드’에 표시합니다. NAS 경로나 계정 정보는 고객에게 직접 노출하지 않습니다.</small></div> : null}
           <div className={`${styles.field} ${styles.fieldFull}`}><label>사진선택 항목</label><div className={styles.groupRows}>{categories.map((category, index) => <div className={styles.groupRow} key={category.key}><input className={styles.input} aria-label="항목 이름" value={category.label} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item) } })} /><select className={styles.select} value={category.pick} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, pick: Number(e.target.value) } : item) } })}>{Array.from({ length: 50 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}장</option>)}</select><button type="button" className={styles.weak} disabled={categories.length <= 1} aria-label={`${category.label} 삭제`} onClick={() => setData({ ...data, event: { ...data.event, categories: categories.filter((_, itemIndex) => itemIndex !== index) } })}><Trash2 size={15} /></button></div>)}</div><button type="button" className={styles.secondary} style={{ marginTop: 10 }} onClick={() => setData({ ...data, event: { ...data.event, categories: [...categories, { key: `item_${Date.now()}`, label: "새 사진 항목", pick: 1 }] } })}><Plus size={14} />항목 추가</button><small className={styles.summary}>{isShared ? "공유 프로젝트의 항목은 안내·분류에 사용하며 사람별 수량으로 해석하지 않습니다." : "올라온 사진이 수량보다 적은 사람은 있는 만큼만 고르면 됩니다."}</small></div>
           {!isShared ? <OfferSettings event={data.event} onChange={(patch) => setData({ ...data, event: { ...data.event, ...patch } })} /> : null}
           <div className={`${styles.field} ${styles.fieldFull}`}><label>고객 화면 및 접속 안내</label><div className={styles.notice}>주소: {typeof location !== "undefined" ? location.origin : ""}{publicPath}<br />{loginGuide}.<br />화면: {PERSON_SELECT_CUSTOMER_VIEW_LABELS[data.event.customer_view_mode ?? "classic"]}<br />마감: {formatSeoulDeadline(data.event.deadline_at)}</div><div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button>{isShared ? <button className={styles.weak} onClick={() => void regenerateSharedLink()}><RefreshCw size={15} />공용 링크 재발급</button> : null}</div></div>
+          {isShared ? <div className={`${styles.field} ${styles.fieldFull}`}>
+            <label>검토자별 링크</label>
+            <small className={styles.summary}>정연호, 클라이언트, 매니저처럼 사람마다 별도 링크를 발급합니다. 각 링크의 별점·컬러·메모·제출은 서로 섞이지 않고 대화만 함께 공유됩니다.</small>
+            <div className={styles.reviewerCreate}><input className={styles.input} value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} placeholder="검토자 이름" /><input className={styles.input} value={reviewerRole} onChange={(event) => setReviewerRole(event.target.value)} placeholder="역할 (선택)" /><button type="button" className={styles.secondary} onClick={() => void createReviewer()}><Plus size={14} />검토자 추가</button></div>
+            <div className={styles.reviewerList}>{sharedReviewers.map((reviewer) => {
+              const issuedToken = issuedReviewerTokens[reviewer.id];
+              const issuedLink = issuedToken && typeof location !== "undefined" ? `${location.origin}/pick/shared/${issuedToken}` : "";
+              return <article className={styles.reviewerRow} key={reviewer.id} data-inactive={!reviewer.active || undefined}>
+                <div><strong>{reviewer.display_name}</strong><span>{reviewer.role_label || (reviewer.is_legacy ? "기존 공용 링크 호환" : "검토자")}</span><small>{reviewer.selection ? `최종 제출 ${reviewer.selection.items.length}장` : `자동 저장 ${reviewer.draft?.selected_count ?? 0}장`} · 최근 접속 {relativeTime(reviewer.last_seen_at)}</small></div>
+                {issuedLink ? <input className={styles.input} readOnly value={issuedLink} aria-label={`${reviewer.display_name} 발급 링크`} /> : <span className={styles.reviewerSecurity}>링크는 보안상 발급 직후에만 표시됩니다.</span>}
+                <div className={styles.actions}>{issuedLink ? <button type="button" className={styles.secondary} onClick={() => void copyReviewerLink(reviewer.id)}><Clipboard size={14} />링크 복사</button> : null}{!reviewer.is_legacy ? <><button type="button" className={styles.weak} onClick={() => void regenerateReviewerLink(reviewer)}><RefreshCw size={14} />링크 재발급</button><button type="button" className={styles.weak} onClick={() => void setReviewerActive(reviewer, !reviewer.active)}>{reviewer.active ? "접속 중지" : "접속 허용"}</button></> : null}</div>
+              </article>;
+            })}</div>
+          </div> : null}
         </div>
-        <div className={styles.formActions}><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
+        <div className={styles.formActions}><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", nas_download_url: data.event.nas_download_url ?? null, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
     {picker ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPicker(false)} onSelectRemote={(selection) => { setPath(selection.path); setPicker(false); }} /> : null}
