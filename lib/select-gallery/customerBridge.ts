@@ -256,6 +256,28 @@ export function applyCustomerColorLabels(
   return colorLabels;
 }
 
+/** 같은 6–9 컬러를 다시 누르면 대상의 컬러만 해제하고, 다른 컬러면 일괄 적용한다. */
+export function toggleCustomerColorLabels(
+  current: Readonly<Record<string, CustomerBridgeColorLabel>>,
+  targetIds: ReadonlySet<string>,
+  colorLabel: CustomerBridgeColorLabel,
+) {
+  const colorLabels = { ...current };
+  const shouldClear = targetIds.size > 0 && [...targetIds].every((id) => current[id] === colorLabel);
+  for (const id of targetIds) {
+    if (shouldClear) delete colorLabels[id];
+    else colorLabels[id] = colorLabel;
+  }
+  return colorLabels;
+}
+
+/** 리뷰 휠 확대율은 화면 맞춤 100%에서 300%까지만 유지한다. */
+export function nextCustomerBridgeReviewZoom(current: number, deltaY: number) {
+  const safeCurrent = Number.isFinite(current) ? current : 1;
+  if (!deltaY) return Math.min(3, Math.max(1, safeCurrent));
+  return Math.min(3, Math.max(1, Number((safeCurrent + (deltaY < 0 ? .15 : -.15)).toFixed(2))));
+}
+
 /** 0 키는 작업 대상의 별점과 컬러를 함께 지운다. */
 export function clearCustomerBridgeMarks<T extends number>(
   current: Readonly<Record<string, T>>,

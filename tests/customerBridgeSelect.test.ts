@@ -16,6 +16,8 @@ import {
   matchesCustomerSelectionComparison,
   normalizeGalleryRelativePath,
   normalizeCustomerBridgeSelectionMarks,
+  nextCustomerBridgeReviewZoom,
+  toggleCustomerColorLabels,
   toggleCustomerBridgeSelection,
 } from "@/lib/select-gallery/customerBridge";
 
@@ -80,6 +82,20 @@ describe("customer Bridge selection", () => {
       { imageId: "c", relativePath: "C1/c.jpg", rating: null, colorLabel: 8, memo: "" },
     ]);
     expect(applyCustomerColorLabels(colors, new Set(["c"]), 8)).toEqual({ b: 8, c: 8 });
+  });
+
+  it("toggles the same 6–9 color off while preserving other targets", () => {
+    const applied = toggleCustomerColorLabels({ a: 7, untouched: 9 }, new Set(["a", "b"]), 8);
+    expect(applied).toEqual({ a: 8, b: 8, untouched: 9 });
+    expect(toggleCustomerColorLabels(applied, new Set(["a", "b"]), 8)).toEqual({ untouched: 9 });
+    expect(toggleCustomerColorLabels({ a: 8, b: 7 }, new Set(["a", "b"]), 8)).toEqual({ a: 8, b: 8 });
+  });
+
+  it("zooms review photos up on wheel-up and down on wheel-down within bounds", () => {
+    expect(nextCustomerBridgeReviewZoom(1, -1)).toBe(1.15);
+    expect(nextCustomerBridgeReviewZoom(1.15, 1)).toBe(1);
+    expect(nextCustomerBridgeReviewZoom(1, 1)).toBe(1);
+    expect(nextCustomerBridgeReviewZoom(2.95, -1)).toBe(3);
   });
 
   it("keeps classic selections when switching to Bridge without overwriting real marks", () => {

@@ -39,7 +39,7 @@ begin
       new.id,
       '기존 공동 셀렉',
       '호환',
-      encode(digest('person-select-legacy:' || new.id::text, 'sha256'), 'hex'),
+      encode(extensions.digest(convert_to('person-select-legacy:' || new.id::text, 'UTF8'), 'sha256'::text), 'hex'),
       true,
       true
     ) on conflict do nothing;
@@ -60,7 +60,7 @@ select
   event.id,
   '기존 공동 셀렉',
   '호환',
-  encode(digest('person-select-legacy:' || event.id::text, 'sha256'), 'hex'),
+  encode(extensions.digest(convert_to('person-select-legacy:' || event.id::text, 'UTF8'), 'sha256'::text), 'hex'),
   true,
   true
 from public.person_select_events event

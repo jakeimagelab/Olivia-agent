@@ -31,6 +31,7 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type WheelEvent as ReactWheelEvent,
 } from "react";
 import {
   addCustomerBridgeRange,
@@ -40,9 +41,11 @@ import {
   customerBridgeFolderTree,
   customerBridgeFolderView,
   normalizeCustomerBridgeSelectionMarks,
+  nextCustomerBridgeReviewZoom,
   customerBridgeRatingTargets,
   customerBridgeSelectedIds,
   customerBridgeSelectionItems,
+  toggleCustomerColorLabels,
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
@@ -439,13 +442,19 @@ export default function CustomerBridgeSelect({
     markDirty();
   }, [markDirty, readOnly]);
 
+  const toggleColorTo = useCallback((targetIds: ReadonlySet<string>, colorLabel: CustomerBridgeColorLabel) => {
+    if (readOnly || !targetIds.size) return;
+    setCustomerColorLabels((current) => toggleCustomerColorLabels(current, targetIds, colorLabel));
+    markDirty();
+  }, [markDirty, readOnly]);
+
   const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
     applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
   }, [activeImageIds, applyRatingTo, focusedImageId]);
 
   const applyMainColor = useCallback((colorLabel: CustomerBridgeColorLabel) => {
-    applyColorTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), colorLabel);
-  }, [activeImageIds, applyColorTo, focusedImageId]);
+    toggleColorTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), colorLabel);
+  }, [activeImageIds, focusedImageId, toggleColorTo]);
 
   const moveFullscreen = useCallback((delta: -1 | 1) => {
     if (!visibleImages.length) return;
@@ -739,7 +748,12 @@ export default function CustomerBridgeSelect({
         if (!targets.size) return;
         event.preventDefault();
         if (value >= 6 && value <= 9) {
-          applyColorTo(targets, value as CustomerBridgeColorLabel);
+          const colorLabel = value as CustomerBridgeColorLabel;
+          if (reviewIds && reviewActiveId && customerColorLabels[reviewActiveId] === colorLabel && !customerRatings[reviewActiveId]) {
+            removeFromReview(reviewActiveId);
+          } else {
+            toggleColorTo(targets, colorLabel);
+          }
           return;
         }
         if (value > 5) return;
@@ -791,7 +805,7 @@ export default function CustomerBridgeSelect({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeImageIds, anchorId, applyColorTo, applyRatingTo, focusedImageId, fullscreenId, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize]);
+  }, [activeImageIds, anchorId, applyRatingTo, customerColorLabels, customerRatings, focusedImageId, fullscreenId, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
 
   const handlePhotoClick = useCallback((image: CustomerBridgeImage, event: SelectionModifiers) => {
     setFocusedImageId(image.id);
@@ -986,8 +1000,8 @@ export default function CustomerBridgeSelect({
 
     {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{saveMessage || "자동 저장"}</span></div><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict"} onClick={() => void submit()}>{submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
 
-    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => applyColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); markDirty(); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
-    {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => applyColorTo(new Set([id]), colorLabel)} onFullscreen={(id) => setFullscreenId(id)} onImageError={handleImageError} /> : null}
+    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); markDirty(); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
+    {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={(id) => setFullscreenId(id)} onImageError={handleImageError} /> : null}
   </main>;
 }
 
@@ -998,9 +1012,16 @@ function PhotoOverlay({ image, index, total, rating, colorLabel, note, zoomed, o
 
 function ReviewOverlay({ images, activeId, removed, ratings, colorLabels, onActive, onClose, onRemove, onRestore, onRate, onColor, onFullscreen, onImageError }: { images: CustomerBridgeImage[]; activeId: string | null; removed: ReviewRemovedMarks | null; ratings: Record<string, CustomerBridgeRating>; colorLabels: Record<string, CustomerBridgeColorLabel>; onActive: (id: string) => void; onClose: () => void; onRemove: (id: string) => void; onRestore: () => void; onRate: (id: string, rating: 0 | CustomerBridgeRating) => void; onColor: (id: string, colorLabel: CustomerBridgeColorLabel) => void; onFullscreen: (id: string) => void; onImageError?: (imageId: string) => void; }) {
   const touchStart = useRef<number | null>(null);
+  const [zoom, setZoom] = useState(1);
   const layout = bridgeReviewLayout(images.length);
   const activeIndex = Math.max(0, images.findIndex((image) => image.id === activeId));
   const displayed = layout === "deck" ? bridgeReviewDeckWindow(images, activeIndex) : images.map((image) => ({ item: image, offset: 0 }));
   const move = (delta: -1 | 1) => { if (images.length) onActive(images[(activeIndex + delta + images.length) % images.length].id); };
-  return <div className={styles.reviewOverlay} role="dialog" aria-modal="true" aria-label="고객 셀렉 리뷰"><div className={styles.overlayHeader}><button type="button" aria-label="닫기" onClick={onClose}><X /></button><div><strong>고객 셀렉 리뷰</strong><span>{images.length}장 · {layout === "single" ? "한 장" : layout === "grid" ? "비교" : "로테이션"}</span></div><button type="button" disabled={!removed} onClick={onRestore}><RotateCcw size={15} /> 복원</button></div><div className={`${styles.reviewStage} ${styles[`review_${layout}`]}`} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) move(-1); else if (delta < -55) move(1); touchStart.current = null; }}>{displayed.map(({ item, offset }) => <button key={item.id} type="button" className={styles.reviewPhoto} data-active={item.id === activeId || undefined} style={layout === "deck" ? { "--deck-offset": offset } as CSSProperties : undefined} onClick={() => onActive(item.id)} onDoubleClick={() => onFullscreen(item.id)}><StablePreviewImage image={item} onImageError={onImageError} /><span>{item.original_file_name}{ratings[item.id] ? ` · ${ratings[item.id]}점` : ""}{colorLabels[item.id] ? ` · ${BRIDGE_COLOR_LABELS[colorLabels[item.id]].name}` : ""}</span></button>)}{!images.length ? <div className={styles.reviewEmpty}>모든 사진을 제외했습니다. 위의 복원으로 직전 사진의 별점과 컬러를 되돌릴 수 있습니다.</div> : null}</div>{activeId ? <div className={styles.reviewControls}><button type="button" className={styles.reviewMoveButton} onClick={() => move(-1)} aria-label="이전 사진"><ChevronLeft size={17} /></button><RatingStars value={ratings[activeId] ?? 0} onChange={(rating) => onRate(activeId, rating)} label="리뷰 고객 별점" /><ColorLabels value={colorLabels[activeId] ?? null} onChange={(colorLabel) => onColor(activeId, colorLabel)} label="리뷰 고객 컬러 셀렉" /><button type="button" className={styles.reviewMoveButton} onClick={() => move(1)} aria-label="다음 사진"><ChevronRight size={17} /></button><button type="button" className={styles.removeButton} onClick={() => onRemove(activeId)}>셀렉 제외</button></div> : null}</div>;
+  const handleWheel = useCallback((event: ReactWheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!event.deltaY) return;
+    setZoom((current) => nextCustomerBridgeReviewZoom(current, event.deltaY));
+  }, []);
+  useEffect(() => setZoom(1), [activeId, layout]);
+  return <div className={styles.reviewOverlay} role="dialog" aria-modal="true" aria-label="고객 셀렉 리뷰"><div className={styles.overlayHeader}><button type="button" aria-label="닫기" onClick={onClose}><X /></button><div><strong>고객 셀렉 리뷰</strong><span>{images.length}장 · {layout === "single" ? "한 장" : layout === "grid" ? "비교" : "로테이션"} · {Math.round(zoom * 100)}%</span></div><button type="button" disabled={!removed} onClick={onRestore}><RotateCcw size={15} /> 복원</button></div><div className={`${styles.reviewStage} ${styles[`review_${layout}`]}`} title="마우스 휠 위로 확대 · 아래로 축소" onWheel={handleWheel} onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }} onTouchEnd={(event) => { const end = event.changedTouches[0]?.clientX; if (touchStart.current === null || end === undefined) return; const delta = end - touchStart.current; if (delta > 55) move(-1); else if (delta < -55) move(1); touchStart.current = null; }}>{displayed.map(({ item, offset }) => { const style = { ...(layout === "deck" ? { "--deck-offset": offset } : {}), ...(item.id === activeId ? { "--review-zoom": zoom } : {}) } as CSSProperties; return <button key={item.id} type="button" className={styles.reviewPhoto} data-active={item.id === activeId || undefined} style={style} onClick={() => onActive(item.id)} onDoubleClick={() => onFullscreen(item.id)}><StablePreviewImage image={item} onImageError={onImageError} /><span>{item.original_file_name}{ratings[item.id] ? ` · ${ratings[item.id]}점` : ""}{colorLabels[item.id] ? ` · ${BRIDGE_COLOR_LABELS[colorLabels[item.id]].name}` : ""}</span></button>; })}{!images.length ? <div className={styles.reviewEmpty}>모든 사진을 제외했습니다. 위의 복원으로 직전 사진의 별점과 컬러를 되돌릴 수 있습니다.</div> : null}</div>{activeId ? <div className={styles.reviewControls}><button type="button" className={styles.reviewMoveButton} onClick={() => move(-1)} aria-label="이전 사진"><ChevronLeft size={17} /></button><RatingStars value={ratings[activeId] ?? 0} onChange={(rating) => onRate(activeId, rating)} label="리뷰 고객 별점" /><ColorLabels value={colorLabels[activeId] ?? null} onChange={(colorLabel) => onColor(activeId, colorLabel)} label="리뷰 고객 컬러 셀렉" /><button type="button" className={styles.reviewMoveButton} onClick={() => move(1)} aria-label="다음 사진"><ChevronRight size={17} /></button><button type="button" className={styles.removeButton} onClick={() => onRemove(activeId)}>셀렉 제외</button></div> : null}</div>;
 }
