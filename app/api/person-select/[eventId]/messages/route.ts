@@ -5,7 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
-const MESSAGE_SELECT = "id,event_id,reviewer_id,admin_actor,body,client_request_id,created_at,person_select_shared_reviewers(display_name,role_label)";
+const MESSAGE_SELECT = "id,event_id,reviewer_id,admin_actor,image_id,body,client_request_id,created_at,person_select_shared_reviewers(display_name,role_label),person_select_images(original_file_name)";
 
 export async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
@@ -25,10 +25,15 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     if (eventError) throw eventError;
     if (!event) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
     if (event.access_mode !== "project_shared") return Response.json({ ok: false, error: "프로젝트 공용 링크 방식에서만 대화할 수 있습니다." }, { status: 409 });
+    if (parsed.imageId) {
+      const { data: image } = await db.from("person_select_images").select("id").eq("id", parsed.imageId).eq("event_id", eventId).maybeSingle();
+      if (!image) return Response.json({ ok: false, error: "이 프로젝트의 사진만 대화 대상으로 지정할 수 있습니다." }, { status: 400 });
+    }
     const { data, error } = await db.from("person_select_project_messages").insert({
       event_id: eventId,
       reviewer_id: null,
       admin_actor: "포토클리닉",
+      image_id: parsed.imageId,
       body: parsed.body,
       client_request_id: parsed.requestId,
     }).select(MESSAGE_SELECT).single();

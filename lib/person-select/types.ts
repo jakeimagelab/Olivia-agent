@@ -33,6 +33,8 @@ export type PersonSelectEvent = {
   shared_token_expires_at?: string | null;
   /** 고객에게 명시적으로 제공하는 HTTPS NAS 공유 링크. */
   nas_download_url?: string | null;
+  /** 관리자가 공개를 허용한 경우에만 고객 Bridge가 공통 AI 결과를 읽는다. */
+  customer_ai_results_visible?: boolean;
   /** 사진을 가져온 Mac Studio 폴더. RAW 매칭이 같은 폴더에서 원본을 찾는다. */
   source_relative_path?: string | null;
   /** school: 선생님프로필/담임선생님 구조, person-folders: 이름 폴더/JPG원본 구조 */

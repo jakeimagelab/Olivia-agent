@@ -147,6 +147,7 @@
 .thumbnailMedia img { width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; }
 .ratingBadge { position: absolute; left: 8px; bottom: 42px; display: inline-flex; align-items: center; gap: 3px; color: #D9AD3B; font-size: 10px; text-shadow: 0 1px 2px #000; }
 .colorLabelBadge { position: absolute; right: 8px; bottom: 42px; width: 11px; height: 11px; border: 1px solid rgba(255,255,255,.72); border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,.48); }
+.qualityBadge { position: absolute; right: 7px; top: 7px; min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 5px; border: 1px solid rgba(255,255,255,.5); border-radius: 6px; color: #FFF4E6; background: #9B4A2D; font-size: 8px; font-weight: 600; }
 .photoName { min-height: 34px; display: flex; align-items: center; padding: 0 10px; overflow: hidden; color: #E9EFEB; font-size: 10px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .mobileFocusedLabel { display: none; }
 .selectionMarquee { position: absolute; z-index: 12; pointer-events: none; border: 1px solid rgba(79,216,184,.95); border-radius: 3px; background: rgba(79,216,184,.14); }
@@ -197,6 +198,15 @@
 .colorLabels button:disabled { cursor: default; }
 .colorLabels button > span { width: 11px; height: 11px; border: 1px solid rgba(16,62,54,.2); border-radius: 50%; background: var(--customer-label-color); }
 .previewControls textarea { width: 100%; min-height: 62px; padding: 8px 9px; border: 1px solid var(--bridge-line); border-radius: 7px; color: var(--bridge-text); background: #fff; font: 16px/1.45 inherit; resize: vertical; }
+.qualityPanel { display: grid; gap: 6px; margin: 0 14px 10px; padding: 10px; border: 1px solid var(--bridge-line); border-radius: 8px; background: var(--bridge-panel-soft); }
+.qualityPanel > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.qualityPanel > header strong { font-size: 10px; font-weight: 600; }
+.qualityPanel > header span, .qualityPanel > small { color: var(--bridge-dim); font-size: 8px; line-height: 1.45; }
+.qualityPanel > div { min-height: 24px; display: flex; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid rgba(200,213,200,.55); font-size: 9px; }
+.qualityPanel > div[data-suspected] b { color: #A44928; }
+.qualityPanel footer { display: flex; gap: 6px; }
+.qualityPanel footer button { min-height: 32px; padding: 0 9px; border: 1px solid var(--bridge-line-strong); border-radius: 6px; color: var(--bridge-green); background: transparent; font: 500 9px/1 inherit; cursor: pointer; }
+.qualityState { margin: 4px 8px 0; color: var(--bridge-dim); font-size: 8px; line-height: 1.4; }
 .overlayControls textarea { width: 100%; min-height: 62px; padding: 8px 9px; border: 1px solid rgba(255,255,255,.14); border-radius: 7px; color: #fff; background: rgba(255,255,255,.04); font: 16px/1.45 inherit; resize: vertical; }
 .previewEmpty { grid-row: 2 / -1; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--bridge-dim); }
 .previewEmpty strong { font-size: 10px; }
@@ -216,8 +226,11 @@
 .messageList article header span { color: var(--bridge-green); font-size: 8px; }
 .messageList article time { margin-left: auto; color: var(--bridge-dim); font-size: 8px; }
 .messageList article p { margin: 0; color: var(--bridge-text); font-size: 10px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.messageImageLink { justify-self: start; padding: 0; border: 0; color: var(--bridge-green); background: transparent; font: 600 9px/1.4 inherit; text-decoration: underline; cursor: pointer; }
 .chatEmpty { min-height: 180px; display: grid; place-items: center; color: var(--bridge-dim); font-size: 10px; text-align: center; }
 .messageComposer { display: grid; grid-template-columns: minmax(0,1fr) 42px; gap: 7px; padding: 10px 12px; border-top: 1px solid var(--bridge-line); background: var(--bridge-panel); }
+.messageScope { grid-column: 1 / -1; min-height: 24px; display: flex; align-items: center; gap: 6px; overflow: hidden; color: var(--bridge-dim); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.messageScope input { accent-color: var(--bridge-green); }
 .messageComposer textarea { width: 100%; min-height: 44px; max-height: 120px; padding: 9px 10px; border: 1px solid var(--bridge-line-strong); border-radius: 7px; color: var(--bridge-text); background: #fff; font: 16px/1.45 inherit; resize: vertical; }
 .messageComposer button { width: 42px; height: 44px; display: grid; place-items: center; padding: 0; border: 1px solid var(--bridge-green); border-radius: 7px; color: #fff; background: var(--bridge-green); cursor: pointer; }
 .messageComposer button:disabled { color: #A8B5B2; border-color: var(--bridge-line); background: transparent; cursor: not-allowed; }

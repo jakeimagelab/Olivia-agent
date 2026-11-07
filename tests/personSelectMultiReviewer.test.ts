@@ -25,6 +25,12 @@ describe("project shared conversation", () => {
     expect(parsePersonSelectProjectMessage({ body: "  이 사진을 우선으로 봐주세요.  ", requestId: "message_12345678" })).toEqual({
       body: "이 사진을 우선으로 봐주세요.",
       requestId: "message_12345678",
+      imageId: null,
+    });
+    expect(parsePersonSelectProjectMessage({ body: "이 컷 표정을 확인해 주세요.", requestId: "message_photo_1", imageId: "018e2f30-92af-78b1-8f21-67f4404f5027" })).toEqual({
+      body: "이 컷 표정을 확인해 주세요.",
+      requestId: "message_photo_1",
+      imageId: "018e2f30-92af-78b1-8f21-67f4404f5027",
     });
     const row = {
       id: "message-id",
@@ -34,7 +40,7 @@ describe("project shared conversation", () => {
       created_at: "2026-11-07T00:00:00.000Z",
       person_select_shared_reviewers: { display_name: "정연호", role_label: "사진가" },
     };
-    expect(publicPersonSelectProjectMessage(row, "reviewer-a")).toMatchObject({ authorName: "정연호", authorRole: "사진가", own: true });
+    expect(publicPersonSelectProjectMessage(row, "reviewer-a")).toMatchObject({ authorName: "정연호", authorRole: "사진가", own: true, imageId: null });
     expect(publicPersonSelectProjectMessage(row, "reviewer-b")).toMatchObject({ own: false });
   });
 });

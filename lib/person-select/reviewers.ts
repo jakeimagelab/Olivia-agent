@@ -13,7 +13,15 @@ export function parsePersonSelectReviewerInput(value: unknown) {
   const roleLabel = typeof body.roleLabel === "string" ? body.roleLabel.trim() : "";
   if (!displayName || displayName.length > 80) return { error: "검토자 이름은 1~80자로 적어 주세요." } as const;
   if (roleLabel.length > 80) return { error: "역할은 80자까지 적을 수 있습니다." } as const;
-  return { displayName, roleLabel } as const;
+  const permission = (key: string) => body[key] === undefined ? undefined : body[key] === true;
+  return {
+    displayName,
+    roleLabel,
+    canViewAiResults: permission("canViewAiResults"),
+    canDownloadJpg: permission("canDownloadJpg"),
+    canDownloadRaw: permission("canDownloadRaw"),
+    canFinalize: permission("canFinalize"),
+  } as const;
 }
 
 export function normalizeNasDownloadUrl(value: unknown) {

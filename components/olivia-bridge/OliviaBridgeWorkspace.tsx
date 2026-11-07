@@ -146,6 +146,7 @@ import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
+import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 const EmbeddedPhotoTool = dynamic(
@@ -173,6 +174,7 @@ type SceneState = {
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
+type QualityFilter = "all" | PhotoQualityFlag | "needs_review" | "normal";
 type PreviewTab = "selection" | "preview" | "olivia";
 type PersonSelectEventSummary = {
   id: string;
@@ -198,6 +200,8 @@ type GalleryCustomerSelectionResult = {
   gallery: SelectGallerySummary;
   total: number;
   match: CustomerSelectionMatchResult;
+  imageMatch?: CustomerSelectionMatchResult;
+  personSelectEventId?: string;
 };
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
@@ -720,6 +724,10 @@ export default function OliviaBridgeWorkspace({
   const [customerRatings, setCustomerRatings] = useState<Record<string, number>>({});
   const [customerNotes, setCustomerNotes] = useState<Record<string, string>>({});
   const [comparisonFilter, setComparisonFilter] = useState<CustomerSelectionComparisonFilter>("all");
+  const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
+  const [qualityByBridgeId, setQualityByBridgeId] = useState<Record<string, PublicPhotoQualityResult>>({});
+  const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
+  const [qualityMessage, setQualityMessage] = useState("");
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptMessage, setRawRootPromptMessage] = useState("");
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
@@ -775,12 +783,25 @@ export default function OliviaBridgeWorkspace({
             ? excludedIds.has(photo.id)
             : true;
     if (!passesFileFilter) return false;
+    const quality = qualityByBridgeId[photo.id];
+    if (qualityFilter === "eyes_closed" || qualityFilter === "face_too_dark" || qualityFilter === "motion_blur") {
+      if (!quality?.flags.includes(qualityFilter)) return false;
+    } else if (qualityFilter === "needs_review" && quality?.status !== "needs_review") return false;
+    else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
     return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
-  }), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, labelFilter, scan.jpgs, selectedIds]);
+  }), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
   const comparisonCounts = useMemo(
     () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
     [customerSelectedIds, scan.jpgs, selectedIds],
   );
+  const qualityCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
+    const quality = qualityByBridgeId[photo.id];
+    if (!quality) return counts;
+    for (const flag of quality.flags) counts[flag] += 1;
+    if (quality.status === "needs_review") counts.needs_review += 1;
+    if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.normal += 1;
+    return counts;
+  }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, needs_review: 0, normal: 0 }), [qualityByBridgeId, scan.jpgs]);
   const reviewPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
   const resolvedReviewActiveId = reviewActiveId && reviewPhotos.some((photo) => photo.id === reviewActiveId)
     ? reviewActiveId
@@ -1817,7 +1838,10 @@ export default function OliviaBridgeWorkspace({
       const body = await response.json().catch(() => ({})) as {
         ok?: boolean;
         event?: { id: string; title: string; status: string };
-        shared?: { selection?: { submitted_at?: string | null; items?: Array<{ image_id: string; customer_rating?: number | null; memo?: string | null; image?: { original_file_name: string; source_rel_path?: string | null } | null }> } | null };
+        shared?: {
+          images?: Array<{ id: string; original_file_name: string; relative_path?: string | null }>;
+          selection?: { submitted_at?: string | null; items?: Array<{ image_id: string; customer_rating?: number | null; memo?: string | null; image?: { original_file_name: string; source_rel_path?: string | null } | null }> } | null;
+        };
         error?: string;
       };
       if (!response.ok || !body.ok || !body.event) throw new Error(body.error || "공유 프로젝트 셀렉을 불러오지 못했습니다.");
@@ -1836,6 +1860,29 @@ export default function OliviaBridgeWorkspace({
         name: photo.name,
         relativeDirectory: photo.relativeDirectory,
       })));
+      const imageMatch = matchCustomerSelectionToBridgeFiles((body.shared?.images ?? []).map((image) => ({
+        imageId: image.id,
+        fileName: image.original_file_name,
+        relativePath: image.relative_path ?? null,
+      })), scan.jpgs.map((photo) => ({
+        id: photo.id,
+        name: photo.name,
+        relativeDirectory: photo.relativeDirectory,
+      })));
+      const qualityResponse = await fetch(`/api/person-select/${project.id}/quality`, { cache: "no-store" });
+      const qualityBody = await qualityResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown>; error?: string };
+      if (qualityResponse.ok && qualityBody.ok) {
+        setQualityByBridgeId(Object.fromEntries((qualityBody.results ?? []).flatMap((result) => {
+          const bridgeId = imageMatch.bridgeIdByImageId[result.imageId];
+          return bridgeId ? [[bridgeId, result]] : [];
+        })));
+        setQualityJob(qualityBody.job ?? null);
+        setQualityMessage("");
+      } else {
+        setQualityByBridgeId({});
+        setQualityJob(null);
+        setQualityMessage(qualityBody.error || "AI 품질 결과를 불러오지 못했습니다.");
+      }
       setCustomerSelectedIds(new Set(match.matchedBridgeIds));
       setCustomerRatings(match.ratingsByBridgeId);
       setCustomerNotes(match.notesByBridgeId);
@@ -1849,6 +1896,8 @@ export default function OliviaBridgeWorkspace({
         },
         total: submittedItems.length,
         match,
+        imageMatch,
+        personSelectEventId: project.id,
       });
       setComparisonFilter("customer");
     } catch (error) {
@@ -1857,6 +1906,46 @@ export default function OliviaBridgeWorkspace({
       setGallerySelectImportingId("");
     }
   }, [scan.jpgs]);
+
+  const startLinkedQualityAnalysis = useCallback(async () => {
+    const eventId = galleryCustomerResult?.personSelectEventId;
+    if (!eventId) return;
+    if (!window.confirm("AI 품질 검사를 위해 1024px 이하 경량 미리보기를 OpenAI API로 전송합니다. 원본 파일은 전송하지 않습니다. 계속할까요?")) return;
+    setQualityMessage("AI 품질 검사를 준비하는 중입니다.");
+    const response = await fetch(`/api/person-select/${eventId}/quality`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consentAccepted: true }) });
+    const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown>; error?: string };
+    if (!response.ok || !body.ok) { setQualityMessage(body.error || "AI 품질 검사를 시작하지 못했습니다."); return; }
+    setQualityJob(body.job ?? null);
+    setQualityMessage("Mac Studio에서 검사를 시작했습니다. 다른 앱을 사용해도 계속 진행됩니다.");
+  }, [galleryCustomerResult?.personSelectEventId]);
+
+  const controlLinkedQualityAnalysis = useCallback(async (action: "pause" | "resume" | "retry") => {
+    const eventId = galleryCustomerResult?.personSelectEventId;
+    if (!eventId) return;
+    const response = await fetch(`/api/person-select/${eventId}/quality`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+    const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown>; error?: string };
+    if (!response.ok || !body.ok) { setQualityMessage(body.error || "AI 검사 상태를 바꾸지 못했습니다."); return; }
+    setQualityJob(body.job ?? null);
+    setQualityMessage(action === "pause" ? "AI 검사를 일시정지했습니다." : action === "resume" ? "AI 검사를 이어서 진행합니다." : "실패한 사진만 다시 검사합니다.");
+  }, [galleryCustomerResult?.personSelectEventId]);
+
+  useEffect(() => {
+    const eventId = galleryCustomerResult?.personSelectEventId;
+    const match = galleryCustomerResult?.imageMatch ?? galleryCustomerResult?.match;
+    if (!eventId || !match || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
+    const refresh = async () => {
+      const response = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
+      const body = await response.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
+      if (!response.ok || !body.ok) return;
+      setQualityByBridgeId(Object.fromEntries((body.results ?? []).flatMap((result) => {
+        const bridgeId = match.bridgeIdByImageId[result.imageId];
+        return bridgeId ? [[bridgeId, result]] : [];
+      })));
+      setQualityJob(body.job ?? null);
+    };
+    const timer = window.setInterval(() => void refresh(), 2500);
+    return () => window.clearInterval(timer);
+  }, [galleryCustomerResult?.imageMatch, galleryCustomerResult?.match, galleryCustomerResult?.personSelectEventId, qualityJob]);
 
   const addCustomerSelectionToAdminSelection = useCallback(() => {
     if (!customerSelectedIds.size) return;
@@ -2085,6 +2174,20 @@ export default function OliviaBridgeWorkspace({
               ["admin-only", "나만 선택"],
               ["customer-only", "고객만 선택"],
             ] as Array<[CustomerSelectionComparisonFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult} data-zero={comparisonCounts[key] === 0 ? "true" : undefined} className={comparisonFilter === key ? styles.activeFilter : ""} onClick={() => setComparisonFilter(key)}><span>{label}</span><b>{comparisonCounts[key].toLocaleString("ko-KR")}</b></button>)}
+            <small>AI 품질 검사</small>
+            {([
+              ["all", "전체 사진"],
+              ["eyes_closed", "눈감음 의심"],
+              ["face_too_dark", "얼굴 어두움 의심"],
+              ["motion_blur", "흔들림 의심"],
+              ["needs_review", "확인 필요"],
+              ["normal", "정상"],
+            ] as Array<[QualityFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult?.personSelectEventId} data-zero={key !== "all" && qualityCounts[key] === 0 ? "true" : undefined} className={qualityFilter === key ? styles.activeFilter : ""} onClick={() => setQualityFilter(key)}><span>{label}</span><b>{key === "all" ? scan.jpgs.length.toLocaleString("ko-KR") : qualityCounts[key].toLocaleString("ko-KR")}</b></button>)}
+            {galleryCustomerResult?.personSelectEventId ? <button type="button" disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startLinkedQualityAnalysis()}><span><Sparkles size={12} />{["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "검사 진행 중" : qualityJob?.status === "paused" ? "검사 일시정지" : "AI 검사 시작"}</span><b>{qualityJob ? `${Number(qualityJob.completed_count ?? 0)}/${Number(qualityJob.total_count ?? 0)}` : ""}</b></button> : null}
+            {qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("pause")}><span>검사 일시정지</span></button> : null}
+            {qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("resume")}><span>검사 계속</span></button> : null}
+            {qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("retry")}><span>실패 사진 재시도</span></button> : null}
+            {qualityMessage ? <p>{qualityMessage}</p> : null}
           </div>
           <div className={styles.folderList}>
             {scan.folders.length ? <small>하위 폴더</small> : null}
@@ -2188,7 +2291,8 @@ export default function OliviaBridgeWorkspace({
                   const rating = effectiveRatings[photo.id] ?? 0;
                   const colorLabel = colorLabels[photo.id];
                   const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
+                  const quality = qualityByBridgeId[photo.id];
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}{quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.aiQualityBadge}><CircleAlert size={11} />{quality.flags.length || "?"}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
@@ -2221,6 +2325,7 @@ export default function OliviaBridgeWorkspace({
                 <p>마지막으로 고른 것 · {focusedPhoto?.name ?? focusedPlainFile?.name ?? "없음"}</p>
                 <div className={styles.selectionSourceCounts}><span>Adobe {adobeSelectedCount}장</span><span>직접 고름 {manualSelectedCount}장</span></div>
                 {focusedPhoto && customerSelectedIds.has(focusedPhoto.id) ? <div className={styles.customerSelectionFocus}><b>고객 셀렉{customerRatings[focusedPhoto.id] ? ` · ${customerRatings[focusedPhoto.id]}점` : ""}</b>{customerNotes[focusedPhoto.id] ? <span>{customerNotes[focusedPhoto.id]}</span> : null}</div> : null}
+                {focusedPhoto && qualityByBridgeId[focusedPhoto.id] ? <div className={styles.aiQualityFocus}><b>AI 품질 분석 · {qualityByBridgeId[focusedPhoto.id].reviewStatus === "confirmed_normal" ? "정상 확인됨" : qualityByBridgeId[focusedPhoto.id].reviewStatus === "confirmed_issue" ? "문제 확인됨" : qualityByBridgeId[focusedPhoto.id].status === "needs_review" ? "확인 필요" : qualityByBridgeId[focusedPhoto.id].flags.length ? "문제 의심" : "정상"}</b><span>{qualityByBridgeId[focusedPhoto.id].flags.map((flag) => flag === "eyes_closed" ? "눈감음" : flag === "face_too_dark" ? "얼굴 어두움" : "흔들림").join(" · ") || "감지된 문제 없음"}</span><small>AI 결과는 별점·셀렉·파일을 자동 변경하지 않습니다.</small></div> : null}
               </section>
               <section className={styles.bulkControl} aria-label="선택한 사진 별점">
                 <header><span>앱에 별점 적용</span>{selectedRatingMixed ? <b>혼합</b> : <b>{commonSelectedRating ? `${commonSelectedRating}점` : "없음"}</b>}</header>

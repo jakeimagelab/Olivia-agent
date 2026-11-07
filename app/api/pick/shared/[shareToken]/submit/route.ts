@@ -11,6 +11,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     const db = getSupabaseAdmin();
     await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-submit", limit: 15, windowSeconds: 300 });
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken);
+    if (!reviewer.can_finalize) return Response.json({ ok: false, error: "최종 셀렉 확정 권한이 없습니다. 자동 저장된 검토 내용은 유지됩니다." }, { status: 403 });
     const imageIds = await getSharedPersonSelectImageIds(db, event.id);
     const parsed = parsePublicSelectionSubmit(await readPublicSelectionJson(request), new Set(imageIds));
     const { data, error } = await db.rpc("submit_person_select_shared_v2", {

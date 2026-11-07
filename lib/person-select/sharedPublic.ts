@@ -13,6 +13,10 @@ export type SharedPersonSelectReviewer = {
   active: boolean;
   is_legacy: boolean;
   last_seen_at?: string | null;
+  can_view_ai_results?: boolean;
+  can_download_jpg?: boolean;
+  can_download_raw?: boolean;
+  can_finalize?: boolean;
 };
 
 export type SharedPersonSelectAccess = {
@@ -47,7 +51,7 @@ export async function resolveSharedPersonSelectAccess(
   const tokenHash = sharedReviewerTokenHash(token);
   const { data: tokenReviewer, error: reviewerError } = await db
     .from("person_select_shared_reviewers")
-    .select("id,event_id,display_name,role_label,active,is_legacy,last_seen_at")
+    .select("id,event_id,display_name,role_label,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize")
     .eq("access_token_hash", tokenHash)
     .maybeSingle();
   if (reviewerError) throw reviewerError;
@@ -68,7 +72,7 @@ export async function resolveSharedPersonSelectAccess(
       legacyToken = true;
       const { data: legacyReviewer, error: legacyError } = await db
         .from("person_select_shared_reviewers")
-        .select("id,event_id,display_name,role_label,active,is_legacy,last_seen_at")
+        .select("id,event_id,display_name,role_label,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize")
         .eq("event_id", eventRow.id)
         .eq("is_legacy", true)
         .maybeSingle();
@@ -104,7 +108,8 @@ export function sharedPersonSelectEventResponse(event: PersonSelectEvent) {
     deadline_at: event.deadline_at,
     status: event.status,
     customer_view_mode: event.customer_view_mode ?? "classic",
-    nas_download_url: event.nas_download_url ?? null,
+    download_available: Boolean(event.source_relative_path),
+    customer_ai_results_visible: event.customer_ai_results_visible === true,
   };
 }
 

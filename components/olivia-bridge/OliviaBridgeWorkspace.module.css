@@ -365,6 +365,7 @@
 .filterList button.activeFilter { color: #dffff6; background: rgba(79, 216, 184, .11); }
 .filterList button.activeFilter b { color: #4fd8b8; }
 .filterList button:disabled { cursor: not-allowed; opacity: .42; }
+.filterList > p { margin: 6px 8px 0; color: var(--ui2-dim, rgba(255,255,255,.5)); font-size: 8px; line-height: 1.45; }
 
 .folderSummary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; padding: 10px 8px; border-top: 1px solid var(--bridge-line); background: rgba(0, 0, 0, .1); }
 .folderSummary span { display: grid; gap: 3px; color: rgba(255, 255, 255, .35); font-size: var(--ui2-f1); text-align: center; }
@@ -830,6 +831,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .customerSelectionBadge { position: absolute; z-index: 2; right: 6px; min-height: 19px; display: inline-flex; align-items: center; padding: 0 6px; border-radius: 5px; font-size: var(--ui2-f1); font-weight: 600; }
 .adminSelectionBadge { top: 6px; color: #103e36; background: #e9efeb; }
 .customerSelectionBadge { top: 29px; color: #fff; background: #e85d2c; }
+.aiQualityBadge { position: absolute; z-index: 3; top: 6px; left: 6px; min-width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 5px; border: 1px solid rgba(255,255,255,.55); border-radius: 5px; color: #fff4e6; background: #9b4a2d; font-size: var(--ui2-f1); font-weight: 600; }
 .selectionInspector { min-height: 0; overflow: auto; padding: 16px 18px; color: var(--ui2-text); }
 .selectionInspectorSummary { display: grid; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--bridge-line); }
 .selectionInspectorSummary strong { font-size: var(--ui2-f5); font-variant-numeric: tabular-nums; }
@@ -841,6 +843,9 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .customerSelectionFocus { display: grid; gap: 4px; padding: 8px 9px; border: 1px solid var(--ui2-line); border-radius: 7px; background: var(--ui2-sunk); }
 .customerSelectionFocus b { color: var(--ui2-run); font-size: var(--ui2-f1); }
 .customerSelectionFocus span { line-height: 1.45; overflow-wrap: anywhere; }
+.aiQualityFocus { display: grid; gap: 4px; padding: 8px 9px; border: 1px solid var(--ui2-line); border-radius: 7px; background: var(--ui2-sunk); }
+.aiQualityFocus b { color: #9b4a2d; font-size: var(--ui2-f1); }
+.aiQualityFocus span, .aiQualityFocus small { color: var(--ui2-dim); font-size: var(--ui2-f1); line-height: 1.45; }
 .bulkControl { display: grid; gap: 9px; padding: 16px 0; border-bottom: 1px solid var(--bridge-line); }
 .bulkControl header { display: flex; justify-content: space-between; color: var(--ui2-text); font-size: var(--ui2-f2); }
 .bulkControl header b { color: var(--ui2-dim); font-weight: 500; }

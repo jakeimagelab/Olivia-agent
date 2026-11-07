@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const { eventId } = await context.params;
   const { data, error } = await getSupabaseAdmin()
     .from("person_select_shared_reviewers")
-    .select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,created_at,updated_at")
+    .select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize,created_at,updated_at")
     .eq("event_id", eventId)
     .order("is_legacy", { ascending: false })
     .order("created_at", { ascending: true });
@@ -36,7 +36,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     access_token_hash: created.tokenHash,
     active: true,
     is_legacy: false,
-  }).select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,created_at,updated_at").single();
+    can_view_ai_results: parsed.canViewAiResults ?? false,
+    can_download_jpg: parsed.canDownloadJpg ?? false,
+    can_download_raw: parsed.canDownloadRaw ?? false,
+    can_finalize: parsed.canFinalize ?? false,
+  }).select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize,created_at,updated_at").single();
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
   return Response.json({ ok: true, reviewer: data, token: created.token });
 }

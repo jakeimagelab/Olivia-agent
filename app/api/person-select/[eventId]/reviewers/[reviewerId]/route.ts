@@ -21,13 +21,24 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
     if (typeof body.active !== "boolean") return Response.json({ ok: false, error: "활성 상태를 확인해 주세요." }, { status: 400 });
     update.active = body.active;
   }
+  const permissions = [
+    ["canViewAiResults", "can_view_ai_results"],
+    ["canDownloadJpg", "can_download_jpg"],
+    ["canDownloadRaw", "can_download_raw"],
+    ["canFinalize", "can_finalize"],
+  ] as const;
+  for (const [inputKey, column] of permissions) {
+    if (body[inputKey] === undefined) continue;
+    if (typeof body[inputKey] !== "boolean") return Response.json({ ok: false, error: "검토자 권한을 확인해 주세요." }, { status: 400 });
+    update[column] = body[inputKey];
+  }
   if (!Object.keys(update).length) return Response.json({ ok: false, error: "변경할 검토자 정보가 없습니다." }, { status: 400 });
   update.updated_at = new Date().toISOString();
   const db = getSupabaseAdmin();
   const { data: current } = await db.from("person_select_shared_reviewers").select("is_legacy").eq("event_id", eventId).eq("id", reviewerId).maybeSingle();
   if (!current) return Response.json({ ok: false, error: "검토자를 찾을 수 없습니다." }, { status: 404 });
   if (current.is_legacy && update.active === false) return Response.json({ ok: false, error: "기존 공동 셀렉 호환 검토자는 비활성화할 수 없습니다." }, { status: 409 });
-  const { data, error } = await db.from("person_select_shared_reviewers").update(update).eq("event_id", eventId).eq("id", reviewerId).select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,created_at,updated_at").single();
+  const { data, error } = await db.from("person_select_shared_reviewers").update(update).eq("event_id", eventId).eq("id", reviewerId).select("id,event_id,display_name,role_label,token_version,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize,created_at,updated_at").single();
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
   return Response.json({ ok: true, reviewer: data });
 }

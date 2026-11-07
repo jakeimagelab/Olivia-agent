@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import {
+  AlertTriangle,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -20,6 +21,7 @@ import {
   Send,
   Star,
   StarOff,
+  Sparkles,
   X,
 } from "lucide-react";
 import {
@@ -64,6 +66,7 @@ import {
 } from "@/lib/photo-bridge/marqueeSelection";
 import { BRIDGE_COLOR_LABELS } from "@/lib/photo-bridge/labels";
 import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessages";
+import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./CustomerBridgeSelect.module.css";
 
 export type CustomerBridgeGallery = {
@@ -73,7 +76,8 @@ export type CustomerBridgeGallery = {
   shooting_name?: string | null;
   total_jpg_count: number;
   allow_resubmit: boolean;
-  nas_download_url?: string | null;
+  download_jpg_enabled?: boolean;
+  download_raw_enabled?: boolean;
 };
 
 export type CustomerBridgeImage = {
@@ -96,7 +100,7 @@ export type CustomerBridgeDraft = {
 };
 
 type SaveState = "idle" | "saving" | "saved" | "error" | "conflict";
-type PhotoFilter = "all" | "selected" | "unselected";
+type PhotoFilter = "all" | "selected" | "unselected" | PhotoQualityFlag | "quality_review" | "quality_normal";
 type ReviewRemovedMarks = BridgeReviewRemovedItem & { rating: CustomerBridgeRating | null; colorLabel: CustomerBridgeColorLabel | null };
 type SelectionModifiers = { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean };
 type BridgeLocation =
@@ -253,6 +257,7 @@ const CustomerBridgeThumbnailCard = memo(function CustomerBridgeThumbnailCard({
   mobile,
   onClick,
   onImageError,
+  quality,
 }: {
   image: CustomerBridgeImage;
   active: boolean;
@@ -262,6 +267,7 @@ const CustomerBridgeThumbnailCard = memo(function CustomerBridgeThumbnailCard({
   mobile: boolean;
   onClick: (image: CustomerBridgeImage, modifiers: SelectionModifiers) => void;
   onImageError?: (imageId: string) => void;
+  quality?: PublicPhotoQualityResult;
 }) {
   return <article
     role="button"
@@ -280,6 +286,7 @@ const CustomerBridgeThumbnailCard = memo(function CustomerBridgeThumbnailCard({
     <span className={styles.thumbnailMedia}><img src={image.thumbnail_url ?? image.image_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onError={() => onImageError?.(image.id)} /></span>
     {rating ? <span className={styles.ratingBadge}><Star size={12} fill="currentColor" />{rating}</span> : null}
     {colorLabel ? <span className={styles.colorLabelBadge} style={{ background: BRIDGE_COLOR_LABELS[colorLabel].color }} aria-label={`${BRIDGE_COLOR_LABELS[colorLabel].name} 컬러`} /> : null}
+    {quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.qualityBadge} title={quality.flags.length ? "AI 품질 문제 의심" : "AI 확인 필요"}><AlertTriangle size={12} />{quality.flags.length || "?"}</span> : null}
     <span className={styles.photoName}>{image.original_file_name}</span>
     {mobile && focused ? <span className={styles.mobileFocusedLabel}>미리보기</span> : null}
   </article>;
@@ -299,6 +306,8 @@ export default function CustomerBridgeSelect({
   refreshImageUrl,
   reviewer,
   messagesEnabled = false,
+  qualityApi,
+  canManageQuality = false,
 }: {
   shareToken: string;
   gallery: CustomerBridgeGallery;
@@ -311,8 +320,10 @@ export default function CustomerBridgeSelect({
   readOnly?: boolean;
   embedded?: boolean;
   refreshImageUrl?: (imageId: string) => Promise<Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
-  reviewer?: { display_name: string; role_label?: string | null } | null;
+  reviewer?: { display_name: string; role_label?: string | null; can_finalize?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean } | null;
   messagesEnabled?: boolean;
+  qualityApi?: string;
+  canManageQuality?: boolean;
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
@@ -371,8 +382,14 @@ export default function CustomerBridgeSelect({
   const [messages, setMessages] = useState<PersonSelectProjectMessage[]>([]);
   const [messageText, setMessageText] = useState("");
   const [messageState, setMessageState] = useState("");
+  const [messageImageScoped, setMessageImageScoped] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [qualityResults, setQualityResults] = useState<Record<string, PublicPhotoQualityResult>>({});
+  const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
+  const [qualityState, setQualityState] = useState("");
+  const [downloadState, setDownloadState] = useState("");
+  const [downloadBusy, setDownloadBusy] = useState(false);
 
   const revisionRef = useRef(initialDraft?.revision ?? 0);
   const dirtyRef = useRef(false);
@@ -407,11 +424,23 @@ export default function CustomerBridgeSelect({
   const visibleImages = useMemo(() => folderImages.filter((image) => {
     if (filter === "selected") return customerSelectedIds.has(image.id);
     if (filter === "unselected") return !customerSelectedIds.has(image.id);
+    const quality = qualityResults[image.id];
+    if (filter === "eyes_closed" || filter === "face_too_dark" || filter === "motion_blur") return quality?.flags.includes(filter) ?? false;
+    if (filter === "quality_review") return quality?.status === "needs_review";
+    if (filter === "quality_normal") return quality?.status === "normal" || quality?.reviewStatus === "confirmed_normal";
     return true;
-  }), [customerSelectedIds, filter, folderImages]);
+  }), [customerSelectedIds, filter, folderImages, qualityResults]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const renderedImages = visibleImages.slice(0, renderLimit);
   const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
+  const qualityCounts = useMemo(() => folderImages.reduce((counts, image) => {
+    const quality = qualityResults[image.id];
+    if (!quality) return counts;
+    for (const flag of quality.flags) counts[flag] += 1;
+    if (quality.status === "needs_review") counts.quality_review += 1;
+    if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.quality_normal += 1;
+    return counts;
+  }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, quality_review: 0, quality_normal: 0 }), [folderImages, qualityResults]);
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const fullscreenImage = fullscreenId ? imageById.get(fullscreenId) ?? null : null;
   const fullscreenIndex = fullscreenId ? visibleImages.findIndex((image) => image.id === fullscreenId) : -1;
@@ -426,6 +455,85 @@ export default function CustomerBridgeSelect({
     setSaveState("idle");
     setSaveMessage("");
   }, []);
+
+  const loadQuality = useCallback(async (quiet = false) => {
+    if (!qualityApi) return;
+    try {
+      const response = await fetch(qualityApi, { cache: "no-store" });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) throw new Error(result.error || "AI 품질 결과를 불러오지 못했습니다.");
+      const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
+      setQualityResults(next);
+      setQualityJob(result.job ?? null);
+      if (!quiet) setQualityState("");
+    } catch (error) {
+      if (!quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
+    }
+  }, [qualityApi]);
+
+  useEffect(() => { void loadQuality(); }, [loadQuality]);
+  useEffect(() => {
+    if (!qualityApi || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
+    const timer = window.setInterval(() => void loadQuality(true), 2500);
+    return () => window.clearInterval(timer);
+  }, [loadQuality, qualityApi, qualityJob]);
+
+  const startQuality = useCallback(async () => {
+    if (!qualityApi || !canManageQuality) return;
+    if (!window.confirm("AI 품질 검사를 위해 1024px 이하 경량 미리보기를 OpenAI API로 전송합니다. 원본 파일은 전송하지 않습니다. 계속할까요?")) return;
+    setQualityState("AI 검사를 준비하는 중입니다.");
+    const response = await fetch(qualityApi, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consentAccepted: true }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 검사를 시작하지 못했습니다."); return; }
+    setQualityJob(result.job ?? null);
+    setQualityState("AI 검사를 시작했습니다. 다른 화면을 사용해도 Worker에서 계속 진행됩니다.");
+  }, [canManageQuality, qualityApi]);
+
+  const controlQuality = useCallback(async (action: "pause" | "resume" | "cancel" | "retry") => {
+    if (!qualityApi || !canManageQuality) return;
+    const response = await fetch(qualityApi, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 검사 상태를 바꾸지 못했습니다."); return; }
+    setQualityJob(result.job ?? null);
+    setQualityState(action === "pause" ? "AI 검사를 일시정지했습니다." : action === "resume" ? "AI 검사를 이어서 진행합니다." : action === "retry" ? "실패한 사진만 다시 검사합니다." : "AI 검사를 취소했습니다.");
+  }, [canManageQuality, qualityApi]);
+
+  const reviewQuality = useCallback(async (imageId: string, reviewStatus: "confirmed_issue" | "confirmed_normal") => {
+    if (!qualityApi || !canManageQuality) return;
+    const response = await fetch(qualityApi, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageId, reviewStatus }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 판정 검토를 저장하지 못했습니다."); return; }
+    setQualityResults((current) => ({ ...current, [imageId]: result.result }));
+  }, [canManageQuality, qualityApi]);
+
+  const downloadSelected = useCallback(async (format: "jpg" | "raw") => {
+    if (readOnly || downloadBusy || !customerSelectedIds.size) return;
+    setDownloadBusy(true);
+    setDownloadState(`${format.toUpperCase()} 원본 다운로드를 준비하는 중입니다.`);
+    try {
+      const response = await fetch(`${endpointBase}/downloads`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageIds: [...customerSelectedIds], format, requestKey: `download_${createRequestKey()}` }),
+      });
+      const created = await response.json().catch(() => ({}));
+      if (!response.ok || !created.ok) throw new Error(created.error || "다운로드 작업을 만들지 못했습니다.");
+      const jobId = String(created.job?.id ?? "");
+      if (!jobId) throw new Error("다운로드 작업 ID가 없습니다.");
+      for (let attempt = 0; attempt < 600; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        const statusResponse = await fetch(`${endpointBase}/downloads?jobId=${encodeURIComponent(jobId)}`, { cache: "no-store" });
+        const status = await statusResponse.json().catch(() => ({}));
+        if (!statusResponse.ok || !status.ok) throw new Error(status.error || "다운로드 상태를 확인하지 못했습니다.");
+        setDownloadState(`${Number(status.job?.completed_count ?? 0).toLocaleString("ko-KR")} / ${Number(status.job?.total_count ?? customerSelectedIds.size).toLocaleString("ko-KR")}장 준비`);
+        if (status.downloadUrl) { window.location.assign(String(status.downloadUrl)); setDownloadState("다운로드를 시작했습니다."); return; }
+        if (["failed", "canceled", "expired"].includes(String(status.job?.status ?? ""))) throw new Error(status.job?.error || "다운로드 준비에 실패했습니다.");
+      }
+      throw new Error("다운로드 준비 시간이 초과됐습니다. 잠시 뒤 다시 시도해 주세요.");
+    } catch (error) {
+      setDownloadState(error instanceof Error ? error.message : "다운로드에 실패했습니다.");
+    } finally { setDownloadBusy(false); }
+  }, [customerSelectedIds, downloadBusy, endpointBase, readOnly]);
 
   const applyRatingTo = useCallback((targetIds: ReadonlySet<string>, rating: 0 | CustomerBridgeRating) => {
     if (readOnly || !targetIds.size) return;
@@ -644,7 +752,7 @@ export default function CustomerBridgeSelect({
       const response = await fetch(`${endpointBase}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, requestId: `message_${createRequestKey()}` }),
+        body: JSON.stringify({ body, requestId: `message_${createRequestKey()}`, imageId: messageImageScoped ? focusedImageId : null }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error || "메시지를 보내지 못했습니다.");
@@ -656,7 +764,7 @@ export default function CustomerBridgeSelect({
     } finally {
       setSendingMessage(false);
     }
-  }, [endpointBase, loadMessages, messageText, messagesEnabled, sendingMessage]);
+  }, [endpointBase, focusedImageId, loadMessages, messageImageScoped, messageText, messagesEnabled, sendingMessage]);
 
   useEffect(() => {
     const node = sentinelRef.current;
@@ -928,8 +1036,10 @@ export default function CustomerBridgeSelect({
       {location.kind !== "root" ? <div className={styles.topFilters} aria-label="고객 셀렉 필터">
         {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}</button>)}
       </div> : null}
-      {gallery.nas_download_url ? <a className={styles.headerAction} href={gallery.nas_download_url} target="_blank" rel="noopener noreferrer"><Download size={14} /> 원본 다운로드</a> : null}
+      {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
+      {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
       {messagesEnabled ? <button type="button" className={`${styles.headerAction} ${styles.mobileChatAction}`} onClick={() => { setSideTab("chat"); setMobileSideOpen(true); }}><MessageCircle size={14} /> 대화{unreadMessages ? ` ${unreadMessages}` : ""}</button> : null}
+      {qualityApi && canManageQuality ? <button type="button" className={styles.headerAction} disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startQuality()}><Sparkles size={14} /> {["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "AI 검사 중" : qualityJob?.status === "paused" ? "AI 검사 정지" : "AI 검사 시작"}</button> : null}
       <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size} onClick={openReview}><Images size={14} /> 리뷰</button>
       <button type="button" className={styles.headerAction} disabled={!focusedImageId} onClick={() => setFullscreenId(focusedImageId)}><Expand size={14} /> 전체화면</button>
     </div>
@@ -945,6 +1055,13 @@ export default function CustomerBridgeSelect({
           {folderTree.map((folder) => <button key={folder.path} type="button" className={location.kind === "folder" && location.path === folder.path ? styles.activeFolder : ""} style={{ "--folder-depth": folder.depth } as CSSProperties} onClick={() => openLocation({ kind: "folder", path: folder.path })}><Folder size={15} /><span>{folder.name}</span><b>{folder.totalCount}</b></button>)}
         </div>
         <div className={styles.filterList}><small>고객 셀렉</small>{(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{value === "all" ? "전체 사진" : value === "selected" ? "선택한 사진" : "선택하지 않은 사진"}</span><b>{location.kind === "root" ? "–" : value === "all" ? folderImages.length : value === "selected" ? selectedInFolder : folderImages.length - selectedInFolder}</b></button>)}</div>
+        {qualityApi ? <div className={styles.filterList}><small>AI 품질 검사</small>{([
+          ["eyes_closed", "눈감음 의심"],
+          ["face_too_dark", "얼굴 어두움 의심"],
+          ["motion_blur", "흔들림 의심"],
+          ["quality_review", "확인 필요"],
+          ["quality_normal", "정상"],
+        ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}{qualityJob ? <p className={styles.qualityState}>{String(qualityJob.status ?? "")} · {Number(qualityJob.completed_count ?? 0).toLocaleString("ko-KR")} / {Number(qualityJob.total_count ?? 0).toLocaleString("ko-KR")}</p> : null}{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
         <div className={styles.folderSummary}><span>전체<b>{images.length}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
       </aside>
 
@@ -967,7 +1084,7 @@ export default function CustomerBridgeSelect({
               const focused = focusedImageId === image.id;
               const rating = customerRatings[image.id] ?? 0;
               const colorLabel = customerColorLabels[image.id] ?? null;
-              return <CustomerBridgeThumbnailCard key={image.id} image={image} active={active} focused={focused} rating={rating} colorLabel={colorLabel} mobile={mobile} onClick={handlePhotoClick} onImageError={handleImageError} />;
+              return <CustomerBridgeThumbnailCard key={image.id} image={image} active={active} focused={focused} rating={rating} colorLabel={colorLabel} mobile={mobile} quality={qualityResults[image.id]} onClick={handlePhotoClick} onImageError={handleImageError} />;
             })}
           </div>
           {location.kind !== "root" && !visibleImages.length && !childFolders.length ? <div className={styles.empty}>이 폴더에 표시할 사진이 없습니다.</div> : null}
@@ -988,17 +1105,18 @@ export default function CustomerBridgeSelect({
           <header><strong>미리보기</strong><span>{activeImageIds.size ? `작업 대상 ${activeImageIds.size}장` : focusedImage ? "현재 사진" : "사진을 선택해 주세요"}</span></header>
           {focusedImage ? <><div className={styles.previewCanvas} onDoubleClick={() => setFullscreenId(focusedImage.id)}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.max(0, index - 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) <= 0} aria-label="이전 사진"><ChevronLeft size={20} /></button><StablePreviewImage image={focusedImage} onImageError={handleImageError} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.min(orderedIds.length - 1, index + 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) >= orderedIds.length - 1} aria-label="다음 사진"><ChevronRight size={20} /></button></div>
             <div className={styles.previewMeta}><strong>{focusedImage.original_file_name}</strong><span>{focusedImage.relative_path ?? ""}</span><button type="button" onClick={() => setFullscreenId(focusedImage.id)}><Expand size={13} /> 크게 보기</button></div>
+            {qualityResults[focusedImage.id] ? <section className={styles.qualityPanel}><header><strong>AI 품질 분석</strong><span>{qualityResults[focusedImage.id].reviewStatus === "confirmed_normal" ? "정상 확인됨" : qualityResults[focusedImage.id].reviewStatus === "confirmed_issue" ? "문제 확인됨" : "검토 보조"}</span></header>{(["eyes_closed", "face_too_dark", "motion_blur"] as const).map((flag) => <div key={flag} data-suspected={qualityResults[focusedImage.id].flags.includes(flag) || undefined}><span>{flag === "eyes_closed" ? "눈감음" : flag === "face_too_dark" ? "얼굴 어두움" : "흔들림"}</span><b>{qualityResults[focusedImage.id].flags.includes(flag) ? "의심" : qualityResults[focusedImage.id].status === "needs_review" ? "확인 필요" : "정상"}</b></div>)}{canManageQuality ? <footer><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_issue")}>문제 확인</button><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_normal")}>정상으로 확인</button></footer> : null}<small>AI 결과는 별점·셀렉·파일을 자동 변경하지 않습니다.</small></section> : null}
             {!readOnly ? <div className={styles.previewControls}><div><span>{activeImageIds.size > 1 ? `${activeImageIds.size}장에 셀렉 적용` : "고객 셀렉"}</span><RatingStars value={customerRatings[focusedImage.id] ?? 0} onChange={applyMainRating} /><ColorLabels value={customerColorLabels[focusedImage.id] ?? null} onChange={applyMainColor} /></div><label>사진별 보정 메모<textarea value={notes[focusedImage.id] ?? ""} maxLength={1000} onChange={(event) => { setNotes((current) => ({ ...current, [focusedImage.id]: event.target.value })); markDirty(); }} placeholder="이 사진에 필요한 보정 내용을 적어주세요." /></label></div> : <div className={styles.readOnlyMarks}>{customerRatings[focusedImage.id] ? <span><Star size={13} fill="currentColor" />{customerRatings[focusedImage.id]}점</span> : null}{customerColorLabels[focusedImage.id] ? <span><i style={{ background: BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].color }} />{BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].name}</span> : null}{notes[focusedImage.id] ? <p className={styles.readOnlyMemo}>{notes[focusedImage.id]}</p> : null}</div>}
           </> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 사진을 선택해 주세요</strong></div>}
         </> : <section className={styles.chatPanel} aria-label="프로젝트 대화">
-          <div className={styles.messageList}>{messages.map((message) => <article key={message.id} data-own={message.own || undefined}><header><strong>{message.authorName}</strong>{message.authorRole ? <span>{message.authorRole}</span> : null}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time></header><p>{message.body}</p></article>)}{!messages.length ? <div className={styles.chatEmpty}>프로젝트 사진에 관해 함께 이야기해 보세요.</div> : null}<div ref={messagesEndRef} /></div>
-          {messagesEnabled ? <form className={styles.messageComposer} onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><textarea value={messageText} maxLength={2000} placeholder="메시지를 입력하세요" onChange={(event) => setMessageText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(); } }} /><button type="submit" disabled={!messageText.trim() || sendingMessage} aria-label="메시지 보내기"><Send size={16} /></button></form> : null}
+          <div className={styles.messageList}>{messages.map((message) => <article key={message.id} data-own={message.own || undefined}><header><strong>{message.authorName}</strong>{message.authorRole ? <span>{message.authorRole}</span> : null}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time></header>{message.imageId ? <button type="button" className={styles.messageImageLink} onClick={() => { setFocusedImageId(message.imageId); setSideTab("preview"); }}>{message.imageName || "연결 사진 보기"}</button> : null}<p>{message.body}</p></article>)}{!messages.length ? <div className={styles.chatEmpty}>프로젝트 사진에 관해 함께 이야기해 보세요.</div> : null}<div ref={messagesEndRef} /></div>
+          {messagesEnabled ? <form className={styles.messageComposer} onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><label className={styles.messageScope}><input type="checkbox" checked={messageImageScoped} disabled={!focusedImageId} onChange={(event) => setMessageImageScoped(event.target.checked)} />{focusedImage ? `현재 사진 · ${focusedImage.original_file_name}` : "현재 사진 없음"}</label><textarea value={messageText} maxLength={2000} placeholder="메시지를 입력하세요" onChange={(event) => setMessageText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(); } }} /><button type="submit" disabled={!messageText.trim() || sendingMessage} aria-label="메시지 보내기"><Send size={16} /></button></form> : null}
           {messageState ? <p className={styles.messageState}>{messageState}</p> : null}
         </section>}
       </aside>
     </section>
 
-    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{saveMessage || "자동 저장"}</span></div><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict"} onClick={() => void submit()}>{submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
+    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{downloadState || saveMessage || (reviewer?.can_finalize === false ? "검토 내용은 자동 저장됩니다 · 최종 확정 권한 없음" : "자동 저장")}</span></div><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict" || reviewer?.can_finalize === false} onClick={() => void submit()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
 
     {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); markDirty(); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={(id) => setFullscreenId(id)} onImageError={handleImageError} /> : null}

@@ -283,6 +283,12 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     case "PERSON_SELECT_RAW_MATCH":
       addString(args, "--event-id", stringValue(payload, "event_id", true));
       return runner(repoRoot, "person-select-raw-match.ts", args);
+    case "PERSON_SELECT_QUALITY":
+      addString(args, "--job-id", stringValue(payload, "quality_job_id", true));
+      return runner(repoRoot, "person-select-quality.ts", args);
+    case "PERSON_SELECT_DOWNLOAD":
+      addString(args, "--job-id", stringValue(payload, "download_job_id", true));
+      return runner(repoRoot, "person-select-download.ts", args);
     case "VIDEO_INTERVIEW_ANALYZE":
       addString(args, "--action", "analyze");
       addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
