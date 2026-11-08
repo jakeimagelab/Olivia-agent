@@ -57,12 +57,22 @@ export async function GET(request: NextRequest) {
       if (nasClassifyClaimError) console.warn("[worker/next nas-classify claim]", nasClassifyClaimError.message);
     }
 
+    const { data, error } = await supabase.rpc("claim_remote_job", {
+      p_worker_id: workerId,
+    });
+
+    if (error) throw error;
+
+    const job = Array.isArray(data) ? data[0] : null;
+
+    // heartbeat와 최종 상태를 한 번에 기록한다. 과거에는 polling 한 번마다
+    // upsert 뒤 update를 다시 실행해 유휴 Worker도 쓰기를 두 번 만들었다.
     let { error: heartbeatError } = await supabase
       .from("remote_workers")
       .upsert({
         worker_id: workerId,
         last_seen_at: now,
-        worker_status: "online",
+        worker_status: job ? "busy" : "idle",
         updated_at: now,
         ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
         ...workerDiagnostics,
@@ -76,35 +86,13 @@ export async function GET(request: NextRequest) {
         .upsert({
           worker_id: workerId,
           last_seen_at: now,
-          worker_status: "online",
+          worker_status: job ? "busy" : "idle",
           updated_at: now,
           ...(nasConnected === undefined ? {} : { nas_connected: nasConnected }),
         }, { onConflict: "worker_id" });
       if (!fallback.error) heartbeatError = null;
     }
-
-    // Migration 적용 전에도 기존 Worker job claim은 계속 동작해야 한다.
     if (heartbeatError) console.warn("[worker/next heartbeat]", heartbeatError.message);
-
-    const { data, error } = await supabase.rpc("claim_remote_job", {
-      p_worker_id: workerId,
-    });
-
-    if (error) throw error;
-
-    const job = Array.isArray(data) ? data[0] : null;
-
-    if (!heartbeatError) {
-      const { error: statusError } = await supabase
-        .from("remote_workers")
-        .update({
-          worker_status: job ? "busy" : "idle",
-          last_seen_at: now,
-          updated_at: now,
-        })
-        .eq("worker_id", workerId);
-      if (statusError) console.warn("[worker/next status]", statusError.message);
-    }
 
     if (!job) {
       return Response.json({});

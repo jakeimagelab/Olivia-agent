@@ -21,6 +21,9 @@ REMOTE_BASE="${REMOTE_API_BASE:-${NEXT_PUBLIC_BASE_URL:-}}"
 WORKER_TOKEN_VALUE="${OLIVIA_WORKER_TOKEN:-${WORKER_TOKEN:-}}"
 WORKER_ID_VALUE="${OLIVIA_WORKER_ID:-${WORKER_ID:-jake-macstudio-01}}"
 POLL_SECONDS="${OLIVIA_WORKER_POLL_SECONDS:-5}"
+IDLE_MAX_SECONDS="${OLIVIA_WORKER_IDLE_MAX_SECONDS:-60}"
+POLL_BACKOFF_FACTOR="${OLIVIA_WORKER_POLL_BACKOFF_FACTOR:-2}"
+MAX_POLLS="${OLIVIA_WORKER_MAX_POLLS:-0}"
 CURRENT_BRIDGE_PID=""
 STOP_REQUESTED=0
 
@@ -37,6 +40,9 @@ fail_config() {
 [[ -n "$WORKER_TOKEN_VALUE" ]] || fail_config "OLIVIA_WORKER_TOKEN이 설정되어 있지 않습니다."
 [[ -x "$BRIDGE" ]] || fail_config "remote-bridge.sh를 실행할 수 없습니다: $BRIDGE"
 [[ "$POLL_SECONDS" == <-> && "$POLL_SECONDS" -gt 0 ]] || fail_config "OLIVIA_WORKER_POLL_SECONDS는 1 이상의 정수여야 합니다."
+[[ "$IDLE_MAX_SECONDS" == <-> && "$IDLE_MAX_SECONDS" -ge "$POLL_SECONDS" ]] || fail_config "OLIVIA_WORKER_IDLE_MAX_SECONDS는 기본 폴링 간격 이상이어야 합니다."
+[[ "$POLL_BACKOFF_FACTOR" == <-> && "$POLL_BACKOFF_FACTOR" -ge 2 ]] || fail_config "OLIVIA_WORKER_POLL_BACKOFF_FACTOR는 2 이상의 정수여야 합니다."
+[[ "$MAX_POLLS" == <-> ]] || fail_config "OLIVIA_WORKER_MAX_POLLS는 0 이상의 정수여야 합니다."
 
 REMOTE_BASE="${REMOTE_BASE%/}"
 export OLIVIA_WORKER_TOKEN="$WORKER_TOKEN_VALUE"
@@ -149,13 +155,35 @@ poll_once() {
   return 0
 }
 
-log "시작됨(worker=$WORKER_ID_VALUE, api=$REMOTE_BASE)"
+log "시작됨(worker=$WORKER_ID_VALUE, api=$REMOTE_BASE, poll=${POLL_SECONDS}s, idle-max=${IDLE_MAX_SECONDS}s)"
+current_poll_seconds="$POLL_SECONDS"
+poll_count=0
 while (( STOP_REQUESTED == 0 )); do
   poll_once
   poll_status=$?
+  (( poll_count += 1 ))
   if [[ "${OLIVIA_WORKER_ONCE:-0}" == "1" ]]; then
     if (( poll_status == 3 )); then exit 0; else exit "$poll_status"; fi
   fi
-  (( STOP_REQUESTED == 0 )) && sleep "$POLL_SECONDS"
+  if (( MAX_POLLS > 0 && poll_count >= MAX_POLLS )); then
+    break
+  fi
+
+  sleep_seconds="$current_poll_seconds"
+  if (( poll_status == 0 )); then
+    if (( current_poll_seconds != POLL_SECONDS )); then
+      log "작업을 감지해 폴링 간격을 ${POLL_SECONDS}초로 복원합니다."
+    fi
+    current_poll_seconds="$POLL_SECONDS"
+    sleep_seconds="$POLL_SECONDS"
+  else
+    next_poll_seconds=$(( current_poll_seconds * POLL_BACKOFF_FACTOR ))
+    (( next_poll_seconds > IDLE_MAX_SECONDS )) && next_poll_seconds="$IDLE_MAX_SECONDS"
+    if (( next_poll_seconds != current_poll_seconds )); then
+      log "작업 없음/조회 오류: 다음 폴링 간격 ${next_poll_seconds}초"
+    fi
+    current_poll_seconds="$next_poll_seconds"
+  fi
+  (( STOP_REQUESTED == 0 )) && sleep "$sleep_seconds"
 done
 log "종료됨"

@@ -733,12 +733,32 @@ export default function CustomerBridgeSelect({
     void loadMessages();
     const events = new EventSource(`${endpointBase}/messages/events`);
     const refresh = () => void loadMessages({ quiet: true });
-    events.addEventListener("changed", refresh);
-    events.addEventListener("ready", refresh);
-    events.onerror = () => setMessageState("대화 연결을 다시 시도하는 중입니다.");
-    const fallback = window.setInterval(refresh, 12_000);
-    return () => {
+    let fallback: number | null = null;
+    let opened = false;
+    const stopFallback = () => {
+      if (fallback === null) return;
       window.clearInterval(fallback);
+      fallback = null;
+    };
+    const startFallback = () => {
+      if (fallback !== null) return;
+      fallback = window.setInterval(() => {
+        if (document.visibilityState === "visible") refresh();
+      }, 30_000);
+    };
+    events.onopen = () => {
+      stopFallback();
+      setMessageState("");
+      if (opened) refresh();
+      opened = true;
+    };
+    events.addEventListener("changed", refresh);
+    events.onerror = () => {
+      setMessageState("대화 연결을 다시 시도하는 중입니다.");
+      startFallback();
+    };
+    return () => {
+      stopFallback();
       events.close();
     };
   }, [endpointBase, loadMessages, messagesEnabled]);

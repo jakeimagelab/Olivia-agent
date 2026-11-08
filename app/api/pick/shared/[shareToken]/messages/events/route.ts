@@ -30,7 +30,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sha
           closed = true;
           if (heartbeat) clearInterval(heartbeat);
           if (channel) void db.removeChannel(channel);
-          try { controller.close(); } catch { /* already closed */ }
+          request.signal.removeEventListener("abort", close);
+          try { controller.close(); } catch (error) { void error; /* already closed */ }
         };
         closeStream = close;
         send("ready", { eventId: event.id });
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sha
           }, () => send("changed", { at: new Date().toISOString() }))
           .subscribe();
         request.signal.addEventListener("abort", close, { once: true });
+        if (request.signal.aborted) close();
       },
       cancel() { closeStream?.(); },
     });
