@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { decidePhotoQuality } from "@/lib/photo-quality/decision";
-import { latestPhotoQualityResults, photoQualityCounts, publicPhotoQualityResult } from "@/lib/photo-quality/public";
+import { latestPhotoQualityResults, photoQualityCounts, photoQualityJobProgress, publicPhotoQualityResult } from "@/lib/photo-quality/public";
 import type { PhotoQualityModelAssessment } from "@/lib/photo-quality/types";
 import { parseDownloadRequest } from "@/lib/person-select/downloads";
 import { sharedPersonSelectEventResponse } from "@/lib/person-select/sharedPublic";
@@ -61,6 +61,27 @@ describe("photo quality public projection", () => {
     expect(latest.map((row) => row.image_id)).toEqual(["a", "b"]);
     expect(photoQualityCounts(latest)).toMatchObject({ total: 2, eyes_closed: 1, needs_review: 1, normal: 0 });
     expect(publicPhotoQualityResult(latest[0])).toMatchObject({ imageId: "a", status: "suspected", flags: ["eyes_closed"] });
+  });
+
+  it("reports processed, failed, remaining, and percent from the persisted job", () => {
+    expect(photoQualityJobProgress({
+      status: "running",
+      total_count: 1_645,
+      completed_count: 327,
+      failed_count: 2,
+    })).toEqual({
+      status: "running",
+      label: "AI 검사 중",
+      total: 1_645,
+      completed: 327,
+      failed: 2,
+      processed: 329,
+      pending: 1_316,
+      percent: 20,
+      active: true,
+    });
+    expect(photoQualityJobProgress({ status: "completed", total_count: 10, completed_count: 10, failed_count: 0 }))
+      .toMatchObject({ label: "검사 완료", percent: 100, pending: 0, active: false });
   });
 });
 

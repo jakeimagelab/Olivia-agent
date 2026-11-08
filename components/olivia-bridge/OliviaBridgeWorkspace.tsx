@@ -47,6 +47,7 @@ import {
 } from "react";
 
 import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
+import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
@@ -1934,16 +1935,23 @@ export default function OliviaBridgeWorkspace({
     const match = galleryCustomerResult?.imageMatch ?? galleryCustomerResult?.match;
     if (!eventId || !match || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
     const refresh = async () => {
-      const response = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
+      if (document.visibilityState !== "visible") return;
+      const response = await fetch(`/api/person-select/${eventId}/quality?jobOnly=1`, { cache: "no-store" });
+      const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown> };
       if (!response.ok || !body.ok) return;
-      setQualityByBridgeId(Object.fromEntries((body.results ?? []).flatMap((result) => {
+      setQualityJob(body.job ?? null);
+      if (["queued", "running"].includes(String(body.job?.status ?? ""))) return;
+
+      const resultResponse = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
+      const resultBody = await resultResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
+      if (!resultResponse.ok || !resultBody.ok) return;
+      setQualityByBridgeId(Object.fromEntries((resultBody.results ?? []).flatMap((result) => {
         const bridgeId = match.bridgeIdByImageId[result.imageId];
         return bridgeId ? [[bridgeId, result]] : [];
       })));
-      setQualityJob(body.job ?? null);
+      setQualityJob(resultBody.job ?? null);
     };
-    const timer = window.setInterval(() => void refresh(), 2500);
+    const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
   }, [galleryCustomerResult?.imageMatch, galleryCustomerResult?.match, galleryCustomerResult?.personSelectEventId, qualityJob]);
 
@@ -2184,6 +2192,7 @@ export default function OliviaBridgeWorkspace({
               ["normal", "정상"],
             ] as Array<[QualityFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult?.personSelectEventId} data-zero={key !== "all" && qualityCounts[key] === 0 ? "true" : undefined} className={qualityFilter === key ? styles.activeFilter : ""} onClick={() => setQualityFilter(key)}><span>{label}</span><b>{key === "all" ? scan.jpgs.length.toLocaleString("ko-KR") : qualityCounts[key].toLocaleString("ko-KR")}</b></button>)}
             {galleryCustomerResult?.personSelectEventId ? <button type="button" disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startLinkedQualityAnalysis()}><span><Sparkles size={12} />{["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "검사 진행 중" : qualityJob?.status === "paused" ? "검사 일시정지" : "AI 검사 시작"}</span><b>{qualityJob ? `${Number(qualityJob.completed_count ?? 0)}/${Number(qualityJob.total_count ?? 0)}` : ""}</b></button> : null}
+            <PhotoQualityJobProgressView job={qualityJob} />
             {qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("pause")}><span>검사 일시정지</span></button> : null}
             {qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("resume")}><span>검사 계속</span></button> : null}
             {qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("retry")}><span>실패 사진 재시도</span></button> : null}

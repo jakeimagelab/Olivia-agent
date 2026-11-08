@@ -1,0 +1,39 @@
+.progress {
+  display: grid;
+  gap: 7px;
+  margin: 5px 0;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px;
+  color: rgba(255,255,255,.76);
+  background: rgba(255,255,255,.04);
+}
+
+.progress[data-tone="light"] {
+  border-color: #C8D5C8;
+  color: #293E34;
+  background: #EAF0E7;
+}
+
+.progress > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.progress > header strong { font-size: 10px; font-weight: 600; }
+.progress > header b { color: #4FD8B8; font-size: 10px; font-weight: 600; }
+.progress[data-tone="light"] > header b { color: #155855; }
+.progress[data-status="failed"] > header b,
+.progress[data-status="partial_failed"] > header b { color: #E99272; }
+
+.track { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
+.progress[data-tone="light"] .track { background: #C8D5C8; }
+.track > span { height: 100%; display: block; border-radius: inherit; background: #4FD8B8; transition: width 180ms ease; }
+.progress[data-tone="light"] .track > span { background: #155855; }
+.progress[data-status="failed"] .track > span,
+.progress[data-status="partial_failed"] .track > span { background: #C94A1E; }
+
+.counts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 4px 8px; }
+.counts span { display: flex; justify-content: space-between; gap: 6px; color: rgba(255,255,255,.48); font-size: 8px; }
+.progress[data-tone="light"] .counts span { color: #617565; }
+.counts b { color: inherit; font-weight: 500; }
+
+@media (prefers-reduced-motion: reduce) {
+  .track > span { transition: none; }
+}

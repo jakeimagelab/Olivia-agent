@@ -1,5 +1,55 @@
 import { isPhotoQualityFlag, type PublicPhotoQualityResult } from "./types";
 
+export type PhotoQualityJobProgress = {
+  status: string;
+  label: string;
+  total: number;
+  completed: number;
+  failed: number;
+  processed: number;
+  pending: number;
+  percent: number;
+  active: boolean;
+};
+
+const PHOTO_QUALITY_JOB_LABELS: Record<string, string> = {
+  queued: "검사 대기 중",
+  running: "AI 검사 중",
+  paused: "검사 일시정지",
+  completed: "검사 완료",
+  partial_failed: "일부 사진 검사 실패",
+  failed: "검사 실패",
+  canceled: "검사 취소",
+};
+
+function nonNegativeCount(value: unknown) {
+  const count = Number(value ?? 0);
+  return Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : 0;
+}
+
+export function photoQualityJobProgress(job: Record<string, unknown> | null | undefined): PhotoQualityJobProgress | null {
+  if (!job) return null;
+  const status = typeof job.status === "string" ? job.status : "unknown";
+  const total = nonNegativeCount(job.total_count);
+  const completedCount = nonNegativeCount(job.completed_count);
+  const failedCount = nonNegativeCount(job.failed_count);
+  const completed = total ? Math.min(total, completedCount) : completedCount;
+  const failed = total ? Math.min(Math.max(0, total - completed), failedCount) : failedCount;
+  const processed = total ? Math.min(total, completed + failed) : completed + failed;
+  const pending = Math.max(0, total - processed);
+  return {
+    status,
+    label: PHOTO_QUALITY_JOB_LABELS[status] ?? "검사 상태 확인 필요",
+    total,
+    completed,
+    failed,
+    processed,
+    pending,
+    percent: total ? Math.min(100, Math.round((processed / total) * 100)) : 0,
+    active: status === "queued" || status === "running" || status === "paused",
+  };
+}
+
 export function publicPhotoQualityResult(row: Record<string, any>): PublicPhotoQualityResult {
   const flags = Array.isArray(row.flags) ? row.flags.filter(isPhotoQualityFlag) : [];
   return {

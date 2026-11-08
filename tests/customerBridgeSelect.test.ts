@@ -5,6 +5,7 @@ import {
   applyCustomerColorLabels,
   applyCustomerRatings,
   applyCustomerBridgeRating,
+  clearCustomerBridgeMarks,
   customerBridgeFolderTree,
   customerBridgeFolderView,
   customerBridgeRatedIds,
@@ -54,6 +55,16 @@ describe("customer Bridge selection", () => {
     expect([...customerBridgeRatingTargets(new Set(), "focused")]).toEqual(["focused"]);
     const ratings = applyCustomerRatings({ a: 5, b: 4, c: 2 }, new Set(["a", "c"]), 0);
     expect(ratings).toEqual({ b: 4 });
+  });
+
+  it("can reset every persisted mark and note without changing the photo list", () => {
+    const ids = new Set(["a", "b"]);
+    const ratings = clearCustomerBridgeMarks({ a: 5, b: 3 }, ids);
+    const colors = clearCustomerBridgeMarks({ a: 8, b: 7 }, ids);
+    expect(customerBridgeSelectionItems([
+      { id: "a", relative_path: "C1/a.jpg" },
+      { id: "b", relative_path: "C1/b.jpg" },
+    ], ratings, colors, {})).toEqual([]);
   });
 
   it("submits only rated photos with their path, rating, and memo", () => {

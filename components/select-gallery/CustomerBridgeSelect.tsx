@@ -4,6 +4,7 @@
 
 import {
   AlertTriangle,
+  BookOpenText,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -32,6 +33,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
@@ -67,6 +69,8 @@ import {
 import { BRIDGE_COLOR_LABELS } from "@/lib/photo-bridge/labels";
 import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessages";
 import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
+import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
+import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 import styles from "./CustomerBridgeSelect.module.css";
 
 export type CustomerBridgeGallery = {
@@ -390,12 +394,16 @@ export default function CustomerBridgeSelect({
   const [qualityState, setQualityState] = useState("");
   const [downloadState, setDownloadState] = useState("");
   const [downloadBusy, setDownloadBusy] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const revisionRef = useRef(initialDraft?.revision ?? 0);
   const dirtyRef = useRef(false);
   const editVersionRef = useRef(0);
   const saveInFlightRef = useRef<Promise<boolean> | null>(null);
   const saveAbortRef = useRef<AbortController | null>(null);
+  const draftTimerRef = useRef<number | null>(null);
   const requestKeyRef = useRef(createRequestKey());
   const sentinelRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -403,6 +411,9 @@ export default function CustomerBridgeSelect({
   const sideTabRef = useRef(sideTab);
   const lastMessageIdRef = useRef<string | null>(null);
   const messagesLengthRef = useRef(0);
+  const messageRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const guideButtonRef = useRef<HTMLButtonElement>(null);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
   const pointerRef = useRef<{
     start: { x: number; y: number };
     initial: Set<string>;
@@ -456,25 +467,35 @@ export default function CustomerBridgeSelect({
     setSaveMessage("");
   }, []);
 
-  const loadQuality = useCallback(async (quiet = false) => {
+  const loadQuality = useCallback(async (options?: { quiet?: boolean; jobOnly?: boolean }) => {
     if (!qualityApi) return;
     try {
-      const response = await fetch(qualityApi, { cache: "no-store" });
+      const separator = qualityApi.includes("?") ? "&" : "?";
+      const response = await fetch(options?.jobOnly ? `${qualityApi}${separator}jobOnly=1` : qualityApi, { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error || "AI 품질 결과를 불러오지 못했습니다.");
-      const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
-      setQualityResults(next);
+      if (!options?.jobOnly) {
+        const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
+        setQualityResults(next);
+      }
       setQualityJob(result.job ?? null);
-      if (!quiet) setQualityState("");
+      if (!options?.quiet) setQualityState("");
+      return result;
     } catch (error) {
-      if (!quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
+      if (!options?.quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
     }
   }, [qualityApi]);
 
   useEffect(() => { void loadQuality(); }, [loadQuality]);
   useEffect(() => {
     if (!qualityApi || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
-    const timer = window.setInterval(() => void loadQuality(true), 2500);
+    const refresh = async () => {
+      if (document.visibilityState !== "visible") return;
+      const result = await loadQuality({ quiet: true, jobOnly: true });
+      const status = String(result?.job?.status ?? "");
+      if (status && !["queued", "running"].includes(status)) await loadQuality({ quiet: true });
+    };
+    const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
   }, [loadQuality, qualityApi, qualityJob]);
 
@@ -653,12 +674,80 @@ export default function CustomerBridgeSelect({
   }, [customerColorLabels, customerMemo, customerRatings, endpointBase, images, localStorageScope, notes, readOnly]);
 
   useEffect(() => {
+    if (draftTimerRef.current !== null) {
+      window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
     if (readOnly || !dirtyRef.current) return;
-    const timer = window.setTimeout(() => { void saveDraft({ quiet: true }); }, 550);
-    return () => window.clearTimeout(timer);
+    draftTimerRef.current = window.setTimeout(() => {
+      draftTimerRef.current = null;
+      void saveDraft({ quiet: true });
+    }, 550);
+    return () => {
+      if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    };
   }, [customerColorLabels, customerMemo, customerRatings, notes, readOnly, saveDraft]);
 
-  useEffect(() => () => saveAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    if (draftTimerRef.current !== null) window.clearTimeout(draftTimerRef.current);
+    saveAbortRef.current?.abort();
+  }, []);
+
+  const closeResetConfirm = useCallback(() => {
+    if (resetting) return;
+    setResetConfirmOpen(false);
+    requestAnimationFrame(() => resetButtonRef.current?.focus());
+  }, [resetting]);
+
+  const resetSelection = useCallback(async () => {
+    if (readOnly || resetting) return;
+    setResetting(true);
+    setSaveState("saving");
+    setSaveMessage("셀렉 초기화 저장 중");
+    if (draftTimerRef.current !== null) {
+      window.clearTimeout(draftTimerRef.current);
+      draftTimerRef.current = null;
+    }
+    try {
+      if (saveInFlightRef.current) await saveInFlightRef.current;
+      const response = await fetch(`${endpointBase}/draft`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ revision: revisionRef.current, items: [], customerMemo }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        setSaveState("conflict");
+        setSaveMessage("다른 화면에서 변경됨 · 새로고침 후 확인해 주세요");
+        return;
+      }
+      if (!response.ok || !result.ok) throw new Error(result.error ?? "셀렉을 초기화하지 못했습니다.");
+
+      revisionRef.current = Number(result.draft?.revision ?? revisionRef.current + 1);
+      editVersionRef.current += 1;
+      dirtyRef.current = false;
+      setCustomerRatings({});
+      setCustomerColorLabels({});
+      setNotes({});
+      setActiveImageIds(new Set());
+      setAnchorId(null);
+      setReviewIds(null);
+      setReviewActiveId(null);
+      setReviewRemoved(null);
+      setFilter("all");
+      setSaveState("saved");
+      setSaveMessage("셀렉이 초기화되었습니다.");
+      setResetConfirmOpen(false);
+      try { localStorage.removeItem(`customer-bridge-draft:${localStorageScope}`); } catch (error) { reportOptionalStorageError("reset-draft-clear", error); }
+      requestAnimationFrame(() => resetButtonRef.current?.focus());
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(error instanceof Error ? error.message : "셀렉을 초기화하지 못했습니다.");
+    } finally {
+      setResetting(false);
+    }
+  }, [customerMemo, endpointBase, localStorageScope, readOnly, resetting]);
 
   useEffect(() => {
     if (readOnly || initialDraft || initialSelection) return;
@@ -707,61 +796,59 @@ export default function CustomerBridgeSelect({
     }
   }, [messages.length, sideTab]);
 
-  const loadMessages = useCallback(async (options?: { quiet?: boolean }) => {
-    if (!messagesEnabled) return;
-    try {
-      const response = await fetch(`${endpointBase}/messages`, { cache: "no-store" });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.error || "대화를 불러오지 못했습니다.");
-      const next = Array.isArray(result.messages) ? result.messages as PersonSelectProjectMessage[] : [];
-      const nextLastId = next.at(-1)?.id ?? null;
-      if (lastMessageIdRef.current && nextLastId && lastMessageIdRef.current !== nextLastId && sideTabRef.current !== "chat") {
-        setUnreadMessages((count) => count + Math.max(1, next.length - messagesLengthRef.current));
+  const loadMessages = useCallback((options?: { quiet?: boolean }) => {
+    if (!messagesEnabled) return Promise.resolve();
+    if (messageRefreshInFlightRef.current) return messageRefreshInFlightRef.current;
+    const request = (async () => {
+      try {
+        const response = await fetch(`${endpointBase}/messages`, { cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error(result.error || "대화를 불러오지 못했습니다.");
+        const next = Array.isArray(result.messages) ? result.messages as PersonSelectProjectMessage[] : [];
+        const nextLastId = next.at(-1)?.id ?? null;
+        if (lastMessageIdRef.current && nextLastId && lastMessageIdRef.current !== nextLastId && sideTabRef.current !== "chat") {
+          setUnreadMessages((count) => count + Math.max(1, next.length - messagesLengthRef.current));
+        }
+        lastMessageIdRef.current = nextLastId;
+        messagesLengthRef.current = next.length;
+        setMessages(next);
+        setMessageState("");
+        if (sideTabRef.current === "chat") requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ block: "end" }));
+      } catch (error) {
+        if (!options?.quiet) setMessageState(error instanceof Error ? error.message : "대화 연결을 확인해 주세요.");
       }
-      lastMessageIdRef.current = nextLastId;
-      messagesLengthRef.current = next.length;
-      setMessages(next);
-      setMessageState("");
-      if (sideTabRef.current === "chat") requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ block: "end" }));
-    } catch (error) {
-      if (!options?.quiet) setMessageState(error instanceof Error ? error.message : "대화 연결을 확인해 주세요.");
-    }
+    })();
+    messageRefreshInFlightRef.current = request;
+    void request.finally(() => {
+      if (messageRefreshInFlightRef.current === request) messageRefreshInFlightRef.current = null;
+    });
+    return request;
   }, [endpointBase, messagesEnabled]);
 
+  const messagePanelVisible = messagesEnabled && sideTab === "chat" && (!mobile || mobileSideOpen);
   useEffect(() => {
-    if (!messagesEnabled) return;
-    void loadMessages();
-    const events = new EventSource(`${endpointBase}/messages/events`);
-    const refresh = () => void loadMessages({ quiet: true });
-    let fallback: number | null = null;
-    let opened = false;
-    const stopFallback = () => {
-      if (fallback === null) return;
-      window.clearInterval(fallback);
-      fallback = null;
+    if (!messagePanelVisible) return;
+    const refresh = (quiet = true) => {
+      if (!shouldRunVisiblePoll({
+        enabled: messagesEnabled,
+        surfaceVisible: messagePanelVisible,
+        documentVisibility: document.visibilityState,
+      })) return;
+      void loadMessages({ quiet });
     };
-    const startFallback = () => {
-      if (fallback !== null) return;
-      fallback = window.setInterval(() => {
-        if (document.visibilityState === "visible") refresh();
-      }, 30_000);
-    };
-    events.onopen = () => {
-      stopFallback();
-      setMessageState("");
-      if (opened) refresh();
-      opened = true;
-    };
-    events.addEventListener("changed", refresh);
-    events.onerror = () => {
-      setMessageState("대화 연결을 다시 시도하는 중입니다.");
-      startFallback();
-    };
+    const onFocus = () => refresh();
+    const onVisibility = () => refresh();
+
+    refresh(false);
+    const pollTimer = window.setInterval(refresh, PROJECT_MESSAGE_POLL_INTERVAL_MS);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      stopFallback();
-      events.close();
+      window.clearInterval(pollTimer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [endpointBase, loadMessages, messagesEnabled]);
+  }, [loadMessages, messagePanelVisible, messagesEnabled]);
 
   const sendMessage = useCallback(async () => {
     const body = messageText.trim();
@@ -846,8 +933,21 @@ export default function CustomerBridgeSelect({
     openLocation(parent ? { kind: "folder", path: parent } : { kind: "root" });
   }, [location, openLocation]);
 
+  const closeGuide = useCallback(() => {
+    setGuideOpen(false);
+    requestAnimationFrame(() => guideButtonRef.current?.focus());
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (guideOpen || resetConfirmOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          if (guideOpen) closeGuide();
+          else closeResetConfirm();
+        }
+        return;
+      }
       if (event.isComposing || isTypingTarget(event.target)) return;
       if (event.key === "Escape") {
         if (fullscreenId) setFullscreenId(null);
@@ -933,7 +1033,7 @@ export default function CustomerBridgeSelect({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeImageIds, anchorId, applyRatingTo, customerColorLabels, customerRatings, focusedImageId, fullscreenId, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
+  }, [activeImageIds, anchorId, applyRatingTo, closeGuide, closeResetConfirm, customerColorLabels, customerRatings, focusedImageId, fullscreenId, guideOpen, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
 
   const handlePhotoClick = useCallback((image: CustomerBridgeImage, event: SelectionModifiers) => {
     setFocusedImageId(image.id);
@@ -1056,6 +1156,7 @@ export default function CustomerBridgeSelect({
       {location.kind !== "root" ? <div className={styles.topFilters} aria-label="고객 셀렉 필터">
         {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}</button>)}
       </div> : null}
+      <button ref={guideButtonRef} type="button" className={`${styles.headerAction} ${styles.guideAction}`} title="사진 선택 이용 가이드" aria-haspopup="dialog" aria-expanded={guideOpen} onClick={() => setGuideOpen(true)}><BookOpenText size={14} /> 이용 가이드</button>
       {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
       {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
       {messagesEnabled ? <button type="button" className={`${styles.headerAction} ${styles.mobileChatAction}`} onClick={() => { setSideTab("chat"); setMobileSideOpen(true); }}><MessageCircle size={14} /> 대화{unreadMessages ? ` ${unreadMessages}` : ""}</button> : null}
@@ -1081,7 +1182,7 @@ export default function CustomerBridgeSelect({
           ["motion_blur", "흔들림 의심"],
           ["quality_review", "확인 필요"],
           ["quality_normal", "정상"],
-        ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}{qualityJob ? <p className={styles.qualityState}>{String(qualityJob.status ?? "")} · {Number(qualityJob.completed_count ?? 0).toLocaleString("ko-KR")} / {Number(qualityJob.total_count ?? 0).toLocaleString("ko-KR")}</p> : null}{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
+        ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}<PhotoQualityJobProgressView job={qualityJob} tone="light" />{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
         <div className={styles.folderSummary}><span>전체<b>{images.length}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
       </aside>
 
@@ -1136,11 +1237,93 @@ export default function CustomerBridgeSelect({
       </aside>
     </section>
 
-    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{downloadState || saveMessage || (reviewer?.can_finalize === false ? "검토 내용은 자동 저장됩니다 · 최종 확정 권한 없음" : "자동 저장")}</span></div><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict" || reviewer?.can_finalize === false} onClick={() => void submit()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
+    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong><span>{downloadState || saveMessage || (reviewer?.can_finalize === false ? "검토 내용은 자동 저장됩니다 · 최종 확정 권한 없음" : "자동 저장")}</span></div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || saveState === "conflict" || reviewer?.can_finalize === false} onClick={() => void submit()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
 
     {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); markDirty(); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={(id) => setFullscreenId(id)} onImageError={handleImageError} /> : null}
+    {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
+    {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
   </main>;
+}
+
+function CustomerBridgeResetDialog({ selectedCount, resetting, onCancel, onConfirm }: {
+  selectedCount: number;
+  resetting: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement>(null);
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { confirmButtonRef.current?.focus(); }, []);
+
+  return <div className={styles.resetBackdrop} onMouseDown={(event) => { if (!resetting && event.currentTarget === event.target) onCancel(); }}>
+    <section ref={dialogRef} className={styles.resetDialog} role="alertdialog" aria-modal="true" aria-labelledby="customer-bridge-reset-title" aria-describedby="customer-bridge-reset-description" onKeyDown={(event) => {
+      if (event.key !== "Tab") return;
+      const first = cancelButtonRef.current;
+      const last = confirmButtonRef.current;
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }}>
+      <header><RotateCcw size={18} /><strong id="customer-bridge-reset-title">고객 셀렉을 초기화할까요?</strong></header>
+      <p id="customer-bridge-reset-description">현재 선택한 {selectedCount.toLocaleString("ko-KR")}장의 별점·컬러와 사진별 보정 메모가 모두 지워지고 즉시 저장됩니다.</p>
+      <small>기존 최종 제출 기록과 프로젝트 사진은 삭제하지 않습니다.</small>
+      <footer><button ref={cancelButtonRef} type="button" disabled={resetting} onClick={onCancel}>취소</button><button ref={confirmButtonRef} type="button" disabled={resetting} onClick={onConfirm}>{resetting ? "초기화 중" : "셀렉 초기화"}</button></footer>
+    </section>
+  </div>;
+}
+
+function CustomerBridgeGuideDialog({ onClose }: { onClose: () => void }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
+  const trapFocus = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const focusable = dialogRef.current?.querySelectorAll<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+    if (!focusable?.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return <div className={styles.guideBackdrop} onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <div ref={dialogRef} className={styles.guideDialog} role="dialog" aria-modal="true" aria-labelledby="customer-bridge-guide-title" onKeyDown={trapFocus}>
+      <header className={styles.guideHeader}>
+        <div><strong id="customer-bridge-guide-title">Olivia Bridge 사진 선택 가이드</strong><span>사진을 확인하고 마음에 드는 사진을 별점으로 선택해 주세요.</span></div>
+        <button ref={closeButtonRef} type="button" aria-label="이용 가이드 닫기" onClick={onClose}><X size={19} /></button>
+      </header>
+      <div className={styles.guideBody}>
+        <p className={styles.guideImportant}><AlertTriangle size={18} /><span><strong>사진을 클릭하는 것만으로는 최종 선택되지 않습니다.</strong> 사진을 작업 대상으로 지정한 다음 별점이나 컬러를 적용해야 고객 셀렉에 포함됩니다.</span></p>
+        <ol className={styles.guideSteps}>
+          <li><b>1</b><div><strong>폴더에서 사진 찾기</strong><p>왼쪽에서 촬영 폴더를 선택하세요. 모든 폴더의 사진을 함께 보려면 <em>전체 사진</em>을 누릅니다.</p></div></li>
+          <li><b>2</b><div><strong>사진 확인하기</strong><p>사진을 클릭하면 오른쪽 미리보기에 크게 표시됩니다. 썸네일 크기 조절과 전체화면을 함께 사용할 수 있습니다.</p></div></li>
+          <li><b>3</b><div><strong>별점과 컬러로 셀렉하기</strong><p><kbd>1</kbd>–<kbd>5</kbd>는 별점 셀렉, <kbd>6</kbd>–<kbd>9</kbd>는 컬러 셀렉입니다. 같은 컬러 키를 한 번 더 누르거나 <kbd>0</kbd>을 누르면 해당 표시가 해제됩니다.</p></div></li>
+          <li><b>4</b><div><strong>여러 장 한 번에 작업하기</strong><p><kbd>Shift</kbd> 클릭은 연속 범위, <kbd>⌘ / Ctrl</kbd> 클릭은 떨어진 사진 추가, 빈 공간에서 드래그하면 여러 사진을 작업 대상으로 지정합니다. 이후 숫자 키를 누르면 같은 표시가 일괄 적용됩니다.</p></div></li>
+          <li><b>5</b><div><strong>리뷰로 최종 확인하기</strong><p><kbd>⌘ / Ctrl + B</kbd>로 고객 셀렉만 모아 봅니다. 방향키로 이동하고, 아래 방향키로 제외하며 위 방향키로 직전 제외를 복원합니다. <kbd>Space</kbd>는 전체화면, <kbd>Esc</kbd>는 닫기입니다.</p></div></li>
+          <li><b>6</b><div><strong>사진별 보정 메모 남기기</strong><p>오른쪽 미리보기에서 현재 사진에 필요한 보정 요청을 입력합니다. 메모는 해당 사진과 함께 저장됩니다.</p></div></li>
+          <li><b>7</b><div><strong>저장 후 최종 제출하기</strong><p>별점·컬러·메모는 자동 저장됩니다. 검토가 끝나면 반드시 <em>최종 제출</em>을 눌러 선택을 확정해 주세요.</p></div></li>
+          <li><b>8</b><div><strong>대화·다운로드·모바일 사용</strong><p>프로젝트 대화에서 담당자와 의견을 주고받을 수 있습니다. 권한이 허용된 프로젝트는 원본을 내려받을 수 있으며, 모바일에서는 사진을 눌러 크게 본 뒤 별점 버튼으로 선택합니다.</p></div></li>
+        </ol>
+      </div>
+      <footer className={styles.guideFooter}><button type="button" onClick={onClose}>가이드 닫기</button></footer>
+    </div>
+  </div>;
 }
 
 function PhotoOverlay({ image, index, total, rating, colorLabel, note, zoomed, onZoom, onClose, onPrev, onNext, onRate, onColor, onNote, onImageError, readOnly }: { image: CustomerBridgeImage; index: number; total: number; rating: number; colorLabel: CustomerBridgeColorLabel | null; note: string; zoomed: boolean; onZoom: () => void; onClose: () => void; onPrev: () => void; onNext: () => void; onRate: (rating: 0 | CustomerBridgeRating) => void; onColor: (colorLabel: CustomerBridgeColorLabel) => void; onNote: (value: string) => void; onImageError?: (imageId: string) => void; readOnly: boolean; }) {

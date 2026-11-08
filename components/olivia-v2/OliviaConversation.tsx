@@ -24,6 +24,7 @@ import {
   validateOliviaAttachmentBatch,
   type OliviaChatAttachment,
 } from "@/lib/olivia/chatAttachments";
+import { OLIVIA_CONVERSATION_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 
 const DEFAULT_SUGGESTIONS = ["프로젝트 요약해줘", "일정 확인 및 정리", "보고서 초안 작성", "고객 응대 문구 추천"];
 const DESKTOP_HOME_SUGGESTIONS = ["지관서가 씬 분류", "청담스시 계약서 만들어", "이번 주 촬영 뭐 있지", "전주푸른안과 콘티 보여줘"];
@@ -132,6 +133,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
   const pendingAttachmentsRef = useRef<PendingOliviaAttachment[]>([]);
   pendingAttachmentsRef.current = pendingAttachments;
   const [attachmentError, setAttachmentError] = useState("");
+  const [conversationSurfaceVisible, setConversationSurfaceVisible] = useState(false);
   const [processingApprovalIds, setProcessingApprovalIds] = useState<Set<string>>(() => new Set());
   const lastMessageCountRef = useRef(0);
   // 페이지를 처음 열어서 캐시/서버 기록이 아직 하나도 안 채워진 0 → N으로 바뀌는 첫 순간을
@@ -156,6 +158,7 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
       const isVisible = Boolean(
         entry?.isIntersecting && entry.intersectionRect.width > 0 && entry.intersectionRect.height > 0,
       );
+      setConversationSurfaceVisible((current) => current === isVisible ? current : isVisible);
       if (isVisible && !wasVisible) {
         if (frame != null) cancelAnimationFrame(frame);
         // OliviaConversation은 닫힐 때 unmount되지 않고 폭 0 또는 display:none 상태로 남는다.
@@ -184,34 +187,29 @@ export default function OliviaConversation({ variant = "main", showExpandToggle 
 
   useEffect(() => { void hydrate(); }, [hydrate]);
   useEffect(() => {
-    if (!conversationId) return;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleRefresh = () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(() => {
-        refreshTimer = null;
-        void refreshConversation().catch(() => undefined);
-      }, 80);
+    if (!conversationId || !isHydrated || !conversationSurfaceVisible) return;
+    const refresh = () => {
+      const state = useOliviaConversationStore.getState();
+      if (!shouldRunVisiblePoll({
+        enabled: !state.isSending && !state.isStreaming,
+        surfaceVisible: conversationSurfaceVisible,
+        documentVisibility: document.visibilityState,
+      })) return;
+      void refreshConversation().catch(() => undefined);
     };
-    const onFocus = () => scheduleRefresh();
-    const onVisibility = () => { if (document.visibilityState === "visible") scheduleRefresh(); };
+    const onFocus = () => refresh();
+    const onVisibility = () => refresh();
+
+    refresh();
+    const pollTimer = window.setInterval(refresh, OLIVIA_CONVERSATION_POLL_INTERVAL_MS);
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-
-    let events: EventSource | undefined;
-    try {
-      events = new EventSource(`/api/olivia/v2/conversation/events?conversationId=${encodeURIComponent(conversationId)}`);
-      events.addEventListener("changed", scheduleRefresh);
-    } catch {
-      // 서버 Realtime 연결이 불가능해도 focus/visibility refetch는 유지한다.
-    }
     return () => {
-      if (refreshTimer) clearTimeout(refreshTimer);
+      window.clearInterval(pollTimer);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
-      events?.close();
     };
-  }, [conversationId, refreshConversation]);
+  }, [conversationId, conversationSurfaceVisible, isHydrated, refreshConversation]);
   useEffect(() => {
     // 홈 채팅에 한정 — 촬영일이 지났는데 아직 "촬영" 단계인 프로젝트가 있으면 올리비아가
     // 먼저 물어보는 메시지를 대화 맨 끝에 꽂아 넣는다. 이미 같은 insight로 물어본 적 있으면

@@ -99,7 +99,7 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
   return (
     <div className={styles.desktop} data-home={!activeWindowId} data-olivia-desktop-root>
       <HomeDashboardDataProvider>
-        <div className={styles.desktopBody} data-chat-open={showAppChat}>
+        <div className={styles.desktopBody} data-chat-open={showAppChat} data-active-app={activeWindow?.appId ?? "home"}>
           <section className={styles.desktopStage}>
             <DesktopTopBar />
             <DesktopSurface />

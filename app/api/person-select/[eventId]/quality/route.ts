@@ -13,6 +13,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params;
   const db = getSupabaseAdmin();
+  if (request.nextUrl.searchParams.get("jobOnly") === "1") {
+    const { data: job, error } = await db.from("photo_quality_analysis_jobs").select("*").eq("event_id", eventId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+    return Response.json({ ok: true, job });
+  }
   const [{ data: results, error }, { data: job, error: jobError }] = await Promise.all([
     db.from("photo_quality_analysis_results").select(RESULT_SELECT).eq("event_id", eventId).eq("analysis_version", PHOTO_QUALITY_ANALYSIS_VERSION).order("analyzed_at", { ascending: false }),
     db.from("photo_quality_analysis_jobs").select("*").eq("event_id", eventId).order("created_at", { ascending: false }).limit(1).maybeSingle(),

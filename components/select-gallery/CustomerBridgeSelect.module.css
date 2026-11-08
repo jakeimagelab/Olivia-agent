@@ -73,6 +73,41 @@
 .mobileFolderButton { display: none; }
 .mobileChatAction, .mobileSideClose { display: none; }
 
+.guideBackdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(16,62,54,.48); }
+.guideDialog { width: min(760px,100%); max-height: min(760px,calc(100dvh - 32px)); display: grid; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; border: 1px solid var(--bridge-line-strong); border-radius: 12px; color: var(--bridge-text); background: #FDFCFA; }
+.guideHeader { min-width: 0; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--bridge-line); background: var(--bridge-panel); }
+.guideHeader > div { min-width: 0; flex: 1; display: grid; gap: 4px; }
+.guideHeader strong { color: var(--bridge-text); font-size: 15px; font-weight: 600; }
+.guideHeader span { color: var(--bridge-dim); font-size: 10px; line-height: 1.45; }
+.guideHeader button { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; padding: 0; border: 0; border-radius: 8px; color: var(--bridge-green); background: transparent; cursor: pointer; }
+.guideHeader button:hover { background: var(--bridge-panel-soft); }
+.guideBody { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; scrollbar-color: var(--bridge-line-strong) transparent; scrollbar-width: thin; }
+.guideImportant { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 12px; border: 1px solid #F0C7B7; border-radius: 9px; color: #8E391C; background: #FFF2EA; font-size: 11px; line-height: 1.55; }
+.guideImportant svg { flex: 0 0 auto; color: var(--bridge-run); }
+.guideImportant strong { display: block; margin-bottom: 2px; font-weight: 600; }
+.guideSteps { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 18px; margin: 0; padding: 0; list-style: none; }
+.guideSteps li { min-width: 0; display: grid; grid-template-columns: 30px minmax(0,1fr); align-items: start; gap: 10px; padding: 13px 0; border-bottom: 1px solid var(--bridge-line); }
+.guideSteps li > b { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; color: #fff; background: var(--bridge-green); font-size: 11px; font-weight: 600; }
+.guideSteps li > div { min-width: 0; display: grid; gap: 5px; }
+.guideSteps li strong { color: var(--bridge-text); font-size: 12px; font-weight: 600; }
+.guideSteps li p { margin: 0; color: var(--bridge-dim); font-size: 10px; line-height: 1.6; }
+.guideSteps em { color: var(--bridge-green); font-style: normal; font-weight: 600; }
+.guideSteps kbd { display: inline-flex; min-width: 22px; min-height: 21px; align-items: center; justify-content: center; padding: 0 5px; border: 1px solid var(--bridge-line-strong); border-radius: 5px; color: var(--bridge-green); background: var(--bridge-panel-soft); font: 600 9px/1 inherit; }
+.guideFooter { display: flex; justify-content: flex-end; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--bridge-line); background: var(--bridge-panel); }
+.guideFooter button { min-height: 44px; padding: 0 16px; border: 1px solid var(--bridge-green); border-radius: 8px; color: var(--bridge-green); background: transparent; font: 600 11px/1 inherit; cursor: pointer; }
+.guideFooter button:hover { background: var(--bridge-panel-soft); }
+
+.resetBackdrop { position: fixed; z-index: 1210; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(16,62,54,.48); }
+.resetDialog { width: min(420px,100%); display: grid; gap: 10px; padding: 18px; border: 1px solid var(--bridge-line-strong); border-radius: 12px; color: var(--bridge-text); background: #FDFCFA; }
+.resetDialog > header { display: flex; align-items: center; gap: 9px; color: #8E391C; }
+.resetDialog > header strong { font-size: 14px; font-weight: 600; }
+.resetDialog > p { margin: 0; color: var(--bridge-text); font-size: 11px; line-height: 1.65; }
+.resetDialog > small { color: var(--bridge-dim); font-size: 9px; line-height: 1.55; }
+.resetDialog > footer { display: flex; justify-content: flex-end; gap: 7px; margin-top: 4px; }
+.resetDialog > footer button { min-height: 44px; padding: 0 14px; border: 1px solid var(--bridge-line-strong); border-radius: 8px; color: var(--bridge-green); background: transparent; font: 600 10px/1 inherit; cursor: pointer; }
+.resetDialog > footer button:last-child { border-color: #C94A1E; color: #fff; background: #C94A1E; }
+.resetDialog > footer button:disabled { border-color: var(--bridge-line); color: #A8B5B2; background: transparent; cursor: not-allowed; }
+
 .workspace {
   --bridge-folder-width: 210px;
   --bridge-preview-width: 320px;
@@ -240,10 +275,12 @@
 .footerSummary { min-width: 0; flex: 1; display: grid; gap: 3px; }
 .footerSummary strong { color: var(--bridge-text); font-size: 11px; }
 .footerSummary span { color: var(--bridge-dim); font-size: 9px; }
-.reviewButton, .submitButton { min-height: 44px; padding: 0 16px; border: 1px solid var(--bridge-line-strong); border-radius: 8px; font: 600 11px/1 inherit; cursor: pointer; }
+.resetButton, .reviewButton, .submitButton { min-height: 44px; padding: 0 16px; border: 1px solid var(--bridge-line-strong); border-radius: 8px; font: 600 11px/1 inherit; cursor: pointer; }
+.resetButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-color: transparent; color: var(--bridge-dim); background: transparent; }
+.resetButton:hover:not(:disabled) { color: #A44928; background: var(--bridge-panel-soft); }
 .reviewButton { color: var(--bridge-green); background: transparent; }
 .submitButton { color: #fff; border-color: var(--bridge-run); background: var(--bridge-run); }
-.reviewButton:disabled, .submitButton:disabled { color: #A8B5B2; border-color: var(--bridge-line); background: transparent; opacity: 1; cursor: not-allowed; }
+.resetButton:disabled, .reviewButton:disabled, .submitButton:disabled { color: #A8B5B2; border-color: var(--bridge-line); background: transparent; opacity: 1; cursor: not-allowed; }
 
 .folderBackdrop { display: none; }
 .overlay, .reviewOverlay { position: fixed; z-index: 1000; inset: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0,1fr) auto; overflow: hidden; color: #fff; background: #171717; }
@@ -308,6 +345,12 @@
   .breadcrumbs { font-size: 9px; }
   .breadcrumbs > span, .breadcrumbs > svg:nth-of-type(2) { display: none; }
   .headerAction { width: 34px; padding: 0; font-size: 0; }
+  .guideAction { width: 44px; min-height: 44px; }
+  .guideBackdrop { place-items: stretch; padding: max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom)); }
+  .guideDialog { width: 100%; max-height: 100%; border-radius: 10px; }
+  .guideHeader { padding: 10px 10px 10px 14px; }
+  .guideSteps { grid-template-columns: 1fr; }
+  .guideBody { padding: 12px 14px; }
   .workspace { display: block; min-height: 0; overflow: hidden; }
   .workspace > .paneDivider { display: none; }
   .folderBackdrop { position: absolute; z-index: 29; inset: 0; display: block; width: 100%; border: 0; background: rgba(0,0,0,.4); }
@@ -330,8 +373,9 @@
   .previewPanel { display: none; }
   .previewPanel[data-mobile-open="true"] { display: flex; }
   .footer { display: grid; grid-template-columns: minmax(0,1fr) auto auto; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
-  .footerSummary { min-width: 0; }
+  .footerSummary { min-width: 0; grid-column: 1 / -1; }
   .footerSummary strong { font-size: 9px; }
+  .resetButton { justify-self: start; min-height: 42px; padding: 0 8px; }
   .reviewButton, .submitButton { min-height: 42px; padding: 0 10px; }
   .overlayImage, .overlayImageZoomed { grid-template-columns: 36px minmax(0,1fr) 36px; }
   .overlayImage button, .overlayImageZoomed button { width: 34px; height: 44px; border: 0; background: transparent; }
