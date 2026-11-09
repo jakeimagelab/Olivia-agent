@@ -18,10 +18,10 @@ describe("Olivia Bridge labels", () => {
   it("keeps app edits, including an explicit clear, above later Adobe refreshes", () => {
     const targets = new Set(["photo-a"]);
     const five = updateBridgeRatingEdits({}, targets, 5);
-    expect(resolveBridgeRatings({}, { "photo-a": 3 }, five)).toEqual({ "photo-a": 5 });
+    expect(resolveBridgeRatings("both", {}, { "photo-a": 3 }, five)).toEqual({ "photo-a": 5 });
 
     const cleared = updateBridgeRatingEdits(five, targets, 0);
-    expect(resolveBridgeRatings({}, { "photo-a": 4 }, cleared)).toEqual({});
+    expect(resolveBridgeRatings("both", {}, { "photo-a": 4 }, cleared)).toEqual({});
     expect(cleared).toEqual({ "photo-a": 0 });
   });
 

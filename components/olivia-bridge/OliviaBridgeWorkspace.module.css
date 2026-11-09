@@ -97,6 +97,7 @@
 .folderSourceChooser > div > button > span { min-width: 0; display: grid; gap: 5px; }
 .folderSourceChooser > div > button strong { font-size: 11px; font-weight: 600; }
 .folderSourceChooser > div > button small { color: rgba(255, 255, 255, .45); font-size: 9px; }
+.rawRootPromptAlert { margin: 10px 10px 0; border: 1px solid #d97757; border-radius: 8px; padding: 10px 12px; color: #8f351d; background: #fff0ea; font-size: var(--ui2-f2, 10px); line-height: 1.55; white-space: pre-line; }
 
 .customerSelectionOverlay { background: rgba(25, 43, 37, .24); }
 .customerSelectionChooser {
@@ -697,6 +698,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 @container olivia-bridge (max-width: 980px) {
   .bridgeBar { gap: 7px; padding-inline: 9px; }
   .breadcrumbs { display: none; }
+  .selectionSourceControl > span { display: none; }
   .sceneStatusButton { min-width: 38px; width: 38px; padding: 0; }
   .sceneStatusButton span { display: none; }
 }
@@ -704,6 +706,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 @container olivia-bridge (max-width: 760px) {
   .folderPickerButton { width: 38px; padding: 0; justify-content: center; }
   .folderPickerButton:not(:focus) { font-size: 0; }
+  .selectionSourceControl button { padding-inline: 7px; }
   .toolBar { overflow-x: auto; scrollbar-width: none; }
   .toolBar button { width: 36px; height: 36px; }
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(240px, 40%); }
@@ -804,7 +807,13 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .connectionState i { width: 6px; height: 6px; border-radius: 50%; background: var(--ui2-ok); }
 .oliviaEntry { min-height: 30px; border: 1px solid var(--ui2-line-strong); border-radius: 8px; padding: 0 10px; color: var(--ui2-green); background: transparent; font: 500 var(--ui2-f2)/1 inherit; }
 .oliviaEntry:hover { background: var(--ui2-green-soft); }
-.pathBar { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--bridge-line); background: var(--ui2-sunk); }
+.pathBar { min-width: 0; position: relative; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--bridge-line); background: var(--ui2-sunk); }
+.selectionSourceControl { flex: 0 0 auto; display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--bridge-line); border-radius: 8px; background: var(--bridge-panel); }
+.selectionSourceControl > span { padding: 0 9px; color: var(--ui2-dim, rgba(255,255,255,.55)); font-size: var(--ui2-f1, 9px); white-space: nowrap; }
+.selectionSourceControl button { min-height: 28px; border: 0; border-left: 1px solid var(--bridge-line); padding: 0 9px; color: var(--ui2-dim, rgba(255,255,255,.58)); background: transparent; font: 500 var(--ui2-f1, 9px)/1 inherit; cursor: pointer; }
+.selectionSourceControl button:hover { color: var(--ui2-green, #4fd8b8); background: var(--ui2-green-soft, rgba(79,216,184,.08)); }
+.selectionSourceControl button[data-active="true"] { color: var(--ui2-on-run, #fff); background: var(--ui2-green, #155855); }
+.topNotice { position: absolute; z-index: 5; left: 50%; max-width: min(520px, 58%); overflow: hidden; border: 1px solid var(--ui2-line-strong, rgba(79,216,184,.42)); border-radius: 7px; padding: 6px 10px; color: var(--ui2-green, #dffff6); background: var(--ui2-card, #123336); box-shadow: 0 4px 14px rgba(27,42,39,.12); font-size: var(--ui2-f1, 9px); text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
 .nestedJpgPathToggle { display: inline-flex; align-items: center; gap: 6px; color: var(--ui2-dim); font-size: var(--ui2-f1); white-space: nowrap; }
 .nestedJpgPathToggle input { accent-color: var(--ui2-green); }
 .fileCountSummary { color: var(--ui2-dim); font-size: var(--ui2-f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -837,6 +846,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .selectionInspectorSummary strong { font-size: var(--ui2-f5); font-variant-numeric: tabular-nums; }
 .selectionInspectorSummary span,
 .selectionInspectorSummary p { margin: 0; color: var(--ui2-dim); font-size: var(--ui2-f2); }
+.selectionSourceLabel { color: var(--ui2-green); font-size: var(--ui2-f1); font-weight: 600; }
 .selectionSourceCounts { display: flex; gap: 7px; }
 .selectionSourceCounts span { padding: 5px 8px; border-radius: 999px; background: var(--ui2-sunk); color: var(--ui2-green); font-size: var(--ui2-f1); }
 .selectionSourceCounts span + span { color: var(--ui2-green); background: var(--ui2-green-soft); }

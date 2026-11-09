@@ -1,3 +1,5 @@
+import type { BridgeSelectionSource } from "@/lib/photo-bridge/toolLinkage";
+
 export const BRIDGE_COLOR_LABELS = {
   6: { name: "빨강", color: "#e45d55" },
   7: { name: "노랑", color: "#d9ad3b" },
@@ -54,11 +56,12 @@ export function normalizeBridgeRatingEdits(value: unknown): BridgeRatingEdits {
 
 /** Adobe 값과 앱 편집값을 분리하고, 앱의 0점도 명시적인 해제 상태로 유지한다. */
 export function resolveBridgeRatings(
+  source: BridgeSelectionSource,
   base: Readonly<Record<string, number>>,
   adobe: Readonly<Record<string, number>>,
   edits: Readonly<BridgeRatingEdits>,
 ) {
-  const next = { ...base, ...adobe };
+  const next = source === "olivia" ? { ...base } : { ...base, ...adobe };
   for (const [id, rating] of Object.entries(edits)) {
     if (rating === 0) delete next[id];
     else next[id] = rating;
