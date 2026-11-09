@@ -408,7 +408,7 @@ print -n -- '200'
     expect(curlArguments).toContain("https://olivia.example.test/api/worker/next");
   });
 
-  it("backs off an idle queue from 5 seconds up to the configured ceiling", async () => {
+  it("keeps idle queue pickup within the default 10 second ceiling", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-backoff-"));
     temporaryDirectories.push(root);
     const fakeBin = path.join(root, "bin");
@@ -439,12 +439,11 @@ print -r -- "$1" >> "$FAKE_SLEEP_ARGUMENTS_FILE"
         OLIVIA_WORKER_ID: "jake-macstudio-01",
         OLIVIA_WORKER_MAX_POLLS: "5",
         OLIVIA_WORKER_POLL_SECONDS: "5",
-        OLIVIA_WORKER_IDLE_MAX_SECONDS: "60",
         OLIVIA_REPO_ROOT: repoRoot,
       },
     });
 
-    expect((await readFile(sleepArguments, "utf8")).trim().split("\n")).toEqual(["5", "10", "20", "40"]);
+    expect((await readFile(sleepArguments, "utf8")).trim().split("\n")).toEqual(["5", "10", "10", "10"]);
   });
 
   it("reports the actual PHASE 6 runner error instead of a generic failure", async () => {

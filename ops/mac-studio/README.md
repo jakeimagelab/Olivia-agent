@@ -46,7 +46,7 @@ OLIVIA_WORKER_TOKEN=기존_워커_토큰
 OLIVIA_WORKER_ID=jake-macstudio-01
 OLIVIA_REPO_ROOT=/Users/jakemacstudio/olivia-worker
 OLIVIA_WORKER_POLL_SECONDS=5
-OLIVIA_WORKER_IDLE_MAX_SECONDS=60
+OLIVIA_WORKER_IDLE_MAX_SECONDS=10
 OLIVIA_PHOTO_SOURCE_ROOT="/Volumes/Workstation(M.2SSD)"
 OLIVIA_PHOTO_WORK_ROOT="/Volumes/Agentstation"
 # 개인별 사진 셀렉 전용 허용 루트 — JSON 배열 또는 줄바꿈 목록(콜론 구분 금지)
@@ -61,7 +61,8 @@ OLIVIA_PERSON_SELECT_ROOTS='["/Volumes/Workstation(M.2SSD)","/Users/jakemacstudi
 
 Worker는 작업 직후에는 `OLIVIA_WORKER_POLL_SECONDS` 간격으로 확인하고, 큐가 비어 있으면
 간격을 두 배씩 늘려 `OLIVIA_WORKER_IDLE_MAX_SECONDS`까지만 기다린다. 새 작업을 받으면 즉시
-기본 간격으로 돌아간다. 이 값들을 생략하면 각각 5초와 60초를 사용한다.
+기본 간격으로 돌아간다. 이 값들을 생략하면 각각 5초와 10초를 사용한다. JPG정리처럼
+사용자가 바로 실행하는 작업은 유휴 상태에서도 최대 10초 안에 가져온다.
 
 ## 4. Worker 재시작과 확인
 

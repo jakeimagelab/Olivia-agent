@@ -13,6 +13,7 @@ class TestFile {
 class TestDirectory {
   readonly kind = "directory" as const;
   readonly children = new Map<string, TestEntry>();
+  fileHandleLookups = 0;
   constructor(readonly name: string) {}
   add(entry: TestEntry) { this.children.set(entry.name, entry); return this; }
   async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> {
@@ -24,6 +25,7 @@ class TestDirectory {
     throw new DOMException("Not found", "NotFoundError");
   }
   async getFileHandle(name: string): Promise<FileSystemFileHandle> {
+    this.fileHandleLookups += 1;
     const entry = this.children.get(name);
     if (entry instanceof TestFile) return entry as unknown as FileSystemFileHandle;
     throw new DOMException("Not found", "NotFoundError");
@@ -80,9 +82,10 @@ describe("JPG정리 계획", () => {
     const root = new TestDirectory("촬영")
       .add(new TestFile("same.jpg", 100, 5))
       .add(new TestFile("different.jpg", 200, 5));
-    root.add(new TestDirectory("JPG전체")
+    const destination = new TestDirectory("JPG전체")
       .add(new TestFile("same.jpg", 100, 5))
-      .add(new TestFile("different.jpg", 201, 5)));
+      .add(new TestFile("different.jpg", 201, 5));
+    root.add(destination);
 
     const plan = await buildJpgPrepPlan(root as unknown as FileSystemDirectoryHandle, {
       includeSubdirectories: true,
@@ -91,6 +94,23 @@ describe("JPG정리 계획", () => {
 
     expect(plan.rows.find((row) => row.name === "same.jpg")?.status).toBe("skip");
     expect(plan.rows.find((row) => row.name === "different.jpg")?.status).toBe("conflict");
+    expect(destination.fileHandleLookups).toBe(0);
+  });
+
+  it("indexes destination parent collisions without probing each source path", async () => {
+    const root = new TestDirectory("촬영");
+    root.add(new TestDirectory("세부").add(new TestFile("A.JPG", 100, 5)));
+    const destination = new TestDirectory("JPG전체").add(new TestFile("세부", 10, 1));
+    root.add(destination);
+
+    const plan = await buildJpgPrepPlan(root as unknown as FileSystemDirectoryHandle, {
+      includeSubdirectories: true,
+      preserveStructure: true,
+    });
+
+    expect(plan.rows).toHaveLength(1);
+    expect(plan.rows[0]).toMatchObject({ status: "conflict", reason: "목적지 상위 경로에 같은 이름의 파일이 있습니다." });
+    expect(destination.fileHandleLookups).toBe(0);
   });
 
   it("calls moveFileFast only with JPG plan rows and documents RAW as untouched", () => {

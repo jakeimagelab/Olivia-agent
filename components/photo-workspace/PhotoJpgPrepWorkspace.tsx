@@ -46,9 +46,17 @@ type RunProgress = {
   conflicts: number;
 };
 
+type DestinationEntry =
+  | { kind: "file"; file: File }
+  | { kind: "directory" };
+
+type SourceJpgCandidate = Omit<SourceJpg, "size" | "lastModified">;
+
 const EMPTY_STATS: Stats = { moved: 0, skipped: 0, rawUntouched: 0, conflicts: 0 };
 const MAX_DEPTH = 5;
 const RESULT_ROW_LIMIT = 40;
+const FILE_METADATA_CONCURRENCY = 16;
+const LOCAL_MOVE_CONCURRENCY = 3;
 
 function extension(fileName: string): string {
   return fileName.split(".").pop()?.toLocaleLowerCase("en-US") ?? "";
@@ -56,6 +64,28 @@ function extension(fileName: string): string {
 
 function isNotFound(error: unknown): boolean {
   return error instanceof DOMException && error.name === "NotFoundError";
+}
+
+async function mapConcurrent<T, R>(
+  items: readonly T[],
+  concurrency: number,
+  run: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const next = async () => {
+    while (cursor < items.length) {
+      const index = cursor;
+      cursor += 1;
+      results[index] = await run(items[index], index);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => next()));
+  return results;
+}
+
+function destinationKey(segments: readonly string[]): string {
+  return segments.join("/").normalize("NFC").toLocaleLowerCase("en-US");
 }
 
 async function directoryIfPresent(
@@ -109,7 +139,7 @@ export function isJpgIntegratedRoot(name: string): boolean {
 }
 
 async function collectSources(root: FileSystemDirectoryHandle, includeSubdirectories: boolean): Promise<{ jpgs: SourceJpg[]; rawUntouched: number; hiddenExcluded: number }> {
-  const jpgs: SourceJpg[] = [];
+  const candidates: SourceJpgCandidate[] = [];
   let rawUntouched = 0;
   let hiddenExcluded = 0;
 
@@ -134,46 +164,90 @@ async function collectSources(root: FileSystemDirectoryHandle, includeSubdirecto
         continue;
       }
       if (!CAMERA_JPG_EXTENSIONS.has(fileExtension)) continue;
-      const file = await (handle as FileSystemFileHandle).getFile();
-      jpgs.push({
+      candidates.push({
         fileHandle: handle as FileSystemFileHandle,
         sourceDirectory: directory,
         name,
-        size: file.size,
-        lastModified: file.lastModified,
         relativeDirectory,
       });
     }
   };
 
   await visit(root, [], 0);
+  const jpgs = await mapConcurrent(candidates, FILE_METADATA_CONCURRENCY, async (candidate) => {
+    const file = await candidate.fileHandle.getFile();
+    return { ...candidate, size: file.size, lastModified: file.lastModified };
+  });
   return { jpgs, rawUntouched, hiddenExcluded };
+}
+
+async function collectDestinationIndex(root: FileSystemDirectoryHandle): Promise<Map<string, DestinationEntry>> {
+  const index = new Map<string, DestinationEntry>();
+  const integrated = await directoryIfPresent(root, [JPG_INTEGRATED_DIRECTORY]);
+  if (!integrated) return index;
+
+  const files: Array<{ key: string; handle: FileSystemFileHandle }> = [];
+  const visit = async (directory: FileSystemDirectoryHandle, relativeDirectory: string[], depth: number): Promise<void> => {
+    for await (const [name, handle] of (directory as FileSystemDirectoryHandle & { entries(): AsyncIterableIterator<[string, FileSystemHandle]> }).entries()) {
+      const relativePath = [...relativeDirectory, name];
+      const key = destinationKey(relativePath);
+      if (handle.kind === "directory") {
+        index.set(key, { kind: "directory" });
+        if (depth < MAX_DEPTH) await visit(handle as FileSystemDirectoryHandle, relativePath, depth + 1);
+      } else {
+        files.push({ key, handle: handle as FileSystemFileHandle });
+      }
+    }
+  };
+
+  await visit(integrated, [], 0);
+  const metadata = await mapConcurrent(files, FILE_METADATA_CONCURRENCY, async ({ key, handle }) => ({
+    key,
+    file: await handle.getFile(),
+  }));
+  for (const entry of metadata) index.set(entry.key, { kind: "file", file: entry.file });
+  return index;
+}
+
+function destinationParentConflict(index: ReadonlyMap<string, DestinationEntry>, segments: readonly string[]): boolean {
+  for (let length = 1; length <= segments.length; length += 1) {
+    if (index.get(destinationKey(segments.slice(0, length)))?.kind === "file") return true;
+  }
+  return false;
 }
 
 export async function buildJpgPrepPlan(
   root: FileSystemDirectoryHandle,
   options: { includeSubdirectories: boolean; preserveStructure: boolean },
 ): Promise<PrepPlan> {
-  const { jpgs, rawUntouched, hiddenExcluded } = await collectSources(root, options.includeSubdirectories);
+  const [{ jpgs, rawUntouched, hiddenExcluded }, destinationIndex] = await Promise.all([
+    collectSources(root, options.includeSubdirectories),
+    collectDestinationIndex(root),
+  ]);
   const plannedDestination = new Map<string, SourceJpg>();
   const rows: PlanRow[] = [];
 
   for (const jpg of jpgs) {
     const destinationDirectory = options.preserveStructure ? jpg.relativeDirectory : [];
     const destinationPath = [JPG_INTEGRATED_DIRECTORY, ...destinationDirectory, jpg.name].join("/");
-    const destinationKey = destinationPath.normalize("NFC").toLocaleLowerCase("en-US");
-    const duplicatePlan = plannedDestination.get(destinationKey);
+    const destinationSegments = [...destinationDirectory, jpg.name];
+    const key = destinationKey(destinationSegments);
+    const duplicatePlan = plannedDestination.get(key);
     if (duplicatePlan) {
       rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: `다른 원본과 목적지 이름이 같습니다: ${duplicatePlan.name}` });
       continue;
     }
-    plannedDestination.set(destinationKey, jpg);
+    plannedDestination.set(key, jpg);
 
-    const existing = await existingDestination(root, destinationDirectory, jpg.name);
-    if (existing === "directory") {
+    if (destinationParentConflict(destinationIndex, destinationDirectory)) {
+      rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: "목적지 상위 경로에 같은 이름의 파일이 있습니다." });
+      continue;
+    }
+    const existing = destinationIndex.get(key);
+    if (existing?.kind === "directory") {
       rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: "같은 이름의 폴더가 있습니다." });
-    } else if (existing) {
-      const identical = existing.size === jpg.size && existing.lastModified === jpg.lastModified;
+    } else if (existing?.kind === "file") {
+      const identical = existing.file.size === jpg.size && existing.file.lastModified === jpg.lastModified;
       rows.push({
         ...jpg,
         destinationDirectory,
@@ -366,36 +440,41 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect, bridgeEmbedde
     };
 
     try {
-      const completedRows: PlanRow[] = [];
-      let stoppedAt = plan.rows.length;
+      const completedRows = [...plan.rows];
+      const pendingMoves: Array<{ index: number; row: PlanRow }> = [];
       for (const [index, row] of plan.rows.entries()) {
-        if (stopRequestedRef.current) {
-          stoppedAt = index;
-          break;
-        }
-
-        progressSnapshot.currentName = row.name;
-        if (row.status !== "move") {
-          completedRows.push(row);
-          if (row.status === "conflict") progressSnapshot.conflicts += 1;
-          else progressSnapshot.skipped += 1;
-          progressSnapshot.processed += 1;
-          paintProgress();
+        if (row.status === "move") {
+          pendingMoves.push({ index, row });
           continue;
         }
-        try {
-          await movePlannedJpg(root, row);
-          progressSnapshot.moved += 1;
-          completedRows.push({ ...row, status: "moved", reason: "JPG전체로 옮겼습니다." });
-        } catch (error) {
-          progressSnapshot.conflicts += 1;
-          completedRows.push({ ...row, status: "conflict", reason: error instanceof Error ? error.message : "옮기지 못했습니다." });
-        }
+        if (row.status === "conflict") progressSnapshot.conflicts += 1;
+        else progressSnapshot.skipped += 1;
         progressSnapshot.processed += 1;
-        paintProgress();
       }
 
-      if (stoppedAt < plan.rows.length) completedRows.push(...plan.rows.slice(stoppedAt));
+      let moveCursor = 0;
+      const moveNext = async () => {
+        while (!stopRequestedRef.current && moveCursor < pendingMoves.length) {
+          const entry = pendingMoves[moveCursor];
+          moveCursor += 1;
+          progressSnapshot.currentName = entry.row.name;
+          try {
+            await movePlannedJpg(root, entry.row);
+            progressSnapshot.moved += 1;
+            completedRows[entry.index] = { ...entry.row, status: "moved", reason: "JPG전체로 옮겼습니다." };
+          } catch (error) {
+            progressSnapshot.conflicts += 1;
+            completedRows[entry.index] = { ...entry.row, status: "conflict", reason: error instanceof Error ? error.message : "옮기지 못했습니다." };
+          }
+          progressSnapshot.processed += 1;
+          paintProgress();
+        }
+      };
+      await Promise.all(Array.from(
+        { length: Math.min(LOCAL_MOVE_CONCURRENCY, pendingMoves.length) },
+        () => moveNext(),
+      ));
+
       paintProgress(true);
       const resultPlan = { rows: completedRows, rawUntouched: plan.rawUntouched, hiddenExcluded: plan.hiddenExcluded };
       setPlan(resultPlan);
