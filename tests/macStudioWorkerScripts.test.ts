@@ -446,6 +446,61 @@ print -r -- "$1" >> "$FAKE_SLEEP_ARGUMENTS_FILE"
     expect((await readFile(sleepArguments, "utf8")).trim().split("\n")).toEqual(["5", "10", "10", "10"]);
   });
 
+  it("polls every second briefly after completing a job, then returns to idle backoff", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-interactive-"));
+    temporaryDirectories.push(root);
+    const fakeBin = path.join(root, "bin");
+    const counterFile = path.join(root, "counter.txt");
+    const sleepArguments = path.join(root, "sleep-arguments.txt");
+    const fakeBridge = path.join(root, "remote-bridge.sh");
+    await mkdir(fakeBin);
+    await writeFile(path.join(fakeBin, "curl"), `#!/bin/zsh
+output=""
+while (( $# > 0 )); do
+  if [[ "$1" == "-o" ]]; then output="$2"; shift 2; else shift; fi
+done
+count=0
+[[ -f "$FAKE_COUNTER_FILE" ]] && count="$(cat "$FAKE_COUNTER_FILE")"
+(( count += 1 ))
+print -r -- "$count" > "$FAKE_COUNTER_FILE"
+if (( count == 1 )); then
+  print -r -- '{"job_id":"job-1","action":"TEST","payload":{}}' > "$output"
+else
+  print -r -- '{}' > "$output"
+fi
+print -n -- '200'
+`, "utf8");
+    await writeFile(path.join(fakeBin, "sleep"), `#!/bin/zsh
+print -r -- "$1" >> "$FAKE_SLEEP_ARGUMENTS_FILE"
+`, "utf8");
+    await writeFile(fakeBridge, `#!/bin/zsh
+grep -q '"job_id"' "$2" && exit 0
+exit 3
+`, "utf8");
+    await Promise.all([chmod(path.join(fakeBin, "curl"), 0o755), chmod(path.join(fakeBin, "sleep"), 0o755), chmod(fakeBridge, 0o755)]);
+
+    await execFileAsync("/bin/zsh", [path.join(repoRoot, "ops/mac-studio/bin/worker.sh")], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: fakeBin,
+        FAKE_COUNTER_FILE: counterFile,
+        FAKE_SLEEP_ARGUMENTS_FILE: sleepArguments,
+        REMOTE_API_BASE: "https://olivia.example.test",
+        OLIVIA_WORKER_TOKEN: "existing-worker-token",
+        OLIVIA_WORKER_ID: "jake-macstudio-01",
+        OLIVIA_REMOTE_BRIDGE_PATH: fakeBridge,
+        OLIVIA_WORKER_MAX_POLLS: "5",
+        OLIVIA_WORKER_POLL_SECONDS: "5",
+        OLIVIA_WORKER_INTERACTIVE_POLL_SECONDS: "1",
+        OLIVIA_WORKER_INTERACTIVE_WINDOW_SECONDS: "2",
+        OLIVIA_REPO_ROOT: repoRoot,
+      },
+    });
+
+    expect((await readFile(sleepArguments, "utf8")).trim().split("\n")).toEqual(["1", "1", "5", "10"]);
+  });
+
   it("reports the actual PHASE 6 runner error instead of a generic failure", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "olivia-worker-bridge-"));
     temporaryDirectories.push(root);

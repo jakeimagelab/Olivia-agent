@@ -4,6 +4,7 @@ import {
   createRemoteWorkerNasDataSource,
   mapRemoteWorkerFolderResult,
   PERSON_SELECT_FOLDER_TIMEOUT_MS,
+  REMOTE_WORKER_NAS_CACHE_TTL_MS,
   RemoteNasDataSourceError,
 } from "@/lib/remote-nas/remoteNasDataSource";
 
@@ -15,6 +16,46 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe("Remote Worker NAS data source", () => {
+  it("reuses a completed folder result for 30 seconds and separates cache keys", async () => {
+    let sequence = 0;
+    const jobs = new Map<string, { path: string; foldersOnly: boolean }>();
+    const fetcher = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input) === "/api/remote-jobs" && init?.method === "POST") {
+        const request = JSON.parse(String(init.body)) as { payload: { root?: boolean; remote_path?: string; folders_only?: boolean } };
+        const id = `job-${++sequence}`;
+        jobs.set(id, { path: request.payload.root ? "" : request.payload.remote_path ?? "", foldersOnly: request.payload.folders_only === true });
+        return jsonResponse({ ok: true, job: { id, action: "LIST_FOLDER", status: "QUEUED" } });
+      }
+      const id = new URL(String(input), "https://olivia.test").searchParams.get("id") ?? "";
+      const job = jobs.get(id)!;
+      return jsonResponse({ ok: true, job: { id, action: "LIST_FOLDER", status: "COMPLETED", result: { ok: true, root: "Workstation(M.2SSD)", path: job.path, entries: [] } } });
+    });
+    const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
+
+    expect(REMOTE_WORKER_NAS_CACHE_TTL_MS).toBe(30_000);
+    const first = await source.listRoot({ foldersOnly: true });
+    const cached = await source.listRoot({ foldersOnly: true });
+    expect(cached).toBe(first);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+
+    await source.listRoot();
+    await source.listFolder("촬영", { foldersOnly: true });
+    expect(fetcher).toHaveBeenCalledTimes(6);
+  });
+
+  it("does not cache failed folder jobs", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, job: { id: "failed-job", action: "LIST_FOLDER", status: "QUEUED" } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, job: { id: "failed-job", action: "LIST_FOLDER", status: "FAILED", error: "NAS 오류" } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, job: { id: "success-job", action: "LIST_FOLDER", status: "QUEUED" } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, job: { id: "success-job", action: "LIST_FOLDER", status: "COMPLETED", result: { ok: true, root: "Workstation(M.2SSD)", path: "", entries: [] } } }));
+    const source = createRemoteWorkerNasDataSource({ fetcher, pollIntervalMs: 0 });
+
+    await expect(source.listRoot({ foldersOnly: true })).rejects.toThrow("NAS 오류");
+    await expect(source.listRoot({ foldersOnly: true })).resolves.toMatchObject({ path: "" });
+    expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
   it("maps the completed person-select root result and exposes both allowed roots", async () => {
     const completedResult = {
       ok: true,

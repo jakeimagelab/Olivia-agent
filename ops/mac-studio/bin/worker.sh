@@ -16,13 +16,15 @@ fi
 
 export PATH="${PATH:-/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin}:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
 SCRIPT_DIR="${0:A:h}"
-BRIDGE="$SCRIPT_DIR/remote-bridge.sh"
+BRIDGE="${OLIVIA_REMOTE_BRIDGE_PATH:-$SCRIPT_DIR/remote-bridge.sh}"
 REMOTE_BASE="${REMOTE_API_BASE:-${NEXT_PUBLIC_BASE_URL:-}}"
 WORKER_TOKEN_VALUE="${OLIVIA_WORKER_TOKEN:-${WORKER_TOKEN:-}}"
 WORKER_ID_VALUE="${OLIVIA_WORKER_ID:-${WORKER_ID:-jake-macstudio-01}}"
 POLL_SECONDS="${OLIVIA_WORKER_POLL_SECONDS:-5}"
 IDLE_MAX_SECONDS="${OLIVIA_WORKER_IDLE_MAX_SECONDS:-10}"
 POLL_BACKOFF_FACTOR="${OLIVIA_WORKER_POLL_BACKOFF_FACTOR:-2}"
+INTERACTIVE_POLL_SECONDS="${OLIVIA_WORKER_INTERACTIVE_POLL_SECONDS:-1}"
+INTERACTIVE_WINDOW_SECONDS="${OLIVIA_WORKER_INTERACTIVE_WINDOW_SECONDS:-30}"
 MAX_POLLS="${OLIVIA_WORKER_MAX_POLLS:-0}"
 CURRENT_BRIDGE_PID=""
 STOP_REQUESTED=0
@@ -42,6 +44,8 @@ fail_config() {
 [[ "$POLL_SECONDS" == <-> && "$POLL_SECONDS" -gt 0 ]] || fail_config "OLIVIA_WORKER_POLL_SECONDS는 1 이상의 정수여야 합니다."
 [[ "$IDLE_MAX_SECONDS" == <-> && "$IDLE_MAX_SECONDS" -ge "$POLL_SECONDS" ]] || fail_config "OLIVIA_WORKER_IDLE_MAX_SECONDS는 기본 폴링 간격 이상이어야 합니다."
 [[ "$POLL_BACKOFF_FACTOR" == <-> && "$POLL_BACKOFF_FACTOR" -ge 2 ]] || fail_config "OLIVIA_WORKER_POLL_BACKOFF_FACTOR는 2 이상의 정수여야 합니다."
+[[ "$INTERACTIVE_POLL_SECONDS" == <-> && "$INTERACTIVE_POLL_SECONDS" -gt 0 && "$INTERACTIVE_POLL_SECONDS" -le "$POLL_SECONDS" ]] || fail_config "OLIVIA_WORKER_INTERACTIVE_POLL_SECONDS는 1 이상 기본 폴링 간격 이하의 정수여야 합니다."
+[[ "$INTERACTIVE_WINDOW_SECONDS" == <-> && "$INTERACTIVE_WINDOW_SECONDS" -ge 0 ]] || fail_config "OLIVIA_WORKER_INTERACTIVE_WINDOW_SECONDS는 0 이상의 정수여야 합니다."
 [[ "$MAX_POLLS" == <-> ]] || fail_config "OLIVIA_WORKER_MAX_POLLS는 0 이상의 정수여야 합니다."
 
 REMOTE_BASE="${REMOTE_BASE%/}"
@@ -155,8 +159,9 @@ poll_once() {
   return 0
 }
 
-log "시작됨(worker=$WORKER_ID_VALUE, api=$REMOTE_BASE, poll=${POLL_SECONDS}s, idle-max=${IDLE_MAX_SECONDS}s)"
+log "시작됨(worker=$WORKER_ID_VALUE, api=$REMOTE_BASE, poll=${POLL_SECONDS}s, idle-max=${IDLE_MAX_SECONDS}s, interactive=${INTERACTIVE_POLL_SECONDS}s/${INTERACTIVE_WINDOW_SECONDS}s)"
 current_poll_seconds="$POLL_SECONDS"
+interactive_remaining_seconds=0
 poll_count=0
 while (( STOP_REQUESTED == 0 )); do
   poll_once
@@ -169,14 +174,20 @@ while (( STOP_REQUESTED == 0 )); do
     break
   fi
 
-  sleep_seconds="$current_poll_seconds"
   if (( poll_status == 0 )); then
-    if (( current_poll_seconds != POLL_SECONDS )); then
-      log "작업을 감지해 폴링 간격을 ${POLL_SECONDS}초로 복원합니다."
-    fi
+    interactive_remaining_seconds="$INTERACTIVE_WINDOW_SECONDS"
     current_poll_seconds="$POLL_SECONDS"
-    sleep_seconds="$POLL_SECONDS"
+  fi
+
+  if (( interactive_remaining_seconds > 0 )); then
+    sleep_seconds="$INTERACTIVE_POLL_SECONDS"
+    (( sleep_seconds > interactive_remaining_seconds )) && sleep_seconds="$interactive_remaining_seconds"
+    (( interactive_remaining_seconds -= sleep_seconds ))
+    if (( poll_status == 0 )); then
+      log "작업을 감지해 ${INTERACTIVE_WINDOW_SECONDS}초 동안 ${INTERACTIVE_POLL_SECONDS}초 간격으로 확인합니다."
+    fi
   else
+    sleep_seconds="$current_poll_seconds"
     next_poll_seconds=$(( current_poll_seconds * POLL_BACKOFF_FACTOR ))
     (( next_poll_seconds > IDLE_MAX_SECONDS )) && next_poll_seconds="$IDLE_MAX_SECONDS"
     if (( next_poll_seconds != current_poll_seconds )); then

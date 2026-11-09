@@ -83,6 +83,7 @@
 .matchingPhoto, .matchingPhotoEmpty { display: flex; width: 100%; aspect-ratio: 3 / 2; background: var(--ps-ph); }
 .matchingPhoto { object-fit: cover; }
 .matchingPhotoEmpty { align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--ps-sub); font-size: 11px; }
+.matchingFolder { display: grid; width: 100%; aspect-ratio: 3 / 2; place-items: center; color: var(--ps-green); background: var(--ps-ph); }
 .matchingMeta { display: grid; gap: 5px; padding: 12px 14px 14px; }
 .matchingMeta > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .matchingMeta strong { overflow: hidden; font-size: 14px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }

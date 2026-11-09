@@ -507,15 +507,15 @@ async function listFolder(payload: JsonRecord): Promise<JsonRecord> {
     if (!entry.isDirectory() && !entry.isFile()) continue;
     if (foldersOnly && !entry.isDirectory()) continue;
     const entryRelativePath = relativePath ? path.posix.join(relativePath, entry.name) : entry.name;
-    const metadata = await stat(path.join(canonicalTarget, entry.name));
+    const metadata = foldersOnly ? null : await stat(path.join(canonicalTarget, entry.name));
     entries.push({
       name: entry.name,
       displayName: entry.name.normalize("NFC"),
       path: entryRelativePath,
       displayPath: toRemoteNasDisplayPath(entryRelativePath),
       type: entry.isDirectory() ? "folder" : "file",
-      ...(entry.isFile() ? { size: metadata.size } : {}),
-      modifiedAt: metadata.mtime.toISOString(),
+      ...(entry.isFile() && metadata ? { size: metadata.size } : {}),
+      modifiedAt: metadata ? metadata.mtime.toISOString() : null,
     });
   }
   const result = {
@@ -557,7 +557,7 @@ async function listPersonSelectFolder(payload: JsonRecord): Promise<JsonRecord> 
       if (!entry.isDirectory() && !entry.isFile()) continue;
       if (foldersOnly && !entry.isDirectory()) continue;
       const childAbsolutePath = path.join(resolved.canonicalPath, entry.name);
-      const metadata = await stat(childAbsolutePath);
+      const metadata = foldersOnly ? null : await stat(childAbsolutePath);
       const relativePath = path.relative(resolved.root.canonicalPath, childAbsolutePath).split(path.sep).join("/");
       const childPath = toPersonSelectVirtualPath(resolved.root, relativePath);
       entries.push({
@@ -566,8 +566,8 @@ async function listPersonSelectFolder(payload: JsonRecord): Promise<JsonRecord> 
         path: childPath,
         displayPath: `${resolved.root.label}/${relativePath.split("/").map((part) => part.normalize("NFC")).join("/")}`,
         type: entry.isDirectory() ? "folder" : "file",
-        ...(entry.isFile() ? { size: metadata.size } : {}),
-        modifiedAt: metadata.mtime.toISOString(),
+        ...(entry.isFile() && metadata ? { size: metadata.size } : {}),
+        modifiedAt: metadata ? metadata.mtime.toISOString() : null,
       });
     }
   } catch (error) {

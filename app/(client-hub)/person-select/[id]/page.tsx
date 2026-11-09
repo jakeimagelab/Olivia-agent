@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowLeft, Clipboard, Download, FolderOpen, Info, Link2, Monitor, Plus, RefreshCw, Server, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
+import { Activity, ArrowLeft, Clipboard, Download, Folder, FolderOpen, Info, Link2, Monitor, Plus, RefreshCw, Server, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
@@ -328,17 +328,17 @@ export default function PersonSelectDetailPage() {
       </section> : null}
       {tab === "matching" && !isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}>
-          <div><h2>인원 매칭 확인</h2><p>폴더 이름과 대표 사진을 비교해 올바른 사람에게 연결됐는지 먼저 확인하세요.</p></div>
+          <div><h2>인원 매칭 확인</h2><p>원본 폴더별 등록 인원과 사진 수를 확인하세요.</p></div>
           {data.people.length ? <button className={styles.primary} onClick={() => setTab("progress")}>확인하고 진행 현황 보기</button> : <button className={styles.primary} onClick={() => setTab("upload")}>사진 올리기</button>}
         </div>
         {data.people.length ? <div className={styles.matchingGrid}>{data.people.map((person) => {
           const representative = person.representative_image;
           const photoCount = personPhotoCount(person);
           return <article className={styles.matchingCard} key={person.id}>
-            {representative?.thumb_url ? <img className={styles.matchingPhoto} src={representative.thumb_url} alt={`${person.display_name} 대표 사진`} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}><UserRound size={28} /><span>등록 사진 없음</span></div>}
-            <div className={styles.matchingMeta}><div><strong>{person.display_name}</strong><span>{photoCount.toLocaleString()}장</span></div><p>원본 폴더 · {matchingFolderName(representative?.source_rel_path)}</p>{representative ? <small>{representative.original_file_name}</small> : null}</div>
+            <div className={styles.matchingFolder} aria-hidden="true"><Folder size={56} strokeWidth={1.35} /></div>
+            <div className={styles.matchingMeta}><div><strong>{person.display_name}</strong><span>{photoCount.toLocaleString()}장</span></div><p>원본 폴더 · {matchingFolderName(representative?.source_rel_path)}</p></div>
           </article>;
-        })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 대표 사진 한 장씩 보여드려요.</span></div>}
+        })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 등록 수를 보여드려요.</span></div>}
       </section> : null}
       {tab === "progress" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>검토자별 고객 셀렉</h2><p>{selectedSharedSelection ? `${selectedReviewer?.display_name ?? "검토자"}가 ${selectedSharedSelection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "검토자를 선택해 자동 저장 수와 최종 제출 결과를 확인하세요."}</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="셀렉을 확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""} · {reviewer.selection ? `제출 ${reviewer.selection.items.length}장` : `저장 ${reviewer.draft?.selected_count ?? 0}장`}</option>)}</select> : null}{selectedSharedSelection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div></div>

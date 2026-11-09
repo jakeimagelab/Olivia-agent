@@ -20,6 +20,7 @@ import {
 export const REMOTE_WORKER_NAS_POLL_INTERVAL_MS = 800;
 export const REMOTE_WORKER_NAS_TIMEOUT_MS = 15_000;
 export const PERSON_SELECT_FOLDER_TIMEOUT_MS = 45_000;
+export const REMOTE_WORKER_NAS_CACHE_TTL_MS = 30_000;
 
 const HIDDEN_SYSTEM_ITEMS = new Set(["#recycle", ".ds_store", "@eadir"]);
 
@@ -43,6 +44,7 @@ type RemoteWorkerNasDataSourceOptions = {
   targetWorker?: string;
   action?: "LIST_FOLDER" | "PERSON_SELECT_LIST_FOLDER";
   rootName?: string;
+  cacheTtlMs?: number;
 };
 
 export type RemoteNasFailureStage =
@@ -266,6 +268,8 @@ export function createRemoteWorkerNasDataSource(
   const targetWorker = options.targetWorker?.trim() || undefined;
   const action = options.action ?? "LIST_FOLDER";
   const rootName = options.rootName ?? REMOTE_NAS_ROOT_NAME;
+  const cacheTtlMs = Math.max(0, options.cacheTtlMs ?? REMOTE_WORKER_NAS_CACHE_TTL_MS);
+  const completedCache = new Map<string, { expiresAt: number; result: RemoteNasFolderResult }>();
 
   const fetchFolder = async (
     relativePath: string,
@@ -279,6 +283,10 @@ export function createRemoteWorkerNasDataSource(
         throw new Error("NAS 루트 조회는 빈 경로가 아니라 listRoot()를 사용해야 합니다.");
       }
       throwIfAborted(externalSignal);
+      const cacheKey = [action, targetWorker ?? "", rootName, path, foldersOnly ? "folders" : "all"].join("\u0000");
+      const cached = completedCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) return cached.result;
+      if (cached) completedCache.delete(cacheKey);
       const deadline = createDeadlineSignal(timeoutMs, externalSignal);
       const signal = deadline.signal;
       let stage: RemoteNasFailureStage = "folder_lookup_job_creation";
@@ -368,7 +376,9 @@ export function createRemoteWorkerNasDataSource(
           if (job.status === "COMPLETED") {
             stage = "folder_lookup_result";
             try {
-              return mapRemoteWorkerFolderResult(job.result, path, foldersOnly, rootName);
+              const result = mapRemoteWorkerFolderResult(job.result, path, foldersOnly, rootName);
+              if (cacheTtlMs > 0) completedCache.set(cacheKey, { expiresAt: Date.now() + cacheTtlMs, result });
+              return result;
             } catch (error) {
               throw new RemoteNasDataSourceError(
                 error instanceof Error ? error.message : "NAS 폴더 결과를 읽지 못했습니다.",
