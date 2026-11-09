@@ -124,6 +124,21 @@
 .drawer { width: min(440px, 100%); height: 100%; overflow: auto; padding: 22px 20px; background: var(--ps-surface); border-left: 1px solid var(--ps-border); color: var(--ps-text); box-shadow: -18px 0 48px rgba(41,62,52,.14); }
 .drawerTop { display: flex; align-items: center; justify-content: space-between; }
 .drawerTop h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.modalBackdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 20px; background: rgba(41,62,52,.28); }
+.pinDialog { width: min(760px, 100%); max-height: min(760px, calc(100dvh - 40px)); display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 20px; border: 1px solid var(--ps-border); border-radius: 12px; background: var(--ps-surface); box-shadow: 0 18px 48px rgba(41,62,52,.18); }
+.modalTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.modalTop h2 { margin: 0; font-size: 18px; font-weight: 600; }
+.modalTop p:last-child { margin: 5px 0 0; color: var(--ps-sub); font-size: 12px; }
+.pinTableWrap { min-height: 0; flex: 1; overflow: auto; border: 1px solid var(--ps-border); border-radius: 9px; }
+.pinTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pinTable th { position: sticky; top: 0; z-index: 1; height: 38px; padding: 0 13px; color: var(--ps-sub); background: var(--ps-header); border-bottom: 1px solid var(--ps-border); text-align: left; font-size: 11px; font-weight: 400; white-space: nowrap; }
+.pinTable td { min-height: 50px; padding: 9px 13px; border-top: 1px solid var(--ps-border); vertical-align: middle; }
+.pinTable tbody tr:first-child td { border-top: 0; }
+.pinTable td strong { display: block; font-weight: 500; }
+.pinTable td small { display: block; margin-top: 3px; color: var(--ps-orange); font-size: 10.5px; }
+.pinTable code { color: var(--ps-green); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; font-weight: 600; letter-spacing: .08em; }
+.modalState { min-height: 180px; display: grid; place-items: center; color: var(--ps-sub); font-size: 12.5px; }
+.modalActions { display: flex; justify-content: flex-end; gap: 8px; }
 .choiceDetail { margin-top: 16px; padding: 12px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); font-size: 12.5px; }
 .choiceDetail img { width: 100%; max-height: 320px; object-fit: contain; border-radius: 6px; background: var(--ps-ph); }
 .choiceDetail h3 { margin: 10px 0 2px; font-size: 13px; font-weight: 600; }
@@ -153,6 +168,11 @@
 @media (max-width: 520px) {
   .matchingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .matchingMeta { padding: 10px; }
+  .modalBackdrop { padding: 8px; }
+  .pinDialog { max-height: calc(100dvh - 16px); padding: 14px; }
+  .pinTable { min-width: 590px; }
+  .modalActions { justify-content: stretch; }
+  .modalActions > * { flex: 1; }
 }
 
 /* 전역 입력칸 스타일을 이 화면의 토큰 색으로 덮는다 */

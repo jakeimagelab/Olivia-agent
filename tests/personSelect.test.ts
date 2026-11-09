@@ -6,6 +6,7 @@ import {
   canAccessImageRecord,
   constantTimePinEqual,
   createUniquePin,
+  derivePersonLoginName,
   eventIsLocked,
   isLoginRateLimited,
   normalizeLoginName,
@@ -26,6 +27,16 @@ describe("person select public access", () => {
     expect(normalizeLoginName(` ${nfd} `)).toBe("고가연");
     expect(normalizeLoginName(" 고 가연 ")).toBe("고가연");
     expect(normalizeNfc(nfd)).toBe("고가연");
+  });
+
+  it("keeps the folder display name but removes only supported trailing roles from login names", () => {
+    expect(derivePersonLoginName("김정현과장님")).toBe("김정현");
+    expect(derivePersonLoginName("김하영 부장님")).toBe("김하영");
+    expect(derivePersonLoginName("손현정대리님")).toBe("손현정");
+    expect(derivePersonLoginName("유지나대표님")).toBe("유지나");
+    expect(derivePersonLoginName("이신옥과장님")).toBe("이신옥");
+    expect(derivePersonLoginName("김과장님수")).toBe("김과장님수");
+    expect(derivePersonLoginName("하느님")).toBe("하느님");
   });
 
   it("compares PINs without exposing which character differed and locks on the tenth failure", () => {

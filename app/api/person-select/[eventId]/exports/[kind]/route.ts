@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extraPickCount, priceOrder } from "@/lib/person-select/core";
+import { derivePersonLoginName, normalizeLoginName } from "@/lib/person-select/folderRules";
 import type { PersonSelectCategory, PersonSelectOffer, PersonSelectOrderItem } from "@/lib/person-select/types";
 
 function csvCell(value: unknown) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
@@ -15,8 +16,25 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const { eventId, kind } = await context.params; const db = getSupabaseAdmin();
   const { data: event } = await db.from("person_select_events").select("title,retouch_options,categories,offers,extra_price").eq("id", eventId).single();
   if (!event) return Response.json({ ok: false, error: "행사를 찾을 수 없습니다." }, { status: 404 });
-  const { data: people } = await db.from("person_select_people").select("id,display_name,group_label,pin_code,submitted_at,orders").eq("event_id", eventId).order("display_name");
-  if (kind === "pins") return csvResponse([["이름", "담임반", "비밀번호"], ...(people ?? []).map((item) => [item.display_name, item.group_label ?? "", item.pin_code])], `${event.title}-비밀번호.csv`);
+  const { data: people } = await db.from("person_select_people").select("id,display_name,login_name,group_label,pin_code,submitted_at,orders").eq("event_id", eventId).order("display_name");
+  if (kind === "pins") {
+    if (request.nextUrl.searchParams.get("format") === "json") {
+      return Response.json({
+        ok: true,
+        eventTitle: event.title,
+        people: (people ?? []).map((item) => ({
+          id: item.id,
+          displayName: item.display_name,
+          loginName: item.login_name,
+          suggestedLoginName: derivePersonLoginName(item.display_name),
+          canAutoNormalize: normalizeLoginName(item.login_name) === normalizeLoginName(item.display_name),
+          groupLabel: item.group_label ?? "",
+          pin: item.pin_code,
+        })),
+      });
+    }
+    return csvResponse([["이름", "담임반", "비밀번호"], ...(people ?? []).map((item) => [item.display_name, item.group_label ?? "", item.pin_code])], `${event.title}-비밀번호.csv`);
+  }
   if (kind === "orders") {
     // 사람마다 추가 주문 한 줄씩 (추가 보정 포함). 주문이 없는 사람은 빼고 맨 아래에 합계를 둔다.
     const { data: picks } = await db.from("person_select_choices").select("person_id,category_key,image_id,person_select_images(original_file_name)").eq("event_id", eventId);

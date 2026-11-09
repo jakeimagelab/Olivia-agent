@@ -3,6 +3,7 @@ import { PERSON_SELECT_MAX_PICK, PERSON_SELECT_ORDER_MAX_QTY, type PersonSelectC
 import { isSelectionSubmissionLocked, validateSelectionMemo } from "@/lib/select-core";
 export {
   classifyPersonFolderName,
+  derivePersonLoginName,
   normalizeLoginName,
   normalizeNfc,
   parseGroupFolderName,

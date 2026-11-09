@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { createUniquePin } from "@/lib/person-select/core";
-import { normalizeLoginName } from "@/lib/person-select/folderRules";
+import { derivePersonLoginName, normalizeLoginName } from "@/lib/person-select/folderRules";
 import { deriveLocalImportRecord, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
@@ -69,7 +69,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   if (eventError || !event) return Response.json({ ok: false, error: eventError?.message || "행사를 찾을 수 없습니다." }, { status: 404 });
 
   await ensurePersonSelectBucket();
-  const people = new Map((peopleRows ?? []).map((person) => [person.login_name, person]));
+  const peopleByLogin = new Map((peopleRows ?? []).map((person) => [person.login_name, person]));
+  const peopleByDisplay = new Map((peopleRows ?? []).map((person) => [normalizeLoginName(person.display_name), person]));
   const usedPins = new Set((peopleRows ?? []).map((person) => person.pin_code).filter((pin): pin is string => typeof pin === "string"));
   const ownerNames = event.access_mode === "project_shared" ? [] : [...new Set(items.flatMap((item) => {
     const derived = deriveLocalImportRecord(layout, item.relativePath);
@@ -77,8 +78,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   }))];
   const createdPeople: { name: string; pin: string }[] = [];
   for (const displayName of ownerNames) {
-    const loginName = normalizeLoginName(displayName);
-    if (people.has(loginName)) continue;
+    const displayKey = normalizeLoginName(displayName);
+    const loginName = derivePersonLoginName(displayName);
+    if (peopleByDisplay.has(displayKey)) continue;
+    const sameLogin = peopleByLogin.get(loginName);
+    if (sameLogin) return Response.json({ ok: false, error: `${displayName}의 로그인 이름 '${loginName}'이 ${sameLogin.display_name}과 겹칩니다. 폴더 이름을 확인해 주세요.` }, { status: 409 });
     const pin = createUniquePin(usedPins);
     usedPins.add(pin);
     const { data: person, error } = await db.from("person_select_people")
@@ -86,7 +90,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
       .select("id,display_name,login_name,pin_code")
       .single();
     if (error || !person) return Response.json({ ok: false, error: error?.message || `${displayName} 등록에 실패했습니다.` }, { status: 500 });
-    people.set(loginName, person);
+    peopleByLogin.set(loginName, person);
+    peopleByDisplay.set(displayKey, person);
     createdPeople.push({ name: displayName, pin });
   }
 
@@ -104,7 +109,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   const existingPaths = new Set((existingRows ?? []).map((row) => String(row.source_rel_path)));
   return Response.json({
     ok: true,
-    peopleCount: people.size,
+    peopleCount: peopleByDisplay.size,
     createdPeople,
     existingPaths: items.map((item) => item.relativePath).filter((path) => existingPaths.has(path)),
   });
@@ -166,7 +171,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     const { data: person } = await db.from("person_select_people")
       .select("id")
       .eq("event_id", eventId)
-      .eq("login_name", normalizeLoginName(derived.ownerName))
+      .eq("display_name", derived.ownerName)
       .limit(1)
       .maybeSingle();
     if (!person) return Response.json({ ok: false, error: `${derived.ownerName} 등록 정보를 찾지 못했습니다.` }, { status: 409 });

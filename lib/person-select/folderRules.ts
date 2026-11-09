@@ -6,6 +6,41 @@ export function normalizeLoginName(value: string) {
   return normalizeNfc(value).replace(/\s+/g, "").trim();
 }
 
+/**
+ * 촬영 폴더에는 사람을 구분하기 위해 직책을 붙여도, 고객 로그인에는 이름만 쓴다.
+ * 단순한 "님"이나 이름 중간의 문자열은 제거하지 않고, 지원하는 끝 직책만 제거한다.
+ */
+const PERSON_LOGIN_ROLE_SUFFIXES = [
+  "대표이사님",
+  "부대표님",
+  "본부장님",
+  "부원장님",
+  "회장님",
+  "사장님",
+  "전무님",
+  "상무님",
+  "이사님",
+  "대표님",
+  "원장님",
+  "실장님",
+  "부장님",
+  "차장님",
+  "과장님",
+  "팀장님",
+  "대리님",
+  "주임님",
+  "교수님",
+  "선생님",
+] as const;
+
+export function derivePersonLoginName(displayName: string) {
+  const normalized = normalizeLoginName(displayName);
+  const suffix = PERSON_LOGIN_ROLE_SUFFIXES.find((value) => normalized.endsWith(value));
+  if (!suffix) return normalized;
+  const withoutRole = normalized.slice(0, -suffix.length);
+  return withoutRole || normalized;
+}
+
 export function parsePersonFolderName(folderName: string, prefix: string) {
   const name = normalizeNfc(folderName);
   const normalizedPrefix = normalizeNfc(prefix).replace(/_+$/, "");

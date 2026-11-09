@@ -6,7 +6,7 @@ import { readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { classifyPersonFolderName, createUniquePin, normalizeLoginName, normalizeNfc, parseGroupFolderName, parsePersonFolderName, PERSON_FOLDER_JPG_DIRECTORIES } from "@/lib/person-select/core";
+import { classifyPersonFolderName, createUniquePin, derivePersonLoginName, normalizeLoginName, normalizeNfc, parseGroupFolderName, parsePersonFolderName, PERSON_FOLDER_JPG_DIRECTORIES } from "@/lib/person-select/core";
 import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-select/types";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
@@ -178,15 +178,19 @@ async function main() {
   const { error: eventUpdateError } = await db.from("person_select_events").update(eventUpdate).eq("id", eventId);
   if (eventUpdateError) throw eventUpdateError;
   const { data: currentPeople } = await db.from("person_select_people").select("id,display_name,login_name,pin_code").eq("event_id", eventId);
-  const people = new Map((currentPeople ?? []).map((person) => [person.login_name, person]));
+  const peopleByLogin = new Map((currentPeople ?? []).map((person) => [person.login_name, person]));
+  const peopleByDisplay = new Map((currentPeople ?? []).map((person) => [normalizeLoginName(person.display_name), person]));
   const usedPins = new Set((currentPeople ?? []).map((person) => person.pin_code));
   const createdPeople: { name: string; pin: string }[] = [];
   for (const displayName of peopleNames) {
-    const loginName = normalizeLoginName(displayName); if (people.has(loginName)) continue;
+    const displayKey = normalizeLoginName(displayName);
+    const loginName = derivePersonLoginName(displayName); if (peopleByDisplay.has(displayKey)) continue;
+    const sameLogin = peopleByLogin.get(loginName);
+    if (sameLogin) throw new Error(`${displayName}의 로그인 이름 '${loginName}'이 ${sameLogin.display_name}과 겹칩니다. 폴더 이름을 확인해 주세요.`);
     const pin = createUniquePin(usedPins); usedPins.add(pin);
     const { data: person, error } = await db.from("person_select_people").insert({ event_id: eventId, display_name: displayName, login_name: loginName, pin_code: pin }).select("id,display_name,login_name,pin_code").single();
     if (error) throw error;
-    people.set(loginName, person); createdPeople.push({ name: displayName, pin });
+    peopleByLogin.set(loginName, person); peopleByDisplay.set(displayKey, person); createdPeople.push({ name: displayName, pin });
   }
   const existingRows = await readAllPersonSelectRows((from, to) => db.from("person_select_images")
     .select("id,source_rel_path")
@@ -208,7 +212,7 @@ async function main() {
         const thumbPath = `${eventId}/${imageId}_thumb.jpg`; const previewPath = `${eventId}/${imageId}_preview.jpg`; const storage = db.storage.from(PERSON_SELECT_BUCKET);
         const [a, b] = await Promise.all([storage.upload(thumbPath, thumb, { contentType: "image/jpeg" }), storage.upload(previewPath, preview, { contentType: "image/jpeg" })]);
         if (a.error || b.error) throw a.error || b.error;
-        const owner = accessMode !== "project_shared" && file.ownerName ? people.get(normalizeLoginName(file.ownerName)) : null;
+        const owner = accessMode !== "project_shared" && file.ownerName ? peopleByDisplay.get(normalizeLoginName(file.ownerName)) : null;
         const { error } = await db.from("person_select_images").insert({ id: imageId, event_id: eventId, category_key: file.category, owner_person_id: owner?.id ?? null, owner_group: file.ownerGroup, original_file_name: file.fileName, source_rel_path: file.relPath, thumb_path: thumbPath, preview_path: previewPath, width: metadata.width ?? null, height: metadata.height ?? null, sort_order: index });
         if (error) throw error; imported += 1;
       } catch (error) { failed.push({ file: file.relPath, reason: error instanceof Error ? error.message : "가져오기 실패" }); }
@@ -216,7 +220,7 @@ async function main() {
     }
   }
   await Promise.all(Array.from({ length: Math.min(4, Math.max(1, pending.length)) }, () => worker()));
-  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: people.size, createdPeople, skippedFolders, groupFolders, unnamedFolders, emptyFolders, failedCount: failed.length, failed };
+  const result = { ok: failed.length === 0, eventId, photoCount: files.length, importedCount: imported, skippedCount: files.length - pending.length, peopleCount: peopleByDisplay.size, createdPeople, skippedFolders, groupFolders, unnamedFolders, emptyFolders, failedCount: failed.length, failed };
   process.stdout.write(`${JSON.stringify(result)}\n`); if (failed.length) process.exitCode = 1;
 }
 
