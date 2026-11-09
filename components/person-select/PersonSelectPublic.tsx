@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { formatSeoulDeadline } from "@/lib/person-select/date";
+import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
 import styles from "./PersonSelectPublic.module.css";
 
@@ -593,15 +594,29 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   const full = limit > 1 && chosen.length >= limit;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!preview || (event.target instanceof HTMLInputElement) || (event.target instanceof HTMLTextAreaElement)) return;
+      const target = event.target;
+      if (!preview || event.repeat
+        || target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable)) return;
       const index = images.findIndex((image) => image.id === preview.id);
       if (event.key === "ArrowLeft") { event.preventDefault(); setPreviewId(images[Math.max(0, index - 1)]?.id ?? preview.id); }
       if (event.key === "ArrowRight") { event.preventDefault(); setPreviewId(images[Math.min(images.length - 1, index + 1)]?.id ?? preview.id); }
       if (event.key === " ") { event.preventDefault(); if (!chosenIds.has(preview.id) && !full) void save(preview.id, [], "", true); }
+      const shortcut = resolveClassicSelectionShortcut(event.key);
+      if (shortcut === "select") {
+        event.preventDefault();
+        if (!chosenIds.has(preview.id) && !full && !me.event.locked) void save(preview.id, [], "", true);
+      }
+      if (shortcut === "clear") {
+        event.preventDefault();
+        if (chosenIds.has(preview.id) && !me.event.locked) void clearChoice(preview.id);
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [chosenIds, full, images, preview, save]);
+  }, [chosenIds, clearChoice, full, images, me.event.locked, preview, save]);
   if (!active) return null;
   const required = categories.filter((item) => item.need > 0);
   const missing = required.find((item) => item.key === active.key ? (chosen.length < item.need || chosen.length > Math.max(item.need, item.max)) : !isComplete(item));
@@ -644,7 +659,7 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
           <div ref={filmstripRef} className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripNext}`} type="button" aria-label="다음 사진 묶음" onClick={() => scrollFilmstrip(1)}><ChevronRight size={20} /></button>
         </div>
-        <p className={styles.pcKeyboardHint}>← → 사진 이동 · Space 사진 고르기</p>
+        <p className={styles.pcKeyboardHint}>← → 사진 이동 · 1 선택 · 0 해제 · Space 사진 고르기</p>
       </div>
       <aside className={styles.pcFeedback}>
         <div className={styles.pcFeedbackScroll}>

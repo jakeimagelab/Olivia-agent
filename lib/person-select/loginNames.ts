@@ -13,6 +13,19 @@ export type PersonLoginNameUpdate = {
   nextLoginName: string;
 };
 
+export type PersonLoginCandidate = Pick<PersonLoginNameRow, "display_name" | "login_name">;
+
+/**
+ * 예전 프로젝트에 직책이 포함된 login_name이 남아 있어도 이름만으로 로그인할 수 있게 한다.
+ * 관리자가 직접 지정한 기존 로그인 이름도 계속 허용한다.
+ */
+export function matchesPersonLoginName(person: PersonLoginCandidate, input: string) {
+  const normalizedInput = normalizeLoginName(input);
+  if (!normalizedInput) return false;
+  return normalizeLoginName(person.login_name) === normalizedInput
+    || derivePersonLoginName(person.display_name) === normalizedInput;
+}
+
 export function planPersonLoginNameUpdates(rows: PersonLoginNameRow[]) {
   const updates: PersonLoginNameUpdate[] = [];
   const skippedCustom: PersonLoginNameUpdate[] = [];

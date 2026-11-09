@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { constantTimePinEqual, isLoginRateLimited, normalizeLoginName } from "@/lib/person-select/core";
+import { matchesPersonLoginName } from "@/lib/person-select/loginNames";
 import { createPersonSelectSession, PERSON_SELECT_COOKIE, PERSON_SELECT_SESSION_SECONDS } from "@/lib/person-select/session";
 import { isIndividualPersonSelectAccessAllowed } from "@/lib/person-select/projectSettings";
 
@@ -34,9 +35,12 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   if (event.status === "draft") return NextResponse.json({ ok: false, error: "아직 열리지 않았어요." }, { status: 403 });
 
   const { data: matches } = await db.from("person_select_people")
-    .select("id,event_id,pin_code")
-    .eq("event_id", event.id).eq("login_name", name);
-  const person = (matches ?? []).find((row) => constantTimePinEqual(String(row.pin_code ?? ""), pin));
+    .select("id,event_id,display_name,login_name,pin_code")
+    .eq("event_id", event.id);
+  const person = (matches ?? []).find((row) => (
+    matchesPersonLoginName(row, name)
+    && constantTimePinEqual(String(row.pin_code ?? ""), pin)
+  ));
   await db.from("person_select_login_attempts").insert({ event_slug: eventSlug, ip_hash: hash, succeeded: Boolean(person) });
   if (!person) return NextResponse.json({ ok: false, error: "이름 또는 비밀번호가 맞지 않아요." }, { status: 401 });
 

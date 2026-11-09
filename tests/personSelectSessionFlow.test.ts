@@ -40,8 +40,8 @@ function createSupabaseMock() {
   const person = {
     id: PERSON_ID,
     event_id: EVENT_ID,
-    display_name: "최동기",
-    login_name: "최동기",
+    display_name: "최동기과장님",
+    login_name: "최동기과장님",
     pin_code: "0420",
     group_label: "4반",
     first_seen_at: null,
@@ -135,7 +135,7 @@ describe("person select public session flow", () => {
     }), routeContext());
 
     expect(firstMe.status).toBe(200);
-    expect(await firstMe.json()).toMatchObject({ ok: true, person: { display_name: "최동기", group_label: "4반" } });
+    expect(await firstMe.json()).toMatchObject({ ok: true, person: { display_name: "최동기과장님", group_label: "4반" } });
     expect(refreshedMe.status).toBe(200);
   });
 
