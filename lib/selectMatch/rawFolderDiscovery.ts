@@ -55,7 +55,7 @@ export async function discoverRawFolder(input: {
 
   for (const candidate of input.candidates.slice(0, 3)) {
     input.onCandidate?.(candidate);
-    const index = await buildRawIndex(candidate.handle, null, undefined, targets);
+    const index = await buildRawIndex(candidate.handle, null, undefined, targets, { stopAfterFirstPerTarget: true });
     const matchedSamples = samples.reduce((count, basename) => count + (index.has(basename) ? 1 : 0), 0);
     attempts.push({ name: candidate.name, distance: candidate.distance, matchedSamples });
     if (!best || matchedSamples > best.matchedSamples) best = { candidate, matchedSamples };

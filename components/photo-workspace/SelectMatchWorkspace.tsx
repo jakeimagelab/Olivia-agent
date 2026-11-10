@@ -15,9 +15,16 @@ import {
 import {
   buildRawIndex as buildRawIndexPure,
   copyFileHandle,
-  computePreflight,
-  type RawIndexEntry,
+  type RawIndex,
 } from "@/lib/selectMatch/rawIndex";
+import {
+  buildCaptureMatchPreflight,
+  buildMatchLogCsv,
+  type CaptureMatchPreflight,
+  type JpgMatchSource,
+  type MatchLogRow,
+} from "@/lib/selectMatch/captureMatch";
+import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { C } from "@/lib/theme";
@@ -54,14 +61,6 @@ const PROGRAM_ARCHIVE_ITEMS = [
 type SceneFolder = SelectMatchFolderGroup;
 
 type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
-
-interface Preflight {
-  rawFound: number;
-  willMatch: number;
-  willMiss: number;
-  rawSamples: string[];
-  jpgSamples: string[];
-}
 
 /* ── Helpers ── */
 function releaseObjectUrl(url: string | null | undefined): void {
@@ -271,19 +270,41 @@ export function SelectMatchWorkspace({
     () => visibleScenes.reduce((sum, scene) => sum + scene.photos.length, 0),
     [visibleScenes],
   );
+  const selectedJpgSources = useMemo<JpgMatchSource[]>(() => scenes.flatMap((scene) => (
+    scene.photos.flatMap((photo) => {
+      const basename = photo.basename.normalize("NFC").toLocaleLowerCase("en-US");
+      if (!selected.has(basename)) return [];
+      return [{
+        id: photo.relativePath.normalize("NFC"),
+        name: photo.name,
+        basename,
+        relativePath: photo.relativePath,
+        handle: photo.handle,
+        thumbUrl: photo.thumbUrl,
+      }];
+    })
+  )), [scenes, selected]);
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
-  const [preflight,  setPreflight]  = useState<Preflight | null>(null);
+  const [preflight,  setPreflight]  = useState<CaptureMatchPreflight | null>(null);
+  const [manualRawChoices, setManualRawChoices] = useState<Record<string, string>>({});
   const [rawScanCount, setRawScanCount] = useState(0);
-  const [rawIndexRef] = useState<{ map: Map<string, RawIndexEntry> }>(() => ({ map: new Map() }));
+  const [rawIndexRef] = useState<{ map: RawIndex }>(() => ({ map: new Map() }));
+  const preflightRequestRef = useRef(0);
   const [rawDiscovery, setRawDiscovery] = useState<{
     status: "idle" | "searching" | "found" | "not_found" | "error" | "manual";
     message: string;
     folderName?: string;
   }>({ status: "idle", message: "" });
   const rawDiscoveryKeyRef = useRef("");
+  const approvedMatches = useMemo(() => (preflight?.items.flatMap((item) => {
+    const candidateId = manualRawChoices[item.id] ?? item.confirmedCandidateId;
+    if (!candidateId) return [];
+    const candidate = item.candidates.find((entry) => entry.id === candidateId);
+    return candidate ? [{ item, candidate, manual: Boolean(manualRawChoices[item.id]) }] : [];
+  }) ?? []), [manualRawChoices, preflight]);
 
   useEffect(() => {
     if (!bridgeLinked || rawRootDir || !rawMatchDefaultFolder) return;
@@ -568,7 +589,7 @@ export function SelectMatchWorkspace({
       setRatingLoaded(false);
 
       // XMP 사이드카 빠른 스캔 → 이후 JPG 내장 XMP 자동 딥스캔
-      setStep("ready");
+      if (!(bridgeLinked && initialView === "raw")) setStep("ready");
       setRatingLoading(true);
 
       // 1단계: .xmp 사이드카
@@ -613,7 +634,8 @@ export function SelectMatchWorkspace({
 
       setRatingLoaded(true);
       setRatingLoading(false);
-  }, [jpgRatingsByName, releaseSceneThumbnails, selectedJpgNames, setJpgRatingsByName, setProgress]);
+      if (bridgeLinked && initialView === "raw") setStep("raw_pick");
+  }, [bridgeLinked, initialView, jpgRatingsByName, releaseSceneThumbnails, selectedJpgNames, setJpgRatingsByName, setProgress]);
 
   const loadFolder = useCallback(async () => {
     try {
@@ -626,7 +648,7 @@ export function SelectMatchWorkspace({
   }, [scanFolder]);
 
   useEffect(() => {
-    const shouldScanBridgeFolder = selectionOnly || (bridgeLinked && initialView === "raw" && selectedJpgNames.length === 0);
+    const shouldScanBridgeFolder = selectionOnly || (bridgeLinked && initialView === "raw");
     if (!shouldScanBridgeFolder || !currentLocalFolder || step !== "idle" || autoScannedFolderRef.current === currentLocalFolder) return;
     autoScannedFolderRef.current = currentLocalFolder;
     void scanFolder(currentLocalFolder).catch((error) => {
@@ -718,7 +740,7 @@ export function SelectMatchWorkspace({
   const buildRawIndex = useCallback((
     overrideRawDir?: FileSystemDirectoryHandle,
     onProgress?: (scannedCount: number) => void,
-  ): Promise<Map<string, RawIndexEntry>> => buildRawIndexPure(
+  ): Promise<RawIndex> => buildRawIndexPure(
     overrideRawDir ?? rawRootDir,
     rootDir,
     onProgress,
@@ -730,20 +752,61 @@ export function SelectMatchWorkspace({
     if (selected.size === 0) return;
     if (!rootDir && !rawRootDir && !overrideRawDir) return;
     if (overrideRawDir) setRawRootDir(overrideRawDir);
+    const requestId = preflightRequestRef.current + 1;
+    preflightRequestRef.current = requestId;
     setStep("preflight");
     setPreflight(null);
+    setManualRawChoices({});
     setRawScanCount(0);
     const rawIndex = await buildRawIndex(overrideRawDir, setRawScanCount);
+    if (preflightRequestRef.current !== requestId) return;
+    const sourceByBasename = new Map<string, JpgMatchSource[]>();
+    for (const source of selectedJpgSources) {
+      const list = sourceByBasename.get(source.basename) ?? [];
+      list.push(source);
+      sourceByBasename.set(source.basename, list);
+    }
+    const missingSources = Array.from(selected).filter((basename) => !sourceByBasename.has(basename));
+    if (missingSources.length > 0) {
+      setRawDiscovery({
+        status: "error",
+        message: `선택 JPG ${missingSources.length}장의 원본 파일을 찾지 못했습니다. JPG 폴더를 다시 열어 주세요.`,
+      });
+    }
+    const capturePreflight = await buildCaptureMatchPreflight({
+      jpgSources: selectedJpgSources,
+      rawIndex,
+      concurrency: 8,
+      onProgress: (completed) => setRawScanCount(completed),
+    });
+    if (preflightRequestRef.current !== requestId) return;
     rawIndexRef.map.clear();
     for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
-
-    setPreflight(computePreflight(selected, rawIndex));
-  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef]);
+    const unresolved = capturePreflight.items.filter((item) => item.status !== "confirmed" && !item.jpg.thumbUrl);
+    for (const item of unresolved) {
+      if (preflightRequestRef.current !== requestId) return;
+      try {
+        const url = await loadThumb(await item.jpg.handle.getFile(), 180);
+        if (url) {
+          if (preflightRequestRef.current !== requestId) {
+            releaseObjectUrl(url);
+            return;
+          }
+          sceneThumbnailUrlsRef.current.add(url);
+          item.jpg.thumbUrl = url;
+        }
+      } catch {
+        // 썸네일 실패는 촬영시각 안전 검사 결과에 영향을 주지 않는다.
+      }
+    }
+    if (preflightRequestRef.current !== requestId) return;
+    setPreflight(capturePreflight);
+  }, [rootDir, rawRootDir, selected, selectedJpgSources, buildRawIndex, rawIndexRef]);
 
   useEffect(() => {
-    if (!bridgeLinked || step !== "raw_pick" || selected.size === 0 || rawMatchFolderCandidates.length === 0) return;
-    const samples = Array.from(selected).slice(0, 2);
-    const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${samples.join("|")}`;
+    if (!bridgeLinked || step !== "raw_pick" || selected.size === 0 || selectedJpgSources.length === 0 || rawMatchFolderCandidates.length === 0) return;
+    const selectionKey = Array.from(selected).sort().join("|");
+    const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${selectionKey}`;
     if (rawDiscoveryKeyRef.current === discoveryKey) return;
     rawDiscoveryKeyRef.current = discoveryKey;
     let disposed = false;
@@ -778,25 +841,27 @@ export function SelectMatchWorkspace({
     });
 
     return () => { disposed = true; };
-  }, [bridgeLinked, rawMatchFolderCandidates, runPreflight, selected, step]);
+  }, [bridgeLinked, rawMatchFolderCandidates, runPreflight, selected, selectedJpgSources.length, step]);
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
-    if ((!rootDir && !rawRootDir) || selected.size === 0) return;
+    if ((!rootDir && !rawRootDir) || !preflight || approvedMatches.length === 0) return;
+    const approvedBasenames = new Set(approvedMatches.map(({ item }) => item.jpg.basename));
+    const approvedJpgIds = new Set(approvedMatches.map(({ item }) => item.jpg.id.normalize("NFC")));
     setStep("matching");
     cancelRef.current = false;
     setRawOutputDir(null);
     setRawOutputOpenError("");
     useBackgroundJobsStore.getState().startJob({
       id: RAW_MATCH_JOB_ID, label: `RAW ${rawSelectMode === "move" ? "이동" : "복사"} 중`,
-      cur: 0, total: selected.size, status: "running",
+      cur: 0, total: approvedMatches.length, status: "running",
       returnPath: "/photo-sorting?mode=raw-match", cancelRef,
     });
-    setProgress({ cur: 0, total: selected.size, msg: "RAW 매칭을 준비하고 있습니다." });
+    setProgress({ cur: 0, total: approvedMatches.length, msg: "검증된 RAW 복사를 준비하고 있습니다." });
 
     let deliveryRootHandle: FileSystemDirectoryHandle | null = null;
     let deliveryDirectory: FileSystemDirectoryHandle | null = null;
-    let deliveryPlanByBasename = new Map<string, Array<{
+    let deliveryPlanByJpgId = new Map<string, Array<{
       name: string;
       kind: "jpg" | "xmp";
       handle: FileSystemFileHandle;
@@ -828,13 +893,17 @@ export function SelectMatchWorkspace({
             const sourceGroups = (await collectJpgFolderGroups(deliveryRoot))
               .filter((group) => group.dirHandle.name !== deliveredFolderName.trim());
             const handles = new Map<string, { handle: FileSystemFileHandle; sourceDirectory: FileSystemDirectoryHandle }>();
+            const jpgIdByDirectoryBasename = new Map<string, string>();
             const jpgs: Array<{ name: string; directoryKey: string }> = [];
             const sidecars: Array<{ name: string; directoryKey: string }> = [];
-            for (const [index, group] of sourceGroups.entries()) {
-              const directoryKey = `${index}:${group.name}`;
+            for (const group of sourceGroups) {
+              const directoryKey = group.relativeDirectory.normalize("NFC");
               for (const photo of group.photos) {
+                const photoId = photo.relativePath.normalize("NFC");
+                if (!approvedJpgIds.has(photoId)) continue;
                 jpgs.push({ name: photo.name, directoryKey });
                 handles.set(`${directoryKey}\0${photo.name}`, { handle: photo.handle, sourceDirectory: group.dirHandle });
+                jpgIdByDirectoryBasename.set(`${directoryKey}\0${photo.basename.normalize("NFC").toLocaleLowerCase("en-US")}`, photoId);
               }
               for await (const [name, handle] of (group.dirHandle as FileSystemDirectoryHandle & { entries(): AsyncIterableIterator<[string, FileSystemHandle]> }).entries()) {
                 if (handle.kind !== "file" || !/\.xmp$/iu.test(name)) continue;
@@ -842,13 +911,15 @@ export function SelectMatchWorkspace({
                 handles.set(`${directoryKey}\0${name}`, { handle: handle as FileSystemFileHandle, sourceDirectory: group.dirHandle });
               }
             }
-            const plan = buildDeliveredJpgMovePlan({ rawMatchedNames: selected, jpgs, sidecars });
-            deliveryPlanByBasename = plan.reduce((map, item) => {
+            const plan = buildDeliveredJpgMovePlan({ rawMatchedNames: approvedBasenames, jpgs, sidecars });
+            deliveryPlanByJpgId = plan.reduce((map, item) => {
               const source = handles.get(`${item.directoryKey}\0${item.name}`);
               if (!source) return map;
-              const list = map.get(item.basename) ?? [];
+              const jpgId = jpgIdByDirectoryBasename.get(`${item.directoryKey}\0${item.basename}`);
+              if (!jpgId) return map;
+              const list = map.get(jpgId) ?? [];
               list.push({ name: item.name, kind: item.kind, ...source });
-              map.set(item.basename, list);
+              map.set(jpgId, list);
               return map;
             }, new Map<string, Array<{ name: string; kind: "jpg" | "xmp"; handle: FileSystemFileHandle; sourceDirectory: FileSystemDirectoryHandle }>>());
             deliveryRootHandle = deliveryRoot;
@@ -859,100 +930,108 @@ export function SelectMatchWorkspace({
       }
     }
 
-    // preflight에서 캐시된 인덱스 사용 (없으면 재스캔)
-    let rawIndex = rawIndexRef.map;
-    if (rawIndex.size === 0) {
-      setProgress({ cur: 0, total: selected.size, msg: "RAW 파일을 찾고 있습니다." });
-      let lastLoggedCount = 0;
-      rawIndex = await buildRawIndex(undefined, (count) => {
-        if (count - lastLoggedCount >= 500) {
-          lastLoggedCount = count;
-          setProgress({ cur: 0, total: selected.size, msg: `RAW ${count.toLocaleString("ko-KR")}개 확인 중` });
-        }
-      });
-      rawIndexRef.map.clear();
-      for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
-    }
-    if (rawIndex.size === 0) {
-      useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, "error");
-      setStep("ready"); return;
-    }
-
     const outputBase = rawRootDir ?? rootDir!;
     const rawSelectDir = await (outputBase as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
     setRawOutputDir(rawSelectDir);
 
     let matched = 0, missing = 0, done = 0, jpgMoved = 0, xmpMoved = 0, failed = 0;
-    const missingNames: string[] = [];
+    const missingNames: string[] = preflight.items
+      .filter((item) => !approvedMatches.some((approved) => approved.item.id === item.id))
+      .map((item) => `${item.jpg.name} — ${item.status === "time_mismatch" ? "촬영시각 불일치" : item.status === "multiple_candidates" ? "후보 여러 개" : item.status === "missing_time" ? "촬영시각 없음" : "RAW 없음"}`);
+    missing = missingNames.length;
     const failedNames: string[] = [];
-    for (const basename of selected) {
+    const logRowsByJpgId = new Map<string, MatchLogRow>(preflight.items.map((item) => [item.id, {
+      jpgName: item.jpg.name,
+      jpgPath: item.jpg.relativePath,
+      jpgCaptureTime: item.jpgCaptureTime,
+      rawPath: item.candidates.map((candidate) => candidate.entry.relativePath).join(" | "),
+      rawCaptureTime: null,
+      rawCaptureTimeText: item.candidates.map((candidate) => formatCaptureTime(candidate.captureTime)).join(" | ") || "촬영시각 없음",
+      result: "건너뜀",
+    }]));
+    const copiedOutputNames = new Set<string>();
+    for (const { item, candidate, manual } of approvedMatches) {
       if (cancelRef.current) break;
-      setProgress({ cur: done, total: selected.size, msg: `매칭: ${basename}` });
-      const entry = rawIndex.get(basename);
-      if (entry) {
+      setProgress({ cur: done, total: approvedMatches.length, msg: `검증 RAW: ${item.jpg.name}` });
+      const entry = candidate.entry;
+      let rawCopied = false;
+      try {
         const rawFile = await entry.fileHandle.getFile();
-        let rawCopied = false;
+        const outputKey = rawFile.name.normalize("NFC").toLocaleLowerCase("en-US");
+        if (copiedOutputNames.has(outputKey)) throw new Error("같은 이름의 RAW가 이미 결과에 있어 덮어쓰지 않음");
+        await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name);
+        copiedOutputNames.add(outputKey);
+        if (rawSelectMode === "move") await (entry.dirHandle as any).removeEntry(entry.fileHandle.name);
+        matched++;
+        rawCopied = true;
+        logRowsByJpgId.set(item.id, {
+          jpgName: item.jpg.name,
+          jpgPath: item.jpg.relativePath,
+          jpgCaptureTime: item.jpgCaptureTime,
+          rawPath: entry.relativePath,
+          rawCaptureTime: candidate.captureTime,
+          result: manual ? "수동선택" : "확정",
+        });
+      } catch (error) {
+        failed += 1;
+        failedNames.push(`${entry.fileHandle.name} — ${error instanceof Error ? error.message : "RAW 복사 실패"}`);
+      }
+      if (rawCopied && deliveryRootHandle) {
         try {
-          await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name);
-          if (rawSelectMode === "move") await (entry.dirHandle as any).removeEntry(entry.fileHandle.name);
-          matched++;
-          rawCopied = true;
-        } catch (error) {
-          failed += 1;
-          failedNames.push(`${rawFile.name} — ${error instanceof Error ? error.message : "RAW 복사 실패"}`);
-        }
-        if (rawCopied && deliveryRootHandle) {
-          try {
-            deliveryDirectory ??= await deliveryRootHandle.getDirectoryHandle(deliveredFolderName.trim(), { create: true });
-            const moveItems = deliveryPlanByBasename.get(basename) ?? [];
-            if (!moveItems.some((item) => item.kind === "jpg")) {
-              failed += 1;
-              failedNames.push(`${basename} — 원본 JPG를 찾지 못해 이동하지 않음`);
-            } else {
-              for (const item of moveItems) {
-                try {
-                  const moved = await moveFileWithSizeVerification({
-                    sourceHandle: item.handle,
-                    sourceDirectory: item.sourceDirectory,
-                    destinationDirectory: deliveryDirectory,
-                    name: item.name,
-                  });
-                  if (moved.status === "destination_exists") {
-                    failed += 1;
-                    failedNames.push(`${item.name} — 대상 폴더에 같은 이름이 있어 원본 유지`);
-                  } else if (item.kind === "jpg") {
-                    jpgMoved += 1;
-                  } else {
-                    xmpMoved += 1;
-                  }
-                } catch (error) {
+          deliveryDirectory ??= await deliveryRootHandle.getDirectoryHandle(deliveredFolderName.trim(), { create: true });
+          const moveItems = deliveryPlanByJpgId.get(item.jpg.id.normalize("NFC")) ?? [];
+          if (!moveItems.some((moveItem) => moveItem.kind === "jpg")) {
+            failed += 1;
+            failedNames.push(`${item.jpg.name} — 원본 JPG를 찾지 못해 이동하지 않음`);
+          } else {
+            for (const moveItem of moveItems) {
+              try {
+                const moved = await moveFileWithSizeVerification({
+                  sourceHandle: moveItem.handle,
+                  sourceDirectory: moveItem.sourceDirectory,
+                  destinationDirectory: deliveryDirectory,
+                  name: moveItem.name,
+                });
+                if (moved.status === "destination_exists") {
                   failed += 1;
-                  failedNames.push(`${item.name} — ${error instanceof Error ? error.message : "이동 실패"}`);
+                  failedNames.push(`${moveItem.name} — 대상 폴더에 같은 이름이 있어 원본 유지`);
+                } else if (moveItem.kind === "jpg") {
+                  jpgMoved += 1;
+                } else {
+                  xmpMoved += 1;
                 }
+              } catch (error) {
+                failed += 1;
+                failedNames.push(`${moveItem.name} — ${error instanceof Error ? error.message : "이동 실패"}`);
               }
             }
-          } catch (error) {
-            failed += 1;
-            failedNames.push(`${basename} — ${error instanceof Error ? error.message : "JPG 이동 준비 실패"}`);
           }
+        } catch (error) {
+          failed += 1;
+          failedNames.push(`${item.jpg.name} — ${error instanceof Error ? error.message : "JPG 이동 준비 실패"}`);
         }
-      } else {
-        missingNames.push(basename);
-        missing++;
       }
       done++;
-      setProgress({ cur: done, total: selected.size, msg: `${basename} 처리 완료` });
+      setProgress({ cur: done, total: approvedMatches.length, msg: `${item.jpg.name} 처리 완료` });
+    }
+    try {
+      const logHandle = await rawSelectDir.getFileHandle("_match_log.csv", { create: true });
+      const writable = await logHandle.createWritable();
+      await writable.write(buildMatchLogCsv(Array.from(logRowsByJpgId.values())));
+      await writable.close();
+    } catch (error) {
+      failed += 1;
+      failedNames.push(`_match_log.csv — ${error instanceof Error ? error.message : "기록 실패"}`);
     }
     const cancelled = cancelRef.current;
     setProgress({
-      cur: done,
-      total: selected.size,
+      cur: done, total: approvedMatches.length,
       msg: cancelled ? `중단됨 — ${done.toLocaleString("ko-KR")}장 처리` : "RAW 매칭 완료",
     });
     setResult({
       matched,
       missing,
-      selected: selected.size,
+      selected: preflight.items.length,
       jpgMoved,
       xmpMoved,
       failed,
@@ -964,7 +1043,7 @@ export function SelectMatchWorkspace({
     });
     setStep("done");
     useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
-  }, [buildRawIndex, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, rawIndexRef, rawRootDir, rawSelectMode, rootDir, selected, setProgress]);
+  }, [approvedMatches, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, preflight, rawRootDir, rawSelectMode, rootDir, setProgress]);
 
   const openRawOutputFolder = useCallback(async () => {
     setRawOutputOpenError("");
@@ -1160,9 +1239,12 @@ export function SelectMatchWorkspace({
   );
 
   const updateRawMatchCriteria = (next: RawMatchCriteria) => {
+    preflightRequestRef.current += 1;
+    rawDiscoveryKeyRef.current = "";
     setRawMatchCriteria(next);
     rawIndexRef.map.clear();
     setPreflight(null);
+    setManualRawChoices({});
     if (step === "preflight") setStep("raw_pick");
   };
 
@@ -1715,8 +1797,11 @@ export function SelectMatchWorkspace({
   );
 
   /* ── Preflight ── */
-  if (step === "preflight") return (
-    <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+  if (step === "preflight") {
+    const unresolvedItems = preflight?.items.filter((item) => item.status !== "confirmed") ?? [];
+    const manualCount = Object.keys(manualRawChoices).length;
+    return (
+    <div style={{ maxWidth: 960, margin: "28px auto", padding: "0 24px" }}>
       <RawMatchCriteriaPanel />
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
@@ -1734,17 +1819,19 @@ export function SelectMatchWorkspace({
               }} />
             </div>
             <div style={{ fontSize: 12, color: uiHint }}>
-              RAW 파일 탐색 중{rawScanCount > 0 ? ` — ${rawScanCount.toLocaleString()}개 확인` : "..."}
+              RAW 후보와 촬영시각 확인 중{rawScanCount > 0 ? ` — ${rawScanCount.toLocaleString()}장 완료` : "..."}
             </div>
             <style>{`@keyframes select-match-scan-bar { 0% { margin-left: 0%; } 50% { margin-left: 60%; } 100% { margin-left: 0%; } }`}</style>
           </div>
         ) : (
           <div style={{ padding: 20 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, minmax(0, 1fr))", gap: 8, marginBottom: 18 }}>
               {[
-                { label: "RAW 파일 발견", value: preflight.rawFound, color: uiAccent },
-                { label: "매칭 예상", value: preflight.willMatch, color: C.green },
-                { label: "누락 예상", value: preflight.willMiss, color: preflight.willMiss > 0 ? C.red : uiHint },
+                { label: "확정", value: preflight.confirmed, color: C.green },
+                { label: "촬영시각 불일치", value: preflight.timeMismatch, color: preflight.timeMismatch ? C.red : uiHint },
+                { label: "후보 여러 개", value: preflight.multipleCandidates, color: preflight.multipleCandidates ? "#D6BC7D" : uiHint },
+                { label: "촬영시각 없음", value: preflight.missingTime, color: preflight.missingTime ? "#D6BC7D" : uiHint },
+                { label: "RAW 없음", value: preflight.rawMissing, color: preflight.rawMissing ? C.red : uiHint },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
                   <div style={{ fontSize: 24, fontWeight: 600, color }}>{value}</div>
@@ -1753,36 +1840,76 @@ export function SelectMatchWorkspace({
               ))}
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-              <div style={{ background: inputSurface, borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>선택 JPG 샘플</div>
-                {preflight.jpgSamples.map(s => (
-                  <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: uiText, marginBottom: 2 }}>{s}</div>
-                ))}
-              </div>
-              <div style={{ background: inputSurface, borderRadius: 8, padding: "10px 12px" }}>
-                <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>발견된 RAW 샘플</div>
-                {preflight.rawFound === 0
-                  ? <div style={{ fontSize: 11, color: C.red }}>RAW 파일 없음</div>
-                  : preflight.rawSamples.map(s => (
-                    <div key={s} style={{ fontSize: 11, fontFamily: "monospace", color: uiText, marginBottom: 2 }}>{s}</div>
-                  ))
-                }
-              </div>
+            <div role="status" style={{ background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 9, padding: "10px 13px", color: uiText, fontSize: 12, marginBottom: 16 }}>
+              매칭 {preflight.items.length.toLocaleString("ko-KR")}장 = <strong style={{ color: C.green }}>확정 {preflight.confirmed.toLocaleString("ko-KR")}장</strong>
+              {` · 촬영시각 불일치 ${preflight.timeMismatch.toLocaleString("ko-KR")}장 · 후보 여러 개 ${preflight.multipleCandidates.toLocaleString("ko-KR")}장 · 촬영시각 없음 ${preflight.missingTime.toLocaleString("ko-KR")}장`}
+              {preflight.rawMissing ? ` · RAW 없음 ${preflight.rawMissing.toLocaleString("ko-KR")}장` : ""}
+              {manualCount ? <strong style={{ color: uiAccent }}> · 직접 선택 {manualCount.toLocaleString("ko-KR")}장</strong> : null}
             </div>
 
-            {preflight.rawFound === 0 ? (
+            {preflight.items.length === 0 ? (
+              <div role="alert" style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
+                촬영시각을 확인할 JPG 원본 파일을 찾지 못했습니다. 파일명 목록만으로는 안전하게 매칭하지 않습니다. JPG가 들어 있는 촬영 폴더를 다시 열어 주세요.
+              </div>
+            ) : preflight.rawFound === 0 ? (
               <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
                 RAW 파일을 찾지 못했습니다. 상단의 <strong>RAW 폴더 선택</strong> 버튼으로 올바른 폴더를 선택해주세요.
               </div>
-            ) : preflight.willMatch === 0 ? (
+            ) : preflight.confirmed === 0 && manualCount === 0 ? (
               <div style={{ background: "#FEF9C3", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "#92400E", marginBottom: 16 }}>
-                파일명이 맞지 않습니다. JPG와 RAW의 파일명이 같아야 매칭됩니다.<br />
-                위 샘플을 비교해서 확인해주세요.
+                자동 확정된 RAW가 없습니다. 아래 경로와 촬영시각을 확인하고 필요한 항목만 직접 선택해 주세요.
               </div>
             ) : null}
 
-            {preflight.willMatch > 0 && (
+            {unresolvedItems.length > 0 ? <div style={{ display: "grid", gap: 10, marginBottom: 18, maxHeight: 420, overflowY: "auto", paddingRight: 4 }}>
+              {unresolvedItems.map((item) => {
+                const statusLabel = item.status === "time_mismatch" ? "촬영시각 불일치" : item.status === "multiple_candidates" ? "후보 여러 개" : item.status === "missing_time" ? "촬영시각 없음" : "RAW 없음";
+                return <div key={item.id} style={{ display: "grid", gridTemplateColumns: "112px minmax(0, .9fr) minmax(0, 1.5fr)", gap: 12, padding: 12, border: `1px solid ${uiBorder}`, borderRadius: 10, background: inputSurface }}>
+                  <div style={{ height: 82, borderRadius: 7, overflow: "hidden", background: "rgba(0,0,0,.28)", display: "grid", placeItems: "center" }}>
+                    {item.jpg.thumbUrl ? <>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- 로컬 FileSystemHandle에서 만든 blob 썸네일 */}
+                      <img src={item.jpg.thumbUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                    </> : <span style={{ color: uiHint, fontSize: 10 }}>미리보기 없음</span>}
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <strong style={{ display: "block", color: uiText, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis" }}>{item.jpg.name}</strong>
+                    <span style={{ display: "block", color: uiHint, fontSize: 10, marginTop: 4, overflowWrap: "anywhere" }}>{item.jpg.relativePath}</span>
+                    <span style={{ display: "block", color: uiMuted, fontSize: 10, marginTop: 6 }}>{formatCaptureTime(item.jpgCaptureTime)}</span>
+                    <span style={{ display: "inline-block", color: item.status === "time_mismatch" || item.status === "raw_missing" ? C.red : "#D6BC7D", fontSize: 10, marginTop: 6, fontWeight: 600 }}>{statusLabel}</span>
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    {item.candidates.length > 0 ? <>
+                      <select
+                        aria-label={`${item.jpg.name} RAW 직접 선택`}
+                        value={manualRawChoices[item.id] ?? ""}
+                        onChange={(event) => setManualRawChoices((current) => {
+                          const next = { ...current };
+                          if (event.currentTarget.value) next[item.id] = event.currentTarget.value;
+                          else delete next[item.id];
+                          return next;
+                        })}
+                        style={{ width: "100%", minHeight: 40, border: `1px solid ${uiBorder}`, borderRadius: 8, background: surfaceCard, color: uiText, padding: "0 9px", font: "inherit", fontSize: 10 }}
+                      >
+                        <option value="">복사하지 않음</option>
+                        {item.candidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.entry.relativePath} · {formatCaptureTime(candidate.captureTime)}</option>)}
+                      </select>
+                      <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
+                        {item.candidates.map((candidate) => <div key={candidate.id} style={{ color: uiHint, fontSize: 9, overflowWrap: "anywhere" }}>
+                          {candidate.entry.relativePath} · {formatCaptureTime(candidate.captureTime)}{candidate.differenceMs !== null ? ` · 차이 ${(candidate.differenceMs / 1000).toFixed(3)}초` : ""}
+                        </div>)}
+                      </div>
+                      {item.status === "missing_time" && item.candidates.length === 1 && !manualRawChoices[item.id] ? <button
+                        type="button"
+                        onClick={() => setManualRawChoices((current) => ({ ...current, [item.id]: item.candidates[0].id }))}
+                        style={{ marginTop: 8, minHeight: 34, border: `1px solid ${uiBorder}`, borderRadius: 7, background: groupedSurface, color: uiAccent, padding: "0 10px", font: "inherit", fontSize: 10, cursor: "pointer" }}
+                      >파일명만으로 매칭</button> : null}
+                    </> : <span style={{ color: C.red, fontSize: 10 }}>같은 파일명의 RAW 후보가 없습니다.</span>}
+                  </div>
+                </div>;
+              })}
+            </div> : null}
+
+            {approvedMatches.length > 0 && (
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 10, fontWeight: 500, color: uiHint, marginBottom: 6 }}>매칭된 RAW 처리 방식</div>
                 <div style={{ display: "flex", gap: 8 }}>
@@ -1804,7 +1931,7 @@ export function SelectMatchWorkspace({
               </div>
             )}
 
-            {preflight.willMatch > 0 && (
+            {approvedMatches.length > 0 && (
               <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid ${uiBorder}`, borderRadius: 10, background: groupedSurface }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, color: uiText, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                   <input type="checkbox" checked={moveMatchedJpgs} onChange={(event) => setMoveMatchedJpgs(event.currentTarget.checked)} />
@@ -1829,9 +1956,9 @@ export function SelectMatchWorkspace({
             )}
 
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="secondary" onClick={() => setStep("ready")}>← 취소</Btn>
-              {preflight.willMatch > 0 && (
-                <Btn onClick={runMatch}>{rawSelectMode === "move" ? "이동" : "복사"} 시작 ({preflight.willMatch}개)</Btn>
+              <Btn variant="secondary" onClick={() => { preflightRequestRef.current += 1; setStep("ready"); }}>← 취소</Btn>
+              {approvedMatches.length > 0 && (
+                <Btn onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</Btn>
               )}
             </div>
           </div>
@@ -1839,6 +1966,7 @@ export function SelectMatchWorkspace({
       </div>
     </div>
   );
+  }
 
   /* ── Matching ── */
   if (step === "matching") {
@@ -1876,7 +2004,7 @@ export function SelectMatchWorkspace({
             {[
               { label: "선택 JPG", value: result.selected, color: uiAccent },
               { label: "RAW 매칭", value: result.matched, color: C.green },
-              { label: "RAW 누락", value: result.missing, color: result.missing > 0 ? C.red : uiHint },
+              { label: "검증 제외", value: result.missing, color: result.missing > 0 ? "#D6BC7D" : uiHint },
               { label: "실패", value: result.failed, color: result.failed > 0 ? C.red : uiHint },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
@@ -1892,7 +2020,7 @@ export function SelectMatchWorkspace({
           <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiText, lineHeight: 1.75, marginBottom: 16 }}>
             RAW {result.matched.toLocaleString("ko-KR")}장 Selected_RAW로 {rawSelectMode === "move" ? "이동" : "복사"}
             {result.deliveredFolderName ? <> · JPG {result.jpgMoved.toLocaleString("ko-KR")}장(+xmp {result.xmpMoved.toLocaleString("ko-KR")}개) {result.deliveredFolderName}으로 이동</> : null}
-            {` · RAW 없음 ${result.missing.toLocaleString("ko-KR")}장 · 실패 ${result.failed.toLocaleString("ko-KR")}장`}
+            {` · 검증 제외 ${result.missing.toLocaleString("ko-KR")}장 · 실패 ${result.failed.toLocaleString("ko-KR")}장 · _match_log.csv 기록`}
           </div>
           {result.moveNotice ? <div role="status" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", color: "#D6BC7D", fontSize: 11 }}>{result.moveNotice}</div> : null}
           {rawOutputOpenError ? <div role="alert" style={{ marginBottom: 12, color: C.red, fontSize: 11 }}>{rawOutputOpenError}</div> : null}

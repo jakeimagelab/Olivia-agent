@@ -36,7 +36,15 @@ export interface SelectMatchPreflight {
 export interface RawIndexEntry {
   fileHandle: FileSystemFileHandle;
   dirHandle: FileSystemDirectoryHandle;
+  relativePath: string;
 }
+
+export type RawIndex = Map<string, RawIndexEntry[]>;
+
+export type BuildRawIndexOptions = {
+  /** 자동 RAW 폴더 탐색의 표본 확인처럼 한 후보만 있으면 되는 경우에만 사용한다. */
+  stopAfterFirstPerTarget?: boolean;
+};
 
 /* ── 재귀 RAW 스캔 공통 함수 ── */
 // 파일이 수천 장이면 스캔 자체에 시간이 꽤 걸린다 — onProgress로 진행 상황(스캔한 파일 수)을
@@ -46,13 +54,32 @@ export async function buildRawIndex(
   fallbackRootDir: FileSystemDirectoryHandle | null,
   onProgress?: (scannedCount: number) => void,
   targetBasenames?: ReadonlySet<string>,
-): Promise<Map<string, RawIndexEntry>> {
-  const rawIndex = new Map<string, RawIndexEntry>();
+  options: BuildRawIndexOptions = {},
+): Promise<RawIndex> {
+  const rawIndex: RawIndex = new Map();
   const remainingTargets = targetBasenames
     ? new Set(Array.from(targetBasenames, normalizedBasename).filter(Boolean))
     : null;
   let scannedCount = 0;
-  const allTargetsFound = () => remainingTargets !== null && remainingTargets.size === 0;
+  const allTargetsFound = () => options.stopAfterFirstPerTarget === true
+    && remainingTargets !== null
+    && remainingTargets.size === 0;
+  const indexedPaths = new Set<string>();
+
+  const addEntry = (
+    basename: string,
+    fileHandle: FileSystemFileHandle,
+    dirHandle: FileSystemDirectoryHandle,
+    relativePath: string,
+  ) => {
+    const normalizedPath = relativePath.normalize("NFC").toLocaleLowerCase("en-US");
+    if (indexedPaths.has(normalizedPath)) return;
+    indexedPaths.add(normalizedPath);
+    const entries = rawIndex.get(basename) ?? [];
+    entries.push({ fileHandle, dirHandle, relativePath });
+    rawIndex.set(basename, entries);
+    if (options.stopAfterFirstPerTarget) remainingTargets?.delete(basename);
+  };
 
   const probeTargetsInDirectory = async (directory: FileSystemDirectoryHandle) => {
     if (!remainingTargets || remainingTargets.size === 0) return;
@@ -75,8 +102,7 @@ export async function buildRawIndex(
           for (const candidate of candidates) {
             try {
               const fileHandle = await (directory as any).getFileHandle(candidate) as FileSystemFileHandle;
-              rawIndex.set(basename, { fileHandle, dirHandle: directory });
-              remainingTargets.delete(basename);
+              addEntry(basename, fileHandle, directory, `${directory.name}/${candidate}`);
               return;
             } catch {
               // Case-sensitive volumes or nested RAW folders fall back to the
@@ -89,14 +115,14 @@ export async function buildRawIndex(
   };
 
   const scanTree = async (root: FileSystemDirectoryHandle) => {
-    type DirectoryTask = { directory: FileSystemDirectoryHandle; depth: number };
-    let level: DirectoryTask[] = [{ directory: root, depth: 0 }];
+    type DirectoryTask = { directory: FileSystemDirectoryHandle; depth: number; relativeDirectory: string };
+    let level: DirectoryTask[] = [{ directory: root, depth: 0, relativeDirectory: root.name }];
 
     while (level.length > 0 && !allTargetsFound()) {
       const nextLevel: DirectoryTask[] = [];
       for (let start = 0; start < level.length && !allTargetsFound(); start += RAW_SCAN_DIRECTORY_CONCURRENCY) {
         const chunk = level.slice(start, start + RAW_SCAN_DIRECTORY_CONCURRENCY);
-        const childGroups = await Promise.all(chunk.map(async ({ directory, depth }) => {
+        const childGroups = await Promise.all(chunk.map(async ({ directory, depth, relativeDirectory }) => {
           const children: DirectoryTask[] = [];
           if (allTargetsFound()) return children;
 
@@ -104,7 +130,11 @@ export async function buildRawIndex(
             if (allTargetsFound()) break;
             if ((handle as FileSystemHandle).kind === "directory") {
               if (depth < 5 && !shouldSkipDirectory(name)) {
-                children.push({ directory: handle as FileSystemDirectoryHandle, depth: depth + 1 });
+                children.push({
+                  directory: handle as FileSystemDirectoryHandle,
+                  depth: depth + 1,
+                  relativeDirectory: `${relativeDirectory}/${name}`,
+                });
               }
               continue;
             }
@@ -116,11 +146,12 @@ export async function buildRawIndex(
 
             const basename = normalizedBasename(name.replace(/\.[^.]+$/, ""));
             if (remainingTargets && !remainingTargets.has(basename)) continue;
-            rawIndex.set(basename, {
-              fileHandle: handle as FileSystemFileHandle,
-              dirHandle: directory,
-            });
-            remainingTargets?.delete(basename);
+            addEntry(
+              basename,
+              handle as FileSystemFileHandle,
+              directory,
+              `${relativeDirectory}/${name}`,
+            );
           }
 
           return children;
@@ -161,11 +192,11 @@ export async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystem
   await wr.write(buf); await wr.close();
 }
 
-export function computePreflight(selectedNames: Set<string>, rawIndex: Map<string, RawIndexEntry>): SelectMatchPreflight {
+export function computePreflight(selectedNames: Set<string>, rawIndex: RawIndex): SelectMatchPreflight {
   const selArr = Array.from(selectedNames);
-  const willMatch = selArr.filter((b) => rawIndex.has(b)).length;
+  const willMatch = selArr.filter((b) => (rawIndex.get(b)?.length ?? 0) > 0).length;
   return {
-    rawFound: rawIndex.size,
+    rawFound: Array.from(rawIndex.values()).reduce((sum, entries) => sum + entries.length, 0),
     willMatch,
     willMiss: selArr.length - willMatch,
     rawSamples: Array.from(rawIndex.keys()).slice(0, 4),

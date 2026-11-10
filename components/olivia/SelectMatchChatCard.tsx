@@ -4,10 +4,9 @@ import { useRef, useState } from "react";
 import { useSelectMatchChatStore } from "@/lib/store/useSelectMatchChatStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import { parseNamesFromText, parseNamesFromFiles } from "@/lib/selectMatch/nameParsing";
-import { buildRawIndex, copyFileHandle, computePreflight, type RawIndexEntry } from "@/lib/selectMatch/rawIndex";
+import { buildRawIndex, computePreflight } from "@/lib/selectMatch/rawIndex";
 import { collectJpgFolderGroups } from "@/lib/selectMatch/folderScanner";
 import { collectBridgeSidecarRatedNames } from "@/lib/selectMatch/bridgeRating";
-import { buildMatchSummaryText } from "@/lib/selectMatch/matchSummary";
 
 // 채팅 안에서 셀렉 매칭을 끝까지 수행하는 카드 — /select-match 페이지의 "텍스트 붙여넣기"/
 // "파일 업로드" 입력 모드 + RAW 폴더 선택 + 사전 확인 + 복사 실행을 압축한 버전이다. 실제
@@ -18,8 +17,6 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
   const setBlockState = useOliviaConversationStore((s) => s.setClientTaskBlockState);
   const appendMessage = useOliviaConversationStore((s) => s.appendMessage);
 
-  const rawIndexRef = useRef<Map<string, RawIndexEntry>>(new Map());
-  const cancelRef = useRef(false);
   const [textValue, setTextValue] = useState("");
   const [inputMode, setInputMode] = useState<"folder" | "text" | "upload">("folder");
   const [dragging, setDragging] = useState(false);
@@ -88,7 +85,6 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
         (count) => store().setScanProgress(flowId, count),
         flow.selectedNames,
       );
-      rawIndexRef.current = rawIndex;
       store().setPreflight(flowId, computePreflight(flow.selectedNames, rawIndex));
       store().setStep(flowId, "preflight_ready");
     } catch (e: any) {
@@ -98,37 +94,6 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
         appendAssistantText(msg);
       }
     }
-  };
-
-  const runMatch = async () => {
-    if (!flow.rawRootDir) return;
-    store().setStep(flowId, "matching");
-    cancelRef.current = false;
-    const rawSelectDir = await (flow.rawRootDir as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
-    let matched = 0, missing = 0, done = 0;
-    const missingNames: string[] = [];
-    const names = Array.from(flow.selectedNames);
-    for (const basename of names) {
-      if (cancelRef.current) break;
-      store().setMatchProgress(flowId, { cur: done, total: names.length, msg: `매칭: ${basename}` });
-      const entry = rawIndexRef.current.get(basename);
-      if (entry) {
-        const rawFile = await entry.fileHandle.getFile();
-        try { await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name); store().appendLog(flowId, `✅ ${rawFile.name}`); matched++; }
-        catch { store().appendLog(flowId, `❌ 실패: ${rawFile.name}`); }
-      } else {
-        store().appendLog(flowId, `⚠️ RAW 없음: ${basename}`);
-        missing++;
-        missingNames.push(basename);
-      }
-      done++;
-    }
-    store().setResult(flowId, { matched, missing, selected: names.length });
-    store().setStep(flowId, "done");
-    setBlockState(flowId, "done");
-    // client_task 블록은 텍스트가 아니라서 다음 턴 모델 입력(messageText())에 절대 안 잡힌다 —
-    // "한 장 왜 안됐어?" 같은 팔로우업에 답하려면 결과를 텍스트로도 남겨야 한다.
-    appendAssistantText(buildMatchSummaryText(names.length, matched, missing, missingNames));
   };
 
   return (
@@ -214,10 +179,9 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
             <div className="olivia-select-match-card__error">RAW 파일을 찾지 못했어요. 다른 폴더를 선택해주세요.</div>
           ) : flow.preflight.willMatch === 0 ? (
             <div className="olivia-select-match-card__warning">파일명이 맞지 않아요. JPG와 RAW의 파일명이 같아야 매칭돼요.</div>
-          ) : null}
+          ) : <div className="olivia-select-match-card__warning">같은 파일명이 반복될 수 있어 채팅에서는 이름만으로 복사하지 않습니다. 사진작업실의 RAW 매칭에서 JPG와 RAW 촬영시각을 확인해 주세요.</div>}
           <div className="olivia-select-match-card__actions">
             <button type="button" className="is-secondary" onClick={() => store().resetFlow(flowId)}>취소</button>
-            {flow.preflight.willMatch > 0 && <button type="button" onClick={() => void runMatch()}>복사 시작 ({flow.preflight.willMatch}개) →</button>}
           </div>
         </div>
       )}
@@ -231,7 +195,7 @@ export default function SelectMatchChatCard({ flowId }: { flowId: string }) {
           <div className="olivia-select-match-card__log">
             {flow.log.slice(-20).map((line, i) => <div key={i}>{line}</div>)}
           </div>
-          <button type="button" className="is-secondary" onClick={() => { cancelRef.current = true; }}>중단</button>
+          <button type="button" className="is-secondary" onClick={() => store().resetFlow(flowId)}>닫기</button>
         </div>
       )}
 

@@ -62,10 +62,19 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     expect(Array.from(index.keys()).sort()).toEqual(["a001", "b002"]);
   });
 
+  it("같은 basename RAW가 여러 폴더에 있으면 후보를 모두 보존한다", async () => {
+    const root = dir("RAW", [dir("person-a", [file("_AK_0008.CR2")]), dir("person-b", [file("_AK_0008.CR2")])]);
+    const index = await buildRawIndex(wrapHandle(root), null, undefined, new Set(["_ak_0008"]));
+    expect(index.get("_ak_0008")?.map((entry) => entry.relativePath).sort()).toEqual([
+      "RAW/person-a/_AK_0008.CR2",
+      "RAW/person-b/_AK_0008.CR2",
+    ]);
+  });
+
   it("각 항목은 원본을 삭제할 수 있게 부모 dirHandle도 함께 담는다(이동 지원용)", async () => {
     const root = dir("RAW", [dir("scene1", [file("A001.nef")])]);
     const index = await buildRawIndex(wrapHandle(root), null);
-    const entry = index.get("a001");
+    const entry = index.get("a001")?.[0];
     expect(entry?.fileHandle.name).toBe("A001.nef");
     expect(entry?.dirHandle.name).toBe("scene1");
   });
@@ -92,13 +101,13 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     expect(visited).toEqual(["RAW"]);
   });
 
-  it("대상 RAW를 모두 찾으면 남은 하위 폴더를 탐색하지 않는다", async () => {
+  it("표본 탐색 모드에서는 대상 RAW를 모두 찾으면 남은 하위 폴더를 탐색하지 않는다", async () => {
     const visited: string[] = [];
     const root = dir("RAW", [
       file("A001.NEF"),
       dir("unrelated", [file("B002.nef")]),
     ]);
-    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["a001"]));
+    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["a001"]), { stopAfterFirstPerTarget: true });
 
     expect(Array.from(index.keys())).toEqual(["a001"]);
     expect(visited).toEqual([]);
@@ -108,9 +117,9 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     const visited: string[] = [];
     const unrelated = Array.from({ length: 5_000 }, (_, index) => file(`OTHER_${index}.CR3`));
     const root = dir("RAW", [...unrelated, file("R5K_9999.CR3")]);
-    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["r5k_9999"]));
+    const index = await buildRawIndex(wrapHandle(root, visited), null, undefined, new Set(["r5k_9999"]), { stopAfterFirstPerTarget: true });
 
-    expect(index.get("r5k_9999")?.fileHandle.name).toBe("R5K_9999.CR3");
+    expect(index.get("r5k_9999")?.[0]?.fileHandle.name).toBe("R5K_9999.CR3");
     expect(visited).toEqual([]);
   });
 
@@ -171,7 +180,7 @@ describe("copyFileHandle — 파일 복사", () => {
 describe("computePreflight — 매칭 예상치 계산", () => {
   it("선택된 이름 중 RAW 인덱스에 있는 것만 매칭으로 센다", () => {
     const selected = new Set(["a", "b", "c"]);
-    const rawIndex = new Map([["a", {} as RawIndexEntry], ["c", {} as RawIndexEntry]]);
+    const rawIndex = new Map([["a", [{} as RawIndexEntry]], ["c", [{} as RawIndexEntry]]]);
     const pf = computePreflight(selected, rawIndex);
     expect(pf).toMatchObject({ rawFound: 2, willMatch: 2, willMiss: 1 });
   });
@@ -183,7 +192,7 @@ describe("computePreflight — 매칭 예상치 계산", () => {
 
   it("샘플은 최대 4개까지만 담는다", () => {
     const selected = new Set(["a", "b", "c", "d", "e", "f"]);
-    const rawIndex = new Map(["a", "b", "c", "d", "e"].map((k) => [k, {} as RawIndexEntry]));
+    const rawIndex = new Map(["a", "b", "c", "d", "e"].map((k) => [k, [{} as RawIndexEntry]]));
     const pf = computePreflight(selected, rawIndex);
     expect(pf.jpgSamples).toHaveLength(4);
     expect(pf.rawSamples).toHaveLength(4);

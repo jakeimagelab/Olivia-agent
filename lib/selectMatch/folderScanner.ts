@@ -7,12 +7,14 @@ export interface SelectMatchPhoto {
   name: string;
   basename: string;
   handle: FileSystemFileHandle;
+  relativePath: string;
   thumbUrl: string | null;
   rating: number | null;
 }
 
 export interface SelectMatchFolderGroup {
   name: string;
+  relativeDirectory: string;
   dirHandle: FileSystemDirectoryHandle;
   photos: SelectMatchPhoto[];
 }
@@ -24,7 +26,7 @@ export async function collectJpgFolderGroups(
 ): Promise<SelectMatchFolderGroup[]> {
   const groups: SelectMatchFolderGroup[] = [];
 
-  const scan = async (dir: FileSystemDirectoryHandle, depth = 0) => {
+  const scan = async (dir: FileSystemDirectoryHandle, depth = 0, relativeDirectory = "") => {
     if (depth > maxDepth) return;
 
     const photos: SelectMatchPhoto[] = [];
@@ -44,16 +46,19 @@ export async function collectJpgFolderGroups(
         name,
         basename: name.replace(/\.[^.]+$/, ""),
         handle: handle as FileSystemFileHandle,
+        relativePath: relativeDirectory ? `${relativeDirectory}/${name}` : name,
         thumbUrl: null,
         rating: null,
       });
     }
 
     photos.sort((a, b) => a.name.localeCompare(b.name));
-    if (photos.length > 0) groups.push({ name: dir.name, dirHandle: dir, photos });
+    if (photos.length > 0) groups.push({ name: dir.name, relativeDirectory, dirHandle: dir, photos });
 
     childDirectories.sort((a, b) => a.name.localeCompare(b.name));
-    for (const child of childDirectories) await scan(child, depth + 1);
+    for (const child of childDirectories) {
+      await scan(child, depth + 1, relativeDirectory ? `${relativeDirectory}/${child.name}` : child.name);
+    }
   };
 
   await scan(root);

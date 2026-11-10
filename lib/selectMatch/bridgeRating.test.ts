@@ -17,11 +17,13 @@ function sidecarDirectory(ratings: Record<string, string>): FileSystemDirectoryH
 function group(ratings: Record<string, string>): SelectMatchFolderGroup {
   return {
     name: "scene",
+    relativeDirectory: "scene",
     dirHandle: sidecarDirectory(ratings),
     photos: ["DSC_001", "DSC_002", "DSC_003"].map((basename) => ({
       name: `${basename}.jpg`,
       basename,
       handle: {} as FileSystemFileHandle,
+      relativePath: `scene/${basename}.jpg`,
       thumbUrl: null,
       rating: null,
     })),
