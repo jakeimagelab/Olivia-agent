@@ -54,6 +54,15 @@ async function postJob(action: string, targetWorker: string) {
   }));
 }
 
+async function postPersonSelectImport(payload: Record<string, unknown>) {
+  const { POST } = await import("@/app/api/remote-jobs/route");
+  return POST(new NextRequest("http://localhost/api/remote-jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload }),
+  }));
+}
+
 beforeEach(() => {
   state.inserted.length = 0;
   vi.stubEnv("OLIVIA_WORKER_ID", "jake-macstudio-01");
@@ -119,6 +128,40 @@ describe("POST /api/remote-jobs LIST_FOLDER root contract", () => {
     const response = await postListFolder(payload);
 
     expect(response.status).toBe(400);
+    expect(state.inserted).toHaveLength(0);
+  });
+});
+
+describe("POST /api/remote-jobs PERSON_SELECT_IMPORT layout contract", () => {
+  it.each(["person-folders", "project"] as const)("queues %s without school mappings", async (layout) => {
+    const response = await postPersonSelectImport({
+      event_id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+      source_relative_path: "root-0/1026_푸른안과/JPG전체/프로필",
+      layout,
+    });
+
+    expect(response.status).toBe(200);
+    expect(state.inserted).toHaveLength(1);
+    expect(state.inserted[0]).toMatchObject({
+      action: "PERSON_SELECT_IMPORT",
+      payload: {
+        event_id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+        source_relative_path: "root-0/1026_푸른안과/JPG전체/프로필",
+        layout,
+      },
+      status: "QUEUED",
+    });
+  });
+
+  it("still requires mappings for the school layout", async () => {
+    const response = await postPersonSelectImport({
+      event_id: "018e2f30-92af-78b1-8f21-67f4404f5027",
+      source_relative_path: "root-0/학교전달",
+      layout: "school",
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "가져오기 항목 매핑이 올바르지 않습니다." });
     expect(state.inserted).toHaveLength(0);
   });
 });

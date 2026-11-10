@@ -366,9 +366,10 @@ export async function POST(request: NextRequest) {
       if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
       const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
       if (!sourceRelativePath) throw new Error("학교전달 폴더를 선택해 주세요.");
-      if (requestedPayload.layout === "person-folders") {
-        // 이름 폴더 구조(김춘자/JPG원본)는 매핑 없이 폴더 이름으로 사람을 정한다.
-        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, layout: "person-folders" };
+      if (requestedPayload.layout === "person-folders" || requestedPayload.layout === "project") {
+        // 이름 폴더는 폴더 이름으로 사람을 정하고, 공용 프로젝트는 하위 JPG를 소유자 없이 가져온다.
+        // 두 방식 모두 학교용 category/owner 매핑이 필요하지 않다.
+        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, layout: requestedPayload.layout };
       } else {
         const mappings = requestedPayload.mappings;
         if (!Array.isArray(mappings) || mappings.length === 0 || mappings.some((entry) => {
