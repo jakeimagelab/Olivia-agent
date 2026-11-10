@@ -75,6 +75,14 @@ export function isDeliveredRoundFolder(name: string): boolean {
   return /^\d+차보정본$/u.test(name.normalize("NFC"));
 }
 
+/** 상대경로 어느 단계에든 N차보정본 폴더가 있으면 기존 전달본으로 본다. */
+export function isInsideDeliveredRoundFolder(relativePath: string): boolean {
+  return relativePath
+    .normalize("NFC")
+    .split(/[\\/]+/u)
+    .some(isDeliveredRoundFolder);
+}
+
 export function nextDeliveredRoundFolderName(folderNames: Iterable<string>): string {
   let maxRound = 0;
   for (const name of folderNames) {

@@ -1,4 +1,6 @@
 import type { RawIndex, RawIndexEntry } from "@/lib/selectMatch/rawIndex";
+import { isInsideDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import {
   formatCaptureTime,
   readJpgCaptureTime,
@@ -21,6 +23,7 @@ export type RawMatchCandidate = {
   id: string;
   entry: RawIndexEntry;
   captureTime: CaptureTime | null;
+  fileSize: number;
   differenceMs: number | null;
 };
 
@@ -43,9 +46,71 @@ export type CaptureMatchPreflight = {
   rawMissing: number;
 };
 
+/**
+ * 기준 결과에 포함된 JPG만 사전 확인으로 넘긴다.
+ * 같은 basename이 여러 폴더에 있더라도 한 장만 사용하고, 이전 N차보정본은 항상 제외한다.
+ */
+export function resolveCaptureMatchJpgSources(input: {
+  targetBasenames: ReadonlySet<string>;
+  sources: readonly JpgMatchSource[];
+}): JpgMatchSource[] {
+  const targets = new Set(Array.from(input.targetBasenames, normalizePhotoToolFileKey).filter(Boolean));
+  const sourceByBasename = new Map<string, JpgMatchSource>();
+  for (const source of input.sources) {
+    const basename = normalizePhotoToolFileKey(source.basename);
+    if (!targets.has(basename) || sourceByBasename.has(basename)) continue;
+    if (isInsideDeliveredRoundFolder(source.relativePath)) continue;
+    sourceByBasename.set(basename, source);
+  }
+  return Array.from(targets).flatMap((basename) => {
+    const source = sourceByBasename.get(basename);
+    return source ? [source] : [];
+  });
+}
+
+export function captureMatchSummaryTotal(preflight: CaptureMatchPreflight): number {
+  return preflight.confirmed
+    + preflight.timeMismatch
+    + preflight.multipleCandidates
+    + preflight.missingTime
+    + preflight.rawMissing;
+}
+
+/** 실행 전에 기준 결과, JPG 항목 수, 상태별 합계가 모두 같은지 확인한다. */
+export function isCaptureMatchTargetCountConsistent(
+  expectedTargetCount: number,
+  preflight: CaptureMatchPreflight,
+): boolean {
+  return preflight.items.length === expectedTargetCount
+    && captureMatchSummaryTotal(preflight) === expectedTargetCount;
+}
+
+function parentFolderName(relativePath: string | undefined): string {
+  if (!relativePath) return "";
+  const segments = relativePath.normalize("NFC").split(/[\\/]+/u).filter(Boolean);
+  return (segments.at(-2) ?? "").toLocaleLowerCase("en-US");
+}
+
+function duplicateRepresentative<T extends {
+  id: string;
+  captureTime: CaptureTime | null;
+  fileSize?: number;
+  relativePath?: string;
+}>(candidates: readonly T[], jpgRelativePath: string | undefined): T {
+  const jpgFolder = parentFolderName(jpgRelativePath);
+  return candidates.find((candidate) => jpgFolder && parentFolderName(candidate.relativePath) === jpgFolder)
+    ?? candidates[0];
+}
+
 export function resolveCaptureTimeCandidate(input: {
   jpgCaptureTime: CaptureTime | null;
-  candidates: Array<{ id: string; captureTime: CaptureTime | null }>;
+  jpgRelativePath?: string;
+  candidates: Array<{
+    id: string;
+    captureTime: CaptureTime | null;
+    fileSize?: number;
+    relativePath?: string;
+  }>;
   toleranceMs?: number;
 }): { status: CaptureMatchStatus; confirmedCandidateId: string | null; differences: Map<string, number | null> } {
   const toleranceMs = input.toleranceMs ?? 2000;
@@ -64,16 +129,32 @@ export function resolveCaptureTimeCandidate(input: {
     return difference <= toleranceMs ? [{ ...candidate, difference }] : [];
   });
   if (!withinTolerance.length) return { status: "time_mismatch", confirmedCandidateId: null, differences };
-  if (withinTolerance.length === 1) {
-    return { status: "confirmed", confirmedCandidateId: withinTolerance[0].id, differences };
+
+  // 촬영시각(SubSec 포함)과 파일 크기가 모두 같은 RAW는 여러 폴더에 복사된 동일 파일이다.
+  // 동일 파일 묶음 안에서는 JPG와 같은 이름의 부모 폴더를 우선하고, 없으면 발견 순서를 쓴다.
+  const duplicateGroups = new Map<string, typeof withinTolerance>();
+  for (const candidate of withinTolerance) {
+    const key = typeof candidate.fileSize === "number"
+      ? `${candidate.captureTime!.timestampMs}:${candidate.fileSize}`
+      : `unique:${candidate.id}`;
+    const group = duplicateGroups.get(key) ?? [];
+    group.push(candidate);
+    duplicateGroups.set(key, group);
+  }
+  const distinctCandidates = Array.from(duplicateGroups.values(), (group) => (
+    duplicateRepresentative(group, input.jpgRelativePath)
+  ));
+
+  if (distinctCandidates.length === 1) {
+    return { status: "confirmed", confirmedCandidateId: distinctCandidates[0].id, differences };
   }
 
   // 양쪽에 소수초가 있을 때만 가장 가까운 후보를 안전하게 유일 후보로 좁힌다.
   const canUseSubseconds = input.jpgCaptureTime.hasSubseconds
-    && withinTolerance.every((candidate) => candidate.captureTime?.hasSubseconds);
+    && distinctCandidates.every((candidate) => candidate.captureTime?.hasSubseconds);
   if (canUseSubseconds) {
-    const minimum = Math.min(...withinTolerance.map((candidate) => candidate.difference));
-    const closest = withinTolerance.filter((candidate) => candidate.difference === minimum);
+    const minimum = Math.min(...distinctCandidates.map((candidate) => candidate.difference));
+    const closest = distinctCandidates.filter((candidate) => candidate.difference === minimum);
     if (closest.length === 1) {
       return { status: "confirmed", confirmedCandidateId: closest[0].id, differences };
     }
@@ -125,26 +206,35 @@ export async function buildCaptureMatchPreflight(input: {
 }): Promise<CaptureMatchPreflight> {
   const concurrency = Math.max(1, input.concurrency ?? 8);
   const limitRead = createAsyncLimiter(concurrency);
-  const rawTimeCache = new Map<string, Promise<CaptureTime | null>>();
+  const rawMetadataCache = new Map<string, Promise<{ captureTime: CaptureTime | null; fileSize: number }>>();
   let completed = 0;
   const items = await mapWithConcurrency(input.jpgSources, concurrency, async (jpg) => {
     const basename = jpg.basename.normalize("NFC").toLocaleLowerCase("en-US");
     const rawEntries = input.rawIndex.get(basename) ?? [];
     const jpgCaptureTime = await limitRead(() => jpg.handle.getFile().then(readJpgCaptureTime)).catch(() => null);
-    const candidateTimes = await Promise.all(rawEntries.map(async (entry) => {
-      let promise = rawTimeCache.get(entry.relativePath);
+    const candidateMetadata = await Promise.all(rawEntries.map(async (entry) => {
+      let promise = rawMetadataCache.get(entry.relativePath);
       if (!promise) {
-        promise = limitRead(() => entry.fileHandle.getFile().then(readRawCaptureTime)).catch(() => null);
-        rawTimeCache.set(entry.relativePath, promise);
+        promise = limitRead(async () => {
+          const file = await entry.fileHandle.getFile();
+          return { captureTime: await readRawCaptureTime(file), fileSize: file.size };
+        }).catch(() => ({ captureTime: null, fileSize: -1 }));
+        rawMetadataCache.set(entry.relativePath, promise);
       }
       return promise;
     }));
     const candidates = rawEntries.map((entry, index) => ({
       id: `${entry.relativePath}::candidate-${index}`,
       entry,
-      captureTime: candidateTimes[index],
+      captureTime: candidateMetadata[index].captureTime,
+      fileSize: candidateMetadata[index].fileSize,
+      relativePath: entry.relativePath,
     }));
-    const resolved = resolveCaptureTimeCandidate({ jpgCaptureTime, candidates });
+    const resolved = resolveCaptureTimeCandidate({
+      jpgCaptureTime,
+      jpgRelativePath: jpg.relativePath,
+      candidates,
+    });
     completed += 1;
     input.onProgress?.(completed, input.jpgSources.length);
     return {

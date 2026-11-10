@@ -20,6 +20,9 @@ import {
 import {
   buildCaptureMatchPreflight,
   buildMatchLogCsv,
+  captureMatchSummaryTotal,
+  isCaptureMatchTargetCountConsistent,
+  resolveCaptureMatchJpgSources,
   type CaptureMatchPreflight,
   type JpgMatchSource,
   type MatchLogRow,
@@ -270,20 +273,6 @@ export function SelectMatchWorkspace({
     () => visibleScenes.reduce((sum, scene) => sum + scene.photos.length, 0),
     [visibleScenes],
   );
-  const selectedJpgSources = useMemo<JpgMatchSource[]>(() => scenes.flatMap((scene) => (
-    scene.photos.flatMap((photo) => {
-      const basename = photo.basename.normalize("NFC").toLocaleLowerCase("en-US");
-      if (!selected.has(basename)) return [];
-      return [{
-        id: photo.relativePath.normalize("NFC"),
-        name: photo.name,
-        basename,
-        relativePath: photo.relativePath,
-        handle: photo.handle,
-        thumbUrl: photo.thumbUrl,
-      }];
-    })
-  )), [scenes, selected]);
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
@@ -410,6 +399,27 @@ export function SelectMatchWorkspace({
     colorsByName: jpgColorLabelsByName,
     criteria: rawMatchCriteria,
   }), [jpgColorLabelsByName, jpgRatingsByName, rawMatchCriteria, selectedJpgNames]);
+  const authoritativeMatchTargets = useMemo(
+    () => bridgeLinked ? new Set(resolvedBridgeTargets) : new Set(selected),
+    [bridgeLinked, resolvedBridgeTargets, selected],
+  );
+  const scannedJpgSources = useMemo<JpgMatchSource[]>(() => scenes.flatMap((scene) => (
+    scene.photos.map((photo) => ({
+      id: photo.relativePath.normalize("NFC"),
+      name: photo.name,
+      basename: photo.basename.normalize("NFC").toLocaleLowerCase("en-US"),
+      relativePath: photo.relativePath,
+      handle: photo.handle,
+      thumbUrl: photo.thumbUrl,
+    }))
+  )), [scenes]);
+  const selectedJpgSources = useMemo(() => resolveCaptureMatchJpgSources({
+    targetBasenames: authoritativeMatchTargets,
+    sources: scannedJpgSources,
+  }), [authoritativeMatchTargets, scannedJpgSources]);
+  const preflightTargetCountMatches = preflight
+    ? isCaptureMatchTargetCountConsistent(authoritativeMatchTargets.size, preflight)
+    : false;
 
   useEffect(() => {
     if (!bridgeLinked) return;
@@ -621,13 +631,18 @@ export function SelectMatchWorkspace({
         photo.rating !== null && photo.rating >= 1 ? [[photo.name, photo.rating] as const] : []
       )))), { overwrite: false });
 
-      // 별점 있는 사진 자동 선택
-      const autoKeys = new Set(selectedJpgNames
-        .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
-        .filter(Boolean));
-      for (const scene of afterEmbedded) {
-        for (const p of scene.photos) {
-          if (p.rating !== null && p.rating >= 1) autoKeys.add(p.basename.toLowerCase());
+      // Bridge RAW 매칭은 위의 "매칭 기준" 결과만 사용한다. 폴더 스캔에서 새로 발견한
+      // 하위 폴더 별점 JPG를 대상에 합치면 화면 수와 사전 확인 수가 달라진다.
+      const autoKeys = bridgeLinked && initialView === "raw"
+        ? new Set(resolvedBridgeTargets)
+        : new Set(selectedJpgNames
+          .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
+          .filter(Boolean));
+      if (!(bridgeLinked && initialView === "raw")) {
+        for (const scene of afterEmbedded) {
+          for (const p of scene.photos) {
+            if (p.rating !== null && p.rating >= 1) autoKeys.add(p.basename.toLowerCase());
+          }
         }
       }
       setSelected(autoKeys);
@@ -635,7 +650,7 @@ export function SelectMatchWorkspace({
       setRatingLoaded(true);
       setRatingLoading(false);
       if (bridgeLinked && initialView === "raw") setStep("raw_pick");
-  }, [bridgeLinked, initialView, jpgRatingsByName, releaseSceneThumbnails, selectedJpgNames, setJpgRatingsByName, setProgress]);
+  }, [bridgeLinked, initialView, jpgRatingsByName, releaseSceneThumbnails, resolvedBridgeTargets, selectedJpgNames, setJpgRatingsByName, setProgress]);
 
   const loadFolder = useCallback(async () => {
     try {
@@ -744,12 +759,12 @@ export function SelectMatchWorkspace({
     overrideRawDir ?? rawRootDir,
     rootDir,
     onProgress,
-    selected,
-  ), [rootDir, rawRootDir, selected]);
+    authoritativeMatchTargets,
+  ), [authoritativeMatchTargets, rootDir, rawRootDir]);
 
   /* ── 사전 확인 (preflight) ── */
   const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
-    if (selected.size === 0) return;
+    if (authoritativeMatchTargets.size === 0) return;
     if (!rootDir && !rawRootDir && !overrideRawDir) return;
     if (overrideRawDir) setRawRootDir(overrideRawDir);
     const requestId = preflightRequestRef.current + 1;
@@ -760,13 +775,8 @@ export function SelectMatchWorkspace({
     setRawScanCount(0);
     const rawIndex = await buildRawIndex(overrideRawDir, setRawScanCount);
     if (preflightRequestRef.current !== requestId) return;
-    const sourceByBasename = new Map<string, JpgMatchSource[]>();
-    for (const source of selectedJpgSources) {
-      const list = sourceByBasename.get(source.basename) ?? [];
-      list.push(source);
-      sourceByBasename.set(source.basename, list);
-    }
-    const missingSources = Array.from(selected).filter((basename) => !sourceByBasename.has(basename));
+    const sourceBasenames = new Set(selectedJpgSources.map((source) => source.basename));
+    const missingSources = Array.from(authoritativeMatchTargets).filter((basename) => !sourceBasenames.has(basename));
     if (missingSources.length > 0) {
       setRawDiscovery({
         status: "error",
@@ -801,11 +811,11 @@ export function SelectMatchWorkspace({
     }
     if (preflightRequestRef.current !== requestId) return;
     setPreflight(capturePreflight);
-  }, [rootDir, rawRootDir, selected, selectedJpgSources, buildRawIndex, rawIndexRef]);
+  }, [authoritativeMatchTargets, rootDir, rawRootDir, selectedJpgSources, buildRawIndex, rawIndexRef]);
 
   useEffect(() => {
-    if (!bridgeLinked || step !== "raw_pick" || selected.size === 0 || selectedJpgSources.length === 0 || rawMatchFolderCandidates.length === 0) return;
-    const selectionKey = Array.from(selected).sort().join("|");
+    if (!bridgeLinked || step !== "raw_pick" || authoritativeMatchTargets.size === 0 || selectedJpgSources.length === 0 || rawMatchFolderCandidates.length === 0) return;
+    const selectionKey = Array.from(authoritativeMatchTargets).sort().join("|");
     const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${selectionKey}`;
     if (rawDiscoveryKeyRef.current === discoveryKey) return;
     rawDiscoveryKeyRef.current = discoveryKey;
@@ -814,7 +824,7 @@ export function SelectMatchWorkspace({
     setRawDiscovery({ status: "searching", message: "현재 폴더와 상위 폴더에서 RAW 원본 위치를 찾고 있습니다." });
     void discoverRawFolder({
       candidates: rawMatchFolderCandidates,
-      selectedNames: selected,
+      selectedNames: authoritativeMatchTargets,
       onCandidate: (candidate) => {
         if (!disposed) setRawDiscovery({ status: "searching", message: `${candidate.name} 폴더에서 표본 RAW를 확인하고 있습니다.`, folderName: candidate.name });
       },
@@ -841,11 +851,11 @@ export function SelectMatchWorkspace({
     });
 
     return () => { disposed = true; };
-  }, [bridgeLinked, rawMatchFolderCandidates, runPreflight, selected, selectedJpgSources.length, step]);
+  }, [authoritativeMatchTargets, bridgeLinked, rawMatchFolderCandidates, runPreflight, selectedJpgSources.length, step]);
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
-    if ((!rootDir && !rawRootDir) || !preflight || approvedMatches.length === 0) return;
+    if ((!rootDir && !rawRootDir) || !preflight || approvedMatches.length === 0 || !preflightTargetCountMatches) return;
     const approvedBasenames = new Set(approvedMatches.map(({ item }) => item.jpg.basename));
     const approvedJpgIds = new Set(approvedMatches.map(({ item }) => item.jpg.id.normalize("NFC")));
     setStep("matching");
@@ -1043,7 +1053,7 @@ export function SelectMatchWorkspace({
     });
     setStep("done");
     useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
-  }, [approvedMatches, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, preflight, rawRootDir, rawSelectMode, rootDir, setProgress]);
+  }, [approvedMatches, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, preflight, preflightTargetCountMatches, rawRootDir, rawSelectMode, rootDir, setProgress]);
 
   const openRawOutputFolder = useCallback(async () => {
     setRawOutputOpenError("");
@@ -1748,7 +1758,7 @@ export function SelectMatchWorkspace({
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "RAW 원본 폴더를 자동으로 찾습니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
-          {bridgeLinked ? "선택 기준에 맞는" : "고객 선택"} 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
+          {bridgeLinked ? "선택 기준에 맞는" : "고객 선택"} 파일명 <strong style={{ color: uiAccent }}>{authoritativeMatchTargets.size}개</strong>를 확인했습니다.<br />
           {bridgeLinked ? <>선택 사진 1~2장을 기준으로 현재 폴더와 상위 2단계까지만 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
@@ -1757,10 +1767,10 @@ export function SelectMatchWorkspace({
         </div> : null}
         <div style={{ background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted, marginBottom: 18 }}>
           <div style={{ fontWeight: 500, color: uiAccent, marginBottom: 4 }}>추출된 파일명 샘플</div>
-          {Array.from(selected).slice(0, 5).map(n => (
+          {Array.from(authoritativeMatchTargets).slice(0, 5).map(n => (
             <div key={n} style={{ fontFamily: "monospace", fontSize: 11 }}>{n}</div>
           ))}
-          {selected.size > 5 && <div style={{ color: uiHint }}>... 외 {selected.size - 5}개</div>}
+          {authoritativeMatchTargets.size > 5 && <div style={{ color: uiHint }}>... 외 {authoritativeMatchTargets.size - 5}개</div>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
@@ -1800,6 +1810,7 @@ export function SelectMatchWorkspace({
   if (step === "preflight") {
     const unresolvedItems = preflight?.items.filter((item) => item.status !== "confirmed") ?? [];
     const manualCount = Object.keys(manualRawChoices).length;
+    const preflightSummaryTotal = preflight ? captureMatchSummaryTotal(preflight) : 0;
     return (
     <div style={{ maxWidth: 960, margin: "28px auto", padding: "0 24px" }}>
       <RawMatchCriteriaPanel />
@@ -1847,7 +1858,11 @@ export function SelectMatchWorkspace({
               {manualCount ? <strong style={{ color: uiAccent }}> · 직접 선택 {manualCount.toLocaleString("ko-KR")}장</strong> : null}
             </div>
 
-            {preflight.items.length === 0 ? (
+            {!preflightTargetCountMatches ? (
+              <div role="alert" style={{ background: "#FEF2F2", border: "1px solid rgba(201,74,30,.35)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
+                대상 수가 맞지 않습니다. 매칭 기준 {authoritativeMatchTargets.size.toLocaleString("ko-KR")}장 · 사전 확인 {preflight.items.length.toLocaleString("ko-KR")}장 · 상태 합계 {preflightSummaryTotal.toLocaleString("ko-KR")}장입니다. 폴더를 다시 확인해 주세요.
+              </div>
+            ) : preflight.items.length === 0 ? (
               <div role="alert" style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
                 촬영시각을 확인할 JPG 원본 파일을 찾지 못했습니다. 파일명 목록만으로는 안전하게 매칭하지 않습니다. JPG가 들어 있는 촬영 폴더를 다시 열어 주세요.
               </div>
@@ -1958,7 +1973,7 @@ export function SelectMatchWorkspace({
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="secondary" onClick={() => { preflightRequestRef.current += 1; setStep("ready"); }}>← 취소</Btn>
               {approvedMatches.length > 0 && (
-                <Btn onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</Btn>
+                <Btn disabled={!preflightTargetCountMatches} onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</Btn>
               )}
             </div>
           </div>

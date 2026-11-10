@@ -1,5 +1,5 @@
 import { isHiddenSystemFile, SELECTABLE_IMAGE_EXTENSIONS } from "@/lib/photo/extensions";
-import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
+import { isDeliveredRoundFolder, isInsideDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 export { SELECTABLE_IMAGE_EXTENSIONS as SELECT_MATCH_JPG_EXTENSIONS };
 
@@ -53,7 +53,8 @@ export async function collectJpgFolderGroups(
     }
 
     photos.sort((a, b) => a.name.localeCompare(b.name));
-    if (photos.length > 0) groups.push({ name: dir.name, relativeDirectory, dirHandle: dir, photos });
+    const eligiblePhotos = photos.filter((photo) => !isInsideDeliveredRoundFolder(photo.relativePath));
+    if (eligiblePhotos.length > 0) groups.push({ name: dir.name, relativeDirectory, dirHandle: dir, photos: eligiblePhotos });
 
     childDirectories.sort((a, b) => a.name.localeCompare(b.name));
     for (const child of childDirectories) {

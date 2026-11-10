@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildCaptureMatchPreflight, buildMatchLogCsv, resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
+import {
+  buildCaptureMatchPreflight,
+  buildMatchLogCsv,
+  isCaptureMatchTargetCountConsistent,
+  resolveCaptureMatchJpgSources,
+  resolveCaptureTimeCandidate,
+  type CaptureMatchPreflight,
+  type JpgMatchSource,
+} from "@/lib/selectMatch/captureMatch";
+import { resolveRawMatchTargets } from "@/lib/photo-bridge/rawMatchDelivery";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
 
 function capture(timestampMs: number, hasSubseconds = false): CaptureTime {
@@ -64,6 +73,29 @@ describe("RAW 촬영시각 안전 매칭", () => {
       candidates: [
         { id: "a", captureTime: capture(10_000) },
         { id: "b", captureTime: capture(10_000) },
+      ],
+    });
+    expect(result).toMatchObject({ status: "multiple_candidates", confirmedCandidateId: null });
+  });
+
+  it("촬영시각과 크기가 같은 RAW 복사본은 JPG와 같은 이름 폴더 경로 하나로 확정한다", () => {
+    const result = resolveCaptureTimeCandidate({
+      jpgCaptureTime: capture(10_000),
+      jpgRelativePath: "JPG전체/정연호/_AK_0008.JPG",
+      candidates: [
+        { id: "first", captureTime: capture(10_000), fileSize: 12_345, relativePath: "RAW/백업/_AK_0008.CR2" },
+        { id: "same-folder", captureTime: capture(10_000), fileSize: 12_345, relativePath: "RAW/정연호/_AK_0008.CR2" },
+      ],
+    });
+    expect(result).toMatchObject({ status: "confirmed", confirmedCandidateId: "same-folder" });
+  });
+
+  it("촬영시각이 같아도 크기가 다른 RAW는 후보 여러 개로 남긴다", () => {
+    const result = resolveCaptureTimeCandidate({
+      jpgCaptureTime: capture(10_000),
+      candidates: [
+        { id: "small", captureTime: capture(10_000), fileSize: 12_345 },
+        { id: "large", captureTime: capture(10_000), fileSize: 54_321 },
       ],
     });
     expect(result).toMatchObject({ status: "multiple_candidates", confirmedCandidateId: null });
@@ -139,5 +171,54 @@ describe("RAW 촬영시각 안전 매칭", () => {
     expect(csv).toContain("JPG/C1/_AK_0008.JPG");
     expect(csv).toContain("RAW/C1/_AK_0008.CR2");
     expect(csv).toContain("확정");
+  });
+
+  it("기준 결과 22장만 사전 확인 대상으로 쓰고 하위 폴더 추가 별점 18장은 합치지 않는다", () => {
+    const targetNames = Array.from({ length: 22 }, (_, index) => `TARGET_${index + 1}.JPG`);
+    const extraNames = Array.from({ length: 18 }, (_, index) => `EXTRA_${index + 1}.JPG`);
+    const ratingsByName = Object.fromEntries([...targetNames, ...extraNames].map((name) => [name, 5]));
+    const targets = resolveRawMatchTargets({
+      names: targetNames,
+      ratingsByName,
+      colorsByName: {},
+      criteria: { source: "rating", minRating: 1, colorLabels: [6, 7, 8, 9] },
+    });
+    const handle = { kind: "file", name: "placeholder.JPG" } as FileSystemFileHandle;
+    const sources = [...targetNames, ...extraNames].map((name) => ({
+      id: `folder/${name}`,
+      name,
+      basename: name.replace(/\.[^.]+$/u, ""),
+      relativePath: `folder/${name}`,
+      handle,
+      thumbUrl: null,
+    })) satisfies JpgMatchSource[];
+
+    expect(targets.size).toBe(22);
+    expect(resolveCaptureMatchJpgSources({ targetBasenames: targets, sources })).toHaveLength(22);
+  });
+
+  it("N차보정본 안 JPG와 같은 basename 중복은 사전 확인 대상에서 제외한다", () => {
+    const handle = { kind: "file", name: "A.JPG" } as FileSystemFileHandle;
+    const sources: JpgMatchSource[] = [
+      { id: "1차보정본/A.JPG", name: "A.JPG", basename: "a", relativePath: "1차보정본/A.JPG", handle, thumbUrl: null },
+      { id: "현재/A.JPG", name: "A.JPG", basename: "a", relativePath: "현재/A.JPG", handle, thumbUrl: null },
+      { id: "2차보정본/B.JPG", name: "B.JPG", basename: "b", relativePath: "2차보정본/B.JPG", handle, thumbUrl: null },
+    ];
+    expect(resolveCaptureMatchJpgSources({ targetBasenames: new Set(["a", "b"]), sources }).map((source) => source.id)).toEqual(["현재/A.JPG"]);
+  });
+
+  it("사전 확인 항목 수나 상태 합계가 기준 수와 다르면 실행 불가로 판정한다", () => {
+    const preflight = {
+      items: [{ id: "only-one" }],
+      rawFound: 1,
+      confirmed: 1,
+      timeMismatch: 0,
+      multipleCandidates: 0,
+      missingTime: 0,
+      rawMissing: 0,
+    } as unknown as CaptureMatchPreflight;
+    expect(isCaptureMatchTargetCountConsistent(2, preflight)).toBe(false);
+    expect(isCaptureMatchTargetCountConsistent(1, { ...preflight, rawMissing: 1 })).toBe(false);
+    expect(isCaptureMatchTargetCountConsistent(1, preflight)).toBe(true);
   });
 });

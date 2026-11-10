@@ -3,6 +3,7 @@ import {
   buildDeliveredJpgMovePlan,
   DEFAULT_RAW_MATCH_CRITERIA,
   isDeliveredRoundFolder,
+  isInsideDeliveredRoundFolder,
   nextDeliveredRoundFolderName,
   rawMatchProgressPercent,
   resolveRawMatchTargets,
@@ -38,6 +39,8 @@ describe("보정본 전달 폴더", () => {
     expect(isDeliveredRoundFolder("1차보정본")).toBe(true);
     expect(isDeliveredRoundFolder("1차촬영")).toBe(false);
     expect(isDeliveredRoundFolder("2차(프로필)")).toBe(false);
+    expect(isInsideDeliveredRoundFolder("C1/1차보정본/A.JPG")).toBe(true);
+    expect(isInsideDeliveredRoundFolder("C1/1차촬영/A.JPG")).toBe(false);
   });
 
   it("RAW가 복사된 JPG와 같은 폴더·같은 이름 XMP만 계획한다", () => {
