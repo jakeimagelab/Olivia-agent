@@ -14,6 +14,7 @@ type FakeOptions = {
   mcpLastSeen?: string;
   missingTable?: string;
   missingColumn?: { table: string; column: string };
+  missingRpc?: string;
   workerLastSeen?: string;
   workerRev?: string;
   workerInstalledAt?: string;
@@ -21,6 +22,10 @@ type FakeOptions = {
 
 function fakeSupabase(options: FakeOptions): SupabaseClient {
   return {
+    async rpc(name: string) {
+      if (name === options.missingRpc) return { data: null, error: { code: "PGRST202", message: "function missing from schema cache" } };
+      return { data: name === "person_select_access_mode_facts" ? {} : "test-hash", error: null };
+    },
     from(table: string) {
       return {
         select(columns: string, selectOptions?: { count?: string; head?: boolean }) {
@@ -248,5 +253,19 @@ describe("Olivia chat 시스템 진단", () => {
     const serialized = JSON.stringify(report);
     expect(serialized).not.toContain("anthropic-super-secret");
     expect(serialized).not.toContain("openai-super-secret");
+  });
+
+  it("사진선택 필수 RPC가 schema cache에 없으면 정확한 복구 migration을 표시한다", async () => {
+    const now = new Date("2026-11-10T12:00:00+09:00");
+    const { collectSystemStatus } = await import("@/lib/system-status/service");
+    const report = await collectSystemStatus({
+      now,
+      db: fakeSupabase({ now: now.toISOString(), missingRpc: "person_select_legacy_reviewer_hash" }),
+    });
+    expect(report.items.find((item) => item.id === "rpc_person_select_legacy_reviewer_hash")).toMatchObject({
+      level: "error",
+      state: "미적용",
+      migration: "supabase/migrations/20261113_person_select_legacy_reviewer_hash_repair.sql",
+    });
   });
 });

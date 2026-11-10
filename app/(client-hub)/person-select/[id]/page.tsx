@@ -90,6 +90,16 @@ export default function PersonSelectDetailPage() {
   const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const load = useCallback(() => fetch(`/api/person-select/${id}`).then((r) => r.json()).then((body) => { if (!body.ok) throw new Error(body.error); setData(body); setAssignments(Object.fromEntries((body.groups as Group[]).map((group) => [group.label, (body.people as Person[]).find((person) => person.group_label === group.label)?.id ?? ""]))); }), [id]);
+  const loadSharedImageUrls = useCallback(async (imageIds: string[]) => {
+    const response = await fetch(`/api/person-select/${id}/images`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageIds }),
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) throw new Error(body.error || "사진 주소를 불러오지 못했습니다.");
+    return body.images as Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
+  }, [id]);
   useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
   useEffect(() => {
     const reviewers = data?.shared?.reviewers ?? [];
@@ -97,8 +107,59 @@ export default function PersonSelectDetailPage() {
     if (selectedReviewerId && reviewers.some((reviewer) => reviewer.id === selectedReviewerId)) return;
     setSelectedReviewerId((reviewers.find((reviewer) => !reviewer.is_legacy) ?? reviewers[0]).id);
   }, [data?.shared?.reviewers, selectedReviewerId]);
-  useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); setJobId(""); await load(); if (body.job?.status === "COMPLETED") setTab("matching"); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
-  useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
+  useEffect(() => {
+    if (!jobId) return;
+    let stopped = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (stopped || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const body = await (await fetch(`/api/remote-jobs?id=${jobId}`, { cache: "no-store" })).json();
+        if (!["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status) || stopped) return;
+        setResult(body.job.result || { error: body.job.error || body.job.message });
+        setJobId("");
+        await load();
+        if (body.job?.status === "COMPLETED") setTab("matching");
+      } catch {
+        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const resume = () => { if (document.visibilityState === "visible") void poll(); };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2_500);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
+  }, [jobId, load]);
+  useEffect(() => {
+    if (!rawJobId) return;
+    let stopped = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (stopped || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`, { cache: "no-store" })).json();
+        if (!["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status) || stopped) return;
+        setRawJobId("");
+        setRawResult(body.job.result || { error: body.job.error || body.job.message });
+        await load();
+      } catch {
+        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const resume = () => { if (document.visibilityState === "visible") void poll(); };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2_500);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
+  }, [rawJobId, load]);
   useEffect(() => {
     if (!deleteOpen || deleting) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDeleteOpen(false); };
@@ -348,6 +409,7 @@ export default function PersonSelectDetailPage() {
           initialSelection={selectedSharedSelection}
           reviewer={selectedReviewer}
           messagesEnabled
+          loadImageUrls={loadSharedImageUrls}
           qualityApi={`/api/person-select/${id}/quality`}
           canManageQuality
           onSubmitted={() => undefined}

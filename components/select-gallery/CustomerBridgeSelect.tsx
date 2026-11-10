@@ -131,6 +131,7 @@ function touchPreviewCache(url: string, task: Promise<void>) {
 }
 
 function preparePreviewImage(url: string) {
+  if (!url) return Promise.resolve();
   const cached = previewImageCache.get(url);
   if (cached) {
     touchPreviewCache(url, cached);
@@ -155,7 +156,7 @@ function useAdjacentPreviewPreload(images: readonly CustomerBridgeImage[], activ
     if (index < 0) return;
     for (let offset = -radius; offset <= radius; offset += 1) {
       const candidate = images[index + offset];
-      if (candidate) void preparePreviewImage(candidate.image_url);
+      if (candidate?.image_url) void preparePreviewImage(candidate.image_url);
     }
   }, [activeId, images, radius]);
 }
@@ -237,6 +238,11 @@ function StablePreviewImage({ image, onImageError }: { image: CustomerBridgeImag
 
   useEffect(() => {
     if (displayed.id === image.id && displayed.image_url === image.image_url) return;
+    if (!image.image_url) {
+      setDisplayed(image);
+      setLoading(true);
+      return;
+    }
     const request = requestRef.current + 1;
     requestRef.current = request;
     setLoading(true);
@@ -248,8 +254,8 @@ function StablePreviewImage({ image, onImageError }: { image: CustomerBridgeImag
   }, [displayed.id, displayed.image_url, image]);
 
   return <div className={styles.stablePreviewImage} data-loading={loading || undefined}>
-    <img src={displayed.image_url} alt={displayed.original_file_name} draggable={false} decoding="async" onError={() => onImageError?.(image.id)} />
-    {loading ? <span><LoaderCircle size={20} aria-label="다음 사진 불러오는 중" /></span> : null}
+    {displayed.image_url ? <img src={displayed.image_url} alt={displayed.original_file_name} draggable={false} decoding="async" onError={() => onImageError?.(image.id)} /> : null}
+    {loading || !displayed.image_url ? <span><LoaderCircle size={20} aria-label="사진 불러오는 중" /></span> : null}
   </div>;
 }
 
@@ -288,7 +294,9 @@ const CustomerBridgeThumbnailCard = memo(function CustomerBridgeThumbnailCard({
     }}
     aria-label={`${image.original_file_name}${rating ? `, 고객 ${rating}점 셀렉` : ""}${colorLabel ? `, ${BRIDGE_COLOR_LABELS[colorLabel].name} 컬러 셀렉` : ""}${active ? ", 작업 대상" : ""}`}
   >
-    <span className={styles.thumbnailMedia}><img src={image.thumbnail_url ?? image.image_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onError={() => onImageError?.(image.id)} /></span>
+    <span className={styles.thumbnailMedia}>{image.thumbnail_url || image.image_url
+      ? <img src={image.thumbnail_url || image.image_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onError={() => onImageError?.(image.id)} />
+      : <LoaderCircle className={styles.thumbnailLoading} size={20} aria-label="썸네일 불러오는 중" />}</span>
     {rating ? <span className={styles.ratingBadge}><Star size={12} fill="currentColor" />{rating}</span> : null}
     {colorLabel ? <span className={styles.colorLabelBadge} style={{ background: BRIDGE_COLOR_LABELS[colorLabel].color }} aria-label={`${BRIDGE_COLOR_LABELS[colorLabel].name} 컬러`} /> : null}
     {quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.qualityBadge} title={quality.flags.length ? "AI 품질 문제 의심" : "AI 확인 필요"}><AlertTriangle size={12} />{quality.flags.length || "?"}</span> : null}
@@ -309,6 +317,7 @@ export default function CustomerBridgeSelect({
   readOnly = false,
   embedded = false,
   refreshImageUrl,
+  loadImageUrls,
   reviewer,
   messagesEnabled = false,
   qualityApi,
@@ -325,6 +334,7 @@ export default function CustomerBridgeSelect({
   readOnly?: boolean;
   embedded?: boolean;
   refreshImageUrl?: (imageId: string) => Promise<Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
+  loadImageUrls?: (imageIds: string[]) => Promise<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>;
   reviewer?: { display_name: string; role_label?: string | null; can_finalize?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean } | null;
   messagesEnabled?: boolean;
   qualityApi?: string;
@@ -334,6 +344,7 @@ export default function CustomerBridgeSelect({
   const localStorageScope = storageScope ?? shareToken;
   const [imageUrlOverrides, setImageUrlOverrides] = useState<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>({});
   const refreshInFlightRef = useRef(new Map<string, Promise<void>>());
+  const mediaBatchInFlightRef = useRef(new Set<string>());
   const images = useMemo(() => initialImages.map((image) => imageUrlOverrides[image.id] ? { ...image, ...imageUrlOverrides[image.id] } : image), [imageUrlOverrides, initialImages]);
   const handleImageError = useCallback((imageId: string) => {
     if (!refreshImageUrl || refreshInFlightRef.current.has(imageId)) return;
@@ -414,6 +425,7 @@ export default function CustomerBridgeSelect({
   const lastMessageIdRef = useRef<string | null>(null);
   const messagesLengthRef = useRef(0);
   const messageRefreshInFlightRef = useRef<Promise<void> | null>(null);
+  const qualityRefreshInFlightRef = useRef<Promise<{ job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] } | undefined> | null>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
   const pointerRef = useRef<{
@@ -444,7 +456,7 @@ export default function CustomerBridgeSelect({
     return true;
   }), [customerSelectedIds, filter, folderImages, qualityResults]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
-  const renderedImages = visibleImages.slice(0, renderLimit);
+  const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
   const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
   const qualityCounts = useMemo(() => folderImages.reduce((counts, image) => {
     const quality = qualityResults[image.id];
@@ -458,6 +470,31 @@ export default function CustomerBridgeSelect({
   const fullscreenImage = fullscreenId ? imageById.get(fullscreenId) ?? null : null;
   const fullscreenIndex = fullscreenId ? visibleImages.findIndex((image) => image.id === fullscreenId) : -1;
   const reviewImages = useMemo(() => (reviewIds ?? []).map((id) => imageById.get(id)).filter(Boolean) as CustomerBridgeImage[], [imageById, reviewIds]);
+
+  useEffect(() => {
+    if (!loadImageUrls) return;
+    const requested = new Set(renderedImages.map((image) => image.id));
+    if (focusedImageId) requested.add(focusedImageId);
+    if (fullscreenId) requested.add(fullscreenId);
+    if (reviewActiveId) requested.add(reviewActiveId);
+    const missingIds = Array.from(requested)
+      .filter((id) => {
+        const image = imageById.get(id);
+        return image && (!image.thumbnail_url || !image.image_url) && !mediaBatchInFlightRef.current.has(id);
+      })
+      .slice(0, PAGE_SIZE);
+    if (!missingIds.length) return;
+    missingIds.forEach((id) => mediaBatchInFlightRef.current.add(id));
+    let cancelled = false;
+    void loadImageUrls(missingIds)
+      .then((urls) => {
+        if (cancelled || !Object.keys(urls).length) return;
+        setImageUrlOverrides((current) => ({ ...current, ...urls }));
+      })
+      .catch(() => undefined)
+      .finally(() => missingIds.forEach((id) => mediaBatchInFlightRef.current.delete(id)));
+    return () => { cancelled = true; };
+  }, [focusedImageId, fullscreenId, imageById, loadImageUrls, renderedImages, reviewActiveId]);
 
   useAdjacentPreviewPreload(visibleImages, fullscreenId ?? focusedImageId);
   useAdjacentPreviewPreload(reviewImages, reviewActiveId);
@@ -476,34 +513,44 @@ export default function CustomerBridgeSelect({
 
   const loadQuality = useCallback(async (options?: { quiet?: boolean; jobOnly?: boolean }) => {
     if (!qualityApi) return;
-    try {
-      const separator = qualityApi.includes("?") ? "&" : "?";
-      const response = await fetch(options?.jobOnly ? `${qualityApi}${separator}jobOnly=1` : qualityApi, { cache: "no-store" });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.error || "AI 품질 결과를 불러오지 못했습니다.");
-      if (!options?.jobOnly) {
-        const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
-        setQualityResults(next);
+    if (qualityRefreshInFlightRef.current) return qualityRefreshInFlightRef.current;
+    const request = (async () => {
+      try {
+        const separator = qualityApi.includes("?") ? "&" : "?";
+        const response = await fetch(options?.jobOnly ? `${qualityApi}${separator}jobOnly=1` : qualityApi, { cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error(result.error || "AI 품질 결과를 불러오지 못했습니다.");
+        if (!options?.jobOnly) {
+          const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
+          setQualityResults(next);
+        }
+        setQualityJob(result.job ?? null);
+        if (!options?.quiet) setQualityState("");
+        return result as { job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] };
+      } catch (error) {
+        if (!options?.quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
+        return undefined;
       }
-      setQualityJob(result.job ?? null);
-      if (!options?.quiet) setQualityState("");
-      return result;
-    } catch (error) {
-      if (!options?.quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
+    })();
+    qualityRefreshInFlightRef.current = request;
+    try { return await request; } finally {
+      if (qualityRefreshInFlightRef.current === request) qualityRefreshInFlightRef.current = null;
     }
   }, [qualityApi]);
 
   useEffect(() => { void loadQuality(); }, [loadQuality]);
   useEffect(() => {
     if (!qualityApi || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
+    let stopped = false;
     const refresh = async () => {
-      if (document.visibilityState !== "visible") return;
+      if (stopped || document.visibilityState !== "visible") return;
       const result = await loadQuality({ quiet: true, jobOnly: true });
       const status = String(result?.job?.status ?? "");
       if (status && !["queued", "running"].includes(status)) await loadQuality({ quiet: true });
     };
+    void refresh();
     const timer = window.setInterval(() => void refresh(), 3000);
-    return () => window.clearInterval(timer);
+    return () => { stopped = true; window.clearInterval(timer); };
   }, [loadQuality, qualityApi, qualityJob]);
 
   const startQuality = useCallback(async () => {

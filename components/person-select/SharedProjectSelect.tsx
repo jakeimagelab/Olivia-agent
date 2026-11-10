@@ -12,7 +12,9 @@ function requestKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? `shared_${crypto.randomUUID()}` : `shared_${Date.now()}`;
 }
 
-function SharedClassicSelect({ shareToken, event, images, draft, selection, onSubmitted }: { shareToken: string; event: SharedEvent; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection; onSubmitted: () => void }) {
+type SharedImageUrls = Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
+
+function SharedClassicSelect({ shareToken, event, images: initialImages, draft, selection, onSubmitted, loadImageUrls }: { shareToken: string; event: SharedEvent; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection; onSubmitted: () => void; loadImageUrls: (imageIds: string[]) => Promise<SharedImageUrls> }) {
   const seed = draft?.selectedImageIds ?? selection?.items?.map((item) => item.image_id) ?? [];
   const [selected, setSelected] = useState(() => new Set(seed));
   const [memo, setMemo] = useState(draft?.customerMemo ?? selection?.customer_memo ?? "");
@@ -21,7 +23,32 @@ function SharedClassicSelect({ shareToken, event, images, draft, selection, onSu
   const revision = useRef(draft?.revision ?? 0);
   const dirty = useRef(false);
   const submitKey = useRef(requestKey());
+  const [urlOverrides, setUrlOverrides] = useState<SharedImageUrls>({});
+  const [renderLimit, setRenderLimit] = useState(240);
+  const loadingIds = useRef(new Set<string>());
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const images = useMemo(() => initialImages.map((image) => urlOverrides[image.id] ? { ...image, ...urlOverrides[image.id] } : image), [initialImages, urlOverrides]);
   const visible = useMemo(() => filter === "selected" ? images.filter((image) => selected.has(image.id)) : images, [filter, images, selected]);
+  const rendered = useMemo(() => visible.slice(0, renderLimit), [renderLimit, visible]);
+  useEffect(() => { setRenderLimit(240); }, [filter]);
+  useEffect(() => {
+    const missing = rendered.filter((image) => !image.thumbnail_url && !loadingIds.current.has(image.id)).map((image) => image.id);
+    if (!missing.length) return;
+    missing.forEach((id) => loadingIds.current.add(id));
+    void loadImageUrls(missing)
+      .then((next) => setUrlOverrides((current) => ({ ...current, ...next })))
+      .catch((cause) => setState(cause instanceof Error ? cause.message : "사진을 불러오지 못했습니다."))
+      .finally(() => missing.forEach((id) => loadingIds.current.delete(id)));
+  }, [loadImageUrls, rendered]);
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => Math.min(visible.length, current + 240));
+    }, { rootMargin: "800px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [visible.length]);
   useEffect(() => {
     if (!dirty.current) return;
     const timer = window.setTimeout(async () => {
@@ -42,11 +69,17 @@ function SharedClassicSelect({ shareToken, event, images, draft, selection, onSu
     if (!response.ok || !result.ok) return setState(result.error || "제출 실패");
     onSubmitted();
   };
-  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {images.length}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{visible.map((image) => <button type="button" key={image.id} className={styles.card} data-selected={selected.has(image.id)} onClick={() => toggle(image.id)}><img src={image.thumbnail_url || image.image_url} alt={image.original_file_name} loading="lazy" />{/* eslint-disable-line @next/next/no-img-element */}<span>{image.original_file_name}</span>{selected.has(image.id) ? <i className={styles.check}>✓</i> : null}</button>)}</section><footer className={styles.footer}><textarea value={memo} placeholder="전체 메모" onChange={(e) => { setMemo(e.target.value); dirty.current = true; setState("저장 대기"); }} /><button type="button" disabled={!selected.size} onClick={() => void submit()}>선택 {selected.size}장 최종 제출</button><span className={styles.state}>{state}</span></footer></main>;
+  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {images.length}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{rendered.map((image) => <button type="button" key={image.id} className={styles.card} data-selected={selected.has(image.id)} onClick={() => toggle(image.id)}>{image.thumbnail_url || image.image_url ? <img src={image.thumbnail_url || image.image_url} alt={image.original_file_name} loading="lazy" /> : <span className={styles.imageLoading}>사진 불러오는 중</span>}<span>{image.original_file_name}</span>{selected.has(image.id) ? <i className={styles.check}>✓</i> : null}</button>)}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" /></section><footer className={styles.footer}><textarea value={memo} placeholder="전체 메모" onChange={(e) => { setMemo(e.target.value); dirty.current = true; setState("저장 대기"); }} /><button type="button" disabled={!selected.size} onClick={() => void submit()}>선택 {selected.size}장 최종 제출</button><span className={styles.state}>{state}</span></footer></main>;
 }
 
 export default function SharedProjectSelect({ shareToken, event, reviewer, images, draft, selection }: { shareToken: string; event: SharedEvent; reviewer: SharedReviewer; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection }) {
   const [submitted, setSubmitted] = useState(false);
+  const loadImageUrls = useCallback(async (imageIds: string[]) => {
+    const response = await fetch(`/api/pick/shared/${shareToken}/images`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageIds }) });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.images) throw new Error(result.error || "사진 주소를 불러오지 못했습니다.");
+    return result.images as SharedImageUrls;
+  }, [shareToken]);
   const refreshImageUrl = useCallback(async (imageId: string) => {
     const response = await fetch(`/api/pick/shared/${shareToken}/images/${encodeURIComponent(imageId)}`);
     const result = await response.json().catch(() => ({}));
@@ -54,6 +87,6 @@ export default function SharedProjectSelect({ shareToken, event, reviewer, image
     return { image_url: String(result.image.image_url), thumbnail_url: result.image.thumbnail_url ? String(result.image.thumbnail_url) : null };
   }, [shareToken]);
   if (submitted) return <main className={styles.done}><div><h1>사진 선택을 제출했어요.</h1><p>선택 내용과 메모가 안전하게 저장됐습니다.</p><button type="button" onClick={() => setSubmitted(false)}>선택 다시 확인</button></div></main>;
-  if (event.customer_view_mode !== "bridge") return <SharedClassicSelect shareToken={shareToken} event={event} images={images} draft={draft} selection={selection} onSubmitted={() => setSubmitted(true)} />;
-  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${reviewer.id}`} apiBase={`/api/pick/shared/${shareToken}`} qualityApi={event.customer_ai_results_visible && reviewer.can_view_ai_results ? `/api/pick/shared/${shareToken}/quality` : undefined} gallery={{ id: event.id, title: event.title, total_jpg_count: images.length, allow_resubmit: true, download_jpg_enabled: event.download_available === true && reviewer.can_download_jpg === true, download_raw_enabled: event.download_available === true && reviewer.can_download_raw === true }} images={images} initialDraft={draft} initialSelection={selection} reviewer={reviewer} messagesEnabled onSubmitted={() => setSubmitted(true)} refreshImageUrl={refreshImageUrl} />;
+  if (event.customer_view_mode !== "bridge") return <SharedClassicSelect shareToken={shareToken} event={event} images={images} draft={draft} selection={selection} onSubmitted={() => setSubmitted(true)} loadImageUrls={loadImageUrls} />;
+  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${reviewer.id}`} apiBase={`/api/pick/shared/${shareToken}`} qualityApi={event.customer_ai_results_visible && reviewer.can_view_ai_results ? `/api/pick/shared/${shareToken}/quality` : undefined} gallery={{ id: event.id, title: event.title, total_jpg_count: images.length, allow_resubmit: true, download_jpg_enabled: event.download_available === true && reviewer.can_download_jpg === true, download_raw_enabled: event.download_available === true && reviewer.can_download_raw === true }} images={images} initialDraft={draft} initialSelection={selection} reviewer={reviewer} messagesEnabled onSubmitted={() => setSubmitted(true)} refreshImageUrl={refreshImageUrl} loadImageUrls={loadImageUrls} />;
 }

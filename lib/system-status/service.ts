@@ -18,12 +18,28 @@ const REQUIRED_TABLES = [
   ["health_findings", "supabase/migrations/20260928_health_findings.sql"],
   ["olivia_desktop_settings", "supabase/migrations/20260909_olivia_desktop_settings.sql"],
   ["client_photo_selection_items", "supabase/migrations/20261020_client_photo_selection_items.sql"],
+  ["person_select_shared_drafts", "supabase/migrations/20261107_person_select_general_uploads.sql"],
+  ["person_select_upload_jobs", "supabase/migrations/20261107_person_select_general_uploads.sql"],
+  ["person_select_upload_job_files", "supabase/migrations/20261107_person_select_general_uploads.sql"],
+  ["person_select_shared_reviewers", "supabase/migrations/20261109_person_select_multi_reviewer_collaboration.sql"],
+  ["person_select_project_messages", "supabase/migrations/20261109_person_select_multi_reviewer_collaboration.sql"],
+  ["photo_quality_analysis_jobs", "supabase/migrations/20261111_bridge_collaboration_photo_quality.sql"],
+  ["photo_quality_analysis_results", "supabase/migrations/20261111_bridge_collaboration_photo_quality.sql"],
+  ["photo_quality_analysis_job_items", "supabase/migrations/20261111_bridge_collaboration_photo_quality.sql"],
 ] as const;
 
 const REQUIRED_COLUMNS = [
   ["photo_storage_projects", "workflow_run_id", "supabase/migrations/20260924_shooting_progress_links.sql"],
   ["remote_jobs", "cancel_requested_at", "supabase/migrations/20261001_remote_job_cancellation.sql"],
   ["workflow_runs", "checks", "supabase/migrations/20261020_workflow_run_checks.sql"],
+  ["person_select_events", "access_mode", "supabase/migrations/20261107_person_select_general_uploads.sql"],
+  ["person_select_events", "customer_view_mode", "supabase/migrations/20261107_person_select_general_uploads.sql"],
+  ["person_select_shared_drafts", "reviewer_id", "supabase/migrations/20261109_person_select_multi_reviewer_collaboration.sql"],
+] as const;
+
+const REQUIRED_RPCS = [
+  ["person_select_access_mode_facts", { p_event_id: "00000000-0000-0000-0000-000000000000" }, "supabase/migrations/20261108_person_select_access_mode_transitions.sql"],
+  ["person_select_legacy_reviewer_hash", { p_event_id: "00000000-0000-0000-0000-000000000000" }, "supabase/migrations/20261113_person_select_legacy_reviewer_hash_repair.sql"],
 ] as const;
 
 const REQUIRED_ENV = [
@@ -37,7 +53,7 @@ type SupabaseErrorLike = { code?: string; message?: string } | null;
 
 function isMissingSchemaObject(error: SupabaseErrorLike): boolean {
   if (!error) return false;
-  return ["42P01", "42703", "PGRST204", "PGRST205"].includes(error.code ?? "")
+  return ["42P01", "42703", "42883", "PGRST202", "PGRST204", "PGRST205"].includes(error.code ?? "")
     || /does not exist|schema cache|could not find/i.test(error.message ?? "");
 }
 
@@ -128,6 +144,20 @@ async function checkRequiredColumn(db: SupabaseClient, table: string, column: st
     return unknownItem(id, "database", label, "컬럼 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   } catch {
     return unknownItem(id, "database", label, "컬럼 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
+  }
+}
+
+async function checkRequiredRpc(db: SupabaseClient, rpc: string, args: Record<string, string>, migration: string): Promise<SystemStatusItem> {
+  const id = `rpc_${rpc}`;
+  try {
+    const { error } = await db.rpc(rpc, args);
+    if (!error) return { id, group: "database", label: rpc, level: "ok", state: "OK" };
+    if (isMissingSchemaObject(error)) {
+      return { id, group: "database", label: rpc, level: "error", state: "미적용", detail: "필수 DB 함수를 실행하지 못했습니다.", remedy: `${migration} migration을 적용하고 PostgREST schema cache를 갱신하세요.`, migration };
+    }
+    return unknownItem(id, "database", rpc, "DB 함수 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
+  } catch {
+    return unknownItem(id, "database", rpc, "DB 함수 상태를 확인하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
   }
 }
 
@@ -319,6 +349,7 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
     databaseItems = [
       ...REQUIRED_TABLES.map(([table]) => unknownItem(`table_${table}`, "database", table, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)),
       ...REQUIRED_COLUMNS.map(([table, column]) => unknownItem(`column_${table}_${column}`, "database", `${table}.${column}`, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)),
+      ...REQUIRED_RPCS.map(([rpc]) => unknownItem(`rpc_${rpc}`, "database", rpc, "Supabase에 연결할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)),
     ];
     mcpItem = unknownItem("mcp_tools", "cloud", "MCP 도구", "MCP 연결 기록을 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable);
     workerItems = [
@@ -334,13 +365,14 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
       unknownItem("queued_jobs", "mac_studio", "대기 중인 잡", "Remote job 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
     ];
   } else {
-    const [tableResults, columnResults, mcpResult, workerResult] = await Promise.all([
+    const [tableResults, columnResults, rpcResults, mcpResult, workerResult] = await Promise.all([
       Promise.all(REQUIRED_TABLES.map(([table, migration]) => checkRequiredTable(db!, table, migration))),
       Promise.all(REQUIRED_COLUMNS.map(([table, column, migration]) => checkRequiredColumn(db!, table, column, migration))),
+      Promise.all(REQUIRED_RPCS.map(([rpc, args, migration]) => checkRequiredRpc(db!, rpc, args, migration))),
       checkMcpSignal(db, now),
       checkWorker(db, now).catch(() => [unknownItem("worker", "mac_studio", "Worker", "Worker 상태 확인 중 오류가 발생했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)]),
     ]);
-    databaseItems = [...tableResults, ...columnResults];
+    databaseItems = [...tableResults, ...columnResults, ...rpcResults];
     mcpItem = mcpResult;
     workerItems = workerResult;
   }

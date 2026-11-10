@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { validateCategoryPicks } from "@/lib/person-select/core";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { newPersonSelectProjectDefaults, normalizePersonSelectProjectSettings } from "@/lib/person-select/projectSettings";
+import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 
 export const dynamic = "force-dynamic";
 
@@ -13,19 +14,40 @@ export async function GET(request: NextRequest) {
   const db = getSupabaseAdmin();
   const { data: events, error } = await db.from("person_select_events").select("*").order("created_at", { ascending: false });
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
-  const rows = await Promise.all((events ?? []).map(async (event) => {
-    const [{ count: peopleCount }, { count: submittedCount }, { data: sharedSelection }] = await Promise.all([
-      db.from("person_select_people").select("id", { count: "exact", head: true }).eq("event_id", event.id),
-      db.from("person_select_people").select("id", { count: "exact", head: true }).eq("event_id", event.id).not("submitted_at", "is", null),
-      db.from("person_select_shared_selections").select("id,submitted_at").eq("event_id", event.id).order("submitted_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
+  const eventRows = events ?? [];
+  const eventIds = eventRows.map((event) => event.id);
+  const [people, sharedSelections] = eventIds.length ? await Promise.all([
+    readAllPersonSelectRows((from, to) => db.from("person_select_people")
+      .select("id,event_id,submitted_at")
+      .in("event_id", eventIds)
+      .order("id")
+      .range(from, to)),
+    readAllPersonSelectRows((from, to) => db.from("person_select_shared_selections")
+      .select("id,event_id,submitted_at")
+      .in("event_id", eventIds)
+      .order("id")
+      .range(from, to)),
+  ]) : [[], []];
+  const peopleCounts = new Map<string, number>();
+  const submittedCounts = new Map<string, number>();
+  for (const person of people) {
+    peopleCounts.set(person.event_id, (peopleCounts.get(person.event_id) ?? 0) + 1);
+    if (person.submitted_at) submittedCounts.set(person.event_id, (submittedCounts.get(person.event_id) ?? 0) + 1);
+  }
+  const latestSharedSubmission = new Map<string, string>();
+  for (const selection of sharedSelections) {
+    const current = latestSharedSubmission.get(selection.event_id);
+    if (!current || selection.submitted_at > current) latestSharedSubmission.set(selection.event_id, selection.submitted_at);
+  }
+  const rows = eventRows.map((event) => {
+    const sharedSubmittedAt = latestSharedSubmission.get(event.id) ?? null;
     return {
       ...event,
-      people_count: peopleCount ?? 0,
-      submitted_count: event.access_mode === "project_shared" ? (sharedSelection ? 1 : 0) : submittedCount ?? 0,
-      shared_submitted_at: sharedSelection?.submitted_at ?? null,
+      people_count: peopleCounts.get(event.id) ?? 0,
+      submitted_count: event.access_mode === "project_shared" ? (sharedSubmittedAt ? 1 : 0) : submittedCounts.get(event.id) ?? 0,
+      shared_submitted_at: sharedSubmittedAt,
     };
-  }));
+  });
   return Response.json({ ok: true, events: rows });
 }
 

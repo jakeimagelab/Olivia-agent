@@ -266,9 +266,23 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
 
   useEffect(() => {
     mountedRef.current = true;
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), document.visibilityState === "visible" ? 8_000 : 30_000);
-    return () => { mountedRef.current = false; window.clearInterval(timer); };
+    let refreshInFlight = false;
+    const refreshVisible = async () => {
+      if (document.visibilityState !== "visible" || refreshInFlight) return;
+      refreshInFlight = true;
+      try { await refresh(); } finally { refreshInFlight = false; }
+    };
+    const resume = () => { if (document.visibilityState === "visible") void refreshVisible(); };
+    void refreshVisible();
+    const timer = window.setInterval(() => void refreshVisible(), 8_000);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => {
+      mountedRef.current = false;
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("focus", resume);
+    };
   }, [refresh]);
 
   const value = useMemo<UploadManagerValue>(() => ({ jobs, startLocalUpload, reattachLocalFiles, pause, resume, retryFailed, cancel, refresh }), [cancel, jobs, pause, reattachLocalFiles, refresh, resume, retryFailed, startLocalUpload]);

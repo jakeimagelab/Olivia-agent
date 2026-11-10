@@ -2066,25 +2066,33 @@ export default function OliviaBridgeWorkspace({
     const eventId = galleryCustomerResult?.personSelectEventId;
     const match = galleryCustomerResult?.imageMatch ?? galleryCustomerResult?.match;
     if (!eventId || !match || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
+    let stopped = false;
+    let inFlight = false;
     const refresh = async () => {
-      if (document.visibilityState !== "visible") return;
-      const response = await fetch(`/api/person-select/${eventId}/quality?jobOnly=1`, { cache: "no-store" });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown> };
-      if (!response.ok || !body.ok) return;
-      setQualityJob(body.job ?? null);
-      if (["queued", "running"].includes(String(body.job?.status ?? ""))) return;
+      if (stopped || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/person-select/${eventId}/quality?jobOnly=1`, { cache: "no-store" });
+        const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown> };
+        if (!response.ok || !body.ok) return;
+        setQualityJob(body.job ?? null);
+        if (["queued", "running"].includes(String(body.job?.status ?? ""))) return;
 
-      const resultResponse = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
-      const resultBody = await resultResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
-      if (!resultResponse.ok || !resultBody.ok) return;
-      setQualityByBridgeId(Object.fromEntries((resultBody.results ?? []).flatMap((result) => {
-        const bridgeId = match.bridgeIdByImageId[result.imageId];
-        return bridgeId ? [[bridgeId, result]] : [];
-      })));
-      setQualityJob(resultBody.job ?? null);
+        const resultResponse = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
+        const resultBody = await resultResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
+        if (!resultResponse.ok || !resultBody.ok) return;
+        setQualityByBridgeId(Object.fromEntries((resultBody.results ?? []).flatMap((result) => {
+          const bridgeId = match.bridgeIdByImageId[result.imageId];
+          return bridgeId ? [[bridgeId, result]] : [];
+        })));
+        setQualityJob(resultBody.job ?? null);
+      } finally {
+        inFlight = false;
+      }
     };
+    void refresh();
     const timer = window.setInterval(() => void refresh(), 3000);
-    return () => window.clearInterval(timer);
+    return () => { stopped = true; window.clearInterval(timer); };
   }, [galleryCustomerResult?.imageMatch, galleryCustomerResult?.match, galleryCustomerResult?.personSelectEventId, qualityJob]);
 
   const addCustomerSelectionToAdminSelection = useCallback(() => {

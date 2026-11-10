@@ -180,6 +180,10 @@ export function publicSelectionErrorResponse(error: unknown) {
   if (error instanceof PublicSelectionRequestError) {
     return Response.json({ ok: false, error: error.message }, { status: error.status });
   }
-  const message = error instanceof Error ? error.message : "요청을 처리하지 못했습니다.";
-  return Response.json({ ok: false, error: message }, { status: 500 });
+  console.error("[public-selection] unexpected server error", error);
+  return Response.json({
+    ok: false,
+    code: "PUBLIC_SELECTION_UNAVAILABLE",
+    error: "사진선택 서버 연결을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+  }, { status: 500 });
 }

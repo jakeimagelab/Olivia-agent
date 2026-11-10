@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   PublicSelectionRequestError,
   parsePublicSelectionDraft,
   parsePublicSelectionSubmit,
+  publicSelectionErrorResponse,
   publicSelectionRateLimitKey,
   readPublicSelectionJson,
 } from "@/lib/select-gallery/publicSelection";
@@ -55,5 +56,22 @@ describe("public selection validation", () => {
     expect(key).toMatch(/^[a-f0-9]{64}$/);
     expect(key).not.toContain("secret-token");
     expect(key).not.toContain("192.0.2.1");
+  });
+
+  it("keeps expected validation messages but hides unexpected database details", async () => {
+    const validation = publicSelectionErrorResponse(new PublicSelectionRequestError("유효하지 않은 공유 링크입니다.", 404));
+    expect(validation.status).toBe(404);
+    expect(await validation.json()).toMatchObject({ error: "유효하지 않은 공유 링크입니다." });
+
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const internal = publicSelectionErrorResponse(new Error("function digest(text, unknown) does not exist"));
+    expect(internal.status).toBe(500);
+    expect(await internal.json()).toEqual({
+      ok: false,
+      code: "PUBLIC_SELECTION_UNAVAILABLE",
+      error: "사진선택 서버 연결을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    });
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

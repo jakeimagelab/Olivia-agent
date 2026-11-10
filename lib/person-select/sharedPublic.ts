@@ -120,17 +120,45 @@ export async function getSharedPersonSelectImages(db: SupabaseClient, eventId: s
     .order("sort_order")
     .order("id")
     .range(from, to));
-  const urls = await signedImageUrls(rows.flatMap((row) => [row.thumb_path, row.preview_path]));
   return rows.map((row) => ({
     id: row.id,
     original_file_name: row.original_file_name,
     relative_path: row.source_rel_path,
-    thumbnail_url: urls.get(row.thumb_path) ?? "",
-    image_url: urls.get(row.preview_path) ?? "",
+    // 대량 프로젝트의 첫 진입에서 모든 Storage URL을 만들지 않는다. 현재 화면에
+    // 필요한 사진만 getSharedPersonSelectImageUrls로 제한된 묶음 서명한다.
+    thumbnail_url: "",
+    image_url: "",
     width: row.width,
     height: row.height,
     sort_order: row.sort_order,
   }));
+}
+
+export const SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT = 240;
+
+/** 공개/관리자 Bridge가 현재 표시할 사진만 서명한다. event 소유관계는 서버에서 다시 확인한다. */
+export async function getSharedPersonSelectImageUrls(
+  db: SupabaseClient,
+  eventId: string,
+  imageIds: readonly string[],
+) {
+  const uniqueIds = [...new Set(imageIds.map((value) => value.trim()).filter(Boolean))];
+  if (!uniqueIds.length || uniqueIds.length > SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT) {
+    throw new PublicSelectionRequestError(`사진 주소는 한 번에 ${SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT}장까지 요청할 수 있습니다.`);
+  }
+  const { data, error } = await db.from("person_select_images")
+    .select("id,thumb_path,preview_path")
+    .eq("event_id", eventId)
+    .in("id", uniqueIds);
+  if (error) throw error;
+  if ((data ?? []).length !== uniqueIds.length) {
+    throw new PublicSelectionRequestError("이 프로젝트에 없는 사진이 포함되어 있습니다.");
+  }
+  const urls = await signedImageUrls((data ?? []).flatMap((row) => [row.thumb_path, row.preview_path]), 3_600);
+  return Object.fromEntries((data ?? []).map((row) => [row.id, {
+    image_url: urls.get(row.preview_path) ?? urls.get(row.thumb_path) ?? "",
+    thumbnail_url: urls.get(row.thumb_path) ?? "",
+  }]));
 }
 
 export async function getSharedPersonSelectImageIds(db: SupabaseClient, eventId: string) {

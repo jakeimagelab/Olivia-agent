@@ -4,7 +4,7 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extraPickCount, priceOrder, requiredPickCount, selectionStatus, validateCategoryPicks, validateOffers } from "@/lib/person-select/core";
 import { isPersonSelectAccessMode, isPersonSelectCustomerViewMode, isPersonSelectProjectType, type PersonSelectAccessMode, type PersonSelectCategory, type PersonSelectOffer, type PersonSelectOrderItem } from "@/lib/person-select/types";
-import { PERSON_SELECT_BUCKET, signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
+import { PERSON_SELECT_BUCKET, signedImageUrls } from "@/lib/person-select/server";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
@@ -32,10 +32,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       .range(from, to)),
   ]);
   if (error || !event) return Response.json({ ok: false, error: error?.message || "행사를 찾을 수 없습니다." }, { status: 404 });
-  const choiceRows = await Promise.all(choices.map(async (choice) => {
-    const image = choice.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
-    return { ...choice, person_select_images: image ? { ...image, thumb_url: await signedImageUrl(image.thumb_path) } : null };
+  const choiceThumbUrls = await signedImageUrls(choices.flatMap((choice) => {
+    const image = choice.person_select_images as unknown as { thumb_path?: string | null } | null;
+    return image?.thumb_path ? [image.thumb_path] : [];
   }));
+  const choiceRows = choices.map((choice) => {
+    const image = choice.person_select_images as unknown as { original_file_name: string; source_rel_path: string; thumb_path: string } | null;
+    return { ...choice, person_select_images: image ? { ...image, thumb_url: choiceThumbUrls.get(image.thumb_path) ?? "" } : null };
+  });
   // 사람별·항목별 올라온 사진 수. 담임(homeroom)은 반 단위로 센다.
   const personCounts = new Map<string, Record<string, number>>();
   const groupCounts: Record<string, number> = {};
@@ -93,11 +97,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
   let shared: Record<string, unknown> | null = null;
   if (event.access_mode === "project_shared") {
-    const [{ data: reviewers, error: reviewersError }, { data: drafts, error: draftsError }, { data: selections, error: selectionsError }, sharedImageUrls] = await Promise.all([
+    const [{ data: reviewers, error: reviewersError }, { data: drafts, error: draftsError }, { data: selections, error: selectionsError }] = await Promise.all([
       db.from("person_select_shared_reviewers").select("id,display_name,role_label,token_version,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize,created_at,updated_at").eq("event_id", eventId).order("is_legacy", { ascending: false }).order("created_at"),
       db.from("person_select_shared_drafts").select("reviewer_id,revision,items,customer_memo,updated_at").eq("event_id", eventId),
       db.from("person_select_shared_selections").select("id,reviewer_id,submitted_at,customer_memo,revision").eq("event_id", eventId).order("submitted_at", { ascending: false }),
-      signedImageUrls(imageGroups.flatMap((image) => [image.thumb_path, image.preview_path])),
     ]);
     if (reviewersError || draftsError || selectionsError) throw reviewersError ?? draftsError ?? selectionsError;
     const latestByReviewer = new Map<string, NonNullable<typeof selections>[number]>();
@@ -108,6 +111,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       : { data: [], error: null };
     if (selectedItemsError) throw selectedItemsError;
     const imageById = new Map(imageGroups.map((image) => [image.id, image]));
+    const selectedThumbUrls = await signedImageUrls((selectedItems ?? []).flatMap((item) => {
+      const image = imageById.get(item.image_id);
+      return image?.thumb_path ? [image.thumb_path] : [];
+    }));
     const itemsFor = (selectionId: string) => (selectedItems ?? []).filter((item) => item.selection_id === selectionId).map((item) => {
       const image = imageById.get(item.image_id);
       return {
@@ -115,7 +122,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
         image: image ? {
           original_file_name: image.original_file_name,
           source_rel_path: image.source_rel_path,
-          thumb_url: sharedImageUrls.get(image.thumb_path) ?? "",
+          thumb_url: selectedThumbUrls.get(image.thumb_path) ?? "",
         } : null,
       };
     });
@@ -158,8 +165,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
         id: image.id,
         original_file_name: image.original_file_name,
         relative_path: image.source_rel_path,
-        thumbnail_url: sharedImageUrls.get(image.thumb_path) ?? "",
-        image_url: sharedImageUrls.get(image.preview_path) ?? sharedImageUrls.get(image.thumb_path) ?? "",
+        thumbnail_url: "",
+        image_url: "",
         sort_order: image.sort_order,
       })),
       selection: latestSelection ? { ...latestSelection, items: itemsFor(latestSelection.id) } : null,
