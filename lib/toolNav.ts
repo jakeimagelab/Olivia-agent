@@ -76,7 +76,7 @@ export const TOOLS_CONTENT: ToolDef[] = [
   // 대신한다. 여기를 바꾸면 두 항목이 동시에 노출되는 중복 카드가 생긴다.
   { title: "리뷰컨텐츠", desc: "클라이언트 반응을 수집해 포토클리닉 홍보 인스타 콘텐츠로 만듭니다.", href: "/review-studio", icon: Sparkles, meta: "Review Content", orange: false, category: "tools", aliases: ["리뷰 콘텐츠", "리뷰컨텐츠"] },
   { title: "홈페이지 브랜드 분석", desc: "병원 홈페이지 URL만 입력하면 브랜드 키워드·촬영 방향·브랜드필름 문장·콘티를 자동 분석합니다.", href: "/brand-analysis", icon: ScanSearch, meta: "Brand Analysis", orange: true, category: "tools", aliases: ["브랜드 분석", "홈페이지 브랜드 분석"] },
-  { title: "AI 추천 병원 역분석", desc: "AI가 반복 추천하는 병원군의 증거와 패턴을 분석해 신뢰 격차와 촬영 기획으로 연결합니다.", href: "/ai-trust-gap", icon: ShieldCheck, meta: "AI Trust Gap", orange: true, category: "tools", aliases: ["AI 추천 병원 역분석", "신뢰 격차"] },
+  { title: "GEO 레이더", desc: "특정 지역에서 AI가 실제로 추천하는 병원과 출처를 반복 측정합니다.", href: "/geo-radar", icon: ShieldCheck, meta: "AI 추천 병원 역분석", orange: true, category: "tools", aliases: ["GEO 레이더", "GEO", "레이더", "AI 추천 병원 역분석", "AI 검색 진단", "역분석", "신뢰 격차"] },
   { title: "병원이미지 진단", desc: "병원 현황에 맞는 사진 콘텐츠 방향을 AI가 진단합니다.", href: "/diagnosis", icon: ImageDown, meta: "Clinic Diagnosis", orange: false, category: "tools", aliases: ["병원이미지 진단", "이미지 진단"] },
   { title: "병원브랜드이미지 진단", desc: "홈페이지·플레이스·블로그·인스타그램에서 환자에게 전달되는 병원의 전체 인상을 진단합니다.", href: "/hospital-brand-image-diagnosis", icon: Fingerprint, meta: "Brand Image Diagnosis", orange: false, category: "tools", aliases: ["병원브랜드이미지 진단", "브랜드 이미지 진단"] },
   { title: "병원 채널 분석", desc: "인스타그램·홈페이지·네이버 플레이스·블로그를 함께 분석합니다.", href: "/channel-analyzer", icon: Activity, meta: "Channel Analysis", orange: false, category: "tools", aliases: ["채널 분석", "병원 채널 분석"] },

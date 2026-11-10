@@ -7,7 +7,6 @@ import {
 
 describe("workspace group entry tabs", () => {
   const cases: Array<[string, string | undefined, string, string]> = [
-    ["/ai-trust-gap", undefined, "brand", "ai-search"],
     ["/channel-analyzer", undefined, "brand", "channel"],
     ["/trend-dashboard", undefined, "brand", "trend"],
     ["/trend-dashboard", "group=insights", "insights", "trend"],
@@ -27,6 +26,8 @@ describe("workspace group entry tabs", () => {
   it("does not add a second group tab row to photo or video workspaces", () => {
     expect(resolveWorkspaceGroupForLocation("/photo-sorting")).toBeNull();
     expect(resolveWorkspaceGroupForLocation("/video-studio")).toBeNull();
+    expect(resolveWorkspaceGroupForLocation("/geo-radar")).toBeNull();
+    expect(resolveWorkspaceGroupForLocation("/ai-trust-gap")).toBeNull();
   });
 
   it("keeps the existing trend dashboard canonical href", () => {
@@ -35,8 +36,8 @@ describe("workspace group entry tabs", () => {
   });
 
   it("restores hidden standalone tools from saved favorites", () => {
-    const favorites = resolveFavoriteWorkspaceTools(["/ai-trust-gap", "/review-studio"]);
+    const favorites = resolveFavoriteWorkspaceTools(["/geo-radar", "/review-studio"]);
     expect(favorites).toHaveLength(2);
-    expect(favorites.map((tool) => tool.href)).toEqual(["/ai-trust-gap", "/review-studio"]);
+    expect(favorites.map((tool) => tool.href)).toEqual(["/geo-radar", "/review-studio"]);
   });
 });

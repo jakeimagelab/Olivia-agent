@@ -69,7 +69,7 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
   {
     id: "brand",
     title: "브랜드 진단센터",
-    description: "브랜드 이미지와 채널, AI 검색 신뢰도를 한곳에서 진단합니다.",
+    description: "브랜드 이미지와 채널, 시장 흐름을 한곳에서 진단합니다.",
     href: "/brand-analysis",
     icon: ScanSearch,
     accent: "purple",
@@ -78,7 +78,6 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       { id: "brand", title: "브랜드", href: "/brand-analysis", aliases: ["브랜드 분석", "홈페이지 브랜드 분석"], sourceHrefs: ["/brand-analysis"] },
       { id: "image", title: "이미지", href: "/hospital-brand-image-diagnosis", aliases: ["병원 이미지 진단", "브랜드 이미지 진단"], sourceHrefs: ["/diagnosis", "/hospital-brand-image-diagnosis"] },
       { id: "channel", title: "채널", href: "/channel-analyzer", aliases: ["병원 채널 분석", "채널 분석"], sourceHrefs: ["/channel-analyzer"] },
-      { id: "ai-search", title: "AI 검색", href: "/ai-trust-gap", aliases: ["AI 추천 병원 역분석", "AI 검색 진단", "신뢰 격차"], sourceHrefs: ["/ai-trust-gap"] },
       { id: "trend", title: "트렌드", href: "/trend-dashboard", aliases: ["병원 트렌드 분석", "트렌드 분석"], sourceHrefs: ["/trend-dashboard"] },
     ],
   },

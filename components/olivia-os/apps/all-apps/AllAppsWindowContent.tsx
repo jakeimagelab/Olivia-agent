@@ -40,7 +40,7 @@ const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/photo-retouching": "retouch",
   "/report": "work-report", "/monthly-report": "work-report", "/link-generator": "share-link", "/trash": "trash",
   "/daily-ideas": "idea", "/sns-manager": "promo-content", "/review-studio": "review-content", "/clients/reviews": "review-content",
-  "/brand-analysis": "brand-audit", "/ai-trust-gap": "reverse-analysis",
+  "/brand-analysis": "brand-audit", "/geo-radar": "reverse-analysis",
   "/diagnosis": "image-diagnosis", "/hospital-brand-image-diagnosis": "brand-image-diagnosis",
   "/channel-analyzer": "channel-analysis", "/trend-dashboard": "trend-analysis",
   "/image-generator": "image-director", "/website-builder": "website-build",

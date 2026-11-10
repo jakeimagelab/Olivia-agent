@@ -37,7 +37,7 @@ const HREF_TO_DISPLAY_CATEGORY: Record<string, DisplayCategory> = {
   "/photo-retouching": "media",
   "/daily-ideas": "ai",
   "/brand-analysis": "ai",
-  "/ai-trust-gap": "ai",
+  "/geo-radar": "ai",
   "/diagnosis": "ai",
   "/hospital-brand-image-diagnosis": "ai",
   "/channel-analyzer": "ai",

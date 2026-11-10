@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AI_TRUST_DEMAND_SOURCES } from "@/lib/ai-trust/constants";
-import { generateDemandBasedPrompts } from "@/lib/ai-trust/prompts";
+import { generateGeoRadarPrompts } from "@/lib/ai-trust/prompts";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { geoRadarSetupResponse, isGeoRadarSchemaMissing } from "@/lib/ai-trust/database";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,6 +14,7 @@ function listFromText(value: unknown) {
 }
 
 export async function GET() {
+ try {
   const supabase = getSupabaseAdmin();
   const { data, error } = await supabase
     .from("ai_trust_projects")
@@ -20,8 +22,12 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) throw error;
   return NextResponse.json({ ok: true, projects: data ?? [] });
+ } catch (error) {
+   if (isGeoRadarSchemaMissing(error)) return NextResponse.json(geoRadarSetupResponse(error), { status: 503 });
+   return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "프로젝트 조회 실패" }, { status: 500 });
+ }
 }
 
 export async function POST(req: NextRequest) {
@@ -40,6 +46,21 @@ export async function POST(req: NextRequest) {
   const treatments = listFromText(body.treatments);
   const symptoms = listFromText(body.symptoms);
   const manualKeywords = listFromText(body.manual_keywords);
+  let regionId = body.region_id || null;
+  if (!regionId && Number.isFinite(Number(body.center_lat)) && Number.isFinite(Number(body.center_lng))) {
+    const { data: customRegion, error: customRegionError } = await supabase.from("ai_trust_regions").insert({
+      name: `${projectName} 직접 지정 ${new Date().toISOString()}`,
+      region_type: "custom",
+      center_lat: Number(body.center_lat),
+      center_lng: Number(body.center_lng),
+      radius_m: Math.min(3000, Math.max(500, Number(body.radius_m || 1000))),
+      districts: [],
+      region_terms: manualKeywords,
+      is_preset: false,
+    }).select("id").single();
+    if (customRegionError || !customRegion) return NextResponse.json({ ok: false, error: customRegionError?.message || "직접 지정 범위를 저장하지 못했습니다." }, { status: 500 });
+    regionId = customRegion.id;
+  }
 
   const { data: project, error } = await supabase
     .from("ai_trust_projects")
@@ -48,6 +69,8 @@ export async function POST(req: NextRequest) {
       project_name: projectName,
       client_hospital_name: clientHospitalName,
       region,
+      region_id: regionId,
+      scope_label: body.scope_label || region,
       department,
       treatments,
       symptoms,
@@ -61,7 +84,10 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) {
+    if (isGeoRadarSchemaMissing(error)) return NextResponse.json(geoRadarSetupResponse(error), { status: 503 });
+    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  }
 
   await supabase.from("ai_trust_data_sources").insert(
     AI_TRUST_DEMAND_SOURCES.map((source) => ({
@@ -84,7 +110,7 @@ export async function POST(req: NextRequest) {
 
   if (demandItems.length) await supabase.from("ai_trust_demand_items").insert(demandItems);
 
-  const prompts = generateDemandBasedPrompts({
+  const prompts = generateGeoRadarPrompts({
     keywords: manualKeywords.length ? manualKeywords : [`${region} ${department}`, `${region} ${department} 추천`],
     treatments,
     symptoms,

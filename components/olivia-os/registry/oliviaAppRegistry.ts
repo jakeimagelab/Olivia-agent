@@ -31,6 +31,7 @@ import { PortraitConsentWindowContent } from "../adapters/PortraitConsentWindowC
 import { ContiWindowContent } from "../adapters/ContiWindowContent";
 import { OliviaBridgeWindowContent } from "../adapters/OliviaBridgeWindowContent";
 import { StaffGuideWindowContent } from "../adapters/StaffGuideWindowContent";
+import { GeoRadarWindowContent } from "../adapters/GeoRadarWindowContent";
 import { getCanonicalWorkspaceHref } from "@/lib/workspaceGroups";
 
 // OLIVIA OS App Registry(스펙 0-5) — 앱 실행에 필요한 정보의 중앙 관리 구조. 단독 앱에서
@@ -312,6 +313,16 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 660, height: 460 },
     singleton: true,
     component: TrendDashboardWindowContent,
+  },
+  {
+    id: "geo-radar",
+    title: "GEO 레이더",
+    icon: appIcon("reverse-analysis"),
+    route: "/geo-radar",
+    defaultSize: { width: 1280, height: 820 },
+    minSize: { width: 760, height: 560 },
+    singleton: true,
+    component: GeoRadarWindowContent,
   },
   {
     id: "hospital-brand-image-diagnosis",

@@ -67,6 +67,10 @@
     {
       "path": "/api/cron/health-audit",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/ai-trust-worker",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
