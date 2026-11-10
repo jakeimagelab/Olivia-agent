@@ -11,6 +11,7 @@ import { PERSON_FOLDER_CATEGORY, type PersonSelectCategory } from "@/lib/person-
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 type Mapping = { folder: string; category: string; owner: "person" | "group" };
 type Candidate = { absolutePath: string; relPath: string; fileName: string; category: string; ownerName: string | null; ownerGroup: string | null };
@@ -86,7 +87,10 @@ export async function scanProjectFolder(root: string) {
     for (const entry of entries) {
       if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
       const absolutePath = path.join(directory, entry.name);
-      if (entry.isDirectory()) { await visit(absolutePath); continue; }
+      if (entry.isDirectory()) {
+        if (!isDeliveredRoundFolder(entry.name)) await visit(absolutePath);
+        continue;
+      }
       if (!entry.isFile() || !JPG_FILE.test(entry.name)) continue;
       files.push({ absolutePath, relPath: normalizeNfc(path.relative(root, absolutePath).split(path.sep).join("/")), fileName: normalizeNfc(entry.name), category: PERSON_FOLDER_CATEGORY.key, ownerName: null, ownerGroup: null });
     }

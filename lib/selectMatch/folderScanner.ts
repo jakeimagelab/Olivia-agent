@@ -1,4 +1,5 @@
 import { isHiddenSystemFile, SELECTABLE_IMAGE_EXTENSIONS } from "@/lib/photo/extensions";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 export { SELECTABLE_IMAGE_EXTENSIONS as SELECT_MATCH_JPG_EXTENSIONS };
 
@@ -32,6 +33,7 @@ export async function collectJpgFolderGroups(
     for await (const [name, handle] of (dir as any).entries()) {
       if (isHiddenSystemFile(name)) continue;
       if ((handle as FileSystemHandle).kind === "directory") {
+        if (isDeliveredRoundFolder(name)) continue;
         childDirectories.push(handle as FileSystemDirectoryHandle);
         continue;
       }

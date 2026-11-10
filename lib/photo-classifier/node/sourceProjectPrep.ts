@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { getStorageRoots } from "./storageConfig";
 import { JPG_INTEGRATED_DIRECTORY } from "./storageLayout";
 import type { RunnerProgress, RunnerRoots } from "./types";
@@ -108,6 +109,7 @@ async function collectRawSnapshot(projectRoot: string): Promise<RawSnapshot> {
       if (entry.isSymbolicLink()) throw new Error(`RAW 검사 중 심볼릭 링크가 발견되었습니다: ${entry.name}`);
       if (entry.isDirectory()) {
         if (isIntegratedDirectoryName(entry.name)) continue;
+        if (isDeliveredRoundFolder(entry.name)) continue;
         await visit(fullPath, path.posix.join(relativeDirectory, entry.name));
         continue;
       }

@@ -15,6 +15,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import type { RunnerProgress, RunnerRoots } from "./types";
 import { getStorageRoots } from "./storageConfig";
 
@@ -128,6 +129,7 @@ async function collectSourceJpgs(directory: string): Promise<FileSnapshot[]> {
       const relativePath = relativeDirectory ? path.posix.join(relativeDirectory, entry.name) : entry.name;
       if (entry.isSymbolicLink()) throw new StageValidationError("REVIEW_REQUIRED", `SSD1 JPG전체에 심볼릭 링크가 있습니다: ${relativePath}`);
       if (entry.isDirectory()) {
+        if (isDeliveredRoundFolder(entry.name)) continue;
         await visit(fullPath, relativePath);
         continue;
       }

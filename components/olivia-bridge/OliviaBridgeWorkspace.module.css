@@ -467,6 +467,12 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .compactPreviewButton,
 .compactPreviewClose { display: none; }
 .browserActions { position: relative; display: flex; align-items: center; gap: 6px; }
+.photoSortControl { flex: 0 0 auto; display: inline-flex; align-items: center; overflow: hidden; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(0,0,0,.12); }
+.photoSortControl > span { padding: 0 7px; color: rgba(255,255,255,.5); font-size: 9px; }
+.photoSortControl button { min-height: 29px; border: 0; border-left: 1px solid rgba(255,255,255,.14); padding: 0 9px; color: rgba(255,255,255,.6); background: transparent; font: 500 9px/1 inherit; cursor: pointer; }
+.photoSortControl button:hover { color: #fff; background: rgba(255,255,255,.08); }
+.photoSortControl button[data-active="true"] { color: #103e36; background: #4fd8b8; }
+.captureMetadataStatus { color: #9ddfce !important; font-variant-numeric: tabular-nums; }
 .filterMenuHost { position: relative; }
 .filterMenuButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--bridge-line); border-radius: 7px; color: #64736C; background: var(--bridge-panel); font: 500 9px/1 inherit; cursor: pointer; }
 .filterMenu { top: calc(100% + 7px); right: 0; width: 248px; color: #2F3833; }
@@ -715,6 +721,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .browserPanel { border-right: 0; border-bottom: 1px solid var(--bridge-line); }
   .thumbnailGauge { min-width: 134px; }
   .thumbnailGauge > span { display: none; }
+  .photoSortControl > span { display: none; }
   .previewPanel { min-height: 0; }
   .fullscreenLabelBar { grid-template-columns: minmax(0, 1fr) auto; }
   .fullscreenLabelBar p { grid-column: 1 / -1; text-align: left; }

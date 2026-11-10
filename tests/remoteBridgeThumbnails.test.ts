@@ -9,6 +9,8 @@ function thumb(index: number) {
     name: `IMG_${String(index).padStart(4, "0")}.JPG`,
     size: 1000 + index,
     lastModified: 1_700_000_000_000 + index,
+    captureTimestamp: 1_600_000_000_000 + index,
+    timestampSource: "datetime_original",
     dataUrl,
   };
 }
@@ -50,6 +52,8 @@ describe("remote Bridge thumbnails", () => {
 
     expect(result.total).toBe(401);
     expect(result.thumbs).toHaveLength(401);
+    expect(result.thumbs[0].captureTimestamp).toBe(1_600_000_000_000);
+    expect(result.thumbs[0].timestampSource).toBe("datetime_original");
     expect(posts).toEqual([
       { remote_path: "shoot/JPG전체", max_count: 400, offset: 0 },
       { remote_path: "shoot/JPG전체", max_count: 400, offset: 400 },

@@ -52,17 +52,21 @@ import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
   bridgeFileKind,
+  readBridgeCaptureMetadata,
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
   scanBridgeFolder,
+  sortBridgeJpgs,
   updateBridgeSelection,
   type BridgeFolderScan,
   type BridgeJpgFile,
+  type BridgeJpgSortMode,
   type BridgeRawFile,
   type BridgeScene,
   type BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { collectAdobeBridgeRatings } from "@/lib/selectMatch/bridgeRating";
 import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
 import {
@@ -238,6 +242,20 @@ const THUMBNAIL_SIZE_MAX = 240;
 const THUMBNAIL_SIZE_STEP = 18;
 const THUMBNAIL_SIZE_DEFAULT = 156;
 
+function formatBridgeTimestamp(photo: BridgeJpgFile) {
+  const timestamp = photo.captureTimestamp ?? photo.lastModified;
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return "촬영시각 없음";
+  const formatted = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(timestamp);
+  return `${photo.timestampSource === "mtime" || !photo.timestampSource ? "수정시각" : "촬영시각"} ${formatted}`;
+}
+
 async function countBridgeFolderImages(directory: FileSystemDirectoryHandle, depth = 0): Promise<number> {
   if (depth > 5) return 0;
   let count = 0;
@@ -248,6 +266,7 @@ async function countBridgeFolderImages(directory: FileSystemDirectoryHandle, dep
     for await (const [name, handle] of iterable.entries()) {
       if (name.startsWith(".")) continue;
       if (handle.kind === "directory") {
+        if (isDeliveredRoundFolder(name)) continue;
         count += await countBridgeFolderImages(handle as FileSystemDirectoryHandle, depth + 1);
         continue;
       }
@@ -671,6 +690,8 @@ export default function OliviaBridgeWorkspace({
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
+    setJpgColorLabelsByName,
+    setRawMatchFolderPath,
     setExecutionMode,
     stageBridgeClassificationPlan,
     photoDepartmentResolution,
@@ -701,6 +722,13 @@ export default function OliviaBridgeWorkspace({
   const [reviewActiveId, setReviewActiveId] = useState<string | null>(null);
   const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedSource[]>([]);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
+  const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
+  const [captureMetadataState, setCaptureMetadataState] = useState<{
+    status: "idle" | "loading" | "ready" | "error";
+    completed: number;
+    total: number;
+    fallbackCount: number;
+  }>({ status: "idle", completed: 0, total: 0, fallbackCount: 0 });
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
@@ -759,6 +787,7 @@ export default function OliviaBridgeWorkspace({
   const suppressThumbnailClickRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
   const remoteLoadGenerationRef = useRef(0);
+  const captureMetadataGenerationRef = useRef(0);
   const ratingsRef = useRef(ratings);
   const adobeRatingsRef = useRef(adobeRatings);
   const ratingEditsRef = useRef(ratingEdits);
@@ -788,7 +817,7 @@ export default function OliviaBridgeWorkspace({
     [adobeRatings, ratingEdits, ratings, selectionSource],
   );
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
-  const visibleJpgs = useMemo(() => scan.jpgs.filter((photo) => {
+  const visibleJpgs = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => {
     const passesFileFilter = labelFilter
       ? matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, colorLabels)
       : fileFilter === "raw" || fileFilter === "sidecar"
@@ -805,7 +834,7 @@ export default function OliviaBridgeWorkspace({
     } else if (qualityFilter === "needs_review" && quality?.status !== "needs_review") return false;
     else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
     return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
-  }), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
+  }), jpgSortMode), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, jpgSortMode, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
   const comparisonCounts = useMemo(
     () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
     [customerSelectedIds, scan.jpgs, selectedIds],
@@ -818,7 +847,7 @@ export default function OliviaBridgeWorkspace({
     if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.normal += 1;
     return counts;
   }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, needs_review: 0, normal: 0 }), [qualityByBridgeId, scan.jpgs]);
-  const reviewPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
+  const reviewPhotos = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => selectedIds.has(photo.id)), jpgSortMode), [jpgSortMode, scan.jpgs, selectedIds]);
   const resolvedReviewActiveId = reviewActiveId && reviewPhotos.some((photo) => photo.id === reviewActiveId)
     ? reviewActiveId
     : reviewPhotos[0]?.id ?? null;
@@ -843,6 +872,51 @@ export default function OliviaBridgeWorkspace({
       topNoticeTimerRef.current = null;
     }, duration);
   }, []);
+
+  useEffect(() => {
+    const generation = ++captureMetadataGenerationRef.current;
+    if (jpgSortMode !== "capture" || scanStatus !== "ready" || !scan.jpgs.length) {
+      setCaptureMetadataState({ status: "idle", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
+      return;
+    }
+    const ready = scan.jpgs.every((photo) => photo.captureTimestamp !== undefined && photo.timestampSource);
+    if (ready) {
+      setCaptureMetadataState({
+        status: "ready",
+        completed: scan.jpgs.length,
+        total: scan.jpgs.length,
+        fallbackCount: scan.jpgs.filter((photo) => photo.timestampSource === "mtime").length,
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    setCaptureMetadataState({ status: "loading", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
+    void readBridgeCaptureMetadata(scan.jpgs, {
+      signal: controller.signal,
+      onProgress: (completed, total) => {
+        if (generation !== captureMetadataGenerationRef.current) return;
+        setCaptureMetadataState((current) => ({ ...current, status: "loading", completed, total }));
+      },
+    }).then((jpgs) => {
+      if (generation !== captureMetadataGenerationRef.current) return;
+      setScan((current) => {
+        if (current.jpgs.length !== scan.jpgs.length || current.jpgs.some((photo, index) => photo.id !== scan.jpgs[index]?.id)) return current;
+        return { ...current, jpgs };
+      });
+      setCaptureMetadataState({
+        status: "ready",
+        completed: jpgs.length,
+        total: jpgs.length,
+        fallbackCount: jpgs.filter((photo) => photo.timestampSource === "mtime").length,
+      });
+    }).catch((error) => {
+      if (controller.signal.aborted || generation !== captureMetadataGenerationRef.current) return;
+      console.error("[olivia-bridge] Failed to read capture metadata", error);
+      setCaptureMetadataState({ status: "error", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
+    });
+    return () => controller.abort();
+  }, [jpgSortMode, scan.jpgs, scanStatus]);
 
   const showAdobeSelectionNotice = useCallback(() => {
     showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
@@ -921,6 +995,13 @@ export default function OliviaBridgeWorkspace({
       .map((photo) => photo.file)
       .filter((file): file is File => Boolean(file)));
   }, [scan.jpgs, selectedIds, setSelectedJpgFiles]);
+
+  useEffect(() => {
+    setJpgColorLabelsByName(
+      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, colorLabels[photo.id] ?? 0])),
+      { overwrite: true },
+    );
+  }, [colorLabels, scan.jpgs, setJpgColorLabelsByName]);
 
   useEffect(() => {
     const selectedKeys = new Set(selectedJpgNames.map(normalizePhotoToolFileKey).filter(Boolean));
@@ -1036,12 +1117,14 @@ export default function OliviaBridgeWorkspace({
         maxDepth: 5,
       });
       let restoredRatings: Record<string, number> = {};
+      let restoredColorLabels: BridgeColorLabels = {};
       try {
         const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; ratingEdits?: unknown; colorLabels?: unknown; excluded?: string[] };
         restoredRatings = parsed.ratings ?? {};
         setRatings(restoredRatings);
         setRatingEdits(normalizeBridgeRatingEdits(parsed.ratingEdits));
-        setColorLabels(normalizeBridgeColorLabels(parsed.colorLabels));
+        restoredColorLabels = normalizeBridgeColorLabels(parsed.colorLabels);
+        setColorLabels(restoredColorLabels);
         setExcludedIds(new Set(parsed.excluded ?? []));
       } catch {
         setRatings({});
@@ -1065,6 +1148,7 @@ export default function OliviaBridgeWorkspace({
       setPreviewSize(undefined);
       setFileFilter("all");
       setCurrentLocalFolder(directory);
+      setRawMatchFolderPath(nextPath);
       setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
       const restoredRatingsByName = Object.fromEntries(next.jpgs.flatMap((photo) => {
@@ -1072,6 +1156,10 @@ export default function OliviaBridgeWorkspace({
         return rating ? [[photo.name, rating] as const] : [];
       }));
       setJpgRatingsByName(restoredRatingsByName, { overwrite: true });
+      setJpgColorLabelsByName(
+        Object.fromEntries(next.jpgs.map((photo) => [photo.name, restoredColorLabels[photo.id] ?? 0])),
+        { overwrite: true },
+      );
       setScanStatus("ready");
       void saveBridgeFolderTrail(trail).catch((error) => {
         console.error("[olivia-bridge] Failed to remember the last folder", error);
@@ -1082,7 +1170,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates]);
+  }, [commitSelectedIds, includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -1130,6 +1218,7 @@ export default function OliviaBridgeWorkspace({
       const current = trail.at(-1)?.handle ?? activeFolder;
       setBreadcrumbs(trail);
       setCurrentLocalFolder(current);
+      setRawMatchFolderPath(trail.map((item) => item.name).join(" / "));
       setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
       setRawRootPromptOpen(false);
@@ -1146,7 +1235,7 @@ export default function OliviaBridgeWorkspace({
     } catch (error) {
       setRawRootPromptError(error instanceof Error ? error.message : "촬영 상위 폴더를 확인하지 못했습니다.");
     }
-  }, [activeFolder, activeFolderName, picker, setCurrentLocalFolder, setRawMatchDefaultFolder, setRawMatchFolderCandidates, showTopNotice]);
+  }, [activeFolder, activeFolderName, picker, setCurrentLocalFolder, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath, showTopNotice]);
 
   const openRawMatchWithCurrentScope = useCallback(() => {
     setRawRootPromptOpen(false);
@@ -1172,6 +1261,7 @@ export default function OliviaBridgeWorkspace({
     setScan(EMPTY_SCAN);
     setBreadcrumbs([]);
     setCurrentLocalFolder(null);
+    setRawMatchFolderPath(selection.path);
     manualSelectedIdsRef.current = new Set();
     adobeSelectedIdsRef.current = new Set();
     manualRemovedIdsRef.current = new Set();
@@ -1197,10 +1287,13 @@ export default function OliviaBridgeWorkspace({
         thumbnailUrl: thumb.dataUrl,
         size: thumb.size,
         lastModified: thumb.lastModified,
+        captureTimestamp: thumb.captureTimestamp,
+        timestampSource: thumb.timestampSource,
       }));
       setScan({ ...EMPTY_SCAN, jpgs });
       lastPublishedRatingsRef.current = {};
       setJpgRatingsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
+      setJpgColorLabelsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
       setFocusedId(jpgs[0]?.id ?? null);
       setScanStatus("ready");
       rootRef.current?.focus();
@@ -1210,7 +1303,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, setCurrentLocalFolder, setJpgRatingsByName]);
+  }, [commitSelectedIds, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");
@@ -2366,8 +2459,13 @@ export default function OliviaBridgeWorkspace({
 
         <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
-            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span></div>
+            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span>{jpgSortMode === "capture" ? <span className={styles.captureMetadataStatus} role="status">{captureMetadataState.status === "loading" ? `촬영시각 ${captureMetadataState.completed.toLocaleString("ko-KR")}/${captureMetadataState.total.toLocaleString("ko-KR")}` : captureMetadataState.status === "error" ? "촬영시각 읽기 실패" : captureMetadataState.status === "ready" && captureMetadataState.fallbackCount ? `EXIF 없음 ${captureMetadataState.fallbackCount.toLocaleString("ko-KR")}장 · 수정시각 사용` : "EXIF 촬영순"}</span> : null}</div>
             <div className={styles.browserActions}>
+              <div className={styles.photoSortControl} aria-label="사진 표시 순서">
+                <span>정렬</span>
+                <button type="button" data-active={jpgSortMode === "filename"} onClick={() => setJpgSortMode("filename")}>파일명</button>
+                <button type="button" data-active={jpgSortMode === "capture"} onClick={() => setJpgSortMode("capture")}>촬영순</button>
+              </div>
               <button type="button" className={styles.compactPreviewButton} onClick={() => setCompactPreviewOpen(true)} aria-label="미리보기 열기"><Maximize2 size={15} /> 미리보기</button>
               <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
             </div>
@@ -2499,7 +2597,7 @@ export default function OliviaBridgeWorkspace({
             </div>
           ) : previewTab === "olivia" ? (
             <div className={styles.previewOlivia}><div><strong>{folderPath || "폴더 미선택"}</strong><span>{focusedPhoto?.name ?? focusedPlainFile?.name ?? "파일 미선택"} · 선택 JPG {selectedNames.length}장</span></div><OliviaChatDockTarget id="olivia-bridge-preview" priority={92} className={styles.previewOliviaDock} /></div>
-          ) : focusedPhoto ? <><div className={styles.previewCanvas} onDoubleClick={openFullscreenPreview}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span><div className={styles.previewRatings} aria-label="별점">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating} onClick={() => applyRating(rating, true)}><Star size={15} fill={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating ? "currentColor" : "none"} /></button>)}<button type="button" onClick={() => applyRating(0, true)}>해제</button></div><button type="button" className={styles.previewSelectButton} onClick={() => setSelectedIds((current) => { const next = new Set(current); if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id); else next.add(focusedPhoto.id); return next; })}><Check size={13} />{selectedIds.has(focusedPhoto.id) ? "선택됨" : "선택"}</button><button type="button" className={styles.previewExpandButton} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button></div></> : focusedPlainFile ? <div className={styles.previewFileInfo}><File size={42} /><strong>{focusedPlainFile.name}</strong><span>{focusedPlainFile.extension} · {formatBytes(focusedPlainFile.size)}</span><p>RAW와 사이드카는 파일 정보만 표시하며 미리보기를 만들지 않습니다.</p></div> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 파일을 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
+          ) : focusedPhoto ? <><div className={styles.previewCanvas} onDoubleClick={openFullscreenPreview}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span>{focusedPhoto.captureTimestamp ? <><i /><span title={focusedPhoto.timestampSource === "mtime" ? "EXIF 촬영시각이 없어 파일 수정시각을 사용했습니다." : "사진 EXIF 메타데이터의 촬영시각입니다."}>{formatBridgeTimestamp(focusedPhoto)}</span></> : null}<div className={styles.previewRatings} aria-label="별점">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating} onClick={() => applyRating(rating, true)}><Star size={15} fill={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating ? "currentColor" : "none"} /></button>)}<button type="button" onClick={() => applyRating(0, true)}>해제</button></div><button type="button" className={styles.previewSelectButton} onClick={() => setSelectedIds((current) => { const next = new Set(current); if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id); else next.add(focusedPhoto.id); return next; })}><Check size={13} />{selectedIds.has(focusedPhoto.id) ? "선택됨" : "선택"}</button><button type="button" className={styles.previewExpandButton} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button></div></> : focusedPlainFile ? <div className={styles.previewFileInfo}><File size={42} /><strong>{focusedPlainFile.name}</strong><span>{focusedPlainFile.extension} · {formatBytes(focusedPlainFile.size)}</span><p>RAW와 사이드카는 파일 정보만 표시하며 미리보기를 만들지 않습니다.</p></div> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 파일을 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
         </aside>
       </main>
 

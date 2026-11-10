@@ -1,6 +1,7 @@
 import { lstat, readdir, realpath, rename, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import { JPG_PHOTO_EXTENSIONS } from "@/lib/photo-classifier/constants";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { runRemotePhotoSortRunner, type RemotePhotoSortRunnerDependencies } from "./remotePhotoSortRunner";
 import { resolveSafeWorkRoot } from "./pathSafety";
 import { getStorageRoots } from "./storageConfig";
@@ -109,6 +110,7 @@ async function collectJpgBundles(folder: string): Promise<JpgBundle[]> {
       const fullPath = path.join(current, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`분류 대상에 심볼릭 링크가 있습니다: ${relativePath ? `${relativePath}/` : ""}${entry.name}`);
       if (entry.isDirectory()) {
+        if (isDeliveredRoundFolder(entry.name)) continue;
         await visit(fullPath, relativePath ? path.posix.join(relativePath, entry.name) : entry.name);
         continue;
       }

@@ -1,4 +1,5 @@
 export type PhotoToolRatings = Record<string, number>;
+export type PhotoToolColorLabels = Record<string, 6 | 7 | 8 | 9>;
 export type BridgeSelectionSource = "olivia" | "adobe" | "both";
 
 export const DEFAULT_BRIDGE_SELECTION_SOURCE: BridgeSelectionSource = "olivia";
@@ -59,6 +60,23 @@ export function mergePhotoToolRatings(
     if (!options.overwrite && Object.hasOwn(next, key)) continue;
     if (rating === 0) delete next[key];
     else next[key] = rating;
+  }
+  return next;
+}
+
+export function mergePhotoToolColorLabels(
+  current: Readonly<PhotoToolColorLabels>,
+  incoming: Readonly<Record<string, number | null | undefined>>,
+  options: { overwrite?: boolean } = {},
+): PhotoToolColorLabels {
+  const next = { ...current };
+  for (const [name, rawLabel] of Object.entries(incoming)) {
+    const key = normalizePhotoToolFileKey(name);
+    if (!key || rawLabel === null || rawLabel === undefined || !Number.isFinite(rawLabel)) continue;
+    const label = Math.trunc(rawLabel);
+    if (!options.overwrite && Object.hasOwn(next, key)) continue;
+    if (label === 6 || label === 7 || label === 8 || label === 9) next[key] = label;
+    else delete next[key];
   }
   return next;
 }

@@ -8,6 +8,7 @@ import type { LocalVisualFeatures, SceneBoundaryDecision, TimestampSource } from
 import { featureCacheKey, getCachedFeature, setCachedFeature } from "@/lib/photo-classifier/scene-cache";
 import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 const BRIDGE_SIDECAR_EXTENSIONS = new Set(["xmp"]);
 
@@ -24,7 +25,11 @@ export type BridgeJpgFile = {
   thumbnailUrl?: string;
   size: number;
   lastModified: number;
+  captureTimestamp?: number;
+  timestampSource?: TimestampSource;
 };
+
+export type BridgeJpgSortMode = "filename" | "capture";
 
 export type BridgeRawFile = Omit<BridgeJpgFile, "file">;
 
@@ -103,6 +108,52 @@ const bridgeFileSort = (left: Pick<BridgeJpgFile, "relativePath">, right: Pick<B
   left.relativePath.localeCompare(right.relativePath, "ko", { numeric: true, sensitivity: "base" })
 );
 
+export function sortBridgeJpgs(files: readonly BridgeJpgFile[], mode: BridgeJpgSortMode) {
+  return [...files].sort((left, right) => {
+    if (mode === "capture") {
+      const timeDelta = (left.captureTimestamp ?? left.lastModified) - (right.captureTimestamp ?? right.lastModified);
+      if (timeDelta !== 0) return timeDelta;
+    }
+    return bridgeFileSort(left, right);
+  });
+}
+
+export async function readBridgeCaptureMetadata(
+  jpgs: readonly BridgeJpgFile[],
+  options: {
+    signal?: AbortSignal;
+    concurrency?: number;
+    onProgress?: (completed: number, total: number) => void;
+  } = {},
+) {
+  const output = new Array<BridgeJpgFile>(jpgs.length);
+  let cursor = 0;
+  let completed = 0;
+  const concurrency = Math.min(8, Math.max(1, Math.trunc(options.concurrency ?? 6)), Math.max(1, jpgs.length));
+  const workers = Array.from({ length: concurrency }, async () => {
+    while (!options.signal?.aborted) {
+      const index = cursor++;
+      if (index >= jpgs.length) return;
+      const entry = jpgs[index];
+      if (entry.captureTimestamp !== undefined && entry.timestampSource) {
+        output[index] = entry;
+      } else {
+        const timestamp = entry.file ? await readPhotoTimestamp(entry.file) : null;
+        output[index] = {
+          ...entry,
+          captureTimestamp: timestamp?.timestamp ?? entry.lastModified,
+          timestampSource: timestamp?.source ?? "mtime",
+        };
+      }
+      completed += 1;
+      options.onProgress?.(completed, jpgs.length);
+    }
+  });
+  await Promise.all(workers);
+  if (options.signal?.aborted) throw new DOMException("작업이 취소되었습니다.", "AbortError");
+  return output;
+}
+
 export async function scanBridgeFolder(
   directory: FileSystemDirectoryHandle,
   folderKey = directory.name,
@@ -139,7 +190,7 @@ export async function scanBridgeFolder(
         }
         if (handle.kind === "directory") {
           if (depth === 0) folders.push(handle as FileSystemDirectoryHandle);
-          if (includeNestedJpgs && depth < maxDepth) {
+          if (includeNestedJpgs && depth < maxDepth && !isDeliveredRoundFolder(name)) {
             const nextDirectory = relativeDirectory
               ? `${relativeDirectory}/${name.normalize("NFC")}`
               : name.normalize("NFC");
@@ -253,27 +304,16 @@ async function timestampBridgeFiles(
   signal: AbortSignal | undefined,
   onProgress: ((completed: number, total: number, stage: string) => void) | undefined,
 ) {
-  const output = new Array<TimestampedBridgeFile>(jpgs.length);
-  let cursor = 0;
-  let completed = 0;
-  const workers = Array.from({ length: Math.min(4, Math.max(1, jpgs.length)) }, async () => {
-    while (!signal?.aborted) {
-      const index = cursor++;
-      if (index >= jpgs.length) return;
-      const entry = jpgs[index];
-      const timestamp = entry.file ? await readPhotoTimestamp(entry.file) : null;
-      output[index] = {
-        ...entry,
-        mtime: timestamp?.timestamp ?? entry.lastModified,
-        timestampSource: timestamp?.source ?? "mtime",
-      };
-      completed += 1;
-      onProgress?.(completed, jpgs.length, "촬영시간 읽는 중");
-    }
+  const metadata = await readBridgeCaptureMetadata(jpgs, {
+    signal,
+    concurrency: 4,
+    onProgress: (completed, total) => onProgress?.(completed, total, "촬영시간 읽는 중"),
   });
-  await Promise.all(workers);
-  if (signal?.aborted) throw new DOMException("작업이 취소되었습니다.", "AbortError");
-  return sortTimestampedFiles(output);
+  return sortTimestampedFiles(metadata.map((entry): TimestampedBridgeFile => ({
+    ...entry,
+    mtime: entry.captureTimestamp ?? entry.lastModified,
+    timestampSource: entry.timestampSource ?? "mtime",
+  })));
 }
 
 export async function analyzeBridgeScenes(input: {

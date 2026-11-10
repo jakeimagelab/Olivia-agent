@@ -6,6 +6,7 @@ import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { moveFileFast } from "@/lib/photo-classifier/file-move";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import { CAMERA_JPG_EXTENSIONS, isHiddenSystemFile, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
@@ -148,6 +149,7 @@ async function collectSources(root: FileSystemDirectoryHandle, includeSubdirecto
       if (handle.kind === "directory") {
         if (isHiddenSystemFile(name)) continue;
         if (isJpgIntegratedRoot(name)) continue;
+        if (isDeliveredRoundFolder(name)) continue;
         if (includeSubdirectories && depth < MAX_DEPTH) {
           await visit(handle as FileSystemDirectoryHandle, [...relativeDirectory, name], depth + 1);
         }
@@ -192,6 +194,7 @@ async function collectDestinationIndex(root: FileSystemDirectoryHandle): Promise
       const relativePath = [...relativeDirectory, name];
       const key = destinationKey(relativePath);
       if (handle.kind === "directory") {
+        if (isDeliveredRoundFolder(name)) continue;
         index.set(key, { kind: "directory" });
         if (depth < MAX_DEPTH) await visit(handle as FileSystemDirectoryHandle, relativePath, depth + 1);
       } else {

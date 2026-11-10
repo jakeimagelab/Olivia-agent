@@ -8,6 +8,7 @@ import WorkspaceLink, { type SelectGalleryNavigate } from "@/components/select-g
 import { C } from "@/lib/theme";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { AlertTriangle, Check, CheckCircle2, Copy, Eye, Folder, Mail, Upload, XCircle } from "lucide-react";
 
 interface RawMatchRow {
@@ -210,7 +211,7 @@ function SelectGalleryDetailWorkspace({
     const scan = async (dir: FileSystemDirectoryHandle, depth = 0) => {
       if (depth > 6) return;
       for await (const [name, handle] of (dir as any).entries()) {
-        if (name === "SELECT" || name === "Selected_RAW") continue;
+        if (name === "SELECT" || name === "Selected_RAW" || isDeliveredRoundFolder(name)) continue;
         if ((handle as FileSystemHandle).kind === "directory") {
           await scan(handle as FileSystemDirectoryHandle, depth + 1);
         } else {

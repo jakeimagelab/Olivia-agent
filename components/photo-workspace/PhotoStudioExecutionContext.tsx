@@ -26,10 +26,12 @@ import type { RemoteWorkerPresence } from "@/lib/remote-jobs/workerPresence";
 import { usePhotoSourceSurface } from "@/components/photo-classifier/usePhotoSourceSurface";
 import { useRemotePhotoJobStore, type RemotePhotoPollingState } from "@/lib/store/useRemotePhotoJobStore";
 import {
+  mergePhotoToolColorLabels,
   mergePhotoToolRatings,
   normalizePhotoToolSelectionNames,
   samePhotoToolSelectionNames,
   type PhotoToolRatings,
+  type PhotoToolColorLabels,
 } from "@/lib/photo-bridge/toolLinkage";
 import type { BridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { PhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
@@ -72,6 +74,15 @@ type PhotoStudioExecutionValue = {
     entries: Readonly<Record<string, number | null | undefined>>,
     options?: { overwrite?: boolean },
   ) => void;
+  /** Bridge 컬러 셀렉(6~9)을 파일명 기준으로 RAW 매칭에 전달한다. */
+  jpgColorLabelsByName: PhotoToolColorLabels;
+  setJpgColorLabelsByName: (
+    entries: Readonly<Record<string, number | null | undefined>>,
+    options?: { overwrite?: boolean },
+  ) => void;
+  /** 브릿지 breadcrumb 또는 NAS 경로. RAW 기준을 폴더별로 기억하는 데만 쓴다. */
+  rawMatchFolderPath: string;
+  setRawMatchFolderPath: (path: string) => void;
   /** Bridge의 Scene 분석을 사진 분류가 한 번만 이어받는 메모리 전용 계획이다. */
   pendingBridgeClassificationPlan: BridgeClassificationPlan | null;
   stageBridgeClassificationPlan: (plan: BridgeClassificationPlan) => void;
@@ -128,6 +139,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   const [selectedJpgNames, setSelectedJpgNamesState] = useState<string[]>([]);
   const [selectedJpgFiles, setSelectedJpgFilesState] = useState<File[]>([]);
   const [jpgRatingsByName, setJpgRatingsByNameState] = useState<PhotoToolRatings>({});
+  const [jpgColorLabelsByName, setJpgColorLabelsByNameState] = useState<PhotoToolColorLabels>({});
+  const [rawMatchFolderPath, setRawMatchFolderPath] = useState("");
   const [pendingBridgeClassificationPlan, setPendingBridgeClassificationPlan] = useState<BridgeClassificationPlan | null>(null);
   const pendingBridgeClassificationPlanRef = useRef<BridgeClassificationPlan | null>(null);
   const [photoDepartmentResolution, setPhotoDepartmentResolution] = useState<PhotoDepartmentResolution>({ status: "unknown", evidence: [] });
@@ -140,6 +153,8 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgNamesState([]);
     setSelectedJpgFilesState([]);
     setJpgRatingsByNameState({});
+    setJpgColorLabelsByNameState({});
+    setRawMatchFolderPath("");
     pendingBridgeClassificationPlanRef.current = null;
     setPendingBridgeClassificationPlan(null);
     setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
@@ -165,6 +180,13 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     options?: { overwrite?: boolean },
   ) => {
     setJpgRatingsByNameState((current) => mergePhotoToolRatings(current, entries, options));
+  }, []);
+
+  const setJpgColorLabelsByName = useCallback((
+    entries: Readonly<Record<string, number | null | undefined>>,
+    options?: { overwrite?: boolean },
+  ) => {
+    setJpgColorLabelsByNameState((current) => mergePhotoToolColorLabels(current, entries, options));
   }, []);
 
   const stageBridgeClassificationPlan = useCallback((plan: BridgeClassificationPlan) => {
@@ -288,6 +310,10 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
+    jpgColorLabelsByName,
+    setJpgColorLabelsByName,
+    rawMatchFolderPath,
+    setRawMatchFolderPath,
     pendingBridgeClassificationPlan,
     stageBridgeClassificationPlan,
     takeBridgeClassificationPlan,
@@ -318,6 +344,9 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     setSelectedJpgFiles,
     jpgRatingsByName,
     setJpgRatingsByName,
+    jpgColorLabelsByName,
+    setJpgColorLabelsByName,
+    rawMatchFolderPath,
     pendingBridgeClassificationPlan,
     stageBridgeClassificationPlan,
     takeBridgeClassificationPlan,

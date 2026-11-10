@@ -69,4 +69,16 @@ describe("셀렉 & RAW 매칭 폴더 스캔", () => {
     expect(groups).toHaveLength(1);
     expect(groups[0].photos.map((photo) => photo.name)).toEqual(["R5K00001.JPG"]);
   });
+
+  it("이전 회차 보정본 폴더는 다시 셀렉 대상으로 읽지 않는다", async () => {
+    const root = directory("JPG", [
+      file("new.JPG"),
+      directory("1차보정본", [file("already-delivered.JPG")]),
+      directory("2차(프로필)", [file("next-round.JPG")]),
+    ]);
+
+    const groups = await collectJpgFolderGroups(root as unknown as FileSystemDirectoryHandle);
+
+    expect(groups.flatMap((group) => group.photos.map((photo) => photo.name)).sort()).toEqual(["new.JPG", "next-round.JPG"].sort());
+  });
 });

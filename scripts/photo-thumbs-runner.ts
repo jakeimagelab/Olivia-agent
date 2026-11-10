@@ -3,6 +3,7 @@
 import { loadEnvConfig } from "@next/env";
 import { lstat, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
+import { parse as parseExif } from "exifr";
 import sharp from "sharp";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
@@ -18,8 +19,36 @@ type Thumb = {
   name: string;
   size: number;
   lastModified: number;
+  captureTimestamp: number;
+  timestampSource: "datetime_original" | "create_date" | "ifd_datetime" | "mtime";
   dataUrl: string;
 };
+
+function timestamp(value: unknown): number | null {
+  if (value instanceof Date) return Number.isFinite(value.getTime()) ? value.getTime() : null;
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = Date.parse(value.replace(/^(\d{4}):(\d{2}):(\d{2}) /u, "$1-$2-$3T"));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function captureMetadata(absolutePath: string, fallback: number): Promise<{
+  captureTimestamp: number;
+  timestampSource: Thumb["timestampSource"];
+}> {
+  try {
+    const exif = await parseExif(absolutePath, ["DateTimeOriginal", "CreateDate", "ModifyDate"]) as Record<string, unknown> | undefined;
+    const original = timestamp(exif?.DateTimeOriginal);
+    if (original !== null) return { captureTimestamp: original, timestampSource: "datetime_original" };
+    const created = timestamp(exif?.CreateDate);
+    if (created !== null) return { captureTimestamp: created, timestampSource: "create_date" };
+    const modified = timestamp(exif?.ModifyDate);
+    if (modified !== null) return { captureTimestamp: modified, timestampSource: "ifd_datetime" };
+  } catch {
+    // EXIF가 없거나 손상된 사진은 파일 수정시각으로 안정적으로 정렬한다.
+  }
+  return { captureTimestamp: fallback, timestampSource: "mtime" };
+}
 
 function args(): Record<string, string> {
   const values: Record<string, string> = {};
@@ -92,17 +121,21 @@ export async function createPhotoThumbPage(input: {
       const name = page[index];
       const absolutePath = path.join(canonicalJpgFolder, name);
       const metadata = await stat(absolutePath);
-      const buffer = await sharp(absolutePath, { failOn: "none" })
-        .rotate()
-        .resize({ width: 320, height: 320, fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 60 })
-        .toBuffer();
+      const [buffer, captured] = await Promise.all([
+        sharp(absolutePath, { failOn: "none" })
+          .rotate()
+          .resize({ width: 320, height: 320, fit: "inside", withoutEnlargement: true })
+          .jpeg({ quality: 60 })
+          .toBuffer(),
+        captureMetadata(absolutePath, metadata.mtimeMs),
+      ]);
       const normalizedName = name.normalize("NFC");
       thumbs[index] = {
         relativePath: normalizedName,
         name: normalizedName,
         size: metadata.size,
         lastModified: metadata.mtimeMs,
+        ...captured,
         dataUrl: `data:image/jpeg;base64,${buffer.toString("base64")}`,
       };
       completed += 1;

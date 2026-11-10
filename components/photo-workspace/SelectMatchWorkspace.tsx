@@ -24,6 +24,16 @@ import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
+import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
+import {
+  buildDeliveredJpgMovePlan,
+  DEFAULT_RAW_MATCH_CRITERIA,
+  moveFileWithSizeVerification,
+  nextDeliveredRoundFolderName,
+  normalizeRawMatchCriteria,
+  resolveRawMatchTargets,
+  type RawMatchCriteria,
+} from "@/lib/photo-bridge/rawMatchDelivery";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -225,6 +235,8 @@ export function SelectMatchWorkspace({
     setSelectedJpgNames,
     jpgRatingsByName,
     setJpgRatingsByName,
+    jpgColorLabelsByName,
+    rawMatchFolderPath,
   } = usePhotoStudioExecution();
   const [step,       setStep]       = useState<Step>("idle");
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
@@ -261,6 +273,7 @@ export function SelectMatchWorkspace({
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
+  const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [preflight,  setPreflight]  = useState<Preflight | null>(null);
   const [rawScanCount, setRawScanCount] = useState(0);
   const [rawIndexRef] = useState<{ map: Map<string, RawIndexEntry> }>(() => ({ map: new Map() }));
@@ -281,11 +294,27 @@ export function SelectMatchWorkspace({
   const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
   const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
-  const [result,     setResult]     = useState({ matched: 0, missing: 0, selected: 0 });
+  const [result,     setResult]     = useState({
+    matched: 0,
+    missing: 0,
+    selected: 0,
+    jpgMoved: 0,
+    xmpMoved: 0,
+    failed: 0,
+    deliveredFolderName: "",
+    missingNames: [] as string[],
+    failedNames: [] as string[],
+    moveNotice: "",
+  });
   const cancelRef = useRef(false);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sceneThumbnailUrlsRef = useRef(new Set<string>());
   const searchThumbnailRequestsRef = useRef(new WeakSet<FileSystemDirectoryHandle>());
+  const [rawMatchCriteria, setRawMatchCriteria] = useState<RawMatchCriteria>(DEFAULT_RAW_MATCH_CRITERIA);
+  const [criteriaReady, setCriteriaReady] = useState(!bridgeLinked);
+  const [moveMatchedJpgs, setMoveMatchedJpgs] = useState(true);
+  const [deliveredFolderName, setDeliveredFolderName] = useState("1차보정본");
+  const [deliveredFolderNameDirty, setDeliveredFolderNameDirty] = useState(false);
 
   const releaseSceneThumbnails = useCallback(() => {
     for (const url of sceneThumbnailUrlsRef.current) releaseObjectUrl(url);
@@ -348,6 +377,71 @@ export function SelectMatchWorkspace({
   const [fmOcrLoading, setFmOcrLoading] = useState(false);
   const [fmOcrMessage, setFmOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
   const fmOcrFileRef = useRef<HTMLInputElement>(null);
+
+  const criteriaFolderKey = rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder";
+  const criteriaStorageKey = `olivia-raw-match-criteria:${criteriaFolderKey}`;
+  const resolvedBridgeTargets = useMemo(() => resolveRawMatchTargets({
+    names: selectedJpgNames,
+    ratingsByName: jpgRatingsByName,
+    colorsByName: jpgColorLabelsByName,
+    criteria: rawMatchCriteria,
+  }), [jpgColorLabelsByName, jpgRatingsByName, rawMatchCriteria, selectedJpgNames]);
+
+  useEffect(() => {
+    if (!bridgeLinked) return;
+    setCriteriaReady(false);
+    try {
+      setRawMatchCriteria(normalizeRawMatchCriteria(JSON.parse(localStorage.getItem(criteriaStorageKey) ?? "null")));
+    } catch {
+      setRawMatchCriteria({ ...DEFAULT_RAW_MATCH_CRITERIA, colorLabels: [...DEFAULT_RAW_MATCH_CRITERIA.colorLabels] });
+    } finally {
+      setCriteriaReady(true);
+    }
+  }, [bridgeLinked, criteriaStorageKey]);
+
+  useEffect(() => {
+    if (!bridgeLinked || !criteriaReady) return;
+    try {
+      localStorage.setItem(criteriaStorageKey, JSON.stringify(rawMatchCriteria));
+    } catch {
+      // 저장소가 막혀 있어도 현재 세션의 기준 선택은 유지한다.
+    }
+  }, [bridgeLinked, criteriaReady, criteriaStorageKey, rawMatchCriteria]);
+
+  useEffect(() => {
+    if (!rootDir) {
+      setJpgScanRootDir(null);
+      return;
+    }
+    let disposed = false;
+    void (async () => {
+      let next = rootDir;
+      try {
+        next = await rootDir.getDirectoryHandle("JPG");
+      } catch {
+        // 선택한 폴더가 곧 JPG 폴더인 일반적인 Bridge 경로다.
+      }
+      if (!disposed) setJpgScanRootDir(next);
+    })();
+    return () => { disposed = true; };
+  }, [rootDir]);
+
+  useEffect(() => {
+    if (!jpgScanRootDir) return;
+    let disposed = false;
+    void (async () => {
+      const names: string[] = [];
+      try {
+        for await (const [name, handle] of (jpgScanRootDir as FileSystemDirectoryHandle & { entries(): AsyncIterableIterator<[string, FileSystemHandle]> }).entries()) {
+          if (handle.kind === "directory") names.push(name);
+        }
+      } catch {
+        return;
+      }
+      if (!disposed && !deliveredFolderNameDirty) setDeliveredFolderName(nextDeliveredRoundFolderName(names));
+    })();
+    return () => { disposed = true; };
+  }, [deliveredFolderNameDirty, jpgScanRootDir]);
 
   const completeSelection = useCallback((names: Set<string>) => {
     const selectedNames = Array.from(names);
@@ -420,17 +514,23 @@ export function SelectMatchWorkspace({
   }, [uploadOcrLoading, uploadedClientFiles]);
 
   useEffect(() => {
-    if (selectionOnly || initialView !== "raw" || step !== "idle" || selectedJpgNames.length === 0) return;
+    if (selectionOnly || initialView !== "raw" || step !== "idle" || selectedJpgNames.length === 0 || !criteriaReady) return;
     // The photo-select store keeps JPG basenames (the RAW matcher uses the
     // basename too), while pasted text may include extensions. Do not route
     // the stored list back through the text-only parser.
-    const names = new Set(selectedJpgNames
-      .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
-      .filter(Boolean));
-    if (!names.size) return;
+    const names = bridgeLinked
+      ? new Set(resolvedBridgeTargets)
+      : new Set(selectedJpgNames
+        .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
+        .filter(Boolean));
     setSelected(names);
     setStep("raw_pick");
-  }, [initialView, selectedJpgNames, selectionOnly, step]);
+  }, [bridgeLinked, criteriaReady, initialView, resolvedBridgeTargets, selectedJpgNames, selectionOnly, step]);
+
+  useEffect(() => {
+    if (!bridgeLinked || initialView !== "raw" || (step !== "raw_pick" && step !== "preflight")) return;
+    setSelected(new Set(resolvedBridgeTargets));
+  }, [bridgeLinked, initialView, resolvedBridgeTargets, step]);
 
   /* ── RAW 폴더 별도 선택 ── */
   const pickRawFolder = useCallback(async () => {
@@ -457,6 +557,8 @@ export function SelectMatchWorkspace({
 
       // JPG/ 없으면 루트 직접 사용
       const scanDir = jpgBase ?? dir;
+      setJpgScanRootDir(scanDir);
+      setDeliveredFolderNameDirty(false);
       const sceneList = await collectJpgFolderGroups(scanDir);
       setScenes(sceneList);
       setExpanded(new Set());
@@ -688,6 +790,72 @@ export function SelectMatchWorkspace({
     const logLines: string[] = [];
     const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
 
+    let deliveryRootHandle: FileSystemDirectoryHandle | null = null;
+    let deliveryDirectory: FileSystemDirectoryHandle | null = null;
+    let deliveryPlanByBasename = new Map<string, Array<{
+      name: string;
+      kind: "jpg" | "xmp";
+      handle: FileSystemFileHandle;
+      sourceDirectory: FileSystemDirectoryHandle;
+    }>>();
+    let moveNotice = "";
+
+    if (moveMatchedJpgs) {
+      const deliveryRoot = jpgScanRootDir ?? rootDir;
+      if (!deliveryRoot) {
+        moveNotice = "JPG 폴더를 확인하지 못해 JPG 이동은 건너뛰었습니다.";
+      } else if (!deliveredFolderName.trim() || /[\\/\0]/u.test(deliveredFolderName) || deliveredFolderName === "." || deliveredFolderName === "..") {
+        moveNotice = "보정본 폴더 이름이 올바르지 않아 JPG 이동은 건너뛰었습니다.";
+      } else {
+        try {
+          const permissionHandle = deliveryRoot as FileSystemDirectoryHandle & {
+            requestPermission?: (options: { mode: "readwrite" }) => Promise<PermissionState>;
+            queryPermission?: (options: { mode: "readwrite" }) => Promise<PermissionState>;
+          };
+          let permission: PermissionState = permissionHandle.queryPermission
+            ? await permissionHandle.queryPermission({ mode: "readwrite" })
+            : "prompt";
+          if (permission !== "granted" && permissionHandle.requestPermission) {
+            permission = await permissionHandle.requestPermission({ mode: "readwrite" });
+          }
+          if (permission !== "granted") {
+            moveNotice = "JPG 폴더 쓰기 권한이 없어 RAW만 복사했습니다. JPG 원본은 그대로 유지했습니다.";
+          } else {
+            const sourceGroups = (await collectJpgFolderGroups(deliveryRoot))
+              .filter((group) => group.dirHandle.name !== deliveredFolderName.trim());
+            const handles = new Map<string, { handle: FileSystemFileHandle; sourceDirectory: FileSystemDirectoryHandle }>();
+            const jpgs: Array<{ name: string; directoryKey: string }> = [];
+            const sidecars: Array<{ name: string; directoryKey: string }> = [];
+            for (const [index, group] of sourceGroups.entries()) {
+              const directoryKey = `${index}:${group.name}`;
+              for (const photo of group.photos) {
+                jpgs.push({ name: photo.name, directoryKey });
+                handles.set(`${directoryKey}\0${photo.name}`, { handle: photo.handle, sourceDirectory: group.dirHandle });
+              }
+              for await (const [name, handle] of (group.dirHandle as FileSystemDirectoryHandle & { entries(): AsyncIterableIterator<[string, FileSystemHandle]> }).entries()) {
+                if (handle.kind !== "file" || !/\.xmp$/iu.test(name)) continue;
+                sidecars.push({ name, directoryKey });
+                handles.set(`${directoryKey}\0${name}`, { handle: handle as FileSystemFileHandle, sourceDirectory: group.dirHandle });
+              }
+            }
+            const plan = buildDeliveredJpgMovePlan({ rawMatchedNames: selected, jpgs, sidecars });
+            deliveryPlanByBasename = plan.reduce((map, item) => {
+              const source = handles.get(`${item.directoryKey}\0${item.name}`);
+              if (!source) return map;
+              const list = map.get(item.basename) ?? [];
+              list.push({ name: item.name, kind: item.kind, ...source });
+              map.set(item.basename, list);
+              return map;
+            }, new Map<string, Array<{ name: string; kind: "jpg" | "xmp"; handle: FileSystemFileHandle; sourceDirectory: FileSystemDirectoryHandle }>>());
+            deliveryRootHandle = deliveryRoot;
+          }
+        } catch (error) {
+          moveNotice = `JPG 이동 준비 실패 — RAW만 복사합니다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`;
+        }
+      }
+      if (moveNotice) addLog(`⚠️ ${moveNotice}`);
+    }
+
     // preflight에서 캐시된 인덱스 사용 (없으면 재스캔)
     let rawIndex = rawIndexRef.map;
     if (rawIndex.size === 0) {
@@ -711,28 +879,90 @@ export function SelectMatchWorkspace({
     const rawSelectDir = await (outputBase as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
     addLog("📁 Selected_RAW/ 생성 완료");
 
-    let matched = 0, missing = 0, done = 0;
+    let matched = 0, missing = 0, done = 0, jpgMoved = 0, xmpMoved = 0, failed = 0;
+    const missingNames: string[] = [];
+    const failedNames: string[] = [];
     for (const basename of selected) {
       if (cancelRef.current) break;
       setProgress({ cur: done, total: selected.size, msg: `매칭: ${basename}` });
       const entry = rawIndex.get(basename);
       if (entry) {
         const rawFile = await entry.fileHandle.getFile();
+        let rawCopied = false;
         try {
           await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name);
           if (rawSelectMode === "move") await (entry.dirHandle as any).removeEntry(entry.fileHandle.name);
-          addLog(`✅ ${rawFile.name}`); matched++;
-        } catch { addLog(`❌ 실패: ${rawFile.name}`); }
+          addLog(`✅ ${rawFile.name}`);
+          matched++;
+          rawCopied = true;
+        } catch (error) {
+          failed += 1;
+          failedNames.push(`${rawFile.name} — ${error instanceof Error ? error.message : "RAW 복사 실패"}`);
+          addLog(`❌ 실패: ${rawFile.name}`);
+        }
+        if (rawCopied && deliveryRootHandle) {
+          try {
+            deliveryDirectory ??= await deliveryRootHandle.getDirectoryHandle(deliveredFolderName.trim(), { create: true });
+            const moveItems = deliveryPlanByBasename.get(basename) ?? [];
+            if (!moveItems.some((item) => item.kind === "jpg")) {
+              failed += 1;
+              failedNames.push(`${basename} — 원본 JPG를 찾지 못해 이동하지 않음`);
+              addLog(`❌ JPG 이동 실패: ${basename} 원본을 찾지 못함`);
+            } else {
+              for (const item of moveItems) {
+                try {
+                  const moved = await moveFileWithSizeVerification({
+                    sourceHandle: item.handle,
+                    sourceDirectory: item.sourceDirectory,
+                    destinationDirectory: deliveryDirectory,
+                    name: item.name,
+                  });
+                  if (moved.status === "destination_exists") {
+                    failed += 1;
+                    failedNames.push(`${item.name} — 대상 폴더에 같은 이름이 있어 원본 유지`);
+                    addLog(`⚠️ 이동 건너뜀: ${item.name} (같은 이름 존재)`);
+                  } else if (item.kind === "jpg") {
+                    jpgMoved += 1;
+                    addLog(`📦 JPG 이동: ${item.name}`);
+                  } else {
+                    xmpMoved += 1;
+                    addLog(`📦 XMP 이동: ${item.name}`);
+                  }
+                } catch (error) {
+                  failed += 1;
+                  failedNames.push(`${item.name} — ${error instanceof Error ? error.message : "이동 실패"}`);
+                  addLog(`❌ 이동 실패: ${item.name}`);
+                }
+              }
+            }
+          } catch (error) {
+            failed += 1;
+            failedNames.push(`${basename} — ${error instanceof Error ? error.message : "JPG 이동 준비 실패"}`);
+            addLog(`❌ JPG 이동 실패: ${basename}`);
+          }
+        }
       } else {
-        addLog(`⚠️ RAW 없음: ${basename}`);
+        addLog(`⚠️ RAW 없음 — JPG 그대로 둠: ${basename}`);
+        missingNames.push(basename);
         missing++;
       }
       done++;
     }
-    setResult({ matched, missing, selected: selected.size });
+    setResult({
+      matched,
+      missing,
+      selected: selected.size,
+      jpgMoved,
+      xmpMoved,
+      failed,
+      deliveredFolderName: deliveryDirectory ? deliveredFolderName.trim() : "",
+      missingNames,
+      failedNames,
+      moveNotice,
+    });
     setStep("done");
     useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
-  }, [rootDir, rawRootDir, selected, buildRawIndex, rawIndexRef, rawSelectMode]);
+  }, [buildRawIndex, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, rawIndexRef, rawRootDir, rawSelectMode, rootDir, selected, setProgress]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -905,6 +1135,74 @@ export function SelectMatchWorkspace({
       }}>모바일 자동화 &gt; 프로그램 아카이브</button>
     </div>
   );
+
+  const updateRawMatchCriteria = (next: RawMatchCriteria) => {
+    setRawMatchCriteria(next);
+    rawIndexRef.map.clear();
+    setPreflight(null);
+    if (step === "preflight") setStep("raw_pick");
+  };
+
+  const RawMatchCriteriaPanel = () => {
+    if (!bridgeLinked || selectedJpgNames.length === 0) return null;
+    const ratingEnabled = rawMatchCriteria.source !== "color";
+    const colorEnabled = rawMatchCriteria.source !== "rating";
+    return (
+      <section aria-label="RAW 매칭 기준" style={{ background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <strong style={{ color: uiText, fontSize: 12 }}>매칭 기준</strong>
+          <div style={{ display: "inline-flex", border: `1px solid ${uiBorder}`, borderRadius: 9, overflow: "hidden" }}>
+            {([['rating', '별점'], ['color', '컬러'], ['both', '둘 다']] as const).map(([source, label]) => (
+              <button
+                key={source}
+                type="button"
+                aria-pressed={rawMatchCriteria.source === source}
+                onClick={() => updateRawMatchCriteria({ ...rawMatchCriteria, source })}
+                style={{ minHeight: 36, padding: "0 14px", border: 0, borderRight: source !== "both" ? `1px solid ${uiBorder}` : 0, background: rawMatchCriteria.source === source ? uiAccent : "transparent", color: rawMatchCriteria.source === source ? "#103E36" : uiMuted, font: "inherit", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
+              >{label}</button>
+            ))}
+          </div>
+          <span style={{ marginLeft: "auto", color: uiAccent, fontSize: 12, fontWeight: 600 }}>매칭할 사진 {resolvedBridgeTargets.size.toLocaleString("ko-KR")}장</span>
+        </div>
+        <div style={{ display: "grid", gap: 9 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: ratingEnabled ? uiText : uiHint, opacity: ratingEnabled ? 1 : .45 }}>
+            <span style={{ width: 42, fontSize: 11, fontWeight: 600 }}>별점</span>
+            <select
+              value={rawMatchCriteria.minRating}
+              disabled={!ratingEnabled}
+              onChange={(event) => updateRawMatchCriteria({ ...rawMatchCriteria, minRating: Number(event.currentTarget.value) as RawMatchCriteria["minRating"] })}
+              style={{ minHeight: 36, border: `1px solid ${uiBorder}`, borderRadius: 8, background: inputSurface, color: uiText, padding: "0 10px", font: "inherit", fontSize: 11 }}
+            >
+              {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>★{rating} 이상</option>)}
+            </select>
+          </label>
+          <div aria-disabled={!colorEnabled} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: colorEnabled ? uiText : uiHint, opacity: colorEnabled ? 1 : .45 }}>
+            <span style={{ width: 42, fontSize: 11, fontWeight: 600 }}>컬러</span>
+            {([6, 7, 8, 9] as BridgeColorLabel[]).map((label) => {
+              const checked = rawMatchCriteria.colorLabels.includes(label);
+              return (
+                <label key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5, minHeight: 36, cursor: colorEnabled ? "pointer" : "default", fontSize: 11 }}>
+                  <input
+                    type="checkbox"
+                    disabled={!colorEnabled}
+                    checked={checked}
+                    onChange={() => updateRawMatchCriteria({
+                      ...rawMatchCriteria,
+                      colorLabels: checked
+                        ? rawMatchCriteria.colorLabels.filter((value) => value !== label)
+                        : [...rawMatchCriteria.colorLabels, label].sort() as RawMatchCriteria["colorLabels"],
+                    })}
+                  />
+                  <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: "50%", background: BRIDGE_COLOR_LABELS[label].color }} />
+                  {label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   /* ── 모바일 자동화 > 프로그램 아카이브 ── */
   if (feature === "program_archive") return (
@@ -1341,10 +1639,11 @@ export function SelectMatchWorkspace({
   /* ── RAW 폴더 선택 (client_input 이후) ── */
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+      <RawMatchCriteriaPanel />
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "RAW 원본 폴더를 자동으로 찾습니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
-          고객 선택 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
+          {bridgeLinked ? "선택 기준에 맞는" : "고객 선택"} 파일명 <strong style={{ color: uiAccent }}>{selected.size}개</strong>를 확인했습니다.<br />
           {bridgeLinked ? <>선택 사진 1~2장을 기준으로 현재 폴더와 상위 2단계까지만 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
@@ -1395,6 +1694,7 @@ export function SelectMatchWorkspace({
   /* ── Preflight ── */
   if (step === "preflight") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
+      <RawMatchCriteriaPanel />
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
           <ScanSearch size={16} aria-hidden="true" /> 매칭 사전 확인
@@ -1481,6 +1781,30 @@ export function SelectMatchWorkspace({
               </div>
             )}
 
+            {preflight.willMatch > 0 && (
+              <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid ${uiBorder}`, borderRadius: 10, background: groupedSurface }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 8, color: uiText, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                  <input type="checkbox" checked={moveMatchedJpgs} onChange={(event) => setMoveMatchedJpgs(event.currentTarget.checked)} />
+                  매칭한 JPG를 보정본 폴더로 옮기기
+                </label>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, opacity: moveMatchedJpgs ? 1 : .45 }}>
+                  <span style={{ color: uiMuted, fontSize: 11 }}>JPG 폴더 안</span>
+                  <input
+                    value={deliveredFolderName}
+                    disabled={!moveMatchedJpgs}
+                    aria-label="매칭한 JPG를 옮길 폴더 이름"
+                    onChange={(event) => {
+                      setDeliveredFolderNameDirty(true);
+                      setDeliveredFolderName(event.currentTarget.value);
+                    }}
+                    style={{ minHeight: 38, flex: 1, minWidth: 0, border: `1px solid ${uiBorder}`, borderRadius: 8, background: inputSurface, color: uiText, padding: "0 10px", font: "inherit", fontSize: 11 }}
+                  />
+                  <span style={{ color: uiMuted, fontSize: 11 }}>폴더</span>
+                </div>
+                <p style={{ margin: "8px 0 0", color: uiHint, fontSize: 10, lineHeight: 1.55 }}>RAW 복사가 성공한 JPG와 같은 이름의 XMP만 안전하게 복사·크기 확인 후 원본 위치에서 지웁니다.</p>
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 8 }}>
               <Btn variant="secondary" onClick={() => setStep("ready")}>← 취소</Btn>
               {preflight.willMatch > 0 && (
@@ -1532,6 +1856,14 @@ export function SelectMatchWorkspace({
             <FolderOpen size={14} aria-hidden="true" style={{ verticalAlign: "-2px", marginRight: 5 }} /><strong style={{ color: uiAccent }}>Selected_RAW/</strong> — 매칭 RAW {rawSelectMode === "move" ? "이동" : "복사"} 완료<br />
             <span style={{ color: uiHint }}>{rawSelectMode === "move" ? "원본 RAW 파일은 삭제되었습니다." : "원본 RAW 파일은 삭제되지 않았습니다."}</span>
           </div>
+          <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiText, lineHeight: 1.75, marginBottom: 16 }}>
+            RAW {result.matched.toLocaleString("ko-KR")}장 Selected_RAW로 {rawSelectMode === "move" ? "이동" : "복사"}
+            {result.deliveredFolderName ? <> · JPG {result.jpgMoved.toLocaleString("ko-KR")}장(+xmp {result.xmpMoved.toLocaleString("ko-KR")}개) {result.deliveredFolderName}으로 이동</> : null}
+            {` · RAW 없음 ${result.missing.toLocaleString("ko-KR")}장 · 실패 ${result.failed.toLocaleString("ko-KR")}장`}
+          </div>
+          {result.moveNotice ? <div role="status" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", color: "#D6BC7D", fontSize: 11 }}>{result.moveNotice}</div> : null}
+          {result.missingNames.length > 0 ? <details style={{ marginBottom: 10, color: uiMuted, fontSize: 11 }}><summary style={{ cursor: "pointer", color: C.red }}>RAW 없음 — JPG 그대로 둠 ({result.missingNames.length}장)</summary><div style={{ marginTop: 7, maxHeight: 120, overflowY: "auto", fontFamily: "monospace", lineHeight: 1.6 }}>{result.missingNames.map((name) => <div key={name}>{name}</div>)}</div></details> : null}
+          {result.failedNames.length > 0 ? <details style={{ marginBottom: 14, color: uiMuted, fontSize: 11 }}><summary style={{ cursor: "pointer", color: C.red }}>실패 목록 ({result.failedNames.length}건)</summary><div style={{ marginTop: 7, maxHeight: 120, overflowY: "auto", fontFamily: "monospace", lineHeight: 1.6 }}>{result.failedNames.map((name, index) => <div key={`${name}:${index}`}>{name}</div>)}</div></details> : null}
           <div style={{ display: "flex", gap: 8 }}>
             <Btn variant="secondary" onClick={() => { setStep("ready"); setLog([]); }}>← 다시 선택</Btn>
             <Btn onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); }}>처음으로</Btn>

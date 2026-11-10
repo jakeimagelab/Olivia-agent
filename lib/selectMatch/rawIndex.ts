@@ -1,4 +1,5 @@
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 const RAW_SCAN_DIRECTORY_CONCURRENCY = 4;
 const RAW_DIRECT_LOOKUP_CONCURRENCY = 8;
@@ -17,6 +18,7 @@ function shouldSkipDirectory(name: string): boolean {
   const normalized = normalizedBasename(name);
   return normalized.startsWith(".")
     || RAW_SCAN_SKIPPED_DIRECTORIES.has(normalized)
+    || isDeliveredRoundFolder(name)
     || /^\d+px_q\d+$/i.test(normalized);
 }
 

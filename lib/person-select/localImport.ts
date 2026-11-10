@@ -5,6 +5,7 @@ import {
   parsePersonFolderName,
   PERSON_FOLDER_JPG_DIRECTORIES,
 } from "./folderRules";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 export type PersonSelectImportLayout = "school" | "person-folders" | "project";
 
@@ -149,7 +150,7 @@ async function jpgFilesRecursive(directory: FileSystemDirectoryHandle, prefix = 
     if (name.startsWith(".")) continue;
     const path = prefix ? `${prefix}/${normalizeNfc(name)}` : normalizeNfc(name);
     if (handle.kind === "file" && JPG_FILE.test(name)) files.push({ file: await (handle as FileSystemFileHandle).getFile(), relativePath: path });
-    else if (handle.kind === "directory") files.push(...await jpgFilesRecursive(handle as FileSystemDirectoryHandle, path));
+    else if (handle.kind === "directory" && !isDeliveredRoundFolder(name)) files.push(...await jpgFilesRecursive(handle as FileSystemDirectoryHandle, path));
   }
   return files;
 }
@@ -202,7 +203,7 @@ export function collectLocalPersonSelectFileList(fileList: FileList, layout: Per
     const path = normalizeNfc(file.webkitRelativePath.replace(/\\/g, "/"));
     const segments = path.split("/");
     if (segments[0] === folderName) segments.shift();
-    return JPG_FILE.test(file.name) ? [{ file, relativePath: segments.join("/") }] : [];
+    return JPG_FILE.test(file.name) && !segments.some(isDeliveredRoundFolder) ? [{ file, relativePath: segments.join("/") }] : [];
   });
   const topLevelFolders = [...new Set(sources.map((source) => source.relativePath.split("/")[0]).filter(Boolean))];
   return { folderName, scan: scanLocalPersonSelectFiles(sources, layout, topLevelFolders) };

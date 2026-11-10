@@ -11,6 +11,8 @@ export type RemoteBridgeThumbnail = {
   name: string;
   size: number;
   lastModified: number;
+  captureTimestamp?: number;
+  timestampSource?: "datetime_original" | "create_date" | "ifd_datetime" | "mtime";
   dataUrl: string;
 };
 
@@ -52,11 +54,20 @@ function parseThumb(value: unknown): RemoteBridgeThumbnail {
   const name = typeof value.name === "string" ? value.name : "";
   const size = typeof value.size === "number" ? value.size : Number.NaN;
   const lastModified = typeof value.lastModified === "number" ? value.lastModified : Number.NaN;
+  const captureTimestamp = typeof value.captureTimestamp === "number" && Number.isFinite(value.captureTimestamp)
+    ? value.captureTimestamp
+    : undefined;
+  const timestampSource = value.timestampSource === "datetime_original"
+    || value.timestampSource === "create_date"
+    || value.timestampSource === "ifd_datetime"
+    || value.timestampSource === "mtime"
+    ? value.timestampSource
+    : undefined;
   const dataUrl = typeof value.dataUrl === "string" ? value.dataUrl : "";
   if (!relativePath || !name || !Number.isFinite(size) || size < 0 || !Number.isFinite(lastModified) || !dataUrl.startsWith("data:image/jpeg;base64,")) {
     throw new Error("원격 썸네일 항목이 올바르지 않습니다.");
   }
-  return { relativePath, name, size, lastModified, dataUrl };
+  return { relativePath, name, size, lastModified, captureTimestamp, timestampSource, dataUrl };
 }
 
 function abortError() {
