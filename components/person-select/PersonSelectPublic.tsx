@@ -319,7 +319,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   const visibleCategory = { ...category, choices: visibleChoices };
 
   async function choose(imageId: string) {
-    if (currentMe.event.locked || pendingClearIds.has(imageId)) return;
+    if (currentMe.event.locked || pendingClearIds.has(imageId) || clearRequestByImageRef.current.has(imageId)) return;
     const wasOptimisticallyCleared = optimisticallyClearedIds.has(imageId);
     setMessage("");
     if (wasOptimisticallyCleared) {
@@ -338,7 +338,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     }
   }
   async function clearChoice(imageId: string) {
-    if (currentMe.event.locked || pendingClearIds.has(imageId)) return;
+    if (currentMe.event.locked || pendingClearIds.has(imageId) || clearRequestByImageRef.current.has(imageId)) return;
     const requestId = ++clearRequestSequenceRef.current;
     clearRequestByImageRef.current.set(imageId, requestId);
     setMessage("");
