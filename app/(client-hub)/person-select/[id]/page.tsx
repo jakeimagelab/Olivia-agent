@@ -77,6 +77,9 @@ export default function PersonSelectDetailPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Person | null>(null);
   const [pinListOpen, setPinListOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
@@ -96,6 +99,12 @@ export default function PersonSelectDetailPage() {
   }, [data?.shared?.reviewers, selectedReviewerId]);
   useEffect(() => { if (!jobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${jobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setResult(body.job.result || { error: body.job.error || body.job.message }); setJobId(""); await load(); if (body.job?.status === "COMPLETED") setTab("matching"); } }, 1500); return () => window.clearInterval(timer); }, [jobId, load]);
   useEffect(() => { if (!rawJobId) return; const timer = window.setInterval(async () => { const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`)).json(); if (["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status)) { window.clearInterval(timer); setRawJobId(""); setRawResult(body.job.result || { error: body.job.error || body.job.message }); await load(); } }, 1500); return () => window.clearInterval(timer); }, [rawJobId, load]);
+  useEffect(() => {
+    if (!deleteOpen || deleting) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDeleteOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [deleteOpen, deleting]);
   const eventUploadJob = uploadManager.jobs.find((job) => job.event_id === id) ?? null;
   const localBusy = Boolean(eventUploadJob && (eventUploadJob.status === "queued" || eventUploadJob.status === "uploading"));
   const localProgress = eventUploadJob ? { current: eventUploadJob.success_count, total: eventUploadJob.total_count, fileName: "" } : { current: 0, total: 0, fileName: "" };
@@ -229,6 +238,26 @@ export default function PersonSelectDetailPage() {
       setError(body.error || "설정을 저장하지 못했습니다.");
     };
     await requestSave();
+  }
+  async function deleteProject() {
+    if (deleteConfirmTitle.trim() !== currentData.event.title) return;
+    setDeleting(true); setError("");
+    try {
+      const response = await fetch(`/api/person-select/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmTitle: deleteConfirmTitle.trim() }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok || !body.ok) throw new Error(body.error || "프로젝트를 삭제하지 못했습니다.");
+      setDeleteOpen(false);
+      navigate("/person-select");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "프로젝트를 삭제하지 못했습니다.");
+      setDeleteOpen(false);
+    } finally {
+      setDeleting(false);
+    }
   }
   async function regenerateSharedLink() {
     if (!isShared || !window.confirm("기존 공용 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?")) return;
@@ -427,11 +456,19 @@ export default function PersonSelectDetailPage() {
             })}</div>
           </div> : null}
         </div>
-        <div className={styles.formActions}><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
+        <div className={styles.formActions}><button type="button" className={styles.danger} onClick={() => { setDeleteConfirmTitle(""); setDeleteOpen(true); }}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
     {picker ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPicker(false)} onSelectRemote={(selection) => { setPath(selection.path); setPicker(false); }} /> : null}
     {pinListOpen ? <PinListDialog eventId={id} onClose={() => setPinListOpen(false)} onUpdated={load} /> : null}
+    {deleteOpen ? <div className={styles.modalBackdrop} onClick={() => { if (!deleting) setDeleteOpen(false); }}>
+      <section className={`${styles.pinDialog} ${styles.deleteDialog}`} role="dialog" aria-modal="true" aria-labelledby="delete-project-title" onClick={(event) => event.stopPropagation()}>
+        <div className={styles.modalTop}><div><p className={styles.eyebrow}>되돌릴 수 없는 작업</p><h2 id="delete-project-title">프로젝트 삭제</h2><p>사진, 참가자, 선택·주문·제출 기록과 업로드한 미리보기 파일을 함께 삭제합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={deleting} onClick={() => setDeleteOpen(false)}><X size={20} /></button></div>
+        <div className={styles.warning} role="alert">삭제하려면 프로젝트명 <strong>{currentData.event.title}</strong>을 아래에 정확히 입력해 주세요. 업로드 중인 프로젝트는 삭제할 수 없습니다.</div>
+        <div className={styles.field}><label htmlFor="delete-project-confirm">프로젝트명 확인</label><input id="delete-project-confirm" className={styles.input} autoFocus value={deleteConfirmTitle} disabled={deleting} onChange={(event) => setDeleteConfirmTitle(event.target.value)} autoComplete="off" /></div>
+        <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={deleting} onClick={() => setDeleteOpen(false)}>취소</button><button type="button" className={styles.dangerSolid} disabled={deleting || deleteConfirmTitle.trim() !== currentData.event.title} onClick={() => void deleteProject()}>{deleting ? "삭제 중" : "영구 삭제"}</button></div>
+      </section>
+    </div> : null}
     {drawer ? <PersonDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => { const body = await (await fetch(`/api/person-select/${id}/people/${drawer.id}/pin`, { method: "POST" })).json(); if (body.ok) setError(`${drawer.display_name} 새 비밀번호: ${body.pin}`); }} /> : null}
   </main>;
 }

@@ -4,7 +4,7 @@ import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { extraPickCount, priceOrder, requiredPickCount, selectionStatus, validateCategoryPicks, validateOffers } from "@/lib/person-select/core";
 import { isPersonSelectAccessMode, isPersonSelectCustomerViewMode, isPersonSelectProjectType, type PersonSelectAccessMode, type PersonSelectCategory, type PersonSelectOffer, type PersonSelectOrderItem } from "@/lib/person-select/types";
-import { signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
+import { PERSON_SELECT_BUCKET, signedImageUrl, signedImageUrls } from "@/lib/person-select/server";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
@@ -242,4 +242,64 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
   const { data, error } = await getSupabaseAdmin().from("person_select_events").update(update).eq("id", eventId).select("*").single();
   if (error) return Response.json({ ok: false, error: error.message }, { status: 400 });
   return Response.json({ ok: true, event: data });
+}
+
+const PROJECT_STORAGE_DELETE_BATCH_SIZE = 500;
+const ACTIVE_UPLOAD_STATUSES = ["queued", "uploading", "paused"];
+
+export async function DELETE(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
+  if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
+  const { eventId } = await context.params;
+  const body = await request.json().catch(() => ({})) as Record<string, unknown>;
+  const confirmTitle = typeof body.confirmTitle === "string" ? body.confirmTitle.trim() : "";
+  if (!confirmTitle) return Response.json({ ok: false, error: "삭제할 프로젝트명을 정확히 입력해 주세요." }, { status: 400 });
+
+  const db = getSupabaseAdmin();
+  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title").eq("id", eventId).maybeSingle();
+  if (eventError) return Response.json({ ok: false, error: eventError.message }, { status: 500 });
+  if (!event) return Response.json({ ok: false, error: "프로젝트를 찾을 수 없습니다." }, { status: 404 });
+  if (event.title !== confirmTitle) return Response.json({ ok: false, error: "프로젝트명이 일치하지 않습니다." }, { status: 400 });
+
+  const { data: activeUploads, error: activeUploadError } = await db.from("person_select_upload_jobs")
+    .select("id,status")
+    .eq("event_id", eventId)
+    .in("status", ACTIVE_UPLOAD_STATUSES)
+    .limit(1);
+  if (activeUploadError) return Response.json({ ok: false, error: `업로드 상태를 확인하지 못했습니다: ${activeUploadError.message}` }, { status: 500 });
+  if (activeUploads?.length) {
+    return Response.json({ ok: false, error: "사진 업로드가 진행 중입니다. 업로드를 취소하거나 완료한 뒤 프로젝트를 삭제해 주세요." }, { status: 409 });
+  }
+
+  const images = await readAllPersonSelectRows((from, to) => db.from("person_select_images")
+    .select("thumb_path,preview_path")
+    .eq("event_id", eventId)
+    .order("id")
+    .range(from, to));
+  const storagePaths = [...new Set(images.flatMap((image) => [image.thumb_path, image.preview_path]).filter(Boolean))];
+
+  const { data: deleted, error: deleteError } = await db.from("person_select_events")
+    .delete()
+    .eq("id", eventId)
+    .eq("title", confirmTitle)
+    .select("id")
+    .maybeSingle();
+  if (deleteError) return Response.json({ ok: false, error: `프로젝트를 삭제하지 못했습니다: ${deleteError.message}` }, { status: 500 });
+  if (!deleted) return Response.json({ ok: false, error: "프로젝트가 변경되었거나 이미 삭제되었습니다." }, { status: 409 });
+
+  const storage = db.storage.from(PERSON_SELECT_BUCKET);
+  const cleanupErrors: string[] = [];
+  let removedFileCount = 0;
+  for (let offset = 0; offset < storagePaths.length; offset += PROJECT_STORAGE_DELETE_BATCH_SIZE) {
+    const batch = storagePaths.slice(offset, offset + PROJECT_STORAGE_DELETE_BATCH_SIZE);
+    const { error } = await storage.remove(batch);
+    if (error) cleanupErrors.push(error.message);
+    else removedFileCount += batch.length;
+  }
+
+  return Response.json({
+    ok: true,
+    deletedId: eventId,
+    removedFileCount,
+    ...(cleanupErrors.length ? { warning: "프로젝트는 삭제됐지만 일부 Storage 파일 정리가 남았습니다.", cleanupErrors } : {}),
+  });
 }

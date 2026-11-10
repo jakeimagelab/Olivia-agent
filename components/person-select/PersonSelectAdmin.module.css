@@ -24,12 +24,15 @@
 .title { margin: 0; font-size: var(--ui2-f5, 24px); font-weight: 600; letter-spacing: -.02em; }
 .subtitle { margin: 4px 0 0; color: var(--ps-sub); font-size: 12px; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.primary, .secondary, .weak { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; padding: 0 13px; font: inherit; font-size: 12px; font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+.primary, .secondary, .weak, .danger, .dangerSolid { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px; padding: 0 13px; font: inherit; font-size: 12px; font-weight: 500; white-space: nowrap; text-decoration: none; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
 .primary { color: var(--ui2-on-run, #fff); border: 1px solid var(--ps-orange); background: var(--ps-orange); box-shadow: none; }
 .secondary { color: var(--ps-green); border: 1px solid var(--ps-border); background: transparent; }
 .secondary:hover:not(:disabled) { background: var(--ps-soft); border-color: var(--ps-soft-border); }
 .weak { color: var(--ps-sub); border: 0; background: transparent; }
-.primary:disabled, .secondary:disabled { color: var(--ps-sub); opacity: .55; border-color: var(--ps-border); background: transparent; box-shadow: none; cursor: default; }
+.danger { margin-right: auto; color: #A23E1A; border: 1px solid rgba(162,62,26,.32); background: transparent; }
+.danger:hover:not(:disabled) { background: var(--ps-orange-soft); }
+.dangerSolid { color: #fff; border: 1px solid #A23E1A; background: #A23E1A; }
+.primary:disabled, .secondary:disabled, .danger:disabled, .dangerSolid:disabled { color: var(--ps-sub); opacity: .55; border-color: var(--ps-border); background: transparent; box-shadow: none; cursor: default; }
 .segment { display: inline-flex; gap: 4px; padding: 6px; margin-bottom: 20px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
 .segment button { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ps-green); font: inherit; font-size: 12px; cursor: pointer; }
 .segment .segmentActive { background: var(--ps-soft); border-color: var(--ps-soft-border); }
@@ -100,7 +103,7 @@
 .input, .select, .textarea { width: 100%; min-height: 40px; padding: 0 12px; border: 1px solid var(--ps-border); border-radius: 8px; color: var(--ps-text); background: var(--ps-header); box-sizing: border-box; font: inherit; font-size: 14px; }
 .textarea { min-height: 96px; padding: 10px 12px; resize: vertical; }
 .input:focus, .select:focus, .textarea:focus { border-color: var(--ps-green); outline: none; box-shadow: 0 0 0 3px rgba(21,88,85,.12); }
-.formActions { display: flex; justify-content: flex-end; margin-top: 22px; }
+.formActions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 22px; }
 .empty { min-height: 340px; display: grid; place-items: center; padding: 40px; text-align: center; }
 .emptyIcon { width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 12px; display: grid; place-items: center; color: var(--ps-green); background: var(--ps-soft); }
 .empty h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
@@ -127,6 +130,7 @@
 .drawerTop h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .modalBackdrop { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 20px; background: rgba(41,62,52,.28); }
 .pinDialog { width: min(760px, 100%); max-height: min(760px, calc(100dvh - 40px)); display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 20px; border: 1px solid var(--ps-border); border-radius: 12px; background: var(--ps-surface); box-shadow: 0 18px 48px rgba(41,62,52,.18); }
+.deleteDialog { width: min(520px, 100%); }
 .modalTop { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .modalTop h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .modalTop p:last-child { margin: 5px 0 0; color: var(--ps-sub); font-size: 12px; }
