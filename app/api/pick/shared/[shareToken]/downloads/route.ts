@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     if (existing) return Response.json({ ok: true, created: false, job: existing });
     const { data: job, error: jobError } = await db.from("person_select_download_jobs").insert({ event_id: event.id, reviewer_id: reviewer.id, format: parsed.format, image_ids: parsed.imageIds, request_key: parsed.requestKey, total_count: parsed.imageIds.length, status: "queued" }).select("*").single();
     if (jobError || !job) throw jobError ?? new Error("다운로드 작업을 만들지 못했습니다.");
-    const { data: remote, error: remoteError } = await db.from("remote_jobs").insert({ action: "PERSON_SELECT_DOWNLOAD", payload: { download_job_id: job.id }, target_worker: getConfiguredWorkerId(), status: "PENDING" }).select("id").single();
+    const { data: remote, error: remoteError } = await db.from("remote_jobs").insert({ action: "PERSON_SELECT_DOWNLOAD", payload: { download_job_id: job.id }, target_worker: getConfiguredWorkerId(), status: "QUEUED" }).select("id").single();
     if (remoteError || !remote) throw remoteError ?? new Error("Mac Studio 다운로드 작업을 만들지 못했습니다.");
     await Promise.all([
       db.from("person_select_download_jobs").update({ remote_job_id: remote.id, updated_at: new Date().toISOString() }).eq("id", job.id),

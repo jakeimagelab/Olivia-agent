@@ -70,7 +70,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     action: "PERSON_SELECT_QUALITY",
     payload: { quality_job_id: job.id, event_id: eventId, force: body.force === true },
     target_worker: getConfiguredWorkerId(),
-    status: "PENDING",
+    status: "QUEUED",
   }).select("id").single();
   if (remoteError || !remoteJob) {
     await db.from("photo_quality_analysis_jobs").update({ status: "failed", error: remoteError?.message ?? "Worker 작업 생성 실패", finished_at: new Date().toISOString() }).eq("id", job.id);
@@ -115,7 +115,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
       action: "PERSON_SELECT_QUALITY",
       payload: { quality_job_id: job.id, event_id: eventId, force: false },
       target_worker: getConfiguredWorkerId(),
-      status: "PENDING",
+      status: "QUEUED",
     }).select("id").single();
     if (remoteError || !remote) return Response.json({ ok: false, error: remoteError?.message ?? "Worker 재시도 작업을 만들지 못했습니다." }, { status: 500 });
     const { data, error } = await db.from("photo_quality_analysis_jobs").update({ status: "queued", failed_count: 0, remote_job_id: remote.id, error: null, finished_at: null, updated_at: now }).eq("id", job.id).select("*").single();

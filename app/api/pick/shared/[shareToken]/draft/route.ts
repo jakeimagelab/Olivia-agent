@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { enforcePublicSelectionRateLimit, parsePublicSelectionDraft, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
+import { enforcePublicSelectionRateLimit, parsePublicSelectionDraft, parsePublicSelectionRevision, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
 import { getSharedPersonSelectImageIds, resolveSharedPersonSelectAccess, sharedDraftResponse } from "@/lib/person-select/sharedPublic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -21,10 +21,29 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sha
   const { shareToken } = await context.params;
   try {
     const db = getSupabaseAdmin();
-    await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-draft-write", limit: 90 });
+    await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-draft-write", limit: 30 });
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken);
+    const body = await readPublicSelectionJson(request);
+    const expectedRevision = parsePublicSelectionRevision(body);
+    // Expected optimistic-lock conflicts are handled before the RPC. The RPC uses
+    // SQLSTATE 40001 for the final race check; repeatedly calling it with a stale
+    // revision floods Postgres error logs and can starve unrelated Olivia queries.
+    const { data: currentDraft, error: currentDraftError } = await db
+      .from("person_select_shared_drafts")
+      .select("*")
+      .eq("event_id", event.id)
+      .eq("reviewer_id", reviewer.id)
+      .maybeSingle();
+    if (currentDraftError) throw currentDraftError;
+    const currentRevision = Number(currentDraft?.revision ?? 0);
+    if (currentRevision !== expectedRevision) {
+      return Response.json(
+        { ok: false, error: "다른 화면에서 선택 내용이 변경되었습니다.", draft: sharedDraftResponse(currentDraft) },
+        { status: 409, headers: { "Retry-After": "30" } },
+      );
+    }
     const imageIds = await getSharedPersonSelectImageIds(db, event.id);
-    const parsed = parsePublicSelectionDraft(await readPublicSelectionJson(request), new Set(imageIds));
+    const parsed = parsePublicSelectionDraft(body, new Set(imageIds));
     const storedItems = parsed.items.map((item) => ({ image_id: item.imageId, customer_rating: item.rating, customer_color_label: item.colorLabel, memo: item.memo }));
     const { data, error } = await db.rpc("save_person_select_shared_draft_v2", {
       p_event_id: event.id,
@@ -36,7 +55,10 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sha
     if (error) {
       if (/draft_revision_conflict|40001/i.test(error.message)) {
         const { data: latest } = await db.from("person_select_shared_drafts").select("*").eq("event_id", event.id).eq("reviewer_id", reviewer.id).maybeSingle();
-        return Response.json({ ok: false, error: "다른 담당자가 선택 내용을 변경했습니다.", draft: sharedDraftResponse(latest) }, { status: 409 });
+        return Response.json(
+          { ok: false, error: "다른 화면에서 선택 내용이 변경되었습니다.", draft: sharedDraftResponse(latest) },
+          { status: 409, headers: { "Retry-After": "30" } },
+        );
       }
       throw error;
     }

@@ -92,6 +92,20 @@ function parseCommon(
   value: unknown,
   allowedImageIds: ReadonlySet<string>,
 ): PublicSelectionDraftInput {
+  const revision = parsePublicSelectionRevision(value);
+  const body = value as Record<string, unknown>;
+  const customerMemo = typeof body.customerMemo === "string" ? body.customerMemo : "";
+  if (customerMemo.length > PUBLIC_SELECTION_CUSTOMER_MEMO_LIMIT) {
+    throw new PublicSelectionRequestError(`전체 메모는 ${PUBLIC_SELECTION_CUSTOMER_MEMO_LIMIT}자까지 적을 수 있습니다.`);
+  }
+  return { revision, items: parseItems(body.items, allowedImageIds), customerMemo };
+}
+
+/**
+ * Reads only the optimistic-lock revision before expensive image ownership
+ * validation. Stale clients can then be rejected without scanning every photo.
+ */
+export function parsePublicSelectionRevision(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new PublicSelectionRequestError("요청 형식이 올바르지 않습니다.");
   }
@@ -100,11 +114,7 @@ function parseCommon(
   if (!Number.isInteger(revision) || revision < 0) {
     throw new PublicSelectionRequestError("저장 버전이 올바르지 않습니다.");
   }
-  const customerMemo = typeof body.customerMemo === "string" ? body.customerMemo : "";
-  if (customerMemo.length > PUBLIC_SELECTION_CUSTOMER_MEMO_LIMIT) {
-    throw new PublicSelectionRequestError(`전체 메모는 ${PUBLIC_SELECTION_CUSTOMER_MEMO_LIMIT}자까지 적을 수 있습니다.`);
-  }
-  return { revision, items: parseItems(body.items, allowedImageIds), customerMemo };
+  return revision;
 }
 
 export function parsePublicSelectionDraft(

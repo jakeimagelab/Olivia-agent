@@ -71,6 +71,7 @@ import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessa
 import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
+import { revisionFromConflictDraft, shouldScheduleDraftAutosave } from "@/lib/select-gallery/draftAutosave";
 import styles from "./CustomerBridgeSelect.module.css";
 
 export type CustomerBridgeGallery = {
@@ -400,6 +401,7 @@ export default function CustomerBridgeSelect({
 
   const revisionRef = useRef(initialDraft?.revision ?? 0);
   const dirtyRef = useRef(false);
+  const saveConflictBlockedRef = useRef(false);
   const editVersionRef = useRef(0);
   const saveInFlightRef = useRef<Promise<boolean> | null>(null);
   const saveAbortRef = useRef<AbortController | null>(null);
@@ -463,6 +465,11 @@ export default function CustomerBridgeSelect({
   const markDirty = useCallback(() => {
     dirtyRef.current = true;
     editVersionRef.current += 1;
+    if (saveConflictBlockedRef.current) {
+      setSaveState("conflict");
+      setSaveMessage("다른 화면에서 변경됨 · 새로고침 후 확인해 주세요");
+      return;
+    }
     setSaveState("idle");
     setSaveMessage("");
   }, []);
@@ -626,7 +633,9 @@ export default function CustomerBridgeSelect({
 
   const saveDraft = useCallback(async (options?: { quiet?: boolean }) => {
     if (readOnly) return true;
+    if (saveConflictBlockedRef.current) return false;
     if (saveInFlightRef.current) await saveInFlightRef.current;
+    if (saveConflictBlockedRef.current) return false;
     if (!dirtyRef.current && options?.quiet) return true;
     const controller = new AbortController();
     saveAbortRef.current = controller;
@@ -643,12 +652,19 @@ export default function CustomerBridgeSelect({
         });
         const result = await response.json();
         if (response.status === 409) {
+          revisionRef.current = revisionFromConflictDraft(revisionRef.current, result.draft);
+          saveConflictBlockedRef.current = true;
+          dirtyRef.current = true;
           setSaveState("conflict");
           setSaveMessage("다른 화면에서 변경됨 · 새로고침 후 확인해 주세요");
+          try {
+            localStorage.setItem(`customer-bridge-draft:${localStorageScope}`, JSON.stringify({ selectedImageIds: [...customerBridgeSelectedIds(customerRatings, customerColorLabels)], ratings: customerRatings, colorLabels: customerColorLabels, imageNotes: notes, customerMemo }));
+          } catch (storageError) { reportOptionalStorageError("draft-conflict-backup", storageError); }
           return false;
         }
         if (!response.ok || !result.ok) throw new Error(result.error ?? "선택을 저장하지 못했습니다.");
         revisionRef.current = Number(result.draft?.revision ?? revisionRef.current + 1);
+        saveConflictBlockedRef.current = false;
         const latest = editVersionRef.current === editVersion;
         if (latest) dirtyRef.current = false;
         setSaveState(latest ? "saved" : "idle");
@@ -678,7 +694,7 @@ export default function CustomerBridgeSelect({
       window.clearTimeout(draftTimerRef.current);
       draftTimerRef.current = null;
     }
-    if (readOnly || !dirtyRef.current) return;
+    if (!shouldScheduleDraftAutosave({ readOnly, dirty: dirtyRef.current, conflictBlocked: saveConflictBlockedRef.current })) return;
     draftTimerRef.current = window.setTimeout(() => {
       draftTimerRef.current = null;
       void saveDraft({ quiet: true });
@@ -702,6 +718,11 @@ export default function CustomerBridgeSelect({
 
   const resetSelection = useCallback(async () => {
     if (readOnly || resetting) return;
+    if (saveConflictBlockedRef.current) {
+      setSaveState("conflict");
+      setSaveMessage("다른 화면에서 변경됨 · 새로고침 후 확인해 주세요");
+      return;
+    }
     setResetting(true);
     setSaveState("saving");
     setSaveMessage("셀렉 초기화 저장 중");
@@ -718,6 +739,9 @@ export default function CustomerBridgeSelect({
       });
       const result = await response.json().catch(() => ({}));
       if (response.status === 409) {
+        revisionRef.current = revisionFromConflictDraft(revisionRef.current, result.draft);
+        saveConflictBlockedRef.current = true;
+        dirtyRef.current = true;
         setSaveState("conflict");
         setSaveMessage("다른 화면에서 변경됨 · 새로고침 후 확인해 주세요");
         return;
@@ -725,6 +749,7 @@ export default function CustomerBridgeSelect({
       if (!response.ok || !result.ok) throw new Error(result.error ?? "셀렉을 초기화하지 못했습니다.");
 
       revisionRef.current = Number(result.draft?.revision ?? revisionRef.current + 1);
+      saveConflictBlockedRef.current = false;
       editVersionRef.current += 1;
       dirtyRef.current = false;
       setCustomerRatings({});
