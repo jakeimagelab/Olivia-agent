@@ -6,3 +6,15 @@ export function resolveClassicSelectionShortcut(key: string): ClassicSelectionSh
   if (key === "0") return "clear";
   return null;
 }
+
+/** 서버 선택에서 저장 중인 낙관적 해제를 제외해 즉시 보이는 선택을 계산한다. */
+export function resolveVisibleClassicSelectionIds(
+  selectedIds: Iterable<string>,
+  optimisticallyClearedIds: ReadonlySet<string>,
+) {
+  const visible = new Set<string>();
+  for (const imageId of selectedIds) {
+    if (!optimisticallyClearedIds.has(imageId)) visible.add(imageId);
+  }
+  return visible;
+}

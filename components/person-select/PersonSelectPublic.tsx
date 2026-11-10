@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { formatSeoulDeadline } from "@/lib/person-select/date";
-import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
+import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
 import styles from "./PersonSelectPublic.module.css";
 
@@ -282,32 +282,96 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [message, setMessage] = useState("");
+  const [optimisticallyClearedIds, setOptimisticallyClearedIds] = useState<Set<string>>(() => new Set());
+  const [pendingClearIds, setPendingClearIds] = useState<Set<string>>(() => new Set());
+  const clearRequestSequenceRef = useRef(0);
+  const clearRequestByImageRef = useRef(new Map<string, number>());
+  const serverSelectedIds = useMemo(() => new Set(category?.choices.map((choice) => choice.image_id) ?? []), [category?.choices]);
+  const selectedIds = useMemo(
+    () => resolveVisibleClassicSelectionIds(serverSelectedIds, optimisticallyClearedIds),
+    [optimisticallyClearedIds, serverSelectedIds],
+  );
+
+  useEffect(() => {
+    clearRequestByImageRef.current.clear();
+    setOptimisticallyClearedIds(new Set());
+    setPendingClearIds(new Set());
+  }, [categoryKey]);
+
+  useEffect(() => {
+    setOptimisticallyClearedIds((current) => {
+      let changed = false;
+      const next = new Set(current);
+      for (const imageId of current) {
+        if (!serverSelectedIds.has(imageId)) {
+          next.delete(imageId);
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [serverSelectedIds]);
+
   if (meLoading || loading) return <main className={styles.darkPage}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me || !category) return <main className={styles.darkPage}><div className={styles.done}>{error || "항목을 찾을 수 없어요."}</div></main>;
   const currentMe = me;
-  const selectedIds = new Set(category.choices.map((choice) => choice.image_id));
+  const visibleChoices = category.choices.filter((choice) => selectedIds.has(choice.image_id));
+  const visibleCategory = { ...category, choices: visibleChoices };
 
   async function choose(imageId: string) {
-    if (currentMe.event.locked) return;
+    if (currentMe.event.locked || pendingClearIds.has(imageId)) return;
+    const wasOptimisticallyCleared = optimisticallyClearedIds.has(imageId);
     setMessage("");
+    if (wasOptimisticallyCleared) {
+      setOptimisticallyClearedIds((current) => {
+        const next = new Set(current);
+        next.delete(imageId);
+        return next;
+      });
+    }
     try {
       await jsonFetch(`/api/pick/${slug}/choices/${categoryKey}`, { method: "PUT", body: JSON.stringify({ image_id: imageId, retouch_keys: [], memo: "" }) });
       await load({ silent: true });
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "고르지 못했어요."); }
+    } catch (cause) {
+      if (wasOptimisticallyCleared) setOptimisticallyClearedIds((current) => new Set(current).add(imageId));
+      setMessage(cause instanceof Error ? cause.message : "고르지 못했어요.");
+    }
   }
   async function clearChoice(imageId: string) {
-    if (currentMe.event.locked) return;
+    if (currentMe.event.locked || pendingClearIds.has(imageId)) return;
+    const requestId = ++clearRequestSequenceRef.current;
+    clearRequestByImageRef.current.set(imageId, requestId);
     setMessage("");
+    setOptimisticallyClearedIds((current) => new Set(current).add(imageId));
+    setPendingClearIds((current) => new Set(current).add(imageId));
     try {
       await jsonFetch(`/api/pick/${slug}/choices/${categoryKey}?image_id=${encodeURIComponent(imageId)}`, { method: "DELETE" });
+      if (clearRequestByImageRef.current.get(imageId) !== requestId) return;
       await load({ silent: true });
-    } catch (cause) { setMessage(cause instanceof Error ? cause.message : "선택을 빼지 못했어요."); }
+    } catch (cause) {
+      if (clearRequestByImageRef.current.get(imageId) !== requestId) return;
+      setOptimisticallyClearedIds((current) => {
+        const next = new Set(current);
+        next.delete(imageId);
+        return next;
+      });
+      setMessage(cause instanceof Error ? cause.message : "선택을 빼지 못했어요.");
+    } finally {
+      if (clearRequestByImageRef.current.get(imageId) === requestId) {
+        clearRequestByImageRef.current.delete(imageId);
+        setPendingClearIds((current) => {
+          const next = new Set(current);
+          next.delete(imageId);
+          return next;
+        });
+      }
+    }
   }
   const shown = filter === "selected" ? images.filter((image) => selectedIds.has(image.id)) : images;
   const preview = previewIndex === null ? null : images[previewIndex];
-  const count = category.choices.length;
-  const extra = extraCount(category);
-  const dockText = message || (count === 0 ? `사진을 ${category.need}장 골라주세요${category.max > category.need ? ` · ${category.max}장까지 더 고를 수 있어요` : ""}` : extra && me.event.extra_price ? `${count}장 골랐어요 · 추가 보정 ${extra}장 ${won(extra * me.event.extra_price)}` : isComplete(category) ? "고른 사진의 보정 요청을 적어주세요." : `${count} / ${category.need}장 골랐어요`);
+  const count = visibleChoices.length;
+  const extra = extraCount(visibleCategory);
+  const dockText = message || (count === 0 ? `사진을 ${category.need}장 골라주세요${category.max > category.need ? ` · ${category.max}장까지 더 고를 수 있어요` : ""}` : extra && me.event.extra_price ? `${count}장 골랐어요 · 추가 보정 ${extra}장 ${won(extra * me.event.extra_price)}` : isComplete(visibleCategory) ? "고른 사진의 보정 요청을 적어주세요." : `${count} / ${category.need}장 골랐어요`);
   return <main className={styles.darkPage}>
     <header className={styles.darkTop}><button onClick={() => router.push(`/pick/${slug}/home`)} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{images.length}장</span></header>
     <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {images.length}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
@@ -316,7 +380,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     {preview ? <div className={styles.lightbox}>
       <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>
       <div className={styles.preview}><img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /><div className={styles.previewNav}><button className={styles.iconButton} disabled={!previewIndex} onClick={() => setPreviewIndex(Math.max(0, (previewIndex ?? 0) - 1))}><ChevronLeft /></button><button className={styles.iconButton} disabled={previewIndex === images.length - 1} onClick={() => setPreviewIndex(Math.min(images.length - 1, (previewIndex ?? 0) + 1))}><ChevronRight /></button></div></div>
-      <div className={styles.lightboxActions}>{selectedIds.has(preview.id) ? <button className={styles.secondary} onClick={() => void clearChoice(preview.id)}>선택 해제</button> : <button className={styles.secondary} onClick={() => void choose(preview.id)}>이 사진 고르기 ({count}/{category.need})</button>}<button className={styles.mintButton} disabled={count === 0} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>보정 요청 쓰기</button></div>
+      <div className={styles.lightboxActions}>{pendingClearIds.has(preview.id) ? <button className={styles.secondary} disabled>저장 중</button> : selectedIds.has(preview.id) ? <button className={styles.secondary} onClick={() => void clearChoice(preview.id)}>선택 해제</button> : <button className={styles.secondary} onClick={() => void choose(preview.id)}>이 사진 고르기 ({count}/{category.need})</button>}<button className={styles.mintButton} disabled={count === 0} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>보정 요청 쓰기</button></div>
     </div> : null}
   </main>;
 }

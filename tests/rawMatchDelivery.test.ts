@@ -4,6 +4,7 @@ import {
   DEFAULT_RAW_MATCH_CRITERIA,
   isDeliveredRoundFolder,
   nextDeliveredRoundFolderName,
+  rawMatchProgressPercent,
   resolveRawMatchTargets,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 
@@ -55,5 +56,16 @@ describe("보정본 전달 폴더", () => {
       { name: "A.JPG", directoryKey: "scene-1", kind: "jpg", basename: "a" },
       { name: "A.xMp", directoryKey: "scene-1", kind: "xmp", basename: "a" },
     ]);
+  });
+});
+
+describe("RAW 매칭 진행률", () => {
+  it("시작·중간·완료 퍼센트를 정수로 계산하고 범위를 제한한다", () => {
+    expect(rawMatchProgressPercent(0, 10)).toBe(0);
+    expect(rawMatchProgressPercent(4, 10)).toBe(40);
+    expect(rawMatchProgressPercent(10, 10)).toBe(100);
+    expect(rawMatchProgressPercent(11, 10)).toBe(100);
+    expect(rawMatchProgressPercent(-1, 10)).toBe(0);
+    expect(rawMatchProgressPercent(1, 0)).toBe(0);
   });
 });

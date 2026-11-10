@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
+import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds } from "@/lib/person-select/classicSelection";
 import { matchesPersonLoginName } from "@/lib/person-select/loginNames";
 
 describe("기존 방식 숫자 셀렉", () => {
@@ -8,6 +8,21 @@ describe("기존 방식 숫자 셀렉", () => {
     expect(resolveClassicSelectionShortcut("0")).toBe("clear");
     expect(resolveClassicSelectionShortcut("2")).toBeNull();
     expect(resolveClassicSelectionShortcut("5")).toBeNull();
+  });
+});
+
+describe("모바일 기존 방식 즉시 해제", () => {
+  it("서버 응답 전에도 해제 중인 사진을 선택 수와 표시에서 제외한다", () => {
+    const serverSelected = new Set(["image-a", "image-b", "image-c"]);
+    const visible = resolveVisibleClassicSelectionIds(serverSelected, new Set(["image-b"]));
+
+    expect([...visible]).toEqual(["image-a", "image-c"]);
+    expect(serverSelected.size).toBe(3);
+  });
+
+  it("서버에서 확정된 뒤 낙관적 해제 목록이 비어도 해제 상태를 유지한다", () => {
+    const refreshedSelected = new Set(["image-a", "image-c"]);
+    expect([...resolveVisibleClassicSelectionIds(refreshedSelected, new Set())]).toEqual(["image-a", "image-c"]);
   });
 });
 

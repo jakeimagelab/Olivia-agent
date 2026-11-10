@@ -14,6 +14,12 @@ export const DEFAULT_RAW_MATCH_CRITERIA: RawMatchCriteria = {
   colorLabels: [6, 7, 8, 9],
 };
 
+/** RAW 매칭 진행률을 0~100 정수로 제한한다. */
+export function rawMatchProgressPercent(current: number, total: number): number {
+  if (!Number.isFinite(current) || !Number.isFinite(total) || total <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((current / total) * 100)));
+}
+
 export function normalizeRawMatchCriteria(value: unknown): RawMatchCriteria {
   if (!value || typeof value !== "object" || Array.isArray(value)) return { ...DEFAULT_RAW_MATCH_CRITERIA };
   const record = value as Record<string, unknown>;

@@ -31,6 +31,7 @@ import {
   moveFileWithSizeVerification,
   nextDeliveredRoundFolderName,
   normalizeRawMatchCriteria,
+  rawMatchProgressPercent,
   resolveRawMatchTargets,
   type RawMatchCriteria,
 } from "@/lib/photo-bridge/rawMatchDelivery";
@@ -292,8 +293,9 @@ export function SelectMatchWorkspace({
   // 기존 동작(복사)과 동일하게 유지해 이 기능을 모르는 사용자에게 갑자기 원본이 사라지는
   // 일이 없게 한다.
   const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
-  const [log,        setLog]        = useState<string[]>([]);
   const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
+  const [rawOutputDir, setRawOutputDir] = useState<FileSystemDirectoryHandle | null>(null);
+  const [rawOutputOpenError, setRawOutputOpenError] = useState("");
   const [result,     setResult]     = useState({
     matched: 0,
     missing: 0,
@@ -305,6 +307,7 @@ export function SelectMatchWorkspace({
     missingNames: [] as string[],
     failedNames: [] as string[],
     moveNotice: "",
+    cancelled: false,
   });
   const cancelRef = useRef(false);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
@@ -782,13 +785,14 @@ export function SelectMatchWorkspace({
     if ((!rootDir && !rawRootDir) || selected.size === 0) return;
     setStep("matching");
     cancelRef.current = false;
+    setRawOutputDir(null);
+    setRawOutputOpenError("");
     useBackgroundJobsStore.getState().startJob({
       id: RAW_MATCH_JOB_ID, label: `RAW ${rawSelectMode === "move" ? "이동" : "복사"} 중`,
       cur: 0, total: selected.size, status: "running",
       returnPath: "/photo-sorting?mode=raw-match", cancelRef,
     });
-    const logLines: string[] = [];
-    const addLog = (l: string) => { logLines.push(l); setLog([...logLines]); };
+    setProgress({ cur: 0, total: selected.size, msg: "RAW 매칭을 준비하고 있습니다." });
 
     let deliveryRootHandle: FileSystemDirectoryHandle | null = null;
     let deliveryDirectory: FileSystemDirectoryHandle | null = null;
@@ -853,31 +857,30 @@ export function SelectMatchWorkspace({
           moveNotice = `JPG 이동 준비 실패 — RAW만 복사합니다: ${error instanceof Error ? error.message : "알 수 없는 오류"}`;
         }
       }
-      if (moveNotice) addLog(`⚠️ ${moveNotice}`);
     }
 
     // preflight에서 캐시된 인덱스 사용 (없으면 재스캔)
     let rawIndex = rawIndexRef.map;
     if (rawIndex.size === 0) {
-      addLog("📂 RAW 탐색 중...");
+      setProgress({ cur: 0, total: selected.size, msg: "RAW 파일을 찾고 있습니다." });
       let lastLoggedCount = 0;
       rawIndex = await buildRawIndex(undefined, (count) => {
-        if (count - lastLoggedCount >= 500) { lastLoggedCount = count; addLog(`   ...${count.toLocaleString()}개 확인 중`); }
+        if (count - lastLoggedCount >= 500) {
+          lastLoggedCount = count;
+          setProgress({ cur: 0, total: selected.size, msg: `RAW ${count.toLocaleString("ko-KR")}개 확인 중` });
+        }
       });
       rawIndexRef.map.clear();
       for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
     }
-    addLog(`✅ RAW ${rawIndex.size}개 / JPG 선택 ${selected.size}개`);
-
     if (rawIndex.size === 0) {
-      addLog("❌ RAW 파일을 찾을 수 없습니다.");
       useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, "error");
       setStep("ready"); return;
     }
 
     const outputBase = rawRootDir ?? rootDir!;
     const rawSelectDir = await (outputBase as any).getDirectoryHandle("Selected_RAW", { create: true }) as FileSystemDirectoryHandle;
-    addLog("📁 Selected_RAW/ 생성 완료");
+    setRawOutputDir(rawSelectDir);
 
     let matched = 0, missing = 0, done = 0, jpgMoved = 0, xmpMoved = 0, failed = 0;
     const missingNames: string[] = [];
@@ -892,13 +895,11 @@ export function SelectMatchWorkspace({
         try {
           await copyFileHandle(entry.fileHandle, rawSelectDir, rawFile.name);
           if (rawSelectMode === "move") await (entry.dirHandle as any).removeEntry(entry.fileHandle.name);
-          addLog(`✅ ${rawFile.name}`);
           matched++;
           rawCopied = true;
         } catch (error) {
           failed += 1;
           failedNames.push(`${rawFile.name} — ${error instanceof Error ? error.message : "RAW 복사 실패"}`);
-          addLog(`❌ 실패: ${rawFile.name}`);
         }
         if (rawCopied && deliveryRootHandle) {
           try {
@@ -907,7 +908,6 @@ export function SelectMatchWorkspace({
             if (!moveItems.some((item) => item.kind === "jpg")) {
               failed += 1;
               failedNames.push(`${basename} — 원본 JPG를 찾지 못해 이동하지 않음`);
-              addLog(`❌ JPG 이동 실패: ${basename} 원본을 찾지 못함`);
             } else {
               for (const item of moveItems) {
                 try {
@@ -920,34 +920,35 @@ export function SelectMatchWorkspace({
                   if (moved.status === "destination_exists") {
                     failed += 1;
                     failedNames.push(`${item.name} — 대상 폴더에 같은 이름이 있어 원본 유지`);
-                    addLog(`⚠️ 이동 건너뜀: ${item.name} (같은 이름 존재)`);
                   } else if (item.kind === "jpg") {
                     jpgMoved += 1;
-                    addLog(`📦 JPG 이동: ${item.name}`);
                   } else {
                     xmpMoved += 1;
-                    addLog(`📦 XMP 이동: ${item.name}`);
                   }
                 } catch (error) {
                   failed += 1;
                   failedNames.push(`${item.name} — ${error instanceof Error ? error.message : "이동 실패"}`);
-                  addLog(`❌ 이동 실패: ${item.name}`);
                 }
               }
             }
           } catch (error) {
             failed += 1;
             failedNames.push(`${basename} — ${error instanceof Error ? error.message : "JPG 이동 준비 실패"}`);
-            addLog(`❌ JPG 이동 실패: ${basename}`);
           }
         }
       } else {
-        addLog(`⚠️ RAW 없음 — JPG 그대로 둠: ${basename}`);
         missingNames.push(basename);
         missing++;
       }
       done++;
+      setProgress({ cur: done, total: selected.size, msg: `${basename} 처리 완료` });
     }
+    const cancelled = cancelRef.current;
+    setProgress({
+      cur: done,
+      total: selected.size,
+      msg: cancelled ? `중단됨 — ${done.toLocaleString("ko-KR")}장 처리` : "RAW 매칭 완료",
+    });
     setResult({
       matched,
       missing,
@@ -959,10 +960,32 @@ export function SelectMatchWorkspace({
       missingNames,
       failedNames,
       moveNotice,
+      cancelled,
     });
     setStep("done");
     useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
   }, [buildRawIndex, deliveredFolderName, jpgScanRootDir, moveMatchedJpgs, rawIndexRef, rawRootDir, rawSelectMode, rootDir, selected, setProgress]);
+
+  const openRawOutputFolder = useCallback(async () => {
+    setRawOutputOpenError("");
+    if (!rawOutputDir) {
+      setRawOutputOpenError("Selected_RAW 폴더 위치를 확인할 수 없습니다.");
+      return;
+    }
+    const showDirectoryPicker = (window as typeof window & {
+      showDirectoryPicker?: (options?: { mode?: "read" | "readwrite"; startIn?: FileSystemHandle }) => Promise<FileSystemDirectoryHandle>;
+    }).showDirectoryPicker;
+    if (!showDirectoryPicker) {
+      setRawOutputOpenError("이 브라우저에서는 폴더 열기를 지원하지 않습니다.");
+      return;
+    }
+    try {
+      await showDirectoryPicker({ mode: "read", startIn: rawOutputDir });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setRawOutputOpenError(error instanceof Error ? error.message : "Selected_RAW 폴더를 열지 못했습니다.");
+    }
+  }, [rawOutputDir]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -1818,33 +1841,43 @@ export function SelectMatchWorkspace({
   );
 
   /* ── Matching ── */
-  if (step === "matching") return (
+  if (step === "matching") {
+    const progressPercent = rawMatchProgressPercent(progress.cur, progress.total);
+    return (
     <div style={{ maxWidth: 680, margin: "32px auto", padding: "0 24px" }}>
       <div style={{ fontSize: 13, fontWeight: 500, color: uiAccent, marginBottom: 12 }}>RAW 매칭 진행 중...</div>
-      <div style={{ height: 8, background: uiBorder, borderRadius: 4, overflow: "hidden", marginBottom: 16 }}>
-        <div style={{ height: "100%", width: `${progress.total > 0 ? Math.round(progress.cur / progress.total * 100) : 0}%`, background: uiAccent, borderRadius: 4, transition: "width .2s" }} />
+      <div
+        role="progressbar"
+        aria-label="RAW 매칭 진행률"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={progressPercent}
+        style={{ position: "relative", height: 24, background: uiBorder, borderRadius: 7, overflow: "hidden", marginBottom: 10 }}
+      >
+        <div style={{ height: "100%", width: `${progressPercent}%`, background: uiAccent, borderRadius: 7, transition: "width .2s" }} />
+        <strong style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", color: progressPercent >= 55 ? "#103E36" : uiText, fontSize: 11, fontWeight: 600 }}>{progressPercent}%</strong>
       </div>
-      <div style={{ fontSize: 11, color: uiHint, marginBottom: 16 }}>{progress.msg}</div>
-      <div style={{ maxHeight: 300, overflowY: "auto", fontSize: 11, fontFamily: "monospace", background: "#F8FFFE", borderRadius: 8, padding: 12, border: `1px solid ${uiBorder}` }}>
-        {log.slice(-60).map((l, i) => (
-          <div key={i} style={{ color: l.startsWith("✅") ? C.green : l.startsWith("❌") ? C.red : uiMuted }}>{l}</div>
-        ))}
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, color: uiHint, fontSize: 11 }}>
+        <span>{progress.msg}</span>
+        <span style={{ flex: "0 0 auto" }}>{progress.cur.toLocaleString("ko-KR")} / {progress.total.toLocaleString("ko-KR")}장</span>
       </div>
       <button onClick={() => { cancelRef.current = true; }} style={{ marginTop: 12, padding: "6px 16px", background: "transparent", border: `1px solid ${uiBorder}`, borderRadius: 8, fontSize: 12, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}>중단</button>
     </div>
-  );
+    );
+  }
 
   /* ── Done ── */
   if (step === "done") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: C.green }}><CheckCircle2 size={17} aria-hidden="true" />매칭 완료</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: result.cancelled ? "#D6BC7D" : C.green }}><CheckCircle2 size={17} aria-hidden="true" />{result.cancelled ? "매칭 중단됨" : "매칭 완료"}</div>
         <div style={{ padding: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginBottom: 20 }}>
             {[
               { label: "선택 JPG", value: result.selected, color: uiAccent },
               { label: "RAW 매칭", value: result.matched, color: C.green },
               { label: "RAW 누락", value: result.missing, color: result.missing > 0 ? C.red : uiHint },
+              { label: "실패", value: result.failed, color: result.failed > 0 ? C.red : uiHint },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", textAlign: "center" }}>
                 <div style={{ fontSize: 24, fontWeight: 600, color }}>{value}</div>
@@ -1862,11 +1895,11 @@ export function SelectMatchWorkspace({
             {` · RAW 없음 ${result.missing.toLocaleString("ko-KR")}장 · 실패 ${result.failed.toLocaleString("ko-KR")}장`}
           </div>
           {result.moveNotice ? <div role="status" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", color: "#D6BC7D", fontSize: 11 }}>{result.moveNotice}</div> : null}
-          {result.missingNames.length > 0 ? <details style={{ marginBottom: 10, color: uiMuted, fontSize: 11 }}><summary style={{ cursor: "pointer", color: C.red }}>RAW 없음 — JPG 그대로 둠 ({result.missingNames.length}장)</summary><div style={{ marginTop: 7, maxHeight: 120, overflowY: "auto", fontFamily: "monospace", lineHeight: 1.6 }}>{result.missingNames.map((name) => <div key={name}>{name}</div>)}</div></details> : null}
-          {result.failedNames.length > 0 ? <details style={{ marginBottom: 14, color: uiMuted, fontSize: 11 }}><summary style={{ cursor: "pointer", color: C.red }}>실패 목록 ({result.failedNames.length}건)</summary><div style={{ marginTop: 7, maxHeight: 120, overflowY: "auto", fontFamily: "monospace", lineHeight: 1.6 }}>{result.failedNames.map((name, index) => <div key={`${name}:${index}`}>{name}</div>)}</div></details> : null}
-          <div style={{ display: "flex", gap: 8 }}>
-            <Btn variant="secondary" onClick={() => { setStep("ready"); setLog([]); }}>← 다시 선택</Btn>
-            <Btn onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); }}>처음으로</Btn>
+          {rawOutputOpenError ? <div role="alert" style={{ marginBottom: 12, color: C.red, fontSize: 11 }}>{rawOutputOpenError}</div> : null}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            <Btn onClick={() => void openRawOutputFolder()} disabled={!rawOutputDir}><FolderOpen size={15} aria-hidden="true" />Selected_RAW 폴더 열기</Btn>
+            <Btn variant="secondary" onClick={() => { setStep("ready"); setRawOutputDir(null); setRawOutputOpenError(""); }}>← 다시 선택</Btn>
+            <Btn variant="secondary" onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); setRawOutputDir(null); setRawOutputOpenError(""); }}>처음으로</Btn>
           </div>
         </div>
       </div>
