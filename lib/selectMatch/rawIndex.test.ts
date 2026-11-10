@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildRawIndex, copyFileHandle, computePreflight, type RawIndexEntry } from "@/lib/selectMatch/rawIndex";
+import { buildRawIndex, computePreflight, type RawIndexEntry } from "@/lib/selectMatch/rawIndex";
 
 type MockNode = MockDir | MockFile;
 interface MockFile { kind: "file"; name: string; content: string }
@@ -28,22 +28,14 @@ function wrapHandle(node: MockNode, visitedDirectories?: string[]): any {
       if (!found) throw new Error("폴더를 찾을 수 없음");
       return wrapHandle(found, visitedDirectories);
     },
-    getFileHandle: async (name: string, opts?: { create?: boolean }) => {
-      let found = node.children.find((c) => c.kind === "file" && c.name === name) as MockFile | undefined;
-      if (!found && opts?.create) {
-        found = file(name, "");
-        node.children.push(found);
-      }
+    getFileHandle: async (name: string) => {
+      const found = node.children.find((c) => c.kind === "file" && c.name === name) as MockFile | undefined;
       if (!found) throw new Error("파일을 찾을 수 없음");
       const fileNode = found;
       return {
         kind: "file",
         name,
         getFile: async () => new File([fileNode.content], name),
-        createWritable: async () => ({
-          write: async (data: ArrayBuffer) => { fileNode.content = new TextDecoder().decode(data); },
-          close: async () => {},
-        }),
       };
     },
   };
@@ -163,17 +155,6 @@ describe("buildRawIndex — RAW 폴더 재귀 스캔", () => {
     expect(progressCalls).toContain(50);
     expect(progressCalls).toContain(100);
     expect(progressCalls.at(-1)).toBe(120); // 스캔 종료 시 마지막 호출
-  });
-});
-
-describe("copyFileHandle — 파일 복사", () => {
-  it("소스 파일 내용을 대상 폴더에 같은 이름으로 복사한다", async () => {
-    const src = wrapHandle(file("A001.arw", "raw-bytes"));
-    const dest = wrapHandle(dir("Selected_RAW", []));
-    await copyFileHandle(src, dest, "A001.arw");
-    const written = await dest.getFileHandle("A001.arw");
-    const content = await (await written.getFile()).text();
-    expect(content).toBe("raw-bytes");
   });
 });
 

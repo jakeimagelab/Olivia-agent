@@ -20,6 +20,7 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_STAGE_JPG",
   "PHOTO_CLASSIFY_WORK",
   "PHOTO_RAW_MATCH",
+  "PHOTO_RAW_MATCH_COPY",
   "PHOTO_RESIZE",
   "PHOTO_AI_SELECT",
   "PHOTO_RETOUCH",
@@ -71,6 +72,29 @@ function safeFileNames(value: unknown, options: { required: boolean; max: number
 function finiteNumber(value: unknown, label: string, min: number, max: number, integer = false): number | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new Error(`${label} 값이 올바르지 않습니다.`);
+  return value;
+}
+
+function safeWorkerAbsolutePath(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim() || !value.startsWith("/") || value.includes("\0")) {
+    throw new Error(`${label}은 Mac Studio의 안전한 절대경로여야 합니다.`);
+  }
+  const segments = value.split("/");
+  if (segments.some((segment) => segment === "..")) throw new Error(`${label}에 상위 경로를 포함할 수 없습니다.`);
+  return value.trim().replace(/\/+$/u, "");
+}
+
+function safeWorkerRelativePath(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim() || value.startsWith("/") || value.includes("\0") || value.includes("\\")) {
+    throw new Error(`${label}은 안전한 상대경로여야 합니다.`);
+  }
+  const segments = value.split("/");
+  if (segments.some((segment) => !segment || segment === "." || segment === "..")) throw new Error(`${label}이 올바르지 않습니다.`);
+  return segments.join("/");
+}
+
+function safeLogText(value: unknown, label: string, max = 2_000): string {
+  if (typeof value !== "string" || value.length > max || value.includes("\0")) throw new Error(`${label} 값이 올바르지 않습니다.`);
   return value;
 }
 
@@ -339,6 +363,74 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다." }, { status: 400 });
+    }
+  }
+
+  if (action === "PHOTO_RAW_MATCH_COPY") {
+    try {
+      const items = requestedPayload.items;
+      const logRows = requestedPayload.logRows;
+      if (!Array.isArray(items) || items.length === 0 || items.length > 10_000) {
+        throw new Error("PHOTO_RAW_MATCH_COPY에는 1~10000개의 items가 필요합니다.");
+      }
+      if (!Array.isArray(logRows) || logRows.length > 10_000) {
+        throw new Error("PHOTO_RAW_MATCH_COPY의 logRows가 올바르지 않습니다.");
+      }
+      payload = {
+        rawRootPath: safeWorkerAbsolutePath(requestedPayload.rawRootPath, "RAW 기준 폴더"),
+        ...(requestedPayload.jpgRootPath === undefined || requestedPayload.jpgRootPath === ""
+          ? {}
+          : { jpgRootPath: safeWorkerAbsolutePath(requestedPayload.jpgRootPath, "JPG 기준 폴더") }),
+        items: items.map((entry, index) => {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`items[${index}]가 올바르지 않습니다.`);
+          const item = entry as Record<string, unknown>;
+          const rawExpectedSize = finiteNumber(item.rawExpectedSize, `items[${index}].rawExpectedSize`, 0, Number.MAX_SAFE_INTEGER, true);
+          if (rawExpectedSize === undefined) throw new Error(`items[${index}].rawExpectedSize가 필요합니다.`);
+          const rawExpectedCaptureTimeMs = item.rawExpectedCaptureTimeMs === null
+            ? null
+            : finiteNumber(item.rawExpectedCaptureTimeMs, `items[${index}].rawExpectedCaptureTimeMs`, 0, Number.MAX_SAFE_INTEGER, true);
+          if (rawExpectedCaptureTimeMs === undefined) throw new Error(`items[${index}].rawExpectedCaptureTimeMs가 필요합니다.`);
+          const jpgPath = item.jpgPath === undefined ? undefined : safeWorkerRelativePath(item.jpgPath, `items[${index}].jpgPath`);
+          const jpgDestDir = item.jpgDestDir === undefined ? undefined : safeWorkerRelativePath(item.jpgDestDir, `items[${index}].jpgDestDir`);
+          if (Boolean(jpgPath) !== Boolean(jpgDestDir)) throw new Error(`items[${index}]의 JPG 원본과 대상 폴더를 함께 지정해 주세요.`);
+          const jpgExpectedSize = item.jpgExpectedSize === undefined
+            ? undefined
+            : finiteNumber(item.jpgExpectedSize, `items[${index}].jpgExpectedSize`, 0, Number.MAX_SAFE_INTEGER, true);
+          const jpgExpectedCaptureTimeMs = item.jpgExpectedCaptureTimeMs === undefined
+            ? undefined
+            : item.jpgExpectedCaptureTimeMs === null
+              ? null
+              : finiteNumber(item.jpgExpectedCaptureTimeMs, `items[${index}].jpgExpectedCaptureTimeMs`, 0, Number.MAX_SAFE_INTEGER, true);
+          if (jpgPath && (jpgExpectedSize === undefined || jpgExpectedCaptureTimeMs === undefined)) {
+            throw new Error(`items[${index}]의 JPG 표본 정보가 필요합니다.`);
+          }
+          return {
+            rawPath: safeWorkerRelativePath(item.rawPath, `items[${index}].rawPath`),
+            destDir: safeWorkerRelativePath(item.destDir, `items[${index}].destDir`),
+            rawAction: item.rawAction === "move" ? "move" : "copy",
+            rawExpectedSize,
+            rawExpectedCaptureTimeMs,
+            ...(jpgPath && jpgDestDir ? { jpgPath, jpgDestDir, jpgExpectedSize, jpgExpectedCaptureTimeMs } : {}),
+          };
+        }),
+        logRows: logRows.map((entry, index) => {
+          if (!entry || typeof entry !== "object" || Array.isArray(entry)) throw new Error(`logRows[${index}]가 올바르지 않습니다.`);
+          const row = entry as Record<string, unknown>;
+          const result = row.result;
+          if (result !== "확정" && result !== "수동선택" && result !== "건너뜀") throw new Error(`logRows[${index}].result가 올바르지 않습니다.`);
+          return {
+            jpgName: safeLogText(row.jpgName, `logRows[${index}].jpgName`, 500),
+            jpgPath: safeLogText(row.jpgPath, `logRows[${index}].jpgPath`),
+            jpgCaptureTime: safeLogText(row.jpgCaptureTime, `logRows[${index}].jpgCaptureTime`, 100),
+            rawPath: safeLogText(row.rawPath, `logRows[${index}].rawPath`),
+            rawCaptureTime: safeLogText(row.rawCaptureTime, `logRows[${index}].rawCaptureTime`, 100),
+            result,
+          };
+        }),
+        ...(typeof requestedPayload.openOutput === "boolean" ? { openOutput: requestedPayload.openOutput } : {}),
+      };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 RAW 복사 요청입니다." }, { status: 400 });
     }
   }
 

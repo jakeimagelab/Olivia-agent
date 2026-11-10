@@ -184,14 +184,6 @@ export async function buildRawIndex(
   return rawIndex;
 }
 
-export async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
-  const file = await src.getFile();
-  const buf = await file.arrayBuffer();
-  const fh = await (dest as any).getFileHandle(name, { create: true });
-  const wr = await fh.createWritable();
-  await wr.write(buf); await wr.close();
-}
-
 export function computePreflight(selectedNames: Set<string>, rawIndex: RawIndex): SelectMatchPreflight {
   const selArr = Array.from(selectedNames);
   const willMatch = selArr.filter((b) => (rawIndex.get(b)?.length ?? 0) > 0).length;

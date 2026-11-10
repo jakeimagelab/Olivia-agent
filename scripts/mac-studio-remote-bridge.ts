@@ -23,6 +23,8 @@ import {
 import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
 import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
 import { getPersonSelectRoots, resolvePersonSelectSourcePath, toPersonSelectVirtualPath } from "@/lib/person-select/sourceRoots";
+import { executeRemoteRawMatchCopy } from "@/lib/selectMatch/node/rawMatchCopy";
+import type { RemoteRawMatchCopyPayload } from "@/lib/selectMatch/remoteRawMatch";
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
@@ -303,6 +305,7 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     case "LIST_FOLDER":
     case "PERSON_SELECT_LIST_FOLDER":
     case "PHOTO_CHECK_WORK_FOLDER":
+    case "PHOTO_RAW_MATCH_COPY":
       return null;
     default:
       throw new Error(`지원하지 않는 Worker action입니다: ${job.action}`);
@@ -636,7 +639,13 @@ async function copyTest(): Promise<JsonRecord> {
   }
 }
 
-async function executeBuiltIn(job: ClaimedRemoteJob): Promise<JsonRecord> {
+async function executeBuiltIn(
+  job: ClaimedRemoteJob,
+  options: {
+    onProgress?: (progress: JsonRecord) => Promise<void>;
+    shouldCancel?: () => Promise<boolean>;
+  } = {},
+): Promise<JsonRecord> {
   if (job.action === "PING") {
     return { ok: true, status: "PONG", workerId: configuredWorkerId(), at: new Date().toISOString() };
   }
@@ -644,6 +653,17 @@ async function executeBuiltIn(job: ClaimedRemoteJob): Promise<JsonRecord> {
   if (job.action === "LIST_FOLDER") return listFolder(job.payload);
   if (job.action === "PERSON_SELECT_LIST_FOLDER") return listPersonSelectFolder(job.payload);
   if (job.action === "PHOTO_CHECK_WORK_FOLDER") return checkPhotoWorkFolder(job.payload);
+  if (job.action === "PHOTO_RAW_MATCH_COPY") {
+    return executeRemoteRawMatchCopy(job.payload as RemoteRawMatchCopyPayload, {
+      shouldCancel: options.shouldCancel,
+      onProgress: async (progress) => options.onProgress?.({
+        stage: "copying",
+        current: progress.current,
+        total: progress.total,
+        message: progress.message,
+      }),
+    });
+  }
   throw new Error(`내장 실행기가 없는 action입니다: ${job.action}`);
 }
 
@@ -700,9 +720,9 @@ async function isCancellationRequested(jobId: string): Promise<boolean> {
 }
 
 export async function runClaimedJob(job: ClaimedRemoteJob, repoRoot: string): Promise<boolean> {
-  // 이 UI에서 안전 취소를 제공하는 장기 작업은 JPG 복사+분류 단일 pipeline(PHOTO_SORT)다.
+  // 파일 단위 경계에서 멈출 수 있는 작업만 취소 요청을 확인한다.
   // 기존 Worker action의 HTTP 계약에는 추가 요청을 끼워 넣지 않아 회귀를 막는다.
-  const supportsSafeCancellation = job.action === "PHOTO_SORT";
+  const supportsSafeCancellation = job.action === "PHOTO_SORT" || job.action === "PHOTO_RAW_MATCH_COPY";
   if (supportsSafeCancellation && await isCancellationRequested(job.job_id)) {
     await reportJob(job.job_id, { status: "CANCELED", message: "사용자 취소 요청으로 작업을 시작하지 않았습니다." });
     return true;
@@ -711,7 +731,10 @@ export async function runClaimedJob(job: ClaimedRemoteJob, repoRoot: string): Pr
   try {
     const invocation = createRunnerInvocation(job, repoRoot);
     if (!invocation) {
-      const result = await executeBuiltIn(job);
+      const result = await executeBuiltIn(job, {
+        onProgress: (progress) => reportJob(job.job_id, { status: "RUNNING", progress }),
+        ...(supportsSafeCancellation ? { shouldCancel: () => isCancellationRequested(job.job_id) } : {}),
+      });
       await reportJob(job.job_id, { status: "COMPLETED", result, message: `${job.action} 완료` });
       return true;
     }

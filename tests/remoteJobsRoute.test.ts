@@ -63,6 +63,15 @@ async function postPersonSelectImport(payload: Record<string, unknown>) {
   }));
 }
 
+async function postRawMatchCopy(payload: Record<string, unknown>) {
+  const { POST } = await import("@/app/api/remote-jobs/route");
+  return POST(new NextRequest("http://localhost/api/remote-jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "PHOTO_RAW_MATCH_COPY", payload }),
+  }));
+}
+
 beforeEach(() => {
   state.inserted.length = 0;
   vi.stubEnv("OLIVIA_WORKER_ID", "jake-macstudio-01");
@@ -162,6 +171,59 @@ describe("POST /api/remote-jobs PERSON_SELECT_IMPORT layout contract", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "가져오기 항목 매핑이 올바르지 않습니다." });
+    expect(state.inserted).toHaveLength(0);
+  });
+});
+
+describe("POST /api/remote-jobs PHOTO_RAW_MATCH_COPY contract", () => {
+  it("속성 검증 표본과 JPG 이동 정보를 Mac Studio 기본 워커에만 전달한다", async () => {
+    const response = await postRawMatchCopy({
+      rawRootPath: "/Volumes/Agentstation/촬영/RAW",
+      jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+      items: [{
+        rawPath: "A.CR2",
+        destDir: "Selected_RAW",
+        rawAction: "copy",
+        rawExpectedSize: 1234,
+        rawExpectedCaptureTimeMs: null,
+        jpgPath: "A.JPG",
+        jpgDestDir: "1차보정본",
+        jpgExpectedSize: 456,
+        jpgExpectedCaptureTimeMs: null,
+      }],
+      logRows: [],
+      openOutput: true,
+    });
+
+    expect(response.status).toBe(200);
+    expect(state.inserted[0]).toMatchObject({
+      action: "PHOTO_RAW_MATCH_COPY",
+      target_worker: "jake-macstudio-01",
+      payload: {
+        rawRootPath: "/Volumes/Agentstation/촬영/RAW",
+        jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+        openOutput: true,
+      },
+      status: "QUEUED",
+    });
+  });
+
+  it("JPG 이동 표본 정보가 빠지면 job을 만들지 않는다", async () => {
+    const response = await postRawMatchCopy({
+      rawRootPath: "/Volumes/Agentstation/촬영/RAW",
+      jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+      items: [{
+        rawPath: "A.CR2",
+        destDir: "Selected_RAW",
+        rawExpectedSize: 1234,
+        rawExpectedCaptureTimeMs: null,
+        jpgPath: "A.JPG",
+        jpgDestDir: "1차보정본",
+      }],
+      logRows: [],
+    });
+
+    expect(response.status).toBe(400);
     expect(state.inserted).toHaveLength(0);
   });
 });
