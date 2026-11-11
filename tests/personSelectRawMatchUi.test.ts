@@ -27,6 +27,9 @@ describe("person select RAW match admin UI", () => {
     expect(page).toContain("원본 폴더를 Mac Studio 위치로 연결해 주세요.");
     expect(page).toContain("Mac Studio가 꺼져 있어요.");
     expect(page).toContain("고른 사진이 없어요.");
+    expect(page).toContain("JPG 위치");
+    expect(page).toContain("RAW 검색 범위");
+    expect(page).toContain("결과 저장 위치");
   });
 
   it("keeps the customer Bridge footer above the mobile safe area", () => {

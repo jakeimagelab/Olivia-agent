@@ -11,7 +11,7 @@ import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type 
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
-import { resolveIndividualRawMatchTargets, resolveSharedRawMatchTargets, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
+import { resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawMatchPathPlan, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
@@ -228,6 +228,10 @@ export default function PersonSelectDetailPage() {
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
+  const rawPathPlan = resolvePersonSelectRawMatchPathPlan(
+    data.event.source_relative_path ?? "",
+    isShared ? "프로젝트" : "<이름>",
+  );
   async function selectLocalFolder() {
     const showDirectoryPicker = (window as Window & { showDirectoryPicker?: (options?: { mode?: "read" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     if (!showDirectoryPicker) { localInputRef.current?.click(); return; }
@@ -594,6 +598,7 @@ export default function PersonSelectDetailPage() {
       selectedCount={rawPreview.targets.length}
       submittedCount={rawPreview.submittedSelectedCount}
       currentCount={rawPreview.currentUnsubmittedCount}
+      pathPlan={rawPathPlan}
       busy={rawBusy}
       disabledReason={!rawPreview.targets.length ? "선택한 기준에 고른 사진이 없어요." : rawDisabledReason}
       onClose={() => setRawDialogOpen(false)}
@@ -613,7 +618,7 @@ export default function PersonSelectDetailPage() {
   </main>;
 }
 
-function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, busy, disabledReason, onClose, onRun }: {
+function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, pathPlan, busy, disabledReason, onClose, onRun }: {
   source: PersonSelectRawMatchSource;
   onSourceChange: (source: PersonSelectRawMatchSource) => void;
   isShared: boolean;
@@ -623,6 +628,7 @@ function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onRev
   selectedCount: number;
   submittedCount: number;
   currentCount: number;
+  pathPlan: PersonSelectRawMatchPathPlan;
   busy: boolean;
   disabledReason: string;
   onClose: () => void;
@@ -638,6 +644,11 @@ function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onRev
       <div className={styles.modalTop}><div><p className={styles.eyebrow}>관리자 실행</p><h2 id="raw-match-title">RAW 매칭 확인</h2><p>원본은 변경하지 않고 확정된 RAW만 Selected_RAW 폴더로 복사합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={busy} onClick={onClose}><X size={20} /></button></div>
       <fieldset className={styles.rawMatchOptions}><legend>매칭할 셀렉</legend><label><input autoFocus type="radio" name="raw-source" value="submitted" checked={source === "submitted"} onChange={() => onSourceChange("submitted")} />최종 제출본만</label><label><input type="radio" name="raw-source" value="current" checked={source === "current"} onChange={() => onSourceChange("current")} />지금 고른 상태 <small>제출 전 포함</small></label></fieldset>
       {isShared ? <div className={styles.field}><label htmlFor="raw-reviewer-scope">검토자</label><select id="raw-reviewer-scope" className={styles.select} value={reviewerScope} onChange={(event) => onReviewerScopeChange(event.target.value)}><option value="all">전체 합집합</option>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select></div> : null}
+      <dl className={styles.rawMatchPaths}>
+        <div><dt>JPG 위치</dt><dd>{pathPlan.sourcePath || "연결 필요"}</dd></div>
+        <div><dt>RAW 검색 범위</dt><dd>{pathPlan.shootingPath || "연결 필요"}</dd></div>
+        <div><dt>결과 저장 위치</dt><dd>{pathPlan.outputPath || "연결 필요"}</dd></div>
+      </dl>
       <div className={styles.rawMatchCount}><strong>매칭할 사진 {selectedCount.toLocaleString()}장</strong><span>제출본 {submittedCount.toLocaleString()}장 · 제출 전 {currentCount.toLocaleString()}장</span></div>
       {disabledReason ? <div className={styles.warning} role="alert">{disabledReason}</div> : null}
       <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={busy} onClick={onClose}>취소</button><button type="button" className={styles.primary} disabled={busy || Boolean(disabledReason) || selectedCount === 0} onClick={onRun}><Link2 size={15} />{busy ? "시작 중" : "RAW 매칭 시작"}</button></div>
@@ -717,10 +728,16 @@ function RawMatchResult({ result, at }: { result: Record<string, unknown> | null
   const missing = list(result.missing); const ambiguous = list(result.ambiguous); const conflicts = list(result.conflicts); const notSubmitted = Array.isArray(result.notSubmitted) ? result.notSubmitted.map(String) : [];
   const reviewRequired = list(result.reviewRequired);
   const sourceLabel = result.source === "current" ? "제출 전 포함" : "최종 제출본";
+  const storageLabel = typeof result.storageRootLabel === "string" ? result.storageRootLabel : "촬영 폴더";
+  const rawSearchPath = typeof result.rawSearchRelativePath === "string"
+    ? result.rawSearchRelativePath.replace(/^root-\d+\/?/u, "")
+    : "";
+  const outputPath = String(result.outputRelativePath ?? "Selected_RAW");
+  const destination = [storageLabel, rawSearchPath, outputPath].filter(Boolean).join("/");
   const reviewRequiredCount = reviewRequired.length || missing.length + ambiguous.length + conflicts.length;
   const reviewReason = (reason: unknown) => reason === "time_mismatch" ? "촬영시각 불일치" : reason === "multiple_candidates" ? "후보 여러 개" : reason === "missing_time" ? "촬영시각 없음" : reason === "raw_missing" ? "RAW 없음" : reason === "conflict" ? "대상 파일 충돌" : "확인 필요";
   return <div className={styles.result}>
-    <div>{`RAW 매칭${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · ${sourceLabel} · 고른 사진 ${Number(result.selectedCount ?? 0)}장 · 새로 복사 ${Number(result.matchedCount ?? 0)}장 · 이미 있음 ${Number(result.alreadyCopiedCount ?? 0)}장 · 확인 필요 ${reviewRequiredCount}장 → 촬영 폴더/${String(result.outputRelativePath ?? "Selected_RAW")}`}</div>
+    <div>{`RAW 매칭${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · ${sourceLabel} · 고른 사진 ${Number(result.selectedCount ?? 0)}장 · 새로 복사 ${Number(result.matchedCount ?? 0)}장 · 이미 있음 ${Number(result.alreadyCopiedCount ?? 0)}장 · 확인 필요 ${reviewRequiredCount}장 → ${destination}`}</div>
     {notSubmitted.length ? <div className={styles.skippedFolders}>미제출로 빠진 사람: {notSubmitted.join(" / ")}</div> : null}
     {reviewRequired.length ? <ul className={styles.failureList}>{reviewRequired.map((item, index) => <li key={`r-${index}`}>{String(item.owner)} · {String(item.jpg)}: {reviewReason(item.reason)}{Array.isArray(item.candidates) && item.candidates.length ? ` (${item.candidates.length}개 후보)` : ""}</li>)}</ul> : <>
       {missing.length ? <ul className={styles.failureList}>{missing.map((item, index) => <li key={`m-${index}`}>{String(item.name)} · {String(item.jpg)}: RAW를 찾지 못했어요</li>)}</ul> : null}

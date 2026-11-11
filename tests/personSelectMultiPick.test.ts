@@ -96,6 +96,22 @@ describe("person select RAW match", () => {
     }
   });
 
+  it("does not index RAW files inside JPG or delivered folders", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "person-raw-scope-"));
+    try {
+      await mkdir(path.join(root, "RAW"), { recursive: true });
+      await mkdir(path.join(root, "JPG전체"), { recursive: true });
+      await mkdir(path.join(root, "2차보정본"), { recursive: true });
+      await writeFile(path.join(root, "RAW", "KEEP.CR3"), "keep");
+      await writeFile(path.join(root, "JPG전체", "SKIP.CR3"), "skip");
+      await writeFile(path.join(root, "2차보정본", "DELIVERED.CR3"), "skip");
+      const index = await indexRawFiles(root);
+      expect([...index.keys()]).toEqual(["keep"]);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("maps the new worker actions", () => {
     const repoRoot = "/repo";
     const job = (action: string, payload: Record<string, unknown>) => ({ job_id: "job", action, payload, target_worker: "jake-macstudio-01" });

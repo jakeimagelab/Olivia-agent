@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizePersonSelectRawMatchSource,
+  resolvePersonSelectRawMatchPathPlan,
   resolveIndividualRawMatchTargets,
   resolveSharedRawMatchTargets,
   type PersonSelectRawImage,
@@ -12,6 +13,35 @@ function image(id: string): PersonSelectRawImage {
 }
 
 describe("person select RAW match targets", () => {
+  it("separates a nested JPG folder from the same-root shooting folder", () => {
+    expect(resolvePersonSelectRawMatchPathPlan(
+      "root-0/1026_푸른안과/JPG전체/프로필",
+      "프로젝트",
+    )).toEqual({
+      sourcePath: "root-0/1026_푸른안과/JPG전체/프로필",
+      shootingPath: "root-0/1026_푸른안과",
+      outputPath: "root-0/1026_푸른안과/Selected_RAW/프로젝트",
+      derivedFromJpgFolder: true,
+    });
+  });
+
+  it("recognizes an NFD Korean JPG folder without changing the storage root", () => {
+    const source = "root-2/1026_푸른안과/JPG전체".normalize("NFD") + "/프로필".normalize("NFD");
+    const result = resolvePersonSelectRawMatchPathPlan(source, "프로젝트");
+    expect(result.shootingPath.normalize("NFC")).toBe("root-2/1026_푸른안과");
+    expect(result.outputPath.normalize("NFC")).toBe("root-2/1026_푸른안과/Selected_RAW/프로젝트");
+    expect(result.shootingPath.startsWith("root-2/")).toBe(true);
+  });
+
+  it("keeps legacy folders without a known JPG segment backward compatible", () => {
+    expect(resolvePersonSelectRawMatchPathPlan("root-1/학교전달", "<이름>")).toEqual({
+      sourcePath: "root-1/학교전달",
+      shootingPath: "root-1/학교전달",
+      outputPath: "root-1/학교전달/Selected_RAW/<이름>",
+      derivedFromJpgFolder: false,
+    });
+  });
+
   it("defaults an omitted source to submitted", () => {
     expect(normalizePersonSelectRawMatchSource(undefined)).toBe("submitted");
     expect(normalizePersonSelectRawMatchSource("current")).toBe("current");

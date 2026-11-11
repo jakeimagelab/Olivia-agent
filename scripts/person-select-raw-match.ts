@@ -16,6 +16,8 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 import { normalizeNfc } from "@/lib/person-select/core";
 import {
   normalizePersonSelectRawMatchSource,
+  PERSON_SELECT_RAW_OUTPUT_FOLDER,
+  resolvePersonSelectRawMatchPathPlan,
   resolveIndividualRawMatchTargets,
   resolveSharedRawMatchTargets,
   type PersonSelectRawImage,
@@ -26,9 +28,10 @@ import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
 import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/rawMatchCopy";
 import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
-export const PERSON_SELECT_RAW_OUTPUT = "Selected_RAW";
-const SKIP_DIRECTORIES = new Set([PERSON_SELECT_RAW_OUTPUT.toLowerCase(), "jpg원본", "jpg전체"]);
+export const PERSON_SELECT_RAW_OUTPUT = PERSON_SELECT_RAW_OUTPUT_FOLDER;
+const SKIP_DIRECTORIES = new Set([PERSON_SELECT_RAW_OUTPUT.toLowerCase(), "jpg", "jpg원본", "jpg전체"]);
 
 type RawFile = { path: string; relPath: string; name: string; size: number };
 type ChoiceRow = { person_id: string; image_id: string; person_select_images: { id: string; original_file_name: string; source_rel_path: string } | null };
@@ -71,7 +74,7 @@ export async function indexRawFiles(root: string) {
       if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
       const fullPath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
-        if (SKIP_DIRECTORIES.has(normalizeNfc(entry.name).toLowerCase())) continue;
+        if (SKIP_DIRECTORIES.has(normalizeNfc(entry.name).toLowerCase()) || isDeliveredRoundFolder(entry.name)) continue;
         await visit(fullPath);
         continue;
       }
@@ -229,16 +232,32 @@ async function main() {
   const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode").eq("id", eventId).single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   if (!event.source_relative_path) throw new Error("사진을 가져온 폴더 기록이 없습니다. 사진 올리기를 한 번 다시 해주세요.");
-  const root = (await resolvePersonSelectSourcePath(event.source_relative_path)).canonicalPath;
+  const pathPlan = resolvePersonSelectRawMatchPathPlan(
+    event.source_relative_path,
+    event.access_mode === "project_shared" ? "프로젝트" : "<이름>",
+  );
+  const [jpgLocation, shootingLocation] = await Promise.all([
+    resolvePersonSelectSourcePath(pathPlan.sourcePath),
+    resolvePersonSelectSourcePath(pathPlan.shootingPath),
+  ]);
+  if (jpgLocation.root.id !== shootingLocation.root.id) {
+    throw new Error("JPG 폴더와 RAW 검색 폴더의 저장소가 다릅니다. 같은 저장소 안의 촬영 폴더를 연결해 주세요.");
+  }
+  const relativeJpgFolder = path.relative(shootingLocation.canonicalPath, jpgLocation.canonicalPath);
+  if (relativeJpgFolder.startsWith("..") || path.isAbsolute(relativeJpgFolder)) {
+    throw new Error("JPG 폴더가 RAW 검색 촬영 폴더 안에 있지 않습니다. 사진 원본 경로를 다시 연결해 주세요.");
+  }
+  const jpgRoot = jpgLocation.canonicalPath;
+  const shootingRoot = shootingLocation.canonicalPath;
 
   const targetResult = await loadTargets({ db, eventId, accessMode: event.access_mode, source, reviewerIds });
   const targets = targetResult.targets;
   if (!targets.length) throw new Error(source === "current" ? "RAW 매칭할 현재 선택 사진이 없습니다." : "RAW 매칭할 최종 선택 사진이 없습니다.");
 
   report("SCANNING", 0, targets.length, "촬영 폴더에서 RAW를 찾는 중입니다.");
-  const rawIndex = await indexRawFiles(root);
+  const rawIndex = await indexRawFiles(shootingRoot);
 
-  const outputRoot = path.join(root, PERSON_SELECT_RAW_OUTPUT);
+  const outputRoot = path.join(shootingRoot, PERSON_SELECT_RAW_OUTPUT);
   const matched: { name: string; jpg: string; raw: string; attributeVerified: boolean }[] = [];
   const alreadyCopied: { name: string; raw: string }[] = [];
   const missing: { name: string; jpg: string }[] = [];
@@ -257,7 +276,7 @@ async function main() {
   for (const choice of targets) {
     const name = choice.ownerName;
     const rawCandidates = rawIndex.get(rawBasename(choice.originalFileName)) ?? [];
-    const jpgPath = safeSourceFile(root, choice.sourceRelPath);
+    const jpgPath = safeSourceFile(jpgRoot, choice.sourceRelPath);
     const jpgCaptureTime = await captureFor(jpgPath).catch(() => null);
     const candidateTimes = await Promise.all(rawCandidates.map((candidate) => captureFor(candidate.path)));
     const resolved = resolveCaptureTimeCandidate({
@@ -301,11 +320,18 @@ async function main() {
   }
 
   const result = {
-    ok: reviewRequired.length === 0,
+    ok: true,
+    completedWithReview: reviewRequired.length > 0,
     eventId,
     source,
     reviewerIds: targetResult.reviewerIds,
-    outputRelativePath: PERSON_SELECT_RAW_OUTPUT,
+    sourceRelativePath: pathPlan.sourcePath,
+    rawSearchRelativePath: pathPlan.shootingPath,
+    outputRelativePath: event.access_mode === "project_shared"
+      ? `${PERSON_SELECT_RAW_OUTPUT}/프로젝트`
+      : `${PERSON_SELECT_RAW_OUTPUT}/<이름>`,
+    storageRootId: jpgLocation.root.id,
+    storageRootLabel: jpgLocation.root.label,
     submittedPeople: targetResult.submittedPeople,
     notSubmitted: targetResult.notSubmitted,
     submittedSelectedCount: targetResult.submittedSelectedCount,
@@ -322,7 +348,6 @@ async function main() {
   };
   await db.from("person_select_events").update({ raw_match_result: result, raw_matched_at: new Date().toISOString() }).eq("id", eventId);
   process.stdout.write(`${JSON.stringify(result)}\n`);
-  if (!result.ok) process.exitCode = 1;
 }
 
 if (process.env.NODE_ENV !== "test") main().catch((error) => { process.stdout.write(`${JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "RAW 매칭 실패" })}\n`); process.exitCode = 1; });
