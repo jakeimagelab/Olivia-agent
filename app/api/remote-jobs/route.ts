@@ -481,8 +481,12 @@ export async function POST(request: NextRequest) {
       return Response.json({ ok: false, error: "올바른 event_id가 필요합니다." }, { status: 400 });
     }
     const source = requestedPayload.source === undefined ? "submitted" : requestedPayload.source;
+    const mode = requestedPayload.mode === undefined ? "copy" : requestedPayload.mode;
     if (source !== "submitted" && source !== "current") {
-      return Response.json({ ok: false, error: "RAW 매칭 셀렉 기준이 올바르지 않습니다." }, { status: 400 });
+      return Response.json({ ok: false, error: "워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요." }, { status: 400 });
+    }
+    if (mode !== "copy" && mode !== "mark") {
+      return Response.json({ ok: false, error: "워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요." }, { status: 400 });
     }
     const reviewerIds = requestedPayload.reviewerIds;
     if (reviewerIds !== undefined && (
@@ -492,9 +496,23 @@ export async function POST(request: NextRequest) {
     )) {
       return Response.json({ ok: false, error: "RAW 매칭 검토자 범위가 올바르지 않습니다." }, { status: 400 });
     }
+    const clearMark = requestedPayload.clear_mark === true;
+    if (clearMark && mode !== "mark") {
+      return Response.json({ ok: false, error: "로우 셀렉 지우기는 mark 모드에서만 실행할 수 있습니다." }, { status: 400 });
+    }
+    const rawLabelNames = requestedPayload.labelNames;
+    if (rawLabelNames !== undefined && (
+      !rawLabelNames || typeof rawLabelNames !== "object" || Array.isArray(rawLabelNames)
+      || ["6", "7", "8", "9"].some((key) => typeof (rawLabelNames as Record<string, unknown>)[key] !== "string")
+    )) {
+      return Response.json({ ok: false, error: "로우 셀렉 컬러 라벨 설정이 올바르지 않습니다." }, { status: 400 });
+    }
     payload = {
       event_id: requestedPayload.event_id,
+      mode,
       source,
+      ...(clearMark ? { clear_mark: true } : {}),
+      ...(rawLabelNames ? { labelNames: rawLabelNames } : {}),
       ...(Array.isArray(reviewerIds) && reviewerIds.length ? { reviewerIds: [...new Set(reviewerIds)] } : {}),
     };
   }

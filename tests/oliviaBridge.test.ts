@@ -129,7 +129,7 @@ describe("Olivia Bridge", () => {
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(workspace).toContain("Scene {selectedScenes.length.toLocaleString");
-    expect(workspace).toContain("collectAdobeBridgeRatings");
+    expect(workspace).toContain("collectAdobeBridgeMarks");
     expect(workspace).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
     expect(workspace).toContain("rebuildBridgeSceneAnalysis(sceneState.analysis.files.filter");
     expect(workspace).toContain("계획 적용하고 Scene 검토");

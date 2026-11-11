@@ -68,7 +68,18 @@ describe("photo thumbs runner", () => {
     await writeFile(path.join(folder, "IMG_0002.JPG"), "jpeg placeholder");
     await writeFile(path.join(folder, "IMG_0002.xmp"), '<x:xmpmeta><rdf:Description xmp:Rating="4" /></x:xmpmeta>');
     const result = await readPhotoXmpRatings({ remotePath: "root-0/shoot" });
-    expect(result.ratings).toEqual([{ key: "img_0002", name: "IMG_0002.JPG", rating: 4, source: "sidecar" }]);
+    expect(result.ratings).toEqual([{ key: "img_0002", name: "IMG_0002.JPG", rating: 4, colorLabel: null, source: "sidecar" }]);
+  });
+
+  it("reads RAW sidecar rating and color from a shooting folder", async () => {
+    const { root } = await fixture();
+    const rawFolder = path.join(root, "shoot", "RAW");
+    await mkdir(rawFolder, { recursive: true });
+    await writeFile(path.join(rawFolder, "IMG_0003.CR3"), "raw placeholder");
+    await writeFile(path.join(rawFolder, "IMG_0003.xmp"), '<x:xmpmeta><rdf:Description xmp:Rating="5" xmp:Label="Select" /></x:xmpmeta>');
+    process.env.OLIVIA_PERSON_SELECT_ROOTS = JSON.stringify([root]);
+    const result = await readPhotoXmpRatings({ remotePath: "root-0/shoot" });
+    expect(result.ratings).toContainEqual({ key: "img_0003", name: "IMG_0003.CR3", rating: 5, colorLabel: 6, source: "sidecar" });
   });
 
   it("keeps traversal and disconnected-drive errors blocked", async () => {

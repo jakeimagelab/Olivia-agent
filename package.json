@@ -37,6 +37,7 @@
     "@sparticuz/chromium": "^152.0.0",
     "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.50.0",
+    "@xmldom/xmldom": "^0.9.12",
     "clsx": "^2.1.1",
     "exceljs": "^4.4.0",
     "exifr": "^7.1.3",

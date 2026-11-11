@@ -6,7 +6,8 @@ import path from "node:path";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
 import { resolvePhotoWorkPath } from "@/lib/person-select/sourceRoots";
-import { readRatingFromXmpText } from "@/lib/selectMatch/bridgeRating";
+import { readBridgeMarkFromXmpText } from "@/lib/selectMatch/bridgeRating";
+import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 loadEnvConfig(process.cwd());
 
@@ -15,7 +16,8 @@ const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 type Rating = {
   key: string;
   name: string;
-  rating: number;
+  rating: number | null;
+  colorLabel: 6 | 7 | 8 | 9 | null;
   source: "sidecar" | "embedded";
 };
 
@@ -48,30 +50,30 @@ function toKey(name: string) {
   return name.replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US");
 }
 
-async function readEmbeddedRating(filePath: string): Promise<number | null> {
+async function readEmbeddedMark(filePath: string) {
   const handle = await open(filePath, "r");
   try {
     const buffer = Buffer.alloc(1_048_576);
     const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
     const text = buffer.subarray(0, bytesRead).toString("utf8");
     const start = text.indexOf("<x:xmpmeta");
-    if (start === -1) return null;
+    if (start === -1) return { rating: null, colorLabel: null };
     const end = text.indexOf("</x:xmpmeta>", start);
-    return readRatingFromXmpText(text.slice(start, end === -1 ? start + 65_536 : end + 12));
+    return readBridgeMarkFromXmpText(text.slice(start, end === -1 ? start + 65_536 : end + 12));
   } finally {
     await handle.close();
   }
 }
 
-async function readSidecarRating(directory: string, basename: string): Promise<number | null> {
+async function readSidecarMark(directory: string, basename: string) {
   for (const suffix of [".xmp", ".XMP"]) {
     const sidecar = path.join(directory, `${basename}${suffix}`);
     const metadata = await lstat(sidecar).catch(() => null);
     if (!metadata) continue;
     if (metadata.isSymbolicLink() || !metadata.isFile()) continue;
-    return readRatingFromXmpText(await readFile(sidecar, "utf8"));
+    return readBridgeMarkFromXmpText(await readFile(sidecar, "utf8"));
   }
-  return null;
+  return { rating: null, colorLabel: null };
 }
 
 export async function readPhotoXmpRatings(input: {
@@ -83,19 +85,48 @@ export async function readPhotoXmpRatings(input: {
   const resolved = await resolvePhotoWorkPath(remotePath);
   const canonicalSelected = resolved.canonicalPath;
 
-  const jpgFolder = path.basename(canonicalSelected).normalize("NFC") === JPG_INTEGRATED_DIRECTORY
+  const integratedCandidate = path.join(canonicalSelected, JPG_INTEGRATED_DIRECTORY);
+  const integratedMetadata = await lstat(integratedCandidate).catch(() => null);
+  const selectedFolder = path.basename(canonicalSelected).normalize("NFC") === JPG_INTEGRATED_DIRECTORY
     ? canonicalSelected
-    : path.join(canonicalSelected, JPG_INTEGRATED_DIRECTORY);
-  const jpgMetadata = await lstat(jpgFolder);
-  if (jpgMetadata.isSymbolicLink() || !jpgMetadata.isDirectory()) throw new Error(`${JPG_INTEGRATED_DIRECTORY} 폴더를 찾을 수 없습니다.`);
-  const canonicalJpgFolder = await realpath(jpgFolder);
-  if (!isInside(resolved.rootPath, canonicalJpgFolder)) throw new Error(`${JPG_INTEGRATED_DIRECTORY} 폴더가 SOURCE_ROOT 밖을 가리킵니다.`);
+    : integratedMetadata?.isDirectory() && !integratedMetadata.isSymbolicLink()
+      ? integratedCandidate
+      : canonicalSelected;
+  const canonicalJpgFolder = await realpath(selectedFolder);
+  if (!isInside(resolved.rootPath, canonicalJpgFolder)) throw new Error("선택한 폴더가 SOURCE_ROOT 밖을 가리킵니다.");
 
-  const names = (await readdir(canonicalJpgFolder, { withFileTypes: true }))
-    .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && !entry.name.startsWith(".") && /\.(?:jpe?g)$/i.test(entry.name))
+  const jpgNames = (await readdir(canonicalJpgFolder, { withFileTypes: true }))
+    .filter((entry) => entry.isFile() && !entry.isSymbolicLink() && !entry.name.startsWith(".") && /\.(?:jpe?g|cr2|cr3|arw|nef|nrw|raf|rw2|orf|dng)$/i.test(entry.name))
     .map((entry) => entry.name)
     .sort(natural);
-  const total = names.length;
+  const files: Array<{ name: string; directory: string; absolutePath: string }> = jpgNames.map((name) => ({
+    name,
+    directory: canonicalJpgFolder,
+    absolutePath: path.join(canonicalJpgFolder, name),
+  }));
+  const rawRoot = path.basename(canonicalSelected).normalize("NFC") === JPG_INTEGRATED_DIRECTORY
+    ? path.dirname(canonicalSelected)
+    : canonicalSelected;
+  const seenPaths = new Set(files.map((file) => file.absolutePath));
+  const collectRaw = async (directory: string, depth: number): Promise<void> => {
+    if (depth > 5) return;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
+      const absolutePath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        const normalized = entry.name.normalize("NFC").toLocaleLowerCase("ko-KR");
+        if (normalized === "selected_raw" || normalized === "jpg" || normalized === "jpg원본" || normalized === "jpg전체" || isDeliveredRoundFolder(entry.name)) continue;
+        await collectRaw(absolutePath, depth + 1);
+        continue;
+      }
+      if (!entry.isFile() || !/\.(?:cr2|cr3|arw|nef|nrw|raf|rw2|orf|dng)$/i.test(entry.name) || seenPaths.has(absolutePath)) continue;
+      seenPaths.add(absolutePath);
+      files.push({ name: entry.name, directory, absolutePath });
+    }
+  };
+  await collectRaw(rawRoot, 0);
+  files.sort((left, right) => natural(left.absolutePath, right.absolutePath));
+  const total = files.length;
   const found = new Array<Rating | null>(total).fill(null);
   let cursor = 0;
   let completed = 0;
@@ -105,18 +136,20 @@ export async function readPhotoXmpRatings(input: {
     while (true) {
       const index = cursor++;
       if (index >= total) return;
-      const name = names[index];
-      const absolutePath = path.join(canonicalJpgFolder, name);
+      const { name, directory, absolutePath } = files[index];
       const basename = name.replace(/\.[^.]+$/, "");
       try {
-        const sidecarRating = await readSidecarRating(canonicalJpgFolder, basename);
-        const rating = sidecarRating ?? await readEmbeddedRating(absolutePath);
-        if (rating !== null && Number.isInteger(rating) && rating >= 1 && rating <= 5) {
+        const sidecar = await readSidecarMark(directory, basename);
+        const embedded = sidecar.rating === null && sidecar.colorLabel === null ? await readEmbeddedMark(absolutePath) : { rating: null, colorLabel: null };
+        const rating = sidecar.rating ?? embedded.rating;
+        const colorLabel = sidecar.colorLabel ?? embedded.colorLabel;
+        if (rating !== null || colorLabel !== null) {
           found[index] = {
             key: toKey(name),
             name: name.normalize("NFC"),
             rating,
-            source: sidecarRating !== null ? "sidecar" : "embedded",
+            colorLabel,
+            source: sidecar.rating !== null || sidecar.colorLabel !== null ? "sidecar" : "embedded",
           };
         }
       } catch {

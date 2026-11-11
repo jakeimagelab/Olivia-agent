@@ -414,12 +414,14 @@
 .plainFileSection > header strong { color: rgba(255, 255, 255, .82); font-size: 10.5px; font-weight: 600; }
 .plainFileSection > header span { color: rgba(255, 255, 255, .34); font-size: var(--ui2-f1); }
 .plainFileSection > div { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px; }
-.plainFileCard { min-width: 0; min-height: 116px; display: grid; grid-template-rows: 1fr auto auto auto; justify-items: start; gap: 4px; padding: 13px 12px 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 7px; color: rgba(255, 255, 255, .64); background: rgba(255, 255, 255, .035); font: inherit; text-align: left; cursor: pointer; }
+.plainFileCard { min-width: 0; min-height: 116px; display: grid; grid-template-rows: minmax(34px, 1fr) repeat(5, auto); justify-items: start; gap: 4px; padding: 13px 12px 10px; border: 1px solid rgba(255, 255, 255, .09); border-radius: 7px; color: rgba(255, 255, 255, .64); background: rgba(255, 255, 255, .035); font: inherit; text-align: left; cursor: pointer; }
 .plainFileCard[data-active="true"] { border-color: var(--bridge-mint); }
 .plainFileCard > svg { align-self: center; justify-self: center; color: rgba(255, 255, 255, .55); }
 .plainFileCard > span { padding: 3px 6px; border-radius: 4px; color: #dffff6; background: rgba(79, 216, 184, .14); font-size: var(--ui2-f1); }
 .plainFileCard strong { width: 100%; overflow: hidden; color: rgba(255, 255, 255, .76); font-size: 9px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
 .plainFileCard small { color: rgba(255, 255, 255, .32); font-size: var(--ui2-f1); }
+.plainFileCard em { display: inline-flex; align-items: center; gap: 3px; color: #E8C95C; font-size: 9px; font-style: normal; }
+.plainFileCard em i { width: 8px; height: 8px; border-radius: 50%; }
 
 .shortcutBar { min-width: 0; min-height: 40px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; border-top: 1px solid var(--bridge-line); color: rgba(255, 255, 255, .4); background: #141c20; font-size: var(--ui2-f1); white-space: nowrap; }
 .shortcutHints { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 5px 13px; overflow-x: auto; scrollbar-width: none; }
@@ -848,6 +850,10 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .adminSelectionBadge { top: 6px; color: #103e36; background: #e9efeb; }
 .customerSelectionBadge { top: 29px; color: #fff; background: #e85d2c; }
 .aiQualityBadge { position: absolute; z-index: 3; top: 6px; left: 6px; min-width: 22px; height: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; padding: 0 5px; border: 1px solid rgba(255,255,255,.55); border-radius: 5px; color: #fff4e6; background: #9b4a2d; font-size: var(--ui2-f1); font-weight: 600; }
+.rawMarkBadge, .rawColorBadge { position: absolute; z-index: 3; left: 6px; display: inline-flex; align-items: center; gap: 4px; min-height: 18px; padding: 0 5px; border-radius: 4px; color: #173A31; background: rgba(241, 245, 238, .92); font-size: 9px; font-weight: 650; }
+.rawMarkBadge { bottom: 30px; color: #6B5411; }
+.rawColorBadge { bottom: 8px; }
+.rawColorBadge i { width: 7px; height: 7px; border-radius: 50%; }
 .selectionInspector { min-height: 0; overflow: auto; padding: 16px 18px; color: var(--ui2-text); }
 .selectionInspectorSummary { display: grid; gap: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--bridge-line); }
 .selectionInspectorSummary strong { font-size: var(--ui2-f5); font-variant-numeric: tabular-nums; }

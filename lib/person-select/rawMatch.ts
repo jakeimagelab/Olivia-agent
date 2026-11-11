@@ -1,4 +1,15 @@
 export type PersonSelectRawMatchSource = "submitted" | "current";
+export type PersonSelectRawMatchMode = "copy" | "mark";
+
+export const PERSON_SELECT_RAW_LABEL_NAMES = {
+  6: "Select",
+  7: "Second",
+  8: "Approved",
+  9: "Review",
+} as const;
+
+export type PersonSelectRawColorLabel = keyof typeof PERSON_SELECT_RAW_LABEL_NAMES;
+export type PersonSelectRawLabelNames = Record<PersonSelectRawColorLabel, string>;
 
 export const PERSON_SELECT_RAW_OUTPUT_FOLDER = "Selected_RAW";
 
@@ -48,11 +59,18 @@ export type PersonSelectRawImage = {
   id: string;
   originalFileName: string;
   sourceRelPath: string;
+  customerRating?: number | null;
+  customerColorLabel?: number | null;
+  markSavedAt?: string | null;
 };
 
 export type PersonSelectRawMatchTarget = PersonSelectRawImage & {
   ownerId: string;
   ownerName: string;
+  customerRating: number | null;
+  customerColorLabel: PersonSelectRawColorLabel | null;
+  markSavedAt: string | null;
+  markConflict: boolean;
 };
 
 export type PersonSelectRawMatchTargetResult = {
@@ -65,11 +83,64 @@ export function normalizePersonSelectRawMatchSource(value: unknown): PersonSelec
   return value === "current" ? "current" : "submitted";
 }
 
+export function normalizePersonSelectRawMatchMode(value: unknown): PersonSelectRawMatchMode {
+  return value === "mark" ? "mark" : "copy";
+}
+
+export function normalizePersonSelectRawLabelNames(value: unknown): PersonSelectRawLabelNames {
+  const record = value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  return Object.fromEntries(([6, 7, 8, 9] as const).map((label) => {
+    const configured = record[String(label)];
+    return [label, typeof configured === "string" && configured.trim()
+      ? configured.trim().slice(0, 80)
+      : PERSON_SELECT_RAW_LABEL_NAMES[label]];
+  })) as PersonSelectRawLabelNames;
+}
+
+function validRating(value: unknown): number | null {
+  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5 ? Number(value) : null;
+}
+
+function validColor(value: unknown): PersonSelectRawColorLabel | null {
+  return value === 6 || value === 7 || value === 8 || value === 9 ? value : null;
+}
+
+function targetFromImage(image: PersonSelectRawImage, ownerId: string, ownerName: string): PersonSelectRawMatchTarget {
+  return {
+    ...image,
+    ownerId,
+    ownerName,
+    customerRating: validRating(image.customerRating),
+    customerColorLabel: validColor(image.customerColorLabel),
+    markSavedAt: image.markSavedAt ?? null,
+    markConflict: false,
+  };
+}
+
 function uniqueTargets(values: readonly PersonSelectRawMatchTarget[]): PersonSelectRawMatchTarget[] {
   const byImageId = new Map<string, PersonSelectRawMatchTarget>();
   for (const value of values) {
-    if (!value.id || byImageId.has(value.id)) continue;
-    byImageId.set(value.id, value);
+    if (!value.id) continue;
+    const previous = byImageId.get(value.id);
+    if (!previous) {
+      byImageId.set(value.id, value);
+      continue;
+    }
+    const ratings = [previous.customerRating, value.customerRating].filter((rating): rating is number => rating !== null);
+    const previousColorAt = previous.markSavedAt ? Date.parse(previous.markSavedAt) : 0;
+    const nextColorAt = value.markSavedAt ? Date.parse(value.markSavedAt) : 0;
+    const colorFromValue = value.customerColorLabel !== null && nextColorAt >= previousColorAt;
+    byImageId.set(value.id, {
+      ...previous,
+      customerRating: ratings.length ? Math.max(...ratings) : null,
+      customerColorLabel: colorFromValue ? value.customerColorLabel : previous.customerColorLabel,
+      markSavedAt: colorFromValue ? value.markSavedAt : previous.markSavedAt,
+      markConflict: previous.markConflict
+        || (previous.customerRating !== null && value.customerRating !== null && previous.customerRating !== value.customerRating)
+        || (previous.customerColorLabel !== null && value.customerColorLabel !== null && previous.customerColorLabel !== value.customerColorLabel),
+    });
   }
   return [...byImageId.values()];
 }
@@ -85,7 +156,7 @@ export function resolveIndividualRawMatchTargets(input: {
   const all = input.choices.flatMap((choice) => {
     const person = peopleById.get(choice.personId);
     if (!person || !choice.image) return [];
-    return [{ ...choice.image, ownerId: person.id, ownerName: person.displayName }];
+    return [targetFromImage({ ...choice.image, customerRating: choice.image.customerRating ?? 1 }, person.id, person.displayName)];
   });
   const submitted = uniqueTargets(all.filter((target) => submittedIds.has(target.ownerId)));
   const targets = source === "current" ? uniqueTargets(all) : submitted;
@@ -117,13 +188,13 @@ export function resolveSharedRawMatchTargets(input: {
 
   const submittedTargets = uniqueTargets(reviewers.flatMap((reviewer) => (
     input.submittedByReviewer.get(reviewer.id) ?? []
-  ).map((image) => ({ ...image, ownerId: reviewer.id, ownerName: reviewer.displayName }))));
+  ).map((image) => targetFromImage(image, reviewer.id, reviewer.displayName))));
 
   const currentTargets = uniqueTargets(reviewers.flatMap((reviewer) => {
     const images = input.draftByReviewer.has(reviewer.id)
       ? input.draftByReviewer.get(reviewer.id) ?? []
       : input.submittedByReviewer.get(reviewer.id) ?? [];
-    return images.map((image) => ({ ...image, ownerId: reviewer.id, ownerName: reviewer.displayName }));
+    return images.map((image) => targetFromImage(image, reviewer.id, reviewer.displayName));
   }));
 
   const targets = source === "current" ? currentTargets : submittedTargets;

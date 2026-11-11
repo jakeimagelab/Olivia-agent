@@ -139,6 +139,11 @@
 .rawMatchOptions label { min-height: 32px; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .rawMatchOptions input { accent-color: var(--ps-green); }
 .rawMatchOptions small { color: var(--ps-sub); font-size: 11px; }
+.rawLabelSettings { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px 14px; border: 1px solid var(--ps-border); border-radius: 9px; background: var(--ps-header); }
+.rawLabelSettings > span { grid-column: 1 / -1; color: var(--ps-sub); font-size: 11px; }
+.rawLabelSettings label { display: grid; grid-template-columns: 24px minmax(0, 1fr); align-items: center; gap: 5px; }
+.rawLabelSettings b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ps-green); color: #fff; font-size: 11px; }
+.rawLabelSettings input { min-width: 0; height: 36px; padding: 0 8px; font-size: 12px; }
 .rawMatchPaths { display: grid; gap: 0; margin: 0; border: 1px solid var(--ps-border); border-radius: 9px; overflow: hidden; background: var(--ps-header); }
 .rawMatchPaths > div { min-width: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--ps-border); }
 .rawMatchPaths > div:last-child { border-bottom: 0; }
@@ -147,6 +152,13 @@
 .rawMatchCount { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border-left: 3px solid var(--ps-green); background: var(--ps-soft); }
 .rawMatchCount strong { font-size: 14px; }
 .rawMatchCount span { color: var(--ps-sub); font-size: 12px; }
+.rawResultLine { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rawFailure { display: grid; gap: 8px; margin: 0 0 14px; padding: 13px 15px; border: 1px solid var(--ps-orange-border); border-radius: 8px; background: var(--ps-orange-soft); color: #922F16; font-size: 12px; }
+.rawFailure > span { color: var(--ps-sub); }
+.rawFailure > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.rawFailure details { min-width: 0; flex: 1; }
+.rawFailure summary { cursor: pointer; }
+.rawFailure pre { max-height: 180px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
 .uploadCard .result { margin-top: 18px; }
 .skippedFolders { margin-top: 8px; color: var(--ps-sub); font-size: 12px; }
 .disabledReason { margin: 10px 0 0; color: var(--ps-sub); font-size: 12px; }
@@ -214,6 +226,8 @@
   .rawMatchToolbar .primary { width: 100%; min-height: 44px; }
   .rawMatchCount { align-items: flex-start; flex-direction: column; }
   .rawMatchPaths > div { grid-template-columns: 1fr; gap: 3px; }
+  .rawLabelSettings { grid-template-columns: 1fr 1fr; }
+  .rawResultLine { align-items: flex-start; flex-direction: column; }
   .matchingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .matchingMeta { padding: 10px; }
   .modalBackdrop { padding: 8px; }

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { collectAdobeBridgeRatings } from "@/lib/selectMatch/bridgeRating";
+import { collectAdobeBridgeMarks, collectAdobeBridgeRatings, readColorLabelFromXmpText } from "@/lib/selectMatch/bridgeRating";
 
 function xmpFile(rating?: number) {
   const text = rating
@@ -28,6 +28,16 @@ function directory(input: {
 }
 
 describe("Adobe Bridge rating sync", () => {
+  it("reads the default Adobe color labels used by RAW select", () => {
+    expect(readColorLabelFromXmpText('<rdf:Description xmp:Label="Select" />')).toBe(6);
+    expect(readColorLabelFromXmpText("<xmp:Label>Review</xmp:Label>")).toBe(9);
+  });
+
+  it("reads rating and color together from a RAW sidecar", async () => {
+    const root = directory({ files: { "IMG_1000.xmp": new Blob(['<rdf:Description xmp:Rating="5" xmp:Label="Approved" />']) as File } });
+    const result = await collectAdobeBridgeMarks(root, [{ name: "IMG_1000.CR3" }]);
+    expect(result.get("img_1000")).toEqual({ rating: 5, colorLabel: 8 });
+  });
   it("re-reads the file handle so ratings written after the folder scan are visible", async () => {
     const getFile = vi.fn(async () => xmpFile(4));
     const root = directory({});

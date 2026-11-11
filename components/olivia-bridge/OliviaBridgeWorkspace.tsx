@@ -67,7 +67,7 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
-import { collectAdobeBridgeRatings } from "@/lib/selectMatch/bridgeRating";
+import { collectAdobeBridgeMarks, type AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
 import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
 import {
   manualPhotoDepartmentResolution,
@@ -491,13 +491,16 @@ function BridgeSelectionReview({
   );
 }
 
-function PlainFileCard({ file, active, onClick }: { file: BridgeRawFile; active: boolean; onClick: () => void }) {
+function PlainFileCard({ file, active, mark, onClick }: { file: BridgeRawFile; active: boolean; mark?: AdobeBridgeMark; onClick: () => void }) {
+  const color = mark?.colorLabel ? BRIDGE_COLOR_LABELS[mark.colorLabel] : null;
   return (
     <button type="button" className={styles.plainFileCard} data-active={active} onClick={onClick}>
       <File size={30} strokeWidth={1.5} aria-hidden="true" />
       <span>{file.extension}</span>
       <strong title={file.name}>{file.name}</strong>
       <small>{formatBytes(file.size)}</small>
+      {mark?.rating ? <em><Star size={11} fill="currentColor" />RAW ★{mark.rating}</em> : null}
+      {color ? <em><i style={{ background: color.color }} />RAW {color.name}</em> : null}
     </button>
   );
 }
@@ -733,6 +736,8 @@ export default function OliviaBridgeWorkspace({
   const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [adobeRatings, setAdobeRatings] = useState<Record<string, number>>({});
+  const [adobeColorLabels, setAdobeColorLabels] = useState<BridgeColorLabels>({});
+  const [rawAdobeMarks, setRawAdobeMarks] = useState<Record<string, AdobeBridgeMark>>({});
   const [ratingEdits, setRatingEdits] = useState<BridgeRatingEdits>({});
   const [adobeSelectionLoading, setAdobeSelectionLoading] = useState(false);
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
@@ -790,6 +795,7 @@ export default function OliviaBridgeWorkspace({
   const captureMetadataGenerationRef = useRef(0);
   const ratingsRef = useRef(ratings);
   const adobeRatingsRef = useRef(adobeRatings);
+  const adobeColorLabelsRef = useRef(adobeColorLabels);
   const ratingEditsRef = useRef(ratingEdits);
   const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -816,14 +822,25 @@ export default function OliviaBridgeWorkspace({
     () => resolveBridgeRatings(selectionSource, ratings, adobeRatings, ratingEdits),
     [adobeRatings, ratingEdits, ratings, selectionSource],
   );
+  const effectiveColorLabels = useMemo<BridgeColorLabels>(() => (
+    selectionSource === "olivia"
+      ? colorLabels
+      : selectionSource === "adobe"
+        ? adobeColorLabels
+        : { ...adobeColorLabels, ...colorLabels }
+  ), [adobeColorLabels, colorLabels, selectionSource]);
+  const rawMarkByFileKey = useMemo(() => new Map(scan.raws.flatMap((raw) => {
+    const mark = rawAdobeMarks[raw.id];
+    return mark ? [[normalizePhotoToolFileKey(raw.name), mark] as const] : [];
+  })), [rawAdobeMarks, scan.raws]);
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
   const visibleJpgs = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => {
     const passesFileFilter = labelFilter
-      ? matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, colorLabels)
+      ? matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, effectiveColorLabels)
       : fileFilter === "raw" || fileFilter === "sidecar"
         ? false
         : fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected"
-          ? matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, colorLabels)
+          ? matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, effectiveColorLabels)
           : fileFilter === "excluded"
             ? excludedIds.has(photo.id)
             : true;
@@ -834,7 +851,7 @@ export default function OliviaBridgeWorkspace({
     } else if (qualityFilter === "needs_review" && quality?.status !== "needs_review") return false;
     else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
     return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
-  }), jpgSortMode), [colorLabels, comparisonFilter, customerSelectedIds, effectiveRatings, excludedIds, fileFilter, jpgSortMode, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
+  }), jpgSortMode), [comparisonFilter, customerSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, fileFilter, jpgSortMode, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
   const comparisonCounts = useMemo(
     () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
     [customerSelectedIds, scan.jpgs, selectedIds],
@@ -998,10 +1015,10 @@ export default function OliviaBridgeWorkspace({
 
   useEffect(() => {
     setJpgColorLabelsByName(
-      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, colorLabels[photo.id] ?? 0])),
+      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, effectiveColorLabels[photo.id] ?? 0])),
       { overwrite: true },
     );
-  }, [colorLabels, scan.jpgs, setJpgColorLabelsByName]);
+  }, [effectiveColorLabels, scan.jpgs, setJpgColorLabelsByName]);
 
   useEffect(() => {
     const selectedKeys = new Set(selectedJpgNames.map(normalizePhotoToolFileKey).filter(Boolean));
@@ -1036,6 +1053,7 @@ export default function OliviaBridgeWorkspace({
 
   useEffect(() => { ratingsRef.current = ratings; }, [ratings]);
   useEffect(() => { adobeRatingsRef.current = adobeRatings; }, [adobeRatings]);
+  useEffect(() => { adobeColorLabelsRef.current = adobeColorLabels; }, [adobeColorLabels]);
   useEffect(() => { ratingEditsRef.current = ratingEdits; }, [ratingEdits]);
 
   useEffect(() => () => {
@@ -1141,7 +1159,10 @@ export default function OliviaBridgeWorkspace({
       adobeSelectedIdsRef.current = new Set();
       manualRemovedIdsRef.current = new Set();
       setAdobeRatings({});
+      setAdobeColorLabels({});
+      setRawAdobeMarks({});
       adobeRatingsRef.current = {};
+      adobeColorLabelsRef.current = {};
       commitSelectedIds(new Set(), new Set(), nextSelectionSource);
       setAnchorId(null);
       setFocusedId(next.jpgs[0]?.id ?? null);
@@ -1271,7 +1292,10 @@ export default function OliviaBridgeWorkspace({
     setPreviewSize(undefined);
     setRatings({});
     setAdobeRatings({});
+    setAdobeColorLabels({});
+    setRawAdobeMarks({});
     adobeRatingsRef.current = {};
+    adobeColorLabelsRef.current = {};
     setRatingEdits({});
     setColorLabels({});
     setExcludedIds(new Set());
@@ -1390,9 +1414,12 @@ export default function OliviaBridgeWorkspace({
       setAdobeSelectionLoading(false);
       return;
     }
-    if (!scan.jpgs.length || (!activeFolder && !remoteFolder)) {
+    if ((!scan.jpgs.length && !scan.raws.length) || (!activeFolder && !remoteFolder)) {
       setAdobeRatings({});
+      setAdobeColorLabels({});
+      setRawAdobeMarks({});
       adobeRatingsRef.current = {};
+      adobeColorLabelsRef.current = {};
       commitSelectedIds(manualSelectedIdsRef.current, new Set());
       setAdobeSelectionLoading(false);
       return;
@@ -1404,17 +1431,27 @@ export default function OliviaBridgeWorkspace({
       try {
         const remote = await loadRemoteBridgeRatings(remoteFolder.path, { signal });
         if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
-        const byKey = new Map(remote.ratings.map((item) => [item.key, item.rating]));
+        const byKey = new Map(remote.ratings.map((item) => [item.key, item]));
         const nextRatings: Record<string, number> = {};
+        const nextColors: BridgeColorLabels = {};
+        const nextRawMarks: Record<string, AdobeBridgeMark> = {};
         const nextAdobeIds = new Set<string>();
         for (const photo of scan.jpgs) {
-          const rating = byKey.get(normalizePhotoToolFileKey(photo.name));
-          if (!rating) continue;
-          nextRatings[photo.id] = rating;
+          const mark = byKey.get(normalizePhotoToolFileKey(photo.name));
+          if (!mark) continue;
+          if (mark.rating) nextRatings[photo.id] = mark.rating;
+          if (mark.colorLabel) nextColors[photo.id] = mark.colorLabel;
           nextAdobeIds.add(photo.id);
         }
+        for (const raw of scan.raws) {
+          const mark = byKey.get(normalizePhotoToolFileKey(raw.name));
+          if (mark) nextRawMarks[raw.id] = { rating: mark.rating, colorLabel: mark.colorLabel };
+        }
         setAdobeRatings(nextRatings);
+        setAdobeColorLabels(nextColors);
+        setRawAdobeMarks(nextRawMarks);
         adobeRatingsRef.current = nextRatings;
+        adobeColorLabelsRef.current = nextColors;
         publishRatingsForSource(selectionSourceRef.current, nextRatings);
         commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
       } catch (error) {
@@ -1428,28 +1465,39 @@ export default function OliviaBridgeWorkspace({
 
     setAdobeSelectionLoading(true);
     try {
-      const localPhotos = scan.jpgs
-        .filter((photo) => Boolean(photo.handle || photo.file))
+      const localPhotos = [...scan.jpgs, ...scan.raws]
+        .filter((photo) => Boolean(photo.handle || ("file" in photo && photo.file)))
         .map((photo) => ({
           name: photo.name,
-          file: photo.file,
+          file: ("file" in photo ? photo.file : undefined) as File | undefined,
           handle: photo.handle,
+          parentHandle: photo.parentHandle,
           relativeDirectory: photo.relativeDirectory,
         }));
-      const found = await collectAdobeBridgeRatings(activeFolder!, localPhotos, { signal });
+      const found = await collectAdobeBridgeMarks(activeFolder!, localPhotos, { signal });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
       const nextRatings: Record<string, number> = {};
+      const nextColors: BridgeColorLabels = {};
+      const nextRawMarks: Record<string, AdobeBridgeMark> = {};
       const nextAdobeIds = new Set<string>();
       // 파일명 기준 공용 저장소에도 넣는다. 손으로 준 별점은 applyRating이 넣고 있는데
       // 어도비에서 읽어온 별점만 빠져 있어서, RAW 매칭·사진 셀렉이 그 별점을 못 받았다.
       for (const photo of scan.jpgs) {
-        const rating = found.get(normalizePhotoToolFileKey(photo.name));
-        if (!rating) continue;
-        nextRatings[photo.id] = rating;
+        const mark = found.get(normalizePhotoToolFileKey(photo.name));
+        if (!mark) continue;
+        if (mark.rating) nextRatings[photo.id] = mark.rating;
+        if (mark.colorLabel) nextColors[photo.id] = mark.colorLabel;
         nextAdobeIds.add(photo.id);
       }
+      for (const raw of scan.raws) {
+        const mark = found.get(normalizePhotoToolFileKey(raw.name));
+        if (mark) nextRawMarks[raw.id] = mark;
+      }
       setAdobeRatings(nextRatings);
+      setAdobeColorLabels(nextColors);
+      setRawAdobeMarks(nextRawMarks);
       adobeRatingsRef.current = nextRatings;
+      adobeColorLabelsRef.current = nextColors;
       publishRatingsForSource(selectionSourceRef.current, nextRatings);
       commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
     } catch (error) {
@@ -1458,7 +1506,7 @@ export default function OliviaBridgeWorkspace({
     } finally {
       if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
     }
-  }, [activeFolder, commitSelectedIds, publishRatingsForSource, remoteFolder, scan.jpgs]);
+  }, [activeFolder, commitSelectedIds, publishRatingsForSource, remoteFolder, scan.jpgs, scan.raws]);
 
   useEffect(() => {
     if (scanStatus !== "ready" || selectionSource === "olivia") return;
@@ -2287,14 +2335,14 @@ export default function OliviaBridgeWorkspace({
   }, []);
 
   const selectionCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
-    const hasStar = matchesBridgeSelectionView(photo.id, "starred", effectiveRatings, colorLabels);
-    const hasColor = matchesBridgeSelectionView(photo.id, "colored", effectiveRatings, colorLabels);
+    const hasStar = matchesBridgeSelectionView(photo.id, "starred", effectiveRatings, effectiveColorLabels);
+    const hasColor = matchesBridgeSelectionView(photo.id, "colored", effectiveRatings, effectiveColorLabels);
     if (hasStar) counts.starred += 1;
     if (hasColor) counts.colored += 1;
     if (hasStar || hasColor) counts.selected += 1;
     else counts.unselected += 1;
     return counts;
-  }, { starred: 0, colored: 0, selected: 0, unselected: 0 }), [colorLabels, effectiveRatings, scan.jpgs]);
+  }, { starred: 0, colored: 0, selected: 0, unselected: 0 }), [effectiveColorLabels, effectiveRatings, scan.jpgs]);
   const labeledCount = selectionCounts.selected;
   const selectedPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
   const fullscreenPhoto = selectionReviewOpen ? reviewActivePhoto : focusedPhoto;
@@ -2303,7 +2351,7 @@ export default function OliviaBridgeWorkspace({
   const adobeSelectedCount = selectionSource === "olivia" ? 0 : selectedPhotos.reduce((count, photo) => count + (adobeSelectedIdsRef.current.has(photo.id) ? 1 : 0), 0);
   const manualSelectedCount = selectionSource === "adobe" ? 0 : selectedPhotos.reduce((count, photo) => count + (manualSelectedIdsRef.current.has(photo.id) ? 1 : 0), 0);
   const selectedRatingValues = selectedPhotos.map((photo) => effectiveRatings[photo.id] ?? 0);
-  const selectedColorValues = selectedPhotos.map((photo) => colorLabels[photo.id] ?? 0);
+  const selectedColorValues = selectedPhotos.map((photo) => effectiveColorLabels[photo.id] ?? 0);
   const commonSelectedRating = selectedRatingValues.length && selectedRatingValues.every((rating) => rating === selectedRatingValues[0]) ? selectedRatingValues[0] : null;
   const commonSelectedColor = selectedColorValues.length && selectedColorValues.every((label) => label === selectedColorValues[0]) ? selectedColorValues[0] : null;
   const selectedRatingMixed = selectedRatingValues.length > 1 && commonSelectedRating === null;
@@ -2541,13 +2589,15 @@ export default function OliviaBridgeWorkspace({
                   const manualSelected = selectionSource !== "adobe" && selected && manualSelectedIdsRef.current.has(photo.id);
                   const excluded = excludedIds.has(photo.id);
                   const rating = effectiveRatings[photo.id] ?? 0;
-                  const colorLabel = colorLabels[photo.id];
+                  const colorLabel = effectiveColorLabels[photo.id];
                   const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
                   const quality = qualityByBridgeId[photo.id];
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}{quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.aiQualityBadge}><CircleAlert size={11} />{quality.flags.length || "?"}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
+                  const rawMark = rawMarkByFileKey.get(normalizePhotoToolFileKey(photo.name));
+                  const rawColor = rawMark?.colorLabel ? BRIDGE_COLOR_LABELS[rawMark.colorLabel] : null;
+                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}{quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.aiQualityBadge}><CircleAlert size={11} />{quality.flags.length || "?"}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rawMark?.rating ? <span className={styles.rawMarkBadge}>RAW ★{rawMark.rating}</span> : null}{rawColor ? <span className={styles.rawColorBadge}><i style={{ background: rawColor.color }} />RAW {rawColor.name}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
                 })}
               </div> : null}
-              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
+              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} mark={rawAdobeMarks[file.id]} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
               {showSidecars && scan.sidecars.length ? <section className={styles.plainFileSection}><header><strong>사이드카</strong><span>원본과 함께 유지되는 설정 파일</span></header><div>{scan.sidecars.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
               {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
             </div>
@@ -2682,7 +2732,7 @@ export default function OliviaBridgeWorkspace({
         photos={reviewPhotos}
         activeId={resolvedReviewActiveId}
         rating={reviewActivePhoto ? effectiveRatings[reviewActivePhoto.id] ?? 0 : 0}
-        colorLabel={reviewActivePhoto ? colorLabels[reviewActivePhoto.id] : undefined}
+        colorLabel={reviewActivePhoto ? effectiveColorLabels[reviewActivePhoto.id] : undefined}
         excluded={Boolean(reviewActivePhoto && excludedIds.has(reviewActivePhoto.id))}
         removedCount={reviewRemoved.length}
         onFocus={focusReviewPhoto}
@@ -2699,7 +2749,7 @@ export default function OliviaBridgeWorkspace({
           position={fullscreenIndex + 1}
           total={fullscreenTotal}
           rating={effectiveRatings[fullscreenPhoto.id] ?? 0}
-          colorLabel={colorLabels[fullscreenPhoto.id]}
+          colorLabel={effectiveColorLabels[fullscreenPhoto.id]}
           canMovePrevious={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex > 0}
           canMoveNext={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex >= 0 && fullscreenIndex < fullscreenTotal - 1}
           onMove={moveFullscreenPreview}

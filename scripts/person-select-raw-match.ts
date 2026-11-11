@@ -11,18 +11,22 @@
  */
 
 import path from "node:path";
-import { mkdir, open, readdir, stat } from "node:fs/promises";
+import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { normalizeNfc } from "@/lib/person-select/core";
 import {
   normalizePersonSelectRawMatchSource,
+  normalizePersonSelectRawMatchMode,
+  normalizePersonSelectRawLabelNames,
   PERSON_SELECT_RAW_OUTPUT_FOLDER,
   resolvePersonSelectRawMatchPathPlan,
   resolveIndividualRawMatchTargets,
   resolveSharedRawMatchTargets,
   type PersonSelectRawImage,
+  type PersonSelectRawLabelNames,
   type PersonSelectRawMatchSource,
 } from "@/lib/person-select/rawMatch";
+import { restoreRawMarkXmp, updateRawMarkXmp } from "@/lib/person-select/node/rawMarkXmp";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
@@ -34,10 +38,11 @@ export const PERSON_SELECT_RAW_OUTPUT = PERSON_SELECT_RAW_OUTPUT_FOLDER;
 const SKIP_DIRECTORIES = new Set([PERSON_SELECT_RAW_OUTPUT.toLowerCase(), "jpg", "jpg원본", "jpg전체"]);
 
 type RawFile = { path: string; relPath: string; name: string; size: number };
-type ChoiceRow = { person_id: string; image_id: string; person_select_images: { id: string; original_file_name: string; source_rel_path: string } | null };
-type SharedDraftRow = { reviewer_id: string; items: Array<{ image_id?: string }> | null };
-type SharedSelectionRow = { id: string; reviewer_id: string };
-type SharedSelectionItemRow = { selection_id: string; image_id: string };
+type ChoiceRow = { person_id: string; image_id: string; updated_at?: string | null; person_select_images: { id: string; original_file_name: string; source_rel_path: string } | null };
+type SharedDraftItem = { image_id?: string; customer_rating?: number | null; customer_color_label?: number | null };
+type SharedDraftRow = { reviewer_id: string; updated_at?: string | null; items: SharedDraftItem[] | null };
+type SharedSelectionRow = { id: string; reviewer_id: string; submitted_at?: string | null };
+type SharedSelectionItemRow = { selection_id: string; image_id: string; customer_rating?: number | null; customer_color_label?: number | null };
 type SharedImageRow = { id: string; original_file_name: string; source_rel_path: string };
 
 function readArgs() {
@@ -50,7 +55,25 @@ function readArgs() {
     if (!Array.isArray(parsed) || parsed.some((value) => typeof value !== "string")) throw new Error("검토자 범위가 올바르지 않습니다.");
     reviewerIds = [...new Set(parsed)];
   }
-  return { eventId: take("--event-id"), source: normalizePersonSelectRawMatchSource(take("--source")), reviewerIds };
+  const rawSource = take("--source");
+  const rawMode = take("--mode");
+  if (rawSource !== undefined && rawSource !== "submitted" && rawSource !== "current") {
+    throw new Error("워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요.");
+  }
+  if (rawMode !== undefined && rawMode !== "copy" && rawMode !== "mark") {
+    throw new Error("워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요.");
+  }
+  let labelNames: unknown;
+  const labelNamesJson = take("--label-names-json");
+  if (labelNamesJson) labelNames = JSON.parse(labelNamesJson);
+  return {
+    eventId: take("--event-id"),
+    source: normalizePersonSelectRawMatchSource(rawSource),
+    mode: normalizePersonSelectRawMatchMode(rawMode),
+    clearMark: values.includes("--clear-mark"),
+    labelNames: normalizePersonSelectRawLabelNames(labelNames),
+    reviewerIds,
+  };
 }
 
 function report(stage: string, current: number, total: number, message: string) {
@@ -109,8 +132,8 @@ export function personFolderOf(sourceRelPath: string) {
   return segments.join("/");
 }
 
-function imageRow(value: SharedImageRow): PersonSelectRawImage {
-  return { id: value.id, originalFileName: value.original_file_name, sourceRelPath: value.source_rel_path };
+function imageRow(value: SharedImageRow, marks: Partial<PersonSelectRawImage> = {}): PersonSelectRawImage {
+  return { id: value.id, originalFileName: value.original_file_name, sourceRelPath: value.source_rel_path, ...marks };
 }
 
 function safeSourceFile(root: string, relativePath: string) {
@@ -147,7 +170,7 @@ async function loadTargets(input: {
   if (input.accessMode !== "project_shared") {
     const [{ data: people, error: peopleError }, { data: choices, error: choiceError }] = await Promise.all([
       input.db.from("person_select_people").select("id,display_name,submitted_at").eq("event_id", input.eventId),
-      input.db.from("person_select_choices").select("person_id,image_id,person_select_images(id,original_file_name,source_rel_path)").eq("event_id", input.eventId),
+      input.db.from("person_select_choices").select("person_id,image_id,updated_at,person_select_images(id,original_file_name,source_rel_path)").eq("event_id", input.eventId),
     ]);
     if (peopleError) throw peopleError;
     if (choiceError) throw choiceError;
@@ -156,7 +179,7 @@ async function loadTargets(input: {
       people: (people ?? []).map((person) => ({ id: person.id, displayName: person.display_name, submittedAt: person.submitted_at })),
       choices: ((choices ?? []) as unknown as ChoiceRow[]).map((choice) => ({
         personId: choice.person_id,
-        image: choice.person_select_images ? imageRow(choice.person_select_images) : null,
+        image: choice.person_select_images ? imageRow(choice.person_select_images, { customerRating: 1, markSavedAt: choice.updated_at ?? null }) : null,
       })),
     });
     return {
@@ -169,8 +192,8 @@ async function loadTargets(input: {
 
   const [{ data: reviewers, error: reviewersError }, { data: drafts, error: draftsError }, { data: selections, error: selectionsError }] = await Promise.all([
     input.db.from("person_select_shared_reviewers").select("id,display_name,active").eq("event_id", input.eventId),
-    input.db.from("person_select_shared_drafts").select("reviewer_id,items").eq("event_id", input.eventId),
-    input.db.from("person_select_shared_selections").select("id,reviewer_id").eq("event_id", input.eventId).order("submitted_at", { ascending: false }),
+    input.db.from("person_select_shared_drafts").select("reviewer_id,updated_at,items").eq("event_id", input.eventId),
+    input.db.from("person_select_shared_selections").select("id,reviewer_id,submitted_at").eq("event_id", input.eventId).order("submitted_at", { ascending: false }),
   ]);
   if (reviewersError) throw reviewersError;
   if (draftsError) throw draftsError;
@@ -181,7 +204,7 @@ async function loadTargets(input: {
   }
   const selectionIds = [...latestSelectionByReviewer.values()].map((selection) => selection.id);
   const { data: selectionItems, error: itemError } = selectionIds.length
-    ? await input.db.from("person_select_shared_selection_items").select("selection_id,image_id").in("selection_id", selectionIds)
+    ? await input.db.from("person_select_shared_selection_items").select("selection_id,image_id,customer_rating,customer_color_label").in("selection_id", selectionIds)
     : { data: [], error: null };
   if (itemError) throw itemError;
   const allImageIds = new Set<string>();
@@ -198,12 +221,18 @@ async function loadTargets(input: {
   for (const [reviewerId, selection] of latestSelectionByReviewer) {
     submittedByReviewer.set(reviewerId, ((selectionItems ?? []) as SharedSelectionItemRow[])
       .filter((item) => item.selection_id === selection.id)
-      .flatMap((item) => imageById.get(item.image_id) ? [imageById.get(item.image_id)!] : []));
+      .flatMap((item) => {
+        const image = imageById.get(item.image_id);
+        return image ? [{ ...image, customerRating: item.customer_rating ?? 1, customerColorLabel: item.customer_color_label ?? null, markSavedAt: selection.submitted_at ?? null }] : [];
+      }));
   }
   const draftByReviewer = new Map<string, PersonSelectRawImage[]>();
   for (const draft of (drafts ?? []) as SharedDraftRow[]) {
     draftByReviewer.set(draft.reviewer_id, (Array.isArray(draft.items) ? draft.items : [])
-      .flatMap((item) => item.image_id && imageById.get(item.image_id) ? [imageById.get(item.image_id)!] : []));
+      .flatMap((item) => {
+        const image = item.image_id ? imageById.get(item.image_id) : null;
+        return image ? [{ ...image, customerRating: item.customer_rating ?? 1, customerColorLabel: item.customer_color_label ?? null, markSavedAt: draft.updated_at ?? null }] : [];
+      }));
   }
   const result = resolveSharedRawMatchTargets({
     source: input.source,
@@ -225,11 +254,127 @@ function safeFolderName(value: string) {
   return normalizeNfc(value).replace(/[\\/:*?"<>|\0]/g, "_").trim() || "이름없음";
 }
 
+const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-raw-mark-v1";
+let failureStage = "STARTING";
+
+async function existingSidecarPath(rawPath: string) {
+  const stem = rawPath.replace(/\.[^.]+$/u, "");
+  for (const extension of [".xmp", ".XMP"]) {
+    const candidate = `${stem}${extension}`;
+    if (await stat(candidate).then((value) => value.isFile()).catch(() => false)) return candidate;
+  }
+  return `${stem}.xmp`;
+}
+
+function ensureInside(root: string, candidate: string) {
+  const relative = path.relative(root, candidate);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("XMP 경로가 촬영 폴더 밖을 가리킵니다.");
+  }
+  return candidate;
+}
+
+async function atomicWrite(filePath: string, text: string) {
+  const temporary = `${filePath}.olivia-${process.pid}-${Date.now()}.tmp`;
+  await writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
+  try {
+    await rename(temporary, filePath);
+  } catch (error) {
+    await rm(temporary, { force: true }).catch(() => undefined);
+    throw error;
+  }
+}
+
+async function markRawSidecar(input: {
+  raw: RawFile;
+  shootingRoot: string;
+  jobId: string;
+  rating: number | null;
+  colorLabel: number | null;
+  labelNames: PersonSelectRawLabelNames;
+}) {
+  const rawBefore = await stat(input.raw.path);
+  const sidecarPath = ensureInside(input.shootingRoot, await existingSidecarPath(input.raw.path));
+  const existingXml = await readFile(sidecarPath, "utf8").catch((error: NodeJS.ErrnoException) => {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  });
+  const label = input.colorLabel === 6 || input.colorLabel === 7 || input.colorLabel === 8 || input.colorLabel === 9
+    ? input.labelNames[input.colorLabel]
+    : null;
+  const update = updateRawMarkXmp(existingXml, { rating: input.rating, label, colorCode: input.colorLabel as 6 | 7 | 8 | 9 | null, jobId: input.jobId });
+  await atomicWrite(sidecarPath, update.xml);
+  const rawAfter = await stat(input.raw.path);
+  if (rawAfter.size !== rawBefore.size || rawAfter.mtimeMs !== rawBefore.mtimeMs) {
+    throw new Error(`RAW 원본 속성이 바뀌어 작업을 중단했습니다: ${input.raw.relPath}`);
+  }
+  return {
+    rawPath: input.raw.relPath,
+    sidecarPath: normalizeNfc(path.relative(input.shootingRoot, sidecarPath).split(path.sep).join("/")),
+    created: update.createdDocument,
+  };
+}
+
+async function clearRawMarks(input: {
+  shootingRoot: string;
+  previousResult: Record<string, unknown> | null;
+}) {
+  const previous = input.previousResult;
+  const jobId = typeof previous?.rawMarkJobId === "string" ? previous.rawMarkJobId : "";
+  const markedSidecars = Array.isArray(previous?.markedSidecars) ? previous.markedSidecars : [];
+  if (previous?.mode !== "mark" || !jobId || !markedSidecars.length) {
+    throw new Error("되돌릴 로우 셀렉 기록이 없습니다.");
+  }
+  let restored = 0;
+  let deleted = 0;
+  const failed: Array<{ sidecar: string; error: string }> = [];
+  for (const item of markedSidecars) {
+    const relativePath = item && typeof item === "object" && typeof (item as Record<string, unknown>).sidecarPath === "string"
+      ? String((item as Record<string, unknown>).sidecarPath)
+      : "";
+    try {
+      if (!relativePath) throw new Error("XMP 경로가 없습니다.");
+      const sidecarPath = ensureInside(input.shootingRoot, path.resolve(input.shootingRoot, relativePath));
+      const current = await readFile(sidecarPath, "utf8");
+      const restoredXmp = restoreRawMarkXmp(current, jobId);
+      if (restoredXmp.deleteSidecar) {
+        await rm(sidecarPath);
+        deleted += 1;
+      } else {
+        await atomicWrite(sidecarPath, restoredXmp.xml);
+        restored += 1;
+      }
+    } catch (error) {
+      failed.push({ sidecar: relativePath || "알 수 없음", error: error instanceof Error ? error.message : "복원 실패" });
+    }
+  }
+  return { restored, deleted, failed };
+}
+
+function matchingDuplicateRaws(
+  picked: RawFile,
+  rawCandidates: RawFile[],
+  candidateTimes: Array<CaptureTime | null>,
+) {
+  const pickedIndex = rawCandidates.findIndex((candidate) => candidate.relPath === picked.relPath);
+  const pickedTime = candidateTimes[pickedIndex];
+  if (!pickedTime) return [picked];
+  return rawCandidates.filter((candidate, index) => (
+    candidate.size === picked.size
+    && candidateTimes[index]?.timestampMs === pickedTime.timestampMs
+  ));
+}
+
+function csvCell(value: unknown) {
+  return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
 async function main() {
-  const { eventId, source, reviewerIds } = readArgs();
+  const { eventId, source, mode, clearMark, labelNames, reviewerIds } = readArgs();
   if (!eventId) throw new Error("--event-id가 필요합니다.");
   const db = getSupabaseAdmin();
-  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode").eq("id", eventId).single();
+  failureStage = "LOADING_PROJECT";
+  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode,raw_match_result").eq("id", eventId).single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   if (!event.source_relative_path) throw new Error("사진을 가져온 폴더 기록이 없습니다. 사진 올리기를 한 번 다시 해주세요.");
   const pathPlan = resolvePersonSelectRawMatchPathPlan(
@@ -250,10 +395,37 @@ async function main() {
   const jpgRoot = jpgLocation.canonicalPath;
   const shootingRoot = shootingLocation.canonicalPath;
 
+  if (clearMark) {
+    if (mode !== "mark") throw new Error("로우 셀렉 지우기는 mark 모드에서만 실행할 수 있습니다.");
+    failureStage = "RESTORING_XMP";
+    const cleared = await clearRawMarks({
+      shootingRoot,
+      previousResult: event.raw_match_result && typeof event.raw_match_result === "object"
+        ? event.raw_match_result as Record<string, unknown>
+        : null,
+    });
+    const result = {
+      ok: cleared.failed.length === 0,
+      mode: "mark",
+      cleared: true,
+      eventId,
+      restoredCount: cleared.restored,
+      deletedCount: cleared.deleted,
+      failed: cleared.failed,
+      workerCodeVersion: WORKER_CODE_VERSION,
+      completedAt: new Date().toISOString(),
+    };
+    await db.from("person_select_events").update({ raw_match_result: result, raw_matched_at: new Date().toISOString() }).eq("id", eventId);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return;
+  }
+
+  failureStage = "LOADING_SELECTIONS";
   const targetResult = await loadTargets({ db, eventId, accessMode: event.access_mode, source, reviewerIds });
   const targets = targetResult.targets;
   if (!targets.length) throw new Error(source === "current" ? "RAW 매칭할 현재 선택 사진이 없습니다." : "RAW 매칭할 최종 선택 사진이 없습니다.");
 
+  failureStage = "SCANNING_RAW";
   report("SCANNING", 0, targets.length, "촬영 폴더에서 RAW를 찾는 중입니다.");
   const rawIndex = await indexRawFiles(shootingRoot);
 
@@ -265,6 +437,12 @@ async function main() {
   const timeMismatch: { name: string; jpg: string; candidates: string[] }[] = [];
   const missingTime: { name: string; jpg: string; candidates: string[] }[] = [];
   const conflicts: { name: string; raw: string }[] = [];
+  const markedSidecars: Array<{ rawPath: string; sidecarPath: string; created: boolean }> = [];
+  const markFailures: Array<{ raw: string; error: string }> = [];
+  const rawMarkJobId = `${eventId}-${Date.now().toString(36)}`;
+  let ratingCount = 0;
+  let colorCount = 0;
+  let conflictCount = 0;
   let done = 0;
   const captureCache = new Map<string, Promise<CaptureTime | null>>();
   const captureFor = (filePath: string) => {
@@ -300,29 +478,53 @@ async function main() {
       else if (reason === "missing_time") missingTime.push({ name, jpg: choice.originalFileName, candidates: rawCandidates.map((file) => file.relPath) });
       reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason, candidates: rawCandidates.map((file) => file.relPath) });
     } else {
-      const targetDir = path.join(outputRoot, safeFolderName(name));
-      const target = path.join(targetDir, picked.name);
-      await mkdir(targetDir, { recursive: true });
-      const existing = await stat(target).catch(() => null);
-      if (existing) {
-        if (existing.size === picked.size) alreadyCopied.push({ name, raw: picked.name });
-        else {
-          conflicts.push({ name, raw: picked.name });
-          reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "conflict", candidates: [picked.relPath] });
+      if (mode === "mark") {
+        failureStage = "WRITING_XMP";
+        const duplicateRaws = matchingDuplicateRaws(picked, rawCandidates, candidateTimes);
+        if (choice.customerRating !== null) ratingCount += 1;
+        if (choice.customerColorLabel !== null) colorCount += 1;
+        if (choice.markConflict) conflictCount += 1;
+        for (const raw of duplicateRaws) {
+          try {
+            markedSidecars.push(await markRawSidecar({
+              raw,
+              shootingRoot,
+              jobId: rawMarkJobId,
+              rating: choice.customerRating,
+              colorLabel: choice.customerColorLabel,
+              labelNames,
+            }));
+          } catch (error) {
+            markFailures.push({ raw: raw.relPath, error: error instanceof Error ? error.message : "XMP 기록 실패" });
+          }
         }
       } else {
-        await copyOrMovePreservingMetadata({ source: picked.path, destinationDirectory: targetDir, move: false });
-        matched.push({ name, jpg: choice.originalFileName, raw: picked.relPath, attributeVerified: true });
+        failureStage = "COPYING_RAW";
+        const targetDir = path.join(outputRoot, safeFolderName(name));
+        const target = path.join(targetDir, picked.name);
+        await mkdir(targetDir, { recursive: true });
+        const existing = await stat(target).catch(() => null);
+        if (existing) {
+          if (existing.size === picked.size) alreadyCopied.push({ name, raw: picked.name });
+          else {
+            conflicts.push({ name, raw: picked.name });
+            reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "conflict", candidates: [picked.relPath] });
+          }
+        } else {
+          await copyOrMovePreservingMetadata({ source: picked.path, destinationDirectory: targetDir, move: false });
+          matched.push({ name, jpg: choice.originalFileName, raw: picked.relPath, attributeVerified: true });
+        }
       }
     }
     done += 1;
-    report("COPYING", done, targets.length, `${name} · ${choice.originalFileName}`);
+    report(mode === "mark" ? "MARKING" : "COPYING", done, targets.length, `${name} · ${choice.originalFileName}`);
   }
 
   const result = {
     ok: true,
-    completedWithReview: reviewRequired.length > 0,
+    completedWithReview: reviewRequired.length > 0 || markFailures.length > 0,
     eventId,
+    mode,
     source,
     reviewerIds: targetResult.reviewerIds,
     sourceRelativePath: pathPlan.sourcePath,
@@ -339,15 +541,45 @@ async function main() {
     selectedCount: targets.length,
     matchedCount: matched.length,
     alreadyCopiedCount: alreadyCopied.length,
+    markedCount: new Set(markedSidecars.map((item) => item.rawPath)).size,
+    ratingCount,
+    colorCount,
+    conflictCount,
+    rawMarkJobId: mode === "mark" ? rawMarkJobId : null,
+    labelNames,
+    markedSidecars,
+    markFailures,
     missing,
     ambiguous,
     timeMismatch,
     missingTime,
     conflicts,
     reviewRequired,
+    workerCodeVersion: WORKER_CODE_VERSION,
+    completedAt: new Date().toISOString(),
   };
+  if (mode === "copy") {
+    failureStage = "WRITING_MATCH_LOG";
+    await mkdir(outputRoot, { recursive: true });
+    const header = ["JPG 이름", "RAW 경로", "결과", "속성 확인"];
+    const rows = [
+      ...matched.map((item) => [item.jpg, item.raw, "확정", item.attributeVerified ? "통과" : "실패"]),
+      ...alreadyCopied.map((item) => ["", item.raw, "이미 있음", "통과"]),
+      ...reviewRequired.map((item) => [item.jpg, (item.candidates ?? []).join(" | "), "건너뜀", item.reason]),
+    ];
+    await writeFile(path.join(outputRoot, "_match_log.csv"), `\uFEFF${[header, ...rows].map((row) => row.map(csvCell).join(",")).join("\n")}\n`, "utf8");
+  }
+  failureStage = "SAVING_RESULT";
   await db.from("person_select_events").update({ raw_match_result: result, raw_matched_at: new Date().toISOString() }).eq("id", eventId);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-if (process.env.NODE_ENV !== "test") main().catch((error) => { process.stdout.write(`${JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "RAW 매칭 실패" })}\n`); process.exitCode = 1; });
+if (process.env.NODE_ENV !== "test") main().catch((error) => {
+  process.stdout.write(`${JSON.stringify({
+    ok: false,
+    error: error instanceof Error ? error.message : "RAW 매칭 실패",
+    stage: failureStage,
+    workerCodeVersion: WORKER_CODE_VERSION,
+  })}\n`);
+  process.exitCode = 1;
+});

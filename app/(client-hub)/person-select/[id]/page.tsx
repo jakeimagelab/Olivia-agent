@@ -11,7 +11,7 @@ import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type 
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
-import { resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawMatchPathPlan, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
+import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchPathPlan, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
@@ -87,8 +87,13 @@ export default function PersonSelectDetailPage() {
   const [rawJobId, setRawJobId] = useState("");
   const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
   const [rawDialogOpen, setRawDialogOpen] = useState(false);
+  const [rawMode, setRawMode] = useState<PersonSelectRawMatchMode>("copy");
   const [rawSource, setRawSource] = useState<PersonSelectRawMatchSource>("submitted");
+  const [rawLabelNames, setRawLabelNames] = useState<PersonSelectRawLabelNames>({ ...PERSON_SELECT_RAW_LABEL_NAMES });
   const [rawReviewerScope, setRawReviewerScope] = useState("all");
+  const rawOptionsLoadedRef = useRef(false);
+  const rawOptionsSkipFirstWriteRef = useRef(true);
+  const rawSourceSavedRef = useRef(false);
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerRole, setReviewerRole] = useState("");
@@ -112,6 +117,43 @@ export default function PersonSelectDetailPage() {
     if (selectedReviewerId && reviewers.some((reviewer) => reviewer.id === selectedReviewerId)) return;
     setSelectedReviewerId((reviewers.find((reviewer) => !reviewer.is_legacy) ?? reviewers[0]).id);
   }, [data?.shared?.reviewers, selectedReviewerId]);
+  useEffect(() => {
+    rawOptionsLoadedRef.current = false;
+    rawOptionsSkipFirstWriteRef.current = true;
+    rawSourceSavedRef.current = false;
+    try {
+      const raw = localStorage.getItem(`olivia-person-select-raw-options:${id}`);
+      const stored = JSON.parse(raw ?? "{}") as {
+        mode?: PersonSelectRawMatchMode;
+        source?: PersonSelectRawMatchSource;
+        labelNames?: Partial<Record<"6" | "7" | "8" | "9", string>>;
+      };
+      if (stored.mode === "copy" || stored.mode === "mark") setRawMode(stored.mode);
+      if (stored.source === "submitted" || stored.source === "current") {
+        setRawSource(stored.source);
+        rawSourceSavedRef.current = true;
+      }
+      if (stored.labelNames) setRawLabelNames({
+        6: stored.labelNames[6]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[6],
+        7: stored.labelNames[7]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[7],
+        8: stored.labelNames[8]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[8],
+        9: stored.labelNames[9]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[9],
+      });
+    } catch {
+      // 브라우저 저장소가 막힌 환경에서도 기본값으로 계속 진행한다.
+    } finally {
+      rawOptionsLoadedRef.current = true;
+    }
+  }, [id]);
+  useEffect(() => {
+    if (!rawOptionsLoadedRef.current) return;
+    if (rawOptionsSkipFirstWriteRef.current) { rawOptionsSkipFirstWriteRef.current = false; return; }
+    try {
+      localStorage.setItem(`olivia-person-select-raw-options:${id}`, JSON.stringify({ mode: rawMode, source: rawSource, labelNames: rawLabelNames }));
+    } catch {
+      // 저장소 접근 실패는 실행 자체를 막지 않는다.
+    }
+  }, [id, rawLabelNames, rawMode, rawSource]);
   useEffect(() => {
     if (!jobId) return;
     let stopped = false;
@@ -282,18 +324,25 @@ export default function PersonSelectDetailPage() {
     }
   }
   function startImport() { return sourceMode === "local" ? startLocalImport() : startRemoteImport(); }
-  async function startRawMatch() {
+  async function startRawMatch(clearMark = false) {
     setError(""); setRawResult(null);
     const payload = {
       event_id: id,
+      mode: clearMark ? "mark" : rawMode,
       source: rawSource,
+      labelNames: rawLabelNames,
+      ...(clearMark ? { clear_mark: true } : {}),
       ...(isShared && rawReviewerScope !== "all" ? { reviewerIds: [rawReviewerScope] } : {}),
     };
     const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload }) }); const body = await response.json();
     if (!response.ok) return setError(body.error);
     setRawDialogOpen(false);
     setRawJobId(body.job?.id || body.id);
-    setRawResult({ message: rawSource === "current" ? "제출 전 선택을 포함해 RAW 매칭을 시작했어요." : "최종 제출본 RAW 매칭을 시작했어요." });
+    setRawResult({ message: clearMark
+      ? "로우 셀렉 표시를 이전 값으로 복원하고 있어요."
+      : rawMode === "mark"
+        ? "고객 별점과 컬러를 원본 RAW의 XMP에 기록하고 있어요."
+        : rawSource === "current" ? "제출 전 선택을 포함해 RAW 매칭을 시작했어요." : "최종 제출본 RAW 매칭을 시작했어요." });
   }
   async function saveGroups() { const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) }); const body = await response.json(); if (!response.ok) return setError(body.error); await load(); }
   async function saveSettings(patch: Record<string, unknown>) {
@@ -402,11 +451,21 @@ export default function PersonSelectDetailPage() {
   }]));
   const sharedSubmittedByReviewer = new Map(sharedReviewers.map((reviewer) => [reviewer.id, (reviewer.selection?.items ?? []).flatMap((item) => {
     const image = sharedImageById.get(item.image_id);
-    return image ? [image] : [];
+    return image ? [{
+      ...image,
+      customerRating: item.customer_rating ?? 1,
+      customerColorLabel: item.customer_color_label ?? null,
+      markSavedAt: reviewer.selection?.submitted_at ?? null,
+    }] : [];
   })]));
   const sharedDraftByReviewer = new Map(sharedReviewers.flatMap((reviewer) => reviewer.draft ? [[reviewer.id, reviewer.draft.selectedImageIds.flatMap((imageId) => {
     const image = sharedImageById.get(imageId);
-    return image ? [image] : [];
+    return image ? [{
+      ...image,
+      customerRating: reviewer.draft?.ratings?.[imageId] ?? 1,
+      customerColorLabel: reviewer.draft?.colorLabels?.[imageId] ?? null,
+      markSavedAt: reviewer.draft?.updated_at ?? null,
+    }] : [];
   })] as const] : []));
   const sharedRawInput = {
     reviewers: sharedReviewers.map((reviewer) => ({ id: reviewer.id, displayName: reviewer.display_name, active: reviewer.active })),
@@ -435,13 +494,13 @@ export default function PersonSelectDetailPage() {
   const rawDisabled = rawBusy || Boolean(rawDisabledReason);
   function openRawMatchDialog() {
     const defaultSource = rawSubmittedAll.targets.length === 0 && rawCurrentAll.targets.length > 0 ? "current" : "submitted";
-    setRawSource(defaultSource);
+    if (!rawSourceSavedRef.current) setRawSource(defaultSource);
     setRawReviewerScope("all");
     setRawDialogOpen(true);
   }
   const rawAction = <button className={styles.bridgeRawButton} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>;
   const displayedRawResult = rawResult ?? data.event.raw_match_result ?? null;
-  const rawStatus = rawDisabledReason || displayedRawResult ? <>{rawDisabledReason ? <p className={styles.rawDisabledReason}>{rawDisabledReason}</p> : null}<RawMatchResult result={displayedRawResult} at={rawResult ? null : data.event.raw_matched_at ?? null} /></> : null;
+  const rawStatus = rawDisabledReason || displayedRawResult ? <>{rawDisabledReason ? <p className={styles.rawDisabledReason}>{rawDisabledReason}</p> : null}<RawMatchResult result={displayedRawResult} at={rawResult ? null : data.event.raw_matched_at ?? null} busy={rawBusy} onClear={() => void startRawMatch(true)} onRetry={openRawMatchDialog} /></> : null;
   const finalizeReviewerCount = sharedReviewers.filter((reviewer) => reviewer.active && canPersonSelectReviewerFinalize(reviewer)).length;
   return <main className={styles.shell}>
     <section className={styles.body}>
@@ -589,8 +648,12 @@ export default function PersonSelectDetailPage() {
       </section> : null}
     </section>
     {rawDialogOpen ? <RawMatchDialog
+      mode={rawMode}
+      onModeChange={setRawMode}
       source={rawSource}
-      onSourceChange={setRawSource}
+      onSourceChange={(source) => { rawSourceSavedRef.current = true; setRawSource(source); }}
+      labelNames={rawLabelNames}
+      onLabelNamesChange={setRawLabelNames}
       isShared={isShared}
       reviewerScope={rawReviewerScope}
       onReviewerScopeChange={setRawReviewerScope}
@@ -618,9 +681,13 @@ export default function PersonSelectDetailPage() {
   </main>;
 }
 
-function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, pathPlan, busy, disabledReason, onClose, onRun }: {
+function RawMatchDialog({ mode, onModeChange, source, onSourceChange, labelNames, onLabelNamesChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, pathPlan, busy, disabledReason, onClose, onRun }: {
+  mode: PersonSelectRawMatchMode;
+  onModeChange: (mode: PersonSelectRawMatchMode) => void;
   source: PersonSelectRawMatchSource;
   onSourceChange: (source: PersonSelectRawMatchSource) => void;
+  labelNames: PersonSelectRawLabelNames;
+  onLabelNamesChange: (labels: PersonSelectRawLabelNames) => void;
   isShared: boolean;
   reviewerScope: string;
   onReviewerScopeChange: (scope: string) => void;
@@ -641,17 +708,19 @@ function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onRev
   }, [busy, onClose]);
   return <div className={styles.modalBackdrop} onClick={() => { if (!busy) onClose(); }}>
     <section className={`${styles.pinDialog} ${styles.rawMatchDialog}`} role="dialog" aria-modal="true" aria-labelledby="raw-match-title" onClick={(event) => event.stopPropagation()}>
-      <div className={styles.modalTop}><div><p className={styles.eyebrow}>관리자 실행</p><h2 id="raw-match-title">RAW 매칭 확인</h2><p>원본은 변경하지 않고 확정된 RAW만 Selected_RAW 폴더로 복사합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={busy} onClick={onClose}><X size={20} /></button></div>
-      <fieldset className={styles.rawMatchOptions}><legend>매칭할 셀렉</legend><label><input autoFocus type="radio" name="raw-source" value="submitted" checked={source === "submitted"} onChange={() => onSourceChange("submitted")} />최종 제출본만</label><label><input type="radio" name="raw-source" value="current" checked={source === "current"} onChange={() => onSourceChange("current")} />지금 고른 상태 <small>제출 전 포함</small></label></fieldset>
+      <div className={styles.modalTop}><div><p className={styles.eyebrow}>관리자 실행</p><h2 id="raw-match-title">RAW 실행 확인</h2><p>{mode === "mark" ? "RAW 원본은 수정하지 않고 옆의 XMP에 고객 별점과 컬러를 기록합니다." : "원본은 변경하지 않고 확정된 RAW만 Selected_RAW 폴더로 복사합니다."}</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={busy} onClick={onClose}><X size={20} /></button></div>
+      <fieldset className={styles.rawMatchOptions}><legend>실행 방식</legend><label><input autoFocus type="radio" name="raw-mode" value="copy" checked={mode === "copy"} onChange={() => onModeChange("copy")} /><span><strong>RAW 매칭</strong> — Selected_RAW로 복사</span></label><label><input type="radio" name="raw-mode" value="mark" checked={mode === "mark"} onChange={() => onModeChange("mark")} /><span><strong>로우 셀렉</strong> — 원본 RAW에 고객 별점·컬러 표시</span></label></fieldset>
+      <fieldset className={styles.rawMatchOptions}><legend>매칭할 셀렉</legend><label><input type="radio" name="raw-source" value="submitted" checked={source === "submitted"} onChange={() => onSourceChange("submitted")} />최종 제출본만</label><label><input type="radio" name="raw-source" value="current" checked={source === "current"} onChange={() => onSourceChange("current")} />지금 고른 상태 <small>제출 전 포함</small></label></fieldset>
       {isShared ? <div className={styles.field}><label htmlFor="raw-reviewer-scope">검토자</label><select id="raw-reviewer-scope" className={styles.select} value={reviewerScope} onChange={(event) => onReviewerScopeChange(event.target.value)}><option value="all">전체 합집합</option>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select></div> : null}
+      {mode === "mark" ? <div className={styles.rawLabelSettings}><span>컬러 라벨 이름</span>{([6, 7, 8, 9] as const).map((value) => <label key={value}><b>{value}</b><input className={styles.input} value={labelNames[value]} maxLength={80} onChange={(event) => onLabelNamesChange({ ...labelNames, [value]: event.target.value })} /></label>)}</div> : null}
       <dl className={styles.rawMatchPaths}>
         <div><dt>JPG 위치</dt><dd>{pathPlan.sourcePath || "연결 필요"}</dd></div>
         <div><dt>RAW 검색 범위</dt><dd>{pathPlan.shootingPath || "연결 필요"}</dd></div>
-        <div><dt>결과 저장 위치</dt><dd>{pathPlan.outputPath || "연결 필요"}</dd></div>
+        <div><dt>{mode === "mark" ? "표시 위치" : "결과 저장 위치"}</dt><dd>{mode === "mark" ? `${pathPlan.shootingPath || "연결 필요"} · RAW 옆 XMP` : pathPlan.outputPath || "연결 필요"}</dd></div>
       </dl>
       <div className={styles.rawMatchCount}><strong>매칭할 사진 {selectedCount.toLocaleString()}장</strong><span>제출본 {submittedCount.toLocaleString()}장 · 제출 전 {currentCount.toLocaleString()}장</span></div>
       {disabledReason ? <div className={styles.warning} role="alert">{disabledReason}</div> : null}
-      <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={busy} onClick={onClose}>취소</button><button type="button" className={styles.primary} disabled={busy || Boolean(disabledReason) || selectedCount === 0} onClick={onRun}><Link2 size={15} />{busy ? "시작 중" : "RAW 매칭 시작"}</button></div>
+      <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={busy} onClick={onClose}>취소</button><button type="button" className={styles.primary} disabled={busy || Boolean(disabledReason) || selectedCount === 0} onClick={onRun}><Link2 size={15} />{busy ? "시작 중" : mode === "mark" ? "로우 셀렉 실행" : "RAW 매칭 실행"}</button></div>
     </section>
   </div>;
 }
@@ -720,11 +789,25 @@ function PersonDrawer({ person, personWord, eventId, labels, categoryLabels, opt
   return <div className={styles.drawerBackdrop} onClick={onClose}><aside className={styles.drawer} onClick={(e) => e.stopPropagation()}><div className={styles.drawerTop}><div><p className={styles.eyebrow}>상세</p><h2>{person.display_name}{personWord ? ` ${personWord}` : ""}</h2></div><button className={styles.weak} onClick={onClose}><X /></button></div>{person.choices.map((choice) => <section className={styles.choiceDetail} key={choice.id}>{choice.person_select_images ? <img src={choice.person_select_images.thumb_url} alt="고른 사진" /> : null}<h3>{categoryLabels.get(choice.category_key) ?? choice.category_key}</h3><p>{choice.person_select_images?.original_file_name}</p>{editing === choice.id ? <><div className={styles.chipGrid}>{options.map((option) => <button key={option.key} className={`${styles.chip} ${keys.includes(option.key) ? styles.chipActive : ""}`} onClick={() => setKeys(keys.includes(option.key) ? keys.filter((key) => key !== option.key) : [...keys, option.key])}>{option.label}</button>)}</div><textarea className={styles.textarea} value={memo} onChange={(e) => setMemo(e.target.value)} /><div className={styles.actions} style={{ justifyContent: "flex-start", marginTop: 10 }}><button className={styles.primary} onClick={() => void save(choice)}>관리자 수정 저장</button><button className={styles.secondary} onClick={() => setEditing(null)}>취소</button></div></> : <><p>{choice.retouch_keys.map((key) => labels.get(key) || key).join(" / ") || "기본 보정"}</p><p>{choice.memo || "메모 없음"}</p><button className={styles.secondary} onClick={() => { setEditing(choice.id); setKeys(choice.retouch_keys); setMemo(choice.memo); }}>관리자 수정</button></>}</section>)}{person.order?.lines.length ? <section className={styles.choiceDetail}><h3>추가 주문 · {won(person.order.total)}</h3>{person.order.lines.map((line, index) => <p key={index}>{line.label}{line.detail ? ` · ${line.detail}` : ""} — {line.qty} × {won(line.unitPrice)} = {won(line.amount)}</p>)}</section> : null}<button className={styles.secondary} style={{ marginTop: 18 }} onClick={() => void onPin()}><RefreshCw size={15} style={{ verticalAlign: -3, marginRight: 5 }} />PIN 재발급</button></aside></div>;
 }
 
-function RawMatchResult({ result, at }: { result: Record<string, unknown> | null; at: string | null }) {
+function RawMatchResult({ result, at, busy, onClear, onRetry }: { result: Record<string, unknown> | null; at: string | null; busy: boolean; onClear: () => void; onRetry: () => void }) {
   if (!result) return null;
   const list = (value: unknown) => (Array.isArray(value) ? value : []) as Record<string, unknown>[];
   if (result.message && result.matchedCount === undefined) return <div className={styles.result}>{String(result.message)}</div>;
-  if (result.error) return <div className={styles.warning}>RAW 매칭: {String(result.error)}</div>;
+  if (result.error) {
+    const diagnostics = result.diagnostics && typeof result.diagnostics === "object" ? result.diagnostics as Record<string, unknown> : null;
+    return <div className={styles.rawFailure} role="alert"><strong>실패 · {String(result.error)}</strong><span>단계: {String(result.stage ?? "확인 필요")} · {new Date().toLocaleString("ko-KR")}</span><div><details><summary>자세히</summary><pre>{JSON.stringify(diagnostics ?? result, null, 2)}</pre></details><button type="button" className={styles.secondary} disabled={busy} onClick={onRetry}>다시 시도</button></div></div>;
+  }
+  if (result.cleared === true) {
+    return <div className={styles.result}>{`로우 셀렉 지우기 · 기존 값 복원 ${Number(result.restoredCount ?? 0)}개 · 새 XMP 삭제 ${Number(result.deletedCount ?? 0)}개 · 실패 ${list(result.failed).length}개`}</div>;
+  }
+  if (result.mode === "mark") {
+    const reviewRequired = list(result.reviewRequired);
+    const failed = list(result.markFailures);
+    return <div className={styles.result}>
+      <div className={styles.rawResultLine}><span>{`로우 셀렉${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · 별점 ${Number(result.ratingCount ?? 0)}장 · 컬러 ${Number(result.colorCount ?? 0)}장 · 확인 필요 ${reviewRequired.length + failed.length}장 · 충돌 ${Number(result.conflictCount ?? 0)}장`}</span><button type="button" className={styles.secondary} disabled={busy || !Array.isArray(result.markedSidecars) || !result.markedSidecars.length} onClick={() => { if (window.confirm("이번 로우 셀렉 작업에서 바꾼 XMP를 이전 값으로 복원할까요? 새로 만든 XMP는 삭제됩니다.")) onClear(); }}>로우 셀렉 지우기</button></div>
+      {failed.length ? <ul className={styles.failureList}>{failed.map((item, index) => <li key={`mf-${index}`}>{String(item.raw)}: {String(item.error)}</li>)}</ul> : null}
+    </div>;
+  }
   const missing = list(result.missing); const ambiguous = list(result.ambiguous); const conflicts = list(result.conflicts); const notSubmitted = Array.isArray(result.notSubmitted) ? result.notSubmitted.map(String) : [];
   const reviewRequired = list(result.reviewRequired);
   const sourceLabel = result.source === "current" ? "제출 전 포함" : "최종 제출본";

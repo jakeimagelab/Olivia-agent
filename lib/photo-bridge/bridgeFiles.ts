@@ -21,6 +21,7 @@ export type BridgeJpgFile = {
   relativePath: string;
   extension: string;
   handle?: FileSystemFileHandle;
+  parentHandle?: FileSystemDirectoryHandle;
   file?: File;
   thumbnailUrl?: string;
   size: number;
@@ -169,6 +170,7 @@ export async function scanBridgeFolder(
     name: string;
     kind: "jpg" | "raw" | "sidecar";
     handle: FileSystemFileHandle;
+    parentHandle: FileSystemDirectoryHandle;
     relativeDirectory: string;
   }> = [];
   let ignoredCount = 0;
@@ -209,6 +211,7 @@ export async function scanBridgeFolder(
           name,
           kind,
           handle: handle as FileSystemFileHandle,
+          parentHandle: target,
           relativeDirectory,
         });
       }
@@ -224,7 +227,7 @@ export async function scanBridgeFolder(
     while (true) {
       const index = cursor++;
       if (index >= fileHandles.length) return;
-      const { name, kind, handle, relativeDirectory } = fileHandles[index];
+      const { name, kind, handle, parentHandle, relativeDirectory } = fileHandles[index];
       const file = await handle.getFile();
       const normalizedName = name.normalize("NFC");
       const normalizedDirectory = relativeDirectory.normalize("NFC");
@@ -236,6 +239,7 @@ export async function scanBridgeFolder(
         relativePath,
         extension: extensionOf(name).toLocaleUpperCase("en-US"),
         handle,
+        parentHandle,
         size: file.size,
         lastModified: file.lastModified,
       };

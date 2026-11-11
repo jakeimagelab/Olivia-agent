@@ -117,9 +117,9 @@ describe("person select RAW match", () => {
     const job = (action: string, payload: Record<string, unknown>) => ({ job_id: "job", action, payload, target_worker: "jake-macstudio-01" });
     const raw = createRunnerInvocation(job("PERSON_SELECT_RAW_MATCH", { event_id: "018e2f30-92af-78b1-8f21-67f4404f5027" }) as never, repoRoot);
     expect(raw?.args).toContain(path.join(repoRoot, "scripts/person-select-raw-match.ts"));
-    expect(raw?.args).toEqual(expect.arrayContaining(["--source", "submitted"]));
-    const current = createRunnerInvocation(job("PERSON_SELECT_RAW_MATCH", { event_id: "018e2f30-92af-78b1-8f21-67f4404f5027", source: "current", reviewerIds: ["reviewer-a", "reviewer-b"] }) as never, repoRoot);
-    expect(current?.args).toEqual(expect.arrayContaining(["--source", "current", "--reviewer-ids-json", '["reviewer-a","reviewer-b"]']));
+    expect(raw?.args).toEqual(expect.arrayContaining(["--mode", "copy", "--source", "submitted"]));
+    const current = createRunnerInvocation(job("PERSON_SELECT_RAW_MATCH", { event_id: "018e2f30-92af-78b1-8f21-67f4404f5027", mode: "mark", source: "current", reviewerIds: ["reviewer-a", "reviewer-b"], labelNames: { 6: "Select", 7: "Second", 8: "Approved", 9: "Review" } }) as never, repoRoot);
+    expect(current?.args).toEqual(expect.arrayContaining(["--mode", "mark", "--source", "current", "--reviewer-ids-json", '["reviewer-a","reviewer-b"]', "--label-names-json"]));
     const folders = createRunnerInvocation(job("PERSON_SELECT_IMPORT", { event_id: "018e2f30-92af-78b1-8f21-67f4404f5027", source_relative_path: "1031_촬영", layout: "person-folders" }) as never, repoRoot);
     expect(folders?.args).toEqual(expect.arrayContaining(["--layout", "person-folders"]));
     expect(folders?.args).not.toContain("--mappings-json");

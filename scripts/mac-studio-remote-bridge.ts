@@ -28,6 +28,7 @@ import type { RemoteRawMatchCopyPayload } from "@/lib/selectMatch/remoteRawMatch
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
+const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-raw-mark-v1";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -284,7 +285,10 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     }
     case "PERSON_SELECT_RAW_MATCH":
       addString(args, "--event-id", stringValue(payload, "event_id", true));
+      addString(args, "--mode", stringValue(payload, "mode") || "copy");
       addString(args, "--source", stringValue(payload, "source") || "submitted");
+      if (payload.clear_mark === true) args.push("--clear-mark");
+      if (isRecord(payload.labelNames)) addString(args, "--label-names-json", JSON.stringify(payload.labelNames));
       if (Array.isArray(payload.reviewerIds) && payload.reviewerIds.length) {
         addString(args, "--reviewer-ids-json", JSON.stringify(payload.reviewerIds));
       }
@@ -342,6 +346,10 @@ function parseLastJsonObject(stdout: string): JsonRecord | null {
     }
   }
   return null;
+}
+
+function lastLines(value: string, count: number) {
+  return value.split(/\r?\n/u).map((line) => line.trimEnd()).filter(Boolean).slice(-count);
 }
 
 /** runner 실패 원인을 일반 문구로 덮지 않고 가장 구체적인 값을 선택한다. */
@@ -756,17 +764,28 @@ export async function runClaimedJob(job: ClaimedRemoteJob, repoRoot: string): Pr
     const successful = outcome.exitCode === 0 && outcome.result?.ok !== false;
     if (!successful) {
       const error = resolveRunnerError(outcome);
+      const diagnostics = {
+        stderrLast40: lastLines(outcome.stderr, 40),
+        stdoutLast20: lastLines(outcome.stdout, 20),
+        exitCode: outcome.exitCode,
+        workerCodeVersion: WORKER_CODE_VERSION,
+      };
       await reportJob(job.job_id, {
         status: "FAILED",
         error,
         message: error,
-        ...(outcome.result ? { result: outcome.result } : {}),
+        result: { ...(outcome.result ?? {}), diagnostics },
       });
       console.error(`[remote-bridge] ${job.action} 실패: ${error}`);
       return false;
     }
 
-    const result = outcome.result ?? { ok: true, stdout: outcome.stdout.trim() };
+    const result: JsonRecord = {
+      ...(outcome.result ?? { ok: true, stdout: outcome.stdout.trim() }),
+      workerCodeVersion: typeof outcome.result?.workerCodeVersion === "string"
+        ? outcome.result.workerCodeVersion
+        : WORKER_CODE_VERSION,
+    };
     await reportJob(job.job_id, {
       status: "COMPLETED",
       result,

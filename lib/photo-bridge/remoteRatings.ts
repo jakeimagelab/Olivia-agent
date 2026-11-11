@@ -8,7 +8,8 @@ type JsonRecord = Record<string, unknown>;
 export type RemoteBridgeRating = {
   key: string;
   name: string;
-  rating: number;
+  rating: number | null;
+  colorLabel: 6 | 7 | 8 | 9 | null;
 };
 
 export type RemoteBridgeRatingResult = {
@@ -47,11 +48,12 @@ function parseRating(value: unknown): RemoteBridgeRating {
   if (!isRecord(value)) throw new Error("원격 별점 항목이 올바르지 않습니다.");
   const key = typeof value.key === "string" ? value.key : "";
   const name = typeof value.name === "string" ? value.name : "";
-  const rating = typeof value.rating === "number" ? value.rating : Number.NaN;
-  if (!key.trim() || !name.trim() || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+  const rating = typeof value.rating === "number" && Number.isInteger(value.rating) && value.rating >= 1 && value.rating <= 5 ? value.rating : null;
+  const colorLabel = value.colorLabel === 6 || value.colorLabel === 7 || value.colorLabel === 8 || value.colorLabel === 9 ? value.colorLabel : null;
+  if (!key.trim() || !name.trim() || (rating === null && colorLabel === null)) {
     throw new Error("원격 별점 항목이 올바르지 않습니다.");
   }
-  return { key, name, rating };
+  return { key, name, rating, colorLabel };
 }
 
 function abortError() {
