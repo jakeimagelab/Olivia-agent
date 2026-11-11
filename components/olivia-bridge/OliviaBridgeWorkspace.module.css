@@ -259,10 +259,13 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: 52px auto auto minmax(72px, 1fr) auto auto;
+  grid-template-rows: 52px minmax(0, 1fr) auto auto;
   overflow: hidden;
   background: #152127;
 }
+
+.folderPanelScroll { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-color: rgba(255, 255, 255, .22) transparent; scrollbar-width: thin; }
+.folderPanelScroll .folderList { overflow: visible; }
 
 .paneDivider {
   position: relative;
@@ -372,15 +375,26 @@
 .folderSummary span { display: grid; gap: 3px; color: rgba(255, 255, 255, .35); font-size: var(--ui2-f1); text-align: center; }
 .folderSummary b { color: rgba(255, 255, 255, .78); font-size: 11px; font-weight: 600; }
 
-.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr) 40px; overflow: hidden; background: #103E36; }
+.browserPanel { min-width: 0; min-height: 0; display: grid; grid-template-rows: 52px minmax(0, 1fr); overflow: hidden; background: #103E36; }
 .browserHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 14px 0 18px; border-bottom: 1px solid var(--bridge-line); background: #103E36; }
 .browserHeader > div { min-width: 0; display: flex; align-items: center; gap: 10px; }
+.browserTitle { min-width: 0; flex: 1; overflow: hidden; }
 .browserHeader strong { overflow: hidden; color: #fff; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .browserHeader span { color: rgba(255, 255, 255, .4); font-size: 9.5px; white-space: nowrap; }
 .thumbnailControls { flex: 0 0 auto; }
 .thumbnailControls button { width: 33px; height: 33px; display: grid; place-items: center; border: 0; border-radius: 7px; color: rgba(255, 255, 255, .55); background: transparent; cursor: pointer; }
 .thumbnailControls button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
 .thumbnailControls > svg { color: rgba(255, 255, 255, .38); }
+.filterChip { min-height: 23px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; border: 1px solid rgba(79, 216, 184, .32); border-radius: 999px; color: #DFFFF6; background: rgba(79, 216, 184, .1); font: 500 9px/1 inherit; cursor: pointer; }
+.filenameSearch { width: clamp(132px, 15vw, 210px); min-height: 31px; flex: 0 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 5px; padding: 0 7px; border: 1px solid rgba(255, 255, 255, .18); border-radius: 7px; color: rgba(255, 255, 255, .58); background: rgba(0, 0, 0, .14); }
+.filenameSearch:focus-within { border-color: rgba(79, 216, 184, .72); }
+.filenameSearch input { min-width: 0; width: 100%; border: 0; outline: 0; padding: 0; color: #fff; background: transparent; font: 500 10px/1 inherit; }
+.bridge .filenameSearch input[type="search"] { border: 0; color: #fff; background: transparent; box-shadow: none; }
+.filenameSearch input::placeholder { color: rgba(255, 255, 255, .4); }
+.filenameSearch input::-webkit-search-cancel-button { display: none; }
+.filenameSearch button { width: 23px; height: 23px; display: grid; place-items: center; border: 0; border-radius: 5px; padding: 0; color: rgba(255, 255, 255, .7); background: transparent; cursor: pointer; }
+.filenameSearch button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
+.filenameSearch kbd { color: rgba(255, 255, 255, .38); font: 500 8px/1 inherit; }
 
 .fileArea { min-height: 0; position: relative; overflow: auto; padding: 15px 16px 22px; background: #103E36; scrollbar-color: rgba(255, 255, 255, .28) transparent; scrollbar-width: thin; }
 .fileArea::-webkit-scrollbar, .folderList::-webkit-scrollbar, .toolBody::-webkit-scrollbar, .sceneGrid::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -720,7 +734,15 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(240px, 40%); }
   .folderPanel { display: none; }
   .paneDivider { display: none; }
-  .browserPanel { border-right: 0; border-bottom: 1px solid var(--bridge-line); }
+  .browserPanel { grid-template-rows: 82px minmax(0, 1fr); border-right: 0; border-bottom: 1px solid var(--bridge-line); }
+  .browserHeader { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: 34px 38px; align-content: center; gap: 2px; padding-block: 4px; }
+  .browserHeader > div { width: 100%; }
+  .browserTitle { overflow-x: auto; scrollbar-width: none; }
+  .browserTitle::-webkit-scrollbar { display: none; }
+  .browserActions { overflow-x: auto; scrollbar-width: none; }
+  .browserActions::-webkit-scrollbar { display: none; }
+  .filenameSearch { min-width: 116px; width: min(180px, 38vw); }
+  .filenameSearch kbd { display: none; }
   .thumbnailGauge { min-width: 134px; }
   .thumbnailGauge > span { display: none; }
   .photoSortControl > span { display: none; }
@@ -933,7 +955,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 }
 .bridge[data-desktop-ui="true"] .folderPanel {
   display: grid;
-  grid-template-rows: 38px auto auto auto minmax(72px, 1fr) auto auto;
+  grid-template-rows: 38px minmax(0, 1fr) auto auto;
   color: var(--ui2-text);
   background: var(--ui2-card);
 }
@@ -975,7 +997,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .bridge[data-desktop-ui="true"] .folderList button b { color: var(--ui2-dim); font-size: var(--ui2-f1); font-weight: 500; font-variant-numeric: tabular-nums; }
 .bridge[data-desktop-ui="true"] .folderList button > svg:last-child { color: var(--ui2-faint); }
 .bridge[data-desktop-ui="true"] .folderSummary { color: var(--ui2-dim); border-color: var(--ui2-line); background: var(--ui2-sunk); }
-.bridge[data-desktop-ui="true"] .folderSummary strong { color: var(--ui2-text); font-size: var(--ui2-f2); }
+.bridge[data-desktop-ui="true"] .folderSummary b { color: var(--ui2-text); font-size: var(--ui2-f2); }
 .bridge[data-desktop-ui="true"] .folderSummary span { color: var(--ui2-dim); font-size: var(--ui2-f1); }
 .bridge[data-desktop-ui="true"] .paneDivider { min-width: 1px; background: var(--ui2-line); }
 .bridge[data-desktop-ui="true"] .paneDivider::after { display: none; }
@@ -1075,7 +1097,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .bridge[data-desktop-ui="true"] .workspace > .paneDivider,
   .bridge[data-desktop-ui="true"] .previewPanel { display: none; }
   .bridge[data-desktop-ui="true"] .workspace[data-compact-preview="true"] .previewPanel { position: absolute; z-index: 25; inset: 0 0 0 auto; width: min(330px, 92%); display: grid; border-left: 1px solid var(--ui2-line); box-shadow: -16px 0 34px rgba(27,42,39,.16); }
-  .bridge[data-desktop-ui="true"] .folderPanel[data-compact-open="true"] { position: absolute; z-index: 31; inset: 0 auto 0 0; width: min(310px, 92%); display: grid; grid-template-rows: 42px auto auto auto minmax(72px,1fr) auto auto; border-right: 1px solid var(--ui2-line); box-shadow: 16px 0 34px rgba(27,42,39,.18); outline: 0; }
+  .bridge[data-desktop-ui="true"] .folderPanel[data-compact-open="true"] { position: absolute; z-index: 31; inset: 0 auto 0 0; width: min(310px, 92%); display: grid; grid-template-rows: 42px minmax(0,1fr) auto auto; border-right: 1px solid var(--ui2-line); box-shadow: 16px 0 34px rgba(27,42,39,.18); outline: 0; }
   .bridge[data-desktop-ui="true"] .compactFilterBackdrop { position: absolute; z-index: 30; inset: 0; display: block; border: 0; background: rgba(16,62,54,.18); }
   .bridge[data-desktop-ui="true"] .compactFilterClose { display: grid; width: 30px; height: 30px; margin-left: auto; place-items: center; border: 0; border-radius: 7px; color: var(--ui2-green); background: transparent; }
   .bridge[data-desktop-ui="true"] .compactPreviewButton { min-height: 30px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid rgba(255,255,255,.2); border-radius: 7px; color: #fff; background: rgba(255,255,255,.06); font: 500 var(--ui2-f1)/1 inherit; }
@@ -1088,6 +1110,10 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   .bridge[data-desktop-ui="true"] .actionBar { grid-template-columns: minmax(0, 1fr); gap: 7px; }
   .bridge[data-desktop-ui="true"] .actionSummary { display: none; }
   .bridge[data-desktop-ui="true"] .actionTools { grid-template-columns: repeat(8, minmax(72px, 1fr)) repeat(2, minmax(118px, 1.35fr)); overflow-x: auto; }
+}
+
+@container olivia-bridge (max-width: 760px) {
+  .bridge[data-desktop-ui="true"] .browserPanel { grid-template-rows: 82px minmax(0, 1fr); }
 }
 
 @container olivia-bridge (min-width: 901px) and (max-width: 1180px) {

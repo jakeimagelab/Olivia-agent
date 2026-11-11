@@ -19,6 +19,7 @@ import {
   PanelLeft,
   Plus,
   RotateCcw,
+  Search,
   Send,
   Star,
   StarOff,
@@ -66,7 +67,19 @@ import {
   bridgeRectangleFromPoints,
   bridgeRectanglesIntersect,
 } from "@/lib/photo-bridge/marqueeSelection";
-import { BRIDGE_COLOR_LABELS } from "@/lib/photo-bridge/labels";
+import {
+  BRIDGE_COLOR_LABELS,
+  EMPTY_BRIDGE_LABEL_FILTERS,
+  bridgeFilenameSearchTokens,
+  bridgeLabelFilterName,
+  hasActiveBridgeLabelFilters,
+  matchesBridgeFilenameSearch,
+  matchesBridgeLabelFilters,
+  updateBridgeLabelFilters,
+  type BridgeLabelFilterCommand,
+  type BridgeLabelFilters,
+} from "@/lib/photo-bridge/labels";
+import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessages";
 import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
@@ -390,6 +403,8 @@ export default function CustomerBridgeSelect({
   const [notes, setNotes] = useState<Record<string, string>>(seedNotes);
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PhotoFilter>("all");
+  const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
+  const [filenameSearch, setFilenameSearch] = useState("");
   const [thumbSize, setThumbSize] = useState(156);
   const [location, setLocation] = useState<BridgeLocation>({ kind: "root" });
   const [locationReady, setLocationReady] = useState(false);
@@ -436,6 +451,7 @@ export default function CustomerBridgeSelect({
   const requestKeyRef = useRef(createRequestKey());
   const sentinelRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sideTabRef = useRef(sideTab);
   const lastMessageIdRef = useRef<string | null>(null);
@@ -523,15 +539,18 @@ export default function CustomerBridgeSelect({
   const childFolders = location.kind === "root" ? rootView.folders : folderView?.folders ?? EMPTY_FOLDERS;
   // 고객/관리자에 표시하는 확정 셀렉은 항상 서버가 확인한 값만 사용한다.
   const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
+  const filenameSearchTokens = useMemo(() => bridgeFilenameSearchTokens(filenameSearch), [filenameSearch]);
+  const hasLabelFilters = hasActiveBridgeLabelFilters(labelFilters);
   const visibleImages = useMemo(() => folderImages.filter((image) => {
-    if (filter === "selected") return customerSelectedIds.has(image.id);
-    if (filter === "unselected") return !customerSelectedIds.has(image.id);
+    if (filter === "selected" && !customerSelectedIds.has(image.id)) return false;
+    if (filter === "unselected" && customerSelectedIds.has(image.id)) return false;
     const quality = qualityResults[image.id];
-    if (filter === "eyes_closed" || filter === "face_too_dark" || filter === "motion_blur") return quality?.flags.includes(filter) ?? false;
-    if (filter === "quality_review") return quality?.status === "needs_review";
-    if (filter === "quality_normal") return quality?.status === "normal" || quality?.reviewStatus === "confirmed_normal";
-    return true;
-  }), [customerSelectedIds, filter, folderImages, qualityResults]);
+    if ((filter === "eyes_closed" || filter === "face_too_dark" || filter === "motion_blur") && !(quality?.flags.includes(filter) ?? false)) return false;
+    if (filter === "quality_review" && quality?.status !== "needs_review") return false;
+    if (filter === "quality_normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
+    if (hasLabelFilters && !matchesBridgeLabelFilters(image.id, labelFilters, serverRatings, serverColorLabels)) return false;
+    return matchesBridgeFilenameSearch(image.original_file_name, filenameSearchTokens);
+  }), [customerSelectedIds, filenameSearchTokens, filter, folderImages, hasLabelFilters, labelFilters, qualityResults, serverColorLabels, serverRatings]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
   const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
@@ -937,7 +956,7 @@ export default function CustomerBridgeSelect({
   useEffect(() => {
     setRenderLimit(PAGE_SIZE);
     gridRef.current?.scrollTo({ top: 0 });
-  }, [filter, location]);
+  }, [filenameSearch, filter, labelFilters, location]);
 
   useEffect(() => {
     if (locationReady) return;
@@ -988,6 +1007,23 @@ export default function CustomerBridgeSelect({
     requestAnimationFrame(() => guideButtonRef.current?.focus());
   }, []);
 
+  const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
+    if (fullscreenId) setFullscreenId(null);
+    if (command.kind === "all") {
+      setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
+      setFilter("all");
+      return;
+    }
+    setLabelFilters((current) => updateBridgeLabelFilters(current, command));
+  }, [fullscreenId]);
+
+  const handleSearchFilterShortcut = useBridgeSearchFilterShortcuts({
+    searchInputRef,
+    searchQuery: filenameSearch,
+    onSearchQueryChange: setFilenameSearch,
+    onFilterCommand: applyLabelFilterCommand,
+  });
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (guideOpen || resetConfirmOpen) {
@@ -998,6 +1034,7 @@ export default function CustomerBridgeSelect({
         }
         return;
       }
+      if (handleSearchFilterShortcut(event)) return;
       if (event.isComposing || isTypingTarget(event.target)) return;
       if (event.key === "Escape") {
         if (fullscreenId) setFullscreenId(null);
@@ -1083,7 +1120,7 @@ export default function CustomerBridgeSelect({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeImageIds, anchorId, applyRatingTo, closeGuide, closeResetConfirm, customerColorLabels, customerRatings, focusedImageId, fullscreenId, guideOpen, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
+  }, [activeImageIds, anchorId, applyRatingTo, closeGuide, closeResetConfirm, customerColorLabels, customerRatings, focusedImageId, fullscreenId, guideOpen, handleSearchFilterShortcut, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
 
   const handlePhotoClick = useCallback((image: CustomerBridgeImage, event: SelectionModifiers) => {
     setFocusedImageId(image.id);
@@ -1185,6 +1222,12 @@ export default function CustomerBridgeSelect({
   const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
   const locationCount = location.kind === "root" ? childFolders.length + (rootView.images.length ? 1 : 0) : visibleImages.length;
+  const activeRatingFilterName = labelFilters.rating === null
+    ? null
+    : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
+  const activeColorFilterName = labelFilters.color === null
+    ? null
+    : bridgeLabelFilterName({ kind: "color", label: labelFilters.color });
   const saveStatusMessage = readOnly
     ? "관리자 사진 확인"
     : selectionSync.status === "saved"
@@ -1233,6 +1276,7 @@ export default function CustomerBridgeSelect({
       {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}
       <aside className={styles.folderPanel} data-compact-open={compactFoldersOpen || undefined}>
         <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => setCompactFoldersOpen(false)} aria-label="폴더 닫기"><X size={15} /></button></div>
+        <div className={styles.folderPanelScroll}>
         <button type="button" className={location.kind === "root" ? styles.rootFolderActive : styles.rootFolder} onClick={() => openLocation({ kind: "root" })}><FolderOpen size={17} /><span>프로젝트</span><b>{rootView.folders.length}</b></button>
         <button type="button" className={`${styles.rootFolder} ${location.kind === "all" ? styles.rootFolderActive : ""}`} onClick={() => openLocation({ kind: "all" })}><Images size={17} /><span>전체 사진</span><b>{images.length}</b></button>
         <div className={styles.folderList}>
@@ -1247,13 +1291,29 @@ export default function CustomerBridgeSelect({
           ["quality_review", "확인 필요"],
           ["quality_normal", "정상"],
         ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}<PhotoQualityJobProgressView job={qualityJob} tone="light" />{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
+        </div>
         <div className={styles.folderSummary}><span>전체<b>{images.length}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
       </aside>
 
       <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
 
       <section className={styles.browserPanel}>
-        <header className={styles.browserHeader}><div><strong>{locationLabel}</strong><span>{location.kind === "root" ? `${locationCount}개 폴더` : `${visibleImages.length.toLocaleString("ko-KR")}장`}</span></div>{location.kind !== "root" ? <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbSize((size) => Math.max(THUMB_MIN, size - 12))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} /><button type="button" onClick={() => setThumbSize((size) => Math.min(THUMB_MAX, size + 12))} aria-label="썸네일 크게"><Plus size={15} /></button></div> : null}</header>
+        <header className={styles.browserHeader}>
+          <div className={styles.browserTitle}>
+            <strong>{locationLabel}</strong>
+            <span>{location.kind === "root" ? `${locationCount}개 폴더` : filenameSearchTokens.length ? `검색 ${visibleImages.length.toLocaleString("ko-KR")}장` : `${visibleImages.length.toLocaleString("ko-KR")}장`}</span>
+            {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
+            {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
+          </div>
+          {location.kind !== "root" ? <div className={styles.browserActions}>
+            <label className={styles.filenameSearch}>
+              <Search size={13} aria-hidden="true" />
+              <input ref={searchInputRef} type="search" value={filenameSearch} onChange={(event) => setFilenameSearch(event.currentTarget.value)} placeholder="파일명 검색" aria-label="파일명 검색" />
+              {filenameSearch ? <button type="button" onClick={() => { setFilenameSearch(""); searchInputRef.current?.focus(); }} aria-label="검색 지우기"><X size={12} /></button> : <kbd>⌘F</kbd>}
+            </label>
+            <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbSize((size) => Math.max(THUMB_MIN, size - 12))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} /><button type="button" onClick={() => setThumbSize((size) => Math.min(THUMB_MAX, size + 12))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
+          </div> : null}
+        </header>
         <div ref={gridRef} className={styles.fileArea} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
           {childFolders.length || (location.kind === "root" && rootView.images.length) ? <div className={styles.folderCardGrid}>
             {location.kind === "root" && rootView.images.length ? <button type="button" className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: "" })}>
@@ -1275,7 +1335,7 @@ export default function CustomerBridgeSelect({
           {location.kind !== "root" && !visibleImages.length && !childFolders.length ? <div className={styles.empty}>이 폴더에 표시할 사진이 없습니다.</div> : null}
           {marquee ? <div className={styles.selectionMarquee} style={marquee} /> : null}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
         </div>
-        <footer className={styles.shortcutBar}><span>클릭 작업 대상 · Shift 범위 · ⌘/Ctrl 추가 · 1–5 별점 · 6–9 컬러 · 0 해제 · ⌘/Ctrl+B 리뷰</span>{location.kind !== "root" ? <label>썸네일 <input type="range" min={THUMB_MIN} max={THUMB_MAX} step={4} value={thumbSize} onChange={(event) => setThumbSize(Number(event.currentTarget.value))} /></label> : null}</footer>
+        <footer className={styles.shortcutBar}><span>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}클릭 작업 대상 · Shift 범위 · ⌘/Ctrl 추가 · 1–5 별점 · 6–9 컬러 · 0 해제 · ⌘/Ctrl+B 리뷰 · ⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span>{location.kind !== "root" ? <label>썸네일 <input type="range" min={THUMB_MIN} max={THUMB_MAX} step={4} value={thumbSize} onChange={(event) => setThumbSize(Number(event.currentTarget.value))} /></label> : null}</footer>
       </section>
 
       <button type="button" className={styles.paneDivider} aria-label="미리보기 패널 너비 조절" onPointerDown={(event) => beginResize("preview", event)} />
@@ -1286,14 +1346,14 @@ export default function CustomerBridgeSelect({
           {messagesEnabled ? <button type="button" role="tab" aria-selected={sideTab === "chat"} onClick={() => setSideTab("chat")}><MessageCircle size={14} />대화{unreadMessages ? <b>{unreadMessages}</b> : null}</button> : null}
           <button type="button" className={styles.mobileSideClose} onClick={() => setMobileSideOpen(false)} aria-label="오른쪽 패널 닫기"><X size={16} /></button>
         </nav>
-        {sideTab === "preview" ? <>
+        {sideTab === "preview" ? <div className={styles.previewContent}>
           <header><strong>미리보기</strong><span>{activeImageIds.size ? `작업 대상 ${activeImageIds.size}장` : focusedImage ? "현재 사진" : "사진을 선택해 주세요"}</span></header>
           {focusedImage ? <><div className={styles.previewCanvas} onDoubleClick={() => setFullscreenId(focusedImage.id)}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.max(0, index - 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) <= 0} aria-label="이전 사진"><ChevronLeft size={20} /></button><StablePreviewImage image={focusedImage} onImageError={handleImageError} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.min(orderedIds.length - 1, index + 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) >= orderedIds.length - 1} aria-label="다음 사진"><ChevronRight size={20} /></button></div>
             <div className={styles.previewMeta}><strong>{focusedImage.original_file_name}</strong><span>{focusedImage.relative_path ?? ""}</span><button type="button" onClick={() => setFullscreenId(focusedImage.id)}><Expand size={13} /> 크게 보기</button></div>
             {qualityResults[focusedImage.id] ? <section className={styles.qualityPanel}><header><strong>AI 품질 분석</strong><span>{qualityResults[focusedImage.id].reviewStatus === "confirmed_normal" ? "정상 확인됨" : qualityResults[focusedImage.id].reviewStatus === "confirmed_issue" ? "문제 확인됨" : "검토 보조"}</span></header>{(["eyes_closed", "face_too_dark", "motion_blur"] as const).map((flag) => <div key={flag} data-suspected={qualityResults[focusedImage.id].flags.includes(flag) || undefined}><span>{flag === "eyes_closed" ? "눈감음" : flag === "face_too_dark" ? "얼굴 어두움" : "흔들림"}</span><b>{qualityResults[focusedImage.id].flags.includes(flag) ? "의심" : qualityResults[focusedImage.id].status === "needs_review" ? "확인 필요" : "정상"}</b></div>)}{canManageQuality ? <footer><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_issue")}>문제 확인</button><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_normal")}>정상으로 확인</button></footer> : null}<small>AI 결과는 별점·셀렉·파일을 자동 변경하지 않습니다.</small></section> : null}
             {!readOnly ? <div className={styles.previewControls}><div><span>{activeImageIds.size > 1 ? `${activeImageIds.size}장에 셀렉 적용` : "고객 셀렉"}</span><RatingStars value={customerRatings[focusedImage.id] ?? 0} onChange={applyMainRating} /><ColorLabels value={customerColorLabels[focusedImage.id] ?? null} onChange={applyMainColor} /></div><label>사진별 보정 메모<textarea value={notes[focusedImage.id] ?? ""} maxLength={1000} onChange={(event) => { const memo = event.target.value; setNotes((current) => ({ ...current, [focusedImage.id]: memo })); selectionSync.enqueue([{ imageId: focusedImage.id, memo }]); }} placeholder="이 사진에 필요한 보정 내용을 적어주세요." /></label></div> : <div className={styles.readOnlyMarks}>{customerRatings[focusedImage.id] ? <span><Star size={13} fill="currentColor" />{customerRatings[focusedImage.id]}점</span> : null}{customerColorLabels[focusedImage.id] ? <span><i style={{ background: BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].color }} />{BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].name}</span> : null}{notes[focusedImage.id] ? <p className={styles.readOnlyMemo}>{notes[focusedImage.id]}</p> : null}</div>}
           </> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 사진을 선택해 주세요</strong></div>}
-        </> : <section className={styles.chatPanel} aria-label="프로젝트 대화">
+          </div> : <section className={styles.chatPanel} aria-label="프로젝트 대화">
           <div className={styles.messageList}>{messages.map((message) => <article key={message.id} data-own={message.own || undefined}><header><strong>{message.authorName}</strong>{message.authorRole ? <span>{message.authorRole}</span> : null}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time></header>{message.imageId ? <button type="button" className={styles.messageImageLink} onClick={() => { setFocusedImageId(message.imageId); setSideTab("preview"); }}>{message.imageName || "연결 사진 보기"}</button> : null}<p>{message.body}</p></article>)}{!messages.length ? <div className={styles.chatEmpty}>프로젝트 사진에 관해 함께 이야기해 보세요.</div> : null}<div ref={messagesEndRef} /></div>
           {messagesEnabled ? <form className={styles.messageComposer} onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><label className={styles.messageScope}><input type="checkbox" checked={messageImageScoped} disabled={!focusedImageId} onChange={(event) => setMessageImageScoped(event.target.checked)} />{focusedImage ? `현재 사진 · ${focusedImage.original_file_name}` : "현재 사진 없음"}</label><textarea value={messageText} maxLength={2000} placeholder="메시지를 입력하세요" onChange={(event) => setMessageText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(); } }} /><button type="submit" disabled={!messageText.trim() || sendingMessage} aria-label="메시지 보내기"><Send size={16} /></button></form> : null}
           {messageState ? <p className={styles.messageState}>{messageState}</p> : null}

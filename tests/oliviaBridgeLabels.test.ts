@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  EMPTY_BRIDGE_LABEL_FILTERS,
+  bridgeFilenameSearchTokens,
   bridgeLabelFilterCommandFromShortcutCode,
   bridgeLabelFilterName,
   countBridgeLabeledFiles,
   hasBridgeLabel,
   matchesBridgeSelectionView,
   matchesBridgeLabelFilter,
+  matchesBridgeFilenameSearch,
+  matchesBridgeLabelFilters,
   normalizeBridgeColorLabels,
   resolveBridgeRatings,
   toggleBridgeColorLabel,
+  updateBridgeLabelFilters,
   updateBridgeRatingEdits,
   updateBridgeRatings,
 } from "@/lib/photo-bridge/labels";
@@ -81,15 +86,36 @@ describe("Olivia Bridge labels", () => {
     expect(bridgeLabelFilterCommandFromShortcutCode("Digit0")).toBeNull();
   });
 
-  it("matches only the exact rating or color while allowing both labels to coexist", () => {
+  it("matches an Adobe-style minimum rating or an exact color", () => {
     const ratings = { a: 3, b: 4, c: 3 };
     const colors = { a: 6, b: 6, c: 9 } as const;
     const ratingFilter = { kind: "rating", rating: 3 } as const;
     const colorFilter = { kind: "color", label: 6 } as const;
 
-    expect(["a", "b", "c"].filter((id) => matchesBridgeLabelFilter(id, ratingFilter, ratings, colors))).toEqual(["a", "c"]);
+    expect(["a", "b", "c"].filter((id) => matchesBridgeLabelFilter(id, ratingFilter, ratings, colors))).toEqual(["a", "b", "c"]);
     expect(["a", "b", "c"].filter((id) => matchesBridgeLabelFilter(id, colorFilter, ratings, colors))).toEqual(["a", "b"]);
-    expect(bridgeLabelFilterName(ratingFilter)).toBe("별점 3");
+    expect(bridgeLabelFilterName(ratingFilter)).toBe("★3 이상");
     expect(bridgeLabelFilterName(colorFilter)).toBe("빨강");
+  });
+
+  it("combines rating and color filters and toggles each kind independently", () => {
+    const ratings = { redFive: 5, redThree: 3, blueFive: 5 };
+    const colors = { redFive: 6, redThree: 6, blueFive: 9 } as const;
+    const withRating = updateBridgeLabelFilters(EMPTY_BRIDGE_LABEL_FILTERS, { kind: "rating", rating: 5 });
+    const combined = updateBridgeLabelFilters(withRating, { kind: "color", label: 6 });
+
+    expect(["redFive", "redThree", "blueFive"].filter((id) => matchesBridgeLabelFilters(id, combined, ratings, colors))).toEqual(["redFive"]);
+    expect(updateBridgeLabelFilters(combined, { kind: "rating", rating: 5 })).toEqual({ rating: null, color: 6 });
+    expect(updateBridgeLabelFilters(combined, { kind: "rating", rating: 3 })).toEqual({ rating: 3, color: 6 });
+    expect(updateBridgeLabelFilters(combined, { kind: "all" })).toEqual(EMPTY_BRIDGE_LABEL_FILTERS);
+  });
+
+  it("searches comma or whitespace separated filename fragments without case or NFC differences", () => {
+    const tokens = bridgeFilenameSearchTokens("1745, 1802  2210");
+    const names = ["_AK_1745.JPG", "_ak_1802.jpg", "_AK_9999.JPG"];
+
+    expect(names.filter((name) => matchesBridgeFilenameSearch(name, tokens))).toEqual(["_AK_1745.JPG", "_ak_1802.jpg"]);
+    expect(matchesBridgeFilenameSearch("CAFE\u0301_2210.JPG", "café")).toBe(true);
+    expect(matchesBridgeFilenameSearch("_AK_1745.JPG", "_ak_17")).toBe(true);
   });
 });

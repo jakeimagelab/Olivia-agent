@@ -225,7 +225,8 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("styles.nestedJpgToggle");
     expect(workspace).toContain("styles.compactFilterEntry");
     expect(workspace).toContain('data-compact-open={compactFiltersOpen ? "true" : "false"}');
-    expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px auto auto auto minmax\(72px, 1fr\) auto auto/);
+    expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px minmax\(0, 1fr\) auto auto/);
+    expect(styles).toMatch(/\.folderPanelScroll\s*\{[^}]*overflow-y:\s*auto/);
     expect(styles).toMatch(/max-width:\s*900px[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
   });
 
@@ -311,7 +312,8 @@ describe("Olivia Bridge", () => {
     expect(workspace).not.toContain("exitFullscreen");
     expect(workspace).toContain("Space OS 창 미리보기");
     expect(workspace).not.toContain("Space 선택");
-    expect(workspace).toContain("1–5 별점 · 0 해제 · 6–9 컬러");
+    expect(workspace).toContain("1–5 별점 · 0 해제");
+    expect(workspace).toContain("6–9 컬러 · 같은 키 해제");
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*object-fit:\s*contain/);
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*width:\s*auto[\s\S]*height:\s*auto/);
     expect(styles).toMatch(/\.fullscreenPreview\s*>\s*img[\s\S]*max-width:\s*100%[\s\S]*max-height:\s*100%/);
@@ -322,11 +324,14 @@ describe("Olivia Bridge", () => {
 
   it("Option Command 레이블 필터와 전체 보기 단축키를 제공한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcuts.ts", "utf8");
 
-    expect(workspace).toContain("event.altKey && event.metaKey && !event.ctrlKey && !event.shiftKey");
-    expect(workspace).toContain("bridgeLabelFilterCommandFromShortcutCode(event.code)");
-    expect(workspace).toContain("⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체");
-    expect(workspace).toContain("setLabelFilter(null)");
+    expect(workspace).toContain("useBridgeSearchFilterShortcuts");
+    expect(workspace).toContain("handleSearchFilterShortcut(event)");
+    expect(shortcutHook).toContain("event.altKey && (event.metaKey || event.ctrlKey) && !event.shiftKey");
+    expect(shortcutHook).toContain("bridgeLabelFilterCommandFromShortcutCode(event.code)");
+    expect(workspace).toContain("⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색");
+    expect(workspace).toContain("setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS })");
     expect(workspace).toContain('setFileFilter("all")');
   });
 

@@ -16,7 +16,16 @@ export type BridgeLabelFilter =
   | { kind: "rating"; rating: BridgeRating }
   | { kind: "color"; label: BridgeColorLabel };
 export type BridgeLabelFilterCommand = BridgeLabelFilter | { kind: "all" };
+export type BridgeLabelFilters = {
+  rating: BridgeRating | null;
+  color: BridgeColorLabel | null;
+};
 export type BridgeSelectionView = "starred" | "colored" | "selected" | "unselected";
+
+export const EMPTY_BRIDGE_LABEL_FILTERS: BridgeLabelFilters = {
+  rating: null,
+  color: null,
+};
 
 export function updateBridgeRatings(
   current: Readonly<Record<string, number>>,
@@ -143,11 +152,59 @@ export function matchesBridgeLabelFilter(
   ratings: Readonly<Record<string, number>>,
   colorLabels: Readonly<BridgeColorLabels>,
 ) {
-  if (filter.kind === "rating") return ratings[id] === filter.rating;
+  if (filter.kind === "rating") return (ratings[id] ?? 0) >= filter.rating;
   return colorLabels[id] === filter.label;
 }
 
 export function bridgeLabelFilterName(filter: BridgeLabelFilter) {
-  if (filter.kind === "rating") return `별점 ${filter.rating}`;
+  if (filter.kind === "rating") return `★${filter.rating} 이상`;
   return BRIDGE_COLOR_LABELS[filter.label].name;
+}
+
+export function updateBridgeLabelFilters(
+  current: Readonly<BridgeLabelFilters>,
+  command: BridgeLabelFilterCommand,
+): BridgeLabelFilters {
+  if (command.kind === "all") return { ...EMPTY_BRIDGE_LABEL_FILTERS };
+  if (command.kind === "rating") {
+    return {
+      ...current,
+      rating: current.rating === command.rating ? null : command.rating,
+    };
+  }
+  return {
+    ...current,
+    color: current.color === command.label ? null : command.label,
+  };
+}
+
+export function hasActiveBridgeLabelFilters(filters: Readonly<BridgeLabelFilters>) {
+  return filters.rating !== null || filters.color !== null;
+}
+
+export function matchesBridgeLabelFilters(
+  id: string,
+  filters: Readonly<BridgeLabelFilters>,
+  ratings: Readonly<Record<string, number>>,
+  colorLabels: Readonly<BridgeColorLabels>,
+) {
+  if (filters.rating !== null && (ratings[id] ?? 0) < filters.rating) return false;
+  if (filters.color !== null && colorLabels[id] !== filters.color) return false;
+  return true;
+}
+
+export function bridgeFilenameSearchTokens(query: string) {
+  return [...new Set(query
+    .normalize("NFC")
+    .toLocaleLowerCase("en-US")
+    .split(/[,\s]+/u)
+    .map((token) => token.trim())
+    .filter(Boolean))];
+}
+
+export function matchesBridgeFilenameSearch(fileName: string, query: string | readonly string[]) {
+  const tokens = typeof query === "string" ? bridgeFilenameSearchTokens(query) : query;
+  if (!tokens.length) return true;
+  const normalized = fileName.normalize("NFC").toLocaleLowerCase("en-US");
+  return tokens.some((token) => normalized.includes(token.normalize("NFC").toLocaleLowerCase("en-US")));
 }

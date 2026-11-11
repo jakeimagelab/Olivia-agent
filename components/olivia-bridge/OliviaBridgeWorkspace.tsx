@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Scaling,
   ScanSearch,
+  Search,
   Scissors,
   SlidersHorizontal,
   Sparkles,
@@ -135,22 +136,27 @@ import {
 } from "@/lib/photo-bridge/recentFolder";
 import {
   BRIDGE_COLOR_LABELS,
-  bridgeLabelFilterCommandFromShortcutCode,
+  EMPTY_BRIDGE_LABEL_FILTERS,
+  bridgeFilenameSearchTokens,
   bridgeLabelFilterName,
+  hasActiveBridgeLabelFilters,
+  matchesBridgeFilenameSearch,
+  matchesBridgeLabelFilters,
   matchesBridgeSelectionView,
-  matchesBridgeLabelFilter,
   normalizeBridgeColorLabels,
   normalizeBridgeRatingEdits,
   resolveBridgeRatings,
   toggleBridgeColorLabel,
+  updateBridgeLabelFilters,
   updateBridgeRatingEdits,
   type BridgeColorLabel,
   type BridgeColorLabels,
-  type BridgeLabelFilter,
   type BridgeLabelFilterCommand,
+  type BridgeLabelFilters,
   type BridgeRatingEdits,
   type BridgeSelectionView,
 } from "@/lib/photo-bridge/labels";
+import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
@@ -733,7 +739,8 @@ export default function OliviaBridgeWorkspace({
     fallbackCount: number;
   }>({ status: "idle", completed: 0, total: 0, fallbackCount: 0 });
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
-  const [labelFilter, setLabelFilter] = useState<BridgeLabelFilter | null>(null);
+  const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
+  const [filenameSearch, setFilenameSearch] = useState("");
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [adobeRatings, setAdobeRatings] = useState<Record<string, number>>({});
   const [adobeColorLabels, setAdobeColorLabels] = useState<BridgeColorLabels>({});
@@ -783,6 +790,7 @@ export default function OliviaBridgeWorkspace({
   const rootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const folderPanelRef = useRef<HTMLElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const fileAreaRef = useRef<HTMLDivElement>(null);
@@ -834,9 +842,11 @@ export default function OliviaBridgeWorkspace({
     return mark ? [[normalizePhotoToolFileKey(raw.name), mark] as const] : [];
   })), [rawAdobeMarks, scan.raws]);
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
+  const filenameSearchTokens = useMemo(() => bridgeFilenameSearchTokens(filenameSearch), [filenameSearch]);
+  const hasLabelFilters = hasActiveBridgeLabelFilters(labelFilters);
   const visibleJpgs = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => {
-    const passesFileFilter = labelFilter
-      ? matchesBridgeLabelFilter(photo.id, labelFilter, effectiveRatings, effectiveColorLabels)
+    const passesFileFilter = hasLabelFilters
+      ? matchesBridgeLabelFilters(photo.id, labelFilters, effectiveRatings, effectiveColorLabels)
       : fileFilter === "raw" || fileFilter === "sidecar"
         ? false
         : fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected"
@@ -845,13 +855,14 @@ export default function OliviaBridgeWorkspace({
             ? excludedIds.has(photo.id)
             : true;
     if (!passesFileFilter) return false;
+    if (!matchesBridgeFilenameSearch(photo.name, filenameSearchTokens)) return false;
     const quality = qualityByBridgeId[photo.id];
     if (qualityFilter === "eyes_closed" || qualityFilter === "face_too_dark" || qualityFilter === "motion_blur") {
       if (!quality?.flags.includes(qualityFilter)) return false;
     } else if (qualityFilter === "needs_review" && quality?.status !== "needs_review") return false;
     else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
     return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
-  }), jpgSortMode), [comparisonFilter, customerSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, fileFilter, jpgSortMode, labelFilter, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
+  }), jpgSortMode), [comparisonFilter, customerSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, fileFilter, filenameSearchTokens, hasLabelFilters, jpgSortMode, labelFilters, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
   const comparisonCounts = useMemo(
     () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
     [customerSelectedIds, scan.jpgs, selectedIds],
@@ -870,8 +881,8 @@ export default function OliviaBridgeWorkspace({
     : reviewPhotos[0]?.id ?? null;
   const reviewActiveIndex = reviewPhotos.findIndex((photo) => photo.id === resolvedReviewActiveId);
   const reviewActivePhoto = reviewPhotos[reviewActiveIndex] ?? null;
-  const showRaws = comparisonFilter === "all" && !labelFilter && (fileFilter === "all" || fileFilter === "raw");
-  const showSidecars = comparisonFilter === "all" && !labelFilter && (fileFilter === "all" || fileFilter === "sidecar");
+  const showRaws = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "raw");
+  const showSidecars = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
   const focusedPhoto = visibleJpgs.find((photo) => photo.id === focusedId) ?? null;
   const visiblePlainFiles = useMemo(() => [
@@ -1788,18 +1799,36 @@ export default function OliviaBridgeWorkspace({
   const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
     if (fullscreenPreviewOpen) closeFullscreenPreview();
     if (command.kind === "all") {
-      setLabelFilter(null);
+      setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
       setFileFilter("all");
+      setComparisonFilter("all");
+      setQualityFilter("all");
       return;
     }
-    setLabelFilter(command);
+    setLabelFilters((current) => updateBridgeLabelFilters(current, command));
     setFileFilter("jpg");
   }, [closeFullscreenPreview, fullscreenPreviewOpen]);
 
   const chooseFileFilter = useCallback((filter: FileFilter) => {
-    setLabelFilter(null);
+    setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
     setFileFilter(filter);
   }, []);
+
+  const handleSearchFilterShortcut = useBridgeSearchFilterShortcuts({
+    searchInputRef,
+    searchQuery: filenameSearch,
+    onSearchQueryChange: setFilenameSearch,
+    onFilterCommand: applyLabelFilterCommand,
+  });
+
+  useEffect(() => {
+    const handleUnfocusedBridgeShortcut = (event: KeyboardEvent) => {
+      if (event.target !== document.body && event.target !== document.documentElement) return;
+      handleSearchFilterShortcut(event);
+    };
+    window.addEventListener("keydown", handleUnfocusedBridgeShortcut);
+    return () => window.removeEventListener("keydown", handleUnfocusedBridgeShortcut);
+  }, [handleSearchFilterShortcut]);
 
   const resizeThumbnails = useCallback((direction: -1 | 1) => {
     setThumbnailSize((value) => Math.min(
@@ -1844,6 +1873,7 @@ export default function OliviaBridgeWorkspace({
       rootRef.current?.focus();
       return;
     }
+    if (handleSearchFilterShortcut(event)) return;
     if (event.metaKey && !event.altKey && !event.ctrlKey) {
       if (event.code === "Equal" || event.key === "+" || event.key === "=") {
         event.preventDefault();
@@ -1861,14 +1891,6 @@ export default function OliviaBridgeWorkspace({
       event.preventDefault();
       if (!toolKey && !sceneReviewOpen && !selectionReviewOpen) openSelectionReview();
       return;
-    }
-    if (event.altKey && event.metaKey && !event.ctrlKey && !event.shiftKey) {
-      const command = bridgeLabelFilterCommandFromShortcutCode(event.code);
-      if (command) {
-        event.preventDefault();
-        applyLabelFilterCommand(command);
-        return;
-      }
     }
     if (fullscreenPreviewOpen) {
       if (event.key === "Escape" || event.key === " ") {
@@ -1919,7 +1941,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyLabelFilterCommand, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -2357,7 +2379,12 @@ export default function OliviaBridgeWorkspace({
   const selectedRatingMixed = selectedRatingValues.length > 1 && commonSelectedRating === null;
   const selectedColorMixed = selectedColorValues.length > 1 && commonSelectedColor === null;
   const allSelectedExcluded = selectedPhotos.length > 0 && selectedPhotos.every((photo) => excludedIds.has(photo.id));
-  const activeLabelFilterName = labelFilter ? bridgeLabelFilterName(labelFilter) : null;
+  const activeRatingFilterName = labelFilters.rating === null
+    ? null
+    : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
+  const activeColorFilterName = labelFilters.color === null
+    ? null
+    : bridgeLabelFilterName({ kind: "color", label: labelFilters.color });
   const fileFilters: Array<{ key: FileFilter; label: string; count: number }> = [
     { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
     { key: "jpg", label: "JPG", count: scan.jpgs.length },
@@ -2443,6 +2470,7 @@ export default function OliviaBridgeWorkspace({
         {compactFiltersOpen ? <button type="button" className={styles.compactFilterBackdrop} aria-label="필터 닫기" onClick={closeCompactFilters} /> : null}
         <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} data-compact-open={compactFiltersOpen ? "true" : "false"} tabIndex={-1} aria-label="폴더와 파일 필터">
           <div className={styles.panelTitle}><span>폴더와 필터</span><button type="button" className={styles.compactFilterClose} onClick={closeCompactFilters} aria-label="필터 닫기"><X size={15} /></button></div>
+          <div className={styles.folderPanelScroll}>
           <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
           <label className={styles.nestedJpgToggle}>
             <input
@@ -2456,9 +2484,9 @@ export default function OliviaBridgeWorkspace({
           </label>
           <div className={styles.filterList}>
             <small>파일 필터</small>
-            {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
+            {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!hasLabelFilters && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
             <small>셀렉 보기</small>
-            {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!labelFilter && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
+            {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!hasLabelFilters && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
             <small>고객 셀렉 비교{galleryCustomerResult ? ` · ${galleryCustomerResult.gallery.title}` : ""}</small>
             {([
               ["all", "전체"],
@@ -2489,6 +2517,7 @@ export default function OliviaBridgeWorkspace({
             {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><b>{(folderImageCounts[folder.name.normalize("NFC")] ?? 0).toLocaleString("ko-KR")}</b><ChevronRight size={12} /></button>)}
             {activeFolder && !scan.folders.length ? <p>하위 폴더가 없습니다.</p> : null}
           </div>
+          </div>
           <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
           <label className={styles.folderThumbnailGauge} title="썸네일 크기">
             <span>썸네일 크기</span>
@@ -2507,7 +2536,13 @@ export default function OliviaBridgeWorkspace({
 
         <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
           <div className={styles.browserHeader}>
-            <div><strong>{activeFolder?.name ?? "폴더 내용"}</strong><span>{centerFileCount.toLocaleString("ko-KR")}개의 파일{scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}</span>{jpgSortMode === "capture" ? <span className={styles.captureMetadataStatus} role="status">{captureMetadataState.status === "loading" ? `촬영시각 ${captureMetadataState.completed.toLocaleString("ko-KR")}/${captureMetadataState.total.toLocaleString("ko-KR")}` : captureMetadataState.status === "error" ? "촬영시각 읽기 실패" : captureMetadataState.status === "ready" && captureMetadataState.fallbackCount ? `EXIF 없음 ${captureMetadataState.fallbackCount.toLocaleString("ko-KR")}장 · 수정시각 사용` : "EXIF 촬영순"}</span> : null}</div>
+            <div className={styles.browserTitle}>
+              <strong>{activeFolder?.name ?? "폴더 내용"}</strong>
+              <span>{filenameSearchTokens.length ? `검색 ${visibleJpgs.length.toLocaleString("ko-KR")}장` : `${centerFileCount.toLocaleString("ko-KR")}개의 파일${scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}`}</span>
+              {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
+              {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
+              {jpgSortMode === "capture" ? <span className={styles.captureMetadataStatus} role="status">{captureMetadataState.status === "loading" ? `촬영시각 ${captureMetadataState.completed.toLocaleString("ko-KR")}/${captureMetadataState.total.toLocaleString("ko-KR")}` : captureMetadataState.status === "error" ? "촬영시각 읽기 실패" : captureMetadataState.status === "ready" && captureMetadataState.fallbackCount ? `EXIF 없음 ${captureMetadataState.fallbackCount.toLocaleString("ko-KR")}장 · 수정시각 사용` : "EXIF 촬영순"}</span> : null}
+            </div>
             <div className={styles.browserActions}>
               <div className={styles.photoSortControl} aria-label="사진 표시 순서">
                 <span>정렬</span>
@@ -2515,6 +2550,11 @@ export default function OliviaBridgeWorkspace({
                 <button type="button" data-active={jpgSortMode === "capture"} onClick={() => setJpgSortMode("capture")}>촬영순</button>
               </div>
               <button type="button" className={styles.compactPreviewButton} onClick={() => setCompactPreviewOpen(true)} aria-label="미리보기 열기"><Maximize2 size={15} /> 미리보기</button>
+              <label className={styles.filenameSearch}>
+                <Search size={13} aria-hidden="true" />
+                <input ref={searchInputRef} type="search" value={filenameSearch} onChange={(event) => setFilenameSearch(event.currentTarget.value)} placeholder="파일명 검색" aria-label="파일명 검색" />
+                {filenameSearch ? <button type="button" onClick={() => { setFilenameSearch(""); searchInputRef.current?.focus(); }} aria-label="검색 지우기"><X size={12} /></button> : <kbd>⌘F</kbd>}
+              </label>
               <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
             </div>
           </div>
@@ -2664,7 +2704,7 @@ export default function OliviaBridgeWorkspace({
       </section>
 
       <footer className={styles.shortcutBar}>
-        <div className={styles.shortcutHints}>{activeLabelFilterName ? <b className={styles.shortcutActiveFilter}>필터: {activeLabelFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘1–5 별점만 · ⌥⌘6–9 컬러만 · ⌥⌘A 전체</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
+        <div className={styles.shortcutHints}>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
       </footer>
 
       {sceneReviewOpen ? <BridgeFloatingWindow
