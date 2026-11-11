@@ -23,6 +23,7 @@ import {
   type ExecutionMode,
 } from "@/lib/photo-classifier/photoSource";
 import type { RemoteWorkerPresence } from "@/lib/remote-jobs/workerPresence";
+import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import { usePhotoSourceSurface } from "@/components/photo-classifier/usePhotoSourceSurface";
 import { useRemotePhotoJobStore, type RemotePhotoPollingState } from "@/lib/store/useRemotePhotoJobStore";
 import {
@@ -254,24 +255,16 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
   useEffect(() => {
     let disposed = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let request: AbortController | null = null;
 
     const load = async () => {
-      request = new AbortController();
       try {
-        const response = await fetch("/api/remote-workers/status", {
-          cache: "no-store",
-          signal: request.signal,
-        });
-        const body: unknown = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error("Mac Studio 상태를 확인하지 못했습니다.");
+        const body = await loadRemoteWorkerStatus();
         if (disposed) return;
         setWorkerPresence(parseWorkerPresence(body));
         setWorkerPollingState("connected");
       } catch {
-        if (!disposed && !request.signal.aborted) setWorkerPollingState("reconnecting");
+        if (!disposed) setWorkerPollingState("reconnecting");
       } finally {
-        request = null;
         if (!disposed) timer = setTimeout(() => void load(), 30_000);
       }
     };
@@ -280,7 +273,6 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
     return () => {
       disposed = true;
       if (timer) clearTimeout(timer);
-      request?.abort();
     };
   }, [workerRefreshKey]);
 

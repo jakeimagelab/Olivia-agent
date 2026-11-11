@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, FileText, Images, LayoutPanelTop, LoaderCircle } from "lucide-react";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
+import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
@@ -44,8 +45,7 @@ export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean })
 
   useEffect(() => {
     let active = true;
-    fetch("/api/olivia-os/status-panel", { cache: "no-store" })
-      .then((response) => response.json())
+    loadStatusPanelData()
       .then((payload) => { if (active && payload?.ok) setPanel(payload as StatusPanelData); })
       .catch(() => undefined)
       .finally(() => { if (active) setPanelLoaded(true); });

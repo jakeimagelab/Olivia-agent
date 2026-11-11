@@ -14,6 +14,7 @@ import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, P
 import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchPathPlan, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
+import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -132,8 +133,7 @@ export default function PersonSelectDetailPage() {
   }, [id]);
   useEffect(() => {
     void load().catch((cause) => setError(cause instanceof Error ? cause.message : "사진선택 데이터를 불러오지 못했습니다."));
-    fetch("/api/remote-workers/status")
-      .then((response) => readApiResponse<{ worker?: { online?: boolean } }>(response, "Mac Studio 상태"))
+    loadRemoteWorkerStatus<{ worker?: { online?: boolean } }>()
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
   }, [load]);

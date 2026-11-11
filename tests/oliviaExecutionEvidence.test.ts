@@ -78,6 +78,6 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
     expect(source).toContain("StatusPanelErrorBoundary");
     expect(source).toContain("normalizeStatusPanelData(body)");
     expect(source).toContain("statusPanelActiveChip");
-    expect(routeSource).toContain("collectSystemStatus({ db, now })");
+    expect(routeSource).toContain("collectSystemStatus({ db, now, includeSchemaChecks: false })");
   });
 });

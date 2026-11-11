@@ -227,17 +227,20 @@ function accessItem(options: { id: string; label: string; mounted: boolean | nul
 
 async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusItem[]> {
   const workerId = getConfiguredWorkerId();
-  const [baseResult, diagnosticsResult, aiDiagnosticsResult, revisionDiagnosticsResult, queuedResult] = await Promise.all([
-    db.from("remote_workers").select("last_seen_at,worker_status,nas_connected").eq("worker_id", workerId).maybeSingle(),
-    db.from("remote_workers").select("workstation_mounted,workstation_accessible,agentstation_mounted,agentstation_accessible,watcher_last_scan_at").eq("worker_id", workerId).maybeSingle(),
-    db.from("remote_workers").select("openai_api_key_configured").eq("worker_id", workerId).maybeSingle(),
-    db.from("remote_workers").select("worker_rev,worker_installed_at").eq("worker_id", workerId).maybeSingle(),
+  const [workerResult, queuedResult] = await Promise.all([
+    db.from("remote_workers")
+      .select("last_seen_at,worker_status,nas_connected,workstation_mounted,workstation_accessible,agentstation_mounted,agentstation_accessible,watcher_last_scan_at,openai_api_key_configured,worker_rev,worker_installed_at")
+      .eq("worker_id", workerId)
+      .maybeSingle(),
     db.from("remote_jobs").select("id", { count: "exact", head: true }).eq("status", "QUEUED"),
   ]);
 
   const items: SystemStatusItem[] = [];
-  const base = !baseResult.error && baseResult.data ? baseResult.data as WorkerBaseRow : null;
-  if (baseResult.error) {
+  const worker = !workerResult.error && workerResult.data
+    ? workerResult.data as WorkerBaseRow & WorkerDiagnosticRow & WorkerAiDiagnosticRow & WorkerRevisionDiagnosticRow
+    : null;
+  const base = worker;
+  if (workerResult.error) {
     items.push(unknownItem("worker", "mac_studio", "Worker", "Worker heartbeat를 조회하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable));
   } else if (!base) {
     items.push({ id: "worker", group: "mac_studio", label: "Worker", level: "error", state: "OFFLINE", detail: "등록된 heartbeat가 없습니다.", remedy: SYSTEM_STATUS_GUIDANCE.workerMissing });
@@ -255,12 +258,10 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
       ? { id: "nas_connection", group: "mac_studio", label: "NAS", level: "error", state: "연결 안 됨", detail: "Worker가 NAS 연결 실패를 보고했습니다.", remedy: SYSTEM_STATUS_GUIDANCE.workstationNotMounted }
       : unknownItem("nas_connection", "mac_studio", "NAS", "Worker가 NAS 연결 상태를 아직 보고하지 않았습니다.", SYSTEM_STATUS_GUIDANCE.workerDiagnosticsMissing));
 
-  const diagnostics = !diagnosticsResult.error && diagnosticsResult.data ? diagnosticsResult.data as WorkerDiagnosticRow : null;
-  const aiDiagnostics = !aiDiagnosticsResult.error && aiDiagnosticsResult.data
-    ? aiDiagnosticsResult.data as WorkerAiDiagnosticRow
-    : null;
-  const diagnosticsUnavailable = Boolean(diagnosticsResult.error && isMissingSchemaObject(diagnosticsResult.error));
-  if (diagnosticsResult.error && !diagnosticsUnavailable) console.warn("[system-status] worker diagnostics 조회 실패", diagnosticsResult.error.message);
+  const diagnostics = worker;
+  const aiDiagnostics = worker;
+  const diagnosticsUnavailable = Boolean(workerResult.error && isMissingSchemaObject(workerResult.error));
+  if (workerResult.error && !diagnosticsUnavailable) console.warn("[system-status] worker diagnostics 조회 실패", workerResult.error.message);
 
   items.push(
     mountItem({ id: "workstation_mount", label: "Workstation 마운트", mounted: diagnostics?.workstation_mounted, remedy: SYSTEM_STATUS_GUIDANCE.workstationNotMounted }),
@@ -276,10 +277,8 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
       : unknownItem("worker_openai_key", "mac_studio", "Worker 씬 AI", "Worker의 OPENAI_API_KEY 설정 여부를 아직 보고받지 못했습니다.", SYSTEM_STATUS_GUIDANCE.workerDiagnosticsMissing));
 
   const serverRevision = deployedRevision();
-  const revisionSchemaMissing = Boolean(revisionDiagnosticsResult.error && isMissingSchemaObject(revisionDiagnosticsResult.error));
-  const revisionDiagnostics = !revisionDiagnosticsResult.error && revisionDiagnosticsResult.data
-    ? revisionDiagnosticsResult.data as WorkerRevisionDiagnosticRow
-    : null;
+  const revisionSchemaMissing = Boolean(workerResult.error && isMissingSchemaObject(workerResult.error));
+  const revisionDiagnostics = worker;
   const installedRevision = revisionDiagnostics?.worker_rev?.trim().toLowerCase() || null;
   const installedDetail = revisionDiagnostics?.worker_installed_at
     ? `설치 ${relativeKorean(revisionDiagnostics.worker_installed_at, now)}`
@@ -295,7 +294,7 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
       remedy: "supabase/migrations/20260927_worker_liveness_revision_diagnostics.sql migration을 적용하세요.",
       migration: "supabase/migrations/20260927_worker_liveness_revision_diagnostics.sql",
     });
-  } else if (revisionDiagnosticsResult.error) {
+  } else if (workerResult.error) {
     items.push(unknownItem("worker_revision", "mac_studio", "Worker 설치본", "Worker revision을 조회하지 못했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable));
   } else if (!serverRevision) {
     items.push({
@@ -327,8 +326,13 @@ async function checkWorker(db: SupabaseClient, now: Date): Promise<SystemStatusI
   return items;
 }
 
-export async function collectSystemStatus(options: { now?: Date; db?: SupabaseClient } = {}): Promise<SystemStatusReport> {
+export async function collectSystemStatus(options: {
+  now?: Date;
+  db?: SupabaseClient;
+  includeSchemaChecks?: boolean;
+} = {}): Promise<SystemStatusReport> {
   const now = options.now ?? new Date();
+  const includeSchemaChecks = options.includeSchemaChecks !== false;
   let db: SupabaseClient | null = options.db ?? null;
   let databaseConfigError = false;
   if (!db) {
@@ -365,10 +369,15 @@ export async function collectSystemStatus(options: { now?: Date; db?: SupabaseCl
       unknownItem("queued_jobs", "mac_studio", "대기 중인 잡", "Remote job 상태를 조회할 수 없습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable),
     ];
   } else {
-    const [tableResults, columnResults, rpcResults, mcpResult, workerResult] = await Promise.all([
-      Promise.all(REQUIRED_TABLES.map(([table, migration]) => checkRequiredTable(db!, table, migration))),
-      Promise.all(REQUIRED_COLUMNS.map(([table, column, migration]) => checkRequiredColumn(db!, table, column, migration))),
-      Promise.all(REQUIRED_RPCS.map(([rpc, args, migration]) => checkRequiredRpc(db!, rpc, args, migration))),
+    const schemaChecks = includeSchemaChecks
+      ? Promise.all([
+        Promise.all(REQUIRED_TABLES.map(([table, migration]) => checkRequiredTable(db!, table, migration))),
+        Promise.all(REQUIRED_COLUMNS.map(([table, column, migration]) => checkRequiredColumn(db!, table, column, migration))),
+        Promise.all(REQUIRED_RPCS.map(([rpc, args, migration]) => checkRequiredRpc(db!, rpc, args, migration))),
+      ])
+      : Promise.resolve([[], [], []] as [SystemStatusItem[], SystemStatusItem[], SystemStatusItem[]]);
+    const [[tableResults, columnResults, rpcResults], mcpResult, workerResult] = await Promise.all([
+      schemaChecks,
       checkMcpSignal(db, now),
       checkWorker(db, now).catch(() => [unknownItem("worker", "mac_studio", "Worker", "Worker 상태 확인 중 오류가 발생했습니다.", SYSTEM_STATUS_GUIDANCE.databaseUnavailable)]),
     ]);

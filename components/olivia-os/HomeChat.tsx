@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
 import type { StatusPanelData } from "@/lib/system-status/panelTypes";
+import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
@@ -48,9 +49,8 @@ export function HomeChat() {
     const controller = new AbortController();
     let active = true;
     void Promise.allSettled([
-      fetch("/api/olivia-os/status-panel", { cache: "no-store", signal: controller.signal })
-        .then((response) => response.json())
-        .then((payload) => { if (payload?.ok) setStatus(payload); }),
+      loadStatusPanelData()
+        .then((payload) => { if (active && payload?.ok) setStatus(payload); }),
       fetch("/api/galleries", { cache: "no-store", signal: controller.signal })
         .then((response) => response.json())
         .then((payload) => {

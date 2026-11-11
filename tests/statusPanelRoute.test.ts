@@ -54,7 +54,7 @@ describe("GET /api/olivia-os/status-panel", () => {
   it("collectSystemStatus를 단일 진단 소스로 사용하고 팝업 전용 수집기에 전달한다", async () => {
     const response = await callStatusPanel();
     expect(response.status).toBe(200);
-    expect(collectSystemStatus).toHaveBeenCalledWith({ db, now: expect.any(Date) });
+    expect(collectSystemStatus).toHaveBeenCalledWith({ db, now: expect.any(Date), includeSchemaChecks: false });
     expect(collectStatusPanelData).toHaveBeenCalledWith({ db, diagnostics, now: expect.any(Date) });
     expect(await response.json()).toEqual(panelData);
   });

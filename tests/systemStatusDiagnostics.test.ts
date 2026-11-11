@@ -44,7 +44,23 @@ function fakeSupabase(options: FakeOptions): SupabaseClient {
               return { data: { last_seen_at: options.mcpLastSeen ?? options.now, tool_count: 21 }, error: null, count: null };
             }
             if (table === "remote_workers" && columns.includes("worker_status")) {
-              return { data: { last_seen_at: options.workerLastSeen ?? options.now, worker_status: "idle", nas_connected: true }, error: null, count: null };
+              return {
+                data: {
+                  last_seen_at: options.workerLastSeen ?? options.now,
+                  worker_status: "idle",
+                  nas_connected: true,
+                  workstation_mounted: true,
+                  workstation_accessible: true,
+                  agentstation_mounted: true,
+                  agentstation_accessible: true,
+                  watcher_last_scan_at: options.now,
+                  openai_api_key_configured: true,
+                  worker_rev: options.workerRev ?? null,
+                  worker_installed_at: options.workerInstalledAt ?? null,
+                },
+                error: null,
+                count: null,
+              };
             }
             if (table === "remote_workers" && columns.includes("workstation_mounted")) {
               return {

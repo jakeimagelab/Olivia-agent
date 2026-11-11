@@ -23,6 +23,7 @@ import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 import type { ShellSelection, ShellSelectionEventDetail } from "@/lib/olivia/desktop/shellSelection";
 import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
+import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import styles from "./OliviaDesktop.module.css";
 
@@ -376,8 +377,7 @@ function DesktopRecentNotice() {
 
   useEffect(() => {
     let active = true;
-    fetch("/api/olivia-os/status-panel", { cache: "no-store" })
-      .then((response) => response.json())
+    loadStatusPanelData()
       .then((payload: StatusPanelData & { ok?: boolean }) => {
         if (!active) return;
         if (!payload?.ok) throw new Error("status panel");

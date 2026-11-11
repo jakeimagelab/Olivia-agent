@@ -39,6 +39,7 @@ import {
   type StatusPanelSectionState,
 } from "@/lib/system-status/panelModel";
 import type { StatusPanelAction, StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
+import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
 import type { SystemStatusItem } from "@/lib/system-status/types";
 import { useBackgroundJobsStore, type BackgroundJob } from "@/lib/store/useBackgroundJobsStore";
 import { cancelRemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
@@ -315,7 +316,6 @@ function StatusPanelButtonContent() {
   const panelRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
   const requestSequenceRef = useRef(0);
-  const requestControllerRef = useRef<AbortController | null>(null);
   const recheckedIssueIdsRef = useRef(new Set<string>());
   const recheckTimersRef = useRef<number[]>([]);
   const autoActionIdsRef = useRef(new Set<string>());
@@ -327,25 +327,18 @@ function StatusPanelButtonContent() {
 
   const load = useCallback(async () => {
     const requestSequence = ++requestSequenceRef.current;
-    requestControllerRef.current?.abort();
-    const controller = new AbortController();
-    requestControllerRef.current = controller;
     setLoading(!hasLoadedRef.current);
     try {
-      const response = await fetch("/api/olivia-os/status-panel", { cache: "no-store", signal: controller.signal });
-      const body = await response.json().catch(() => ({ ok: false }));
-      if (!response.ok || !body.ok) throw new Error("상태를 불러오지 못했습니다.");
+      const body = await loadStatusPanelData();
       if (requestSequence !== requestSequenceRef.current) return;
       setData(normalizeStatusPanelData(body));
       setError(false);
       hasLoadedRef.current = true;
-    } catch (cause) {
-      if (cause instanceof DOMException && cause.name === "AbortError") return;
+    } catch {
       if (requestSequence === requestSequenceRef.current) setError(true);
     } finally {
       if (requestSequence === requestSequenceRef.current) {
         setLoading(false);
-        requestControllerRef.current = null;
       }
     }
   }, []);
@@ -362,7 +355,6 @@ function StatusPanelButtonContent() {
   }, [open, load, hasActiveRemotePhotoProgress]);
 
   useEffect(() => () => {
-    requestControllerRef.current?.abort();
     for (const timer of recheckTimersRef.current) window.clearTimeout(timer);
   }, []);
 

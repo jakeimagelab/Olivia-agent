@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { unstable_cache } from "next/cache";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import {
@@ -95,6 +96,12 @@ async function loadWorkerStatuses(workerIds: string[]): Promise<WorkerStatus[]> 
   }
 }
 
+const loadCachedWorkerStatuses = unstable_cache(
+  async (workerIds: string[]) => loadWorkerStatuses(workerIds),
+  ["remote-worker-status-v2"],
+  { revalidate: 15 },
+);
+
 function staleWorkerStatuses(workerIds: string[]): WorkerStatus[] | null {
   const cached = workerStatusCache.get(cacheKey(workerIds));
   if (!cached || Date.now() - cached.expiresAt > WORKER_STATUS_STALE_TTL_MS) return null;
@@ -121,7 +128,14 @@ export async function GET(request: NextRequest) {
   const workerIds = all ? listConfiguredWorkerIds() : [requestedWorker || getConfiguredWorkerId()];
 
   try {
-    return statusResponse(all, await loadWorkerStatuses(workerIds));
+    let workers: WorkerStatus[];
+    try {
+      workers = await loadCachedWorkerStatuses(workerIds);
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("incrementalCache missing")) throw error;
+      workers = await loadWorkerStatuses(workerIds);
+    }
+    return statusResponse(all, workers);
   } catch (error) {
     console.warn("[remote-workers status]", error instanceof Error ? error.message : error);
     const cached = staleWorkerStatuses(workerIds);

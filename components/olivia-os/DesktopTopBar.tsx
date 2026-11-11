@@ -7,6 +7,7 @@ import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { StatusPanelButton } from "./StatusPanelButton";
+import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import styles from "./OliviaDesktop.module.css";
 
 type WorkerStatus = { online: boolean; nas_connected: boolean | null };
@@ -22,8 +23,7 @@ export function DesktopTopBar() {
 
   useEffect(() => {
     let disposed = false;
-    const load = () => fetch("/api/remote-workers/status", { cache: "no-store" })
-      .then((response) => response.json())
+    const load = () => loadRemoteWorkerStatus<{ worker?: WorkerStatus | null }>()
       .then((payload) => { if (!disposed) setWorker(payload?.worker ?? null); })
       .catch(() => { if (!disposed) setWorker(null); });
     void load();

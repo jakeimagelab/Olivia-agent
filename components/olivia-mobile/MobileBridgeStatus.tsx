@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, Check, Circle, FolderOpen, HardDrive, MinusCircle, RefreshCw, Server, Sparkles } from "lucide-react";
 import type { MobileOliviaTarget } from "@/lib/olivia/mobile/navigation";
+import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import styles from "./OliviaMobileShell.module.css";
 
 type Worker = { id: string; online: boolean | null; nas_connected: boolean | null; worker_status: string | null };
@@ -59,9 +60,12 @@ export default function MobileBridgeStatus({ onRequestOlivia }: { onRequestOlivi
   const [error, setError] = useState("");
   const load = useCallback(async () => {
     try {
-      const [workerResponse, jobsResponse] = await Promise.all([fetch("/api/remote-workers/status", { cache: "no-store" }), fetch("/api/remote-jobs", { cache: "no-store" })]);
-      const [workerPayload, jobsPayload] = await Promise.all([workerResponse.json(), jobsResponse.json()]);
-      if (!workerResponse.ok || !workerPayload.ok) throw new Error(workerPayload.error || "Mac Studio 상태를 확인하지 못했어요.");
+      const [workerPayload, jobsResponse] = await Promise.all([
+        loadRemoteWorkerStatus<{ ok?: boolean; worker?: Worker; error?: string }>(),
+        fetch("/api/remote-jobs", { cache: "no-store" }),
+      ]);
+      const jobsPayload = await jobsResponse.json().catch(() => ({}));
+      if (!workerPayload.ok) throw new Error(workerPayload.error || "Mac Studio 상태를 확인하지 못했어요.");
       if (!jobsResponse.ok || !jobsPayload.ok) throw new Error(jobsPayload.error || "Bridge 작업을 확인하지 못했어요.");
       setWorker(workerPayload.worker || null);
       setJobs(Array.isArray(jobsPayload.jobs) ? jobsPayload.jobs : []);

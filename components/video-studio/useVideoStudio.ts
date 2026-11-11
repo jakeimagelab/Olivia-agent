@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { VideoAudioExtractResult, VideoInterviewResult } from "@/lib/video-interview/types";
+import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 
 export type VideoStudioAction = "VIDEO_INTERVIEW_ANALYZE" | "VIDEO_AUDIO_EXTRACT";
 export const MAC_STUDIO_WORKER_ID = "jake-macstudio-01";
@@ -64,7 +65,7 @@ export function useVideoStudioWorkers() {
 
   const refreshWorkers = useCallback(async () => {
     try {
-      const body = await readJson(await fetch("/api/remote-workers/status?all=1", { cache: "no-store" }));
+      const body = await loadRemoteWorkerStatus<{ workers?: VideoStudioWorkerPresence[] }>("all=1");
       const rows = Array.isArray(body.workers) ? body.workers as VideoStudioWorkerPresence[] : [];
       setWorkers(Object.fromEntries(rows.map((worker) => [worker.id, worker])));
     } catch {
