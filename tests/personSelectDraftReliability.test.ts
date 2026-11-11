@@ -34,7 +34,7 @@ vi.mock("@/lib/person-select/sharedPublic", async (importOriginal) => {
       reviewer: { id: "reviewer-1" },
       legacyToken: false,
     })),
-    getSharedPersonSelectImageIds: mocks.getImageIds,
+    getSharedPersonSelectOwnedImageIds: mocks.getImageIds,
   };
 });
 
@@ -72,7 +72,7 @@ describe("customer Bridge draft reliability", () => {
   });
 
   it("validates image ownership and saves only when the revision is current", async () => {
-    mocks.getImageIds.mockResolvedValue([]);
+    mocks.getImageIds.mockResolvedValue(new Set());
     mocks.rpc.mockResolvedValue({
       data: [{ revision: 5, items: [], customer_memo: "", updated_at: "2026-11-10T00:00:01.000Z" }],
       error: null,
@@ -83,6 +83,19 @@ describe("customer Bridge draft reliability", () => {
     expect((await response.json()).draft.revision).toBe(5);
     expect(mocks.getImageIds).toHaveBeenCalledOnce();
     expect(mocks.rpc).toHaveBeenCalledOnce();
+  });
+
+  it("returns HTTP 409 when the RPC reports a PT409 race conflict", async () => {
+    mocks.getImageIds.mockResolvedValue(new Set());
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "draft_revision_conflict", code: "PT409" },
+    });
+
+    const response = await PUT(request(4), { params: Promise.resolve({ shareToken: "token" }) });
+    expect(response.status).toBe(409);
+    expect(response.headers.get("retry-after")).toBe("30");
+    expect((await response.json()).draft.revision).toBe(4);
   });
 
   it("blocks every automatic retry after a conflict until the page is reloaded", () => {

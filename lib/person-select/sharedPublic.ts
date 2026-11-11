@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { readAllPersonSelectRows } from "./paging";
 import { signedImageUrls } from "./server";
 import type { PersonSelectEvent } from "./types";
-import { PublicSelectionRequestError } from "@/lib/select-gallery/publicSelection";
+import { getOwnedSelectionImageIds, PublicSelectionRequestError } from "@/lib/select-gallery/publicSelection";
 import { canPersonSelectReviewerFinalize } from "./reviewerPermissions";
 
 export type SharedPersonSelectReviewer = {
@@ -171,6 +171,14 @@ export async function getSharedPersonSelectImageIds(db: SupabaseClient, eventId:
     .order("id")
     .range(from, to));
   return rows.map((row) => String(row.id));
+}
+
+export async function getSharedPersonSelectOwnedImageIds(db: SupabaseClient, eventId: string, body: unknown) {
+  return getOwnedSelectionImageIds(db, {
+    table: "person_select_images",
+    ownerColumn: "event_id",
+    ownerId: eventId,
+  }, body);
 }
 
 export function sharedDraftResponse(draft: any | null) {

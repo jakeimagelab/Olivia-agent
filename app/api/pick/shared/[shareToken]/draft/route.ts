@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { enforcePublicSelectionRateLimit, parsePublicSelectionDraft, parsePublicSelectionRevision, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
-import { getSharedPersonSelectImageIds, resolveSharedPersonSelectAccess, sharedDraftResponse } from "@/lib/person-select/sharedPublic";
+import { getSharedPersonSelectOwnedImageIds, resolveSharedPersonSelectAccess, sharedDraftResponse } from "@/lib/person-select/sharedPublic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -26,8 +26,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sha
     const body = await readPublicSelectionJson(request);
     const expectedRevision = parsePublicSelectionRevision(body);
     // Expected optimistic-lock conflicts are handled before the RPC. The RPC uses
-    // SQLSTATE 40001 for the final race check; repeatedly calling it with a stale
-    // revision floods Postgres error logs and can starve unrelated Olivia queries.
+    // PT409 for the final race check so PostgREST returns HTTP 409 without treating
+    // a stale revision as a retryable serialization failure.
     const { data: currentDraft, error: currentDraftError } = await db
       .from("person_select_shared_drafts")
       .select("*")
@@ -42,8 +42,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sha
         { status: 409, headers: { "Retry-After": "30" } },
       );
     }
-    const imageIds = await getSharedPersonSelectImageIds(db, event.id);
-    const parsed = parsePublicSelectionDraft(body, new Set(imageIds));
+    const ownedImageIds = await getSharedPersonSelectOwnedImageIds(db, event.id, body);
+    const parsed = parsePublicSelectionDraft(body, ownedImageIds);
     const storedItems = parsed.items.map((item) => ({ image_id: item.imageId, customer_rating: item.rating, customer_color_label: item.colorLabel, memo: item.memo }));
     const { data, error } = await db.rpc("save_person_select_shared_draft_v2", {
       p_event_id: event.id,
@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ sha
       p_customer_memo: parsed.customerMemo,
     });
     if (error) {
-      if (/draft_revision_conflict|40001/i.test(error.message)) {
+      if (/draft_revision_conflict|40001|PT409/i.test(`${error.message} ${error.code ?? ""}`)) {
         const { data: latest } = await db.from("person_select_shared_drafts").select("*").eq("event_id", event.id).eq("reviewer_id", reviewer.id).maybeSingle();
         return Response.json(
           { ok: false, error: "다른 화면에서 선택 내용이 변경되었습니다.", draft: sharedDraftResponse(latest) },

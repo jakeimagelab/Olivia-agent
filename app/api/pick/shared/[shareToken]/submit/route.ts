@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { enforcePublicSelectionRateLimit, parsePublicSelectionSubmit, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
-import { getLatestSharedPersonSelectSelection, getSharedPersonSelectImageIds, resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
+import { getLatestSharedPersonSelectSelection, getSharedPersonSelectOwnedImageIds, resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 
@@ -13,8 +13,9 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     await enforcePublicSelectionRateLimit({ db, request, token: shareToken, action: "person-shared-submit", limit: 15, windowSeconds: 300 });
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken);
     if (!canPersonSelectReviewerFinalize(reviewer)) return Response.json({ ok: false, error: "최종 셀렉 확정 권한이 없습니다. 자동 저장된 검토 내용은 유지됩니다." }, { status: 403 });
-    const imageIds = await getSharedPersonSelectImageIds(db, event.id);
-    const parsed = parsePublicSelectionSubmit(await readPublicSelectionJson(request), new Set(imageIds));
+    const body = await readPublicSelectionJson(request);
+    const ownedImageIds = await getSharedPersonSelectOwnedImageIds(db, event.id, body);
+    const parsed = parsePublicSelectionSubmit(body, ownedImageIds);
     const { data, error } = await db.rpc("submit_person_select_shared_v2", {
       p_event_id: event.id,
       p_reviewer_id: reviewer.id,

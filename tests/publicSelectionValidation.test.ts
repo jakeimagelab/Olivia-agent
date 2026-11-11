@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   PublicSelectionRequestError,
+  getOwnedSelectionImageIds,
   parsePublicSelectionDraft,
   parsePublicSelectionSubmit,
   publicSelectionErrorResponse,
@@ -44,6 +45,60 @@ describe("public selection validation", () => {
   it("requires at least one item only for final submit", () => {
     expect(parsePublicSelectionDraft({ revision: 0, items: [] }, allowed).items).toEqual([]);
     expect(() => parsePublicSelectionSubmit({ revision: 0, requestKey: "request_12345678", items: [] }, allowed)).toThrow("한 장 이상");
+  });
+
+  it("checks ownership for only the UUIDs requested in the selection body", async () => {
+    const ownedId = "11111111-1111-4111-8111-111111111111";
+    const unownedId = "22222222-2222-4222-8222-222222222222";
+    const lookup = vi.fn(async (_column: string, ids: string[]) => ({
+      data: ids.includes(ownedId) ? [{ id: ownedId }] : [],
+      error: null,
+    }));
+    const eq = vi.fn(() => ({ in: lookup }));
+    const select = vi.fn(() => ({ eq }));
+    const from = vi.fn(() => ({ select }));
+
+    const owned = await getOwnedSelectionImageIds({ from } as never, {
+      table: "person_select_images",
+      ownerColumn: "event_id",
+      ownerId: "event-1",
+    }, {
+      items: [
+        { imageId: ownedId },
+        { imageId: unownedId },
+        { imageId: ownedId },
+        { imageId: "not-a-uuid" },
+      ],
+    });
+
+    expect(from).toHaveBeenCalledWith("person_select_images");
+    expect(eq).toHaveBeenCalledWith("event_id", "event-1");
+    expect(lookup).toHaveBeenCalledWith("id", [ownedId, unownedId]);
+    expect(owned).toEqual(new Set([ownedId]));
+  });
+
+  it("chunks large ownership lookups instead of scanning the project", async () => {
+    const requestedIds = Array.from({ length: 201 }, (_, index) =>
+      `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`,
+    );
+    const lookup = vi.fn(async (_column: string, ids: string[]) => ({
+      data: ids.map((id) => ({ id })),
+      error: null,
+    }));
+    const query = { in: lookup };
+    const db = {
+      from: vi.fn(() => ({ select: () => ({ eq: () => query }) })),
+    };
+
+    const owned = await getOwnedSelectionImageIds(db as never, {
+      table: "person_select_images",
+      ownerColumn: "event_id",
+      ownerId: "event-1",
+    }, { items: requestedIds.map((imageId) => ({ imageId })) });
+
+    expect(lookup).toHaveBeenCalledTimes(2);
+    expect(lookup.mock.calls.map((call) => call[1].length)).toEqual([200, 1]);
+    expect(owned.size).toBe(201);
   });
 
   it("enforces the actual byte size even without content-length", async () => {

@@ -70,8 +70,14 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
     thumb_url: representativeUrls.get(image.thumb_path) ?? "",
   });
   const categories = (event.categories ?? []) as PersonSelectCategory[];
+  const choicesByPerson = new Map<string, typeof choiceRows>();
+  for (const choice of choiceRows) {
+    const list = choicesByPerson.get(choice.person_id);
+    if (list) list.push(choice);
+    else choicesByPerson.set(choice.person_id, [choice]);
+  }
   const peopleRows = (people ?? []).map((person) => {
-    const ownChoices = choiceRows.filter((choice) => choice.person_id === person.id);
+    const ownChoices = choicesByPerson.get(person.id) ?? [];
     const latest = ownChoices.map((choice) => choice.updated_at).sort().at(-1) ?? null;
     const imageCounts: Record<string, number> = { ...(personCounts.get(person.id) ?? {}) };
     imageCounts.homeroom = person.group_label ? groupCounts[person.group_label] ?? 0 : 0;
@@ -119,7 +125,14 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       const image = imageById.get(item.image_id);
       return image?.thumb_path ? [image.thumb_path] : [];
     }));
-    const itemsFor = (selectionId: string) => (selectedItems ?? []).filter((item) => item.selection_id === selectionId).map((item) => {
+    type SelectedItem = NonNullable<typeof selectedItems>[number];
+    const itemsBySelection = new Map<string, SelectedItem[]>();
+    for (const item of selectedItems ?? []) {
+      const list = itemsBySelection.get(item.selection_id);
+      if (list) list.push(item);
+      else itemsBySelection.set(item.selection_id, [item]);
+    }
+    const itemsFor = (selectionId: string) => (itemsBySelection.get(selectionId) ?? []).map((item) => {
       const image = imageById.get(item.image_id);
       return {
         ...item,
