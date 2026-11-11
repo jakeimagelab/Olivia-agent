@@ -11,13 +11,14 @@ import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from 
 import { assessAccessModeChange, normalizeAccessModeChangeFacts } from "@/lib/person-select/projectSettings";
 import { normalizeNasDownloadUrl } from "@/lib/person-select/reviewers";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
+import { databaseApiFailure } from "@/lib/supabase/apiError";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
+async function getPersonSelectAdminResponse(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const db = getSupabaseAdmin();
-  const [{ data: event, error }, { data: people }, choices, imageGroups] = await Promise.all([
+  const [{ data: event, error }, { data: people, error: peopleError }, choices, imageGroups] = await Promise.all([
     db.from("person_select_events").select("*").eq("id", eventId).single(),
     db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at").eq("event_id", eventId).order("display_name"),
     readAllPersonSelectRows((from, to) => db.from("person_select_choices")
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       .order("id")
       .range(from, to)),
   ]);
-  if (error || !event) return Response.json({ ok: false, error: error?.message || "행사를 찾을 수 없습니다." }, { status: 404 });
+  if (error) throw error;
+  if (peopleError) throw peopleError;
+  if (!event) return Response.json({ ok: false, error: "행사를 찾을 수 없습니다." }, { status: 404 });
   const choiceThumbUrls = await signedImageUrls(choices.flatMap((choice) => {
     const image = choice.person_select_images as unknown as { thumb_path?: string | null } | null;
     return image?.thumb_path ? [image.thumb_path] : [];
@@ -176,6 +179,26 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     };
   }
   return Response.json({ ok: true, event, people: peopleRows, groups, shared });
+}
+
+export async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
+  try {
+    return await getPersonSelectAdminResponse(request, context);
+  } catch (cause) {
+    const failure = databaseApiFailure(cause);
+    console.error("[person-select] admin detail load failed", {
+      eventId: (await context.params).eventId,
+      code: cause && typeof cause === "object" && "code" in cause ? String(cause.code) : undefined,
+      message: cause instanceof Error ? cause.message : String(cause),
+    });
+    return Response.json(
+      { ok: false, code: failure.code, error: failure.error },
+      {
+        status: failure.status,
+        headers: failure.retryAfterSeconds ? { "Retry-After": String(failure.retryAfterSeconds) } : undefined,
+      },
+    );
+  }
 }
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {

@@ -38,8 +38,10 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
   const mounted = useRef(true);
   const requestRef = useRef<AbortController | null>(null);
   const projectsRef = useRef<PhotoStorageProject[]>([]);
+  const lastRefreshStartedAtRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    lastRefreshStartedAtRef.current = Date.now();
     requestRef.current?.abort();
     const controller = new AbortController();
     requestRef.current = controller;
@@ -88,7 +90,12 @@ export function PhotoProjectNotificationProvider({ children }: { children: React
       schedule();
     };
     void loadAndSchedule();
-    const onRefresh = () => { if (document.visibilityState === "visible") void loadAndSchedule(); };
+    const onRefresh = () => {
+      if (document.visibilityState !== "visible") return;
+      // focus, online and visibilitychange often fire together. One refresh is enough.
+      if (Date.now() - lastRefreshStartedAtRef.current < 2_000) return;
+      void loadAndSchedule();
+    };
     window.addEventListener("focus", onRefresh);
     window.addEventListener("online", onRefresh);
     document.addEventListener("visibilitychange", onRefresh);

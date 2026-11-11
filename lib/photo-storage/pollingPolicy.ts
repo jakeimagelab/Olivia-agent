@@ -2,9 +2,9 @@ import type { PhotoStorageProject } from "@/lib/photo-storage/types";
 import { isPhotoProjectActionable, isPhotoProjectActive } from "@/lib/photo-storage/notificationPolicy";
 
 export const PHOTO_PROJECT_POLL_MS = {
-  active: 3_000,
-  actionable: 15_000,
-  hidden: 60_000,
+  active: 12_000,
+  actionable: 30_000,
+  hidden: 120_000,
 } as const;
 
 /** `null` deliberately means event-driven refresh only; idle pages must not burn CPU. */

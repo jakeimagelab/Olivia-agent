@@ -13,6 +13,7 @@ import { usePersonSelectUploadManager } from "@/components/person-select/upload/
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
 import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchPathPlan, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
+import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -58,6 +59,12 @@ function personPhotoCount(person: Person) {
   return Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((sum, [, count]) => sum + count, 0);
 }
 
+const PERSON_SELECT_LOAD_RETRY_DELAYS_MS = [700, 1_500] as const;
+
+function wait(milliseconds: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
   const routePath = windowRoute.routeHref ? new URL(windowRoute.routeHref, "https://olivia.local").pathname : ""; const routeId = routePath.match(/^\/person-select\/([^/]+)\/?$/)?.[1]; const id = routeId || params.id;
@@ -99,7 +106,20 @@ export default function PersonSelectDetailPage() {
   const [reviewerRole, setReviewerRole] = useState("");
   const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
-  const load = useCallback(() => fetch(`/api/person-select/${id}`).then((r) => r.json()).then((body) => { if (!body.ok) throw new Error(body.error); setData(body); setAssignments(Object.fromEntries((body.groups as Group[]).map((group) => [group.label, (body.people as Person[]).find((person) => person.group_label === group.label)?.id ?? ""]))); }), [id]);
+  const load = useCallback(async () => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const response = await fetch(`/api/person-select/${id}`, { cache: "no-store" });
+        const body = await readApiResponse<{ ok: true; event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null }>(response, "사진선택");
+        setData(body);
+        setAssignments(Object.fromEntries(body.groups.map((group) => [group.label, body.people.find((person) => person.group_label === group.label)?.id ?? ""])));
+        return;
+      } catch (cause) {
+        if (!isRetryableApiError(cause) || attempt >= PERSON_SELECT_LOAD_RETRY_DELAYS_MS.length) throw cause;
+        await wait(PERSON_SELECT_LOAD_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }, [id]);
   const loadSharedImageUrls = useCallback(async (imageIds: string[]) => {
     const response = await fetch(`/api/person-select/${id}/images`, {
       method: "POST",
@@ -110,7 +130,13 @@ export default function PersonSelectDetailPage() {
     if (!response.ok || !body.ok) throw new Error(body.error || "사진 주소를 불러오지 못했습니다.");
     return body.images as Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
   }, [id]);
-  useEffect(() => { void load().catch((cause) => setError(cause.message)); fetch("/api/remote-workers/status").then((r) => r.json()).then((body) => setWorkerOnline(body.worker?.online ?? false)); }, [load]);
+  useEffect(() => {
+    void load().catch((cause) => setError(cause instanceof Error ? cause.message : "사진선택 데이터를 불러오지 못했습니다."));
+    fetch("/api/remote-workers/status")
+      .then((response) => readApiResponse<{ worker?: { online?: boolean } }>(response, "Mac Studio 상태"))
+      .then((body) => setWorkerOnline(body.worker?.online ?? false))
+      .catch(() => setWorkerOnline(false));
+  }, [load]);
   useEffect(() => {
     const reviewers = data?.shared?.reviewers ?? [];
     if (!reviewers.length) { setSelectedReviewerId(null); return; }
@@ -306,7 +332,14 @@ export default function PersonSelectDetailPage() {
   }
   async function startRemoteImport() {
     if (!path) return setError(isSchool ? "학교전달 폴더를 선택해 주세요." : "촬영 폴더를 선택해 주세요."); setError(""); setResult(null);
-    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload: isSchool ? { event_id: id, source_relative_path: path, mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }, { folder: "담임선생님", category: "homeroom", owner: "group" }] } : { event_id: id, source_relative_path: path, layout: currentLayout } }) }); const body = await response.json(); if (!response.ok) return setError(body.error); setJobId(body.job?.id || body.id); setResult({ message: "사진 가져오기를 시작했어요." });
+    try {
+      const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_IMPORT", payload: isSchool ? { event_id: id, source_relative_path: path, mappings: [{ folder: "선생님프로필", category: "profile", owner: "person" }, { folder: "담임선생님", category: "homeroom", owner: "group" }] } : { event_id: id, source_relative_path: path, layout: currentLayout } }) });
+      const body = await readApiResponse<{ job?: { id?: string }; id?: string }>(response, "사진 가져오기");
+      setJobId(body.job?.id || body.id || "");
+      setResult({ message: "사진 가져오기를 시작했어요." });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "사진 가져오기를 시작하지 못했습니다.");
+    }
   }
   async function startLocalImport() {
     if (!localScan?.files.length) return setError("JPG가 들어 있는 로컬 폴더를 선택해 주세요.");
@@ -334,17 +367,31 @@ export default function PersonSelectDetailPage() {
       ...(clearMark ? { clear_mark: true } : {}),
       ...(isShared && rawReviewerScope !== "all" ? { reviewerIds: [rawReviewerScope] } : {}),
     };
-    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload }) }); const body = await response.json();
-    if (!response.ok) return setError(body.error);
+    let body: { job?: { id?: string }; id?: string };
+    try {
+      const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload }) });
+      body = await readApiResponse(response, "RAW 매칭");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "RAW 매칭을 시작하지 못했습니다.");
+      return;
+    }
     setRawDialogOpen(false);
-    setRawJobId(body.job?.id || body.id);
+    setRawJobId(body.job?.id || body.id || "");
     setRawResult({ message: clearMark
       ? "로우 셀렉 표시를 이전 값으로 복원하고 있어요."
       : rawMode === "mark"
         ? "고객 별점과 컬러를 원본 RAW의 XMP에 기록하고 있어요."
         : rawSource === "current" ? "제출 전 선택을 포함해 RAW 매칭을 시작했어요." : "최종 제출본 RAW 매칭을 시작했어요." });
   }
-  async function saveGroups() { const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) }); const body = await response.json(); if (!response.ok) return setError(body.error); await load(); }
+  async function saveGroups() {
+    try {
+      const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) });
+      await readApiResponse(response, "인원 연결 저장");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "인원 연결을 저장하지 못했습니다.");
+    }
+  }
   async function saveSettings(patch: Record<string, unknown>) {
     if (patch.status === "open") {
       const unassigned = currentData.groups.filter((group) => !assignments[group.label]);
@@ -677,7 +724,15 @@ export default function PersonSelectDetailPage() {
         <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={deleting} onClick={() => setDeleteOpen(false)}>취소</button><button type="button" className={styles.dangerSolid} disabled={deleting || deleteConfirmTitle.trim() !== currentData.event.title} onClick={() => void deleteProject()}>{deleting ? "삭제 중" : "영구 삭제"}</button></div>
       </section>
     </div> : null}
-    {drawer ? <PersonDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => { const body = await (await fetch(`/api/person-select/${id}/people/${drawer.id}/pin`, { method: "POST" })).json(); if (body.ok) setError(`${drawer.display_name} 새 비밀번호: ${body.pin}`); }} /> : null}
+    {drawer ? <PersonDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => {
+      try {
+        const response = await fetch(`/api/person-select/${id}/people/${drawer.id}/pin`, { method: "POST" });
+        const body = await readApiResponse<{ pin?: string }>(response, "비밀번호 재발급");
+        setError(`${drawer.display_name} 새 비밀번호: ${body.pin ?? "확인 필요"}`);
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : "비밀번호를 재발급하지 못했습니다.");
+      }
+    }} /> : null}
   </main>;
 }
 

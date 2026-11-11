@@ -8,6 +8,7 @@ import { categoriesForProjectType, DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS, type P
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
 import { defaultSeoulDeadlineInput, formatSeoulDeadline } from "@/lib/person-select/date";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
+import { readApiResponse } from "@/lib/http/apiResponse";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type EventRow = { id: string; title: string; slug: string; deadline_at: string; status: string; people_count: number; submitted_count: number; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode };
@@ -17,8 +18,22 @@ export default function PersonSelectPage() {
   const [events, setEvents] = useState<EventRow[]>([]); const [loading, setLoading] = useState(true); const [showForm, setShowForm] = useState(false); const [error, setError] = useState("");
   const [form, setForm] = useState(() => ({ title: "", slug: "", deadline_at: defaultSeoulDeadlineInput(), project_type: "general" as PersonSelectProjectType, access_mode: "individual" as PersonSelectAccessMode, customer_view_mode: "classic" as PersonSelectCustomerViewMode }));
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "사진선택") : router.push(href);
-  const load = () => fetch("/api/person-select").then((r) => r.json()).then((data) => { if (data.ok) setEvents(data.events); else setError(data.error); }).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/person-select", { cache: "no-store" });
+        const data = await readApiResponse<{ events: EventRow[] }>(response, "사진선택 프로젝트");
+        if (active) setEvents(data.events);
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : "프로젝트를 불러오지 못했습니다.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     emitShellSelection({
       sourceAppId: "person-select",
@@ -31,8 +46,14 @@ export default function PersonSelectPage() {
     });
   }, []);
   async function create() {
-    setError(""); const response = await fetch("/api/person-select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, categories: categoriesForProjectType(form.project_type), retouch_options: DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS }) }); const data = await response.json();
-    if (!response.ok) return setError(data.error || "프로젝트를 만들지 못했어요."); navigate(`/person-select/${data.event.id}`);
+    setError("");
+    try {
+      const response = await fetch("/api/person-select", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, categories: categoriesForProjectType(form.project_type), retouch_options: DEFAULT_PERSON_SELECT_RETOUCH_OPTIONS }) });
+      const data = await readApiResponse<{ event: EventRow }>(response, "프로젝트 만들기");
+      navigate(`/person-select/${data.event.id}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "프로젝트를 만들지 못했어요.");
+    }
   }
   return <main className={styles.shell}>
     <header className={styles.header}><div className={styles.headerLeft}><div className={styles.emptyIcon} style={{ margin: 0, width: 44, height: 44 }}><UserCheck size={21} /></div><div><h1>사진선택</h1><p>개인별 또는 프로젝트 공용 사진선택을 관리합니다.</p></div></div><button className={showForm ? styles.secondary : styles.primary} onClick={() => setShowForm((value) => !value)}><Plus size={16} strokeWidth={2} />{showForm ? "입력 닫기" : "새 프로젝트"}</button></header>

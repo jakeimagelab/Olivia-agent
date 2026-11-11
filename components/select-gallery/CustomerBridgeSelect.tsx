@@ -702,7 +702,7 @@ export default function CustomerBridgeSelect({
           signal: controller.signal,
           body: JSON.stringify({ revision: revisionRef.current, items: customerBridgeSelectionItems(images, customerRatings, customerColorLabels, notes), customerMemo }),
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => ({}));
         if (response.status === 409) {
           revisionRef.current = revisionFromConflictDraft(revisionRef.current, result.draft);
           saveConflictBlockedRef.current = true;
@@ -1196,7 +1196,7 @@ export default function CustomerBridgeSelect({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ revision: revisionRef.current, requestKey: requestKeyRef.current, items: customerBridgeSelectionItems(images, customerRatings, customerColorLabels, notes), customerMemo }),
       });
-      const result = await response.json();
+      const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error ?? "최종 제출에 실패했습니다.");
       requestKeyRef.current = createRequestKey();
       try { localStorage.removeItem(`customer-bridge-submit-key:${localStorageScope}`); } catch (error) { reportOptionalStorageError("submit-key-clear", error); }

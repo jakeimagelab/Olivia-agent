@@ -13,14 +13,14 @@ describe("photo project polling policy", () => {
   });
 
   it("uses fast polling only while file work is active", () => {
-    expect(photoProjectPollDelayMs([project("MERGING")], false)).toBe(3_000);
-    expect(photoProjectPollDelayMs([project("MERGE_APPROVED")], false)).toBe(3_000);
-    expect(photoProjectPollDelayMs([project("CLASSIFYING")], false)).toBe(3_000);
+    expect(photoProjectPollDelayMs([project("MERGING")], false)).toBe(12_000);
+    expect(photoProjectPollDelayMs([project("MERGE_APPROVED")], false)).toBe(12_000);
+    expect(photoProjectPollDelayMs([project("CLASSIFYING")], false)).toBe(12_000);
   });
 
   it("slows approval states and hidden tabs", () => {
-    expect(photoProjectPollDelayMs([project("READY")], false)).toBe(15_000);
-    expect(photoProjectPollDelayMs([project("MERGE_COMPLETED")], true)).toBe(60_000);
+    expect(photoProjectPollDelayMs([project("READY")], false)).toBe(30_000);
+    expect(photoProjectPollDelayMs([project("MERGE_COMPLETED")], true)).toBe(120_000);
     expect(photoProjectPollDelayMs([], true)).toBeNull();
   });
 });

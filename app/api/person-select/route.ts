@@ -6,14 +6,15 @@ import { validateCategoryPicks } from "@/lib/person-select/core";
 import { parseSeoulDateTime } from "@/lib/person-select/date";
 import { newPersonSelectProjectDefaults, normalizePersonSelectProjectSettings } from "@/lib/person-select/projectSettings";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
+import { databaseApiFailure } from "@/lib/supabase/apiError";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest) {
+async function getPersonSelectListResponse(request: NextRequest) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const db = getSupabaseAdmin();
   const { data: events, error } = await db.from("person_select_events").select("*").order("created_at", { ascending: false });
-  if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) throw error;
   const eventRows = events ?? [];
   const eventIds = eventRows.map((event) => event.id);
   const [people, sharedSelections] = eventIds.length ? await Promise.all([
@@ -49,6 +50,25 @@ export async function GET(request: NextRequest) {
     };
   });
   return Response.json({ ok: true, events: rows });
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    return await getPersonSelectListResponse(request);
+  } catch (cause) {
+    const failure = databaseApiFailure(cause);
+    console.error("[person-select] project list load failed", {
+      code: cause && typeof cause === "object" && "code" in cause ? String(cause.code) : undefined,
+      message: cause instanceof Error ? cause.message : String(cause),
+    });
+    return Response.json(
+      { ok: false, code: failure.code, error: failure.error },
+      {
+        status: failure.status,
+        headers: failure.retryAfterSeconds ? { "Retry-After": String(failure.retryAfterSeconds) } : undefined,
+      },
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
