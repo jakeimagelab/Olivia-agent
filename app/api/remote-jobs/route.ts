@@ -480,7 +480,23 @@ export async function POST(request: NextRequest) {
     if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) {
       return Response.json({ ok: false, error: "올바른 event_id가 필요합니다." }, { status: 400 });
     }
-    payload = { event_id: requestedPayload.event_id };
+    const source = requestedPayload.source === undefined ? "submitted" : requestedPayload.source;
+    if (source !== "submitted" && source !== "current") {
+      return Response.json({ ok: false, error: "RAW 매칭 셀렉 기준이 올바르지 않습니다." }, { status: 400 });
+    }
+    const reviewerIds = requestedPayload.reviewerIds;
+    if (reviewerIds !== undefined && (
+      !Array.isArray(reviewerIds)
+      || reviewerIds.length > 100
+      || reviewerIds.some((reviewerId) => typeof reviewerId !== "string" || !UUID_PATTERN.test(reviewerId))
+    )) {
+      return Response.json({ ok: false, error: "RAW 매칭 검토자 범위가 올바르지 않습니다." }, { status: 400 });
+    }
+    payload = {
+      event_id: requestedPayload.event_id,
+      source,
+      ...(Array.isArray(reviewerIds) && reviewerIds.length ? { reviewerIds: [...new Set(reviewerIds)] } : {}),
+    };
   }
 
   if (action === "PERSON_SELECT_LIST_FOLDER") {

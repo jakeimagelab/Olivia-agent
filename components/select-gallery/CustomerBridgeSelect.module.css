@@ -24,6 +24,8 @@
 
 .embedded { height: min(820px, 78dvh); min-height: 620px; border: 1px solid #c8d5c8; border-radius: 10px; }
 .readOnly { grid-template-rows: 48px 45px minmax(0, 1fr); }
+.withAdminToolbarStatus { grid-template-rows: 48px 45px auto minmax(0, 1fr) auto; }
+.readOnly.withAdminToolbarStatus { grid-template-rows: 48px 45px auto minmax(0, 1fr); }
 
 .bridgeBar {
   min-width: 0;
@@ -54,6 +56,8 @@
   border-bottom: 1px solid var(--bridge-line);
   background: var(--bridge-panel-soft);
 }
+.adminToolbarStatus { padding: 8px 10px; border-bottom: 1px solid var(--bridge-line); background: var(--bridge-panel-soft); }
+.adminToolbarStatus > * { margin: 0; }
 .backButton { width: 34px; height: 34px; display: grid; place-items: center; flex: 0 0 auto; padding: 0; border: 0; border-radius: 7px; color: var(--bridge-green); background: transparent; cursor: pointer; }
 .backButton:hover:not(:disabled) { background: var(--bridge-panel); }
 .backButton:disabled { color: #A8B5B2; cursor: default; }

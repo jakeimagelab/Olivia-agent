@@ -10,6 +10,7 @@ import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 import { firstPersonSelectImageByCategory, firstPersonSelectImageByOwner } from "@/lib/person-select/matching";
 import { assessAccessModeChange, normalizeAccessModeChangeFacts } from "@/lib/person-select/projectSettings";
 import { normalizeNasDownloadUrl } from "@/lib/person-select/reviewers";
+import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       const draftItems = Array.isArray(draft?.items) ? draft.items as Array<Record<string, unknown>> : [];
       return {
         ...reviewer,
+        can_finalize: canPersonSelectReviewerFinalize(reviewer),
         draft: draft ? {
           revision: draft.revision,
           selected_count: draftItems.length,

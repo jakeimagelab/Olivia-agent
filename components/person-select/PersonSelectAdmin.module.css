@@ -34,6 +34,16 @@
 .dangerSolid { color: #fff; border: 1px solid #A23E1A; background: #A23E1A; }
 .primary:disabled, .secondary:disabled, .danger:disabled, .dangerSolid:disabled { color: var(--ps-sub); opacity: .55; border-color: var(--ps-border); background: transparent; box-shadow: none; cursor: default; }
 .segment { display: inline-flex; gap: 4px; padding: 6px; margin-bottom: 20px; border: 1px solid var(--ps-border); border-radius: 10px; background: var(--ps-surface); }
+.segmentRow { min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; }
+.segmentRow .segment { flex: 0 0 auto; margin-bottom: 0; }
+.tabActions, .desktopAuxActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.tabActions { min-height: 46px; min-width: 0; }
+.moreMenu { position: relative; display: none; }
+.moreMenu summary { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--ps-border); border-radius: 8px; color: var(--ps-green); background: transparent; font-size: 12px; cursor: pointer; list-style: none; }
+.moreMenu summary::-webkit-details-marker { display: none; }
+.moreMenu > div { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; min-width: 170px; display: grid; padding: 6px; border: 1px solid var(--ps-border); border-radius: 9px; background: var(--ps-surface); box-shadow: 0 12px 28px rgba(41,62,52,.14); }
+.moreMenu button, .moreMenu a { min-height: 36px; display: flex; align-items: center; padding: 0 10px; border: 0; border-radius: 6px; color: var(--ps-text); background: transparent; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+.moreMenu button:hover, .moreMenu a:hover { background: var(--ps-soft); }
 .segment button { height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--ps-green); font: inherit; font-size: 12px; cursor: pointer; }
 .segment .segmentActive { background: var(--ps-soft); border-color: var(--ps-soft-border); }
 .underTabs { display: flex; gap: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--ps-border); }
@@ -116,6 +126,22 @@
 .notice { margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--ps-green); border-radius: 0; background: var(--ps-soft); color: var(--ps-text); font-size: 12.5px; line-height: 1.7; }
 .warning { margin: 0 0 14px; padding: 11px 14px; border: 1px solid var(--ps-orange-border); border-radius: 8px; background: var(--ps-orange-soft); color: #A23E1A; font-size: 12.5px; }
 .result { margin: 0 0 14px; padding: 13px 15px; border: 1px solid var(--ps-soft-border); border-radius: 8px; color: var(--ps-green); background: var(--ps-soft); font-size: 12.5px; }
+.bridgeRawButton { min-height: 32px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 0 11px; border: 1px solid var(--ps-orange); border-radius: 6px; color: #fff; background: var(--ps-orange); font: 600 10px/1 inherit; white-space: nowrap; cursor: pointer; }
+.bridgeRawButton:disabled { color: #A8B5B2; border-color: var(--ps-border); background: transparent; cursor: not-allowed; }
+.rawDisabledReason { margin: 0; color: var(--ps-sub); font-size: 11px; }
+.rawMatchToolbar { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 10px; padding: 8px 12px; border: 1px solid var(--ps-border); border-radius: 9px; background: var(--ps-surface); }
+.rawMatchToolbar > div { min-width: 0; display: grid; gap: 2px; }
+.rawMatchToolbar strong { font-size: 12px; font-weight: 600; }
+.rawMatchToolbar span { color: var(--ps-sub); font-size: 11px; }
+.rawMatchDialog { width: min(560px, 100%); }
+.rawMatchOptions { display: grid; gap: 8px; margin: 0; padding: 12px 14px; border: 1px solid var(--ps-border); border-radius: 9px; }
+.rawMatchOptions legend { padding: 0 5px; color: var(--ps-sub); font-size: 11px; }
+.rawMatchOptions label { min-height: 32px; display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.rawMatchOptions input { accent-color: var(--ps-green); }
+.rawMatchOptions small { color: var(--ps-sub); font-size: 11px; }
+.rawMatchCount { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 14px; border-left: 3px solid var(--ps-green); background: var(--ps-soft); }
+.rawMatchCount strong { font-size: 14px; }
+.rawMatchCount span { color: var(--ps-sub); font-size: 12px; }
 .uploadCard .result { margin-top: 18px; }
 .skippedFolders { margin-top: 8px; color: var(--ps-sub); font-size: 12px; }
 .disabledReason { margin: 10px 0 0; color: var(--ps-sub); font-size: 12px; }
@@ -163,6 +189,10 @@
 @media (max-width: 900px) {
   .titleRow { flex-direction: column; }
   .actions { justify-content: flex-start; }
+  .segmentRow { align-items: stretch; flex-direction: column; }
+  .tabActions { justify-content: flex-start; }
+  .desktopAuxActions { display: none; }
+  .moreMenu { display: block; }
   .formGrid, .uploadGrid { grid-template-columns: 1fr; }
   .eventList { overflow-x: auto; }
   .eventRow { min-width: 760px; }
@@ -171,6 +201,13 @@
 }
 
 @media (max-width: 520px) {
+  .segmentRow { overflow: visible; }
+  .segmentRow .segment { width: 100%; overflow-x: auto; }
+  .tabActions { flex-wrap: wrap; }
+  .tabActions > .secondary { flex: 1; }
+  .rawMatchToolbar { align-items: stretch; flex-direction: column; }
+  .rawMatchToolbar .primary { width: 100%; min-height: 44px; }
+  .rawMatchCount { align-items: flex-start; flex-direction: column; }
   .matchingGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .matchingMeta { padding: 10px; }
   .modalBackdrop { padding: 8px; }

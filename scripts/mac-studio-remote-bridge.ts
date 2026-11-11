@@ -284,6 +284,10 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
     }
     case "PERSON_SELECT_RAW_MATCH":
       addString(args, "--event-id", stringValue(payload, "event_id", true));
+      addString(args, "--source", stringValue(payload, "source") || "submitted");
+      if (Array.isArray(payload.reviewerIds) && payload.reviewerIds.length) {
+        addString(args, "--reviewer-ids-json", JSON.stringify(payload.reviewerIds));
+      }
       return runner(repoRoot, "person-select-raw-match.ts", args);
     case "PERSON_SELECT_QUALITY":
       addString(args, "--job-id", stringValue(payload, "quality_job_id", true));

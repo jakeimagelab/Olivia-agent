@@ -4,6 +4,7 @@ import { readAllPersonSelectRows } from "./paging";
 import { signedImageUrls } from "./server";
 import type { PersonSelectEvent } from "./types";
 import { PublicSelectionRequestError } from "@/lib/select-gallery/publicSelection";
+import { canPersonSelectReviewerFinalize } from "./reviewerPermissions";
 
 export type SharedPersonSelectReviewer = {
   id: string;
@@ -85,6 +86,8 @@ export async function resolveSharedPersonSelectAccess(
   if (!reviewer || reviewer.event_id !== event.id || !reviewer.active) {
     throw new PublicSelectionRequestError("비활성화되었거나 다시 발급된 검토자 링크입니다.", 403);
   }
+
+  reviewer = { ...reviewer, can_finalize: canPersonSelectReviewerFinalize(reviewer) };
 
   if (options?.touch) {
     const now = new Date().toISOString();

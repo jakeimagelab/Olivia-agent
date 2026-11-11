@@ -35,6 +35,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import {
@@ -322,6 +323,8 @@ export default function CustomerBridgeSelect({
   messagesEnabled = false,
   qualityApi,
   canManageQuality = false,
+  adminToolbarAction,
+  adminToolbarStatus,
 }: {
   shareToken: string;
   gallery: CustomerBridgeGallery;
@@ -339,6 +342,8 @@ export default function CustomerBridgeSelect({
   messagesEnabled?: boolean;
   qualityApi?: string;
   canManageQuality?: boolean;
+  adminToolbarAction?: ReactNode;
+  adminToolbarStatus?: ReactNode;
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
@@ -1208,7 +1213,7 @@ export default function CustomerBridgeSelect({
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
   const locationCount = location.kind === "root" ? childFolders.length + (rootView.images.length ? 1 : 0) : visibleImages.length;
 
-  return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""}`}>
+  return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${adminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
     <header className={styles.bridgeBar}>
       <div><strong>Olivia Bridge</strong><span>고객 사진 셀렉</span></div>
       <div className={styles.projectTitle}><strong>{gallery.shooting_name ?? gallery.title}</strong><span>{[reviewer ? `${reviewer.display_name}${reviewer.role_label ? ` · ${reviewer.role_label}` : ""}` : gallery.hospital_name, `${images.length.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</span></div>
@@ -1233,9 +1238,12 @@ export default function CustomerBridgeSelect({
       {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
       {messagesEnabled ? <button type="button" className={`${styles.headerAction} ${styles.mobileChatAction}`} onClick={() => { setSideTab("chat"); setMobileSideOpen(true); }}><MessageCircle size={14} /> 대화{unreadMessages ? ` ${unreadMessages}` : ""}</button> : null}
       {qualityApi && canManageQuality ? <button type="button" className={styles.headerAction} disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startQuality()}><Sparkles size={14} /> {["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "AI 검사 중" : qualityJob?.status === "paused" ? "AI 검사 정지" : "AI 검사 시작"}</button> : null}
+      {adminToolbarAction}
       <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size} onClick={openReview}><Images size={14} /> 리뷰</button>
       <button type="button" className={styles.headerAction} disabled={!focusedImageId} onClick={() => setFullscreenId(focusedImageId)}><Expand size={14} /> 전체화면</button>
     </div>
+
+    {adminToolbarStatus ? <div className={styles.adminToolbarStatus}>{adminToolbarStatus}</div> : null}
 
     <section className={styles.workspace} style={workspaceStyle}>
       {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}

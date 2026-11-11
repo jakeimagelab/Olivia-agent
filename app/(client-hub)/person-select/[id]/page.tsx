@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowLeft, Clipboard, Download, Folder, FolderOpen, Info, Link2, Monitor, Plus, RefreshCw, Server, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
+import { Activity, ArrowLeft, Clipboard, Download, Folder, FolderOpen, Info, Link2, Monitor, MoreHorizontal, Plus, RefreshCw, Server, SlidersHorizontal, Trash2, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
@@ -11,10 +11,12 @@ import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type 
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
+import { resolveIndividualRawMatchTargets, resolveSharedRawMatchTargets, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
+import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
-type Choice = { id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
+type Choice = { id: string; image_id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type RepresentativeImage = { category_key: string; original_file_name: string; source_rel_path: string; thumb_url: string };
 type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number } };
 type Category = { key: string; label: string; pick: number };
@@ -84,6 +86,9 @@ export default function PersonSelectDetailPage() {
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
   const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
+  const [rawDialogOpen, setRawDialogOpen] = useState(false);
+  const [rawSource, setRawSource] = useState<PersonSelectRawMatchSource>("submitted");
+  const [rawReviewerScope, setRawReviewerScope] = useState("all");
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerRole, setReviewerRole] = useState("");
@@ -275,10 +280,16 @@ export default function PersonSelectDetailPage() {
   function startImport() { return sourceMode === "local" ? startLocalImport() : startRemoteImport(); }
   async function startRawMatch() {
     setError(""); setRawResult(null);
-    const notSubmitted = currentData.people.filter((person) => !person.submitted_at).length;
-    if (notSubmitted && !window.confirm(`아직 제출하지 않은 사람이 ${notSubmitted}명 있습니다. 제출한 사람의 사진만 RAW 매칭할까요?`)) return;
-    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload: { event_id: id } }) }); const body = await response.json();
-    if (!response.ok) return setError(body.error); setRawJobId(body.job?.id || body.id); setRawResult({ message: "RAW 매칭을 시작했어요." });
+    const payload = {
+      event_id: id,
+      source: rawSource,
+      ...(isShared && rawReviewerScope !== "all" ? { reviewerIds: [rawReviewerScope] } : {}),
+    };
+    const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload }) }); const body = await response.json();
+    if (!response.ok) return setError(body.error);
+    setRawDialogOpen(false);
+    setRawJobId(body.job?.id || body.id);
+    setRawResult({ message: rawSource === "current" ? "제출 전 선택을 포함해 RAW 매칭을 시작했어요." : "최종 제출본 RAW 매칭을 시작했어요." });
   }
   async function saveGroups() { const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) }); const body = await response.json(); if (!response.ok) return setError(body.error); await load(); }
   async function saveSettings(patch: Record<string, unknown>) {
@@ -380,22 +391,69 @@ export default function PersonSelectDetailPage() {
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
-  const submittedCount = isShared ? sharedReviewers.filter((reviewer) => Boolean(reviewer.selection)).length : counts.done;
-  const rawDisabledReason = submittedCount === 0 ? "최종 제출된 고객 셀렉이 없어요." : !data.event.source_relative_path ? "Mac Studio에서 같은 원본 폴더를 연결해 주세요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : isShared ? "고객이 고른 사진의 RAW를 기존 승인 흐름으로 매칭합니다." : "제출한 사람이 고른 사진의 RAW를 Selected_RAW/이름 폴더로 복사합니다.";
+  const sharedImageById = new Map((data.shared?.images ?? []).map((image) => [image.id, {
+    id: image.id,
+    originalFileName: image.original_file_name,
+    sourceRelPath: image.relative_path ?? image.original_file_name,
+  }]));
+  const sharedSubmittedByReviewer = new Map(sharedReviewers.map((reviewer) => [reviewer.id, (reviewer.selection?.items ?? []).flatMap((item) => {
+    const image = sharedImageById.get(item.image_id);
+    return image ? [image] : [];
+  })]));
+  const sharedDraftByReviewer = new Map(sharedReviewers.flatMap((reviewer) => reviewer.draft ? [[reviewer.id, reviewer.draft.selectedImageIds.flatMap((imageId) => {
+    const image = sharedImageById.get(imageId);
+    return image ? [image] : [];
+  })] as const] : []));
+  const sharedRawInput = {
+    reviewers: sharedReviewers.map((reviewer) => ({ id: reviewer.id, displayName: reviewer.display_name, active: reviewer.active })),
+    reviewerIds: rawReviewerScope === "all" ? undefined : [rawReviewerScope],
+    submittedByReviewer: sharedSubmittedByReviewer,
+    draftByReviewer: sharedDraftByReviewer,
+  };
+  const individualRawInput = {
+    people: data.people.map((person) => ({ id: person.id, displayName: person.display_name, submittedAt: person.submitted_at })),
+    choices: data.people.flatMap((person) => person.choices.map((choice) => ({
+      personId: person.id,
+      image: choice.person_select_images ? { id: choice.image_id, originalFileName: choice.person_select_images.original_file_name, sourceRelPath: choice.person_select_images.source_rel_path } : null,
+    }))),
+  };
+  const rawPreview = isShared
+    ? resolveSharedRawMatchTargets({ source: rawSource, ...sharedRawInput })
+    : resolveIndividualRawMatchTargets({ source: rawSource, ...individualRawInput });
+  const rawSubmittedAll = isShared
+    ? resolveSharedRawMatchTargets({ source: "submitted", ...sharedRawInput, reviewerIds: undefined })
+    : resolveIndividualRawMatchTargets({ source: "submitted", ...individualRawInput });
+  const rawCurrentAll = isShared
+    ? resolveSharedRawMatchTargets({ source: "current", ...sharedRawInput, reviewerIds: undefined })
+    : resolveIndividualRawMatchTargets({ source: "current", ...individualRawInput });
+  const hasRawSelection = rawSubmittedAll.targets.length > 0 || rawCurrentAll.targets.length > 0;
+  const rawDisabledReason = !hasRawSelection ? "고른 사진이 없어요." : !data.event.source_relative_path ? "원본 폴더를 Mac Studio 위치로 연결해 주세요." : workerOnline === null ? "Mac Studio 상태를 확인하고 있어요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : "";
+  const rawDisabled = rawBusy || Boolean(rawDisabledReason);
+  function openRawMatchDialog() {
+    const defaultSource = rawSubmittedAll.targets.length === 0 && rawCurrentAll.targets.length > 0 ? "current" : "submitted";
+    setRawSource(defaultSource);
+    setRawReviewerScope("all");
+    setRawDialogOpen(true);
+  }
+  const rawAction = <button className={styles.bridgeRawButton} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>;
+  const displayedRawResult = rawResult ?? data.event.raw_match_result ?? null;
+  const rawStatus = rawDisabledReason || displayedRawResult ? <>{rawDisabledReason ? <p className={styles.rawDisabledReason}>{rawDisabledReason}</p> : null}<RawMatchResult result={displayedRawResult} at={rawResult ? null : data.event.raw_matched_at ?? null} /></> : null;
+  const finalizeReviewerCount = sharedReviewers.filter((reviewer) => reviewer.active && canPersonSelectReviewerFinalize(reviewer)).length;
   return <main className={styles.shell}>
     <section className={styles.body}>
       <div className={styles.crumb}><button className={styles.crumbBack} onClick={() => navigate("/person-select")}><ArrowLeft size={14} />사진선택</button>{sourceFolder ? <><span aria-hidden="true">›</span><span>{sourceFolder}</span></> : null}</div>
       <div className={styles.titleRow}>
         <div><h1 className={styles.title}>{data.event.title}</h1><p className={styles.subtitle}>마감 {formatSeoulDeadline(data.event.deadline_at)} · {isShared ? PERSON_SELECT_ACCESS_MODE_LABELS.project_shared : `${data.people.length}명`} · {pickText}{totalPhotos ? ` · 사진 ${totalPhotos.toLocaleString()}장` : ""}</p></div>
-        <div className={styles.actions}>
+      </div>
+      <div className={styles.segmentRow}>
+        <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
+        <div className={styles.tabActions}>
           <button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button>
-          {!isShared ? <><button type="button" className={styles.secondary} onClick={() => setPinListOpen(true)}><UserRound size={15} />비밀번호 목록</button><a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a><a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a></> : null}
-          <button className={styles.primary} disabled={workerOnline === false || rawBusy || submittedCount === 0 || !data.event.source_relative_path} title={rawDisabledReason} onClick={startRawMatch}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>
+          {!isShared ? <div className={styles.desktopAuxActions}><button type="button" className={styles.secondary} onClick={() => setPinListOpen(true)}><UserRound size={15} />비밀번호 목록</button><a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a><a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a></div> : null}
+          {!isShared ? <details className={styles.moreMenu}><summary><MoreHorizontal size={16} />더보기</summary><div><button type="button" onClick={() => setPinListOpen(true)}>비밀번호 목록</button><a href={`/api/person-select/${id}/exports/retouch`}>보정 목록 CSV</a><a href={`/api/person-select/${id}/exports/orders`}>주문 CSV</a></div></details> : null}
         </div>
       </div>
-      <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
       {error ? <div className={styles.warning}>{error}</div> : null}
-      <RawMatchResult result={rawResult ?? data.event.raw_match_result ?? null} at={rawResult ? null : data.event.raw_matched_at ?? null} />
       {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>검토자별 셀렉은 서로 독립적으로 보존되며 오른쪽 대화 탭은 모든 참여자가 함께 사용합니다.</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select> : null}<button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div></div>
         {data.shared?.images?.length ? <CustomerBridgeSelect
@@ -412,6 +470,8 @@ export default function PersonSelectDetailPage() {
           loadImageUrls={loadSharedImageUrls}
           qualityApi={`/api/person-select/${id}/quality`}
           canManageQuality
+          adminToolbarAction={rawAction}
+          adminToolbarStatus={rawStatus}
           onSubmitted={() => undefined}
           readOnly
           embedded
@@ -438,6 +498,8 @@ export default function PersonSelectDetailPage() {
       </section> : null}
       {tab === "progress" && !isShared ? <>
         <div className={styles.underTabs}>{filters.map(([key, label, count]) => <button key={key} className={filter === key ? styles.underTabActive : ""} onClick={() => setFilter(key)}>{label}<small>{count}</small></button>)}</div>
+        <div className={styles.rawMatchToolbar}><div><strong>고객 셀렉 RAW 매칭</strong><span>{rawDisabledReason || "최종 제출본 또는 현재 고른 상태를 기준으로 실행할 수 있어요."}</span></div><button className={styles.primary} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button></div>
+        {rawStatus}
         <section className={styles.panel}><div className={styles.tableWrap}><table className={styles.table}>
           <thead><tr><th>{personWord}</th>{data.groups.length ? <th>담임 반</th> : null}{categories.map((category) => <th key={category.key}>{categories.length === 1 ? "고른 사진" : category.label} ({category.pick}장)</th>)}<th>보정 요청</th><th>추가 주문</th><th>상태</th><th>최근 활동</th><th /></tr></thead>
           <tbody>{filtered.map((person) => {
@@ -505,6 +567,7 @@ export default function PersonSelectDetailPage() {
           {isShared ? <div className={`${styles.field} ${styles.fieldFull}`}>
             <label>검토자별 링크</label>
             <small className={styles.summary}>정연호, 클라이언트, 매니저처럼 사람마다 별도 링크를 발급합니다. 각 링크의 별점·컬러·메모·제출은 서로 섞이지 않고 대화만 함께 공유됩니다.</small>
+            {finalizeReviewerCount === 0 ? <div className={styles.warning} role="alert">최종 제출할 수 있는 검토자가 없습니다. 검토자 한 명 이상에게 최종 확정 권한을 주세요.</div> : null}
             <div className={styles.reviewerCreate}><input className={styles.input} value={reviewerName} onChange={(event) => setReviewerName(event.target.value)} placeholder="검토자 이름" /><input className={styles.input} value={reviewerRole} onChange={(event) => setReviewerRole(event.target.value)} placeholder="역할 (선택)" /><button type="button" className={styles.secondary} onClick={() => void createReviewer()}><Plus size={14} />검토자 추가</button></div>
             <div className={styles.reviewerList}>{sharedReviewers.map((reviewer) => {
               const issuedToken = issuedReviewerTokens[reviewer.id];
@@ -512,7 +575,7 @@ export default function PersonSelectDetailPage() {
               return <article className={styles.reviewerRow} key={reviewer.id} data-inactive={!reviewer.active || undefined}>
                 <div><strong>{reviewer.display_name}</strong><span>{reviewer.role_label || (reviewer.is_legacy ? "기존 공용 링크 호환" : "검토자")}</span><small>{reviewer.selection ? `최종 제출 ${reviewer.selection.items.length}장` : `자동 저장 ${reviewer.draft?.selected_count ?? 0}장`} · 최근 접속 {relativeTime(reviewer.last_seen_at)}</small></div>
                 {issuedLink ? <input className={styles.input} readOnly value={issuedLink} aria-label={`${reviewer.display_name} 발급 링크`} /> : <span className={styles.reviewerSecurity}>링크는 보안상 발급 직후에만 표시됩니다.</span>}
-                <div className={styles.actions}><label className={styles.check}><input type="checkbox" checked={reviewer.can_view_ai_results === true} onChange={(event) => void setReviewerPermission(reviewer, "canViewAiResults", event.target.checked)} />AI 결과</label><label className={styles.check}><input type="checkbox" checked={reviewer.can_download_jpg === true} onChange={(event) => void setReviewerPermission(reviewer, "canDownloadJpg", event.target.checked)} />JPG 다운로드</label><label className={styles.check}><input type="checkbox" checked={reviewer.can_download_raw === true} onChange={(event) => void setReviewerPermission(reviewer, "canDownloadRaw", event.target.checked)} />RAW 다운로드</label><label className={styles.check}><input type="checkbox" checked={reviewer.can_finalize === true} onChange={(event) => void setReviewerPermission(reviewer, "canFinalize", event.target.checked)} />최종 확정</label></div>
+                <div className={styles.actions}><label className={styles.check}><input type="checkbox" checked={reviewer.can_view_ai_results === true} onChange={(event) => void setReviewerPermission(reviewer, "canViewAiResults", event.target.checked)} />AI 결과</label><label className={styles.check}><input type="checkbox" checked={reviewer.can_download_jpg === true} onChange={(event) => void setReviewerPermission(reviewer, "canDownloadJpg", event.target.checked)} />JPG 다운로드</label><label className={styles.check}><input type="checkbox" checked={reviewer.can_download_raw === true} onChange={(event) => void setReviewerPermission(reviewer, "canDownloadRaw", event.target.checked)} />RAW 다운로드</label><label className={styles.check}><input type="checkbox" checked={canPersonSelectReviewerFinalize(reviewer)} onChange={(event) => void setReviewerPermission(reviewer, "canFinalize", event.target.checked)} />최종 확정</label></div>
                 <div className={styles.actions}>{issuedLink ? <button type="button" className={styles.secondary} onClick={() => void copyReviewerLink(reviewer.id)}><Clipboard size={14} />링크 복사</button> : null}{!reviewer.is_legacy ? <><button type="button" className={styles.weak} onClick={() => void regenerateReviewerLink(reviewer)}><RefreshCw size={14} />링크 재발급</button><button type="button" className={styles.weak} onClick={() => void setReviewerActive(reviewer, !reviewer.active)}>{reviewer.active ? "접속 중지" : "접속 허용"}</button></> : null}</div>
               </article>;
             })}</div>
@@ -521,6 +584,21 @@ export default function PersonSelectDetailPage() {
         <div className={styles.formActions}><button type="button" className={styles.danger} onClick={() => { setDeleteConfirmTitle(""); setDeleteOpen(true); }}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
+    {rawDialogOpen ? <RawMatchDialog
+      source={rawSource}
+      onSourceChange={setRawSource}
+      isShared={isShared}
+      reviewerScope={rawReviewerScope}
+      onReviewerScopeChange={setRawReviewerScope}
+      reviewers={sharedReviewers.filter((reviewer) => reviewer.active)}
+      selectedCount={rawPreview.targets.length}
+      submittedCount={rawPreview.submittedSelectedCount}
+      currentCount={rawPreview.currentUnsubmittedCount}
+      busy={rawBusy}
+      disabledReason={!rawPreview.targets.length ? "선택한 기준에 고른 사진이 없어요." : rawDisabledReason}
+      onClose={() => setRawDialogOpen(false)}
+      onRun={() => void startRawMatch()}
+    /> : null}
     {picker ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPicker(false)} onSelectRemote={(selection) => { setPath(selection.path); setPicker(false); }} /> : null}
     {pinListOpen ? <PinListDialog eventId={id} onClose={() => setPinListOpen(false)} onUpdated={load} /> : null}
     {deleteOpen ? <div className={styles.modalBackdrop} onClick={() => { if (!deleting) setDeleteOpen(false); }}>
@@ -533,6 +611,38 @@ export default function PersonSelectDetailPage() {
     </div> : null}
     {drawer ? <PersonDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => { const body = await (await fetch(`/api/person-select/${id}/people/${drawer.id}/pin`, { method: "POST" })).json(); if (body.ok) setError(`${drawer.display_name} 새 비밀번호: ${body.pin}`); }} /> : null}
   </main>;
+}
+
+function RawMatchDialog({ source, onSourceChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, busy, disabledReason, onClose, onRun }: {
+  source: PersonSelectRawMatchSource;
+  onSourceChange: (source: PersonSelectRawMatchSource) => void;
+  isShared: boolean;
+  reviewerScope: string;
+  onReviewerScopeChange: (scope: string) => void;
+  reviewers: SharedReviewer[];
+  selectedCount: number;
+  submittedCount: number;
+  currentCount: number;
+  busy: boolean;
+  disabledReason: string;
+  onClose: () => void;
+  onRun: () => void;
+}) {
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape" && !busy) onClose(); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [busy, onClose]);
+  return <div className={styles.modalBackdrop} onClick={() => { if (!busy) onClose(); }}>
+    <section className={`${styles.pinDialog} ${styles.rawMatchDialog}`} role="dialog" aria-modal="true" aria-labelledby="raw-match-title" onClick={(event) => event.stopPropagation()}>
+      <div className={styles.modalTop}><div><p className={styles.eyebrow}>관리자 실행</p><h2 id="raw-match-title">RAW 매칭 확인</h2><p>원본은 변경하지 않고 확정된 RAW만 Selected_RAW 폴더로 복사합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={busy} onClick={onClose}><X size={20} /></button></div>
+      <fieldset className={styles.rawMatchOptions}><legend>매칭할 셀렉</legend><label><input autoFocus type="radio" name="raw-source" value="submitted" checked={source === "submitted"} onChange={() => onSourceChange("submitted")} />최종 제출본만</label><label><input type="radio" name="raw-source" value="current" checked={source === "current"} onChange={() => onSourceChange("current")} />지금 고른 상태 <small>제출 전 포함</small></label></fieldset>
+      {isShared ? <div className={styles.field}><label htmlFor="raw-reviewer-scope">검토자</label><select id="raw-reviewer-scope" className={styles.select} value={reviewerScope} onChange={(event) => onReviewerScopeChange(event.target.value)}><option value="all">전체 합집합</option>{reviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select></div> : null}
+      <div className={styles.rawMatchCount}><strong>매칭할 사진 {selectedCount.toLocaleString()}장</strong><span>제출본 {submittedCount.toLocaleString()}장 · 제출 전 {currentCount.toLocaleString()}장</span></div>
+      {disabledReason ? <div className={styles.warning} role="alert">{disabledReason}</div> : null}
+      <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={busy} onClick={onClose}>취소</button><button type="button" className={styles.primary} disabled={busy || Boolean(disabledReason) || selectedCount === 0} onClick={onRun}><Link2 size={15} />{busy ? "시작 중" : "RAW 매칭 시작"}</button></div>
+    </section>
+  </div>;
 }
 
 function PinListDialog({ eventId, onClose, onUpdated }: { eventId: string; onClose: () => void; onUpdated: () => Promise<void> }) {
@@ -605,12 +715,18 @@ function RawMatchResult({ result, at }: { result: Record<string, unknown> | null
   if (result.message && result.matchedCount === undefined) return <div className={styles.result}>{String(result.message)}</div>;
   if (result.error) return <div className={styles.warning}>RAW 매칭: {String(result.error)}</div>;
   const missing = list(result.missing); const ambiguous = list(result.ambiguous); const conflicts = list(result.conflicts); const notSubmitted = Array.isArray(result.notSubmitted) ? result.notSubmitted.map(String) : [];
+  const reviewRequired = list(result.reviewRequired);
+  const sourceLabel = result.source === "current" ? "제출 전 포함" : "최종 제출본";
+  const reviewRequiredCount = reviewRequired.length || missing.length + ambiguous.length + conflicts.length;
+  const reviewReason = (reason: unknown) => reason === "time_mismatch" ? "촬영시각 불일치" : reason === "multiple_candidates" ? "후보 여러 개" : reason === "missing_time" ? "촬영시각 없음" : reason === "raw_missing" ? "RAW 없음" : reason === "conflict" ? "대상 파일 충돌" : "확인 필요";
   return <div className={styles.result}>
-    <div>{`RAW 매칭${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · 제출 ${Number(result.submittedPeople ?? 0)}명 · 고른 사진 ${Number(result.selectedCount ?? 0)}장 · 새로 복사 ${Number(result.matchedCount ?? 0)}장 · 이미 있음 ${Number(result.alreadyCopiedCount ?? 0)}장 → 촬영 폴더/${String(result.outputRelativePath ?? "Selected_RAW")}`}</div>
+    <div>{`RAW 매칭${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · ${sourceLabel} · 고른 사진 ${Number(result.selectedCount ?? 0)}장 · 새로 복사 ${Number(result.matchedCount ?? 0)}장 · 이미 있음 ${Number(result.alreadyCopiedCount ?? 0)}장 · 확인 필요 ${reviewRequiredCount}장 → 촬영 폴더/${String(result.outputRelativePath ?? "Selected_RAW")}`}</div>
     {notSubmitted.length ? <div className={styles.skippedFolders}>미제출로 빠진 사람: {notSubmitted.join(" / ")}</div> : null}
-    {missing.length ? <ul className={styles.failureList}>{missing.map((item, index) => <li key={`m-${index}`}>{String(item.name)} · {String(item.jpg)}: RAW를 찾지 못했어요</li>)}</ul> : null}
-    {ambiguous.length ? <ul className={styles.failureList}>{ambiguous.map((item, index) => <li key={`a-${index}`}>{String(item.name)} · {String(item.jpg)}: 같은 이름의 RAW가 여러 개라 직접 확인이 필요해요 ({Array.isArray(item.candidates) ? item.candidates.length : 0}개)</li>)}</ul> : null}
-    {conflicts.length ? <ul className={styles.failureList}>{conflicts.map((item, index) => <li key={`c-${index}`}>{String(item.name)} · {String(item.raw)}: 같은 이름의 다른 파일이 이미 있어 덮어쓰지 않았어요</li>)}</ul> : null}
+    {reviewRequired.length ? <ul className={styles.failureList}>{reviewRequired.map((item, index) => <li key={`r-${index}`}>{String(item.owner)} · {String(item.jpg)}: {reviewReason(item.reason)}{Array.isArray(item.candidates) && item.candidates.length ? ` (${item.candidates.length}개 후보)` : ""}</li>)}</ul> : <>
+      {missing.length ? <ul className={styles.failureList}>{missing.map((item, index) => <li key={`m-${index}`}>{String(item.name)} · {String(item.jpg)}: RAW를 찾지 못했어요</li>)}</ul> : null}
+      {ambiguous.length ? <ul className={styles.failureList}>{ambiguous.map((item, index) => <li key={`a-${index}`}>{String(item.name)} · {String(item.jpg)}: 같은 이름의 RAW가 여러 개라 직접 확인이 필요해요 ({Array.isArray(item.candidates) ? item.candidates.length : 0}개)</li>)}</ul> : null}
+      {conflicts.length ? <ul className={styles.failureList}>{conflicts.map((item, index) => <li key={`c-${index}`}>{String(item.name)} · {String(item.raw)}: 같은 이름의 다른 파일이 이미 있어 덮어쓰지 않았어요</li>)}</ul> : null}
+    </>}
   </div>;
 }
 
