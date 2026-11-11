@@ -20,18 +20,20 @@ import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Choice = { id: string; image_id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type RepresentativeImage = { category_key: string; original_file_name: string; source_rel_path: string; thumb_url: string };
-type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number } };
+type DeliveryAdminItem = { id: string; person_id: string | null; group_label: string | null; display_name: string; current_version: number; status: "pending" | "revision_requested" | "revised" | "approved"; customer_memo: string; preview_url: string; link_method: string | null; versions?: Array<{ version: number; uploaded_at: string; customer_memo_snapshot: string }> };
+type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number }; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; delivery_count?: number; delivery_revision_count?: number; deliveries?: DeliveryAdminItem[] };
 type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
-type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null; customer_ai_results_visible?: boolean };
+type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null; customer_ai_results_visible?: boolean };
 type SharedSelectionItem = { image_id: string; customer_rating: number | null; customer_color_label?: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type SharedSelection = { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] };
 type SharedReviewer = { id: string; display_name: string; role_label: string | null; active: boolean; is_legacy: boolean; last_seen_at: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean; draft: (CustomerBridgeDraft & { selected_count: number; updated_at: string }) | null; selection: SharedSelection | null };
-type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: SharedSelection | null; reviewers: SharedReviewer[] };
+type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: SharedSelection | null; reviewers: SharedReviewer[]; deliveries?: DeliveryAdminItem[] };
 type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
-type Filter = "all" | "done" | "saving" | "unseen";
+type Filter = "all" | "done" | "saving" | "unseen" | "delivery_revision";
+type UploadKind = "original" | "delivery";
 type PinListPerson = { id: string; displayName: string; loginName: string; suggestedLoginName: string; canAutoNormalize: boolean; groupLabel: string; pin: string };
 
 function won(value: number) {
@@ -75,6 +77,7 @@ export default function PersonSelectDetailPage() {
   const [picker, setPicker] = useState(false);
   const [path, setPath] = useState("");
   const [sourceMode, setSourceMode] = useState<SourceMode>("local");
+  const [uploadKind, setUploadKind] = useState<UploadKind>("original");
   const [localFolderName, setLocalFolderName] = useState("");
   const [localScan, setLocalScan] = useState<LocalPersonSelectScan | null>(null);
   const localInputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +86,8 @@ export default function PersonSelectDetailPage() {
   const [workerOnline, setWorkerOnline] = useState<boolean | null>(null);
   const [jobId, setJobId] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [deliveryJobId, setDeliveryJobId] = useState("");
+  const [deliveryResult, setDeliveryResult] = useState<Record<string, unknown> | null>(null);
   const [error, setError] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Person | null>(null);
@@ -91,6 +96,7 @@ export default function PersonSelectDetailPage() {
   const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [deliveryAssignments, setDeliveryAssignments] = useState<Record<string, string>>({});
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
   const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
@@ -208,6 +214,37 @@ export default function PersonSelectDetailPage() {
     return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
   }, [jobId, load]);
   useEffect(() => {
+    if (!deliveryJobId) return;
+    let stopped = false;
+    let inFlight = false;
+    const poll = async () => {
+      if (stopped || inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const response = await fetch(`/api/remote-jobs?id=${deliveryJobId}`, { cache: "no-store" });
+        const body = await readApiResponse<{ job?: { status?: string; result?: Record<string, unknown> | null; error?: string; message?: string } }>(response, "보정본 가져오기 상태");
+        if (!body.job || !["COMPLETED", "FAILED", "CANCELED"].includes(body.job.status ?? "") || stopped) return;
+        const nextResult = body.job.result || { error: body.job.error || body.job.message || "보정본 가져오기에 실패했습니다." };
+        setDeliveryResult(nextResult);
+        if (body.job.status !== "COMPLETED") {
+          setError(`보정본 가져오기 실패: ${String(nextResult.error ?? body.job.error ?? "작업 결과를 확인해 주세요.")}`);
+        }
+        setDeliveryJobId("");
+        await load();
+      } catch {
+        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
+      } finally {
+        inFlight = false;
+      }
+    };
+    const resume = () => { if (document.visibilityState === "visible") void poll(); };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 2_500);
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("focus", resume);
+    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
+  }, [deliveryJobId, load]);
+  useEffect(() => {
     if (!rawJobId) return;
     let stopped = false;
     let inFlight = false;
@@ -258,6 +295,7 @@ export default function PersonSelectDetailPage() {
     if (filter === "done") return person.status_label.includes("제출");
     if (filter === "saving") return person.status_label === "저장 중";
     if (filter === "unseen") return person.status_label === "미접속";
+    if (filter === "delivery_revision") return Number(person.delivery_revision_count ?? 0) > 0;
     return true;
   }), [data, filter]);
   const selectedPerson = data?.people.find((person) => person.id === selectedId) ?? null;
@@ -292,7 +330,7 @@ export default function PersonSelectDetailPage() {
   const personWord = isSchool ? "선생님" : "이름";
   const categories = data.event.categories ?? [];
   const categoryLabels = new Map(categories.map((item) => [item.key, item.label]));
-  const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "저장 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length };
+  const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "저장 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length, deliveryRevision: data.people.filter((person) => Number(person.delivery_revision_count ?? 0) > 0).length };
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
@@ -357,6 +395,52 @@ export default function PersonSelectDetailPage() {
     }
   }
   function startImport() { return sourceMode === "local" ? startLocalImport() : startRemoteImport(); }
+  async function startDeliveryImport() {
+    if (!path) return setError("Mac Studio의 보정본 폴더를 선택해 주세요.");
+    setError(""); setDeliveryResult(null);
+    try {
+      const response = await fetch(`/api/person-select/${id}/deliveries/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourcePath: path }),
+      });
+      const body = await readApiResponse<{ job?: { id?: string } }>(response, "보정본 가져오기");
+      setDeliveryJobId(body.job?.id ?? "");
+      setDeliveryResult({ message: "보정본 원본과 미리보기를 안전하게 올리고 있어요." });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "보정본 가져오기를 시작하지 못했습니다.");
+    }
+  }
+  async function assignDelivery(deliveryId: string) {
+    const value = deliveryAssignments[deliveryId]?.trim() ?? "";
+    if (!value) return setError(isShared ? "연결할 폴더 이름을 입력해 주세요." : "연결할 고객을 선택해 주세요.");
+    try {
+      const response = await fetch(`/api/person-select/${id}/deliveries/${deliveryId}/assign`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(isShared ? { groupLabel: value } : { personId: value }),
+      });
+      await readApiResponse(response, "보정본 연결");
+      setDeliveryAssignments((current) => { const next = { ...current }; delete next[deliveryId]; return next; });
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "보정본 연결을 저장하지 못했습니다.");
+    }
+  }
+  async function changeDeliveryOwner(action: "reopen" | "extend", personId?: string) {
+    try {
+      const endpoint = action === "reopen" ? "state" : "retention";
+      const response = await fetch(`/api/person-select/${id}/deliveries/${endpoint}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(action === "reopen" ? { action: "reopen", personId } : { personId }),
+      });
+      await readApiResponse(response, action === "reopen" ? "보정본 다시 열기" : "보관 기간 연장");
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "보정본 상태를 바꾸지 못했습니다.");
+    }
+  }
   async function startRawMatch(clearMark = false) {
     setError(""); setRawResult(null);
     const payload = {
@@ -487,7 +571,7 @@ export default function PersonSelectDetailPage() {
   const tabs = isShared
     ? [["matching", "사진 확인", UsersRound], ["progress", "고객 셀렉", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const
     : [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const;
-  const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "저장 중", counts.saving], ["unseen", "미접속", counts.unseen]];
+  const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "저장 중", counts.saving], ["unseen", "미접속", counts.unseen], ["delivery_revision", "수정 요청", counts.deliveryRevision]];
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
@@ -603,6 +687,10 @@ export default function PersonSelectDetailPage() {
       </section> : null}
       {tab === "progress" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>검토자별 고객 셀렉</h2><p>{selectedSharedSelection ? `${selectedReviewer?.display_name ?? "검토자"}가 ${selectedSharedSelection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "검토자를 선택해 자동 저장 수와 최종 제출 결과를 확인하세요."}</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="셀렉을 확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""} · {reviewer.selection ? `제출 ${reviewer.selection.items.length}장` : `저장 ${reviewer.draft?.selected_count ?? 0}장`}</option>)}</select> : null}{selectedSharedSelection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div></div>
+        {(data.shared?.deliveries?.length ?? 0) > 0 ? <div className={styles.deliverySummary}>
+          <div><strong>보정본 {data.shared?.deliveries?.length ?? 0}장</strong><span> · 수정 요청 {data.shared?.deliveries?.filter((item) => item.status === "revision_requested").length ?? 0}장 · {data.event.delivery_state === "approved" ? `최종 확인 ${data.event.delivery_approved_at ? new Date(data.event.delivery_approved_at).toLocaleDateString("ko-KR") : "완료"}` : "확인 중"} · {data.event.delivery_downloaded_at ? "다운로드 완료" : "미다운로드"}</span></div>
+          <div className={styles.actions}><button className={styles.weak} onClick={() => void changeDeliveryOwner("reopen")}>다시 열기</button><button className={styles.weak} disabled={!data.event.delivery_approved_at} onClick={() => void changeDeliveryOwner("extend")}>보관 연장 +30일</button></div>
+        </div> : null}
         {selectedSharedSelection?.customer_memo ? <div className={styles.notice}>전체 메모<br />{selectedSharedSelection.customer_memo}</div> : null}
         {selectedSharedSelection?.items.length ? <div className={styles.matchingGrid}>{selectedSharedSelection.items.map((item) => <article className={styles.matchingCard} key={item.image_id}>{item.image?.thumb_url ? <img className={styles.matchingPhoto} src={item.image.thumb_url} alt={item.image.original_file_name} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}>사진 확인 필요</div>}<div className={styles.matchingMeta}><div><strong>{item.image?.original_file_name ?? item.image_id}</strong><span>{item.customer_rating ? `${item.customer_rating}점` : item.customer_color_label ? `${item.customer_color_label}번 컬러` : "선택"}</span></div><p>{item.image?.source_rel_path ?? "상대경로 없음"}</p>{item.memo ? <small>{item.memo}</small> : null}</div></article>)}</div> : <div className={styles.matchingEmpty}><Info size={28} /><strong>제출된 사진이 없어요.</strong><span>{selectedReviewer?.draft?.selected_count ? `${selectedReviewer.display_name}의 자동 저장 초안 ${selectedReviewer.draft.selected_count}장은 보존되어 있습니다.` : "공용 링크의 자동 저장 초안과 최종 제출은 구분됩니다."}</span></div>}
       </section> : null}
@@ -611,7 +699,7 @@ export default function PersonSelectDetailPage() {
         <div className={styles.rawMatchToolbar}><div><strong>고객 셀렉 RAW 매칭</strong><span>{rawDisabledReason || "최종 제출본 또는 현재 고른 상태를 기준으로 실행할 수 있어요."}</span></div><button className={styles.primary} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button></div>
         {rawStatus}
         <section className={styles.panel}><div className={styles.tableWrap}><table className={styles.table}>
-          <thead><tr><th>{personWord}</th>{data.groups.length ? <th>담임 반</th> : null}{categories.map((category) => <th key={category.key}>{categories.length === 1 ? "고른 사진" : category.label} ({category.pick}장)</th>)}<th>보정 요청</th><th>추가 주문</th><th>상태</th><th>최근 활동</th><th /></tr></thead>
+          <thead><tr><th>{personWord}</th>{data.groups.length ? <th>담임 반</th> : null}{categories.map((category) => <th key={category.key}>{categories.length === 1 ? "고른 사진" : category.label} ({category.pick}장)</th>)}<th>보정 요청</th><th>추가 주문</th><th>보정본 전달</th><th>상태</th><th>최근 활동</th><th /></tr></thead>
           <tbody>{filtered.map((person) => {
             const requests = person.choices.reduce((sum, choice) => sum + choice.retouch_keys.length, 0);
             return <tr key={person.id} className={person.id === selectedId ? styles.rowSelected : ""} onClick={() => setSelectedId(person.id)}>
@@ -626,12 +714,14 @@ export default function PersonSelectDetailPage() {
               })}
               <td className={styles.muted}>{requests ? `${requests}개${person.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}` : person.choices.length ? "기본 보정" : "—"}</td>
               <td className={person.order?.total ? styles.orderTotal : styles.muted} title={person.order?.lines.map((line) => `${line.label} ${line.detail} ×${line.qty}`).join("\n") ?? ""}>{person.order?.total ? won(person.order.total) : "—"}</td>
+              <td><div className={styles.deliveryCell}><strong>{person.delivery_count ? `${person.delivery_count}장` : "—"}</strong>{person.delivery_revision_count ? <span className={styles.deliveryRevision}>수정 요청 {person.delivery_revision_count}장</span> : person.delivery_state === "approved" ? <span>최종 확인</span> : person.delivery_count ? <span>확인 중</span> : null}{person.delivery_downloaded_at ? <small>다운로드 완료</small> : null}<div className={styles.deliveryRowActions}>{person.delivery_count ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("reopen", person.id); }}>다시 열기</button> : null}{person.delivery_approved_at ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("extend", person.id); }}>+30일</button> : null}</div></div></td>
               <td><span className={`${styles.status} ${person.status_label === "미접속" ? styles.statusIdle : person.status_label === "저장 중" ? styles.statusPending : ""}`}>{person.status_label}</span></td>
               <td className={styles.muted} title={person.latest_activity_at ? new Date(person.latest_activity_at).toLocaleString("ko-KR") : ""}>{relativeTime(person.latest_activity_at)}</td>
               <td><button className={styles.detailButton} onClick={(event) => { event.stopPropagation(); setSelectedId(person.id); setDrawer(person); }}>보기</button></td>
             </tr>;
           })}</tbody>
         </table></div>{filtered.length === 0 ? <div className={styles.loading}>해당하는 사람이 없어요.</div> : null}</section>
+        {filter === "delivery_revision" ? <section className={styles.deliveryRevisionPanel}><h2>수정 요청 보정본</h2><div className={styles.deliveryRevisionGrid}>{filtered.flatMap((person) => (person.deliveries ?? []).filter((item) => item.status === "revision_requested").map((item) => <article key={item.id} className={styles.deliveryRevisionCard}>{item.preview_url ? <img src={item.preview_url} alt={item.display_name} loading="lazy" /> : <div className={styles.matchingPhotoEmpty}>미리보기 없음</div>}<div><strong>{person.display_name} · {item.display_name}</strong><p>{item.customer_memo || "수정 요청 메모 없음"}</p><small>{(item.versions ?? []).map((version) => `v${version.version}${version.customer_memo_snapshot ? ` · ${version.customer_memo_snapshot}` : ""}`).join(" / ") || `v${item.current_version}`}</small></div></article>))}</div></section> : null}
         <div className={styles.infoChips}>
           {groupFolders.length ? <span className={styles.infoChip}><UsersRound size={13} />그룹 사진 <b>{groupFolders.join(" · ")}</b> 은 작가가 직접 고름</span> : null}
           {unnamedFolders.length ? <span className={styles.infoChip}><Info size={13} />이름 미변경 <b>{unnamedFolders.join(" · ")}</b> 건너뜀</span> : null}
@@ -642,6 +732,8 @@ export default function PersonSelectDetailPage() {
       {tab === "upload" ? <div className={styles.uploadGrid}>
         <section className={styles.uploadCard}>
           <h2>폴더에서 사진 올리기</h2>
+          <div className={styles.segment} style={{ margin: "6px 0 16px" }}><button className={uploadKind === "original" ? styles.segmentActive : ""} onClick={() => setUploadKind("original")}>원본 올리기</button><button className={uploadKind === "delivery" ? styles.segmentActive : ""} onClick={() => { setUploadKind("delivery"); setSourceMode("remote"); }}>보정본 올리기</button></div>
+          {uploadKind === "original" ? <>
           <div className={styles.field}><label>사진이 있는 위치</label><div className={styles.segment} style={{ margin: "6px 0 12px" }}>{([["local", "이 기기", Monitor], ["remote", "Mac Studio", Server]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={sourceMode === key ? styles.segmentActive : ""} onClick={() => setSourceMode(key)}><Icon size={15} />{label}</button>)}</div></div>
           <div className={styles.segment} style={{ margin: "6px 0 12px" }}>{(isShared ? [["project", "프로젝트 전체 폴더", UsersRound]] as const : [["person-folders", "이름 폴더 (김춘자/JPG원본)", UserRound], ["school", "학교 (선생님프로필·담임선생님)", UsersRound]] as const).map(([key, label, Icon]) => <button key={key} disabled={localBusy} className={currentLayout === key ? styles.segmentActive : ""} onClick={() => { setLayout(key); setLocalFolderName(""); setLocalScan(null); }}><Icon size={15} />{label}</button>)}</div>
           <p className={styles.summary}>{sourceMode === "local" ? "지금 Olivia를 연 기기" : "Mac Studio"}에서 {isShared ? "프로젝트" : isSchool ? "학교전달" : "촬영"} 폴더를 골라 썸네일과 1600px 미리보기만 올립니다.</p>
@@ -658,8 +750,16 @@ export default function PersonSelectDetailPage() {
           {sourceMode === "remote" ? <div className={styles.field} style={{ marginTop: 20 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(e) => setPath(e.target.value)} placeholder={isSchool ? "/Users/jakemacstudio/UGnasync/.../학교전달" : "/Volumes/Agentstation(M.2SSD)/.../1031_촬영폴더"} /><small className={styles.summary}>Mac Studio의 폴더 경로를 그대로 붙여넣어도 돼요.</small></div> : null}
           {sourceMode === "local" && !data.event.source_relative_path ? <p className={styles.summary}>RAW 매칭은 같은 원본 폴더를 Mac Studio 위치에서 다시 선택해 사진 올리기를 실행하면 연결됩니다. 이미 올라온 사진은 건너뜁니다.</p> : null}
           {result ? <div className={styles.result}>{result.photoCount !== undefined ? <><div>{`사진 ${Number(result.photoCount).toLocaleString()}장 · 저장 완료 ${Number(result.importedCount ?? eventUploadJob?.success_count ?? 0).toLocaleString()}장 · 실패 ${Number(result.failedCount ?? 0).toLocaleString()}장`}</div>{result.message ? <div>{String(result.message)}</div> : null}{Array.isArray(result.skippedFolders) && result.skippedFolders.length ? <div className={styles.skippedFolders}>건너뛴 폴더: {result.skippedFolders.map(String).join(" / ")}</div> : null}{unnamedFolders.length ? <div className={styles.warning}>이름을 아직 안 바꾼 폴더라 올리지 않았어요: {unnamedFolders.join(" / ")}</div> : null}{groupFolders.length ? <div className={styles.skippedFolders}>그룹 사진은 고객에게 올리지 않았어요: {groupFolders.join(" / ")}</div> : null}</> : String(result.message || result.error || "처리 중이에요.")}</div> : null}
+          </> : <>
+            <div className={styles.notice}>보정 완료 JPG/JPEG 폴더를 Mac Studio에서 선택합니다. 원본 파일은 그대로 private Storage에 보관하고, 고객 화면에는 2000px 미리보기를 사용합니다.</div>
+            {workerOnline === false ? <div className={styles.warning}>Mac Studio가 꺼져 있어요. 켜진 뒤 다시 시도해 주세요.</div> : null}
+            <div className={styles.selectedPath}>{path || "선택된 Mac Studio 보정본 폴더가 없습니다."}</div>
+            <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={workerOnline === false || Boolean(deliveryJobId)} onClick={() => setPicker(true)}><FolderOpen size={15} />폴더 선택</button><button className={styles.primary} disabled={workerOnline !== true || !path || Boolean(deliveryJobId)} onClick={() => void startDeliveryImport()}><Upload size={15} />{deliveryJobId ? "보정본 올리는 중" : "보정본 올리기"}</button></div>
+            <div className={styles.field} style={{ marginTop: 18 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(event) => setPath(event.target.value)} placeholder="/Volumes/Agentstation(M.2SSD)/.../보정본" /><small className={styles.summary}>Mac Studio에서 보이는 폴더 경로를 입력합니다. Vercel 서버를 거쳐 파일을 전송하지 않습니다.</small></div>
+            {deliveryResult ? <DeliveryImportResult result={deliveryResult} people={data.people} isShared={isShared} assignments={deliveryAssignments} busy={Boolean(deliveryJobId)} onRetry={() => void startDeliveryImport()} onAssignmentChange={(deliveryId, value) => setDeliveryAssignments((current) => ({ ...current, [deliveryId]: value }))} onAssign={(deliveryId) => void assignDelivery(deliveryId)} /> : null}
+          </>}
         </section>
-        <aside className={styles.uploadCard}><h2>가져오는 항목</h2>{isShared ? <><div className={styles.notice}>선택한 프로젝트 폴더의 JPG를 하위 폴더까지 가져옵니다.<br />사람 계정이나 개인별 PIN은 만들지 않습니다.</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 상대경로를 보존한 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
+        <aside className={styles.uploadCard}><h2>{uploadKind === "delivery" ? "보정본 연결 기준" : "가져오는 항목"}</h2>{uploadKind === "delivery" ? <><div className={styles.notice}>촬영시각 일치 → 파일명 앞 이름 → 상위 폴더 이름 순으로 고객과 연결합니다.<br />연결하지 못한 파일은 업로드 결과에서 직접 지정할 수 있습니다.</div><p className={styles.summary}>같은 파일명을 다시 올리면 새 버전으로 보관합니다. 고객이 수정 요청한 사진은 새 버전이 올라오면 “수정됨”으로 표시됩니다.</p></> : isShared ? <><div className={styles.notice}>선택한 프로젝트 폴더의 JPG를 하위 폴더까지 가져옵니다.<br />사람 계정이나 개인별 PIN은 만들지 않습니다.</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 상대경로를 보존한 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
       </div> : null}
       {tab === "settings" ? <section className={styles.panel} style={{ padding: 22 }}>
         <div className={styles.formGrid}>
@@ -669,6 +769,8 @@ export default function PersonSelectDetailPage() {
           <div className={styles.field}><label>프로젝트 유형</label><select className={styles.select} value={data.event.project_type ?? "general"} onChange={(e) => setData({ ...data, event: { ...data.event, project_type: e.target.value as PersonSelectProjectType } })}>{Object.entries(PERSON_SELECT_PROJECT_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
           <div className={styles.field}><label>접근 방식</label><select className={styles.select} value={data.event.access_mode ?? "individual"} onChange={(e) => setData({ ...data, event: { ...data.event, access_mode: e.target.value as PersonSelectAccessMode } })}>{Object.entries(PERSON_SELECT_ACCESS_MODE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><small className={styles.summary}>사진만 올린 상태는 그대로 유지하며 변경할 수 있습니다. 실제 접속·선택·메모·주문·제출이 있거나 개인별 소유자/PIN이 불완전하면 정확한 이유를 안내하고 변경을 막습니다.</small></div>
           <div className={styles.field}><label>고객 화면 방식</label><select className={styles.select} value={data.event.customer_view_mode ?? "classic"} onChange={(e) => setData({ ...data, event: { ...data.event, customer_view_mode: e.target.value as PersonSelectCustomerViewMode } })}>{Object.entries(PERSON_SELECT_CUSTOMER_VIEW_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          <div className={styles.field}><label>고객 화면 단계</label><select className={styles.select} value={data.event.customer_stage ?? "select"} onChange={(event) => setData({ ...data, event: { ...data.event, customer_stage: event.target.value as "select" | "delivery" } })}><option value="select">원본 셀렉</option><option value="delivery">보정본 확인</option></select><small className={styles.summary}>보정본 확인으로 바꾸면 고객 화면에서 원본 사진과 셀렉 기록은 숨기고 보정본만 표시합니다. 원본 데이터는 삭제하지 않습니다.</small></div>
+          <div className={styles.field}><label>보정본 보관 기간(일)</label><input className={styles.input} type="number" min={1} max={3650} value={data.event.delivery_retention_days ?? 30} onChange={(event) => setData({ ...data, event: { ...data.event, delivery_retention_days: Math.max(1, Number(event.target.value) || 30) } })} /><small className={styles.summary}>고객의 최종 확인일부터 계산합니다. 만료 후 원본만 삭제하고 미리보기와 기록은 유지합니다.</small></div>
           {isShared ? <div className={`${styles.field} ${styles.fieldFull}`}><label>원본 다운로드 NAS 공유 링크</label><input className={styles.input} type="url" inputMode="url" value={data.event.nas_download_url ?? ""} onChange={(event) => setData({ ...data, event: { ...data.event, nas_download_url: event.target.value } })} placeholder="https://..." /><small className={styles.summary}>기존 공유 링크 설정은 서버에만 보관합니다. 고객에게 NAS 주소를 직접 노출하지 않고, 권한이 있는 검토자의 요청만 Mac Studio가 원본 ZIP으로 준비해 5분짜리 다운로드 링크를 발급합니다.</small></div> : null}
           {isShared ? <label className={`${styles.check} ${styles.fieldFull}`}><input type="checkbox" checked={data.event.customer_ai_results_visible === true} onChange={(event) => setData({ ...data, event: { ...data.event, customer_ai_results_visible: event.target.checked } })} /> 고객에게 AI 품질 검사 결과 공개 (검토자별 권한도 필요)</label> : null}
           <div className={`${styles.field} ${styles.fieldFull}`}><label>사진선택 항목</label><div className={styles.groupRows}>{categories.map((category, index) => <div className={styles.groupRow} key={category.key}><input className={styles.input} aria-label="항목 이름" value={category.label} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, label: e.target.value } : item) } })} /><select className={styles.select} value={category.pick} onChange={(e) => setData({ ...data, event: { ...data.event, categories: categories.map((item, itemIndex) => itemIndex === index ? { ...item, pick: Number(e.target.value) } : item) } })}>{Array.from({ length: 50 }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n}장</option>)}</select><button type="button" className={styles.weak} disabled={categories.length <= 1} aria-label={`${category.label} 삭제`} onClick={() => setData({ ...data, event: { ...data.event, categories: categories.filter((_, itemIndex) => itemIndex !== index) } })}><Trash2 size={15} /></button></div>)}</div><button type="button" className={styles.secondary} style={{ marginTop: 10 }} onClick={() => setData({ ...data, event: { ...data.event, categories: [...categories, { key: `item_${Date.now()}`, label: "새 사진 항목", pick: 1 }] } })}><Plus size={14} />항목 추가</button><small className={styles.summary}>{isShared ? "공유 프로젝트의 항목은 안내·분류에 사용하며 사람별 수량으로 해석하지 않습니다." : "올라온 사진이 수량보다 적은 사람은 있는 만큼만 고르면 됩니다."}</small></div>
@@ -691,7 +793,7 @@ export default function PersonSelectDetailPage() {
             })}</div>
           </div> : null}
         </div>
-        <div className={styles.formActions}><button type="button" className={styles.danger} onClick={() => { setDeleteConfirmTitle(""); setDeleteOpen(true); }}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
+        <div className={styles.formActions}><button type="button" className={styles.danger} onClick={() => { setDeleteConfirmTitle(""); setDeleteOpen(true); }}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", customer_stage: data.event.customer_stage ?? "select", delivery_retention_days: data.event.delivery_retention_days ?? 30, nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
     {rawDialogOpen ? <RawMatchDialog
@@ -734,6 +836,32 @@ export default function PersonSelectDetailPage() {
       }
     }} /> : null}
   </main>;
+}
+
+function DeliveryImportResult({ result, people, isShared, assignments, busy, onRetry, onAssignmentChange, onAssign }: {
+  result: Record<string, unknown>;
+  people: Person[];
+  isShared: boolean;
+  assignments: Record<string, string>;
+  busy: boolean;
+  onRetry: () => void;
+  onAssignmentChange: (deliveryId: string, value: string) => void;
+  onAssign: (deliveryId: string) => void;
+}) {
+  const unassigned = Array.isArray(result.unassigned) ? result.unassigned.flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const row = value as Record<string, unknown>;
+    return typeof row.deliveryId === "string" ? [{ deliveryId: row.deliveryId, fileName: String(row.fileName ?? "보정본"), parentFolderName: typeof row.parentFolderName === "string" ? row.parentFolderName : null }] : [];
+  }) : [];
+  if (result.error) {
+    const diagnostics = result.diagnostics && typeof result.diagnostics === "object" ? result.diagnostics as Record<string, unknown> : null;
+    return <div className={styles.deliveryError} role="alert"><strong>실패 · {String(result.error)}</strong><span>단계: {String(result.stage ?? "확인 필요")} · {new Date().toLocaleString("ko-KR")}</span><div><details><summary>자세히</summary><pre>{JSON.stringify(diagnostics ?? result, null, 2)}</pre></details><button type="button" className={styles.secondary} disabled={busy} onClick={onRetry}>다시 시도</button></div></div>;
+  }
+  if (result.uploadedCount === undefined) return <div className={styles.result}>{String(result.message || "보정본을 처리하고 있어요.")}</div>;
+  return <div className={styles.deliveryImportResult}>
+    <div className={styles.result}>올림 {Number(result.uploadedCount).toLocaleString()}장 · 새 버전 {Number(result.newVersionCount ?? 0).toLocaleString()}장 · 자동연결(촬영시각 {Number(result.exifCount ?? 0).toLocaleString()} / 파일명 {Number(result.filenameCount ?? 0).toLocaleString()} / 폴더 {Number(result.folderCount ?? 0).toLocaleString()}) · 연결 안 됨 {Number(result.unassignedCount ?? 0).toLocaleString()}장</div>
+    {unassigned.length ? <div className={styles.deliveryAssignments}><strong>연결 안 된 보정본</strong>{unassigned.map((item) => <div key={item.deliveryId} className={styles.deliveryAssignmentRow}><span>{item.fileName}{item.parentFolderName ? ` · ${item.parentFolderName}` : ""}</span>{isShared ? <input className={styles.input} value={assignments[item.deliveryId] ?? item.parentFolderName ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)} placeholder="그룹 이름" /> : <select className={styles.select} value={assignments[item.deliveryId] ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)}><option value="">고객 선택</option>{people.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}</select>}<button className={styles.secondary} onClick={() => onAssign(item.deliveryId)}>연결</button></div>)}</div> : null}
+  </div>;
 }
 
 function RawMatchDialog({ mode, onModeChange, source, onSourceChange, labelNames, onLabelNamesChange, isShared, reviewerScope, onReviewerScopeChange, reviewers, selectedCount, submittedCount, currentCount, pathPlan, busy, disabledReason, onClose, onRun }: {

@@ -12,15 +12,23 @@ import { assessAccessModeChange, normalizeAccessModeChangeFacts } from "@/lib/pe
 import { normalizeNasDownloadUrl } from "@/lib/person-select/reviewers";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import { databaseApiFailure } from "@/lib/supabase/apiError";
+import { loadAdminDeliveryItems } from "@/lib/person-select/deliveryServer";
 
 export const dynamic = "force-dynamic";
+
+async function loadPeopleWithDeliveryCompatibility(db: ReturnType<typeof getSupabaseAdmin>, eventId: string) {
+  const enriched = await db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at,delivery_state,delivery_approved_at,delivery_downloaded_at,delivery_files_purged_at,delivery_retention_extended_until").eq("event_id", eventId).order("display_name");
+  if (!enriched.error) return enriched;
+  if (!/delivery_|schema cache|does not exist/i.test(`${enriched.error.message} ${enriched.error.code ?? ""}`)) return enriched;
+  return db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at").eq("event_id", eventId).order("display_name");
+}
 
 async function getPersonSelectAdminResponse(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const db = getSupabaseAdmin();
   const [{ data: event, error }, { data: people, error: peopleError }, choices, imageGroups] = await Promise.all([
     db.from("person_select_events").select("*").eq("id", eventId).single(),
-    db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at").eq("event_id", eventId).order("display_name"),
+    loadPeopleWithDeliveryCompatibility(db, eventId),
     readAllPersonSelectRows((from, to) => db.from("person_select_choices")
       .select("id,event_id,person_id,category_key,image_id,retouch_keys,memo,updated_at,person_select_images(original_file_name,source_rel_path,thumb_path)")
       .eq("event_id", eventId)
@@ -70,6 +78,14 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
     thumb_url: representativeUrls.get(image.thumb_path) ?? "",
   });
   const categories = (event.categories ?? []) as PersonSelectCategory[];
+  const deliveryRows = await loadAdminDeliveryItems(db, eventId);
+  const deliveriesByPerson = new Map<string, typeof deliveryRows>();
+  for (const delivery of deliveryRows) {
+    if (!delivery.person_id) continue;
+    const list = deliveriesByPerson.get(delivery.person_id);
+    if (list) list.push(delivery);
+    else deliveriesByPerson.set(delivery.person_id, [delivery]);
+  }
   const choicesByPerson = new Map<string, typeof choiceRows>();
   for (const choice of choiceRows) {
     const list = choicesByPerson.get(choice.person_id);
@@ -102,6 +118,9 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       })(),
       status_label: selectionStatus({ firstSeenAt: person.first_seen_at, submittedAt: person.submitted_at, choiceCount: ownChoices.length, latestChoiceAt: latest }),
       latest_activity_at: latest || person.last_seen_at || person.first_seen_at,
+      deliveries: deliveriesByPerson.get(person.id) ?? [],
+      delivery_count: deliveriesByPerson.get(person.id)?.length ?? 0,
+      delivery_revision_count: deliveriesByPerson.get(person.id)?.filter((delivery) => delivery.status === "revision_requested").length ?? 0,
     };
   });
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
@@ -189,6 +208,7 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       })),
       selection: latestSelection ? { ...latestSelection, items: itemsFor(latestSelection.id) } : null,
       reviewers: reviewerRows,
+      deliveries: deliveryRows.filter((delivery) => !delivery.person_id),
     };
   }
   return Response.json({ ok: true, event, people: peopleRows, groups, shared });
@@ -217,10 +237,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "shared_link_active", "shared_token_expires_at", "nas_download_url", "customer_ai_results_visible"];
+  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "customer_stage", "delivery_retention_days", "shared_link_active", "shared_token_expires_at", "nas_download_url", "customer_ai_results_visible"];
   const update = Object.fromEntries(allowed.filter((key) => body[key] !== undefined).map((key) => [key, body[key]]));
   if (body.project_type !== undefined && !isPersonSelectProjectType(body.project_type)) return Response.json({ ok: false, error: "올바른 프로젝트 유형을 선택해 주세요." }, { status: 400 });
   if (body.customer_view_mode !== undefined && !isPersonSelectCustomerViewMode(body.customer_view_mode)) return Response.json({ ok: false, error: "올바른 고객 화면 방식을 선택해 주세요." }, { status: 400 });
+  if (body.customer_stage !== undefined && body.customer_stage !== "select" && body.customer_stage !== "delivery") return Response.json({ ok: false, error: "올바른 고객 화면 단계를 선택해 주세요." }, { status: 400 });
+  if (body.delivery_retention_days !== undefined && (!Number.isInteger(body.delivery_retention_days) || Number(body.delivery_retention_days) < 1 || Number(body.delivery_retention_days) > 3650)) return Response.json({ ok: false, error: "보정본 보관 기간은 1~3650일로 입력해 주세요." }, { status: 400 });
   if (body.access_mode !== undefined && !isPersonSelectAccessMode(body.access_mode)) return Response.json({ ok: false, error: "올바른 접근 방식을 선택해 주세요." }, { status: 400 });
   if (body.nas_download_url !== undefined) {
     const normalized = normalizeNasDownloadUrl(body.nas_download_url);

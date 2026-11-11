@@ -6,15 +6,16 @@ import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, L
 import { formatSeoulDeadline } from "@/lib/person-select/date";
 import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
+import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import styles from "./PersonSelectPublic.module.css";
 
 type Category = { key: string; label: string; pick: number; image_count: number; need: number; max: number; choices: Choice[] };
 type Choice = { id: string; image_id: string; original_file_name: string; thumb_url: string | null; retouch_keys: string[]; memo: string; updated_at: string };
-type EventData = { title: string; slug: string; deadline_at: string; status: string; source_layout?: "school" | "person-folders" | null; retouch_options: { key: string; label: string }[]; memo_max: number; locked: boolean; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: Offer[] };
+type EventData = { title: string; slug: string; deadline_at: string; status: string; source_layout?: "school" | "person-folders" | null; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; retouch_options: { key: string; label: string }[]; memo_max: number; locked: boolean; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: Offer[] };
 type Offer = { key: string; label: string; unit: string; price: number; note: string; needs_photo: boolean; options: { key: string; label: string; price: number }[] };
 type OrderItem = { offer_key: string; option_key: string | null; image_id: string | null; qty: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
-type MeData = { event: EventData; person: { display_name: string; group_label: string | null; submitted_at: string | null }; categories: Category[]; order?: { items: OrderItem[]; lines: OrderLine[]; total: number } };
+type MeData = { event: EventData; person: { display_name: string; group_label: string | null; submitted_at: string | null; delivery_state?: string }; categories: Category[]; order?: { items: OrderItem[]; lines: OrderLine[]; total: number } };
 type ImageData = { id: string; original_file_name: string; thumb_url: string; preview_url: string; width: number | null; height: number | null };
 type PublicEvent = Pick<EventData, "title" | "slug" | "deadline_at" | "status" | "source_layout">;
 
@@ -193,6 +194,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const [pcActiveKey, setPcActiveKey] = useState("profile");
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
+  if (me.event.customer_stage === "delivery") return <PersonSelectDeliveryReview apiBase={`/api/pick/${slug}`} title={me.event.title} viewerName={me.person.display_name} />;
   const visibleCategories = me.categories
     .filter((category) => category.image_count > 0)
     .filter((category) => category.key !== "homeroom" || Boolean(me.person.group_label));

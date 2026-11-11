@@ -7,6 +7,7 @@ export type PersonSelectCategory = {
 export type PersonSelectProjectType = "general" | "school" | "medical" | "business";
 export type PersonSelectAccessMode = "individual" | "project_shared";
 export type PersonSelectCustomerViewMode = "classic" | "bridge";
+export type PersonSelectCustomerStage = "select" | "delivery";
 
 export type PersonSelectRetouchOption = {
   key: string;
@@ -27,6 +28,13 @@ export type PersonSelectEvent = {
   project_type?: PersonSelectProjectType;
   access_mode?: PersonSelectAccessMode;
   customer_view_mode?: PersonSelectCustomerViewMode;
+  customer_stage?: PersonSelectCustomerStage;
+  delivery_retention_days?: number;
+  delivery_state?: "none" | "reviewing" | "revision_sent" | "approved";
+  delivery_approved_at?: string | null;
+  delivery_downloaded_at?: string | null;
+  delivery_files_purged_at?: string | null;
+  delivery_retention_extended_until?: string | null;
   shared_token?: string | null;
   shared_token_version?: number;
   shared_link_active?: boolean;
@@ -87,6 +95,11 @@ export type PersonSelectPerson = {
   last_seen_at: string | null;
   submitted_at: string | null;
   orders?: PersonSelectOrderItem[];
+  delivery_state?: "none" | "reviewing" | "revision_sent" | "approved";
+  delivery_approved_at?: string | null;
+  delivery_downloaded_at?: string | null;
+  delivery_files_purged_at?: string | null;
+  delivery_retention_extended_until?: string | null;
 };
 
 export type PersonSelectSession = {

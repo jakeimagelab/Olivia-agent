@@ -28,7 +28,7 @@ import type { RemoteRawMatchCopyPayload } from "@/lib/selectMatch/remoteRawMatch
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
-const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-raw-mark-v1";
+const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-delivery-v1";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -283,6 +283,12 @@ export function createRunnerInvocation(job: ClaimedRemoteJob, repoRoot: string):
       addString(args, "--mappings-json", JSON.stringify(payload.mappings));
       return runner(repoRoot, "person-select-import.ts", args);
     }
+    case "PERSON_SELECT_DELIVERY_IMPORT":
+      addString(args, "--event-id", stringValue(payload, "event_id", true));
+      addString(args, "--source-relative-path", stringValue(payload, "source_relative_path", true));
+      return runner(repoRoot, "person-select-delivery-import.ts", args);
+    case "PERSON_SELECT_DELIVERY_PURGE":
+      return runner(repoRoot, "person-select-delivery-purge.ts", args);
     case "PERSON_SELECT_RAW_MATCH":
       addString(args, "--event-id", stringValue(payload, "event_id", true));
       addString(args, "--mode", stringValue(payload, "mode") || "copy");

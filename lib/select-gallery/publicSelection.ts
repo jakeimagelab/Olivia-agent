@@ -190,11 +190,12 @@ export async function enforcePublicSelectionRateLimit(input: {
   action: string;
   limit: number;
   windowSeconds?: number;
+  identityOnly?: boolean;
 }) {
   const keyHash = publicSelectionRateLimitKey({
     token: input.token,
     action: input.action,
-    ip: publicRequestIp(input.request),
+    ip: input.identityOnly ? null : publicRequestIp(input.request),
   });
   const { data, error } = await input.db.rpc("consume_select_public_rate_limit", {
     p_key_hash: keyHash,

@@ -11,6 +11,36 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) return Response.json({ ok: false, error: "다시 로그인해 주세요." }, { status: 401 });
   const db = getSupabaseAdmin();
+  if (ctx.event.customer_stage === "delivery") {
+    await db.from("person_select_people").update({ last_seen_at: new Date().toISOString() }).eq("id", ctx.person.id);
+    return Response.json({
+      ok: true,
+      event: {
+        title: ctx.event.title,
+        slug: ctx.event.slug,
+        deadline_at: ctx.event.deadline_at,
+        status: ctx.event.status,
+        source_layout: ctx.event.source_layout ?? "school",
+        customer_stage: "delivery",
+        delivery_retention_days: ctx.event.delivery_retention_days ?? 30,
+        retouch_options: [],
+        memo_max: ctx.event.memo_max,
+        locked: false,
+        offer_notice: "",
+        extra_price: 0,
+        extra_max: 0,
+        offers: [],
+      },
+      order: { items: [], lines: [], total: 0 },
+      person: {
+        display_name: ctx.person.display_name,
+        group_label: ctx.person.group_label,
+        submitted_at: ctx.person.submitted_at,
+        delivery_state: ctx.person.delivery_state ?? "none",
+      },
+      categories: [],
+    });
+  }
   const { data: choices } = await db.from("person_select_choices")
     .select("id,category_key,image_id,retouch_keys,memo,updated_at,person_select_images(original_file_name,thumb_path)")
     .eq("person_id", ctx.person.id).eq("event_id", ctx.event.id);
@@ -75,6 +105,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       retouch_options: ctx.event.retouch_options,
       memo_max: ctx.event.memo_max,
       locked: eventIsLocked(ctx.event),
+      customer_stage: ctx.event.customer_stage ?? "select",
+      delivery_retention_days: ctx.event.delivery_retention_days ?? 30,
       offer_notice: ctx.event.offer_notice ?? "",
       extra_price: Number(ctx.event.extra_price) || 0,
       extra_max: extraMax,

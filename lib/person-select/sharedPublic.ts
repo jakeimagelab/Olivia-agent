@@ -36,7 +36,7 @@ function validateSharedEvent(data: Record<string, any> | null) {
   if (event.access_mode !== "project_shared" || event.shared_link_active === false) throw new PublicSelectionRequestError("사용할 수 없는 공유 링크입니다.", 403);
   if (event.shared_token_expires_at && new Date(event.shared_token_expires_at).getTime() <= Date.now()) throw new PublicSelectionRequestError("공유 링크가 만료되었습니다.", 410);
   if (event.status === "draft") throw new PublicSelectionRequestError("아직 사진선택이 열리지 않았습니다.", 423);
-  if (event.status === "closed" || new Date(event.deadline_at).getTime() <= Date.now()) throw new PublicSelectionRequestError("사진선택이 마감되었습니다.", 423);
+  if (event.customer_stage !== "delivery" && (event.status === "closed" || new Date(event.deadline_at).getTime() <= Date.now())) throw new PublicSelectionRequestError("사진선택이 마감되었습니다.", 423);
   return event;
 }
 
@@ -111,6 +111,10 @@ export function sharedPersonSelectEventResponse(event: PersonSelectEvent) {
     deadline_at: event.deadline_at,
     status: event.status,
     customer_view_mode: event.customer_view_mode ?? "classic",
+    customer_stage: event.customer_stage ?? "select",
+    delivery_retention_days: event.delivery_retention_days ?? 30,
+    delivery_state: event.delivery_state ?? "none",
+    delivery_approved_at: event.delivery_approved_at ?? null,
     download_available: Boolean(event.source_relative_path),
     customer_ai_results_visible: event.customer_ai_results_visible === true,
   };

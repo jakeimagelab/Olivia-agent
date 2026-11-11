@@ -25,6 +25,8 @@ const ALLOWED_ACTIONS = new Set([
   "PHOTO_AI_SELECT",
   "PHOTO_RETOUCH",
   "PERSON_SELECT_IMPORT",
+  "PERSON_SELECT_DELIVERY_IMPORT",
+  "PERSON_SELECT_DELIVERY_PURGE",
   "PERSON_SELECT_RAW_MATCH",
   "PERSON_SELECT_LIST_FOLDER",
   "VIDEO_INTERVIEW_ANALYZE",
@@ -475,6 +477,18 @@ export async function POST(request: NextRequest) {
       return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 가져오기 요청입니다." }, { status: 400 });
     }
   }
+
+  if (action === "PERSON_SELECT_DELIVERY_IMPORT") {
+    try {
+      if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+      const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
+      payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath };
+    } catch (error) {
+      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 보정본 가져오기 요청입니다." }, { status: 400 });
+    }
+  }
+
+  if (action === "PERSON_SELECT_DELIVERY_PURGE") payload = {};
 
   if (action === "PERSON_SELECT_RAW_MATCH") {
     if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) {
