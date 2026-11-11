@@ -272,7 +272,7 @@ export function PhotoStudioExecutionProvider({ children }: { children: ReactNode
         if (!disposed && !request.signal.aborted) setWorkerPollingState("reconnecting");
       } finally {
         request = null;
-        if (!disposed) timer = setTimeout(() => void load(), 10_000);
+        if (!disposed) timer = setTimeout(() => void load(), 30_000);
       }
     };
 

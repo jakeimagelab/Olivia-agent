@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const state = vi.hoisted(() => ({
   rows: [] as Array<Record<string, unknown>>,
   requestedIds: [] as string[],
+  requestCount: 0,
 }));
 
 vi.mock("@/lib/passkey", () => ({ isAdminSession: () => true }));
@@ -12,6 +13,7 @@ vi.mock("@/lib/supabase", () => ({
     from: () => ({
       select: () => ({
         in: async (_column: string, ids: string[]) => {
+          state.requestCount += 1;
           state.requestedIds = ids;
           return { data: state.rows, error: null };
         },
@@ -28,6 +30,7 @@ beforeEach(() => {
     { worker_id: "jake-macbookpro-01", last_seen_at: null, worker_status: null, nas_connected: null, updated_at: null },
   ];
   state.requestedIds = [];
+  state.requestCount = 0;
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -37,8 +40,11 @@ describe("GET /api/remote-workers/status", () => {
     const { GET } = await import("@/app/api/remote-workers/status/route");
     const response = await GET(new NextRequest("http://localhost/api/remote-workers/status"));
     const body = await response.json();
+    const cachedResponse = await GET(new NextRequest("http://localhost/api/remote-workers/status"));
 
     expect(response.status).toBe(200);
+    expect(cachedResponse.status).toBe(200);
+    expect(state.requestCount).toBe(1);
     expect(state.requestedIds).toEqual(["jake-macstudio-01"]);
     expect(body.worker).toMatchObject({ id: "jake-macstudio-01", online: true });
     expect(body.workers).toBeUndefined();

@@ -69,7 +69,7 @@ export default function MobileBridgeStatus({ onRequestOlivia }: { onRequestOlivi
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Bridge 상태를 확인하지 못했어요."); }
     finally { setLoading(false); }
   }, []);
-  useEffect(() => { void load(); const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 5000); return () => window.clearInterval(timer); }, [load]);
+  useEffect(() => { void load(); const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(); }, 15_000); return () => window.clearInterval(timer); }, [load]);
 
   const photoJobs = useMemo(() => jobs.filter((job) => job.action.startsWith("PHOTO_")), [jobs]);
   const active = photoJobs.find((job) => ["QUEUED", "RUNNING"].includes(job.status)) || photoJobs[0] || null;

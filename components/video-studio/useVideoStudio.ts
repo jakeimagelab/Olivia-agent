@@ -76,7 +76,7 @@ export function useVideoStudioWorkers() {
     void refreshWorkers();
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshWorkers();
-    }, 10_000);
+    }, 30_000);
     return () => window.clearInterval(timer);
   }, [refreshWorkers]);
 
