@@ -1,3 +1,5 @@
+import { isCustomerSelection } from "./customerSelection";
+
 export type PersonSelectRawMatchSource = "submitted" | "current";
 export type PersonSelectRawMatchMode = "copy" | "mark";
 
@@ -188,13 +190,16 @@ export function resolveSharedRawMatchTargets(input: {
 
   const submittedTargets = uniqueTargets(reviewers.flatMap((reviewer) => (
     input.submittedByReviewer.get(reviewer.id) ?? []
-  ).map((image) => targetFromImage(image, reviewer.id, reviewer.displayName))));
+  ).filter((image) => isCustomerSelection({ selected: true, rating: image.customerRating, colorLabel: image.customerColorLabel }))
+    .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName))));
 
   const currentTargets = uniqueTargets(reviewers.flatMap((reviewer) => {
     const images = input.draftByReviewer.has(reviewer.id)
       ? input.draftByReviewer.get(reviewer.id) ?? []
       : input.submittedByReviewer.get(reviewer.id) ?? [];
-    return images.map((image) => targetFromImage(image, reviewer.id, reviewer.displayName));
+    return images
+      .filter((image) => isCustomerSelection({ selected: true, rating: image.customerRating, colorLabel: image.customerColorLabel }))
+      .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName));
   }));
 
   const targets = source === "current" ? currentTargets : submittedTargets;

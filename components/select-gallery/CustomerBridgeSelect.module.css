@@ -45,7 +45,7 @@
 .projectTitle strong, .projectTitle span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saveState { justify-self: end; white-space: nowrap; }
 .saveState[data-state="saving"] { color: var(--bridge-green); }
-.saveState[data-state="error"], .saveState[data-state="conflict"] { color: #A63B20; }
+.saveState[data-state="error"], .saveState[data-state="retrying"] { color: #A63B20; }
 
 .pathBar {
   min-width: 0;
@@ -182,6 +182,8 @@
 .thumbnailCard:hover { background: rgba(255,255,255,.06); }
 .activeThumbnail { border: 2px solid var(--bridge-mint); background: rgba(79,216,184,.08); }
 .focusedThumbnail { outline: 2px solid #E9EFEB; outline-offset: 2px; }
+.pendingThumbnail .ratingBadge, .pendingThumbnail .colorLabelBadge { opacity: .45; }
+.pendingDot { position: absolute; z-index: 3; right: 7px; bottom: 39px; width: 8px; height: 8px; border: 2px solid #173B33; border-radius: 50%; background: #E85D2C; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
 .thumbnailMedia { width: 100%; min-height: 112px; aspect-ratio: 1 / 1; display: grid; place-items: center; overflow: hidden; background: #1F1F1F; }
 .thumbnailMedia img { width: 100%; height: 100%; display: block; object-fit: contain; user-select: none; }
 .thumbnailLoading { color: rgba(255,255,255,.64); animation: bridge-spin .8s linear infinite; }
@@ -280,6 +282,7 @@
 .footerSummary { min-width: 0; flex: 1; display: grid; gap: 3px; }
 .footerSummary strong { color: var(--bridge-text); font-size: 11px; }
 .footerSummary span { color: var(--bridge-dim); font-size: 9px; }
+.saveRetry { justify-self: start; padding: 0; border: 0; color: #B34124; background: transparent; font: 600 9px/1.35 inherit; text-align: left; text-decoration: underline; cursor: pointer; }
 .resetButton, .reviewButton, .submitButton { min-height: 44px; padding: 0 16px; border: 1px solid var(--bridge-line-strong); border-radius: 8px; font: 600 11px/1 inherit; cursor: pointer; }
 .resetButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-color: transparent; color: var(--bridge-dim); background: transparent; }
 .resetButton:hover:not(:disabled) { color: #A44928; background: var(--bridge-panel-soft); }

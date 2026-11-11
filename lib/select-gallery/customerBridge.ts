@@ -1,3 +1,5 @@
+import { isCustomerSelection } from "@/lib/person-select/customerSelection";
+
 export type CustomerBridgeRating = 1 | 2 | 3 | 4 | 5;
 export type CustomerBridgeColorLabel = 6 | 7 | 8 | 9;
 
@@ -195,12 +197,8 @@ export function customerBridgeSelectedIds(
   ratings: Readonly<Record<string, number>>,
   colorLabels: Readonly<Record<string, number>>,
 ) {
-  return new Set([
-    ...customerBridgeRatedIds(ratings),
-    ...Object.entries(colorLabels)
-      .filter(([, label]) => Number.isInteger(label) && label >= 6 && label <= 9)
-      .map(([id]) => id),
-  ]);
+  const ids = new Set([...Object.keys(ratings), ...Object.keys(colorLabels)]);
+  return new Set([...ids].filter((id) => isCustomerSelection({ rating: ratings[id], colorLabel: colorLabels[id] })));
 }
 
 /**

@@ -13,6 +13,7 @@ import { normalizeNasDownloadUrl } from "@/lib/person-select/reviewers";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import { databaseApiFailure } from "@/lib/supabase/apiError";
 import { loadAdminDeliveryItems } from "@/lib/person-select/deliveryServer";
+import { countCustomerSelection } from "@/lib/person-select/customerSelection";
 
 export const dynamic = "force-dynamic";
 
@@ -78,6 +79,17 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
     thumb_url: representativeUrls.get(image.thumb_path) ?? "",
   });
   const categories = (event.categories ?? []) as PersonSelectCategory[];
+  const saveFailureResult = await db.from("person_select_selection_save_failures")
+    .select("actor_type,actor_id,occurred_at,error_message")
+    .eq("event_id", eventId)
+    .is("recovered_at", null)
+    .order("occurred_at", { ascending: false })
+    .limit(200);
+  if (saveFailureResult.error && !/schema cache|does not exist|relation .* does not exist/i.test(`${saveFailureResult.error.message} ${saveFailureResult.error.code ?? ""}`)) {
+    throw saveFailureResult.error;
+  }
+  const saveFailures = saveFailureResult.error ? [] : saveFailureResult.data ?? [];
+  const failureCountFor = (actorType: "person" | "reviewer", actorId: string) => saveFailures.filter((failure) => failure.actor_type === actorType && failure.actor_id === actorId).length;
   const deliveryRows = await loadAdminDeliveryItems(db, eventId);
   const deliveriesByPerson = new Map<string, typeof deliveryRows>();
   for (const delivery of deliveryRows) {
@@ -118,6 +130,9 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       })(),
       status_label: selectionStatus({ firstSeenAt: person.first_seen_at, submittedAt: person.submitted_at, choiceCount: ownChoices.length, latestChoiceAt: latest }),
       latest_activity_at: latest || person.last_seen_at || person.first_seen_at,
+      server_selected_count: countCustomerSelection(ownChoices.map(() => ({ selected: true }))),
+      server_last_saved_at: latest,
+      recent_save_failure_count: failureCountFor("person", person.id),
       deliveries: deliveriesByPerson.get(person.id) ?? [],
       delivery_count: deliveriesByPerson.get(person.id)?.length ?? 0,
       delivery_revision_count: deliveriesByPerson.get(person.id)?.filter((delivery) => delivery.status === "revision_requested").length ?? 0,
@@ -193,6 +208,9 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
           updated_at: draft.updated_at,
         } : null,
         selection: selection ? { ...selection, items: itemsFor(selection.id) } : null,
+        server_selected_count: countCustomerSelection(draftItems.map(() => ({ selected: true }))),
+        server_last_saved_at: draft?.updated_at ?? null,
+        recent_save_failure_count: failureCountFor("reviewer", reviewer.id),
       };
     });
     const latestSelection = (selections ?? [])[0] ?? null;
@@ -211,7 +229,22 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       deliveries: deliveryRows.filter((delivery) => !delivery.person_id),
     };
   }
-  return Response.json({ ok: true, event, people: peopleRows, groups, shared });
+  return Response.json({
+    ok: true,
+    event,
+    people: peopleRows,
+    groups,
+    shared,
+    sync: {
+      recent_failure_count: saveFailures.length,
+      recent_failures: saveFailures.map((failure) => ({
+        actor_type: failure.actor_type,
+        actor_id: failure.actor_id,
+        at: failure.occurred_at,
+        error: failure.error_message,
+      })),
+    },
+  });
 }
 
 export async function GET(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {

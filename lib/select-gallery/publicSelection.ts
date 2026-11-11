@@ -163,7 +163,7 @@ export async function getOwnedSelectionImageIds(
   body: unknown,
 ) {
   const rawItems = body && typeof body === "object" && !Array.isArray(body)
-    ? (body as Record<string, unknown>).items
+    ? ((body as Record<string, unknown>).items ?? (body as Record<string, unknown>).diffs)
     : null;
   const requested = [...new Set((Array.isArray(rawItems) ? rawItems : []).flatMap((item) => {
     if (!item || typeof item !== "object") return [];

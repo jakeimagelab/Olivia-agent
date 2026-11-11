@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { formatSeoulDeadline } from "@/lib/person-select/date";
-import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds } from "@/lib/person-select/classicSelection";
+import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
+import { SELECTION_SYNC_STORAGE_EVENT, SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
+import { compactSelectionSyncDiffs, parsePersistedSelectionSyncQueue, type SelectionSyncDiff, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import styles from "./PersonSelectPublic.module.css";
 
@@ -189,7 +191,8 @@ function Header({ me, slug, desktopControls }: { me: MeData; slug: string; deskt
 
 export function PersonSelectHome({ slug }: { slug: string }) {
   const router = useRouter();
-  const { me, loading, error, load } = useSelectionData(slug);
+  const { me, loading, error } = useSelectionData(slug);
+  const pendingSyncCount = usePendingPersonChoiceSyncCount(slug);
   const [submitError, setSubmitError] = useState("");
   const [pcActiveKey, setPcActiveKey] = useState("profile");
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
@@ -205,6 +208,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
 
   async function submit() {
     setSubmitError("");
+    if (pendingSyncCount) { setSubmitError(`저장 안 된 변경 ${pendingSyncCount}건을 먼저 저장해 주세요.`); return; }
     try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); router.push(`/pick/${slug}/done`); }
     catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
   }
@@ -236,8 +240,8 @@ export function PersonSelectHome({ slug }: { slug: string }) {
       </div>
       <div className={styles.stepsCard}><h3>사진 셀렉은 이렇게 진행돼요</h3><div className={styles.stepList}><span><b>1</b>사진 확인</span><span><b>2</b>보정 요청</span><span><b>3</b>최종 제출</span></div></div>
     </section>
-    <PcWorkspace slug={slug} me={me} activeKey={resolvedPcActiveKey} reload={() => load({ silent: true })} />
-    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError ? <span className={styles.submitReason}>{submitError || (missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked} onClick={submit}>최종 제출 ({completed}/{required.length})</button></div></footer>
+    <PcWorkspace slug={slug} me={me} activeKey={resolvedPcActiveKey} pendingSyncCount={pendingSyncCount} />
+    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={submit}>최종 제출 ({completed}/{required.length})</button></div></footer>
   </main>;
 }
 
@@ -276,98 +280,215 @@ function useImages(slug: string, category: string) {
   return { images, loading };
 }
 
+type PersonChoiceSyncSnapshot = {
+  items: Array<{ imageId: string; categoryKey: string; selected: boolean; memo?: string; retouchKeys?: string[]; updatedAt?: string }>;
+  updatedAt?: string | null;
+};
+
+function choiceMap(choices: readonly Choice[]) {
+  return new Map(choices.map((choice) => [choice.image_id, choice]));
+}
+
+function overlayPersonChoiceDiffs(
+  base: ReadonlyMap<string, Choice>,
+  diffs: readonly SelectionSyncDiff[],
+  images: readonly ImageData[],
+) {
+  const next = new Map(base);
+  const imageById = new Map(images.map((image) => [image.id, image]));
+  for (const diff of compactSelectionSyncDiffs(diffs)) {
+    const image = imageById.get(diff.imageId);
+    if (!image) continue;
+    const current = next.get(diff.imageId);
+    if (Object.prototype.hasOwnProperty.call(diff, "selected")) {
+      if (!diff.selected) { next.delete(diff.imageId); continue; }
+      if (!current) next.set(diff.imageId, {
+        id: `pending-${diff.imageId}`,
+        image_id: diff.imageId,
+        original_file_name: image.original_file_name,
+        thumb_url: image.thumb_url,
+        retouch_keys: [],
+        memo: "",
+        updated_at: diff.changedAt,
+      });
+    }
+    const choice = next.get(diff.imageId);
+    if (!choice) continue;
+    if (Object.prototype.hasOwnProperty.call(diff, "memo")) next.set(diff.imageId, { ...choice, memo: diff.memo ?? "", updated_at: diff.changedAt });
+    if (Object.prototype.hasOwnProperty.call(diff, "retouchKeys")) next.set(diff.imageId, { ...choice, retouch_keys: diff.retouchKeys ?? [], updated_at: diff.changedAt });
+  }
+  return next;
+}
+
+function usePersonChoiceSync(input: {
+  slug: string;
+  categoryKey: string;
+  initialChoices: readonly Choice[];
+  images: readonly ImageData[];
+  enabled: boolean;
+}) {
+  const { slug, categoryKey, initialChoices, images, enabled } = input;
+  const [confirmed, setConfirmed] = useState<Map<string, Choice>>(() => choiceMap(initialChoices));
+  const [displayed, setDisplayed] = useState<Map<string, Choice>>(() => choiceMap(initialChoices));
+  const confirmedRef = useRef(confirmed);
+
+  const installSnapshot = useCallback((snapshot: PersonChoiceSyncSnapshot, pending: SelectionSyncDiff[]) => {
+    const previous = confirmedRef.current;
+    const imageById = new Map(images.map((image) => [image.id, image]));
+    const next = new Map<string, Choice>();
+    for (const item of snapshot.items ?? []) {
+      if (!item.selected || item.categoryKey !== categoryKey) continue;
+      const image = imageById.get(item.imageId);
+      const old = previous.get(item.imageId);
+      if (!image && !old) continue;
+      next.set(item.imageId, {
+        id: old?.id ?? `server-${item.imageId}`,
+        image_id: item.imageId,
+        original_file_name: image?.original_file_name ?? old?.original_file_name ?? "",
+        thumb_url: image?.thumb_url ?? old?.thumb_url ?? null,
+        retouch_keys: Array.isArray(item.retouchKeys) ? item.retouchKeys : [],
+        memo: typeof item.memo === "string" ? item.memo : "",
+        updated_at: item.updatedAt ?? snapshot.updatedAt ?? new Date().toISOString(),
+      });
+    }
+    confirmedRef.current = next;
+    setConfirmed(next);
+    setDisplayed(overlayPersonChoiceDiffs(next, pending, images));
+  }, [categoryKey, images]);
+
+  const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
+    const response = await fetch(`/api/pick/${slug}/choices/batch`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, diffs }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.ok || !result.snapshot) {
+      const retryAfterSeconds = Number(response.headers.get("Retry-After") ?? 0);
+      throw new SelectionSyncRequestError(result.error ?? "선택을 저장하지 못했어요.", {
+        retryable: ![400, 401, 403, 404, 410, 423].includes(response.status),
+        retryAfterMs: retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
+      });
+    }
+    return result.snapshot as PersonChoiceSyncSnapshot;
+  }, [slug]);
+
+  const sync = useSelectionSyncQueue({
+    storageKey: `person-select-choice-sync:${slug}:${categoryKey}`,
+    enabled,
+    sendBatch,
+    onSnapshot: installSnapshot,
+    onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
+  });
+
+  useEffect(() => {
+    if (sync.pendingCount) return;
+    const next = choiceMap(initialChoices);
+    confirmedRef.current = next;
+    setConfirmed(next);
+    setDisplayed(next);
+  }, [initialChoices, sync.pendingCount]);
+
+  const refresh = useCallback(async () => {
+    if (!enabled) return;
+    try {
+      const response = await fetch(`/api/pick/${slug}/choices/batch`, { cache: "no-store" });
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.ok && result.snapshot) installSnapshot(result.snapshot as PersonChoiceSyncSnapshot, sync.getPendingDiffs());
+    } catch {
+      // 보류 중 변경은 유지하고 다음 focus에서 다시 확인한다.
+    }
+  }, [enabled, installSnapshot, slug, sync]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const refreshVisible = () => { if (document.visibilityState === "visible") void refresh(); };
+    window.addEventListener("focus", refreshVisible);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => {
+      window.removeEventListener("focus", refreshVisible);
+      document.removeEventListener("visibilitychange", refreshVisible);
+    };
+  }, [enabled, refresh]);
+
+  return { ...sync, confirmedChoices: [...confirmed.values()], displayedChoices: [...displayed.values()] };
+}
+
+function selectionSyncStatus(sync: { status: string; pendingCount: number; lastSavedAt: string | null }) {
+  if (sync.status === "saved") return sync.lastSavedAt ? "저장됨 · 방금" : "저장됨";
+  if (sync.status === "saving") return "저장 중…";
+  if (sync.status === "waiting") return `저장 안 된 변경 ${sync.pendingCount}건 · 잠시 후 저장`;
+  if (sync.status === "retrying") return `저장 안 된 변경 ${sync.pendingCount}건 · 잠시 후 자동 저장`;
+  return `저장 안 된 변경 ${sync.pendingCount}건 · 다시 시도`;
+}
+
+function usePendingPersonChoiceSyncCount(slug: string) {
+  const [count, setCount] = useState(0);
+  const refresh = useCallback(() => {
+    let next = 0;
+    try {
+      const prefix = `person-select-choice-sync:${slug}:`;
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (!key?.startsWith(prefix)) continue;
+        next += parsePersistedSelectionSyncQueue(localStorage.getItem(key))?.diffs.length ?? 0;
+      }
+    } catch {
+      // 저장소 제한 환경에서는 현재 화면 큐 상태로만 제출을 보호한다.
+    }
+    setCount(next);
+  }, [slug]);
+  useEffect(() => {
+    refresh();
+    window.addEventListener(SELECTION_SYNC_STORAGE_EVENT, refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener(SELECTION_SYNC_STORAGE_EVENT, refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, [refresh]);
+  return count;
+}
+
 export function PersonSelectCategory({ slug, categoryKey }: { slug: string; categoryKey: string }) {
   const router = useRouter();
-  const { me, loading: meLoading, error, load } = useSelectionData(slug);
+  const { me, loading: meLoading, error } = useSelectionData(slug);
   const { images, loading } = useImages(slug, categoryKey);
   const category = me?.categories.find((item) => item.key === categoryKey);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [message, setMessage] = useState("");
-  const [optimisticallyClearedIds, setOptimisticallyClearedIds] = useState<Set<string>>(() => new Set());
-  const [pendingClearIds, setPendingClearIds] = useState<Set<string>>(() => new Set());
-  const clearRequestSequenceRef = useRef(0);
-  const clearRequestByImageRef = useRef(new Map<string, number>());
-  const serverSelectedIds = useMemo(() => new Set(category?.choices.map((choice) => choice.image_id) ?? []), [category?.choices]);
-  const selectedIds = useMemo(
-    () => resolveVisibleClassicSelectionIds(serverSelectedIds, optimisticallyClearedIds),
-    [optimisticallyClearedIds, serverSelectedIds],
-  );
-
-  useEffect(() => {
-    clearRequestByImageRef.current.clear();
-    setOptimisticallyClearedIds(new Set());
-    setPendingClearIds(new Set());
-  }, [categoryKey]);
-
-  useEffect(() => {
-    setOptimisticallyClearedIds((current) => {
-      let changed = false;
-      const next = new Set(current);
-      for (const imageId of current) {
-        if (!serverSelectedIds.has(imageId)) {
-          next.delete(imageId);
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
-  }, [serverSelectedIds]);
+  const sync = usePersonChoiceSync({
+    slug,
+    categoryKey,
+    initialChoices: category?.choices ?? [],
+    images,
+    enabled: Boolean(me && category && !me.event.locked),
+  });
+  const selectedIds = useMemo(() => new Set(sync.confirmedChoices.map((choice) => choice.image_id)), [sync.confirmedChoices]);
+  const displayedIds = useMemo(() => new Set(sync.displayedChoices.map((choice) => choice.image_id)), [sync.displayedChoices]);
 
   if (meLoading || loading) return <main className={styles.darkPage}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me || !category) return <main className={styles.darkPage}><div className={styles.done}>{error || "항목을 찾을 수 없어요."}</div></main>;
   const currentMe = me;
-  const visibleChoices = category.choices.filter((choice) => selectedIds.has(choice.image_id));
-  const visibleCategory = { ...category, choices: visibleChoices };
+  const currentCategory = category;
+  const visibleChoices = sync.confirmedChoices;
+  const visibleCategory = { ...currentCategory, choices: visibleChoices };
 
-  async function choose(imageId: string) {
-    if (currentMe.event.locked || pendingClearIds.has(imageId) || clearRequestByImageRef.current.has(imageId)) return;
-    const wasOptimisticallyCleared = optimisticallyClearedIds.has(imageId);
+  function choose(imageId: string) {
+    if (currentMe.event.locked) return;
     setMessage("");
-    if (wasOptimisticallyCleared) {
-      setOptimisticallyClearedIds((current) => {
-        const next = new Set(current);
-        next.delete(imageId);
-        return next;
-      });
-    }
-    try {
-      await jsonFetch(`/api/pick/${slug}/choices/${categoryKey}`, { method: "PUT", body: JSON.stringify({ image_id: imageId, retouch_keys: [], memo: "" }) });
-      await load({ silent: true });
-    } catch (cause) {
-      if (wasOptimisticallyCleared) setOptimisticallyClearedIds((current) => new Set(current).add(imageId));
-      setMessage(cause instanceof Error ? cause.message : "고르지 못했어요.");
-    }
+    const limit = Math.max(1, currentCategory.max || currentCategory.pick || 1);
+    const patches: SelectionSyncPatch[] = [];
+    if (limit === 1) for (const selectedId of displayedIds) if (selectedId !== imageId) patches.push({ imageId: selectedId, selected: false });
+    if (limit > 1 && displayedIds.size >= limit && !displayedIds.has(imageId)) { setMessage(`${limit}장까지 고를 수 있어요.`); return; }
+    patches.push({ imageId, selected: true }, { imageId, retouchKeys: [] }, { imageId, memo: "" });
+    sync.enqueue(patches);
   }
-  async function clearChoice(imageId: string) {
-    if (currentMe.event.locked || pendingClearIds.has(imageId) || clearRequestByImageRef.current.has(imageId)) return;
-    const requestId = ++clearRequestSequenceRef.current;
-    clearRequestByImageRef.current.set(imageId, requestId);
+  function clearChoice(imageId: string) {
+    if (currentMe.event.locked) return;
     setMessage("");
-    setOptimisticallyClearedIds((current) => new Set(current).add(imageId));
-    setPendingClearIds((current) => new Set(current).add(imageId));
-    try {
-      await jsonFetch(`/api/pick/${slug}/choices/${categoryKey}?image_id=${encodeURIComponent(imageId)}`, { method: "DELETE" });
-      if (clearRequestByImageRef.current.get(imageId) !== requestId) return;
-      await load({ silent: true });
-    } catch (cause) {
-      if (clearRequestByImageRef.current.get(imageId) !== requestId) return;
-      setOptimisticallyClearedIds((current) => {
-        const next = new Set(current);
-        next.delete(imageId);
-        return next;
-      });
-      setMessage(cause instanceof Error ? cause.message : "선택을 빼지 못했어요.");
-    } finally {
-      if (clearRequestByImageRef.current.get(imageId) === requestId) {
-        clearRequestByImageRef.current.delete(imageId);
-        setPendingClearIds((current) => {
-          const next = new Set(current);
-          next.delete(imageId);
-          return next;
-        });
-      }
-    }
+    sync.enqueue([{ imageId, selected: false }]);
   }
   const shown = filter === "selected" ? images.filter((image) => selectedIds.has(image.id)) : images;
   const preview = previewIndex === null ? null : images[previewIndex];
@@ -375,14 +496,14 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   const extra = extraCount(visibleCategory);
   const dockText = message || (count === 0 ? `사진을 ${category.need}장 골라주세요${category.max > category.need ? ` · ${category.max}장까지 더 고를 수 있어요` : ""}` : extra && me.event.extra_price ? `${count}장 골랐어요 · 추가 보정 ${extra}장 ${won(extra * me.event.extra_price)}` : isComplete(visibleCategory) ? "고른 사진의 보정 요청을 적어주세요." : `${count} / ${category.need}장 골랐어요`);
   return <main className={styles.darkPage}>
-    <header className={styles.darkTop}><button onClick={() => router.push(`/pick/${slug}/home`)} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{images.length}장</span></header>
+    <header className={styles.darkTop}><button onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/home`); }); }} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{images.length}장</span></header>
     <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {images.length}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
-    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <button key={image.id} className={`${styles.photoTile} ${selectedIds.has(image.id) ? styles.photoTileSelected : ""}`} onClick={() => setPreviewIndex(images.findIndex((item) => item.id === image.id))}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{selectedIds.has(image.id) ? <span className={styles.check}><Check size={17} /></span> : null}</button>)}</div>}
-    <div className={styles.darkDock}><p>{dockText}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>고른 사진 보정 요청 쓰기</button></div>
+    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <button key={image.id} className={`${styles.photoTile} ${displayedIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewIndex(images.findIndex((item) => item.id === image.id))}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{displayedIds.has(image.id) ? <span className={styles.check}><Check size={17} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>}
+    <div className={styles.darkDock}><p>{message || selectionSyncStatus(sync)}{message ? "" : ` · ${dockText}`}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>고른 사진 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
       <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>
       <div className={styles.preview}><img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /><div className={styles.previewNav}><button className={styles.iconButton} disabled={!previewIndex} onClick={() => setPreviewIndex(Math.max(0, (previewIndex ?? 0) - 1))}><ChevronLeft /></button><button className={styles.iconButton} disabled={previewIndex === images.length - 1} onClick={() => setPreviewIndex(Math.min(images.length - 1, (previewIndex ?? 0) + 1))}><ChevronRight /></button></div></div>
-      <div className={styles.lightboxActions}>{pendingClearIds.has(preview.id) ? <button className={styles.secondary} disabled>저장 중</button> : selectedIds.has(preview.id) ? <button className={styles.secondary} onClick={() => void clearChoice(preview.id)}>선택 해제</button> : <button className={styles.secondary} onClick={() => void choose(preview.id)}>이 사진 고르기 ({count}/{category.need})</button>}<button className={styles.mintButton} disabled={count === 0} onClick={() => router.push(`/pick/${slug}/c/${categoryKey}/feedback`)}>보정 요청 쓰기</button></div>
+      <div className={styles.lightboxActions}>{displayedIds.has(preview.id) ? <button className={styles.secondary} onClick={() => clearChoice(preview.id)}>선택 해제</button> : <button className={styles.secondary} onClick={() => choose(preview.id)}>이 사진 고르기 ({count}/{category.need})</button>}<button className={styles.mintButton} disabled={count === 0 || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>보정 요청 쓰기</button></div>
     </div> : null}
   </main>;
 }
@@ -394,6 +515,21 @@ export function PersonSelectFeedback({ slug, categoryKey }: { slug: string; cate
   const [drafts, setDrafts] = useState<Record<string, { keys: string[]; memo: string }>>({});
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
+  const syncImages = useMemo<ImageData[]>(() => (category?.choices ?? []).map((choice) => ({
+    id: choice.image_id,
+    original_file_name: choice.original_file_name,
+    thumb_url: choice.thumb_url ?? "",
+    preview_url: choice.thumb_url ?? "",
+    width: null,
+    height: null,
+  })), [category?.choices]);
+  const sync = usePersonChoiceSync({
+    slug,
+    categoryKey,
+    initialChoices: category?.choices ?? [],
+    images: syncImages,
+    enabled: Boolean(me && category && !me.event.locked),
+  });
   useEffect(() => {
     if (!category) return;
     setDrafts(Object.fromEntries(category.choices.map((choice) => [choice.id, { keys: choice.retouch_keys, memo: choice.memo }])));
@@ -407,11 +543,14 @@ export function PersonSelectFeedback({ slug, categoryKey }: { slug: string; cate
   async function save() {
     setBusy(true);
     try {
-      // 사진마다 보정 요청과 메모를 따로 저장한다.
-      for (const choice of currentCategory.choices) {
+      sync.enqueue(currentCategory.choices.flatMap((choice) => {
         const draft = drafts[choice.id] ?? { keys: choice.retouch_keys, memo: choice.memo };
-        await jsonFetch(`/api/pick/${slug}/choices/${categoryKey}`, { method: "PUT", body: JSON.stringify({ image_id: choice.image_id, retouch_keys: draft.keys, memo: draft.memo }) });
-      }
+        return [
+          { imageId: choice.image_id, retouchKeys: draft.keys },
+          { imageId: choice.image_id, memo: draft.memo },
+        ] satisfies SelectionSyncPatch[];
+      }));
+      if (!(await sync.flushNow())) throw new Error("저장되지 않은 변경이 있습니다.");
       router.push(`/pick/${slug}/home`);
     } catch { setToast("저장하지 못했어요. 다시 시도해 주세요."); }
     finally { setBusy(false); }
@@ -429,7 +568,7 @@ export function PersonSelectFeedback({ slug, categoryKey }: { slug: string; cate
       })}
       <p className={styles.feedbackInfo}>아무것도 고르지 않으면 기본 보정(자연스럽게)으로 진행해요.</p>
     </section>
-    <footer className={styles.feedbackDock}><div><button className={styles.primary} disabled={me.event.locked || busy} onClick={save}>저장하고 돌아가기</button><small>저장만 돼요. 최종 제출은 홈에서 해주세요.</small></div></footer>
+    <footer className={styles.feedbackDock}><div><button className={styles.primary} disabled={me.event.locked || busy} onClick={save}>저장하고 돌아가기</button><small>{selectionSyncStatus(sync)} · 최종 제출은 홈에서 해주세요.</small></div></footer>
     {toast ? <div className={styles.toast}>{toast}</div> : null}
   </main>;
 }
@@ -546,7 +685,7 @@ function OfferImages({ offer, activeOptionKeys }: { offer: Offer; activeOptionKe
   </>;
 }
 
-function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData; activeKey: string; reload: () => Promise<void> }) {
+function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; me: MeData; activeKey: string; pendingSyncCount: number }) {
   const categories = me.categories
     .filter((item) => item.image_count > 0)
     .filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
@@ -555,18 +694,22 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
-  const [savedAt, setSavedAt] = useState("");
-  const [chosen, setChosen] = useState<Choice[]>(active?.choices ?? []);
   const [submitError, setSubmitError] = useState("");
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveSequence = useRef(0);
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<HTMLButtonElement | null>(null);
   const firstPhotoMeasured = useRef(false);
   const serverChoices = active?.choices;
   const need = active?.need ?? 0;
   const limit = Math.max(1, active?.max || active?.pick || 1);
-  useEffect(() => { setChosen(serverChoices ?? []); }, [serverChoices]);
+  const sync = usePersonChoiceSync({
+    slug,
+    categoryKey: active?.key ?? "profile",
+    initialChoices: serverChoices ?? [],
+    images,
+    enabled: Boolean(active && !me.event.locked),
+  });
+  const chosen = sync.confirmedChoices;
+  const displayedChoices = sync.displayedChoices;
   // 항목이나 사진 목록이 바뀔 때만 미리보기를 처음으로 돌린다. (사진을 고를 때마다 튀지 않게)
   useEffect(() => {
     setPreviewId((current) => images.some((image) => image.id === current) ? current : (serverChoices?.[0]?.image_id || images[0]?.id || ""));
@@ -574,61 +717,35 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   }, [activeKey, images]);
   const preview = images.find((image) => image.id === previewId) ?? images[0];
   const previewIndex = preview ? images.findIndex((image) => image.id === preview.id) : -1;
-  const previewChoice = preview ? chosen.find((item) => item.image_id === preview.id) ?? null : null;
+  const previewChoice = preview ? displayedChoices.find((item) => item.image_id === preview.id) ?? null : null;
   useEffect(() => {
     setKeys(previewChoice?.retouch_keys ?? []);
     setMemo(previewChoice?.memo ?? "");
-    setSavedAt(previewChoice ? "자동 저장됨" : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [previewChoice?.id, preview?.id]);
-  const save = useCallback(async (imageId: string, nextKeys: string[], nextMemo: string, refreshSummary = false) => {
+  const save = useCallback((imageId: string, nextKeys: string[], nextMemo: string) => {
     if (!active) return;
     const selectedImage = images.find((image) => image.id === imageId);
     if (!selectedImage) return;
-    const previous = chosen;
-    const requestId = ++saveSequence.current;
-    const existing = previous.find((item) => item.image_id === imageId);
-    const optimisticChoice: Choice = {
-      id: existing?.id ?? `pending-${imageId}`,
-      image_id: imageId,
-      original_file_name: selectedImage.original_file_name,
-      thumb_url: selectedImage.thumb_url,
-      retouch_keys: nextKeys,
-      memo: nextMemo,
-      updated_at: new Date().toISOString(),
-    };
-    setChosen(existing ? previous.map((item) => item.image_id === imageId ? optimisticChoice : item) : limit === 1 ? [optimisticChoice] : [...previous, optimisticChoice]);
+    const displayedIds = new Set(displayedChoices.map((item) => item.image_id));
+    const patches: SelectionSyncPatch[] = [];
+    if (limit === 1) for (const selectedId of displayedIds) if (selectedId !== imageId) patches.push({ imageId: selectedId, selected: false });
+    if (limit > 1 && displayedIds.size >= limit && !displayedIds.has(imageId)) return;
+    patches.push({ imageId, selected: true }, { imageId, retouchKeys: nextKeys }, { imageId, memo: nextMemo });
+    sync.enqueue(patches);
     if (imageId === preview?.id) { setKeys(nextKeys); setMemo(nextMemo); }
-    setSavedAt("저장 중");
-    try {
-      await jsonFetch(`/api/pick/${slug}/choices/${active.key}`, { method: "PUT", body: JSON.stringify({ image_id: imageId, retouch_keys: nextKeys, memo: nextMemo }) });
-      if (requestId === saveSequence.current) setSavedAt("자동 저장됨 · 방금");
-      if (refreshSummary) await reload();
-    } catch (cause) {
-      if (requestId === saveSequence.current) {
-        setChosen(previous);
-        setSavedAt(cause instanceof Error ? cause.message : "저장하지 못했어요. 다시 시도해 주세요.");
-      }
-    }
-  }, [active, chosen, images, limit, preview?.id, reload, slug]);
-  const clearChoice = useCallback(async (imageId: string) => {
+  }, [active, displayedChoices, images, limit, preview?.id, sync]);
+  const clearChoice = useCallback((imageId: string) => {
     if (!active) return;
-    const previous = chosen;
-    if (timer.current) clearTimeout(timer.current);
-    ++saveSequence.current;
-    setChosen(previous.filter((item) => item.image_id !== imageId));
-    setSavedAt("저장 중");
-    try {
-      await jsonFetch(`/api/pick/${slug}/choices/${active.key}?image_id=${encodeURIComponent(imageId)}`, { method: "DELETE" });
-      setSavedAt("");
-      await reload();
-    } catch {
-      setChosen(previous);
-      setSavedAt("저장하지 못했어요. 다시 시도해 주세요.");
-    }
-  }, [active, chosen, reload, slug]);
-  function schedule(nextKeys: string[], nextMemo: string) { if (!previewChoice?.image_id) return; const imageId = previewChoice.image_id; if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => void save(imageId, nextKeys, nextMemo), 800); }
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+    sync.enqueue([{ imageId, selected: false }]);
+  }, [active, sync]);
+  function schedule(nextKeys: string[], nextMemo: string) {
+    if (!previewChoice?.image_id) return;
+    sync.enqueue([
+      { imageId: previewChoice.image_id, retouchKeys: nextKeys },
+      { imageId: previewChoice.image_id, memo: nextMemo },
+    ]);
+  }
   useEffect(() => {
     if (previewIndex < 0) return;
     for (const offset of [-2, -1, 1, 2]) {
@@ -656,8 +773,8 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
     filmstrip.addEventListener("wheel", handleWheel, { passive: false });
     return () => filmstrip.removeEventListener("wheel", handleWheel);
   }, []);
-  const chosenIds = useMemo(() => new Set(chosen.map((item) => item.image_id)), [chosen]);
-  const full = limit > 1 && chosen.length >= limit;
+  const chosenIds = useMemo(() => new Set(displayedChoices.map((item) => item.image_id)), [displayedChoices]);
+  const full = limit > 1 && displayedChoices.length >= limit;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target;
@@ -669,15 +786,15 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
       const index = images.findIndex((image) => image.id === preview.id);
       if (event.key === "ArrowLeft") { event.preventDefault(); setPreviewId(images[Math.max(0, index - 1)]?.id ?? preview.id); }
       if (event.key === "ArrowRight") { event.preventDefault(); setPreviewId(images[Math.min(images.length - 1, index + 1)]?.id ?? preview.id); }
-      if (event.key === " ") { event.preventDefault(); if (!chosenIds.has(preview.id) && !full) void save(preview.id, [], "", true); }
+      if (event.key === " ") { event.preventDefault(); if (!chosenIds.has(preview.id) && !full) save(preview.id, [], ""); }
       const shortcut = resolveClassicSelectionShortcut(event.key);
       if (shortcut === "select") {
         event.preventDefault();
-        if (!chosenIds.has(preview.id) && !full && !me.event.locked) void save(preview.id, [], "", true);
+        if (!chosenIds.has(preview.id) && !full && !me.event.locked) save(preview.id, [], "");
       }
       if (shortcut === "clear") {
         event.preventDefault();
-        if (chosenIds.has(preview.id) && !me.event.locked) void clearChoice(preview.id);
+        if (chosenIds.has(preview.id) && !me.event.locked) clearChoice(preview.id);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -688,6 +805,7 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
   const missing = required.find((item) => item.key === active.key ? (chosen.length < item.need || chosen.length > Math.max(item.need, item.max)) : !isComplete(item));
   async function submit() {
     setSubmitError("");
+    if (pendingSyncCount || sync.pendingCount || !(await sync.flushNow())) { setSubmitError("저장되지 않은 변경을 먼저 저장해 주세요."); return; }
     try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); window.location.href = `/pick/${slug}/done`; }
     catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
   }
@@ -716,13 +834,13 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
             <button className={`${styles.pcNavButton} ${styles.pcNavPrevious}`} disabled={previewIndex <= 0} onClick={() => setPreviewId(images[previewIndex - 1]?.id ?? preview?.id ?? "")} aria-label="이전 사진"><ChevronLeft size={20} /></button>
             <button className={`${styles.pcNavButton} ${styles.pcNavNext}`} disabled={previewIndex < 0 || previewIndex >= images.length - 1} onClick={() => setPreviewId(images[previewIndex + 1]?.id ?? preview?.id ?? "")} aria-label="다음 사진"><ChevronRight size={20} /></button>
             {previewChoice
-              ? <button className={`${styles.pcSelectButton} ${styles.pcSelectButtonSelected}`} disabled={me.event.locked} onClick={() => void clearChoice(previewChoice.image_id)} title="선택 해제"><Check size={16} aria-hidden="true" />선택됨</button>
-              : <button className={styles.pcSelectButton} disabled={!preview || me.event.locked || full} title={full ? `${limit}장까지 고를 수 있어요. 다른 사진을 먼저 빼주세요.` : undefined} onClick={() => preview && void save(preview.id, [], "", true)}>{full ? `${limit}장 모두 골랐어요` : `이 사진 고르기${limit > 1 ? ` (${chosen.length}/${need})` : ""}`}</button>}
+              ? <button className={`${styles.pcSelectButton} ${styles.pcSelectButtonSelected}`} disabled={me.event.locked} onClick={() => clearChoice(previewChoice.image_id)} title="선택 해제"><Check size={16} aria-hidden="true" />선택됨</button>
+              : <button className={styles.pcSelectButton} disabled={!preview || me.event.locked || full} title={full ? `${limit}장까지 고를 수 있어요. 다른 사진을 먼저 빼주세요.` : undefined} onClick={() => preview && save(preview.id, [], "")}>{full ? `${limit}장 모두 골랐어요` : `이 사진 고르기${limit > 1 ? ` (${chosen.length}/${need})` : ""}`}</button>}
           </div>
         </div>
         <div className={styles.pcFilmstrip}>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripPrevious}`} type="button" aria-label="이전 사진 묶음" onClick={() => scrollFilmstrip(-1)}><ChevronLeft size={20} /></button>
-          <div ref={filmstripRef} className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}</button>)}</div>
+          <div ref={filmstripRef} className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripNext}`} type="button" aria-label="다음 사진 묶음" onClick={() => scrollFilmstrip(1)}><ChevronRight size={20} /></button>
         </div>
         <p className={styles.pcKeyboardHint}>← → 사진 이동 · 1 선택 · 0 해제 · Space 사진 고르기</p>
@@ -732,13 +850,13 @@ function PcWorkspace({ slug, me, activeKey, reload }: { slug: string; me: MeData
           <OfferNotice me={me} />
           <p className={styles.eyebrow}>보정 요청 · {active.label}{need > 1 ? ` · 고른 사진 ${chosen.length}/${need}` : ""}</p>
           {previewChoice ? <>
-            <div className={styles.pcChosenPhoto}><img src={previewChoice.thumb_url || ""} alt="고른 사진" decoding="async" draggable={false} onContextMenu={(event) => event.preventDefault()} /><div><strong title={previewChoice.original_file_name}>{shortFileName(previewChoice.original_file_name)}</strong><p className={styles.autoSave}>{savedAt || "자동 저장됨"}</p></div></div>
+            <div className={styles.pcChosenPhoto}><img src={previewChoice.thumb_url || ""} alt="고른 사진" decoding="async" draggable={false} onContextMenu={(event) => event.preventDefault()} /><div><strong title={previewChoice.original_file_name}>{shortFileName(previewChoice.original_file_name)}</strong><p className={styles.autoSave}>{selectionSyncStatus(sync)}</p></div></div>
             <div className={styles.field}><label>보정 체크리스트</label><div className={styles.chipGrid}>{me.event.retouch_options.map((option) => { const selected = keys.includes(option.key); return <button key={option.key} aria-pressed={selected} className={`${styles.chip} ${selected ? styles.chipActive : ""}`} onClick={() => { const next = selected ? keys.filter((key) => key !== option.key) : [...keys, option.key]; setKeys(next); schedule(next, memo); }}>{option.label}</button>; })}</div></div>
             <div className={styles.field}><label>메모</label><textarea className={styles.textarea} maxLength={me.event.memo_max} value={memo} onChange={(e) => { setMemo(e.target.value); schedule(keys, e.target.value); }} /><span className={styles.counter}>{memo.length} / {me.event.memo_max}</span></div>
           </> : <div className={styles.pcFeedbackEmpty}>{chosen.length ? "고른 사진(체크 표시)을 누르면 그 사진의 보정 요청을 적을 수 있어요." : "왼쪽에서 사진을 먼저 골라주세요."}</div>}
-          {need > 1 && chosen.length ? <div className={styles.pcThumbs} style={{ marginTop: 14, flexWrap: "wrap", height: "auto", padding: 0, overflow: "visible" }}>{chosen.map((item) => <button key={item.image_id} className={`${styles.photoTile} ${item.image_id === preview?.id ? styles.pcThumbCurrent : ""} ${styles.photoTileSelected}`} onClick={() => setPreviewId(item.image_id)} title={item.original_file_name}><img src={item.thumb_url || ""} alt={item.original_file_name} decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} /><span className={styles.check}><Check size={15} /></span></button>)}</div> : null}
+          {need > 1 && displayedChoices.length ? <div className={styles.pcThumbs} style={{ marginTop: 14, flexWrap: "wrap", height: "auto", padding: 0, overflow: "visible" }}>{displayedChoices.map((item) => <button key={item.image_id} className={`${styles.photoTile} ${item.image_id === preview?.id ? styles.pcThumbCurrent : ""} ${styles.photoTileSelected} ${sync.pendingImageIds.has(item.image_id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(item.image_id)} title={item.original_file_name}><img src={item.thumb_url || ""} alt={item.original_file_name} decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} /><span className={styles.check}><Check size={15} /></span>{sync.pendingImageIds.has(item.image_id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div> : null}
         </div>
-        <div className={styles.pcSubmitArea}>{(me.event.offers ?? []).length || me.event.extra_price ? <a className={styles.pcOrderLink} href={`/pick/${slug}/order`}><ShoppingBag size={15} /><span>추가 주문{me.order?.lines.length ? ` · ${me.order.lines.map((line) => line.label).join(", ")}` : " · 추가 보정·액자·앨범"}</span><strong>{me.order?.total ? won(me.order.total) : "신청하기"}</strong></a> : null}{missing || submitError ? <p className={styles.submitReason}>{submitError || missingText}</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked} onClick={submit}>최종 제출</button></div>
+        <div className={styles.pcSubmitArea}>{(me.event.offers ?? []).length || me.event.extra_price ? <a className={styles.pcOrderLink} href={`/pick/${slug}/order`}><ShoppingBag size={15} /><span>추가 주문{me.order?.lines.length ? ` · ${me.order.lines.map((line) => line.label).join(", ")}` : " · 추가 보정·액자·앨범"}</span><strong>{me.order?.total ? won(me.order.total) : "신청하기"}</strong></a> : null}<p className={styles.autoSave}>{pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : selectionSyncStatus(sync)}</p>{missing || submitError ? <p className={styles.submitReason}>{submitError || missingText}</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0 || sync.pendingCount > 0 || sync.status !== "saved"} onClick={submit}>최종 제출</button></div>
       </aside>
     </div>
   </section>;

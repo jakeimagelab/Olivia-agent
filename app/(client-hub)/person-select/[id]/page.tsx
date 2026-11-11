@@ -21,14 +21,15 @@ import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 type Choice = { id: string; image_id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type RepresentativeImage = { category_key: string; original_file_name: string; source_rel_path: string; thumb_url: string };
 type DeliveryAdminItem = { id: string; person_id: string | null; group_label: string | null; display_name: string; current_version: number; status: "pending" | "revision_requested" | "revised" | "approved"; customer_memo: string; preview_url: string; link_method: string | null; versions?: Array<{ version: number; uploaded_at: string; customer_memo_snapshot: string }> };
-type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number }; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; delivery_count?: number; delivery_revision_count?: number; deliveries?: DeliveryAdminItem[] };
+type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number }; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; delivery_count?: number; delivery_revision_count?: number; deliveries?: DeliveryAdminItem[]; server_selected_count?: number; server_last_saved_at?: string | null; recent_save_failure_count?: number };
 type Category = { key: string; label: string; pick: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null; customer_ai_results_visible?: boolean };
 type SharedSelectionItem = { image_id: string; customer_rating: number | null; customer_color_label?: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type SharedSelection = { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] };
-type SharedReviewer = { id: string; display_name: string; role_label: string | null; active: boolean; is_legacy: boolean; last_seen_at: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean; draft: (CustomerBridgeDraft & { selected_count: number; updated_at: string }) | null; selection: SharedSelection | null };
+type SharedReviewer = { id: string; display_name: string; role_label: string | null; active: boolean; is_legacy: boolean; last_seen_at: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean; draft: (CustomerBridgeDraft & { selected_count: number; updated_at: string }) | null; selection: SharedSelection | null; server_selected_count?: number; server_last_saved_at?: string | null; recent_save_failure_count?: number };
 type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: SharedSelection | null; reviewers: SharedReviewer[]; deliveries?: DeliveryAdminItem[] };
+type SelectionSyncAdminData = { recent_failure_count: number; recent_failures: Array<{ actor_type: "person" | "reviewer"; actor_id: string; at: string; error: string }> };
 type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
@@ -71,7 +72,7 @@ function wait(milliseconds: number) {
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
   const routePath = windowRoute.routeHref ? new URL(windowRoute.routeHref, "https://olivia.local").pathname : ""; const routeId = routePath.match(/^\/person-select\/([^/]+)\/?$/)?.[1]; const id = routeId || params.id;
-  const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null } | null>(null);
+  const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null; sync?: SelectionSyncAdminData } | null>(null);
   const [tab, setTab] = useState<"matching" | "progress" | "upload" | "settings">("matching");
   const [filter, setFilter] = useState<Filter>("all");
   const [picker, setPicker] = useState(false);
@@ -112,14 +113,18 @@ export default function PersonSelectDetailPage() {
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerRole, setReviewerRole] = useState("");
   const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const adminRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { preserveAssignments?: boolean }) => {
     for (let attempt = 0; ; attempt += 1) {
       try {
         const response = await fetch(`/api/person-select/${id}`, { cache: "no-store" });
-        const body = await readApiResponse<{ ok: true; event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null }>(response, "사진선택");
+        const body = await readApiResponse<{ ok: true; event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null; sync?: SelectionSyncAdminData }>(response, "사진선택");
         setData(body);
-        setAssignments(Object.fromEntries(body.groups.map((group) => [group.label, body.people.find((person) => person.group_label === group.label)?.id ?? ""])));
+        if (!options?.preserveAssignments) {
+          setAssignments(Object.fromEntries(body.groups.map((group) => [group.label, body.people.find((person) => person.group_label === group.label)?.id ?? ""])));
+        }
         return;
       } catch (cause) {
         if (!isRetryableApiError(cause) || attempt >= PERSON_SELECT_LOAD_RETRY_DELAYS_MS.length) throw cause;
@@ -142,6 +147,23 @@ export default function PersonSelectDetailPage() {
     loadRemoteWorkerStatus<{ worker?: { online?: boolean } }>()
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
+  }, [load]);
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || adminRefreshInFlightRef.current) return;
+      const request = load({ preserveAssignments: true }).catch(() => undefined).finally(() => {
+        if (adminRefreshInFlightRef.current === request) adminRefreshInFlightRef.current = null;
+      });
+      adminRefreshInFlightRef.current = request;
+    };
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [load]);
   useEffect(() => {
     const reviewers = data?.shared?.reviewers ?? [];
@@ -642,12 +664,14 @@ export default function PersonSelectDetailPage() {
       <div className={styles.segmentRow}>
         <div className={styles.segment} role="tablist">{tabs.map(([key, label, Icon]) => <button key={key} role="tab" aria-selected={tab === key} className={tab === key ? styles.segmentActive : ""} onClick={() => setTab(key)}><Icon size={15} />{label}</button>)}</div>
         <div className={styles.tabActions}>
+          <button className={styles.secondary} onClick={() => setSyncDialogOpen(true)}><RefreshCw size={15} />동기화 확인</button>
           <button className={styles.secondary} onClick={() => void navigator.clipboard.writeText(notice)}><Clipboard size={15} />안내 문구 복사</button>
           {!isShared ? <div className={styles.desktopAuxActions}><button type="button" className={styles.secondary} onClick={() => setPinListOpen(true)}><UserRound size={15} />비밀번호 목록</button><a className={styles.secondary} href={`/api/person-select/${id}/exports/retouch`}><Download size={15} />보정 목록 CSV</a><a className={styles.secondary} href={`/api/person-select/${id}/exports/orders`}><Download size={15} />주문 CSV</a></div> : null}
           {!isShared ? <details className={styles.moreMenu}><summary><MoreHorizontal size={16} />더보기</summary><div><button type="button" onClick={() => setPinListOpen(true)}>비밀번호 목록</button><a href={`/api/person-select/${id}/exports/retouch`}>보정 목록 CSV</a><a href={`/api/person-select/${id}/exports/orders`}>주문 CSV</a></div></details> : null}
         </div>
       </div>
       {error ? <div className={styles.warning}>{error}</div> : null}
+      {data.sync?.recent_failure_count ? <div className={styles.warning} role="alert">최근 고객 저장 실패 {data.sync.recent_failure_count}건이 있습니다. 동기화 확인에서 검토해 주세요.</div> : null}
       {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>검토자별 셀렉은 서로 독립적으로 보존되며 오른쪽 대화 탭은 모든 참여자가 함께 사용합니다.</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select> : null}<button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div></div>
         {data.shared?.images?.length ? <CustomerBridgeSelect
@@ -686,7 +710,7 @@ export default function PersonSelectDetailPage() {
         })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 등록 수를 보여드려요.</span></div>}
       </section> : null}
       {tab === "progress" && isShared ? <section className={styles.matchingPanel}>
-        <div className={styles.matchingHeader}><div><h2>검토자별 고객 셀렉</h2><p>{selectedSharedSelection ? `${selectedReviewer?.display_name ?? "검토자"}가 ${selectedSharedSelection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "검토자를 선택해 자동 저장 수와 최종 제출 결과를 확인하세요."}</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="셀렉을 확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""} · {reviewer.selection ? `제출 ${reviewer.selection.items.length}장` : `저장 ${reviewer.draft?.selected_count ?? 0}장`}</option>)}</select> : null}{selectedSharedSelection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div></div>
+        <div className={styles.matchingHeader}><div><h2>검토자별 고객 셀렉</h2><p>{selectedSharedSelection ? `${selectedReviewer?.display_name ?? "검토자"}가 ${selectedSharedSelection.items.length.toLocaleString()}장을 최종 제출했습니다.` : "검토자를 선택해 자동 저장 수와 최종 제출 결과를 확인하세요."}</p><small className={styles.summary}>서버 기준 · 마지막 저장 {relativeTime(selectedReviewer?.server_last_saved_at ?? null)}{selectedReviewer?.display_name ? ` (${selectedReviewer.display_name})` : ""}</small></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="셀렉을 확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""} · {reviewer.selection ? `제출 ${reviewer.selection.items.length}장` : `저장 ${reviewer.server_selected_count ?? reviewer.draft?.selected_count ?? 0}장`}</option>)}</select> : null}{selectedSharedSelection ? <span className={styles.status}>제출 완료</span> : <span className={`${styles.status} ${styles.statusIdle}`}>미제출</span>}</div></div>
         {(data.shared?.deliveries?.length ?? 0) > 0 ? <div className={styles.deliverySummary}>
           <div><strong>보정본 {data.shared?.deliveries?.length ?? 0}장</strong><span> · 수정 요청 {data.shared?.deliveries?.filter((item) => item.status === "revision_requested").length ?? 0}장 · {data.event.delivery_state === "approved" ? `최종 확인 ${data.event.delivery_approved_at ? new Date(data.event.delivery_approved_at).toLocaleDateString("ko-KR") : "완료"}` : "확인 중"} · {data.event.delivery_downloaded_at ? "다운로드 완료" : "미다운로드"}</span></div>
           <div className={styles.actions}><button className={styles.weak} onClick={() => void changeDeliveryOwner("reopen")}>다시 열기</button><button className={styles.weak} disabled={!data.event.delivery_approved_at} onClick={() => void changeDeliveryOwner("extend")}>보관 연장 +30일</button></div>
@@ -696,7 +720,7 @@ export default function PersonSelectDetailPage() {
       </section> : null}
       {tab === "progress" && !isShared ? <>
         <div className={styles.underTabs}>{filters.map(([key, label, count]) => <button key={key} className={filter === key ? styles.underTabActive : ""} onClick={() => setFilter(key)}>{label}<small>{count}</small></button>)}</div>
-        <div className={styles.rawMatchToolbar}><div><strong>고객 셀렉 RAW 매칭</strong><span>{rawDisabledReason || "최종 제출본 또는 현재 고른 상태를 기준으로 실행할 수 있어요."}</span></div><button className={styles.primary} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button></div>
+        <div className={styles.rawMatchToolbar}><div><strong>고객 셀렉 RAW 매칭</strong><span>{rawDisabledReason || "최종 제출본 또는 현재 고른 상태를 기준으로 실행할 수 있어요."}</span><small className={styles.summary}>서버 기준 · 마지막 저장 {relativeTime(data.people.map((person) => person.server_last_saved_at ?? null).filter(Boolean).sort().at(-1) ?? null)}</small></div><button className={styles.primary} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button></div>
         {rawStatus}
         <section className={styles.panel}><div className={styles.tableWrap}><table className={styles.table}>
           <thead><tr><th>{personWord}</th>{data.groups.length ? <th>담임 반</th> : null}{categories.map((category) => <th key={category.key}>{categories.length === 1 ? "고른 사진" : category.label} ({category.pick}장)</th>)}<th>보정 요청</th><th>추가 주문</th><th>보정본 전달</th><th>상태</th><th>최근 활동</th><th /></tr></thead>
@@ -818,6 +842,7 @@ export default function PersonSelectDetailPage() {
     /> : null}
     {picker ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPicker(false)} onSelectRemote={(selection) => { setPath(selection.path); setPicker(false); }} /> : null}
     {pinListOpen ? <PinListDialog eventId={id} onClose={() => setPinListOpen(false)} onUpdated={load} /> : null}
+    {syncDialogOpen ? <SelectionSyncDialog data={data} onClose={() => setSyncDialogOpen(false)} onRefresh={() => void load()} /> : null}
     {deleteOpen ? <div className={styles.modalBackdrop} onClick={() => { if (!deleting) setDeleteOpen(false); }}>
       <section className={`${styles.pinDialog} ${styles.deleteDialog}`} role="dialog" aria-modal="true" aria-labelledby="delete-project-title" onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalTop}><div><p className={styles.eyebrow}>되돌릴 수 없는 작업</p><h2 id="delete-project-title">프로젝트 삭제</h2><p>사진, 참가자, 선택·주문·제출 기록과 업로드한 미리보기 파일을 함께 삭제합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={deleting} onClick={() => setDeleteOpen(false)}><X size={20} /></button></div>
@@ -836,6 +861,25 @@ export default function PersonSelectDetailPage() {
       }
     }} /> : null}
   </main>;
+}
+
+function SelectionSyncDialog({ data, onClose, onRefresh }: {
+  data: { event: EventData; people: Person[]; shared?: SharedAdminData | null; sync?: SelectionSyncAdminData };
+  onClose: () => void;
+  onRefresh: () => void;
+}) {
+  const reviewers = data.shared?.reviewers ?? [];
+  return <div className={styles.modalBackdrop} onClick={onClose}>
+    <section className={styles.pinDialog} role="dialog" aria-modal="true" aria-labelledby="selection-sync-title" onClick={(event) => event.stopPropagation()}>
+      <div className={styles.modalTop}><div><p className={styles.eyebrow}>서버 저장 상태</p><h2 id="selection-sync-title">동기화 확인</h2><p>{data.event.title} · 최근 저장 실패 {data.sync?.recent_failure_count ?? 0}건</p></div><button type="button" className={styles.weak} aria-label="닫기" onClick={onClose}><X size={20} /></button></div>
+      <div className={styles.pinTableWrap}><table className={styles.pinTable}><thead><tr><th>검토자·고객</th><th>서버 저장 장수</th><th>마지막 저장</th><th>최근 실패</th></tr></thead><tbody>
+        {reviewers.map((reviewer) => <tr key={`reviewer-${reviewer.id}`}><td><strong>{reviewer.display_name}</strong><small>{reviewer.role_label || "공동 검토자"}</small></td><td>{reviewer.server_selected_count ?? reviewer.draft?.selected_count ?? 0}장</td><td>{relativeTime(reviewer.server_last_saved_at ?? null)}</td><td>{reviewer.recent_save_failure_count ?? 0}건</td></tr>)}
+        {data.people.map((person) => <tr key={`person-${person.id}`}><td><strong>{person.display_name}</strong><small>개인별 고객</small></td><td>{person.server_selected_count ?? person.choices.length}장</td><td>{relativeTime(person.server_last_saved_at ?? null)}</td><td>{person.recent_save_failure_count ?? 0}건</td></tr>)}
+      </tbody></table></div>
+      {data.sync?.recent_failures.length ? <div className={styles.warning} role="alert">{data.sync.recent_failures.slice(0, 5).map((failure) => <div key={`${failure.actor_type}-${failure.actor_id}-${failure.at}`}>{new Date(failure.at).toLocaleString("ko-KR")} · {failure.error}</div>)}</div> : null}
+      <div className={styles.modalActions}><button type="button" className={styles.secondary} onClick={onRefresh}><RefreshCw size={15} />새로 확인</button><button type="button" className={styles.primary} onClick={onClose}>닫기</button></div>
+    </section>
+  </div>;
 }
 
 function DeliveryImportResult({ result, people, isShared, assignments, busy, onRetry, onAssignmentChange, onAssign }: {
