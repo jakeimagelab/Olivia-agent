@@ -4,13 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, FileText, FolderOpen, ListOrdered, MessageSquare, ScanSearch, Smartphone, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
-  SELECT_MATCH_JPG_EXTENSIONS as JPG_EXTS,
   type SelectMatchFolderGroup,
 } from "@/lib/selectMatch/folderScanner";
 import {
   parseNamesFromText,
   parseNamesFromFiles,
-  SELECT_MATCH_RAW_EXTENSIONS as RAW_EXTS,
 } from "@/lib/selectMatch/nameParsing";
 import {
   buildRawIndex as buildRawIndexPure,
@@ -47,14 +45,16 @@ import {
   type RemoteRawMatchJob,
 } from "@/lib/selectMatch/remoteRawMatch";
 import {
-  checkFileSequence,
   defaultWorkerFolderPath,
   parseFileNameQueries,
   relativeToDirectoryRoot,
-  type SequenceCheckResult,
 } from "@/lib/selectMatch/workspaceHelpers";
 import { prepareScreenshotForOcr } from "@/lib/selectMatch/browserOcr";
 import { useSelectMatchFindMove } from "@/components/photo-workspace/useSelectMatchFindMove";
+import {
+  formatMissingSequenceRange,
+  useSelectMatchSequenceCheck,
+} from "@/components/photo-workspace/useSelectMatchSequenceCheck";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -291,10 +291,14 @@ export function SelectMatchWorkspace({
   /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 vs 프로그램 아카이브 ── */
   const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check" | "program_archive">("raw_match");
 
-  /* ── 파일 순서 검토 — 상태 ── */
-  const [scRootDir, setScRootDir] = useState<FileSystemDirectoryHandle | null>(null);
-  const [scStep,    setScStep]    = useState<"idle" | "scanning" | "result">("idle");
-  const [scResult,  setScResult]  = useState<SequenceCheckResult | null>(null);
+  const {
+    rootDir: scRootDir,
+    step: scStep,
+    result: scResult,
+    pickFolder: pickScFolder,
+    runCheck: runSequenceCheck,
+    reset: resetSequenceCheck,
+  } = useSelectMatchSequenceCheck();
 
   const {
     rootDir: fmRootDir,
@@ -941,47 +945,6 @@ export function SelectMatchWorkspace({
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
-  /* ── 파일 순서 검토: 폴더 선택 ── */
-  const pickScFolder = useCallback(async () => {
-    try {
-      const dir = await (window as any).showDirectoryPicker({ mode: "read" });
-      setScRootDir(dir);
-    } catch (e: any) {
-      if (e?.name !== "AbortError") alert("폴더 선택 실패");
-    }
-  }, []);
-
-  /* ── 파일 순서 검토: 폴더 직속 파일만 스캔 후 넘버링 검사 ── */
-  // 분류 후에는 파일이 여러 하위 폴더(Scene01/, PROFILE/ 등)에 흩어지지만 파일명은 그대로
-  // 유지되므로, 폴더 구조·순서와 무관하게 하위 폴더까지 전부 훑어 파일명만 모은다.
-  const runSequenceCheck = useCallback(async () => {
-    if (!scRootDir) return;
-    setScStep("scanning");
-    const names: string[] = [];
-    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0) => {
-      if (depth > 8) return;
-      for await (const [name, handle] of (dir as any).entries()) {
-        if ((handle as FileSystemHandle).kind === "directory") {
-          await scanDir(handle as FileSystemDirectoryHandle, depth + 1);
-        } else {
-          const ext = (name as string).split(".").pop()?.toLowerCase() ?? "";
-          if (!RAW_EXTS.has(ext) && !JPG_EXTS.has(ext)) continue;
-          names.push(name as string);
-        }
-      }
-    };
-    await scanDir(scRootDir);
-    setScResult(checkFileSequence(names));
-    setScStep("result");
-  }, [scRootDir]);
-
-  const resetSequenceCheck = () => {
-    setScStep("idle"); setScResult(null); setScRootDir(null);
-  };
-
-  const formatMissingRange = (r: { start: number; end: number }) =>
-    r.start === r.end ? `${r.start}` : `${r.start}~${r.end} (${r.end - r.start + 1}개)`;
-
   /* ── 상단 기능 전환 탭 (두 기능 진입점에서만 노출) ── */
   const FeatureTabs = () => embedded ? null : (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 20 }}>
@@ -1329,7 +1292,7 @@ export function SelectMatchWorkspace({
               <div style={{ background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 500, color: "#C2410C", marginBottom: 6 }}>⚠️ 누락 {scResult.missingRanges.length}건</div>
                 <div style={{ fontSize: 12, color: uiText, lineHeight: 1.8 }}>
-                  {scResult.missingRanges.map(formatMissingRange).join(", ")}
+                  {scResult.missingRanges.map(formatMissingSequenceRange).join(", ")}
                 </div>
               </div>
             ) : (
