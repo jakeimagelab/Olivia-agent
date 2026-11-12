@@ -111,6 +111,13 @@ import {
   formatTime,
   makeCSV,
 } from "@/lib/photo-classifier/workspaceFormatting";
+import {
+  createSavedSortingSession,
+  readSavedSortingSession,
+  removeSavedSortingSession,
+  writeSavedSortingSession,
+  type SavedSortingSession,
+} from "@/lib/photo-classifier/sortingSession";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -251,46 +258,6 @@ export function Toggle({ label, desc, value, onChange }: { label: string; desc?:
       </button>
     </div>
   );
-}
-
-/* ════════════════════════════════════════════════
-   SESSION PERSISTENCE
-═══════════════════════════════════════════════ */
-const SESSION_KEY = "photoclinic-sorting-session-v1";
-
-interface SavedSortingSession {
-  version: 1 | 2;
-  savedAt: string;
-  step: number;
-  rootDirName: string;
-  department: MedicalDepartment;
-  gapMinutes: number;
-  fastAnalyzeMode: boolean;
-  departmentLogicEnabled: boolean;
-  aiNamingEnabled: boolean;
-  qualityAnalysisEnabled: boolean;
-  profileClassificationEnabled: boolean;
-  rawSelectMode: "move" | "copy";
-  fieldRawCount: number;
-  fieldStats: FieldStats | null;
-  classificationJobState?: ClassificationJobState;
-  boundaryDecisions?: SceneBoundaryDecision[];
-  sceneCorrections?: SceneCorrection[];
-  sceneSummary: {
-    index: number;
-    folderName: string;
-    editedName: string;
-    startTime: number;
-    endTime: number;
-    fileCount: number;
-    sceneType: string | null;
-    suggestedName: string | null;
-    aiConfidence: number | null;
-    aiReason: string | null;
-    fileNames?: string[];
-    boundaryBefore?: SceneBoundaryDecision;
-    approved?: boolean;
-  }[];
 }
 
 /* ════════════════════════════════════════════════
@@ -559,39 +526,28 @@ function PhotoSortingInner({
   /* ── session persistence ── */
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return;
-      const data = JSON.parse(raw) as SavedSortingSession;
-      // 이전 버전의 5/6단계는 분류 화면 안의 RAW 셀렉 단계였다. 현재는 RAW
-      // 매칭 탭이 담당하므로, 저장된 세션도 분류 완료(4)까지만 복원한다.
-      if ((data.version === 1 || data.version === 2) && data.step >= 2) setSavedSession({ ...data, step: Math.min(data.step, 4) });
+      const session = readSavedSortingSession(localStorage);
+      if (session) setSavedSession(session);
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, []);
 
   useEffect(() => {
     if (step < 2) return;
     try {
-      const data: SavedSortingSession = {
-        version: 2, savedAt: new Date().toISOString(),
-        step, rootDirName: rootDir?.name ?? "",
+      writeSavedSortingSession(createSavedSortingSession({
+        step,
+        rootDirName: rootDir?.name ?? "",
         department, gapMinutes, fastAnalyzeMode,
         departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled,
         profileClassificationEnabled, rawSelectMode,
         fieldRawCount, fieldStats, classificationJobState, boundaryDecisions, sceneCorrections,
-        sceneSummary: fieldScenes.map(s => ({
-          index: s.index, folderName: s.folderName, editedName: s.editedName,
-          startTime: s.startTime, endTime: s.endTime, fileCount: s.fileCount,
-          sceneType: s.sceneType, suggestedName: s.suggestedName,
-          aiConfidence: s.aiConfidence, aiReason: s.aiReason,
-          fileNames: s.files.map((file) => file.name), boundaryBefore: s.boundaryBefore, approved: s.approved,
-        })),
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+        fieldScenes,
+      }), localStorage);
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
   }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes, classificationJobState, boundaryDecisions, sceneCorrections]);
 
   const clearSession = () => {
-    try { localStorage.removeItem(SESSION_KEY); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+    try { removeSavedSortingSession(localStorage); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     setSavedSession(null);
   };
 
