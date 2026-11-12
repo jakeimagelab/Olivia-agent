@@ -11,7 +11,6 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
-import { formatBytes } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
 import {
   BRIDGE_TOOL_ITEMS,
@@ -45,6 +44,7 @@ import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOli
 import { useOliviaBridgeFolderLoading } from "@/components/olivia-bridge/useOliviaBridgeFolderLoading";
 import { useOliviaBridgeFolderActions } from "@/components/olivia-bridge/useOliviaBridgeFolderActions";
 import { useOliviaBridgeToolLaunch } from "@/components/olivia-bridge/useOliviaBridgeToolLaunch";
+import { useOliviaBridgeWorkspaceSync } from "@/components/olivia-bridge/useOliviaBridgeWorkspaceSync";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -80,8 +80,6 @@ import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSear
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
-import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
-import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 type Breadcrumb = BridgeFolderTrailItem;
@@ -459,52 +457,25 @@ export default function OliviaBridgeWorkspace({
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
   }, []);
 
-  useEffect(() => {
-    if (focusedIndex >= 0) return;
-    const next = visibleJpgs[0] ?? null;
-    setFocusedId(next?.id ?? null);
-    setAnchorId(next?.id ?? null);
-    setPreviewSize(undefined);
-  }, [focusedIndex, visibleJpgs]);
-
-  useEffect(() => {
-    if (focusedPlainFile || !visiblePlainFiles.length) return;
-    setFocusedPlainId(visiblePlainFiles[0].id);
-  }, [focusedPlainFile, visiblePlainFiles]);
-
-  useEffect(() => {
-    const context = useOliviaContextStore.getState();
-    context.setWorkspace("photo-sort", folderPath || undefined);
-    context.setSelection(focusedPhoto ? "file" : focusedPlainFile ? "file" : undefined, focusedPhoto?.id ?? focusedPlainFile?.id);
-  }, [focusedPhoto, focusedPlainFile, folderPath, selectedNames]);
-
-  useEffect(() => {
-    const focused = focusedPhoto ?? focusedPlainFile;
-    if (!focused) {
-      emitShellSelection({ clear: true, sourceAppId: "olivia-bridge", sourceWindowId: "olivia-bridge" });
-      return;
-    }
-    emitShellSelection({
-      sourceAppId: "olivia-bridge",
-      sourceWindowId: "olivia-bridge",
-      itemId: focused.id,
-      title: focused.name,
-      subtitle: `${focused.extension} · ${formatBytes(focused.size)} · 선택 JPG ${selectedNames.length}장`,
-      next: focusedPhoto ? "미리보기와 별점, 선택 상태를 확인합니다." : "RAW와 사이드카 파일 정보를 확인합니다.",
-      appId: "olivia-bridge",
-      context: { clientId, workflowRunId, projectId: workflowRunId, resourceId: folderPath || undefined, resourceType: "photo-folder", featureItemId: focused.id },
-      featureItemId: focused.id,
-    });
-  }, [clientId, focusedPhoto, focusedPlainFile, folderPath, selectedNames.length, workflowRunId]);
-
-  useEffect(() => {
-    if (!folderPath) return;
-    try {
-      localStorage.setItem(`olivia-bridge:marks:${folderPath}`, JSON.stringify({ ratings, ratingEdits, colorLabels, excluded: [...excludedIds] }));
-    } catch (error) {
-      void error;
-    }
-  }, [colorLabels, excludedIds, folderPath, ratingEdits, ratings]);
+  useOliviaBridgeWorkspaceSync({
+    focusedIndex,
+    visibleJpgs,
+    focusedPhoto,
+    visiblePlainFiles,
+    focusedPlainFile,
+    folderPath,
+    selectedJpgCount: selectedNames.length,
+    clientId,
+    workflowRunId,
+    ratings,
+    ratingEdits,
+    colorLabels,
+    excludedIds,
+    setFocusedId,
+    setAnchorId,
+    setFocusedPlainId,
+    setPreviewSize,
+  });
 
   const { loadDirectory, loadRemoteDirectory } = useOliviaBridgeFolderLoading({
     includeNestedJpgs,
