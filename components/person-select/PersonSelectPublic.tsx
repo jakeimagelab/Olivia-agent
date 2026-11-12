@@ -280,8 +280,16 @@ function usePendingPersonChoiceSyncCount(slug: string) {
 export function PersonSelectCategory({ slug, categoryKey }: { slug: string; categoryKey: string }) {
   const router = useRouter();
   const { me, loading: meLoading, error } = useSelectionData(slug);
-  const { images, loading, ensurePreviews } = usePersonSelectImages(slug, categoryKey);
   const category = me?.categories.find((item) => item.key === categoryKey);
+  const seedImages = useMemo<ImageData[]>(() => (category?.choices ?? []).map((choice) => ({
+    id: choice.image_id,
+    original_file_name: choice.original_file_name,
+    thumb_url: choice.thumb_url ?? "",
+    preview_url: "",
+    width: null,
+    height: null,
+  })), [category?.choices]);
+  const { images, loading, ensurePreviews } = usePersonSelectImages(slug, categoryKey, seedImages);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [message, setMessage] = useState("");
@@ -327,8 +335,8 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   const extra = extraCount(visibleCategory);
   const dockText = message || (count === 0 ? `사진을 ${category.need}장 골라주세요${category.max > category.need ? ` · ${category.max}장까지 더 고를 수 있어요` : ""}` : extra && me.event.extra_price ? `${count}장 골랐어요 · 추가 보정 ${extra}장 ${won(extra * me.event.extra_price)}` : isComplete(visibleCategory) ? "고른 사진의 보정 요청을 적어주세요." : `${count} / ${category.need}장 골랐어요`);
   return <main className={styles.darkPage}>
-    <header className={styles.darkTop}><button onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/home`); }); }} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{images.length}장</span></header>
-    <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {images.length}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
+    <header className={styles.darkTop}><button onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/home`); }); }} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{category.image_count}장</span></header>
+    <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {category.image_count}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
     {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <button key={image.id} className={`${styles.photoTile} ${displayedIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewIndex(images.findIndex((item) => item.id === image.id))}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{displayedIds.has(image.id) ? <span className={styles.check}><Check size={17} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>}
     <div className={styles.darkDock}><p>{message || selectionSyncStatus(sync)}{message ? "" : ` · ${dockText}`}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>고른 사진 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
@@ -521,7 +529,15 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
     .filter((item) => item.image_count > 0)
     .filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
   const active = categories.find((item) => item.key === activeKey) ?? categories[0];
-  const { images, ensurePreviews } = usePersonSelectImages(slug, active?.key ?? "profile");
+  const seedImages = useMemo<ImageData[]>(() => (active?.choices ?? []).map((choice) => ({
+    id: choice.image_id,
+    original_file_name: choice.original_file_name,
+    thumb_url: choice.thumb_url ?? "",
+    preview_url: "",
+    width: null,
+    height: null,
+  })), [active?.choices]);
+  const { images, ensurePreviews } = usePersonSelectImages(slug, active?.key ?? "profile", seedImages);
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");

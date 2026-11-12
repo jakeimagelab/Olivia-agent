@@ -27,6 +27,7 @@ export type PersonSelectImageData = {
   preview_url: string;
   width: number | null;
   height: number | null;
+  sort_order?: number;
 };
 
 type PersonChoiceSyncSnapshot = {

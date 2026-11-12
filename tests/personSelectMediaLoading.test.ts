@@ -6,7 +6,7 @@ import {
   SELECTION_MEDIA_URL_CACHE_LIMIT,
   SELECTION_THUMBNAIL_PAGE_SIZE,
 } from "@/lib/select-gallery/mediaLoading";
-import { mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
+import { mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
 
 describe("person select media loading", () => {
   it("limits the first thumbnail page to a small shared batch", () => {
@@ -52,6 +52,39 @@ describe("person select media loading", () => {
       width: 1200,
       height: 800,
     }]);
+  });
+
+  it("progressively merges personal image pages without losing selected previews", () => {
+    const merged = mergePersonSelectImagePages([{
+      id: "selected-late",
+      original_file_name: "B.JPG",
+      thumb_url: "selected-thumb",
+      preview_url: "selected-preview",
+      width: null,
+      height: null,
+    }], [{
+      id: "first",
+      original_file_name: "A.JPG",
+      thumb_url: "first-thumb",
+      preview_url: "",
+      width: 1200,
+      height: 800,
+      sort_order: 1,
+    }, {
+      id: "selected-late",
+      original_file_name: "B.JPG",
+      thumb_url: "fresh-thumb",
+      preview_url: "",
+      width: 800,
+      height: 1200,
+      sort_order: 80,
+    }]);
+    expect(merged.map((image) => image.id)).toEqual(["first", "selected-late"]);
+    expect(merged[1]).toMatchObject({
+      thumb_url: "fresh-thumb",
+      preview_url: "selected-preview",
+      sort_order: 80,
+    });
   });
 
   it("returns only the active preview neighborhood", () => {
