@@ -55,6 +55,7 @@ import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaB
 import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOliviaBridgeCaptureMetadata";
 import { useOliviaBridgePersonSelectionImport } from "@/components/olivia-bridge/useOliviaBridgePersonSelectionImport";
 import { useOliviaBridgeCustomerSelectionImport } from "@/components/olivia-bridge/useOliviaBridgeCustomerSelectionImport";
+import { useOliviaBridgeFolderCounts } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -63,7 +64,6 @@ import {
 } from "@/components/olivia-bridge/OliviaBridgeDialogs";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
-  bridgeFileKind,
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
   scanBridgeFolder,
@@ -74,7 +74,6 @@ import {
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
-import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
@@ -190,29 +189,6 @@ const THUMBNAIL_SIZE_MAX = 240;
 const THUMBNAIL_SIZE_STEP = 18;
 const THUMBNAIL_SIZE_DEFAULT = 156;
 
-async function countBridgeFolderImages(directory: FileSystemDirectoryHandle, depth = 0): Promise<number> {
-  if (depth > 5) return 0;
-  let count = 0;
-  const iterable = directory as FileSystemDirectoryHandle & {
-    entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
-  };
-  try {
-    for await (const [name, handle] of iterable.entries()) {
-      if (name.startsWith(".")) continue;
-      if (handle.kind === "directory") {
-        if (isDeliveredRoundFolder(name)) continue;
-        count += await countBridgeFolderImages(handle as FileSystemDirectoryHandle, depth + 1);
-        continue;
-      }
-      const kind = bridgeFileKind(name);
-      if (kind === "jpg" || kind === "raw") count += 1;
-    }
-  } catch {
-    return count;
-  }
-  return count;
-}
-
 function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
   return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -293,7 +269,6 @@ export default function OliviaBridgeWorkspace({
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptError, setRawRootPromptError] = useState("");
-  const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
   const [previewTab, setPreviewTab] = useState<OliviaBridgePreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
@@ -323,6 +298,7 @@ export default function OliviaBridgeWorkspace({
   const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
   const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
   const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const folderImageCounts = useOliviaBridgeFolderCounts(activeFolder, scan.folders);
   const captureMetadataState = useOliviaBridgeCaptureMetadata({
     jpgSortMode,
     scanStatus,
@@ -1371,21 +1347,6 @@ export default function OliviaBridgeWorkspace({
     setSelectedIds((current) => new Set([...current, ...customerSelectedIds]));
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
-
-  useEffect(() => {
-    let disposed = false;
-    if (!activeFolder || !scan.folders.length) {
-      setFolderImageCounts({});
-      return;
-    }
-    void Promise.all(scan.folders.map(async (folder) => [
-      folder.name.normalize("NFC"),
-      await countBridgeFolderImages(folder),
-    ] as const)).then((entries) => {
-      if (!disposed) setFolderImageCounts(Object.fromEntries(entries));
-    });
-    return () => { disposed = true; };
-  }, [activeFolder, scan.folders]);
 
   const clearMarqueePresentation = useCallback(() => {
     const fileArea = fileAreaRef.current;

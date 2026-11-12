@@ -19,6 +19,7 @@ import {
   samePhotoToolSelectionNames,
 } from "@/lib/photo-bridge/toolLinkage";
 import { matchPersonSelectFileNames } from "@/lib/photo-bridge/personSelectImport";
+import { countOliviaBridgeFolderImages } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
 
 describe("Olivia Bridge", () => {
   it("JPG·RAW·사이드카를 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
@@ -32,6 +33,22 @@ describe("Olivia Bridge", () => {
       sidecar: ["A.XMP"],
       other: ["note.txt", ".DS_Store"],
     });
+  });
+
+  it("폴더 장수 계산은 보정 전달 폴더를 건너뛰고 JPG·RAW만 센다", async () => {
+    const file = (name: string) => ({ name, kind: "file" as const });
+    const directory = (name: string, children: Array<{ name: string; kind: "file" | "directory"; entries?: () => AsyncIterableIterator<[string, FileSystemHandle]> }>) => ({
+      name,
+      kind: "directory" as const,
+      async *entries() {
+        for (const child of children) yield [child.name, child as unknown as FileSystemHandle] as [string, FileSystemHandle];
+      },
+    });
+    const delivered = directory("1차보정본", [file("OLD.JPG")]);
+    const nested = directory("C1", [file("A.JPG"), file("A.CR3"), file("A.XMP")]);
+    const root = directory("촬영", [nested, delivered, file("B.JPEG"), file(".hidden.JPG")]);
+
+    await expect(countOliviaBridgeFolderImages(root as unknown as FileSystemDirectoryHandle)).resolves.toBe(3);
   });
 
   it("일반·추가·범위 선택을 Bridge 순서대로 계산한다", () => {
