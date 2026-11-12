@@ -46,6 +46,14 @@ import {
   type RemoteRawMatchCopyPayload,
   type RemoteRawMatchJob,
 } from "@/lib/selectMatch/remoteRawMatch";
+import {
+  checkFileSequence,
+  defaultWorkerFolderPath,
+  parseFileNameQueries,
+  relativeToDirectoryRoot,
+  type NameQuery,
+  type SequenceCheckResult,
+} from "@/lib/selectMatch/workspaceHelpers";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -90,38 +98,6 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
   });
 }
 
-function defaultWorkerFolderPath(displayPath: string, fallbackName: string): string {
-  const segments = displayPath
-    .split(/\s+\/\s+|\//u)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  if (!segments.length && fallbackName.trim()) segments.push(fallbackName.trim());
-  return segments.length ? `/Volumes/${segments.join("/")}` : "";
-}
-
-function relativeToDirectoryRoot(relativePath: string, rootName: string): string {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const prefix = `${rootName.normalize("NFC")}/`;
-  return normalized.normalize("NFC").startsWith(prefix) ? normalized.normalize("NFC").slice(prefix.length) : normalized;
-}
-
-/* ── 파일명 목록 파싱: 확장자가 있으면 정확히, 없으면 베이스네임만 일치 ── */
-interface NameQuery { raw: string; basenameLower: string; extLower: string | null }
-function parseFileNameQueries(text: string): NameQuery[] {
-  const tokens = text.split(/[\r\n,]+/).map(t => t.trim()).filter(Boolean);
-  const seen = new Set<string>();
-  const out: NameQuery[] = [];
-  for (const token of tokens) {
-    const key = token.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const m = token.match(/^(.+)\.([A-Za-z0-9]{2,5})$/);
-    if (m) out.push({ raw: token, basenameLower: m[1].toLowerCase(), extLower: m[2].toLowerCase() });
-    else out.push({ raw: token, basenameLower: token.toLowerCase(), extLower: null });
-  }
-  return out;
-}
-
 async function prepareScreenshotForOcr(file: File): Promise<string> {
   if (!file.type.startsWith("image/")) throw new Error("이미지 파일만 선택할 수 있습니다.");
   const bitmap = await createImageBitmap(file);
@@ -148,54 +124,6 @@ async function prepareScreenshotForOcr(file: File): Promise<string> {
     reader.onerror = () => reject(reader.error ?? new Error("이미지를 처리하지 못했습니다."));
     reader.readAsDataURL(blob);
   });
-}
-
-/* ── 파일 순서 검토: 파일명 끝자리 숫자로 넘버링 누락 검사 ── */
-interface SequenceCheckResult {
-  totalFiles: number;
-  recognizedNumbers: number[];      // 중복 제거 + 정렬됨
-  unrecognizedFiles: string[];      // 번호를 못 찾은 파일명
-  missingRanges: { start: number; end: number }[];
-  min: number | null;
-  max: number | null;
-  rangeTooLarge: boolean;           // 인식 오류로 비정상적으로 큰 숫자가 섞였을 가능성
-}
-
-// 파일명 끝자리에 우연히 타임스탬프 같은 거대한 숫자가 붙어 있으면 min~max 범위가
-// 수백만 단위로 벌어질 수 있다 — 그 구간을 전부 순회하면 브라우저가 멈추므로 상한을 둔다.
-const SEQUENCE_RANGE_LIMIT = 200_000;
-
-function checkFileSequence(fileNames: string[]): SequenceCheckResult {
-  const numberSet = new Set<number>();
-  const unrecognizedFiles: string[] = [];
-
-  for (const name of fileNames) {
-    const basename = name.replace(/\.[^.]+$/, "");
-    const m = basename.match(/(\d+)$/);
-    if (!m) { unrecognizedFiles.push(name); continue; }
-    numberSet.add(Number(m[1]));
-  }
-
-  const recognizedNumbers = Array.from(numberSet).sort((a, b) => a - b);
-  const min = recognizedNumbers.length > 0 ? recognizedNumbers[0] : null;
-  const max = recognizedNumbers.length > 0 ? recognizedNumbers[recognizedNumbers.length - 1] : null;
-
-  const missingRanges: { start: number; end: number }[] = [];
-  const rangeTooLarge = min !== null && max !== null && (max - min) > SEQUENCE_RANGE_LIMIT;
-
-  if (min !== null && max !== null && !rangeTooLarge) {
-    let gapStart: number | null = null;
-    for (let n = min; n <= max; n++) {
-      if (numberSet.has(n)) {
-        if (gapStart !== null) { missingRanges.push({ start: gapStart, end: n - 1 }); gapStart = null; }
-      } else if (gapStart === null) {
-        gapStart = n;
-      }
-    }
-    if (gapStart !== null) missingRanges.push({ start: gapStart, end: max });
-  }
-
-  return { totalFiles: fileNames.length, recognizedNumbers, unrecognizedFiles, missingRanges, min, max, rangeTooLarge };
 }
 
 /* ── Component ── */
