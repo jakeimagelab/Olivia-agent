@@ -1,5 +1,7 @@
 import type { PersonSelectChoice } from "./usePersonChoiceSync";
 
+export const PERSON_SELECT_FIRST_PHOTO_TIMER_KEY = "person-select-login-started-at";
+
 export type PersonSelectCategoryData = {
   key: string;
   label: string;
