@@ -29,6 +29,12 @@ export type RawDiscoveryState = {
   folderName?: string;
 };
 
+export type ApprovedCaptureMatch = {
+  item: CaptureMatchPreflight["items"][number];
+  candidate: CaptureMatchPreflight["items"][number]["candidates"][number];
+  manual: boolean;
+};
+
 export function useSelectMatchPreflight({
   bridgeLinked,
   step,
@@ -61,7 +67,7 @@ export function useSelectMatchPreflight({
   const [rawDiscovery, setRawDiscovery] = useState<RawDiscoveryState>({ status: "idle", message: "" });
   const rawDiscoveryKeyRef = useRef("");
 
-  const approvedMatches = useMemo(() => (preflight?.items.flatMap((item) => {
+  const approvedMatches = useMemo<ApprovedCaptureMatch[]>(() => (preflight?.items.flatMap((item) => {
     const candidateId = manualRawChoices[item.id] ?? item.confirmedCandidateId;
     if (!candidateId) return [];
     const candidate = item.candidates.find((entry) => entry.id === candidateId);

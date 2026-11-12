@@ -16,7 +16,6 @@ import {
 } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
-import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
@@ -28,14 +27,10 @@ import {
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
   remoteRawMatchUnavailableReason,
-  runRemoteRawMatchCopy,
-  type RemoteRawMatchCopyPayload,
-  type RemoteRawMatchJob,
 } from "@/lib/selectMatch/remoteRawMatch";
 import {
   defaultWorkerFolderPath,
   parseFileNameQueries,
-  relativeToDirectoryRoot,
 } from "@/lib/selectMatch/workspaceHelpers";
 import { prepareScreenshotForOcr } from "@/lib/selectMatch/browserOcr";
 import { loadBrowserThumbnail, releaseObjectUrl } from "@/lib/selectMatch/browserThumbnail";
@@ -46,10 +41,7 @@ import {
 } from "@/components/photo-workspace/useSelectMatchSequenceCheck";
 import { useSelectMatchTargets } from "@/components/photo-workspace/useSelectMatchTargets";
 import { useSelectMatchPreflight } from "@/components/photo-workspace/useSelectMatchPreflight";
-
-// 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
-// 재시작해도 이전 항목을 덮어쓴다.
-const RAW_MATCH_JOB_ID = "raw-match";
+import { useSelectMatchExecution } from "@/components/photo-workspace/useSelectMatchExecution";
 
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
@@ -154,30 +146,6 @@ export function SelectMatchWorkspace({
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
-  // 매칭된 RAW 파일을 Selected_RAW/에 넣을 때 원본을 지울지(이동) 남겨둘지(복사) — 기본값은
-  // 기존 동작(복사)과 동일하게 유지해 이 기능을 모르는 사용자에게 갑자기 원본이 사라지는
-  // 일이 없게 한다.
-  const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
-  const [progress,   setProgressState] = useState({ cur: 0, total: 0, msg: "" });
-  const [rawOutputPath, setRawOutputPath] = useState("");
-  const [rawOutputOpenError, setRawOutputOpenError] = useState("");
-  const [result,     setResult]     = useState({
-    matched: 0,
-    alreadyCopied: 0,
-    missing: 0,
-    selected: 0,
-    jpgMoved: 0,
-    xmpMoved: 0,
-    failed: 0,
-    deliveredFolderName: "",
-    missingNames: [] as string[],
-    failedNames: [] as string[],
-    moveNotice: "",
-    cancelled: false,
-    attributePassed: 0,
-    attributeFailed: 0,
-  });
-  const cancelRef = useRef(false);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sceneThumbnailUrlsRef = useRef(new Set<string>());
   const searchThumbnailRequestsRef = useRef(new WeakSet<FileSystemDirectoryHandle>());
@@ -187,8 +155,6 @@ export function SelectMatchWorkspace({
   const [workerJpgRootPath, setWorkerJpgRootPath] = useState("");
   const [workerRawRootPath, setWorkerRawRootPath] = useState("");
   const [workerPathDirty, setWorkerPathDirty] = useState(false);
-  const [remoteExecutionError, setRemoteExecutionError] = useState("");
-  const remoteRawMatchJobIdRef = useRef("");
 
   const releaseSceneThumbnails = useCallback(() => {
     for (const url of sceneThumbnailUrlsRef.current) releaseObjectUrl(url);
@@ -196,14 +162,6 @@ export function SelectMatchWorkspace({
   }, []);
 
   useEffect(() => () => releaseSceneThumbnails(), [releaseSceneThumbnails, rootDir]);
-
-  // RAW 매칭이 다른 페이지로 이동해도 우상단 팝업에 계속 보이게(BackgroundJobsWidget) — 로컬
-  // state를 그대로 두고 전역 스토어에도 같이 반영만 한다. runMatch 안의 기존 setProgress(...)
-  // 호출부는 이름이 그대로라 하나도 안 건드려도 된다.
-  const setProgress = useCallback((next: { cur: number; total: number; msg: string }) => {
-    setProgressState(next);
-    useBackgroundJobsStore.getState().updateJob(RAW_MATCH_JOB_ID, next);
-  }, []);
 
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
@@ -315,6 +273,33 @@ export function SelectMatchWorkspace({
     ? missingMatchTargetBasenames.length === 0
       && isCaptureMatchTargetCountConsistent(selectedJpgSources.length, preflight)
     : false;
+  const {
+    rawSelectMode,
+    setRawSelectMode,
+    progress,
+    setProgress,
+    rawOutputPath,
+    rawOutputOpenError,
+    result,
+    remoteExecutionError,
+    runMatch,
+    cancelRemoteRawMatch,
+    openRawOutputFolder,
+    resetOutputStatus,
+  } = useSelectMatchExecution({
+    setStep,
+    rootDir,
+    rawRootDir,
+    jpgScanRootName: jpgScanRootDir?.name ?? "",
+    preflight,
+    approvedMatches,
+    preflightTargetCountMatches,
+    workerOnline: workerPresence.online,
+    workerRawRootPath,
+    workerJpgRootPath,
+    moveMatchedJpgs,
+    deliveredFolderName,
+  });
 
   useEffect(() => {
     if (workerPathDirty) return;
@@ -630,139 +615,6 @@ export function SelectMatchWorkspace({
       void loadSceneThumbs(sceneIndex);
     }
   }, [loadSceneThumbs, queryTokens.length, scenes, visibleScenes]);
-
-  /* ── 실제 복사 실행 ── */
-  const runMatch = useCallback(async () => {
-    if ((!rootDir && !rawRootDir) || !preflight || approvedMatches.length === 0 || !preflightTargetCountMatches) return;
-    const unavailableReason = remoteRawMatchUnavailableReason(workerPresence.online);
-    if (unavailableReason) {
-      setRemoteExecutionError(unavailableReason);
-      return;
-    }
-    if (!workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())) {
-      setRemoteExecutionError("Mac Studio에서 보이는 RAW/JPG 폴더 경로를 확인해 주세요.");
-      return;
-    }
-    setStep("matching");
-    cancelRef.current = false;
-    setRemoteExecutionError("");
-    setRawOutputPath("");
-    setRawOutputOpenError("");
-    useBackgroundJobsStore.getState().startJob({
-      id: RAW_MATCH_JOB_ID, label: `RAW ${rawSelectMode === "move" ? "이동" : "복사"} 중`,
-      cur: 0, total: approvedMatches.length, status: "running",
-      returnPath: "/photo-sorting?mode=raw-match", cancelRef,
-    });
-    setProgress({ cur: 0, total: approvedMatches.length, msg: "Mac Studio 워커에 속성 보존 작업을 전달하고 있습니다." });
-
-    const missingNames: string[] = preflight.items
-      .filter((item) => !approvedMatches.some((approved) => approved.item.id === item.id))
-      .map((item) => `${item.jpg.name} — ${item.status === "time_mismatch" ? "촬영시각 불일치" : item.status === "multiple_candidates" ? "후보 여러 개" : item.status === "missing_time" ? "촬영시각 없음" : "RAW 없음"}`);
-    const approvedById = new Map(approvedMatches.map((match) => [match.item.id, match]));
-    const payload: RemoteRawMatchCopyPayload = {
-      rawRootPath: workerRawRootPath.trim(),
-      ...(moveMatchedJpgs ? { jpgRootPath: workerJpgRootPath.trim() } : {}),
-      items: await Promise.all(approvedMatches.map(async ({ item, candidate }) => {
-        const jpgFile = moveMatchedJpgs ? await item.jpg.handle.getFile() : null;
-        return {
-          rawPath: relativeToDirectoryRoot(candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? ""),
-          destDir: "Selected_RAW",
-          rawAction: rawSelectMode,
-          rawExpectedSize: candidate.fileSize,
-          rawExpectedCaptureTimeMs: candidate.captureTime?.timestampMs ?? null,
-          ...(moveMatchedJpgs && jpgFile ? {
-            jpgPath: relativeToDirectoryRoot(item.jpg.relativePath, jpgScanRootDir?.name ?? ""),
-            jpgDestDir: deliveredFolderName.trim(),
-            jpgExpectedSize: jpgFile.size,
-            jpgExpectedCaptureTimeMs: item.jpgCaptureTime?.timestampMs ?? null,
-          } : {}),
-        };
-      })),
-      logRows: preflight.items.map((item) => {
-        const approved = approvedById.get(item.id);
-        return {
-          jpgName: item.jpg.name,
-          jpgPath: item.jpg.relativePath,
-          jpgCaptureTime: formatCaptureTime(item.jpgCaptureTime),
-          rawPath: approved
-            ? relativeToDirectoryRoot(approved.candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? "")
-            : item.candidates.map((candidate) => candidate.entry.relativePath).join(" | "),
-          rawCaptureTime: approved
-            ? formatCaptureTime(approved.candidate.captureTime)
-            : item.candidates.map((candidate) => formatCaptureTime(candidate.captureTime)).join(" | ") || "촬영시각 없음",
-          result: approved ? approved.manual ? "수동선택" : "확정" : "건너뜀",
-        };
-      }),
-      openOutput: true,
-    };
-
-    try {
-      const remoteResult = await runRemoteRawMatchCopy(payload, {
-        workerOnline: workerPresence.online,
-        onJob: (job: RemoteRawMatchJob) => {
-          remoteRawMatchJobIdRef.current = job.id;
-          if (!job.progress) return;
-          setProgress({
-            cur: job.progress.current,
-            total: job.progress.total || approvedMatches.length,
-            msg: job.progress.message,
-          });
-        },
-      });
-      setRawOutputPath(remoteResult.outputDir);
-      setProgress({ cur: approvedMatches.length, total: approvedMatches.length, msg: "RAW 매칭 완료" });
-      setResult({
-        matched: remoteResult.copied + remoteResult.rawMoved + remoteResult.alreadyCopied,
-        alreadyCopied: remoteResult.alreadyCopied,
-        missing: missingNames.length,
-        selected: preflight.items.length,
-        jpgMoved: remoteResult.jpgMoved,
-        xmpMoved: remoteResult.xmpMoved,
-        failed: remoteResult.failed,
-        deliveredFolderName: remoteResult.jpgMoved > 0 ? deliveredFolderName.trim() : "",
-        missingNames,
-        failedNames: remoteResult.failures.map((failure) => `${failure.stage} · ${failure.path} — ${failure.error}`),
-        moveNotice: remoteResult.attributeFailed > 0
-          ? "일부 파일의 원본 속성 확인이 실패해 해당 단계는 완료 처리하지 않았습니다."
-          : remoteResult.warnings.length > 0
-            ? `허용 가능한 속성 차이 ${remoteResult.warnings.length}건을 경고로 기록했습니다.`
-            : "",
-        cancelled: cancelRef.current,
-        attributePassed: remoteResult.attributePassed,
-        attributeFailed: remoteResult.attributeFailed,
-      });
-      setStep("done");
-      useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "done");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Mac Studio RAW 복사 작업에 실패했습니다.";
-      useBackgroundJobsStore.getState().finishJob(RAW_MATCH_JOB_ID, cancelRef.current ? "cancelled" : "error");
-      if (cancelRef.current) {
-        setResult((current) => ({ ...current, selected: preflight.items.length, missing: missingNames.length, cancelled: true, moveNotice: message }));
-        setStep("done");
-      } else {
-        setRemoteExecutionError(message);
-        setStep("preflight");
-      }
-    } finally {
-      remoteRawMatchJobIdRef.current = "";
-    }
-  }, [approvedMatches, deliveredFolderName, jpgScanRootDir?.name, moveMatchedJpgs, preflight, preflightTargetCountMatches, rawRootDir, rawSelectMode, rootDir, setProgress, workerJpgRootPath, workerPresence.online, workerRawRootPath]);
-
-  const cancelRemoteRawMatch = useCallback(() => {
-    cancelRef.current = true;
-    const jobId = remoteRawMatchJobIdRef.current;
-    if (!jobId) return;
-    void fetch(`/api/remote-jobs?id=${encodeURIComponent(jobId)}`, { method: "DELETE" }).catch(() => undefined);
-  }, []);
-
-  const openRawOutputFolder = useCallback(async () => {
-    setRawOutputOpenError("");
-    if (!rawOutputPath) {
-      setRawOutputOpenError("Selected_RAW 폴더 위치를 확인할 수 없습니다.");
-      return;
-    }
-    setRawOutputOpenError(`Mac Studio 결과 폴더: ${rawOutputPath}`);
-  }, [rawOutputPath]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
@@ -1625,8 +1477,8 @@ export function SelectMatchWorkspace({
           {rawOutputOpenError ? <div role="status" style={{ marginBottom: 12, color: uiMuted, fontSize: 11 }}>{rawOutputOpenError}</div> : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             <Btn onClick={() => void openRawOutputFolder()} disabled={!rawOutputPath}><FolderOpen size={15} aria-hidden="true" />결과 경로 확인</Btn>
-            <Btn variant="secondary" onClick={() => { setStep("ready"); setRawOutputPath(""); setRawOutputOpenError(""); }}>← 다시 선택</Btn>
-            <Btn variant="secondary" onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); setRawOutputPath(""); setRawOutputOpenError(""); }}>처음으로</Btn>
+            <Btn variant="secondary" onClick={() => { setStep("ready"); resetOutputStatus(); }}>← 다시 선택</Btn>
+            <Btn variant="secondary" onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); resetOutputStatus(); }}>처음으로</Btn>
           </div>
         </div>
       </div>
