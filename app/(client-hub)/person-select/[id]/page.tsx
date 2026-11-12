@@ -26,7 +26,7 @@ import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-
 import { SelectionSyncDialog } from "@/components/person-select/admin/SelectionSyncDialog";
 import { DeliveryImportResult } from "@/components/person-select/upload/DeliveryImportResult";
 import { usePersonSelectAdminData } from "@/components/person-select/admin/hooks/usePersonSelectAdminData";
-import type { PersonSelectSharedReviewer as SharedReviewer } from "@/lib/person-select/adminData";
+import { usePersonSelectReviewerActions } from "@/components/person-select/admin/hooks/usePersonSelectReviewerActions";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -87,9 +87,6 @@ export default function PersonSelectDetailPage() {
   const rawOptionsLoadedRef = useRef(false);
   const rawOptionsSkipFirstWriteRef = useRef(true);
   const rawSourceSavedRef = useRef(false);
-  const [reviewerName, setReviewerName] = useState("");
-  const [reviewerRole, setReviewerRole] = useState("");
-  const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const {
@@ -233,10 +230,29 @@ export default function PersonSelectDetailPage() {
       featureItemId: selectedPerson?.id ?? data.event.id,
     });
   }, [selectedPerson, data]);
+  const isShared = data?.event.access_mode === "project_shared";
+  const {
+    reviewerName,
+    setReviewerName,
+    reviewerRole,
+    setReviewerRole,
+    issuedReviewerTokens,
+    regenerateSharedLink,
+    createReviewer,
+    regenerateReviewerLink,
+    setReviewerActive,
+    setReviewerPermission,
+    copyReviewerLink,
+  } = usePersonSelectReviewerActions({
+    eventId: id,
+    isShared,
+    load,
+    setSelectedReviewerId,
+    setMessage: setError,
+  });
   if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
   const currentData = data;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
-  const isShared = data.event.access_mode === "project_shared";
   const sharedReviewers = data.shared?.reviewers ?? [];
   const selectedReviewer = sharedReviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? sharedReviewers[0] ?? null;
   const selectedSharedSelection = selectedReviewer?.selection ?? null;
@@ -431,55 +447,6 @@ export default function PersonSelectDetailPage() {
     } finally {
       setDeleting(false);
     }
-  }
-  async function regenerateSharedLink() {
-    if (!isShared || !window.confirm("기존 공용 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?")) return;
-    setError("");
-    const response = await fetch(`/api/person-select/${id}/regenerate-shared-token`, { method: "POST" });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) return setError(body.error || "공용 링크를 다시 만들지 못했습니다.");
-    await load();
-  }
-  async function createReviewer() {
-    if (!reviewerName.trim()) return setError("검토자 이름을 입력해 주세요.");
-    setError("");
-    const response = await fetch(`/api/person-select/${id}/reviewers`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ displayName: reviewerName, roleLabel: reviewerRole }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) return setError(body.error || "검토자를 추가하지 못했습니다.");
-    setIssuedReviewerTokens((current) => ({ ...current, [body.reviewer.id]: body.token }));
-    setSelectedReviewerId(body.reviewer.id);
-    setReviewerName("");
-    setReviewerRole("");
-    await load();
-  }
-  async function regenerateReviewerLink(reviewer: SharedReviewer) {
-    if (!window.confirm(`${reviewer.display_name}의 기존 링크는 즉시 사용할 수 없게 됩니다. 새 링크를 만들까요?`)) return;
-    setError("");
-    const response = await fetch(`/api/person-select/${id}/reviewers/${reviewer.id}/regenerate-token`, { method: "POST" });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) return setError(body.error || "검토자 링크를 다시 만들지 못했습니다.");
-    setIssuedReviewerTokens((current) => ({ ...current, [reviewer.id]: body.token }));
-    await load();
-  }
-  async function setReviewerActive(reviewer: SharedReviewer, active: boolean) {
-    setError("");
-    const response = await fetch(`/api/person-select/${id}/reviewers/${reviewer.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ active }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) return setError(body.error || "검토자 상태를 바꾸지 못했습니다.");
-    await load();
-  }
-  async function setReviewerPermission(reviewer: SharedReviewer, key: "canViewAiResults" | "canDownloadJpg" | "canDownloadRaw" | "canFinalize", value: boolean) {
-    setError("");
-    const response = await fetch(`/api/person-select/${id}/reviewers/${reviewer.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }) });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) return setError(body.error || "검토자 권한을 바꾸지 못했습니다.");
-    await load();
-  }
-  async function copyReviewerLink(reviewerId: string) {
-    const token = issuedReviewerTokens[reviewerId];
-    if (!token) return setError("보안상 링크는 발급 직후에만 확인됩니다. 링크 재발급 후 복사해 주세요.");
-    await navigator.clipboard.writeText(`${location.origin}/pick/shared/${token}`);
-    setError("검토자 링크를 복사했습니다.");
   }
   const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
   const loginGuide = isShared ? "공용 링크에서 프로젝트 사진을 함께 선택해 주세요" : isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
