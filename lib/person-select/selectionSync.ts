@@ -161,3 +161,5 @@ export function parseSelectionSyncBatch(value: unknown, allowedImageIds: Readonl
   });
   return { clientId, diffs };
 }
+
+export type SelectionSyncBatch = ReturnType<typeof parseSelectionSyncBatch>;
