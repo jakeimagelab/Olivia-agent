@@ -120,6 +120,7 @@ import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
 import { usePhotoDepartmentContext } from "./usePhotoDepartmentContext";
 import { useRemotePhotoSourceSelection } from "./useRemotePhotoSourceSelection";
 import { usePhotoSortingSession } from "./usePhotoSortingSession";
+import { usePhotoClassificationProgress } from "./usePhotoClassificationProgress";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -248,23 +249,15 @@ function PhotoSortingInner({
   useEffect(() => {
     if (rootDir) setCurrentLocalFolder(rootDir);
   }, [rootDir, setCurrentLocalFolder]);
-  const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
-  const progressPaintedAtRef = useRef(0);
   // 사진 분류(handleFieldSort)가 다른 페이지로 이동해도 우상단 팝업에 계속 보이게
   // (BackgroundJobsWidget) — 로컬 state는 그대로 두고 전역 스토어에도 같이 반영만 한다.
   // handleFieldSort 안의 기존 setProgress(...) 호출부는 이름이 그대로라 하나도 안 건드려도 된다.
   // (스튜디오 모드 handleStudioSort는 startJob을 안 부르므로 이 미러링은 조용히 no-op된다.)
-  const setProgress = useCallback((next: { cur: number; total: number; msg: string }) => {
-    const now = Date.now();
-    const finalUpdate = next.total > 0 && next.cur >= next.total;
-    const batchUpdate = next.cur > 0 && next.cur % 20 === 0;
-    const stageStart = next.cur === 0;
-    if (!stageStart && !finalUpdate && !batchUpdate && now - progressPaintedAtRef.current < 120) return;
-    progressPaintedAtRef.current = now;
-    setProgressState(next);
-    useBackgroundJobsStore.getState().updateJob(PHOTO_CLASSIFY_JOB_ID, next);
-  }, []);
+  const {
+    progress,
+    updateProgress: setProgress,
+  } = usePhotoClassificationProgress(PHOTO_CLASSIFY_JOB_ID);
   // 폴더 선택 실패를 화면에 보여준다 — 예전엔 catch가 비어 있어서 실패해도 아무 반응이 없었다
   // (사용자 보고: "키 자체가 안먹혀" — 버튼을 눌러도 그냥 아무 일도 안 일어남).
   const [dirPickError, setDirPickError] = useState("");
