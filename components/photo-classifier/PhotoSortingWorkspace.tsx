@@ -68,6 +68,26 @@ import {
   buildFieldScenesFromBridgePlan,
   validateBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlan";
+import {
+  STUDIO_LIGHTING_SENSITIVITY,
+  buildPersonGroups,
+  buildStudioGroups,
+  computeClothingLabel,
+  computeGroupKey,
+  personMatchScore,
+  type LightingSensitivity,
+  type PersonFeatures,
+  type PersonGroup,
+  type StudioGroup,
+  type StudioGroupSortMode,
+  type StudioInnerWear,
+  type StudioLightingStatus,
+  type StudioOptions,
+  type StudioPhotoFile,
+  type StudioPoseType,
+  type StudioStats,
+  type StudioSubMode,
+} from "@/lib/photo-classifier/studioGrouping";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -113,61 +133,6 @@ function isSimulatedRemoteResult(result: unknown): boolean {
   );
 }
 
-/* ── Studio-mode types ── */
-type StudioLightingStatus = "normal" | "etc_dark" | "etc_black" | "etc_test";
-type StudioPoseType       = "Standing" | "Sitting" | "Unknown";
-type StudioInnerWear      = "셔츠" | "넥타이셔츠" | "스크럽" | "블라우스" | "탑" | "기타";
-type LightingSensitivity  = "loose" | "medium" | "strict";
-
-interface StudioOptions { lightingSensitivity: LightingSensitivity; }
-
-interface StudioPhotoFile {
-  name: string; basename: string;
-  handle: FileSystemFileHandle; mtime: number;
-  thumbUrl: string | null; brightness: number | null;
-  fileSize: number;
-  lightingStatus: StudioLightingStatus;
-  hasGown: boolean; innerWear: StudioInnerWear;
-  clothingLabel: string; poseType: StudioPoseType;
-  isFamilyProfile: boolean; confidence: number;
-  analyzed: boolean; groupKey: string;
-  personFeatures?: PersonFeatures;
-}
-
-interface StudioGroup {
-  key: string; clothingLabel: string; poseType: StudioPoseType;
-  isFamilyProfile: boolean; files: StudioPhotoFile[];
-  suggestedFolderName: string; editedFolderName: string;
-  index: number; isEtc: boolean;
-}
-
-interface StudioStats {
-  totalJpg: number; totalRaw: number; totalGroups: number;
-  totalEtc: number; totalNormal: number;
-}
-
-/* ── Studio Group-mode types ── */
-type StudioSubMode = "concept" | "group";
-type StudioGroupSortMode = "gap" | "gap_ai" | "ai";
-
-interface PersonFeatures {
-  gender: "male" | "female" | "unknown";
-  ageBand: "20s" | "30s" | "40s" | "50s" | "60s+" | "unknown";
-  hairColor: "black" | "brown" | "blonde" | "white_gray" | "other" | "unknown";
-  hairLength: "short" | "medium" | "long" | "bald" | "unknown";
-  hasGlasses: boolean;
-  hasBeard: boolean;
-  faceShape: "oval" | "round" | "square" | "heart" | "unknown";
-}
-
-interface PersonGroup {
-  id: string; label: string;
-  features: PersonFeatures; sampleThumb: string;
-  files: StudioPhotoFile[];
-  suggestedFolderName: string; editedFolderName: string;
-  index: number; isEtc: boolean;
-}
-
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
@@ -201,12 +166,6 @@ const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
 ];
 
 const GAP_OPTIONS = [3, 3.5, 5, 7, 10];
-
-const STUDIO_LIGHTING_SENSITIVITY: Record<LightingSensitivity, string> = {
-  loose:  "느슨함 — 거의 시꺼먼 컷만 ETC",
-  medium: "보통 — 얼굴이 명확히 어두운 컷 ETC (권장)",
-  strict: "강함 — 얼굴 밝기가 조금만 낮아도 ETC",
-};
 
 type SplitRawFile = { name: string; handle: FileSystemFileHandle };
 type SplitJpgFile = SplitRawFile & { file: File; mtime: number; fileSize: number };
@@ -480,134 +439,6 @@ async function quickBrightness(file: File): Promise<number> {
     img.onerror = () => { URL.revokeObjectURL(url); res(128); };
     img.src = url;
   });
-}
-
-function computeClothingLabel(hasGown: boolean, innerWear: StudioInnerWear, isFamilyProfile: boolean): string {
-  if (isFamilyProfile) return "가족프로필";
-  return hasGown ? `가운+${innerWear}` : innerWear;
-}
-
-function computeGroupKey(hasGown: boolean, innerWear: StudioInnerWear, poseType: StudioPoseType, isFamilyProfile: boolean): string {
-  if (isFamilyProfile) return `가족프로필_${poseType}`;
-  return `${hasGown ? "가운" : "노가운"}_${innerWear}_${poseType}`;
-}
-
-function createStudioFolderName(index: number, clothingLabel: string, poseType: StudioPoseType, isFamilyProfile: boolean): string {
-  const prefix = String(index).padStart(2, "0");
-  const type = isFamilyProfile ? "가족프로필" : "프로필";
-  const clean = clothingLabel.replace(/[/\\:*?"<>|]/g, "").replace(/\s+/g, "");
-  return poseType === "Unknown" ? `${prefix}_${type}_${clean}` : `${prefix}_${type}_${clean}_${poseType}`;
-}
-
-function buildStudioGroups(files: StudioPhotoFile[]): StudioGroup[] {
-  const etcFiles    = files.filter(f => f.groupKey === "__ETC__");
-  const normalFiles = files.filter(f => f.groupKey !== "__ETC__");
-  const groupMap = new Map<string, StudioPhotoFile[]>();
-  const keyOrder: string[] = [];
-  for (const f of normalFiles) {
-    if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
-    groupMap.get(f.groupKey)!.push(f);
-  }
-  const groups: StudioGroup[] = [];
-  let idx = 1;
-  for (const key of keyOrder) {
-    const groupFiles = groupMap.get(key)!;
-    const first = groupFiles[0];
-    const isFamily = groupFiles.some(f => f.isFamilyProfile);
-    const folderName = createStudioFolderName(idx, first.clothingLabel, first.poseType, isFamily);
-    groups.push({ key, clothingLabel: first.clothingLabel, poseType: first.poseType, isFamilyProfile: isFamily, files: groupFiles, suggestedFolderName: folderName, editedFolderName: folderName, index: idx, isEtc: false });
-    idx++;
-  }
-  if (etcFiles.length > 0) {
-    groups.unshift({ key: "__ETC__", clothingLabel: "조명불량", poseType: "Unknown", isFamilyProfile: false, files: etcFiles, suggestedFolderName: "00_ETC_조명불량", editedFolderName: "00_ETC_조명불량", index: 0, isEtc: true });
-  }
-  return groups;
-}
-
-function personMatchScore(a: PersonFeatures, b: PersonFeatures): number {
-  // Gender: 가장 강한 식별자 (0.35점, 불일치 시 즉시 0)
-  if (a.gender !== "unknown" && b.gender !== "unknown" && a.gender !== b.gender) return 0;
-  let score = (a.gender === "unknown" || b.gender === "unknown") ? 0.15 : 0.35;
-
-  // Glasses: 매우 강한 식별자 (0.20점, 불일치 시 즉시 0)
-  if (a.hasGlasses !== b.hasGlasses) return 0;
-  score += 0.20;
-
-  // Age band (0.18점)
-  const BANDS = ["20s","30s","40s","50s","60s+","unknown"];
-  const ai = BANDS.indexOf(a.ageBand), bi = BANDS.indexOf(b.ageBand);
-  if (ai === 5 || bi === 5) score += 0.08;
-  else {
-    const diff = Math.abs(ai - bi);
-    if (diff === 0) score += 0.18;
-    else if (diff === 1) score += 0.09;
-    else return 0; // 2단계 이상 차이 → 다른 사람
-  }
-
-  // Hair color (0.13점)
-  if (a.hairColor !== "unknown" && b.hairColor !== "unknown") {
-    if (a.hairColor === b.hairColor) {
-      score += 0.13;
-    } else {
-      const CLOSE: Record<string, string[]> = { black:["brown"], brown:["black","blonde"], blonde:["brown"], white_gray:[], other:[] };
-      if ((CLOSE[a.hairColor]??[]).includes(b.hairColor)) score += 0.06;
-      else score -= 0.08; // 확실히 다른 머리색 = 패널티
-    }
-  } else {
-    score += 0.05;
-  }
-
-  // Hair length (0.08점)
-  const LENS = ["bald","short","medium","long","unknown"];
-  const ali = LENS.indexOf(a.hairLength), bli = LENS.indexOf(b.hairLength);
-  if (ali === 4 || bli === 4) score += 0.03;
-  else {
-    const diff = Math.abs(ali - bli);
-    if (diff === 0) score += 0.08;
-    else if (diff === 1) score += 0.03;
-    else score -= 0.05;
-  }
-
-  // Beard (0.04점)
-  if (a.hasBeard === b.hasBeard) score += 0.04;
-  else score -= 0.04;
-
-  // Face shape (0.02점, 보조)
-  if (a.faceShape !== "unknown" && b.faceShape !== "unknown") {
-    if (a.faceShape === b.faceShape) score += 0.02;
-    else score -= 0.01;
-  }
-
-  return score;
-}
-
-function personSoftMatch(a: PersonFeatures, b: PersonFeatures): boolean {
-  return personMatchScore(a, b) >= 0.62;
-}
-
-function buildPersonGroups(files: StudioPhotoFile[]): PersonGroup[] {
-  const etcFiles    = files.filter(f => f.groupKey === "__ETC__");
-  const normalFiles = files.filter(f => f.groupKey !== "__ETC__" && f.groupKey !== "PENDING");
-  const keyOrder: string[] = [];
-  const groupMap = new Map<string, StudioPhotoFile[]>();
-  for (const f of normalFiles) {
-    if (!groupMap.has(f.groupKey)) { groupMap.set(f.groupKey, []); keyOrder.push(f.groupKey); }
-    groupMap.get(f.groupKey)!.push(f);
-  }
-  const BLANK_FEATURES: PersonFeatures = { gender:"unknown", ageBand:"unknown", hairColor:"unknown", hairLength:"unknown", hasGlasses:false, hasBeard:false, faceShape:"unknown" };
-  const groups: PersonGroup[] = [];
-  let idx = 1;
-  for (const key of keyOrder) {
-    const gFiles = groupMap.get(key)!;
-    const first = gFiles[0];
-    const folderName = `${String(idx).padStart(2,"0")}_인물${idx}`;
-    groups.push({ id:key, label:`인물 ${idx}`, features:first.personFeatures ?? BLANK_FEATURES, sampleThumb:first.thumbUrl ?? "", files:gFiles, suggestedFolderName:folderName, editedFolderName:folderName, index:idx, isEtc:false });
-    idx++;
-  }
-  if (etcFiles.length > 0) {
-    groups.unshift({ id:"__ETC__", label:"조명불량", features:BLANK_FEATURES, sampleThumb:etcFiles[0]?.thumbUrl ?? "", files:etcFiles, suggestedFolderName:"00_ETC_조명불량", editedFolderName:"00_ETC_조명불량", index:0, isEtc:true });
-  }
-  return groups;
 }
 
 /* ════════════════════════════════════════════════
