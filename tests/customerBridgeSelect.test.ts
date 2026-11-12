@@ -18,6 +18,7 @@ import {
   normalizeGalleryRelativePath,
   normalizeCustomerBridgeSelectionMarks,
   nextCustomerBridgeReviewZoom,
+  resolveCustomerColorToggle,
   toggleCustomerColorLabels,
   toggleCustomerBridgeSelection,
 } from "@/lib/select-gallery/customerBridge";
@@ -100,6 +101,20 @@ describe("customer Bridge selection", () => {
     expect(applied).toEqual({ a: 8, b: 8, untouched: 9 });
     expect(toggleCustomerColorLabels(applied, new Set(["a", "b"]), 8)).toEqual({ untouched: 9 });
     expect(toggleCustomerColorLabels({ a: 8, b: 7 }, new Set(["a", "b"]), 8)).toEqual({ a: 8, b: 8 });
+  });
+
+  it("uses the immediately updated color state for rapid apply and clear taps", () => {
+    const targets = new Set(["a", "b"]);
+    const applied = resolveCustomerColorToggle({}, targets, 6);
+    expect(applied).toEqual({
+      colorLabels: { a: 6, b: 6 },
+      patches: [{ imageId: "a", colorLabel: 6 }, { imageId: "b", colorLabel: 6 }],
+    });
+    const cleared = resolveCustomerColorToggle(applied.colorLabels, targets, 6);
+    expect(cleared).toEqual({
+      colorLabels: {},
+      patches: [{ imageId: "a", colorLabel: null }, { imageId: "b", colorLabel: null }],
+    });
   });
 
   it("zooms review photos up on wheel-up and down on wheel-down within bounds", () => {

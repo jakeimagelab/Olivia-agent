@@ -300,6 +300,22 @@ export function toggleCustomerColorLabels(
   return colorLabels;
 }
 
+/** 화면에 적용한 컬러 토글과 저장 큐 패치를 같은 최신 상태에서 만든다. */
+export function resolveCustomerColorToggle(
+  current: Readonly<Record<string, CustomerBridgeColorLabel>>,
+  targetIds: ReadonlySet<string>,
+  colorLabel: CustomerBridgeColorLabel,
+) {
+  const colorLabels = toggleCustomerColorLabels(current, targetIds, colorLabel);
+  return {
+    colorLabels,
+    patches: [...targetIds].map((imageId) => ({
+      imageId,
+      colorLabel: colorLabels[imageId] ?? null,
+    })),
+  };
+}
+
 /** 리뷰 휠 확대율은 화면 맞춤 100%에서 300%까지만 유지한다. */
 export function nextCustomerBridgeReviewZoom(current: number, deltaY: number) {
   const safeCurrent = Number.isFinite(current) ? current : 1;

@@ -24,13 +24,7 @@ import {
   type ReactNode,
 } from "react";
 import {
-  applyCustomerColorLabels,
-  applyCustomerRatings,
-  clearCustomerBridgeMarks,
-  normalizeCustomerBridgeSelectionMarks,
   customerBridgeRatingTargets,
-  customerBridgeSelectedIds,
-  toggleCustomerColorLabels,
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
@@ -42,17 +36,10 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
-import { useSelectionSyncQueue } from "@/components/person-select/useSelectionSyncQueue";
-import { sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
-import {
-  applySelectionDiffsToSharedSnapshot,
-  type SelectionSyncDiff,
-  type SelectionSyncPatch,
-  type SharedSelectionSyncSnapshot,
-} from "@/lib/person-select/selectionSync";
+import { type SelectionSyncPatch, type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
 import type {
   PersonSelectClientImagePageState,
   PersonSelectClientImageQuery,
@@ -81,6 +68,10 @@ import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
 import { CustomerBridgeBrowserPanel } from "./CustomerBridgeBrowserPanel";
 import { CustomerBridgeFolderPanel } from "./CustomerBridgeFolderPanel";
+import {
+  useCustomerBridgeMarksController,
+  type CustomerBridgeInitialSelection,
+} from "./useCustomerBridgeMarksController";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -119,7 +110,7 @@ export default function CustomerBridgeSelect({
   gallery: CustomerBridgeGallery;
   images: CustomerBridgeImage[];
   initialDraft?: CustomerBridgeDraft | null;
-  initialSelection?: { items?: Array<{ image_id: string; customer_rating?: number | null; customer_color_label?: number | null; memo?: string | null }>; customer_memo?: string | null } | null;
+  initialSelection?: CustomerBridgeInitialSelection;
   onSubmitted: (selection: unknown) => void;
   apiBase?: string;
   storageScope?: string;
@@ -145,23 +136,33 @@ export default function CustomerBridgeSelect({
     refreshImageUrl,
     loadImageUrls,
   });
-  const seedMarks = useMemo(() => normalizeCustomerBridgeSelectionMarks({
-    selectedImageIds: initialDraft?.selectedImageIds ?? (initialSelection?.items ?? []).map((item) => item.image_id),
-    ratings: initialDraft?.ratings
-      ?? Object.fromEntries((initialSelection?.items ?? []).map((item) => [item.image_id, item.customer_rating ?? 0])),
-    colorLabels: initialDraft?.colorLabels
-      ?? Object.fromEntries((initialSelection?.items ?? []).map((item) => [item.image_id, item.customer_color_label ?? 0])),
-  }), [initialDraft, initialSelection]);
-  const seedNotes = useMemo(() => initialDraft?.imageNotes
-    ?? Object.fromEntries((initialSelection?.items ?? []).filter((item) => item.memo).map((item) => [item.image_id, item.memo ?? ""])), [initialDraft, initialSelection]);
-
-  // 포커스/작업 대상/고객 셀렉은 서로 독립된 상태다.
-  const [serverRatings, setServerRatings] = useState<Record<string, CustomerBridgeRating>>(seedMarks.ratings);
-  const [serverColorLabels, setServerColorLabels] = useState<Record<string, CustomerBridgeColorLabel>>(seedMarks.colorLabels);
-  const [serverNotes, setServerNotes] = useState<Record<string, string>>(seedNotes);
-  const [customerRatings, setCustomerRatings] = useState<Record<string, CustomerBridgeRating>>(seedMarks.ratings);
-  const [customerColorLabels, setCustomerColorLabels] = useState<Record<string, CustomerBridgeColorLabel>>(seedMarks.colorLabels);
-  const [notes, setNotes] = useState<Record<string, string>>(seedNotes);
+  const {
+    serverRatings,
+    serverColorLabels,
+    serverNotes,
+    customerRatings,
+    customerColorLabels,
+    notes,
+    serverSelectedIds,
+    customerSelectedIds,
+    selectionSync,
+    enqueueSelectionSync,
+    flushSelectionSync,
+    getPendingSelectionDiffs,
+    installServerSnapshot,
+    getDraftRevision,
+    applyRatingTo,
+    applyColorTo,
+    toggleColorTo,
+    updateNote,
+    clearDisplayedSelection,
+  } = useCustomerBridgeMarksController({
+    endpointBase,
+    localStorageScope,
+    initialDraft,
+    initialSelection,
+    readOnly,
+  });
   const [filter, setFilter] = useState<PhotoFilter>("all");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
@@ -174,16 +175,6 @@ export default function CustomerBridgeSelect({
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
-  const revisionRef = useRef(initialDraft?.revision ?? 0);
-  const serverSnapshotRef = useRef<SharedSelectionSyncSnapshot>({
-    revision: initialDraft?.revision ?? 0,
-    selectedImageIds: [...customerBridgeSelectedIds(seedMarks.ratings, seedMarks.colorLabels)],
-    ratings: seedMarks.ratings,
-    colorLabels: seedMarks.colorLabels,
-    imageNotes: seedNotes,
-    customerMemo: initialDraft?.customerMemo ?? initialSelection?.customer_memo ?? "",
-    updatedAt: initialDraft?.updatedAt ?? null,
-  });
   const gridRef = useRef<HTMLDivElement>(null);
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -194,97 +185,6 @@ export default function CustomerBridgeSelect({
     qualityApi,
     canManageQuality,
   });
-
-  const installServerSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
-    const normalized = normalizeCustomerBridgeSelectionMarks({
-      selectedImageIds: snapshot.selectedImageIds,
-      ratings: snapshot.ratings,
-      colorLabels: snapshot.colorLabels,
-    });
-    const imageNotes = snapshot.imageNotes ?? {};
-    const canonical: SharedSelectionSyncSnapshot = {
-      revision: Number(snapshot.revision ?? 0),
-      selectedImageIds: [...customerBridgeSelectedIds(normalized.ratings, normalized.colorLabels)],
-      ratings: normalized.ratings,
-      colorLabels: normalized.colorLabels,
-      imageNotes,
-      customerMemo: typeof snapshot.customerMemo === "string" ? snapshot.customerMemo : "",
-      updatedAt: snapshot.updatedAt ?? null,
-    };
-    serverSnapshotRef.current = canonical;
-    revisionRef.current = canonical.revision;
-    setServerRatings(canonical.ratings as Record<string, CustomerBridgeRating>);
-    setServerColorLabels(canonical.colorLabels as Record<string, CustomerBridgeColorLabel>);
-    setServerNotes(canonical.imageNotes);
-    const displayed = applySelectionDiffsToSharedSnapshot(canonical, pending);
-    setCustomerRatings(displayed.ratings as Record<string, CustomerBridgeRating>);
-    setCustomerColorLabels(displayed.colorLabels as Record<string, CustomerBridgeColorLabel>);
-    setNotes(displayed.imageNotes);
-  }, []);
-
-  const restorePending = useCallback((pending: SelectionSyncDiff[]) => {
-    const displayed = applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending);
-    setCustomerRatings(displayed.ratings as Record<string, CustomerBridgeRating>);
-    setCustomerColorLabels(displayed.colorLabels as Record<string, CustomerBridgeColorLabel>);
-    setNotes(displayed.imageNotes);
-  }, []);
-
-  const sendSelectionDiffs = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    return sendSelectionSyncBatch<SharedSelectionSyncSnapshot>({
-      endpoint: `${endpointBase}/draft`,
-      clientId,
-      diffs,
-      responseKey: "draft",
-    });
-  }, [endpointBase]);
-
-  const selectionSync = useSelectionSyncQueue({
-    storageKey: `person-select-sync:${localStorageScope}`,
-    enabled: !readOnly,
-    sendBatch: sendSelectionDiffs,
-    onSnapshot: installServerSnapshot,
-    onRestore: restorePending,
-  });
-  const {
-    enqueue: enqueueSelectionSync,
-    flushNow: flushSelectionSync,
-    getPendingDiffs: getPendingSelectionDiffs,
-  } = selectionSync;
-
-  useEffect(() => {
-    if (!initialDraft || Number(initialDraft.revision ?? 0) <= serverSnapshotRef.current.revision) return;
-    installServerSnapshot(initialDraft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
-  }, [getPendingSelectionDiffs, initialDraft, installServerSnapshot]);
-
-  const applyRatingTo = useCallback((targetIds: ReadonlySet<string>, rating: 0 | CustomerBridgeRating) => {
-    if (readOnly || !targetIds.size) return;
-    if (rating === 0) {
-      setCustomerRatings((current) => clearCustomerBridgeMarks(current, targetIds));
-      setCustomerColorLabels((current) => clearCustomerBridgeMarks(current, targetIds));
-      enqueueSelectionSync([...targetIds].flatMap((imageId) => [
-        { imageId, rating: null },
-        { imageId, colorLabel: null },
-      ]));
-    } else {
-      setCustomerRatings((current) => applyCustomerRatings(current, targetIds, rating));
-      enqueueSelectionSync([...targetIds].map((imageId) => ({ imageId, rating })));
-    }
-  }, [enqueueSelectionSync, readOnly]);
-
-  const applyColorTo = useCallback((targetIds: ReadonlySet<string>, colorLabel: CustomerBridgeColorLabel) => {
-    if (readOnly || !targetIds.size) return;
-    setCustomerColorLabels((current) => applyCustomerColorLabels(current, targetIds, colorLabel));
-    enqueueSelectionSync([...targetIds].map((imageId) => ({ imageId, colorLabel })));
-  }, [enqueueSelectionSync, readOnly]);
-
-  const toggleColorTo = useCallback((targetIds: ReadonlySet<string>, colorLabel: CustomerBridgeColorLabel) => {
-    if (readOnly || !targetIds.size) return;
-    setCustomerColorLabels((current) => toggleCustomerColorLabels(current, targetIds, colorLabel));
-    enqueueSelectionSync([...targetIds].map((imageId) => ({
-      imageId,
-      colorLabel: customerColorLabels[imageId] === colorLabel ? null : colorLabel,
-    })));
-  }, [customerColorLabels, enqueueSelectionSync, readOnly]);
 
   const locationSelectionResetRef = useRef<(images: readonly CustomerBridgeImage[]) => void>(() => undefined);
   const fullscreenOpenRef = useRef<(imageId: string) => void>(() => undefined);
@@ -305,7 +205,6 @@ export default function CustomerBridgeSelect({
     onLocationOpened: (nextImages) => locationSelectionResetRef.current(nextImages),
     onStorageError: reportOptionalStorageError,
   });
-  const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
   const { downloadState, downloadBusy, downloadSelected } = useCustomerBridgeDownload({
     endpointBase,
     readOnly,
@@ -313,8 +212,6 @@ export default function CustomerBridgeSelect({
     selectedIds: serverSelectedIds,
   });
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
-  const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
-  const getDraftRevision = useCallback(() => revisionRef.current, []);
   const {
     error: submitError,
     setError: setSubmitError,
@@ -491,9 +388,8 @@ export default function CustomerBridgeSelect({
 
   const updateFocusedNote = useCallback((value: string) => {
     if (!focusedImageId) return;
-    setNotes((current) => ({ ...current, [focusedImageId]: value }));
-    enqueueSelectionSync([{ imageId: focusedImageId, memo: value }]);
-  }, [enqueueSelectionSync, focusedImageId]);
+    updateNote(focusedImageId, value);
+  }, [focusedImageId, updateNote]);
 
   const clearFilenameSearch = useCallback(() => {
     setFilenameSearch("");
@@ -538,9 +434,7 @@ export default function CustomerBridgeSelect({
         { imageId, memo: "" },
       ]);
       enqueueSelectionSync(patches);
-      setCustomerRatings({});
-      setCustomerColorLabels({});
-      setNotes({});
+      clearDisplayedSelection();
       const saved = await flushSelectionSync();
       if (!saved) throw new Error("초기화 내용을 저장하지 못했습니다. 자동 재시도합니다.");
       clearActiveSelection();
@@ -554,7 +448,7 @@ export default function CustomerBridgeSelect({
     } finally {
       setResetting(false);
     }
-  }, [clearActiveSelection, customerColorLabels, customerRatings, enqueueSelectionSync, flushSelectionSync, notes, readOnly, resetReview, resetting, serverColorLabels, serverNotes, serverRatings, setSubmitError]);
+  }, [clearActiveSelection, clearDisplayedSelection, customerColorLabels, customerRatings, enqueueSelectionSync, flushSelectionSync, notes, readOnly, resetReview, resetting, serverColorLabels, serverNotes, serverRatings, setSubmitError]);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 760px), (pointer: coarse)");
@@ -818,7 +712,7 @@ export default function CustomerBridgeSelect({
 
     {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
 
-    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); enqueueSelectionSync([{ imageId: fullscreenImage.id, memo: value }]); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
+    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => updateNote(fullscreenImage.id, value)} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={closeReview} onRemove={removeFromReview} onRestore={restoreReview} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={openFullscreen} onImageError={handleImageError} /> : null}
     {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
     {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
