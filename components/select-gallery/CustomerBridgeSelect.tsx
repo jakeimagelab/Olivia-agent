@@ -37,7 +37,7 @@ import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSear
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
-import { type SelectionSyncPatch, type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
+import { type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
 import type {
   PersonSelectClientImagePageState,
   PersonSelectClientImageQuery,
@@ -71,6 +71,7 @@ import {
   type CustomerBridgeInitialSelection,
 } from "./useCustomerBridgeMarksController";
 import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLayout";
+import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -175,14 +176,11 @@ export default function CustomerBridgeSelect({
     workspaceStyle,
   } = useCustomerBridgeWorkspaceLayout();
   const [guideOpen, setGuideOpen] = useState(false);
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
-  const [resetting, setResetting] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
-  const resetButtonRef = useRef<HTMLButtonElement>(null);
 
   const { qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality } = useCustomerBridgeQuality({
     qualityApi,
@@ -338,6 +336,34 @@ export default function CustomerBridgeSelect({
     fullscreenOpenRef.current = openFullscreen;
   }, [openFullscreen]);
 
+  const handleResetComplete = useCallback(() => {
+    clearActiveSelection();
+    resetReview();
+    setFilter("all");
+    setSubmitError("");
+  }, [clearActiveSelection, resetReview, setSubmitError]);
+  const {
+    resetButtonRef,
+    resetConfirmOpen,
+    resetting,
+    openResetConfirm,
+    closeResetConfirm,
+    resetSelection,
+  } = useCustomerBridgeResetController({
+    readOnly,
+    customerRatings,
+    customerColorLabels,
+    notes,
+    serverRatings,
+    serverColorLabels,
+    serverNotes,
+    enqueueSelectionSync,
+    clearDisplayedSelection,
+    flushSelectionSync,
+    onResetComplete: handleResetComplete,
+    onError: setSubmitError,
+  });
+
   useCustomerBridgeMediaRequests({
     renderedImages,
     visibleImages,
@@ -410,46 +436,6 @@ export default function CustomerBridgeSelect({
   }, [endpointBase, getPendingSelectionDiffs, installServerSnapshot, readOnly]);
 
   useVisibleSelectionRefresh({ enabled: !readOnly, refresh: refreshServerDraft });
-
-  const closeResetConfirm = useCallback(() => {
-    if (resetting) return;
-    setResetConfirmOpen(false);
-    requestAnimationFrame(() => resetButtonRef.current?.focus());
-  }, [resetting]);
-
-  const resetSelection = useCallback(async () => {
-    if (readOnly || resetting) return;
-    setResetting(true);
-    try {
-      const affectedIds = new Set([
-        ...Object.keys(customerRatings),
-        ...Object.keys(customerColorLabels),
-        ...Object.keys(notes),
-        ...Object.keys(serverRatings),
-        ...Object.keys(serverColorLabels),
-        ...Object.keys(serverNotes),
-      ]);
-      const patches: SelectionSyncPatch[] = [...affectedIds].flatMap((imageId) => [
-        { imageId, rating: null },
-        { imageId, colorLabel: null },
-        { imageId, memo: "" },
-      ]);
-      enqueueSelectionSync(patches);
-      clearDisplayedSelection();
-      const saved = await flushSelectionSync();
-      if (!saved) throw new Error("초기화 내용을 저장하지 못했습니다. 자동 재시도합니다.");
-      clearActiveSelection();
-      resetReview();
-      setFilter("all");
-      setSubmitError("");
-      setResetConfirmOpen(false);
-      requestAnimationFrame(() => resetButtonRef.current?.focus());
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "셀렉을 초기화하지 못했습니다.");
-    } finally {
-      setResetting(false);
-    }
-  }, [clearActiveSelection, clearDisplayedSelection, customerColorLabels, customerRatings, enqueueSelectionSync, flushSelectionSync, notes, readOnly, resetReview, resetting, serverColorLabels, serverNotes, serverRatings, setSubmitError]);
 
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
@@ -685,7 +671,7 @@ export default function CustomerBridgeSelect({
       />
     </section>
 
-    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
+    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={openResetConfirm}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
 
     {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => updateNote(fullscreenImage.id, value)} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={closeReview} onRemove={removeFromReview} onRestore={restoreReview} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={openFullscreen} onImageError={handleImageError} /> : null}
