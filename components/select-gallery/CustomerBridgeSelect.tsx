@@ -49,12 +49,6 @@ import {
 } from "@/lib/select-gallery/customerBridge";
 import { removeBridgeReviewItem, restoreBridgeReviewItem } from "@/lib/photo-bridge/reviewMode";
 import {
-  bridgeMarqueeSelection,
-  bridgeMarqueeUsesAdditiveSelection,
-  bridgeRectangleFromPoints,
-  bridgeRectanglesIntersect,
-} from "@/lib/photo-bridge/marqueeSelection";
-import {
   BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
   bridgeFilenameSearchTokens,
@@ -94,11 +88,11 @@ import {
   RatingStars,
   StablePreviewImage,
   useAdjacentPreviewPreload,
-  type CustomerBridgeSelectionModifiers as SelectionModifiers,
 } from "./CustomerBridgeMedia";
 import type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import { PhotoOverlay, ReviewOverlay, type CustomerBridgeReviewRemovedMarks as ReviewRemovedMarks } from "./CustomerBridgeOverlays";
 import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
+import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -188,15 +182,12 @@ export default function CustomerBridgeSelect({
     ?? Object.fromEntries((initialSelection?.items ?? []).filter((item) => item.memo).map((item) => [item.image_id, item.memo ?? ""])), [initialDraft, initialSelection]);
 
   // 포커스/작업 대상/고객 셀렉은 서로 독립된 상태다.
-  const [focusedImageId, setFocusedImageId] = useState<string | null>(null);
-  const [activeImageIds, setActiveImageIds] = useState<Set<string>>(() => new Set());
   const [serverRatings, setServerRatings] = useState<Record<string, CustomerBridgeRating>>(seedMarks.ratings);
   const [serverColorLabels, setServerColorLabels] = useState<Record<string, CustomerBridgeColorLabel>>(seedMarks.colorLabels);
   const [serverNotes, setServerNotes] = useState<Record<string, string>>(seedNotes);
   const [customerRatings, setCustomerRatings] = useState<Record<string, CustomerBridgeRating>>(seedMarks.ratings);
   const [customerColorLabels, setCustomerColorLabels] = useState<Record<string, CustomerBridgeColorLabel>>(seedMarks.colorLabels);
   const [notes, setNotes] = useState<Record<string, string>>(seedNotes);
-  const [anchorId, setAnchorId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PhotoFilter>("all");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
@@ -214,7 +205,6 @@ export default function CustomerBridgeSelect({
   const [reviewActiveId, setReviewActiveId] = useState<string | null>(null);
   const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedMarks | null>(null);
   const [mobile, setMobile] = useState(false);
-  const [marquee, setMarquee] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [sideTab, setSideTab] = useState<"preview" | "chat">("preview");
   const [mobileSideOpen, setMobileSideOpen] = useState(false);
   const [messages, setMessages] = useState<PersonSelectProjectMessage[]>([]);
@@ -254,11 +244,6 @@ export default function CustomerBridgeSelect({
   const qualityRefreshInFlightRef = useRef<Promise<{ job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] } | undefined> | null>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
-  const pointerRef = useRef<{
-    start: { x: number; y: number };
-    initial: Set<string>;
-    additive: boolean;
-  } | null>(null);
 
   const installServerSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
     const normalized = normalizeCustomerBridgeSelectionMarks({
@@ -326,12 +311,7 @@ export default function CustomerBridgeSelect({
     installServerSnapshot(initialDraft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
   }, [getPendingSelectionDiffs, initialDraft, installServerSnapshot]);
 
-  const resetLocationSelection = useCallback((nextImages: readonly CustomerBridgeImage[]) => {
-    setFocusedImageId(nextImages[0]?.id ?? null);
-    setActiveImageIds(new Set());
-    setAnchorId(null);
-    setCompactFoldersOpen(false);
-  }, []);
+  const locationSelectionResetRef = useRef<(images: readonly CustomerBridgeImage[]) => void>(() => undefined);
   const {
     location,
     folderTree,
@@ -344,7 +324,7 @@ export default function CustomerBridgeSelect({
   } = useCustomerBridgeLocation({
     images,
     storageScope: localStorageScope,
-    onLocationOpened: resetLocationSelection,
+    onLocationOpened: (nextImages) => locationSelectionResetRef.current(nextImages),
     onStorageError: reportOptionalStorageError,
   });
   const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
@@ -363,6 +343,32 @@ export default function CustomerBridgeSelect({
     return matchesBridgeFilenameSearch(image.original_file_name, filenameSearchTokens);
   }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearchTokens, filter, folderImages, hasLabelFilters, labelFilters, qualityResults]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
+  const openMobileImage = useCallback((imageId: string) => setFullscreenId(imageId), []);
+  const {
+    focusedImageId,
+    setFocusedImageId,
+    activeImageIds,
+    setActiveImageIds,
+    anchorId,
+    setAnchorId,
+    marquee,
+    resetLocationSelection,
+    clearActiveSelection,
+    handlePhotoClick,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+  } = useCustomerBridgeActiveSelection({
+    orderedIds,
+    mobile,
+    readOnly,
+    gridRef,
+    onMobileOpen: openMobileImage,
+  });
+  locationSelectionResetRef.current = (nextImages) => {
+    resetLocationSelection(nextImages);
+    setCompactFoldersOpen(false);
+  };
   const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
   const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
   const qualityCounts = useMemo(() => folderImages.reduce((counts, image) => {
@@ -645,8 +651,7 @@ export default function CustomerBridgeSelect({
       setNotes({});
       const saved = await selectionSync.flushNow();
       if (!saved) throw new Error("초기화 내용을 저장하지 못했습니다. 자동 재시도합니다.");
-      setActiveImageIds(new Set());
-      setAnchorId(null);
+      clearActiveSelection();
       setReviewIds(null);
       setReviewActiveId(null);
       setReviewRemoved(null);
@@ -659,7 +664,7 @@ export default function CustomerBridgeSelect({
     } finally {
       setResetting(false);
     }
-  }, [customerColorLabels, customerRatings, notes, readOnly, resetting, selectionSync, serverColorLabels, serverNotes, serverRatings]);
+  }, [clearActiveSelection, customerColorLabels, customerRatings, notes, readOnly, resetting, selectionSync, serverColorLabels, serverNotes, serverRatings]);
 
   useEffect(() => {
     if (readOnly) return;
@@ -899,60 +904,6 @@ export default function CustomerBridgeSelect({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeImageIds, anchorId, applyRatingTo, closeGuide, closeResetConfirm, customerColorLabels, customerRatings, focusedImageId, fullscreenId, guideOpen, handleSearchFilterShortcut, mobileSideOpen, moveFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReviewItem, reviewActiveId, reviewIds, reviewRemoved, thumbSize, toggleColorTo]);
-
-  const handlePhotoClick = useCallback((image: CustomerBridgeImage, event: SelectionModifiers) => {
-    setFocusedImageId(image.id);
-    if (mobile) {
-      setFullscreenId(image.id);
-      return;
-    }
-    if (event.shiftKey && anchorId) {
-      setActiveImageIds((current) => addCustomerBridgeRange({ current, orderedIds, anchorId, targetId: image.id }));
-      return;
-    }
-    if (event.metaKey || event.ctrlKey) {
-      setActiveImageIds((current) => {
-        const next = new Set(current);
-        if (next.has(image.id)) next.delete(image.id);
-        else next.add(image.id);
-        return next;
-      });
-    } else setActiveImageIds(new Set([image.id]));
-    setAnchorId(image.id);
-  }, [anchorId, mobile, orderedIds]);
-
-  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (readOnly || mobile || event.button !== 0 || (event.target as HTMLElement).closest("button,[data-bridge-card]")) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    pointerRef.current = {
-      start: { x: event.clientX - rect.left + event.currentTarget.scrollLeft, y: event.clientY - rect.top + event.currentTarget.scrollTop },
-      initial: new Set(activeImageIds),
-      additive: bridgeMarqueeUsesAdditiveSelection(event),
-    };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const pointer = pointerRef.current;
-    const root = gridRef.current;
-    if (!pointer || !root) return;
-    const rect = root.getBoundingClientRect();
-    const end = { x: event.clientX - rect.left + root.scrollLeft, y: event.clientY - rect.top + root.scrollTop };
-    const box = bridgeRectangleFromPoints(pointer.start, end);
-    setMarquee({ left: box.left, top: box.top, width: box.right - box.left, height: box.bottom - box.top });
-    const hits = new Set<string>();
-    root.querySelectorAll<HTMLElement>("[data-bridge-image-id]").forEach((node) => {
-      const nodeRect = node.getBoundingClientRect();
-      const candidate = { left: nodeRect.left - rect.left + root.scrollLeft, top: nodeRect.top - rect.top + root.scrollTop, right: nodeRect.right - rect.left + root.scrollLeft, bottom: nodeRect.bottom - rect.top + root.scrollTop };
-      if (bridgeRectanglesIntersect(box, candidate)) hits.add(node.dataset.bridgeImageId ?? "");
-    });
-    setActiveImageIds(bridgeMarqueeSelection({ initial: pointer.initial, hits, additive: pointer.additive }));
-  };
-
-  const handlePointerUp = () => {
-    pointerRef.current = null;
-    setMarquee(null);
-  };
 
   const beginResize = (pane: "folder" | "preview", event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
