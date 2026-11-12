@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { adjacentSelectionMediaIds, mergeSelectionMediaUrlRecords } from "@/lib/select-gallery/mediaLoading";
+import { adjacentSelectionMediaIds, mergeSelectionMediaUrlRecords, SELECTION_THUMBNAIL_PAGE_SIZE } from "@/lib/select-gallery/mediaLoading";
 
 describe("person select media loading", () => {
+  it("limits the first thumbnail page to a small shared batch", () => {
+    expect(SELECTION_THUMBNAIL_PAGE_SIZE).toBe(72);
+  });
+
   it("merges a preview URL without dropping an existing thumbnail URL", () => {
     expect(mergeSelectionMediaUrlRecords(
       { image: { thumbnail_url: "thumb" } },

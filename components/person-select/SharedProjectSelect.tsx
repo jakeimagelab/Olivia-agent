@@ -7,7 +7,7 @@ import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelection
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
 import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
-import type { SelectionMediaUrls, SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
+import { SELECTION_THUMBNAIL_PAGE_SIZE, type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "./SharedProjectSelect.module.css";
 
 type SharedEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean };
@@ -41,7 +41,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
   const [state, setState] = useState("");
   const submitKey = useRef(requestKey());
   const [urlOverrides, setUrlOverrides] = useState<SharedImageUrls>({});
-  const [renderLimit, setRenderLimit] = useState(240);
+  const [renderLimit, setRenderLimit] = useState(SELECTION_THUMBNAIL_PAGE_SIZE);
   const loadingIds = useRef(new Set<string>());
   const sentinelRef = useRef<HTMLDivElement>(null);
   const images = useMemo(() => initialImages.map((image) => urlOverrides[image.id] ? { ...image, ...urlOverrides[image.id] } : image), [initialImages, urlOverrides]);
@@ -84,7 +84,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     onSnapshot: (snapshot) => installSnapshot(snapshot, selectionSync.getPendingDiffs()),
   });
   const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
-  useEffect(() => { setRenderLimit(240); }, [filter]);
+  useEffect(() => { setRenderLimit(SELECTION_THUMBNAIL_PAGE_SIZE); }, [filter]);
   useEffect(() => {
     const missing = rendered.filter((image) => !image.thumbnail_url && !loadingIds.current.has(image.id)).map((image) => image.id);
     if (!missing.length) return;
@@ -98,7 +98,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     const node = sentinelRef.current;
     if (!node) return;
     const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => Math.min(visible.length, current + 240));
+      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => Math.min(visible.length, current + SELECTION_THUMBNAIL_PAGE_SIZE));
     }, { rootMargin: "800px 0px" });
     observer.observe(node);
     return () => observer.disconnect();

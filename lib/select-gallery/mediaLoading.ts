@@ -1,5 +1,7 @@
 export type SelectionMediaVariant = "thumbnail" | "preview" | "both";
 
+export const SELECTION_THUMBNAIL_PAGE_SIZE = 72;
+
 export type SelectionMediaUrls = {
   image_url?: string;
   thumbnail_url?: string | null;

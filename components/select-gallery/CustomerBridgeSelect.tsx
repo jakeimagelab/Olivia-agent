@@ -78,6 +78,7 @@ import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibl
 import {
   adjacentSelectionMediaIds,
   mergeSelectionMediaUrlRecords,
+  SELECTION_THUMBNAIL_PAGE_SIZE,
   type SelectionMediaUrls,
   type SelectionMediaVariant,
 } from "@/lib/select-gallery/mediaLoading";
@@ -107,7 +108,7 @@ type BridgeLocation =
   | { kind: "all" }
   | { kind: "folder"; path: string };
 
-const PAGE_SIZE = 72;
+const PAGE_SIZE = SELECTION_THUMBNAIL_PAGE_SIZE;
 const THUMB_MIN = 112;
 const THUMB_MAX = 260;
 const EMPTY_FOLDERS: never[] = [];
