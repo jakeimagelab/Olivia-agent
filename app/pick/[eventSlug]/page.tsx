@@ -1,4 +1,4 @@
-import { PersonSelectLogin } from "@/components/person-select/PersonSelectPublic";
+import { PersonSelectLogin } from "@/components/person-select/PersonSelectLogin";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
