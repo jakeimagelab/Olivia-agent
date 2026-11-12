@@ -1,18 +1,6 @@
 "use client";
 
-import {
-  BookOpenText,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Expand,
-  FolderOpen,
-  Images,
-  MessageCircle,
-  PanelLeft,
-  RotateCcw,
-  Sparkles,
-} from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -72,6 +60,7 @@ import {
 } from "./useCustomerBridgeMarksController";
 import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLayout";
 import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
+import { CustomerBridgeHeader } from "./CustomerBridgeHeader";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -530,36 +519,46 @@ export default function CustomerBridgeSelect({
           : `저장 안 된 변경 ${selectionSync.pendingCount}건 · 다시 시도`;
 
   return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${adminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
-    <header className={styles.bridgeBar}>
-      <div><strong>Olivia Bridge</strong><span>고객 사진 셀렉</span></div>
-      <div className={styles.projectTitle}><strong>{gallery.shooting_name ?? gallery.title}</strong><span>{[reviewer ? `${reviewer.display_name}${reviewer.role_label ? ` · ${reviewer.role_label}` : ""}` : gallery.hospital_name, `${totalImageCount.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</span></div>
-      <div className={styles.saveState} data-state={selectionSync.status}>{saveStatusMessage}</div>
-    </header>
-
-    <div className={styles.pathBar}>
-      <button type="button" className={styles.mobileFolderButton} aria-expanded={compactFoldersOpen} onClick={() => setCompactFoldersOpen(true)}><PanelLeft size={15} /> 폴더</button>
-      <button type="button" className={styles.backButton} disabled={location.kind === "root"} onClick={goToParentFolder} aria-label="상위 폴더로"><ChevronLeft size={16} /></button>
-      <nav className={styles.breadcrumbs} aria-label="현재 폴더">
-        <FolderOpen size={15} />
-        <button type="button" aria-current={location.kind === "root" ? "page" : undefined} onClick={() => openLocation({ kind: "root" })}>{gallery.title}</button>
-        {location.kind === "all" ? <><ChevronRight size={12} /><strong>전체 사진</strong></> : null}
-        {location.kind === "folder" && !location.path ? <><ChevronRight size={12} /><strong>루트 사진</strong></> : null}
-        {location.kind === "folder" ? folderView?.breadcrumbs.map((crumb, index) => <span key={crumb.path}><ChevronRight size={12} /><button type="button" aria-current={index === (folderView?.breadcrumbs.length ?? 0) - 1 ? "page" : undefined} onClick={() => openLocation({ kind: "folder", path: crumb.path })}>{crumb.name}</button></span>) : null}
-      </nav>
-      {location.kind !== "root" ? <div className={styles.topFilters} aria-label="고객 셀렉 필터">
-        {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${locationTotalCount}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${unselectedInLocation}`}</button>)}
-      </div> : null}
-      <button ref={guideButtonRef} type="button" className={`${styles.headerAction} ${styles.guideAction}`} title="사진 선택 이용 가이드" aria-haspopup="dialog" aria-expanded={guideOpen} onClick={() => setGuideOpen(true)}><BookOpenText size={14} /> 이용 가이드</button>
-      {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
-      {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
-      {messagesEnabled ? <button type="button" className={`${styles.headerAction} ${styles.mobileChatAction}`} onClick={() => { setSideTab("chat"); setMobileSideOpen(true); }}><MessageCircle size={14} /> 대화{unreadMessages ? ` ${unreadMessages}` : ""}</button> : null}
-      {qualityApi && canManageQuality ? <button type="button" className={styles.headerAction} disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startQuality()}><Sparkles size={14} /> {["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "AI 검사 중" : qualityJob?.status === "paused" ? "AI 검사 정지" : "AI 검사 시작"}</button> : null}
-      {adminToolbarAction}
-      <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size} onClick={openReview}><Images size={14} /> 리뷰</button>
-      <button type="button" className={styles.headerAction} disabled={!focusedImageId} onClick={() => focusedImageId && openFullscreen(focusedImageId)}><Expand size={14} /> 전체화면</button>
-    </div>
-
-    {adminToolbarStatus ? <div className={styles.adminToolbarStatus}>{adminToolbarStatus}</div> : null}
+    <CustomerBridgeHeader
+      gallery={gallery}
+      reviewer={reviewer}
+      totalImageCount={totalImageCount}
+      saveStatusMessage={saveStatusMessage}
+      selectionStatus={selectionSync.status}
+      compactFoldersOpen={compactFoldersOpen}
+      onOpenCompactFolders={() => setCompactFoldersOpen(true)}
+      location={location}
+      onGoToParentFolder={goToParentFolder}
+      onOpenLocation={openLocation}
+      breadcrumbs={folderView?.breadcrumbs ?? []}
+      filter={filter}
+      onFilterChange={setFilter}
+      locationTotalCount={locationTotalCount}
+      selectedInFolder={selectedInFolder}
+      unselectedInLocation={unselectedInLocation}
+      guideButtonRef={guideButtonRef}
+      guideOpen={guideOpen}
+      onOpenGuide={() => setGuideOpen(true)}
+      jpgDownloadEnabled={Boolean(gallery.download_jpg_enabled && !readOnly)}
+      rawDownloadEnabled={Boolean(gallery.download_raw_enabled && !readOnly)}
+      downloadDisabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0}
+      downloadBusy={downloadBusy}
+      downloadState={downloadState}
+      onDownload={(kind) => void downloadSelected(kind)}
+      messagesEnabled={messagesEnabled}
+      unreadMessages={unreadMessages}
+      onOpenMessages={() => { setSideTab("chat"); setMobileSideOpen(true); }}
+      qualityEnabled={Boolean(qualityApi)}
+      canManageQuality={canManageQuality}
+      qualityStatus={String(qualityJob?.status ?? "")}
+      onStartQuality={() => void startQuality()}
+      adminToolbarAction={adminToolbarAction}
+      selectedImageCount={customerSelectedIds.size}
+      onOpenReview={openReview}
+      focusedImageId={focusedImageId}
+      onOpenFullscreen={() => { if (focusedImageId) openFullscreen(focusedImageId); }}
+      adminToolbarStatus={adminToolbarStatus}
+    />
 
     <section className={styles.workspace} style={workspaceStyle}>
       {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}
