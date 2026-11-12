@@ -13,10 +13,8 @@ import {
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
-import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
-import { type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
 import type {
   PersonSelectClientImagePageState,
   PersonSelectClientImageQuery,
@@ -55,6 +53,7 @@ import { useCustomerBridgeResetController } from "./useCustomerBridgeResetContro
 import { CustomerBridgeHeader } from "./CustomerBridgeHeader";
 import { CustomerBridgeFooter } from "./CustomerBridgeFooter";
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
+import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -145,6 +144,12 @@ export default function CustomerBridgeSelect({
     initialDraft,
     initialSelection,
     readOnly,
+  });
+  useCustomerBridgeDraftRefresh({
+    enabled: !readOnly,
+    endpointBase,
+    installServerSnapshot,
+    getPendingSelectionDiffs,
   });
   const fullscreenCloseRef = useRef<() => void>(() => undefined);
   const closeFullscreenBeforeFilterChange = useCallback(() => fullscreenCloseRef.current(), []);
@@ -414,20 +419,6 @@ export default function CustomerBridgeSelect({
     if (!focusedImageId) return;
     updateNote(focusedImageId, value);
   }, [focusedImageId, updateNote]);
-
-  const refreshServerDraft = useCallback(async () => {
-    if (readOnly) return;
-    try {
-      const response = await fetch(`${endpointBase}/draft`, { cache: "no-store" });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok || !result.draft) return;
-      installServerSnapshot(result.draft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
-    } catch {
-      // 현재 큐를 지우지 않는다. 다음 focus 또는 자동 재시도 때 다시 동기화한다.
-    }
-  }, [endpointBase, getPendingSelectionDiffs, installServerSnapshot, readOnly]);
-
-  useVisibleSelectionRefresh({ enabled: !readOnly, refresh: refreshServerDraft });
 
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
