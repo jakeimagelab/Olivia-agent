@@ -19,8 +19,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import {
@@ -72,6 +70,7 @@ import {
   useCustomerBridgeMarksController,
   type CustomerBridgeInitialSelection,
 } from "./useCustomerBridgeMarksController";
+import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLayout";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -167,10 +166,14 @@ export default function CustomerBridgeSelect({
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
   const [thumbSize, setThumbSize] = useState(156);
-  const [folderWidth, setFolderWidth] = useState(210);
-  const [previewWidth, setPreviewWidth] = useState(320);
-  const [compactFoldersOpen, setCompactFoldersOpen] = useState(false);
-  const [mobile, setMobile] = useState(false);
+  const {
+    compactFoldersOpen,
+    setCompactFoldersOpen,
+    mobile,
+    closeCompactFolders,
+    beginResize,
+    workspaceStyle,
+  } = useCustomerBridgeWorkspaceLayout();
   const [guideOpen, setGuideOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -376,8 +379,6 @@ export default function CustomerBridgeSelect({
   }, [activeImageIds, focusedImageId, toggleColorTo]);
 
   const closeMobileSide = useCallback(() => setMobileSideOpen(false), [setMobileSideOpen]);
-  const closeCompactFolders = useCallback(() => setCompactFoldersOpen(false), []);
-
   const handleQualityReview = useCallback((imageId: string, status: "confirmed_issue" | "confirmed_normal") => {
     void reviewQuality(imageId, status);
   }, [reviewQuality]);
@@ -450,14 +451,6 @@ export default function CustomerBridgeSelect({
     }
   }, [clearActiveSelection, clearDisplayedSelection, customerColorLabels, customerRatings, enqueueSelectionSync, flushSelectionSync, notes, readOnly, resetReview, resetting, serverColorLabels, serverNotes, serverRatings, setSubmitError]);
 
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 760px), (pointer: coarse)");
-    const update = () => setMobile(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
     requestAnimationFrame(() => guideButtonRef.current?.focus());
@@ -517,24 +510,6 @@ export default function CustomerBridgeSelect({
     thumbSize,
   });
 
-  const beginResize = (pane: "folder" | "preview", event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const start = pane === "folder" ? folderWidth : previewWidth;
-    const onMove = (moveEvent: PointerEvent) => {
-      const delta = moveEvent.clientX - startX;
-      if (pane === "folder") setFolderWidth(Math.max(160, Math.min(340, start + delta)));
-      else setPreviewWidth(Math.max(250, Math.min(520, start - delta)));
-    };
-    const onEnd = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onEnd);
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onEnd, { once: true });
-  };
-
-  const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
   const rootPhotoCount = imageManifest?.rootPhotoCount ?? rootView.images.length;
   const hasRootPhotos = rootPhotoCount > 0;
