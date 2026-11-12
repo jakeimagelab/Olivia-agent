@@ -1,18 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  CircleAlert,
-  Folder,
-  FolderOpen,
-  LoaderCircle,
-  SlidersHorizontal,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ChevronLeft, Folder, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -60,6 +49,7 @@ import {
   useOliviaBridgeRatingPublisher,
 } from "@/components/olivia-bridge/useOliviaBridgeMarkSync";
 import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridgeOverlayLayer";
+import { OliviaBridgeTopBars } from "@/components/olivia-bridge/OliviaBridgeTopBars";
 import {
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
@@ -876,6 +866,26 @@ export default function OliviaBridgeWorkspace({
   }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, reportScenePlanError, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
 
   const openCompactPreview = useCallback(() => setCompactPreviewOpen(true), []);
+  const openSceneReview = useCallback(() => {
+    setSceneReviewOpen(true);
+    void syncAdobeBridgeSelection();
+  }, [syncAdobeBridgeSelection]);
+  const openOliviaPreview = useCallback(() => {
+    setPreviewTab("olivia");
+    setCompactPreviewOpen(true);
+  }, []);
+  const openSelectionPreview = useCallback(() => {
+    setPreviewTab("selection");
+    setCompactPreviewOpen(true);
+  }, []);
+  const openCompactFilters = useCallback(() => setCompactFiltersOpen(true), []);
+  const openBreadcrumb = useCallback((index: number) => {
+    const item = breadcrumbs[index];
+    if (item) void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1));
+  }, [breadcrumbs, loadDirectory]);
+  const refreshAdobeMarks = useCallback(() => {
+    void syncAdobeBridgeSelection();
+  }, [syncAdobeBridgeSelection]);
   const clearFilenameSearch = useCallback(() => {
     setFilenameSearch("");
     searchInputRef.current?.focus();
@@ -894,45 +904,33 @@ export default function OliviaBridgeWorkspace({
   }, []);
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
-      <header className={styles.bridgeBar}>
-        <strong>Bridge</strong>
-        <div className={styles.bridgeHeaderStatus}>
-          {hasActiveFolder ? <button type="button" className={`${styles.sceneStatusButton} ${sceneState.status === "complete" ? styles.sceneReady : sceneState.status === "error" ? styles.sceneFailed : ""}`} onClick={() => { setSceneReviewOpen(true); void syncAdobeBridgeSelection(); }} aria-label={sceneState.stage} title={sceneState.stage}>
-            {sceneState.status === "running" ? <LoaderCircle className={styles.spin} size={15} /> : sceneState.status === "error" ? <CircleAlert size={15} /> : <Sparkles size={15} />}
-            <span>{sceneState.status === "running" ? `${sceneState.completed}/${sceneState.total}` : sceneState.stage}</span>
-          </button> : null}
-          <span className={styles.connectionState}><i />{remoteFolder ? "NAS 연결" : activeFolder ? "Mac 연결" : "폴더 미연결"}</span>
-          <button type="button" className={styles.oliviaEntry} onClick={() => { setPreviewTab("olivia"); setCompactPreviewOpen(true); }}>Olivia</button>
-        </div>
-      </header>
-
-      <div className={styles.pathBar}>
-        <button type="button" className={styles.folderPickerButton} onClick={(event) => { event.stopPropagation(); openFolderSourceChooser(); }} aria-haspopup="dialog" aria-expanded={folderSourceOpen}><FolderOpen size={17} /> {hasActiveFolder ? "폴더 바꾸기" : "폴더 선택"}</button>
-        <div className={styles.selectionSourceControl} role="group" aria-label="셀렉 기준">
-          <span>셀렉 기준</span>
-          {(["olivia", "adobe", "both"] as const).map((source) => <button key={source} type="button" data-active={selectionSource === source ? "true" : undefined} aria-pressed={selectionSource === source} onClick={() => changeSelectionSource(source)}>{source === "olivia" ? "올리비아" : source === "adobe" ? "어도비" : "둘 다"}</button>)}
-        </div>
-        {selectionSource !== "olivia" ? <div
-          className={styles.adobeMarkStatus}
-          title={adobeMarkStatus.failedFileNames.length ? `실패: ${adobeMarkStatus.failedFileNames.join(", ")}${adobeMarkStatus.firstError ? ` · ${adobeMarkStatus.firstError}` : ""}` : undefined}
-        >
-          <span>{adobeSelectionLoading
-            ? `어도비 별점 읽는 중… ${(adobeMarkStatus.read + adobeMarkStatus.failed).toLocaleString("ko-KR")}/${adobeMarkStatus.total.toLocaleString("ko-KR")}`
-            : `어도비 별점 ${adobeMarkStatus.rated.toLocaleString("ko-KR")}장 · 컬러 ${adobeMarkStatus.colored.toLocaleString("ko-KR")}장`}</span>
-          {adobeMarkStatus.failed ? <b>실패 {adobeMarkStatus.failed.toLocaleString("ko-KR")}장</b> : null}
-          <button type="button" disabled={adobeSelectionLoading} onClick={() => void syncAdobeBridgeSelection()}>다시 읽기</button>
-        </div> : null}
-        <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
-          {remoteFolder ? <span>NAS · {remoteFolder.displayPath}</span> : breadcrumbs.length ? breadcrumbs.map((item, index) => (
-            <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>
-          )) : <span>작업할 촬영 폴더를 선택해 주세요.</span>}
-        </div>
-        <label className={styles.nestedJpgPathToggle}><input type="checkbox" checked={includeNestedJpgs} disabled={!activeFolder || scanStatus === "loading"} onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)} /><span>하위 폴더 JPG 포함</span></label>
-        <span className={styles.fileCountSummary}>보이는 중 {centerFileCount.toLocaleString("ko-KR")} · 전체 {(scan.jpgs.length + scan.raws.length + scan.sidecars.length).toLocaleString("ko-KR")}장</span>
-        <button ref={compactFilterButtonRef} type="button" className={styles.compactFilterEntry} aria-expanded={compactFiltersOpen} aria-controls="olivia-bridge-folder-panel" onClick={() => setCompactFiltersOpen(true)}><SlidersHorizontal size={14} /> 필터</button>
-        <button type="button" className={styles.compactInspectorEntry} onClick={() => { setPreviewTab("selection"); setCompactPreviewOpen(true); }}><Check size={14} /> 선택한 파일</button>
-        {topNotice ? <span className={styles.topNotice} role="status">{topNotice}</span> : null}
-      </div>
+      <OliviaBridgeTopBars
+        hasActiveFolder={hasActiveFolder}
+        sceneStatus={sceneState}
+        connectionLabel={remoteFolder ? "NAS 연결" : activeFolder ? "Mac 연결" : "폴더 미연결"}
+        onOpenSceneReview={openSceneReview}
+        onOpenOlivia={openOliviaPreview}
+        folderSourceOpen={folderSourceOpen}
+        onOpenFolderSource={openFolderSourceChooser}
+        selectionSource={selectionSource}
+        onSelectionSourceChange={changeSelectionSource}
+        adobeSelectionLoading={adobeSelectionLoading}
+        adobeMarkStatus={adobeMarkStatus}
+        onRefreshAdobeMarks={refreshAdobeMarks}
+        remoteFolderPath={remoteFolder?.displayPath}
+        breadcrumbs={breadcrumbs}
+        onOpenBreadcrumb={openBreadcrumb}
+        includeNestedJpgs={includeNestedJpgs}
+        canToggleNestedJpgs={Boolean(activeFolder) && scanStatus !== "loading"}
+        onNestedJpgsChange={changeNestedJpgVisibility}
+        visibleCount={centerFileCount}
+        totalCount={scan.jpgs.length + scan.raws.length + scan.sidecars.length}
+        compactFilterButtonRef={compactFilterButtonRef}
+        compactFiltersOpen={compactFiltersOpen}
+        onOpenCompactFilters={openCompactFilters}
+        onOpenSelection={openSelectionPreview}
+        topNotice={topNotice}
+      />
 
       <main ref={workspaceRef} className={styles.workspace} data-compact-preview={compactPreviewOpen ? "true" : "false"}>
         {compactFiltersOpen ? <button type="button" className={styles.compactFilterBackdrop} aria-label="필터 닫기" onClick={closeCompactFilters} /> : null}

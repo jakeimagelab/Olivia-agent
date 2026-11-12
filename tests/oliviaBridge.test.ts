@@ -194,9 +194,10 @@ describe("Olivia Bridge", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
+    const topBars = readFileSync("components/olivia-bridge/OliviaBridgeTopBars.tsx", "utf8");
     const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
     const folderActions = readFileSync("components/olivia-bridge/useOliviaBridgeFolderActions.ts", "utf8");
-    const workspaceUi = `${workspace}\n${overlayLayer}`;
+    const workspaceUi = `${workspace}\n${overlayLayer}\n${topBars}`;
     const workspaceRuntime = `${workspace}\n${folderLoading}\n${folderActions}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
@@ -224,7 +225,8 @@ describe("Olivia Bridge", () => {
     expect(folderRestore).toContain("toRemoteNasDisplayPath(path)");
     expect(workspace).toContain('key === "classification"');
     expect(workspaceUi).toContain("initialRemoteSelection");
-    expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
+    expect(workspace).toContain("remoteFolderPath={remoteFolder?.displayPath}");
+    expect(workspaceUi).toContain("NAS · {remoteFolderPath}");
     expect(workspaceUi).toContain('sourceScope="person-select"');
     expect(windowAdapter).toContain("DesktopWindowRouteProvider");
     expect(windowAdapter).toContain("routeHref: context?.routeHref");
@@ -270,14 +272,15 @@ describe("Olivia Bridge", () => {
 
   it("중앙 파일 영역은 남은 높이를 쓰고 좁은 창에서도 같은 필터를 연다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const topBars = readFileSync("components/olivia-bridge/OliviaBridgeTopBars.tsx", "utf8");
     const folderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px minmax\(0, 1fr\)/);
     expect(styles).not.toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px 36px minmax\(0, 1fr\)/);
-    expect(workspace).toContain("styles.nestedJpgPathToggle");
+    expect(topBars).toContain("styles.nestedJpgPathToggle");
     expect(folderPanel).toContain("styles.nestedJpgToggle");
-    expect(workspace).toContain("styles.compactFilterEntry");
+    expect(topBars).toContain("styles.compactFilterEntry");
     expect(folderPanel).toContain('data-compact-open={compactOpen ? "true" : "false"}');
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px minmax\(0, 1fr\) auto auto/);
     expect(styles).toMatch(/\.folderPanelScroll\s*\{[^}]*overflow-y:\s*auto/);
