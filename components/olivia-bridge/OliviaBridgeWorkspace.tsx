@@ -1,6 +1,5 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
   Check,
@@ -23,12 +22,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
-import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
-import {
-  BridgeFullscreenPreview,
-  BridgeSelectionReview,
-  formatBytes,
-} from "@/components/olivia-bridge/OliviaBridgeMedia";
+import { formatBytes } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
 import {
   BRIDGE_TOOL_ITEMS,
@@ -45,9 +39,6 @@ import {
   type OliviaBridgePreviewTab,
 } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
 import { OliviaBridgeBrowserPanel } from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
-import {
-  OliviaBridgeSceneReviewContent,
-} from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
 import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
 import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
 import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOliviaBridgeCaptureMetadata";
@@ -66,12 +57,7 @@ import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
 } from "@/components/olivia-bridge/useOliviaBridgeMarkSync";
-import {
-  BridgeFolderSourceDialog,
-  BridgeGallerySelectionDialog,
-  BridgePersonSelectionDialog,
-  BridgeRawRootPromptDialog,
-} from "@/components/olivia-bridge/OliviaBridgeDialogs";
+import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridgeOverlayLayer";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   rebuildBridgeSceneAnalysis,
@@ -121,19 +107,6 @@ import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindow
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import styles from "./OliviaBridgeWorkspace.module.css";
-
-const EmbeddedPhotoTool = dynamic(
-  () => import("@/components/photo-workspace/PhotoWorkspace").then((module) => module.PhotoWorkspaceEmbeddedTool),
-  {
-    ssr: false,
-    loading: () => <div className={styles.toolLoading}><LoaderCircle size={18} /> 기존 사진 도구를 여는 중...</div>,
-  },
-);
-
-const PhotoSourcePicker = dynamic(
-  () => import("@/components/photo-classifier/PhotoSourcePicker"),
-  { ssr: false },
-);
 
 type Breadcrumb = BridgeFolderTrailItem;
 
@@ -1269,133 +1242,114 @@ export default function OliviaBridgeWorkspace({
         ignoredCount={scan.ignoredCount}
       />
 
-      {sceneReviewOpen ? <BridgeFloatingWindow
-        windowId="scene-review"
-        variant="scene"
-        title="AI Scene 분류 검토"
-        subtitle={adobeSelectionLoading ? "Adobe Bridge 선택 동기화 중" : sceneState.stage}
-        ariaLabel="AI Scene 분류 검토"
+      <OliviaBridgeOverlayLayer
         containerRef={rootRef}
-        rect={floatingWindowRectsRef.current["scene-review"]}
-        onRectChange={(rect) => updateFloatingWindowRect("scene-review", rect)}
-        onClose={() => setSceneReviewOpen(false)}
-      >
-        <OliviaBridgeSceneReviewContent
-          sceneState={sceneState}
-          adobeSelectionLoading={adobeSelectionLoading}
-          departmentLoading={departmentLoading}
-          departmentError={departmentError}
-          departmentPickerOpen={departmentPickerOpen}
-          departmentResolution={photoDepartmentResolution}
-          selectedScenes={selectedScenes}
-          scenePhotoByName={scenePhotoByName}
-          selectedFileCount={selectedSceneAnalysis?.files.length ?? 0}
-          boundaryReviewCount={sceneBoundaryReviewCount}
-          selectedSceneAnalysisReady={selectedSceneAnalysisReady}
-          scenePlanReady={scenePlanReady}
-          onRetry={retrySceneAnalysis}
-          onOpenDepartmentPicker={openDepartmentPicker}
-          onChooseDepartment={chooseDepartment}
-          onApplyScenePlan={applyScenePlan}
-        />
-      </BridgeFloatingWindow> : null}
-
-      {activeTool ? <BridgeFloatingWindow
-        key={activeTool.key}
-        windowId={`tool-${activeTool.key}`}
-        variant="tool"
-        title={activeTool.label}
-        subtitle={`${activeFolderName} · 선택 JPG ${selectedNames.length}장`}
-        ariaLabel={`${activeTool.label} 도구`}
-        containerRef={rootRef}
-        rect={floatingWindowRectsRef.current[`tool-${activeTool.key}`]}
-        onRectChange={(rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect)}
-        onClose={() => setToolKey(undefined)}
-      ><div className={styles.toolBody}><EmbeddedPhotoTool mode={activeTool.mode} selectMode={activeTool.selectMode} fileOpsMode={activeTool.fileOpsMode} clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={remoteProjectSelection} /></div></BridgeFloatingWindow> : null}
-
-      {selectionReviewOpen ? <BridgeSelectionReview
-        photos={reviewPhotos}
-        activeId={resolvedReviewActiveId}
-        rating={reviewActivePhoto ? effectiveRatings[reviewActivePhoto.id] ?? 0 : 0}
-        colorLabel={reviewActivePhoto ? effectiveColorLabels[reviewActivePhoto.id] : undefined}
-        excluded={Boolean(reviewActivePhoto && excludedIds.has(reviewActivePhoto.id))}
-        removedCount={reviewRemoved.length}
-        onFocus={focusReviewPhoto}
-        onMove={moveReview}
-        onRemove={removeReviewPhoto}
-        onRestore={restoreReviewPhoto}
-        onOpenFullscreen={openFullscreenPreview}
-        onClose={closeSelectionReview}
-      /> : null}
-
-      {fullscreenPreviewOpen && fullscreenPhoto ? (
-        <BridgeFullscreenPreview
-          photo={fullscreenPhoto}
-          position={fullscreenIndex + 1}
-          total={fullscreenTotal}
-          rating={effectiveRatings[fullscreenPhoto.id] ?? 0}
-          colorLabel={effectiveColorLabels[fullscreenPhoto.id]}
-          canMovePrevious={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex > 0}
-          canMoveNext={selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex >= 0 && fullscreenIndex < fullscreenTotal - 1}
-          onMove={moveFullscreenPreview}
-          onClose={closeFullscreenPreview}
-        />
-      ) : null}
-
-      {folderSourceOpen ? <BridgeFolderSourceDialog
-        onClose={() => setFolderSourceOpen(false)}
-        onPickLocal={pickLocalFolder}
-        onPickNas={pickNasFolder}
-      /> : null}
-
-      {gallerySelectDialogOpen ? <BridgeGallerySelectionDialog
-        result={galleryCustomerResult}
-        loading={selectGalleriesLoading}
-        error={gallerySelectError}
-        galleries={selectGalleries}
-        sharedProjects={sharedSelectProjects}
-        importingId={gallerySelectImportingId}
-        onClose={closeGallerySelectImport}
-        onAddToAdmin={addCustomerSelectionToAdminSelection}
-        onChooseAnother={chooseAnotherGallerySelection}
-        onRetry={() => void loadSelectGalleries()}
-        onImportGallery={(gallery) => void importGalleryCustomerSelection(gallery)}
-        onImportShared={(project) => void importSharedProjectSelection(project)}
-      /> : null}
-
-      {personSelectDialogOpen ? <BridgePersonSelectionDialog
-        result={personSelectResult}
-        loading={personSelectEventsLoading}
-        error={personSelectError}
-        events={personSelectEvents}
-        importingId={personSelectImportingId}
-        onClose={closePersonSelectImport}
-        onChooseAnother={chooseAnotherPersonSelect}
-        onRetry={() => void loadPersonSelectEvents()}
-        onImport={(event) => void importPersonSelectEvent(event)}
-      /> : null}
-
-      {rawRootPromptOpen ? <BridgeRawRootPromptDialog
-        error={rawRootPromptError}
-        onClose={() => setRawRootPromptOpen(false)}
-        onPickRoot={() => void pickRawSearchRoot()}
-        onUseCurrent={openRawMatchWithCurrentScope}
-      /> : null}
-
-      {nasPickerOpen ? (
-        <PhotoSourcePicker
-          sourceScope="person-select"
-          onCancel={() => {
+        sceneReview={sceneReviewOpen ? {
+          subtitle: adobeSelectionLoading ? "Adobe Bridge 선택 동기화 중" : sceneState.stage,
+          rect: floatingWindowRectsRef.current["scene-review"],
+          onRectChange: (rect) => updateFloatingWindowRect("scene-review", rect),
+          onClose: () => setSceneReviewOpen(false),
+          content: {
+            sceneState,
+            adobeSelectionLoading,
+            departmentLoading,
+            departmentError,
+            departmentPickerOpen,
+            departmentResolution: photoDepartmentResolution,
+            selectedScenes,
+            scenePhotoByName,
+            selectedFileCount: selectedSceneAnalysis?.files.length ?? 0,
+            boundaryReviewCount: sceneBoundaryReviewCount,
+            selectedSceneAnalysisReady,
+            scenePlanReady,
+            onRetry: retrySceneAnalysis,
+            onOpenDepartmentPicker: openDepartmentPicker,
+            onChooseDepartment: chooseDepartment,
+            onApplyScenePlan: applyScenePlan,
+          },
+        } : null}
+        toolWindow={activeTool ? {
+          tool: activeTool,
+          activeFolderName,
+          selectedCount: selectedNames.length,
+          rect: floatingWindowRectsRef.current[`tool-${activeTool.key}`],
+          onRectChange: (rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect),
+          onClose: () => setToolKey(undefined),
+          embeddedTool: { clientId, workflowRunId, initialRemoteSelection: remoteProjectSelection },
+        } : null}
+        selectionReview={selectionReviewOpen ? {
+          photos: reviewPhotos,
+          activeId: resolvedReviewActiveId,
+          rating: reviewActivePhoto ? effectiveRatings[reviewActivePhoto.id] ?? 0 : 0,
+          colorLabel: reviewActivePhoto ? effectiveColorLabels[reviewActivePhoto.id] : undefined,
+          excluded: Boolean(reviewActivePhoto && excludedIds.has(reviewActivePhoto.id)),
+          removedCount: reviewRemoved.length,
+          onFocus: focusReviewPhoto,
+          onMove: moveReview,
+          onRemove: removeReviewPhoto,
+          onRestore: restoreReviewPhoto,
+          onOpenFullscreen: openFullscreenPreview,
+          onClose: closeSelectionReview,
+        } : null}
+        fullscreenPreview={fullscreenPreviewOpen && fullscreenPhoto ? {
+          photo: fullscreenPhoto,
+          position: fullscreenIndex + 1,
+          total: fullscreenTotal,
+          rating: effectiveRatings[fullscreenPhoto.id] ?? 0,
+          colorLabel: effectiveColorLabels[fullscreenPhoto.id],
+          canMovePrevious: selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex > 0,
+          canMoveNext: selectionReviewOpen ? fullscreenTotal > 1 : fullscreenIndex >= 0 && fullscreenIndex < fullscreenTotal - 1,
+          onMove: moveFullscreenPreview,
+          onClose: closeFullscreenPreview,
+        } : null}
+        folderSourceDialog={folderSourceOpen ? {
+          onClose: () => setFolderSourceOpen(false),
+          onPickLocal: pickLocalFolder,
+          onPickNas: pickNasFolder,
+        } : null}
+        gallerySelectionDialog={gallerySelectDialogOpen ? {
+          result: galleryCustomerResult,
+          loading: selectGalleriesLoading,
+          error: gallerySelectError,
+          galleries: selectGalleries,
+          sharedProjects: sharedSelectProjects,
+          importingId: gallerySelectImportingId,
+          onClose: closeGallerySelectImport,
+          onAddToAdmin: addCustomerSelectionToAdminSelection,
+          onChooseAnother: chooseAnotherGallerySelection,
+          onRetry: () => void loadSelectGalleries(),
+          onImportGallery: (gallery) => void importGalleryCustomerSelection(gallery),
+          onImportShared: (project) => void importSharedProjectSelection(project),
+        } : null}
+        personSelectionDialog={personSelectDialogOpen ? {
+          result: personSelectResult,
+          loading: personSelectEventsLoading,
+          error: personSelectError,
+          events: personSelectEvents,
+          importingId: personSelectImportingId,
+          onClose: closePersonSelectImport,
+          onChooseAnother: chooseAnotherPersonSelect,
+          onRetry: () => void loadPersonSelectEvents(),
+          onImport: (event) => void importPersonSelectEvent(event),
+        } : null}
+        rawRootPromptDialog={rawRootPromptOpen ? {
+          error: rawRootPromptError,
+          onClose: () => setRawRootPromptOpen(false),
+          onPickRoot: () => void pickRawSearchRoot(),
+          onUseCurrent: openRawMatchWithCurrentScope,
+        } : null}
+        nasPicker={nasPickerOpen ? {
+          onCancel: () => {
             setNasPickerOpen(false);
             rootRef.current?.focus();
-          }}
-          onSelectRemote={(selection) => {
+          },
+          onSelectRemote: (selection) => {
             setNasPickerOpen(false);
             setExecutionMode("REMOTE_WORKER");
             void loadRemoteDirectory(selection);
-          }}
-        />
-      ) : null}
+          },
+        } : null}
+      />
 
     </div>
   );

@@ -191,6 +191,8 @@ describe("Olivia Bridge", () => {
   it("Bridge 폴더 선택은 로컬과 NAS를 고르고 원격 링크도 NAS 폴더를 직접 연다", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
+    const workspaceUi = `${workspace}\n${overlayLayer}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
@@ -204,7 +206,7 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("pickLocalFolder");
     expect(workspace).toContain("pickNasFolder");
     expect(workspace).toContain("void chooseFolder()");
-    expect(workspace).toContain("<PhotoSourcePicker");
+    expect(workspaceUi).toContain("<PhotoSourcePicker");
     expect(dialogs).toContain('aria-label="폴더 선택 닫기"');
     expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
     expect(workspace).toContain("setRemoteFolder(selection)");
@@ -216,9 +218,9 @@ describe("Olivia Bridge", () => {
     expect(folderRestore).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
     expect(folderRestore).toContain("toRemoteNasDisplayPath(path)");
     expect(workspace).toContain('key === "classification"');
-    expect(workspace).toContain("initialRemoteSelection={remoteProjectSelection}");
+    expect(workspaceUi).toContain("initialRemoteSelection");
     expect(workspace).toContain("NAS · {remoteFolder.displayPath}");
-    expect(workspace).toContain('sourceScope="person-select"');
+    expect(workspaceUi).toContain('sourceScope="person-select"');
     expect(windowAdapter).toContain("DesktopWindowRouteProvider");
     expect(windowAdapter).toContain("routeHref: context?.routeHref");
     expect(windowAdapter).toContain("navigate,");
@@ -441,11 +443,11 @@ describe("Olivia Bridge", () => {
   });
 
   it("Bridge 레이아웃과 내부 도구창은 실제 컨테이너 크기에 반응한다", () => {
-    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
     const floatingWindow = readFileSync("components/olivia-bridge/BridgeFloatingWindow.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
-    expect(workspace).toContain("<BridgeFloatingWindow");
+    expect(overlayLayer).toContain("<BridgeFloatingWindow");
     expect(floatingWindow).toContain("new ResizeObserver");
     expect(floatingWindow).toContain('beginInteraction(event, "move")');
     expect(floatingWindow).toContain('beginInteraction(event, "southeast")');
