@@ -56,13 +56,11 @@ import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
 import {
-  STUDIO_LIGHTING_SENSITIVITY,
   buildPersonGroups,
   buildStudioGroups,
   computeClothingLabel,
   computeGroupKey,
   personMatchScore,
-  type LightingSensitivity,
   type PersonFeatures,
   type PersonGroup,
   type StudioGroup,
@@ -126,6 +124,7 @@ import {
   type PhotoShootingMode,
 } from "./PhotoShootingModeControl";
 import { FieldClassificationSettings } from "./FieldClassificationSettings";
+import { StudioClassificationSettings } from "./StudioClassificationSettings";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -2537,95 +2536,19 @@ function PhotoSortingInner({
 
         {photoMode === "studio" && (
           <>
-            {/* 촬영 구성 탭 */}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.purple}}>촬영 구성</div>
-              <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-                {([
-                  ["concept","한 명 · 여러 컨셉","의상·포즈 기준 분류 (기존 모드)"],
-                  ["group",  "여러 명 · 같은 컨셉","얼굴 분석으로 인물별 분류 (신규)"],
-                ] as const).map(([m,title,desc])=>(
-                  <button key={m} onClick={()=>setStudioSubMode(m)}
-                    style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="concept"?`1px solid ${C.border}`:"none",background:studioSubMode===m?"#F5F0FF":"transparent",cursor:"pointer",fontFamily:"inherit"}}>
-                    <div style={{fontSize:13,fontWeight:600,color:studioSubMode===m?C.purple:C.muted,marginBottom:4}}>{title}{studioSubMode===m&&" ✓"}</div>
-                    <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
-                  </button>
-                ))}
-              </div>
-            </Card>
-            <div style={{padding:14,background:"#F5F0FF",borderRadius:12,fontSize:11,color:"#4C1D95",border:"1px solid #DDD6FE",lineHeight:1.8}}>
-              {studioSubMode === "group" ? (
-                <><strong>여러 명 · 같은 컨셉 모드</strong>: 촬영 시간차 또는 AI 얼굴 분석으로 인물별 자동 분류.<br/>
-                폴더명(예: 01_인물1)은 분류 후 수정 가능. 조명 불량 컷은 <strong>00_ETC_조명불량</strong>으로 분리됩니다.</>
-              ) : (
-                <><strong>한 명 · 여러 컨셉 모드</strong>: 의상 변화와 포즈 변화를 기준으로 분류합니다.<br/>
-                포즈는 Standing / Sitting 두 가지로만 나눕니다. 조명 불량 컷은 <strong>00_ETC_조명불량</strong> 폴더로 분리합니다.</>
-              )}
-            </div>
-
-            {/* 여러 명 모드 — 분류 방식 */}
-            {studioSubMode === "group" && (
-              <Card>
-                <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.purple}}>인물 구분 방식</div>
-                <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:12}}>
-                  {([
-                    ["gap",    "⏱ 시간차로만",       "촬영 간격이 설정 시간 이상이면 다음 인물로 구분. AI 없이 즉시 처리."],
-                    ["gap_ai", "⏱+🤖 시간차 + AI",   "시간차로 인물을 나눈 후, AI가 조명 불량 컷을 필터링. (권장)"],
-                    ["ai",     "🤖 AI 얼굴 분석만",   "AI가 얼굴 특징(성별·나이·헤어·안경·수염)으로 인물 매칭. 느리지만 정확."],
-                  ] as const).map(([m, title, desc]) => (
-                    <label key={m} style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer",padding:"10px 12px",borderRadius:8,border:`1.5px solid ${studioGroupSortMode===m?C.purple:C.border}`,background:studioGroupSortMode===m?"rgba(151,123,220,.14)":"transparent"}}>
-                      <input type="radio" name="groupSortMode" value={m} checked={studioGroupSortMode===m} onChange={()=>setStudioGroupSortMode(m)} style={{marginTop:2,accentColor:C.purple}}/>
-                      <div>
-                        <div style={{fontSize:12,fontWeight:500,color:studioGroupSortMode===m?C.purple:C.txt,marginBottom:2}}>{title}{m==="gap_ai"&&<span style={{fontSize:10,background:C.purple,color:"rgba(255,255,255,.92)",borderRadius:4,padding:"1px 5px",marginLeft:6}}>권장</span>}</div>
-                        <div style={{fontSize:11,color:C.hint,lineHeight:1.5}}>{desc}</div>
-                      </div>
-                    </label>
-                  ))}
-                  {studioGroupSortMode !== "ai" && (
-                    <div style={{padding:"10px 12px",background:C.bg,borderRadius:8,border:`1px solid ${C.border}`}}>
-                      <div style={{fontSize:11,fontWeight:500,color:C.muted,marginBottom:8}}>인물 전환 기준 시간차</div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {[1,2,3,5,7,10].map(v=>(
-                          <button key={v} onClick={()=>setStudioGapMinutes(v)}
-                            style={{padding:"5px 12px",borderRadius:6,border:`1.5px solid ${studioGapMinutes===v?C.purple:C.border}`,background:studioGapMinutes===v?C.purple:"transparent",color:studioGapMinutes===v?"rgba(255,255,255,.92)":C.muted,fontSize:11,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>
-                            {v}분
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{fontSize:10,color:C.hint,marginTop:6}}>{studioGapMinutes}분 이상 촬영 간격 → 다음 인물로 전환</div>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            )}
-            <Card>
-              <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.purple}}>폴더 선택</div>
-              <div style={{padding:20,display:"flex",flexDirection:"column",gap:14}}>
-                {renderPhotoSourceControl("RAW+JPG 혼합 백업 폴더 선택")}
-                <div>
-                  <div style={{fontSize:11,fontWeight:500,color:C.muted,marginBottom:6}}>조명 불량 ETC 기준</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {(["loose","medium","strict"] as LightingSensitivity[]).map(v=>(
-                      <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
-                        <input type="radio" name="lighting" value={v} checked={studioOpts.lightingSensitivity===v} onChange={()=>setStudioOpts(o=>({...o,lightingSensitivity:v}))} style={{marginTop:1}}/>
-                        <span style={{color:studioOpts.lightingSensitivity===v?C.purple:C.muted,fontWeight:studioOpts.lightingSensitivity===v?600:500}}>{STUDIO_LIGHTING_SENSITIVITY[v]}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div style={{fontSize:11,fontWeight:500,color:C.muted,marginBottom:6}}>파일 처리 방식</div>
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    {([["copy","복사 — 원본을 남기고 분류 폴더에 복사"],["move","이동 — 원본을 분류 폴더로 이동"]] as const).map(([v,label])=>(
-                      <label key={v} style={{display:"flex",alignItems:"flex-start",gap:8,fontSize:11,cursor:"pointer"}}>
-                        <input type="radio" name="studioFileMode" value={v} checked={studioFileMode===v} onChange={()=>setStudioFileMode(v)} style={{marginTop:1}}/>
-                        <span style={{color:studioFileMode===v?C.purple:C.muted,fontWeight:studioFileMode===v?600:500}}>{label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            <StudioClassificationSettings
+              subMode={studioSubMode}
+              onSubModeChange={setStudioSubMode}
+              groupSortMode={studioGroupSortMode}
+              onGroupSortModeChange={setStudioGroupSortMode}
+              gapMinutes={studioGapMinutes}
+              onGapMinutesChange={setStudioGapMinutes}
+              sourceControl={renderPhotoSourceControl("RAW+JPG 혼합 백업 폴더 선택")}
+              lightingSensitivity={studioOpts.lightingSensitivity}
+              onLightingSensitivityChange={(value) => setStudioOpts((current) => ({ ...current, lightingSensitivity: value }))}
+              fileMode={studioFileMode}
+              onFileModeChange={setStudioFileMode}
+            />
             {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
             <Btn
               style={{background:C.purple}}

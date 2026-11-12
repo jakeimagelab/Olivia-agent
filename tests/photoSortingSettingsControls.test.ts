@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { FieldClassificationSettings } from "@/components/photo-classifier/FieldClassificationSettings";
 import { PhotoShootingModeControl } from "@/components/photo-classifier/PhotoShootingModeControl";
+import { StudioClassificationSettings } from "@/components/photo-classifier/StudioClassificationSettings";
 
 describe("photo sorting settings controls", () => {
   it("renders the selected shooting mode without changing the existing labels", () => {
@@ -43,5 +44,29 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("AI 씬 이름 추천");
     expect(markup).toContain("품질 분석");
     expect(markup).toContain("프로필 자동 분류 (엄격 모드)");
+  });
+
+  it("renders studio grouping, lighting, and file handling settings together", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StudioClassificationSettings, {
+        subMode: "group",
+        onSubModeChange: () => undefined,
+        groupSortMode: "gap_ai",
+        onGroupSortModeChange: () => undefined,
+        gapMinutes: 3,
+        onGapMinutesChange: () => undefined,
+        sourceControl: createElement("div", null, "테스트 폴더 선택"),
+        lightingSensitivity: "medium",
+        onLightingSensitivityChange: () => undefined,
+        fileMode: "copy",
+        onFileModeChange: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("여러 명 · 같은 컨셉 ✓");
+    expect(markup).toContain("시간차 + AI");
+    expect(markup).toContain("테스트 폴더 선택");
+    expect(markup).toContain("조명 불량 ETC 기준");
+    expect(markup).toContain("복사 — 원본을 남기고 분류 폴더에 복사");
   });
 });
