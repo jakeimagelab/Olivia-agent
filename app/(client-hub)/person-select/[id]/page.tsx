@@ -22,6 +22,7 @@ import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
 import { OfferSettings } from "@/components/person-select/admin/OfferSettings";
+import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Category = { key: string; label: string; pick: number };
@@ -203,90 +204,38 @@ export default function PersonSelectDetailPage() {
       // 저장소 접근 실패는 실행 자체를 막지 않는다.
     }
   }, [id, rawLabelNames, rawMode, rawSource]);
-  useEffect(() => {
-    if (!jobId) return;
-    let stopped = false;
-    let inFlight = false;
-    const poll = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        const body = await (await fetch(`/api/remote-jobs?id=${jobId}`, { cache: "no-store" })).json();
-        if (!["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status) || stopped) return;
-        setResult(body.job.result || { error: body.job.error || body.job.message });
-        setJobId("");
-        await load();
-        if (body.job?.status === "COMPLETED") setTab("matching");
-      } catch {
-        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
-      } finally {
-        inFlight = false;
+  useRemoteJobPoller({
+    jobId,
+    label: "사진 가져오기 상태",
+    onTerminal: async (job) => {
+      setResult(resolveRemoteJobResult(job));
+      setJobId("");
+      await load();
+      if (job.status === "COMPLETED") setTab("matching");
+    },
+  });
+  useRemoteJobPoller({
+    jobId: deliveryJobId,
+    label: "보정본 가져오기 상태",
+    onTerminal: async (job) => {
+      const nextResult = resolveRemoteJobResult(job, "보정본 가져오기에 실패했습니다.");
+      setDeliveryResult(nextResult);
+      if (job.status !== "COMPLETED") {
+        setError(`보정본 가져오기 실패: ${String(nextResult.error ?? job.error ?? "작업 결과를 확인해 주세요.")}`);
       }
-    };
-    const resume = () => { if (document.visibilityState === "visible") void poll(); };
-    void poll();
-    const timer = window.setInterval(() => void poll(), 2_500);
-    document.addEventListener("visibilitychange", resume);
-    window.addEventListener("focus", resume);
-    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
-  }, [jobId, load]);
-  useEffect(() => {
-    if (!deliveryJobId) return;
-    let stopped = false;
-    let inFlight = false;
-    const poll = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        const response = await fetch(`/api/remote-jobs?id=${deliveryJobId}`, { cache: "no-store" });
-        const body = await readApiResponse<{ job?: { status?: string; result?: Record<string, unknown> | null; error?: string; message?: string } }>(response, "보정본 가져오기 상태");
-        if (!body.job || !["COMPLETED", "FAILED", "CANCELED"].includes(body.job.status ?? "") || stopped) return;
-        const nextResult = body.job.result || { error: body.job.error || body.job.message || "보정본 가져오기에 실패했습니다." };
-        setDeliveryResult(nextResult);
-        if (body.job.status !== "COMPLETED") {
-          setError(`보정본 가져오기 실패: ${String(nextResult.error ?? body.job.error ?? "작업 결과를 확인해 주세요.")}`);
-        }
-        setDeliveryJobId("");
-        await load();
-      } catch {
-        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
-      } finally {
-        inFlight = false;
-      }
-    };
-    const resume = () => { if (document.visibilityState === "visible") void poll(); };
-    void poll();
-    const timer = window.setInterval(() => void poll(), 2_500);
-    document.addEventListener("visibilitychange", resume);
-    window.addEventListener("focus", resume);
-    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
-  }, [deliveryJobId, load]);
-  useEffect(() => {
-    if (!rawJobId) return;
-    let stopped = false;
-    let inFlight = false;
-    const poll = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        const body = await (await fetch(`/api/remote-jobs?id=${rawJobId}`, { cache: "no-store" })).json();
-        if (!["COMPLETED", "FAILED", "CANCELED"].includes(body.job?.status) || stopped) return;
-        setRawJobId("");
-        setRawResult(body.job.result || { error: body.job.error || body.job.message });
-        await load();
-      } catch {
-        // 일시적인 네트워크 오류는 다음 가시 상태 폴링에서 복구한다.
-      } finally {
-        inFlight = false;
-      }
-    };
-    const resume = () => { if (document.visibilityState === "visible") void poll(); };
-    void poll();
-    const timer = window.setInterval(() => void poll(), 2_500);
-    document.addEventListener("visibilitychange", resume);
-    window.addEventListener("focus", resume);
-    return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", resume); window.removeEventListener("focus", resume); };
-  }, [rawJobId, load]);
+      setDeliveryJobId("");
+      await load();
+    },
+  });
+  useRemoteJobPoller({
+    jobId: rawJobId,
+    label: "RAW 매칭 상태",
+    onTerminal: async (job) => {
+      setRawJobId("");
+      setRawResult(resolveRemoteJobResult(job));
+      await load();
+    },
+  });
   useEffect(() => {
     if (!deleteOpen || deleting) return;
     const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDeleteOpen(false); };
