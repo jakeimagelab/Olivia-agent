@@ -53,7 +53,6 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
-import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
@@ -84,6 +83,7 @@ import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewCont
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
+import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -177,9 +177,6 @@ export default function CustomerBridgeSelect({
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [renderLimit, setRenderLimit] = useState(PAGE_SIZE);
   const [mobile, setMobile] = useState(false);
-  const [qualityResults, setQualityResults] = useState<Record<string, PublicPhotoQualityResult>>({});
-  const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
-  const [qualityState, setQualityState] = useState("");
   const [downloadState, setDownloadState] = useState("");
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -200,9 +197,13 @@ export default function CustomerBridgeSelect({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const qualityRefreshInFlightRef = useRef<Promise<{ job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] } | undefined> | null>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
+
+  const { qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality } = useCustomerBridgeQuality({
+    qualityApi,
+    canManageQuality,
+  });
 
   const installServerSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
     const normalized = normalizeCustomerBridgeSelectionMarks({
@@ -426,76 +427,6 @@ export default function CustomerBridgeSelect({
     mobile,
     focusedImageId,
   });
-
-  const loadQuality = useCallback(async (options?: { quiet?: boolean; jobOnly?: boolean }) => {
-    if (!qualityApi) return;
-    if (qualityRefreshInFlightRef.current) return qualityRefreshInFlightRef.current;
-    const request = (async () => {
-      try {
-        const separator = qualityApi.includes("?") ? "&" : "?";
-        const response = await fetch(options?.jobOnly ? `${qualityApi}${separator}jobOnly=1` : qualityApi, { cache: "no-store" });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.ok) throw new Error(result.error || "AI 품질 결과를 불러오지 못했습니다.");
-        if (!options?.jobOnly) {
-          const next = Object.fromEntries((Array.isArray(result.results) ? result.results : []).map((entry: PublicPhotoQualityResult) => [entry.imageId, entry]));
-          setQualityResults(next);
-        }
-        setQualityJob(result.job ?? null);
-        if (!options?.quiet) setQualityState("");
-        return result as { job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] };
-      } catch (error) {
-        if (!options?.quiet) setQualityState(error instanceof Error ? error.message : "AI 품질 결과를 불러오지 못했습니다.");
-        return undefined;
-      }
-    })();
-    qualityRefreshInFlightRef.current = request;
-    try { return await request; } finally {
-      if (qualityRefreshInFlightRef.current === request) qualityRefreshInFlightRef.current = null;
-    }
-  }, [qualityApi]);
-
-  useEffect(() => { void loadQuality(); }, [loadQuality]);
-  useEffect(() => {
-    if (!qualityApi || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
-    let stopped = false;
-    const refresh = async () => {
-      if (stopped || document.visibilityState !== "visible") return;
-      const result = await loadQuality({ quiet: true, jobOnly: true });
-      const status = String(result?.job?.status ?? "");
-      if (status && !["queued", "running"].includes(status)) await loadQuality({ quiet: true });
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 3000);
-    return () => { stopped = true; window.clearInterval(timer); };
-  }, [loadQuality, qualityApi, qualityJob]);
-
-  const startQuality = useCallback(async () => {
-    if (!qualityApi || !canManageQuality) return;
-    if (!window.confirm("AI 품질 검사를 위해 1024px 이하 경량 미리보기를 OpenAI API로 전송합니다. 원본 파일은 전송하지 않습니다. 계속할까요?")) return;
-    setQualityState("AI 검사를 준비하는 중입니다.");
-    const response = await fetch(qualityApi, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consentAccepted: true }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 검사를 시작하지 못했습니다."); return; }
-    setQualityJob(result.job ?? null);
-    setQualityState("AI 검사를 시작했습니다. 다른 화면을 사용해도 Worker에서 계속 진행됩니다.");
-  }, [canManageQuality, qualityApi]);
-
-  const controlQuality = useCallback(async (action: "pause" | "resume" | "cancel" | "retry") => {
-    if (!qualityApi || !canManageQuality) return;
-    const response = await fetch(qualityApi, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 검사 상태를 바꾸지 못했습니다."); return; }
-    setQualityJob(result.job ?? null);
-    setQualityState(action === "pause" ? "AI 검사를 일시정지했습니다." : action === "resume" ? "AI 검사를 이어서 진행합니다." : action === "retry" ? "실패한 사진만 다시 검사합니다." : "AI 검사를 취소했습니다.");
-  }, [canManageQuality, qualityApi]);
-
-  const reviewQuality = useCallback(async (imageId: string, reviewStatus: "confirmed_issue" | "confirmed_normal") => {
-    if (!qualityApi || !canManageQuality) return;
-    const response = await fetch(qualityApi, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageId, reviewStatus }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) { setQualityState(result.error || "AI 판정 검토를 저장하지 못했습니다."); return; }
-    setQualityResults((current) => ({ ...current, [imageId]: result.result }));
-  }, [canManageQuality, qualityApi]);
 
   const downloadSelected = useCallback(async (format: "jpg" | "raw") => {
     if (readOnly || downloadBusy || selectionSync.pendingCount || !serverSelectedIds.size) return;
