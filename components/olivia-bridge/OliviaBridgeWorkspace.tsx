@@ -4,7 +4,6 @@ import { useSearchParams } from "next/navigation";
 import { ChevronLeft, Folder, X } from "lucide-react";
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -20,10 +19,7 @@ import {
 import {
   OliviaBridgeFolderPanel,
 } from "@/components/olivia-bridge/OliviaBridgeFolderPanel";
-import {
-  OliviaBridgePreviewPanel,
-  type OliviaBridgePreviewTab,
-} from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
+import { OliviaBridgePreviewPanel } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
 import { OliviaBridgeBrowserPanel } from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
 import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
 import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
@@ -46,6 +42,7 @@ import { useOliviaBridgeWorkspaceSync } from "@/components/olivia-bridge/useOliv
 import { useOliviaBridgeFilters } from "@/components/olivia-bridge/useOliviaBridgeFilters";
 import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useOliviaBridgeSceneReviewModel";
 import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useOliviaBridgeSelectionSummary";
+import { useOliviaBridgeUiState } from "@/components/olivia-bridge/useOliviaBridgeUiState";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -56,7 +53,6 @@ import {
   type BridgeFolderScan,
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
-import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
@@ -140,44 +136,38 @@ export default function OliviaBridgeWorkspace({
     setSelectedJpgNames,
     setSelectedJpgFiles,
   });
-  const [topNotice, setTopNotice] = useState("");
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
-  const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
-  const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
-  const [previewTab, setPreviewTab] = useState<OliviaBridgePreviewTab>("selection");
-  const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
-  const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const folderPanelRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
-  const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const closeFullscreenPreview = useCallback(() => {
-    setFullscreenPreviewOpen(false);
-    requestAnimationFrame(() => rootRef.current?.focus());
-  }, []);
-
-  const showTopNotice = useCallback((message: string, duration = 3_000) => {
-    if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
-    setTopNotice(message);
-    topNoticeTimerRef.current = setTimeout(() => {
-      setTopNotice("");
-      topNoticeTimerRef.current = null;
-    }, duration);
-  }, []);
-
-  const showAdobeSelectionNotice = useCallback(() => {
-    showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
-  }, [showTopNotice]);
+  const {
+    topNotice,
+    showTopNotice,
+    showAdobeSelectionNotice,
+    previewSize,
+    setPreviewSize,
+    fullscreenPreviewOpen,
+    setFullscreenPreviewOpen,
+    closeFullscreenPreview,
+    previewTab,
+    setPreviewTab,
+    compactPreviewOpen,
+    openCompactPreview,
+    closeCompactPreview,
+    openOliviaPreview,
+    openSelectionPreview,
+    floatingWindowRectsRef,
+    updateFloatingWindowRect,
+  } = useOliviaBridgeUiState({ rootRef });
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join(" / ");
@@ -488,14 +478,6 @@ export default function OliviaBridgeWorkspace({
     publishRatingsForSource(source, adobeRatings);
   }, [activateSelectionSource, adobeRatings, folderSelectionSourceKey, publishRatingsForSource]);
 
-  const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
-    floatingWindowRectsRef.current[windowId] = rect;
-  }, []);
-
-  useEffect(() => () => {
-    if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
-  }, []);
-
   useOliviaBridgeWorkspaceSync({
     focusedIndex,
     visibleJpgs,
@@ -604,15 +586,6 @@ export default function OliviaBridgeWorkspace({
     loadDirectory,
     loadRemoteDirectory,
   });
-
-  useEffect(() => {
-    const openInspector = () => {
-      setPreviewTab("selection");
-      setCompactPreviewOpen(true);
-    };
-    window.addEventListener("olivia-bridge-open-inspector", openInspector);
-    return () => window.removeEventListener("olivia-bridge-open-inspector", openInspector);
-  }, []);
 
   const {
     moveFocus,
@@ -743,7 +716,6 @@ export default function OliviaBridgeWorkspace({
     reportScenePlanError,
   });
 
-  const closeCompactPreview = useCallback(() => setCompactPreviewOpen(false), []);
   const openRootFolder = useCallback(() => {
     const root = breadcrumbs[0];
     if (root) void loadDirectory(root.handle, breadcrumbs.slice(0, 1));
@@ -761,19 +733,10 @@ export default function OliviaBridgeWorkspace({
     });
   }, [focusedPhoto, setSelectedIds]);
 
-  const openCompactPreview = useCallback(() => setCompactPreviewOpen(true), []);
   const openSceneReview = useCallback(() => {
     setSceneReviewOpen(true);
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
-  const openOliviaPreview = useCallback(() => {
-    setPreviewTab("olivia");
-    setCompactPreviewOpen(true);
-  }, []);
-  const openSelectionPreview = useCallback(() => {
-    setPreviewTab("selection");
-    setCompactPreviewOpen(true);
-  }, []);
   const openBreadcrumb = useCallback((index: number) => {
     const item = breadcrumbs[index];
     if (item) void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1));
