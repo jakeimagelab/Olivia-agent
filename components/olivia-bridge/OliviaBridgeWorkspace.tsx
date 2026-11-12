@@ -53,6 +53,7 @@ import {
 import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
 import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
 import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOliviaBridgeCaptureMetadata";
+import { useOliviaBridgePersonSelectionImport } from "@/components/olivia-bridge/useOliviaBridgePersonSelectionImport";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -60,7 +61,6 @@ import {
   BridgeRawRootPromptDialog,
   type GalleryCustomerSelectionResult,
   type PersonSelectEventSummary,
-  type PersonSelectImportResult,
   type SelectGallerySummary,
 } from "@/components/olivia-bridge/OliviaBridgeDialogs";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
@@ -100,7 +100,6 @@ import {
   resolveBridgeSelection,
   type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
-import { matchPersonSelectFileNames } from "@/lib/photo-bridge/personSelectImport";
 import {
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
@@ -297,12 +296,6 @@ export default function OliviaBridgeWorkspace({
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
-  const [personSelectDialogOpen, setPersonSelectDialogOpen] = useState(false);
-  const [personSelectEvents, setPersonSelectEvents] = useState<PersonSelectEventSummary[]>([]);
-  const [personSelectEventsLoading, setPersonSelectEventsLoading] = useState(false);
-  const [personSelectImportingId, setPersonSelectImportingId] = useState("");
-  const [personSelectError, setPersonSelectError] = useState("");
-  const [personSelectResult, setPersonSelectResult] = useState<PersonSelectImportResult | null>(null);
   const [gallerySelectDialogOpen, setGallerySelectDialogOpen] = useState(false);
   const [selectGalleries, setSelectGalleries] = useState<SelectGallerySummary[]>([]);
   const [sharedSelectProjects, setSharedSelectProjects] = useState<PersonSelectEventSummary[]>([]);
@@ -355,6 +348,26 @@ export default function OliviaBridgeWorkspace({
     scanStatus,
     scan,
     setScan,
+  });
+  const {
+    personSelectDialogOpen,
+    personSelectEvents,
+    personSelectEventsLoading,
+    personSelectImportingId,
+    personSelectError,
+    personSelectResult,
+    loadPersonSelectEvents,
+    openPersonSelectImport,
+    closePersonSelectImport,
+    importPersonSelectEvent,
+    chooseAnotherPersonSelect,
+  } = useOliviaBridgePersonSelectionImport({
+    hasActiveFolder,
+    scanStatus,
+    jpgs: scan.jpgs,
+    manualSelectedIdsRef,
+    workspaceRef: rootRef,
+    setSelectedJpgNames,
   });
   const commitSelectedIds = useCallback((
     manual: ReadonlySet<string>,
@@ -1229,7 +1242,7 @@ export default function OliviaBridgeWorkspace({
       event.preventDefault();
       setFolderSourceOpen(false);
       setNasPickerOpen(false);
-      setPersonSelectDialogOpen(false);
+      closePersonSelectImport();
       setGallerySelectDialogOpen(false);
       setRawRootPromptOpen(false);
       rootRef.current?.focus();
@@ -1303,7 +1316,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closePersonSelectImport, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1339,55 +1352,6 @@ export default function OliviaBridgeWorkspace({
     if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
     return "사진 폴더를 먼저 선택해 주세요.";
   }, [activeFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);
-
-  const loadPersonSelectEvents = useCallback(async () => {
-    setPersonSelectEventsLoading(true);
-    setPersonSelectError("");
-    try {
-      const response = await fetch("/api/person-select", { cache: "no-store" });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; events?: PersonSelectEventSummary[]; error?: string };
-      if (!response.ok || !body.ok) throw new Error(body.error || "개인별 사진 셀렉 행사를 불러오지 못했습니다.");
-      setPersonSelectEvents(Array.isArray(body.events) ? body.events : []);
-    } catch (error) {
-      setPersonSelectError(error instanceof Error ? error.message : "개인별 사진 셀렉 행사를 불러오지 못했습니다.");
-    } finally {
-      setPersonSelectEventsLoading(false);
-    }
-  }, []);
-
-  const openPersonSelectImport = useCallback(() => {
-    if (!hasActiveFolder || scanStatus !== "ready") return;
-    setPersonSelectDialogOpen(true);
-    setPersonSelectResult(null);
-    void loadPersonSelectEvents();
-  }, [hasActiveFolder, loadPersonSelectEvents, scanStatus]);
-
-  const closePersonSelectImport = useCallback(() => {
-    setPersonSelectDialogOpen(false);
-    setPersonSelectError("");
-    setPersonSelectImportingId("");
-    rootRef.current?.focus();
-  }, []);
-
-  const importPersonSelectEvent = useCallback(async (event: PersonSelectEventSummary) => {
-    const manualCount = manualSelectedIdsRef.current.size;
-    if (manualCount && !window.confirm(`지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?`)) return;
-    setPersonSelectImportingId(event.id);
-    setPersonSelectError("");
-    try {
-      const response = await fetch(`/api/person-select/${event.id}/exports/selected`, { cache: "no-store" });
-      const body = await response.json().catch(() => ({})) as { ok?: boolean; eventTitle?: string; fileNames?: unknown; error?: string };
-      if (!response.ok || !body.ok) throw new Error(body.error || "고객 선택을 불러오지 못했습니다.");
-      const fileNames = Array.isArray(body.fileNames) ? body.fileNames.filter((name): name is string => typeof name === "string") : [];
-      const match = matchPersonSelectFileNames(fileNames, scan.jpgs.map((photo) => photo.name));
-      setSelectedJpgNames(match.fileNames);
-      setPersonSelectResult({ ...match, eventTitle: body.eventTitle || event.title });
-    } catch (error) {
-      setPersonSelectError(error instanceof Error ? error.message : "고객 선택을 불러오지 못했습니다.");
-    } finally {
-      setPersonSelectImportingId("");
-    }
-  }, [scan.jpgs, setSelectedJpgNames]);
 
   const loadSelectGalleries = useCallback(async () => {
     setSelectGalleriesLoading(true);
@@ -2209,7 +2173,7 @@ export default function OliviaBridgeWorkspace({
         events={personSelectEvents}
         importingId={personSelectImportingId}
         onClose={closePersonSelectImport}
-        onChooseAnother={() => setPersonSelectResult(null)}
+        onChooseAnother={chooseAnotherPersonSelect}
         onRetry={() => void loadPersonSelectEvents()}
         onImport={(event) => void importPersonSelectEvent(event)}
       /> : null}

@@ -93,13 +93,15 @@ describe("Olivia Bridge", () => {
 
   it("개인별 사진 셀렉 행사를 Bridge 선택 통로로 불러온다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const personSelectionImport = readFileSync("components/olivia-bridge/useOliviaBridgePersonSelectionImport.ts", "utf8");
     const actionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     expect(actionBar).toContain("고객 선택 불러오기");
-    expect(workspace).toContain('fetch("/api/person-select"');
-    expect(workspace).toContain("/exports/selected");
-    expect(workspace).toContain("지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?");
-    expect(workspace).toContain("setSelectedJpgNames(match.fileNames)");
+    expect(personSelectionImport).toContain('fetch("/api/person-select"');
+    expect(personSelectionImport).toContain("/exports/selected");
+    expect(personSelectionImport).toContain("지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?");
+    expect(personSelectionImport).toContain("setSelectedJpgNames(match.fileNames)");
+    expect(workspace).toContain("useOliviaBridgePersonSelectionImport");
     expect(dialogs).toContain("못 찾은 파일");
   });
 
