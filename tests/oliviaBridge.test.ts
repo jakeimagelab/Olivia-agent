@@ -92,12 +92,13 @@ describe("Olivia Bridge", () => {
 
   it("개인별 사진 셀렉 행사를 Bridge 선택 통로로 불러온다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     expect(workspace).toContain("고객 선택 불러오기");
     expect(workspace).toContain('fetch("/api/person-select"');
     expect(workspace).toContain("/exports/selected");
     expect(workspace).toContain("지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?");
     expect(workspace).toContain("setSelectedJpgNames(match.fileNames)");
-    expect(workspace).toContain("못 찾은 파일");
+    expect(dialogs).toContain("못 찾은 파일");
   });
 
   it("기능 창의 SVG 닫기 아이콘은 헤더 드래그로 처리하지 않는다", () => {
@@ -165,18 +166,19 @@ describe("Olivia Bridge", () => {
   it("Bridge 폴더 선택은 로컬과 NAS를 고르고 원격 링크도 NAS 폴더를 직접 연다", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
     expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
     expect(layout).toContain('!REMOTE_READY_ROUTES.has(pathname)');
     expect(workspace).toContain("openFolderSourceChooser");
-    expect(workspace).toContain("이 Mac의 폴더");
-    expect(workspace).toContain("NAS 폴더");
+    expect(dialogs).toContain("이 Mac의 폴더");
+    expect(dialogs).toContain("NAS 폴더");
     expect(workspace).toContain("pickLocalFolder");
     expect(workspace).toContain("pickNasFolder");
     expect(workspace).toContain("void chooseFolder()");
     expect(workspace).toContain("<PhotoSourcePicker");
-    expect(workspace).toContain('aria-label="폴더 선택 닫기"');
+    expect(dialogs).toContain('aria-label="폴더 선택 닫기"');
     expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");

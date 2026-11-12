@@ -10,14 +10,12 @@ import {
   File,
   Folder,
   FolderOpen,
-  HardDrive,
   Images,
   LayoutGrid,
   Link2,
   LoaderCircle,
   Maximize2,
   Minus,
-  Monitor,
   PencilLine,
   Plus,
   RefreshCw,
@@ -56,6 +54,16 @@ import {
   formatBytes,
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
+import {
+  BridgeFolderSourceDialog,
+  BridgeGallerySelectionDialog,
+  BridgePersonSelectionDialog,
+  BridgeRawRootPromptDialog,
+  type GalleryCustomerSelectionResult,
+  type PersonSelectEventSummary,
+  type PersonSelectImportResult,
+  type SelectGallerySummary,
+} from "@/components/olivia-bridge/OliviaBridgeDialogs";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
@@ -106,14 +114,13 @@ import {
   resolveBridgeSelection,
   type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
-import { matchPersonSelectFileNames, type PersonSelectImportMatch } from "@/lib/photo-bridge/personSelectImport";
+import { matchPersonSelectFileNames } from "@/lib/photo-bridge/personSelectImport";
 import {
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
   type CustomerSelectionComparisonFilter,
   type CustomerSelectionMatchItem,
-  type CustomerSelectionMatchResult,
 } from "@/lib/select-gallery/customerBridge";
 import {
   bridgeMarqueeSelection,
@@ -192,33 +199,6 @@ type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" |
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
 type QualityFilter = "all" | PhotoQualityFlag | "needs_review" | "normal";
 type PreviewTab = "selection" | "preview" | "olivia";
-type PersonSelectEventSummary = {
-  id: string;
-  title: string;
-  people_count: number;
-  submitted_count: number;
-  access_mode?: "individual" | "project_shared";
-  shared_submitted_at?: string | null;
-};
-type PersonSelectImportResult = PersonSelectImportMatch & { eventTitle: string };
-type SelectGallerySummary = {
-  id: string;
-  title: string;
-  hospital_name?: string | null;
-  shooting_name?: string | null;
-  status: string;
-  selected_count?: number | null;
-  submitted_at?: string | null;
-  bridge_source?: "local" | "remote" | null;
-  bridge_folder_display_path?: string | null;
-};
-type GalleryCustomerSelectionResult = {
-  gallery: SelectGallerySummary;
-  total: number;
-  match: CustomerSelectionMatchResult;
-  imageMatch?: CustomerSelectionMatchResult;
-  personSelectEventId?: string;
-};
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -2495,98 +2475,45 @@ export default function OliviaBridgeWorkspace({
         />
       ) : null}
 
-      {folderSourceOpen ? (
-        <div className={styles.folderSourceOverlay} onClick={() => setFolderSourceOpen(false)}>
-          <section className={styles.folderSourceChooser} role="dialog" aria-modal="true" aria-labelledby="bridge-folder-source-title" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div><strong id="bridge-folder-source-title">폴더 선택</strong><span>사진이 있는 위치를 선택해 주세요.</span></div>
-              <button type="button" onClick={() => setFolderSourceOpen(false)} aria-label="폴더 선택 닫기"><X size={18} /></button>
-            </header>
-            <div>
-              <button type="button" onClick={pickLocalFolder}><Monitor size={19} /><span><strong>이 Mac의 폴더</strong><small>현재 기기에 있는 폴더를 엽니다.</small></span></button>
-              <button type="button" onClick={pickNasFolder}><HardDrive size={19} /><span><strong>NAS 폴더</strong><small>Mac Studio에서 NAS 폴더를 엽니다.</small></span></button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {folderSourceOpen ? <BridgeFolderSourceDialog
+        onClose={() => setFolderSourceOpen(false)}
+        onPickLocal={pickLocalFolder}
+        onPickNas={pickNasFolder}
+      /> : null}
 
-      {gallerySelectDialogOpen ? (
-        <div className={`${styles.folderSourceOverlay} ${styles.customerSelectionOverlay}`} onClick={closeGallerySelectImport}>
-          <section className={`${styles.folderSourceChooser} ${styles.customerSelectionChooser}`} role="dialog" aria-modal="true" aria-labelledby="bridge-gallery-select-title" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div><strong id="bridge-gallery-select-title">갤러리 고객 셀렉 비교</strong><span>현재 폴더와 연결할 갤러리를 직접 선택합니다. 내 셀렉과 고객 셀렉은 서로 바뀌지 않습니다.</span></div>
-              <button type="button" onClick={closeGallerySelectImport} aria-label="갤러리 고객 셀렉 닫기"><X size={18} /></button>
-            </header>
-            <div className={styles.customerSelectionBody}>
-              {galleryCustomerResult ? (
-                <section className={styles.customerSelectionResult} aria-live="polite">
-                  <strong>{galleryCustomerResult.gallery.title}</strong>
-                  <p>고객 선택 {galleryCustomerResult.total.toLocaleString("ko-KR")}장 중 현재 폴더에서 {galleryCustomerResult.match.matchedBridgeIds.size.toLocaleString("ko-KR")}장을 정확히 찾았습니다. · 누락 {galleryCustomerResult.match.missing.length.toLocaleString("ko-KR")}장 · 중복 확인 {galleryCustomerResult.match.ambiguous.length.toLocaleString("ko-KR")}장</p>
-                  {galleryCustomerResult.match.missing.length ? <div><span>못 찾은 파일</span><ul>{galleryCustomerResult.match.missing.map((item) => <li key={item.imageId}>{item.relativePath || item.fileName}</li>)}</ul></div> : null}
-                  {galleryCustomerResult.match.ambiguous.length ? <div><span>동명 파일이라 확인이 필요한 항목</span><ul>{galleryCustomerResult.match.ambiguous.map((item) => <li key={item.imageId}>{item.relativePath || item.fileName} · 후보 {item.candidateIds.length}개</li>)}</ul></div> : null}
-                  {!galleryCustomerResult.match.missing.length && !galleryCustomerResult.match.ambiguous.length ? <small>모든 고객 선택 사진을 정확히 찾았습니다.</small> : <small>누락 또는 중복 파일은 자동 선택하지 않았습니다.</small>}
-                  <div className={styles.customerSelectionResultActions}>
-                    <button type="button" disabled={!galleryCustomerResult.match.matchedBridgeIds.size} onClick={addCustomerSelectionToAdminSelection}>찾은 사진을 내 셀렉에 추가</button>
-                    <button type="button" onClick={() => { setGalleryCustomerResult(null); setComparisonFilter("all"); }}>다른 갤러리 고르기</button>
-                  </div>
-                </section>
-              ) : selectGalleriesLoading ? (
-                <div className={styles.customerSelectionState}><LoaderCircle className={styles.spin} size={17} />갤러리 목록을 불러오는 중입니다.</div>
-              ) : gallerySelectError ? (
-                <div className={styles.customerSelectionState} role="alert"><CircleAlert size={17} />{gallerySelectError}<button type="button" onClick={() => void loadSelectGalleries()}>다시 불러오기</button></div>
-              ) : selectGalleries.length || sharedSelectProjects.length ? (
-                <div className={styles.customerSelectionSources}>
-                  {selectGalleries.length ? <section><strong>셀렉 갤러리</strong><div className={styles.customerSelectionEvents}>{selectGalleries.map((gallery) => <button key={gallery.id} type="button" disabled={Boolean(gallerySelectImportingId) || !gallery.submitted_at} onClick={() => void importGalleryCustomerSelection(gallery)}><Images size={17} /><span><strong>{gallery.title}</strong><small>{gallery.hospital_name || gallery.shooting_name || "고객 미연결"} · {gallery.submitted_at ? `고객 제출 ${Number(gallery.selected_count ?? 0).toLocaleString("ko-KR")}장` : "제출 전"}{gallery.bridge_folder_display_path ? ` · 연결 ${gallery.bridge_folder_display_path}` : ""}</small></span>{gallerySelectImportingId === gallery.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div></section> : null}
-                  {sharedSelectProjects.length ? <section><strong>공유 사진선택 프로젝트</strong><div className={styles.customerSelectionEvents}>{sharedSelectProjects.map((project) => <button key={project.id} type="button" disabled={Boolean(gallerySelectImportingId) || !project.shared_submitted_at} onClick={() => void importSharedProjectSelection(project)}><Users size={17} /><span><strong>{project.title}</strong><small>{project.shared_submitted_at ? "공동 셀렉 제출 완료" : "제출 전"}</small></span>{gallerySelectImportingId === project.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div></section> : null}
-                </div>
-              ) : <div className={styles.customerSelectionState}>등록된 사진선택 갤러리나 공유 프로젝트가 없습니다.</div>}
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {gallerySelectDialogOpen ? <BridgeGallerySelectionDialog
+        result={galleryCustomerResult}
+        loading={selectGalleriesLoading}
+        error={gallerySelectError}
+        galleries={selectGalleries}
+        sharedProjects={sharedSelectProjects}
+        importingId={gallerySelectImportingId}
+        onClose={closeGallerySelectImport}
+        onAddToAdmin={addCustomerSelectionToAdminSelection}
+        onChooseAnother={() => { setGalleryCustomerResult(null); setComparisonFilter("all"); }}
+        onRetry={() => void loadSelectGalleries()}
+        onImportGallery={(gallery) => void importGalleryCustomerSelection(gallery)}
+        onImportShared={(project) => void importSharedProjectSelection(project)}
+      /> : null}
 
-      {personSelectDialogOpen ? (
-        <div className={`${styles.folderSourceOverlay} ${styles.customerSelectionOverlay}`} onClick={closePersonSelectImport}>
-          <section className={`${styles.folderSourceChooser} ${styles.customerSelectionChooser}`} role="dialog" aria-modal="true" aria-labelledby="bridge-person-select-title" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div><strong id="bridge-person-select-title">개인별 사진선택 행사 불러오기</strong><span>개인별 사진 셀렉 행사를 고르면 현재 폴더에서 같은 파일명을 찾습니다.</span></div>
-              <button type="button" onClick={closePersonSelectImport} aria-label="개인별 사진선택 행사 닫기"><X size={18} /></button>
-            </header>
-            <div className={styles.customerSelectionBody}>
-              {personSelectResult ? (
-                <section className={styles.customerSelectionResult} aria-live="polite">
-                  <strong>{personSelectResult.eventTitle}</strong>
-                  <p>고객 선택 {personSelectResult.total.toLocaleString("ko-KR")}장 중 지금 폴더에서 {personSelectResult.found.toLocaleString("ko-KR")}장을 찾았습니다. ({personSelectResult.missing.length.toLocaleString("ko-KR")}장 못 찾음)</p>
-                  {personSelectResult.missing.length ? <div><span>못 찾은 파일</span><ul>{personSelectResult.missing.map((name) => <li key={name}>{name}</li>)}</ul></div> : <small>모든 고객 선택 사진을 찾았습니다.</small>}
-                  <button type="button" onClick={() => setPersonSelectResult(null)}>다른 행사 고르기</button>
-                </section>
-              ) : personSelectEventsLoading ? (
-                <div className={styles.customerSelectionState}><LoaderCircle className={styles.spin} size={17} />행사 목록을 불러오는 중입니다.</div>
-              ) : personSelectError ? (
-                <div className={styles.customerSelectionState} role="alert"><CircleAlert size={17} />{personSelectError}<button type="button" onClick={() => void loadPersonSelectEvents()}>다시 불러오기</button></div>
-              ) : personSelectEvents.length ? (
-                <div className={styles.customerSelectionEvents}>{personSelectEvents.map((event) => <button key={event.id} type="button" disabled={Boolean(personSelectImportingId)} onClick={() => void importPersonSelectEvent(event)}><Users size={17} /><span><strong>{event.title}</strong><small>인원 {event.people_count.toLocaleString("ko-KR")}명 · 제출 {event.submitted_count.toLocaleString("ko-KR")}명</small></span>{personSelectImportingId === event.id ? <LoaderCircle className={styles.spin} size={16} /> : <ChevronRight size={16} />}</button>)}</div>
-              ) : <div className={styles.customerSelectionState}>등록된 개인별 사진 셀렉 행사가 없습니다.</div>}
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {personSelectDialogOpen ? <BridgePersonSelectionDialog
+        result={personSelectResult}
+        loading={personSelectEventsLoading}
+        error={personSelectError}
+        events={personSelectEvents}
+        importingId={personSelectImportingId}
+        onClose={closePersonSelectImport}
+        onChooseAnother={() => setPersonSelectResult(null)}
+        onRetry={() => void loadPersonSelectEvents()}
+        onImport={(event) => void importPersonSelectEvent(event)}
+      /> : null}
 
-      {rawRootPromptOpen ? (
-        <div className={styles.folderSourceOverlay} onClick={() => setRawRootPromptOpen(false)}>
-          <section className={styles.folderSourceChooser} role="dialog" aria-modal="true" aria-labelledby="bridge-raw-root-title" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div><strong id="bridge-raw-root-title">RAW 파일을 어디서 찾을까요?</strong><span>촬영 폴더 전체 또는 지금 폴더만 선택할 수 있습니다.</span></div>
-              <button type="button" onClick={() => setRawRootPromptOpen(false)} aria-label="RAW 검색 기준 폴더 닫기"><X size={18} /></button>
-            </header>
-            {rawRootPromptError ? <p className={styles.rawRootPromptAlert} role="alert">{rawRootPromptError}</p> : null}
-            <div>
-              <button type="button" onClick={() => void pickRawSearchRoot()}><FolderOpen size={19} /><span><strong>촬영 폴더 전체에서 찾기</strong><small>JPG와 RAW 폴더가 함께 들어 있는 촬영 폴더를 한 번 골라 주세요.</small></span></button>
-              <button type="button" onClick={openRawMatchWithCurrentScope}><ScanSearch size={19} /><span><strong>지금 폴더에서만 찾기</strong><small>RAW와 JPG가 같은 폴더에 있을 때 선택하세요.</small></span></button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {rawRootPromptOpen ? <BridgeRawRootPromptDialog
+        error={rawRootPromptError}
+        onClose={() => setRawRootPromptOpen(false)}
+        onPickRoot={() => void pickRawSearchRoot()}
+        onUseCurrent={openRawMatchWithCurrentScope}
+      /> : null}
 
       {nasPickerOpen ? (
         <PhotoSourcePicker
