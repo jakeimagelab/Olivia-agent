@@ -192,7 +192,9 @@ describe("Olivia Bridge", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
+    const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
     const workspaceUi = `${workspace}\n${overlayLayer}`;
+    const workspaceRuntime = `${workspace}\n${folderLoading}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
@@ -209,9 +211,9 @@ describe("Olivia Bridge", () => {
     expect(workspaceUi).toContain("<PhotoSourcePicker");
     expect(dialogs).toContain('aria-label="폴더 선택 닫기"');
     expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
-    expect(workspace).toContain("setRemoteFolder(selection)");
-    expect(workspace).toContain("setScan(EMPTY_SCAN)");
-    expect(workspace).toContain("loadRemoteBridgeFolderSnapshot");
+    expect(workspaceRuntime).toContain("setRemoteFolder(selection)");
+    expect(workspaceRuntime).toContain("setScan(EMPTY_SCAN)");
+    expect(workspaceRuntime).toContain("loadRemoteBridgeFolderSnapshot");
     expect(folderLoader).toContain("loadRemoteBridgeThumbnails");
     expect(workspace).toContain('sp.get("remoteFolder")');
     expect(folderRestore).toContain('setExecutionMode("REMOTE_WORKER")');
@@ -236,13 +238,13 @@ describe("Olivia Bridge", () => {
   });
 
   it("NAS 썸네일은 전체 완료를 기다리지 않고 받은 페이지부터 표시한다", () => {
-    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
     const remoteThumbnails = readFileSync("lib/photo-bridge/remoteThumbnails.ts", "utf8");
 
     expect(remoteThumbnails).toContain("options.onPage?.");
-    expect(workspace).toContain("onProgress: (progress)");
-    expect(workspace).toContain("setScan({ ...EMPTY_SCAN, jpgs: progress.jpgs })");
+    expect(folderLoading).toContain("onProgress: (progress)");
+    expect(folderLoading).toContain("setScan({ ...EMPTY_SCAN, jpgs: progress.jpgs })");
     expect(browserPanel).toContain('scanStatus === "loading" && scan.jpgs.length');
     expect(browserPanel).toContain("NAS 사진을 불러오는 중");
   });

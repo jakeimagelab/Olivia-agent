@@ -53,6 +53,7 @@ import { useOliviaBridgeFolderRestore } from "@/components/olivia-bridge/useOliv
 import { useOliviaBridgePhotoNavigation } from "@/components/olivia-bridge/useOliviaBridgePhotoNavigation";
 import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOliviaBridgeVisibleFiles";
 import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
+import { useOliviaBridgeFolderLoading } from "@/components/olivia-bridge/useOliviaBridgeFolderLoading";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -67,11 +68,6 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
-import {
-  loadLocalBridgeFolderSnapshot,
-  loadRemoteBridgeFolderSnapshot,
-} from "@/lib/photo-bridge/folderLoader";
-import { readBridgeFolderSelectionSource } from "@/lib/photo-bridge/folderSession";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
@@ -95,11 +91,8 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
-import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import {
-  projectBridgeColorLabelsByName,
-  projectBridgeRatingsByName,
   projectBridgeSelectedFiles,
 } from "@/lib/photo-bridge/selectionProjection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
@@ -207,7 +200,6 @@ export default function OliviaBridgeWorkspace({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
-  const remoteLoadGenerationRef = useRef(0);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rawMatchOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -538,62 +530,38 @@ export default function OliviaBridgeWorkspace({
     }
   }, [colorLabels, excludedIds, folderPath, ratingEdits, ratings]);
 
-  const loadDirectory = useCallback(async (
-    directory: FileSystemDirectoryHandle,
-    trail: Breadcrumb[],
-    nestedJpgs = includeNestedJpgs,
-  ) => {
-    remoteLoadGenerationRef.current += 1;
-    resetBridgeThumbnailCache();
-    setRemoteLoadProgress(null);
-    setExecutionMode("LOCAL_DIRECT");
-    setScanStatus("loading");
-    setScanError(undefined);
-    setToolKey(undefined);
-    setSceneReviewOpen(false);
-    try {
-      const snapshot = await loadLocalBridgeFolderSnapshot({
-        directory,
-        trail,
-        includeNestedJpgs: nestedJpgs,
-        storage: localStorage,
-      });
-      const nextPath = snapshot.folderPath;
-      const nextSelectionSource = snapshot.selectionSource;
-      const next = snapshot.scan;
-      resetSelectionState(nextSelectionSource);
-      const restoredMarks = snapshot.marks;
-      setRatings(restoredMarks.ratings);
-      setRatingEdits(restoredMarks.ratingEdits);
-      setColorLabels(restoredMarks.colorLabels);
-      setExcludedIds(restoredMarks.excludedIds);
-      setScan(next);
-      setRemoteFolder(null);
-      setBreadcrumbs(trail);
-      setRestoreTrail([]);
-      setRestoreMessage("");
-      resetAdobeMarks();
-      setAnchorId(null);
-      setFocusedId(next.jpgs[0]?.id ?? null);
-      setPreviewSize(undefined);
-      setFileFilter("all");
-      setCurrentLocalFolder(directory);
-      setRawMatchFolderPath(nextPath);
-      setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
-      setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
-      setJpgRatingsByName(snapshot.marksByName.ratings, { overwrite: true });
-      setJpgColorLabelsByName(snapshot.marksByName.colorLabels, { overwrite: true });
-      setScanStatus("ready");
-      void saveBridgeFolderTrail(trail).catch((error) => {
-        console.error("[olivia-bridge] Failed to remember the last folder", error);
-      });
-      rootRef.current?.focus();
-    } catch (error) {
-      console.error("[olivia-bridge] Failed to read local folder", error);
-      setScanStatus("error");
-      setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
-    }
-  }, [includeNestedJpgs, resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
+  const { loadDirectory, loadRemoteDirectory } = useOliviaBridgeFolderLoading({
+    includeNestedJpgs,
+    rootRef,
+    setRemoteLoadProgress,
+    setExecutionMode,
+    setScanStatus,
+    setScanError,
+    setToolKey,
+    setSceneReviewOpen,
+    resetSelectionState,
+    setRatings,
+    setRatingEdits,
+    setColorLabels,
+    setExcludedIds,
+    setScan,
+    setRemoteFolder,
+    setBreadcrumbs,
+    setRestoreTrail,
+    setRestoreMessage,
+    resetAdobeMarks,
+    setAnchorId,
+    setFocusedId,
+    setPreviewSize,
+    setFileFilter,
+    setCurrentLocalFolder,
+    setRawMatchFolderPath,
+    setRawMatchDefaultFolder,
+    setRawMatchFolderCandidates,
+    setJpgRatingsByName,
+    setJpgColorLabelsByName,
+    rememberPublishedRatings,
+  });
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -665,60 +633,6 @@ export default function OliviaBridgeWorkspace({
     setRawRootPromptError("");
     setToolKey("raw-match");
   }, []);
-
-  const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
-    const generation = ++remoteLoadGenerationRef.current;
-    resetBridgeThumbnailCache();
-    setRemoteLoadProgress(null);
-    setScanStatus("loading");
-    setScanError(undefined);
-    setToolKey(undefined);
-    setSceneReviewOpen(false);
-    setRemoteFolder(selection);
-    const nextSelectionSource = readBridgeFolderSelectionSource(localStorage, selection.path);
-    resetSelectionState(nextSelectionSource);
-    setScan(EMPTY_SCAN);
-    setBreadcrumbs([]);
-    setCurrentLocalFolder(null);
-    setRawMatchFolderPath(selection.path);
-    setAnchorId(null);
-    setFocusedId(null);
-    setPreviewSize(undefined);
-    setRatings({});
-    resetAdobeMarks();
-    setRatingEdits({});
-    setColorLabels({});
-    setExcludedIds(new Set());
-    try {
-      const snapshot = await loadRemoteBridgeFolderSnapshot({
-        selection,
-        storage: localStorage,
-        selectionSource: nextSelectionSource,
-        onProgress: (progress) => {
-          if (generation !== remoteLoadGenerationRef.current) return;
-          setScan({ ...EMPTY_SCAN, jpgs: progress.jpgs });
-          setRemoteLoadProgress({ received: progress.received, total: progress.total });
-          setFocusedId((current) => current ?? progress.jpgs[0]?.id ?? null);
-        },
-      });
-      if (generation !== remoteLoadGenerationRef.current) return;
-      const jpgs = snapshot.jpgs;
-      setScan({ ...EMPTY_SCAN, jpgs });
-      rememberPublishedRatings({});
-      setJpgRatingsByName(projectBridgeRatingsByName(jpgs, {}), { overwrite: true });
-      setJpgColorLabelsByName(projectBridgeColorLabelsByName(jpgs, {}), { overwrite: true });
-      setFocusedId(jpgs[0]?.id ?? null);
-      setScanStatus("ready");
-      setRemoteLoadProgress(null);
-      rootRef.current?.focus();
-    } catch (error) {
-      if (generation !== remoteLoadGenerationRef.current) return;
-      console.error("[olivia-bridge] Failed to read remote folder", error);
-      setScanStatus("error");
-      setRemoteLoadProgress(null);
-      setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
-    }
-  }, [rememberPublishedRatings, resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");
