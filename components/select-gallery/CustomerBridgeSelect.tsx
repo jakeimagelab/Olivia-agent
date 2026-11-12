@@ -92,6 +92,7 @@ import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
+import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -341,21 +342,13 @@ export default function CustomerBridgeSelect({
     qualityResults,
   }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearch, filter, folderImages, labelFilters, qualityResults]);
   const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
-  const imagePageQuery = useMemo<PersonSelectClientImageQuery>(() => ({
-    location: location.kind === "folder" ? "folder" : "all",
-    ...(location.kind === "folder" ? { folderPath: location.path } : {}),
-    ...(filenameSearch.trim() ? { search: filenameSearch } : {}),
-  }), [filenameSearch, location]);
-  const imagePageState = getImagePageState?.(imagePageQuery) ?? null;
-  useEffect(() => {
-    if (location.kind === "root" || !ensureImagePage) return;
-    void ensureImagePage(imagePageQuery);
-  }, [ensureImagePage, imagePageQuery, location.kind]);
-  const requestNextImagePage = useCallback(() => {
-    if (location.kind === "root" || !loadNextImagePage || imagePageState?.loading) return;
-    if (imagePageState?.initialized && !imagePageState.nextCursor) return;
-    void loadNextImagePage(imagePageQuery);
-  }, [imagePageQuery, imagePageState, loadNextImagePage, location.kind]);
+  const { state: imagePageState, requestNext: requestNextImagePage } = useCustomerBridgeImagePaging({
+    location,
+    filenameSearch,
+    loadNextImagePage,
+    ensureImagePage,
+    getImagePageState,
+  });
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const openMobileImage = useCallback((imageId: string) => fullscreenOpenRef.current(imageId), []);
   const {

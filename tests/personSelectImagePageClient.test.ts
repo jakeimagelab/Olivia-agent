@@ -6,12 +6,22 @@ import {
   personSelectClientImageQueryKey,
 } from "@/lib/person-select/imagePageClient";
 import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
+import { customerBridgeImagePageQuery } from "@/components/select-gallery/useCustomerBridgeImagePaging";
 
 function image(id: string, sortOrder: number): CustomerBridgeImage {
   return { id, original_file_name: `${id}.JPG`, image_url: "", sort_order: sortOrder };
 }
 
 describe("person selection image page client", () => {
+  it("builds one stable paging query for the active Bridge location", () => {
+    expect(customerBridgeImagePageQuery({ kind: "root" }, "  ")).toEqual({ location: "all" });
+    expect(customerBridgeImagePageQuery({ kind: "folder", path: "C1/세로" }, "1745 1802")).toEqual({
+      location: "folder",
+      folderPath: "C1/세로",
+      search: "1745 1802",
+    });
+  });
+
   it("deduplicates overlapping pages and preserves global photo order", () => {
     const first = Array.from({ length: 1_300 }, (_, index) => image(`id-${index}`, index));
     const second = Array.from({ length: 1_300 }, (_, index) => image(`id-${index + 1_200}`, index + 1_200));
