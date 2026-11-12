@@ -6,6 +6,8 @@ import { PhotoShootingModeControl } from "@/components/photo-classifier/PhotoSho
 import { StudioClassificationSettings } from "@/components/photo-classifier/StudioClassificationSettings";
 import { PhotoClassificationProgressView } from "@/components/photo-classifier/PhotoClassificationProgressView";
 import { FieldSceneReviewOverview } from "@/components/photo-classifier/FieldSceneReviewOverview";
+import { FieldSceneReviewList } from "@/components/photo-classifier/FieldSceneReviewList";
+import type { FieldScene } from "@/lib/photo-classifier/types";
 
 describe("photo sorting settings controls", () => {
   it("renders the selected shooting mode without changing the existing labels", () => {
@@ -123,5 +125,59 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("경계 확인 2곳");
     expect(markup).toContain("AI 분석 중...");
     expect(markup).toContain("승인 1/4");
+  });
+
+  it("renders field scene details through the extracted review list", () => {
+    const scene: FieldScene = {
+      index: 1,
+      folderName: "Scene01",
+      editedName: "01_상담",
+      startTime: 1_000,
+      endTime: 2_000,
+      fileCount: 1,
+      files: [{
+        name: "A.JPG",
+        basename: "A",
+        handle: {} as FileSystemFileHandle,
+        mtime: 1_000,
+        thumbUrl: null,
+      }],
+      sceneDir: null,
+      sceneType: "consultation",
+      suggestedName: null,
+      aiConfidence: null,
+      aiReason: "상담 장면",
+      subScenes: [],
+      profileCount: 0,
+      qualityRejectCount: 0,
+      nameLoading: false,
+      approved: true,
+    };
+    const markup = renderToStaticMarkup(
+      createElement(FieldSceneReviewList, {
+        scenes: [scene],
+        totalJpg: 1,
+        rawCount: 1,
+        departmentLabel: "안과",
+        mergeCandidates: [],
+        dismissedCandidates: new Set<string>(),
+        splitPositions: {},
+        onSceneFocus: () => undefined,
+        onSceneNameChange: () => undefined,
+        onSceneNameCommit: () => undefined,
+        onSuggestedNameApply: () => undefined,
+        onSplitPositionChange: () => undefined,
+        onSplitScene: () => undefined,
+        onMergeScenes: () => undefined,
+        onApproveScene: () => undefined,
+        onDismissCandidate: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("씬 검토 — JPG 1장 / RAW 1개 / 안과");
+    expect(markup).toContain('value="01_상담"');
+    expect(markup).toContain("consultation");
+    expect(markup).toContain("상담 장면");
+    expect(markup).toContain("승인됨");
   });
 });

@@ -126,6 +126,7 @@ import { FieldClassificationSettings } from "./FieldClassificationSettings";
 import { StudioClassificationSettings } from "./StudioClassificationSettings";
 import { PhotoClassificationProgressView } from "./PhotoClassificationProgressView";
 import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
+import { FieldSceneReviewList } from "./FieldSceneReviewList";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -2584,6 +2585,40 @@ function PhotoSortingInner({
     />
   );
 
+  const dismissFieldMergeCandidate = useCallback((candidateId: string) => {
+    const candidate = mergeCandidates.find((item) => item.id === candidateId);
+    if (candidate) {
+      setMergeDecisions((previous) => [...previous, {
+        candidateId: candidate.id,
+        userAction: "keep_split",
+        fromFolderName: candidate.fromFolderName,
+        toFolderName: candidate.toFolderName,
+        fromSceneType: candidate.fromSceneType,
+        toSceneType: candidate.toSceneType,
+        mergeScore: candidate.mergeScore,
+        matchedSignals: candidate.matchedSignals,
+        blockedSignals: candidate.blockedSignals,
+        recommendedAction: candidate.recommendedAction,
+      }]);
+    }
+    setDismissedCandidates((previous) => new Set([...previous, candidateId]));
+  }, [mergeCandidates]);
+
+  const commitFieldSceneName = useCallback((scene: FieldScene) => {
+    if (scene.editedName === scene.folderName) return;
+    setSceneCorrections((previous) => [...previous, {
+      projectId: rootDir?.name ?? "local",
+      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
+      boundaryFileName: scene.files[0]?.name ?? "",
+      previousDecision: "split",
+      correctedDecision: "split",
+      action: "rename",
+      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
+      reason: `${scene.folderName} → ${scene.editedName}`,
+      createdAt: new Date().toISOString(),
+    }]);
+  }, [rootDir]);
+
   const FieldStep2 = () => {
     const allLoaded = fieldScenes.every(s=>!s.nameLoading);
     const allApproved = fieldScenes.length > 0 && fieldScenes.every((scene) => scene.approved);
@@ -2614,245 +2649,24 @@ function PhotoSortingInner({
           dismissedCandidates={dismissedCandidates}
         />
 
-        <Card>
-          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>
-            씬 검토 — JPG {totalJpg}장 / RAW {fieldRawCount}개 / {DEPARTMENT_DISPLAY[department]}
-          </div>
-          <div style={{padding:"8px 0"}}>
-            {fieldScenes.map((sc,i)=>{
-              const nextSc = fieldScenes[i+1];
-              // candidate between scene[i] and scene[i+1]
-              const candidate = nextSc
-                ? mergeCandidates.find(c =>
-                    c.fromFolderName === sc.folderName &&
-                    c.toFolderName === nextSc.folderName &&
-                    !dismissedCandidates.has(c.id)
-                  )
-                : undefined;
-
-              const dismissCandidate = (cid: string, action: "keep_split") => {
-                const cand = mergeCandidates.find(c => c.id === cid);
-                if (cand) {
-                  setMergeDecisions(prev => [...prev, {
-                    candidateId: cand.id, userAction: action,
-                    fromFolderName: cand.fromFolderName, toFolderName: cand.toFolderName,
-                    fromSceneType: cand.fromSceneType, toSceneType: cand.toSceneType,
-                    mergeScore: cand.mergeScore, matchedSignals: cand.matchedSignals,
-                    blockedSignals: cand.blockedSignals, recommendedAction: cand.recommendedAction,
-                  }]);
-                }
-                setDismissedCandidates(prev => new Set([...prev, cid]));
-              };
-
-              return (
-                <div key={i}>
-                  {sc.boundaryBefore && (
-                    <div style={{margin:"8px 12px 0",padding:"9px 12px",borderRadius:8,background:sc.boundaryBefore.needsReview?"rgba(214,188,125,.12)":"rgba(53,173,147,.12)",border:`1px solid ${sc.boundaryBefore.needsReview?"rgba(214,188,125,.36)":"rgba(79,216,184,.30)"}`}}>
-                      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",fontSize:10}}>
-                        <strong style={{color:sc.boundaryBefore.needsReview?"#D6BC7D":"#A8F1DC"}}>경계 {Math.round(sc.boundaryBefore.score*100)}%</strong>
-                        <span style={{color:C.muted}}>{sc.boundaryBefore.source}</span>
-                        {sc.boundaryBefore.forced && <span style={{padding:"1px 5px",borderRadius:4,background:"rgba(237,129,119,.14)",color:"#ED8177",fontWeight:500}}>강제 분리</span>}
-                        {sc.boundaryBefore.needsReview && <span style={{padding:"1px 5px",borderRadius:4,background:"rgba(214,188,125,.12)",color:"#D6BC7D",fontWeight:500}}>검토 필요</span>}
-                      </div>
-                      <div style={{fontSize:10,color:C.muted,lineHeight:1.6,marginTop:3}}>{sc.boundaryBefore.reasons.join(" · ")}</div>
-                      <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:5}}>
-                        {[["인물",sc.boundaryBefore.features.personChangeScore],["장소",sc.boundaryBefore.features.locationChangeScore],["장비",sc.boundaryBefore.features.equipmentChangeScore],["의미",sc.boundaryBefore.features.sceneTypeChangeScore],["시각",sc.boundaryBefore.features.visualChangeScore],["자세",sc.boundaryBefore.features.poseChangeScore]].map(([label,value])=><span key={String(label)} style={{fontSize:8,padding:"1px 5px",borderRadius:4,background:"rgba(255,255,255,.06)",color:C.muted}}>{label} {Math.round(Number(value)*100)}</span>)}
-                      </div>
-                    </div>
-                  )}
-                  {/* Scene card */}
-                  {/* PHASE 4(2026-08-30) — 씬을 클릭하면 Olivia Agent Context에 "지금 선택된 씬"으로
-                      반영된다. 채팅에서 "이 씬 이름 바꿔"처럼 말할 때 몇 번 씬인지 다시 묻지
-                      않기 위함(스펙 §33) — 카드 안 입력칸/버튼 클릭도 함께 선택되지만 부작용 없음. */}
-                  <div onClick={()=>useOliviaContextStore.getState().setSelection("photo_scene", String(sc.index))} style={{borderBottom:`1px solid ${C.border}`,padding:"12px 20px"}}>
-                    <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px auto 1fr auto",gap:12,alignItems:"start"}}>
-                      {/* 썸네일 */}
-                      <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                        {Array.from(new Set([0, sc.files.length-1])).map((fileIndex,fi)=>sc.files[fileIndex]?.thumbUrl
-                          ?<img key={fi} src={sc.files[fileIndex].thumbUrl!} style={{width:44,height:32,objectFit:"cover",borderRadius:3}} alt={fi===0?"Scene 시작":"Scene 마지막"}/>
-                          :<div key={fi} style={{width:44,height:32,background:C.border,borderRadius:3}}/>
-                        )}
-                      </div>
-                      {/* 정보 */}
-                      <div style={{fontSize:10,color:C.hint,fontFamily:"monospace",whiteSpace:"nowrap"}}>
-                        {sc.fileCount}장<br/>
-                        {formatTime(sc.startTime)}<br/>
-                        {formatTime(sc.endTime)}
-                      </div>
-                      {/* 이름 편집 */}
-                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                        {sc.nameLoading
-                          ? <div style={{height:34,display:"flex",alignItems:"center",fontSize:12,color:C.hint}}>AI 분석 중...</div>
-                          : <input value={sc.editedName} onChange={e=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:e.target.value}:s))} onBlur={()=>{
-                              if (sc.editedName === sc.folderName) return;
-                              setSceneCorrections((previous)=>[...previous,{projectId:rootDir?.name??"local",boundaryIndex:sc.boundaryBefore?.boundaryIndex??0,boundaryFileName:sc.files[0]?.name??"",previousDecision:"split",correctedDecision:"split",action:"rename",features:sc.boundaryBefore?.features??EMPTY_BOUNDARY_FEATURES,reason:`${sc.folderName} → ${sc.editedName}`,createdAt:new Date().toISOString()}]);
-                            }} style={{width:"100%",height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
-                        }
-                        {sc.suggestedName && !sc.nameLoading && (
-                          <div style={{fontSize:10,color:C.muted}}>
-                            추천: <button onClick={()=>setFieldScenes(prev=>prev.map((s,j)=>j===i?{...s,editedName:sc.suggestedName!}:s))} style={{border:"none",background:"none",cursor:"pointer",color:C.teal,fontSize:10,fontFamily:"inherit",fontWeight:500}}>{sc.suggestedName}</button>
-                            {sc.aiConfidence&&<span style={{marginLeft:4,color:C.hint}}>{Math.round(sc.aiConfidence*100)}%</span>}
-                          </div>
-                        )}
-                        {sc.sceneType && !sc.nameLoading && (
-                          <div style={{fontSize:9,background:C.light,color:C.teal,display:"inline-block",padding:"1px 8px",borderRadius:4,width:"fit-content"}}>
-                            {sc.sceneType}{sc.aiReason&&<span style={{color:C.muted,marginLeft:4}}>{sc.aiReason}</span>}
-                          </div>
-                        )}
-                        {(sc.aiProcedureName || sc.aiEquipmentName || sc.aiHandpieceName || (sc.aiNamingEvidence?.length ?? 0) > 0) && !sc.nameLoading && (
-                          <details style={{fontSize:9,color:C.muted,border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 7px",background:C.surface}}>
-                            <summary style={{cursor:"pointer",color:C.teal,fontWeight:500}}>이름 분석 보기</summary>
-                            <div style={{display:"grid",gap:2,marginTop:5,lineHeight:1.45}}>
-                              {sc.aiEquipmentName && <span>장비: {sc.aiEquipmentName}{sc.aiEquipmentBrand ? ` · ${sc.aiEquipmentBrand}` : ""}</span>}
-                              {sc.aiHandpieceName && <span>핸드피스: {sc.aiHandpieceName}</span>}
-                              {sc.aiProcedureName && <span>시술: {sc.aiProcedureName}{sc.aiProcedureConfidence != null ? ` · ${Math.round(sc.aiProcedureConfidence * 100)}%` : ""}</span>}
-                              {(sc.aiNamingEvidence ?? []).map((evidence, evidenceIndex) => <span key={`${evidence}-${evidenceIndex}`}>근거: {evidence}</span>)}
-                            </div>
-                          </details>
-                        )}
-                        {!sc.sceneDir && sc.files.length > 1 && (
-                          <div style={{display:"flex",gap:6,alignItems:"center",marginTop:4}}>
-                            <select value={splitPositions[sc.index] ?? 1} onChange={(event)=>setSplitPositions((previous)=>({...previous,[sc.index]:Number(event.target.value)}))} style={{minWidth:0,flex:1,height:28,border:`1px solid ${C.border}`,borderRadius:6,fontSize:9,fontFamily:"inherit"}}>
-                              {sc.files.slice(1).map((file,offset)=><option key={file.name} value={offset+1}>{file.name} 앞에서 분할</option>)}
-                            </select>
-                            <button onClick={()=>splitFieldScene(i,splitPositions[sc.index]??1)} style={{height:28,padding:"0 8px",borderRadius:6,border:`1px solid ${C.border}`,background:C.surface,color:C.teal,fontSize:9,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>분할</button>
-                          </div>
-                        )}
-                      </div>
-                      {/* 합치기 버튼 */}
-                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                        {i > 0 && <button onClick={()=>mergeFieldScenes(i-1,i)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.surface,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↑ 합치기</button>}
-                        {i < fieldScenes.length-1 && <button onClick={()=>mergeFieldScenes(i,i+1)} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${C.border}`,background:C.surface,cursor:"pointer",color:C.muted,fontFamily:"inherit",whiteSpace:"nowrap"}}>↓ 합치기</button>}
-                        <button onClick={()=>approveFieldScene(i)} disabled={sc.approved} style={{fontSize:9,padding:"4px 8px",borderRadius:4,border:`1px solid ${sc.approved?"rgba(79,216,184,.30)":"#37C39D"}`,background:sc.approved?"rgba(53,173,147,.12)":"#37C39D",cursor:sc.approved?"default":"pointer",color:sc.approved?"#A8F1DC":"#103E36",fontFamily:"inherit",whiteSpace:"nowrap"}}>{sc.approved?"승인됨":"승인"}</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Candidate card between scene[i] and scene[i+1] */}
-                  {candidate && (
-                    <div style={{
-                      margin:"0 12px",
-                      padding:"10px 14px",
-                      borderRadius:8,
-                      border: candidate.recommendedAction === "merge"
-                        ? "1.5px solid #B8CBD8"
-                        : "1.5px solid #FED7AA",
-                      background: candidate.recommendedAction === "merge"
-                        ? "rgba(53,173,147,.12)"
-                        : "rgba(214,188,125,.12)",
-                      display:"flex",flexDirection:"column",gap:6,
-                    }}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,justifyContent:"space-between"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:13}}>
-                            {candidate.recommendedAction === "merge" ? "🔗" : "✂️"}
-                          </span>
-                          <span style={{fontSize:11,fontWeight:600,
-                            color: candidate.recommendedAction === "merge" ? "#155855" : "#C2410C",
-                          }}>
-                            {candidate.recommendedAction === "merge" ? "병합 후보" : "분리 유지 추천"}
-                          </span>
-                          {candidate.recommendedAction === "merge" && (
-                            <span style={{fontSize:10,color:"#A8F1DC",background:"rgba(53,173,147,.12)",borderRadius:4,padding:"1px 6px"}}>
-                              유사도 {Math.round(candidate.mergeScore * 100)}%
-                            </span>
-                          )}
-                          {candidate.recommendedAction === "keep_split" && (
-                            <span style={{fontSize:10,color:"#D6BC7D",background:"rgba(214,188,125,.12)",borderRadius:4,padding:"1px 6px"}}>
-                              전환 강도 {Math.round(candidate.transitionStrength * 100)}%
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 양쪽 씬 썸네일 미리보기 */}
-                      {nextSc && (
-                        <div style={{display:"flex",gap:6,alignItems:"stretch",background:"rgba(0,0,0,.04)",borderRadius:6,padding:"6px 8px"}}>
-                          <div style={{flex:1}}>
-                            <div style={{fontSize:8,color:"#6B7280",marginBottom:3,fontWeight:500}}>{sc.editedName}</div>
-                            <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
-                              {sc.files.slice(0,5).map((f,fi)=>f.thumbUrl
-                                ?<img key={fi} src={f.thumbUrl} style={{width:44,height:32,objectFit:"cover",borderRadius:3,flexShrink:0}} alt=""/>
-                                :<div key={fi} style={{width:44,height:32,background:"#D1D5DB",borderRadius:3,flexShrink:0}}/>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{width:1,background:"#D1D5DB",margin:"0 2px"}}/>
-                          <div style={{flex:1}}>
-                            <div style={{fontSize:8,color:"#6B7280",marginBottom:3,fontWeight:500}}>{nextSc.editedName}</div>
-                            <div style={{display:"flex",gap:2,flexWrap:"wrap"}}>
-                              {nextSc.files.slice(0,5).map((f,fi)=>f.thumbUrl
-                                ?<img key={fi} src={f.thumbUrl} style={{width:44,height:32,objectFit:"cover",borderRadius:3,flexShrink:0}} alt=""/>
-                                :<div key={fi} style={{width:44,height:32,background:"#D1D5DB",borderRadius:3,flexShrink:0}}/>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{fontSize:10,
-                        color: candidate.recommendedAction === "merge" ? "#155855" : "#9A3412",
-                        lineHeight:1.6,
-                      }}>
-                        {candidate.reason}
-                      </div>
-
-                      {candidate.matchedSignals.length > 0 && candidate.recommendedAction === "merge" && (
-                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                          {candidate.matchedSignals.map((s,si)=>(
-                            <span key={si} style={{fontSize:9,background:"#EAF4F2",color:"#155855",borderRadius:4,padding:"1px 6px"}}>{s}</span>
-                          ))}
-                        </div>
-                      )}
-
-                      {candidate.blockedSignals.length > 0 && candidate.recommendedAction === "keep_split" && (
-                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                          {candidate.blockedSignals.slice(0,3).map((s,si)=>(
-                            <span key={si} style={{fontSize:9,background:"#FFEDD5",color:"#9A3412",borderRadius:4,padding:"1px 6px"}}>{s}</span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div style={{display:"flex",gap:6,marginTop:2}}>
-                        {candidate.recommendedAction === "merge" ? (
-                          <>
-                            <button
-                              onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
-                              style={{padding:"5px 12px",background:"#37C39D",color:"#103E36",border:"none",borderRadius:6,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
-                            >
-                              병합하기
-                            </button>
-                            <button
-                              onClick={()=>dismissCandidate(candidate.id,"keep_split")}
-                              style={{padding:"5px 12px",background:"rgba(255,255,255,.06)",color:"#D9F6EE",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,fontSize:10,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}
-                            >
-                              분리 유지
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={()=>dismissCandidate(candidate.id,"keep_split")}
-                              style={{padding:"5px 12px",background:"#37C39D",color:"#103E36",border:"none",borderRadius:6,fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}
-                            >
-                              분리 유지
-                            </button>
-                            <button
-                              onClick={()=>mergeFieldScenes(i,i+1,candidate.id)}
-                              style={{padding:"5px 12px",background:"rgba(255,255,255,.06)",color:"#D9F6EE",border:"1px solid rgba(255,255,255,.18)",borderRadius:6,fontSize:10,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}
-                            >
-                              병합하기
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+        <FieldSceneReviewList
+          scenes={fieldScenes}
+          totalJpg={totalJpg}
+          rawCount={fieldRawCount}
+          departmentLabel={DEPARTMENT_DISPLAY[department]}
+          mergeCandidates={mergeCandidates}
+          dismissedCandidates={dismissedCandidates}
+          splitPositions={splitPositions}
+          onSceneFocus={(sceneIndex) => useOliviaContextStore.getState().setSelection("photo_scene", String(sceneIndex))}
+          onSceneNameChange={(sceneIndex, value) => setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, editedName: value } : scene))}
+          onSceneNameCommit={commitFieldSceneName}
+          onSuggestedNameApply={(sceneIndex, value) => setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, editedName: value } : scene))}
+          onSplitPositionChange={(sceneIndex, value) => setSplitPositions((previous) => ({ ...previous, [sceneIndex]: value }))}
+          onSplitScene={splitFieldScene}
+          onMergeScenes={(fromIndex, toIndex, candidateId) => void mergeFieldScenes(fromIndex, toIndex, candidateId)}
+          onApproveScene={approveFieldScene}
+          onDismissCandidate={dismissFieldMergeCandidate}
+        />
 
         <div className="ps-btn-row">
           <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
