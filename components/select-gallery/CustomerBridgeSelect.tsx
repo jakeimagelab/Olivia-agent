@@ -16,8 +16,6 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Send,
-  Star,
   Sparkles,
   X,
 } from "lucide-react";
@@ -43,7 +41,6 @@ import {
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
 import {
-  BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
   bridgeLabelFilterName,
   updateBridgeLabelFilters,
@@ -68,12 +65,7 @@ import type {
   PersonSelectClientImageQuery,
 } from "@/lib/person-select/imagePageClient";
 import styles from "./CustomerBridgeSelect.module.css";
-import {
-  ColorLabels,
-  CustomerBridgeThumbnailCard,
-  RatingStars,
-  StablePreviewImage,
-} from "./CustomerBridgeMedia";
+import { CustomerBridgeThumbnailCard } from "./CustomerBridgeMedia";
 import type {
   CustomerBridgeDraft,
   CustomerBridgeFolderManifest,
@@ -94,6 +86,7 @@ import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFi
 import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
+import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -487,6 +480,22 @@ export default function CustomerBridgeSelect({
     toggleColorTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), colorLabel);
   }, [activeImageIds, focusedImageId, toggleColorTo]);
 
+  const closeMobileSide = useCallback(() => setMobileSideOpen(false), [setMobileSideOpen]);
+
+  const handleQualityReview = useCallback((imageId: string, status: "confirmed_issue" | "confirmed_normal") => {
+    void reviewQuality(imageId, status);
+  }, [reviewQuality]);
+
+  const handleSendMessage = useCallback(() => {
+    void sendMessage();
+  }, [sendMessage]);
+
+  const updateFocusedNote = useCallback((value: string) => {
+    if (!focusedImageId) return;
+    setNotes((current) => ({ ...current, [focusedImageId]: value }));
+    selectionSync.enqueue([{ imageId: focusedImageId, memo: value }]);
+  }, [focusedImageId, selectionSync.enqueue]);
+
   const refreshServerDraft = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -761,25 +770,39 @@ export default function CustomerBridgeSelect({
 
       <button type="button" className={styles.paneDivider} aria-label="미리보기 패널 너비 조절" onPointerDown={(event) => beginResize("preview", event)} />
 
-      <aside className={styles.previewPanel} data-mobile-open={mobileSideOpen || undefined}>
-        <nav className={styles.sideTabs} role="tablist" aria-label="오른쪽 패널">
-          <button type="button" role="tab" aria-selected={sideTab === "preview"} onClick={() => setSideTab("preview")}>미리보기</button>
-          {messagesEnabled ? <button type="button" role="tab" aria-selected={sideTab === "chat"} onClick={() => setSideTab("chat")}><MessageCircle size={14} />대화{unreadMessages ? <b>{unreadMessages}</b> : null}</button> : null}
-          <button type="button" className={styles.mobileSideClose} onClick={() => setMobileSideOpen(false)} aria-label="오른쪽 패널 닫기"><X size={16} /></button>
-        </nav>
-        {sideTab === "preview" ? <div className={styles.previewContent}>
-          <header><strong>미리보기</strong><span>{activeImageIds.size ? `작업 대상 ${activeImageIds.size}장` : focusedImage ? "현재 사진" : "사진을 선택해 주세요"}</span></header>
-          {focusedImage ? <><div className={styles.previewCanvas} onDoubleClick={() => openFullscreen(focusedImage.id)}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.max(0, index - 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) <= 0} aria-label="이전 사진"><ChevronLeft size={20} /></button><StablePreviewImage image={focusedImage} onImageError={handleImageError} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => { const index = orderedIds.indexOf(focusedImage.id); const next = orderedIds[Math.min(orderedIds.length - 1, index + 1)]; if (next) setFocusedImageId(next); }} disabled={orderedIds.indexOf(focusedImage.id) >= orderedIds.length - 1} aria-label="다음 사진"><ChevronRight size={20} /></button></div>
-            <div className={styles.previewMeta}><strong>{focusedImage.original_file_name}</strong><span>{focusedImage.relative_path ?? ""}</span><button type="button" onClick={() => openFullscreen(focusedImage.id)}><Expand size={13} /> 크게 보기</button></div>
-            {qualityResults[focusedImage.id] ? <section className={styles.qualityPanel}><header><strong>AI 품질 분석</strong><span>{qualityResults[focusedImage.id].reviewStatus === "confirmed_normal" ? "정상 확인됨" : qualityResults[focusedImage.id].reviewStatus === "confirmed_issue" ? "문제 확인됨" : "검토 보조"}</span></header>{(["eyes_closed", "face_too_dark", "motion_blur"] as const).map((flag) => <div key={flag} data-suspected={qualityResults[focusedImage.id].flags.includes(flag) || undefined}><span>{flag === "eyes_closed" ? "눈감음" : flag === "face_too_dark" ? "얼굴 어두움" : "흔들림"}</span><b>{qualityResults[focusedImage.id].flags.includes(flag) ? "의심" : qualityResults[focusedImage.id].status === "needs_review" ? "확인 필요" : "정상"}</b></div>)}{canManageQuality ? <footer><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_issue")}>문제 확인</button><button type="button" onClick={() => void reviewQuality(focusedImage.id, "confirmed_normal")}>정상으로 확인</button></footer> : null}<small>AI 결과는 별점·셀렉·파일을 자동 변경하지 않습니다.</small></section> : null}
-            {!readOnly ? <div className={styles.previewControls}><div><span>{activeImageIds.size > 1 ? `${activeImageIds.size}장에 셀렉 적용` : "고객 셀렉"}</span><RatingStars value={customerRatings[focusedImage.id] ?? 0} onChange={applyMainRating} /><ColorLabels value={customerColorLabels[focusedImage.id] ?? null} onChange={applyMainColor} /></div><label>사진별 보정 메모<textarea value={notes[focusedImage.id] ?? ""} maxLength={1000} onChange={(event) => { const memo = event.target.value; setNotes((current) => ({ ...current, [focusedImage.id]: memo })); selectionSync.enqueue([{ imageId: focusedImage.id, memo }]); }} placeholder="이 사진에 필요한 보정 내용을 적어주세요." /></label></div> : <div className={styles.readOnlyMarks}>{customerRatings[focusedImage.id] ? <span><Star size={13} fill="currentColor" />{customerRatings[focusedImage.id]}점</span> : null}{customerColorLabels[focusedImage.id] ? <span><i style={{ background: BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].color }} />{BRIDGE_COLOR_LABELS[customerColorLabels[focusedImage.id]].name}</span> : null}{notes[focusedImage.id] ? <p className={styles.readOnlyMemo}>{notes[focusedImage.id]}</p> : null}</div>}
-          </> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 사진을 선택해 주세요</strong></div>}
-          </div> : <section className={styles.chatPanel} aria-label="프로젝트 대화">
-          <div className={styles.messageList}>{messages.map((message) => <article key={message.id} data-own={message.own || undefined}><header><strong>{message.authorName}</strong>{message.authorRole ? <span>{message.authorRole}</span> : null}<time dateTime={message.createdAt}>{new Date(message.createdAt).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time></header>{message.imageId ? <button type="button" className={styles.messageImageLink} onClick={() => { setFocusedImageId(message.imageId); setSideTab("preview"); }}>{message.imageName || "연결 사진 보기"}</button> : null}<p>{message.body}</p></article>)}{!messages.length ? <div className={styles.chatEmpty}>프로젝트 사진에 관해 함께 이야기해 보세요.</div> : null}<div ref={messagesEndRef} /></div>
-          {messagesEnabled ? <form className={styles.messageComposer} onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}><label className={styles.messageScope}><input type="checkbox" checked={messageImageScoped} disabled={!focusedImageId} onChange={(event) => setMessageImageScoped(event.target.checked)} />{focusedImage ? `현재 사진 · ${focusedImage.original_file_name}` : "현재 사진 없음"}</label><textarea value={messageText} maxLength={2000} placeholder="메시지를 입력하세요" onChange={(event) => setMessageText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void sendMessage(); } }} /><button type="submit" disabled={!messageText.trim() || sendingMessage} aria-label="메시지 보내기"><Send size={16} /></button></form> : null}
-          {messageState ? <p className={styles.messageState}>{messageState}</p> : null}
-        </section>}
-      </aside>
+      <CustomerBridgeSidePanel
+        sideTab={sideTab}
+        onSideTabChange={setSideTab}
+        mobileSideOpen={mobileSideOpen}
+        onCloseMobile={closeMobileSide}
+        messagesEnabled={messagesEnabled}
+        unreadMessages={unreadMessages}
+        activeCount={activeImageIds.size}
+        focusedImage={focusedImage}
+        orderedIds={orderedIds}
+        onFocusImage={setFocusedImageId}
+        onOpenFullscreen={openFullscreen}
+        onImageError={handleImageError}
+        quality={focusedImage ? qualityResults[focusedImage.id] : undefined}
+        canManageQuality={canManageQuality}
+        onReviewQuality={handleQualityReview}
+        readOnly={readOnly}
+        rating={focusedImage ? customerRatings[focusedImage.id] ?? 0 : 0}
+        colorLabel={focusedImage ? customerColorLabels[focusedImage.id] ?? null : null}
+        note={focusedImage ? notes[focusedImage.id] ?? "" : ""}
+        onRate={applyMainRating}
+        onColor={applyMainColor}
+        onNote={updateFocusedNote}
+        messages={messages}
+        messageText={messageText}
+        setMessageText={setMessageText}
+        messageState={messageState}
+        messageImageScoped={messageImageScoped}
+        setMessageImageScoped={setMessageImageScoped}
+        sendingMessage={sendingMessage}
+        messagesEndRef={messagesEndRef}
+        onSendMessage={handleSendMessage}
+      />
     </section>
 
     {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
