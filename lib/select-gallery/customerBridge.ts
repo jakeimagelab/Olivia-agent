@@ -1,7 +1,15 @@
-import { isCustomerSelection } from "@/lib/person-select/customerSelection";
+import {
+  customerSelectionIds,
+  isCustomerColorLabel,
+  isCustomerRating,
+  normalizeCustomerColorLabel,
+  normalizeCustomerRating,
+  type CustomerColorLabel,
+  type CustomerRating,
+} from "@/lib/person-select/customerSelection";
 
-export type CustomerBridgeRating = 1 | 2 | 3 | 4 | 5;
-export type CustomerBridgeColorLabel = 6 | 7 | 8 | 9;
+export type CustomerBridgeRating = CustomerRating;
+export type CustomerBridgeColorLabel = CustomerColorLabel;
 
 export type CustomerBridgeSelectionState = {
   selectedIds: Set<string>;
@@ -187,7 +195,7 @@ export function customerBridgeRatedIds(
 ) {
   return new Set(
     Object.entries(ratings)
-      .filter(([, rating]) => Number.isInteger(rating) && rating >= 1 && rating <= 5)
+      .filter(([, rating]) => isCustomerRating(rating))
       .map(([id]) => id),
   );
 }
@@ -197,8 +205,7 @@ export function customerBridgeSelectedIds(
   ratings: Readonly<Record<string, number>>,
   colorLabels: Readonly<Record<string, number>>,
 ) {
-  const ids = new Set([...Object.keys(ratings), ...Object.keys(colorLabels)]);
-  return new Set([...ids].filter((id) => isCustomerSelection({ rating: ratings[id], colorLabel: colorLabels[id] })));
+  return customerSelectionIds({ ratings, colorLabels });
 }
 
 /**
@@ -213,14 +220,16 @@ export function normalizeCustomerBridgeSelectionMarks(input: {
 }): CustomerBridgeSelectionMarks {
   const allowed = input.allowedImageIds;
   const ratings = Object.fromEntries(
-    Object.entries(input.ratings ?? {}).filter(([id, rating]) => (
-      (!allowed || allowed.has(id)) && Number.isInteger(rating) && rating >= 1 && rating <= 5
-    )),
+    Object.entries(input.ratings ?? {}).flatMap(([id, rating]) => {
+      const normalized = normalizeCustomerRating(rating);
+      return (!allowed || allowed.has(id)) && normalized !== null ? [[id, normalized]] : [];
+    }),
   ) as Record<string, CustomerBridgeRating>;
   const colorLabels = Object.fromEntries(
-    Object.entries(input.colorLabels ?? {}).filter(([id, label]) => (
-      (!allowed || allowed.has(id)) && Number.isInteger(label) && label >= 6 && label <= 9
-    )),
+    Object.entries(input.colorLabels ?? {}).flatMap(([id, colorLabel]) => {
+      const normalized = normalizeCustomerColorLabel(colorLabel);
+      return (!allowed || allowed.has(id)) && normalized !== null ? [[id, normalized]] : [];
+    }),
   ) as Record<string, CustomerBridgeColorLabel>;
 
   for (const id of input.selectedImageIds ?? []) {
@@ -294,16 +303,14 @@ export function customerBridgeSelectionItems<T extends CustomerBridgeFolderImage
   notes: Readonly<Record<string, string>>,
 ): CustomerBridgeSelectionItem[] {
   return images.flatMap((image) => {
-    const rating = ratings[image.id];
-    const colorLabel = colorLabels[image.id];
-    const validRating = Number.isInteger(rating) && rating >= 1 && rating <= 5;
-    const validColor = Number.isInteger(colorLabel) && colorLabel >= 6 && colorLabel <= 9;
-    if (!validRating && !validColor) return [];
+    const rating = normalizeCustomerRating(ratings[image.id]);
+    const colorLabel = normalizeCustomerColorLabel(colorLabels[image.id]);
+    if (rating === null && colorLabel === null) return [];
     return [{
       imageId: image.id,
       relativePath: image.relative_path ?? null,
-      rating: validRating ? rating as CustomerBridgeRating : null,
-      colorLabel: validColor ? colorLabel as CustomerBridgeColorLabel : null,
+      rating,
+      colorLabel,
       memo: notes[image.id] ?? "",
     }];
   });
@@ -420,10 +427,6 @@ export function customerSelectionComparisonCounts(
   return counts;
 }
 
-function validCustomerRating(value: number | null | undefined): value is CustomerBridgeRating {
-  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5;
-}
-
 /**
  * 고객 제출을 현재 Bridge 폴더에 연결한다.
  * ID → 정확한 상대경로 → 폴더 내 유일한 파일명 순으로만 매칭한다.
@@ -475,7 +478,7 @@ export function matchCustomerSelectionToBridgeFiles(
     const bridgeId = candidates[0].id;
     matchedBridgeIds.add(bridgeId);
     bridgeIdByImageId[item.imageId] = bridgeId;
-    if (validCustomerRating(item.rating)) ratingsByBridgeId[bridgeId] = item.rating;
+    if (isCustomerRating(item.rating)) ratingsByBridgeId[bridgeId] = item.rating;
     if (item.memo) notesByBridgeId[bridgeId] = item.memo;
   }
 

@@ -1,4 +1,8 @@
-import { isCustomerSelection } from "./customerSelection";
+import {
+  isCustomerSelection,
+  normalizeCustomerColorLabel,
+  normalizeCustomerRating,
+} from "./customerSelection";
 
 export type PersonSelectRawMatchSource = "submitted" | "current";
 export type PersonSelectRawMatchMode = "copy" | "mark";
@@ -101,21 +105,13 @@ export function normalizePersonSelectRawLabelNames(value: unknown): PersonSelect
   })) as PersonSelectRawLabelNames;
 }
 
-function validRating(value: unknown): number | null {
-  return Number.isInteger(value) && Number(value) >= 1 && Number(value) <= 5 ? Number(value) : null;
-}
-
-function validColor(value: unknown): PersonSelectRawColorLabel | null {
-  return value === 6 || value === 7 || value === 8 || value === 9 ? value : null;
-}
-
 function targetFromImage(image: PersonSelectRawImage, ownerId: string, ownerName: string): PersonSelectRawMatchTarget {
   return {
     ...image,
     ownerId,
     ownerName,
-    customerRating: validRating(image.customerRating),
-    customerColorLabel: validColor(image.customerColorLabel),
+    customerRating: normalizeCustomerRating(image.customerRating),
+    customerColorLabel: normalizeCustomerColorLabel(image.customerColorLabel),
     markSavedAt: image.markSavedAt ?? null,
     markConflict: false,
   };

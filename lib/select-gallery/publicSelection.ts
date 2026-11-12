@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isCustomerColorLabel, isCustomerRating } from "@/lib/person-select/customerSelection";
 
 export const PUBLIC_SELECTION_JSON_LIMIT = 1_000_000;
 export const PUBLIC_SELECTION_MAX_ITEMS = 10_000;
@@ -69,14 +70,14 @@ function parseItems(value: unknown, allowedImageIds: ReadonlySet<string>) {
     const rating = rawRating === null || rawRating === undefined || rawRating === 0
       ? null
       : Number(rawRating);
-    if (rating !== null && (!Number.isInteger(rating) || rating < 1 || rating > 5)) {
+    if (rating !== null && !isCustomerRating(rating)) {
       throw new PublicSelectionRequestError("별점은 1점부터 5점까지만 저장할 수 있습니다.");
     }
     const rawColorLabel = record.colorLabel ?? record.color_label;
     const colorLabel = rawColorLabel === null || rawColorLabel === undefined || rawColorLabel === 0
       ? null
       : Number(rawColorLabel);
-    if (colorLabel !== null && (!Number.isInteger(colorLabel) || colorLabel < 6 || colorLabel > 9)) {
+    if (colorLabel !== null && !isCustomerColorLabel(colorLabel)) {
       throw new PublicSelectionRequestError("컬러 셀렉은 6번부터 9번까지만 저장할 수 있습니다.");
     }
     const memo = typeof record.memo === "string" ? record.memo : "";

@@ -1,3 +1,5 @@
+import { isCustomerColorLabel, isCustomerRating } from "./customerSelection";
+
 export const SELECTION_SYNC_BATCH_LIMIT = 200;
 export const SELECTION_SYNC_DEBOUNCE_MS = 2_000;
 export const SELECTION_SYNC_RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 10_000] as const;
@@ -181,8 +183,8 @@ export function parseSelectionSyncBatch(value: unknown, allowedImageIds: Readonl
     if (fields.length !== 1) throw new Error("사진 변경은 한 필드씩 저장해야 합니다.");
     const field = fields[0];
     if (field === "selected" && typeof diff.selected !== "boolean") throw new Error("선택 상태가 올바르지 않습니다.");
-    if (field === "rating" && diff.rating !== null && (!Number.isInteger(diff.rating) || Number(diff.rating) < 1 || Number(diff.rating) > 5)) throw new Error("별점은 1점부터 5점까지만 저장할 수 있습니다.");
-    if (field === "colorLabel" && diff.colorLabel !== null && (!Number.isInteger(diff.colorLabel) || Number(diff.colorLabel) < 6 || Number(diff.colorLabel) > 9)) throw new Error("컬러 셀렉은 6번부터 9번까지만 저장할 수 있습니다.");
+    if (field === "rating" && diff.rating !== null && !isCustomerRating(diff.rating)) throw new Error("별점은 1점부터 5점까지만 저장할 수 있습니다.");
+    if (field === "colorLabel" && diff.colorLabel !== null && !isCustomerColorLabel(diff.colorLabel)) throw new Error("컬러 셀렉은 6번부터 9번까지만 저장할 수 있습니다.");
     if (field === "memo" && (typeof diff.memo !== "string" || diff.memo.length > 1000)) throw new Error("사진별 메모는 1000자까지 적을 수 있습니다.");
     if (field === "retouchKeys" && (!Array.isArray(diff.retouchKeys) || diff.retouchKeys.some((key) => typeof key !== "string"))) throw new Error("보정 요청 형식이 올바르지 않습니다.");
     return { imageId, clientSeq, changedAt, [field]: diff[field] } as SelectionSyncDiff;
