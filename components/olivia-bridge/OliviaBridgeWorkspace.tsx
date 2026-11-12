@@ -9,13 +9,7 @@ import {
   CircleAlert,
   Folder,
   FolderOpen,
-  Images,
-  LayoutGrid,
   LoaderCircle,
-  Maximize2,
-  Minus,
-  Plus,
-  Search,
   SlidersHorizontal,
   Sparkles,
   X,
@@ -34,9 +28,7 @@ import {
 import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
 import {
   BridgeFullscreenPreview,
-  BridgePhotoCard,
   BridgeSelectionReview,
-  PlainFileCard,
   formatBytes,
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
@@ -54,6 +46,10 @@ import {
   OliviaBridgePreviewPanel,
   type OliviaBridgePreviewTab,
 } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
+import {
+  OliviaBridgeBrowserPanel,
+  type OliviaBridgeCaptureMetadataState,
+} from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
 import {
   OliviaBridgeSceneReviewContent,
   type OliviaBridgeSceneState as SceneState,
@@ -299,12 +295,7 @@ export default function OliviaBridgeWorkspace({
   const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedSource[]>([]);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
-  const [captureMetadataState, setCaptureMetadataState] = useState<{
-    status: "idle" | "loading" | "ready" | "error";
-    completed: number;
-    total: number;
-    fallbackCount: number;
-  }>({ status: "idle", completed: 0, total: 0, fallbackCount: 0 });
+  const [captureMetadataState, setCaptureMetadataState] = useState<OliviaBridgeCaptureMetadataState>({ status: "idle", completed: 0, total: 0, fallbackCount: 0 });
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
@@ -2056,6 +2047,90 @@ export default function OliviaBridgeWorkspace({
     }
   }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
 
+  const openCompactPreview = useCallback(() => setCompactPreviewOpen(true), []);
+  const clearFilenameSearch = useCallback(() => {
+    setFilenameSearch("");
+    searchInputRef.current?.focus();
+  }, []);
+  const restoreBrowserFolder = useCallback(() => {
+    void restoreLastFolder();
+  }, [restoreLastFolder]);
+  const focusPlainFile = useCallback((fileId: string) => {
+    setFocusedPlainId(fileId);
+    setFocusedId(null);
+  }, []);
+  const handleFileAreaClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!suppressThumbnailClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, []);
+  const handleFileAreaClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (suppressThumbnailClickRef.current) return;
+    const photoCard = event.target instanceof Element
+      ? event.target.closest("[data-bridge-photo-id]") as HTMLElement | null
+      : null;
+    if (photoCard) {
+      if (isMacControlClick(event)) return;
+      const photo = visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "");
+      if (photo) choosePhoto(photo, event);
+      return;
+    }
+    setSelectedIds(new Set());
+    setAnchorId(null);
+    setFocusedId(null);
+    setPreviewSize(undefined);
+  }, [choosePhoto, setSelectedIds, visiblePhotoById]);
+  const handleFileAreaContextMenu = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!isMacControlClick(event) || !(event.target instanceof Element)) return;
+    const photoCard = event.target.closest<HTMLElement>("[data-bridge-photo-id]");
+    const photo = photoCard ? visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "") : undefined;
+    if (!photo) return;
+    event.preventDefault();
+    choosePhoto(photo, event);
+  }, [choosePhoto, visiblePhotoById]);
+  const handleFileAreaPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || event.pointerType !== "mouse") return;
+    marqueeSessionRef.current = {
+      pointerId: event.pointerId,
+      start: { x: event.clientX, y: event.clientY },
+      current: { x: event.clientX, y: event.clientY },
+      additive: bridgeMarqueeUsesAdditiveSelection(event),
+      initialSelection: new Set(selectedIds),
+      currentSelection: new Set(selectedIds),
+      started: false,
+      cards: [],
+    };
+  }, [selectedIds]);
+  const handleFileAreaPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const session = marqueeSessionRef.current;
+    if (!session || session.pointerId !== event.pointerId) return;
+    session.current = { x: event.clientX, y: event.clientY };
+    if (!session.started) {
+      const distance = Math.hypot(session.current.x - session.start.x, session.current.y - session.start.y);
+      if (distance < 6) return;
+      session.started = true;
+      const fileArea = event.currentTarget;
+      fileArea.setPointerCapture(event.pointerId);
+      fileArea.dataset.marqueeActive = "true";
+      session.cards = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]")).map((element) => {
+        const bounds = element.getBoundingClientRect();
+        return {
+          id: element.dataset.bridgePhotoId ?? "",
+          element,
+          rectangle: { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom },
+        };
+      }).filter((card) => Boolean(card.id));
+    }
+    event.preventDefault();
+    scheduleMarqueePaint();
+  }, [scheduleMarqueePaint]);
+  const handleFileAreaPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    endMarquee(event, true);
+  }, [endMarquee]);
+  const handleFileAreaPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    endMarquee(event, false);
+  }, [endMarquee]);
+
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <header className={styles.bridgeBar}>
@@ -2153,145 +2228,57 @@ export default function OliviaBridgeWorkspace({
           label="폴더 영역 너비 조절"
         />
 
-        <section id="olivia-bridge-file-panel" className={styles.browserPanel} aria-label="현재 폴더 파일">
-          <div className={styles.browserHeader}>
-            <div className={styles.browserTitle}>
-              <strong>{activeFolder?.name ?? "폴더 내용"}</strong>
-              <span>{filenameSearchTokens.length ? `검색 ${visibleJpgs.length.toLocaleString("ko-KR")}장` : `${centerFileCount.toLocaleString("ko-KR")}개의 파일${scan.nestedJpgCount ? ` · 하위 JPG ${scan.nestedJpgCount.toLocaleString("ko-KR")}장` : ""}`}</span>
-              {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
-              {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
-              {jpgSortMode === "capture" ? <span className={styles.captureMetadataStatus} role="status">{captureMetadataState.status === "loading" ? `촬영시각 ${captureMetadataState.completed.toLocaleString("ko-KR")}/${captureMetadataState.total.toLocaleString("ko-KR")}` : captureMetadataState.status === "error" ? "촬영시각 읽기 실패" : captureMetadataState.status === "ready" && captureMetadataState.fallbackCount ? `EXIF 없음 ${captureMetadataState.fallbackCount.toLocaleString("ko-KR")}장 · 수정시각 사용` : "EXIF 촬영순"}</span> : null}
-            </div>
-            <div className={styles.browserActions}>
-              <div className={styles.photoSortControl} aria-label="사진 표시 순서">
-                <span>정렬</span>
-                <button type="button" data-active={jpgSortMode === "filename"} onClick={() => setJpgSortMode("filename")}>파일명</button>
-                <button type="button" data-active={jpgSortMode === "capture"} onClick={() => setJpgSortMode("capture")}>촬영순</button>
-              </div>
-              <button type="button" className={styles.compactPreviewButton} onClick={() => setCompactPreviewOpen(true)} aria-label="미리보기 열기"><Maximize2 size={15} /> 미리보기</button>
-              <label className={styles.filenameSearch}>
-                <Search size={13} aria-hidden="true" />
-                <input ref={searchInputRef} type="search" value={filenameSearch} onChange={(event) => setFilenameSearch(event.currentTarget.value)} placeholder="파일명 검색" aria-label="파일명 검색" />
-                {filenameSearch ? <button type="button" onClick={() => { setFilenameSearch(""); searchInputRef.current?.focus(); }} aria-label="검색 지우기"><X size={12} /></button> : <kbd>⌘F</kbd>}
-              </label>
-              <div className={styles.thumbnailControls}><button type="button" onClick={() => resizeThumbnails(-1)} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} aria-hidden="true" /><button type="button" onClick={() => resizeThumbnails(1)} aria-label="썸네일 크게"><Plus size={15} /></button></div>
-            </div>
-          </div>
-
-          {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrail.length ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrail.length ? <div className={styles.restoreActions}><button type="button" onClick={() => void restoreLastFolder()}>지난 폴더 다시 열기</button></div> : null}</div> : null}
-          {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
-          {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
-          {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>폴더가 옮겨졌거나 이름이 바뀌었을 수 있습니다. 다시 골라 주세요.</p></div> : null}
-          {scanStatus === "ready" ? (
-            <div
-              ref={fileAreaRef}
-              className={styles.fileArea}
-              onClickCapture={(event) => {
-                if (!suppressThumbnailClickRef.current) return;
-                event.preventDefault();
-                event.stopPropagation();
-              }}
-              onClick={(event) => {
-                if (suppressThumbnailClickRef.current) return;
-                const photoCard = event.target instanceof Element
-                  ? event.target.closest("[data-bridge-photo-id]") as HTMLElement | null
-                  : null;
-                if (photoCard) {
-                  if (isMacControlClick(event)) return;
-                  const photo = visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "");
-                  if (photo) choosePhoto(photo, event);
-                  return;
-                }
-                setSelectedIds(new Set());
-                setAnchorId(null);
-                setFocusedId(null);
-                setPreviewSize(undefined);
-              }}
-              onContextMenu={(event) => { if (!isMacControlClick(event)) return;
-                if (!(event.target instanceof Element)) return;
-                const photoCard = event.target.closest<HTMLElement>("[data-bridge-photo-id]");
-                const photo = photoCard
-                  ? visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "")
-                  : undefined;
-                if (!photo) return;
-                event.preventDefault();
-                choosePhoto(photo, event);
-              }}
-              onPointerDown={(event) => {
-                if (event.button !== 0 || event.pointerType !== "mouse") return;
-                marqueeSessionRef.current = {
-                  pointerId: event.pointerId,
-                  start: { x: event.clientX, y: event.clientY },
-                  current: { x: event.clientX, y: event.clientY },
-                  additive: bridgeMarqueeUsesAdditiveSelection(event),
-                  initialSelection: new Set(selectedIds),
-                  currentSelection: new Set(selectedIds),
-                  started: false,
-                  cards: [],
-                };
-              }}
-              onPointerMove={(event) => {
-                const session = marqueeSessionRef.current;
-                if (!session || session.pointerId !== event.pointerId) return;
-                session.current = { x: event.clientX, y: event.clientY };
-                if (!session.started) {
-                  const distance = Math.hypot(session.current.x - session.start.x, session.current.y - session.start.y);
-                  if (distance < 6) return;
-                  session.started = true;
-                  const fileArea = event.currentTarget;
-                  fileArea.setPointerCapture(event.pointerId);
-                  fileArea.dataset.marqueeActive = "true";
-                  session.cards = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]")).map((element) => {
-                    const bounds = element.getBoundingClientRect();
-                    return {
-                      id: element.dataset.bridgePhotoId ?? "",
-                      element,
-                      rectangle: { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom },
-                    };
-                  }).filter((card) => Boolean(card.id));
-                }
-                event.preventDefault();
-                scheduleMarqueePaint();
-              }}
-              onPointerUp={(event) => endMarquee(event, true)}
-              onPointerCancel={(event) => endMarquee(event, false)}
-            >
-              <div ref={marqueeRef} className={styles.selectionMarquee} aria-hidden="true" />
-              {visibleJpgs.length ? <div data-bridge-thumbnail-grid className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
-                {visibleJpgs.map((photo) => {
-                  const selected = selectedIds.has(photo.id);
-                  const customerSelected = customerSelectedIds.has(photo.id);
-                  const focused = focusedId === photo.id;
-                  const adobeSelected = selectionSource !== "olivia" && selected && adobeSelectedIdsRef.current.has(photo.id);
-                  const manualSelected = selectionSource !== "adobe" && selected && manualSelectedIdsRef.current.has(photo.id);
-                  const excluded = excludedIds.has(photo.id);
-                  const rating = effectiveRatings[photo.id] ?? 0;
-                  const colorLabel = effectiveColorLabels[photo.id];
-                  const quality = qualityByBridgeId[photo.id];
-                  const rawMark = rawMarkByFileKey.get(normalizePhotoToolFileKey(photo.name));
-                  return <BridgePhotoCard
-                    key={photo.id}
-                    photo={photo}
-                    selected={selected}
-                    customerSelected={customerSelected}
-                    customerRating={customerRatings[photo.id] ?? 0}
-                    focused={focused}
-                    adobeSelected={adobeSelected}
-                    manualSelected={manualSelected}
-                    excluded={excluded}
-                    rating={rating}
-                    colorLabel={colorLabel}
-                    quality={quality}
-                    rawMark={rawMark}
-                  />;
-                })}
-              </div> : null}
-              {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} mark={rawAdobeMarks[file.id]} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
-              {showSidecars && scan.sidecars.length ? <section className={styles.plainFileSection}><header><strong>사이드카</strong><span>원본과 함께 유지되는 설정 파일</span></header><div>{scan.sidecars.map((file) => <PlainFileCard key={file.id} file={file} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}
-              {!visibleJpgs.length && (!showRaws || !scan.raws.length) && (!showSidecars || !scan.sidecars.length) ? <div className={styles.noPhotos}><Images size={27} /><span>이 조건에 맞는 파일이 없습니다.</span></div> : null}
-            </div>
-          ) : null}
-        </section>
+        <OliviaBridgeBrowserPanel
+          activeFolderName={activeFolder?.name}
+          filenameSearch={filenameSearch}
+          filenameSearchActive={filenameSearchTokens.length > 0}
+          searchInputRef={searchInputRef}
+          visibleJpgs={visibleJpgs}
+          centerFileCount={centerFileCount}
+          scan={scan}
+          scanStatus={scanStatus}
+          restoreTrailAvailable={restoreTrail.length > 0}
+          restoreMessage={restoreMessage}
+          activeRatingFilterName={activeRatingFilterName}
+          activeColorFilterName={activeColorFilterName}
+          labelFilters={labelFilters}
+          jpgSortMode={jpgSortMode}
+          captureMetadataState={captureMetadataState}
+          thumbnailSize={thumbnailSize}
+          selectedIds={selectedIds}
+          customerSelectedIds={customerSelectedIds}
+          customerRatings={customerRatings}
+          focusedId={focusedId}
+          focusedPlainId={focusedPlainFile?.id ?? null}
+          selectionSource={selectionSource}
+          adobeSelectedIds={adobeSelectedIdsRef.current}
+          manualSelectedIds={manualSelectedIdsRef.current}
+          excludedIds={excludedIds}
+          effectiveRatings={effectiveRatings}
+          effectiveColorLabels={effectiveColorLabels}
+          qualityByBridgeId={qualityByBridgeId}
+          rawMarkByFileKey={rawMarkByFileKey}
+          rawAdobeMarks={rawAdobeMarks}
+          showRaws={showRaws}
+          showSidecars={showSidecars}
+          fileAreaRef={fileAreaRef}
+          marqueeRef={marqueeRef}
+          onApplyLabelFilterCommand={applyLabelFilterCommand}
+          onSortModeChange={setJpgSortMode}
+          onOpenPreview={openCompactPreview}
+          onFilenameSearchChange={setFilenameSearch}
+          onClearFilenameSearch={clearFilenameSearch}
+          onResizeThumbnails={resizeThumbnails}
+          onRestoreLastFolder={restoreBrowserFolder}
+          onFileAreaClickCapture={handleFileAreaClickCapture}
+          onFileAreaClick={handleFileAreaClick}
+          onFileAreaContextMenu={handleFileAreaContextMenu}
+          onFileAreaPointerDown={handleFileAreaPointerDown}
+          onFileAreaPointerMove={handleFileAreaPointerMove}
+          onFileAreaPointerUp={handleFileAreaPointerUp}
+          onFileAreaPointerCancel={handleFileAreaPointerCancel}
+          onFocusPlainFile={focusPlainFile}
+        />
 
 
         <BridgePaneDivider

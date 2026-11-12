@@ -159,10 +159,11 @@ describe("Olivia Bridge", () => {
 
   it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
 
     expect(workspace).toContain("saveBridgeFolderTrail(trail)");
     expect(workspace).toContain("queryBridgeFolderTrailPermission(trail)");
-    expect(workspace).toContain("지난 폴더 다시 열기");
+    expect(browserPanel).toContain("지난 폴더 다시 열기");
     expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
 
@@ -210,11 +211,13 @@ describe("Olivia Bridge", () => {
 
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
 
     expect(workspace).toContain('event.target.closest("[data-bridge-photo-id]")');
     expect(workspace).toContain("if (suppressThumbnailClickRef.current) return;");
     expect(workspace).toMatch(/session\.started = true;[\s\S]*fileArea\.setPointerCapture\(event\.pointerId\)/);
-    expect(workspace).toContain("onContextMenu={(event) => { if (!isMacControlClick(event)) return;");
+    expect(workspace).toContain("const handleFileAreaContextMenu");
+    expect(browserPanel).toContain("onContextMenu={onFileAreaContextMenu}");
     expect(workspace).toContain("setSelectedIds(new Set())");
     expect(workspace).toContain("setAnchorId(null)");
     expect(workspace).toContain("setFocusedId(null)");
