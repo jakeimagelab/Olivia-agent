@@ -67,20 +67,25 @@ export function useSelectionSyncQueue<TSnapshot>({
 
   const queueValues = useCallback(() => compactSelectionSyncDiffs([...queueRef.current.values()]), []);
 
-  const publishPending = useCallback(() => {
-    const pending = queueValues();
+  const publishPending = useCallback((prepared?: SelectionSyncDiff[]) => {
+    const pending = prepared ?? queueValues();
     setPendingCount(pending.length);
-    setPendingImageIds(pendingSelectionImageIds(pending));
+    const nextImageIds = pendingSelectionImageIds(pending);
+    setPendingImageIds((current) => {
+      if (current.size !== nextImageIds.size) return nextImageIds;
+      for (const imageId of nextImageIds) if (!current.has(imageId)) return nextImageIds;
+      return current;
+    });
     return pending;
   }, [queueValues]);
 
-  const persist = useCallback(() => {
+  const persist = useCallback((prepared?: SelectionSyncDiff[]) => {
     try {
       const payload: PersistedSelectionSyncQueue = {
         version: 1,
         clientId: clientIdRef.current,
         nextSeq: nextSeqRef.current,
-        diffs: queueValues(),
+        diffs: prepared ?? queueValues(),
         lastSavedAt: lastSavedAtRef.current,
       };
       localStorage.setItem(storageKey, JSON.stringify(payload));
@@ -130,11 +135,12 @@ export function useSelectionSyncQueue<TSnapshot>({
         const savedAt = new Date().toISOString();
         lastSavedAtRef.current = savedAt;
         setLastSavedAt(savedAt);
-        const pending = publishPending();
+        const pending = queueValues();
+        publishPending(pending);
         onSnapshotRef.current(snapshot, pending);
         setStatus(pending.length ? "waiting" : "saved");
         setMessage("");
-        persist();
+        persist(pending);
         if (pending.length) schedule(0);
         return true;
       } catch (cause) {
@@ -142,8 +148,9 @@ export function useSelectionSyncQueue<TSnapshot>({
           ? cause
           : new SelectionSyncRequestError(cause instanceof Error ? cause.message : "선택을 저장하지 못했습니다.");
         const retryable = error.options?.retryable !== false;
-        publishPending();
-        persist();
+        const pending = queueValues();
+        publishPending(pending);
+        persist(pending);
         setMessage(error.message);
         if (!retryable) {
           setStatus("error");
@@ -169,13 +176,14 @@ export function useSelectionSyncQueue<TSnapshot>({
     const split = splitSelectionSyncPatches(patches, nextSeqRef.current);
     nextSeqRef.current = split.nextSeq;
     for (const diff of split.diffs) queueRef.current.set(selectionSyncDiffKey(diff), diff);
-    const pending = publishPending();
+    const pending = queueValues();
+    publishPending(pending);
     onPendingChangeRef.current?.(pending);
     setStatus("waiting");
     setMessage("");
-    persist();
+    persist(pending);
     schedule();
-  }, [enabled, persist, publishPending, schedule]);
+  }, [enabled, persist, publishPending, queueValues, schedule]);
 
   const flushNow = useCallback(async () => {
     clearTimer();
@@ -212,7 +220,8 @@ export function useSelectionSyncQueue<TSnapshot>({
       lastSavedAtRef.current = restored.lastSavedAt;
       queueRef.current = new Map(restored.diffs.map((diff) => [selectionSyncDiffKey(diff), diff]));
       setLastSavedAt(restored.lastSavedAt);
-      const pending = publishPending();
+      const pending = queueValues();
+      publishPending(pending);
       if (pending.length) {
         setStatus("retrying");
         onRestoreRef.current?.(pending);
@@ -222,7 +231,7 @@ export function useSelectionSyncQueue<TSnapshot>({
     return () => {
       clearTimer();
     };
-  }, [clearTimer, publishPending, schedule, storageKey]);
+  }, [clearTimer, publishPending, queueValues, schedule, storageKey]);
 
   useEffect(() => {
     if (!pendingCount) return;
