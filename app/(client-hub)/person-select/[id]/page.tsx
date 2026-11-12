@@ -311,7 +311,7 @@ export default function PersonSelectDetailPage() {
   }, [eventUploadJob, load]);
   const filtered = useMemo(() => (data?.people ?? []).filter((person) => {
     if (filter === "done") return person.status_label.includes("제출");
-    if (filter === "saving") return person.status_label === "저장 중";
+    if (filter === "saving") return person.status_label === "선택 중";
     if (filter === "unseen") return person.status_label === "미접속";
     if (filter === "delivery_revision") return Number(person.delivery_revision_count ?? 0) > 0;
     return true;
@@ -350,7 +350,7 @@ export default function PersonSelectDetailPage() {
   const personWord = isSchool ? "선생님" : "이름";
   const categories = data.event.categories ?? [];
   const categoryLabels = new Map(categories.map((item) => [item.key, item.label]));
-  const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "저장 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length, deliveryRevision: data.people.filter((person) => Number(person.delivery_revision_count ?? 0) > 0).length };
+  const counts = { done: data.people.filter((person) => person.status_label.includes("제출")).length, saving: data.people.filter((person) => person.status_label === "선택 중").length, unseen: data.people.filter((person) => person.status_label === "미접속").length, deliveryRevision: data.people.filter((person) => Number(person.delivery_revision_count ?? 0) > 0).length };
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
@@ -591,7 +591,7 @@ export default function PersonSelectDetailPage() {
   const tabs = isShared
     ? [["matching", "사진 확인", UsersRound], ["progress", "고객 셀렉", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const
     : [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const;
-  const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "저장 중", counts.saving], ["unseen", "미접속", counts.unseen], ["delivery_revision", "수정 요청", counts.deliveryRevision]];
+  const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "선택 중", counts.saving], ["unseen", "미접속", counts.unseen], ["delivery_revision", "수정 요청", counts.deliveryRevision]];
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
   const rawBusy = Boolean(rawJobId);
@@ -737,7 +737,7 @@ export default function PersonSelectDetailPage() {
               <td className={styles.muted}>{requests ? `${requests}개${person.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}` : person.choices.length ? "기본 보정" : "—"}</td>
               <td className={person.order?.total ? styles.orderTotal : styles.muted} title={person.order?.lines.map((line) => `${line.label} ${line.detail} ×${line.qty}`).join("\n") ?? ""}>{person.order?.total ? formatWon(person.order.total) : "—"}</td>
               <td><div className={styles.deliveryCell}><strong>{person.delivery_count ? `${person.delivery_count}장` : "—"}</strong>{person.delivery_revision_count ? <span className={styles.deliveryRevision}>수정 요청 {person.delivery_revision_count}장</span> : person.delivery_state === "approved" ? <span>최종 확인</span> : person.delivery_count ? <span>확인 중</span> : null}{person.delivery_downloaded_at ? <small>다운로드 완료</small> : null}<div className={styles.deliveryRowActions}>{person.delivery_count ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("reopen", person.id); }}>다시 열기</button> : null}{person.delivery_approved_at ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("extend", person.id); }}>+30일</button> : null}</div></div></td>
-              <td><span className={`${styles.status} ${person.status_label === "미접속" ? styles.statusIdle : person.status_label === "저장 중" ? styles.statusPending : ""}`}>{person.status_label}</span></td>
+              <td><span className={`${styles.status} ${person.status_label === "미접속" ? styles.statusIdle : person.status_label === "선택 중" ? styles.statusPending : ""}`}>{person.status_label}</span></td>
               <td className={styles.muted} title={person.latest_activity_at ? new Date(person.latest_activity_at).toLocaleString("ko-KR") : ""}>{relativeTime(person.latest_activity_at)}</td>
               <td><button className={styles.detailButton} onClick={(event) => { event.stopPropagation(); setSelectedId(person.id); setDrawer(person); }}>보기</button></td>
             </tr>;

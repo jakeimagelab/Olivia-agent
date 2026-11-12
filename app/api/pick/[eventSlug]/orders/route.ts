@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   const checked = validateOrderItems(body.items, ctx.event.offers ?? [], new Set((choices ?? []).map((choice) => choice.image_id as string)));
   if ("error" in checked) return Response.json({ ok: false, error: checked.error }, { status: 400 });
   const now = new Date().toISOString();
-  const { error } = await db.from("person_select_people").update({ orders: checked.items, orders_updated_at: now, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
+  const { error } = await db.from("person_select_people").update({ orders: checked.items, orders_updated_at: now, submitted_at: null, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
   return Response.json({ ok: true, items: checked.items });
 }

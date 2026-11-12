@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
       saved = data;
     }
   }
-  await db.from("person_select_people").update({ last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
+  await db.from("person_select_people").update({ submitted_at: null, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
   return Response.json({ ok: true, choice: saved });
 }
 
@@ -101,5 +101,7 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
   const { error } = await db.from("person_select_choices").delete().in("id", existing.map((row) => row.id));
   if (error) return Response.json({ ok: false, error: error.message }, { status: 500 });
   await dropOrdersForRemovedPhotos(ctx.person.id, ctx.event.id, ctx.person.orders);
+  const now = new Date().toISOString();
+  await db.from("person_select_people").update({ submitted_at: null, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
   return Response.json({ ok: true });
 }

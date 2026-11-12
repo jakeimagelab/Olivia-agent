@@ -3,6 +3,7 @@ import { enforcePublicSelectionRateLimit, parsePublicSelectionSubmit, publicSele
 import { getLatestSharedPersonSelectSelection, getSharedPersonSelectOwnedImageIds, resolveSharedPersonSelectAccess, sharedReviewerTokenHash } from "@/lib/person-select/sharedPublic";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
+import { hasFinalSelectionConfirmation } from "@/lib/person-select/finalSubmission";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     await enforcePublicSelectionRateLimit({ db, request, token: `${reviewer.id}:${sharedReviewerTokenHash(shareToken)}`, action: "person-shared-submit", limit: 15, windowSeconds: 300, identityOnly: true });
     if (!canPersonSelectReviewerFinalize(reviewer)) return Response.json({ ok: false, error: "최종 셀렉 확정 권한이 없습니다. 자동 저장된 검토 내용은 유지됩니다." }, { status: 403 });
     const body = await readPublicSelectionJson(request);
+    if (!hasFinalSelectionConfirmation(body)) return Response.json({ ok: false, error: "최종 선택을 확인한 뒤 제출해 주세요." }, { status: 400 });
     const { data: draft, error: draftError } = await db.from("person_select_shared_drafts")
       .select("revision,items,customer_memo").eq("event_id", event.id).eq("reviewer_id", reviewer.id).maybeSingle();
     if (draftError) throw draftError;

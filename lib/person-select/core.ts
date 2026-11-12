@@ -50,7 +50,7 @@ export function selectionStatus(input: {
   latestChoiceAt: string | null;
 }) {
   if (!input.firstSeenAt) return "미접속";
-  if (!input.submittedAt) return input.choiceCount > 0 ? "저장 중" : "미접속";
+  if (!input.submittedAt) return input.choiceCount > 0 ? "선택 중" : "미접속";
   if (input.latestChoiceAt && new Date(input.latestChoiceAt) > new Date(input.submittedAt)) return "제출 후 수정됨";
   return "제출 완료";
 }

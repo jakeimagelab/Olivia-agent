@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { effectiveExtraMax, eventIsLocked, findPickShortage, pickShortageMessage } from "@/lib/person-select/core";
 import { getPublicSessionContext } from "@/lib/person-select/server";
+import { hasFinalSelectionConfirmation } from "@/lib/person-select/finalSubmission";
 
 export const preferredRegion = ["icn1"];
 
@@ -10,6 +11,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) return Response.json({ ok: false, error: "다시 로그인해 주세요." }, { status: 401 });
   if (eventIsLocked(ctx.event)) return Response.json({ ok: false, error: "선택이 마감됐어요." }, { status: 423 });
+  const body = await request.json().catch(() => null);
+  if (!hasFinalSelectionConfirmation(body)) return Response.json({ ok: false, error: "최종 선택을 확인한 뒤 제출해 주세요." }, { status: 400 });
   const db = getSupabaseAdmin();
   const counts: Record<string, number> = {};
   await Promise.all(ctx.event.categories.map(async (category) => {
@@ -24,7 +27,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const shortage = findPickShortage({ categories: ctx.event.categories, groupLabel: ctx.person.group_label, imageCounts: counts, chosenCounts, extraMax: effectiveExtraMax(ctx.event) });
   if (shortage) return Response.json({ ok: false, error: pickShortageMessage(shortage) }, { status: 400 });
   const now = new Date().toISOString();
-  await db.from("person_select_people").update({ submitted_at: now, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
+  const { error: submitError } = await db.from("person_select_people").update({ submitted_at: now, last_seen_at: now, updated_at: now }).eq("id", ctx.person.id);
+  if (submitError) return Response.json({ ok: false, error: submitError.message }, { status: 500 });
   if ((choices ?? []).length) {
     await db.from("person_select_choice_history").insert((choices ?? []).map((choice) => ({
       choice_id: choice.id, person_id: ctx.person.id, category_key: choice.category_key,

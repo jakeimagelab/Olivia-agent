@@ -75,6 +75,7 @@ import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQuality
 import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
+import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import {
   adjacentSelectionMediaIds,
   mergeSelectionMediaUrlRecords,
@@ -213,6 +214,7 @@ export default function CustomerBridgeSelect({
   const [compactFoldersOpen, setCompactFoldersOpen] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [renderLimit, setRenderLimit] = useState(PAGE_SIZE);
   const [fullscreenId, setFullscreenId] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
@@ -1011,19 +1013,24 @@ export default function CustomerBridgeSelect({
     window.addEventListener("pointerup", onEnd, { once: true });
   };
 
-  const submit = async () => {
+  const openSubmitReview = async () => {
     const selectedCount = customerSelectedIds.size;
     if (!selectedCount || submitting || selectionSync.pendingCount) return;
-    if (!window.confirm(`${selectedCount}장을 최종 제출할까요?`)) return;
-    setSubmitting(true);
     setSubmitError("");
     const saved = await selectionSync.flushNow();
-    if (!saved) { setSubmitting(false); return; }
+    if (!saved) return;
+    setSubmitReviewOpen(true);
+  };
+
+  const submit = async () => {
+    if (!customerSelectedIds.size || submitting) return;
+    setSubmitting(true);
+    setSubmitError("");
     try {
       const response = await fetch(`${endpointBase}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revision: revisionRef.current, requestKey: requestKeyRef.current }),
+        body: JSON.stringify({ revision: revisionRef.current, requestKey: requestKeyRef.current, confirmed: true }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok) throw new Error(result.error ?? "최종 제출에 실패했습니다.");
@@ -1036,6 +1043,38 @@ export default function CustomerBridgeSelect({
       setSubmitting(false);
     }
   };
+
+  const submitReviewItems = useMemo(() => {
+    if (!submitReviewOpen) return [];
+    const items = [];
+    for (const image of images) {
+      if (!customerSelectedIds.has(image.id)) continue;
+      const detail = [
+        customerRatings[image.id] ? `★${customerRatings[image.id]}` : "",
+        customerColorLabels[image.id] ? BRIDGE_COLOR_LABELS[customerColorLabels[image.id]].name : "",
+        notes[image.id]?.trim() ? "보정 메모 있음" : "",
+      ].filter(Boolean).join(" · ");
+      items.push({ id: image.id, fileName: image.original_file_name, thumbnailUrl: image.thumbnail_url || image.image_url, detail });
+      if (items.length === 12) break;
+    }
+    return items;
+  }, [customerColorLabels, customerRatings, customerSelectedIds, images, notes, submitReviewOpen]);
+  const submitReviewSections = useMemo(() => {
+    if (!submitReviewOpen) return [];
+    let ratingCount = 0;
+    let colorCount = 0;
+    let memoCount = 0;
+    for (const id of customerSelectedIds) {
+      if (customerRatings[id]) ratingCount += 1;
+      if (customerColorLabels[id]) colorCount += 1;
+      if (notes[id]?.trim()) memoCount += 1;
+    }
+    return [
+      { label: "별점 셀렉", count: ratingCount },
+      { label: "컬러 셀렉", count: colorCount },
+      { label: "보정 메모", count: memoCount },
+    ];
+  }, [customerColorLabels, customerRatings, customerSelectedIds, notes, submitReviewOpen]);
 
   const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
@@ -1179,12 +1218,13 @@ export default function CustomerBridgeSelect({
       </aside>
     </section>
 
-    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void submit()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "최종 제출"}</button></footer> : null}
+    {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
 
     {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={() => setZoomed((value) => !value)} onClose={() => setFullscreenId(null)} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); selectionSync.enqueue([{ imageId: fullscreenImage.id, memo: value }]); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={() => setReviewIds(null)} onRemove={removeFromReview} onRestore={restoreReviewItem} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={(id) => setFullscreenId(id)} onImageError={handleImageError} /> : null}
     {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
     {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={customerSelectedIds.size} sections={submitReviewSections} items={submitReviewItems} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void submit()} /> : null}
   </main>;
 }
 
@@ -1259,7 +1299,7 @@ function CustomerBridgeGuideDialog({ onClose }: { onClose: () => void }) {
           <li><b>4</b><div><strong>여러 장 한 번에 작업하기</strong><p><kbd>Shift</kbd> 클릭은 연속 범위, <kbd>⌘ / Ctrl</kbd> 클릭은 떨어진 사진 추가, 빈 공간에서 드래그하면 여러 사진을 작업 대상으로 지정합니다. 이후 숫자 키를 누르면 같은 표시가 일괄 적용됩니다.</p></div></li>
           <li><b>5</b><div><strong>리뷰로 최종 확인하기</strong><p><kbd>⌘ / Ctrl + B</kbd>로 고객 셀렉만 모아 봅니다. 방향키로 이동하고, 아래 방향키로 제외하며 위 방향키로 직전 제외를 복원합니다. <kbd>Space</kbd>는 전체화면, <kbd>Esc</kbd>는 닫기입니다.</p></div></li>
           <li><b>6</b><div><strong>사진별 보정 메모 남기기</strong><p>오른쪽 미리보기에서 현재 사진에 필요한 보정 요청을 입력합니다. 메모는 해당 사진과 함께 저장됩니다.</p></div></li>
-          <li><b>7</b><div><strong>저장 후 최종 제출하기</strong><p>별점·컬러·메모는 자동 저장됩니다. 검토가 끝나면 반드시 <em>최종 제출</em>을 눌러 선택을 확정해 주세요.</p></div></li>
+          <li><b>7</b><div><strong>저장 후 최종 제출하기</strong><p>별점·컬러·메모는 자동 저장됩니다. 검토가 끝나면 <em>제출하기</em>를 누르고 최종 확인까지 완료해 주세요.</p></div></li>
           <li><b>8</b><div><strong>대화·다운로드·모바일 사용</strong><p>프로젝트 대화에서 담당자와 의견을 주고받을 수 있습니다. 권한이 허용된 프로젝트는 원본을 내려받을 수 있으며, 모바일에서는 사진을 눌러 크게 본 뒤 별점 버튼으로 선택합니다.</p></div></li>
         </ol>
       </div>

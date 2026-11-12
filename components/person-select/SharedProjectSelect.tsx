@@ -7,6 +7,7 @@ import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelection
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
 import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
+import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { SELECTION_THUMBNAIL_PAGE_SIZE, type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "./SharedProjectSelect.module.css";
 
@@ -35,10 +36,11 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     updatedAt: draft?.updatedAt ?? null,
   };
   const serverSnapshotRef = useRef(initialSnapshot);
-  const [serverSelected, setServerSelected] = useState(() => new Set(seed));
   const [selected, setSelected] = useState(() => new Set(seed));
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [state, setState] = useState("");
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const submitKey = useRef(requestKey());
   const [urlOverrides, setUrlOverrides] = useState<SharedImageUrls>({});
   const [renderLimit, setRenderLimit] = useState(SELECTION_THUMBNAIL_PAGE_SIZE);
@@ -50,7 +52,6 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
 
   const installSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
     serverSnapshotRef.current = snapshot;
-    setServerSelected(new Set(snapshot.selectedImageIds));
     setSelected(new Set(applySelectionDiffsToSharedSnapshot(snapshot, pending).selectedImageIds));
     setState("");
   }, []);
@@ -124,13 +125,27 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
       ? [{ imageId: id, rating: null }, { imageId: id, colorLabel: null }]
       : [{ imageId: id, rating: 1 }]);
   };
-  const submit = async () => {
-    if (!serverSelected.size || selectionSync.pendingCount || memoSync.pending || !window.confirm(`${serverSelected.size}장을 최종 제출할까요?`)) return;
+  const openSubmitReview = async () => {
+    if (!selected.size || selectionSync.pendingCount || memoSync.pending) return;
     if (!(await selectionSync.flushNow()) || !(await memoSync.flushNow())) { setState("저장 안 된 변경이 있어 제출할 수 없습니다."); return; }
-    const response = await fetch(`/api/pick/shared/${shareToken}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestKey: submitKey.current }) });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok) return setState(result.error || "제출 실패");
-    onSubmitted();
+    setSubmitReviewOpen(true);
+  };
+  const submit = async () => {
+    if (!selected.size || submitting) return;
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/pick/shared/${shareToken}/submit`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestKey: submitKey.current, confirmed: true }) });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) {
+        setState(result.error || "제출 실패");
+        return;
+      }
+      onSubmitted();
+    } catch (error) {
+      setState(error instanceof Error ? error.message : "제출 실패");
+    } finally {
+      setSubmitting(false);
+    }
   };
   const saveState = state || (selectionSync.status === "saved" && memoSync.status === "saved"
     ? "저장됨 · 서버 기준"
@@ -139,7 +154,17 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
       : selectionSync.status === "retrying" || memoSync.status === "retrying"
         ? `저장 안 된 변경 ${selectionSync.pendingCount + (memoSync.pending ? 1 : 0)}건 · 잠시 후 자동 저장`
         : `저장 안 된 변경 ${selectionSync.pendingCount + (memoSync.pending ? 1 : 0)}건 · 잠시 후 저장`);
-  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {images.length}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{rendered.map((image) => <button type="button" key={image.id} className={styles.card} data-selected={selected.has(image.id)} data-pending={selectionSync.pendingImageIds.has(image.id)} onClick={() => toggle(image.id)}>{image.thumbnail_url || image.image_url ? <img src={image.thumbnail_url || image.image_url} alt={image.original_file_name} loading="lazy" /> : <span className={styles.imageLoading}>사진 불러오는 중</span>}<span>{image.original_file_name}</span>{selected.has(image.id) ? <i className={styles.check}>✓</i> : null}{selectionSync.pendingImageIds.has(image.id) ? <i className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" /></section><footer className={styles.footer}><textarea value={memoSync.value} placeholder="전체 메모" maxLength={5000} onChange={(e) => memoSync.setValue(e.target.value)} /><button type="button" disabled={!selected.size || selectionSync.pendingCount > 0 || memoSync.pending || reviewer.can_finalize === false} onClick={() => void submit()}>{reviewer.can_finalize === false ? "확정 권한 없음" : `선택 ${selected.size}장 최종 제출`}</button><span className={styles.state}>{saveState}</span></footer></main>;
+  const reviewItems = useMemo(() => {
+    if (!submitReviewOpen) return [];
+    const items = [];
+    for (const image of images) {
+      if (!selected.has(image.id)) continue;
+      items.push({ id: image.id, fileName: image.original_file_name, thumbnailUrl: image.thumbnail_url || image.image_url, detail: "공동 셀렉" });
+      if (items.length === 12) break;
+    }
+    return items;
+  }, [images, selected, submitReviewOpen]);
+  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {images.length}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{rendered.map((image) => <button type="button" key={image.id} className={styles.card} data-selected={selected.has(image.id)} data-pending={selectionSync.pendingImageIds.has(image.id)} onClick={() => toggle(image.id)}>{image.thumbnail_url || image.image_url ? <img src={image.thumbnail_url || image.image_url} alt={image.original_file_name} loading="lazy" /> : <span className={styles.imageLoading}>사진 불러오는 중</span>}<span>{image.original_file_name}</span>{selected.has(image.id) ? <i className={styles.check}>✓</i> : null}{selectionSync.pendingImageIds.has(image.id) ? <i className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" /></section><footer className={styles.footer}><textarea value={memoSync.value} placeholder="전체 메모" maxLength={5000} onChange={(e) => memoSync.setValue(e.target.value)} /><button type="button" disabled={!selected.size || selectionSync.pendingCount > 0 || memoSync.pending || reviewer.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer.can_finalize === false ? "확정 권한 없음" : `선택 ${selected.size}장 제출하기`}</button><span className={styles.state}>{saveState}</span></footer>{submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={selected.size} sections={[{ label: "고객 셀렉", count: selected.size, detail: memoSync.value.trim() ? "전체 메모 있음" : "전체 메모 없음" }]} items={reviewItems} busy={submitting} error={state} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void submit()} /> : null}</main>;
 }
 
 export default function SharedProjectSelect({ shareToken, event, reviewer, images, draft, selection }: { shareToken: string; event: SharedEvent; reviewer: SharedReviewer; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection }) {

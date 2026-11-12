@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { effectiveExtraMax, eventIsLocked, pickLimit, validateChoiceInput } from "@/lib/person-select/core";
 import { getPublicSessionContext } from "@/lib/person-select/server";
 import { parseSelectionSyncBatch, type SelectionSyncDiff } from "@/lib/person-select/selectionSync";
-import { recordSelectionSaveFailure, selectionSyncFunctionMissing } from "@/lib/person-select/selectionSyncServer";
+import { markPersonSelectionAsDraft, recordSelectionSaveFailure, selectionSyncFunctionMissing } from "@/lib/person-select/selectionSyncServer";
 import type { PersonSelectOrderItem } from "@/lib/person-select/types";
 import { enforcePublicSelectionRateLimit, getOwnedSelectionImageIds, PublicSelectionRequestError, publicSelectionErrorResponse, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -156,6 +156,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
       p_diffs: parsed.diffs,
     });
     if (!error) {
+      if (parsed.diffs.length) await markPersonSelectionAsDraft(db, ctx.event.id, ctx.person.id);
       if (parsed.diffs.some((diff) => diff.selected === false)) {
         await dropOrdersForRemovedPhotos(db, ctx.event.id, ctx.person.id, ctx.person.orders);
       }
@@ -163,6 +164,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
     }
     if (!selectionSyncFunctionMissing(error)) throw error;
     const snapshot = await fallbackSave({ db, event: ctx.event, person: ctx.person, diffs: parsed.diffs });
+    if (parsed.diffs.length) await markPersonSelectionAsDraft(db, ctx.event.id, ctx.person.id);
     if (parsed.diffs.some((diff) => diff.selected === false)) {
       await dropOrdersForRemovedPhotos(db, ctx.event.id, ctx.person.id, ctx.person.orders);
     }

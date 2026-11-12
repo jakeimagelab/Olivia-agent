@@ -11,6 +11,7 @@ import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib
 import { usePersonChoiceSync, type PersonSelectChoice as Choice, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import { clearPersonSelectImageCache, usePersonSelectImages } from "./usePersonSelectImages";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
+import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import styles from "./PersonSelectPublic.module.css";
 
 type Category = { key: string; label: string; pick: number; image_count: number; need: number; max: number; choices: Choice[] };
@@ -69,6 +70,26 @@ function needMessage(category: Category) {
 
 function shortFileName(value: string) {
   return value.length > 34 ? `…${value.slice(-32)}` : value;
+}
+
+function finalReviewData(categories: Category[]) {
+  const selectedCategories = categories.filter((category) => category.choices.length > 0);
+  return {
+    selectedCount: selectedCategories.reduce((sum, category) => sum + category.choices.length, 0),
+    sections: selectedCategories.map((category) => ({
+      label: category.label,
+      count: category.choices.length,
+      detail: category.choices.some((choice) => choice.memo || choice.retouch_keys.length)
+        ? `보정 요청 ${retouchCount(category)}개${category.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}`
+        : "보정 요청 없음",
+    })),
+    items: selectedCategories.flatMap((category) => category.choices.map((choice) => ({
+      id: choice.image_id,
+      fileName: choice.original_file_name,
+      thumbnailUrl: choice.thumb_url,
+      detail: `${category.label}${choice.retouch_keys.length ? ` · 보정 ${choice.retouch_keys.length}개` : ""}${choice.memo ? " · 메모 있음" : ""}`,
+    }))).slice(0, 12),
+  };
 }
 
 export function PersonSelectLogin({ slug, event }: { slug: string; event: PublicEvent | null }) {
@@ -159,6 +180,8 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const { me, loading, error } = useSelectionData(slug);
   const pendingSyncCount = usePendingPersonChoiceSyncCount(slug);
   const [submitError, setSubmitError] = useState("");
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [pcActiveKey, setPcActiveKey] = useState("profile");
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
@@ -171,11 +194,18 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const missing = required.find((category) => !isComplete(category));
   const resolvedPcActiveKey = visibleCategories.some((category) => category.key === pcActiveKey) ? pcActiveKey : visibleCategories[0]?.key ?? "profile";
 
-  async function submit() {
+  const review = finalReviewData(visibleCategories);
+  function openSubmitReview() {
     setSubmitError("");
     if (pendingSyncCount) { setSubmitError(`저장 안 된 변경 ${pendingSyncCount}건을 먼저 저장해 주세요.`); return; }
-    try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); router.push(`/pick/${slug}/done`); }
+    setSubmitReviewOpen(true);
+  }
+  async function confirmSubmit() {
+    if (submitting) return;
+    setSubmitting(true); setSubmitError("");
+    try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST", body: JSON.stringify({ confirmed: true }) }); router.push(`/pick/${slug}/done`); }
     catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
+    finally { setSubmitting(false); }
   }
 
   return <main className={`${styles.page} ${styles.pcHomePage}`}>
@@ -206,7 +236,8 @@ export function PersonSelectHome({ slug }: { slug: string }) {
       <div className={styles.stepsCard}><h3>사진 셀렉은 이렇게 진행돼요</h3><div className={styles.stepList}><span><b>1</b>사진 확인</span><span><b>2</b>보정 요청</span><span><b>3</b>최종 제출</span></div></div>
     </section>
     <PcWorkspace slug={slug} me={me} activeKey={resolvedPcActiveKey} pendingSyncCount={pendingSyncCount} />
-    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={submit}>최종 제출 ({completed}/{required.length})</button></div></footer>
+    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={openSubmitReview}>제출하기 ({completed}/{required.length})</button></div></footer>
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void confirmSubmit()} /> : null}
   </main>;
 }
 
@@ -495,6 +526,8 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const filmstripRef = useRef<HTMLDivElement | null>(null);
   const activeThumbRef = useRef<HTMLButtonElement | null>(null);
   const firstPhotoMeasured = useRef(false);
@@ -601,11 +634,19 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
   if (!active) return null;
   const required = categories.filter((item) => item.need > 0);
   const missing = required.find((item) => item.key === active.key ? (chosen.length < item.need || chosen.length > Math.max(item.need, item.max)) : !isComplete(item));
-  async function submit() {
+  const reviewCategories = categories.map((category) => category.key === active.key ? { ...category, choices: chosen } : category);
+  const review = finalReviewData(reviewCategories);
+  async function openSubmitReview() {
     setSubmitError("");
     if (pendingSyncCount || sync.pendingCount || !(await sync.flushNow())) { setSubmitError("저장되지 않은 변경을 먼저 저장해 주세요."); return; }
-    try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST" }); window.location.href = `/pick/${slug}/done`; }
+    setSubmitReviewOpen(true);
+  }
+  async function confirmSubmit() {
+    if (submitting) return;
+    setSubmitting(true); setSubmitError("");
+    try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST", body: JSON.stringify({ confirmed: true }) }); window.location.href = `/pick/${slug}/done`; }
     catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
+    finally { setSubmitting(false); }
   }
   function scrollFilmstrip(direction: -1 | 1) {
     const filmstrip = filmstripRef.current;
@@ -654,8 +695,9 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
           </> : <div className={styles.pcFeedbackEmpty}>{chosen.length ? "고른 사진(체크 표시)을 누르면 그 사진의 보정 요청을 적을 수 있어요." : "왼쪽에서 사진을 먼저 골라주세요."}</div>}
           {need > 1 && displayedChoices.length ? <div className={styles.pcThumbs} style={{ marginTop: 14, flexWrap: "wrap", height: "auto", padding: 0, overflow: "visible" }}>{displayedChoices.map((item) => <button key={item.image_id} className={`${styles.photoTile} ${item.image_id === preview?.id ? styles.pcThumbCurrent : ""} ${styles.photoTileSelected} ${sync.pendingImageIds.has(item.image_id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(item.image_id)} title={item.original_file_name}><img src={item.thumb_url || ""} alt={item.original_file_name} decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} /><span className={styles.check}><Check size={15} /></span>{sync.pendingImageIds.has(item.image_id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div> : null}
         </div>
-        <div className={styles.pcSubmitArea}>{(me.event.offers ?? []).length || me.event.extra_price ? <a className={styles.pcOrderLink} href={`/pick/${slug}/order`}><ShoppingBag size={15} /><span>추가 주문{me.order?.lines.length ? ` · ${me.order.lines.map((line) => line.label).join(", ")}` : " · 추가 보정·액자·앨범"}</span><strong>{me.order?.total ? won(me.order.total) : "신청하기"}</strong></a> : null}<p className={styles.autoSave}>{pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : selectionSyncStatus(sync)}</p>{missing || submitError ? <p className={styles.submitReason}>{submitError || missingText}</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0 || sync.pendingCount > 0 || sync.status !== "saved"} onClick={submit}>최종 제출</button></div>
+        <div className={styles.pcSubmitArea}>{(me.event.offers ?? []).length || me.event.extra_price ? <a className={styles.pcOrderLink} href={`/pick/${slug}/order`}><ShoppingBag size={15} /><span>추가 주문{me.order?.lines.length ? ` · ${me.order.lines.map((line) => line.label).join(", ")}` : " · 추가 보정·액자·앨범"}</span><strong>{me.order?.total ? won(me.order.total) : "신청하기"}</strong></a> : null}<p className={styles.autoSave}>{pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : selectionSyncStatus(sync)}</p>{missing || submitError ? <p className={styles.submitReason}>{submitError || missingText}</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0 || sync.pendingCount > 0 || sync.status !== "saved"} onClick={() => void openSubmitReview()}>제출하기</button></div>
       </aside>
     </div>
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void confirmSubmit()} /> : null}
   </section>;
 }

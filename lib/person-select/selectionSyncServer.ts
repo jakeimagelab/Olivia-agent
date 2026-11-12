@@ -4,6 +4,15 @@ export function selectionSyncFunctionMissing(error: { code?: string | null; mess
   return Boolean(error && /PGRST202|42883|schema cache|could not find the function/i.test(`${error.code ?? ""} ${error.message ?? ""}`));
 }
 
+/** 최종 제출 뒤 사진·메모가 바뀌면 새 초안으로 돌아간다. */
+export async function markPersonSelectionAsDraft(db: SupabaseClient, eventId: string, personId: string) {
+  const { error } = await db.from("person_select_people")
+    .update({ submitted_at: null, updated_at: new Date().toISOString() })
+    .eq("id", personId)
+    .eq("event_id", eventId);
+  if (error) throw error;
+}
+
 export async function recordSelectionSaveFailure(input: {
   db: SupabaseClient;
   eventId: string;
