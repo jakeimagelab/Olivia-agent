@@ -232,10 +232,11 @@ describe("Olivia Bridge", () => {
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
+    const marqueeSelection = readFileSync("components/olivia-bridge/useOliviaBridgeMarqueeSelection.ts", "utf8");
 
     expect(workspace).toContain('event.target.closest("[data-bridge-photo-id]")');
     expect(workspace).toContain("if (suppressThumbnailClickRef.current) return;");
-    expect(workspace).toMatch(/session\.started = true;[\s\S]*fileArea\.setPointerCapture\(event\.pointerId\)/);
+    expect(marqueeSelection).toMatch(/session\.started = true;[\s\S]*fileArea\.setPointerCapture\(event\.pointerId\)/);
     expect(workspace).toContain("const handleFileAreaContextMenu");
     expect(browserPanel).toContain("onContextMenu={onFileAreaContextMenu}");
     expect(workspace).toContain("setSelectedIds(new Set())");

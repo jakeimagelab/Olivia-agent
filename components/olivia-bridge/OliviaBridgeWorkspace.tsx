@@ -20,7 +20,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type PointerEvent as ReactPointerEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -56,6 +55,7 @@ import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOl
 import { useOliviaBridgePersonSelectionImport } from "@/components/olivia-bridge/useOliviaBridgePersonSelectionImport";
 import { useOliviaBridgeCustomerSelectionImport } from "@/components/olivia-bridge/useOliviaBridgeCustomerSelectionImport";
 import { useOliviaBridgeFolderCounts } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
+import { useOliviaBridgeMarqueeSelection } from "@/components/olivia-bridge/useOliviaBridgeMarqueeSelection";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -101,14 +101,6 @@ import {
   customerSelectionComparisonCounts,
   matchesCustomerSelectionComparison,
 } from "@/lib/select-gallery/customerBridge";
-import {
-  bridgeMarqueeSelection,
-  bridgeMarqueeUsesAdditiveSelection,
-  bridgeRectangleFromPoints,
-  bridgeRectanglesIntersect,
-  type BridgePoint,
-  type BridgeRectangle,
-} from "@/lib/photo-bridge/marqueeSelection";
 import {
   bridgeRawMatchDefaultFolder,
   bridgeRawMatchFolderCandidates,
@@ -162,17 +154,6 @@ const PhotoSourcePicker = dynamic(
 
 type Breadcrumb = { name: string; handle: FileSystemDirectoryHandle };
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
-type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
-type MarqueeSession = {
-  pointerId: number;
-  start: BridgePoint;
-  current: BridgePoint;
-  additive: boolean;
-  initialSelection: Set<string>;
-  currentSelection: Set<string>;
-  started: boolean;
-  cards: MarqueeCard[];
-};
 
 const EMPTY_SCAN: BridgeFolderScan = {
   folders: [],
@@ -280,11 +261,6 @@ export default function OliviaBridgeWorkspace({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
-  const fileAreaRef = useRef<HTMLDivElement>(null);
-  const marqueeRef = useRef<HTMLDivElement>(null);
-  const marqueeSessionRef = useRef<MarqueeSession | null>(null);
-  const marqueeFrameRef = useRef<number | null>(null);
-  const suppressThumbnailClickRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
   const remoteLoadGenerationRef = useRef(0);
   const ratingsRef = useRef(ratings);
@@ -539,6 +515,27 @@ export default function OliviaBridgeWorkspace({
     manualRemovedIdsRef.current = removed;
     commitSelectedIds(manual, adobeSelectedIdsRef.current);
   }, [commitSelectedIds]);
+
+  const commitMarqueeSelection = useCallback((selection: Set<string>, focusedPhotoId: string | null) => {
+    setSelectedIds(selection);
+    setFocusedId(focusedPhotoId);
+    setAnchorId(focusedPhotoId);
+    setPreviewSize(undefined);
+  }, [setSelectedIds]);
+
+  const {
+    fileAreaRef,
+    marqueeRef,
+    suppressThumbnailClickRef,
+    handleFileAreaPointerDown,
+    handleFileAreaPointerMove,
+    handleFileAreaPointerUp,
+    handleFileAreaPointerCancel,
+  } = useOliviaBridgeMarqueeSelection({
+    selectedIds,
+    visibleJpgs,
+    onCommit: commitMarqueeSelection,
+  });
 
   const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
     selectionSourceRef.current = source;
@@ -1348,75 +1345,6 @@ export default function OliviaBridgeWorkspace({
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
 
-  const clearMarqueePresentation = useCallback(() => {
-    const fileArea = fileAreaRef.current;
-    const marquee = marqueeRef.current;
-    if (marquee) marquee.style.display = "none";
-    if (!fileArea) return;
-    delete fileArea.dataset.marqueeActive;
-    fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]").forEach((element) => {
-      delete element.dataset.marqueeSelected;
-    });
-  }, []);
-
-  const paintMarquee = useCallback(() => {
-    const session = marqueeSessionRef.current;
-    const fileArea = fileAreaRef.current;
-    const marquee = marqueeRef.current;
-    if (!session || !fileArea || !marquee || !session.started) return;
-    const rectangle = bridgeRectangleFromPoints(session.start, session.current);
-    const hits = new Set(session.cards.filter((card) => bridgeRectanglesIntersect(rectangle, card.rectangle)).map((card) => card.id));
-    const selection = bridgeMarqueeSelection({
-      initial: session.initialSelection,
-      hits,
-      additive: session.additive,
-    });
-    session.currentSelection = selection;
-    for (const card of session.cards) card.element.dataset.marqueeSelected = selection.has(card.id) ? "true" : "false";
-
-    const areaBounds = fileArea.getBoundingClientRect();
-    marquee.style.display = "block";
-    marquee.style.width = `${rectangle.right - rectangle.left}px`;
-    marquee.style.height = `${rectangle.bottom - rectangle.top}px`;
-    marquee.style.transform = `translate3d(${rectangle.left - areaBounds.left + fileArea.scrollLeft}px, ${rectangle.top - areaBounds.top + fileArea.scrollTop}px, 0)`;
-  }, []);
-
-  const scheduleMarqueePaint = useCallback(() => {
-    if (marqueeFrameRef.current !== null) return;
-    marqueeFrameRef.current = requestAnimationFrame(() => {
-      marqueeFrameRef.current = null;
-      paintMarquee();
-    });
-  }, [paintMarquee]);
-
-  const endMarquee = useCallback((event: ReactPointerEvent<HTMLDivElement>, commit: boolean) => {
-    const session = marqueeSessionRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-    if (marqueeFrameRef.current !== null) {
-      cancelAnimationFrame(marqueeFrameRef.current);
-      marqueeFrameRef.current = null;
-    }
-    session.current = { x: event.clientX, y: event.clientY };
-    if (session.started) paintMarquee();
-    if (commit && session.started) {
-      const nextSelection = new Set(session.currentSelection);
-      setSelectedIds(nextSelection);
-      const nextFocused = visibleJpgs.find((photo) => nextSelection.has(photo.id)) ?? null;
-      setFocusedId(nextFocused?.id ?? null);
-      setAnchorId(nextFocused?.id ?? null);
-      setPreviewSize(undefined);
-      suppressThumbnailClickRef.current = true;
-      setTimeout(() => { suppressThumbnailClickRef.current = false; }, 0);
-    }
-    marqueeSessionRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    requestAnimationFrame(clearMarqueePresentation);
-  }, [clearMarqueePresentation, paintMarquee, setSelectedIds, visibleJpgs]);
-
-  useEffect(() => () => {
-    if (marqueeFrameRef.current !== null) cancelAnimationFrame(marqueeFrameRef.current);
-  }, []);
-
   const selectionCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
     const hasStar = matchesBridgeSelectionView(photo.id, "starred", effectiveRatings, effectiveColorLabels);
     const hasColor = matchesBridgeSelectionView(photo.id, "colored", effectiveRatings, effectiveColorLabels);
@@ -1549,49 +1477,6 @@ export default function OliviaBridgeWorkspace({
     event.preventDefault();
     choosePhoto(photo, event);
   }, [choosePhoto, visiblePhotoById]);
-  const handleFileAreaPointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.pointerType !== "mouse") return;
-    marqueeSessionRef.current = {
-      pointerId: event.pointerId,
-      start: { x: event.clientX, y: event.clientY },
-      current: { x: event.clientX, y: event.clientY },
-      additive: bridgeMarqueeUsesAdditiveSelection(event),
-      initialSelection: new Set(selectedIds),
-      currentSelection: new Set(selectedIds),
-      started: false,
-      cards: [],
-    };
-  }, [selectedIds]);
-  const handleFileAreaPointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    const session = marqueeSessionRef.current;
-    if (!session || session.pointerId !== event.pointerId) return;
-    session.current = { x: event.clientX, y: event.clientY };
-    if (!session.started) {
-      const distance = Math.hypot(session.current.x - session.start.x, session.current.y - session.start.y);
-      if (distance < 6) return;
-      session.started = true;
-      const fileArea = event.currentTarget;
-      fileArea.setPointerCapture(event.pointerId);
-      fileArea.dataset.marqueeActive = "true";
-      session.cards = Array.from(fileArea.querySelectorAll<HTMLElement>("[data-bridge-photo-id]")).map((element) => {
-        const bounds = element.getBoundingClientRect();
-        return {
-          id: element.dataset.bridgePhotoId ?? "",
-          element,
-          rectangle: { left: bounds.left, top: bounds.top, right: bounds.right, bottom: bounds.bottom },
-        };
-      }).filter((card) => Boolean(card.id));
-    }
-    event.preventDefault();
-    scheduleMarqueePaint();
-  }, [scheduleMarqueePaint]);
-  const handleFileAreaPointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    endMarquee(event, true);
-  }, [endMarquee]);
-  const handleFileAreaPointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    endMarquee(event, false);
-  }, [endMarquee]);
-
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <header className={styles.bridgeBar}>
