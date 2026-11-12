@@ -111,7 +111,6 @@ import {
   Card,
   ProgressBar,
   SectionPill,
-  Toggle,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
@@ -126,6 +125,7 @@ import {
   PhotoShootingModeControl,
   type PhotoShootingMode,
 } from "./PhotoShootingModeControl";
+import { FieldClassificationSettings } from "./FieldClassificationSettings";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -150,8 +150,6 @@ const EMPTY_BOUNDARY_FEATURES = {
 const FIELD_STEPS  = ["설정","파일 분류","씬 검토","정리 중","완료"];
 const STUDIO_STEPS       = ["폴더 선택","파일 분류","AI 분석","그룹 검토","그룹 확인","파일 정리","완료"];
 const STUDIO_GROUP_STEPS = ["폴더 선택","파일 분류","AI 분석","인물 검토","인물 확인","파일 정리","완료"];
-
-const GAP_OPTIONS = [3, 3.5, 5, 7, 10];
 
 /* ════════════════════════════════════════════════
    FIELD-MODE HELPERS
@@ -2507,48 +2505,20 @@ function PhotoSortingInner({
                   {renderDepartmentControl()}
                 </Card>
 
-                {/* 강제 Scene 경계 시간 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>강제 Scene 경계 시간</div>
-                  <div style={{padding:"14px 20px"}}>
-                    <div style={{display:"flex",gap:8,marginBottom:10}}>
-                      {GAP_OPTIONS.map(g => (
-                        <button key={g} onClick={()=>setGapMinutes(g)} style={{flex:1,padding:"10px 0",borderRadius:8,border:`1.5px solid ${gapMinutes===g?C.teal:C.border}`,background:gapMinutes===g?C.light:C.surface,cursor:"pointer",fontSize:13,fontWeight:600,color:gapMinutes===g?C.teal:C.muted,fontFamily:"inherit"}}>
-                          {g===3.5 ? "3분30초" : `${g}분`}
-                        </button>
-                      ))}
-                    </div>
-                    <div style={{fontSize:11,color:C.hint}}>설정 시간을 넘으면 강제 분리합니다. 그 이내에서도 사람·장비·장소가 바뀌면 새 Scene으로 분리합니다.</div>
-                  </div>
-                </Card>
-
-                {/* 분류 모드 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>분류 모드</div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-                    {([
-                      ["fast",  "⚡ 빠른 분석",    "파일을 이동하지 않고 Scene 계획만 생성합니다.\nRAW는 원본 위치 유지. EXIF 생략. 10~30초 목표."],
-                      ["precise","🔍 정밀 분류",   "EXIF + 사람·장비·장소 변화 분석.\n검토·승인 전에는 파일을 이동하지 않습니다."],
-                    ] as const).map(([val, title, desc]) => (
-                      <button key={val} onClick={()=>setFastAnalyzeMode(val==="fast")}
-                        style={{padding:"14px 18px",textAlign:"left",border:"none",borderRight:val==="fast"?`1px solid ${C.border}`:"none",background:fastAnalyzeMode===(val==="fast")?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
-                        <div style={{fontSize:13,fontWeight:600,color:fastAnalyzeMode===(val==="fast")?C.teal:C.muted,marginBottom:4}}>{title}{fastAnalyzeMode===(val==="fast")&&" ✓"}</div>
-                        <div style={{fontSize:10,color:C.hint,lineHeight:1.6,whiteSpace:"pre-line"}}>{desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                </Card>
-
-                {/* 옵션 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>분류 옵션</div>
-                  <div style={{padding:"14px 20px",display:"flex",flexDirection:"column",gap:18}}>
-                    <Toggle label="진료과 로직 사용" desc="선택한 진료과에 맞는 장면 분류 기준을 적용합니다." value={departmentLogicEnabled} onChange={setDepartmentLogicEnabled}/>
-                    <Toggle label="AI 씬 이름 추천" desc="대표 이미지를 분석해 진료과에 맞는 폴더명을 추천합니다. 자동 변경 없이 검토 화면에서 확인 후 적용합니다." value={aiNamingEnabled} onChange={setAiNamingEnabled}/>
-                    <Toggle label="품질 분석" desc="흔들림, 조명불량 등 불량컷을 00_QUALITY_EXCLUDED/ 폴더로 분리합니다." value={qualityAnalysisEnabled} onChange={setQualityAnalysisEnabled}/>
-                    <Toggle label="프로필 자동 분류 (엄격 모드)" desc="1인 단독·정면 응시·의도된 정지 포즈일 때만 PROFILE/ 폴더로 분류합니다. 상담/시술 장면은 제외됩니다." value={profileClassificationEnabled} onChange={setProfileClassificationEnabled}/>
-                  </div>
-                </Card>
+                <FieldClassificationSettings
+                  gapMinutes={gapMinutes}
+                  onGapMinutesChange={setGapMinutes}
+                  fastAnalyzeMode={fastAnalyzeMode}
+                  onFastAnalyzeModeChange={setFastAnalyzeMode}
+                  departmentLogicEnabled={departmentLogicEnabled}
+                  onDepartmentLogicEnabledChange={setDepartmentLogicEnabled}
+                  aiNamingEnabled={aiNamingEnabled}
+                  onAiNamingEnabledChange={setAiNamingEnabled}
+                  qualityAnalysisEnabled={qualityAnalysisEnabled}
+                  onQualityAnalysisEnabledChange={setQualityAnalysisEnabled}
+                  profileClassificationEnabled={profileClassificationEnabled}
+                  onProfileClassificationEnabledChange={setProfileClassificationEnabled}
+                />
 
                 {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
                 <Btn
