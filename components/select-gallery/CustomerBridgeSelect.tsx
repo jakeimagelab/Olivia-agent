@@ -16,7 +16,6 @@ import {
 } from "@/lib/select-gallery/customerBridge";
 import {
   EMPTY_BRIDGE_LABEL_FILTERS,
-  bridgeLabelFilterName,
   updateBridgeLabelFilters,
   type BridgeLabelFilterCommand,
   type BridgeLabelFilters,
@@ -48,6 +47,7 @@ import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
+import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
 import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
@@ -485,38 +485,34 @@ export default function CustomerBridgeSelect({
     thumbSize,
   });
 
-  const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
-  const rootPhotoCount = imageManifest?.rootPhotoCount ?? rootView.images.length;
-  const hasRootPhotos = rootPhotoCount > 0;
-  const unselectedInLocation = Math.max(0, locationTotalCount - selectedInFolder);
-  const hasLabelFilter = labelFilters.rating !== null || labelFilters.color !== null;
-  const browserPhotoCount = searchActive && filter === "all" && !hasLabelFilter && imagePageState?.initialized
-    ? imagePageState.totalCount
-    : !searchActive && !hasLabelFilter && filter === "all"
-      ? locationTotalCount
-      : !searchActive && !hasLabelFilter && filter === "selected"
-        ? selectedInFolder
-        : !searchActive && !hasLabelFilter && filter === "unselected"
-          ? unselectedInLocation
-          : visibleImages.length;
-  const locationCount = location.kind === "root" ? childFolders.length + (hasRootPhotos ? 1 : 0) : browserPhotoCount;
-  const activeRatingFilterName = labelFilters.rating === null
-    ? null
-    : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
-  const activeColorFilterName = labelFilters.color === null
-    ? null
-    : bridgeLabelFilterName({ kind: "color", label: labelFilters.color });
-  const saveStatusMessage = readOnly
-    ? "관리자 사진 확인"
-    : selectionSync.status === "saved"
-      ? selectionSync.lastSavedAt ? "저장됨 · 방금" : "저장됨"
-      : selectionSync.status === "saving"
-        ? "저장 중…"
-        : selectionSync.status === "waiting"
-          ? `저장 안 된 변경 ${selectionSync.pendingCount}건 · 잠시 후 저장`
-          : selectionSync.status === "retrying"
-            ? `저장 안 된 변경 ${selectionSync.pendingCount}건 · 잠시 후 자동 저장`
-          : `저장 안 된 변경 ${selectionSync.pendingCount}건 · 다시 시도`;
+  const {
+    locationLabel,
+    rootPhotoCount,
+    hasRootPhotos,
+    unselectedInLocation,
+    browserPhotoCount,
+    locationCount,
+    activeRatingFilterName,
+    activeColorFilterName,
+    saveStatusMessage,
+  } = buildCustomerBridgePresentation({
+    location,
+    manifestRootPhotoCount: imageManifest?.rootPhotoCount,
+    loadedRootPhotoCount: rootView.images.length,
+    childFolderCount: childFolders.length,
+    locationTotalCount,
+    selectedInFolder,
+    searchActive,
+    filter,
+    labelFilters,
+    imagePageInitialized: Boolean(imagePageState?.initialized),
+    imagePageTotalCount: imagePageState?.totalCount ?? 0,
+    visibleImageCount: visibleImages.length,
+    readOnly,
+    saveStatus: selectionSync.status,
+    lastSavedAt: selectionSync.lastSavedAt,
+    pendingCount: selectionSync.pendingCount,
+  });
 
   return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${adminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
     <CustomerBridgeHeader
