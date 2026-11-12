@@ -383,16 +383,18 @@ describe("Olivia Bridge", () => {
 
   it("Option Command 레이블 필터와 전체 보기 단축키를 제공한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const filters = readFileSync("components/olivia-bridge/useOliviaBridgeFilters.ts", "utf8");
     const actionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
     const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcuts.ts", "utf8");
+    const workspaceRuntime = `${workspace}\n${filters}`;
 
-    expect(workspace).toContain("useBridgeSearchFilterShortcuts");
-    expect(workspace).toContain("handleSearchFilterShortcut(event)");
+    expect(workspaceRuntime).toContain("useBridgeSearchFilterShortcuts");
+    expect(workspaceRuntime).toContain("handleSearchFilterShortcut(event)");
     expect(shortcutHook).toContain("event.altKey && (event.metaKey || event.ctrlKey) && !event.shiftKey");
     expect(shortcutHook).toContain("bridgeLabelFilterCommandFromShortcutCode(event.code)");
     expect(actionBar).toContain("⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색");
-    expect(workspace).toContain("setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS })");
-    expect(workspace).toContain('setFileFilter("all")');
+    expect(workspaceRuntime).toContain("setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS })");
+    expect(workspaceRuntime).toContain('setFileFilter("all")');
   });
 
   it("Command +/-와 하단 게이지로 썸네일 크기를 조절한다", () => {

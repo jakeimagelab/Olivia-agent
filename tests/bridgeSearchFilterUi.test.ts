@@ -5,7 +5,8 @@ const adminBridge = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace
 const adminFolderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
 const adminActionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
 const adminBrowserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
-const adminBridgeUi = `${adminBridge}\n${adminActionBar}\n${adminBrowserPanel}`;
+const adminFilters = readFileSync("components/olivia-bridge/useOliviaBridgeFilters.ts", "utf8");
+const adminBridgeUi = `${adminBridge}\n${adminActionBar}\n${adminBrowserPanel}\n${adminFilters}`;
 const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
 const customerBrowserPanel = readFileSync("components/select-gallery/CustomerBridgeBrowserPanel.tsx", "utf8");
 const customerFolderPanel = readFileSync("components/select-gallery/CustomerBridgeFolderPanel.tsx", "utf8");
@@ -42,7 +43,7 @@ describe("Bridge filename search and shared label shortcuts", () => {
     expect(editableGuard).toBeGreaterThan(0);
     expect(labelShortcut).toBeGreaterThan(editableGuard);
     expect(adminKeyboard.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(adminKeyboard.indexOf("if (isTypingTarget(event.target)) return"));
-    expect(adminBridge).toContain("handleUnfocusedBridgeShortcut");
+    expect(adminFilters).toContain("handleUnfocusedBridgeShortcut");
     expect(customerBridge).toContain("useCustomerBridgeKeyboard");
     expect(customerKeyboard.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(customerKeyboard.indexOf("event.isComposing || isTypingTarget(event.target)"));
   });

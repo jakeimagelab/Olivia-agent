@@ -45,6 +45,7 @@ import { useOliviaBridgeFolderLoading } from "@/components/olivia-bridge/useOliv
 import { useOliviaBridgeFolderActions } from "@/components/olivia-bridge/useOliviaBridgeFolderActions";
 import { useOliviaBridgeToolLaunch } from "@/components/olivia-bridge/useOliviaBridgeToolLaunch";
 import { useOliviaBridgeWorkspaceSync } from "@/components/olivia-bridge/useOliviaBridgeWorkspaceSync";
+import { useOliviaBridgeFilters } from "@/components/olivia-bridge/useOliviaBridgeFilters";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -68,15 +69,8 @@ import {
   type BridgeFolderTrailItem,
 } from "@/lib/photo-bridge/recentFolder";
 import {
-  BRIDGE_COLOR_LABELS,
-  EMPTY_BRIDGE_LABEL_FILTERS,
   bridgeLabelFilterName,
-  updateBridgeLabelFilters,
-  type BridgeColorLabel,
-  type BridgeLabelFilterCommand,
-  type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
-import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
@@ -159,15 +153,10 @@ export default function OliviaBridgeWorkspace({
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
-  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
-  const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
-  const [filenameSearch, setFilenameSearch] = useState("");
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
-  const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
   const [previewTab, setPreviewTab] = useState<OliviaBridgePreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
-  const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
   const floatingWindowRectsRef = useRef<Record<string, BridgeFloatingWindowRect>>({});
   const rootRef = useRef<HTMLDivElement>(null);
@@ -177,6 +166,11 @@ export default function OliviaBridgeWorkspace({
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const closeFullscreenPreview = useCallback(() => {
+    setFullscreenPreviewOpen(false);
+    requestAnimationFrame(() => rootRef.current?.focus());
+  }, []);
 
   const showTopNotice = useCallback((message: string, duration = 3_000) => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
@@ -278,6 +272,30 @@ export default function OliviaBridgeWorkspace({
     activeFolderName,
     remoteFolder,
     workspaceRef: rootRef,
+  });
+  const resetComparisonFilter = useCallback(() => setComparisonFilter("all"), [setComparisonFilter]);
+  const {
+    fileFilter,
+    setFileFilter,
+    labelFilters,
+    filenameSearch,
+    setFilenameSearch,
+    clearFilenameSearch,
+    qualityFilter,
+    setQualityFilter,
+    compactFiltersOpen,
+    openCompactFilters,
+    closeCompactFilters,
+    applyLabelFilterCommand,
+    chooseFileFilter,
+    handleSearchFilterShortcut,
+  } = useOliviaBridgeFilters({
+    searchInputRef,
+    compactFilterButtonRef,
+    folderPanelRef,
+    fullscreenPreviewOpen,
+    closeFullscreenPreview,
+    resetComparisonFilter,
   });
   const { publishRatingsForSource, rememberPublishedRatings } = useOliviaBridgeRatingPublisher({
     jpgs: scan.jpgs,
@@ -599,11 +617,6 @@ export default function OliviaBridgeWorkspace({
     showAdobeSelectionNotice,
   });
 
-  const closeFullscreenPreview = useCallback(() => {
-    setFullscreenPreviewOpen(false);
-    requestAnimationFrame(() => rootRef.current?.focus());
-  }, []);
-
   const openFullscreenPreview = useCallback(() => {
     if (selectionReviewOpen ? !reviewActivePhoto : !focusedPhoto || focusedIndex < 0) return;
     setFullscreenPreviewOpen(true);
@@ -614,56 +627,12 @@ export default function OliviaBridgeWorkspace({
     else moveFocus(delta);
   }, [moveFocus, moveReview, selectionReviewOpen]);
 
-  const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
-    if (fullscreenPreviewOpen) closeFullscreenPreview();
-    if (command.kind === "all") {
-      setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
-      setFileFilter("all");
-      setComparisonFilter("all");
-      setQualityFilter("all");
-      return;
-    }
-    setLabelFilters((current) => updateBridgeLabelFilters(current, command));
-    setFileFilter("jpg");
-  }, [closeFullscreenPreview, fullscreenPreviewOpen]);
-
-  const chooseFileFilter = useCallback((filter: FileFilter) => {
-    setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
-    setFileFilter(filter);
-  }, []);
-
-  const handleSearchFilterShortcut = useBridgeSearchFilterShortcuts({
-    searchInputRef,
-    searchQuery: filenameSearch,
-    onSearchQueryChange: setFilenameSearch,
-    onFilterCommand: applyLabelFilterCommand,
-  });
-
-  useEffect(() => {
-    const handleUnfocusedBridgeShortcut = (event: KeyboardEvent) => {
-      if (event.target !== document.body && event.target !== document.documentElement) return;
-      handleSearchFilterShortcut(event);
-    };
-    window.addEventListener("keydown", handleUnfocusedBridgeShortcut);
-    return () => window.removeEventListener("keydown", handleUnfocusedBridgeShortcut);
-  }, [handleSearchFilterShortcut]);
-
   const resizeThumbnails = useCallback((direction: -1 | 1) => {
     setThumbnailSize((value) => Math.min(
       THUMBNAIL_SIZE_MAX,
       Math.max(THUMBNAIL_SIZE_MIN, value + (direction * THUMBNAIL_SIZE_STEP)),
     ));
   }, []);
-
-  const closeCompactFilters = useCallback(() => {
-    setCompactFiltersOpen(false);
-    window.requestAnimationFrame(() => compactFilterButtonRef.current?.focus());
-  }, []);
-
-  useEffect(() => {
-    if (!compactFiltersOpen) return;
-    folderPanelRef.current?.focus();
-  }, [compactFiltersOpen]);
 
   const closeDialogs = useCallback(() => {
     closeFolderDialogs();
@@ -831,7 +800,6 @@ export default function OliviaBridgeWorkspace({
     setPreviewTab("selection");
     setCompactPreviewOpen(true);
   }, []);
-  const openCompactFilters = useCallback(() => setCompactFiltersOpen(true), []);
   const openBreadcrumb = useCallback((index: number) => {
     const item = breadcrumbs[index];
     if (item) void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1));
@@ -839,10 +807,6 @@ export default function OliviaBridgeWorkspace({
   const refreshAdobeMarks = useCallback(() => {
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
-  const clearFilenameSearch = useCallback(() => {
-    setFilenameSearch("");
-    searchInputRef.current?.focus();
-  }, []);
   const restoreBrowserFolder = useCallback(() => {
     void restoreLastFolder();
   }, [restoreLastFolder]);
