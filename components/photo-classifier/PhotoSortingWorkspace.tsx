@@ -125,6 +125,7 @@ import {
 } from "./PhotoShootingModeControl";
 import { FieldClassificationSettings } from "./FieldClassificationSettings";
 import { StudioClassificationSettings } from "./StudioClassificationSettings";
+import { PhotoClassificationProgressView } from "./PhotoClassificationProgressView";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -2567,22 +2568,20 @@ function PhotoSortingInner({
      FIELD STEPS
   ═══════════════════════════════════════════ */
   const FieldStep1 = () => (
-    <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:500,color:C.teal}}>
-        {fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "🔍 하이브리드 Scene 분석 중..."}
-      </div>
-      {!fastAnalyzeMode && <div style={{fontSize:11,color:C.muted}}>현재 단계: {classificationJobState}</div>}
-      {progress.total > 0 && <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>}
-      {progress.total === 0 && <div style={{fontSize:12,color:C.hint}}>{progress.msg || "스캔 중..."}</div>}
-      <div style={{maxHeight:200,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
-        {copyLog.slice(-20).map((l,i)=><div key={i} style={{color:C.green}}>{l}</div>)}
-      </div>
-      {!fastAnalyzeMode && (
-        <button onClick={()=>{ cancelRef.current=true; classificationAbortRef.current?.abort(); setClassificationJobState("CANCELLED"); }} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>
-          분석 중단
-        </button>
-      )}
-    </div>
+    <PhotoClassificationProgressView
+      title={fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "🔍 하이브리드 Scene 분석 중..."}
+      progress={progress}
+      statusText={fastAnalyzeMode ? undefined : `현재 단계: ${classificationJobState}`}
+      hideProgressUntilStarted
+      logs={copyLog}
+      logLimit={20}
+      onCancel={fastAnalyzeMode ? undefined : () => {
+        cancelRef.current = true;
+        classificationAbortRef.current?.abort();
+        setClassificationJobState("CANCELLED");
+      }}
+      cancelLabel="분석 중단"
+    />
   );
 
   const FieldStep2 = () => {
@@ -2911,18 +2910,16 @@ function PhotoSortingInner({
   };
 
   const FieldStep3 = () => (
-    <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:500,color:C.teal}}>
-        {fastAnalyzeMode ? "📁 폴더 정리 실행 중..." : "분석 중..."}
-      </div>
-      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-      <div style={{fontSize:11,color:C.hint,lineHeight:1.7}}>
-        {fastAnalyzeMode && "• RAW 이동 → JPG 씬 폴더 정리 중\n"}
-        {qualityAnalysisEnabled && "• 흔들림·조명불량 분석 중\n"}
-        {profileClassificationEnabled && "• 프로필 자동 분류 중 (엄격 모드)"}
-      </div>
-      <button onClick={()=>{cancelRef.current=true;}} style={{padding:"8px 16px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,fontSize:12,cursor:"pointer",color:C.muted,fontFamily:"inherit",alignSelf:"flex-start"}}>중단</button>
-    </div>
+    <PhotoClassificationProgressView
+      title={fastAnalyzeMode ? "📁 폴더 정리 실행 중..." : "분석 중..."}
+      progress={progress}
+      details={[
+        fastAnalyzeMode ? "• RAW 이동 → JPG 씬 폴더 정리 중" : "",
+        qualityAnalysisEnabled ? "• 흔들림·조명불량 분석 중" : "",
+        profileClassificationEnabled ? "• 프로필 자동 분류 중 (엄격 모드)" : "",
+      ].filter(Boolean).join("\n")}
+      onCancel={() => { cancelRef.current = true; }}
+    />
   );
 
   // Kept only so pre-existing browser sessions can finish their in-memory state;
@@ -3126,14 +3123,14 @@ function PhotoSortingInner({
   };
 
   const FieldStep5 = () => (
-    <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:500,color:C.teal}}>RAW SELECT 처리 중...</div>
-      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-      <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
-        {copyLog.slice(-40).map((l,i)=><div key={i} style={{color:l.startsWith("✅")?C.green:l.startsWith("❌")?C.red:C.yellow}}>{l}</div>)}
-      </div>
-      <div style={{fontSize:11,color:C.hint}}>원본 RAW 파일은 삭제되지 않습니다. 선택된 RAW만 SELECT/RAW_SELECT/로 이동합니다.</div>
-    </div>
+    <PhotoClassificationProgressView
+      title="RAW SELECT 처리 중..."
+      progress={progress}
+      logs={copyLog}
+      logColor={(line) => line.startsWith("✅") ? C.green : line.startsWith("❌") ? C.red : C.yellow}
+      notice="원본 RAW 파일은 삭제되지 않습니다. 선택된 RAW만 SELECT/RAW_SELECT/로 이동합니다."
+      maxWidth={680}
+    />
   );
 
   const FieldStep6 = () => {
@@ -3284,10 +3281,11 @@ function PhotoSortingInner({
      STUDIO STEPS
   ═══════════════════════════════════════════ */
   const StudioStep1 = () => (
-    <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:500,color:C.purple}}>파일 분류 중...</div>
-      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-    </div>
+    <PhotoClassificationProgressView
+      title="파일 분류 중..."
+      titleColor={C.purple}
+      progress={progress}
+    />
   );
 
   const StudioStep2 = () => {
@@ -3530,13 +3528,14 @@ function PhotoSortingInner({
   };
 
   const StudioStep5 = () => (
-    <div style={{maxWidth:680,display:"flex",flexDirection:"column",gap:16}}>
-      <div style={{fontSize:14,fontWeight:500,color:C.purple}}>스튜디오 파일 정리 중...</div>
-      <ProgressBar cur={progress.cur} total={progress.total} msg={progress.msg}/>
-      <div style={{maxHeight:260,overflowY:"auto",fontSize:11,fontFamily:"monospace",background:"#F8FFFE",borderRadius:8,padding:12,border:`1px solid ${C.border}`}}>
-        {studioCopyLog.slice(-40).map((l,i)=><div key={i} style={{color:l.startsWith("✅")?C.green:l.startsWith("❌")?C.red:C.yellow}}>{l}</div>)}
-      </div>
-    </div>
+    <PhotoClassificationProgressView
+      title="스튜디오 파일 정리 중..."
+      titleColor={C.purple}
+      progress={progress}
+      logs={studioCopyLog}
+      logColor={(line) => line.startsWith("✅") ? C.green : line.startsWith("❌") ? C.red : C.yellow}
+      maxWidth={680}
+    />
   );
 
   const StudioStep6 = () => {

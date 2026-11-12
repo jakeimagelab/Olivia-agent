@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { FieldClassificationSettings } from "@/components/photo-classifier/FieldClassificationSettings";
 import { PhotoShootingModeControl } from "@/components/photo-classifier/PhotoShootingModeControl";
 import { StudioClassificationSettings } from "@/components/photo-classifier/StudioClassificationSettings";
+import { PhotoClassificationProgressView } from "@/components/photo-classifier/PhotoClassificationProgressView";
 
 describe("photo sorting settings controls", () => {
   it("renders the selected shooting mode without changing the existing labels", () => {
@@ -68,5 +69,25 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("테스트 폴더 선택");
     expect(markup).toContain("조명 불량 ETC 기준");
     expect(markup).toContain("복사 — 원본을 남기고 분류 폴더에 복사");
+  });
+
+  it("keeps only the requested tail of progress logs", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PhotoClassificationProgressView, {
+        title: "분류 중",
+        progress: { cur: 2, total: 10, msg: "파일 확인" },
+        statusText: "현재 단계: SCANNING",
+        logs: ["첫 로그", "중간 로그", "마지막 로그"],
+        logLimit: 2,
+        onCancel: () => undefined,
+        cancelLabel: "분석 중단",
+      }),
+    );
+
+    expect(markup).not.toContain("첫 로그");
+    expect(markup).toContain("중간 로그");
+    expect(markup).toContain("마지막 로그");
+    expect(markup).toContain("현재 단계: SCANNING");
+    expect(markup).toContain("분석 중단");
   });
 });
