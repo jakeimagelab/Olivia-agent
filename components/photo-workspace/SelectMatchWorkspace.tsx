@@ -17,10 +17,7 @@ import {
 import {
   buildCaptureMatchPreflight,
   captureMatchSummaryTotal,
-  isCaptureMatchTargetCountConsistent,
-  resolveCaptureMatchJpgSources,
   type CaptureMatchPreflight,
-  type JpgMatchSource,
 } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
@@ -31,11 +28,8 @@ import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
 import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
 import {
-  DEFAULT_RAW_MATCH_CRITERIA,
   nextDeliveredRoundFolderName,
-  normalizeRawMatchCriteria,
   rawMatchProgressPercent,
-  resolveRawMatchTargets,
   type RawMatchCriteria,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
@@ -55,6 +49,7 @@ import {
   formatMissingSequenceRange,
   useSelectMatchSequenceCheck,
 } from "@/components/photo-workspace/useSelectMatchSequenceCheck";
+import { useSelectMatchTargets } from "@/components/photo-workspace/useSelectMatchTargets";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -236,8 +231,6 @@ export function SelectMatchWorkspace({
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
   const sceneThumbnailUrlsRef = useRef(new Set<string>());
   const searchThumbnailRequestsRef = useRef(new WeakSet<FileSystemDirectoryHandle>());
-  const [rawMatchCriteria, setRawMatchCriteria] = useState<RawMatchCriteria>(DEFAULT_RAW_MATCH_CRITERIA);
-  const [criteriaReady, setCriteriaReady] = useState(!bridgeLinked);
   const [moveMatchedJpgs, setMoveMatchedJpgs] = useState(true);
   const [deliveredFolderName, setDeliveredFolderName] = useState("1차보정본");
   const [deliveredFolderNameDirty, setDeliveredFolderNameDirty] = useState(false);
@@ -341,61 +334,26 @@ export function SelectMatchWorkspace({
       : rawName ? `/Volumes/${rawName}` : jpgPath);
   }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir, workerPathDirty]);
 
-  const criteriaFolderKey = rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder";
-  const criteriaStorageKey = `olivia-raw-match-criteria:${criteriaFolderKey}`;
-  const resolvedBridgeTargets = useMemo(() => resolveRawMatchTargets({
-    names: selectedJpgNames,
-    ratingsByName: jpgRatingsByName,
-    colorsByName: jpgColorLabelsByName,
-    criteria: rawMatchCriteria,
-  }), [jpgColorLabelsByName, jpgRatingsByName, rawMatchCriteria, selectedJpgNames]);
-  const authoritativeMatchTargets = useMemo(
-    () => bridgeLinked ? new Set(resolvedBridgeTargets) : new Set(selected),
-    [bridgeLinked, resolvedBridgeTargets, selected],
-  );
-  const scannedJpgSources = useMemo<JpgMatchSource[]>(() => scenes.flatMap((scene) => (
-    scene.photos.map((photo) => ({
-      id: photo.relativePath.normalize("NFC"),
-      name: photo.name,
-      basename: photo.basename.normalize("NFC").toLocaleLowerCase("en-US"),
-      relativePath: photo.relativePath,
-      handle: photo.handle,
-      thumbUrl: photo.thumbUrl,
-    }))
-  )), [scenes]);
-  const selectedJpgSources = useMemo(() => resolveCaptureMatchJpgSources({
-    targetBasenames: authoritativeMatchTargets,
-    sources: scannedJpgSources,
-  }), [authoritativeMatchTargets, scannedJpgSources]);
-  const missingMatchTargetBasenames = useMemo(() => {
-    const sourceBasenames = new Set(selectedJpgSources.map((source) => source.basename));
-    return Array.from(authoritativeMatchTargets).filter((basename) => !sourceBasenames.has(basename));
-  }, [authoritativeMatchTargets, selectedJpgSources]);
-  const expectedMatchTargetCount = selectedJpgSources.length + missingMatchTargetBasenames.length;
-  const preflightTargetCountMatches = preflight
-    ? missingMatchTargetBasenames.length === 0 && isCaptureMatchTargetCountConsistent(selectedJpgSources.length, preflight)
-    : false;
-
-  useEffect(() => {
-    if (!bridgeLinked) return;
-    setCriteriaReady(false);
-    try {
-      setRawMatchCriteria(normalizeRawMatchCriteria(JSON.parse(localStorage.getItem(criteriaStorageKey) ?? "null")));
-    } catch {
-      setRawMatchCriteria({ ...DEFAULT_RAW_MATCH_CRITERIA, colorLabels: [...DEFAULT_RAW_MATCH_CRITERIA.colorLabels] });
-    } finally {
-      setCriteriaReady(true);
-    }
-  }, [bridgeLinked, criteriaStorageKey]);
-
-  useEffect(() => {
-    if (!bridgeLinked || !criteriaReady) return;
-    try {
-      localStorage.setItem(criteriaStorageKey, JSON.stringify(rawMatchCriteria));
-    } catch {
-      // 저장소가 막혀 있어도 현재 세션의 기준 선택은 유지한다.
-    }
-  }, [bridgeLinked, criteriaReady, criteriaStorageKey, rawMatchCriteria]);
+  const {
+    rawMatchCriteria,
+    setRawMatchCriteria,
+    criteriaReady,
+    resolvedBridgeTargets,
+    authoritativeMatchTargets,
+    selectedJpgSources,
+    missingMatchTargetBasenames,
+    expectedMatchTargetCount,
+    preflightTargetCountMatches,
+  } = useSelectMatchTargets({
+    bridgeLinked,
+    folderKey: rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder",
+    selectedJpgNames,
+    jpgRatingsByName,
+    jpgColorLabelsByName,
+    selected,
+    scenes,
+    preflight,
+  });
 
   useEffect(() => {
     if (!rootDir) {
