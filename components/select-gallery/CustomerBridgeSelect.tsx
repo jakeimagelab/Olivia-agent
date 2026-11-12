@@ -40,8 +40,6 @@ import {
   applyCustomerColorLabels,
   applyCustomerRatings,
   clearCustomerBridgeMarks,
-  customerBridgeFolderTree,
-  customerBridgeFolderView,
   normalizeCustomerBridgeSelectionMarks,
   customerBridgeRatingTargets,
   customerBridgeSelectedIds,
@@ -100,19 +98,15 @@ import {
 } from "./CustomerBridgeMedia";
 import type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import { PhotoOverlay, ReviewOverlay, type CustomerBridgeReviewRemovedMarks as ReviewRemovedMarks } from "./CustomerBridgeOverlays";
+import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
 type PhotoFilter = "all" | "selected" | "unselected" | PhotoQualityFlag | "quality_review" | "quality_normal";
-type BridgeLocation =
-  | { kind: "root" }
-  | { kind: "all" }
-  | { kind: "folder"; path: string };
 
 const PAGE_SIZE = SELECTION_THUMBNAIL_PAGE_SIZE;
 const THUMB_MIN = 112;
 const THUMB_MAX = 260;
-const EMPTY_FOLDERS: never[] = [];
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
@@ -207,8 +201,6 @@ export default function CustomerBridgeSelect({
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
   const [thumbSize, setThumbSize] = useState(156);
-  const [location, setLocation] = useState<BridgeLocation>({ kind: "root" });
-  const [locationReady, setLocationReady] = useState(false);
   const [folderWidth, setFolderWidth] = useState(210);
   const [previewWidth, setPreviewWidth] = useState(320);
   const [compactFoldersOpen, setCompactFoldersOpen] = useState(false);
@@ -334,17 +326,27 @@ export default function CustomerBridgeSelect({
     installServerSnapshot(initialDraft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
   }, [getPendingSelectionDiffs, initialDraft, installServerSnapshot]);
 
-  const folderTree = useMemo(() => customerBridgeFolderTree(images), [images]);
-  const rootView = useMemo(() => customerBridgeFolderView(images, ""), [images]);
-  const folderView = useMemo(
-    () => location.kind === "folder" ? customerBridgeFolderView(images, location.path) : null,
-    [images, location],
-  );
-  const folderImages = useMemo(
-    () => location.kind === "all" ? images : location.kind === "folder" ? folderView?.images ?? [] : [],
-    [folderView, images, location.kind],
-  );
-  const childFolders = location.kind === "root" ? rootView.folders : folderView?.folders ?? EMPTY_FOLDERS;
+  const resetLocationSelection = useCallback((nextImages: readonly CustomerBridgeImage[]) => {
+    setFocusedImageId(nextImages[0]?.id ?? null);
+    setActiveImageIds(new Set());
+    setAnchorId(null);
+    setCompactFoldersOpen(false);
+  }, []);
+  const {
+    location,
+    folderTree,
+    rootView,
+    folderView,
+    folderImages,
+    childFolders,
+    openLocation,
+    goToParentFolder,
+  } = useCustomerBridgeLocation({
+    images,
+    storageScope: localStorageScope,
+    onLocationOpened: resetLocationSelection,
+    onStorageError: reportOptionalStorageError,
+  });
   const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
   const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
@@ -777,50 +779,6 @@ export default function CustomerBridgeSelect({
     setRenderLimit(PAGE_SIZE);
     gridRef.current?.scrollTo({ top: 0 });
   }, [filenameSearch, filter, labelFilters, location]);
-
-  useEffect(() => {
-    if (locationReady) return;
-    try {
-      const value = sessionStorage.getItem(`customer-bridge-location:${localStorageScope}`);
-      if (value === "all") setLocation({ kind: "all" });
-      else if (value?.startsWith("folder:")) {
-        const path = value.slice(7);
-        if (path === "" || folderTree.some((folder) => folder.path === path)) setLocation({ kind: "folder", path });
-      }
-    } catch (error) { reportOptionalStorageError("location-restore", error); }
-    finally { setLocationReady(true); }
-  }, [folderTree, localStorageScope, locationReady]);
-
-  useEffect(() => {
-    if (!locationReady) return;
-    try {
-      const value = location.kind === "folder" ? `folder:${location.path}` : location.kind;
-      sessionStorage.setItem(`customer-bridge-location:${localStorageScope}`, value);
-    } catch (error) { reportOptionalStorageError("location-save", error); }
-  }, [localStorageScope, location, locationReady]);
-
-  const openLocation = useCallback((nextLocation: BridgeLocation) => {
-    setLocation(nextLocation);
-    const next = nextLocation.kind === "all"
-      ? images
-      : nextLocation.kind === "folder"
-        ? customerBridgeFolderView(images, nextLocation.path).images
-        : [];
-    setFocusedImageId(next[0]?.id ?? null);
-    setActiveImageIds(new Set());
-    setAnchorId(null);
-    setCompactFoldersOpen(false);
-  }, [images]);
-
-  const goToParentFolder = useCallback(() => {
-    if (location.kind === "root") return;
-    if (location.kind === "all") {
-      openLocation({ kind: "root" });
-      return;
-    }
-    const parent = location.path.split("/").slice(0, -1).join("/");
-    openLocation(parent ? { kind: "folder", path: parent } : { kind: "root" });
-  }, [location, openLocation]);
 
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
