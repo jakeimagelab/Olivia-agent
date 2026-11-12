@@ -13,7 +13,6 @@ import {
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
-import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import type {
   PersonSelectClientImagePageState,
@@ -26,7 +25,6 @@ import type {
   CustomerBridgeGallery,
   CustomerBridgeImage,
 } from "@/lib/select-gallery/customerBridgeTypes";
-import { PhotoOverlay, ReviewOverlay } from "./CustomerBridgeOverlays";
 import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
@@ -38,7 +36,6 @@ import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView } from "@/lib/select-gallery/customerBridgeView";
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
-import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
@@ -54,6 +51,7 @@ import { CustomerBridgeHeader } from "./CustomerBridgeHeader";
 import { CustomerBridgeFooter } from "./CustomerBridgeFooter";
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
+import { CustomerBridgeOverlayLayer } from "./CustomerBridgeOverlayLayer";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -663,10 +661,45 @@ export default function CustomerBridgeSelect({
       onSubmit={() => void openSubmitReview()}
     />
 
-    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => updateNote(fullscreenImage.id, value)} onImageError={handleImageError} readOnly={readOnly} /> : null}
-    {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={closeReview} onRemove={removeFromReview} onRestore={restoreReview} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={openFullscreen} onImageError={handleImageError} /> : null}
-    {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
-    {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
-    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={customerSelectedIds.size} sections={submitReviewSections} items={submitReviewItems} busy={submitting} error={submitError} onCancel={closeSubmitReview} onConfirm={() => void submit()} /> : null}
+    <CustomerBridgeOverlayLayer
+      fullscreenImage={fullscreenImage}
+      fullscreenIndex={fullscreenIndex}
+      fullscreenTotal={visibleImages.length}
+      zoomed={zoomed}
+      reviewOpen={Boolean(reviewIds)}
+      reviewImages={reviewImages}
+      reviewActiveId={reviewActiveId}
+      reviewRemoved={reviewRemoved}
+      ratings={customerRatings}
+      colorLabels={customerColorLabels}
+      notes={notes}
+      guideOpen={guideOpen}
+      resetConfirmOpen={resetConfirmOpen}
+      resetting={resetting}
+      submitReviewOpen={submitReviewOpen}
+      submitReviewSections={submitReviewSections}
+      submitReviewItems={submitReviewItems}
+      selectedCount={customerSelectedIds.size}
+      submitting={submitting}
+      submitError={submitError}
+      readOnly={readOnly}
+      onToggleFullscreenZoom={toggleFullscreenZoom}
+      onCloseFullscreen={closeFullscreen}
+      onMoveFullscreen={moveFullscreen}
+      onApplyRating={applyRatingTo}
+      onToggleColor={toggleColorTo}
+      onUpdateNote={updateNote}
+      onImageError={handleImageError}
+      onSetReviewActive={setReviewActiveId}
+      onCloseReview={closeReview}
+      onRemoveFromReview={removeFromReview}
+      onRestoreReview={restoreReview}
+      onOpenFullscreen={openFullscreen}
+      onCloseGuide={closeGuide}
+      onCloseReset={closeResetConfirm}
+      onReset={resetSelection}
+      onCloseSubmitReview={closeSubmitReview}
+      onSubmit={submit}
+    />
   </main>;
 }

@@ -40,12 +40,16 @@ describe("person select final submission", () => {
     ];
     for (const file of files) {
       const source = await readFile(path.join(process.cwd(), file), "utf8");
-      const submissionSource = file.endsWith("CustomerBridgeSelect.tsx")
+      const isCustomerBridge = file.endsWith("CustomerBridgeSelect.tsx");
+      const submissionSource = isCustomerBridge
         ? await readFile(path.join(process.cwd(), "components/select-gallery/useCustomerBridgeSubmission.ts"), "utf8")
         : source;
-      expect(source).toContain("FinalSelectionSubmitDialog");
+      const presentationSource = isCustomerBridge
+        ? await readFile(path.join(process.cwd(), "components/select-gallery/CustomerBridgeOverlayLayer.tsx"), "utf8")
+        : source;
+      expect(presentationSource).toContain("FinalSelectionSubmitDialog");
       expect(submissionSource).toContain("confirmed: true");
-      expect(source).not.toContain("장을 최종 제출할까요?");
+      expect(presentationSource).not.toContain("장을 최종 제출할까요?");
     }
     const dialog = await readFile(path.join(process.cwd(), "components/person-select/FinalSelectionSubmitDialog.tsx"), "utf8");
     expect(dialog).toContain("최종 선택 확인");
