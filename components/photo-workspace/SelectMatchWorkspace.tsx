@@ -15,10 +15,8 @@ import {
   isCaptureMatchTargetCountConsistent,
 } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
-import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
-import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
 import {
   nextDeliveredRoundFolderName,
@@ -32,7 +30,13 @@ import {
   defaultWorkerFolderPath,
   parseFileNameQueries,
 } from "@/lib/selectMatch/workspaceHelpers";
-import { loadBrowserThumbnail, releaseObjectUrl } from "@/lib/selectMatch/browserThumbnail";
+import {
+  collectRatedBasenames,
+  collectRatingsByName,
+  loadEmbeddedRatings as loadFolderEmbeddedRatings,
+  loadSidecarRatings,
+  mergeSharedRatings,
+} from "@/lib/selectMatch/folderRatings";
 import { useSelectMatchFindMove } from "@/components/photo-workspace/useSelectMatchFindMove";
 import {
   formatMissingSequenceRange,
@@ -42,6 +46,7 @@ import { useSelectMatchTargets } from "@/components/photo-workspace/useSelectMat
 import { useSelectMatchPreflight } from "@/components/photo-workspace/useSelectMatchPreflight";
 import { useSelectMatchExecution } from "@/components/photo-workspace/useSelectMatchExecution";
 import { useSelectMatchClientInput } from "@/components/photo-workspace/useSelectMatchClientInput";
+import { useSelectMatchSceneThumbnails } from "@/components/photo-workspace/useSelectMatchSceneThumbnails";
 
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
@@ -147,8 +152,6 @@ export function SelectMatchWorkspace({
   const [ratingLoading, setRatingLoading] = useState(false);
   const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
-  const sceneThumbnailUrlsRef = useRef(new Set<string>());
-  const searchThumbnailRequestsRef = useRef(new WeakSet<FileSystemDirectoryHandle>());
   const [moveMatchedJpgs, setMoveMatchedJpgs] = useState(true);
   const [deliveredFolderName, setDeliveredFolderName] = useState("1차보정본");
   const [deliveredFolderNameDirty, setDeliveredFolderNameDirty] = useState(false);
@@ -156,12 +159,17 @@ export function SelectMatchWorkspace({
   const [workerRawRootPath, setWorkerRawRootPath] = useState("");
   const [workerPathDirty, setWorkerPathDirty] = useState(false);
 
-  const releaseSceneThumbnails = useCallback(() => {
-    for (const url of sceneThumbnailUrlsRef.current) releaseObjectUrl(url);
-    sceneThumbnailUrlsRef.current.clear();
-  }, []);
-
-  useEffect(() => () => releaseSceneThumbnails(), [releaseSceneThumbnails, rootDir]);
+  const {
+    thumbnailUrlsRef: sceneThumbnailUrlsRef,
+    resetSceneThumbnails,
+    loadSceneThumbs,
+  } = useSelectMatchSceneThumbnails({
+    rootDir,
+    scenes,
+    setScenes,
+    searchActive: queryTokens.length > 0,
+    visibleScenes,
+  });
 
   // 마운트 전엔 false — 서버 렌더와 클라이언트 첫 렌더를 동일하게 유지해 hydration mismatch를 피한다
   const [hasFS, setHasFS] = useState(false);
@@ -406,8 +414,7 @@ export function SelectMatchWorkspace({
 
   /* ── 폴더 로드: 이름 규칙 없이 JPG 폴더 재귀 스캔 ── */
   const scanFolder = useCallback(async (dir: FileSystemDirectoryHandle) => {
-      releaseSceneThumbnails();
-      searchThumbnailRequestsRef.current = new WeakSet<FileSystemDirectoryHandle>();
+      resetSceneThumbnails();
       setRootDir(dir);
       setStep("loading");
       setProgress({ cur: 0, total: 0, msg: "JPG 폴더 스캔 중..." });
@@ -430,33 +437,13 @@ export function SelectMatchWorkspace({
       setRatingLoading(true);
 
       // 1단계: .xmp 사이드카
-      const afterSidecar = await Promise.all(sceneList.map(async (scene) => ({
-        ...scene,
-        photos: await Promise.all(scene.photos.map(async (p) => {
-          const sharedRating = jpgRatingsByName[normalizePhotoToolFileKey(p.name)];
-          return {
-            ...p,
-            rating: sharedRating ?? await readRatingSidecar(scene.dirHandle, p.basename),
-          };
-        })),
-      })));
+      const afterSidecar = await loadSidecarRatings(sceneList, jpgRatingsByName);
       setScenes(afterSidecar);
 
       // 2단계: 사이드카 없는 JPG는 내장 XMP 스캔
-      const afterEmbedded = await Promise.all(afterSidecar.map(async (scene) => ({
-        ...scene,
-        photos: await Promise.all(scene.photos.map(async (p) => {
-          if (p.rating !== null) return p;
-          try {
-            const file = await p.handle.getFile();
-            return { ...p, rating: await readRatingEmbedded(file) };
-          } catch { return p; }
-        })),
-      })));
+      const afterEmbedded = await loadFolderEmbeddedRatings(afterSidecar);
       setScenes(afterEmbedded);
-      setJpgRatingsByName(Object.fromEntries(afterEmbedded.flatMap((scene) => scene.photos.flatMap((photo) => (
-        photo.rating !== null && photo.rating >= 1 ? [[photo.name, photo.rating] as const] : []
-      )))), { overwrite: false });
+      setJpgRatingsByName(collectRatingsByName(afterEmbedded), { overwrite: false });
 
       // Bridge RAW 매칭은 위의 "매칭 기준" 결과만 사용한다. 폴더 스캔에서 새로 발견한
       // 하위 폴더 별점 JPG를 대상에 합치면 화면 수와 사전 확인 수가 달라진다.
@@ -466,18 +453,14 @@ export function SelectMatchWorkspace({
           .map((name) => name.trim().replace(/\.[^.]+$/, "").normalize("NFC").toLocaleLowerCase("en-US"))
           .filter(Boolean));
       if (!(bridgeLinked && initialView === "raw")) {
-        for (const scene of afterEmbedded) {
-          for (const p of scene.photos) {
-            if (p.rating !== null && p.rating >= 1) autoKeys.add(p.basename.toLowerCase());
-          }
-        }
+        for (const basename of collectRatedBasenames(afterEmbedded)) autoKeys.add(basename);
       }
       setSelected(autoKeys);
 
       setRatingLoaded(true);
       setRatingLoading(false);
       if (bridgeLinked && initialView === "raw") setStep("raw_pick");
-  }, [bridgeLinked, initialView, jpgRatingsByName, releaseSceneThumbnails, resolvedBridgeTargets, selectedJpgNames, setJpgRatingsByName, setProgress]);
+  }, [bridgeLinked, initialView, jpgRatingsByName, resetSceneThumbnails, resolvedBridgeTargets, selectedJpgNames, setJpgRatingsByName, setProgress]);
 
   const loadFolder = useCallback(async () => {
     try {
@@ -502,81 +485,22 @@ export function SelectMatchWorkspace({
   /* ── JPG 내장 XMP 딥스캔 (사이드카 없을 때) ── */
   const loadEmbeddedRatings = useCallback(async () => {
     setRatingLoading(true);
-    const updated = await Promise.all(scenes.map(async (scene) => ({
-      ...scene,
-      photos: await Promise.all(scene.photos.map(async (p) => {
-        if (p.rating !== null) return p;
-        try {
-          const file = await p.handle.getFile();
-          return { ...p, rating: await readRatingEmbedded(file) };
-        } catch { return p; }
-      })),
-    })));
+    const updated = await loadFolderEmbeddedRatings(scenes);
     setScenes(updated);
-    setJpgRatingsByName(Object.fromEntries(updated.flatMap((scene) => scene.photos.flatMap((photo) => (
-      photo.rating !== null && photo.rating >= 1 ? [[photo.name, photo.rating] as const] : []
-    )))), { overwrite: false });
+    setJpgRatingsByName(collectRatingsByName(updated), { overwrite: false });
     setRatingLoaded(true);
     setRatingLoading(false);
   }, [scenes, setJpgRatingsByName]);
 
   useEffect(() => {
     if (!scenes.length) return;
-    setScenes((current) => current.map((scene) => ({
-      ...scene,
-      photos: scene.photos.map((photo) => {
-        const sharedRating = jpgRatingsByName[normalizePhotoToolFileKey(photo.name)];
-        return sharedRating && sharedRating !== photo.rating ? { ...photo, rating: sharedRating } : photo;
-      }),
-    })));
+    setScenes((current) => mergeSharedRatings(current, jpgRatingsByName));
   }, [jpgRatingsByName, scenes.length]);
 
   /* ── 별점 기준 자동 선택 ── */
   const autoSelectByRating = useCallback((minRating: number) => {
-    const keys = new Set<string>();
-    for (const scene of scenes) {
-      for (const p of scene.photos) {
-        if (p.rating !== null && p.rating >= minRating) {
-          keys.add(p.basename.toLowerCase());
-        }
-      }
-    }
-    setSelected(keys);
+    setSelected(collectRatedBasenames(scenes, minRating));
   }, [scenes]);
-
-  /* ── 씬 썸네일 로드 ── */
-  const loadSceneThumbs = useCallback(async (sceneIdx: number) => {
-    const scene = scenes[sceneIdx];
-    if (!scene) return;
-    const updated = [] as typeof scene.photos;
-    for (const [index, photo] of scene.photos.entries()) {
-      if (photo.thumbUrl) {
-        updated.push(photo);
-      } else {
-        try {
-          const file = await photo.handle.getFile();
-          const url = await loadBrowserThumbnail(file, 130);
-          if (url) sceneThumbnailUrlsRef.current.add(url);
-          updated.push({ ...photo, thumbUrl: url });
-        } catch {
-          updated.push(photo);
-        }
-      }
-      if ((index + 1) % 20 === 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-    }
-    setScenes(prev => prev.map((s, i) => i === sceneIdx ? { ...s, photos: updated } : s));
-  }, [scenes]);
-
-  useEffect(() => {
-    if (!queryTokens.length) return;
-    for (const scene of visibleScenes) {
-      if (searchThumbnailRequestsRef.current.has(scene.dirHandle)) continue;
-      const sceneIndex = scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle);
-      if (sceneIndex < 0) continue;
-      searchThumbnailRequestsRef.current.add(scene.dirHandle);
-      void loadSceneThumbs(sceneIndex);
-    }
-  }, [loadSceneThumbs, queryTokens.length, scenes, visibleScenes]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
