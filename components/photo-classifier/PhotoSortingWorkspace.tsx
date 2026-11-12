@@ -121,6 +121,7 @@ import { usePhotoSortingSession } from "./usePhotoSortingSession";
 import { usePhotoClassificationProgress } from "./usePhotoClassificationProgress";
 import { PhotoSourceControl } from "./PhotoSourceControl";
 import { PhotoDepartmentControl } from "./PhotoDepartmentControl";
+import { SavedPhotoSortingSessionBanner } from "./SavedPhotoSortingSessionBanner";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -2437,28 +2438,11 @@ function PhotoSortingInner({
 
         {/* 이전 작업 복원 배너 */}
         {savedSession && photoSourceSurface === "desktop" && (
-          <div style={{background:C.light,border:`1.5px solid ${C.border}`,borderRadius:12,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <span style={{fontSize:18}}>💾</span>
-              <div>
-                <div style={{fontSize:13,fontWeight:600,color:"#155855"}}>이전 작업이 저장되어 있습니다</div>
-                <div style={{fontSize:11,color:C.muted,marginTop:2}}>
-                  {DEPARTMENT_DISPLAY[savedSession.department]} · {savedSession.rootDirName || "폴더"} · {savedSession.sceneSummary.length}개 씬 · {new Date(savedSession.savedAt).toLocaleDateString("ko-KR",{month:"long",day:"numeric",hour:"2-digit",minute:"2-digit"})}
-                </div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>handleRestore(savedSession)} style={{flex:1,padding:"10px 0",background:"#37C39D",color:"#103E36",border:"none",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                📂 폴더 선택 후 이어서 하기
-              </button>
-              <button onClick={clearSession} style={{padding:"10px 16px",background:"rgba(255,255,255,.06)",color:"#D9F6EE",border:"1px solid rgba(255,255,255,.18)",borderRadius:8,fontSize:12,fontWeight:500,cursor:"pointer",fontFamily:"inherit"}}>
-                무시
-              </button>
-            </div>
-            <div style={{fontSize:10,color:C.hint,lineHeight:1.6}}>
-              ※ 파일은 이미 폴더에 정리되어 있습니다. 같은 폴더를 다시 선택하면 {savedSession.step >= 4 ? "베스트컷 선택 단계" : savedSession.step >= 2 ? "씬 검토 단계" : ""}로 바로 이동합니다.
-            </div>
-          </div>
+          <SavedPhotoSortingSessionBanner
+            session={savedSession}
+            onRestore={(session) => void handleRestore(session)}
+            onClear={clearSession}
+          />
         )}
 
         {/* 촬영 모드 선택 */}
