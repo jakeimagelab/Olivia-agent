@@ -63,4 +63,17 @@ describe("RAW sidecar XMP", () => {
     const created = updateRawMarkXmp(null, { rating: 5, label: "Select", jobId: "job-new" });
     expect(restoreRawMarkXmp(created.xml, "job-new").deleteSidecar).toBe(true);
   });
+
+  it("keeps the original backup when a later job corrects an Olivia mark", () => {
+    const first = updateRawMarkXmp(original, { rating: 1, label: "Select", jobId: "job-old" });
+    const corrected = updateRawMarkXmp(first.xml, { rating: 5, label: "Select", jobId: "job-corrected" });
+    const restored = restoreRawMarkXmp(corrected.xml, "job-corrected");
+    expect(restored.deleteSidecar).toBe(false);
+    expect(restored.xml).toContain('xmp:Rating="2"');
+    expect(restored.xml).toContain('xmp:Label="Second"');
+
+    const created = updateRawMarkXmp(null, { rating: 1, label: null, jobId: "job-created-old" });
+    const correctedCreated = updateRawMarkXmp(created.xml, { rating: 5, label: null, jobId: "job-created-new" });
+    expect(restoreRawMarkXmp(correctedCreated.xml, "job-created-new").deleteSidecar).toBe(true);
+  });
 });

@@ -101,13 +101,23 @@ export function updateRawMarkXmp(existingXml: string | null, values: RawMarkXmpV
   const previousLabel = namespacedValue(description, XMP_NS, "xmp:Label", "Label");
   const previousColorCode = namespacedValue(description, OLIVIA_NS, "olivia:ColorCode", "ColorCode");
   const backupJob = namespacedValue(description, OLIVIA_NS, "olivia:RawSelectJobId", "RawSelectJobId");
-  if (backupJob !== values.jobId) {
+  const previouslyCreatedSidecar = namespacedValue(description, OLIVIA_NS, "olivia:CreatedSidecar", "CreatedSidecar");
+  // A repeated raw-select run must keep the values that existed before Olivia
+  // first touched this sidecar. Otherwise correcting a mark (for example ★1
+  // to ★5) would make "clear raw selection" restore the incorrect ★1 value.
+  if (!backupJob) {
     setNamespacedValue(description, OLIVIA_NS, "olivia:PrevRating", "PrevRating", previousRating ?? ABSENT_VALUE);
     setNamespacedValue(description, OLIVIA_NS, "olivia:PrevLabel", "PrevLabel", previousLabel ?? ABSENT_VALUE);
     setNamespacedValue(description, OLIVIA_NS, "olivia:PrevColorCode", "PrevColorCode", previousColorCode ?? ABSENT_VALUE);
   }
   setNamespacedValue(description, OLIVIA_NS, "olivia:RawSelectJobId", "RawSelectJobId", values.jobId);
-  setNamespacedValue(description, OLIVIA_NS, "olivia:CreatedSidecar", "CreatedSidecar", createdDocument ? "true" : "false");
+  setNamespacedValue(
+    description,
+    OLIVIA_NS,
+    "olivia:CreatedSidecar",
+    "CreatedSidecar",
+    backupJob ? (previouslyCreatedSidecar ?? "false") : (createdDocument ? "true" : "false"),
+  );
   setNamespacedValue(description, XMP_NS, "xmp:Rating", "Rating", values.rating === null ? null : String(values.rating));
   setNamespacedValue(description, XMP_NS, "xmp:Label", "Label", values.label);
   setNamespacedValue(description, OLIVIA_NS, "olivia:ColorCode", "ColorCode", values.colorCode === null || values.colorCode === undefined ? null : String(values.colorCode));
