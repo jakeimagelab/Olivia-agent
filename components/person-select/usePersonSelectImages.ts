@@ -91,6 +91,10 @@ export function mergePersonSelectPreviewUrls(
   return images.map((image) => previewById.has(image.id) ? { ...image, preview_url: previewById.get(image.id) ?? image.preview_url } : image);
 }
 
+export function isPersonSelectImagePageNearEnd(index: number, loadedCount: number, threshold = 12) {
+  return loadedCount > 0 && index >= Math.max(0, loadedCount - threshold);
+}
+
 async function fetchPreviewUrls(slug: string, category: string, imageIds: readonly string[]) {
   const uniqueIds = [...new Set(imageIds.filter(Boolean))].slice(0, 8);
   if (!uniqueIds.length) return [];
@@ -118,64 +122,94 @@ export function usePersonSelectImages(
   const initialCache = cachedEntry(slug, category);
   const [images, setImages] = useState<PersonSelectImageData[]>(() => mergePersonSelectImagePages(initialCache?.images ?? [], seedImages));
   const [loading, setLoading] = useState(() => !initialCache);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(initialCache?.nextCursor ?? null);
+  const [pageError, setPageError] = useState("");
   const imagesRef = useRef(images);
+  const imageByIdRef = useRef(new Map(images.map((image) => [image.id, image])));
+  const nextCursorRef = useRef(nextCursor);
+  const loadMoreRef = useRef<Promise<boolean> | null>(null);
+  const scopeRef = useRef(imageCacheKey(slug, category));
+  scopeRef.current = imageCacheKey(slug, category);
   useEffect(() => { imagesRef.current = images; }, [images]);
+  const installPage = useCallback((page: PersonSelectImagePage, reset: boolean) => {
+    const key = imageCacheKey(slug, category);
+    const base = reset ? seedImages : imagesRef.current;
+    const merged = mergePersonSelectImagePages(base, page.images);
+    imagesRef.current = merged;
+    imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
+    nextCursorRef.current = page.nextCursor;
+    imageCache.set(key, { images: merged, fetchedAt: Date.now(), nextCursor: page.nextCursor });
+    setImages(merged);
+    setNextCursor(page.nextCursor);
+    setPageError("");
+  }, [category, seedImages, slug]);
+
   useEffect(() => {
     let active = true;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const key = imageCacheKey(slug, category);
-    const installPage = (page: PersonSelectImagePage, reset: boolean) => {
-      const base = reset ? seedImages : imagesRef.current;
-      const merged = mergePersonSelectImagePages(base, page.images);
-      imagesRef.current = merged;
-      imageCache.set(key, { images: merged, fetchedAt: Date.now(), nextCursor: page.nextCursor });
-      if (active) setImages(merged);
-      return merged;
-    };
-    const loadPages = async (startCursor: string | null, reset: boolean) => {
-      let cursor = startCursor;
-      let first = reset;
-      do {
-        const page = await fetchImagePage(slug, category, cursor);
-        if (!active) return;
-        installPage(page, first);
-        first = false;
-        setLoading(false);
-        if (!page.nextCursor || page.nextCursor === cursor) return;
-        cursor = page.nextCursor;
-      } while (active);
-    };
-    const scheduleRefresh = (delay = IMAGE_CACHE_MAX_AGE_MS) => {
-      refreshTimer = setTimeout(() => {
-        imageCache.delete(key);
-        void loadPages(null, true).then(() => scheduleRefresh()).catch(() => undefined);
-      }, delay);
-    };
+    loadMoreRef.current = null;
+    setLoadingMore(false);
     const entry = cachedEntry(slug, category);
     const seeded = mergePersonSelectImagePages(entry?.images ?? [], seedImages);
     imagesRef.current = seeded;
+    imageByIdRef.current = new Map(seeded.map((image) => [image.id, image]));
+    nextCursorRef.current = entry?.nextCursor ?? null;
     setImages(seeded);
+    setNextCursor(entry?.nextCursor ?? null);
+    setPageError("");
     if (entry) {
       setLoading(false);
-      if (entry.nextCursor) void loadPages(entry.nextCursor, false).catch(() => undefined);
-      scheduleRefresh(Math.max(1, IMAGE_CACHE_MAX_AGE_MS - (Date.now() - entry.fetchedAt)));
-      return () => { active = false; if (refreshTimer) clearTimeout(refreshTimer); };
+      return () => { active = false; };
     }
     setLoading(true);
-    loadPages(null, true)
-      .then(() => { if (active) scheduleRefresh(); })
-      .catch(() => {
+    void fetchImagePage(slug, category, null)
+      .then((page) => {
+        if (!active) return;
+        installPage(page, true);
+      })
+      .catch((cause) => {
         if (!active || imagesRef.current.length) return;
         const fallback = mergePersonSelectImagePages([], seedImages);
         imagesRef.current = fallback;
+        imageByIdRef.current = new Map(fallback.map((image) => [image.id, image]));
         setImages(fallback);
+        setPageError(cause instanceof Error ? cause.message : "사진을 불러오지 못했어요.");
       })
       .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; if (refreshTimer) clearTimeout(refreshTimer); };
-  }, [category, seedImages, slug]);
+    return () => { active = false; };
+  }, [category, installPage, seedImages, slug]);
+
+  const loadMore = useCallback(() => {
+    const cursor = nextCursorRef.current;
+    if (!cursor) return Promise.resolve(false);
+    if (loadMoreRef.current) return loadMoreRef.current;
+    const scopeKey = imageCacheKey(slug, category);
+    setLoadingMore(true);
+    setPageError("");
+    let request: Promise<boolean>;
+    request = fetchImagePage(slug, category, cursor)
+      .then((page) => {
+        if (scopeRef.current !== scopeKey) return false;
+        installPage(page.nextCursor === cursor ? { ...page, nextCursor: null } : page, false);
+        return true;
+      })
+      .catch((cause) => {
+        if (scopeRef.current !== scopeKey) return false;
+        setPageError(cause instanceof Error ? cause.message : "다음 사진을 불러오지 못했어요.");
+        return false;
+      })
+      .finally(() => {
+        if (loadMoreRef.current !== request) return;
+        loadMoreRef.current = null;
+        if (scopeRef.current === scopeKey) setLoadingMore(false);
+      });
+    loadMoreRef.current = request;
+    return request;
+  }, [category, installPage, slug]);
+
   const ensurePreviews = useCallback(async (imageIds: readonly string[]) => {
     const missingIds = imageIds.filter((imageId) => {
-      const image = imagesRef.current.find((item) => item.id === imageId);
+      const image = imageByIdRef.current.get(imageId);
       return image && !image.preview_url;
     });
     if (!missingIds.length) return;
@@ -183,6 +217,7 @@ export function usePersonSelectImages(
     setImages((current) => {
       const merged = mergePersonSelectPreviewUrls(current, previews);
       imagesRef.current = merged;
+      imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
       const cached = imageCache.get(imageCacheKey(slug, category));
       imageCache.set(imageCacheKey(slug, category), {
         images: merged,
@@ -193,5 +228,13 @@ export function usePersonSelectImages(
     });
     for (const preview of previews) if (preview.preview_url) new Image().src = preview.preview_url;
   }, [category, slug]);
-  return { images, loading, ensurePreviews };
+  return {
+    images,
+    loading,
+    loadingMore,
+    pageError,
+    hasMore: Boolean(nextCursor),
+    loadMore,
+    ensurePreviews,
+  };
 }

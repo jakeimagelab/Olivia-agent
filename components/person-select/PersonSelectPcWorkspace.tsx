@@ -7,7 +7,7 @@ import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
 import { usePersonChoiceSync, type PersonSelectImageData } from "./usePersonChoiceSync";
-import { usePersonSelectImages } from "./usePersonSelectImages";
+import { isPersonSelectImagePageNearEnd, usePersonSelectImages } from "./usePersonSelectImages";
 import {
   PERSON_SELECT_FIRST_PHOTO_TIMER_KEY,
   formatPersonSelectWon,
@@ -38,7 +38,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     width: null,
     height: null,
   })), [active?.choices]);
-  const { images, ensurePreviews } = usePersonSelectImages(slug, active?.key ?? "profile", seedImages);
+  const { images, hasMore, loadMore, ensurePreviews } = usePersonSelectImages(slug, active?.key ?? "profile", seedImages);
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
@@ -106,6 +106,10 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     const ids = [-2, -1, 0, 1, 2].flatMap((offset) => images[previewIndex + offset]?.id ? [images[previewIndex + offset].id] : []);
     void ensurePreviews(ids);
   }, [ensurePreviews, images, previewIndex]);
+
+  useEffect(() => {
+    if (hasMore && isPersonSelectImagePageNearEnd(previewIndex, images.length)) void loadMore();
+  }, [hasMore, images.length, loadMore, previewIndex]);
 
   useEffect(() => {
     const filmstrip = filmstripRef.current;
@@ -190,7 +194,14 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     const filmstrip = filmstripRef.current;
     if (!filmstrip) return;
     filmstrip.scrollBy({ left: direction * filmstrip.clientWidth, behavior: "smooth" });
+    if (direction > 0 && hasMore) void loadMore();
   }
+
+  const loadMoreNearFilmstripEnd = useCallback(() => {
+    const filmstrip = filmstripRef.current;
+    if (!filmstrip || !hasMore) return;
+    if (filmstrip.scrollWidth - filmstrip.scrollLeft - filmstrip.clientWidth < 800) void loadMore();
+  }, [hasMore, loadMore]);
 
   function measureFirstPhoto() {
     if (firstPhotoMeasured.current) return;
@@ -224,7 +235,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
         </div>
         <div className={styles.pcFilmstrip}>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripPrevious}`} type="button" aria-label="이전 사진 묶음" onClick={() => scrollFilmstrip(-1)}><ChevronLeft size={20} /></button>
-          <div ref={filmstripRef} className={styles.pcThumbs}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(event) => event.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>
+          <div ref={filmstripRef} className={styles.pcThumbs} onScroll={loadMoreNearFilmstripEnd}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(event) => event.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripNext}`} type="button" aria-label="다음 사진 묶음" onClick={() => scrollFilmstrip(1)}><ChevronRight size={20} /></button>
         </div>
         <p className={styles.pcKeyboardHint}>← → 사진 이동 · 1 선택 · 0 해제 · Space 사진 고르기</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, LogOut, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { formatSeoulDeadline } from "@/lib/person-select/date";
@@ -178,10 +178,11 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     width: null,
     height: null,
   })), [category?.choices]);
-  const { images, loading, ensurePreviews } = usePersonSelectImages(slug, categoryKey, seedImages);
+  const { images, loading, loadingMore, pageError, hasMore, loadMore, ensurePreviews } = usePersonSelectImages(slug, categoryKey, seedImages);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [message, setMessage] = useState("");
+  const photoGridEndRef = useRef<HTMLDivElement | null>(null);
   const sync = usePersonChoiceSync({
     slug,
     categoryKey,
@@ -194,6 +195,15 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     const ids = [-2, -1, 0, 1, 2].flatMap((offset) => images[previewIndex + offset]?.id ? [images[previewIndex + offset].id] : []);
     void ensurePreviews(ids);
   }, [ensurePreviews, images, previewIndex]);
+  useEffect(() => {
+    const node = photoGridEndRef.current;
+    if (!node || filter !== "all" || !hasMore) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+    }, { rootMargin: "900px 0px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [filter, hasMore, loadMore]);
   const displayedIds = useMemo(() => new Set(sync.displayedChoices.map((choice) => choice.image_id)), [sync.displayedChoices]);
   const imageIndexById = useMemo(() => new Map(images.map((image, index) => [image.id, index])), [images]);
   const openPreview = useCallback((imageId: string) => {
@@ -231,7 +241,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   return <main className={styles.darkPage}>
     <header className={styles.darkTop}><button onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/home`); }); }} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{category.image_count}장</span></header>
     <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {category.image_count}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
-    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <PersonSelectPhotoTile key={image.id} image={image} selected={displayedIds.has(image.id)} pending={sync.pendingImageIds.has(image.id)} onOpen={openPreview} />)}</div>}
+    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <PersonSelectPhotoTile key={image.id} image={image} selected={displayedIds.has(image.id)} pending={sync.pendingImageIds.has(image.id)} onOpen={openPreview} />)}{filter === "all" ? <div ref={photoGridEndRef} className={styles.photoLoadSentinel}>{loadingMore ? "사진을 더 불러오는 중…" : pageError ? <button type="button" onClick={() => void loadMore()}>{pageError} · 다시 시도</button> : null}</div> : null}</div>}
     <div className={styles.darkDock}><p>{message || selectionSyncStatus(sync)}{message ? "" : ` · ${dockText}`}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>고른 사진 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
       <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>

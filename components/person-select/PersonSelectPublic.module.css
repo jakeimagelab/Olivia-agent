@@ -61,6 +61,8 @@
 .subtab { height: 54px; padding: 0 3px; border: 0; border-bottom: 3px solid transparent; color: rgba(255,255,255,.46); background: transparent; font: inherit; font-weight: 500; }
 .subtabActive { color: #fff; border-bottom-color: #E85D2C; }
 .photoGrid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 3px; padding-bottom: 110px; }
+.photoLoadSentinel { grid-column: 1 / -1; min-height: 28px; display: grid; place-items: center; color: rgba(255,255,255,.64); font-size: 12px; }
+.photoLoadSentinel button { border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 .photoTile { position: relative; aspect-ratio: 3/4; padding: 0; border: 2px solid transparent; background: #353535; overflow: hidden; cursor: pointer; contain: layout paint; content-visibility: auto; contain-intrinsic-size: auto 160px; }
 .photoTile img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-touch-callout: none; user-select: none; }
 .photoTileSelected { border-color: #E85D2C; }

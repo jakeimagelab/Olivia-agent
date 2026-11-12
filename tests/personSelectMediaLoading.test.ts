@@ -6,7 +6,7 @@ import {
   SELECTION_MEDIA_URL_CACHE_LIMIT,
   SELECTION_THUMBNAIL_PAGE_SIZE,
 } from "@/lib/select-gallery/mediaLoading";
-import { mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
+import { isPersonSelectImagePageNearEnd, mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
 
 describe("person select media loading", () => {
   it("limits the first thumbnail page to a small shared batch", () => {
@@ -85,6 +85,12 @@ describe("person select media loading", () => {
       preview_url: "selected-preview",
       sort_order: 80,
     });
+  });
+
+  it("requests the next personal photo page only near the loaded tail", () => {
+    expect(isPersonSelectImagePageNearEnd(10, 72)).toBe(false);
+    expect(isPersonSelectImagePageNearEnd(60, 72)).toBe(true);
+    expect(isPersonSelectImagePageNearEnd(0, 0)).toBe(false);
   });
 
   it("returns only the active preview neighborhood", () => {
