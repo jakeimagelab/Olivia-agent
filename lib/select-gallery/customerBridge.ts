@@ -1,12 +1,12 @@
 import {
   customerSelectionIds,
-  isCustomerColorLabel,
   isCustomerRating,
   normalizeCustomerColorLabel,
   normalizeCustomerRating,
   type CustomerColorLabel,
   type CustomerRating,
 } from "@/lib/person-select/customerSelection";
+import type { CustomerBridgeFolderManifest } from "./customerBridgeTypes";
 
 export type CustomerBridgeRating = CustomerRating;
 export type CustomerBridgeColorLabel = CustomerColorLabel;
@@ -111,9 +111,29 @@ export function galleryFolderPath(value: string | null | undefined) {
 export function customerBridgeFolderView<T extends CustomerBridgeFolderImage>(
   images: readonly T[],
   requestedPath: string | null | undefined,
+  manifest?: CustomerBridgeFolderManifest | null,
 ): CustomerBridgeFolderView<T> {
   const currentPath = displayGalleryRelativePath(requestedPath);
   const currentParts = currentPath.split("/").filter(Boolean);
+  if (manifest) {
+    return {
+      currentPath,
+      breadcrumbs: currentParts.map((name, index) => ({
+        name,
+        path: currentParts.slice(0, index + 1).join("/"),
+      })),
+      folders: manifest.folders
+        .filter((folder) => displayGalleryRelativePath(folder.parentPath) === currentPath)
+        .map(({ path, name, directCount, totalCount, representativeImageId }) => ({
+          path,
+          name,
+          directCount,
+          totalCount,
+          representativeImageId,
+        })),
+      images: images.filter((image) => galleryFolderPath(image.relative_path) === currentPath),
+    };
+  }
   const folders = new Map<string, CustomerBridgeFolder>();
   const directImages: T[] = [];
 
@@ -155,7 +175,9 @@ export function customerBridgeFolderView<T extends CustomerBridgeFolderImage>(
 /** 관리자 Bridge의 왼쪽 탐색 패널처럼 전체 폴더를 한 번에 보여 주는 평면 트리. */
 export function customerBridgeFolderTree<T extends CustomerBridgeFolderImage>(
   images: readonly T[],
+  manifest?: CustomerBridgeFolderManifest | null,
 ): CustomerBridgeFolderTreeItem[] {
+  if (manifest) return manifest.folders.map((folder) => ({ ...folder }));
   const folders = new Map<string, CustomerBridgeFolderTreeItem>();
   for (const image of images) {
     const parts = galleryFolderPath(image.relative_path).split("/").filter(Boolean);

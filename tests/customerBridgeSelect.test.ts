@@ -160,6 +160,26 @@ describe("customer Bridge folder browser", () => {
       { path: "Scene 2", name: "Scene 2", depth: 0, directCount: 1, totalCount: 1, representativeImageId: "s2-a" },
     ]);
   });
+
+  it("uses a server manifest for complete folder counts before every image page is loaded", () => {
+    const manifest = {
+      totalCount: 1_645,
+      rootPhotoCount: 0,
+      folders: [
+        { path: "C1", name: "C1", parentPath: "", depth: 0, directCount: 221, totalCount: 221, representativeImageId: "c1" },
+        { path: "C2", name: "C2", parentPath: "", depth: 0, directCount: 151, totalCount: 151, representativeImageId: "c2" },
+        { path: "C2/Detail", name: "Detail", parentPath: "C2", depth: 1, directCount: 20, totalCount: 20, representativeImageId: "detail" },
+      ],
+    };
+    expect(customerBridgeFolderTree([{ id: "c1", relative_path: "C1/one.jpg" }], manifest)).toHaveLength(3);
+    expect(customerBridgeFolderView([{ id: "c1", relative_path: "C1/one.jpg" }], "", manifest).folders)
+      .toEqual([
+        { path: "C1", name: "C1", directCount: 221, totalCount: 221, representativeImageId: "c1" },
+        { path: "C2", name: "C2", directCount: 151, totalCount: 151, representativeImageId: "c2" },
+      ]);
+    expect(customerBridgeFolderView([{ id: "c1", relative_path: "C1/one.jpg" }], "C2", manifest).folders[0])
+      .toMatchObject({ path: "C2/Detail", directCount: 20 });
+  });
 });
 
 describe("customer/admin comparison", () => {

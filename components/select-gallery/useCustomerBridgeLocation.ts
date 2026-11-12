@@ -6,6 +6,7 @@ import {
   customerBridgeFolderView,
   type CustomerBridgeFolderImage,
 } from "@/lib/select-gallery/customerBridge";
+import type { CustomerBridgeFolderManifest } from "@/lib/select-gallery/customerBridgeTypes";
 
 export type CustomerBridgeLocation =
   | { kind: "root" }
@@ -47,11 +48,13 @@ export function customerBridgeLocationImages<T extends CustomerBridgeFolderImage
 
 export function useCustomerBridgeLocation<T extends CustomerBridgeFolderImage>({
   images,
+  manifest,
   storageScope,
   onLocationOpened,
   onStorageError,
 }: {
   images: readonly T[];
+  manifest?: CustomerBridgeFolderManifest | null;
   storageScope: string;
   onLocationOpened: (images: readonly T[]) => void;
   onStorageError?: (scope: string, error: unknown) => void;
@@ -61,18 +64,25 @@ export function useCustomerBridgeLocation<T extends CustomerBridgeFolderImage>({
   const onLocationOpenedRef = useRef(onLocationOpened);
   onLocationOpenedRef.current = onLocationOpened;
 
-  const folderTree = useMemo(() => customerBridgeFolderTree(images), [images]);
+  const folderTree = useMemo(() => customerBridgeFolderTree(images, manifest), [images, manifest]);
   const folderPaths = useMemo(() => new Set(folderTree.map((folder) => folder.path)), [folderTree]);
-  const rootView = useMemo(() => customerBridgeFolderView(images, ""), [images]);
+  const rootView = useMemo(() => customerBridgeFolderView(images, "", manifest), [images, manifest]);
   const folderView = useMemo(
-    () => location.kind === "folder" ? customerBridgeFolderView(images, location.path) : null,
-    [images, location],
+    () => location.kind === "folder" ? customerBridgeFolderView(images, location.path, manifest) : null,
+    [images, location, manifest],
   );
   const folderImages = useMemo(
     () => location.kind === "all" ? [...images] : location.kind === "folder" ? folderView?.images ?? [] : [],
     [folderView, images, location.kind],
   );
   const childFolders = location.kind === "root" ? rootView.folders : folderView?.folders ?? EMPTY_FOLDERS;
+  const locationTotalCount = location.kind === "all"
+    ? manifest?.totalCount ?? images.length
+    : location.kind === "folder"
+      ? location.path
+        ? manifest?.folders.find((folder) => folder.path === location.path)?.directCount ?? folderImages.length
+        : manifest?.rootPhotoCount ?? folderImages.length
+      : manifest?.totalCount ?? images.length;
 
   useEffect(() => {
     if (locationReady) return;
@@ -117,6 +127,7 @@ export function useCustomerBridgeLocation<T extends CustomerBridgeFolderImage>({
     folderView,
     folderImages,
     childFolders,
+    locationTotalCount,
     openLocation,
     goToParentFolder,
   };

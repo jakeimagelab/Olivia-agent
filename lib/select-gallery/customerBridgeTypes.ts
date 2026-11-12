@@ -18,6 +18,22 @@ export type CustomerBridgeImage = {
   sort_order: number;
 };
 
+export type CustomerBridgeFolderManifestEntry = {
+  path: string;
+  name: string;
+  parentPath: string;
+  depth: number;
+  directCount: number;
+  totalCount: number;
+  representativeImageId: string | null;
+};
+
+export type CustomerBridgeFolderManifest = {
+  totalCount: number;
+  rootPhotoCount: number;
+  folders: CustomerBridgeFolderManifestEntry[];
+};
+
 export type CustomerBridgeDraft = {
   revision: number;
   selectedImageIds: string[];
