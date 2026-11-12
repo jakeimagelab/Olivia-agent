@@ -102,10 +102,6 @@ import {
   makeCSV,
 } from "@/lib/photo-classifier/workspaceFormatting";
 import {
-  createSavedSortingSession,
-  readSavedSortingSession,
-  removeSavedSortingSession,
-  writeSavedSortingSession,
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
 import {
@@ -125,6 +121,7 @@ import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
 import { usePhotoDepartmentContext } from "./usePhotoDepartmentContext";
 import { useRemotePhotoSourceSelection } from "./useRemotePhotoSourceSelection";
+import { usePhotoSortingSession } from "./usePhotoSortingSession";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -325,7 +322,6 @@ function PhotoSortingInner({
   const [groundTruthSelection,       setGroundTruthSelection]       = useState(1);
   const [accuracyReport,             setAccuracyReport]             = useState<AccuracyReport | null>(null);
   const classificationAbortRef = useRef<AbortController | null>(null);
-  const [savedSession,               setSavedSession]               = useState<SavedSortingSession | null>(null);
   const [mergeCandidates,            setMergeCandidates]            = useState<SceneMergeCandidate[]>([]);
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
   const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
@@ -427,34 +423,28 @@ function PhotoSortingInner({
     onDepartmentRequired: requestDepartmentPicker,
     onJobCreated: trackRemoteJob,
   });
-
-  /* ── session persistence ── */
-  useEffect(() => {
-    try {
-      const session = readSavedSortingSession(localStorage);
-      if (session) setSavedSession(session);
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-  }, []);
-
-  useEffect(() => {
-    if (step < 2) return;
-    try {
-      writeSavedSortingSession(createSavedSortingSession({
-        step,
-        rootDirName: rootDir?.name ?? "",
-        department, gapMinutes, fastAnalyzeMode,
-        departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled,
-        profileClassificationEnabled, rawSelectMode,
-        fieldRawCount, fieldStats, classificationJobState, boundaryDecisions, sceneCorrections,
-        fieldScenes,
-      }), localStorage);
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-  }, [step, rootDir, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled, rawSelectMode, fieldRawCount, fieldStats, fieldScenes, classificationJobState, boundaryDecisions, sceneCorrections]);
-
-  const clearSession = () => {
-    try { removeSavedSortingSession(localStorage); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    setSavedSession(null);
-  };
+  const {
+    clearSavedSession: clearSession,
+    dismissSavedSession,
+    savedSession,
+  } = usePhotoSortingSession({
+    step,
+    rootDirName: rootDir?.name ?? "",
+    department,
+    gapMinutes,
+    fastAnalyzeMode,
+    departmentLogicEnabled,
+    aiNamingEnabled,
+    qualityAnalysisEnabled,
+    profileClassificationEnabled,
+    rawSelectMode,
+    fieldRawCount,
+    fieldStats,
+    classificationJobState,
+    boundaryDecisions,
+    sceneCorrections,
+    fieldScenes,
+  });
 
   const handleRestore = async (saved: SavedSortingSession) => {
     try {
@@ -496,7 +486,7 @@ function PhotoSortingInner({
           setFieldScenes(await restoreMovedSortingScenes(jpgBase, saved.sceneSummary));
         }
 
-        setSavedSession(null);
+        dismissSavedSession();
         const targetStep = saved.step === 3 ? 2 : saved.step;
         setStep(targetStep);
       } else {
@@ -506,10 +496,10 @@ function PhotoSortingInner({
           setFieldRawHandles(restored.rawFiles);
           setFieldRawCount(restored.rawFiles.length);
           setFieldScenes(restored.scenes);
-          setSavedSession(null);
+          dismissSavedSession();
           setStep(2);
         } else {
-          setSavedSession(null);
+          dismissSavedSession();
           setStep(0);
         }
       }
@@ -1151,7 +1141,7 @@ function PhotoSortingInner({
     setDirPickError("");
     setPhotoMode("field");
     setFastAnalyzeMode(false);
-    setSavedSession(null);
+    dismissSavedSession();
     setStep(1);
     setProgress({ cur: 0, total: plan.files.length, msg: "Bridge Scene 계획 확인 중..." });
     setClassificationJobState("CREATING_SCENES");
