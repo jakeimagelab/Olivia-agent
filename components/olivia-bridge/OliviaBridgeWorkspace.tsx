@@ -111,6 +111,10 @@ import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSear
 import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import {
+  resolveBridgeManualSelectionChange,
+  sameBridgeIdSet,
+} from "@/lib/photo-bridge/selectionChange";
+import {
   projectBridgeColorLabelsByName,
   projectBridgeRatingsByName,
   projectBridgeSelectedFiles,
@@ -461,22 +465,16 @@ export default function OliviaBridgeWorkspace({
   const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
     if (selectionSourceRef.current === "adobe") return;
     const requested = typeof value === "function" ? value(selectedIdsRef.current) : value;
-    if (selectionSourceRef.current === "olivia") {
-      commitSelectedIds(new Set(requested), adobeSelectedIdsRef.current);
-      return;
-    }
-    const manual = new Set(manualSelectedIdsRef.current);
-    const removed = new Set(manualRemovedIdsRef.current);
-    const knownIds = new Set([...selectedIdsRef.current, ...requested, ...manual, ...adobeSelectedIdsRef.current]);
-    for (const id of knownIds) {
-      if (adobeSelectedIdsRef.current.has(id)) {
-        if (requested.has(id)) removed.delete(id);
-        else removed.add(id);
-      } else if (requested.has(id)) manual.add(id);
-      else manual.delete(id);
-    }
-    manualRemovedIdsRef.current = removed;
-    commitSelectedIds(manual, adobeSelectedIdsRef.current);
+    const change = resolveBridgeManualSelectionChange({
+      source: selectionSourceRef.current,
+      requestedIds: requested,
+      currentSelectedIds: selectedIdsRef.current,
+      manualIds: manualSelectedIdsRef.current,
+      adobeIds: adobeSelectedIdsRef.current,
+      manualRemovedIds: manualRemovedIdsRef.current,
+    });
+    manualRemovedIdsRef.current = change.manualRemovedIds;
+    commitSelectedIds(change.manualIds, adobeSelectedIdsRef.current);
   }, [commitSelectedIds]);
 
   const commitMarqueeSelection = useCallback((selection: Set<string>, focusedPhotoId: string | null) => {
@@ -561,7 +559,7 @@ export default function OliviaBridgeWorkspace({
 
   useEffect(() => {
     const next = resolveBridgeSelectedIdsByName(scan.jpgs, selectedJpgNames);
-    if (selectedIdsRef.current.size === next.size && [...selectedIdsRef.current].every((id) => next.has(id))) return;
+    if (sameBridgeIdSet(selectedIdsRef.current, next)) return;
     setSelectedIds(next);
   }, [scan.jpgs, selectedJpgNames, setSelectedIds]);
 
