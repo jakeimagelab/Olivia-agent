@@ -43,6 +43,7 @@ import { useOliviaBridgeFilters } from "@/components/olivia-bridge/useOliviaBrid
 import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useOliviaBridgeSceneReviewModel";
 import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useOliviaBridgeSelectionSummary";
 import { useOliviaBridgeUiState } from "@/components/olivia-bridge/useOliviaBridgeUiState";
+import { useOliviaBridgeFolderNavigation } from "@/components/olivia-bridge/useOliviaBridgeFolderNavigation";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -586,6 +587,16 @@ export default function OliviaBridgeWorkspace({
     loadDirectory,
     loadRemoteDirectory,
   });
+  const {
+    openRootFolder,
+    openChildFolder,
+    openBreadcrumb,
+    restoreBrowserFolder,
+  } = useOliviaBridgeFolderNavigation({
+    breadcrumbs,
+    loadDirectory,
+    restoreLastFolder,
+  });
 
   const {
     moveFocus,
@@ -716,13 +727,6 @@ export default function OliviaBridgeWorkspace({
     reportScenePlanError,
   });
 
-  const openRootFolder = useCallback(() => {
-    const root = breadcrumbs[0];
-    if (root) void loadDirectory(root.handle, breadcrumbs.slice(0, 1));
-  }, [breadcrumbs, loadDirectory]);
-  const openChildFolder = useCallback((folder: FileSystemDirectoryHandle) => {
-    void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }]);
-  }, [breadcrumbs, loadDirectory]);
   const toggleFocusedSelection = useCallback(() => {
     if (!focusedPhoto) return;
     setSelectedIds((current) => {
@@ -737,16 +741,9 @@ export default function OliviaBridgeWorkspace({
     setSceneReviewOpen(true);
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
-  const openBreadcrumb = useCallback((index: number) => {
-    const item = breadcrumbs[index];
-    if (item) void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1));
-  }, [breadcrumbs, loadDirectory]);
   const refreshAdobeMarks = useCallback(() => {
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
-  const restoreBrowserFolder = useCallback(() => {
-    void restoreLastFolder();
-  }, [restoreLastFolder]);
   const focusPlainFile = useCallback((fileId: string) => {
     setFocusedPlainId(fileId);
     setFocusedId(null);
