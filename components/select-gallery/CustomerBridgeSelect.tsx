@@ -251,7 +251,11 @@ export default function CustomerBridgeSelect({
     onSnapshot: installServerSnapshot,
     onRestore: restorePending,
   });
-  const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
+  const {
+    enqueue: enqueueSelectionSync,
+    flushNow: flushSelectionSync,
+    getPendingDiffs: getPendingSelectionDiffs,
+  } = selectionSync;
 
   useEffect(() => {
     if (!initialDraft || Number(initialDraft.revision ?? 0) <= serverSnapshotRef.current.revision) return;
@@ -263,30 +267,30 @@ export default function CustomerBridgeSelect({
     if (rating === 0) {
       setCustomerRatings((current) => clearCustomerBridgeMarks(current, targetIds));
       setCustomerColorLabels((current) => clearCustomerBridgeMarks(current, targetIds));
-      selectionSync.enqueue([...targetIds].flatMap((imageId) => [
+      enqueueSelectionSync([...targetIds].flatMap((imageId) => [
         { imageId, rating: null },
         { imageId, colorLabel: null },
       ]));
     } else {
       setCustomerRatings((current) => applyCustomerRatings(current, targetIds, rating));
-      selectionSync.enqueue([...targetIds].map((imageId) => ({ imageId, rating })));
+      enqueueSelectionSync([...targetIds].map((imageId) => ({ imageId, rating })));
     }
-  }, [readOnly, selectionSync]);
+  }, [enqueueSelectionSync, readOnly]);
 
   const applyColorTo = useCallback((targetIds: ReadonlySet<string>, colorLabel: CustomerBridgeColorLabel) => {
     if (readOnly || !targetIds.size) return;
     setCustomerColorLabels((current) => applyCustomerColorLabels(current, targetIds, colorLabel));
-    selectionSync.enqueue([...targetIds].map((imageId) => ({ imageId, colorLabel })));
-  }, [readOnly, selectionSync]);
+    enqueueSelectionSync([...targetIds].map((imageId) => ({ imageId, colorLabel })));
+  }, [enqueueSelectionSync, readOnly]);
 
   const toggleColorTo = useCallback((targetIds: ReadonlySet<string>, colorLabel: CustomerBridgeColorLabel) => {
     if (readOnly || !targetIds.size) return;
     setCustomerColorLabels((current) => toggleCustomerColorLabels(current, targetIds, colorLabel));
-    selectionSync.enqueue([...targetIds].map((imageId) => ({
+    enqueueSelectionSync([...targetIds].map((imageId) => ({
       imageId,
       colorLabel: customerColorLabels[imageId] === colorLabel ? null : colorLabel,
     })));
-  }, [customerColorLabels, readOnly, selectionSync]);
+  }, [customerColorLabels, enqueueSelectionSync, readOnly]);
 
   const locationSelectionResetRef = useRef<(images: readonly CustomerBridgeImage[]) => void>(() => undefined);
   const fullscreenOpenRef = useRef<(imageId: string) => void>(() => undefined);
@@ -337,7 +341,7 @@ export default function CustomerBridgeSelect({
     notes,
     images,
     pendingCount: selectionSync.pendingCount,
-    flushNow: selectionSync.flushNow,
+    flushNow: flushSelectionSync,
     getRevision: getDraftRevision,
     onSubmitted,
     onStorageError: reportOptionalStorageError,
@@ -493,8 +497,8 @@ export default function CustomerBridgeSelect({
   const updateFocusedNote = useCallback((value: string) => {
     if (!focusedImageId) return;
     setNotes((current) => ({ ...current, [focusedImageId]: value }));
-    selectionSync.enqueue([{ imageId: focusedImageId, memo: value }]);
-  }, [focusedImageId, selectionSync.enqueue]);
+    enqueueSelectionSync([{ imageId: focusedImageId, memo: value }]);
+  }, [enqueueSelectionSync, focusedImageId]);
 
   const refreshServerDraft = useCallback(async () => {
     if (readOnly) return;
@@ -533,11 +537,11 @@ export default function CustomerBridgeSelect({
         { imageId, colorLabel: null },
         { imageId, memo: "" },
       ]);
-      selectionSync.enqueue(patches);
+      enqueueSelectionSync(patches);
       setCustomerRatings({});
       setCustomerColorLabels({});
       setNotes({});
-      const saved = await selectionSync.flushNow();
+      const saved = await flushSelectionSync();
       if (!saved) throw new Error("초기화 내용을 저장하지 못했습니다. 자동 재시도합니다.");
       clearActiveSelection();
       resetReview();
@@ -550,7 +554,7 @@ export default function CustomerBridgeSelect({
     } finally {
       setResetting(false);
     }
-  }, [clearActiveSelection, customerColorLabels, customerRatings, notes, readOnly, resetReview, resetting, selectionSync, serverColorLabels, serverNotes, serverRatings]);
+  }, [clearActiveSelection, customerColorLabels, customerRatings, enqueueSelectionSync, flushSelectionSync, notes, readOnly, resetReview, resetting, serverColorLabels, serverNotes, serverRatings, setSubmitError]);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 760px), (pointer: coarse)");
@@ -807,7 +811,7 @@ export default function CustomerBridgeSelect({
 
     {!readOnly ? <footer className={styles.footer}><div className={styles.footerSummary}><strong>전체 {images.length.toLocaleString("ko-KR")}장 · 고객 셀렉 {customerSelectedIds.size.toLocaleString("ko-KR")}장</strong>{selectionSync.status === "error" ? <button type="button" className={styles.saveRetry} onClick={selectionSync.retry}>{saveStatusMessage}</button> : <span>{downloadState || submitError || (reviewer?.can_finalize === false ? `${saveStatusMessage} · 최종 확정 권한 없음` : saveStatusMessage)}</span>}</div><button ref={resetButtonRef} className={styles.resetButton} type="button" disabled={resetting || (!customerSelectedIds.size && !Object.keys(notes).length)} onClick={() => setResetConfirmOpen(true)}><RotateCcw size={14} /> 셀렉 초기화</button><button className={styles.reviewButton} type="button" disabled={!customerSelectedIds.size} onClick={openReview}>리뷰</button><button className={styles.submitButton} type="button" disabled={!customerSelectedIds.size || submitting || selectionSync.pendingCount > 0 || selectionSync.status !== "saved" || reviewer?.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer?.can_finalize === false ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button></footer> : null}
 
-    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); selectionSync.enqueue([{ imageId: fullscreenImage.id, memo: value }]); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
+    {fullscreenImage ? <PhotoOverlay image={fullscreenImage} index={fullscreenIndex} total={visibleImages.length} rating={customerRatings[fullscreenImage.id] ?? 0} colorLabel={customerColorLabels[fullscreenImage.id] ?? null} note={notes[fullscreenImage.id] ?? ""} zoomed={zoomed} onZoom={toggleFullscreenZoom} onClose={closeFullscreen} onPrev={() => moveFullscreen(-1)} onNext={() => moveFullscreen(1)} onRate={(rating) => applyRatingTo(new Set([fullscreenImage.id]), rating)} onColor={(colorLabel) => toggleColorTo(new Set([fullscreenImage.id]), colorLabel)} onNote={(value) => { setNotes((current) => ({ ...current, [fullscreenImage.id]: value })); enqueueSelectionSync([{ imageId: fullscreenImage.id, memo: value }]); }} onImageError={handleImageError} readOnly={readOnly} /> : null}
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={closeReview} onRemove={removeFromReview} onRestore={restoreReview} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={openFullscreen} onImageError={handleImageError} /> : null}
     {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
     {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
