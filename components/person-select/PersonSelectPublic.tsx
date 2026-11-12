@@ -8,25 +8,28 @@ import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSele
 import { offerImagesFor } from "@/lib/person-select/types";
 import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
 import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
-import { usePersonChoiceSync, type PersonSelectChoice as Choice, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
+import { usePersonChoiceSync, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import { clearPersonSelectImageCache, usePersonSelectImages } from "./usePersonSelectImages";
 import { PersonSelectPhotoTile } from "./PersonSelectPhotoTile";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
+import {
+  formatPersonSelectWon as won,
+  isPersonSelectCategoryComplete as isComplete,
+  isSchoolPersonSelectEvent as isSchoolEvent,
+  personSelectExtraCount as extraCount,
+  personSelectFinalReviewData as finalReviewData,
+  personSelectNeedMessage as needMessage,
+  personSelectRetouchCount as retouchCount,
+  shortPersonSelectFileName as shortFileName,
+  type PersonSelectCategoryData as Category,
+  type PersonSelectMeData as MeData,
+  type PersonSelectOffer as Offer,
+  type PersonSelectOrderItem as OrderItem,
+  type PersonSelectOrderLine as OrderLine,
+  type PersonSelectPublicEvent as PublicEvent,
+} from "./personSelectPublicModel";
 import styles from "./PersonSelectPublic.module.css";
-
-type Category = { key: string; label: string; pick: number; image_count: number; need: number; max: number; choices: Choice[] };
-type EventData = { title: string; slug: string; deadline_at: string; status: string; source_layout?: "school" | "person-folders" | null; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; retouch_options: { key: string; label: string }[]; memo_max: number; locked: boolean; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: Offer[] };
-type Offer = { key: string; label: string; unit: string; price: number; note: string; needs_photo: boolean; options: { key: string; label: string; price: number }[] };
-type OrderItem = { offer_key: string; option_key: string | null; image_id: string | null; qty: number };
-type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
-type MeData = { event: EventData; person: { display_name: string; group_label: string | null; submitted_at: string | null; delivery_state?: string }; categories: Category[]; order?: { items: OrderItem[]; lines: OrderLine[]; total: number } };
-type PublicEvent = Pick<EventData, "title" | "slug" | "deadline_at" | "status" | "source_layout">;
-
-/** 학교(선생님) 행사인지. 예전 행사는 값이 없으면 학교로 본다. */
-function isSchoolEvent(event: { source_layout?: string | null } | null | undefined) {
-  return !event?.source_layout || event.source_layout === "school";
-}
 const FIRST_PHOTO_TIMER_KEY = "person-select-login-started-at";
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
@@ -34,19 +37,6 @@ async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "요청을 처리하지 못했어요.");
   return data as T;
-}
-
-function isComplete(category: Category) {
-  return category.choices.length >= category.need && category.choices.length <= Math.max(category.need, category.max ?? category.need);
-}
-
-function won(value: number) {
-  return `${Math.round(value).toLocaleString("ko-KR")}원`;
-}
-
-/** 기본 장수를 넘겨 고른 장수 (추가 보정) */
-function extraCount(category: Category) {
-  return Math.max(0, category.choices.length - Math.max(1, category.pick));
 }
 
 /** 관리자가 적은 안내 문구와 추가 보정 가격을 보여준다. */
@@ -58,39 +48,6 @@ function OfferNotice({ me }: { me: MeData }) {
     {notice ? <p>{notice}</p> : null}
     {extraPrice ? <p className={styles.offerNoticePrice}>추가 보정 {won(extraPrice)}/장 · 기본 장수보다 더 고르면 자동으로 추가돼요{me.event.extra_max ? ` (최대 ${me.event.extra_max}장)` : ""}.</p> : null}
   </div>;
-}
-
-function retouchCount(category: Category) {
-  return category.choices.reduce((sum, choice) => sum + choice.retouch_keys.length, 0);
-}
-
-function needMessage(category: Category) {
-  if (category.choices.length > Math.max(category.need, category.max ?? category.need)) return `${category.label}은 ${category.max}장까지 고를 수 있어요.`;
-  return `${category.label}을 ${category.need}장 골라주세요.`;
-}
-
-function shortFileName(value: string) {
-  return value.length > 34 ? `…${value.slice(-32)}` : value;
-}
-
-function finalReviewData(categories: Category[]) {
-  const selectedCategories = categories.filter((category) => category.choices.length > 0);
-  return {
-    selectedCount: selectedCategories.reduce((sum, category) => sum + category.choices.length, 0),
-    sections: selectedCategories.map((category) => ({
-      label: category.label,
-      count: category.choices.length,
-      detail: category.choices.some((choice) => choice.memo || choice.retouch_keys.length)
-        ? `보정 요청 ${retouchCount(category)}개${category.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}`
-        : "보정 요청 없음",
-    })),
-    items: selectedCategories.flatMap((category) => category.choices.map((choice) => ({
-      id: choice.image_id,
-      fileName: choice.original_file_name,
-      thumbnailUrl: choice.thumb_url,
-      detail: `${category.label}${choice.retouch_keys.length ? ` · 보정 ${choice.retouch_keys.length}개` : ""}${choice.memo ? " · 메모 있음" : ""}`,
-    }))).slice(0, 12),
-  };
 }
 
 export function PersonSelectLogin({ slug, event }: { slug: string; event: PublicEvent | null }) {
