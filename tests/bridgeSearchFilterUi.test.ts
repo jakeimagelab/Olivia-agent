@@ -16,6 +16,7 @@ const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcu
 const customerPhotoView = readFileSync("lib/select-gallery/customerBridgeView.ts", "utf8");
 const customerKeyboard = readFileSync("components/select-gallery/useCustomerBridgeKeyboard.ts", "utf8");
 const adminKeyboard = readFileSync("components/olivia-bridge/useOliviaBridgeKeyboard.ts", "utf8");
+const adminPhotoView = readFileSync("components/olivia-bridge/useOliviaBridgeVisibleFiles.ts", "utf8");
 
 describe("Bridge filename search and shared label shortcuts", () => {
   it("wires the same search and shortcut hook into both Bridge screens", () => {
@@ -25,8 +26,9 @@ describe("Bridge filename search and shared label shortcuts", () => {
       expect(source).toContain('aria-label="파일명 검색"');
       expect(source).toContain("⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색");
     }
-    expect(adminBridge).toContain("matchesBridgeFilenameSearch");
-    expect(adminBridge).toContain("matchesBridgeLabelFilters");
+    expect(adminBridge).toContain("useOliviaBridgeVisibleFiles");
+    expect(adminPhotoView).toContain("matchesBridgeFilenameSearch");
+    expect(adminPhotoView).toContain("matchesBridgeLabelFilters");
     expect(customerBridge).toContain("buildCustomerBridgePhotoView");
     expect(customerPhotoView).toContain("matchesBridgeFilenameSearch");
     expect(customerPhotoView).toContain("matchesBridgeLabelFilters");

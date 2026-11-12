@@ -60,6 +60,7 @@ import { useOliviaBridgeSelectionLabels } from "@/components/olivia-bridge/useOl
 import { useOliviaBridgeKeyboard } from "@/components/olivia-bridge/useOliviaBridgeKeyboard";
 import { useOliviaBridgeFolderRestore } from "@/components/olivia-bridge/useOliviaBridgeFolderRestore";
 import { useOliviaBridgePhotoNavigation } from "@/components/olivia-bridge/useOliviaBridgePhotoNavigation";
+import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOliviaBridgeVisibleFiles";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -71,7 +72,6 @@ import {
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
   scanBridgeFolder,
-  sortBridgeJpgs,
   type BridgeFolderScan,
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
@@ -93,10 +93,6 @@ import {
   type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
 import {
-  customerSelectionComparisonCounts,
-  matchesCustomerSelectionComparison,
-} from "@/lib/select-gallery/customerBridge";
-import {
   bridgeRawMatchDefaultFolder,
   bridgeRawMatchFolderCandidates,
   resolveBridgeFolderTrail,
@@ -106,11 +102,7 @@ import {
 import {
   BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
-  bridgeFilenameSearchTokens,
   bridgeLabelFilterName,
-  hasActiveBridgeLabelFilters,
-  matchesBridgeFilenameSearch,
-  matchesBridgeLabelFilters,
   matchesBridgeSelectionView,
   resolveBridgeRatings,
   updateBridgeLabelFilters,
@@ -428,52 +420,36 @@ export default function OliviaBridgeWorkspace({
     return mark ? [[normalizePhotoToolFileKey(raw.name), mark] as const] : [];
   })), [rawAdobeMarks, scan.raws]);
   const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
-  const filenameSearchTokens = useMemo(() => bridgeFilenameSearchTokens(filenameSearch), [filenameSearch]);
-  const hasLabelFilters = hasActiveBridgeLabelFilters(labelFilters);
-  const visibleJpgs = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => {
-    const passesFileFilter = hasLabelFilters
-      ? matchesBridgeLabelFilters(photo.id, labelFilters, effectiveRatings, effectiveColorLabels)
-      : fileFilter === "raw" || fileFilter === "sidecar"
-        ? false
-        : fileFilter === "starred" || fileFilter === "colored" || fileFilter === "selected" || fileFilter === "unselected"
-          ? matchesBridgeSelectionView(photo.id, fileFilter, effectiveRatings, effectiveColorLabels)
-          : fileFilter === "excluded"
-            ? excludedIds.has(photo.id)
-            : true;
-    if (!passesFileFilter) return false;
-    if (!matchesBridgeFilenameSearch(photo.name, filenameSearchTokens)) return false;
-    const quality = qualityByBridgeId[photo.id];
-    if (qualityFilter === "eyes_closed" || qualityFilter === "face_too_dark" || qualityFilter === "motion_blur") {
-      if (!quality?.flags.includes(qualityFilter)) return false;
-    } else if (qualityFilter === "needs_review" && quality?.status !== "needs_review") return false;
-    else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
-    return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
-  }), jpgSortMode), [comparisonFilter, customerSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, fileFilter, filenameSearchTokens, hasLabelFilters, jpgSortMode, labelFilters, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
-  const visiblePhotoById = useMemo(
-    () => new Map(visibleJpgs.map((photo) => [photo.id, photo] as const)),
-    [visibleJpgs],
-  );
-  const comparisonCounts = useMemo(
-    () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
-    [customerSelectedIds, scan.jpgs, selectedIds],
-  );
-  const qualityCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
-    const quality = qualityByBridgeId[photo.id];
-    if (!quality) return counts;
-    for (const flag of quality.flags) counts[flag] += 1;
-    if (quality.status === "needs_review") counts.needs_review += 1;
-    if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.normal += 1;
-    return counts;
-  }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, needs_review: 0, normal: 0 }), [qualityByBridgeId, scan.jpgs]);
-  const showRaws = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "raw");
-  const showSidecars = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "sidecar");
-  const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
-  const focusedPhoto = visibleJpgs.find((photo) => photo.id === focusedId) ?? null;
-  const visiblePlainFiles = useMemo(() => [
-    ...(showRaws ? scan.raws : []),
-    ...(showSidecars ? scan.sidecars : []),
-  ], [scan.raws, scan.sidecars, showRaws, showSidecars]);
-  const focusedPlainFile = visiblePlainFiles.find((file) => file.id === focusedPlainId) ?? null;
+  const {
+    filenameSearchTokens,
+    hasLabelFilters,
+    visibleJpgs,
+    visiblePhotoById,
+    comparisonCounts,
+    qualityCounts,
+    showRaws,
+    showSidecars,
+    focusedIndex,
+    focusedPhoto,
+    visiblePlainFiles,
+    focusedPlainFile,
+  } = useOliviaBridgeVisibleFiles({
+    scan,
+    jpgSortMode,
+    fileFilter,
+    labelFilters,
+    filenameSearch,
+    effectiveRatings,
+    effectiveColorLabels,
+    excludedIds,
+    qualityByBridgeId,
+    qualityFilter,
+    comparisonFilter,
+    selectedIds,
+    customerSelectedIds,
+    focusedId,
+    focusedPlainId,
+  });
   const activeTool = BRIDGE_TOOL_ITEMS.find((item) => item.key === toolKey);
 
   const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
