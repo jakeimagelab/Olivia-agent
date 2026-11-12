@@ -109,6 +109,11 @@ import {
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
 import {
+  canRestoreUnmovedSortingSession,
+  restoreMovedSortingScenes,
+  restoreUnmovedSortingScenes,
+} from "@/lib/photo-classifier/sortingSessionRestore";
+import {
   Btn,
   C,
   Card,
@@ -488,30 +493,7 @@ function PhotoSortingInner({
 
         // Reconstruct scenes by re-scanning JPG/SceneXX/ directories
         if (saved.sceneSummary.length > 0) {
-          const scenes: FieldScene[] = [];
-          for (const s of saved.sceneSummary) {
-            const sceneDir = await jpgBase.getDirectoryHandle(s.folderName).catch(() => null);
-            const files: SceneFile[] = [];
-            if (sceneDir) {
-              for await (const [fname, fh] of (sceneDir as any).entries()) {
-                const ext = (fname as string).split(".").pop()?.toLowerCase() ?? "";
-                if ((fh as FileSystemHandle).kind === "file" && ["jpg","jpeg"].includes(ext)) {
-                  files.push({ name: fname as string, basename: (fname as string).replace(/\.[^.]+$/, ""), handle: fh as FileSystemFileHandle, mtime: s.startTime });
-                }
-              }
-              files.sort((a,b) => a.name.localeCompare(b.name));
-            }
-            scenes.push({
-              index: s.index, folderName: s.folderName, editedName: s.editedName,
-              startTime: s.startTime, endTime: s.endTime,
-              fileCount: files.length || s.fileCount, files, sceneDir,
-              sceneType: (s.sceneType as any) ?? null, suggestedName: s.suggestedName,
-              aiConfidence: s.aiConfidence, aiReason: s.aiReason,
-              subScenes: [], profileCount: 0, qualityRejectCount: 0, nameLoading: false,
-              boundaryBefore: s.boundaryBefore, approved: s.approved,
-            });
-          }
-          setFieldScenes(scenes);
+          setFieldScenes(await restoreMovedSortingScenes(jpgBase, saved.sceneSummary));
         }
 
         setSavedSession(null);
@@ -519,31 +501,11 @@ function PhotoSortingInner({
         setStep(targetStep);
       } else {
         // v2 정밀 분류는 승인 전 파일을 이동하지 않으므로 원본 폴더에서 Scene 계획을 복원한다.
-        if (saved.version === 2 && saved.sceneSummary.every((scene) => Array.isArray(scene.fileNames))) {
-          const handles = new Map<string, { handle: FileSystemFileHandle; file: File }>();
-          const restoredRaw: { name: string; handle: FileSystemFileHandle }[] = [];
-          for await (const [name, entry] of (h as any).entries()) {
-            if (entry.kind !== "file") continue;
-            const extension = String(name).split(".").pop()?.toLowerCase() ?? "";
-            if (RAW_EXTS.has(extension)) restoredRaw.push({ name: String(name), handle: entry as FileSystemFileHandle });
-            if (JPG_EXTS.has(extension)) handles.set(String(name), { handle: entry as FileSystemFileHandle, file: await (entry as FileSystemFileHandle).getFile() });
-          }
-          const restoredScenes: FieldScene[] = saved.sceneSummary.map((scene) => {
-            const files: SceneFile[] = (scene.fileNames ?? []).flatMap((name) => {
-              const found = handles.get(name);
-              return found ? [{ name, basename: name.replace(/\.[^.]+$/, ""), handle: found.handle, mtime: found.file.lastModified, thumbUrl: null }] : [];
-            });
-            return {
-              index: scene.index, folderName: scene.folderName, editedName: scene.editedName,
-              startTime: scene.startTime, endTime: scene.endTime, fileCount: files.length, files, sceneDir: null,
-              sceneType: (scene.sceneType as any) ?? null, suggestedName: scene.suggestedName,
-              aiConfidence: scene.aiConfidence, aiReason: scene.aiReason, subScenes: [], profileCount: 0,
-              qualityRejectCount: 0, nameLoading: false, boundaryBefore: scene.boundaryBefore, approved: scene.approved,
-            };
-          });
-          setFieldRawHandles(restoredRaw);
-          setFieldRawCount(restoredRaw.length);
-          setFieldScenes(restoredScenes);
+        if (canRestoreUnmovedSortingSession(saved)) {
+          const restored = await restoreUnmovedSortingScenes(h, saved.sceneSummary);
+          setFieldRawHandles(restored.rawFiles);
+          setFieldRawCount(restored.rawFiles.length);
+          setFieldScenes(restored.scenes);
           setSavedSession(null);
           setStep(2);
         } else {
