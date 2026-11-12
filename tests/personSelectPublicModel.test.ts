@@ -6,6 +6,7 @@ import {
   personSelectNeedMessage,
   type PersonSelectCategoryData,
 } from "@/components/person-select/personSelectPublicModel";
+import { personSelectionSyncStatus } from "@/components/person-select/usePersonSelectPublicData";
 
 function category(choiceCount: number, need = 1, max = 3): PersonSelectCategoryData {
   return {
@@ -40,5 +41,12 @@ describe("person select public view model", () => {
     expect(review.selectedCount).toBe(2);
     expect(review.sections).toEqual([{ label: "프로필", count: 2, detail: "보정 요청 1개 · 메모 있음" }]);
     expect(review.items).toHaveLength(2);
+  });
+
+  it("shows unsaved selection state without hiding queued work", () => {
+    expect(personSelectionSyncStatus({ status: "waiting", pendingCount: 3, lastSavedAt: null }))
+      .toBe("저장 안 된 변경 3건 · 잠시 후 저장");
+    expect(personSelectionSyncStatus({ status: "saved", pendingCount: 0, lastSavedAt: "2026-11-13T00:00:00.000Z" }))
+      .toBe("저장됨 · 방금");
   });
 });

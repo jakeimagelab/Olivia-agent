@@ -6,8 +6,7 @@ import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, L
 import { formatSeoulDeadline } from "@/lib/person-select/date";
 import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
-import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
-import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import { type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { usePersonChoiceSync, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import { clearPersonSelectImageCache, usePersonSelectImages } from "./usePersonSelectImages";
 import { PersonSelectPhotoTile } from "./PersonSelectPhotoTile";
@@ -29,15 +28,14 @@ import {
   type PersonSelectOrderLine as OrderLine,
   type PersonSelectPublicEvent as PublicEvent,
 } from "./personSelectPublicModel";
+import {
+  personSelectJsonFetch as jsonFetch,
+  personSelectionSyncStatus as selectionSyncStatus,
+  usePendingPersonChoiceSyncCount,
+  usePersonSelectData as useSelectionData,
+} from "./usePersonSelectPublicData";
 import styles from "./PersonSelectPublic.module.css";
 const FIRST_PHOTO_TIMER_KEY = "person-select-login-started-at";
-
-async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || "요청을 처리하지 못했어요.");
-  return data as T;
-}
 
 /** 관리자가 적은 안내 문구와 추가 보정 가격을 보여준다. */
 function OfferNotice({ me }: { me: MeData }) {
@@ -99,26 +97,6 @@ export function PersonSelectLogin({ slug, event }: { slug: string; event: Public
       </form>
     </section>
   </main>;
-}
-
-function useSelectionData(slug: string) {
-  const router = useRouter();
-  const [me, setMe] = useState<MeData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const load = useCallback(async (options?: { silent?: boolean }) => {
-    if (!options?.silent) setLoading(true);
-    try {
-      const result = await jsonFetch<{ ok: true } & MeData>(`/api/pick/${slug}/me`);
-      setMe(result); setError("");
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "사진을 불러오지 못했어요.";
-      if (message.includes("로그인")) router.replace(`/pick/${slug}?reason=session`);
-      else setError(message);
-    } finally { if (!options?.silent) setLoading(false); }
-  }, [router, slug]);
-  useEffect(() => { void load(); }, [load]);
-  return { me, loading, error, load };
 }
 
 function Header({ me, slug, desktopControls }: { me: MeData; slug: string; desktopControls?: ReactNode }) {
@@ -197,42 +175,6 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={openSubmitReview}>제출하기 ({completed}/{required.length})</button></div></footer>
     {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void confirmSubmit()} /> : null}
   </main>;
-}
-
-function selectionSyncStatus(sync: { status: string; pendingCount: number; lastSavedAt: string | null }) {
-  if (sync.status === "saved") return sync.lastSavedAt ? "저장됨 · 방금" : "저장됨";
-  if (sync.status === "saving") return "저장 중…";
-  if (sync.status === "waiting") return `저장 안 된 변경 ${sync.pendingCount}건 · 잠시 후 저장`;
-  if (sync.status === "retrying") return `저장 안 된 변경 ${sync.pendingCount}건 · 잠시 후 자동 저장`;
-  return `저장 안 된 변경 ${sync.pendingCount}건 · 다시 시도`;
-}
-
-function usePendingPersonChoiceSyncCount(slug: string) {
-  const [count, setCount] = useState(0);
-  const refresh = useCallback(() => {
-    let next = 0;
-    try {
-      const prefix = `person-select-choice-sync:${slug}:`;
-      for (let index = 0; index < localStorage.length; index += 1) {
-        const key = localStorage.key(index);
-        if (!key?.startsWith(prefix)) continue;
-        next += parsePersistedSelectionSyncQueue(localStorage.getItem(key))?.diffs.length ?? 0;
-      }
-    } catch {
-      // 저장소 제한 환경에서는 현재 화면 큐 상태로만 제출을 보호한다.
-    }
-    setCount(next);
-  }, [slug]);
-  useEffect(() => {
-    refresh();
-    window.addEventListener(SELECTION_SYNC_STORAGE_EVENT, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(SELECTION_SYNC_STORAGE_EVENT, refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, [refresh]);
-  return count;
 }
 
 export function PersonSelectCategory({ slug, categoryKey }: { slug: string; categoryKey: string }) {
