@@ -6,7 +6,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { FolderTree } from "lucide-react";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
-import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
 import {
   PHOTO_DEPARTMENT_SOURCE_DISPLAY,
   manualPhotoDepartmentResolution,
@@ -121,6 +120,7 @@ import {
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
+import { usePhotoDepartmentContext } from "./usePhotoDepartmentContext";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -249,14 +249,6 @@ function PhotoSortingInner({
   useEffect(() => {
     if (rootDir) setCurrentLocalFolder(rootDir);
   }, [rootDir, setCurrentLocalFolder]);
-  // A folder chosen by 사진 셀렉/RAW 매칭/T컷 is the same active work folder.
-  // Do not replace a folder this classifier already owns during an in-progress session.
-  useEffect(() => {
-    if (!rootDir && currentLocalFolder) {
-      departmentContextKeyRef.current = "";
-      setRootDir(currentLocalFolder);
-    }
-  }, [currentLocalFolder, rootDir]);
   const [progress,   setProgressState] = useState({ cur:0, total:0, msg:"" });
   const cancelRef = useRef(false);
   const progressPaintedAtRef = useRef(0);
@@ -315,11 +307,6 @@ function PhotoSortingInner({
 
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
-  const [departmentContextLoading,   setDepartmentContextLoading]   = useState(false);
-  const [departmentContextError,     setDepartmentContextError]     = useState("");
-  const [departmentPickerOpen,       setDepartmentPickerOpen]       = useState(false);
-  const requestDepartmentPicker = useCallback(() => setDepartmentPickerOpen(true), []);
-  const departmentContextKeyRef = useRef("");
   const [gapMinutes,                 setGapMinutes]                 = useState(3.5);
   const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(false);
   const [departmentLogicEnabled,     setDepartmentLogicEnabled]     = useState(true);
@@ -348,6 +335,35 @@ function PhotoSortingInner({
   const [dismissedCandidates,        setDismissedCandidates]        = useState<Set<string>>(new Set());
   const [mergeDecisions,             setMergeDecisions]             = useState<MergeDecision[]>([]);
   const [bridgePlanSummary, setBridgePlanSummary] = useState<{ sceneCount: number; jpgCount: number; reviewCount: number } | null>(null);
+  const departmentFolderName = executionMode === "LOCAL_DIRECT"
+    ? rootDir?.name ?? ""
+    : remoteSelection?.path ?? "";
+  const {
+    chooseDepartment: chooseFieldDepartment,
+    contextKeyRef: departmentContextKeyRef,
+    error: departmentContextError,
+    loading: departmentContextLoading,
+    pickerOpen: departmentPickerOpen,
+    requestPicker: requestDepartmentPicker,
+    setError: setDepartmentContextError,
+    setPickerOpen: setDepartmentPickerOpen,
+  } = usePhotoDepartmentContext({
+    enabled: photoMode === "field" && !pendingBridgeClassificationPlan,
+    clientId,
+    workflowRunId,
+    folderName: departmentFolderName,
+    setDepartment,
+    setResolution: setPhotoDepartmentResolution,
+  });
+
+  // A folder chosen by 사진 셀렉/RAW 매칭/T컷 is the same active work folder.
+  // Do not replace a folder this classifier already owns during an in-progress session.
+  useEffect(() => {
+    if (!rootDir && currentLocalFolder) {
+      departmentContextKeyRef.current = "";
+      setRootDir(currentLocalFolder);
+    }
+  }, [currentLocalFolder, departmentContextKeyRef, rootDir]);
 
   /* ── AI 사진 분류 2.0 — Step0의 "AI 자동 분류" 탭 상태(기존 필드 분류 엔진은 그대로,
      이 상태들은 그 엔진에 넘길 동적 weights/threshold만 들고 있다) ── */
@@ -589,57 +605,6 @@ function PhotoSortingInner({
     setDirPickError("");
     setPhotoSourcePickerOpen(false);
   };
-
-  const chooseFieldDepartment = useCallback((nextDepartment: MedicalDepartment) => {
-    setDepartment(nextDepartment);
-    setPhotoDepartmentResolution(manualPhotoDepartmentResolution(nextDepartment));
-    setDepartmentContextError("");
-    setDepartmentPickerOpen(false);
-  }, [setPhotoDepartmentResolution]);
-
-  const departmentFolderName = executionMode === "LOCAL_DIRECT"
-    ? rootDir?.name ?? ""
-    : remoteSelection?.path ?? "";
-
-  useEffect(() => {
-    if (photoMode !== "field" || !departmentFolderName || pendingBridgeClassificationPlan) return;
-    const contextKey = `${clientId}:${workflowRunId}:${departmentFolderName}`;
-    if (departmentContextKeyRef.current === contextKey) return;
-    departmentContextKeyRef.current = contextKey;
-
-    const controller = new AbortController();
-    setDepartmentContextLoading(true);
-    setDepartmentContextError("");
-    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: departmentFolderName }, { signal: controller.signal })
-      .then((resolution) => {
-        if (controller.signal.aborted) return;
-        setPhotoDepartmentResolution(resolution);
-        if (resolution.status === "resolved") {
-          setDepartment(resolution.department);
-          setDepartmentPickerOpen(false);
-        } else {
-          setDepartmentPickerOpen(true);
-        }
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
-        setDepartmentPickerOpen(true);
-        setDepartmentContextError(error instanceof Error ? error.message : "진료과 정보를 확인하지 못했습니다.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setDepartmentContextLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [
-    clientId,
-    departmentFolderName,
-    pendingBridgeClassificationPlan,
-    photoMode,
-    setPhotoDepartmentResolution,
-    workflowRunId,
-  ]);
 
   const handleFolderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (executionMode === "LOCAL_DIRECT" && event.button === 0) void pickDir();
