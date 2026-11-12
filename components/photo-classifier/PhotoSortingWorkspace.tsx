@@ -122,11 +122,15 @@ import { usePhotoClassificationProgress } from "./usePhotoClassificationProgress
 import { PhotoSourceControl } from "./PhotoSourceControl";
 import { PhotoDepartmentControl } from "./PhotoDepartmentControl";
 import { SavedPhotoSortingSessionBanner } from "./SavedPhotoSortingSessionBanner";
+import {
+  PhotoShootingModeControl,
+  type PhotoShootingMode,
+} from "./PhotoShootingModeControl";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
 ═══════════════════════════════════════════════ */
-type PhotoMode = "field" | "studio";
+type PhotoMode = PhotoShootingMode;
 
 /* ════════════════════════════════════════════════
    CONSTANTS
@@ -2445,18 +2449,7 @@ function PhotoSortingInner({
           />
         )}
 
-        {/* 촬영 모드 선택 */}
-        <Card>
-          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>촬영 모드</div>
-          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:0}}>
-            {([["field","병원 현장촬영","사람·장비·장소·시간 변화로 Scene을 분류합니다."],["studio","스튜디오 프로필촬영","의상·포즈·조명 기준으로 분류합니다."]] as const).map(([m,title,desc])=>(
-              <button key={m} onClick={()=>setPhotoMode(m)} style={{padding:"16px 20px",textAlign:"left",border:"none",borderRight:m==="field"?`1px solid ${C.border}`:"none",background:photoMode===m?C.light:"transparent",cursor:"pointer",fontFamily:"inherit"}}>
-                <div style={{fontSize:13,fontWeight:600,color:photoMode===m?C.teal:C.muted,marginBottom:4}}>{title}{photoMode===m&&" ✓"}</div>
-                <div style={{fontSize:11,color:C.hint,lineHeight:1.6}}>{desc}</div>
-              </button>
-            ))}
-          </div>
-        </Card>
+        <PhotoShootingModeControl mode={photoMode} onChange={setPhotoMode} />
 
         {photoMode === "field" && (
           <>
