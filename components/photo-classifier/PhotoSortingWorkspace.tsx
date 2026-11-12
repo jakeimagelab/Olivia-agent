@@ -54,6 +54,10 @@ import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/re
 import {
   createRemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
+import {
+  buildRemotePhotoSortPayload,
+  resolveRemotePhotoSortStart,
+} from "@/lib/photo-classifier/remotePhotoSortRequest";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
@@ -639,38 +643,24 @@ function PhotoSortingInner({
   };
 
   const handleRemotePhotoSort = useCallback(async () => {
-    if (!remoteSelection?.path) {
-      setRemotePhotoSortError("NAS Root가 아닌 촬영 폴더를 선택해주세요.");
+    const sourceFolder = remoteSelection?.path ?? "";
+    const startDecision = resolveRemotePhotoSortStart({
+      sourceFolder,
+      shootingMode: photoMode,
+      departmentResolved: photoDepartmentResolution.status === "resolved",
+      workerOffline: remoteWorkerOffline,
+      workFolderStatus: remoteWorkFolderCheck.status,
+      workFolderMessage: remoteWorkFolderCheck.status === "error"
+        ? remoteWorkFolderCheck.message
+        : undefined,
+      workFolderReady: remoteWorkFolderReady,
+      jobActive: remoteJobActive,
+    });
+    if (!startDecision.allowed) {
+      if (startDecision.message) setRemotePhotoSortError(startDecision.message);
+      if (startDecision.openDepartmentPicker) setDepartmentPickerOpen(true);
       return;
     }
-
-    if (photoMode === "field" && photoDepartmentResolution.status !== "resolved") {
-      setRemotePhotoSortError("진료과를 확인해야 분류를 시작할 수 있습니다.");
-      setDepartmentPickerOpen(true);
-      return;
-    }
-
-    if (remoteWorkerOffline) {
-      setRemotePhotoSortError("Mac Studio 연결을 확인해주세요.");
-      return;
-    }
-
-    if (remoteWorkFolderCheck.status === "checking" || remoteWorkFolderCheck.status === "idle") {
-      setRemotePhotoSortError("Agentstation 작업본을 확인 중입니다. 확인이 끝난 뒤 시작해주세요.");
-      return;
-    }
-
-    if (remoteWorkFolderCheck.status === "error") {
-      setRemotePhotoSortError(`Agentstation 작업본을 확인하지 못했습니다 — ${remoteWorkFolderCheck.message}`);
-      return;
-    }
-
-    if (!remoteWorkFolderReady) {
-      setRemotePhotoSortError("선택한 NAS 폴더의 Agentstation 작업본 확인이 필요합니다.");
-      return;
-    }
-
-    if (remoteJobActive) return;
 
     remotePhotoSortAbortRef.current?.abort();
     const controller = new AbortController();
@@ -679,19 +669,20 @@ function PhotoSortingInner({
     setRemotePhotoSortSubmitting(true);
 
     try {
-      const job = await createRemotePhotoSortJob({
+      const job = await createRemotePhotoSortJob(buildRemotePhotoSortPayload({
         // 화면 표시용 displayPath가 아니라 Worker가 반환한 raw relative path다.
-        source_folder: remoteSelection.path,
-        shooting_mode: photoMode,
+        sourceFolder,
+        shootingMode: photoMode,
         department,
-        gap_minutes: photoMode === "studio" ? studioGapMinutes : gapMinutes,
-        classification_ui_mode: classificationUiMode,
-        fast_analyze_mode: fastAnalyzeMode,
-        department_logic_enabled: departmentLogicEnabled,
-        ai_naming_enabled: aiNamingEnabled,
-        quality_analysis_enabled: qualityAnalysisEnabled,
-        profile_classification_enabled: profileClassificationEnabled,
-      }, {
+        studioGapMinutes,
+        fieldGapMinutes: gapMinutes,
+        classificationUiMode,
+        fastAnalyzeMode,
+        departmentLogicEnabled,
+        aiNamingEnabled,
+        qualityAnalysisEnabled,
+        profileClassificationEnabled,
+      }), {
         signal: controller.signal,
       });
       trackRemoteJob(job);
