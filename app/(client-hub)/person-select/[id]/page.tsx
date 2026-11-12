@@ -13,7 +13,7 @@ import { usePersonSelectUploadManager } from "@/components/person-select/upload/
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
 import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
-import { formatWon } from "@/lib/person-select/core";
+import { formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminDeliveryItem as DeliveryAdminItem, PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
 import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";

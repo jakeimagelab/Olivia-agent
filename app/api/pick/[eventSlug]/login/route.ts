@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { constantTimePinEqual, isLoginRateLimited, normalizeLoginName } from "@/lib/person-select/core";
+import { isLoginRateLimited, normalizeLoginName } from "@/lib/person-select/core";
+import { constantTimePinEqual } from "@/lib/person-select/serverSecurity";
 import { matchesPersonLoginName } from "@/lib/person-select/loginNames";
 import { createPersonSelectSession, PERSON_SELECT_COOKIE, PERSON_SELECT_SESSION_SECONDS } from "@/lib/person-select/session";
 import { isIndividualPersonSelectAccessAllowed } from "@/lib/person-select/projectSettings";

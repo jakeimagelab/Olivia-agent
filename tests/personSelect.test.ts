@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import {
   canAccessImageRecord,
-  constantTimePinEqual,
-  createUniquePin,
   derivePersonLoginName,
   eventIsLocked,
   isLoginRateLimited,
@@ -16,6 +14,7 @@ import {
   requiredCategoryKeys,
   validateChoiceInput,
 } from "@/lib/person-select/core";
+import { constantTimePinEqual, createUniquePin } from "@/lib/person-select/serverSecurity";
 import { DEFAULT_PERSON_SELECT_CATEGORIES } from "@/lib/person-select/types";
 import { findSkippedFolders, scanPersonSelectFolders } from "@/scripts/person-select-import";
 import { formatSeoulDeadline, formatSeoulDateTimeInput, parseSeoulDateTime, defaultSeoulDeadlineInput } from "@/lib/person-select/date";

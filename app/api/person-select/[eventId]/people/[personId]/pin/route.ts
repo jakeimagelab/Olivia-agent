@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createUniquePin } from "@/lib/person-select/core";
+import { createUniquePin } from "@/lib/person-select/serverSecurity";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ eventId: string; personId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });

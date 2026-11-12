@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { RefreshCw, X } from "lucide-react";
-import { formatWon } from "@/lib/person-select/core";
+import { formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminChoice, PersonSelectAdminPerson } from "@/lib/person-select/adminPerson";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 

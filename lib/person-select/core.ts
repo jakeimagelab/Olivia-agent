@@ -1,6 +1,6 @@
-import { randomInt, timingSafeEqual } from "node:crypto";
 import { PERSON_SELECT_MAX_PICK, PERSON_SELECT_ORDER_MAX_QTY, type PersonSelectCategory, type PersonSelectOffer, type PersonSelectOrderItem } from "./types";
 import { isSelectionSubmissionLocked, validateSelectionMemo } from "@/lib/select-core";
+export { formatWon } from "./format";
 export {
   classifyPersonFolderName,
   derivePersonLoginName,
@@ -11,12 +11,6 @@ export {
   PERSON_FOLDER_JPG_DIRECTORIES,
   type PersonFolderKind,
 } from "./folderRules";
-
-export function constantTimePinEqual(left: string, right: string) {
-  const a = Buffer.from(String(left), "utf8");
-  const b = Buffer.from(String(right), "utf8");
-  return a.length === b.length && timingSafeEqual(a, b);
-}
 
 export function isLoginRateLimited(failedAttempts: number) {
   return failedAttempts >= 10;
@@ -31,16 +25,6 @@ export function canAccessImageRecord(input: {
 }) {
   if (input.categoryKey === "homeroom") return Boolean(input.groupLabel && input.imageOwnerGroup === input.groupLabel);
   return input.imageOwnerPersonId === input.personId;
-}
-
-export function createUniquePin(existing: Iterable<string>) {
-  const used = new Set(existing);
-  if (used.size >= 10_000) throw new Error("발급할 수 있는 비밀번호가 없습니다.");
-  for (let attempt = 0; attempt < 20_000; attempt += 1) {
-    const pin = String(randomInt(0, 10_000)).padStart(4, "0");
-    if (!used.has(pin)) return pin;
-  }
-  throw new Error("중복되지 않는 비밀번호를 만들지 못했습니다.");
 }
 
 export function eventIsLocked(event: { status: string; deadline_at: string }, now = new Date()) {
@@ -141,10 +125,6 @@ export function validateCategoryPicks(value: unknown) {
     }
   }
   return null;
-}
-
-export function formatWon(value: number) {
-  return `${Math.round(value).toLocaleString("ko-KR")}원`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

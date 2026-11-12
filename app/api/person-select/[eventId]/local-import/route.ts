@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import sharp from "sharp";
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { createUniquePin } from "@/lib/person-select/core";
+import { createUniquePin } from "@/lib/person-select/serverSecurity";
 import { derivePersonLoginName, normalizeLoginName } from "@/lib/person-select/folderRules";
 import { deriveLocalImportRecord, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
