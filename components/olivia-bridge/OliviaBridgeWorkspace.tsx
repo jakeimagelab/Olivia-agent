@@ -7,7 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
@@ -604,6 +603,9 @@ export default function OliviaBridgeWorkspace({
     selectAllVisibleJpgs,
     handleFileAreaClick,
     handleFileAreaContextMenu,
+    handleFileAreaClickCapture,
+    toggleFocusedSelection,
+    focusPlainFile,
   } = useOliviaBridgePhotoNavigation({
     visibleJpgs,
     visiblePhotoById,
@@ -727,16 +729,6 @@ export default function OliviaBridgeWorkspace({
     reportScenePlanError,
   });
 
-  const toggleFocusedSelection = useCallback(() => {
-    if (!focusedPhoto) return;
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id);
-      else next.add(focusedPhoto.id);
-      return next;
-    });
-  }, [focusedPhoto, setSelectedIds]);
-
   const openSceneReview = useCallback(() => {
     setSceneReviewOpen(true);
     void syncAdobeBridgeSelection();
@@ -744,15 +736,6 @@ export default function OliviaBridgeWorkspace({
   const refreshAdobeMarks = useCallback(() => {
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
-  const focusPlainFile = useCallback((fileId: string) => {
-    setFocusedPlainId(fileId);
-    setFocusedId(null);
-  }, []);
-  const handleFileAreaClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if (!suppressThumbnailClickRef.current) return;
-    event.preventDefault();
-    event.stopPropagation();
-  }, []);
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <OliviaBridgeTopBars

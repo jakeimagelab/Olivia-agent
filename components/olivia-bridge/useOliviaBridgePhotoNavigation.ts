@@ -168,6 +168,28 @@ export function useOliviaBridgePhotoNavigation({
     choosePhoto(photo, event);
   }, [choosePhoto, visiblePhotoById]);
 
+  const toggleFocusedSelection = useCallback(() => {
+    const focusedPhoto = focusedId ? visiblePhotoById.get(focusedId) : undefined;
+    if (!focusedPhoto) return;
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id);
+      else next.add(focusedPhoto.id);
+      return next;
+    });
+  }, [focusedId, setSelectedIds, visiblePhotoById]);
+
+  const focusPlainFile = useCallback((fileId: string) => {
+    setFocusedPlainId(fileId);
+    setFocusedId(null);
+  }, [setFocusedId, setFocusedPlainId]);
+
+  const handleFileAreaClickCapture = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!suppressThumbnailClickRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+  }, [suppressThumbnailClickRef]);
+
   return {
     choosePhoto,
     moveFocus,
@@ -175,5 +197,8 @@ export function useOliviaBridgePhotoNavigation({
     selectAllVisibleJpgs,
     handleFileAreaClick,
     handleFileAreaContextMenu,
+    handleFileAreaClickCapture,
+    toggleFocusedSelection,
+    focusPlainFile,
   };
 }
