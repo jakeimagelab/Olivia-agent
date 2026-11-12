@@ -100,7 +100,6 @@ import {
   BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
   bridgeLabelFilterName,
-  matchesBridgeSelectionView,
   resolveBridgeRatings,
   updateBridgeLabelFilters,
   type BridgeColorLabel,
@@ -110,6 +109,7 @@ import {
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
+import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -1027,29 +1027,32 @@ export default function OliviaBridgeWorkspace({
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
 
-  const selectionCounts = useMemo(() => scan.jpgs.reduce((counts, photo) => {
-    const hasStar = matchesBridgeSelectionView(photo.id, "starred", effectiveRatings, effectiveColorLabels);
-    const hasColor = matchesBridgeSelectionView(photo.id, "colored", effectiveRatings, effectiveColorLabels);
-    if (hasStar) counts.starred += 1;
-    if (hasColor) counts.colored += 1;
-    if (hasStar || hasColor) counts.selected += 1;
-    else counts.unselected += 1;
-    return counts;
-  }, { starred: 0, colored: 0, selected: 0, unselected: 0 }), [effectiveColorLabels, effectiveRatings, scan.jpgs]);
-  const labeledCount = selectionCounts.selected;
-  const selectedPhotos = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)), [scan.jpgs, selectedIds]);
+  const currentAdobeSelectedIds = adobeSelectedIdsRef.current;
+  const currentManualSelectedIds = manualSelectedIdsRef.current;
+  const {
+    selectionCounts,
+    labeledCount,
+    selectedPhotos,
+    adobeSelectedCount,
+    manualSelectedCount,
+    commonSelectedRating,
+    commonSelectedColor,
+    selectedRatingMixed,
+    selectedColorMixed,
+    allSelectedExcluded,
+  } = useMemo(() => createBridgeSelectionSummary({
+    jpgs: scan.jpgs,
+    selectedIds,
+    ratings: effectiveRatings,
+    colorLabels: effectiveColorLabels,
+    excludedIds,
+    selectionSource,
+    adobeSelectedIds: currentAdobeSelectedIds,
+    manualSelectedIds: currentManualSelectedIds,
+  }), [currentAdobeSelectedIds, currentManualSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, scan.jpgs, selectedIds, selectionSource]);
   const fullscreenPhoto = selectionReviewOpen ? reviewActivePhoto : focusedPhoto;
   const fullscreenIndex = selectionReviewOpen ? reviewActiveIndex : focusedIndex;
   const fullscreenTotal = selectionReviewOpen ? reviewPhotos.length : visibleJpgs.length;
-  const adobeSelectedCount = selectionSource === "olivia" ? 0 : selectedPhotos.reduce((count, photo) => count + (adobeSelectedIdsRef.current.has(photo.id) ? 1 : 0), 0);
-  const manualSelectedCount = selectionSource === "adobe" ? 0 : selectedPhotos.reduce((count, photo) => count + (manualSelectedIdsRef.current.has(photo.id) ? 1 : 0), 0);
-  const selectedRatingValues = selectedPhotos.map((photo) => effectiveRatings[photo.id] ?? 0);
-  const selectedColorValues = selectedPhotos.map((photo) => effectiveColorLabels[photo.id] ?? 0);
-  const commonSelectedRating = selectedRatingValues.length && selectedRatingValues.every((rating) => rating === selectedRatingValues[0]) ? selectedRatingValues[0] : null;
-  const commonSelectedColor = selectedColorValues.length && selectedColorValues.every((label) => label === selectedColorValues[0]) ? selectedColorValues[0] : null;
-  const selectedRatingMixed = selectedRatingValues.length > 1 && commonSelectedRating === null;
-  const selectedColorMixed = selectedColorValues.length > 1 && commonSelectedColor === null;
-  const allSelectedExcluded = selectedPhotos.length > 0 && selectedPhotos.every((photo) => excludedIds.has(photo.id));
   const activeRatingFilterName = labelFilters.rating === null
     ? null
     : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
