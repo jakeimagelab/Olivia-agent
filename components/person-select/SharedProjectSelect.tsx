@@ -16,6 +16,7 @@ import type {
 } from "@/lib/person-select/imagePageClient";
 import type { CustomerBridgeFolderManifest } from "@/lib/select-gallery/customerBridgeTypes";
 import { useSharedPersonSelectImagePages } from "./useSharedPersonSelectImagePages";
+import { toggleClassicSelectionId } from "@/lib/person-select/classicSelection";
 import styles from "./SharedProjectSelect.module.css";
 
 type SharedEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean };
@@ -45,6 +46,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
   };
   const serverSnapshotRef = useRef(initialSnapshot);
   const [selected, setSelected] = useState(() => new Set(seed));
+  const selectedRef = useRef(selected);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [state, setState] = useState("");
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
@@ -58,11 +60,16 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
   const visible = useMemo(() => filter === "selected" ? images.filter((image) => selected.has(image.id)) : images, [filter, images, selected]);
   const rendered = useMemo(() => visible.slice(0, renderLimit), [renderLimit, visible]);
 
+  const replaceSelected = useCallback((next: Set<string>) => {
+    selectedRef.current = next;
+    setSelected(next);
+  }, []);
+
   const installSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
     serverSnapshotRef.current = snapshot;
-    setSelected(new Set(applySelectionDiffsToSharedSnapshot(snapshot, pending).selectedImageIds));
+    replaceSelected(new Set(applySelectionDiffsToSharedSnapshot(snapshot, pending).selectedImageIds));
     setState("");
-  }, []);
+  }, [replaceSelected]);
   const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
     return sendSelectionSyncBatch<SharedSelectionSyncSnapshot>({
       endpoint: `/api/pick/shared/${shareToken}/draft`,
@@ -75,7 +82,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     storageKey: `person-select-classic-sync:${event.id}:${reviewer.id}`,
     sendBatch,
     onSnapshot: installSnapshot,
-    onRestore: (pending) => setSelected(new Set(applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending).selectedImageIds)),
+    onRestore: (pending) => replaceSelected(new Set(applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending).selectedImageIds)),
   });
   const memoSync = useSharedCustomerMemoSync<SharedSelectionSyncSnapshot>({
     storageKey: `person-select-classic-memo:${event.id}:${reviewer.id}`,
@@ -119,17 +126,13 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     }
   }, [getPendingSelectionDiffs, installSnapshot, shareToken]);
   useVisibleSelectionRefresh({ refresh: refreshServerDraft });
-  const toggle = (id: string) => {
-    const removing = selected.has(id);
-    setSelected((current) => {
-      const next = new Set(current);
-      if (removing) next.delete(id); else next.add(id);
-      return next;
-    });
-    selectionSync.enqueue(removing
-      ? [{ imageId: id, rating: null }, { imageId: id, colorLabel: null }]
-      : [{ imageId: id, rating: 5 }]);
-  };
+  const toggle = useCallback((id: string) => {
+    const update = toggleClassicSelectionId(selectedRef.current, id);
+    replaceSelected(update.selectedIds);
+    selectionSync.enqueue(update.selected
+      ? [{ imageId: id, rating: 5 }]
+      : [{ imageId: id, rating: null }, { imageId: id, colorLabel: null }]);
+  }, [replaceSelected, selectionSync]);
   const openSubmitReview = async () => {
     if (!selected.size || selectionSync.pendingCount || memoSync.pending) return;
     if (!(await selectionSync.flushNow()) || !(await memoSync.flushNow())) { setState("저장 안 된 변경이 있어 제출할 수 없습니다."); return; }

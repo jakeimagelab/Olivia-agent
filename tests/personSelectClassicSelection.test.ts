@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds } from "@/lib/person-select/classicSelection";
+import { resolveClassicSelectionShortcut, resolveVisibleClassicSelectionIds, toggleClassicSelectionId } from "@/lib/person-select/classicSelection";
 import { matchesPersonLoginName } from "@/lib/person-select/loginNames";
 
 describe("기존 방식 숫자 셀렉", () => {
@@ -12,6 +12,15 @@ describe("기존 방식 숫자 셀렉", () => {
 });
 
 describe("모바일 기존 방식 즉시 해제", () => {
+  it("빠른 연속 탭은 서버 응답 없이 선택 후 즉시 해제된다", () => {
+    const selected = toggleClassicSelectionId(new Set(), "image-a");
+    expect(selected.selected).toBe(true);
+    expect([...selected.selectedIds]).toEqual(["image-a"]);
+    const cleared = toggleClassicSelectionId(selected.selectedIds, "image-a");
+    expect(cleared.selected).toBe(false);
+    expect([...cleared.selectedIds]).toEqual([]);
+  });
+
   it("서버 응답 전에도 해제 중인 사진을 선택 수와 표시에서 제외한다", () => {
     const serverSelected = new Set(["image-a", "image-b", "image-c"]);
     const visible = resolveVisibleClassicSelectionIds(serverSelected, new Set(["image-b"]));

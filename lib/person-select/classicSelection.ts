@@ -18,3 +18,12 @@ export function resolveVisibleClassicSelectionIds(
   }
   return visible;
 }
+
+/** 빠른 연속 탭도 직전 낙관적 상태를 기준으로 선택/해제를 계산한다. */
+export function toggleClassicSelectionId(selectedIds: ReadonlySet<string>, imageId: string) {
+  const next = new Set(selectedIds);
+  const selected = !next.has(imageId);
+  if (selected) next.add(imageId);
+  else next.delete(imageId);
+  return { selectedIds: next, selected };
+}
