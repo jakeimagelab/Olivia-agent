@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { isAdminSession } from "@/lib/passkey";
-import { getSharedPersonSelectImageUrls } from "@/lib/person-select/sharedPublic";
+import { getSharedPersonSelectImageUrls, parseSharedPersonSelectMediaVariant } from "@/lib/person-select/sharedPublic";
 import { PublicSelectionRequestError, readPublicSelectionJson } from "@/lib/select-gallery/publicSelection";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -17,7 +17,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
     if (!Array.isArray(imageIds) || imageIds.some((value) => typeof value !== "string")) {
       return Response.json({ ok: false, error: "사진 주소 요청 형식이 올바르지 않습니다." }, { status: 400 });
     }
-    const images = await getSharedPersonSelectImageUrls(getSupabaseAdmin(), eventId, imageIds as string[]);
+    const variant = parseSharedPersonSelectMediaVariant((body as { variant?: unknown }).variant);
+    const images = await getSharedPersonSelectImageUrls(getSupabaseAdmin(), eventId, imageIds as string[], variant);
     return Response.json({ ok: true, images }, { headers: { "Cache-Control": "private, max-age=300" } });
   } catch (error) {
     if (error instanceof PublicSelectionRequestError) return Response.json({ ok: false, error: error.message }, { status: error.status });

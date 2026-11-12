@@ -6,6 +6,7 @@ import { applySelectionDiffsToSharedSnapshot, type SelectionSyncDiff, type Share
 import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
+import type { SelectionMediaUrls, SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "./SharedProjectSelect.module.css";
 
 type SharedEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean };
@@ -16,9 +17,9 @@ function requestKey() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto ? `shared_${crypto.randomUUID()}` : `shared_${Date.now()}`;
 }
 
-type SharedImageUrls = Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
+type SharedImageUrls = Record<string, SelectionMediaUrls>;
 
-function SharedClassicSelect({ shareToken, event, reviewer, images: initialImages, draft, selection, onSubmitted, loadImageUrls }: { shareToken: string; event: SharedEvent; reviewer: SharedReviewer; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection; onSubmitted: () => void; loadImageUrls: (imageIds: string[]) => Promise<SharedImageUrls> }) {
+function SharedClassicSelect({ shareToken, event, reviewer, images: initialImages, draft, selection, onSubmitted, loadImageUrls }: { shareToken: string; event: SharedEvent; reviewer: SharedReviewer; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection; onSubmitted: () => void; loadImageUrls: (imageIds: string[], options?: { variant: SelectionMediaVariant }) => Promise<SharedImageUrls> }) {
   const seed = draft?.selectedImageIds ?? selection?.items?.map((item) => item.image_id) ?? [];
   const seedRatings = draft?.ratings ?? Object.fromEntries((selection?.items ?? []).filter((item) => item.customer_rating).map((item) => [item.image_id, Number(item.customer_rating)]));
   const seedColors = draft?.colorLabels ?? Object.fromEntries((selection?.items ?? []).filter((item) => item.customer_color_label).map((item) => [item.image_id, Number(item.customer_color_label)]));
@@ -86,7 +87,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     const missing = rendered.filter((image) => !image.thumbnail_url && !loadingIds.current.has(image.id)).map((image) => image.id);
     if (!missing.length) return;
     missing.forEach((id) => loadingIds.current.add(id));
-    void loadImageUrls(missing)
+    void loadImageUrls(missing, { variant: "thumbnail" })
       .then((next) => setUrlOverrides((current) => ({ ...current, ...next })))
       .catch((cause) => setState(cause instanceof Error ? cause.message : "사진을 불러오지 못했습니다."))
       .finally(() => missing.forEach((id) => loadingIds.current.delete(id)));
@@ -149,8 +150,8 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
 
 export default function SharedProjectSelect({ shareToken, event, reviewer, images, draft, selection }: { shareToken: string; event: SharedEvent; reviewer: SharedReviewer; images: CustomerBridgeImage[]; draft: CustomerBridgeDraft | null; selection: SharedSelection }) {
   const [submitted, setSubmitted] = useState(false);
-  const loadImageUrls = useCallback(async (imageIds: string[]) => {
-    const response = await fetch(`/api/pick/shared/${shareToken}/images`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageIds }) });
+  const loadImageUrls = useCallback(async (imageIds: string[], options?: { variant: SelectionMediaVariant }) => {
+    const response = await fetch(`/api/pick/shared/${shareToken}/images`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ imageIds, variant: options?.variant }) });
     const result = await response.json().catch(() => ({}));
     if (!response.ok || !result.ok || !result.images) throw new Error(result.error || "사진 주소를 불러오지 못했습니다.");
     return result.images as SharedImageUrls;

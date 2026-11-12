@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getSharedPersonSelectImageUrls, resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
+import { getSharedPersonSelectImageUrls, parseSharedPersonSelectMediaVariant, resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
 import {
   enforcePublicSelectionRateLimit,
   PublicSelectionRequestError,
@@ -23,7 +23,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     if (!Array.isArray(imageIds) || imageIds.some((value) => typeof value !== "string")) {
       throw new PublicSelectionRequestError("사진 주소 요청 형식이 올바르지 않습니다.");
     }
-    const images = await getSharedPersonSelectImageUrls(db, event.id, imageIds as string[]);
+    const variant = parseSharedPersonSelectMediaVariant((body as { variant?: unknown }).variant);
+    const images = await getSharedPersonSelectImageUrls(db, event.id, imageIds as string[], variant);
     return Response.json({ ok: true, images }, { headers: { "Cache-Control": "private, max-age=300" } });
   } catch (error) {
     return publicSelectionErrorResponse(error);

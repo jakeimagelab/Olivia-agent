@@ -23,6 +23,7 @@ import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
 import { OfferSettings } from "@/components/person-select/admin/OfferSettings";
 import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
+import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Category = { key: string; label: string; pick: number };
@@ -128,11 +129,11 @@ export default function PersonSelectDetailPage() {
       }
     }
   }, [id]);
-  const loadSharedImageUrls = useCallback(async (imageIds: string[]) => {
+  const loadSharedImageUrls = useCallback(async (imageIds: string[], options?: { variant: SelectionMediaVariant }) => {
     const response = await fetch(`/api/person-select/${id}/images`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageIds }),
+      body: JSON.stringify({ imageIds, variant: options?.variant }),
     });
     const body = await response.json().catch(() => ({}));
     if (!response.ok || !body.ok) throw new Error(body.error || "사진 주소를 불러오지 못했습니다.");

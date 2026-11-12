@@ -143,12 +143,20 @@ export async function getSharedPersonSelectImages(db: SupabaseClient, eventId: s
 }
 
 export const SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT = 240;
+export type SharedPersonSelectMediaVariant = "thumbnail" | "preview" | "both";
+
+export function parseSharedPersonSelectMediaVariant(value: unknown): SharedPersonSelectMediaVariant {
+  if (value === undefined || value === null || value === "") return "both";
+  if (value === "thumbnail" || value === "preview" || value === "both") return value;
+  throw new PublicSelectionRequestError("사진 주소 종류가 올바르지 않습니다.");
+}
 
 /** 공개/관리자 Bridge가 현재 표시할 사진만 서명한다. event 소유관계는 서버에서 다시 확인한다. */
 export async function getSharedPersonSelectImageUrls(
   db: SupabaseClient,
   eventId: string,
   imageIds: readonly string[],
+  variant: SharedPersonSelectMediaVariant = "both",
 ) {
   const uniqueIds = [...new Set(imageIds.map((value) => value.trim()).filter(Boolean))];
   if (!uniqueIds.length || uniqueIds.length > SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT) {
@@ -162,10 +170,16 @@ export async function getSharedPersonSelectImageUrls(
   if ((data ?? []).length !== uniqueIds.length) {
     throw new PublicSelectionRequestError("이 프로젝트에 없는 사진이 포함되어 있습니다.");
   }
-  const urls = await signedImageUrls((data ?? []).flatMap((row) => [row.thumb_path, row.preview_path]), 3_600);
+  const includeThumbnail = variant === "thumbnail" || variant === "both";
+  const includePreview = variant === "preview" || variant === "both";
+  const paths = (data ?? []).flatMap((row) => [
+    ...(includeThumbnail ? [row.thumb_path] : []),
+    ...(includePreview ? [row.preview_path || row.thumb_path] : []),
+  ]);
+  const urls = await signedImageUrls(paths, 3_600);
   return Object.fromEntries((data ?? []).map((row) => [row.id, {
-    image_url: urls.get(row.preview_path) ?? urls.get(row.thumb_path) ?? "",
-    thumbnail_url: urls.get(row.thumb_path) ?? "",
+    ...(includeThumbnail ? { thumbnail_url: urls.get(row.thumb_path) ?? "" } : {}),
+    ...(includePreview ? { image_url: urls.get(row.preview_path || row.thumb_path) ?? "" } : {}),
   }]));
 }
 

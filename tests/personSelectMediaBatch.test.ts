@@ -10,6 +10,7 @@ vi.mock("@/lib/person-select/server", () => ({ signedImageUrls: mocks.signedImag
 import {
   getSharedPersonSelectImageUrls,
   getSharedPersonSelectImages,
+  parseSharedPersonSelectMediaVariant,
   SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT,
 } from "@/lib/person-select/sharedPublic";
 
@@ -76,6 +77,25 @@ describe("person-select visible media batches", () => {
       "image-b": { thumbnail_url: "signed:thumb/b.jpg", image_url: "signed:preview/b.jpg" },
     });
     expect(mocks.signedImageUrls).toHaveBeenCalledWith(["thumb/b.jpg", "preview/b.jpg"], 3_600);
+  });
+
+  it("signs thumbnails and previews in separate batches", async () => {
+    const thumbnails = await getSharedPersonSelectImageUrls(fakeImageDb(rows), "event-a", ["image-a", "image-b"], "thumbnail");
+    expect(thumbnails).toEqual({
+      "image-a": { thumbnail_url: "signed:thumb/a.jpg" },
+      "image-b": { thumbnail_url: "signed:thumb/b.jpg" },
+    });
+    expect(mocks.signedImageUrls).toHaveBeenLastCalledWith(["thumb/a.jpg", "thumb/b.jpg"], 3_600);
+
+    const preview = await getSharedPersonSelectImageUrls(fakeImageDb(rows), "event-a", ["image-a"], "preview");
+    expect(preview).toEqual({ "image-a": { image_url: "signed:preview/a.jpg" } });
+    expect(mocks.signedImageUrls).toHaveBeenLastCalledWith(["preview/a.jpg"], 3_600);
+  });
+
+  it("keeps both as the compatible default media variant", () => {
+    expect(parseSharedPersonSelectMediaVariant(undefined)).toBe("both");
+    expect(parseSharedPersonSelectMediaVariant("thumbnail")).toBe("thumbnail");
+    expect(() => parseSharedPersonSelectMediaVariant("original")).toThrow("종류가 올바르지");
   });
 
   it("rejects oversized batches and image IDs outside the project", async () => {
