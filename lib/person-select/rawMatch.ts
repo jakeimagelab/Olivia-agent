@@ -106,12 +106,17 @@ export function normalizePersonSelectRawLabelNames(value: unknown): PersonSelect
 }
 
 function targetFromImage(image: PersonSelectRawImage, ownerId: string, ownerName: string): PersonSelectRawMatchTarget {
+  const customerColorLabel = normalizeCustomerColorLabel(image.customerColorLabel);
+  const explicitRating = normalizeCustomerRating(image.customerRating);
   return {
     ...image,
     ownerId,
     ownerName,
-    customerRating: normalizeCustomerRating(image.customerRating),
-    customerColorLabel: normalizeCustomerColorLabel(image.customerColorLabel),
+    // 개인별/classic 셀렉은 별점 없이 "선택됨"만 저장한다. RAW 표시에서는
+    // Adobe Bridge의 확정 셀렉 관례에 맞춰 ★5로 보이되, 컬러만 고른 사진에는
+    // 임의의 별점을 더하지 않는다. 실제 고객 별점은 그대로 보존한다.
+    customerRating: explicitRating ?? (customerColorLabel === null ? 5 : null),
+    customerColorLabel,
     markSavedAt: image.markSavedAt ?? null,
     markConflict: false,
   };
@@ -154,7 +159,7 @@ export function resolveIndividualRawMatchTargets(input: {
   const all = input.choices.flatMap((choice) => {
     const person = peopleById.get(choice.personId);
     if (!person || !choice.image) return [];
-    return [targetFromImage({ ...choice.image, customerRating: choice.image.customerRating ?? 1 }, person.id, person.displayName)];
+    return [targetFromImage(choice.image, person.id, person.displayName)];
   });
   const submitted = uniqueTargets(all.filter((target) => submittedIds.has(target.ownerId)));
   const targets = source === "current" ? uniqueTargets(all) : submitted;

@@ -180,7 +180,7 @@ async function loadTargets(input: {
       people: (people ?? []).map((person) => ({ id: person.id, displayName: person.display_name, submittedAt: person.submitted_at })),
       choices: ((choices ?? []) as unknown as ChoiceRow[]).map((choice) => ({
         personId: choice.person_id,
-        image: choice.person_select_images ? imageRow(choice.person_select_images, { customerRating: 1, markSavedAt: choice.updated_at ?? null }) : null,
+        image: choice.person_select_images ? imageRow(choice.person_select_images, { markSavedAt: choice.updated_at ?? null }) : null,
       })),
     });
     return {
@@ -233,7 +233,7 @@ async function loadTargets(input: {
       .filter((item) => item.selection_id === selection.id)
       .flatMap((item) => {
         const image = imageById.get(item.image_id);
-        return image ? [{ ...image, customerRating: item.customer_rating ?? 1, customerColorLabel: item.customer_color_label ?? null, markSavedAt: selection.submitted_at ?? null }] : [];
+        return image ? [{ ...image, customerRating: item.customer_rating ?? null, customerColorLabel: item.customer_color_label ?? null, markSavedAt: selection.submitted_at ?? null }] : [];
       }));
   }
   const draftByReviewer = new Map<string, PersonSelectRawImage[]>();
@@ -241,7 +241,7 @@ async function loadTargets(input: {
     draftByReviewer.set(draft.reviewer_id, (Array.isArray(draft.items) ? draft.items : [])
       .flatMap((item) => {
         const image = item.image_id ? imageById.get(item.image_id) : null;
-        return image ? [{ ...image, customerRating: item.customer_rating ?? 1, customerColorLabel: item.customer_color_label ?? null, markSavedAt: draft.updated_at ?? null }] : [];
+        return image ? [{ ...image, customerRating: item.customer_rating ?? null, customerColorLabel: item.customer_color_label ?? null, markSavedAt: draft.updated_at ?? null }] : [];
       }));
   }
   const result = resolveSharedRawMatchTargets({
@@ -264,7 +264,7 @@ function safeFolderName(value: string) {
   return normalizeNfc(value).replace(/[\\/:*?"<>|\0]/g, "_").trim() || "이름없음";
 }
 
-const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-raw-mark-v1";
+const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.13-person-select-raw-copy-v2";
 let failureStage = "STARTING";
 
 async function existingSidecarPath(rawPath: string) {
@@ -449,6 +449,7 @@ async function main() {
   const conflicts: { name: string; raw: string }[] = [];
   const markedSidecars: Array<{ rawPath: string; sidecarPath: string; created: boolean }> = [];
   const markFailures: Array<{ raw: string; error: string }> = [];
+  const copyFailures: Array<{ stage: "raw_copy"; name: string; jpg: string; raw: string; error: string }> = [];
   const rawMarkJobId = `${eventId}-${Date.now().toString(36)}`;
   let ratingCount = 0;
   let colorCount = 0;
@@ -460,7 +461,7 @@ async function main() {
     if (!current) { current = readCaptureTime(filePath).catch(() => null); captureCache.set(filePath, current); }
     return current;
   };
-  const reviewRequired: Array<{ owner: string; jpg: string; reason: string; candidates?: string[] }> = [];
+  const reviewRequired: Array<{ owner: string; jpg: string; reason: string; candidates?: string[]; stage?: string; error?: string }> = [];
   for (const choice of targets) {
     const name = choice.ownerName;
     const rawCandidates = rawIndex.get(rawBasename(choice.originalFileName)) ?? [];
@@ -511,18 +512,20 @@ async function main() {
       } else {
         failureStage = "COPYING_RAW";
         const targetDir = path.join(outputRoot, safeFolderName(name));
-        const target = path.join(targetDir, picked.name);
-        await mkdir(targetDir, { recursive: true });
-        const existing = await stat(target).catch(() => null);
-        if (existing) {
-          if (existing.size === picked.size) alreadyCopied.push({ name, raw: picked.name });
-          else {
+        try {
+          await mkdir(targetDir, { recursive: true });
+          const operation = await copyOrMovePreservingMetadata({ source: picked.path, destinationDirectory: targetDir, move: false });
+          if (operation.alreadyExisted) alreadyCopied.push({ name, raw: picked.name });
+          else matched.push({ name, jpg: choice.originalFileName, raw: picked.relPath, attributeVerified: true });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "RAW 복사 실패";
+          if (message.includes("같은 이름이 있어 덮어쓰지 않음")) {
             conflicts.push({ name, raw: picked.name });
             reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "conflict", candidates: [picked.relPath] });
+          } else {
+            copyFailures.push({ stage: "raw_copy", name, jpg: choice.originalFileName, raw: picked.relPath, error: message });
+            reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "copy_failed", candidates: [picked.relPath], stage: "raw_copy", error: message });
           }
-        } else {
-          await copyOrMovePreservingMetadata({ source: picked.path, destinationDirectory: targetDir, move: false });
-          matched.push({ name, jpg: choice.originalFileName, raw: picked.relPath, attributeVerified: true });
         }
       }
     }
@@ -559,6 +562,7 @@ async function main() {
     labelNames,
     markedSidecars,
     markFailures,
+    copyFailures,
     missing,
     ambiguous,
     timeMismatch,

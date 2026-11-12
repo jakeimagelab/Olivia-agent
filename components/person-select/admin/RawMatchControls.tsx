@@ -89,11 +89,11 @@ export function RawMatchResult({ result, at, busy, onClear, onRetry }: { result:
   const outputPath = String(result.outputRelativePath ?? "Selected_RAW");
   const destination = [storageLabel, rawSearchPath, outputPath].filter(Boolean).join("/");
   const reviewRequiredCount = reviewRequired.length || missing.length + ambiguous.length + conflicts.length;
-  const reviewReason = (reason: unknown) => reason === "time_mismatch" ? "촬영시각 불일치" : reason === "multiple_candidates" ? "후보 여러 개" : reason === "missing_time" ? "촬영시각 없음" : reason === "raw_missing" ? "RAW 없음" : reason === "conflict" ? "대상 파일 충돌" : "확인 필요";
+  const reviewReason = (reason: unknown) => reason === "time_mismatch" ? "촬영시각 불일치" : reason === "multiple_candidates" ? "후보 여러 개" : reason === "missing_time" ? "촬영시각 없음" : reason === "raw_missing" ? "RAW 없음" : reason === "conflict" ? "대상 파일 충돌" : reason === "copy_failed" ? "RAW 복사 실패" : "확인 필요";
   return <div className={styles.result}>
     <div>{`RAW 매칭${at ? ` (${new Date(at).toLocaleString("ko-KR")})` : ""} · ${sourceLabel} · 고른 사진 ${Number(result.selectedCount ?? 0)}장 · 새로 복사 ${Number(result.matchedCount ?? 0)}장 · 이미 있음 ${Number(result.alreadyCopiedCount ?? 0)}장 · 확인 필요 ${reviewRequiredCount}장 → ${destination}`}</div>
     {notSubmitted.length ? <div className={styles.skippedFolders}>미제출로 빠진 사람: {notSubmitted.join(" / ")}</div> : null}
-    {reviewRequired.length ? <ul className={styles.failureList}>{reviewRequired.map((item, index) => <li key={`r-${index}`}>{String(item.owner)} · {String(item.jpg)}: {reviewReason(item.reason)}{Array.isArray(item.candidates) && item.candidates.length ? ` (${item.candidates.length}개 후보)` : ""}</li>)}</ul> : <>
+    {reviewRequired.length ? <ul className={styles.failureList}>{reviewRequired.map((item, index) => <li key={`r-${index}`}>{String(item.owner)} · {String(item.jpg)}: {reviewReason(item.reason)}{item.stage ? ` · ${String(item.stage)}` : ""}{item.error ? ` · ${String(item.error)}` : ""}{Array.isArray(item.candidates) && item.candidates.length ? ` (${item.candidates.length}개 후보)` : ""}</li>)}</ul> : <>
       {missing.length ? <ul className={styles.failureList}>{missing.map((item, index) => <li key={`m-${index}`}>{String(item.name)} · {String(item.jpg)}: RAW를 찾지 못했어요</li>)}</ul> : null}
       {ambiguous.length ? <ul className={styles.failureList}>{ambiguous.map((item, index) => <li key={`a-${index}`}>{String(item.name)} · {String(item.jpg)}: 같은 이름의 RAW가 여러 개라 직접 확인이 필요해요 ({Array.isArray(item.candidates) ? item.candidates.length : 0}개)</li>)}</ul> : null}
       {conflicts.length ? <ul className={styles.failureList}>{conflicts.map((item, index) => <li key={`c-${index}`}>{String(item.name)} · {String(item.raw)}: 같은 이름의 다른 파일이 이미 있어 덮어쓰지 않았어요</li>)}</ul> : null}

@@ -232,6 +232,10 @@ export async function copyOrMovePreservingMetadata(input: {
   const temporary = path.join(destinationDirectory, `.olivia-copy-${randomUUID()}-${path.basename(source)}`);
   try {
     await execFileAsync("/usr/bin/ditto", [source, temporary], { maxBuffer: 4 * 1024 * 1024 });
+    // 일부 SMB/NAS 서버는 ditto가 보존한 mtime을 파일 생성 시각으로 다시 쓴다.
+    // 원본은 건드리지 않고 복사본의 수정일만 원본과 재동기화한 뒤, 아래에서
+    // 크기·mtime·birthtime·위험 xattr을 다시 검증한다.
+    await execFileAsync("/usr/bin/touch", ["-r", source, temporary], { maxBuffer: 4 * 1024 * 1024 });
     const checked = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(temporary));
     if (!checked.ok) throw new Error(`속성 확인 실패: ${checked.reasons.join(", ")}`);
     await rename(temporary, destination);

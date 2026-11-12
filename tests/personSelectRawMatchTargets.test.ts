@@ -55,6 +55,7 @@ describe("person select RAW match targets", () => {
       choices,
     });
     expect(result.targets).toHaveLength(52);
+    expect(result.targets.every((target) => target.customerRating === 5)).toBe(true);
     expect(result.submittedSelectedCount).toBe(0);
     expect(result.currentUnsubmittedCount).toBe(52);
   });
@@ -100,6 +101,20 @@ describe("person select RAW match targets", () => {
     expect(result.targets.map((target) => target.id)).toEqual(["submitted"]);
     expect(result.submittedSelectedCount).toBe(1);
     expect(result.currentUnsubmittedCount).toBe(0);
+  });
+
+  it("maps a legacy boolean selection to 5 stars but preserves a color-only selection", () => {
+    const result = resolveSharedRawMatchTargets({
+      source: "current",
+      reviewers: [{ id: "reviewer", displayName: "고객", active: true }],
+      submittedByReviewer: new Map(),
+      draftByReviewer: new Map([["reviewer", [
+        image("legacy"),
+        { ...image("color"), customerColorLabel: 6 },
+      ]]]),
+    });
+    expect(result.targets.find((target) => target.id === "legacy")?.customerRating).toBe(5);
+    expect(result.targets.find((target) => target.id === "color")).toMatchObject({ customerRating: null, customerColorLabel: 6 });
   });
 });
 
