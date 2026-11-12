@@ -57,6 +57,7 @@ import { useOliviaBridgeCustomerSelectionImport } from "@/components/olivia-brid
 import { useOliviaBridgeFolderCounts } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
 import { useOliviaBridgeMarqueeSelection } from "@/components/olivia-bridge/useOliviaBridgeMarqueeSelection";
 import { useOliviaBridgeSelectionReview } from "@/components/olivia-bridge/useOliviaBridgeSelectionReview";
+import { useOliviaBridgeSelectionLabels } from "@/components/olivia-bridge/useOliviaBridgeSelectionLabels";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -120,14 +121,11 @@ import {
   normalizeBridgeColorLabels,
   normalizeBridgeRatingEdits,
   resolveBridgeRatings,
-  toggleBridgeColorLabel,
   updateBridgeLabelFilters,
-  updateBridgeRatingEdits,
   type BridgeColorLabel,
   type BridgeColorLabels,
   type BridgeLabelFilterCommand,
   type BridgeLabelFilters,
-  type BridgeRatingEdits,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
@@ -232,10 +230,6 @@ export default function OliviaBridgeWorkspace({
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
-  const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [ratingEdits, setRatingEdits] = useState<BridgeRatingEdits>({});
-  const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
-  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
@@ -256,17 +250,51 @@ export default function OliviaBridgeWorkspace({
   const previewPanelRef = useRef<HTMLElement>(null);
   const restoreAttemptedRef = useRef(false);
   const remoteLoadGenerationRef = useRef(0);
-  const ratingsRef = useRef(ratings);
-  const ratingEditsRef = useRef(ratingEdits);
   const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rawMatchOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showTopNotice = useCallback((message: string, duration = 3_000) => {
+    if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
+    setTopNotice(message);
+    topNoticeTimerRef.current = setTimeout(() => {
+      setTopNotice("");
+      topNoticeTimerRef.current = null;
+    }, duration);
+  }, []);
+
+  const showAdobeSelectionNotice = useCallback(() => {
+    showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
+  }, [showTopNotice]);
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
   const folderPath = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join(" / ");
   const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
   const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
   const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const {
+    ratings,
+    setRatings,
+    ratingEdits,
+    setRatingEdits,
+    colorLabels,
+    setColorLabels,
+    excludedIds,
+    setExcludedIds,
+    ratingsRef,
+    ratingEditsRef,
+    applyRating,
+    applyColorLabel,
+    clearColorLabels,
+    toggleExcluded,
+  } = useOliviaBridgeSelectionLabels({
+    jpgs: scan.jpgs,
+    selectedIds,
+    focusedId,
+    selectionSourceRef,
+    setJpgRatingsByName,
+    showAdobeSelectionNotice,
+  });
   const folderImageCounts = useOliviaBridgeFolderCounts(activeFolder, scan.folders);
   const captureMetadataState = useOliviaBridgeCaptureMetadata({
     jpgSortMode,
@@ -469,19 +497,6 @@ export default function OliviaBridgeWorkspace({
   const focusedPlainFile = visiblePlainFiles.find((file) => file.id === focusedPlainId) ?? null;
   const activeTool = BRIDGE_TOOL_ITEMS.find((item) => item.key === toolKey);
 
-  const showTopNotice = useCallback((message: string, duration = 3_000) => {
-    if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
-    setTopNotice(message);
-    topNoticeTimerRef.current = setTimeout(() => {
-      setTopNotice("");
-      topNoticeTimerRef.current = null;
-    }, duration);
-  }, []);
-
-  const showAdobeSelectionNotice = useCallback(() => {
-    showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
-  }, [showTopNotice]);
-
   const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
     if (selectionSourceRef.current === "adobe") return;
     const requested = typeof value === "function" ? value(selectedIdsRef.current) : value;
@@ -616,9 +631,6 @@ export default function OliviaBridgeWorkspace({
       return next;
     });
   }, [jpgRatingsByName, scan.jpgs, selectionSource]);
-
-  useEffect(() => { ratingsRef.current = ratings; }, [ratings]);
-  useEffect(() => { ratingEditsRef.current = ratingEdits; }, [ratingEdits]);
 
   useEffect(() => () => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
@@ -1031,66 +1043,6 @@ export default function OliviaBridgeWorkspace({
     elements.find((element) => element.dataset.bridgePhotoId === targetId)
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [anchorId, focusedId, setSelectedIds, visibleJpgs]);
-
-  const labelTargets = useCallback((focusedOnly = false) => {
-    if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
-    return selectedIds.size ? selectedIds : focusedId ? new Set([focusedId]) : new Set<string>();
-  }, [focusedId, selectedIds]);
-
-  const applyRating = useCallback((rating: number, focusedOnly = false) => {
-    if (selectionSourceRef.current === "adobe") {
-      showAdobeSelectionNotice();
-      return;
-    }
-    const targets = labelTargets(focusedOnly);
-    if (!targets.size) return;
-    setRatingEdits((previous) => {
-      const next = updateBridgeRatingEdits(previous, targets, rating);
-      ratingEditsRef.current = next;
-      return next;
-    });
-    setRatings((previous) => {
-      const next = { ...previous };
-      for (const id of targets) {
-        if (rating === 0) delete next[id];
-        else next[id] = rating;
-      }
-      ratingsRef.current = next;
-      return next;
-    });
-    const ratingsByName = Object.fromEntries(scan.jpgs.flatMap((photo) => targets.has(photo.id) ? [[photo.name, rating] as const] : []));
-    setJpgRatingsByName(ratingsByName, { overwrite: true });
-  }, [labelTargets, scan.jpgs, setJpgRatingsByName, showAdobeSelectionNotice]);
-
-  const applyColorLabel = useCallback((label: BridgeColorLabel, focusedOnly = false) => {
-    const targets = labelTargets(focusedOnly);
-    if (!targets.size) return;
-    setColorLabels((previous) => toggleBridgeColorLabel(previous, targets, label));
-  }, [labelTargets]);
-
-  const clearColorLabels = useCallback(() => {
-    const targets = labelTargets(false);
-    if (!targets.size) return;
-    setColorLabels((previous) => {
-      const next = { ...previous };
-      for (const id of targets) delete next[id];
-      return next;
-    });
-  }, [labelTargets]);
-
-  const toggleExcluded = useCallback((focusedOnly = false) => {
-    const targets = labelTargets(focusedOnly);
-    if (!targets.size) return;
-    setExcludedIds((previous) => {
-      const next = new Set(previous);
-      const exclude = [...targets].some((id) => !next.has(id));
-      for (const id of targets) {
-        if (exclude) next.add(id);
-        else next.delete(id);
-      }
-      return next;
-    });
-  }, [labelTargets]);
 
   const closeFullscreenPreview = useCallback(() => {
     setFullscreenPreviewOpen(false);
