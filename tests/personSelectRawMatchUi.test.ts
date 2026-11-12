@@ -5,6 +5,7 @@ const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8"
 const rawMatchControls = readFileSync("components/person-select/admin/RawMatchControls.tsx", "utf8");
 const bridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
 const bridgeCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
+const adminCss = readFileSync("components/person-select/PersonSelectAdmin.module.css", "utf8");
 
 describe("person select RAW match admin UI", () => {
   it("keeps the title row free of actions and places guidance beside the tabs", () => {
@@ -35,5 +36,12 @@ describe("person select RAW match admin UI", () => {
 
   it("keeps the customer Bridge footer above the mobile safe area", () => {
     expect(bridgeCss).toMatch(/\.footer\s*\{[\s\S]*?safe-area-inset-bottom/);
+  });
+
+  it("keeps a labeled shared RAW match action visible on mobile", () => {
+    expect(page).toContain("styles.mobileSharedRawMatchToolbar");
+    expect(adminCss).toMatch(/\.mobileSharedRawMatchToolbar\s*\{\s*display:\s*none/);
+    expect(adminCss).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.mobileSharedRawMatchToolbar\s*\{\s*display:\s*flex/);
+    expect(adminCss).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.bridgeRawButton\s*\{\s*display:\s*none/);
   });
 });

@@ -161,6 +161,7 @@
 .rawMatchToolbar > div { min-width: 0; display: grid; gap: 2px; }
 .rawMatchToolbar strong { font-size: 12px; font-weight: 600; }
 .rawMatchToolbar span { color: var(--ps-sub); font-size: 11px; }
+.mobileSharedRawMatchToolbar { display: none; }
 .rawMatchDialog { width: min(560px, 100%); }
 .rawMatchOptions { display: grid; gap: 8px; margin: 0; padding: 12px 14px; border: 1px solid var(--ps-border); border-radius: 9px; }
 .rawMatchOptions legend { padding: 0 5px; color: var(--ps-sub); font-size: 11px; }
@@ -254,6 +255,8 @@
   .tabActions > .secondary { flex: 1; }
   .rawMatchToolbar { align-items: stretch; flex-direction: column; }
   .rawMatchToolbar .primary { width: 100%; min-height: 44px; }
+  .mobileSharedRawMatchToolbar { display: flex; }
+  .bridgeRawButton { display: none; }
   .rawMatchCount { align-items: flex-start; flex-direction: column; }
   .rawMatchPaths > div { grid-template-columns: 1fr; gap: 3px; }
   .rawLabelSettings { grid-template-columns: 1fr 1fr; }
