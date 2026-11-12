@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState, type RefObject } from "react";
 
+import {
+  useOliviaBridgeQualityAnalysis,
+  type OliviaBridgeQualityResponse,
+} from "@/components/olivia-bridge/useOliviaBridgeQualityAnalysis";
 import type {
   GalleryCustomerSelectionResult,
   PersonSelectEventSummary,
@@ -14,7 +18,6 @@ import {
   type CustomerSelectionComparisonFilter,
   type CustomerSelectionMatchItem,
 } from "@/lib/select-gallery/customerBridge";
-import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 
 type UseOliviaBridgeCustomerSelectionImportOptions = {
   hasActiveFolder: boolean;
@@ -24,13 +27,6 @@ type UseOliviaBridgeCustomerSelectionImportOptions = {
   activeFolderName: string;
   remoteFolder: RemoteNasSelection | null;
   workspaceRef: RefObject<HTMLDivElement | null>;
-};
-
-type QualityResponse = {
-  ok?: boolean;
-  results?: PublicPhotoQualityResult[];
-  job?: Record<string, unknown>;
-  error?: string;
 };
 
 export function useOliviaBridgeCustomerSelectionImport({
@@ -53,9 +49,18 @@ export function useOliviaBridgeCustomerSelectionImport({
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [comparisonFilter, setComparisonFilter] = useState<CustomerSelectionComparisonFilter>("all");
-  const [qualityByBridgeId, setQualityByBridgeId] = useState<Record<string, PublicPhotoQualityResult>>({});
-  const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
-  const [qualityMessage, setQualityMessage] = useState("");
+  const {
+    qualityByBridgeId,
+    qualityJob,
+    qualityMessage,
+    installQualitySnapshot,
+    installQualityError,
+    startLinkedQualityAnalysis,
+    controlLinkedQualityAnalysis,
+  } = useOliviaBridgeQualityAnalysis({
+    eventId: result?.personSelectEventId,
+    match: result?.imageMatch ?? result?.match,
+  });
 
   const bridgeFiles = useCallback(() => jpgs.map((photo) => ({
     id: photo.id,
@@ -205,18 +210,11 @@ export function useOliviaBridgeCustomerSelectionImport({
         relativePath: image.relative_path ?? null,
       })), currentBridgeFiles);
       const qualityResponse = await fetch(`/api/person-select/${project.id}/quality`, { cache: "no-store" });
-      const qualityBody = await qualityResponse.json().catch(() => ({})) as QualityResponse;
+      const qualityBody = await qualityResponse.json().catch(() => ({})) as OliviaBridgeQualityResponse;
       if (qualityResponse.ok && qualityBody.ok) {
-        setQualityByBridgeId(Object.fromEntries((qualityBody.results ?? []).flatMap((qualityResult) => {
-          const bridgeId = imageMatch.bridgeIdByImageId[qualityResult.imageId];
-          return bridgeId ? [[bridgeId, qualityResult]] : [];
-        })));
-        setQualityJob(qualityBody.job ?? null);
-        setQualityMessage("");
+        installQualitySnapshot(qualityBody.results ?? [], qualityBody.job ?? null, imageMatch);
       } else {
-        setQualityByBridgeId({});
-        setQualityJob(null);
-        setQualityMessage(qualityBody.error || "AI 품질 결과를 불러오지 못했습니다.");
+        installQualityError(qualityBody.error || "AI 품질 결과를 불러오지 못했습니다.");
       }
       setSelectedIds(new Set(match.matchedBridgeIds));
       setRatings(match.ratingsByBridgeId);
@@ -240,83 +238,7 @@ export function useOliviaBridgeCustomerSelectionImport({
     } finally {
       setImportingId("");
     }
-  }, [bridgeFiles]);
-
-  const startQualityAnalysis = useCallback(async () => {
-    const eventId = result?.personSelectEventId;
-    if (!eventId) return;
-    if (!window.confirm("AI 품질 검사를 위해 1024px 이하 경량 미리보기를 OpenAI API로 전송합니다. 원본 파일은 전송하지 않습니다. 계속할까요?")) return;
-    setQualityMessage("AI 품질 검사를 준비하는 중입니다.");
-    const response = await fetch(`/api/person-select/${eventId}/quality`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ consentAccepted: true }),
-    });
-    const body = await response.json().catch(() => ({})) as QualityResponse;
-    if (!response.ok || !body.ok) {
-      setQualityMessage(body.error || "AI 품질 검사를 시작하지 못했습니다.");
-      return;
-    }
-    setQualityJob(body.job ?? null);
-    setQualityMessage("Mac Studio에서 검사를 시작했습니다. 다른 앱을 사용해도 계속 진행됩니다.");
-  }, [result?.personSelectEventId]);
-
-  const controlQualityAnalysis = useCallback(async (action: "pause" | "resume" | "retry") => {
-    const eventId = result?.personSelectEventId;
-    if (!eventId) return;
-    const response = await fetch(`/api/person-select/${eventId}/quality`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    const body = await response.json().catch(() => ({})) as QualityResponse;
-    if (!response.ok || !body.ok) {
-      setQualityMessage(body.error || "AI 검사 상태를 바꾸지 못했습니다.");
-      return;
-    }
-    setQualityJob(body.job ?? null);
-    setQualityMessage(action === "pause"
-      ? "AI 검사를 일시정지했습니다."
-      : action === "resume"
-        ? "AI 검사를 이어서 진행합니다."
-        : "실패한 사진만 다시 검사합니다.");
-  }, [result?.personSelectEventId]);
-
-  useEffect(() => {
-    const eventId = result?.personSelectEventId;
-    const match = result?.imageMatch ?? result?.match;
-    if (!eventId || !match || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
-    let stopped = false;
-    let inFlight = false;
-    const refresh = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        const response = await fetch(`/api/person-select/${eventId}/quality?jobOnly=1`, { cache: "no-store" });
-        const body = await response.json().catch(() => ({})) as QualityResponse;
-        if (!response.ok || !body.ok) return;
-        setQualityJob(body.job ?? null);
-        if (["queued", "running"].includes(String(body.job?.status ?? ""))) return;
-
-        const resultResponse = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
-        const resultBody = await resultResponse.json().catch(() => ({})) as QualityResponse;
-        if (!resultResponse.ok || !resultBody.ok) return;
-        setQualityByBridgeId(Object.fromEntries((resultBody.results ?? []).flatMap((qualityResult) => {
-          const bridgeId = match.bridgeIdByImageId[qualityResult.imageId];
-          return bridgeId ? [[bridgeId, qualityResult]] : [];
-        })));
-        setQualityJob(resultBody.job ?? null);
-      } finally {
-        inFlight = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 3_000);
-    return () => {
-      stopped = true;
-      window.clearInterval(timer);
-    };
-  }, [qualityJob, result?.imageMatch, result?.match, result?.personSelectEventId]);
+  }, [bridgeFiles, installQualityError, installQualitySnapshot]);
 
   useEffect(() => {
     setSelectedIds(new Set());
@@ -348,7 +270,7 @@ export function useOliviaBridgeCustomerSelectionImport({
     chooseAnotherGallerySelection: chooseAnother,
     importGalleryCustomerSelection: importGallery,
     importSharedProjectSelection: importSharedProject,
-    startLinkedQualityAnalysis: startQualityAnalysis,
-    controlLinkedQualityAnalysis: controlQualityAnalysis,
+    startLinkedQualityAnalysis,
+    controlLinkedQualityAnalysis,
   };
 }
