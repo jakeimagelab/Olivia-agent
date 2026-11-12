@@ -6,17 +6,21 @@ const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSel
 const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
 const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcuts.ts", "utf8");
+const customerPhotoView = readFileSync("lib/select-gallery/customerBridgeView.ts", "utf8");
 
 describe("Bridge filename search and shared label shortcuts", () => {
   it("wires the same search and shortcut hook into both Bridge screens", () => {
     for (const source of [adminBridge, customerBridge]) {
       expect(source).toContain("useBridgeSearchFilterShortcuts");
-      expect(source).toContain("matchesBridgeFilenameSearch");
-      expect(source).toContain("matchesBridgeLabelFilters");
       expect(source).toContain('type="search"');
       expect(source).toContain('aria-label="파일명 검색"');
       expect(source).toContain("⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색");
     }
+    expect(adminBridge).toContain("matchesBridgeFilenameSearch");
+    expect(adminBridge).toContain("matchesBridgeLabelFilters");
+    expect(customerBridge).toContain("buildCustomerBridgePhotoView");
+    expect(customerPhotoView).toContain("matchesBridgeFilenameSearch");
+    expect(customerPhotoView).toContain("matchesBridgeLabelFilters");
   });
 
   it("does not pass number keys from an editable search field to rating shortcuts", () => {

@@ -51,18 +51,14 @@ import { removeBridgeReviewItem, restoreBridgeReviewItem } from "@/lib/photo-bri
 import {
   BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
-  bridgeFilenameSearchTokens,
   bridgeLabelFilterName,
-  hasActiveBridgeLabelFilters,
-  matchesBridgeFilenameSearch,
-  matchesBridgeLabelFilters,
   updateBridgeLabelFilters,
   type BridgeLabelFilterCommand,
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessages";
-import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
+import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
@@ -93,10 +89,9 @@ import type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } 
 import { PhotoOverlay, ReviewOverlay, type CustomerBridgeReviewRemovedMarks as ReviewRemovedMarks } from "./CustomerBridgeOverlays";
 import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
+import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
-
-type PhotoFilter = "all" | "selected" | "unselected" | PhotoQualityFlag | "quality_review" | "quality_normal";
 
 const PAGE_SIZE = SELECTION_THUMBNAIL_PAGE_SIZE;
 const THUMB_MIN = 112;
@@ -330,18 +325,16 @@ export default function CustomerBridgeSelect({
   const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
   const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
-  const filenameSearchTokens = useMemo(() => bridgeFilenameSearchTokens(filenameSearch), [filenameSearch]);
-  const hasLabelFilters = hasActiveBridgeLabelFilters(labelFilters);
-  const visibleImages = useMemo(() => folderImages.filter((image) => {
-    if (filter === "selected" && !customerSelectedIds.has(image.id)) return false;
-    if (filter === "unselected" && customerSelectedIds.has(image.id)) return false;
-    const quality = qualityResults[image.id];
-    if ((filter === "eyes_closed" || filter === "face_too_dark" || filter === "motion_blur") && !(quality?.flags.includes(filter) ?? false)) return false;
-    if (filter === "quality_review" && quality?.status !== "needs_review") return false;
-    if (filter === "quality_normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
-    if (hasLabelFilters && !matchesBridgeLabelFilters(image.id, labelFilters, customerRatings, customerColorLabels)) return false;
-    return matchesBridgeFilenameSearch(image.original_file_name, filenameSearchTokens);
-  }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearchTokens, filter, folderImages, hasLabelFilters, labelFilters, qualityResults]);
+  const { visibleImages, selectedInFolder, qualityCounts, searchActive } = useMemo(() => buildCustomerBridgePhotoView({
+    images: folderImages,
+    filter,
+    filenameSearch,
+    labelFilters,
+    selectedIds: customerSelectedIds,
+    ratings: customerRatings,
+    colorLabels: customerColorLabels,
+    qualityResults,
+  }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearch, filter, folderImages, labelFilters, qualityResults]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const openMobileImage = useCallback((imageId: string) => setFullscreenId(imageId), []);
   const {
@@ -370,15 +363,6 @@ export default function CustomerBridgeSelect({
     setCompactFoldersOpen(false);
   };
   const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
-  const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
-  const qualityCounts = useMemo(() => folderImages.reduce((counts, image) => {
-    const quality = qualityResults[image.id];
-    if (!quality) return counts;
-    for (const flag of quality.flags) counts[flag] += 1;
-    if (quality.status === "needs_review") counts.quality_review += 1;
-    if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.quality_normal += 1;
-    return counts;
-  }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, quality_review: 0, quality_normal: 0 }), [folderImages, qualityResults]);
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const fullscreenImage = fullscreenId ? imageById.get(fullscreenId) ?? null : null;
   const fullscreenIndex = fullscreenId ? visibleImages.findIndex((image) => image.id === fullscreenId) : -1;
@@ -1067,7 +1051,7 @@ export default function CustomerBridgeSelect({
         <header className={styles.browserHeader}>
           <div className={styles.browserTitle}>
             <strong>{locationLabel}</strong>
-            <span>{location.kind === "root" ? `${locationCount}개 폴더` : filenameSearchTokens.length ? `검색 ${visibleImages.length.toLocaleString("ko-KR")}장` : `${visibleImages.length.toLocaleString("ko-KR")}장`}</span>
+            <span>{location.kind === "root" ? `${locationCount}개 폴더` : searchActive ? `검색 ${visibleImages.length.toLocaleString("ko-KR")}장` : `${visibleImages.length.toLocaleString("ko-KR")}장`}</span>
             {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
             {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
           </div>
