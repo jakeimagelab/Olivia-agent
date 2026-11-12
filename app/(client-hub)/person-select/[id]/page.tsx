@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
-import { type PersonSelectAccessMode, type PersonSelectCustomerViewMode, type PersonSelectOffer, type PersonSelectProjectType } from "@/lib/person-select/types";
+import { type PersonSelectAccessMode, type PersonSelectCustomerViewMode, type PersonSelectProjectType } from "@/lib/person-select/types";
 import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type LocalPersonSelectScan } from "@/lib/person-select/localImport";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
@@ -14,10 +14,10 @@ import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, P
 import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import { formatRelativeTime, formatWon } from "@/lib/person-select/format";
-import type { PersonSelectAdminDeliveryItem as DeliveryAdminItem, PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
-import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
+import type { PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
+import { readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
-import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import CustomerBridgeSelect, { type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin/RawMatchControls";
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
@@ -25,20 +25,13 @@ import { OfferSettings } from "@/components/person-select/admin/OfferSettings";
 import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
 import { SelectionSyncDialog } from "@/components/person-select/admin/SelectionSyncDialog";
 import { DeliveryImportResult } from "@/components/person-select/upload/DeliveryImportResult";
-import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
+import { usePersonSelectAdminData } from "@/components/person-select/admin/hooks/usePersonSelectAdminData";
+import type { PersonSelectSharedReviewer as SharedReviewer } from "@/lib/person-select/adminData";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
-type Category = { key: string; label: string; pick: number };
-type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null; customer_ai_results_visible?: boolean };
-type SharedSelectionItem = { image_id: string; customer_rating: number | null; customer_color_label?: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
-type SharedSelection = { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] };
-type SharedReviewer = { id: string; display_name: string; role_label: string | null; active: boolean; is_legacy: boolean; last_seen_at: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean; draft: (CustomerBridgeDraft & { selected_count: number; updated_at: string; items?: SharedSelectionItem[] }) | null; selection: SharedSelection | null; server_selected_count?: number; server_last_saved_at?: string | null; recent_save_failure_count?: number };
-type SharedAdminData = { image_count: number; images: CustomerBridgeImage[]; selection: SharedSelection | null; reviewers: SharedReviewer[]; deliveries?: DeliveryAdminItem[] };
-type SelectionSyncAdminData = { recent_failure_count: number; recent_failures: Array<{ actor_type: "person" | "reviewer"; actor_id: string; at: string; error: string }> };
 type Layout = "school" | "person-folders" | "project";
 type SourceMode = "local" | "remote";
-type Group = { label: string; image_count: number };
 type Filter = "all" | "done" | "saving" | "unseen" | "delivery_revision";
 type UploadKind = "original" | "delivery";
 
@@ -56,16 +49,9 @@ function personPhotoCount(person: Person) {
   return Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((sum, [, count]) => sum + count, 0);
 }
 
-const PERSON_SELECT_LOAD_RETRY_DELAYS_MS = [700, 1_500] as const;
-
-function wait(milliseconds: number) {
-  return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
-}
-
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
   const routePath = windowRoute.routeHref ? new URL(windowRoute.routeHref, "https://olivia.local").pathname : ""; const routeId = routePath.match(/^\/person-select\/([^/]+)\/?$/)?.[1]; const id = routeId || params.id;
-  const [data, setData] = useState<{ event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null; sync?: SelectionSyncAdminData } | null>(null);
   const [tab, setTab] = useState<"matching" | "progress" | "upload" | "settings">("matching");
   const [filter, setFilter] = useState<Filter>("all");
   const [picker, setPicker] = useState(false);
@@ -89,7 +75,6 @@ export default function PersonSelectDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [deliveryAssignments, setDeliveryAssignments] = useState<Record<string, string>>({});
   const [layout, setLayout] = useState<Layout | null>(null);
   const [rawJobId, setRawJobId] = useState("");
@@ -102,29 +87,20 @@ export default function PersonSelectDetailPage() {
   const rawOptionsLoadedRef = useRef(false);
   const rawOptionsSkipFirstWriteRef = useRef(true);
   const rawSourceSavedRef = useRef(false);
-  const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
   const [reviewerName, setReviewerName] = useState("");
   const [reviewerRole, setReviewerRole] = useState("");
   const [issuedReviewerTokens, setIssuedReviewerTokens] = useState<Record<string, string>>({});
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
-  const adminRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
-  const load = useCallback(async (options?: { preserveAssignments?: boolean }) => {
-    for (let attempt = 0; ; attempt += 1) {
-      try {
-        const response = await fetch(`/api/person-select/${id}`, { cache: "no-store" });
-        const body = await readApiResponse<{ ok: true; event: EventData; people: Person[]; groups: Group[]; shared?: SharedAdminData | null; sync?: SelectionSyncAdminData }>(response, "사진선택");
-        setData(body);
-        if (!options?.preserveAssignments) {
-          setAssignments(Object.fromEntries(body.groups.map((group) => [group.label, body.people.find((person) => person.group_label === group.label)?.id ?? ""])));
-        }
-        return;
-      } catch (cause) {
-        if (!isRetryableApiError(cause) || attempt >= PERSON_SELECT_LOAD_RETRY_DELAYS_MS.length) throw cause;
-        await wait(PERSON_SELECT_LOAD_RETRY_DELAYS_MS[attempt]);
-      }
-    }
-  }, [id]);
+  const {
+    data,
+    setData,
+    load,
+    assignments,
+    setAssignments,
+    selectedReviewerId,
+    setSelectedReviewerId,
+  } = usePersonSelectAdminData({ eventId: id, onError: setError });
   const loadSharedImageUrls = useCallback(async (imageIds: string[], options?: { variant: SelectionMediaVariant }) => {
     const response = await fetch(`/api/person-select/${id}/images`, {
       method: "POST",
@@ -136,84 +112,10 @@ export default function PersonSelectDetailPage() {
     return body.images as Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
   }, [id]);
   useEffect(() => {
-    void load().catch((cause) => setError(cause instanceof Error ? cause.message : "사진선택 데이터를 불러오지 못했습니다."));
     loadRemoteWorkerStatus<{ worker?: { online?: boolean } }>()
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
-  }, [load]);
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState !== "visible" || adminRefreshInFlightRef.current) return;
-      const request = load({ preserveAssignments: true }).catch(() => undefined).finally(() => {
-        if (adminRefreshInFlightRef.current === request) adminRefreshInFlightRef.current = null;
-      });
-      adminRefreshInFlightRef.current = request;
-    };
-    const timer = window.setInterval(refresh, 30_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [load]);
-  useEffect(() => {
-    const reviewers = data?.shared?.reviewers ?? [];
-    if (!reviewers.length) { setSelectedReviewerId(null); return; }
-    if (selectedReviewerId && reviewers.some((reviewer) => reviewer.id === selectedReviewerId)) return;
-    setSelectedReviewerId((reviewers.find((reviewer) => !reviewer.is_legacy) ?? reviewers[0]).id);
-  }, [data?.shared?.reviewers, selectedReviewerId]);
-  const refreshSelectedReviewerDraft = useCallback(async () => {
-    if (!selectedReviewerId) return;
-    const response = await fetch(`/api/person-select/${id}/reviewers/${selectedReviewerId}/draft`, { cache: "no-store" });
-    const body = await readApiResponse<{ ok: true; draft: CustomerBridgeDraft }>(response, "고객 셀렉 동기화");
-    setData((current) => {
-      if (!current?.shared) return current;
-      const reviewer = current.shared.reviewers.find((item) => item.id === selectedReviewerId);
-      if (!reviewer || reviewer.draft?.revision === body.draft.revision) return current;
-      const imagesById = new Map(current.shared.images.map((image) => [image.id, image]));
-      const previousItems = new Map((reviewer.draft?.items ?? []).map((item) => [item.image_id, item]));
-      const items: SharedSelectionItem[] = body.draft.selectedImageIds.map((imageId) => {
-        const image = imagesById.get(imageId);
-        const previous = previousItems.get(imageId);
-        return {
-          image_id: imageId,
-          customer_rating: body.draft.ratings[imageId] ?? null,
-          customer_color_label: body.draft.colorLabels?.[imageId] ?? null,
-          memo: body.draft.imageNotes[imageId] ?? "",
-          image: image ? {
-            original_file_name: image.original_file_name,
-            source_rel_path: image.relative_path ?? "",
-            thumb_url: previous?.image?.thumb_url ?? image.thumbnail_url ?? "",
-          } : previous?.image ?? null,
-        };
-      });
-      const updatedAt = body.draft.updatedAt ?? new Date().toISOString();
-      const nextDraft: SharedReviewer["draft"] = {
-        ...body.draft,
-        selected_count: body.draft.selectedImageIds.length,
-        updated_at: updatedAt,
-        items,
-      };
-      return {
-        ...current,
-        shared: {
-          ...current.shared,
-          reviewers: current.shared.reviewers.map((item) => item.id === selectedReviewerId ? {
-            ...item,
-            draft: nextDraft,
-            server_selected_count: body.draft.selectedImageIds.length,
-            server_last_saved_at: body.draft.updatedAt ?? null,
-          } : item),
-        },
-      };
-    });
-  }, [id, selectedReviewerId]);
-  useVisibleSelectionRefresh({
-    enabled: Boolean(data?.event.access_mode === "project_shared" && selectedReviewerId),
-    refresh: refreshSelectedReviewerDraft,
-  });
+  }, []);
   useEffect(() => {
     rawOptionsLoadedRef.current = false;
     rawOptionsSkipFirstWriteRef.current = true;
