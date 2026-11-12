@@ -54,14 +54,12 @@ import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliv
 import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
 import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOliviaBridgeCaptureMetadata";
 import { useOliviaBridgePersonSelectionImport } from "@/components/olivia-bridge/useOliviaBridgePersonSelectionImport";
+import { useOliviaBridgeCustomerSelectionImport } from "@/components/olivia-bridge/useOliviaBridgeCustomerSelectionImport";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
   BridgePersonSelectionDialog,
   BridgeRawRootPromptDialog,
-  type GalleryCustomerSelectionResult,
-  type PersonSelectEventSummary,
-  type SelectGallerySummary,
 } from "@/components/olivia-bridge/OliviaBridgeDialogs";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
@@ -102,10 +100,7 @@ import {
 } from "@/lib/photo-bridge/toolLinkage";
 import {
   customerSelectionComparisonCounts,
-  matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
-  type CustomerSelectionComparisonFilter,
-  type CustomerSelectionMatchItem,
 } from "@/lib/select-gallery/customerBridge";
 import {
   bridgeMarqueeSelection,
@@ -151,7 +146,6 @@ import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudi
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
-import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 const EmbeddedPhotoTool = dynamic(
@@ -296,21 +290,7 @@ export default function OliviaBridgeWorkspace({
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
-  const [gallerySelectDialogOpen, setGallerySelectDialogOpen] = useState(false);
-  const [selectGalleries, setSelectGalleries] = useState<SelectGallerySummary[]>([]);
-  const [sharedSelectProjects, setSharedSelectProjects] = useState<PersonSelectEventSummary[]>([]);
-  const [selectGalleriesLoading, setSelectGalleriesLoading] = useState(false);
-  const [gallerySelectImportingId, setGallerySelectImportingId] = useState("");
-  const [gallerySelectError, setGallerySelectError] = useState("");
-  const [galleryCustomerResult, setGalleryCustomerResult] = useState<GalleryCustomerSelectionResult | null>(null);
-  const [customerSelectedIds, setCustomerSelectedIds] = useState<Set<string>>(new Set());
-  const [customerRatings, setCustomerRatings] = useState<Record<string, number>>({});
-  const [customerNotes, setCustomerNotes] = useState<Record<string, string>>({});
-  const [comparisonFilter, setComparisonFilter] = useState<CustomerSelectionComparisonFilter>("all");
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
-  const [qualityByBridgeId, setQualityByBridgeId] = useState<Record<string, PublicPhotoQualityResult>>({});
-  const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
-  const [qualityMessage, setQualityMessage] = useState("");
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptError, setRawRootPromptError] = useState("");
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
@@ -368,6 +348,39 @@ export default function OliviaBridgeWorkspace({
     manualSelectedIdsRef,
     workspaceRef: rootRef,
     setSelectedJpgNames,
+  });
+  const {
+    gallerySelectDialogOpen,
+    selectGalleries,
+    sharedSelectProjects,
+    selectGalleriesLoading,
+    gallerySelectImportingId,
+    gallerySelectError,
+    galleryCustomerResult,
+    customerSelectedIds,
+    customerRatings,
+    customerNotes,
+    comparisonFilter,
+    setComparisonFilter,
+    qualityByBridgeId,
+    qualityJob,
+    qualityMessage,
+    loadSelectGalleries,
+    openGallerySelectImport,
+    closeGallerySelectImport,
+    chooseAnotherGallerySelection,
+    importGalleryCustomerSelection,
+    importSharedProjectSelection,
+    startLinkedQualityAnalysis,
+    controlLinkedQualityAnalysis,
+  } = useOliviaBridgeCustomerSelectionImport({
+    hasActiveFolder,
+    scanStatus,
+    jpgs: scan.jpgs,
+    folderPath,
+    activeFolderName,
+    remoteFolder,
+    workspaceRef: rootRef,
   });
   const commitSelectedIds = useCallback((
     manual: ReadonlySet<string>,
@@ -1243,7 +1256,7 @@ export default function OliviaBridgeWorkspace({
       setFolderSourceOpen(false);
       setNasPickerOpen(false);
       closePersonSelectImport();
-      setGallerySelectDialogOpen(false);
+      closeGallerySelectImport();
       setRawRootPromptOpen(false);
       rootRef.current?.focus();
       return;
@@ -1316,7 +1329,7 @@ export default function OliviaBridgeWorkspace({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closePersonSelectImport, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closeGallerySelectImport, closePersonSelectImport, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
@@ -1353,250 +1366,11 @@ export default function OliviaBridgeWorkspace({
     return "사진 폴더를 먼저 선택해 주세요.";
   }, [activeFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);
 
-  const loadSelectGalleries = useCallback(async () => {
-    setSelectGalleriesLoading(true);
-    setGallerySelectError("");
-    try {
-      const [galleryResponse, projectResponse] = await Promise.all([
-        fetch("/api/select-galleries", { cache: "no-store" }),
-        fetch("/api/person-select", { cache: "no-store" }),
-      ]);
-      const galleryBody = await galleryResponse.json().catch(() => ({})) as { ok?: boolean; galleries?: SelectGallerySummary[]; error?: string };
-      const projectBody = await projectResponse.json().catch(() => ({})) as { ok?: boolean; events?: PersonSelectEventSummary[]; error?: string };
-      if (!galleryResponse.ok || !galleryBody.ok) throw new Error(galleryBody.error || "사진선택 갤러리를 불러오지 못했습니다.");
-      if (!projectResponse.ok || !projectBody.ok) throw new Error(projectBody.error || "공유 프로젝트를 불러오지 못했습니다.");
-      setSelectGalleries(Array.isArray(galleryBody.galleries) ? galleryBody.galleries : []);
-      setSharedSelectProjects((Array.isArray(projectBody.events) ? projectBody.events : []).filter((event) => event.access_mode === "project_shared"));
-    } catch (error) {
-      setGallerySelectError(error instanceof Error ? error.message : "사진선택 갤러리를 불러오지 못했습니다.");
-    } finally {
-      setSelectGalleriesLoading(false);
-    }
-  }, []);
-
-  const openGallerySelectImport = useCallback(() => {
-    if (!hasActiveFolder || scanStatus !== "ready") return;
-    setGallerySelectDialogOpen(true);
-    setGallerySelectError("");
-    void loadSelectGalleries();
-  }, [hasActiveFolder, loadSelectGalleries, scanStatus]);
-
-  const closeGallerySelectImport = useCallback(() => {
-    setGallerySelectDialogOpen(false);
-    setGallerySelectImportingId("");
-    setGallerySelectError("");
-    rootRef.current?.focus();
-  }, []);
-
-  const importGalleryCustomerSelection = useCallback(async (gallery: SelectGallerySummary) => {
-    setGallerySelectImportingId(gallery.id);
-    setGallerySelectError("");
-    try {
-      const detailResponse = await fetch(`/api/select-galleries/${gallery.id}`, { cache: "no-store" });
-      const detail = await detailResponse.json().catch(() => ({})) as {
-        ok?: boolean;
-        gallery?: SelectGallerySummary;
-        images?: Array<{ id: string; original_file_name: string; relative_path?: string | null }>;
-        selection?: { items?: Array<{ image_id: string; file_name: string; customer_rating?: number | null; memo?: string | null }> } | null;
-        error?: string;
-      };
-      if (!detailResponse.ok || !detail.ok || !detail.gallery) throw new Error(detail.error || "갤러리 제출 결과를 불러오지 못했습니다.");
-      const submittedItems = detail.selection?.items ?? [];
-      if (!submittedItems.length) throw new Error("이 갤러리에 제출된 고객 셀렉이 없습니다.");
-      const relativePathById = new Map((detail.images ?? []).map((image) => [image.id, image.relative_path ?? null]));
-      const matchItems: CustomerSelectionMatchItem[] = submittedItems.map((item) => ({
-        imageId: item.image_id,
-        fileName: item.file_name,
-        relativePath: relativePathById.get(item.image_id),
-        rating: item.customer_rating,
-        memo: item.memo,
-      }));
-      const match = matchCustomerSelectionToBridgeFiles(matchItems, scan.jpgs.map((photo) => ({
-        id: photo.id,
-        name: photo.name,
-        relativeDirectory: photo.relativeDirectory,
-      })));
-      const linkResponse = await fetch(`/api/select-galleries/${gallery.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(remoteFolder ? {
-          bridge_source: "remote",
-          bridge_folder_path: remoteFolder.path,
-          bridge_folder_display_path: remoteFolder.displayPath,
-        } : {
-          bridge_source: "local",
-          bridge_folder_path: null,
-          bridge_folder_display_path: activeFolderName,
-        }),
-      });
-      const linked = await linkResponse.json().catch(() => ({})) as { ok?: boolean; error?: string };
-      if (!linkResponse.ok || !linked.ok) throw new Error(linked.error || "갤러리와 현재 폴더를 연결하지 못했습니다.");
-
-      setCustomerSelectedIds(new Set(match.matchedBridgeIds));
-      setCustomerRatings(match.ratingsByBridgeId);
-      setCustomerNotes(match.notesByBridgeId);
-      setGalleryCustomerResult({ gallery: detail.gallery, total: submittedItems.length, match });
-      setComparisonFilter("customer");
-      try {
-        localStorage.setItem(`olivia-bridge-gallery-folder:${gallery.id}`, JSON.stringify({
-          source: remoteFolder ? "remote" : "local",
-          displayPath: remoteFolder?.displayPath ?? activeFolderName,
-        }));
-      } catch (storageError) {
-        if (process.env.NODE_ENV !== "production") console.debug("[olivia-bridge] gallery folder memory unavailable", storageError);
-      }
-    } catch (error) {
-      setGallerySelectError(error instanceof Error ? error.message : "고객 셀렉을 불러오지 못했습니다.");
-    } finally {
-      setGallerySelectImportingId("");
-    }
-  }, [activeFolderName, remoteFolder, scan.jpgs]);
-
-  const importSharedProjectSelection = useCallback(async (project: PersonSelectEventSummary) => {
-    setGallerySelectImportingId(project.id);
-    setGallerySelectError("");
-    try {
-      const response = await fetch(`/api/person-select/${project.id}`, { cache: "no-store" });
-      const body = await response.json().catch(() => ({})) as {
-        ok?: boolean;
-        event?: { id: string; title: string; status: string };
-        shared?: {
-          images?: Array<{ id: string; original_file_name: string; relative_path?: string | null }>;
-          selection?: { submitted_at?: string | null; items?: Array<{ image_id: string; customer_rating?: number | null; memo?: string | null; image?: { original_file_name: string; source_rel_path?: string | null } | null }> } | null;
-        };
-        error?: string;
-      };
-      if (!response.ok || !body.ok || !body.event) throw new Error(body.error || "공유 프로젝트 셀렉을 불러오지 못했습니다.");
-      const selection = body.shared?.selection;
-      const submittedItems = selection?.items ?? [];
-      if (!selection?.submitted_at || !submittedItems.length) throw new Error("이 공유 프로젝트에 제출된 고객 셀렉이 없습니다.");
-      const matchItems: CustomerSelectionMatchItem[] = submittedItems.flatMap((item) => item.image ? [{
-        imageId: item.image_id,
-        fileName: item.image.original_file_name,
-        relativePath: item.image.source_rel_path ?? null,
-        rating: item.customer_rating,
-        memo: item.memo,
-      }] : []);
-      const match = matchCustomerSelectionToBridgeFiles(matchItems, scan.jpgs.map((photo) => ({
-        id: photo.id,
-        name: photo.name,
-        relativeDirectory: photo.relativeDirectory,
-      })));
-      const imageMatch = matchCustomerSelectionToBridgeFiles((body.shared?.images ?? []).map((image) => ({
-        imageId: image.id,
-        fileName: image.original_file_name,
-        relativePath: image.relative_path ?? null,
-      })), scan.jpgs.map((photo) => ({
-        id: photo.id,
-        name: photo.name,
-        relativeDirectory: photo.relativeDirectory,
-      })));
-      const qualityResponse = await fetch(`/api/person-select/${project.id}/quality`, { cache: "no-store" });
-      const qualityBody = await qualityResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown>; error?: string };
-      if (qualityResponse.ok && qualityBody.ok) {
-        setQualityByBridgeId(Object.fromEntries((qualityBody.results ?? []).flatMap((result) => {
-          const bridgeId = imageMatch.bridgeIdByImageId[result.imageId];
-          return bridgeId ? [[bridgeId, result]] : [];
-        })));
-        setQualityJob(qualityBody.job ?? null);
-        setQualityMessage("");
-      } else {
-        setQualityByBridgeId({});
-        setQualityJob(null);
-        setQualityMessage(qualityBody.error || "AI 품질 결과를 불러오지 못했습니다.");
-      }
-      setCustomerSelectedIds(new Set(match.matchedBridgeIds));
-      setCustomerRatings(match.ratingsByBridgeId);
-      setCustomerNotes(match.notesByBridgeId);
-      setGalleryCustomerResult({
-        gallery: {
-          id: body.event.id,
-          title: body.event.title,
-          status: body.event.status,
-          selected_count: submittedItems.length,
-          submitted_at: selection.submitted_at,
-        },
-        total: submittedItems.length,
-        match,
-        imageMatch,
-        personSelectEventId: project.id,
-      });
-      setComparisonFilter("customer");
-    } catch (error) {
-      setGallerySelectError(error instanceof Error ? error.message : "공유 프로젝트 셀렉을 불러오지 못했습니다.");
-    } finally {
-      setGallerySelectImportingId("");
-    }
-  }, [scan.jpgs]);
-
-  const startLinkedQualityAnalysis = useCallback(async () => {
-    const eventId = galleryCustomerResult?.personSelectEventId;
-    if (!eventId) return;
-    if (!window.confirm("AI 품질 검사를 위해 1024px 이하 경량 미리보기를 OpenAI API로 전송합니다. 원본 파일은 전송하지 않습니다. 계속할까요?")) return;
-    setQualityMessage("AI 품질 검사를 준비하는 중입니다.");
-    const response = await fetch(`/api/person-select/${eventId}/quality`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consentAccepted: true }) });
-    const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown>; error?: string };
-    if (!response.ok || !body.ok) { setQualityMessage(body.error || "AI 품질 검사를 시작하지 못했습니다."); return; }
-    setQualityJob(body.job ?? null);
-    setQualityMessage("Mac Studio에서 검사를 시작했습니다. 다른 앱을 사용해도 계속 진행됩니다.");
-  }, [galleryCustomerResult?.personSelectEventId]);
-
-  const controlLinkedQualityAnalysis = useCallback(async (action: "pause" | "resume" | "retry") => {
-    const eventId = galleryCustomerResult?.personSelectEventId;
-    if (!eventId) return;
-    const response = await fetch(`/api/person-select/${eventId}/quality`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
-    const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown>; error?: string };
-    if (!response.ok || !body.ok) { setQualityMessage(body.error || "AI 검사 상태를 바꾸지 못했습니다."); return; }
-    setQualityJob(body.job ?? null);
-    setQualityMessage(action === "pause" ? "AI 검사를 일시정지했습니다." : action === "resume" ? "AI 검사를 이어서 진행합니다." : "실패한 사진만 다시 검사합니다.");
-  }, [galleryCustomerResult?.personSelectEventId]);
-
-  useEffect(() => {
-    const eventId = galleryCustomerResult?.personSelectEventId;
-    const match = galleryCustomerResult?.imageMatch ?? galleryCustomerResult?.match;
-    if (!eventId || !match || !qualityJob || !["queued", "running"].includes(String(qualityJob.status ?? ""))) return;
-    let stopped = false;
-    let inFlight = false;
-    const refresh = async () => {
-      if (stopped || inFlight || document.visibilityState !== "visible") return;
-      inFlight = true;
-      try {
-        const response = await fetch(`/api/person-select/${eventId}/quality?jobOnly=1`, { cache: "no-store" });
-        const body = await response.json().catch(() => ({})) as { ok?: boolean; job?: Record<string, unknown> };
-        if (!response.ok || !body.ok) return;
-        setQualityJob(body.job ?? null);
-        if (["queued", "running"].includes(String(body.job?.status ?? ""))) return;
-
-        const resultResponse = await fetch(`/api/person-select/${eventId}/quality`, { cache: "no-store" });
-        const resultBody = await resultResponse.json().catch(() => ({})) as { ok?: boolean; results?: PublicPhotoQualityResult[]; job?: Record<string, unknown> };
-        if (!resultResponse.ok || !resultBody.ok) return;
-        setQualityByBridgeId(Object.fromEntries((resultBody.results ?? []).flatMap((result) => {
-          const bridgeId = match.bridgeIdByImageId[result.imageId];
-          return bridgeId ? [[bridgeId, result]] : [];
-        })));
-        setQualityJob(resultBody.job ?? null);
-      } finally {
-        inFlight = false;
-      }
-    };
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 3000);
-    return () => { stopped = true; window.clearInterval(timer); };
-  }, [galleryCustomerResult?.imageMatch, galleryCustomerResult?.match, galleryCustomerResult?.personSelectEventId, qualityJob]);
-
   const addCustomerSelectionToAdminSelection = useCallback(() => {
     if (!customerSelectedIds.size) return;
     setSelectedIds((current) => new Set([...current, ...customerSelectedIds]));
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
-
-  useEffect(() => {
-    setCustomerSelectedIds(new Set());
-    setCustomerRatings({});
-    setCustomerNotes({});
-    setGalleryCustomerResult(null);
-    setComparisonFilter("all");
-  }, [folderPath]);
 
   useEffect(() => {
     let disposed = false;
@@ -2160,7 +1934,7 @@ export default function OliviaBridgeWorkspace({
         importingId={gallerySelectImportingId}
         onClose={closeGallerySelectImport}
         onAddToAdmin={addCustomerSelectionToAdminSelection}
-        onChooseAnother={() => { setGalleryCustomerResult(null); setComparisonFilter("all"); }}
+        onChooseAnother={chooseAnotherGallerySelection}
         onRetry={() => void loadSelectGalleries()}
         onImportGallery={(gallery) => void importGalleryCustomerSelection(gallery)}
         onImportShared={(project) => void importSharedProjectSelection(project)}
