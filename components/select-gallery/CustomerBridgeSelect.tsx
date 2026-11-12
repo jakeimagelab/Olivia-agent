@@ -93,16 +93,12 @@ import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
+import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
 const THUMB_MIN = 112;
 const THUMB_MAX = 260;
-
-function createRequestKey() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `bridge_${crypto.randomUUID()}`;
-  return `bridge_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
 
 function reportOptionalStorageError(scope: string, error: unknown) {
   if (process.env.NODE_ENV !== "production") console.debug(`[customer-bridge:${scope}] browser storage unavailable`, error);
@@ -186,9 +182,6 @@ export default function CustomerBridgeSelect({
   const [folderWidth, setFolderWidth] = useState(210);
   const [previewWidth, setPreviewWidth] = useState(320);
   const [compactFoldersOpen, setCompactFoldersOpen] = useState(false);
-  const [submitError, setSubmitError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -204,7 +197,6 @@ export default function CustomerBridgeSelect({
     customerMemo: initialDraft?.customerMemo ?? initialSelection?.customer_memo ?? "",
     updatedAt: initialDraft?.updatedAt ?? null,
   });
-  const requestKeyRef = useRef(createRequestKey());
   const gridRef = useRef<HTMLDivElement>(null);
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -331,6 +323,32 @@ export default function CustomerBridgeSelect({
   });
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
   const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
+  const getDraftRevision = useCallback(() => revisionRef.current, []);
+  const {
+    error: submitError,
+    setError: setSubmitError,
+    submitting,
+    reviewOpen: submitReviewOpen,
+    openReview: openSubmitReview,
+    closeReview: closeSubmitReview,
+    submit,
+    reviewItems: submitReviewItems,
+    reviewSections: submitReviewSections,
+  } = useCustomerBridgeSubmission({
+    endpointBase,
+    localStorageScope,
+    readOnly,
+    selectedIds: customerSelectedIds,
+    ratings: customerRatings,
+    colorLabels: customerColorLabels,
+    notes,
+    images,
+    pendingCount: selectionSync.pendingCount,
+    flushNow: selectionSync.flushNow,
+    getRevision: getDraftRevision,
+    onSubmitted,
+    onStorageError: reportOptionalStorageError,
+  });
   const { visibleImages, selectedInFolder, qualityCounts, searchActive } = useMemo(() => buildCustomerBridgePhotoView({
     images: folderImages,
     filter,
@@ -526,16 +544,6 @@ export default function CustomerBridgeSelect({
   }, [clearActiveSelection, customerColorLabels, customerRatings, notes, readOnly, resetReview, resetting, selectionSync, serverColorLabels, serverNotes, serverRatings]);
 
   useEffect(() => {
-    if (readOnly) return;
-    try {
-      const storageKey = `customer-bridge-submit-key:${localStorageScope}`;
-      const stored = localStorage.getItem(storageKey);
-      if (stored) requestKeyRef.current = stored;
-      else localStorage.setItem(storageKey, requestKeyRef.current);
-    } catch (error) { reportOptionalStorageError("submit-key", error); }
-  }, [localStorageScope, readOnly]);
-
-  useEffect(() => {
     const query = window.matchMedia("(max-width: 760px), (pointer: coarse)");
     const update = () => setMobile(query.matches);
     update();
@@ -618,69 +626,6 @@ export default function CustomerBridgeSelect({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onEnd, { once: true });
   };
-
-  const openSubmitReview = async () => {
-    const selectedCount = customerSelectedIds.size;
-    if (!selectedCount || submitting || selectionSync.pendingCount) return;
-    setSubmitError("");
-    const saved = await selectionSync.flushNow();
-    if (!saved) return;
-    setSubmitReviewOpen(true);
-  };
-
-  const submit = async () => {
-    if (!customerSelectedIds.size || submitting) return;
-    setSubmitting(true);
-    setSubmitError("");
-    try {
-      const response = await fetch(`${endpointBase}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ revision: revisionRef.current, requestKey: requestKeyRef.current, confirmed: true }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.error ?? "최종 제출에 실패했습니다.");
-      requestKeyRef.current = createRequestKey();
-      try { localStorage.removeItem(`customer-bridge-submit-key:${localStorageScope}`); } catch (error) { reportOptionalStorageError("submit-key-clear", error); }
-      onSubmitted(result.selection);
-    } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "최종 제출에 실패했습니다.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const submitReviewItems = useMemo(() => {
-    if (!submitReviewOpen) return [];
-    const items = [];
-    for (const image of images) {
-      if (!customerSelectedIds.has(image.id)) continue;
-      const detail = [
-        customerRatings[image.id] ? `★${customerRatings[image.id]}` : "",
-        customerColorLabels[image.id] ? BRIDGE_COLOR_LABELS[customerColorLabels[image.id]].name : "",
-        notes[image.id]?.trim() ? "보정 메모 있음" : "",
-      ].filter(Boolean).join(" · ");
-      items.push({ id: image.id, fileName: image.original_file_name, thumbnailUrl: image.thumbnail_url || image.image_url, detail });
-      if (items.length === 12) break;
-    }
-    return items;
-  }, [customerColorLabels, customerRatings, customerSelectedIds, images, notes, submitReviewOpen]);
-  const submitReviewSections = useMemo(() => {
-    if (!submitReviewOpen) return [];
-    let ratingCount = 0;
-    let colorCount = 0;
-    let memoCount = 0;
-    for (const id of customerSelectedIds) {
-      if (customerRatings[id]) ratingCount += 1;
-      if (customerColorLabels[id]) colorCount += 1;
-      if (notes[id]?.trim()) memoCount += 1;
-    }
-    return [
-      { label: "별점 셀렉", count: ratingCount },
-      { label: "컬러 셀렉", count: colorCount },
-      { label: "보정 메모", count: memoCount },
-    ];
-  }, [customerColorLabels, customerRatings, customerSelectedIds, notes, submitReviewOpen]);
 
   const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
@@ -843,6 +788,6 @@ export default function CustomerBridgeSelect({
     {reviewIds ? <ReviewOverlay images={reviewImages} activeId={reviewActiveId} removed={reviewRemoved} ratings={customerRatings} colorLabels={customerColorLabels} onActive={setReviewActiveId} onClose={closeReview} onRemove={removeFromReview} onRestore={restoreReview} onRate={(id, rating) => rating === 0 ? removeFromReview(id) : applyRatingTo(new Set([id]), rating)} onColor={(id, colorLabel) => customerColorLabels[id] === colorLabel && !customerRatings[id] ? removeFromReview(id) : toggleColorTo(new Set([id]), colorLabel)} onFullscreen={openFullscreen} onImageError={handleImageError} /> : null}
     {guideOpen ? <CustomerBridgeGuideDialog onClose={closeGuide} /> : null}
     {resetConfirmOpen ? <CustomerBridgeResetDialog selectedCount={customerSelectedIds.size} resetting={resetting} onCancel={closeResetConfirm} onConfirm={() => void resetSelection()} /> : null}
-    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={customerSelectedIds.size} sections={submitReviewSections} items={submitReviewItems} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void submit()} /> : null}
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={customerSelectedIds.size} sections={submitReviewSections} items={submitReviewItems} busy={submitting} error={submitError} onCancel={closeSubmitReview} onConfirm={() => void submit()} /> : null}
   </main>;
 }
