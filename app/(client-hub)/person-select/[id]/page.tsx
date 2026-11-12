@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, ArrowLeft, Clipboard, Download, Folder, Info, Link2, MoreHorizontal, RefreshCw, SlidersHorizontal, Upload, UserRound, UsersRound, X } from "lucide-react";
+import { Activity, ArrowLeft, Clipboard, Download, Link2, MoreHorizontal, RefreshCw, SlidersHorizontal, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
@@ -13,7 +13,7 @@ import { formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
 import { readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
-import CustomerBridgeSelect, { type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin/RawMatchControls";
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
@@ -22,6 +22,7 @@ import { PersonSelectUploadPanel } from "@/components/person-select/admin/Person
 import { PersonSelectSettingsPanel } from "@/components/person-select/admin/PersonSelectSettingsPanel";
 import { PersonSelectSharedProgressPanel } from "@/components/person-select/admin/PersonSelectSharedProgressPanel";
 import { PersonSelectIndividualProgressPanel, type PersonSelectProgressFilter } from "@/components/person-select/admin/PersonSelectIndividualProgressPanel";
+import { PersonSelectIndividualMatchingPanel, PersonSelectSharedMatchingPanel } from "@/components/person-select/admin/PersonSelectMatchingPanels";
 import { usePersonSelectAdminData } from "@/components/person-select/admin/hooks/usePersonSelectAdminData";
 import { usePersonSelectReviewerActions } from "@/components/person-select/admin/hooks/usePersonSelectReviewerActions";
 import { usePersonSelectRawMatchController } from "@/components/person-select/admin/hooks/usePersonSelectRawMatchController";
@@ -35,15 +36,6 @@ type Layout = PersonSelectImportLayout;
 function folderName(value: string | null | undefined) {
   if (!value) return "";
   return value.split("/").filter(Boolean).at(-1) ?? value;
-}
-
-function matchingFolderName(value: string | null | undefined) {
-  if (!value) return "폴더 확인 필요";
-  return value.split("/").filter(Boolean)[0] ?? "폴더 확인 필요";
-}
-
-function personPhotoCount(person: Person) {
-  return Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((sum, [, count]) => sum + count, 0);
 }
 
 export default function PersonSelectDetailPage() {
@@ -212,44 +204,29 @@ export default function PersonSelectDetailPage() {
       </div>
       {error ? <div className={styles.warning}>{error}</div> : null}
       {data.sync?.recent_failure_count ? <div className={styles.warning} role="alert">최근 고객 저장 실패 {data.sync.recent_failure_count}건이 있습니다. 동기화 확인에서 검토해 주세요.</div> : null}
-      {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
-        <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>검토자별 셀렉은 서로 독립적으로 보존되며 오른쪽 대화 탭은 모든 참여자가 함께 사용합니다.</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select> : null}<button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div></div>
-        <div className={`${styles.rawMatchToolbar} ${styles.mobileSharedRawMatchToolbar}`}><div><strong>고객 셀렉 RAW 매칭</strong><span>{rawDisabledReason || "최종 제출본 또는 현재 고른 상태를 기준으로 실행할 수 있어요."}</span></div><button className={styles.primary} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button></div>
-        {data.shared?.images?.length ? <CustomerBridgeSelect
-          key={`${selectedReviewer?.id ?? "project"}:${selectedSharedSelection?.id ?? "draft"}`}
-          shareToken=""
-          apiBase={`/api/person-select/${id}`}
-          storageScope={`person-select-admin:${id}:${selectedReviewer?.id ?? "project"}`}
-          gallery={{ id, title: data.event.title, total_jpg_count: data.shared.images.length, allow_resubmit: false }}
-          images={data.shared.images}
-          initialDraft={selectedReviewer?.draft ?? null}
-          initialSelection={selectedSharedSelection}
-          reviewer={selectedReviewer}
-          messagesEnabled
-          loadImageUrls={loadSharedImageUrls}
-          qualityApi={`/api/person-select/${id}/quality`}
-          canManageQuality
-          adminToolbarAction={rawAction}
-          adminToolbarStatus={rawStatus}
-          onSubmitted={() => undefined}
-          readOnly
-          embedded
-        /> : <div className={styles.matchingEmpty}><Info size={28} /><strong>등록된 사진이 없어요.</strong><span>사진 올리기에서 프로젝트 폴더를 선택해 주세요.</span></div>}
-      </section> : null}
-      {tab === "matching" && !isShared ? <section className={styles.matchingPanel}>
-        <div className={styles.matchingHeader}>
-          <div><h2>인원 매칭 확인</h2><p>원본 폴더별 등록 인원과 사진 수를 확인하세요.</p></div>
-          {data.people.length ? <button className={styles.primary} onClick={() => setTab("progress")}>확인하고 진행 현황 보기</button> : <button className={styles.primary} onClick={() => setTab("upload")}>사진 올리기</button>}
-        </div>
-        {data.people.length ? <div className={styles.matchingGrid}>{data.people.map((person) => {
-          const representative = person.representative_image;
-          const photoCount = personPhotoCount(person);
-          return <article className={styles.matchingCard} key={person.id}>
-            <div className={styles.matchingFolder} aria-hidden="true"><Folder size={56} strokeWidth={1.35} /></div>
-            <div className={styles.matchingMeta}><div><strong>{person.display_name}</strong><span>{photoCount.toLocaleString()}장</span></div><p>원본 폴더 · {matchingFolderName(representative?.source_rel_path)}</p></div>
-          </article>;
-        })}</div> : <div className={styles.matchingEmpty}><UsersRound size={28} /><strong>매칭할 사람이 아직 없어요.</strong><span>사진을 올리면 폴더 이름으로 사람을 만들고 등록 수를 보여드려요.</span></div>}
-      </section> : null}
+      {tab === "matching" && isShared ? <PersonSelectSharedMatchingPanel
+        eventId={id}
+        eventTitle={data.event.title}
+        images={data.shared?.images ?? []}
+        reviewers={sharedReviewers}
+        selectedReviewer={selectedReviewer}
+        selectedSelection={selectedSharedSelection}
+        totalPhotos={totalPhotos}
+        loadImageUrls={loadSharedImageUrls}
+        rawBusy={rawBusy}
+        rawDisabled={rawDisabled}
+        rawDisabledReason={rawDisabledReason}
+        rawAction={rawAction}
+        rawStatus={rawStatus}
+        onReviewerChange={setSelectedReviewerId}
+        onRawMatchOpen={openRawMatchDialog}
+        onNext={() => setTab(totalPhotos ? "progress" : "upload")}
+      /> : null}
+      {tab === "matching" && !isShared ? <PersonSelectIndividualMatchingPanel
+        people={data.people}
+        onProgress={() => setTab("progress")}
+        onUpload={() => setTab("upload")}
+      /> : null}
       {tab === "progress" && isShared ? <PersonSelectSharedProgressPanel
         data={data}
         reviewers={sharedReviewers}

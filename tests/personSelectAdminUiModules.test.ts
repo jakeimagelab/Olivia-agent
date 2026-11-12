@@ -25,11 +25,13 @@ describe("person select admin UI modules", () => {
     const settingsPanel = readFileSync("components/person-select/admin/PersonSelectSettingsPanel.tsx", "utf8");
     const individualProgress = readFileSync("components/person-select/admin/PersonSelectIndividualProgressPanel.tsx", "utf8");
     const sharedProgress = readFileSync("components/person-select/admin/PersonSelectSharedProgressPanel.tsx", "utf8");
+    const matchingPanels = readFileSync("components/person-select/admin/PersonSelectMatchingPanels.tsx", "utf8");
     expect(page).toContain('from "@/components/person-select/admin/SelectionSyncDialog"');
     expect(page).toContain('from "@/components/person-select/admin/PersonSelectUploadPanel"');
     expect(page).toContain('from "@/components/person-select/admin/PersonSelectSettingsPanel"');
     expect(page).toContain('from "@/components/person-select/admin/PersonSelectIndividualProgressPanel"');
     expect(page).toContain('from "@/components/person-select/admin/PersonSelectSharedProgressPanel"');
+    expect(page).toContain('from "@/components/person-select/admin/PersonSelectMatchingPanels"');
     expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectImportController"');
     expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectProjectActions"');
     expect(page).not.toContain("function SelectionSyncDialog(");
@@ -39,6 +41,7 @@ describe("person select admin UI modules", () => {
     expect(settingsPanel).toContain("최종 확정 권한");
     expect(individualProgress).toContain("서버 기준 · 마지막 저장");
     expect(sharedProgress).toContain("서버 저장됨 · 제출 전");
+    expect(matchingPanels).toContain("CustomerBridgeSelect");
     expect(page).not.toContain("async function startRemoteImport(");
     expect(page).not.toContain("async function deleteProject(");
     expect(importController).toContain('action: "PERSON_SELECT_IMPORT"');
