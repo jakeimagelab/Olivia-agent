@@ -78,6 +78,12 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
+import {
+  bridgeFolderMarksByName,
+  readBridgeFolderMarks,
+  readBridgeFolderSelectionSource,
+  remoteBridgeThumbnailsToJpgs,
+} from "@/lib/photo-bridge/folderSession";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
@@ -90,7 +96,6 @@ import {
 } from "@/lib/photo-bridge/reviewMode";
 import {
   DEFAULT_BRIDGE_SELECTION_SOURCE,
-  normalizeBridgeSelectionSource,
   normalizePhotoToolFileKey,
   resolveBridgeSelection,
   type BridgeSelectionSource,
@@ -115,8 +120,6 @@ import {
   matchesBridgeFilenameSearch,
   matchesBridgeLabelFilters,
   matchesBridgeSelectionView,
-  normalizeBridgeColorLabels,
-  normalizeBridgeRatingEdits,
   resolveBridgeRatings,
   updateBridgeLabelFilters,
   type BridgeColorLabel,
@@ -688,34 +691,18 @@ export default function OliviaBridgeWorkspace({
     try {
       const nextPath = trail.map((item) => item.name).join(" / ");
       const selectionSourceKey = trail.map((item) => item.name).join("/");
-      let nextSelectionSource = DEFAULT_BRIDGE_SELECTION_SOURCE;
-      try {
-        nextSelectionSource = normalizeBridgeSelectionSource(localStorage.getItem(`olivia-bridge-selection-source:${selectionSourceKey}`));
-      } catch {
-        nextSelectionSource = DEFAULT_BRIDGE_SELECTION_SOURCE;
-      }
+      const nextSelectionSource = readBridgeFolderSelectionSource(localStorage, selectionSourceKey);
       selectionSourceRef.current = nextSelectionSource;
       setSelectionSource(nextSelectionSource);
       const next = await scanBridgeFolder(directory, nextPath, {
         includeNestedJpgs: nestedJpgs,
         maxDepth: 5,
       });
-      let restoredRatings: Record<string, number> = {};
-      let restoredColorLabels: BridgeColorLabels = {};
-      try {
-        const parsed = JSON.parse(localStorage.getItem(`olivia-bridge:marks:${nextPath}`) ?? "{}") as { ratings?: Record<string, number>; ratingEdits?: unknown; colorLabels?: unknown; excluded?: string[] };
-        restoredRatings = parsed.ratings ?? {};
-        setRatings(restoredRatings);
-        setRatingEdits(normalizeBridgeRatingEdits(parsed.ratingEdits));
-        restoredColorLabels = normalizeBridgeColorLabels(parsed.colorLabels);
-        setColorLabels(restoredColorLabels);
-        setExcludedIds(new Set(parsed.excluded ?? []));
-      } catch {
-        setRatings({});
-        setRatingEdits({});
-        setColorLabels({});
-        setExcludedIds(new Set());
-      }
+      const restoredMarks = readBridgeFolderMarks(localStorage, nextPath);
+      setRatings(restoredMarks.ratings);
+      setRatingEdits(restoredMarks.ratingEdits);
+      setColorLabels(restoredMarks.colorLabels);
+      setExcludedIds(restoredMarks.excludedIds);
       setScan(next);
       setRemoteFolder(null);
       setBreadcrumbs(trail);
@@ -734,15 +721,13 @@ export default function OliviaBridgeWorkspace({
       setRawMatchFolderPath(nextPath);
       setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
-      const restoredRatingsByName = Object.fromEntries(next.jpgs.flatMap((photo) => {
-        const rating = restoredRatings[photo.id];
-        return rating ? [[photo.name, rating] as const] : [];
-      }));
-      setJpgRatingsByName(restoredRatingsByName, { overwrite: true });
-      setJpgColorLabelsByName(
-        Object.fromEntries(next.jpgs.map((photo) => [photo.name, restoredColorLabels[photo.id] ?? 0])),
-        { overwrite: true },
+      const restoredMarksByName = bridgeFolderMarksByName(
+        next.jpgs,
+        restoredMarks.ratings,
+        restoredMarks.colorLabels,
       );
+      setJpgRatingsByName(restoredMarksByName.ratings, { overwrite: true });
+      setJpgColorLabelsByName(restoredMarksByName.colorLabels, { overwrite: true });
       setScanStatus("ready");
       void saveBridgeFolderTrail(trail).catch((error) => {
         console.error("[olivia-bridge] Failed to remember the last folder", error);
@@ -834,12 +819,7 @@ export default function OliviaBridgeWorkspace({
     setToolKey(undefined);
     setSceneReviewOpen(false);
     setRemoteFolder(selection);
-    let nextSelectionSource = DEFAULT_BRIDGE_SELECTION_SOURCE;
-    try {
-      nextSelectionSource = normalizeBridgeSelectionSource(localStorage.getItem(`olivia-bridge-selection-source:${selection.path}`));
-    } catch {
-      nextSelectionSource = DEFAULT_BRIDGE_SELECTION_SOURCE;
-    }
+    const nextSelectionSource = readBridgeFolderSelectionSource(localStorage, selection.path);
     selectionSourceRef.current = nextSelectionSource;
     setSelectionSource(nextSelectionSource);
     setScan(EMPTY_SCAN);
@@ -861,18 +841,7 @@ export default function OliviaBridgeWorkspace({
     try {
       const result = await loadRemoteBridgeThumbnails(selection.path);
       if (generation !== remoteLoadGenerationRef.current) return;
-      const jpgs: BridgeJpgFile[] = result.thumbs.map((thumb) => ({
-        id: `${selection.path}:${thumb.relativePath}:${thumb.size}:${thumb.lastModified}`,
-        name: thumb.name.normalize("NFC"),
-        relativeDirectory: thumb.relativePath.includes("/") ? thumb.relativePath.split("/").slice(0, -1).join("/").normalize("NFC") : "",
-        relativePath: thumb.relativePath.normalize("NFC"),
-        extension: thumb.name.split(".").pop()?.toLocaleUpperCase("en-US") ?? "JPG",
-        thumbnailUrl: thumb.dataUrl,
-        size: thumb.size,
-        lastModified: thumb.lastModified,
-        captureTimestamp: thumb.captureTimestamp,
-        timestampSource: thumb.timestampSource,
-      }));
+      const jpgs = remoteBridgeThumbnailsToJpgs(selection.path, result.thumbs);
       setScan({ ...EMPTY_SCAN, jpgs });
       lastPublishedRatingsRef.current = {};
       setJpgRatingsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
