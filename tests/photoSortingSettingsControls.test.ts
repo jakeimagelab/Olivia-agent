@@ -5,6 +5,7 @@ import { FieldClassificationSettings } from "@/components/photo-classifier/Field
 import { PhotoShootingModeControl } from "@/components/photo-classifier/PhotoShootingModeControl";
 import { StudioClassificationSettings } from "@/components/photo-classifier/StudioClassificationSettings";
 import { PhotoClassificationProgressView } from "@/components/photo-classifier/PhotoClassificationProgressView";
+import { FieldSceneReviewOverview } from "@/components/photo-classifier/FieldSceneReviewOverview";
 
 describe("photo sorting settings controls", () => {
   it("renders the selected shooting mode without changing the existing labels", () => {
@@ -89,5 +90,38 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("마지막 로그");
     expect(markup).toContain("현재 단계: SCANNING");
     expect(markup).toContain("분석 중단");
+  });
+
+  it("renders the Bridge scene review status and approval count", () => {
+    const markup = renderToStaticMarkup(
+      createElement(FieldSceneReviewOverview, {
+        bridgePlanSummary: { sceneCount: 4, jpgCount: 120, reviewCount: 2 },
+        fastAnalyzeMode: false,
+        boundaryReviewCount: 0,
+        aiAnalysisPending: true,
+        approvedCount: 1,
+        sceneCount: 4,
+        onApproveAll: () => undefined,
+        evaluationMode: false,
+        onEvaluationModeChange: () => undefined,
+        files: [{ name: "A.JPG" }, { name: "B.JPG" }],
+        groundTruthSelection: 1,
+        onGroundTruthSelectionChange: () => undefined,
+        groundTruthBoundaries: [],
+        onGroundTruthBoundariesChange: () => undefined,
+        boundaryDecisions: [],
+        accuracyReport: null,
+        onAccuracyReportChange: () => undefined,
+        mergeCandidates: [],
+        dismissedCandidates: new Set<string>(),
+      }),
+    );
+
+    expect(markup).toContain("Bridge 계획 적용됨");
+    expect(markup).toContain("Scene 4개");
+    expect(markup).toContain("JPG 120장");
+    expect(markup).toContain("경계 확인 2곳");
+    expect(markup).toContain("AI 분석 중...");
+    expect(markup).toContain("승인 1/4");
   });
 });
