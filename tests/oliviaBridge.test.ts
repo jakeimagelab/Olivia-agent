@@ -134,6 +134,8 @@ describe("Olivia Bridge", () => {
     const aiSelect = readFileSync("components/photo-workspace/PhotoSelectWorkspace.tsx", "utf8");
     const aiPanel = readFileSync("components/photo-workspace/AiPhotoSelectPanel.tsx", "utf8");
     const rawMatch = readFileSync("components/photo-workspace/SelectMatchWorkspace.tsx", "utf8");
+    const rawMatchPreflight = readFileSync("components/photo-workspace/useSelectMatchPreflight.ts", "utf8");
+    const rawMatchRuntime = `${rawMatch}\n${rawMatchPreflight}`;
     const executionContext = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
 
     expect(embeddedTool).toContain("bridgeEmbedded");
@@ -141,7 +143,7 @@ describe("Olivia Bridge", () => {
     expect(aiSelect).toContain("initialFolder={currentLocalFolder}");
     expect(aiPanel).toContain("현재 Bridge 폴더");
     expect(rawMatch).toContain("RAW 원본 폴더를 자동으로 찾습니다");
-    expect(rawMatch).toContain("discoverRawFolder");
+    expect(rawMatchRuntime).toContain("discoverRawFolder");
     expect(executionContext).toContain("rawMatchDefaultFolder");
     expect(executionContext).toContain("rawMatchFolderCandidates");
   });
@@ -168,11 +170,13 @@ describe("Olivia Bridge", () => {
   it("승인한 Scene 계획을 사진 분류가 일회 소비하고 기존 검토 단계에 적용한다", () => {
     const context = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
     const classifier = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+    const planApply = readFileSync("lib/photo-bridge/classificationPlanApply.ts", "utf8");
+    const classifierRuntime = `${classifier}\n${planApply}`;
 
     expect(context).toContain("pendingBridgeClassificationPlanRef.current = null");
     expect(context).toContain("takeBridgeClassificationPlan");
-    expect(classifier).toContain("validateBridgeClassificationPlan(plan");
-    expect(classifier).toContain("buildFieldScenesFromBridgePlan(plan)");
+    expect(classifierRuntime).toContain("validateBridgeClassificationPlan(plan");
+    expect(classifierRuntime).toContain("buildFieldScenesFromBridgePlan(plan)");
     expect(classifier).toContain('setClassificationJobState("WAITING_REVIEW")');
     expect(classifier).toContain('setStep(2)');
     expect(classifier).toContain("Bridge 계획 적용됨");

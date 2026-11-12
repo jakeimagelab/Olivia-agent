@@ -55,9 +55,8 @@ import { Stepper } from "@/components/workspace-shell/Stepper";
 import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
 import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 import {
-  buildFieldScenesFromBridgePlan,
-  validateBridgeClassificationPlan,
-} from "@/lib/photo-bridge/classificationPlan";
+  prepareBridgeClassificationPlan,
+} from "@/lib/photo-bridge/classificationPlanApply";
 import {
   STUDIO_LIGHTING_SENSITIVITY,
   buildPersonGroups,
@@ -90,7 +89,6 @@ import {
 } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
-  isSameDirectoryHandle,
   renameDirHandle,
   splitRawAndJpg,
   withTimeout,
@@ -1148,35 +1146,7 @@ function PhotoSortingInner({
 
     void (async () => {
       try {
-        const [sameFolder, { rawFiles, jpgFiles }] = await Promise.all([
-          isSameDirectoryHandle(currentLocalFolder, plan.directory),
-          splitRawAndJpg(plan.directory),
-        ]);
-        const validation = validateBridgeClassificationPlan(plan, {
-          sameFolder,
-          folderName: plan.directory.name,
-          jpgs: jpgFiles.map((entry) => ({
-            name: entry.name,
-            size: entry.fileSize,
-            lastModified: entry.mtime,
-          })),
-        });
-        if (!validation.ok) throw new Error(validation.message);
-
-        const scenes = buildFieldScenesFromBridgePlan(plan);
-        await mapWithConcurrency(scenes, 3, async (scene) => {
-          const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
-          await Promise.all(thumbIndexes.map(async (index) => {
-            try {
-              scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160);
-            } catch (error) {
-              console.error("[olivia-bridge] Failed to build classification thumbnail", error);
-            }
-          }));
-          return scene;
-        });
-
-        const reviewCount = plan.boundaries.filter((decision) => decision.needsReview).length;
+        const prepared = await prepareBridgeClassificationPlan({ currentLocalFolder, plan });
         departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${plan.directory.name}`;
         setCurrentLocalFolder(plan.directory);
         setDepartment(plan.departmentResolution.department);
@@ -1186,33 +1156,19 @@ function PhotoSortingInner({
         setRootDir(plan.directory);
         setFieldJpgBaseDir(null);
         setFieldRawBaseDir(null);
-        setFieldRawHandles(rawFiles);
-        setFieldRawCount(rawFiles.length);
+        setFieldRawHandles(prepared.rawFiles);
+        setFieldRawCount(prepared.rawFiles.length);
         setBoundaryDecisions(plan.boundaries);
         setSceneCorrections([]);
         setMergeCandidates([]);
         setDismissedCandidates(new Set());
         setMergeDecisions([]);
-        setFieldScenes(scenes);
-        setFieldStats({
-          totalJpg: plan.files.length,
-          totalRaw: rawFiles.length,
-          totalScenes: scenes.length,
-          totalSubScenes: 0,
-          totalProfile: 0,
-          totalQualityReject: 0,
-          selectedJpg: 0,
-          selectedRawMoved: 0,
-          rawMissing: 0,
-        });
-        setCopyLog([
-          `✅ Bridge 계획 적용 완료 — JPG ${plan.files.length}장 / RAW ${rawFiles.length}개 / Scene ${scenes.length}개`,
-          `🧭 경계 확인 필요 ${reviewCount}곳`,
-          "🔒 승인 전 파일 이동 없음 — Scene 검토 후 폴더 정리를 실행하세요",
-        ]);
+        setFieldScenes(prepared.scenes);
+        setFieldStats(prepared.stats);
+        setCopyLog(prepared.copyLog);
         setProgress({ cur: plan.files.length, total: plan.files.length, msg: "Bridge Scene 계획 적용 완료" });
         setClassificationJobState("WAITING_REVIEW");
-        setBridgePlanSummary({ sceneCount: scenes.length, jpgCount: plan.files.length, reviewCount });
+        setBridgePlanSummary(prepared.summary);
         setStep(2);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Bridge Scene 계획을 적용하지 못했습니다.";
