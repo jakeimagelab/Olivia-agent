@@ -84,6 +84,7 @@ import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
+import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -177,8 +178,6 @@ export default function CustomerBridgeSelect({
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [renderLimit, setRenderLimit] = useState(PAGE_SIZE);
   const [mobile, setMobile] = useState(false);
-  const [downloadState, setDownloadState] = useState("");
-  const [downloadBusy, setDownloadBusy] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -319,6 +318,12 @@ export default function CustomerBridgeSelect({
     onStorageError: reportOptionalStorageError,
   });
   const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
+  const { downloadState, downloadBusy, downloadSelected } = useCustomerBridgeDownload({
+    endpointBase,
+    readOnly,
+    pendingCount: selectionSync.pendingCount,
+    selectedIds: serverSelectedIds,
+  });
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
   const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
   const { visibleImages, selectedInFolder, qualityCounts, searchActive } = useMemo(() => buildCustomerBridgePhotoView({
@@ -427,35 +432,6 @@ export default function CustomerBridgeSelect({
     mobile,
     focusedImageId,
   });
-
-  const downloadSelected = useCallback(async (format: "jpg" | "raw") => {
-    if (readOnly || downloadBusy || selectionSync.pendingCount || !serverSelectedIds.size) return;
-    setDownloadBusy(true);
-    setDownloadState(`${format.toUpperCase()} 원본 다운로드를 준비하는 중입니다.`);
-    try {
-      const response = await fetch(`${endpointBase}/downloads`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageIds: [...serverSelectedIds], format, requestKey: `download_${createRequestKey()}` }),
-      });
-      const created = await response.json().catch(() => ({}));
-      if (!response.ok || !created.ok) throw new Error(created.error || "다운로드 작업을 만들지 못했습니다.");
-      const jobId = String(created.job?.id ?? "");
-      if (!jobId) throw new Error("다운로드 작업 ID가 없습니다.");
-      for (let attempt = 0; attempt < 600; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1500));
-        const statusResponse = await fetch(`${endpointBase}/downloads?jobId=${encodeURIComponent(jobId)}`, { cache: "no-store" });
-        const status = await statusResponse.json().catch(() => ({}));
-        if (!statusResponse.ok || !status.ok) throw new Error(status.error || "다운로드 상태를 확인하지 못했습니다.");
-        setDownloadState(`${Number(status.job?.completed_count ?? 0).toLocaleString("ko-KR")} / ${Number(status.job?.total_count ?? serverSelectedIds.size).toLocaleString("ko-KR")}장 준비`);
-        if (status.downloadUrl) { window.location.assign(String(status.downloadUrl)); setDownloadState("다운로드를 시작했습니다."); return; }
-        if (["failed", "canceled", "expired"].includes(String(status.job?.status ?? ""))) throw new Error(status.job?.error || "다운로드 준비에 실패했습니다.");
-      }
-      throw new Error("다운로드 준비 시간이 초과됐습니다. 잠시 뒤 다시 시도해 주세요.");
-    } catch (error) {
-      setDownloadState(error instanceof Error ? error.message : "다운로드에 실패했습니다.");
-    } finally { setDownloadBusy(false); }
-  }, [downloadBusy, endpointBase, readOnly, selectionSync.pendingCount, serverSelectedIds]);
 
   const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
     applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
