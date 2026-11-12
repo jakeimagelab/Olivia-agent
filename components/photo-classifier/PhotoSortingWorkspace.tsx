@@ -51,13 +51,6 @@ import { usePhotoSourceSurface } from "./usePhotoSourceSurface";
 import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
-import {
-  createRemotePhotoSortJob,
-} from "@/lib/photo-classifier/remotePhotoSort";
-import {
-  buildRemotePhotoSortPayload,
-  resolveRemotePhotoSortStart,
-} from "@/lib/photo-classifier/remotePhotoSortRequest";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
@@ -127,6 +120,7 @@ import {
   Toggle,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
+import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -309,10 +303,6 @@ function PhotoSortingInner({
       // 잘못된 경로면 조용히 무시하고 기존처럼 사용자가 직접 폴더를 선택하게 둔다.
     }
   }, [executionMode, sp]);
-  const [remotePhotoSortError, setRemotePhotoSortError] = useState("");
-  const [remotePhotoSortSubmitting, setRemotePhotoSortSubmitting] = useState(false);
-  const remotePhotoSortAbortRef = useRef<AbortController | null>(null);
-  const remotePhotoSortActive = remotePhotoSortSubmitting || remoteJobActive;
   const remoteWorkerOffline = workerPresence.online === false;
   const {
     state: remoteWorkFolderCheck,
@@ -323,17 +313,12 @@ function PhotoSortingInner({
     sourceFolder: remoteSelection?.path,
   });
 
-  useEffect(() => () => {
-    const controller = remotePhotoSortAbortRef.current;
-    remotePhotoSortAbortRef.current = null;
-    controller?.abort();
-  }, []);
-
   /* ── field state ── */
   const [department,                 setDepartment]                 = useState<MedicalDepartment>("dermatology");
   const [departmentContextLoading,   setDepartmentContextLoading]   = useState(false);
   const [departmentContextError,     setDepartmentContextError]     = useState("");
   const [departmentPickerOpen,       setDepartmentPickerOpen]       = useState(false);
+  const requestDepartmentPicker = useCallback(() => setDepartmentPickerOpen(true), []);
   const departmentContextKeyRef = useRef("");
   const [gapMinutes,                 setGapMinutes]                 = useState(3.5);
   const [fastAnalyzeMode,            setFastAnalyzeMode]            = useState(false);
@@ -404,6 +389,33 @@ function PhotoSortingInner({
   const [studioGapMinutes,    setStudioGapMinutes]    = useState(3);
   const [personGroups,   setPersonGroups]   = useState<PersonGroup[]>([]);
   const [activePersonGroup, setActivePersonGroup] = useState(0);
+  const {
+    active: remotePhotoSortActive,
+    clearError: clearRemotePhotoSortError,
+    error: remotePhotoSortError,
+    reportError: reportRemotePhotoSortError,
+    submit: handleRemotePhotoSort,
+    submitting: remotePhotoSortSubmitting,
+  } = useRemotePhotoSortSubmission({
+    sourceFolder: remoteSelection?.path,
+    shootingMode: photoMode,
+    department,
+    studioGapMinutes,
+    fieldGapMinutes: gapMinutes,
+    classificationUiMode,
+    fastAnalyzeMode,
+    departmentLogicEnabled,
+    aiNamingEnabled,
+    qualityAnalysisEnabled,
+    profileClassificationEnabled,
+    departmentResolved: photoDepartmentResolution.status === "resolved",
+    workerOffline: remoteWorkerOffline,
+    workFolderState: remoteWorkFolderCheck,
+    workFolderReady: remoteWorkFolderReady,
+    jobActive: remoteJobActive,
+    onDepartmentRequired: requestDepartmentPicker,
+    onJobCreated: trackRemoteJob,
+  });
 
   /* ── session persistence ── */
   useEffect(() => {
@@ -573,7 +585,7 @@ function PhotoSortingInner({
     setDepartmentContextError("");
     setDepartmentPickerOpen(false);
     if (!remoteJobActive) clearRemoteJob();
-    setRemotePhotoSortError("");
+    clearRemotePhotoSortError();
     setDirPickError("");
     setPhotoSourcePickerOpen(false);
   };
@@ -641,81 +653,6 @@ function PhotoSortingInner({
     // Pointer로 연 Finder를 click에서 다시 열지 않고, 키보드 활성화만 보완한다.
     if (event.detail === 0) void pickDir();
   };
-
-  const handleRemotePhotoSort = useCallback(async () => {
-    const sourceFolder = remoteSelection?.path ?? "";
-    const startDecision = resolveRemotePhotoSortStart({
-      sourceFolder,
-      shootingMode: photoMode,
-      departmentResolved: photoDepartmentResolution.status === "resolved",
-      workerOffline: remoteWorkerOffline,
-      workFolderStatus: remoteWorkFolderCheck.status,
-      workFolderMessage: remoteWorkFolderCheck.status === "error"
-        ? remoteWorkFolderCheck.message
-        : undefined,
-      workFolderReady: remoteWorkFolderReady,
-      jobActive: remoteJobActive,
-    });
-    if (!startDecision.allowed) {
-      if (startDecision.message) setRemotePhotoSortError(startDecision.message);
-      if (startDecision.openDepartmentPicker) setDepartmentPickerOpen(true);
-      return;
-    }
-
-    remotePhotoSortAbortRef.current?.abort();
-    const controller = new AbortController();
-    remotePhotoSortAbortRef.current = controller;
-    setRemotePhotoSortError("");
-    setRemotePhotoSortSubmitting(true);
-
-    try {
-      const job = await createRemotePhotoSortJob(buildRemotePhotoSortPayload({
-        // 화면 표시용 displayPath가 아니라 Worker가 반환한 raw relative path다.
-        sourceFolder,
-        shootingMode: photoMode,
-        department,
-        studioGapMinutes,
-        fieldGapMinutes: gapMinutes,
-        classificationUiMode,
-        fastAnalyzeMode,
-        departmentLogicEnabled,
-        aiNamingEnabled,
-        qualityAnalysisEnabled,
-        profileClassificationEnabled,
-      }), {
-        signal: controller.signal,
-      });
-      trackRemoteJob(job);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setRemotePhotoSortError(
-        error instanceof Error ? error.message : "Mac Studio에 작업 요청을 보내지 못했습니다.",
-      );
-    } finally {
-      if (remotePhotoSortAbortRef.current === controller) {
-        remotePhotoSortAbortRef.current = null;
-        setRemotePhotoSortSubmitting(false);
-      }
-    }
-  }, [
-    remoteSelection,
-    photoMode,
-    department,
-    studioGapMinutes,
-    gapMinutes,
-    classificationUiMode,
-    fastAnalyzeMode,
-    departmentLogicEnabled,
-    aiNamingEnabled,
-    qualityAnalysisEnabled,
-    profileClassificationEnabled,
-    remoteJobActive,
-    remoteWorkerOffline,
-    remoteWorkFolderCheck,
-    remoteWorkFolderReady,
-    trackRemoteJob,
-    photoDepartmentResolution.status,
-  ]);
 
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
   // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
@@ -2697,7 +2634,7 @@ function PhotoSortingInner({
                 pollingMessage={remotePollingMessage}
                 onCancel={() => {
                   void cancelRemoteJob().catch((error) => {
-                    setRemotePhotoSortError(error instanceof Error ? error.message : "작업 취소 요청을 보내지 못했습니다.");
+                    reportRemotePhotoSortError(error, "작업 취소 요청을 보내지 못했습니다.");
                   });
                 }}
               />
