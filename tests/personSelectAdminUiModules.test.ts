@@ -22,13 +22,17 @@ describe("person select admin UI modules", () => {
     const importController = readFileSync("components/person-select/admin/hooks/usePersonSelectImportController.ts", "utf8");
     const projectActions = readFileSync("components/person-select/admin/hooks/usePersonSelectProjectActions.ts", "utf8");
     const uploadPanel = readFileSync("components/person-select/admin/PersonSelectUploadPanel.tsx", "utf8");
+    const settingsPanel = readFileSync("components/person-select/admin/PersonSelectSettingsPanel.tsx", "utf8");
     expect(page).toContain('from "@/components/person-select/admin/SelectionSyncDialog"');
     expect(page).toContain('from "@/components/person-select/admin/PersonSelectUploadPanel"');
+    expect(page).toContain('from "@/components/person-select/admin/PersonSelectSettingsPanel"');
     expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectImportController"');
     expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectProjectActions"');
     expect(page).not.toContain("function SelectionSyncDialog(");
     expect(page).not.toContain("function DeliveryImportResult(");
     expect(uploadPanel).toContain('from "@/components/person-select/upload/DeliveryImportResult"');
+    expect(settingsPanel).toContain("ACCESS_MODE_LABELS");
+    expect(settingsPanel).toContain("최종 확정 권한");
     expect(page).not.toContain("async function startRemoteImport(");
     expect(page).not.toContain("async function deleteProject(");
     expect(importController).toContain('action: "PERSON_SELECT_IMPORT"');
