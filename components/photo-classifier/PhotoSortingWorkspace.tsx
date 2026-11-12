@@ -47,9 +47,7 @@ import SceneProposalList from "./ai-auto/SceneProposalList";
 import ClassificationProfilePanel from "./ai-auto/ClassificationProfilePanel";
 import PhotoSourcePicker from "./PhotoSourcePicker";
 import { usePhotoSourceSurface } from "./usePhotoSourceSurface";
-import { REMOTE_NAS_ROOT_NAME } from "@/lib/remote-nas/types";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
-import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
@@ -121,6 +119,7 @@ import {
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
 import { usePhotoDepartmentContext } from "./usePhotoDepartmentContext";
+import { useRemotePhotoSourceSelection } from "./useRemotePhotoSourceSelection";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -272,29 +271,20 @@ function PhotoSortingInner({
   useEffect(() => {
     if (folderPickerError) setDirPickError(folderPickerError);
   }, [folderPickerError]);
-  const [photoSourcePickerOpen, setPhotoSourcePickerOpen] = useState(false);
-  const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(initialRemoteSelection ?? null);
-  useEffect(() => {
-    if (!initialRemoteSelection) return;
-    setRemoteSelection(initialRemoteSelection);
-  }, [initialRemoteSelection]);
   // Olivia OS 2.0 PHASE 6 §11 — BACKUP_READY 알림의 "분류 시작"이 NAS 폴더 탐색을 대신 해주는
   // prefill이다. 파라미터가 있으면 폴더 선택 단계만 건너뛰고, department/gap_minutes 등 분류
   // 설정은 그대로 이 화면에서 사용자가 확정하게 둔다(기존 PHOTO_SORT 파라미터 수집 로직 재사용).
-  const remoteFolderPrefillApplied = useRef(false);
-  useEffect(() => {
-    if (remoteFolderPrefillApplied.current || executionMode !== "REMOTE_WORKER") return;
-    const rawFolder = sp.get("remoteFolder");
-    if (!rawFolder) return;
-    remoteFolderPrefillApplied.current = true;
-    try {
-      const path = normalizeRemoteNasRelativePath(rawFolder);
-      if (!path) return;
-      setRemoteSelection({ path, displayPath: toRemoteNasDisplayPath(path), rootName: REMOTE_NAS_ROOT_NAME });
-    } catch {
-      // 잘못된 경로면 조용히 무시하고 기존처럼 사용자가 직접 폴더를 선택하게 둔다.
-    }
-  }, [executionMode, sp]);
+  const {
+    closePicker: closePhotoSourcePicker,
+    openPicker: openRemotePhotoSourcePicker,
+    pickerOpen: photoSourcePickerOpen,
+    select: selectRemotePhotoSource,
+    selection: remoteSelection,
+  } = useRemotePhotoSourceSelection({
+    enabled: executionMode === "REMOTE_WORKER",
+    initialSelection: initialRemoteSelection,
+    prefillPath: sp.get("remoteFolder"),
+  });
   const remoteWorkerOffline = workerPresence.online === false;
   const {
     state: remoteWorkFolderCheck,
@@ -574,7 +564,7 @@ function PhotoSortingInner({
     departmentContextKeyRef.current = "";
     setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
     setRootDir(h);
-    setPhotoSourcePickerOpen(false);
+    closePhotoSourcePicker();
   };
 
   useEffect(() => {
@@ -586,16 +576,16 @@ function PhotoSortingInner({
     }
     setDirPickError("");
     departmentContextKeyRef.current = "";
-    setPhotoSourcePickerOpen(false);
-  }, [executionMode]);
+    closePhotoSourcePicker();
+  }, [closePhotoSourcePicker, departmentContextKeyRef, executionMode]);
 
   const openPhotoSourcePicker = () => {
     setDirPickError("");
-    setPhotoSourcePickerOpen(true);
+    openRemotePhotoSourcePicker();
   };
 
   const selectRemoteFolder = (selection: RemoteNasSelection) => {
-    setRemoteSelection(selection);
+    selectRemotePhotoSource(selection);
     departmentContextKeyRef.current = "";
     setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
     setDepartmentContextError("");
@@ -603,7 +593,6 @@ function PhotoSortingInner({
     if (!remoteJobActive) clearRemoteJob();
     clearRemotePhotoSortError();
     setDirPickError("");
-    setPhotoSourcePickerOpen(false);
   };
 
   const handleFolderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -4069,7 +4058,7 @@ function PhotoSortingInner({
 
       {photoSourcePickerOpen ? (
         <PhotoSourcePicker
-          onCancel={() => setPhotoSourcePickerOpen(false)}
+          onCancel={closePhotoSourcePicker}
           onSelectRemote={selectRemoteFolder}
         />
       ) : null}
