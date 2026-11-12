@@ -61,6 +61,7 @@ import { useOliviaBridgeKeyboard } from "@/components/olivia-bridge/useOliviaBri
 import { useOliviaBridgeFolderRestore } from "@/components/olivia-bridge/useOliviaBridgeFolderRestore";
 import { useOliviaBridgePhotoNavigation } from "@/components/olivia-bridge/useOliviaBridgePhotoNavigation";
 import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOliviaBridgeVisibleFiles";
+import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -84,9 +85,7 @@ import { readBridgeFolderSelectionSource } from "@/lib/photo-bridge/folderSessio
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
-  DEFAULT_BRIDGE_SELECTION_SOURCE,
   normalizePhotoToolFileKey,
-  resolveBridgeSelection,
   type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
 import {
@@ -111,16 +110,10 @@ import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSear
 import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import {
-  resolveBridgeManualSelectionChange,
-  sameBridgeIdSet,
-} from "@/lib/photo-bridge/selectionChange";
-import {
   projectBridgeColorLabelsByName,
   projectBridgeRatingsByName,
   projectBridgeSelectedFiles,
-  projectBridgeSelectedNames,
   resolveBridgeRatingsByName,
-  resolveBridgeSelectedIdsByName,
 } from "@/lib/photo-bridge/selectionProjection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
@@ -195,13 +188,23 @@ export default function OliviaBridgeWorkspace({
   const [includeNestedJpgs, setIncludeNestedJpgs] = useState(false);
   const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
   const [restoreMessage, setRestoreMessage] = useState("");
-  const [selectedIds, setSelectedIdsState] = useState<Set<string>>(new Set());
-  const selectedIdsRef = useRef<Set<string>>(new Set());
-  const manualSelectedIdsRef = useRef<Set<string>>(new Set());
-  const adobeSelectedIdsRef = useRef<Set<string>>(new Set());
-  const manualRemovedIdsRef = useRef<Set<string>>(new Set());
-  const [selectionSource, setSelectionSource] = useState<BridgeSelectionSource>(DEFAULT_BRIDGE_SELECTION_SOURCE);
-  const selectionSourceRef = useRef<BridgeSelectionSource>(DEFAULT_BRIDGE_SELECTION_SOURCE);
+  const {
+    selectedIds,
+    selectedIdsRef,
+    manualSelectedIdsRef,
+    adobeSelectedIdsRef,
+    selectionSource,
+    selectionSourceRef,
+    commitSelectedIds,
+    setSelectedIds,
+    activateSelectionSource,
+    resetSelectionState,
+  } = useOliviaBridgeSelectionState({
+    jpgs: scan.jpgs,
+    selectedJpgNames,
+    setSelectedJpgNames,
+    setSelectedJpgFiles,
+  });
   const [topNotice, setTopNotice] = useState("");
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -336,21 +339,6 @@ export default function OliviaBridgeWorkspace({
     remoteFolder,
     workspaceRef: rootRef,
   });
-  const commitSelectedIds = useCallback((
-    manual: ReadonlySet<string>,
-    adobe: ReadonlySet<string>,
-    source = selectionSourceRef.current,
-  ) => {
-    const nextManual = new Set(manual);
-    const nextAdobe = new Set(adobe);
-    const next = resolveBridgeSelection(source, nextManual, nextAdobe, manualRemovedIdsRef.current);
-    manualSelectedIdsRef.current = nextManual;
-    adobeSelectedIdsRef.current = nextAdobe;
-    selectedIdsRef.current = next;
-    setSelectedIdsState(next);
-    setSelectedJpgNames(projectBridgeSelectedNames(scan.jpgs, next));
-  }, [scan.jpgs, setSelectedJpgNames]);
-
   const publishRatingsForSource = useCallback((
     source: BridgeSelectionSource,
     nextAdobe: Record<string, number>,
@@ -462,21 +450,6 @@ export default function OliviaBridgeWorkspace({
   });
   const activeTool = BRIDGE_TOOL_ITEMS.find((item) => item.key === toolKey);
 
-  const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
-    if (selectionSourceRef.current === "adobe") return;
-    const requested = typeof value === "function" ? value(selectedIdsRef.current) : value;
-    const change = resolveBridgeManualSelectionChange({
-      source: selectionSourceRef.current,
-      requestedIds: requested,
-      currentSelectedIds: selectedIdsRef.current,
-      manualIds: manualSelectedIdsRef.current,
-      adobeIds: adobeSelectedIdsRef.current,
-      manualRemovedIds: manualRemovedIdsRef.current,
-    });
-    manualRemovedIdsRef.current = change.manualRemovedIds;
-    commitSelectedIds(change.manualIds, adobeSelectedIdsRef.current);
-  }, [commitSelectedIds]);
-
   const commitMarqueeSelection = useCallback((selection: Set<string>, focusedPhotoId: string | null) => {
     setSelectedIds(selection);
     setFocusedId(focusedPhotoId);
@@ -529,8 +502,7 @@ export default function OliviaBridgeWorkspace({
   });
 
   const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
-    selectionSourceRef.current = source;
-    setSelectionSource(source);
+    activateSelectionSource(source);
     if (folderSelectionSourceKey) {
       try {
         localStorage.setItem(`olivia-bridge-selection-source:${folderSelectionSourceKey}`, source);
@@ -538,17 +510,12 @@ export default function OliviaBridgeWorkspace({
         // 브라우저 저장소를 사용할 수 없어도 현재 창의 기준 변경은 유지한다.
       }
     }
-    commitSelectedIds(manualSelectedIdsRef.current, adobeSelectedIdsRef.current, source);
     publishRatingsForSource(source, adobeRatings);
-  }, [adobeRatings, commitSelectedIds, folderSelectionSourceKey, publishRatingsForSource]);
+  }, [activateSelectionSource, adobeRatings, folderSelectionSourceKey, publishRatingsForSource]);
 
   const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
     floatingWindowRectsRef.current[windowId] = rect;
   }, []);
-
-  useEffect(() => {
-    setSelectedJpgFiles(projectBridgeSelectedFiles(scan.jpgs, selectedIds));
-  }, [scan.jpgs, selectedIds, setSelectedJpgFiles]);
 
   useEffect(() => {
     setJpgColorLabelsByName(
@@ -556,12 +523,6 @@ export default function OliviaBridgeWorkspace({
       { overwrite: true },
     );
   }, [effectiveColorLabels, scan.jpgs, setJpgColorLabelsByName]);
-
-  useEffect(() => {
-    const next = resolveBridgeSelectedIdsByName(scan.jpgs, selectedJpgNames);
-    if (sameBridgeIdSet(selectedIdsRef.current, next)) return;
-    setSelectedIds(next);
-  }, [scan.jpgs, selectedJpgNames, setSelectedIds]);
 
   useEffect(() => {
     const next = resolveBridgeRatingsByName(scan.jpgs, jpgRatingsByName);
@@ -658,8 +619,7 @@ export default function OliviaBridgeWorkspace({
       const nextPath = snapshot.folderPath;
       const nextSelectionSource = snapshot.selectionSource;
       const next = snapshot.scan;
-      selectionSourceRef.current = nextSelectionSource;
-      setSelectionSource(nextSelectionSource);
+      resetSelectionState(nextSelectionSource);
       const restoredMarks = snapshot.marks;
       setRatings(restoredMarks.ratings);
       setRatingEdits(restoredMarks.ratingEdits);
@@ -670,11 +630,7 @@ export default function OliviaBridgeWorkspace({
       setBreadcrumbs(trail);
       setRestoreTrail([]);
       setRestoreMessage("");
-      manualSelectedIdsRef.current = new Set();
-      adobeSelectedIdsRef.current = new Set();
-      manualRemovedIdsRef.current = new Set();
       resetAdobeMarks();
-      commitSelectedIds(new Set(), new Set(), nextSelectionSource);
       setAnchorId(null);
       setFocusedId(next.jpgs[0]?.id ?? null);
       setPreviewSize(undefined);
@@ -695,7 +651,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, includeNestedJpgs, resetAdobeMarks, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
+  }, [includeNestedJpgs, resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -778,16 +734,11 @@ export default function OliviaBridgeWorkspace({
     setSceneReviewOpen(false);
     setRemoteFolder(selection);
     const nextSelectionSource = readBridgeFolderSelectionSource(localStorage, selection.path);
-    selectionSourceRef.current = nextSelectionSource;
-    setSelectionSource(nextSelectionSource);
+    resetSelectionState(nextSelectionSource);
     setScan(EMPTY_SCAN);
     setBreadcrumbs([]);
     setCurrentLocalFolder(null);
     setRawMatchFolderPath(selection.path);
-    manualSelectedIdsRef.current = new Set();
-    adobeSelectedIdsRef.current = new Set();
-    manualRemovedIdsRef.current = new Set();
-    commitSelectedIds(new Set(), new Set(), nextSelectionSource);
     setAnchorId(null);
     setFocusedId(null);
     setPreviewSize(undefined);
@@ -825,7 +776,7 @@ export default function OliviaBridgeWorkspace({
       setRemoteLoadProgress(null);
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, resetAdobeMarks, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
+  }, [resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");
