@@ -197,8 +197,9 @@ describe("Olivia Bridge", () => {
     const topBars = readFileSync("components/olivia-bridge/OliviaBridgeTopBars.tsx", "utf8");
     const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
     const folderActions = readFileSync("components/olivia-bridge/useOliviaBridgeFolderActions.ts", "utf8");
+    const toolLaunch = readFileSync("components/olivia-bridge/useOliviaBridgeToolLaunch.ts", "utf8");
     const workspaceUi = `${workspace}\n${overlayLayer}\n${topBars}`;
-    const workspaceRuntime = `${workspace}\n${folderLoading}\n${folderActions}`;
+    const workspaceRuntime = `${workspace}\n${folderLoading}\n${folderActions}\n${toolLaunch}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
@@ -223,7 +224,7 @@ describe("Olivia Bridge", () => {
     expect(folderRestore).toContain('setExecutionMode("REMOTE_WORKER")');
     expect(folderRestore).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
     expect(folderRestore).toContain("toRemoteNasDisplayPath(path)");
-    expect(workspace).toContain('key === "classification"');
+    expect(workspaceRuntime).toContain('key === "classification"');
     expect(workspaceUi).toContain("initialRemoteSelection");
     expect(workspace).toContain("remoteFolderPath={remoteFolder?.displayPath}");
     expect(workspaceUi).toContain("NAS · {remoteFolderPath}");

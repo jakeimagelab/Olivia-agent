@@ -44,6 +44,7 @@ import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOlivi
 import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
 import { useOliviaBridgeFolderLoading } from "@/components/olivia-bridge/useOliviaBridgeFolderLoading";
 import { useOliviaBridgeFolderActions } from "@/components/olivia-bridge/useOliviaBridgeFolderActions";
+import { useOliviaBridgeToolLaunch } from "@/components/olivia-bridge/useOliviaBridgeToolLaunch";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -52,7 +53,6 @@ import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridg
 import { OliviaBridgeTopBars } from "@/components/olivia-bridge/OliviaBridgeTopBars";
 import {
   rebuildBridgeSceneAnalysis,
-  resolveBridgeToolSelection,
   type BridgeFolderScan,
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
@@ -78,9 +78,6 @@ import {
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
-import {
-  projectBridgeSelectedFiles,
-} from "@/lib/photo-bridge/selectionProjection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -734,36 +731,21 @@ export default function OliviaBridgeWorkspace({
     moveGridFocus,
   });
 
-  const openTool = useCallback((key: ToolKey) => {
-    if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
-    const toolSelection = resolveBridgeToolSelection(selectedIdsRef.current, visibleJpgs.map((photo) => photo.id));
-    if (!toolSelection.size) return;
-    if (!selectedIdsRef.current.size) {
-      setSelectedIds(toolSelection);
-      setSelectedJpgFiles(projectBridgeSelectedFiles(visibleJpgs, toolSelection));
-    }
-    setSceneReviewOpen(false);
-    if (key === "classification") {
-      setToolKey(undefined);
-      setSceneReviewOpen(true);
-      void syncAdobeBridgeSelection();
-      return;
-    }
-    if (key === "raw-match" && breadcrumbs.length < 3) {
-      openRawRootPrompt();
-      return;
-    }
-    setToolKey(key);
-  }, [breadcrumbs.length, currentLocalFolder, openRawRootPrompt, remoteFolder, setSelectedIds, setSelectedJpgFiles, syncAdobeBridgeSelection, visibleJpgs]);
-
-  const toolDisabledReason = useCallback((key: ToolKey) => {
-    if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";
-    if (!selectedIds.size && !visibleJpgs.length) return "현재 화면에 작업할 JPG가 없습니다.";
-    if (activeFolder) return undefined;
-    if (remoteFolder && key === "classification") return undefined;
-    if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
-    return "사진 폴더를 먼저 선택해 주세요.";
-  }, [activeFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);
+  const { openTool, toolDisabledReason } = useOliviaBridgeToolLaunch({
+    currentLocalFolder,
+    remoteFolder,
+    scanStatus,
+    selectedIds,
+    selectedIdsRef,
+    visibleJpgs,
+    breadcrumbsLength: breadcrumbs.length,
+    setSelectedIds,
+    setSelectedJpgFiles,
+    setSceneReviewOpen,
+    syncAdobeBridgeSelection,
+    openRawRootPrompt,
+    setToolKey,
+  });
 
   const addCustomerSelectionToAdminSelection = useCallback(() => {
     if (!customerSelectedIds.size) return;
