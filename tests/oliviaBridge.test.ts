@@ -180,9 +180,10 @@ describe("Olivia Bridge", () => {
   it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
+    const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
 
     expect(workspace).toContain("saveBridgeFolderTrail(trail)");
-    expect(workspace).toContain("queryBridgeFolderTrailPermission(trail)");
+    expect(folderRestore).toContain("queryBridgeFolderTrailPermission(trail)");
     expect(browserPanel).toContain("지난 폴더 다시 열기");
     expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
@@ -191,6 +192,7 @@ describe("Olivia Bridge", () => {
     const layout = readFileSync("app/(photo-studio)/layout.tsx", "utf8");
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
+    const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
     expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
@@ -208,9 +210,9 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
     expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
     expect(workspace).toContain('sp.get("remoteFolder")');
-    expect(workspace).toContain('setExecutionMode("REMOTE_WORKER")');
-    expect(workspace).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
-    expect(workspace).toContain("toRemoteNasDisplayPath(path)");
+    expect(folderRestore).toContain('setExecutionMode("REMOTE_WORKER")');
+    expect(folderRestore).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
+    expect(folderRestore).toContain("toRemoteNasDisplayPath(path)");
     expect(workspace).toContain('key === "classification"');
     expect(workspace).toContain("initialRemoteSelection={remoteProjectSelection}");
     expect(workspace).toContain("NAS · {remoteFolder.displayPath}");

@@ -58,6 +58,7 @@ import { useOliviaBridgeMarqueeSelection } from "@/components/olivia-bridge/useO
 import { useOliviaBridgeSelectionReview } from "@/components/olivia-bridge/useOliviaBridgeSelectionReview";
 import { useOliviaBridgeSelectionLabels } from "@/components/olivia-bridge/useOliviaBridgeSelectionLabels";
 import { useOliviaBridgeKeyboard } from "@/components/olivia-bridge/useOliviaBridgeKeyboard";
+import { useOliviaBridgeFolderRestore } from "@/components/olivia-bridge/useOliviaBridgeFolderRestore";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -77,8 +78,7 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
-import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
-import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
+import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
@@ -102,12 +102,9 @@ import {
 import {
   bridgeRawMatchDefaultFolder,
   bridgeRawMatchFolderCandidates,
-  clearBridgeFolderTrail,
-  queryBridgeFolderTrailPermission,
-  readBridgeFolderTrail,
-  requestBridgeFolderTrailPermission,
   resolveBridgeFolderTrail,
   saveBridgeFolderTrail,
+  type BridgeFolderTrailItem,
 } from "@/lib/photo-bridge/recentFolder";
 import {
   BRIDGE_COLOR_LABELS,
@@ -148,7 +145,7 @@ const PhotoSourcePicker = dynamic(
   { ssr: false },
 );
 
-type Breadcrumb = { name: string; handle: FileSystemDirectoryHandle };
+type Breadcrumb = BridgeFolderTrailItem;
 
 const EMPTY_SCAN: BridgeFolderScan = {
   folders: [],
@@ -241,7 +238,6 @@ export default function OliviaBridgeWorkspace({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
-  const restoreAttemptedRef = useRef(false);
   const remoteLoadGenerationRef = useRef(0);
   const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -900,76 +896,16 @@ export default function OliviaBridgeWorkspace({
       return null;
     }
   }, [routeHref, sp]);
-  const remoteFolderPrefillApplied = useRef<string | null>(null);
-  useEffect(() => {
-    if (!remoteFolderQuery || remoteFolderPrefillApplied.current === remoteFolderQuery) return;
-    remoteFolderPrefillApplied.current = remoteFolderQuery;
-    try {
-      const path = normalizeRemoteNasRelativePath(remoteFolderQuery);
-      if (!path) return;
-      restoreAttemptedRef.current = true;
-      setExecutionMode("REMOTE_WORKER");
-      void loadRemoteDirectory({
-        path,
-        displayPath: toRemoteNasDisplayPath(path),
-        rootName: REMOTE_NAS_ROOT_NAME,
-      });
-    } catch {
-      // 잘못된 경로면 조용히 넘기고 사용자가 직접 폴더를 고르게 둔다.
-    }
-  }, [loadRemoteDirectory, remoteFolderQuery, setExecutionMode]);
-
-  useEffect(() => {
-    if (restoreAttemptedRef.current) return;
-    restoreAttemptedRef.current = true;
-    let disposed = false;
-
-    void readBridgeFolderTrail().then(async (trail) => {
-      if (disposed) return;
-      if (!trail?.length) {
-        setScanStatus("idle");
-        return;
-      }
-      const permission = await queryBridgeFolderTrailPermission(trail);
-      if (disposed) return;
-      if (permission === "granted") {
-        await loadDirectory(trail.at(-1)!.handle, trail);
-        return;
-      }
-      if (permission === "prompt" || permission === "denied") {
-        setRestoreTrail(trail);
-        setRestoreMessage(permission === "denied"
-          ? `${trail.at(-1)?.name ?? "지난 폴더"} 접근 권한이 해제되었습니다. 다시 허용하면 이어서 열 수 있습니다.`
-          : `${trail.at(-1)?.name ?? "지난 폴더"} 접근 권한을 다시 확인해 주세요.`);
-        setScanStatus("idle");
-        return;
-      }
-    }).catch(async (error) => {
-      console.error("[olivia-bridge] Failed to restore the last folder", error);
-      await clearBridgeFolderTrail().catch(() => undefined);
-      if (disposed) return;
-      setRestoreMessage("지난 폴더를 다시 열지 못했습니다. 새 폴더를 선택해 주세요.");
-      setScanStatus("idle");
-    });
-
-    return () => { disposed = true; };
-  }, [loadDirectory]);
-
-  const restoreLastFolder = useCallback(async () => {
-    if (!restoreTrail.length) return;
-    setRestoreMessage("");
-    try {
-      const permission = await requestBridgeFolderTrailPermission(restoreTrail);
-      if (permission !== "granted") {
-        setRestoreMessage("지난 폴더의 접근 권한을 허용하지 않았습니다. 다른 폴더를 선택할 수 있습니다.");
-        return;
-      }
-      await loadDirectory(restoreTrail.at(-1)!.handle, restoreTrail);
-    } catch (error) {
-      console.error("[olivia-bridge] Failed to request the last folder permission", error);
-      setRestoreMessage("지난 폴더를 다시 열지 못했습니다. 다른 폴더를 선택해 주세요.");
-    }
-  }, [loadDirectory, restoreTrail]);
+  const restoreLastFolder = useOliviaBridgeFolderRestore({
+    remoteFolderQuery,
+    restoreTrail,
+    setRestoreTrail,
+    setRestoreMessage,
+    setScanStatus,
+    setExecutionMode,
+    loadDirectory,
+    loadRemoteDirectory,
+  });
 
   useEffect(() => {
     const openInspector = () => {
