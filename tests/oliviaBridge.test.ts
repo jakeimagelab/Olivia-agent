@@ -129,15 +129,16 @@ describe("Olivia Bridge", () => {
 
   it("Scene 검토 결과만 스크롤하고 승인 실행 바는 항상 고정한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const sceneReview = readFileSync("components/olivia-bridge/OliviaBridgeSceneReviewContent.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
-    expect(workspace).toContain("Scene {selectedScenes.length.toLocaleString");
+    expect(sceneReview).toContain("Scene {selectedScenes.length.toLocaleString");
     expect(workspace).toContain("collectAdobeBridgeMarks");
-    expect(workspace).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
+    expect(sceneReview).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
     expect(workspace).toContain("rebuildBridgeSceneAnalysis(sceneState.analysis.files.filter");
-    expect(workspace).toContain("계획 적용하고 Scene 검토");
+    expect(sceneReview).toContain("계획 적용하고 Scene 검토");
     expect(workspace).toContain("stageBridgeClassificationPlan");
-    expect(workspace).toContain("sceneApprovalSummary");
+    expect(sceneReview).toContain("sceneApprovalSummary");
     expect(styles).toMatch(/\.sceneWindow\s*\{\s*grid-template-rows:\s*54px minmax\(0, 1fr\) auto/);
     expect(styles).toMatch(/\.sceneBody\s*\{[^}]*overflow:\s*hidden/);
     expect(styles).toMatch(/\.sceneGrid\s*\{[^}]*overflow:\s*auto/);

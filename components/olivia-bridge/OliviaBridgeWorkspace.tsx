@@ -15,8 +15,6 @@ import {
   Maximize2,
   Minus,
   Plus,
-  RefreshCw,
-  ScanSearch,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -38,7 +36,6 @@ import {
   BridgeFullscreenPreview,
   BridgePhotoCard,
   BridgeSelectionReview,
-  BridgeThumbnail,
   PlainFileCard,
   formatBytes,
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
@@ -57,6 +54,10 @@ import {
   OliviaBridgePreviewPanel,
   type OliviaBridgePreviewTab,
 } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
+import {
+  OliviaBridgeSceneReviewContent,
+  type OliviaBridgeSceneState as SceneState,
+} from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -80,18 +81,13 @@ import {
   type BridgeFolderScan,
   type BridgeJpgFile,
   type BridgeJpgSortMode,
-  type BridgeScene,
-  type BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { collectAdobeBridgeMarks, type AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
 import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
-import {
-  manualPhotoDepartmentResolution,
-  PHOTO_DEPARTMENT_SOURCE_DISPLAY,
-} from "@/lib/photo-classifier/departmentResolver";
-import { DEPARTMENT_DESCRIPTION, DEPARTMENT_DISPLAY, type MedicalDepartment } from "@/lib/photo-classifier/types";
+import { manualPhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
+import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
@@ -185,15 +181,6 @@ const PhotoSourcePicker = dynamic(
 );
 
 type Breadcrumb = { name: string; handle: FileSystemDirectoryHandle };
-type SceneState = {
-  status: "idle" | "running" | "complete" | "error";
-  stage: string;
-  completed: number;
-  total: number;
-  scenes: BridgeScene[];
-  analysis: BridgeSceneAnalysis | null;
-  error?: string;
-};
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -1209,6 +1196,8 @@ export default function OliviaBridgeWorkspace({
     setDepartmentError("");
     setDepartmentPickerOpen(false);
   }, [setPhotoDepartmentResolution]);
+  const retrySceneAnalysis = useCallback(() => setSceneRunKey((value) => value + 1), []);
+  const openDepartmentPicker = useCallback(() => setDepartmentPickerOpen(true), []);
 
   const choosePhoto = useCallback((photo: BridgeJpgFile, event: ReactMouseEvent) => {
     const next = updateBridgeSelection({ current: selectedIds, orderedIds: visibleJpgs.map((item) => item.id), clickedId: photo.id, anchorId, additive: event.metaKey || event.ctrlKey, range: event.shiftKey });
@@ -2381,41 +2370,24 @@ export default function OliviaBridgeWorkspace({
         onRectChange={(rect) => updateFloatingWindowRect("scene-review", rect)}
         onClose={() => setSceneReviewOpen(false)}
       >
-        <div className={styles.sceneBody}>
-          {sceneState.status === "running" ? <div className={styles.sceneProgress}><span style={{ width: `${sceneState.total ? Math.min(100, sceneState.completed / sceneState.total * 100) : 4}%` }} /></div> : null}
-          {sceneState.error ? <div className={styles.sceneError}><CircleAlert size={17} /><span>{sceneState.error}</span><button type="button" onClick={() => setSceneRunKey((value) => value + 1)}><RefreshCw size={14} /> 다시 시도</button></div> : null}
-          <section className={styles.departmentContext} aria-label="사진 분류 진료과">
-            {departmentLoading ? <div className={styles.departmentStatus}><LoaderCircle className={styles.spin} size={14} /><span>등록 고객과 폴더에서 진료과 확인 중...</span></div> : null}
-            {!departmentLoading && photoDepartmentResolution.status === "resolved" && !departmentPickerOpen ? (
-              <div className={styles.departmentStatus}>
-                <Check size={14} />
-                <span><strong>{DEPARTMENT_DISPLAY[photoDepartmentResolution.department]} 적용됨</strong> · {PHOTO_DEPARTMENT_SOURCE_DISPLAY[photoDepartmentResolution.source]}</span>
-                {photoDepartmentResolution.department === "orthopedics_neurosurgery" && photoDepartmentResolution.rawValue !== "orthopedics_neurosurgery" ? <small>{photoDepartmentResolution.rawValue} → 근골격·통증계 규칙</small> : null}
-                <button type="button" onClick={() => setDepartmentPickerOpen(true)}>변경</button>
-              </div>
-            ) : null}
-            {!departmentLoading && (departmentPickerOpen || photoDepartmentResolution.status !== "resolved") ? (
-              <div className={styles.departmentPicker}>
-                <span>{departmentError || (photoDepartmentResolution.status === "conflict" ? "등록 고객과 폴더명의 진료과가 다릅니다. 적용할 진료과를 확인해 주세요." : "등록 고객과 폴더명에서 진료과를 찾지 못했습니다.")}</span>
-                <label>
-                  <span>진료과</span>
-                  <select
-                    aria-label="사진 분류 진료과 선택"
-                    value={photoDepartmentResolution.status === "resolved" ? photoDepartmentResolution.department : ""}
-                    onChange={(event) => event.target.value && chooseDepartment(event.target.value as MedicalDepartment)}
-                  >
-                    <option value="">진료과를 선택해 주세요</option>
-                    {(Object.entries(DEPARTMENT_DISPLAY) as Array<[MedicalDepartment, string]>).map(([value, label]) => (
-                      <option key={value} value={value}>{label}{DEPARTMENT_DESCRIPTION[value] ? ` (${DEPARTMENT_DESCRIPTION[value]})` : ""}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            ) : null}
-          </section>
-          <div className={styles.sceneGrid}>{selectedScenes.map((scene) => { const photo = scenePhotoByName.get(scene.representativeFileName); return <article key={scene.id}>{photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}<div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div><small>{scene.firstFileName} – {scene.lastFileName}</small>{scene.needsReview ? <i>경계 확인 필요</i> : null}</article>; })}{sceneState.status === "complete" && !selectedScenes.length ? <p>Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.</p> : null}</div>
-        </div>
-        <footer><div className={styles.sceneApprovalSummary}><strong>Scene {selectedScenes.length.toLocaleString("ko-KR")}개 · 선택 JPG {(selectedSceneAnalysis?.files.length ?? 0).toLocaleString("ko-KR")}장 · 경계 확인 {sceneBoundaryReviewCount.toLocaleString("ko-KR")}곳</strong><p>{adobeSelectionLoading ? "Adobe Bridge의 XMP 별점을 확인하고 있습니다." : scenePlanReady ? "Olivia와 Adobe Bridge 선택만 적용합니다. 파일은 아직 이동하지 않습니다." : selectedSceneAnalysisReady && photoDepartmentResolution.status !== "resolved" ? "진료과를 확인해야 Scene 계획을 적용할 수 있습니다." : sceneState.status === "complete" ? "Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요." : "분석이 끝나면 Scene 계획을 적용할 수 있습니다."}</p></div><button type="button" disabled={!scenePlanReady} onClick={applyScenePlan}><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button></footer>
+        <OliviaBridgeSceneReviewContent
+          sceneState={sceneState}
+          adobeSelectionLoading={adobeSelectionLoading}
+          departmentLoading={departmentLoading}
+          departmentError={departmentError}
+          departmentPickerOpen={departmentPickerOpen}
+          departmentResolution={photoDepartmentResolution}
+          selectedScenes={selectedScenes}
+          scenePhotoByName={scenePhotoByName}
+          selectedFileCount={selectedSceneAnalysis?.files.length ?? 0}
+          boundaryReviewCount={sceneBoundaryReviewCount}
+          selectedSceneAnalysisReady={selectedSceneAnalysisReady}
+          scenePlanReady={scenePlanReady}
+          onRetry={retrySceneAnalysis}
+          onOpenDepartmentPicker={openDepartmentPicker}
+          onChooseDepartment={chooseDepartment}
+          onApplyScenePlan={applyScenePlan}
+        />
       </BridgeFloatingWindow> : null}
 
       {activeTool ? <BridgeFloatingWindow
