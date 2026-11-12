@@ -14,36 +14,18 @@ import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPer
 import { databaseApiFailure } from "@/lib/supabase/apiError";
 import { loadAdminDeliveryItems } from "@/lib/person-select/deliveryServer";
 import { countCustomerSelection } from "@/lib/person-select/customerSelection";
+import {
+  loadAdminProjectBase,
+  loadOpenSelectionSaveFailures,
+  loadSharedAdminProjectState,
+} from "@/lib/person-select/server/adminProjectRepository";
 
 export const dynamic = "force-dynamic";
-
-async function loadPeopleWithDeliveryCompatibility(db: ReturnType<typeof getSupabaseAdmin>, eventId: string) {
-  const enriched = await db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at,delivery_state,delivery_approved_at,delivery_downloaded_at,delivery_files_purged_at,delivery_retention_extended_until").eq("event_id", eventId).order("display_name");
-  if (!enriched.error) return enriched;
-  if (!/delivery_|schema cache|does not exist/i.test(`${enriched.error.message} ${enriched.error.code ?? ""}`)) return enriched;
-  return db.from("person_select_people").select("id,event_id,display_name,login_name,group_label,first_seen_at,last_seen_at,submitted_at,updated_at,orders,orders_updated_at").eq("event_id", eventId).order("display_name");
-}
 
 async function getPersonSelectAdminResponse(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const db = getSupabaseAdmin();
-  const [{ data: event, error }, { data: people, error: peopleError }, choices, imageGroups] = await Promise.all([
-    db.from("person_select_events").select("*").eq("id", eventId).single(),
-    loadPeopleWithDeliveryCompatibility(db, eventId),
-    readAllPersonSelectRows((from, to) => db.from("person_select_choices")
-      .select("id,event_id,person_id,category_key,image_id,retouch_keys,memo,updated_at,person_select_images(original_file_name,source_rel_path,thumb_path)")
-      .eq("event_id", eventId)
-      .order("id")
-      .range(from, to)),
-    readAllPersonSelectRows((from, to) => db.from("person_select_images")
-      .select("id,owner_person_id,owner_group,category_key,original_file_name,source_rel_path,thumb_path,preview_path,sort_order")
-      .eq("event_id", eventId)
-      .order("sort_order")
-      .order("id")
-      .range(from, to)),
-  ]);
-  if (error) throw error;
-  if (peopleError) throw peopleError;
+  const { event, people, choices, images: imageGroups } = await loadAdminProjectBase(db, eventId);
   if (!event) return Response.json({ ok: false, error: "행사를 찾을 수 없습니다." }, { status: 404 });
   const choiceThumbUrls = await signedImageUrls(choices.flatMap((choice) => {
     const image = choice.person_select_images as unknown as { thumb_path?: string | null } | null;
@@ -79,16 +61,7 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
     thumb_url: representativeUrls.get(image.thumb_path) ?? "",
   });
   const categories = (event.categories ?? []) as PersonSelectCategory[];
-  const saveFailureResult = await db.from("person_select_selection_save_failures")
-    .select("actor_type,actor_id,occurred_at,error_message")
-    .eq("event_id", eventId)
-    .is("recovered_at", null)
-    .order("occurred_at", { ascending: false })
-    .limit(200);
-  if (saveFailureResult.error && !/schema cache|does not exist|relation .* does not exist/i.test(`${saveFailureResult.error.message} ${saveFailureResult.error.code ?? ""}`)) {
-    throw saveFailureResult.error;
-  }
-  const saveFailures = saveFailureResult.error ? [] : saveFailureResult.data ?? [];
+  const saveFailures = await loadOpenSelectionSaveFailures(db, eventId);
   const failureCountFor = (actorType: "person" | "reviewer", actorId: string) => saveFailures.filter((failure) => failure.actor_type === actorType && failure.actor_id === actorId).length;
   const deliveryRows = await loadAdminDeliveryItems(db, eventId);
   const deliveriesByPerson = new Map<string, typeof deliveryRows>();
@@ -141,26 +114,14 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
   const groups = Object.entries(groupCounts).sort(([a], [b]) => a.localeCompare(b, "ko", { numeric: true })).map(([label, image_count]) => ({ label, image_count }));
   let shared: Record<string, unknown> | null = null;
   if (event.access_mode === "project_shared") {
-    const [{ data: reviewers, error: reviewersError }, { data: drafts, error: draftsError }, { data: selections, error: selectionsError }] = await Promise.all([
-      db.from("person_select_shared_reviewers").select("id,display_name,role_label,token_version,active,is_legacy,last_seen_at,can_view_ai_results,can_download_jpg,can_download_raw,can_finalize,created_at,updated_at").eq("event_id", eventId).order("is_legacy", { ascending: false }).order("created_at"),
-      db.from("person_select_shared_drafts").select("reviewer_id,revision,items,customer_memo,updated_at").eq("event_id", eventId),
-      db.from("person_select_shared_selections").select("id,reviewer_id,submitted_at,customer_memo,revision").eq("event_id", eventId).order("submitted_at", { ascending: false }),
-    ]);
-    if (reviewersError || draftsError || selectionsError) throw reviewersError ?? draftsError ?? selectionsError;
-    const latestByReviewer = new Map<string, NonNullable<typeof selections>[number]>();
-    for (const selection of selections ?? []) if (!latestByReviewer.has(selection.reviewer_id)) latestByReviewer.set(selection.reviewer_id, selection);
-    const latestSelectionIds = [...latestByReviewer.values()].map((selection) => selection.id);
-    const { data: selectedItems, error: selectedItemsError } = latestSelectionIds.length
-      ? await db.from("person_select_shared_selection_items").select("selection_id,reviewer_id,image_id,customer_rating,customer_color_label,memo").in("selection_id", latestSelectionIds)
-      : { data: [], error: null };
-    if (selectedItemsError) throw selectedItemsError;
-    const draftItemsByReviewer = new Map<string, Array<Record<string, unknown>>>((drafts ?? []).map((draft) => [
+    const { reviewers, drafts, selections, latestByReviewer, selectedItems } = await loadSharedAdminProjectState(db, eventId);
+    const draftItemsByReviewer = new Map<string, Array<Record<string, unknown>>>(drafts.map((draft) => [
       draft.reviewer_id,
       Array.isArray(draft.items) ? draft.items as Array<Record<string, unknown>> : [],
     ]));
     const imageById = new Map(imageGroups.map((image) => [image.id, image]));
     const sharedItemImageIds = [
-      ...(selectedItems ?? []).map((item) => item.image_id),
+      ...selectedItems.map((item) => item.image_id),
       ...[...draftItemsByReviewer.values()].flatMap((items) => items.map((item) => String(item.image_id ?? "")).filter(Boolean)),
     ];
     const sharedThumbUrls = await signedImageUrls([...new Set(sharedItemImageIds)].flatMap((imageId) => {
@@ -175,9 +136,9 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
         thumb_url: sharedThumbUrls.get(image.thumb_path) ?? "",
       } : null;
     };
-    type SelectedItem = NonNullable<typeof selectedItems>[number];
+    type SelectedItem = typeof selectedItems[number];
     const itemsBySelection = new Map<string, SelectedItem[]>();
-    for (const item of selectedItems ?? []) {
+    for (const item of selectedItems) {
       const list = itemsBySelection.get(item.selection_id);
       if (list) list.push(item);
       else itemsBySelection.set(item.selection_id, [item]);
@@ -201,8 +162,8 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
         image: imageFor(imageId),
       }];
     });
-    const draftByReviewer = new Map((drafts ?? []).map((draft) => [draft.reviewer_id, draft]));
-    const reviewerRows = (reviewers ?? []).map((reviewer) => {
+    const draftByReviewer = new Map(drafts.map((draft) => [draft.reviewer_id, draft]));
+    const reviewerRows = reviewers.map((reviewer) => {
       const draft = draftByReviewer.get(reviewer.id);
       const selection = latestByReviewer.get(reviewer.id);
       const draftItems = draftItemsByReviewer.get(reviewer.id) ?? [];
@@ -239,7 +200,7 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
         recent_save_failure_count: failureCountFor("reviewer", reviewer.id),
       };
     });
-    const latestSelection = (selections ?? [])[0] ?? null;
+    const latestSelection = selections[0] ?? null;
     shared = {
       image_count: imageGroups.length,
       images: imageGroups.map((image) => ({
