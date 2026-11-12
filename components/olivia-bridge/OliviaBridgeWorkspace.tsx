@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleAlert,
-  File,
   Folder,
   FolderOpen,
   Images,
@@ -25,7 +24,6 @@ import {
   Scissors,
   SlidersHorizontal,
   Sparkles,
-  Star,
   Users,
   WandSparkles,
   X,
@@ -46,14 +44,16 @@ import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingW
 import {
   BridgeFullscreenPreview,
   BridgePhotoCard,
-  BridgePreviewImage,
   BridgeSelectionReview,
   BridgeThumbnail,
   PlainFileCard,
-  formatBridgeTimestamp,
   formatBytes,
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
+import {
+  OliviaBridgePreviewPanel,
+  type OliviaBridgePreviewTab,
+} from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -165,7 +165,6 @@ import {
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
-import OliviaChatDockTarget from "@/components/olivia/OliviaChatDockTarget";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
@@ -198,7 +197,6 @@ type SceneState = {
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
 type QualityFilter = "all" | PhotoQualityFlag | "needs_review" | "normal";
-type PreviewTab = "selection" | "preview" | "olivia";
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -394,7 +392,7 @@ export default function OliviaBridgeWorkspace({
   const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
   const [rawRootPromptError, setRawRootPromptError] = useState("");
   const [folderImageCounts, setFolderImageCounts] = useState<Record<string, number>>({});
-  const [previewTab, setPreviewTab] = useState<PreviewTab>("selection");
+  const [previewTab, setPreviewTab] = useState<OliviaBridgePreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
   const [focusedPlainId, setFocusedPlainId] = useState<string | null>(null);
@@ -2048,6 +2046,17 @@ export default function OliviaBridgeWorkspace({
   const selectedSceneAnalysisReady = sceneAnalysisReady && Boolean(selectedSceneAnalysis) && selectedScenes.length > 0;
   const scenePlanReady = selectedSceneAnalysisReady && photoDepartmentResolution.status === "resolved" && !departmentLoading && !adobeSelectionLoading;
 
+  const closeCompactPreview = useCallback(() => setCompactPreviewOpen(false), []);
+  const toggleFocusedSelection = useCallback(() => {
+    if (!focusedPhoto) return;
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id);
+      else next.add(focusedPhoto.id);
+      return next;
+    });
+  }, [focusedPhoto, setSelectedIds]);
+
   const applyScenePlan = useCallback(() => {
     if (!hasActiveFolder || !selectedSceneAnalysis || !scenePlanReady || photoDepartmentResolution.status !== "resolved") return;
     try {
@@ -2331,42 +2340,43 @@ export default function OliviaBridgeWorkspace({
           label="미리보기 영역 너비 조절"
         />
 
-        <aside ref={previewPanelRef} id="olivia-bridge-preview-panel" className={styles.previewPanel} aria-label="선택한 사진 미리보기">
-          <header className={styles.previewHeader}><strong>선택한 파일</strong><button type="button" className={styles.compactPreviewClose} onClick={() => setCompactPreviewOpen(false)} aria-label="미리보기 닫기"><X size={15} /></button><LayoutGrid size={15} aria-hidden="true" /></header>
-          <div className={styles.previewTabs} role="tablist" aria-label="선택한 파일 패널">
-            <button type="button" role="tab" aria-selected={previewTab === "selection"} onClick={() => setPreviewTab("selection")}>선택한 파일</button>
-            <button type="button" role="tab" aria-selected={previewTab === "preview"} onClick={() => setPreviewTab("preview")}>미리보기</button>
-            <button type="button" role="tab" aria-selected={previewTab === "olivia"} onClick={() => setPreviewTab("olivia")}>Olivia</button>
-          </div>
-          {previewTab === "selection" ? (
-            <div className={styles.selectionInspector}>
-              <section className={styles.selectionInspectorSummary}>
-                <div><strong>{selectedPhotos.length}장</strong><span> 선택됨</span></div>
-                <small className={styles.selectionSourceLabel}>기준: {selectionSource === "olivia" ? "올리비아" : selectionSource === "adobe" ? "어도비" : "둘 다"}</small>
-                <p>마지막으로 고른 것 · {focusedPhoto?.name ?? focusedPlainFile?.name ?? "없음"}</p>
-                <div className={styles.selectionSourceCounts}><span>Adobe {adobeSelectedCount}장</span><span>직접 고름 {manualSelectedCount}장</span></div>
-                {focusedPhoto && customerSelectedIds.has(focusedPhoto.id) ? <div className={styles.customerSelectionFocus}><b>고객 셀렉{customerRatings[focusedPhoto.id] ? ` · ${customerRatings[focusedPhoto.id]}점` : ""}</b>{customerNotes[focusedPhoto.id] ? <span>{customerNotes[focusedPhoto.id]}</span> : null}</div> : null}
-                {focusedPhoto && qualityByBridgeId[focusedPhoto.id] ? <div className={styles.aiQualityFocus}><b>AI 품질 분석 · {qualityByBridgeId[focusedPhoto.id].reviewStatus === "confirmed_normal" ? "정상 확인됨" : qualityByBridgeId[focusedPhoto.id].reviewStatus === "confirmed_issue" ? "문제 확인됨" : qualityByBridgeId[focusedPhoto.id].status === "needs_review" ? "확인 필요" : qualityByBridgeId[focusedPhoto.id].flags.length ? "문제 의심" : "정상"}</b><span>{qualityByBridgeId[focusedPhoto.id].flags.map((flag) => flag === "eyes_closed" ? "눈감음" : flag === "face_too_dark" ? "얼굴 어두움" : "흔들림").join(" · ") || "감지된 문제 없음"}</span><small>AI 결과는 별점·셀렉·파일을 자동 변경하지 않습니다.</small></div> : null}
-              </section>
-              <section className={styles.bulkControl} aria-label="선택한 사진 별점">
-                <header><span>앱에 별점 적용</span>{selectedRatingMixed ? <b>혼합</b> : <b>{commonSelectedRating ? `${commonSelectedRating}점` : "없음"}</b>}</header>
-                <div className={styles.bulkRatingButtons}>{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" disabled={!selectedPhotos.length} aria-label={`선택 사진에 ${rating}점 적용`} aria-pressed={!selectedRatingMixed && commonSelectedRating === rating} onClick={() => applyRating(rating)}><Star size={17} fill={!selectedRatingMixed && commonSelectedRating === rating ? "currentColor" : "none"} /></button>)}</div>
-                <button type="button" className={styles.clearBulkButton} disabled={!selectedPhotos.length} onClick={() => applyRating(0)}>별점 해제</button>
-                <small>Adobe에서 별점을 불러와도 앱에서 편집한 값은 유지됩니다.</small>
-              </section>
-              <section className={styles.bulkControl} aria-label="선택한 사진 컬러 레이블">
-                <header><span>컬러 레이블</span>{selectedColorMixed ? <b>혼합</b> : <b>{commonSelectedColor ? BRIDGE_COLOR_LABELS[commonSelectedColor as BridgeColorLabel].name : "없음"}</b>}</header>
-                <div className={styles.bulkColorButtons}>{(Object.entries(BRIDGE_COLOR_LABELS) as Array<[string, { name: string; color: string }]>).map(([label, value]) => <button key={label} type="button" disabled={!selectedPhotos.length} aria-label={`${value.name} 레이블`} aria-pressed={!selectedColorMixed && commonSelectedColor === Number(label)} style={{ background: value.color }} onClick={() => applyColorLabel(Number(label) as BridgeColorLabel)} />)}<button type="button" className={styles.clearColorButton} disabled={!selectedPhotos.length} aria-label="컬러 레이블 해제" onClick={clearColorLabels}><X size={14} /></button></div>
-              </section>
-              <div className={styles.selectionInspectorActions}>
-                <button type="button" disabled={!selectedPhotos.length} onClick={() => toggleExcluded()}>{allSelectedExcluded ? "선택 파일 제외 해제" : "선택 파일 제외"}</button>
-                <button type="button" disabled={!focusedPhoto} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button>
-              </div>
-            </div>
-          ) : previewTab === "olivia" ? (
-            <div className={styles.previewOlivia}><div><strong>{folderPath || "폴더 미선택"}</strong><span>{focusedPhoto?.name ?? focusedPlainFile?.name ?? "파일 미선택"} · 선택 JPG {selectedNames.length}장</span></div><OliviaChatDockTarget id="olivia-bridge-preview" priority={92} className={styles.previewOliviaDock} /></div>
-          ) : focusedPhoto ? <><div className={styles.previewCanvas} onDoubleClick={openFullscreenPreview}><button type="button" className={`${styles.previewArrow} ${styles.previewArrowLeft}`} onClick={() => moveFocus(-1)} disabled={focusedIndex <= 0} aria-label="이전 사진"><ChevronLeft size={22} /></button><BridgePreviewImage photo={focusedPhoto} onSize={setPreviewSize} /><button type="button" className={`${styles.previewArrow} ${styles.previewArrowRight}`} onClick={() => moveFocus(1)} disabled={focusedIndex < 0 || focusedIndex >= visibleJpgs.length - 1} aria-label="다음 사진"><ChevronRight size={22} /></button></div><div className={styles.previewMeta}><strong>{focusedPhoto.name}</strong><span>{previewSize ? `${previewSize.width} × ${previewSize.height}` : "크기 확인 중"}</span><i /><span>{formatBytes(focusedPhoto.size)}</span><i /><span>{focusedPhoto.extension}</span>{focusedPhoto.captureTimestamp ? <><i /><span title={focusedPhoto.timestampSource === "mtime" ? "EXIF 촬영시각이 없어 파일 수정시각을 사용했습니다." : "사진 EXIF 메타데이터의 촬영시각입니다."}>{formatBridgeTimestamp(focusedPhoto)}</span></> : null}<div className={styles.previewRatings} aria-label="별점">{[1, 2, 3, 4, 5].map((rating) => <button key={rating} type="button" aria-label={`${rating}점`} aria-pressed={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating} onClick={() => applyRating(rating, true)}><Star size={15} fill={(effectiveRatings[focusedPhoto.id] ?? 0) >= rating ? "currentColor" : "none"} /></button>)}<button type="button" onClick={() => applyRating(0, true)}>해제</button></div><button type="button" className={styles.previewSelectButton} onClick={() => setSelectedIds((current) => { const next = new Set(current); if (next.has(focusedPhoto.id)) next.delete(focusedPhoto.id); else next.add(focusedPhoto.id); return next; })}><Check size={13} />{selectedIds.has(focusedPhoto.id) ? "선택됨" : "선택"}</button><button type="button" className={styles.previewExpandButton} onClick={openFullscreenPreview}><Maximize2 size={13} /> 크게 보기</button></div></> : focusedPlainFile ? <div className={styles.previewFileInfo}><File size={42} /><strong>{focusedPlainFile.name}</strong><span>{focusedPlainFile.extension} · {formatBytes(focusedPlainFile.size)}</span><p>RAW와 사이드카는 파일 정보만 표시하며 미리보기를 만들지 않습니다.</p></div> : <div className={styles.previewEmpty}><Images size={34} /><strong>미리 볼 파일을 선택해 주세요</strong><span>RAW와 사이드카는 미리보기를 만들지 않습니다.</span></div>}
-        </aside>
+        <OliviaBridgePreviewPanel
+          panelRef={previewPanelRef}
+          previewTab={previewTab}
+          onPreviewTabChange={setPreviewTab}
+          onCloseCompact={closeCompactPreview}
+          selectedCount={selectedPhotos.length}
+          selectionSource={selectionSource}
+          lastFocusedName={focusedPhoto?.name ?? focusedPlainFile?.name ?? "없음"}
+          adobeSelectedCount={adobeSelectedCount}
+          manualSelectedCount={manualSelectedCount}
+          focusedPhoto={focusedPhoto}
+          focusedPlainFile={focusedPlainFile}
+          customerSelected={Boolean(focusedPhoto && customerSelectedIds.has(focusedPhoto.id))}
+          customerRating={focusedPhoto ? customerRatings[focusedPhoto.id] ?? 0 : 0}
+          customerNote={focusedPhoto ? customerNotes[focusedPhoto.id] ?? "" : ""}
+          quality={focusedPhoto ? qualityByBridgeId[focusedPhoto.id] : undefined}
+          selectedRatingMixed={selectedRatingMixed}
+          commonSelectedRating={commonSelectedRating}
+          onApplyRating={applyRating}
+          selectedColorMixed={selectedColorMixed}
+          commonSelectedColor={commonSelectedColor}
+          onApplyColorLabel={applyColorLabel}
+          onClearColorLabels={clearColorLabels}
+          allSelectedExcluded={allSelectedExcluded}
+          onToggleExcluded={toggleExcluded}
+          onOpenFullscreen={openFullscreenPreview}
+          folderPath={folderPath}
+          selectedNamesCount={selectedNames.length}
+          focusedIndex={focusedIndex}
+          visibleCount={visibleJpgs.length}
+          onMoveFocus={moveFocus}
+          previewSize={previewSize}
+          onPreviewSize={setPreviewSize}
+          focusedRating={focusedPhoto ? effectiveRatings[focusedPhoto.id] ?? 0 : 0}
+          focusedSelected={Boolean(focusedPhoto && selectedIds.has(focusedPhoto.id))}
+          onToggleFocusedSelection={toggleFocusedSelection}
+        />
       </main>
 
       <section className={styles.actionBar} aria-label="Bridge 작업 도구">
