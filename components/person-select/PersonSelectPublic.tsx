@@ -9,6 +9,7 @@ import { offerImagesFor } from "@/lib/person-select/types";
 import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
 import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { usePersonChoiceSync, type PersonSelectChoice as Choice, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
+import { clearPersonSelectImageCache, usePersonSelectImages } from "./usePersonSelectImages";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import styles from "./PersonSelectPublic.module.css";
 
@@ -24,48 +25,13 @@ type PublicEvent = Pick<EventData, "title" | "slug" | "deadline_at" | "status" |
 function isSchoolEvent(event: { source_layout?: string | null } | null | undefined) {
   return !event?.source_layout || event.source_layout === "school";
 }
-type ImageCacheEntry = { images: ImageData[]; fetchedAt: number };
-
-const IMAGE_CACHE_MAX_AGE_MS = 9 * 60_000;
 const FIRST_PHOTO_TIMER_KEY = "person-select-login-started-at";
-const imageCache = new Map<string, ImageCacheEntry>();
-const imageRequests = new Map<string, Promise<ImageData[]>>();
 
 async function jsonFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init, headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) } });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || "요청을 처리하지 못했어요.");
   return data as T;
-}
-
-function imageCacheKey(slug: string, category: string) {
-  return `${slug}:${category}`;
-}
-
-function clearImageCache(slug: string) {
-  for (const key of imageCache.keys()) if (key.startsWith(`${slug}:`)) imageCache.delete(key);
-  for (const key of imageRequests.keys()) if (key.startsWith(`${slug}:`)) imageRequests.delete(key);
-}
-
-function cachedImages(slug: string, category: string) {
-  const cached = imageCache.get(imageCacheKey(slug, category));
-  return cached && Date.now() - cached.fetchedAt < IMAGE_CACHE_MAX_AGE_MS ? cached.images : null;
-}
-
-function fetchImages(slug: string, category: string) {
-  const key = imageCacheKey(slug, category);
-  const cached = cachedImages(slug, category);
-  if (cached) return Promise.resolve(cached);
-  const pending = imageRequests.get(key);
-  if (pending) return pending;
-  const request = jsonFetch<{ images: ImageData[] }>(`/api/pick/${slug}/images?category=${encodeURIComponent(category)}`)
-    .then((data) => {
-      imageCache.set(key, { images: data.images, fetchedAt: Date.now() });
-      return data.images;
-    })
-    .finally(() => imageRequests.delete(key));
-  imageRequests.set(key, request);
-  return request;
 }
 
 function isComplete(category: Category) {
@@ -117,7 +83,7 @@ export function PersonSelectLogin({ slug, event }: { slug: string; event: Public
     event.preventDefault();
     setBusy(true); setError("");
     try {
-      clearImageCache(slug);
+      clearPersonSelectImageCache(slug);
       window.sessionStorage.setItem(FIRST_PHOTO_TIMER_KEY, String(Date.now()));
       await jsonFetch(`/api/pick/${slug}/login`, { method: "POST", body: JSON.stringify({ name, pin }) });
       router.replace(`/pick/${slug}/home`);
@@ -183,7 +149,7 @@ function Header({ me, slug, desktopControls }: { me: MeData; slug: string; deskt
     {desktopControls ? <div className={styles.pcHeaderControls}>{desktopControls}</div> : null}
     <div className={styles.headerMeta}>
       <span className={styles.deadlineChip}>마감 {formatSeoulDeadline(me.event.deadline_at)}</span>
-      <button className={styles.weak} aria-label="로그아웃" onClick={async () => { clearImageCache(slug); await fetch(`/api/pick/${slug}/logout`, { method: "POST" }); router.replace(`/pick/${slug}`); }}><LogOut size={17} /></button>
+      <button className={styles.weak} aria-label="로그아웃" onClick={async () => { clearPersonSelectImageCache(slug); await fetch(`/api/pick/${slug}/logout`, { method: "POST" }); router.replace(`/pick/${slug}`); }}><LogOut size={17} /></button>
     </div>
   </header>;
 }
@@ -244,41 +210,6 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   </main>;
 }
 
-function useImages(slug: string, category: string) {
-  const [images, setImages] = useState<ImageData[]>(() => cachedImages(slug, category) ?? []);
-  const [loading, setLoading] = useState(() => !cachedImages(slug, category));
-  useEffect(() => {
-    let active = true;
-    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-    const key = imageCacheKey(slug, category);
-    const scheduleRefresh = (delay = IMAGE_CACHE_MAX_AGE_MS) => {
-      refreshTimer = setTimeout(() => {
-        imageCache.delete(key);
-        fetchImages(slug, category).then((nextImages) => {
-          if (!active) return;
-          setImages(nextImages);
-          scheduleRefresh();
-        }).catch(() => undefined);
-      }, delay);
-    };
-    const entry = imageCache.get(key);
-    const cached = cachedImages(slug, category);
-    if (cached && entry) {
-      setImages(cached);
-      setLoading(false);
-      scheduleRefresh(Math.max(1, IMAGE_CACHE_MAX_AGE_MS - (Date.now() - entry.fetchedAt)));
-      return () => { active = false; if (refreshTimer) clearTimeout(refreshTimer); };
-    }
-    setLoading(true);
-    fetchImages(slug, category)
-      .then((nextImages) => { if (active) { setImages(nextImages); scheduleRefresh(); } })
-      .catch(() => { if (active) setImages([]); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; if (refreshTimer) clearTimeout(refreshTimer); };
-  }, [category, slug]);
-  return { images, loading };
-}
-
 function selectionSyncStatus(sync: { status: string; pendingCount: number; lastSavedAt: string | null }) {
   if (sync.status === "saved") return sync.lastSavedAt ? "저장됨 · 방금" : "저장됨";
   if (sync.status === "saving") return "저장 중…";
@@ -318,7 +249,7 @@ function usePendingPersonChoiceSyncCount(slug: string) {
 export function PersonSelectCategory({ slug, categoryKey }: { slug: string; categoryKey: string }) {
   const router = useRouter();
   const { me, loading: meLoading, error } = useSelectionData(slug);
-  const { images, loading } = useImages(slug, categoryKey);
+  const { images, loading } = usePersonSelectImages(slug, categoryKey);
   const category = me?.categories.find((item) => item.key === categoryKey);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
@@ -554,7 +485,7 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
     .filter((item) => item.image_count > 0)
     .filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
   const active = categories.find((item) => item.key === activeKey) ?? categories[0];
-  const { images } = useImages(slug, active?.key ?? "profile");
+  const { images } = usePersonSelectImages(slug, active?.key ?? "profile");
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
