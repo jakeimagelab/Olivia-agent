@@ -116,6 +116,17 @@ describe("person select RAW match targets", () => {
     expect(result.targets.find((target) => target.id === "legacy")?.customerRating).toBe(5);
     expect(result.targets.find((target) => target.id === "color")).toMatchObject({ customerRating: null, customerColorLabel: 6 });
   });
+
+  it("promotes historic classic rating 1 to 5 without changing a Bridge rating 1", () => {
+    const common = {
+      source: "current" as const,
+      reviewers: [{ id: "reviewer", displayName: "고객", active: true }],
+      submittedByReviewer: new Map<string, PersonSelectRawImage[]>(),
+      draftByReviewer: new Map([["reviewer", [{ ...image("selected"), customerRating: 1 }]]]),
+    };
+    expect(resolveSharedRawMatchTargets({ ...common, binarySelection: true }).targets[0]?.customerRating).toBe(5);
+    expect(resolveSharedRawMatchTargets({ ...common, binarySelection: false }).targets[0]?.customerRating).toBe(1);
+  });
 });
 
 describe("legacy shared reviewer finalization", () => {

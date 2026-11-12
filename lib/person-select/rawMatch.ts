@@ -105,7 +105,12 @@ export function normalizePersonSelectRawLabelNames(value: unknown): PersonSelect
   })) as PersonSelectRawLabelNames;
 }
 
-function targetFromImage(image: PersonSelectRawImage, ownerId: string, ownerName: string): PersonSelectRawMatchTarget {
+function targetFromImage(
+  image: PersonSelectRawImage,
+  ownerId: string,
+  ownerName: string,
+  binarySelection = false,
+): PersonSelectRawMatchTarget {
   const customerColorLabel = normalizeCustomerColorLabel(image.customerColorLabel);
   const explicitRating = normalizeCustomerRating(image.customerRating);
   return {
@@ -115,7 +120,9 @@ function targetFromImage(image: PersonSelectRawImage, ownerId: string, ownerName
     // 개인별/classic 셀렉은 별점 없이 "선택됨"만 저장한다. RAW 표시에서는
     // Adobe Bridge의 확정 셀렉 관례에 맞춰 ★5로 보이되, 컬러만 고른 사진에는
     // 임의의 별점을 더하지 않는다. 실제 고객 별점은 그대로 보존한다.
-    customerRating: explicitRating ?? (customerColorLabel === null ? 5 : null),
+    customerRating: binarySelection
+      ? (customerColorLabel === null ? 5 : null)
+      : explicitRating ?? (customerColorLabel === null ? 5 : null),
     customerColorLabel,
     markSavedAt: image.markSavedAt ?? null,
     markConflict: false,
@@ -174,6 +181,7 @@ export function resolveIndividualRawMatchTargets(input: {
 
 export function resolveSharedRawMatchTargets(input: {
   source?: PersonSelectRawMatchSource;
+  binarySelection?: boolean;
   reviewers: readonly { id: string; displayName: string; active: boolean }[];
   reviewerIds?: readonly string[];
   submittedByReviewer: ReadonlyMap<string, readonly PersonSelectRawImage[]>;
@@ -192,7 +200,7 @@ export function resolveSharedRawMatchTargets(input: {
   const submittedTargets = uniqueTargets(reviewers.flatMap((reviewer) => (
     input.submittedByReviewer.get(reviewer.id) ?? []
   ).filter((image) => isCustomerSelection({ selected: true, rating: image.customerRating, colorLabel: image.customerColorLabel }))
-    .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName))));
+    .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName, input.binarySelection))));
 
   const currentTargets = uniqueTargets(reviewers.flatMap((reviewer) => {
     const images = input.draftByReviewer.has(reviewer.id)
@@ -200,7 +208,7 @@ export function resolveSharedRawMatchTargets(input: {
       : input.submittedByReviewer.get(reviewer.id) ?? [];
     return images
       .filter((image) => isCustomerSelection({ selected: true, rating: image.customerRating, colorLabel: image.customerColorLabel }))
-      .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName));
+      .map((image) => targetFromImage(image, reviewer.id, reviewer.displayName, input.binarySelection));
   }));
 
   const targets = source === "current" ? currentTargets : submittedTargets;

@@ -165,6 +165,7 @@ async function loadTargets(input: {
   db: ReturnType<typeof getSupabaseAdmin>;
   eventId: string;
   accessMode: string;
+  binarySelection?: boolean;
   source: PersonSelectRawMatchSource;
   reviewerIds?: string[];
 }) {
@@ -246,6 +247,7 @@ async function loadTargets(input: {
   }
   const result = resolveSharedRawMatchTargets({
     source: input.source,
+    binarySelection: input.binarySelection,
     reviewers: (reviewers ?? []).map((reviewer) => ({ id: reviewer.id, displayName: reviewer.display_name, active: reviewer.active !== false })),
     reviewerIds: input.reviewerIds,
     submittedByReviewer,
@@ -384,7 +386,7 @@ async function main() {
   if (!eventId) throw new Error("--event-id가 필요합니다.");
   const db = getSupabaseAdmin();
   failureStage = "LOADING_PROJECT";
-  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode,raw_match_result").eq("id", eventId).single();
+  const { data: event, error: eventError } = await db.from("person_select_events").select("id,title,source_relative_path,access_mode,customer_view_mode,raw_match_result").eq("id", eventId).single();
   if (eventError || !event) throw new Error(eventError?.message || "행사를 찾을 수 없습니다.");
   if (!event.source_relative_path) throw new Error("사진을 가져온 폴더 기록이 없습니다. 사진 올리기를 한 번 다시 해주세요.");
   const pathPlan = resolvePersonSelectRawMatchPathPlan(
@@ -431,7 +433,14 @@ async function main() {
   }
 
   failureStage = "LOADING_SELECTIONS";
-  const targetResult = await loadTargets({ db, eventId, accessMode: event.access_mode, source, reviewerIds });
+  const targetResult = await loadTargets({
+    db,
+    eventId,
+    accessMode: event.access_mode,
+    binarySelection: event.customer_view_mode !== "bridge",
+    source,
+    reviewerIds,
+  });
   const targets = targetResult.targets;
   if (!targets.length) throw new Error(source === "current" ? "RAW 매칭할 현재 선택 사진이 없습니다." : "RAW 매칭할 최종 선택 사진이 없습니다.");
 

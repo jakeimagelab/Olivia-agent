@@ -128,7 +128,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     });
     selectionSync.enqueue(removing
       ? [{ imageId: id, rating: null }, { imageId: id, colorLabel: null }]
-      : [{ imageId: id, rating: 1 }]);
+      : [{ imageId: id, rating: 5 }]);
   };
   const openSubmitReview = async () => {
     if (!selected.size || selectionSync.pendingCount || memoSync.pending) return;
