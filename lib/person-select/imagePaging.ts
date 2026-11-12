@@ -40,6 +40,7 @@ export type PersonSelectImagePageQuery = {
 };
 
 type PersonSelectImageCursor = { sortOrder: number; id: string };
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizedSortOrder(value: number | null | undefined) {
   return Number.isFinite(value) ? Number(value) : Number.MAX_SAFE_INTEGER;
@@ -64,7 +65,7 @@ export function decodePersonSelectImageCursor(value: string | null | undefined):
   if (!value || value.length > 512) return null;
   try {
     const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Partial<PersonSelectImageCursor>;
-    if (!Number.isFinite(parsed.sortOrder) || typeof parsed.id !== "string" || !parsed.id) return null;
+    if (!Number.isFinite(parsed.sortOrder) || typeof parsed.id !== "string" || !UUID_PATTERN.test(parsed.id)) return null;
     return { sortOrder: Number(parsed.sortOrder), id: parsed.id };
   } catch {
     return null;

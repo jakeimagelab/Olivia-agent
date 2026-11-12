@@ -142,7 +142,7 @@ export async function getSharedPersonSelectImages(db: SupabaseClient, eventId: s
   }));
 }
 
-export const SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT = 240;
+export const SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT = 72;
 export type SharedPersonSelectMediaVariant = "thumbnail" | "preview" | "both";
 
 export function parseSharedPersonSelectMediaVariant(value: unknown): SharedPersonSelectMediaVariant {

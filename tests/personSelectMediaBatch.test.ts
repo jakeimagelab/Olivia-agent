@@ -100,7 +100,7 @@ describe("person-select visible media batches", () => {
 
   it("rejects oversized batches and image IDs outside the project", async () => {
     const tooMany = Array.from({ length: SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT + 1 }, (_, index) => `image-${index}`);
-    await expect(getSharedPersonSelectImageUrls(fakeImageDb(rows), "event-a", tooMany)).rejects.toThrow("240장");
+    await expect(getSharedPersonSelectImageUrls(fakeImageDb(rows), "event-a", tooMany)).rejects.toThrow(`${SHARED_PERSON_SELECT_MEDIA_BATCH_LIMIT}장`);
     await expect(getSharedPersonSelectImageUrls(fakeImageDb(rows), "event-a", ["image-a", "other-event-image"])).rejects.toThrow("없는 사진");
   });
 });

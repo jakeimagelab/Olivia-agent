@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { getSharedPersonSelectImageUrls, parseSharedPersonSelectMediaVariant, resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
+import { getSharedPersonSelectImageUrls, parseSharedPersonSelectMediaVariant, resolveSharedPersonSelectAccess, sharedReviewerTokenHash } from "@/lib/person-select/sharedPublic";
+import { loadPersonSelectImagePage, parsePersonSelectImagePageQuery } from "@/lib/person-select/server/imageRepository";
 import {
   enforcePublicSelectionRateLimit,
   PublicSelectionRequestError,
@@ -9,6 +10,27 @@ import {
 import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+
+export async function GET(request: NextRequest, context: { params: Promise<{ shareToken: string }> }) {
+  const { shareToken } = await context.params;
+  try {
+    const db = getSupabaseAdmin();
+    const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken);
+    await enforcePublicSelectionRateLimit({
+      db,
+      request,
+      token: `${reviewer.id}:${sharedReviewerTokenHash(shareToken)}`,
+      action: "person-shared-image-page",
+      limit: 240,
+      identityOnly: true,
+    });
+    const query = parsePersonSelectImagePageQuery(request.nextUrl.searchParams);
+    const page = await loadPersonSelectImagePage(db, event.id, query);
+    return Response.json({ ok: true, page }, { headers: { "Cache-Control": "private, max-age=30" } });
+  } catch (error) {
+    return publicSelectionErrorResponse(error);
+  }
+}
 
 export async function POST(request: NextRequest, context: { params: Promise<{ shareToken: string }> }) {
   const { shareToken } = await context.params;
