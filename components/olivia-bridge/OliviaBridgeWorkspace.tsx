@@ -71,20 +71,17 @@ import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
-  scanBridgeFolder,
   type BridgeFolderScan,
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import {
-  bridgeFolderMarksByName,
-  readBridgeFolderMarks,
-  readBridgeFolderSelectionSource,
-  remoteBridgeThumbnailsToJpgs,
-} from "@/lib/photo-bridge/folderSession";
+  loadLocalBridgeFolderSnapshot,
+  loadRemoteBridgeFolderSnapshot,
+} from "@/lib/photo-bridge/folderLoader";
+import { readBridgeFolderSelectionSource } from "@/lib/photo-bridge/folderSession";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
-import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
   DEFAULT_BRIDGE_SELECTION_SOURCE,
@@ -652,16 +649,18 @@ export default function OliviaBridgeWorkspace({
     setToolKey(undefined);
     setSceneReviewOpen(false);
     try {
-      const nextPath = trail.map((item) => item.name).join(" / ");
-      const selectionSourceKey = trail.map((item) => item.name).join("/");
-      const nextSelectionSource = readBridgeFolderSelectionSource(localStorage, selectionSourceKey);
+      const snapshot = await loadLocalBridgeFolderSnapshot({
+        directory,
+        trail,
+        includeNestedJpgs: nestedJpgs,
+        storage: localStorage,
+      });
+      const nextPath = snapshot.folderPath;
+      const nextSelectionSource = snapshot.selectionSource;
+      const next = snapshot.scan;
       selectionSourceRef.current = nextSelectionSource;
       setSelectionSource(nextSelectionSource);
-      const next = await scanBridgeFolder(directory, nextPath, {
-        includeNestedJpgs: nestedJpgs,
-        maxDepth: 5,
-      });
-      const restoredMarks = readBridgeFolderMarks(localStorage, nextPath);
+      const restoredMarks = snapshot.marks;
       setRatings(restoredMarks.ratings);
       setRatingEdits(restoredMarks.ratingEdits);
       setColorLabels(restoredMarks.colorLabels);
@@ -684,13 +683,8 @@ export default function OliviaBridgeWorkspace({
       setRawMatchFolderPath(nextPath);
       setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
-      const restoredMarksByName = bridgeFolderMarksByName(
-        next.jpgs,
-        restoredMarks.ratings,
-        restoredMarks.colorLabels,
-      );
-      setJpgRatingsByName(restoredMarksByName.ratings, { overwrite: true });
-      setJpgColorLabelsByName(restoredMarksByName.colorLabels, { overwrite: true });
+      setJpgRatingsByName(snapshot.marksByName.ratings, { overwrite: true });
+      setJpgColorLabelsByName(snapshot.marksByName.colorLabels, { overwrite: true });
       setScanStatus("ready");
       void saveBridgeFolderTrail(trail).catch((error) => {
         console.error("[olivia-bridge] Failed to remember the last folder", error);
@@ -802,9 +796,13 @@ export default function OliviaBridgeWorkspace({
     setColorLabels({});
     setExcludedIds(new Set());
     try {
-      const result = await loadRemoteBridgeThumbnails(selection.path);
+      const snapshot = await loadRemoteBridgeFolderSnapshot({
+        selection,
+        storage: localStorage,
+        selectionSource: nextSelectionSource,
+      });
       if (generation !== remoteLoadGenerationRef.current) return;
-      const jpgs = remoteBridgeThumbnailsToJpgs(selection.path, result.thumbs);
+      const jpgs = snapshot.jpgs;
       setScan({ ...EMPTY_SCAN, jpgs });
       lastPublishedRatingsRef.current = {};
       setJpgRatingsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });

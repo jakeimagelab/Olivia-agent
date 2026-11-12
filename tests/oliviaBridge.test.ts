@@ -193,6 +193,7 @@ describe("Olivia Bridge", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
+    const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
     const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
     expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
@@ -208,7 +209,8 @@ describe("Olivia Bridge", () => {
     expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
     expect(workspace).toContain("setRemoteFolder(selection)");
     expect(workspace).toContain("setScan(EMPTY_SCAN)");
-    expect(workspace).toContain("loadRemoteBridgeThumbnails(selection.path)");
+    expect(workspace).toContain("loadRemoteBridgeFolderSnapshot");
+    expect(folderLoader).toContain("loadRemoteBridgeThumbnails");
     expect(workspace).toContain('sp.get("remoteFolder")');
     expect(folderRestore).toContain('setExecutionMode("REMOTE_WORKER")');
     expect(folderRestore).toContain("normalizeRemoteNasRelativePath(remoteFolderQuery)");
