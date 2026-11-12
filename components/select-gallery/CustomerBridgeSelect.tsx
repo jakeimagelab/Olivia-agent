@@ -341,7 +341,7 @@ export default function CustomerBridgeSelect({
     resetReview();
     setFilter("all");
     setSubmitError("");
-  }, [clearActiveSelection, resetReview, setSubmitError]);
+  }, [clearActiveSelection, resetReview, setFilter, setSubmitError]);
   const {
     resetButtonRef,
     resetConfirmOpen,
