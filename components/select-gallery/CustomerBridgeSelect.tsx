@@ -13,13 +13,6 @@ import {
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
-import {
-  EMPTY_BRIDGE_LABEL_FILTERS,
-  updateBridgeLabelFilters,
-  type BridgeLabelFilterCommand,
-  type BridgeLabelFilters,
-} from "@/lib/photo-bridge/labels";
-import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
@@ -45,7 +38,7 @@ import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
-import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
+import { buildCustomerBridgePhotoView } from "@/lib/select-gallery/customerBridgeView";
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
 import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./CustomerBridgeDialogs";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
@@ -61,6 +54,7 @@ import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLa
 import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
 import { CustomerBridgeHeader } from "./CustomerBridgeHeader";
 import { CustomerBridgeFooter } from "./CustomerBridgeFooter";
+import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -152,9 +146,19 @@ export default function CustomerBridgeSelect({
     initialSelection,
     readOnly,
   });
-  const [filter, setFilter] = useState<PhotoFilter>("all");
-  const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
-  const [filenameSearch, setFilenameSearch] = useState("");
+  const fullscreenCloseRef = useRef<() => void>(() => undefined);
+  const closeFullscreenBeforeFilterChange = useCallback(() => fullscreenCloseRef.current(), []);
+  const {
+    filter,
+    setFilter,
+    labelFilters,
+    filenameSearch,
+    setFilenameSearch,
+    searchInputRef,
+    clearFilenameSearch,
+    applyLabelFilterCommand,
+    handleSearchFilterShortcut,
+  } = useCustomerBridgeFilters({ onBeforeFilterChange: closeFullscreenBeforeFilterChange });
   const [thumbSize, setThumbSize] = useState(156);
   const {
     compactFoldersOpen,
@@ -168,7 +172,6 @@ export default function CustomerBridgeSelect({
 
   const gridRef = useRef<HTMLDivElement>(null);
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
 
   const { qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality } = useCustomerBridgeQuality({
@@ -324,6 +327,11 @@ export default function CustomerBridgeSelect({
   useEffect(() => {
     fullscreenOpenRef.current = openFullscreen;
   }, [openFullscreen]);
+  useEffect(() => {
+    fullscreenCloseRef.current = () => {
+      if (fullscreenId) closeFullscreen();
+    };
+  }, [closeFullscreen, fullscreenId]);
 
   const handleResetComplete = useCallback(() => {
     clearActiveSelection();
@@ -407,11 +415,6 @@ export default function CustomerBridgeSelect({
     updateNote(focusedImageId, value);
   }, [focusedImageId, updateNote]);
 
-  const clearFilenameSearch = useCallback(() => {
-    setFilenameSearch("");
-    searchInputRef.current?.focus();
-  }, []);
-
   const refreshServerDraft = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -430,23 +433,6 @@ export default function CustomerBridgeSelect({
     setGuideOpen(false);
     requestAnimationFrame(() => guideButtonRef.current?.focus());
   }, []);
-
-  const applyLabelFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
-    if (fullscreenId) closeFullscreen();
-    if (command.kind === "all") {
-      setLabelFilters({ ...EMPTY_BRIDGE_LABEL_FILTERS });
-      setFilter("all");
-      return;
-    }
-    setLabelFilters((current) => updateBridgeLabelFilters(current, command));
-  }, [closeFullscreen, fullscreenId]);
-
-  const handleSearchFilterShortcut = useBridgeSearchFilterShortcuts({
-    searchInputRef,
-    searchQuery: filenameSearch,
-    onSearchQueryChange: setFilenameSearch,
-    onFilterCommand: applyLabelFilterCommand,
-  });
 
   useCustomerBridgeKeyboard({
     guideOpen,
