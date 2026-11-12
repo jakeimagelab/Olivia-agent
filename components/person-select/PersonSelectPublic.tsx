@@ -6,20 +6,18 @@ import { ArrowLeft, Check, CheckCircle2, ChevronLeft, ChevronRight, ImageIcon, L
 import { formatSeoulDeadline } from "@/lib/person-select/date";
 import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
-import { SELECTION_SYNC_STORAGE_EVENT, SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
-import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
-import { compactSelectionSyncDiffs, parsePersistedSelectionSyncQueue, type SelectionSyncDiff, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
+import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import { usePersonChoiceSync, type PersonSelectChoice as Choice, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import styles from "./PersonSelectPublic.module.css";
 
 type Category = { key: string; label: string; pick: number; image_count: number; need: number; max: number; choices: Choice[] };
-type Choice = { id: string; image_id: string; original_file_name: string; thumb_url: string | null; retouch_keys: string[]; memo: string; updated_at: string };
 type EventData = { title: string; slug: string; deadline_at: string; status: string; source_layout?: "school" | "person-folders" | null; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; retouch_options: { key: string; label: string }[]; memo_max: number; locked: boolean; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: Offer[] };
 type Offer = { key: string; label: string; unit: string; price: number; note: string; needs_photo: boolean; options: { key: string; label: string; price: number }[] };
 type OrderItem = { offer_key: string; option_key: string | null; image_id: string | null; qty: number };
 type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type MeData = { event: EventData; person: { display_name: string; group_label: string | null; submitted_at: string | null; delivery_state?: string }; categories: Category[]; order?: { items: OrderItem[]; lines: OrderLine[]; total: number } };
-type ImageData = { id: string; original_file_name: string; thumb_url: string; preview_url: string; width: number | null; height: number | null };
 type PublicEvent = Pick<EventData, "title" | "slug" | "deadline_at" | "status" | "source_layout">;
 
 /** 학교(선생님) 행사인지. 예전 행사는 값이 없으면 학교로 본다. */
@@ -279,133 +277,6 @@ function useImages(slug: string, category: string) {
     return () => { active = false; if (refreshTimer) clearTimeout(refreshTimer); };
   }, [category, slug]);
   return { images, loading };
-}
-
-type PersonChoiceSyncSnapshot = {
-  items: Array<{ imageId: string; categoryKey: string; selected: boolean; memo?: string; retouchKeys?: string[]; updatedAt?: string }>;
-  updatedAt?: string | null;
-};
-
-function choiceMap(choices: readonly Choice[]) {
-  return new Map(choices.map((choice) => [choice.image_id, choice]));
-}
-
-function overlayPersonChoiceDiffs(
-  base: ReadonlyMap<string, Choice>,
-  diffs: readonly SelectionSyncDiff[],
-  images: readonly ImageData[],
-) {
-  const next = new Map(base);
-  const imageById = new Map(images.map((image) => [image.id, image]));
-  for (const diff of compactSelectionSyncDiffs(diffs)) {
-    const image = imageById.get(diff.imageId);
-    if (!image) continue;
-    const current = next.get(diff.imageId);
-    if (Object.prototype.hasOwnProperty.call(diff, "selected")) {
-      if (!diff.selected) { next.delete(diff.imageId); continue; }
-      if (!current) next.set(diff.imageId, {
-        id: `pending-${diff.imageId}`,
-        image_id: diff.imageId,
-        original_file_name: image.original_file_name,
-        thumb_url: image.thumb_url,
-        retouch_keys: [],
-        memo: "",
-        updated_at: diff.changedAt,
-      });
-    }
-    const choice = next.get(diff.imageId);
-    if (!choice) continue;
-    if (Object.prototype.hasOwnProperty.call(diff, "memo")) next.set(diff.imageId, { ...choice, memo: diff.memo ?? "", updated_at: diff.changedAt });
-    if (Object.prototype.hasOwnProperty.call(diff, "retouchKeys")) next.set(diff.imageId, { ...choice, retouch_keys: diff.retouchKeys ?? [], updated_at: diff.changedAt });
-  }
-  return next;
-}
-
-function usePersonChoiceSync(input: {
-  slug: string;
-  categoryKey: string;
-  initialChoices: readonly Choice[];
-  images: readonly ImageData[];
-  enabled: boolean;
-}) {
-  const { slug, categoryKey, initialChoices, images, enabled } = input;
-  const [confirmed, setConfirmed] = useState<Map<string, Choice>>(() => choiceMap(initialChoices));
-  const [displayed, setDisplayed] = useState<Map<string, Choice>>(() => choiceMap(initialChoices));
-  const confirmedRef = useRef(confirmed);
-
-  const installSnapshot = useCallback((snapshot: PersonChoiceSyncSnapshot, pending: SelectionSyncDiff[]) => {
-    const previous = confirmedRef.current;
-    const imageById = new Map(images.map((image) => [image.id, image]));
-    const next = new Map<string, Choice>();
-    for (const item of snapshot.items ?? []) {
-      if (!item.selected || item.categoryKey !== categoryKey) continue;
-      const image = imageById.get(item.imageId);
-      const old = previous.get(item.imageId);
-      if (!image && !old) continue;
-      next.set(item.imageId, {
-        id: old?.id ?? `server-${item.imageId}`,
-        image_id: item.imageId,
-        original_file_name: image?.original_file_name ?? old?.original_file_name ?? "",
-        thumb_url: image?.thumb_url ?? old?.thumb_url ?? null,
-        retouch_keys: Array.isArray(item.retouchKeys) ? item.retouchKeys : [],
-        memo: typeof item.memo === "string" ? item.memo : "",
-        updated_at: item.updatedAt ?? snapshot.updatedAt ?? new Date().toISOString(),
-      });
-    }
-    confirmedRef.current = next;
-    setConfirmed(next);
-    setDisplayed(overlayPersonChoiceDiffs(next, pending, images));
-  }, [categoryKey, images]);
-
-  const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    const response = await fetch(`/api/pick/${slug}/choices/batch`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, diffs }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.snapshot) {
-      const retryAfterSeconds = Number(response.headers.get("Retry-After") ?? 0);
-      throw new SelectionSyncRequestError(result.error ?? "선택을 저장하지 못했어요.", {
-        retryable: ![400, 401, 403, 404, 410, 423].includes(response.status),
-        retryAfterMs: retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
-      });
-    }
-    return result.snapshot as PersonChoiceSyncSnapshot;
-  }, [slug]);
-
-  const sync = useSelectionSyncQueue({
-    storageKey: `person-select-choice-sync:${slug}:${categoryKey}`,
-    enabled,
-    sendBatch,
-    onSnapshot: installSnapshot,
-    onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
-    onPendingChange: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
-  });
-  const getPendingSelectionDiffs = sync.getPendingDiffs;
-
-  useEffect(() => {
-    if (sync.pendingCount) return;
-    const next = choiceMap(initialChoices);
-    confirmedRef.current = next;
-    setConfirmed(next);
-    setDisplayed(next);
-  }, [initialChoices, sync.pendingCount]);
-
-  const refresh = useCallback(async () => {
-    if (!enabled) return;
-    try {
-      const response = await fetch(`/api/pick/${slug}/choices/batch`, { cache: "no-store" });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && result.ok && result.snapshot) installSnapshot(result.snapshot as PersonChoiceSyncSnapshot, getPendingSelectionDiffs());
-    } catch {
-      // 보류 중 변경은 유지하고 다음 focus에서 다시 확인한다.
-    }
-  }, [enabled, getPendingSelectionDiffs, installSnapshot, slug]);
-
-  useVisibleSelectionRefresh({ enabled, refresh });
-
-  return { ...sync, confirmedChoices: [...confirmed.values()], displayedChoices: [...displayed.values()] };
 }
 
 function selectionSyncStatus(sync: { status: string; pendingCount: number; lastSavedAt: string | null }) {
