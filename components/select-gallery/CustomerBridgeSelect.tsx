@@ -53,10 +53,8 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
-import type { PersonSelectProjectMessage } from "@/lib/person-select/sharedMessages";
 import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
-import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
@@ -85,6 +83,7 @@ import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelec
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
+import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -178,14 +177,6 @@ export default function CustomerBridgeSelect({
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [renderLimit, setRenderLimit] = useState(PAGE_SIZE);
   const [mobile, setMobile] = useState(false);
-  const [sideTab, setSideTab] = useState<"preview" | "chat">("preview");
-  const [mobileSideOpen, setMobileSideOpen] = useState(false);
-  const [messages, setMessages] = useState<PersonSelectProjectMessage[]>([]);
-  const [messageText, setMessageText] = useState("");
-  const [messageState, setMessageState] = useState("");
-  const [messageImageScoped, setMessageImageScoped] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
-  const [sendingMessage, setSendingMessage] = useState(false);
   const [qualityResults, setQualityResults] = useState<Record<string, PublicPhotoQualityResult>>({});
   const [qualityJob, setQualityJob] = useState<Record<string, unknown> | null>(null);
   const [qualityState, setQualityState] = useState("");
@@ -209,11 +200,6 @@ export default function CustomerBridgeSelect({
   const sentinelRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const sideTabRef = useRef(sideTab);
-  const lastMessageIdRef = useRef<string | null>(null);
-  const messagesLengthRef = useRef(0);
-  const messageRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const qualityRefreshInFlightRef = useRef<Promise<{ job?: Record<string, unknown>; results?: PublicPhotoQualityResult[] } | undefined> | null>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
@@ -419,6 +405,28 @@ export default function CustomerBridgeSelect({
     requestMedia,
   });
 
+  const {
+    sideTab,
+    setSideTab,
+    mobileSideOpen,
+    setMobileSideOpen,
+    messages,
+    messageText,
+    setMessageText,
+    messageState,
+    messageImageScoped,
+    setMessageImageScoped,
+    unreadMessages,
+    sendingMessage,
+    messagesEndRef,
+    sendMessage,
+  } = useCustomerBridgeMessages({
+    endpointBase,
+    enabled: messagesEnabled,
+    mobile,
+    focusedImageId,
+  });
+
   const loadQuality = useCallback(async (options?: { quiet?: boolean; jobOnly?: boolean }) => {
     if (!qualityApi) return;
     if (qualityRefreshInFlightRef.current) return qualityRefreshInFlightRef.current;
@@ -599,91 +607,6 @@ export default function CustomerBridgeSelect({
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-
-  useEffect(() => {
-    sideTabRef.current = sideTab;
-    if (sideTab === "chat") {
-      setUnreadMessages(0);
-      requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ block: "end" }));
-    }
-  }, [messages.length, sideTab]);
-
-  const loadMessages = useCallback((options?: { quiet?: boolean }) => {
-    if (!messagesEnabled) return Promise.resolve();
-    if (messageRefreshInFlightRef.current) return messageRefreshInFlightRef.current;
-    const request = (async () => {
-      try {
-        const response = await fetch(`${endpointBase}/messages`, { cache: "no-store" });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok || !result.ok) throw new Error(result.error || "대화를 불러오지 못했습니다.");
-        const next = Array.isArray(result.messages) ? result.messages as PersonSelectProjectMessage[] : [];
-        const nextLastId = next.at(-1)?.id ?? null;
-        if (lastMessageIdRef.current && nextLastId && lastMessageIdRef.current !== nextLastId && sideTabRef.current !== "chat") {
-          setUnreadMessages((count) => count + Math.max(1, next.length - messagesLengthRef.current));
-        }
-        lastMessageIdRef.current = nextLastId;
-        messagesLengthRef.current = next.length;
-        setMessages(next);
-        setMessageState("");
-        if (sideTabRef.current === "chat") requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ block: "end" }));
-      } catch (error) {
-        if (!options?.quiet) setMessageState(error instanceof Error ? error.message : "대화 연결을 확인해 주세요.");
-      }
-    })();
-    messageRefreshInFlightRef.current = request;
-    void request.finally(() => {
-      if (messageRefreshInFlightRef.current === request) messageRefreshInFlightRef.current = null;
-    });
-    return request;
-  }, [endpointBase, messagesEnabled]);
-
-  const messagePanelVisible = messagesEnabled && sideTab === "chat" && (!mobile || mobileSideOpen);
-  useEffect(() => {
-    if (!messagePanelVisible) return;
-    const refresh = (quiet = true) => {
-      if (!shouldRunVisiblePoll({
-        enabled: messagesEnabled,
-        surfaceVisible: messagePanelVisible,
-        documentVisibility: document.visibilityState,
-      })) return;
-      void loadMessages({ quiet });
-    };
-    const onFocus = () => refresh();
-    const onVisibility = () => refresh();
-
-    refresh(false);
-    const pollTimer = window.setInterval(refresh, PROJECT_MESSAGE_POLL_INTERVAL_MS);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearInterval(pollTimer);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [loadMessages, messagePanelVisible, messagesEnabled]);
-
-  const sendMessage = useCallback(async () => {
-    const body = messageText.trim();
-    if (!messagesEnabled || !body || sendingMessage) return;
-    setSendingMessage(true);
-    setMessageState("전송 중");
-    try {
-      const response = await fetch(`${endpointBase}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body, requestId: `message_${createRequestKey()}`, imageId: messageImageScoped ? focusedImageId : null }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) throw new Error(result.error || "메시지를 보내지 못했습니다.");
-      setMessageText("");
-      await loadMessages({ quiet: true });
-      setMessageState("");
-    } catch (error) {
-      setMessageState(error instanceof Error ? error.message : "메시지를 보내지 못했습니다.");
-    } finally {
-      setSendingMessage(false);
-    }
-  }, [endpointBase, focusedImageId, loadMessages, messageImageScoped, messageText, messagesEnabled, sendingMessage]);
 
   useEffect(() => {
     const node = sentinelRef.current;
