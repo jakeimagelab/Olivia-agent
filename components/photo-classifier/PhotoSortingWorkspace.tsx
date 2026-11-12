@@ -88,6 +88,16 @@ import {
   type StudioStats,
   type StudioSubMode,
 } from "@/lib/photo-classifier/studioGrouping";
+import {
+  analyzeJpg,
+  buildQuickProposals,
+  getApiThumb,
+  getBoundaryApiImage,
+  getStudioThumb,
+  loadThumb,
+  mapWithConcurrency,
+  quickBrightness,
+} from "@/lib/photo-classifier/browserProcessing";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -212,47 +222,6 @@ async function isSameDirectoryHandle(
 /* ════════════════════════════════════════════════
    SHARED HELPERS
 ═══════════════════════════════════════════════ */
-async function loadThumb(file: File, size = 120): Promise<string | null> {
-  return new Promise(res => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const s = Math.min(size / img.width, size / img.height, 1);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.6));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); res(null); };
-    img.src = url;
-  });
-}
-
-// AI 사진 분류 2.0 — Step0 "AI 자동 분류" 화면의 즉석 미리보기. 실제 boundary AI 검증(Vision
-// API)은 전혀 쓰지 않고, 이미 스캔해둔 시간(mtime)만으로 기존 fast-mode와 동일한 하드갭 규칙을
-// 적용한다 — 그래서 이 미리보기는 무료지만 근사치다(실제 분류는 handleFieldSort가 다시 돈다).
-const AI_PREVIEW_MAX_SCENES = 24;
-async function buildQuickProposals(entries: { name: string; mtime: number; file: File }[], gapMinutes: number): Promise<SceneProposal[]> {
-  if (!entries.length) return [];
-  const gapMs = gapMinutes * 60 * 1000;
-  const groups: (typeof entries)[] = [[entries[0]]];
-  for (let index = 1; index < entries.length; index += 1) {
-    if (entries[index].mtime - entries[index - 1].mtime > gapMs) groups.push([entries[index]]);
-    else groups[groups.length - 1].push(entries[index]);
-  }
-  const limited = groups.slice(0, AI_PREVIEW_MAX_SCENES);
-  return Promise.all(limited.map(async (group, index) => ({
-    id: `quick-${index}`,
-    startIndex: index,
-    endIndex: index,
-    fileCount: group.length,
-    startTime: new Date(group[0].mtime).toISOString(),
-    endTime: new Date(group[group.length - 1].mtime).toISOString(),
-    representativeFiles: [await loadThumb(group[0].file, 80)].filter((url): url is string => Boolean(url)),
-    reasons: ["시간 간격 기준(예상)"],
-  })));
-}
-
 // 영상 파일과 마찬가지로 RAW도 수십~수백 MB일 수 있어 arrayBuffer()로 전체를 메모리에
 // 올리지 않고 스트리밍으로 복사한다.
 async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
@@ -322,125 +291,6 @@ function estimatedRemaining(completed: number, total: number, startedAt: number)
 /* ════════════════════════════════════════════════
    FIELD-MODE HELPERS
 ═══════════════════════════════════════════════ */
-async function analyzeJpg(file: File): Promise<{ blurScore: number; brightness: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 280;
-      const scale = Math.min(MAX / img.width, MAX / img.height, 1);
-      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
-      const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
-      const ctx = cv.getContext("2d")!; ctx.drawImage(img, 0, 0, w, h);
-      const { data } = ctx.getImageData(0, 0, w, h);
-      const gray = new Float32Array(w * h); let brightSum = 0;
-      for (let i = 0; i < gray.length; i++) {
-        const v = 0.299*data[i*4]+0.587*data[i*4+1]+0.114*data[i*4+2];
-        gray[i] = v; brightSum += v;
-      }
-      const brightness = brightSum / gray.length;
-      let lapSum = 0, lapCount = 0;
-      for (let y = 1; y < h-1; y++) for (let x = 1; x < w-1; x++) {
-        const c = y*w+x;
-        const lap = gray[c]*4-gray[(y-1)*w+x]-gray[(y+1)*w+x]-gray[y*w+(x-1)]-gray[y*w+(x+1)];
-        lapSum += lap*lap; lapCount++;
-      }
-      const blurScore = lapCount > 0 ? Math.sqrt(lapSum/lapCount) : 0;
-      URL.revokeObjectURL(url);
-      resolve({ blurScore, brightness });
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("load fail")); };
-    img.src = url;
-  });
-}
-
-async function getApiThumb(file: File): Promise<string> {
-  return new Promise((res, rej) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(480/img.width, 480/img.height, 1);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.6));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(); };
-    img.src = url;
-  });
-}
-
-async function getBoundaryApiImage(file: File, maxSize = 1080, quality = 0.82): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      const scale = Math.min(maxSize / Math.max(image.width, image.height), 1);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
-      canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL("image/jpeg", quality));
-    };
-    image.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`${file.name} 이미지 읽기 실패`)); };
-    image.src = url;
-  });
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let cursor = 0;
-  const consume = async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      results[index] = await worker(items[index], index);
-    }
-  };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(concurrency, items.length || 1)) }, consume));
-  return results;
-}
-
-/* ════════════════════════════════════════════════
-   STUDIO-MODE HELPERS
-═══════════════════════════════════════════════ */
-async function getStudioThumb(file: File, maxSize = 480): Promise<string> {
-  return new Promise((res, rej) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const s = Math.min(maxSize/img.width, maxSize/img.height, 1);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width*s); c.height = Math.round(img.height*s);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg", 0.75));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("load")); };
-    img.src = url;
-  });
-}
-
-async function quickBrightness(file: File): Promise<number> {
-  return new Promise(res => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement("canvas"); c.width = 64; c.height = 64;
-      c.getContext("2d")!.drawImage(img, 0, 0, 64, 64);
-      const d = c.getContext("2d")!.getImageData(0, 0, 64, 64).data;
-      let sum = 0;
-      for (let i = 0; i < d.length; i+=4) sum += 0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-      URL.revokeObjectURL(url); res(sum/(64*64));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); res(128); };
-    img.src = url;
-  });
-}
-
 /* ════════════════════════════════════════════════
    SHARED UI COMPONENTS
 ═══════════════════════════════════════════════ */
