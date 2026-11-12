@@ -54,7 +54,8 @@ import {
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
-import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
+import { useSelectionSyncQueue } from "@/components/person-select/useSelectionSyncQueue";
+import { sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import {
@@ -240,20 +241,12 @@ export default function CustomerBridgeSelect({
   }, []);
 
   const sendSelectionDiffs = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    const response = await fetch(`${endpointBase}/draft`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, diffs }),
+    return sendSelectionSyncBatch<SharedSelectionSyncSnapshot>({
+      endpoint: `${endpointBase}/draft`,
+      clientId,
+      diffs,
+      responseKey: "draft",
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.draft) {
-      const retryAfterSeconds = Number(response.headers.get("Retry-After") ?? 0);
-      throw new SelectionSyncRequestError(result.error ?? "선택을 저장하지 못했습니다.", {
-        retryable: ![400, 401, 403, 404, 410, 423].includes(response.status),
-        retryAfterMs: retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
-      });
-    }
-    return result.draft as SharedSelectionSyncSnapshot;
   }, [endpointBase]);
 
   const selectionSync = useSelectionSyncQueue({

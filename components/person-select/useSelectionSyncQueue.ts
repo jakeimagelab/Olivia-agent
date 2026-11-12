@@ -14,19 +14,12 @@ import {
   type SelectionSyncDiff,
   type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
+import { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
+
+export { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
 
 export type SelectionSyncQueueStatus = "saved" | "waiting" | "saving" | "retrying" | "error";
 export const SELECTION_SYNC_STORAGE_EVENT = "olivia-selection-sync-storage";
-
-export class SelectionSyncRequestError extends Error {
-  constructor(
-    message: string,
-    readonly options?: { retryable?: boolean; retryAfterMs?: number },
-  ) {
-    super(message);
-    this.name = "SelectionSyncRequestError";
-  }
-}
 
 type SelectionSyncQueueOptions<TSnapshot> = {
   storageKey: string;

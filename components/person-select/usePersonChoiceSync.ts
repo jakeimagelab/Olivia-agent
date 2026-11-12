@@ -6,7 +6,8 @@ import {
   type SelectionSyncDiff,
   type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
-import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
+import { readSelectionJsonResponse, sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
+import { useSelectionSyncQueue } from "./useSelectionSyncQueue";
 import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 
 export type PersonSelectChoice = {
@@ -124,20 +125,12 @@ export function usePersonChoiceSync({
   }, [categoryKey, images]);
 
   const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    const response = await fetch(`/api/pick/${slug}/choices/batch`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, diffs }),
+    return sendSelectionSyncBatch<PersonChoiceSyncSnapshot>({
+      endpoint: `/api/pick/${slug}/choices/batch`,
+      clientId,
+      diffs,
+      responseKey: "snapshot",
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.snapshot) {
-      const retryAfterSeconds = Number(response.headers.get("Retry-After") ?? 0);
-      throw new SelectionSyncRequestError(result.error ?? "선택을 저장하지 못했어요.", {
-        retryable: ![400, 401, 403, 404, 410, 423].includes(response.status),
-        retryAfterMs: retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
-      });
-    }
-    return result.snapshot as PersonChoiceSyncSnapshot;
   }, [slug]);
 
   const sync = useSelectionSyncQueue({
@@ -161,8 +154,8 @@ export function usePersonChoiceSync({
   const refresh = useCallback(async () => {
     if (!enabled) return;
     const response = await fetch(`/api/pick/${slug}/choices/batch`, { cache: "no-store" });
-    const result = await response.json().catch(() => ({}));
-    if (response.ok && result.ok && result.snapshot) {
+    const result = await readSelectionJsonResponse<{ ok?: boolean; snapshot?: PersonChoiceSyncSnapshot }>(response);
+    if (response.ok && result?.ok && result.snapshot) {
       installSnapshot(result.snapshot as PersonChoiceSyncSnapshot, getPendingSelectionDiffs());
     }
   }, [enabled, getPendingSelectionDiffs, installSnapshot, slug]);

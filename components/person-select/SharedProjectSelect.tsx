@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import { applySelectionDiffsToSharedSnapshot, type SelectionSyncDiff, type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
-import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
+import { readSelectionJsonResponse, sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
+import { useSelectionSyncQueue } from "./useSelectionSyncQueue";
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
 import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
@@ -56,20 +57,12 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     setState("");
   }, []);
   const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    const response = await fetch(`/api/pick/shared/${shareToken}/draft`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clientId, diffs }),
+    return sendSelectionSyncBatch<SharedSelectionSyncSnapshot>({
+      endpoint: `/api/pick/shared/${shareToken}/draft`,
+      clientId,
+      diffs,
+      responseKey: "draft",
     });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok || !result.ok || !result.draft) {
-      const retryAfterSeconds = Number(response.headers.get("Retry-After") ?? 0);
-      throw new SelectionSyncRequestError(result.error ?? "선택을 저장하지 못했습니다.", {
-        retryable: ![400, 401, 403, 404, 410, 423].includes(response.status),
-        retryAfterMs: retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined,
-      });
-    }
-    return result.draft as SharedSelectionSyncSnapshot;
   }, [shareToken]);
   const selectionSync = useSelectionSyncQueue({
     storageKey: `person-select-classic-sync:${event.id}:${reviewer.id}`,
@@ -107,8 +100,8 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
   const refreshServerDraft = useCallback(async () => {
     try {
       const response = await fetch(`/api/pick/shared/${shareToken}/draft`, { cache: "no-store" });
-      const result = await response.json().catch(() => ({}));
-      if (response.ok && result.ok && result.draft) installSnapshot(result.draft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
+      const result = await readSelectionJsonResponse<{ ok?: boolean; draft?: SharedSelectionSyncSnapshot }>(response);
+      if (response.ok && result?.ok && result.draft) installSnapshot(result.draft, getPendingSelectionDiffs());
     } catch {
       // 저장 대기 변경은 유지하고 다음 focus에서 다시 확인한다.
     }
