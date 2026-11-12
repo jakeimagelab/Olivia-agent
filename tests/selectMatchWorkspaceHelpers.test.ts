@@ -6,8 +6,16 @@ import {
   parseFileNameQueries,
   relativeToDirectoryRoot,
 } from "@/lib/selectMatch/workspaceHelpers";
+import { normalizeRecognizedFileNames } from "@/components/photo-workspace/useSelectMatchClientInput";
 
 describe("select match workspace helpers", () => {
+  it("normalizes and de-duplicates OCR file names", () => {
+    expect(normalizeRecognizedFileNames([" _AK_0001.JPG ", "_ak_0001.jpg", "", "Á.JPG"])).toEqual([
+      "_ak_0001.jpg",
+      "á.jpg",
+    ]);
+  });
+
   it("normalizes and de-duplicates file name queries", () => {
     expect(parseFileNameQueries("_AK_0177.CR2, _ak_0177.cr2\n_AK_0200")).toEqual([
       { raw: "_AK_0177.CR2", basenameLower: "_ak_0177", extLower: "cr2" },
