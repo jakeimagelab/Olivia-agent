@@ -23,6 +23,7 @@ import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
 import { OfferSettings } from "@/components/person-select/admin/OfferSettings";
 import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
+import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -168,6 +169,56 @@ export default function PersonSelectDetailPage() {
     if (selectedReviewerId && reviewers.some((reviewer) => reviewer.id === selectedReviewerId)) return;
     setSelectedReviewerId((reviewers.find((reviewer) => !reviewer.is_legacy) ?? reviewers[0]).id);
   }, [data?.shared?.reviewers, selectedReviewerId]);
+  const refreshSelectedReviewerDraft = useCallback(async () => {
+    if (!selectedReviewerId) return;
+    const response = await fetch(`/api/person-select/${id}/reviewers/${selectedReviewerId}/draft`, { cache: "no-store" });
+    const body = await readApiResponse<{ ok: true; draft: CustomerBridgeDraft }>(response, "고객 셀렉 동기화");
+    setData((current) => {
+      if (!current?.shared) return current;
+      const reviewer = current.shared.reviewers.find((item) => item.id === selectedReviewerId);
+      if (!reviewer || reviewer.draft?.revision === body.draft.revision) return current;
+      const imagesById = new Map(current.shared.images.map((image) => [image.id, image]));
+      const previousItems = new Map((reviewer.draft?.items ?? []).map((item) => [item.image_id, item]));
+      const items: SharedSelectionItem[] = body.draft.selectedImageIds.map((imageId) => {
+        const image = imagesById.get(imageId);
+        const previous = previousItems.get(imageId);
+        return {
+          image_id: imageId,
+          customer_rating: body.draft.ratings[imageId] ?? null,
+          customer_color_label: body.draft.colorLabels?.[imageId] ?? null,
+          memo: body.draft.imageNotes[imageId] ?? "",
+          image: image ? {
+            original_file_name: image.original_file_name,
+            source_rel_path: image.relative_path ?? "",
+            thumb_url: previous?.image?.thumb_url ?? image.thumbnail_url ?? "",
+          } : previous?.image ?? null,
+        };
+      });
+      const updatedAt = body.draft.updatedAt ?? new Date().toISOString();
+      const nextDraft: SharedReviewer["draft"] = {
+        ...body.draft,
+        selected_count: body.draft.selectedImageIds.length,
+        updated_at: updatedAt,
+        items,
+      };
+      return {
+        ...current,
+        shared: {
+          ...current.shared,
+          reviewers: current.shared.reviewers.map((item) => item.id === selectedReviewerId ? {
+            ...item,
+            draft: nextDraft,
+            server_selected_count: body.draft.selectedImageIds.length,
+            server_last_saved_at: body.draft.updatedAt ?? null,
+          } : item),
+        },
+      };
+    });
+  }, [id, selectedReviewerId]);
+  useVisibleSelectionRefresh({
+    enabled: Boolean(data?.event.access_mode === "project_shared" && selectedReviewerId),
+    refresh: refreshSelectedReviewerDraft,
+  });
   useEffect(() => {
     rawOptionsLoadedRef.current = false;
     rawOptionsSkipFirstWriteRef.current = true;
@@ -622,7 +673,7 @@ export default function PersonSelectDetailPage() {
       {tab === "matching" && isShared ? <section className={styles.matchingPanel}>
         <div className={styles.matchingHeader}><div><h2>프로젝트 사진 확인</h2><p>검토자별 셀렉은 서로 독립적으로 보존되며 오른쪽 대화 탭은 모든 참여자가 함께 사용합니다.</p></div><div className={styles.actions}>{sharedReviewers.length ? <select className={styles.select} aria-label="확인할 검토자" value={selectedReviewer?.id ?? ""} onChange={(event) => setSelectedReviewerId(event.target.value)}>{sharedReviewers.map((reviewer) => <option key={reviewer.id} value={reviewer.id}>{reviewer.display_name}{reviewer.role_label ? ` · ${reviewer.role_label}` : ""}</option>)}</select> : null}<button className={styles.primary} onClick={() => setTab(totalPhotos ? "progress" : "upload")}>{totalPhotos ? "고객 셀렉 보기" : "사진 올리기"}</button></div></div>
         {data.shared?.images?.length ? <CustomerBridgeSelect
-          key={`${selectedReviewer?.id ?? "project"}:${selectedReviewer?.draft?.revision ?? 0}:${selectedSharedSelection?.id ?? "draft"}`}
+          key={`${selectedReviewer?.id ?? "project"}:${selectedSharedSelection?.id ?? "draft"}`}
           shareToken=""
           apiBase={`/api/person-select/${id}`}
           storageScope={`person-select-admin:${id}:${selectedReviewer?.id ?? "project"}`}

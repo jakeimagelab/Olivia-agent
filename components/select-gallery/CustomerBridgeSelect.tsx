@@ -74,6 +74,7 @@ import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-qua
 import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { PROJECT_MESSAGE_POLL_INTERVAL_MS, shouldRunVisiblePoll } from "@/lib/client/visiblePolling";
 import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/person-select/useSelectionSyncQueue";
+import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import {
   adjacentSelectionMediaIds,
   mergeSelectionMediaUrlRecords,
@@ -323,6 +324,12 @@ export default function CustomerBridgeSelect({
     onSnapshot: installServerSnapshot,
     onRestore: restorePending,
   });
+  const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
+
+  useEffect(() => {
+    if (!initialDraft || Number(initialDraft.revision ?? 0) <= serverSnapshotRef.current.revision) return;
+    installServerSnapshot(initialDraft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
+  }, [getPendingSelectionDiffs, initialDraft, installServerSnapshot]);
 
   const folderTree = useMemo(() => customerBridgeFolderTree(images), [images]);
   const rootView = useMemo(() => customerBridgeFolderView(images, ""), [images]);
@@ -596,22 +603,13 @@ export default function CustomerBridgeSelect({
       const response = await fetch(`${endpointBase}/draft`, { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.ok || !result.draft) return;
-      installServerSnapshot(result.draft as SharedSelectionSyncSnapshot, selectionSync.getPendingDiffs());
+      installServerSnapshot(result.draft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
     } catch {
       // 현재 큐를 지우지 않는다. 다음 focus 또는 자동 재시도 때 다시 동기화한다.
     }
-  }, [endpointBase, installServerSnapshot, readOnly, selectionSync]);
+  }, [endpointBase, getPendingSelectionDiffs, installServerSnapshot, readOnly]);
 
-  useEffect(() => {
-    if (readOnly) return;
-    const refresh = () => { if (document.visibilityState === "visible") void refreshServerDraft(); };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [readOnly, refreshServerDraft]);
+  useVisibleSelectionRefresh({ enabled: !readOnly, refresh: refreshServerDraft });
 
   const closeResetConfirm = useCallback(() => {
     if (resetting) return;

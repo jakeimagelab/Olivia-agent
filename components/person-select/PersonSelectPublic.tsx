@@ -7,6 +7,7 @@ import { formatSeoulDeadline } from "@/lib/person-select/date";
 import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import { offerImagesFor } from "@/lib/person-select/types";
 import { SELECTION_SYNC_STORAGE_EVENT, SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
+import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import { compactSelectionSyncDiffs, parsePersistedSelectionSyncQueue, type SelectionSyncDiff, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import styles from "./PersonSelectPublic.module.css";
@@ -381,6 +382,7 @@ function usePersonChoiceSync(input: {
     onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
     onPendingChange: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
   });
+  const getPendingSelectionDiffs = sync.getPendingDiffs;
 
   useEffect(() => {
     if (sync.pendingCount) return;
@@ -395,22 +397,13 @@ function usePersonChoiceSync(input: {
     try {
       const response = await fetch(`/api/pick/${slug}/choices/batch`, { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && result.ok && result.snapshot) installSnapshot(result.snapshot as PersonChoiceSyncSnapshot, sync.getPendingDiffs());
+      if (response.ok && result.ok && result.snapshot) installSnapshot(result.snapshot as PersonChoiceSyncSnapshot, getPendingSelectionDiffs());
     } catch {
       // 보류 중 변경은 유지하고 다음 focus에서 다시 확인한다.
     }
-  }, [enabled, installSnapshot, slug, sync]);
+  }, [enabled, getPendingSelectionDiffs, installSnapshot, slug]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    const refreshVisible = () => { if (document.visibilityState === "visible") void refresh(); };
-    window.addEventListener("focus", refreshVisible);
-    document.addEventListener("visibilitychange", refreshVisible);
-    return () => {
-      window.removeEventListener("focus", refreshVisible);
-      document.removeEventListener("visibilitychange", refreshVisible);
-    };
-  }, [enabled, refresh]);
+  useVisibleSelectionRefresh({ enabled, refresh });
 
   return { ...sync, confirmedChoices: [...confirmed.values()], displayedChoices: [...displayed.values()] };
 }

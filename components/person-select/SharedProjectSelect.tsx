@@ -5,6 +5,7 @@ import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImag
 import { applySelectionDiffsToSharedSnapshot, type SelectionSyncDiff, type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
 import { SelectionSyncRequestError, useSelectionSyncQueue } from "./useSelectionSyncQueue";
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
+import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import type { SelectionMediaUrls, SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "./SharedProjectSelect.module.css";
@@ -82,6 +83,7 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     enabled: true,
     onSnapshot: (snapshot) => installSnapshot(snapshot, selectionSync.getPendingDiffs()),
   });
+  const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
   useEffect(() => { setRenderLimit(240); }, [filter]);
   useEffect(() => {
     const missing = rendered.filter((image) => !image.thumbnail_url && !loadingIds.current.has(image.id)).map((image) => image.id);
@@ -105,20 +107,12 @@ function SharedClassicSelect({ shareToken, event, reviewer, images: initialImage
     try {
       const response = await fetch(`/api/pick/shared/${shareToken}/draft`, { cache: "no-store" });
       const result = await response.json().catch(() => ({}));
-      if (response.ok && result.ok && result.draft) installSnapshot(result.draft as SharedSelectionSyncSnapshot, selectionSync.getPendingDiffs());
+      if (response.ok && result.ok && result.draft) installSnapshot(result.draft as SharedSelectionSyncSnapshot, getPendingSelectionDiffs());
     } catch {
       // 저장 대기 변경은 유지하고 다음 focus에서 다시 확인한다.
     }
-  }, [installSnapshot, selectionSync, shareToken]);
-  useEffect(() => {
-    const refresh = () => { if (document.visibilityState === "visible") void refreshServerDraft(); };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [refreshServerDraft]);
+  }, [getPendingSelectionDiffs, installSnapshot, shareToken]);
+  useVisibleSelectionRefresh({ refresh: refreshServerDraft });
   const toggle = (id: string) => {
     const removing = selected.has(id);
     setSelected((current) => {
