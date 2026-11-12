@@ -9,13 +9,9 @@ import {
   Folder,
   FolderOpen,
   Images,
-  LayoutGrid,
   MessageCircle,
-  Minus,
   PanelLeft,
-  Plus,
   RotateCcw,
-  Search,
   Sparkles,
   X,
 } from "lucide-react";
@@ -65,7 +61,6 @@ import type {
   PersonSelectClientImageQuery,
 } from "@/lib/person-select/imagePageClient";
 import styles from "./CustomerBridgeSelect.module.css";
-import { CustomerBridgeThumbnailCard } from "./CustomerBridgeMedia";
 import type {
   CustomerBridgeDraft,
   CustomerBridgeFolderManifest,
@@ -87,6 +82,7 @@ import { CustomerBridgeGuideDialog, CustomerBridgeResetDialog } from "./Customer
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
+import { CustomerBridgeBrowserPanel } from "./CustomerBridgeBrowserPanel";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -500,6 +496,11 @@ export default function CustomerBridgeSelect({
     enqueueSelectionSync([{ imageId: focusedImageId, memo: value }]);
   }, [enqueueSelectionSync, focusedImageId]);
 
+  const clearFilenameSearch = useCallback(() => {
+    setFilenameSearch("");
+    searchInputRef.current?.focus();
+  }, []);
+
   const refreshServerDraft = useCallback(async () => {
     if (readOnly) return;
     try {
@@ -731,46 +732,49 @@ export default function CustomerBridgeSelect({
 
       <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
 
-      <section className={styles.browserPanel}>
-        <header className={styles.browserHeader}>
-          <div className={styles.browserTitle}>
-            <strong>{locationLabel}</strong>
-            <span>{location.kind === "root" ? `${locationCount}개 폴더` : searchActive ? `검색 ${browserPhotoCount.toLocaleString("ko-KR")}장` : `${browserPhotoCount.toLocaleString("ko-KR")}장`}</span>
-            {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
-            {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
-          </div>
-          {location.kind !== "root" ? <div className={styles.browserActions}>
-            <label className={styles.filenameSearch}>
-              <Search size={13} aria-hidden="true" />
-              <input ref={searchInputRef} type="search" value={filenameSearch} onChange={(event) => setFilenameSearch(event.currentTarget.value)} placeholder="파일명 검색" aria-label="파일명 검색" />
-              {filenameSearch ? <button type="button" onClick={() => { setFilenameSearch(""); searchInputRef.current?.focus(); }} aria-label="검색 지우기"><X size={12} /></button> : <kbd>⌘F</kbd>}
-            </label>
-            <div className={styles.thumbnailControls}><button type="button" onClick={() => setThumbSize((size) => Math.max(THUMB_MIN, size - 12))} aria-label="썸네일 작게"><Minus size={15} /></button><LayoutGrid size={16} /><button type="button" onClick={() => setThumbSize((size) => Math.min(THUMB_MAX, size + 12))} aria-label="썸네일 크게"><Plus size={15} /></button></div>
-          </div> : null}
-        </header>
-        <div ref={gridRef} className={styles.fileArea} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
-          {childFolders.length || (location.kind === "root" && hasRootPhotos) ? <div className={styles.folderCardGrid}>
-            {location.kind === "root" && hasRootPhotos ? <button type="button" className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: "" })}>
-              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>루트 사진</strong><small>{rootPhotoCount.toLocaleString("ko-KR")}장</small></span>
-            </button> : null}
-            {childFolders.map((folder) => <button type="button" key={folder.path} className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: folder.path })}>
-              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>{folder.name}</strong><small>{folder.totalCount.toLocaleString("ko-KR")}장</small></span>
-            </button>)}
-          </div> : null}
-          <div ref={thumbnailGridRef} className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))`, minHeight: virtualGrid.totalHeight, paddingTop: virtualGrid.topPadding, paddingBottom: virtualGrid.bottomPadding }}>
-            {renderedImages.map((image) => {
-              const active = activeImageIds.has(image.id);
-              const focused = focusedImageId === image.id;
-              const rating = customerRatings[image.id] ?? 0;
-              const colorLabel = customerColorLabels[image.id] ?? null;
-              return <CustomerBridgeThumbnailCard key={image.id} image={image} active={active} focused={focused} rating={rating} colorLabel={colorLabel} pending={selectionSync.pendingImageIds.has(image.id)} mobile={mobile} quality={qualityResults[image.id]} onClick={handlePhotoClick} onImageError={handleImageError} />;
-            })}
-          </div>
-          {location.kind !== "root" && !visibleImages.length && !childFolders.length ? <div className={styles.empty}>이 폴더에 표시할 사진이 없습니다.</div> : null}
-          {marquee ? <div className={styles.selectionMarquee} style={marquee} /> : null}
-        </div>
-        <footer className={styles.shortcutBar}><span>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}클릭 작업 대상 · Shift 범위 · ⌘/Ctrl 추가 · 1–5 별점 · 6–9 컬러 · 0 해제 · ⌘/Ctrl+B 리뷰 · ⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span>{location.kind !== "root" ? <label>썸네일 <input type="range" min={THUMB_MIN} max={THUMB_MAX} step={4} value={thumbSize} onChange={(event) => setThumbSize(Number(event.currentTarget.value))} /></label> : null}</footer>
-      </section>
+      <CustomerBridgeBrowserPanel
+        location={location}
+        locationLabel={locationLabel}
+        locationCount={locationCount}
+        browserPhotoCount={browserPhotoCount}
+        searchActive={searchActive}
+        filenameSearch={filenameSearch}
+        searchInputRef={searchInputRef}
+        activeRatingFilterName={activeRatingFilterName}
+        activeColorFilterName={activeColorFilterName}
+        labelFilters={labelFilters}
+        thumbSize={thumbSize}
+        thumbMin={THUMB_MIN}
+        thumbMax={THUMB_MAX}
+        gridRef={gridRef}
+        thumbnailGridRef={thumbnailGridRef}
+        childFolders={childFolders}
+        hasRootPhotos={hasRootPhotos}
+        rootPhotoCount={rootPhotoCount}
+        virtualTotalHeight={virtualGrid.totalHeight}
+        virtualTopPadding={virtualGrid.topPadding}
+        virtualBottomPadding={virtualGrid.bottomPadding}
+        renderedImages={renderedImages}
+        visibleImageCount={visibleImages.length}
+        activeImageIds={activeImageIds}
+        focusedImageId={focusedImageId}
+        customerRatings={customerRatings}
+        customerColorLabels={customerColorLabels}
+        pendingImageIds={selectionSync.pendingImageIds}
+        qualityResults={qualityResults}
+        mobile={mobile}
+        marquee={marquee}
+        onApplyLabelFilterCommand={applyLabelFilterCommand}
+        onFilenameSearchChange={setFilenameSearch}
+        onClearFilenameSearch={clearFilenameSearch}
+        onThumbSizeChange={setThumbSize}
+        onOpenLocation={openLocation}
+        onPhotoClick={handlePhotoClick}
+        onImageError={handleImageError}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+      />
 
       <button type="button" className={styles.paneDivider} aria-label="미리보기 패널 너비 조절" onPointerDown={(event) => beginResize("preview", event)} />
 
