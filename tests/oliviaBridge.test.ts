@@ -179,13 +179,15 @@ describe("Olivia Bridge", () => {
 
   it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const folderActions = readFileSync("components/olivia-bridge/useOliviaBridgeFolderActions.ts", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
+    const workspaceRuntime = `${workspace}\n${folderActions}`;
 
-    expect(workspace).toContain("saveBridgeFolderTrail(trail)");
+    expect(workspaceRuntime).toContain("saveBridgeFolderTrail(trail)");
     expect(folderRestore).toContain("queryBridgeFolderTrailPermission(trail)");
     expect(browserPanel).toContain("지난 폴더 다시 열기");
-    expect(workspace).toContain("bridgeRawMatchDefaultFolder(trail)");
+    expect(workspaceRuntime).toContain("bridgeRawMatchDefaultFolder(trail)");
   });
 
   it("Bridge 폴더 선택은 로컬과 NAS를 고르고 원격 링크도 NAS 폴더를 직접 연다", () => {
@@ -193,8 +195,9 @@ describe("Olivia Bridge", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
     const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
+    const folderActions = readFileSync("components/olivia-bridge/useOliviaBridgeFolderActions.ts", "utf8");
     const workspaceUi = `${workspace}\n${overlayLayer}`;
-    const workspaceRuntime = `${workspace}\n${folderLoading}`;
+    const workspaceRuntime = `${workspace}\n${folderLoading}\n${folderActions}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
@@ -207,10 +210,10 @@ describe("Olivia Bridge", () => {
     expect(dialogs).toContain("NAS 폴더");
     expect(workspace).toContain("pickLocalFolder");
     expect(workspace).toContain("pickNasFolder");
-    expect(workspace).toContain("void chooseFolder()");
+    expect(workspaceRuntime).toContain("void chooseFolder()");
     expect(workspaceUi).toContain("<PhotoSourcePicker");
     expect(dialogs).toContain('aria-label="폴더 선택 닫기"');
-    expect(workspace).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
+    expect(folderActions).toMatch(/const chooseFolder[\s\S]*navigate\?\.\("\/olivia-bridge", "Olivia Bridge"[\s\S]*loadDirectory/);
     expect(workspaceRuntime).toContain("setRemoteFolder(selection)");
     expect(workspaceRuntime).toContain("setScan(EMPTY_SCAN)");
     expect(workspaceRuntime).toContain("loadRemoteBridgeFolderSnapshot");

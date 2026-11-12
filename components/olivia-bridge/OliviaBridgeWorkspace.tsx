@@ -54,12 +54,12 @@ import { useOliviaBridgePhotoNavigation } from "@/components/olivia-bridge/useOl
 import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOliviaBridgeVisibleFiles";
 import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
 import { useOliviaBridgeFolderLoading } from "@/components/olivia-bridge/useOliviaBridgeFolderLoading";
+import { useOliviaBridgeFolderActions } from "@/components/olivia-bridge/useOliviaBridgeFolderActions";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
 } from "@/components/olivia-bridge/useOliviaBridgeMarkSync";
 import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridgeOverlayLayer";
-import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
@@ -75,10 +75,6 @@ import {
   type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
 import {
-  bridgeRawMatchDefaultFolder,
-  bridgeRawMatchFolderCandidates,
-  resolveBridgeFolderTrail,
-  saveBridgeFolderTrail,
   type BridgeFolderTrailItem,
 } from "@/lib/photo-bridge/recentFolder";
 import {
@@ -127,8 +123,7 @@ export default function OliviaBridgeWorkspace({
 } = {}) {
   const sp = useSearchParams();
   const desktopWindowMode = useDesktopWindowMode();
-  const { routeHref, navigate } = useDesktopWindowRoute();
-  const picker = usePhotoFolderPicker();
+  const { routeHref } = useDesktopWindowRoute();
   const {
     currentLocalFolder,
     setCurrentLocalFolder,
@@ -184,11 +179,7 @@ export default function OliviaBridgeWorkspace({
   const [filenameSearch, setFilenameSearch] = useState("");
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
-  const [folderSourceOpen, setFolderSourceOpen] = useState(false);
-  const [nasPickerOpen, setNasPickerOpen] = useState(false);
   const [qualityFilter, setQualityFilter] = useState<QualityFilter>("all");
-  const [rawRootPromptOpen, setRawRootPromptOpen] = useState(false);
-  const [rawRootPromptError, setRawRootPromptError] = useState("");
   const [previewTab, setPreviewTab] = useState<OliviaBridgePreviewTab>("selection");
   const [compactPreviewOpen, setCompactPreviewOpen] = useState(false);
   const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
@@ -201,7 +192,6 @@ export default function OliviaBridgeWorkspace({
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rawMatchOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showTopNotice = useCallback((message: string, duration = 3_000) => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
@@ -480,7 +470,6 @@ export default function OliviaBridgeWorkspace({
 
   useEffect(() => () => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
-    if (rawMatchOpenTimerRef.current) clearTimeout(rawMatchOpenTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -563,76 +552,42 @@ export default function OliviaBridgeWorkspace({
     rememberPublishedRatings,
   });
 
-  const changeNestedJpgVisibility = useCallback((checked: boolean) => {
-    setIncludeNestedJpgs(checked);
-    if (!activeFolder || !breadcrumbs.length) return;
-    void loadDirectory(activeFolder, breadcrumbs, checked);
-  }, [activeFolder, breadcrumbs, loadDirectory]);
-
-  const chooseFolder = useCallback(async () => {
-    const directory = await picker.pick("readwrite");
-    if (!directory) return;
-    if (!desktopWindowMode) {
-      navigate?.("/olivia-bridge", "Olivia Bridge", {
-        clientId,
-        projectId: workflowRunId,
-        workflowRunId,
-      });
-    }
-    await loadDirectory(directory, [{ name: directory.name, handle: directory }]);
-  }, [clientId, desktopWindowMode, loadDirectory, navigate, picker, workflowRunId]);
-
-  const openFolderSourceChooser = useCallback(() => {
-    setFolderSourceOpen(true);
-  }, []);
-
-  const pickLocalFolder = useCallback(() => {
-    setFolderSourceOpen(false);
-    void chooseFolder();
-  }, [chooseFolder]);
-
-  const pickNasFolder = useCallback(() => {
-    setFolderSourceOpen(false);
-    setNasPickerOpen(true);
-  }, []);
-
-  const pickRawSearchRoot = useCallback(async () => {
-    if (!activeFolder) return;
-    const root = await picker.pick("readwrite", { startIn: activeFolder });
-    if (!root) return;
-    try {
-      const trail = await resolveBridgeFolderTrail(root, activeFolder);
-      if (!trail) {
-        setRawRootPromptError(`고른 폴더 안에서 지금 열린 폴더(${activeFolderName || activeFolder.name})를 찾지 못했습니다.\n지금 폴더를 담고 있는 촬영 폴더를 골라 주세요. 같은 폴더라도 NAS 동기화 경로와 SSD 경로는 다른 폴더로 봅니다.`);
-        return;
-      }
-      const current = trail.at(-1)?.handle ?? activeFolder;
-      setBreadcrumbs(trail);
-      setCurrentLocalFolder(current);
-      setRawMatchFolderPath(trail.map((item) => item.name).join(" / "));
-      setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
-      setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
-      setRawRootPromptOpen(false);
-      setRawRootPromptError("");
-      showTopNotice(`RAW 검색 범위: ${root.name}부터`);
-      if (rawMatchOpenTimerRef.current) clearTimeout(rawMatchOpenTimerRef.current);
-      rawMatchOpenTimerRef.current = setTimeout(() => {
-        setToolKey("raw-match");
-        rawMatchOpenTimerRef.current = null;
-      }, 3_000);
-      void saveBridgeFolderTrail(trail).catch((error) => {
-        console.error("[olivia-bridge] Failed to remember the RAW search root", error);
-      });
-    } catch (error) {
-      setRawRootPromptError(error instanceof Error ? error.message : "촬영 상위 폴더를 확인하지 못했습니다.");
-    }
-  }, [activeFolder, activeFolderName, picker, setCurrentLocalFolder, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath, showTopNotice]);
-
-  const openRawMatchWithCurrentScope = useCallback(() => {
-    setRawRootPromptOpen(false);
-    setRawRootPromptError("");
-    setToolKey("raw-match");
-  }, []);
+  const {
+    folderSourceOpen,
+    nasPickerOpen,
+    rawRootPromptOpen,
+    rawRootPromptError,
+    changeNestedJpgVisibility,
+    openFolderSourceChooser,
+    closeFolderSourceChooser,
+    pickLocalFolder,
+    pickNasFolder,
+    pickRawSearchRoot,
+    openRawRootPrompt,
+    closeRawRootPrompt,
+    openRawMatchWithCurrentScope,
+    cancelNasPicker,
+    selectNasFolder,
+    closeFolderDialogs,
+  } = useOliviaBridgeFolderActions({
+    clientId,
+    workflowRunId,
+    activeFolder,
+    activeFolderName,
+    breadcrumbs,
+    rootRef,
+    loadDirectory,
+    loadRemoteDirectory,
+    setIncludeNestedJpgs,
+    setBreadcrumbs,
+    setCurrentLocalFolder,
+    setRawMatchFolderPath,
+    setRawMatchDefaultFolder,
+    setRawMatchFolderCandidates,
+    setExecutionMode,
+    setToolKey,
+    showTopNotice,
+  });
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");
@@ -753,13 +708,11 @@ export default function OliviaBridgeWorkspace({
   }, [compactFiltersOpen]);
 
   const closeDialogs = useCallback(() => {
-    setFolderSourceOpen(false);
-    setNasPickerOpen(false);
+    closeFolderDialogs();
     closePersonSelectImport();
     closeGallerySelectImport();
-    setRawRootPromptOpen(false);
     rootRef.current?.focus();
-  }, [closeGallerySelectImport, closePersonSelectImport]);
+  }, [closeFolderDialogs, closeGallerySelectImport, closePersonSelectImport]);
   const closeSceneReview = useCallback(() => setSceneReviewOpen(false), []);
   const closeTool = useCallback(() => setToolKey(undefined), []);
 
@@ -807,12 +760,11 @@ export default function OliviaBridgeWorkspace({
       return;
     }
     if (key === "raw-match" && breadcrumbs.length < 3) {
-      setRawRootPromptError("");
-      setRawRootPromptOpen(true);
+      openRawRootPrompt();
       return;
     }
     setToolKey(key);
-  }, [breadcrumbs.length, currentLocalFolder, remoteFolder, setSelectedIds, setSelectedJpgFiles, syncAdobeBridgeSelection, visibleJpgs]);
+  }, [breadcrumbs.length, currentLocalFolder, openRawRootPrompt, remoteFolder, setSelectedIds, setSelectedJpgFiles, syncAdobeBridgeSelection, visibleJpgs]);
 
   const toolDisabledReason = useCallback((key: ToolKey) => {
     if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";
@@ -1217,7 +1169,7 @@ export default function OliviaBridgeWorkspace({
           onClose: closeFullscreenPreview,
         } : null}
         folderSourceDialog={folderSourceOpen ? {
-          onClose: () => setFolderSourceOpen(false),
+          onClose: closeFolderSourceChooser,
           onPickLocal: pickLocalFolder,
           onPickNas: pickNasFolder,
         } : null}
@@ -1248,20 +1200,13 @@ export default function OliviaBridgeWorkspace({
         } : null}
         rawRootPromptDialog={rawRootPromptOpen ? {
           error: rawRootPromptError,
-          onClose: () => setRawRootPromptOpen(false),
+          onClose: closeRawRootPrompt,
           onPickRoot: () => void pickRawSearchRoot(),
           onUseCurrent: openRawMatchWithCurrentScope,
         } : null}
         nasPicker={nasPickerOpen ? {
-          onCancel: () => {
-            setNasPickerOpen(false);
-            rootRef.current?.focus();
-          },
-          onSelectRemote: (selection) => {
-            setNasPickerOpen(false);
-            setExecutionMode("REMOTE_WORKER");
-            void loadRemoteDirectory(selection);
-          },
+          onCancel: cancelNasPicker,
+          onSelectRemote: selectNasFolder,
         } : null}
       />
 
