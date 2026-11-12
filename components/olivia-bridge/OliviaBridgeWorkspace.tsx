@@ -52,8 +52,8 @@ import {
 } from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
 import {
   OliviaBridgeSceneReviewContent,
-  type OliviaBridgeSceneState as SceneState,
 } from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
+import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -66,7 +66,6 @@ import {
 } from "@/components/olivia-bridge/OliviaBridgeDialogs";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
-  analyzeBridgeScenes,
   bridgeFileKind,
   readBridgeCaptureMetadata,
   rebuildBridgeSceneAnalysis,
@@ -81,9 +80,6 @@ import {
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 import { collectAdobeBridgeMarks, type AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
-import { fetchPhotoDepartmentContext } from "@/lib/photo-classifier/departmentContextClient";
-import { manualPhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
-import type { MedicalDepartment } from "@/lib/photo-classifier/types";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
@@ -318,11 +314,6 @@ export default function OliviaBridgeWorkspace({
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
-  const [sceneState, setSceneState] = useState<SceneState>({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
-  const [sceneRunKey, setSceneRunKey] = useState(0);
-  const [departmentLoading, setDepartmentLoading] = useState(false);
-  const [departmentError, setDepartmentError] = useState("");
-  const [departmentPickerOpen, setDepartmentPickerOpen] = useState(false);
   const [fullscreenPreviewOpen, setFullscreenPreviewOpen] = useState(false);
   const [folderSourceOpen, setFolderSourceOpen] = useState(false);
   const [nasPickerOpen, setNasPickerOpen] = useState(false);
@@ -382,6 +373,25 @@ export default function OliviaBridgeWorkspace({
   const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
   const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
   const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const {
+    sceneState,
+    departmentLoading,
+    departmentError,
+    departmentPickerOpen,
+    chooseDepartment,
+    retrySceneAnalysis,
+    openDepartmentPicker,
+    reportScenePlanError,
+  } = useOliviaBridgeSceneAnalysis({
+    hasActiveFolder,
+    scanStatus,
+    jpgs: scan.jpgs,
+    folderPath,
+    activeFolderName,
+    clientId,
+    workflowRunId,
+    setDepartmentResolution: setPhotoDepartmentResolution,
+  });
   const remoteProjectSelection = useMemo<RemoteNasSelection | undefined>(() => {
     if (!remoteFolder) return undefined;
     const pathParts = remoteFolder.path.split("/").filter(Boolean);
@@ -1107,61 +1117,6 @@ export default function OliviaBridgeWorkspace({
     window.addEventListener("olivia-bridge-open-inspector", openInspector);
     return () => window.removeEventListener("olivia-bridge-open-inspector", openInspector);
   }, []);
-
-  useEffect(() => {
-    if (!hasActiveFolder || scanStatus !== "ready") {
-      setSceneState({ status: "idle", stage: "폴더를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
-      return;
-    }
-    if (!scan.jpgs.length) {
-      setSceneState({ status: "complete", stage: "분석할 JPG가 없습니다", completed: 0, total: 0, scenes: [], analysis: null });
-      return;
-    }
-    const controller = new AbortController();
-    setSceneState({ status: "running", stage: "AI Scene 사전 분석 준비", completed: 0, total: scan.jpgs.length, scenes: [], analysis: null });
-    void analyzeBridgeScenes({
-      folderKey: folderPath,
-      jpgs: scan.jpgs,
-      signal: controller.signal,
-      onProgress: (completed, total, stage) => setSceneState((previous) => ({ ...previous, status: "running", completed, total, stage })),
-    }).then((analysis) => setSceneState({ status: "complete", stage: "Scene 분류 계획 준비됨", completed: scan.jpgs.length, total: scan.jpgs.length, scenes: analysis.scenes, analysis }))
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: scan.jpgs.length, scenes: [], analysis: null, error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
-      });
-    return () => controller.abort();
-  }, [folderPath, hasActiveFolder, scan.jpgs, scanStatus, sceneRunKey]);
-
-  useEffect(() => {
-    if (!hasActiveFolder || !activeFolderName || scanStatus !== "ready") return;
-    const controller = new AbortController();
-    setDepartmentLoading(true);
-    setDepartmentError("");
-    setDepartmentPickerOpen(false);
-    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: activeFolderName }, { signal: controller.signal })
-      .then((resolution) => {
-        setPhotoDepartmentResolution(resolution);
-        setDepartmentPickerOpen(resolution.status !== "resolved");
-      })
-      .catch((error) => {
-        if (controller.signal.aborted) return;
-        setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
-        setDepartmentPickerOpen(true);
-        setDepartmentError(error instanceof Error ? error.message : "진료과 정보를 확인하지 못했습니다.");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setDepartmentLoading(false);
-      });
-    return () => controller.abort();
-  }, [activeFolderName, clientId, hasActiveFolder, scanStatus, setPhotoDepartmentResolution, workflowRunId]);
-
-  const chooseDepartment = useCallback((department: MedicalDepartment) => {
-    setPhotoDepartmentResolution(manualPhotoDepartmentResolution(department));
-    setDepartmentError("");
-    setDepartmentPickerOpen(false);
-  }, [setPhotoDepartmentResolution]);
-  const retrySceneAnalysis = useCallback(() => setSceneRunKey((value) => value + 1), []);
-  const openDepartmentPicker = useCallback(() => setDepartmentPickerOpen(true), []);
 
   const choosePhoto = useCallback((photo: BridgeJpgFile, event: ReactMouseEvent) => {
     const next = updateBridgeSelection({ current: selectedIds, orderedIds: visibleJpgs.map((item) => item.id), clickedId: photo.id, anchorId, additive: event.metaKey || event.ctrlKey, range: event.shiftKey });
@@ -2011,14 +1966,9 @@ export default function OliviaBridgeWorkspace({
       setSceneReviewOpen(false);
       setToolKey("classification");
     } catch (error) {
-      setSceneState((previous) => ({
-        ...previous,
-        status: "error",
-        stage: "Scene 계획 적용 오류",
-        error: error instanceof Error ? error.message : "Scene 계획을 적용하지 못했습니다.",
-      }));
+      reportScenePlanError(error);
     }
-  }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
+  }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, reportScenePlanError, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
 
   const openCompactPreview = useCallback(() => setCompactPreviewOpen(true), []);
   const clearFilenameSearch = useCallback(() => {
