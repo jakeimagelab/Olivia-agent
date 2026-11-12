@@ -235,15 +235,16 @@ describe("Olivia Bridge", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
     const marqueeSelection = readFileSync("components/olivia-bridge/useOliviaBridgeMarqueeSelection.ts", "utf8");
+    const photoNavigation = readFileSync("components/olivia-bridge/useOliviaBridgePhotoNavigation.ts", "utf8");
 
-    expect(workspace).toContain('event.target.closest("[data-bridge-photo-id]")');
-    expect(workspace).toContain("if (suppressThumbnailClickRef.current) return;");
+    expect(photoNavigation).toContain('event.target.closest("[data-bridge-photo-id]")');
+    expect(photoNavigation).toContain("if (suppressThumbnailClickRef.current) return;");
     expect(marqueeSelection).toMatch(/session\.started = true;[\s\S]*fileArea\.setPointerCapture\(event\.pointerId\)/);
-    expect(workspace).toContain("const handleFileAreaContextMenu");
+    expect(photoNavigation).toContain("const handleFileAreaContextMenu");
     expect(browserPanel).toContain("onContextMenu={onFileAreaContextMenu}");
-    expect(workspace).toContain("setSelectedIds(new Set())");
-    expect(workspace).toContain("setAnchorId(null)");
-    expect(workspace).toContain("setFocusedId(null)");
+    expect(photoNavigation).toContain("setSelectedIds(new Set())");
+    expect(photoNavigation).toContain("setAnchorId(null)");
+    expect(photoNavigation).toContain("setFocusedId(null)");
   });
 
   it("중앙 파일 영역은 남은 높이를 쓰고 좁은 창에서도 같은 필터를 연다", () => {
