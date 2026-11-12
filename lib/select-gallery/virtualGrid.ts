@@ -55,3 +55,19 @@ export function virtualGridRange({
     totalHeight: rowCount * safeRowHeight,
   };
 }
+
+export function isVirtualGridNearEnd({
+  end,
+  itemCount,
+  columns,
+  thresholdRows = 4,
+}: {
+  end: number;
+  itemCount: number;
+  columns: number;
+  thresholdRows?: number;
+}) {
+  if (itemCount <= 0) return false;
+  const threshold = Math.max(1, Math.trunc(columns)) * Math.max(1, Math.trunc(thresholdRows));
+  return end >= Math.max(0, itemCount - threshold);
+}

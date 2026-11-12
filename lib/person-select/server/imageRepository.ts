@@ -14,6 +14,20 @@ import { PublicSelectionRequestError } from "@/lib/select-gallery/publicSelectio
 
 const IMAGE_METADATA_SELECT = "id,original_file_name,source_rel_path,thumb_path,preview_path,width,height,sort_order";
 const DELIVERED_FOLDER_LIKE = "%차보정본/%";
+const IMAGE_ID_LOOKUP_CHUNK = 200;
+
+function publicImageMetadata(row: Record<string, any>) {
+  return {
+    id: String(row.id),
+    original_file_name: String(row.original_file_name ?? ""),
+    relative_path: row.source_rel_path ? String(row.source_rel_path) : "",
+    thumbnail_url: "",
+    image_url: "",
+    width: Number.isFinite(row.width) ? Number(row.width) : null,
+    height: Number.isFinite(row.height) ? Number(row.height) : null,
+    sort_order: Number.isFinite(row.sort_order) ? Number(row.sort_order) : Number.MAX_SAFE_INTEGER,
+  };
+}
 
 export function parsePersonSelectImagePageQuery(searchParams: URLSearchParams): PersonSelectImagePageQuery {
   const location = searchParams.get("location") ?? "all";
@@ -46,6 +60,26 @@ export async function loadPersonSelectFolderManifest(db: SupabaseClient, eventId
     .order("id", { ascending: true })
     .range(from, to));
   return buildPersonSelectFolderManifest(rows);
+}
+
+export async function loadPersonSelectImagesByIds(
+  db: SupabaseClient,
+  eventId: string,
+  imageIds: readonly string[],
+) {
+  const uniqueIds = [...new Set(imageIds.map((value) => value.trim()).filter(Boolean))];
+  const rows: Record<string, any>[] = [];
+  for (let index = 0; index < uniqueIds.length; index += IMAGE_ID_LOOKUP_CHUNK) {
+    const { data, error } = await db.from("person_select_images")
+      .select(IMAGE_METADATA_SELECT)
+      .eq("event_id", eventId)
+      .in("id", uniqueIds.slice(index, index + IMAGE_ID_LOOKUP_CHUNK));
+    if (error) throw error;
+    rows.push(...((data ?? []) as Record<string, any>[]));
+  }
+  return rows
+    .map(publicImageMetadata)
+    .sort((left, right) => left.sort_order - right.sort_order || left.id.localeCompare(right.id));
 }
 
 function searchFilterExpression(value: string | undefined) {
@@ -106,16 +140,7 @@ export async function loadPersonSelectImagePage(
   const hasMore = rows.length > limit;
   const visibleRows = rows.slice(0, limit);
   return {
-    items: visibleRows.map((row) => ({
-      id: row.id,
-      original_file_name: row.original_file_name,
-      relative_path: row.source_rel_path,
-      thumbnail_url: "",
-      image_url: "",
-      width: row.width,
-      height: row.height,
-      sort_order: row.sort_order,
-    })),
+    items: visibleRows.map((row) => publicImageMetadata(row as Record<string, any>)),
     nextCursor: hasMore && visibleRows.length ? encodePersonSelectImageCursor(visibleRows[visibleRows.length - 1]) : null,
     totalCount: countResult.count ?? visibleRows.length,
   };

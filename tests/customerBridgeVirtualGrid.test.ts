@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { virtualGridRange, virtualGridScrollTop } from "../lib/select-gallery/virtualGrid";
+import { isVirtualGridNearEnd, virtualGridRange, virtualGridScrollTop } from "../lib/select-gallery/virtualGrid";
 
 describe("customer Bridge virtual grid", () => {
   it("keeps a 1,645-image grid below 150 mounted cards", () => {
@@ -41,5 +41,11 @@ describe("customer Bridge virtual grid", () => {
   it("calculates the row position needed for keyboard navigation", () => {
     expect(virtualGridScrollTop({ index: 1_644, columns: 2, rowHeight: 240, gridOffsetTop: 13 })).toBe(197_293);
     expect(virtualGridScrollTop({ index: -1, columns: 0, rowHeight: 0 })).toBe(0);
+  });
+
+  it("requests another metadata page only near the loaded tail", () => {
+    expect(isVirtualGridNearEnd({ end: 40, itemCount: 120, columns: 6 })).toBe(false);
+    expect(isVirtualGridNearEnd({ end: 96, itemCount: 120, columns: 6 })).toBe(true);
+    expect(isVirtualGridNearEnd({ end: 0, itemCount: 0, columns: 6 })).toBe(false);
   });
 });

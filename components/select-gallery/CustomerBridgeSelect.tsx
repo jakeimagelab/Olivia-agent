@@ -65,6 +65,10 @@ import {
   type SelectionSyncPatch,
   type SharedSelectionSyncSnapshot,
 } from "@/lib/person-select/selectionSync";
+import type {
+  PersonSelectClientImagePageState,
+  PersonSelectClientImageQuery,
+} from "@/lib/person-select/imagePageClient";
 import styles from "./CustomerBridgeSelect.module.css";
 import {
   ColorLabels,
@@ -72,7 +76,12 @@ import {
   RatingStars,
   StablePreviewImage,
 } from "./CustomerBridgeMedia";
-import type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
+import type {
+  CustomerBridgeDraft,
+  CustomerBridgeFolderManifest,
+  CustomerBridgeGallery,
+  CustomerBridgeImage,
+} from "@/lib/select-gallery/customerBridgeTypes";
 import { PhotoOverlay, ReviewOverlay } from "./CustomerBridgeOverlays";
 import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
@@ -118,6 +127,10 @@ export default function CustomerBridgeSelect({
   canManageQuality = false,
   adminToolbarAction,
   adminToolbarStatus,
+  imageManifest,
+  loadNextImagePage,
+  ensureImagePage,
+  getImagePageState,
 }: {
   shareToken: string;
   gallery: CustomerBridgeGallery;
@@ -137,10 +150,14 @@ export default function CustomerBridgeSelect({
   canManageQuality?: boolean;
   adminToolbarAction?: ReactNode;
   adminToolbarStatus?: ReactNode;
+  imageManifest?: CustomerBridgeFolderManifest | null;
+  loadNextImagePage?: (query: PersonSelectClientImageQuery) => Promise<boolean>;
+  ensureImagePage?: (query: PersonSelectClientImageQuery) => Promise<boolean>;
+  getImagePageState?: (query: PersonSelectClientImageQuery) => PersonSelectClientImagePageState;
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
-  const { images, imageIds, imageById, handleImageError, requestMedia } = useCustomerBridgeMediaStore({
+  const { images, imageById, handleImageError, requestMedia } = useCustomerBridgeMediaStore({
     initialImages,
     refreshImageUrl,
     loadImageUrls,
@@ -151,8 +168,7 @@ export default function CustomerBridgeSelect({
       ?? Object.fromEntries((initialSelection?.items ?? []).map((item) => [item.image_id, item.customer_rating ?? 0])),
     colorLabels: initialDraft?.colorLabels
       ?? Object.fromEntries((initialSelection?.items ?? []).map((item) => [item.image_id, item.customer_color_label ?? 0])),
-    allowedImageIds: imageIds,
-  }), [imageIds, initialDraft, initialSelection]);
+  }), [initialDraft, initialSelection]);
   const seedNotes = useMemo(() => initialDraft?.imageNotes
     ?? Object.fromEntries((initialSelection?.items ?? []).filter((item) => item.memo).map((item) => [item.image_id, item.memo ?? ""])), [initialDraft, initialSelection]);
 
@@ -205,9 +221,8 @@ export default function CustomerBridgeSelect({
       selectedImageIds: snapshot.selectedImageIds,
       ratings: snapshot.ratings,
       colorLabels: snapshot.colorLabels,
-      allowedImageIds: imageIds,
     });
-    const imageNotes = Object.fromEntries(Object.entries(snapshot.imageNotes ?? {}).filter(([imageId]) => imageIds.has(imageId)));
+    const imageNotes = snapshot.imageNotes ?? {};
     const canonical: SharedSelectionSyncSnapshot = {
       revision: Number(snapshot.revision ?? 0),
       selectedImageIds: [...customerBridgeSelectedIds(normalized.ratings, normalized.colorLabels)],
@@ -226,7 +241,7 @@ export default function CustomerBridgeSelect({
     setCustomerRatings(displayed.ratings as Record<string, CustomerBridgeRating>);
     setCustomerColorLabels(displayed.colorLabels as Record<string, CustomerBridgeColorLabel>);
     setNotes(displayed.imageNotes);
-  }, [imageIds]);
+  }, []);
 
   const restorePending = useCallback((pending: SelectionSyncDiff[]) => {
     const displayed = applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending);
@@ -297,10 +312,12 @@ export default function CustomerBridgeSelect({
     folderView,
     folderImages,
     childFolders,
+    locationTotalCount,
     openLocation,
     goToParentFolder,
   } = useCustomerBridgeLocation({
     images,
+    manifest: imageManifest,
     storageScope: localStorageScope,
     onLocationOpened: (nextImages) => locationSelectionResetRef.current(nextImages),
     onStorageError: reportOptionalStorageError,
@@ -324,6 +341,22 @@ export default function CustomerBridgeSelect({
     colorLabels: customerColorLabels,
     qualityResults,
   }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearch, filter, folderImages, labelFilters, qualityResults]);
+  const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
+  const imagePageQuery = useMemo<PersonSelectClientImageQuery>(() => ({
+    location: location.kind === "folder" ? "folder" : "all",
+    ...(location.kind === "folder" ? { folderPath: location.path } : {}),
+    ...(filenameSearch.trim() ? { search: filenameSearch } : {}),
+  }), [filenameSearch, location]);
+  const imagePageState = getImagePageState?.(imagePageQuery) ?? null;
+  useEffect(() => {
+    if (location.kind === "root" || !ensureImagePage) return;
+    void ensureImagePage(imagePageQuery);
+  }, [ensureImagePage, imagePageQuery, location.kind]);
+  const requestNextImagePage = useCallback(() => {
+    if (location.kind === "root" || !loadNextImagePage || imagePageState?.loading) return;
+    if (imagePageState?.initialized && !imagePageState.nextCursor) return;
+    void loadNextImagePage(imagePageQuery);
+  }, [imagePageQuery, imagePageState, loadNextImagePage, location.kind]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const openMobileImage = useCallback((imageId: string) => fullscreenOpenRef.current(imageId), []);
   const {
@@ -358,6 +391,7 @@ export default function CustomerBridgeSelect({
     thumbSize,
     mobile,
     resetKey: `${location.kind}:${location.kind === "folder" ? location.path : ""}:${filter}:${filenameSearch}:${labelFilters.rating ?? ""}:${labelFilters.color ?? ""}`,
+    onNearEnd: loadNextImagePage ? requestNextImagePage : undefined,
   });
   const renderedImages = virtualGrid.renderedItems;
   const scrollToVirtualIndex = virtualGrid.scrollToIndex;
@@ -658,7 +692,20 @@ export default function CustomerBridgeSelect({
 
   const workspaceStyle = { "--bridge-folder-width": `${folderWidth}px`, "--bridge-preview-width": `${previewWidth}px` } as CSSProperties;
   const locationLabel = location.kind === "root" ? "프로젝트" : location.kind === "all" ? "전체 사진" : location.path || "루트 사진";
-  const locationCount = location.kind === "root" ? childFolders.length + (rootView.images.length ? 1 : 0) : visibleImages.length;
+  const rootPhotoCount = imageManifest?.rootPhotoCount ?? rootView.images.length;
+  const hasRootPhotos = rootPhotoCount > 0;
+  const unselectedInLocation = Math.max(0, locationTotalCount - selectedInFolder);
+  const hasLabelFilter = labelFilters.rating !== null || labelFilters.color !== null;
+  const browserPhotoCount = searchActive && filter === "all" && !hasLabelFilter && imagePageState?.initialized
+    ? imagePageState.totalCount
+    : !searchActive && !hasLabelFilter && filter === "all"
+      ? locationTotalCount
+      : !searchActive && !hasLabelFilter && filter === "selected"
+        ? selectedInFolder
+        : !searchActive && !hasLabelFilter && filter === "unselected"
+          ? unselectedInLocation
+          : visibleImages.length;
+  const locationCount = location.kind === "root" ? childFolders.length + (hasRootPhotos ? 1 : 0) : browserPhotoCount;
   const activeRatingFilterName = labelFilters.rating === null
     ? null
     : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
@@ -680,7 +727,7 @@ export default function CustomerBridgeSelect({
   return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${adminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
     <header className={styles.bridgeBar}>
       <div><strong>Olivia Bridge</strong><span>고객 사진 셀렉</span></div>
-      <div className={styles.projectTitle}><strong>{gallery.shooting_name ?? gallery.title}</strong><span>{[reviewer ? `${reviewer.display_name}${reviewer.role_label ? ` · ${reviewer.role_label}` : ""}` : gallery.hospital_name, `${images.length.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</span></div>
+      <div className={styles.projectTitle}><strong>{gallery.shooting_name ?? gallery.title}</strong><span>{[reviewer ? `${reviewer.display_name}${reviewer.role_label ? ` · ${reviewer.role_label}` : ""}` : gallery.hospital_name, `${totalImageCount.toLocaleString("ko-KR")}장`].filter(Boolean).join(" · ")}</span></div>
       <div className={styles.saveState} data-state={selectionSync.status}>{saveStatusMessage}</div>
     </header>
 
@@ -695,7 +742,7 @@ export default function CustomerBridgeSelect({
         {location.kind === "folder" ? folderView?.breadcrumbs.map((crumb, index) => <span key={crumb.path}><ChevronRight size={12} /><button type="button" aria-current={index === (folderView?.breadcrumbs.length ?? 0) - 1 ? "page" : undefined} onClick={() => openLocation({ kind: "folder", path: crumb.path })}>{crumb.name}</button></span>) : null}
       </nav>
       {location.kind !== "root" ? <div className={styles.topFilters} aria-label="고객 셀렉 필터">
-        {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}</button>)}
+        {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${locationTotalCount}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${unselectedInLocation}`}</button>)}
       </div> : null}
       <button ref={guideButtonRef} type="button" className={`${styles.headerAction} ${styles.guideAction}`} title="사진 선택 이용 가이드" aria-haspopup="dialog" aria-expanded={guideOpen} onClick={() => setGuideOpen(true)}><BookOpenText size={14} /> 이용 가이드</button>
       {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
@@ -715,12 +762,12 @@ export default function CustomerBridgeSelect({
         <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => setCompactFoldersOpen(false)} aria-label="폴더 닫기"><X size={15} /></button></div>
         <div className={styles.folderPanelScroll}>
         <button type="button" className={location.kind === "root" ? styles.rootFolderActive : styles.rootFolder} onClick={() => openLocation({ kind: "root" })}><FolderOpen size={17} /><span>프로젝트</span><b>{rootView.folders.length}</b></button>
-        <button type="button" className={`${styles.rootFolder} ${location.kind === "all" ? styles.rootFolderActive : ""}`} onClick={() => openLocation({ kind: "all" })}><Images size={17} /><span>전체 사진</span><b>{images.length}</b></button>
+        <button type="button" className={`${styles.rootFolder} ${location.kind === "all" ? styles.rootFolderActive : ""}`} onClick={() => openLocation({ kind: "all" })}><Images size={17} /><span>전체 사진</span><b>{totalImageCount}</b></button>
         <div className={styles.folderList}>
-          {rootView.images.length ? <button type="button" className={location.kind === "folder" && location.path === "" ? styles.activeFolder : ""} onClick={() => openLocation({ kind: "folder", path: "" })}><FolderOpen size={15} /><span>루트 사진</span><b>{rootView.images.length}</b></button> : null}
+          {hasRootPhotos ? <button type="button" className={location.kind === "folder" && location.path === "" ? styles.activeFolder : ""} onClick={() => openLocation({ kind: "folder", path: "" })}><FolderOpen size={15} /><span>루트 사진</span><b>{rootPhotoCount}</b></button> : null}
           {folderTree.map((folder) => <button key={folder.path} type="button" className={location.kind === "folder" && location.path === folder.path ? styles.activeFolder : ""} style={{ "--folder-depth": folder.depth } as CSSProperties} onClick={() => openLocation({ kind: "folder", path: folder.path })}><Folder size={15} /><span>{folder.name}</span><b>{folder.totalCount}</b></button>)}
         </div>
-        <div className={styles.filterList}><small>고객 셀렉</small>{(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{value === "all" ? "전체 사진" : value === "selected" ? "선택한 사진" : "선택하지 않은 사진"}</span><b>{location.kind === "root" ? "–" : value === "all" ? folderImages.length : value === "selected" ? selectedInFolder : folderImages.length - selectedInFolder}</b></button>)}</div>
+        <div className={styles.filterList}><small>고객 셀렉</small>{(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{value === "all" ? "전체 사진" : value === "selected" ? "선택한 사진" : "선택하지 않은 사진"}</span><b>{location.kind === "root" ? "–" : value === "all" ? locationTotalCount : value === "selected" ? selectedInFolder : unselectedInLocation}</b></button>)}</div>
         {qualityApi ? <div className={styles.filterList}><small>AI 품질 검사</small>{([
           ["eyes_closed", "눈감음 의심"],
           ["face_too_dark", "얼굴 어두움 의심"],
@@ -729,7 +776,7 @@ export default function CustomerBridgeSelect({
           ["quality_normal", "정상"],
         ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}<PhotoQualityJobProgressView job={qualityJob} tone="light" />{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
         </div>
-        <div className={styles.folderSummary}><span>전체<b>{images.length}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
+        <div className={styles.folderSummary}><span>전체<b>{totalImageCount}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
       </aside>
 
       <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
@@ -738,7 +785,7 @@ export default function CustomerBridgeSelect({
         <header className={styles.browserHeader}>
           <div className={styles.browserTitle}>
             <strong>{locationLabel}</strong>
-            <span>{location.kind === "root" ? `${locationCount}개 폴더` : searchActive ? `검색 ${visibleImages.length.toLocaleString("ko-KR")}장` : `${visibleImages.length.toLocaleString("ko-KR")}장`}</span>
+            <span>{location.kind === "root" ? `${locationCount}개 폴더` : searchActive ? `검색 ${browserPhotoCount.toLocaleString("ko-KR")}장` : `${browserPhotoCount.toLocaleString("ko-KR")}장`}</span>
             {activeRatingFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{activeRatingFilterName}<X size={11} /></button> : null}
             {activeColorFilterName ? <button type="button" className={styles.filterChip} onClick={() => applyLabelFilterCommand({ kind: "color", label: labelFilters.color! })}>{activeColorFilterName}<X size={11} /></button> : null}
           </div>
@@ -752,9 +799,9 @@ export default function CustomerBridgeSelect({
           </div> : null}
         </header>
         <div ref={gridRef} className={styles.fileArea} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
-          {childFolders.length || (location.kind === "root" && rootView.images.length) ? <div className={styles.folderCardGrid}>
-            {location.kind === "root" && rootView.images.length ? <button type="button" className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: "" })}>
-              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>루트 사진</strong><small>{rootView.images.length.toLocaleString("ko-KR")}장</small></span>
+          {childFolders.length || (location.kind === "root" && hasRootPhotos) ? <div className={styles.folderCardGrid}>
+            {location.kind === "root" && hasRootPhotos ? <button type="button" className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: "" })}>
+              <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>루트 사진</strong><small>{rootPhotoCount.toLocaleString("ko-KR")}장</small></span>
             </button> : null}
             {childFolders.map((folder) => <button type="button" key={folder.path} className={styles.folderCard} onClick={() => openLocation({ kind: "folder", path: folder.path })}>
               <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>{folder.name}</strong><small>{folder.totalCount.toLocaleString("ko-KR")}장</small></span>

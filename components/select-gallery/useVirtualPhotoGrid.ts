@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { virtualGridRange, virtualGridScrollTop } from "@/lib/select-gallery/virtualGrid";
+import { isVirtualGridNearEnd, virtualGridRange, virtualGridScrollTop } from "@/lib/select-gallery/virtualGrid";
 
 const INITIAL_RENDER_COUNT = 72;
 
@@ -18,6 +18,7 @@ export function useVirtualPhotoGrid<T>({
   thumbSize,
   mobile,
   resetKey,
+  onNearEnd,
 }: {
   items: readonly T[];
   containerRef: RefObject<HTMLDivElement | null>;
@@ -25,8 +26,11 @@ export function useVirtualPhotoGrid<T>({
   thumbSize: number;
   mobile: boolean;
   resetKey: string;
+  onNearEnd?: () => void;
 }) {
   const frameRef = useRef<number | null>(null);
+  const onNearEndRef = useRef(onNearEnd);
+  onNearEndRef.current = onNearEnd;
   const layoutRef = useRef({ columns: mobile ? 2 : 4, rowHeight: thumbSize + 44, gridOffsetTop: 0 });
   const [range, setRange] = useState(() => ({
     start: 0,
@@ -67,6 +71,11 @@ export function useVirtualPhotoGrid<T>({
       viewportHeight: container.clientHeight,
       gridOffsetTop: grid.offsetTop,
     });
+    if (isVirtualGridNearEnd({
+      end: nextRange.end,
+      itemCount: items.length,
+      columns,
+    })) onNearEndRef.current?.();
     setRange((current) => current.start === nextRange.start
       && current.end === nextRange.end
       && current.topPadding === nextRange.topPadding

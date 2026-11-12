@@ -38,7 +38,10 @@ export function useSharedPersonSelectImagePages({
   ]));
   const requestsRef = useRef(new Map<string, Promise<boolean>>());
 
-  useEffect(() => () => { mountedRef.current = false; }, []);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   useEffect(() => {
     setImages((current) => mergePersonSelectClientImages(current, initialImages));
