@@ -130,10 +130,11 @@ describe("Olivia Bridge", () => {
   it("Scene 검토 결과만 스크롤하고 승인 실행 바는 항상 고정한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const sceneReview = readFileSync("components/olivia-bridge/OliviaBridgeSceneReviewContent.tsx", "utf8");
+    const adobeMarks = readFileSync("components/olivia-bridge/useOliviaBridgeAdobeMarks.ts", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(sceneReview).toContain("Scene {selectedScenes.length.toLocaleString");
-    expect(workspace).toContain("collectAdobeBridgeMarks");
+    expect(adobeMarks).toContain("collectAdobeBridgeMarks");
     expect(sceneReview).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
     expect(workspace).toContain("rebuildBridgeSceneAnalysis(sceneState.analysis.files.filter");
     expect(sceneReview).toContain("계획 적용하고 Scene 검토");

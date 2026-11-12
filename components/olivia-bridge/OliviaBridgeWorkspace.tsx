@@ -54,6 +54,7 @@ import {
   OliviaBridgeSceneReviewContent,
 } from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
 import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
+import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -79,13 +80,10 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
-import { collectAdobeBridgeMarks, type AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/types";
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
-import { loadRemoteBridgeRatings } from "@/lib/photo-bridge/remoteRatings";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
-import { projectAdobeBridgeMarks } from "@/lib/photo-bridge/adobeMarkProjection";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
   bridgeGridNavigationTarget,
@@ -279,7 +277,6 @@ export default function OliviaBridgeWorkspace({
   const manualSelectedIdsRef = useRef<Set<string>>(new Set());
   const adobeSelectedIdsRef = useRef<Set<string>>(new Set());
   const manualRemovedIdsRef = useRef<Set<string>>(new Set());
-  const adobeSelectionGenerationRef = useRef(0);
   const [selectionSource, setSelectionSource] = useState<BridgeSelectionSource>(DEFAULT_BRIDGE_SELECTION_SOURCE);
   const selectionSourceRef = useRef<BridgeSelectionSource>(DEFAULT_BRIDGE_SELECTION_SOURCE);
   const [topNotice, setTopNotice] = useState("");
@@ -297,20 +294,7 @@ export default function OliviaBridgeWorkspace({
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
   const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [adobeRatings, setAdobeRatings] = useState<Record<string, number>>({});
-  const [adobeColorLabels, setAdobeColorLabels] = useState<BridgeColorLabels>({});
-  const [rawAdobeMarks, setRawAdobeMarks] = useState<Record<string, AdobeBridgeMark>>({});
   const [ratingEdits, setRatingEdits] = useState<BridgeRatingEdits>({});
-  const [adobeSelectionLoading, setAdobeSelectionLoading] = useState(false);
-  const [adobeMarkStatus, setAdobeMarkStatus] = useState({
-    read: 0,
-    total: 0,
-    rated: 0,
-    colored: 0,
-    failed: 0,
-    failedFileNames: [] as string[],
-    firstError: null as string | null,
-  });
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
@@ -361,8 +345,6 @@ export default function OliviaBridgeWorkspace({
   const remoteLoadGenerationRef = useRef(0);
   const captureMetadataGenerationRef = useRef(0);
   const ratingsRef = useRef(ratings);
-  const adobeRatingsRef = useRef(adobeRatings);
-  const adobeColorLabelsRef = useRef(adobeColorLabels);
   const ratingEditsRef = useRef(ratingEdits);
   const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -373,6 +355,53 @@ export default function OliviaBridgeWorkspace({
   const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
   const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
   const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const commitSelectedIds = useCallback((
+    manual: ReadonlySet<string>,
+    adobe: ReadonlySet<string>,
+    source = selectionSourceRef.current,
+  ) => {
+    const nextManual = new Set(manual);
+    const nextAdobe = new Set(adobe);
+    const next = resolveBridgeSelection(source, nextManual, nextAdobe, manualRemovedIdsRef.current);
+    manualSelectedIdsRef.current = nextManual;
+    adobeSelectedIdsRef.current = nextAdobe;
+    selectedIdsRef.current = next;
+    setSelectedIdsState(next);
+    setSelectedJpgNames(scan.jpgs.filter((photo) => next.has(photo.id)).map((photo) => photo.name));
+  }, [scan.jpgs, setSelectedJpgNames]);
+
+  const publishRatingsForSource = useCallback((
+    source: BridgeSelectionSource,
+    nextAdobe: Record<string, number>,
+  ) => {
+    const resolved = resolveBridgeRatings(source, ratingsRef.current, nextAdobe, ratingEditsRef.current);
+    const byId = Object.fromEntries(scan.jpgs.flatMap((photo) => resolved[photo.id] ? [[photo.id, resolved[photo.id]] as const] : []));
+    lastPublishedRatingsRef.current = byId;
+    setJpgRatingsByName(
+      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, resolved[photo.id] ?? 0])),
+      { overwrite: true },
+    );
+  }, [scan.jpgs, setJpgRatingsByName]);
+
+  const {
+    adobeRatings,
+    adobeColorLabels,
+    rawAdobeMarks,
+    adobeSelectionLoading,
+    adobeMarkStatus,
+    resetAdobeMarks,
+    syncAdobeBridgeSelection,
+  } = useOliviaBridgeAdobeMarks({
+    activeFolder,
+    remoteFolder,
+    scan,
+    scanStatus,
+    selectionSource,
+    selectionSourceRef,
+    manualSelectedIdsRef,
+    commitSelectedIds,
+    publishRatingsForSource,
+  });
   const {
     sceneState,
     departmentLoading,
@@ -532,21 +561,6 @@ export default function OliviaBridgeWorkspace({
     showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
   }, [showTopNotice]);
 
-  const commitSelectedIds = useCallback((
-    manual: ReadonlySet<string>,
-    adobe: ReadonlySet<string>,
-    source = selectionSourceRef.current,
-  ) => {
-    const nextManual = new Set(manual);
-    const nextAdobe = new Set(adobe);
-    const next = resolveBridgeSelection(source, nextManual, nextAdobe, manualRemovedIdsRef.current);
-    manualSelectedIdsRef.current = nextManual;
-    adobeSelectedIdsRef.current = nextAdobe;
-    selectedIdsRef.current = next;
-    setSelectedIdsState(next);
-    setSelectedJpgNames(scan.jpgs.filter((photo) => next.has(photo.id)).map((photo) => photo.name));
-  }, [scan.jpgs, setSelectedJpgNames]);
-
   const setSelectedIds = useCallback((value: Set<string> | ((current: Set<string>) => Set<string>)) => {
     if (selectionSourceRef.current === "adobe") return;
     const requested = typeof value === "function" ? value(selectedIdsRef.current) : value;
@@ -568,19 +582,6 @@ export default function OliviaBridgeWorkspace({
     commitSelectedIds(manual, adobeSelectedIdsRef.current);
   }, [commitSelectedIds]);
 
-  const publishRatingsForSource = useCallback((
-    source = selectionSourceRef.current,
-    nextAdobe = adobeRatingsRef.current,
-  ) => {
-    const resolved = resolveBridgeRatings(source, ratingsRef.current, nextAdobe, ratingEditsRef.current);
-    const byId = Object.fromEntries(scan.jpgs.flatMap((photo) => resolved[photo.id] ? [[photo.id, resolved[photo.id]] as const] : []));
-    lastPublishedRatingsRef.current = byId;
-    setJpgRatingsByName(
-      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, resolved[photo.id] ?? 0])),
-      { overwrite: true },
-    );
-  }, [scan.jpgs, setJpgRatingsByName]);
-
   const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
     selectionSourceRef.current = source;
     setSelectionSource(source);
@@ -592,8 +593,8 @@ export default function OliviaBridgeWorkspace({
       }
     }
     commitSelectedIds(manualSelectedIdsRef.current, adobeSelectedIdsRef.current, source);
-    publishRatingsForSource(source);
-  }, [commitSelectedIds, folderSelectionSourceKey, publishRatingsForSource]);
+    publishRatingsForSource(source, adobeRatings);
+  }, [adobeRatings, commitSelectedIds, folderSelectionSourceKey, publishRatingsForSource]);
 
   const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
     floatingWindowRectsRef.current[windowId] = rect;
@@ -645,8 +646,6 @@ export default function OliviaBridgeWorkspace({
   }, [jpgRatingsByName, scan.jpgs, selectionSource]);
 
   useEffect(() => { ratingsRef.current = ratings; }, [ratings]);
-  useEffect(() => { adobeRatingsRef.current = adobeRatings; }, [adobeRatings]);
-  useEffect(() => { adobeColorLabelsRef.current = adobeColorLabels; }, [adobeColorLabels]);
   useEffect(() => { ratingEditsRef.current = ratingEdits; }, [ratingEdits]);
 
   useEffect(() => () => {
@@ -751,11 +750,7 @@ export default function OliviaBridgeWorkspace({
       manualSelectedIdsRef.current = new Set();
       adobeSelectedIdsRef.current = new Set();
       manualRemovedIdsRef.current = new Set();
-      setAdobeRatings({});
-      setAdobeColorLabels({});
-      setRawAdobeMarks({});
-      adobeRatingsRef.current = {};
-      adobeColorLabelsRef.current = {};
+      resetAdobeMarks();
       commitSelectedIds(new Set(), new Set(), nextSelectionSource);
       setAnchorId(null);
       setFocusedId(next.jpgs[0]?.id ?? null);
@@ -784,7 +779,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, includeNestedJpgs, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
+  }, [commitSelectedIds, includeNestedJpgs, resetAdobeMarks, setCurrentLocalFolder, setExecutionMode, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath]);
 
   const changeNestedJpgVisibility = useCallback((checked: boolean) => {
     setIncludeNestedJpgs(checked);
@@ -884,11 +879,7 @@ export default function OliviaBridgeWorkspace({
     setFocusedId(null);
     setPreviewSize(undefined);
     setRatings({});
-    setAdobeRatings({});
-    setAdobeColorLabels({});
-    setRawAdobeMarks({});
-    adobeRatingsRef.current = {};
-    adobeColorLabelsRef.current = {};
+    resetAdobeMarks();
     setRatingEdits({});
     setColorLabels({});
     setExcludedIds(new Set());
@@ -920,7 +911,7 @@ export default function OliviaBridgeWorkspace({
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
-  }, [commitSelectedIds, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
+  }, [commitSelectedIds, resetAdobeMarks, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");
@@ -1000,114 +991,6 @@ export default function OliviaBridgeWorkspace({
       setRestoreMessage("지난 폴더를 다시 열지 못했습니다. 다른 폴더를 선택해 주세요.");
     }
   }, [loadDirectory, restoreTrail]);
-
-  const syncAdobeBridgeSelection = useCallback(async (signal?: AbortSignal) => {
-    const generation = ++adobeSelectionGenerationRef.current;
-    if (selectionSourceRef.current === "olivia") {
-      setAdobeSelectionLoading(false);
-      return;
-    }
-    if ((!scan.jpgs.length && !scan.raws.length) || (!activeFolder && !remoteFolder)) {
-      setAdobeRatings({});
-      setAdobeColorLabels({});
-      setRawAdobeMarks({});
-      adobeRatingsRef.current = {};
-      adobeColorLabelsRef.current = {};
-      commitSelectedIds(manualSelectedIdsRef.current, new Set());
-      setAdobeSelectionLoading(false);
-      setAdobeMarkStatus({ read: 0, total: 0, rated: 0, colored: 0, failed: 0, failedFileNames: [], firstError: null });
-      return;
-    }
-
-    // 원격(NAS)은 브라우저가 파일을 못 여니 맥스튜디오 워커가 XMP 별점을 읽어서 넘긴다.
-    if (!activeFolder && remoteFolder) {
-      setAdobeSelectionLoading(true);
-      try {
-        const remote = await loadRemoteBridgeRatings(remoteFolder.path, { signal });
-        if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
-        const byKey = new Map(remote.ratings.map((item) => [item.key, item]));
-        const rated = remote.ratings.filter((mark) => mark.rating !== null).length;
-        const colored = remote.ratings.filter((mark) => mark.colorLabel !== null).length;
-        const projected = projectAdobeBridgeMarks(scan.jpgs, scan.raws, byKey);
-        setAdobeRatings(projected.ratings);
-        setAdobeColorLabels(projected.colorLabels);
-        setRawAdobeMarks(projected.rawMarks);
-        setAdobeMarkStatus({ read: remote.scanned, total: remote.scanned, rated, colored, failed: 0, failedFileNames: [], firstError: null });
-        adobeRatingsRef.current = projected.ratings;
-        adobeColorLabelsRef.current = projected.colorLabels;
-        publishRatingsForSource(selectionSourceRef.current, projected.ratings);
-        commitSelectedIds(manualSelectedIdsRef.current, projected.selectedIds);
-      } catch (error) {
-        if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
-        console.error("[olivia-bridge] Failed to sync remote Adobe Bridge ratings", error);
-        setAdobeMarkStatus((current) => ({ ...current, failed: Math.max(1, current.failed), firstError: error instanceof Error ? error.message : String(error) }));
-      } finally {
-        if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
-      }
-      return;
-    }
-
-    setAdobeSelectionLoading(true);
-    try {
-      const localPhotos = [...scan.jpgs, ...scan.raws]
-        .filter((photo) => Boolean(photo.handle || ("file" in photo && photo.file)))
-        .map((photo) => ({
-          name: photo.name,
-          file: ("file" in photo ? photo.file : undefined) as File | undefined,
-          handle: photo.handle,
-          parentHandle: photo.parentHandle,
-          relativeDirectory: photo.relativeDirectory,
-        }));
-      setAdobeMarkStatus({ read: 0, total: localPhotos.length, rated: 0, colored: 0, failed: 0, failedFileNames: [], firstError: null });
-      const found = await collectAdobeBridgeMarks(activeFolder!, localPhotos, {
-        signal,
-        onProgress: (progress) => {
-          if (generation !== adobeSelectionGenerationRef.current) return;
-          setAdobeMarkStatus((current) => ({ ...current, ...progress }));
-        },
-      });
-      if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
-      // 파일명 기준 공용 저장소에도 넣는다. 손으로 준 별점은 applyRating이 넣고 있는데
-      // 어도비에서 읽어온 별점만 빠져 있어서, RAW 매칭·사진 셀렉이 그 별점을 못 받았다.
-      const projected = projectAdobeBridgeMarks(scan.jpgs, scan.raws, found.marks);
-      setAdobeRatings(projected.ratings);
-      setAdobeColorLabels(projected.colorLabels);
-      setRawAdobeMarks(projected.rawMarks);
-      setAdobeMarkStatus({
-        read: found.read,
-        total: found.total,
-        rated: found.rated,
-        colored: found.colored,
-        failed: found.failed,
-        failedFileNames: found.failedFileNames,
-        firstError: found.firstError,
-      });
-      adobeRatingsRef.current = projected.ratings;
-      adobeColorLabelsRef.current = projected.colorLabels;
-      publishRatingsForSource(selectionSourceRef.current, projected.ratings);
-      commitSelectedIds(manualSelectedIdsRef.current, projected.selectedIds);
-    } catch (error) {
-      if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
-      console.error("[olivia-bridge] Failed to sync Adobe Bridge ratings", error);
-      setAdobeMarkStatus((current) => ({ ...current, failed: Math.max(1, current.failed), firstError: error instanceof Error ? error.message : String(error) }));
-    } finally {
-      if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
-    }
-  }, [activeFolder, commitSelectedIds, publishRatingsForSource, remoteFolder, scan.jpgs, scan.raws]);
-
-  useEffect(() => {
-    if (scanStatus !== "ready" || selectionSource === "olivia") return;
-    const controller = new AbortController();
-    void syncAdobeBridgeSelection(controller.signal);
-    return () => controller.abort();
-  }, [scanStatus, selectionSource, syncAdobeBridgeSelection]);
-
-  useEffect(() => {
-    if (scanStatus !== "ready" || selectionSource === "olivia") return;
-    const refresh = () => { void syncAdobeBridgeSelection(); };
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
-  }, [scanStatus, selectionSource, syncAdobeBridgeSelection]);
 
   useEffect(() => {
     const openInspector = () => {
