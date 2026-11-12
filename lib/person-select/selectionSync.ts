@@ -1,4 +1,8 @@
 import { isCustomerColorLabel, isCustomerRating } from "./customerSelection";
+import {
+  applyCustomerSelectionSnapshotDiffs,
+  type CustomerSelectionSnapshot,
+} from "./domain/selectionSnapshot";
 
 export const SELECTION_SYNC_BATCH_LIMIT = 200;
 export const SELECTION_SYNC_DEBOUNCE_MS = 2_000;
@@ -121,47 +125,13 @@ export function selectionSyncRetryDelay(attempt: number) {
   return SELECTION_SYNC_RETRY_DELAYS_MS[Math.min(Math.max(0, attempt), SELECTION_SYNC_RETRY_DELAYS_MS.length - 1)];
 }
 
-export type SharedSelectionSyncSnapshot = {
-  revision: number;
-  selectedImageIds: string[];
-  ratings: Record<string, number>;
-  colorLabels: Record<string, number>;
-  imageNotes: Record<string, string>;
-  customerMemo: string;
-  updatedAt: string | null;
-};
+export type SharedSelectionSyncSnapshot = CustomerSelectionSnapshot;
 
 export function applySelectionDiffsToSharedSnapshot(
   snapshot: SharedSelectionSyncSnapshot,
   diffs: readonly SelectionSyncDiff[],
 ): SharedSelectionSyncSnapshot {
-  const ratings = { ...snapshot.ratings };
-  const colorLabels = { ...snapshot.colorLabels };
-  const imageNotes = { ...snapshot.imageNotes };
-  const selectedImageIds = new Set(snapshot.selectedImageIds);
-  for (const diff of compactSelectionSyncDiffs(diffs)) {
-    if (Object.prototype.hasOwnProperty.call(diff, "selected")) {
-      if (diff.selected) selectedImageIds.add(diff.imageId);
-      else selectedImageIds.delete(diff.imageId);
-    }
-    if (Object.prototype.hasOwnProperty.call(diff, "rating")) {
-      if (diff.rating === null || diff.rating === 0) delete ratings[diff.imageId];
-      else if (typeof diff.rating === "number") ratings[diff.imageId] = diff.rating;
-    }
-    if (Object.prototype.hasOwnProperty.call(diff, "colorLabel")) {
-      if (diff.colorLabel === null || diff.colorLabel === 0) delete colorLabels[diff.imageId];
-      else if (typeof diff.colorLabel === "number") colorLabels[diff.imageId] = diff.colorLabel;
-    }
-    if (Object.prototype.hasOwnProperty.call(diff, "memo")) {
-      if (diff.memo) imageNotes[diff.imageId] = diff.memo;
-      else delete imageNotes[diff.imageId];
-    }
-    if (Object.prototype.hasOwnProperty.call(diff, "rating") || Object.prototype.hasOwnProperty.call(diff, "colorLabel")) {
-      if (ratings[diff.imageId] || colorLabels[diff.imageId]) selectedImageIds.add(diff.imageId);
-      else selectedImageIds.delete(diff.imageId);
-    }
-  }
-  return { ...snapshot, selectedImageIds: [...selectedImageIds], ratings, colorLabels, imageNotes };
+  return applyCustomerSelectionSnapshotDiffs(snapshot, compactSelectionSyncDiffs(diffs));
 }
 
 export function parseSelectionSyncBatch(value: unknown, allowedImageIds: ReadonlySet<string>) {

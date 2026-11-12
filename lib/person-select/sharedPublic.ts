@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { customerSelectionSnapshotFromRows } from "./domain/selectionSnapshot";
 import { readAllPersonSelectRows } from "./paging";
 import { signedImageUrls } from "./server";
 import type { PersonSelectEvent } from "./types";
@@ -187,15 +188,12 @@ export async function getSharedPersonSelectOwnedImageIds(db: SupabaseClient, eve
 
 export function sharedDraftResponse(draft: any | null) {
   const rows = Array.isArray(draft?.items) ? draft.items : [];
-  return {
-    revision: Number(draft?.revision ?? 0),
-    selectedImageIds: rows.map((item: any) => item.image_id).filter(Boolean),
-    ratings: Object.fromEntries(rows.filter((item: any) => item.customer_rating).map((item: any) => [item.image_id, item.customer_rating])),
-    colorLabels: Object.fromEntries(rows.filter((item: any) => item.customer_color_label).map((item: any) => [item.image_id, item.customer_color_label])),
-    imageNotes: Object.fromEntries(rows.filter((item: any) => item.memo).map((item: any) => [item.image_id, item.memo])),
-    customerMemo: typeof draft?.customer_memo === "string" ? draft.customer_memo : "",
-    updatedAt: draft?.updated_at ?? null,
-  };
+  return customerSelectionSnapshotFromRows({
+    revision: draft?.revision,
+    rows,
+    customerMemo: draft?.customer_memo,
+    updatedAt: draft?.updated_at,
+  });
 }
 
 export async function getLatestSharedPersonSelectSelection(
