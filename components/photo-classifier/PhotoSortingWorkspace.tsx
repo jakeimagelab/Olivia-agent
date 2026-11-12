@@ -63,7 +63,7 @@ import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
-import { CAMERA_JPG_EXTENSIONS, isHiddenSystemFile, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
 import {
   buildFieldScenesFromBridgePlan,
   validateBridgeClassificationPlan,
@@ -98,6 +98,19 @@ import {
   mapWithConcurrency,
   quickBrightness,
 } from "@/lib/photo-classifier/browserProcessing";
+import {
+  copyFileHandle,
+  isSameDirectoryHandle,
+  renameDirHandle,
+  splitRawAndJpg,
+  withTimeout,
+} from "@/lib/photo-classifier/browserFileOps";
+import {
+  downloadCSV,
+  estimatedRemaining,
+  formatTime,
+  makeCSV,
+} from "@/lib/photo-classifier/workspaceFormatting";
 
 // This workspace predates the shared shell and is also consumed by its small
 // AI-auto subcomponents.  Keep the palette local to the existing workspace
@@ -176,117 +189,6 @@ const DEPARTMENTS: { value: MedicalDepartment; label: string }[] = [
 ];
 
 const GAP_OPTIONS = [3, 3.5, 5, 7, 10];
-
-type SplitRawFile = { name: string; handle: FileSystemFileHandle };
-type SplitJpgFile = SplitRawFile & { file: File; mtime: number; fileSize: number };
-
-async function splitRawAndJpg(dir: FileSystemDirectoryHandle): Promise<{
-  rawFiles: SplitRawFile[];
-  jpgFiles: SplitJpgFile[];
-}> {
-  const rawFiles: SplitRawFile[] = [];
-  const jpgFiles: SplitJpgFile[] = [];
-  for await (const [name, handle] of (dir as any).entries()) {
-    if (isHiddenSystemFile(String(name))) continue;
-    if (handle.kind !== "file") continue;
-    const ext = String(name).split(".").pop()?.toLowerCase() ?? "";
-    if (RAW_EXTS.has(ext)) {
-      rawFiles.push({ name: String(name), handle: handle as FileSystemFileHandle });
-      continue;
-    }
-    if (!JPG_EXTS.has(ext)) continue;
-    const fileHandle = handle as FileSystemFileHandle;
-    const file = await fileHandle.getFile();
-    jpgFiles.push({ name: String(name), handle: fileHandle, file, mtime: file.lastModified, fileSize: file.size });
-  }
-  return { rawFiles, jpgFiles };
-}
-
-async function isSameDirectoryHandle(
-  left: FileSystemDirectoryHandle | null,
-  right: FileSystemDirectoryHandle,
-) {
-  if (!left) return false;
-  if (left === right) return true;
-  const identityAware = left as FileSystemDirectoryHandle & {
-    isSameEntry?: (other: FileSystemHandle) => Promise<boolean>;
-  };
-  if (!identityAware.isSameEntry) return false;
-  try {
-    return await identityAware.isSameEntry(right);
-  } catch {
-    return false;
-  }
-}
-
-/* ════════════════════════════════════════════════
-   SHARED HELPERS
-═══════════════════════════════════════════════ */
-// 영상 파일과 마찬가지로 RAW도 수십~수백 MB일 수 있어 arrayBuffer()로 전체를 메모리에
-// 올리지 않고 스트리밍으로 복사한다.
-async function copyFileHandle(src: FileSystemFileHandle, dest: FileSystemDirectoryHandle, name: string) {
-  // iCloud/OneDrive 온라인 전용 파일은 getFile()이 실제 다운로드가 끝날 때까지 멈출 수 있어
-  // 제한 시간을 둔다 — 그래야 한 파일 때문에 전체 배치가 영영 멈추지 않는다.
-  await withTimeout((async () => {
-    const file = await src.getFile();
-    const fh   = await (dest as any).getFileHandle(name, { create: true });
-    const wr   = await fh.createWritable();
-    await file.stream().pipeTo(wr);
-    const copied = await fh.getFile();
-    if (copied.size !== file.size) throw new Error(`${name} 복사 검증 실패 (${file.size} → ${copied.size})`);
-  })(), 120000, `${name} 복사`);
-}
-
-// 클라우드 동기화 폴더(iCloud/OneDrive 등)의 온라인 전용 파일이나 네트워크 문제로 파일 읽기·API
-// 호출이 무한정 멈추면 CONCURRENCY 워커 하나가 영영 안 끝나 Promise.all 전체가 멈춘다.
-// 개별 작업에 제한 시간을 둬서 그 한 파일만 실패 처리하고 나머지는 계속 진행되게 한다.
-function withTimeout<T>(promise: Promise<T>, ms: number, label = "작업"): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} 시간 초과 (${Math.round(ms / 1000)}초)`)), ms);
-    promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
-
-async function renameDirHandle(parentDir: any, oldName: string, newName: string, srcDir: any): Promise<FileSystemDirectoryHandle> {
-  if (oldName === newName) return srcDir as FileSystemDirectoryHandle;
-  const newDir = await parentDir.getDirectoryHandle(newName, { create: true });
-  const entries: [string, FileSystemFileHandle][] = [];
-  for await (const [fname, fhandle] of srcDir.entries()) {
-    if (fhandle.kind === "file") entries.push([fname, fhandle as FileSystemFileHandle]);
-  }
-  for (const [fname, fhandle] of entries) {
-    await copyFileHandle(fhandle, newDir as FileSystemDirectoryHandle, fname);
-    await srcDir.removeEntry(fname);
-  }
-  try { await parentDir.removeEntry(oldName); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-  return newDir as FileSystemDirectoryHandle;
-}
-
-function makeCSV(headers: string[], rows: string[][]): string {
-  const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
-  return [headers.map(esc).join(","), ...rows.map(r => r.map(esc).join(","))].join("\n");
-}
-
-function downloadCSV(content: string, filename: string) {
-  const blob = new Blob(["﻿" + content], { type: "text/csv;charset=utf-8" });
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: filename });
-  a.click(); URL.revokeObjectURL(a.href);
-}
-
-function formatTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
-}
-
-function estimatedRemaining(completed: number, total: number, startedAt: number) {
-  if (completed <= 0 || completed >= total) return "";
-  const remainingMs = ((Date.now() - startedAt) / completed) * (total - completed);
-  const seconds = Math.max(1, Math.round(remainingMs / 1000));
-  return seconds >= 60 ? ` · 약 ${Math.ceil(seconds / 60)}분 남음` : ` · 약 ${seconds}초 남음`;
-}
 
 /* ════════════════════════════════════════════════
    FIELD-MODE HELPERS
