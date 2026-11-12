@@ -19,8 +19,6 @@ import {
 } from "@/components/olivia-bridge/OliviaBridgeActionBar";
 import {
   OliviaBridgeFolderPanel,
-  type BridgeWorkspaceFileFilter as FileFilter,
-  type BridgeWorkspaceQualityFilter as QualityFilter,
 } from "@/components/olivia-bridge/OliviaBridgeFolderPanel";
 import {
   OliviaBridgePreviewPanel,
@@ -47,6 +45,7 @@ import { useOliviaBridgeToolLaunch } from "@/components/olivia-bridge/useOliviaB
 import { useOliviaBridgeWorkspaceSync } from "@/components/olivia-bridge/useOliviaBridgeWorkspaceSync";
 import { useOliviaBridgeFilters } from "@/components/olivia-bridge/useOliviaBridgeFilters";
 import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useOliviaBridgeSceneReviewModel";
+import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useOliviaBridgeSelectionSummary";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -67,10 +66,6 @@ import {
 import {
   type BridgeFolderTrailItem,
 } from "@/lib/photo-bridge/recentFolder";
-import {
-  bridgeLabelFilterName,
-} from "@/lib/photo-bridge/labels";
-import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -370,7 +365,34 @@ export default function OliviaBridgeWorkspace({
     const mark = rawAdobeMarks[raw.id];
     return mark ? [[normalizePhotoToolFileKey(raw.name), mark] as const] : [];
   })), [rawAdobeMarks, scan.raws]);
-  const selectedNames = useMemo(() => scan.jpgs.filter((photo) => selectedIds.has(photo.id)).map((photo) => photo.name), [scan.jpgs, selectedIds]);
+  const {
+    selectedNames,
+    labeledCount,
+    selectedPhotos,
+    adobeSelectedCount,
+    manualSelectedCount,
+    commonSelectedRating,
+    commonSelectedColor,
+    selectedRatingMixed,
+    selectedColorMixed,
+    allSelectedExcluded,
+    fileFilters,
+    selectionFilters,
+    activeRatingFilterName,
+    activeColorFilterName,
+  } = useOliviaBridgeSelectionSummary({
+    jpgs: scan.jpgs,
+    rawCount: scan.raws.length,
+    sidecarCount: scan.sidecars.length,
+    selectedIds,
+    ratings: effectiveRatings,
+    colorLabels: effectiveColorLabels,
+    excludedIds,
+    selectionSource,
+    adobeSelectedIds: adobeSelectedIdsRef.current,
+    manualSelectedIds: manualSelectedIdsRef.current,
+    labelFilters,
+  });
   const {
     filenameSearchTokens,
     hasLabelFilters,
@@ -692,51 +714,9 @@ export default function OliviaBridgeWorkspace({
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
 
-  const currentAdobeSelectedIds = adobeSelectedIdsRef.current;
-  const currentManualSelectedIds = manualSelectedIdsRef.current;
-  const {
-    selectionCounts,
-    labeledCount,
-    selectedPhotos,
-    adobeSelectedCount,
-    manualSelectedCount,
-    commonSelectedRating,
-    commonSelectedColor,
-    selectedRatingMixed,
-    selectedColorMixed,
-    allSelectedExcluded,
-  } = useMemo(() => createBridgeSelectionSummary({
-    jpgs: scan.jpgs,
-    selectedIds,
-    ratings: effectiveRatings,
-    colorLabels: effectiveColorLabels,
-    excludedIds,
-    selectionSource,
-    adobeSelectedIds: currentAdobeSelectedIds,
-    manualSelectedIds: currentManualSelectedIds,
-  }), [currentAdobeSelectedIds, currentManualSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, scan.jpgs, selectedIds, selectionSource]);
   const fullscreenPhoto = selectionReviewOpen ? reviewActivePhoto : focusedPhoto;
   const fullscreenIndex = selectionReviewOpen ? reviewActiveIndex : focusedIndex;
   const fullscreenTotal = selectionReviewOpen ? reviewPhotos.length : visibleJpgs.length;
-  const activeRatingFilterName = labelFilters.rating === null
-    ? null
-    : bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating });
-  const activeColorFilterName = labelFilters.color === null
-    ? null
-    : bridgeLabelFilterName({ kind: "color", label: labelFilters.color });
-  const fileFilters: Array<{ key: FileFilter; label: string; count: number }> = [
-    { key: "all", label: "모든 파일", count: scan.jpgs.length + scan.raws.length + scan.sidecars.length },
-    { key: "jpg", label: "JPG", count: scan.jpgs.length },
-    { key: "raw", label: "RAW", count: scan.raws.length },
-    { key: "sidecar", label: "사이드카", count: scan.sidecars.length },
-    { key: "excluded", label: "제외", count: excludedIds.size },
-  ];
-  const selectionFilters: Array<{ key: FileFilter; label: string; count: number }> = [
-    { key: "starred", label: "별 셀렉 사진만 보기", count: selectionCounts.starred },
-    { key: "colored", label: "컬러 셀렉 사진만 보기", count: selectionCounts.colored },
-    { key: "selected", label: "모든 셀렉 사진만 보기", count: labeledCount },
-    { key: "unselected", label: "셀렉 사진 제외하고 보기", count: selectionCounts.unselected },
-  ];
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
   const {
     scenePhotoByName,
