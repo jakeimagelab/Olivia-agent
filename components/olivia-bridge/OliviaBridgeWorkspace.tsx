@@ -51,6 +51,11 @@ import {
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
 import {
+  OliviaBridgeFolderPanel,
+  type BridgeWorkspaceFileFilter as FileFilter,
+  type BridgeWorkspaceQualityFilter as QualityFilter,
+} from "@/components/olivia-bridge/OliviaBridgeFolderPanel";
+import {
   OliviaBridgePreviewPanel,
   type OliviaBridgePreviewTab,
 } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
@@ -64,7 +69,6 @@ import {
   type PersonSelectImportResult,
   type SelectGallerySummary,
 } from "@/components/olivia-bridge/OliviaBridgeDialogs";
-import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   analyzeBridgeScenes,
@@ -160,7 +164,6 @@ import {
   type BridgeLabelFilterCommand,
   type BridgeLabelFilters,
   type BridgeRatingEdits,
-  type BridgeSelectionView,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
@@ -168,7 +171,7 @@ import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindow
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
-import type { PhotoQualityFlag, PublicPhotoQualityResult } from "@/lib/photo-quality/types";
+import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 const EmbeddedPhotoTool = dynamic(
@@ -195,8 +198,6 @@ type SceneState = {
   error?: string;
 };
 type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
-type FileFilter = "all" | "jpg" | "raw" | "sidecar" | BridgeSelectionView | "excluded";
-type QualityFilter = "all" | PhotoQualityFlag | "needs_review" | "normal";
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -2047,6 +2048,13 @@ export default function OliviaBridgeWorkspace({
   const scenePlanReady = selectedSceneAnalysisReady && photoDepartmentResolution.status === "resolved" && !departmentLoading && !adobeSelectionLoading;
 
   const closeCompactPreview = useCallback(() => setCompactPreviewOpen(false), []);
+  const openRootFolder = useCallback(() => {
+    const root = breadcrumbs[0];
+    if (root) void loadDirectory(root.handle, breadcrumbs.slice(0, 1));
+  }, [breadcrumbs, loadDirectory]);
+  const openChildFolder = useCallback((folder: FileSystemDirectoryHandle) => {
+    void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }]);
+  }, [breadcrumbs, loadDirectory]);
   const toggleFocusedSelection = useCallback(() => {
     if (!focusedPhoto) return;
     setSelectedIds((current) => {
@@ -2125,63 +2133,50 @@ export default function OliviaBridgeWorkspace({
 
       <main ref={workspaceRef} className={styles.workspace} data-compact-preview={compactPreviewOpen ? "true" : "false"}>
         {compactFiltersOpen ? <button type="button" className={styles.compactFilterBackdrop} aria-label="필터 닫기" onClick={closeCompactFilters} /> : null}
-        <aside ref={folderPanelRef} id="olivia-bridge-folder-panel" className={styles.folderPanel} data-compact-open={compactFiltersOpen ? "true" : "false"} tabIndex={-1} aria-label="폴더와 파일 필터">
-          <div className={styles.panelTitle}><span>폴더와 필터</span><button type="button" className={styles.compactFilterClose} onClick={closeCompactFilters} aria-label="필터 닫기"><X size={15} /></button></div>
-          <div className={styles.folderPanelScroll}>
-          <button type="button" className={styles.rootFolder} onClick={() => breadcrumbs[0] && void loadDirectory(breadcrumbs[0].handle, breadcrumbs.slice(0, 1))} disabled={!breadcrumbs[0]}><FolderOpen size={17} /><span>{breadcrumbs[0]?.name ?? "촬영 폴더"}</span><b>{scan.jpgs.length + scan.raws.length + scan.sidecars.length}</b></button>
-          <label className={styles.nestedJpgToggle}>
-            <input
-              type="checkbox"
-              checked={includeNestedJpgs}
-              disabled={!activeFolder || scanStatus === "loading"}
-              onChange={(event) => changeNestedJpgVisibility(event.currentTarget.checked)}
-            />
-            <span>하위 폴더 JPG 포함</span>
-            {scan.nestedJpgCount ? <b>{scan.nestedJpgCount.toLocaleString("ko-KR")}</b> : null}
-          </label>
-          <div className={styles.filterList}>
-            <small>파일 필터</small>
-            {fileFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!hasLabelFilters && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
-            <small>셀렉 보기</small>
-            {selectionFilters.map((filter) => <button key={filter.key} type="button" data-zero={filter.count === 0 ? "true" : undefined} className={!hasLabelFilters && fileFilter === filter.key ? styles.activeFilter : ""} onClick={() => chooseFileFilter(filter.key)}><span>{filter.label}</span><b>{filter.count.toLocaleString("ko-KR")}</b></button>)}
-            <small>고객 셀렉 비교{galleryCustomerResult ? ` · ${galleryCustomerResult.gallery.title}` : ""}</small>
-            {([
-              ["all", "전체"],
-              ["admin", "내 셀렉"],
-              ["customer", "고객 셀렉"],
-              ["common", "공통 셀렉"],
-              ["admin-only", "나만 선택"],
-              ["customer-only", "고객만 선택"],
-            ] as Array<[CustomerSelectionComparisonFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult} data-zero={comparisonCounts[key] === 0 ? "true" : undefined} className={comparisonFilter === key ? styles.activeFilter : ""} onClick={() => setComparisonFilter(key)}><span>{label}</span><b>{comparisonCounts[key].toLocaleString("ko-KR")}</b></button>)}
-            <small>AI 품질 검사</small>
-            {([
-              ["all", "전체 사진"],
-              ["eyes_closed", "눈감음 의심"],
-              ["face_too_dark", "얼굴 어두움 의심"],
-              ["motion_blur", "흔들림 의심"],
-              ["needs_review", "확인 필요"],
-              ["normal", "정상"],
-            ] as Array<[QualityFilter, string]>).map(([key, label]) => <button key={key} type="button" disabled={key !== "all" && !galleryCustomerResult?.personSelectEventId} data-zero={key !== "all" && qualityCounts[key] === 0 ? "true" : undefined} className={qualityFilter === key ? styles.activeFilter : ""} onClick={() => setQualityFilter(key)}><span>{label}</span><b>{key === "all" ? scan.jpgs.length.toLocaleString("ko-KR") : qualityCounts[key].toLocaleString("ko-KR")}</b></button>)}
-            {galleryCustomerResult?.personSelectEventId ? <button type="button" disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startLinkedQualityAnalysis()}><span><Sparkles size={12} />{["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "검사 진행 중" : qualityJob?.status === "paused" ? "검사 일시정지" : "AI 검사 시작"}</span><b>{qualityJob ? `${Number(qualityJob.completed_count ?? 0)}/${Number(qualityJob.total_count ?? 0)}` : ""}</b></button> : null}
-            <PhotoQualityJobProgressView job={qualityJob} />
-            {qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("pause")}><span>검사 일시정지</span></button> : null}
-            {qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("resume")}><span>검사 계속</span></button> : null}
-            {qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlLinkedQualityAnalysis("retry")}><span>실패 사진 재시도</span></button> : null}
-            {qualityMessage ? <p>{qualityMessage}</p> : null}
-          </div>
-          <div className={styles.folderList}>
-            {scan.folders.length ? <small>하위 폴더</small> : null}
-            {scan.folders.map((folder) => <button key={folder.name} type="button" onClick={() => void loadDirectory(folder, [...breadcrumbs, { name: folder.name, handle: folder }])}><Folder size={15} /><span>{folder.name}</span><b>{(folderImageCounts[folder.name.normalize("NFC")] ?? 0).toLocaleString("ko-KR")}</b><ChevronRight size={12} /></button>)}
-            {activeFolder && !scan.folders.length ? <p>하위 폴더가 없습니다.</p> : null}
-          </div>
-          </div>
-          <div className={styles.folderSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
-          <label className={styles.folderThumbnailGauge} title="썸네일 크기">
-            <span>썸네일 크기</span>
-            <input type="range" min={THUMBNAIL_SIZE_MIN} max={THUMBNAIL_SIZE_MAX} step={THUMBNAIL_SIZE_STEP} value={thumbnailSize} onChange={(event) => setThumbnailSize(Number(event.currentTarget.value))} aria-label="썸네일 크기" />
-            <small>⌘ + / - 로도 조절</small>
-          </label>
-        </aside>
+        <OliviaBridgeFolderPanel
+          panelRef={folderPanelRef}
+          compactOpen={compactFiltersOpen}
+          onCloseCompact={closeCompactFilters}
+          rootName={breadcrumbs[0]?.name ?? "촬영 폴더"}
+          rootCount={scan.jpgs.length + scan.raws.length + scan.sidecars.length}
+          canOpenRoot={Boolean(breadcrumbs[0])}
+          onOpenRoot={openRootFolder}
+          includeNestedJpgs={includeNestedJpgs}
+          canToggleNestedJpgs={Boolean(activeFolder) && scanStatus !== "loading"}
+          nestedJpgCount={scan.nestedJpgCount}
+          onNestedJpgsChange={changeNestedJpgVisibility}
+          fileFilters={fileFilters}
+          selectionFilters={selectionFilters}
+          fileFilter={fileFilter}
+          hasLabelFilters={hasLabelFilters}
+          onChooseFileFilter={chooseFileFilter}
+          galleryTitle={galleryCustomerResult?.gallery.title}
+          hasCustomerComparison={Boolean(galleryCustomerResult)}
+          comparisonCounts={comparisonCounts}
+          comparisonFilter={comparisonFilter}
+          onComparisonFilterChange={setComparisonFilter}
+          hasLinkedQuality={Boolean(galleryCustomerResult?.personSelectEventId)}
+          jpgCount={scan.jpgs.length}
+          qualityCounts={qualityCounts}
+          qualityFilter={qualityFilter}
+          onQualityFilterChange={setQualityFilter}
+          qualityJob={qualityJob}
+          qualityMessage={qualityMessage}
+          onStartQuality={startLinkedQualityAnalysis}
+          onControlQuality={controlLinkedQualityAnalysis}
+          folders={scan.folders}
+          folderImageCounts={folderImageCounts}
+          hasActiveFolder={Boolean(activeFolder)}
+          onOpenFolder={openChildFolder}
+          selectedCount={selectedIds.size}
+          labeledCount={labeledCount}
+          excludedCount={excludedIds.size}
+          thumbnailSize={thumbnailSize}
+          thumbnailMin={THUMBNAIL_SIZE_MIN}
+          thumbnailMax={THUMBNAIL_SIZE_MAX}
+          thumbnailStep={THUMBNAIL_SIZE_STEP}
+          onThumbnailSizeChange={setThumbnailSize}
+        />
 
         <BridgePaneDivider
           pane="folder"

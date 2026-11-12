@@ -219,14 +219,15 @@ describe("Olivia Bridge", () => {
 
   it("중앙 파일 영역은 남은 높이를 쓰고 좁은 창에서도 같은 필터를 연다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const folderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px minmax\(0, 1fr\)/);
     expect(styles).not.toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserPanel\s*\{[^}]*grid-template-rows:\s*46px 36px minmax\(0, 1fr\)/);
     expect(workspace).toContain("styles.nestedJpgPathToggle");
-    expect(workspace).toContain("styles.nestedJpgToggle");
+    expect(folderPanel).toContain("styles.nestedJpgToggle");
     expect(workspace).toContain("styles.compactFilterEntry");
-    expect(workspace).toContain('data-compact-open={compactFiltersOpen ? "true" : "false"}');
+    expect(folderPanel).toContain('data-compact-open={compactOpen ? "true" : "false"}');
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px minmax\(0, 1fr\) auto auto/);
     expect(styles).toMatch(/\.folderPanelScroll\s*\{[^}]*overflow-y:\s*auto/);
     expect(styles).toMatch(/max-width:\s*900px[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
@@ -339,6 +340,7 @@ describe("Olivia Bridge", () => {
 
   it("Command +/-와 하단 게이지로 썸네일 크기를 조절한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const folderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
     expect(workspace).toContain("event.metaKey && !event.altKey && !event.ctrlKey");
@@ -346,10 +348,10 @@ describe("Olivia Bridge", () => {
     expect(workspace).toContain('event.code === "Minus"');
     expect(workspace).toContain("resizeThumbnails(1)");
     expect(workspace).toContain("resizeThumbnails(-1)");
-    expect(workspace).toContain('type="range"');
-    expect(workspace).toContain("min={THUMBNAIL_SIZE_MIN}");
-    expect(workspace).toContain("max={THUMBNAIL_SIZE_MAX}");
-    expect(workspace).toContain("⌘ + / -");
+    expect(folderPanel).toContain('type="range"');
+    expect(workspace).toContain("thumbnailMin={THUMBNAIL_SIZE_MIN}");
+    expect(workspace).toContain("thumbnailMax={THUMBNAIL_SIZE_MAX}");
+    expect(folderPanel).toContain("⌘ + / -");
     expect(styles).toContain(".thumbnailGauge");
     expect(styles).toContain("::-webkit-slider-thumb");
     expect(styles).toContain("::-moz-range-thumb");

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const adminBridge = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+const adminFolderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
 const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
 const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
@@ -37,7 +38,7 @@ describe("Bridge filename search and shared label shortcuts", () => {
   });
 
   it("keeps folder statistics outside the independently scrolling list", () => {
-    for (const source of [adminBridge, customerBridge]) {
+    for (const source of [adminFolderPanel, customerBridge]) {
       expect(source.indexOf("styles.folderPanelScroll")).toBeGreaterThan(0);
       expect(source.indexOf("styles.folderSummary")).toBeGreaterThan(source.indexOf("styles.folderPanelScroll"));
     }
