@@ -180,7 +180,7 @@
 .thumbnailControls button:hover { color: #fff; background: rgba(255,255,255,.08); }
 .thumbnailControls > svg { color: rgba(255,255,255,.38); }
 
-.fileArea { min-height: 0; position: relative; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 13px 14px 22px; scrollbar-color: rgba(255,255,255,.3) transparent; scrollbar-width: thin; }
+.fileArea { min-height: 0; position: relative; overflow-y: auto; overflow-x: hidden; overflow-anchor: none; overscroll-behavior: contain; padding: 13px 14px 22px; scrollbar-color: rgba(255,255,255,.3) transparent; scrollbar-width: thin; }
 .fileArea::-webkit-scrollbar, .folderList::-webkit-scrollbar { width: 8px; }
 .fileArea::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255,255,255,.28); }
 .folderList::-webkit-scrollbar-thumb { border-radius: 999px; background: #AEBFAF; }
@@ -191,7 +191,7 @@
 .folderCard > span:last-child { min-width: 0; display: grid; gap: 3px; }
 .folderCard strong { overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .folderCard small { color: rgba(255,255,255,.55); font-size: 9px; }
-.thumbnailGrid { display: grid; align-items: start; gap: 10px; }
+.thumbnailGrid { display: grid; align-items: start; gap: 10px; overflow-anchor: none; }
 .thumbnailCard { min-width: 0; position: relative; display: grid; grid-template-rows: auto 34px; gap: 0; padding: 0; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 8px; color: #E9EFEB; background: rgba(255,255,255,.04); text-align: left; cursor: pointer; content-visibility: auto; contain-intrinsic-size: 156px 198px; }
 .thumbnailCard:hover { background: rgba(255,255,255,.06); }
 .activeThumbnail { border: 2px solid var(--bridge-mint); background: rgba(79,216,184,.08); }

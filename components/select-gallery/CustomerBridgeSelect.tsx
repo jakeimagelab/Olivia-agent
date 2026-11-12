@@ -58,11 +58,7 @@ import { useSelectionSyncQueue } from "@/components/person-select/useSelectionSy
 import { sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
-import {
-  SELECTION_THUMBNAIL_PAGE_SIZE,
-  type SelectionMediaUrls,
-  type SelectionMediaVariant,
-} from "@/lib/select-gallery/mediaLoading";
+import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import {
   applySelectionDiffsToSharedSnapshot,
   type SelectionSyncDiff,
@@ -86,11 +82,11 @@ import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./u
 import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
+import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
-const PAGE_SIZE = SELECTION_THUMBNAIL_PAGE_SIZE;
 const THUMB_MIN = 112;
 const THUMB_MAX = 260;
 
@@ -177,7 +173,6 @@ export default function CustomerBridgeSelect({
   const [submitError, setSubmitError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
-  const [renderLimit, setRenderLimit] = useState(PAGE_SIZE);
   const [mobile, setMobile] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -194,8 +189,8 @@ export default function CustomerBridgeSelect({
     updatedAt: initialDraft?.updatedAt ?? null,
   });
   const requestKeyRef = useRef(createRequestKey());
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
   const resetButtonRef = useRef<HTMLButtonElement>(null);
@@ -356,7 +351,21 @@ export default function CustomerBridgeSelect({
     resetLocationSelection(nextImages);
     setCompactFoldersOpen(false);
   };
-  const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
+  const virtualGrid = useVirtualPhotoGrid({
+    items: visibleImages,
+    containerRef: gridRef,
+    gridRef: thumbnailGridRef,
+    thumbSize,
+    mobile,
+    resetKey: `${location.kind}:${location.kind === "folder" ? location.path : ""}:${filter}:${filenameSearch}:${labelFilters.rating ?? ""}:${labelFilters.color ?? ""}`,
+  });
+  const renderedImages = virtualGrid.renderedItems;
+  const scrollToVirtualIndex = virtualGrid.scrollToIndex;
+  useEffect(() => {
+    if (!focusedImageId || location.kind === "root") return;
+    if (gridRef.current?.querySelector(`[data-bridge-image-id="${CSS.escape(focusedImageId)}"]`)) return;
+    scrollToVirtualIndex(orderedIds.indexOf(focusedImageId));
+  }, [focusedImageId, location.kind, orderedIds, scrollToVirtualIndex]);
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const {
     fullscreenId,
@@ -507,22 +516,6 @@ export default function CustomerBridgeSelect({
     query.addEventListener("change", update);
     return () => query.removeEventListener("change", update);
   }, []);
-
-  useEffect(() => {
-    const node = sentinelRef.current;
-    const root = gridRef.current;
-    if (!node || !root || renderLimit >= visibleImages.length) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) setRenderLimit((current) => Math.min(visibleImages.length, current + PAGE_SIZE));
-    }, { root, rootMargin: "700px 0px" });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [renderLimit, visibleImages.length]);
-
-  useEffect(() => {
-    setRenderLimit(PAGE_SIZE);
-    gridRef.current?.scrollTo({ top: 0 });
-  }, [filenameSearch, filter, labelFilters, location]);
 
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
@@ -767,7 +760,7 @@ export default function CustomerBridgeSelect({
               <span className={styles.folderCardMedia}><Folder size={24} /></span><span><strong>{folder.name}</strong><small>{folder.totalCount.toLocaleString("ko-KR")}장</small></span>
             </button>)}
           </div> : null}
-          <div className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))` }}>
+          <div ref={thumbnailGridRef} className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbSize}px, 1fr))`, minHeight: virtualGrid.totalHeight, paddingTop: virtualGrid.topPadding, paddingBottom: virtualGrid.bottomPadding }}>
             {renderedImages.map((image) => {
               const active = activeImageIds.has(image.id);
               const focused = focusedImageId === image.id;
@@ -777,7 +770,7 @@ export default function CustomerBridgeSelect({
             })}
           </div>
           {location.kind !== "root" && !visibleImages.length && !childFolders.length ? <div className={styles.empty}>이 폴더에 표시할 사진이 없습니다.</div> : null}
-          {marquee ? <div className={styles.selectionMarquee} style={marquee} /> : null}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />
+          {marquee ? <div className={styles.selectionMarquee} style={marquee} /> : null}
         </div>
         <footer className={styles.shortcutBar}><span>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}클릭 작업 대상 · Shift 범위 · ⌘/Ctrl 추가 · 1–5 별점 · 6–9 컬러 · 0 해제 · ⌘/Ctrl+B 리뷰 · ⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span>{location.kind !== "root" ? <label>썸네일 <input type="range" min={THUMB_MIN} max={THUMB_MAX} step={4} value={thumbSize} onChange={(event) => setThumbSize(Number(event.currentTarget.value))} /></label> : null}</footer>
       </section>
