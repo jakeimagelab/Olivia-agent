@@ -249,7 +249,7 @@ function usePendingPersonChoiceSyncCount(slug: string) {
 export function PersonSelectCategory({ slug, categoryKey }: { slug: string; categoryKey: string }) {
   const router = useRouter();
   const { me, loading: meLoading, error } = useSelectionData(slug);
-  const { images, loading } = usePersonSelectImages(slug, categoryKey);
+  const { images, loading, ensurePreviews } = usePersonSelectImages(slug, categoryKey);
   const category = me?.categories.find((item) => item.key === categoryKey);
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "selected">("all");
@@ -261,6 +261,11 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     images,
     enabled: Boolean(me && category && !me.event.locked),
   });
+  useEffect(() => {
+    if (previewIndex === null) return;
+    const ids = [-2, -1, 0, 1, 2].flatMap((offset) => images[previewIndex + offset]?.id ? [images[previewIndex + offset].id] : []);
+    void ensurePreviews(ids);
+  }, [ensurePreviews, images, previewIndex]);
   const displayedIds = useMemo(() => new Set(sync.displayedChoices.map((choice) => choice.image_id)), [sync.displayedChoices]);
 
   if (meLoading || loading) return <main className={styles.darkPage}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
@@ -297,7 +302,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     <div className={styles.darkDock}><p>{message || selectionSyncStatus(sync)}{message ? "" : ` · ${dockText}`}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>고른 사진 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
       <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>
-      <div className={styles.preview}><img src={preview.preview_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /><div className={styles.previewNav}><button className={styles.iconButton} disabled={!previewIndex} onClick={() => setPreviewIndex(Math.max(0, (previewIndex ?? 0) - 1))}><ChevronLeft /></button><button className={styles.iconButton} disabled={previewIndex === images.length - 1} onClick={() => setPreviewIndex(Math.min(images.length - 1, (previewIndex ?? 0) + 1))}><ChevronRight /></button></div></div>
+      <div className={styles.preview}><img src={preview.preview_url || preview.thumb_url} alt={preview.original_file_name} draggable={false} onContextMenu={(e) => e.preventDefault()} /><div className={styles.previewNav}><button className={styles.iconButton} disabled={!previewIndex} onClick={() => setPreviewIndex(Math.max(0, (previewIndex ?? 0) - 1))}><ChevronLeft /></button><button className={styles.iconButton} disabled={previewIndex === images.length - 1} onClick={() => setPreviewIndex(Math.min(images.length - 1, (previewIndex ?? 0) + 1))}><ChevronRight /></button></div></div>
       <div className={styles.lightboxActions}>{displayedIds.has(preview.id) ? <button className={styles.secondary} onClick={() => clearChoice(preview.id)}>선택 해제</button> : <button className={styles.secondary} onClick={() => choose(preview.id)}>이 사진 고르기 ({count}/{category.need})</button>}<button className={styles.mintButton} disabled={count === 0 || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>보정 요청 쓰기</button></div>
     </div> : null}
   </main>;
@@ -485,7 +490,7 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
     .filter((item) => item.image_count > 0)
     .filter((item) => item.key !== "homeroom" || Boolean(me.person.group_label));
   const active = categories.find((item) => item.key === activeKey) ?? categories[0];
-  const { images } = usePersonSelectImages(slug, active?.key ?? "profile");
+  const { images, ensurePreviews } = usePersonSelectImages(slug, active?.key ?? "profile");
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
@@ -543,11 +548,9 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
   }
   useEffect(() => {
     if (previewIndex < 0) return;
-    for (const offset of [-2, -1, 1, 2]) {
-      const source = images[previewIndex + offset]?.preview_url;
-      if (source) new Image().src = source;
-    }
-  }, [images, previewIndex]);
+    const ids = [-2, -1, 0, 1, 2].flatMap((offset) => images[previewIndex + offset]?.id ? [images[previewIndex + offset].id] : []);
+    void ensurePreviews(ids);
+  }, [ensurePreviews, images, previewIndex]);
   useEffect(() => {
     const filmstrip = filmstripRef.current;
     const thumbnail = activeThumbRef.current;
@@ -624,7 +627,7 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
       <div className={styles.pcPhotos}>
         <div className={styles.pcPreview}>
           <div className={styles.preview}>
-            {preview ? <img src={preview.preview_url} alt={preview.original_file_name} onLoad={measureFirstPhoto} draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={styles.pcPhotoEmpty}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</span>}
+            {preview ? <img src={preview.preview_url || preview.thumb_url} alt={preview.original_file_name} onLoad={measureFirstPhoto} draggable={false} onContextMenu={(e) => e.preventDefault()} /> : <span className={styles.pcPhotoEmpty}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</span>}
             <div className={styles.pcPreviewInfo}><strong title={preview?.original_file_name}>{preview ? shortFileName(preview.original_file_name) : "사진 없음"}</strong><span>{preview ? `${previewIndex + 1} / ${images.length}` : `0 / ${images.length}`}</span></div>
             <button className={`${styles.pcNavButton} ${styles.pcNavPrevious}`} disabled={previewIndex <= 0} onClick={() => setPreviewId(images[previewIndex - 1]?.id ?? preview?.id ?? "")} aria-label="이전 사진"><ChevronLeft size={20} /></button>
             <button className={`${styles.pcNavButton} ${styles.pcNavNext}`} disabled={previewIndex < 0 || previewIndex >= images.length - 1} onClick={() => setPreviewId(images[previewIndex + 1]?.id ?? preview?.id ?? "")} aria-label="다음 사진"><ChevronRight size={20} /></button>
