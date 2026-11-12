@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   compactSelectionSyncDiffs,
   type SelectionSyncDiff,
@@ -49,10 +49,12 @@ function choiceMap(choices: readonly PersonSelectChoice[]) {
 export function overlayPersonChoiceDiffs(
   base: ReadonlyMap<string, PersonSelectChoice>,
   diffs: readonly SelectionSyncDiff[],
-  images: readonly PersonSelectImageData[],
+  images: readonly PersonSelectImageData[] | ReadonlyMap<string, PersonSelectImageData>,
 ) {
   const next = new Map(base);
-  const imageById = new Map(images.map((image) => [image.id, image]));
+  const imageById = Array.isArray(images)
+    ? new Map(images.map((image) => [image.id, image]))
+    : images as ReadonlyMap<string, PersonSelectImageData>;
   for (const diff of compactSelectionSyncDiffs(diffs)) {
     const image = imageById.get(diff.imageId);
     if (!image) continue;
@@ -100,10 +102,10 @@ export function usePersonChoiceSync({
   const [confirmed, setConfirmed] = useState<Map<string, PersonSelectChoice>>(() => choiceMap(initialChoices));
   const [displayed, setDisplayed] = useState<Map<string, PersonSelectChoice>>(() => choiceMap(initialChoices));
   const confirmedRef = useRef(confirmed);
+  const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
 
   const installSnapshot = useCallback((snapshot: PersonChoiceSyncSnapshot, pending: SelectionSyncDiff[]) => {
     const previous = confirmedRef.current;
-    const imageById = new Map(images.map((image) => [image.id, image]));
     const next = new Map<string, PersonSelectChoice>();
     for (const item of snapshot.items ?? []) {
       if (!item.selected || item.categoryKey !== categoryKey) continue;
@@ -122,8 +124,8 @@ export function usePersonChoiceSync({
     }
     confirmedRef.current = next;
     setConfirmed(next);
-    setDisplayed(overlayPersonChoiceDiffs(next, pending, images));
-  }, [categoryKey, images]);
+    setDisplayed(overlayPersonChoiceDiffs(next, pending, imageById));
+  }, [categoryKey, imageById]);
 
   const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
     return sendSelectionSyncBatch<PersonChoiceSyncSnapshot>({
@@ -139,8 +141,8 @@ export function usePersonChoiceSync({
     enabled,
     sendBatch,
     onSnapshot: installSnapshot,
-    onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
-    onPendingChange: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
+    onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, imageById)),
+    onPendingChange: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, imageById)),
   });
   const getPendingSelectionDiffs = sync.getPendingDiffs;
 

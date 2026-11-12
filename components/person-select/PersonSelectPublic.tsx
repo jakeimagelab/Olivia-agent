@@ -10,6 +10,7 @@ import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
 import { parsePersistedSelectionSyncQueue, type SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { usePersonChoiceSync, type PersonSelectChoice as Choice, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import { clearPersonSelectImageCache, usePersonSelectImages } from "./usePersonSelectImages";
+import { PersonSelectPhotoTile } from "./PersonSelectPhotoTile";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import styles from "./PersonSelectPublic.module.css";
@@ -306,6 +307,11 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     void ensurePreviews(ids);
   }, [ensurePreviews, images, previewIndex]);
   const displayedIds = useMemo(() => new Set(sync.displayedChoices.map((choice) => choice.image_id)), [sync.displayedChoices]);
+  const imageIndexById = useMemo(() => new Map(images.map((image, index) => [image.id, index])), [images]);
+  const openPreview = useCallback((imageId: string) => {
+    const index = imageIndexById.get(imageId);
+    if (index !== undefined) setPreviewIndex(index);
+  }, [imageIndexById]);
 
   if (meLoading || loading) return <main className={styles.darkPage}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me || !category) return <main className={styles.darkPage}><div className={styles.done}>{error || "항목을 찾을 수 없어요."}</div></main>;
@@ -337,7 +343,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
   return <main className={styles.darkPage}>
     <header className={styles.darkTop}><button onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/home`); }); }} aria-label="뒤로"><ArrowLeft /></button><strong>{category.label}</strong><span>{category.image_count}장</span></header>
     <div className={styles.subtabs}><button className={`${styles.subtab} ${filter === "all" ? styles.subtabActive : ""}`} onClick={() => setFilter("all")}>전체 {category.image_count}</button><button className={`${styles.subtab} ${filter === "selected" ? styles.subtabActive : ""}`} onClick={() => setFilter("selected")}>고른 사진 {count} / {category.need}{category.max > category.need ? `+` : ""}</button></div>
-    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <button key={image.id} className={`${styles.photoTile} ${displayedIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewIndex(images.findIndex((item) => item.id === image.id))}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(e) => e.preventDefault()} />{displayedIds.has(image.id) ? <span className={styles.check}><Check size={17} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>}
+    {images.length === 0 ? <div className={styles.done}>아직 올라온 사진이 없어요. 포토클리닉에 문의해 주세요.</div> : <div className={styles.photoGrid}>{shown.map((image) => <PersonSelectPhotoTile key={image.id} image={image} selected={displayedIds.has(image.id)} pending={sync.pendingImageIds.has(image.id)} onOpen={openPreview} />)}</div>}
     <div className={styles.darkDock}><p>{message || selectionSyncStatus(sync)}{message ? "" : ` · ${dockText}`}</p><button className={styles.mintButton} disabled={count === 0 || me.event.locked || sync.pendingCount > 0} onClick={() => { void sync.flushNow().then((saved) => { if (saved) router.push(`/pick/${slug}/c/${categoryKey}/feedback`); }); }}>고른 사진 보정 요청 쓰기</button></div>
     {preview ? <div className={styles.lightbox}>
       <div className={styles.lightboxTop}><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="뒤로"><ArrowLeft /></button><strong>{(previewIndex ?? 0) + 1} / {images.length}</strong><button className={styles.iconButton} onClick={() => setPreviewIndex(null)} aria-label="닫기"><X size={20} strokeWidth={2} /></button></div>

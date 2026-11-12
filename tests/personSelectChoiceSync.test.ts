@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { overlayPersonChoiceDiffs, type PersonSelectChoice, type PersonSelectImageData } from "@/components/person-select/usePersonChoiceSync";
+import { personSelectPhotoTilePropsEqual } from "@/components/person-select/PersonSelectPhotoTile";
 import { splitSelectionSyncPatches } from "@/lib/person-select/selectionSync";
 
 const images: PersonSelectImageData[] = [{
@@ -37,5 +38,13 @@ describe("person choice optimistic display", () => {
     const displayed = overlayPersonChoiceDiffs(new Map([[selected.image_id, selected]]), diffs, images);
 
     expect(displayed.has("image-a")).toBe(false);
+  });
+
+  it("does not rerender unchanged mobile photo tiles when another selection changes", () => {
+    const onOpen = () => undefined;
+    const previous = { image: images[0], selected: false, pending: false, onOpen };
+    expect(personSelectPhotoTilePropsEqual(previous, { ...previous })).toBe(true);
+    expect(personSelectPhotoTilePropsEqual(previous, { ...previous, selected: true })).toBe(false);
+    expect(personSelectPhotoTilePropsEqual(previous, { ...previous, pending: true })).toBe(false);
   });
 });
