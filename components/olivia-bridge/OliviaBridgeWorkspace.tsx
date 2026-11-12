@@ -46,15 +46,13 @@ import {
   OliviaBridgePreviewPanel,
   type OliviaBridgePreviewTab,
 } from "@/components/olivia-bridge/OliviaBridgePreviewPanel";
-import {
-  OliviaBridgeBrowserPanel,
-  type OliviaBridgeCaptureMetadataState,
-} from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
+import { OliviaBridgeBrowserPanel } from "@/components/olivia-bridge/OliviaBridgeBrowserPanel";
 import {
   OliviaBridgeSceneReviewContent,
 } from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
 import { useOliviaBridgeSceneAnalysis } from "@/components/olivia-bridge/useOliviaBridgeSceneAnalysis";
 import { useOliviaBridgeAdobeMarks } from "@/components/olivia-bridge/useOliviaBridgeAdobeMarks";
+import { useOliviaBridgeCaptureMetadata } from "@/components/olivia-bridge/useOliviaBridgeCaptureMetadata";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -68,7 +66,6 @@ import {
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
   bridgeFileKind,
-  readBridgeCaptureMetadata,
   rebuildBridgeSceneAnalysis,
   resolveBridgeToolSelection,
   scanBridgeFolder,
@@ -289,7 +286,6 @@ export default function OliviaBridgeWorkspace({
   const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedSource[]>([]);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
-  const [captureMetadataState, setCaptureMetadataState] = useState<OliviaBridgeCaptureMetadataState>({ status: "idle", completed: 0, total: 0, fallbackCount: 0 });
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
   const [filenameSearch, setFilenameSearch] = useState("");
@@ -343,7 +339,6 @@ export default function OliviaBridgeWorkspace({
   const suppressThumbnailClickRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
   const remoteLoadGenerationRef = useRef(0);
-  const captureMetadataGenerationRef = useRef(0);
   const ratingsRef = useRef(ratings);
   const ratingEditsRef = useRef(ratingEdits);
   const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
@@ -355,6 +350,12 @@ export default function OliviaBridgeWorkspace({
   const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
   const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
   const hasActiveFolder = Boolean(activeFolder || remoteFolder);
+  const captureMetadataState = useOliviaBridgeCaptureMetadata({
+    jpgSortMode,
+    scanStatus,
+    scan,
+    setScan,
+  });
   const commitSelectedIds = useCallback((
     manual: ReadonlySet<string>,
     adobe: ReadonlySet<string>,
@@ -511,51 +512,6 @@ export default function OliviaBridgeWorkspace({
       topNoticeTimerRef.current = null;
     }, duration);
   }, []);
-
-  useEffect(() => {
-    const generation = ++captureMetadataGenerationRef.current;
-    if (jpgSortMode !== "capture" || scanStatus !== "ready" || !scan.jpgs.length) {
-      setCaptureMetadataState({ status: "idle", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
-      return;
-    }
-    const ready = scan.jpgs.every((photo) => photo.captureTimestamp !== undefined && photo.timestampSource);
-    if (ready) {
-      setCaptureMetadataState({
-        status: "ready",
-        completed: scan.jpgs.length,
-        total: scan.jpgs.length,
-        fallbackCount: scan.jpgs.filter((photo) => photo.timestampSource === "mtime").length,
-      });
-      return;
-    }
-
-    const controller = new AbortController();
-    setCaptureMetadataState({ status: "loading", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
-    void readBridgeCaptureMetadata(scan.jpgs, {
-      signal: controller.signal,
-      onProgress: (completed, total) => {
-        if (generation !== captureMetadataGenerationRef.current) return;
-        setCaptureMetadataState((current) => ({ ...current, status: "loading", completed, total }));
-      },
-    }).then((jpgs) => {
-      if (generation !== captureMetadataGenerationRef.current) return;
-      setScan((current) => {
-        if (current.jpgs.length !== scan.jpgs.length || current.jpgs.some((photo, index) => photo.id !== scan.jpgs[index]?.id)) return current;
-        return { ...current, jpgs };
-      });
-      setCaptureMetadataState({
-        status: "ready",
-        completed: jpgs.length,
-        total: jpgs.length,
-        fallbackCount: jpgs.filter((photo) => photo.timestampSource === "mtime").length,
-      });
-    }).catch((error) => {
-      if (controller.signal.aborted || generation !== captureMetadataGenerationRef.current) return;
-      console.error("[olivia-bridge] Failed to read capture metadata", error);
-      setCaptureMetadataState({ status: "error", completed: 0, total: scan.jpgs.length, fallbackCount: 0 });
-    });
-    return () => controller.abort();
-  }, [jpgSortMode, scan.jpgs, scanStatus]);
 
   const showAdobeSelectionNotice = useCallback(() => {
     showTopNotice("어도비 기준입니다. 별점은 어도비 브릿지에서 바꿔 주세요.");
