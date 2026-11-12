@@ -26,40 +26,8 @@ import {
 } from "@/lib/photo-bridge/reviewMode";
 import type { AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
 import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
+import { getBridgeThumbnailUrl } from "@/lib/photo-bridge/thumbnailCache";
 import styles from "./OliviaBridgeWorkspace.module.css";
-
-const thumbnailCache = new Map<string, Promise<string>>();
-
-async function createThumbnailUrl(photo: BridgeJpgFile) {
-  const cached = thumbnailCache.get(photo.id);
-  if (cached) return cached;
-  const task = (async () => {
-    if (!photo.file) {
-      if (!photo.thumbnailUrl) throw new Error(`${photo.name} 썸네일 주소가 없습니다.`);
-      return photo.thumbnailUrl;
-    }
-    try {
-      const bitmap = await createImageBitmap(photo.file, { imageOrientation: "from-image" });
-      const max = 420;
-      const ratio = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
-      canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
-      canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      bitmap.close();
-      const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(
-        (value) => value ? resolve(value) : reject(new Error("썸네일 생성 실패")),
-        "image/jpeg",
-        0.76,
-      ));
-      return URL.createObjectURL(blob);
-    } catch {
-      return URL.createObjectURL(photo.file);
-    }
-  })();
-  thumbnailCache.set(photo.id, task);
-  return task;
-}
 
 export function formatBridgeTimestamp(photo: BridgeJpgFile) {
   const timestamp = photo.captureTimestamp ?? photo.lastModified;
@@ -94,7 +62,9 @@ export function BridgeThumbnail({
 
   useEffect(() => {
     let active = true;
-    const load = () => void createThumbnailUrl(photo).then((next) => { if (active) setUrl(next); });
+    const load = () => void getBridgeThumbnailUrl(photo)
+      .then((next) => { if (active) setUrl(next); })
+      .catch(() => undefined);
     if (eager || !hostRef.current || typeof IntersectionObserver === "undefined") load();
     else {
       const observer = new IntersectionObserver((entries) => {

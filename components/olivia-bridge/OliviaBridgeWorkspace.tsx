@@ -128,6 +128,7 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
+import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -690,6 +691,7 @@ export default function OliviaBridgeWorkspace({
     nestedJpgs = includeNestedJpgs,
   ) => {
     remoteLoadGenerationRef.current += 1;
+    resetBridgeThumbnailCache();
     setExecutionMode("LOCAL_DIRECT");
     setScanStatus("loading");
     setScanError(undefined);
@@ -838,6 +840,7 @@ export default function OliviaBridgeWorkspace({
 
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
     const generation = ++remoteLoadGenerationRef.current;
+    resetBridgeThumbnailCache();
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
