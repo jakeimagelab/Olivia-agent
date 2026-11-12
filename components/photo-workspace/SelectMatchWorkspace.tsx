@@ -51,9 +51,10 @@ import {
   defaultWorkerFolderPath,
   parseFileNameQueries,
   relativeToDirectoryRoot,
-  type NameQuery,
   type SequenceCheckResult,
 } from "@/lib/selectMatch/workspaceHelpers";
+import { prepareScreenshotForOcr } from "@/lib/selectMatch/browserOcr";
+import { useSelectMatchFindMove } from "@/components/photo-workspace/useSelectMatchFindMove";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -95,34 +96,6 @@ async function loadThumb(file: File, size = 120): Promise<string | null> {
     };
     img.onerror = () => { releaseObjectUrl(url); res(null); };
     img.src = url;
-  });
-}
-
-async function prepareScreenshotForOcr(file: File): Promise<string> {
-  if (!file.type.startsWith("image/")) throw new Error("이미지 파일만 선택할 수 있습니다.");
-  const bitmap = await createImageBitmap(file);
-  const maxSide = 2400;
-  const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-  const context = canvas.getContext("2d");
-  if (!context) {
-    bitmap.close();
-    throw new Error("이미지를 처리하지 못했습니다.");
-  }
-  context.fillStyle = "#FFFFFF";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  bitmap.close();
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((value) => value ? resolve(value) : reject(new Error("이미지를 처리하지 못했습니다.")), "image/jpeg", 0.92);
-  });
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("이미지를 처리하지 못했습니다."));
-    reader.onerror = () => reject(reader.error ?? new Error("이미지를 처리하지 못했습니다."));
-    reader.readAsDataURL(blob);
   });
 }
 
@@ -323,20 +296,29 @@ export function SelectMatchWorkspace({
   const [scStep,    setScStep]    = useState<"idle" | "scanning" | "result">("idle");
   const [scResult,  setScResult]  = useState<SequenceCheckResult | null>(null);
 
-  /* ── 파일명으로 찾아 이동 — 상태 ── */
-  const [fmRootDir,   setFmRootDir]   = useState<FileSystemDirectoryHandle | null>(null);
-  const [fmText,      setFmText]      = useState("");
-  const [fmFolderName, setFmFolderName] = useState("선택");
-  const [fmStep,      setFmStep]      = useState<"idle" | "scanning" | "result" | "moving" | "done">("idle");
-  const [fmMatches,   setFmMatches]   = useState<{ query: string; name: string; handle: FileSystemFileHandle; parentDir: FileSystemDirectoryHandle; relativePath: string }[]>([]);
-  const [fmMissing,   setFmMissing]   = useState<string[]>([]);
-  const [fmProgress,  setFmProgress]  = useState({ cur: 0, total: 0 });
-  const [fmMovedCount, setFmMovedCount] = useState(0);
-  const [fmOcrLoading, setFmOcrLoading] = useState(false);
-  const [fmOcrMessage, setFmOcrMessage] = useState<{ text: string; ok: boolean } | null>(null);
-  const fmOcrFileRef = useRef<HTMLInputElement>(null);
-  const [fmWorkerRootPath, setFmWorkerRootPath] = useState("");
-  const [fmMoveError, setFmMoveError] = useState("");
+  const {
+    rootDir: fmRootDir,
+    text: fmText,
+    setText: setFmText,
+    folderName: fmFolderName,
+    setFolderName: setFmFolderName,
+    step: fmStep,
+    matches: fmMatches,
+    missing: fmMissing,
+    progress: fmProgress,
+    movedCount: fmMovedCount,
+    ocrLoading: fmOcrLoading,
+    ocrMessage: fmOcrMessage,
+    ocrFileRef: fmOcrFileRef,
+    workerRootPath: fmWorkerRootPath,
+    setWorkerRootPath: setFmWorkerRootPath,
+    moveError: fmMoveError,
+    pickFolder: pickFmFolder,
+    extractNamesFromScreenshot: extractFmNamesFromScreenshot,
+    runFindByName,
+    runMoveMatched,
+    reset: resetFindByName,
+  } = useSelectMatchFindMove({ workerOnline: workerPresence.online });
 
   useEffect(() => {
     if (workerPathDirty) return;
@@ -354,11 +336,6 @@ export function SelectMatchWorkspace({
       ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}`
       : rawName ? `/Volumes/${rawName}` : jpgPath);
   }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir, workerPathDirty]);
-
-  useEffect(() => {
-    if (!fmRootDir) return;
-    setFmWorkerRootPath(`/Volumes/${fmRootDir.name}`);
-  }, [fmRootDir]);
 
   const criteriaFolderKey = rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder";
   const criteriaStorageKey = `olivia-raw-match-criteria:${criteriaFolderKey}`;
@@ -963,132 +940,6 @@ export function SelectMatchWorkspace({
   }, [rawOutputPath]);
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
-
-  /* ── 파일명으로 찾아 이동: 폴더 선택 ── */
-  const pickFmFolder = useCallback(async () => {
-    try {
-      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
-      setFmRootDir(dir);
-    } catch (e: any) {
-      if (e?.name !== "AbortError") alert("폴더 선택 실패");
-    }
-  }, []);
-
-  const extractFmNamesFromScreenshot = useCallback(async (file: File | null) => {
-    if (!file || fmOcrLoading) return;
-    setFmOcrLoading(true);
-    setFmOcrMessage(null);
-    try {
-      const imageBase64 = await prepareScreenshotForOcr(file);
-      const response = await fetch("/api/select-match/ocr-filenames", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64 }),
-      });
-      const data = await response.json().catch(() => null);
-      if (!response.ok || !data?.ok) throw new Error(data?.error || "파일명 추출에 실패했습니다.");
-      setFmText(data.oneLine);
-      setFmOcrMessage({ text: `파일명 ${data.filenames.length}개를 한 줄로 정리했습니다.`, ok: true });
-    } catch (error) {
-      setFmOcrMessage({ text: error instanceof Error ? error.message : "파일명 추출에 실패했습니다.", ok: false });
-    } finally {
-      setFmOcrLoading(false);
-      if (fmOcrFileRef.current) fmOcrFileRef.current.value = "";
-    }
-  }, [fmOcrLoading]);
-
-  /* ── 파일명으로 찾아 이동: 폴더 재귀 검색 + 매칭 ── */
-  const runFindByName = useCallback(async () => {
-    if (!fmRootDir) return;
-    const queries = parseFileNameQueries(fmText);
-    if (queries.length === 0) { alert("파일명을 입력해주세요."); return; }
-    setFmStep("scanning");
-
-    const index = new Map<string, { name: string; handle: FileSystemFileHandle; extLower: string; parentDir: FileSystemDirectoryHandle; relativePath: string }[]>();
-    const scanDir = async (dir: FileSystemDirectoryHandle, depth = 0, relativeDirectory = "") => {
-      if (depth > 5) return;
-      for await (const [name, handle] of (dir as any).entries()) {
-        if (name === fmFolderName) continue; // 출력 폴더는 스킵
-        if ((handle as FileSystemHandle).kind === "directory") {
-          await scanDir(handle as FileSystemDirectoryHandle, depth + 1, relativeDirectory ? `${relativeDirectory}/${name}` : name);
-        } else {
-          const m = (name as string).match(/^(.+)\.([A-Za-z0-9]{2,5})$/);
-          if (!m) continue;
-          const basenameLower = m[1].toLowerCase();
-          const extLower = m[2].toLowerCase();
-          const list = index.get(basenameLower) ?? [];
-          list.push({
-            name: name as string,
-            handle: handle as FileSystemFileHandle,
-            extLower,
-            parentDir: dir,
-            relativePath: relativeDirectory ? `${relativeDirectory}/${name}` : name,
-          });
-          index.set(basenameLower, list);
-        }
-      }
-    };
-    await scanDir(fmRootDir);
-
-    const matches: { query: string; name: string; handle: FileSystemFileHandle; parentDir: FileSystemDirectoryHandle; relativePath: string }[] = [];
-    const missing: string[] = [];
-    for (const q of queries) {
-      const candidates = index.get(q.basenameLower) ?? [];
-      const picked = q.extLower ? candidates.filter((c) => c.extLower === q.extLower) : candidates;
-      if (picked.length === 0) { missing.push(q.raw); continue; }
-      for (const c of picked) matches.push({ query: q.raw, ...c });
-    }
-    // 같은 파일이 여러 질의에 중복 매치되면 하나로 합친다
-    const uniqueMatches = Array.from(new Map(matches.map((m) => [m.relativePath.normalize("NFC"), m])).values());
-
-    setFmMatches(uniqueMatches);
-    setFmMissing(missing);
-    setFmStep("result");
-  }, [fmRootDir, fmText, fmFolderName]);
-
-  /* ── 파일명으로 찾아 이동: 매칭된 파일을 선택 폴더로 이동 ── */
-  const runMoveMatched = useCallback(async () => {
-    if (!fmRootDir || fmMatches.length === 0) return;
-    const unavailableReason = remoteRawMatchUnavailableReason(workerPresence.online);
-    if (unavailableReason) {
-      setFmMoveError(unavailableReason);
-      return;
-    }
-    if (!fmWorkerRootPath.trim()) {
-      setFmMoveError("Mac Studio에서 보이는 기준 폴더 경로를 입력해 주세요.");
-      return;
-    }
-    setFmStep("moving");
-    setFmMoveError("");
-    try {
-      const items = await Promise.all(fmMatches.map(async (match) => ({
-        rawPath: match.relativePath,
-        destDir: fmFolderName,
-        rawAction: "move" as const,
-        rawExpectedSize: (await match.handle.getFile()).size,
-        rawExpectedCaptureTimeMs: null,
-      })));
-      const remoteResult = await runRemoteRawMatchCopy({
-        rawRootPath: fmWorkerRootPath.trim(),
-        items,
-        logRows: [],
-      }, {
-        workerOnline: workerPresence.online,
-        onJob: (job) => {
-          if (job.progress) setFmProgress({ cur: job.progress.current, total: job.progress.total });
-        },
-      });
-      setFmMovedCount(remoteResult.rawMoved);
-      setFmStep("done");
-    } catch (error) {
-      setFmMoveError(error instanceof Error ? error.message : "Mac Studio 파일 이동 작업에 실패했습니다.");
-      setFmStep("result");
-    }
-  }, [fmMatches, fmFolderName, fmRootDir, fmWorkerRootPath, workerPresence.online]);
-
-  const resetFindByName = () => {
-    setFmStep("idle"); setFmMatches([]); setFmMissing([]); setFmMovedCount(0); setFmText(""); setFmOcrMessage(null);
-  };
 
   /* ── 파일 순서 검토: 폴더 선택 ── */
   const pickScFolder = useCallback(async () => {
