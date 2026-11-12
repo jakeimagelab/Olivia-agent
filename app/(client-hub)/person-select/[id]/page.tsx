@@ -13,19 +13,17 @@ import { usePersonSelectUploadManager } from "@/components/person-select/upload/
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
 import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
+import { formatWon } from "@/lib/person-select/core";
+import type { PersonSelectAdminDeliveryItem as DeliveryAdminItem, PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
 import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
 import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin/RawMatchControls";
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
+import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
-type Choice = { id: string; image_id: string; category_key: string; retouch_keys: string[]; memo: string; updated_at: string; person_select_images: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
-type RepresentativeImage = { category_key: string; original_file_name: string; source_rel_path: string; thumb_url: string };
-type DeliveryAdminItem = { id: string; person_id: string | null; group_label: string | null; display_name: string; current_version: number; status: "pending" | "revision_requested" | "revised" | "approved"; customer_memo: string; preview_url: string; link_method: string | null; versions?: Array<{ version: number; uploaded_at: string; customer_memo_snapshot: string }> };
-type Person = { id: string; display_name: string; group_label: string | null; first_seen_at: string | null; submitted_at: string | null; status_label: string; latest_activity_at: string | null; image_counts: Record<string, number>; need_counts: Record<string, number>; choices: Choice[]; representative_image?: RepresentativeImage | null; representative_images?: Record<string, RepresentativeImage>; order?: { lines: OrderLine[]; total: number }; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; delivery_count?: number; delivery_revision_count?: number; deliveries?: DeliveryAdminItem[]; server_selected_count?: number; server_last_saved_at?: string | null; recent_save_failure_count?: number };
 type Category = { key: string; label: string; pick: number };
-type OrderLine = { label: string; detail: string; unitPrice: number; qty: number; amount: number };
 type EventData = { id: string; title: string; slug: string; deadline_at: string; status: string; categories: Category[]; retouch_options: { key: string; label: string }[]; source_layout?: "school" | "person-folders" | "project"; source_relative_path?: string | null; raw_match_result?: Record<string, unknown> | null; raw_matched_at?: string | null ; offer_notice?: string; extra_price?: number; extra_max?: number; offers?: PersonSelectOffer[]; project_type?: PersonSelectProjectType; access_mode?: PersonSelectAccessMode; customer_view_mode?: PersonSelectCustomerViewMode; customer_stage?: "select" | "delivery"; delivery_retention_days?: number; delivery_state?: string; delivery_approved_at?: string | null; delivery_downloaded_at?: string | null; delivery_files_purged_at?: string | null; shared_token?: string | null; shared_link_active?: boolean; shared_token_expires_at?: string | null; nas_download_url?: string | null; customer_ai_results_visible?: boolean };
 type SharedSelectionItem = { image_id: string; customer_rating: number | null; customer_color_label?: number | null; memo: string; image: { original_file_name: string; source_rel_path: string; thumb_url: string } | null };
 type SharedSelection = { id: string; submitted_at: string; customer_memo: string; items: SharedSelectionItem[] };
@@ -37,10 +35,6 @@ type SourceMode = "local" | "remote";
 type Group = { label: string; image_count: number };
 type Filter = "all" | "done" | "saving" | "unseen" | "delivery_revision";
 type UploadKind = "original" | "delivery";
-
-function won(value: number) {
-  return `${Math.round(value).toLocaleString("ko-KR")}원`;
-}
 
 function relativeTime(value: string | null) {
   if (!value) return "—";
@@ -334,7 +328,7 @@ export default function PersonSelectDetailPage() {
       itemId: selectedPerson?.id ?? data.event.id,
       title: data.event.title,
       subtitle: selectedPerson
-        ? `${selectedPerson.display_name} · ${selectedPerson.status_label} · 고른 사진 ${selectedPerson.choices.length} / ${need}장 · 보정 요청 ${retouch}개${selectedPerson.order?.total ? ` · 추가 주문 ${won(selectedPerson.order.total)}` : ""}`
+        ? `${selectedPerson.display_name} · ${selectedPerson.status_label} · 고른 사진 ${selectedPerson.choices.length} / ${need}장 · 보정 요청 ${retouch}개${selectedPerson.order?.total ? ` · 추가 주문 ${formatWon(selectedPerson.order.total)}` : ""}`
         : `마감 ${formatSeoulDeadline(data.event.deadline_at)} · ${data.people.length}명`,
       next: memos.length ? memos.join(" / ") : "행사 진행 현황과 고객 선택을 확인합니다.",
       context: { contextScope: "none", routeHref: `/person-select/${data.event.id}`, resourceId: data.event.id, resourceType: "person-select-event", documentTitle: data.event.title, featureItemId: selectedPerson?.id ?? data.event.id },
@@ -740,7 +734,7 @@ export default function PersonSelectDetailPage() {
                 return <td key={category.key}><span className={styles.thumbs}>{Array.from({ length: Math.min(Math.max(need, own.length), 4) }, (_, index) => { const chosenThumb = own[index]?.person_select_images?.thumb_url; const registeredThumb = index === 0 && !chosenThumb ? registered?.thumb_url : ""; return chosenThumb ? <img key={index} className={styles.thumb} src={chosenThumb} alt="고른 사진" /> : registeredThumb ? <img key={index} className={`${styles.thumb} ${styles.thumbRegistered}`} src={registeredThumb} alt={`${person.display_name} 등록 확인 사진`} title={`${registered?.original_file_name} · 고객 선택 전 등록 확인 사진`} /> : <span key={index} className={styles.thumbEmpty} />; })}<span className={styles.thumbCount}>{own.length > need ? `${own.length}장 (기본 ${need} + 추가 ${own.length - need})` : `${own.length} / ${need}장`}</span></span></td>;
               })}
               <td className={styles.muted}>{requests ? `${requests}개${person.choices.some((choice) => choice.memo) ? " · 메모 있음" : ""}` : person.choices.length ? "기본 보정" : "—"}</td>
-              <td className={person.order?.total ? styles.orderTotal : styles.muted} title={person.order?.lines.map((line) => `${line.label} ${line.detail} ×${line.qty}`).join("\n") ?? ""}>{person.order?.total ? won(person.order.total) : "—"}</td>
+              <td className={person.order?.total ? styles.orderTotal : styles.muted} title={person.order?.lines.map((line) => `${line.label} ${line.detail} ×${line.qty}`).join("\n") ?? ""}>{person.order?.total ? formatWon(person.order.total) : "—"}</td>
               <td><div className={styles.deliveryCell}><strong>{person.delivery_count ? `${person.delivery_count}장` : "—"}</strong>{person.delivery_revision_count ? <span className={styles.deliveryRevision}>수정 요청 {person.delivery_revision_count}장</span> : person.delivery_state === "approved" ? <span>최종 확인</span> : person.delivery_count ? <span>확인 중</span> : null}{person.delivery_downloaded_at ? <small>다운로드 완료</small> : null}<div className={styles.deliveryRowActions}>{person.delivery_count ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("reopen", person.id); }}>다시 열기</button> : null}{person.delivery_approved_at ? <button type="button" onClick={(event) => { event.stopPropagation(); void changeDeliveryOwner("extend", person.id); }}>+30일</button> : null}</div></div></td>
               <td><span className={`${styles.status} ${person.status_label === "미접속" ? styles.statusIdle : person.status_label === "저장 중" ? styles.statusPending : ""}`}>{person.status_label}</span></td>
               <td className={styles.muted} title={person.latest_activity_at ? new Date(person.latest_activity_at).toLocaleString("ko-KR") : ""}>{relativeTime(person.latest_activity_at)}</td>
@@ -854,7 +848,7 @@ export default function PersonSelectDetailPage() {
         <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={deleting} onClick={() => setDeleteOpen(false)}>취소</button><button type="button" className={styles.dangerSolid} disabled={deleting || deleteConfirmTitle.trim() !== currentData.event.title} onClick={() => void deleteProject()}>{deleting ? "삭제 중" : "영구 삭제"}</button></div>
       </section>
     </div> : null}
-    {drawer ? <PersonDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => {
+    {drawer ? <PersonDetailDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => {
       try {
         const response = await fetch(`/api/person-select/${id}/people/${drawer.id}/pin`, { method: "POST" });
         const body = await readApiResponse<{ pin?: string }>(response, "비밀번호 재발급");
@@ -909,17 +903,6 @@ function DeliveryImportResult({ result, people, isShared, assignments, busy, onR
     <div className={styles.result}>올림 {Number(result.uploadedCount).toLocaleString()}장 · 새 버전 {Number(result.newVersionCount ?? 0).toLocaleString()}장 · 자동연결(촬영시각 {Number(result.exifCount ?? 0).toLocaleString()} / 파일명 {Number(result.filenameCount ?? 0).toLocaleString()} / 폴더 {Number(result.folderCount ?? 0).toLocaleString()}) · 연결 안 됨 {Number(result.unassignedCount ?? 0).toLocaleString()}장</div>
     {unassigned.length ? <div className={styles.deliveryAssignments}><strong>연결 안 된 보정본</strong>{unassigned.map((item) => <div key={item.deliveryId} className={styles.deliveryAssignmentRow}><span>{item.fileName}{item.parentFolderName ? ` · ${item.parentFolderName}` : ""}</span>{isShared ? <input className={styles.input} value={assignments[item.deliveryId] ?? item.parentFolderName ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)} placeholder="그룹 이름" /> : <select className={styles.select} value={assignments[item.deliveryId] ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)}><option value="">고객 선택</option>{people.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}</select>}<button className={styles.secondary} onClick={() => onAssign(item.deliveryId)}>연결</button></div>)}</div> : null}
   </div>;
-}
-
-function PersonDrawer({ person, personWord, eventId, labels, categoryLabels, options, onClose, onSaved, onPin }: { person: Person; personWord: string; eventId: string; labels: Map<string, string>; categoryLabels: Map<string, string>; options: { key: string; label: string }[]; onClose: () => void; onSaved: () => Promise<void>; onPin: () => Promise<void> }) {
-  const [editing, setEditing] = useState<string | null>(null);
-  const [memo, setMemo] = useState("");
-  const [keys, setKeys] = useState<string[]>([]);
-  async function save(choice: Choice) {
-    const response = await fetch(`/api/person-select/${eventId}/choices/${choice.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ retouch_keys: keys, memo }) });
-    if (!response.ok) return; setEditing(null); await onSaved();
-  }
-  return <div className={styles.drawerBackdrop} onClick={onClose}><aside className={styles.drawer} onClick={(e) => e.stopPropagation()}><div className={styles.drawerTop}><div><p className={styles.eyebrow}>상세</p><h2>{person.display_name}{personWord ? ` ${personWord}` : ""}</h2></div><button className={styles.weak} onClick={onClose}><X /></button></div>{person.choices.map((choice) => <section className={styles.choiceDetail} key={choice.id}>{choice.person_select_images ? <img src={choice.person_select_images.thumb_url} alt="고른 사진" /> : null}<h3>{categoryLabels.get(choice.category_key) ?? choice.category_key}</h3><p>{choice.person_select_images?.original_file_name}</p>{editing === choice.id ? <><div className={styles.chipGrid}>{options.map((option) => <button key={option.key} className={`${styles.chip} ${keys.includes(option.key) ? styles.chipActive : ""}`} onClick={() => setKeys(keys.includes(option.key) ? keys.filter((key) => key !== option.key) : [...keys, option.key])}>{option.label}</button>)}</div><textarea className={styles.textarea} value={memo} onChange={(e) => setMemo(e.target.value)} /><div className={styles.actions} style={{ justifyContent: "flex-start", marginTop: 10 }}><button className={styles.primary} onClick={() => void save(choice)}>관리자 수정 저장</button><button className={styles.secondary} onClick={() => setEditing(null)}>취소</button></div></> : <><p>{choice.retouch_keys.map((key) => labels.get(key) || key).join(" / ") || "기본 보정"}</p><p>{choice.memo || "메모 없음"}</p><button className={styles.secondary} onClick={() => { setEditing(choice.id); setKeys(choice.retouch_keys); setMemo(choice.memo); }}>관리자 수정</button></>}</section>)}{person.order?.lines.length ? <section className={styles.choiceDetail}><h3>추가 주문 · {won(person.order.total)}</h3>{person.order.lines.map((line, index) => <p key={index}>{line.label}{line.detail ? ` · ${line.detail}` : ""} — {line.qty} × {won(line.unitPrice)} = {won(line.amount)}</p>)}</section> : null}<button className={styles.secondary} style={{ marginTop: 18 }} onClick={() => void onPin()}><RefreshCw size={15} style={{ verticalAlign: -3, marginRight: 5 }} />PIN 재발급</button></aside></div>;
 }
 
 /** "6R (6x8inch) = 30000" 한 줄을 선택지로 읽는다. 3만, 30,000원 같은 표기도 받는다. */
