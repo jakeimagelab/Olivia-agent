@@ -63,6 +63,10 @@ import { useOliviaBridgePhotoNavigation } from "@/components/olivia-bridge/useOl
 import { useOliviaBridgeVisibleFiles } from "@/components/olivia-bridge/useOliviaBridgeVisibleFiles";
 import { useOliviaBridgeSelectionState } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
 import {
+  useOliviaBridgeEffectiveMarks,
+  useOliviaBridgeRatingPublisher,
+} from "@/components/olivia-bridge/useOliviaBridgeMarkSync";
+import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
   BridgePersonSelectionDialog,
@@ -99,10 +103,8 @@ import {
   BRIDGE_COLOR_LABELS,
   EMPTY_BRIDGE_LABEL_FILTERS,
   bridgeLabelFilterName,
-  resolveBridgeRatings,
   updateBridgeLabelFilters,
   type BridgeColorLabel,
-  type BridgeColorLabels,
   type BridgeLabelFilterCommand,
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
@@ -113,7 +115,6 @@ import {
   projectBridgeColorLabelsByName,
   projectBridgeRatingsByName,
   projectBridgeSelectedFiles,
-  resolveBridgeRatingsByName,
 } from "@/lib/photo-bridge/selectionProjection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
@@ -234,7 +235,6 @@ export default function OliviaBridgeWorkspace({
   const compactFilterButtonRef = useRef<HTMLButtonElement>(null);
   const previewPanelRef = useRef<HTMLElement>(null);
   const remoteLoadGenerationRef = useRef(0);
-  const lastPublishedRatingsRef = useRef<Record<string, number> | null>(null);
   const topNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rawMatchOpenTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -339,18 +339,15 @@ export default function OliviaBridgeWorkspace({
     remoteFolder,
     workspaceRef: rootRef,
   });
-  const publishRatingsForSource = useCallback((
-    source: BridgeSelectionSource,
-    nextAdobe: Record<string, number>,
-  ) => {
-    const resolved = resolveBridgeRatings(source, ratingsRef.current, nextAdobe, ratingEditsRef.current);
-    const byId = Object.fromEntries(scan.jpgs.flatMap((photo) => resolved[photo.id] ? [[photo.id, resolved[photo.id]] as const] : []));
-    lastPublishedRatingsRef.current = byId;
-    setJpgRatingsByName(
-      projectBridgeRatingsByName(scan.jpgs, resolved),
-      { overwrite: true },
-    );
-  }, [scan.jpgs, setJpgRatingsByName]);
+  const { publishRatingsForSource, rememberPublishedRatings } = useOliviaBridgeRatingPublisher({
+    jpgs: scan.jpgs,
+    selectionSource,
+    jpgRatingsByName,
+    setJpgRatingsByName,
+    setRatings,
+    ratingsRef,
+    ratingEditsRef,
+  });
 
   const {
     adobeRatings,
@@ -402,17 +399,16 @@ export default function OliviaBridgeWorkspace({
       displayPath: displayParts.join("/"),
     };
   }, [remoteFolder]);
-  const effectiveRatings = useMemo(
-    () => resolveBridgeRatings(selectionSource, ratings, adobeRatings, ratingEdits),
-    [adobeRatings, ratingEdits, ratings, selectionSource],
-  );
-  const effectiveColorLabels = useMemo<BridgeColorLabels>(() => (
-    selectionSource === "olivia"
-      ? colorLabels
-      : selectionSource === "adobe"
-        ? adobeColorLabels
-        : { ...adobeColorLabels, ...colorLabels }
-  ), [adobeColorLabels, colorLabels, selectionSource]);
+  const { effectiveRatings, effectiveColorLabels } = useOliviaBridgeEffectiveMarks({
+    jpgs: scan.jpgs,
+    selectionSource,
+    ratings,
+    adobeRatings,
+    ratingEdits,
+    colorLabels,
+    adobeColorLabels,
+    setJpgColorLabelsByName,
+  });
   const rawMarkByFileKey = useMemo(() => new Map(scan.raws.flatMap((raw) => {
     const mark = rawAdobeMarks[raw.id];
     return mark ? [[normalizePhotoToolFileKey(raw.name), mark] as const] : [];
@@ -516,33 +512,6 @@ export default function OliviaBridgeWorkspace({
   const updateFloatingWindowRect = useCallback((windowId: string, rect: BridgeFloatingWindowRect) => {
     floatingWindowRectsRef.current[windowId] = rect;
   }, []);
-
-  useEffect(() => {
-    setJpgColorLabelsByName(
-      projectBridgeColorLabelsByName(scan.jpgs, effectiveColorLabels),
-      { overwrite: true },
-    );
-  }, [effectiveColorLabels, scan.jpgs, setJpgColorLabelsByName]);
-
-  useEffect(() => {
-    const next = resolveBridgeRatingsByName(scan.jpgs, jpgRatingsByName);
-    const published = lastPublishedRatingsRef.current;
-    if (published) {
-      const publishedEntries = Object.entries(published);
-      const nextEntries = Object.entries(next);
-      if (publishedEntries.length === nextEntries.length && publishedEntries.every(([id, rating]) => next[id] === rating)) {
-        lastPublishedRatingsRef.current = null;
-        return;
-      }
-    }
-    if (selectionSource !== "olivia") return;
-    setRatings((current) => {
-      const currentEntries = Object.entries(current);
-      const nextEntries = Object.entries(next);
-      if (currentEntries.length === nextEntries.length && currentEntries.every(([id, rating]) => next[id] === rating)) return current;
-      return next;
-    });
-  }, [jpgRatingsByName, scan.jpgs, selectionSource]);
 
   useEffect(() => () => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
@@ -762,7 +731,7 @@ export default function OliviaBridgeWorkspace({
       if (generation !== remoteLoadGenerationRef.current) return;
       const jpgs = snapshot.jpgs;
       setScan({ ...EMPTY_SCAN, jpgs });
-      lastPublishedRatingsRef.current = {};
+      rememberPublishedRatings({});
       setJpgRatingsByName(projectBridgeRatingsByName(jpgs, {}), { overwrite: true });
       setJpgColorLabelsByName(projectBridgeColorLabelsByName(jpgs, {}), { overwrite: true });
       setFocusedId(jpgs[0]?.id ?? null);
@@ -776,7 +745,7 @@ export default function OliviaBridgeWorkspace({
       setRemoteLoadProgress(null);
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
-  }, [resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
+  }, [rememberPublishedRatings, resetAdobeMarks, resetSelectionState, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
 
   const remoteFolderQuery = useMemo(() => {
     if (!routeHref) return sp.get("remoteFolder");

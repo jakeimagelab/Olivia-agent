@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveBridgeRatings } from "@/lib/photo-bridge/labels";
+import { resolveBridgeColorLabels, resolveBridgeRatings } from "@/lib/photo-bridge/labels";
 import {
   DEFAULT_BRIDGE_SELECTION_SOURCE,
   normalizeBridgeSelectionSource,
@@ -36,5 +36,14 @@ describe("Olivia Bridge selection source", () => {
     expect(normalizeBridgeSelectionSource(null)).toBe("olivia");
     expect(normalizeBridgeSelectionSource("unknown")).toBe("olivia");
     expect(normalizeBridgeSelectionSource("adobe")).toBe("adobe");
+  });
+
+  it("컬러 기준별로 올리비아·어도비 값을 같은 우선순위로 합친다", () => {
+    const base = { manual: 6, shared: 8 } as const;
+    const adobe = { adobe: 7, shared: 9 } as const;
+
+    expect(resolveBridgeColorLabels("olivia", base, adobe)).toEqual(base);
+    expect(resolveBridgeColorLabels("adobe", base, adobe)).toEqual(adobe);
+    expect(resolveBridgeColorLabels("both", base, adobe)).toEqual({ adobe: 7, shared: 8, manual: 6 });
   });
 });

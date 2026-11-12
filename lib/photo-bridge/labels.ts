@@ -78,6 +78,16 @@ export function resolveBridgeRatings(
   return next;
 }
 
+export function resolveBridgeColorLabels(
+  source: BridgeSelectionSource,
+  base: Readonly<BridgeColorLabels>,
+  adobe: Readonly<BridgeColorLabels>,
+): BridgeColorLabels {
+  if (source === "olivia") return { ...base };
+  if (source === "adobe") return { ...adobe };
+  return { ...adobe, ...base };
+}
+
 export function isBridgeColorLabel(value: unknown): value is BridgeColorLabel {
   return value === 6 || value === 7 || value === 8 || value === 9;
 }
