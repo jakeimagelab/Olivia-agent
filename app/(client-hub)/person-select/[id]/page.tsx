@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
 import { formatSeoulDeadline, formatSeoulDateTimeInput } from "@/lib/person-select/date";
-import { DEFAULT_PERSON_SELECT_EXTRA_MAX, DEFAULT_PERSON_SELECT_EXTRA_PRICE, DEFAULT_PERSON_SELECT_NOTICE, DEFAULT_PERSON_SELECT_OFFERS, type PersonSelectAccessMode, type PersonSelectCustomerViewMode, type PersonSelectOffer, type PersonSelectProjectType } from "@/lib/person-select/types";
+import { type PersonSelectAccessMode, type PersonSelectCustomerViewMode, type PersonSelectOffer, type PersonSelectProjectType } from "@/lib/person-select/types";
 import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type LocalPersonSelectScan } from "@/lib/person-select/localImport";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
@@ -21,6 +21,7 @@ import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImag
 import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin/RawMatchControls";
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";
+import { OfferSettings } from "@/components/person-select/admin/OfferSettings";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Category = { key: string; label: string; pick: number };
@@ -43,7 +44,6 @@ function relativeTime(value: string | null) {
   if (minutes < 60 * 24) return `${Math.round(minutes / 60)}시간 전`;
   return new Intl.RelativeTimeFormat("ko", { numeric: "auto" }).format(-Math.round(minutes / 1440), "day");
 }
-
 function folderName(value: string | null | undefined) {
   if (!value) return "";
   return value.split("/").filter(Boolean).at(-1) ?? value;
@@ -902,73 +902,5 @@ function DeliveryImportResult({ result, people, isShared, assignments, busy, onR
   return <div className={styles.deliveryImportResult}>
     <div className={styles.result}>올림 {Number(result.uploadedCount).toLocaleString()}장 · 새 버전 {Number(result.newVersionCount ?? 0).toLocaleString()}장 · 자동연결(촬영시각 {Number(result.exifCount ?? 0).toLocaleString()} / 파일명 {Number(result.filenameCount ?? 0).toLocaleString()} / 폴더 {Number(result.folderCount ?? 0).toLocaleString()}) · 연결 안 됨 {Number(result.unassignedCount ?? 0).toLocaleString()}장</div>
     {unassigned.length ? <div className={styles.deliveryAssignments}><strong>연결 안 된 보정본</strong>{unassigned.map((item) => <div key={item.deliveryId} className={styles.deliveryAssignmentRow}><span>{item.fileName}{item.parentFolderName ? ` · ${item.parentFolderName}` : ""}</span>{isShared ? <input className={styles.input} value={assignments[item.deliveryId] ?? item.parentFolderName ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)} placeholder="그룹 이름" /> : <select className={styles.select} value={assignments[item.deliveryId] ?? ""} onChange={(event) => onAssignmentChange(item.deliveryId, event.target.value)}><option value="">고객 선택</option>{people.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}</select>}<button className={styles.secondary} onClick={() => onAssign(item.deliveryId)}>연결</button></div>)}</div> : null}
-  </div>;
-}
-
-/** "6R (6x8inch) = 30000" 한 줄을 선택지로 읽는다. 3만, 30,000원 같은 표기도 받는다. */
-function parsePrice(text: string) {
-  const value = text.replace(/[,\s원]/g, "");
-  const man = value.match(/^(\d+(?:\.\d+)?)만$/);
-  if (man) return Math.round(Number(man[1]) * 10_000);
-  return /^\d+$/.test(value) ? Number(value) : NaN;
-}
-
-function optionsToText(offer: PersonSelectOffer) {
-  return offer.options.map((option) => `${option.label} = ${option.price}`).join("\n");
-}
-
-function textToOptions(text: string, previous: PersonSelectOffer["options"]) {
-  return text.split("\n").map((line) => line.trim()).filter(Boolean).map((line, index) => {
-    const at = line.lastIndexOf("=");
-    const label = (at >= 0 ? line.slice(0, at) : line).trim();
-    const price = at >= 0 ? parsePrice(line.slice(at + 1)) : NaN;
-    // 이미 받은 주문이 끊기지 않게 같은 이름의 선택지는 기존 구분값을 그대로 쓴다.
-    const key = previous.find((option) => option.label === label)?.key ?? `opt-${Date.now().toString(36)}-${index}`;
-    return { key, label, price: Number.isFinite(price) ? price : -1 };
-  });
-}
-
-/** 행사 설정: 고객 안내 문구, 추가 보정 가격, 신청받을 상품 */
-function OfferSettings({ event, onChange }: { event: EventData; onChange: (patch: Partial<EventData>) => void }) {
-  const offers = event.offers ?? [];
-  const [optionTexts, setOptionTexts] = useState<Record<string, string>>(() => Object.fromEntries(offers.map((offer) => [offer.key, optionsToText(offer)])));
-  const empty = !event.offer_notice && !event.extra_price && !offers.length;
-  const setOffer = (index: number, patch: Partial<PersonSelectOffer>) => onChange({ offers: offers.map((offer, offerIndex) => offerIndex === index ? { ...offer, ...patch } : offer) });
-  function fillDefaults() {
-    onChange({ offer_notice: DEFAULT_PERSON_SELECT_NOTICE, extra_price: DEFAULT_PERSON_SELECT_EXTRA_PRICE, extra_max: DEFAULT_PERSON_SELECT_EXTRA_MAX, offers: DEFAULT_PERSON_SELECT_OFFERS });
-    setOptionTexts(Object.fromEntries(DEFAULT_PERSON_SELECT_OFFERS.map((offer) => [offer.key, optionsToText(offer)])));
-  }
-  function addOffer() {
-    const key = `offer-${Date.now().toString(36)}`;
-    onChange({ offers: [...offers, { key, label: "", unit: "개", price: 0, note: "", needs_photo: false, options: [] }] });
-    setOptionTexts({ ...optionTexts, [key]: "" });
-  }
-  return <div className={`${styles.field} ${styles.fieldFull}`}>
-    <label>고객 안내 · 추가 주문</label>
-    <div className={styles.offerBox}>
-      {empty ? <div className={styles.offerEmpty}><span>아직 안내 문구와 상품이 없어요.</span><button className={styles.secondary} onClick={fillDefaults}>기본값 불러오기 (추가 보정 5만원 · 액자 · 앨범)</button></div> : null}
-      <div className={styles.field}><small className={styles.summary}>고객 화면 맨 위에 보이는 글</small><textarea className={styles.textarea} maxLength={2000} value={event.offer_notice ?? ""} onChange={(e) => onChange({ offer_notice: e.target.value })} placeholder="예: 한 분당 보정본 1장을 드립니다." /></div>
-      <div className={styles.offerRow}>
-        <div className={styles.field}><small className={styles.summary}>추가 보정 가격 (장당, 0이면 추가로 못 고름)</small><input className={styles.input} inputMode="numeric" value={event.extra_price ?? 0} onChange={(e) => onChange({ extra_price: Number(e.target.value.replace(/\D/g, "")) || 0 })} /></div>
-        <div className={styles.field}><small className={styles.summary}>더 고를 수 있는 최대 장수</small><select className={styles.select} value={event.extra_max ?? 0} onChange={(e) => onChange({ extra_max: Number(e.target.value) })}>{Array.from({ length: 21 }, (_, n) => <option key={n} value={n}>{n}장</option>)}</select></div>
-      </div>
-      {offers.map((offer, index) => <div key={offer.key} className={styles.offerItem}>
-        <div className={styles.offerRow}>
-          <div className={styles.field}><small className={styles.summary}>상품 이름</small><input className={styles.input} value={offer.label} onChange={(e) => setOffer(index, { label: e.target.value })} placeholder="예: 액자 제작" /></div>
-          <div className={styles.field}><small className={styles.summary}>단위</small><input className={styles.input} value={offer.unit} onChange={(e) => setOffer(index, { unit: e.target.value })} placeholder="개, 권" /></div>
-          <div className={styles.field}><small className={styles.summary}>가격 (크기 선택지가 없을 때)</small><input className={styles.input} inputMode="numeric" value={offer.price} onChange={(e) => setOffer(index, { price: Number(e.target.value.replace(/\D/g, "")) || 0 })} disabled={Boolean(offer.options.length)} /></div>
-        </div>
-        <div className={styles.offerRow}>
-          <div className={styles.field}><small className={styles.summary}>크기·종류 선택지 (한 줄에 하나: 이름 = 가격)</small><textarea className={styles.textarea} value={optionTexts[offer.key] ?? optionsToText(offer)} onChange={(e) => { setOptionTexts({ ...optionTexts, [offer.key]: e.target.value }); setOffer(index, { options: textToOptions(e.target.value, offer.options) }); }} placeholder={"6R (6x8inch) = 30000\n16R (16x20inch) = 100000"} /></div>
-          <div className={styles.field}><small className={styles.summary}>구성 설명 (고객에게 보임)</small><textarea className={styles.textarea} value={offer.note} onChange={(e) => setOffer(index, { note: e.target.value })} placeholder={"20P 블랙가죽\n5x7inch 액자 포함"} /></div>
-        </div>
-        <div className={styles.offerFoot}>
-          <label className={styles.check}><input type="checkbox" checked={offer.needs_photo} onChange={(e) => setOffer(index, { needs_photo: e.target.checked })} /> 고객이 고른 사진 중 하나를 지정 (액자 등)</label>
-          <button className={styles.weak} onClick={() => onChange({ offers: offers.filter((_, offerIndex) => offerIndex !== index) })}><Trash2 size={14} /> 상품 빼기</button>
-        </div>
-        {offer.options.some((option) => option.price < 0) ? <p className={styles.disabledReason}>가격을 읽지 못한 줄이 있어요. &quot;이름 = 30000&quot; 처럼 적어주세요.</p> : null}
-      </div>)}
-      <button className={styles.secondary} onClick={addOffer}><Plus size={15} />상품 추가</button>
-    </div>
   </div>;
 }
