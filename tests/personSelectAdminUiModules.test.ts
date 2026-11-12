@@ -20,13 +20,18 @@ describe("person select admin UI modules", () => {
   it("keeps the page as the shell for the extracted dialogs", () => {
     const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8");
     const importController = readFileSync("components/person-select/admin/hooks/usePersonSelectImportController.ts", "utf8");
+    const projectActions = readFileSync("components/person-select/admin/hooks/usePersonSelectProjectActions.ts", "utf8");
     expect(page).toContain('from "@/components/person-select/admin/SelectionSyncDialog"');
     expect(page).toContain('from "@/components/person-select/upload/DeliveryImportResult"');
     expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectImportController"');
+    expect(page).toContain('from "@/components/person-select/admin/hooks/usePersonSelectProjectActions"');
     expect(page).not.toContain("function SelectionSyncDialog(");
     expect(page).not.toContain("function DeliveryImportResult(");
     expect(page).not.toContain("async function startRemoteImport(");
+    expect(page).not.toContain("async function deleteProject(");
     expect(importController).toContain('action: "PERSON_SELECT_IMPORT"');
     expect(importController).toContain("startDeliveryImport");
+    expect(projectActions).toContain("ACCESS_MODE_CONFIRMATION_REQUIRED");
+    expect(projectActions).toContain('method: "DELETE"');
   });
 });

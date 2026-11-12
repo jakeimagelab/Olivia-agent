@@ -26,6 +26,7 @@ import { usePersonSelectAdminData } from "@/components/person-select/admin/hooks
 import { usePersonSelectReviewerActions } from "@/components/person-select/admin/hooks/usePersonSelectReviewerActions";
 import { usePersonSelectRawMatchController } from "@/components/person-select/admin/hooks/usePersonSelectRawMatchController";
 import { usePersonSelectImportController } from "@/components/person-select/admin/hooks/usePersonSelectImportController";
+import { usePersonSelectProjectActions } from "@/components/person-select/admin/hooks/usePersonSelectProjectActions";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -56,9 +57,6 @@ export default function PersonSelectDetailPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawer, setDrawer] = useState<Person | null>(null);
   const [pinListOpen, setPinListOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmTitle, setDeleteConfirmTitle] = useState("");
-  const [deleting, setDeleting] = useState(false);
   const [layout, setLayout] = useState<Layout | null>(null);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
@@ -86,12 +84,6 @@ export default function PersonSelectDetailPage() {
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
   }, []);
-  useEffect(() => {
-    if (!deleteOpen || deleting) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setDeleteOpen(false); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [deleteOpen, deleting]);
   const filtered = useMemo(() => (data?.people ?? []).filter((person) => {
     if (filter === "done") return person.status_label.includes("제출");
     if (filter === "saving") return person.status_label === "선택 중";
@@ -208,8 +200,25 @@ export default function PersonSelectDetailPage() {
     onOriginalImportComplete: handleOriginalImportComplete,
     setMessage: setError,
   });
+  const {
+    deleteOpen,
+    setDeleteOpen,
+    deleteConfirmTitle,
+    setDeleteConfirmTitle,
+    deleting,
+    saveGroups,
+    saveSettings,
+    openDeleteDialog,
+    deleteProject,
+  } = usePersonSelectProjectActions({
+    eventId: id,
+    data,
+    assignments,
+    load,
+    navigate,
+    setMessage: setError,
+  });
   if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
-  const currentData = data;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
   const sharedReviewers = data.shared?.reviewers ?? [];
   const selectedReviewer = sharedReviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? sharedReviewers[0] ?? null;
@@ -224,54 +233,6 @@ export default function PersonSelectDetailPage() {
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
-  async function saveGroups() {
-    try {
-      const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) });
-      await readApiResponse(response, "인원 연결 저장");
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "인원 연결을 저장하지 못했습니다.");
-    }
-  }
-  async function saveSettings(patch: Record<string, unknown>) {
-    if (patch.status === "open") {
-      const unassigned = currentData.groups.filter((group) => !assignments[group.label]);
-      if (unassigned.length && !window.confirm(`담임 선생님이 연결되지 않은 반이 ${unassigned.length}개 있습니다. 그래도 행사를 열까요?`)) return;
-    }
-    setError("");
-    const requestSave = async (confirmed = false): Promise<void> => {
-      const payload = confirmed ? { ...patch, confirm_access_mode_impact: true } : patch;
-      const response = await fetch(`/api/person-select/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const body = await response.json().catch(() => ({}));
-      if (response.ok) { await load(); return; }
-      if (body.code === "ACCESS_MODE_CONFIRMATION_REQUIRED") {
-        if (window.confirm(body.warning || body.error || "공용 링크 전환의 영향을 확인하고 계속할까요?")) await requestSave(true);
-        return;
-      }
-      setError(body.error || "설정을 저장하지 못했습니다.");
-    };
-    await requestSave();
-  }
-  async function deleteProject() {
-    if (deleteConfirmTitle.trim() !== currentData.event.title) return;
-    setDeleting(true); setError("");
-    try {
-      const response = await fetch(`/api/person-select/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirmTitle: deleteConfirmTitle.trim() }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok || !body.ok) throw new Error(body.error || "프로젝트를 삭제하지 못했습니다.");
-      setDeleteOpen(false);
-      navigate("/person-select");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "프로젝트를 삭제하지 못했습니다.");
-      setDeleteOpen(false);
-    } finally {
-      setDeleting(false);
-    }
-  }
   const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
   const loginGuide = isShared ? "공용 링크에서 프로젝트 사진을 함께 선택해 주세요" : isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
   const publicPath = isShared && data.event.shared_token ? `/pick/shared/${data.event.shared_token}` : `/pick/${data.event.slug}`;
@@ -448,7 +409,7 @@ export default function PersonSelectDetailPage() {
             })}</div>
           </div> : null}
         </div>
-        <div className={styles.formActions}><button type="button" className={styles.danger} onClick={() => { setDeleteConfirmTitle(""); setDeleteOpen(true); }}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", customer_stage: data.event.customer_stage ?? "select", delivery_retention_days: data.event.delivery_retention_days ?? 30, nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
+        <div className={styles.formActions}><button type="button" className={styles.danger} onClick={openDeleteDialog}><Trash2 size={15} />프로젝트 삭제</button><button className={styles.secondary} onClick={() => saveSettings({ title: data.event.title, deadline_at: data.event.deadline_at, status: data.event.status, categories, project_type: data.event.project_type ?? "general", access_mode: data.event.access_mode ?? "individual", customer_view_mode: data.event.customer_view_mode ?? "classic", customer_stage: data.event.customer_stage ?? "select", delivery_retention_days: data.event.delivery_retention_days ?? 30, nas_download_url: data.event.nas_download_url ?? null, customer_ai_results_visible: data.event.customer_ai_results_visible === true, offer_notice: data.event.offer_notice ?? "", extra_price: data.event.extra_price ?? 0, extra_max: data.event.extra_max ?? 0, offers: data.event.offers ?? [] })}>설정 저장</button></div>
       </section> : null}
     </section>
     {rawDialogOpen ? <RawMatchDialog
@@ -477,9 +438,9 @@ export default function PersonSelectDetailPage() {
     {deleteOpen ? <div className={styles.modalBackdrop} onClick={() => { if (!deleting) setDeleteOpen(false); }}>
       <section className={`${styles.pinDialog} ${styles.deleteDialog}`} role="dialog" aria-modal="true" aria-labelledby="delete-project-title" onClick={(event) => event.stopPropagation()}>
         <div className={styles.modalTop}><div><p className={styles.eyebrow}>되돌릴 수 없는 작업</p><h2 id="delete-project-title">프로젝트 삭제</h2><p>사진, 참가자, 선택·주문·제출 기록과 업로드한 미리보기 파일을 함께 삭제합니다.</p></div><button type="button" className={styles.weak} aria-label="닫기" disabled={deleting} onClick={() => setDeleteOpen(false)}><X size={20} /></button></div>
-        <div className={styles.warning} role="alert">삭제하려면 프로젝트명 <strong>{currentData.event.title}</strong>을 아래에 정확히 입력해 주세요. 업로드 중인 프로젝트는 삭제할 수 없습니다.</div>
+        <div className={styles.warning} role="alert">삭제하려면 프로젝트명 <strong>{data.event.title}</strong>을 아래에 정확히 입력해 주세요. 업로드 중인 프로젝트는 삭제할 수 없습니다.</div>
         <div className={styles.field}><label htmlFor="delete-project-confirm">프로젝트명 확인</label><input id="delete-project-confirm" className={styles.input} autoFocus value={deleteConfirmTitle} disabled={deleting} onChange={(event) => setDeleteConfirmTitle(event.target.value)} autoComplete="off" /></div>
-        <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={deleting} onClick={() => setDeleteOpen(false)}>취소</button><button type="button" className={styles.dangerSolid} disabled={deleting || deleteConfirmTitle.trim() !== currentData.event.title} onClick={() => void deleteProject()}>{deleting ? "삭제 중" : "영구 삭제"}</button></div>
+        <div className={styles.modalActions}><button type="button" className={styles.secondary} disabled={deleting} onClick={() => setDeleteOpen(false)}>취소</button><button type="button" className={styles.dangerSolid} disabled={deleting || deleteConfirmTitle.trim() !== data.event.title} onClick={() => void deleteProject()}>{deleting ? "삭제 중" : "영구 삭제"}</button></div>
       </section>
     </div> : null}
     {drawer ? <PersonDetailDrawer person={data.people.find((person) => person.id === drawer.id) ?? drawer} personWord={isSchool ? "선생님" : ""} eventId={id} labels={labels} categoryLabels={categoryLabels} options={data.event.retouch_options} onClose={() => setDrawer(null)} onSaved={load} onPin={async () => {
