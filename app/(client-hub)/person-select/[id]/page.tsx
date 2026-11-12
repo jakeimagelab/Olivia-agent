@@ -11,7 +11,6 @@ import { collectLocalPersonSelectFileList, collectLocalPersonSelectFolder, type 
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { PERSON_SELECT_ACCESS_MODE_LABELS, PERSON_SELECT_CUSTOMER_VIEW_LABELS, PERSON_SELECT_PROJECT_TYPE_LABELS } from "@/lib/person-select/projectSettings";
-import { PERSON_SELECT_RAW_LABEL_NAMES, resolveIndividualRawMatchTargets, resolvePersonSelectRawMatchPathPlan, resolveSharedRawMatchTargets, type PersonSelectRawLabelNames, type PersonSelectRawMatchMode, type PersonSelectRawMatchSource } from "@/lib/person-select/rawMatch";
 import { canPersonSelectReviewerFinalize } from "@/lib/person-select/reviewerPermissions";
 import { formatRelativeTime, formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
@@ -27,6 +26,7 @@ import { SelectionSyncDialog } from "@/components/person-select/admin/SelectionS
 import { DeliveryImportResult } from "@/components/person-select/upload/DeliveryImportResult";
 import { usePersonSelectAdminData } from "@/components/person-select/admin/hooks/usePersonSelectAdminData";
 import { usePersonSelectReviewerActions } from "@/components/person-select/admin/hooks/usePersonSelectReviewerActions";
+import { usePersonSelectRawMatchController } from "@/components/person-select/admin/hooks/usePersonSelectRawMatchController";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -77,16 +77,6 @@ export default function PersonSelectDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deliveryAssignments, setDeliveryAssignments] = useState<Record<string, string>>({});
   const [layout, setLayout] = useState<Layout | null>(null);
-  const [rawJobId, setRawJobId] = useState("");
-  const [rawResult, setRawResult] = useState<Record<string, unknown> | null>(null);
-  const [rawDialogOpen, setRawDialogOpen] = useState(false);
-  const [rawMode, setRawMode] = useState<PersonSelectRawMatchMode>("copy");
-  const [rawSource, setRawSource] = useState<PersonSelectRawMatchSource>("submitted");
-  const [rawLabelNames, setRawLabelNames] = useState<PersonSelectRawLabelNames>({ ...PERSON_SELECT_RAW_LABEL_NAMES });
-  const [rawReviewerScope, setRawReviewerScope] = useState("all");
-  const rawOptionsLoadedRef = useRef(false);
-  const rawOptionsSkipFirstWriteRef = useRef(true);
-  const rawSourceSavedRef = useRef(false);
   const [syncDialogOpen, setSyncDialogOpen] = useState(false);
   const navigate = (href: string) => windowRoute.navigate ? windowRoute.navigate(href, "개인별 사진 셀렉") : router.push(href);
   const {
@@ -113,43 +103,6 @@ export default function PersonSelectDetailPage() {
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
   }, []);
-  useEffect(() => {
-    rawOptionsLoadedRef.current = false;
-    rawOptionsSkipFirstWriteRef.current = true;
-    rawSourceSavedRef.current = false;
-    try {
-      const raw = localStorage.getItem(`olivia-person-select-raw-options:${id}`);
-      const stored = JSON.parse(raw ?? "{}") as {
-        mode?: PersonSelectRawMatchMode;
-        source?: PersonSelectRawMatchSource;
-        labelNames?: Partial<Record<"6" | "7" | "8" | "9", string>>;
-      };
-      if (stored.mode === "copy" || stored.mode === "mark") setRawMode(stored.mode);
-      if (stored.source === "submitted" || stored.source === "current") {
-        setRawSource(stored.source);
-        rawSourceSavedRef.current = true;
-      }
-      if (stored.labelNames) setRawLabelNames({
-        6: stored.labelNames[6]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[6],
-        7: stored.labelNames[7]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[7],
-        8: stored.labelNames[8]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[8],
-        9: stored.labelNames[9]?.trim() || PERSON_SELECT_RAW_LABEL_NAMES[9],
-      });
-    } catch {
-      // 브라우저 저장소가 막힌 환경에서도 기본값으로 계속 진행한다.
-    } finally {
-      rawOptionsLoadedRef.current = true;
-    }
-  }, [id]);
-  useEffect(() => {
-    if (!rawOptionsLoadedRef.current) return;
-    if (rawOptionsSkipFirstWriteRef.current) { rawOptionsSkipFirstWriteRef.current = false; return; }
-    try {
-      localStorage.setItem(`olivia-person-select-raw-options:${id}`, JSON.stringify({ mode: rawMode, source: rawSource, labelNames: rawLabelNames }));
-    } catch {
-      // 저장소 접근 실패는 실행 자체를 막지 않는다.
-    }
-  }, [id, rawLabelNames, rawMode, rawSource]);
   useRemoteJobPoller({
     jobId,
     label: "사진 가져오기 상태",
@@ -170,15 +123,6 @@ export default function PersonSelectDetailPage() {
         setError(`보정본 가져오기 실패: ${String(nextResult.error ?? job.error ?? "작업 결과를 확인해 주세요.")}`);
       }
       setDeliveryJobId("");
-      await load();
-    },
-  });
-  useRemoteJobPoller({
-    jobId: rawJobId,
-    label: "RAW 매칭 상태",
-    onTerminal: async (job) => {
-      setRawJobId("");
-      setRawResult(resolveRemoteJobResult(job));
       await load();
     },
   });
@@ -250,6 +194,34 @@ export default function PersonSelectDetailPage() {
     setSelectedReviewerId,
     setMessage: setError,
   });
+  const {
+    rawDialogOpen,
+    setRawDialogOpen,
+    rawMode,
+    setRawMode,
+    rawSource,
+    changeRawSource,
+    rawLabelNames,
+    setRawLabelNames,
+    rawReviewerScope,
+    setRawReviewerScope,
+    rawPreview,
+    rawBusy,
+    rawDisabledReason,
+    rawDisabled,
+    rawPathPlan,
+    displayedRawResult,
+    rawResult,
+    openRawMatchDialog,
+    startRawMatch,
+  } = usePersonSelectRawMatchController({
+    eventId: id,
+    data,
+    isShared,
+    workerOnline,
+    load,
+    setMessage: setError,
+  });
   if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
   const currentData = data;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
@@ -267,10 +239,6 @@ export default function PersonSelectDetailPage() {
   const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
   const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
   const sourceFolder = folderName(data.event.source_relative_path);
-  const rawPathPlan = resolvePersonSelectRawMatchPathPlan(
-    data.event.source_relative_path ?? "",
-    isShared ? "프로젝트" : "<이름>",
-  );
   async function selectLocalFolder() {
     const showDirectoryPicker = (window as Window & { showDirectoryPicker?: (options?: { mode?: "read" }) => Promise<FileSystemDirectoryHandle> }).showDirectoryPicker;
     if (!showDirectoryPicker) { localInputRef.current?.click(); return; }
@@ -374,32 +342,6 @@ export default function PersonSelectDetailPage() {
       setError(cause instanceof Error ? cause.message : "보정본 상태를 바꾸지 못했습니다.");
     }
   }
-  async function startRawMatch(clearMark = false) {
-    setError(""); setRawResult(null);
-    const payload = {
-      event_id: id,
-      mode: clearMark ? "mark" : rawMode,
-      source: rawSource,
-      labelNames: rawLabelNames,
-      ...(clearMark ? { clear_mark: true } : {}),
-      ...(isShared && rawReviewerScope !== "all" ? { reviewerIds: [rawReviewerScope] } : {}),
-    };
-    let body: { job?: { id?: string }; id?: string };
-    try {
-      const response = await fetch("/api/remote-jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "PERSON_SELECT_RAW_MATCH", payload }) });
-      body = await readApiResponse(response, "RAW 매칭");
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "RAW 매칭을 시작하지 못했습니다.");
-      return;
-    }
-    setRawDialogOpen(false);
-    setRawJobId(body.job?.id || body.id || "");
-    setRawResult({ message: clearMark
-      ? "로우 셀렉 표시를 이전 값으로 복원하고 있어요."
-      : rawMode === "mark"
-        ? "고객 별점과 컬러를 원본 RAW의 XMP에 기록하고 있어요."
-        : rawSource === "current" ? "제출 전 선택을 포함해 RAW 매칭을 시작했어요." : "최종 제출본 RAW 매칭을 시작했어요." });
-  }
   async function saveGroups() {
     try {
       const response = await fetch(`/api/person-select/${id}/groups`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ assignments: currentData.groups.map((group) => ({ group: group.label, person_id: assignments[group.label] || null })) }) });
@@ -458,63 +400,7 @@ export default function PersonSelectDetailPage() {
   const filters: [Filter, string, number][] = [["all", "전체", data.people.length], ["done", "제출 완료", counts.done], ["saving", "선택 중", counts.saving], ["unseen", "미접속", counts.unseen], ["delivery_revision", "수정 요청", counts.deliveryRevision]];
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
   const unnamedFolders = Array.isArray(result?.unnamedFolders) ? (result.unnamedFolders as unknown[]).map(String) : [];
-  const rawBusy = Boolean(rawJobId);
-  const sharedImageById = new Map((data.shared?.images ?? []).map((image) => [image.id, {
-    id: image.id,
-    originalFileName: image.original_file_name,
-    sourceRelPath: image.relative_path ?? image.original_file_name,
-  }]));
-  const sharedSubmittedByReviewer = new Map(sharedReviewers.map((reviewer) => [reviewer.id, (reviewer.selection?.items ?? []).flatMap((item) => {
-    const image = sharedImageById.get(item.image_id);
-    return image ? [{
-      ...image,
-      customerRating: item.customer_rating ?? 1,
-      customerColorLabel: item.customer_color_label ?? null,
-      markSavedAt: reviewer.selection?.submitted_at ?? null,
-    }] : [];
-  })]));
-  const sharedDraftByReviewer = new Map(sharedReviewers.flatMap((reviewer) => reviewer.draft ? [[reviewer.id, reviewer.draft.selectedImageIds.flatMap((imageId) => {
-    const image = sharedImageById.get(imageId);
-    return image ? [{
-      ...image,
-      customerRating: reviewer.draft?.ratings?.[imageId] ?? 1,
-      customerColorLabel: reviewer.draft?.colorLabels?.[imageId] ?? null,
-      markSavedAt: reviewer.draft?.updated_at ?? null,
-    }] : [];
-  })] as const] : []));
-  const sharedRawInput = {
-    reviewers: sharedReviewers.map((reviewer) => ({ id: reviewer.id, displayName: reviewer.display_name, active: reviewer.active })),
-    reviewerIds: rawReviewerScope === "all" ? undefined : [rawReviewerScope],
-    submittedByReviewer: sharedSubmittedByReviewer,
-    draftByReviewer: sharedDraftByReviewer,
-  };
-  const individualRawInput = {
-    people: data.people.map((person) => ({ id: person.id, displayName: person.display_name, submittedAt: person.submitted_at })),
-    choices: data.people.flatMap((person) => person.choices.map((choice) => ({
-      personId: person.id,
-      image: choice.person_select_images ? { id: choice.image_id, originalFileName: choice.person_select_images.original_file_name, sourceRelPath: choice.person_select_images.source_rel_path } : null,
-    }))),
-  };
-  const rawPreview = isShared
-    ? resolveSharedRawMatchTargets({ source: rawSource, ...sharedRawInput })
-    : resolveIndividualRawMatchTargets({ source: rawSource, ...individualRawInput });
-  const rawSubmittedAll = isShared
-    ? resolveSharedRawMatchTargets({ source: "submitted", ...sharedRawInput, reviewerIds: undefined })
-    : resolveIndividualRawMatchTargets({ source: "submitted", ...individualRawInput });
-  const rawCurrentAll = isShared
-    ? resolveSharedRawMatchTargets({ source: "current", ...sharedRawInput, reviewerIds: undefined })
-    : resolveIndividualRawMatchTargets({ source: "current", ...individualRawInput });
-  const hasRawSelection = rawSubmittedAll.targets.length > 0 || rawCurrentAll.targets.length > 0;
-  const rawDisabledReason = !hasRawSelection ? "고른 사진이 없어요." : !data.event.source_relative_path ? "원본 폴더를 Mac Studio 위치로 연결해 주세요." : workerOnline === null ? "Mac Studio 상태를 확인하고 있어요." : workerOnline === false ? "Mac Studio가 꺼져 있어요." : "";
-  const rawDisabled = rawBusy || Boolean(rawDisabledReason);
-  function openRawMatchDialog() {
-    const defaultSource = rawSubmittedAll.targets.length === 0 && rawCurrentAll.targets.length > 0 ? "current" : "submitted";
-    if (!rawSourceSavedRef.current) setRawSource(defaultSource);
-    setRawReviewerScope("all");
-    setRawDialogOpen(true);
-  }
   const rawAction = <button className={styles.bridgeRawButton} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭 기준을 확인합니다."} onClick={openRawMatchDialog}><Link2 size={15} />{rawBusy ? "RAW 매칭 중" : "RAW 매칭"}</button>;
-  const displayedRawResult = rawResult ?? data.event.raw_match_result ?? null;
   const rawStatus = rawDisabledReason || displayedRawResult ? <>{rawDisabledReason ? <p className={styles.rawDisabledReason}>{rawDisabledReason}</p> : null}<RawMatchResult result={displayedRawResult} at={rawResult ? null : data.event.raw_matched_at ?? null} busy={rawBusy} onClear={() => void startRawMatch(true)} onRetry={openRawMatchDialog} /></> : null;
   const finalizeReviewerCount = sharedReviewers.filter((reviewer) => reviewer.active && canPersonSelectReviewerFinalize(reviewer)).length;
   return <main className={styles.shell}>
@@ -687,7 +573,7 @@ export default function PersonSelectDetailPage() {
       mode={rawMode}
       onModeChange={setRawMode}
       source={rawSource}
-      onSourceChange={(source) => { rawSourceSavedRef.current = true; setRawSource(source); }}
+      onSourceChange={changeRawSource}
       labelNames={rawLabelNames}
       onLabelNamesChange={setRawLabelNames}
       isShared={isShared}
