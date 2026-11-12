@@ -6,14 +6,12 @@ import {
   ChevronRight,
   Download,
   Expand,
-  Folder,
   FolderOpen,
   Images,
   MessageCircle,
   PanelLeft,
   RotateCcw,
   Sparkles,
-  X,
 } from "lucide-react";
 import {
   useCallback,
@@ -44,7 +42,6 @@ import {
   type BridgeLabelFilters,
 } from "@/lib/photo-bridge/labels";
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
-import PhotoQualityJobProgressView from "@/components/photo-quality/PhotoQualityJobProgress";
 import { useSelectionSyncQueue } from "@/components/person-select/useSelectionSyncQueue";
 import { sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
@@ -83,6 +80,7 @@ import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
 import { CustomerBridgeBrowserPanel } from "./CustomerBridgeBrowserPanel";
+import { CustomerBridgeFolderPanel } from "./CustomerBridgeFolderPanel";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -481,6 +479,7 @@ export default function CustomerBridgeSelect({
   }, [activeImageIds, focusedImageId, toggleColorTo]);
 
   const closeMobileSide = useCallback(() => setMobileSideOpen(false), [setMobileSideOpen]);
+  const closeCompactFolders = useCallback(() => setCompactFoldersOpen(false), []);
 
   const handleQualityReview = useCallback((imageId: string, status: "confirmed_issue" | "confirmed_normal") => {
     void reviewQuality(imageId, status);
@@ -709,26 +708,30 @@ export default function CustomerBridgeSelect({
 
     <section className={styles.workspace} style={workspaceStyle}>
       {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}
-      <aside className={styles.folderPanel} data-compact-open={compactFoldersOpen || undefined}>
-        <div className={styles.panelTitle}><span>폴더</span><button type="button" onClick={() => setCompactFoldersOpen(false)} aria-label="폴더 닫기"><X size={15} /></button></div>
-        <div className={styles.folderPanelScroll}>
-        <button type="button" className={location.kind === "root" ? styles.rootFolderActive : styles.rootFolder} onClick={() => openLocation({ kind: "root" })}><FolderOpen size={17} /><span>프로젝트</span><b>{rootView.folders.length}</b></button>
-        <button type="button" className={`${styles.rootFolder} ${location.kind === "all" ? styles.rootFolderActive : ""}`} onClick={() => openLocation({ kind: "all" })}><Images size={17} /><span>전체 사진</span><b>{totalImageCount}</b></button>
-        <div className={styles.folderList}>
-          {hasRootPhotos ? <button type="button" className={location.kind === "folder" && location.path === "" ? styles.activeFolder : ""} onClick={() => openLocation({ kind: "folder", path: "" })}><FolderOpen size={15} /><span>루트 사진</span><b>{rootPhotoCount}</b></button> : null}
-          {folderTree.map((folder) => <button key={folder.path} type="button" className={location.kind === "folder" && location.path === folder.path ? styles.activeFolder : ""} style={{ "--folder-depth": folder.depth } as CSSProperties} onClick={() => openLocation({ kind: "folder", path: folder.path })}><Folder size={15} /><span>{folder.name}</span><b>{folder.totalCount}</b></button>)}
-        </div>
-        <div className={styles.filterList}><small>고객 셀렉</small>{(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{value === "all" ? "전체 사진" : value === "selected" ? "선택한 사진" : "선택하지 않은 사진"}</span><b>{location.kind === "root" ? "–" : value === "all" ? locationTotalCount : value === "selected" ? selectedInFolder : unselectedInLocation}</b></button>)}</div>
-        {qualityApi ? <div className={styles.filterList}><small>AI 품질 검사</small>{([
-          ["eyes_closed", "눈감음 의심"],
-          ["face_too_dark", "얼굴 어두움 의심"],
-          ["motion_blur", "흔들림 의심"],
-          ["quality_review", "확인 필요"],
-          ["quality_normal", "정상"],
-        ] as const).map(([value, label]) => <button key={value} type="button" className={filter === value ? styles.activeFilter : ""} disabled={location.kind === "root"} onClick={() => setFilter(value)}><span>{label}</span><b>{location.kind === "root" ? "–" : qualityCounts[value]}</b></button>)}{qualityState ? <p className={styles.qualityState}>{qualityState}</p> : null}<PhotoQualityJobProgressView job={qualityJob} tone="light" />{canManageQuality && qualityJob && ["queued", "running"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("pause")}><span>검사 일시정지</span></button> : null}{canManageQuality && qualityJob?.status === "paused" ? <button type="button" onClick={() => void controlQuality("resume")}><span>검사 계속</span></button> : null}{canManageQuality && qualityJob && ["failed", "partial_failed"].includes(String(qualityJob.status ?? "")) ? <button type="button" onClick={() => void controlQuality("retry")}><span>실패 사진 재시도</span></button> : null}</div> : null}
-        </div>
-        <div className={styles.folderSummary}><span>전체<b>{totalImageCount}</b></span><span>작업 대상<b>{activeImageIds.size}</b></span><span>고객 셀렉<b>{customerSelectedIds.size}</b></span></div>
-      </aside>
+      <CustomerBridgeFolderPanel
+        compactOpen={compactFoldersOpen}
+        location={location}
+        folderTree={folderTree}
+        rootFolderCount={rootView.folders.length}
+        totalImageCount={totalImageCount}
+        hasRootPhotos={hasRootPhotos}
+        rootPhotoCount={rootPhotoCount}
+        filter={filter}
+        locationTotalCount={locationTotalCount}
+        selectedInFolder={selectedInFolder}
+        unselectedInLocation={unselectedInLocation}
+        qualityEnabled={Boolean(qualityApi)}
+        qualityCounts={qualityCounts}
+        qualityState={qualityState}
+        qualityJob={qualityJob}
+        canManageQuality={canManageQuality}
+        activeImageCount={activeImageIds.size}
+        selectedImageCount={customerSelectedIds.size}
+        onCloseCompact={closeCompactFolders}
+        onOpenLocation={openLocation}
+        onFilterChange={setFilter}
+        onControlQuality={controlQuality}
+      />
 
       <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
 
