@@ -61,8 +61,6 @@ import { useSelectionSyncQueue, SelectionSyncRequestError } from "@/components/p
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import { FinalSelectionSubmitDialog } from "@/components/person-select/FinalSelectionSubmitDialog";
 import {
-  adjacentSelectionMediaIds,
-  mergeSelectionMediaUrlRecords,
   SELECTION_THUMBNAIL_PAGE_SIZE,
   type SelectionMediaUrls,
   type SelectionMediaVariant,
@@ -79,7 +77,6 @@ import {
   CustomerBridgeThumbnailCard,
   RatingStars,
   StablePreviewImage,
-  useAdjacentPreviewPreload,
 } from "./CustomerBridgeMedia";
 import type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import { PhotoOverlay, ReviewOverlay } from "./CustomerBridgeOverlays";
@@ -87,6 +84,7 @@ import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
+import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -145,20 +143,11 @@ export default function CustomerBridgeSelect({
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
-  const [imageUrlOverrides, setImageUrlOverrides] = useState<Record<string, SelectionMediaUrls>>({});
-  const refreshInFlightRef = useRef(new Map<string, Promise<void>>());
-  const mediaBatchInFlightRef = useRef(new Set<string>());
-  const images = useMemo(() => initialImages.map((image) => imageUrlOverrides[image.id] ? { ...image, ...imageUrlOverrides[image.id] } : image), [imageUrlOverrides, initialImages]);
-  const handleImageError = useCallback((imageId: string) => {
-    if (!refreshImageUrl || refreshInFlightRef.current.has(imageId)) return;
-    const request = refreshImageUrl(imageId)
-      .then((urls) => { setImageUrlOverrides((current) => mergeSelectionMediaUrlRecords(current, { [imageId]: urls })); })
-      .catch(() => undefined)
-      .finally(() => refreshInFlightRef.current.delete(imageId));
-    refreshInFlightRef.current.set(imageId, request);
-  }, [refreshImageUrl]);
-  const imageIds = useMemo(() => new Set(images.map((image) => image.id)), [images]);
-  const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
+  const { images, imageIds, imageById, handleImageError, requestMedia } = useCustomerBridgeMediaStore({
+    initialImages,
+    refreshImageUrl,
+    loadImageUrls,
+  });
   const seedMarks = useMemo(() => normalizeCustomerBridgeSelectionMarks({
     selectedImageIds: initialDraft?.selectedImageIds ?? (initialSelection?.items ?? []).map((item) => item.image_id),
     ratings: initialDraft?.ratings
@@ -420,53 +409,15 @@ export default function CustomerBridgeSelect({
     fullscreenOpenRef.current = openFullscreen;
   }, [openFullscreen]);
 
-  useEffect(() => {
-    if (!loadImageUrls) return;
-    const missingIds = renderedImages.map((image) => image.id)
-      .filter((id) => {
-        const image = imageById.get(id);
-        return image && !image.thumbnail_url && !mediaBatchInFlightRef.current.has(`thumbnail:${id}`);
-      })
-      .slice(0, PAGE_SIZE);
-    if (!missingIds.length) return;
-    missingIds.forEach((id) => mediaBatchInFlightRef.current.add(`thumbnail:${id}`));
-    let cancelled = false;
-    void loadImageUrls(missingIds, { variant: "thumbnail" })
-      .then((urls) => {
-        if (cancelled || !Object.keys(urls).length) return;
-        setImageUrlOverrides((current) => mergeSelectionMediaUrlRecords(current, urls));
-      })
-      .catch(() => undefined)
-      .finally(() => missingIds.forEach((id) => mediaBatchInFlightRef.current.delete(`thumbnail:${id}`)));
-    return () => { cancelled = true; };
-  }, [imageById, loadImageUrls, renderedImages]);
-
-  useEffect(() => {
-    if (!loadImageUrls) return;
-    const requested = new Set([
-      ...adjacentSelectionMediaIds(visibleImages, focusedImageId),
-      ...adjacentSelectionMediaIds(visibleImages, fullscreenId),
-      ...adjacentSelectionMediaIds(reviewImages, reviewActiveId),
-    ]);
-    const missingIds = Array.from(requested).filter((id) => {
-      const image = imageById.get(id);
-      return image && !image.image_url && !mediaBatchInFlightRef.current.has(`preview:${id}`);
-    });
-    if (!missingIds.length) return;
-    missingIds.forEach((id) => mediaBatchInFlightRef.current.add(`preview:${id}`));
-    let cancelled = false;
-    void loadImageUrls(missingIds, { variant: "preview" })
-      .then((urls) => {
-        if (cancelled || !Object.keys(urls).length) return;
-        setImageUrlOverrides((current) => mergeSelectionMediaUrlRecords(current, urls));
-      })
-      .catch(() => undefined)
-      .finally(() => missingIds.forEach((id) => mediaBatchInFlightRef.current.delete(`preview:${id}`)));
-    return () => { cancelled = true; };
-  }, [focusedImageId, fullscreenId, imageById, loadImageUrls, reviewActiveId, reviewImages, visibleImages]);
-
-  useAdjacentPreviewPreload(visibleImages, fullscreenId ?? focusedImageId);
-  useAdjacentPreviewPreload(reviewImages, reviewActiveId);
+  useCustomerBridgeMediaRequests({
+    renderedImages,
+    visibleImages,
+    focusedImageId,
+    fullscreenId,
+    reviewImages,
+    reviewActiveId,
+    requestMedia,
+  });
 
   const loadQuality = useCallback(async (options?: { quiet?: boolean; jobOnly?: boolean }) => {
     if (!qualityApi) return;

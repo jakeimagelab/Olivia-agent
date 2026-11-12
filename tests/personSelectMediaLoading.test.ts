@@ -1,10 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { adjacentSelectionMediaIds, mergeSelectionMediaUrlRecords, SELECTION_THUMBNAIL_PAGE_SIZE } from "@/lib/select-gallery/mediaLoading";
+import {
+  adjacentSelectionMediaIds,
+  mergeSelectionMediaUrlCache,
+  mergeSelectionMediaUrlRecords,
+  SELECTION_MEDIA_URL_CACHE_LIMIT,
+  SELECTION_THUMBNAIL_PAGE_SIZE,
+} from "@/lib/select-gallery/mediaLoading";
 import { mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
 
 describe("person select media loading", () => {
   it("limits the first thumbnail page to a small shared batch", () => {
     expect(SELECTION_THUMBNAIL_PAGE_SIZE).toBe(72);
+    expect(SELECTION_MEDIA_URL_CACHE_LIMIT).toBeGreaterThan(SELECTION_THUMBNAIL_PAGE_SIZE);
+  });
+
+  it("keeps a bounded least-recently-used URL cache", () => {
+    let cache = mergeSelectionMediaUrlCache({ records: {}, order: [] }, {
+      a: { thumbnail_url: "thumb-a" },
+      b: { thumbnail_url: "thumb-b" },
+    }, 2);
+    cache = mergeSelectionMediaUrlCache(cache, { a: { image_url: "preview-a" } }, 2);
+    cache = mergeSelectionMediaUrlCache(cache, { c: { thumbnail_url: "thumb-c" } }, 2);
+
+    expect(cache.order).toEqual(["a", "c"]);
+    expect(cache.records).toEqual({
+      a: { thumbnail_url: "thumb-a", image_url: "preview-a" },
+      c: { thumbnail_url: "thumb-c" },
+    });
   });
 
   it("merges a preview URL without dropping an existing thumbnail URL", () => {
