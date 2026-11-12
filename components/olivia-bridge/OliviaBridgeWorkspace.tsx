@@ -747,6 +747,15 @@ export default function OliviaBridgeWorkspace({
   const [rawAdobeMarks, setRawAdobeMarks] = useState<Record<string, AdobeBridgeMark>>({});
   const [ratingEdits, setRatingEdits] = useState<BridgeRatingEdits>({});
   const [adobeSelectionLoading, setAdobeSelectionLoading] = useState(false);
+  const [adobeMarkStatus, setAdobeMarkStatus] = useState({
+    read: 0,
+    total: 0,
+    rated: 0,
+    colored: 0,
+    failed: 0,
+    failedFileNames: [] as string[],
+    firstError: null as string | null,
+  });
   const [colorLabels, setColorLabels] = useState<BridgeColorLabels>({});
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
   const [previewSize, setPreviewSize] = useState<{ width: number; height: number }>();
@@ -1433,6 +1442,7 @@ export default function OliviaBridgeWorkspace({
       adobeColorLabelsRef.current = {};
       commitSelectedIds(manualSelectedIdsRef.current, new Set());
       setAdobeSelectionLoading(false);
+      setAdobeMarkStatus({ read: 0, total: 0, rated: 0, colored: 0, failed: 0, failedFileNames: [], firstError: null });
       return;
     }
 
@@ -1447,6 +1457,8 @@ export default function OliviaBridgeWorkspace({
         const nextColors: BridgeColorLabels = {};
         const nextRawMarks: Record<string, AdobeBridgeMark> = {};
         const nextAdobeIds = new Set<string>();
+        const rated = remote.ratings.filter((mark) => mark.rating !== null).length;
+        const colored = remote.ratings.filter((mark) => mark.colorLabel !== null).length;
         for (const photo of scan.jpgs) {
           const mark = byKey.get(normalizePhotoToolFileKey(photo.name));
           if (!mark) continue;
@@ -1461,6 +1473,7 @@ export default function OliviaBridgeWorkspace({
         setAdobeRatings(nextRatings);
         setAdobeColorLabels(nextColors);
         setRawAdobeMarks(nextRawMarks);
+        setAdobeMarkStatus({ read: remote.scanned, total: remote.scanned, rated, colored, failed: 0, failedFileNames: [], firstError: null });
         adobeRatingsRef.current = nextRatings;
         adobeColorLabelsRef.current = nextColors;
         publishRatingsForSource(selectionSourceRef.current, nextRatings);
@@ -1468,6 +1481,7 @@ export default function OliviaBridgeWorkspace({
       } catch (error) {
         if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         console.error("[olivia-bridge] Failed to sync remote Adobe Bridge ratings", error);
+        setAdobeMarkStatus((current) => ({ ...current, failed: Math.max(1, current.failed), firstError: error instanceof Error ? error.message : String(error) }));
       } finally {
         if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
       }
@@ -1485,7 +1499,14 @@ export default function OliviaBridgeWorkspace({
           parentHandle: photo.parentHandle,
           relativeDirectory: photo.relativeDirectory,
         }));
-      const found = await collectAdobeBridgeMarks(activeFolder!, localPhotos, { signal });
+      setAdobeMarkStatus({ read: 0, total: localPhotos.length, rated: 0, colored: 0, failed: 0, failedFileNames: [], firstError: null });
+      const found = await collectAdobeBridgeMarks(activeFolder!, localPhotos, {
+        signal,
+        onProgress: (progress) => {
+          if (generation !== adobeSelectionGenerationRef.current) return;
+          setAdobeMarkStatus((current) => ({ ...current, ...progress }));
+        },
+      });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
       const nextRatings: Record<string, number> = {};
       const nextColors: BridgeColorLabels = {};
@@ -1494,19 +1515,28 @@ export default function OliviaBridgeWorkspace({
       // 파일명 기준 공용 저장소에도 넣는다. 손으로 준 별점은 applyRating이 넣고 있는데
       // 어도비에서 읽어온 별점만 빠져 있어서, RAW 매칭·사진 셀렉이 그 별점을 못 받았다.
       for (const photo of scan.jpgs) {
-        const mark = found.get(normalizePhotoToolFileKey(photo.name));
+        const mark = found.marks.get(normalizePhotoToolFileKey(photo.name));
         if (!mark) continue;
         if (mark.rating) nextRatings[photo.id] = mark.rating;
         if (mark.colorLabel) nextColors[photo.id] = mark.colorLabel;
         nextAdobeIds.add(photo.id);
       }
       for (const raw of scan.raws) {
-        const mark = found.get(normalizePhotoToolFileKey(raw.name));
+        const mark = found.marks.get(normalizePhotoToolFileKey(raw.name));
         if (mark) nextRawMarks[raw.id] = mark;
       }
       setAdobeRatings(nextRatings);
       setAdobeColorLabels(nextColors);
       setRawAdobeMarks(nextRawMarks);
+      setAdobeMarkStatus({
+        read: found.read,
+        total: found.total,
+        rated: found.rated,
+        colored: found.colored,
+        failed: found.failed,
+        failedFileNames: found.failedFileNames,
+        firstError: found.firstError,
+      });
       adobeRatingsRef.current = nextRatings;
       adobeColorLabelsRef.current = nextColors;
       publishRatingsForSource(selectionSourceRef.current, nextRatings);
@@ -1514,6 +1544,7 @@ export default function OliviaBridgeWorkspace({
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
       console.error("[olivia-bridge] Failed to sync Adobe Bridge ratings", error);
+      setAdobeMarkStatus((current) => ({ ...current, failed: Math.max(1, current.failed), firstError: error instanceof Error ? error.message : String(error) }));
     } finally {
       if (generation === adobeSelectionGenerationRef.current) setAdobeSelectionLoading(false);
     }
@@ -2454,6 +2485,16 @@ export default function OliviaBridgeWorkspace({
           <span>셀렉 기준</span>
           {(["olivia", "adobe", "both"] as const).map((source) => <button key={source} type="button" data-active={selectionSource === source ? "true" : undefined} aria-pressed={selectionSource === source} onClick={() => changeSelectionSource(source)}>{source === "olivia" ? "올리비아" : source === "adobe" ? "어도비" : "둘 다"}</button>)}
         </div>
+        {selectionSource !== "olivia" ? <div
+          className={styles.adobeMarkStatus}
+          title={adobeMarkStatus.failedFileNames.length ? `실패: ${adobeMarkStatus.failedFileNames.join(", ")}${adobeMarkStatus.firstError ? ` · ${adobeMarkStatus.firstError}` : ""}` : undefined}
+        >
+          <span>{adobeSelectionLoading
+            ? `어도비 별점 읽는 중… ${(adobeMarkStatus.read + adobeMarkStatus.failed).toLocaleString("ko-KR")}/${adobeMarkStatus.total.toLocaleString("ko-KR")}`
+            : `어도비 별점 ${adobeMarkStatus.rated.toLocaleString("ko-KR")}장 · 컬러 ${adobeMarkStatus.colored.toLocaleString("ko-KR")}장`}</span>
+          {adobeMarkStatus.failed ? <b>실패 {adobeMarkStatus.failed.toLocaleString("ko-KR")}장</b> : null}
+          <button type="button" disabled={adobeSelectionLoading} onClick={() => void syncAdobeBridgeSelection()}>다시 읽기</button>
+        </div> : null}
         <div className={styles.breadcrumbs} aria-label="현재 폴더 경로">
           {remoteFolder ? <span>NAS · {remoteFolder.displayPath}</span> : breadcrumbs.length ? breadcrumbs.map((item, index) => (
             <span key={`${item.name}-${index}`}>{index ? <ChevronRight size={12} /> : null}<button type="button" onClick={() => void loadDirectory(item.handle, breadcrumbs.slice(0, index + 1))}>{item.name}</button></span>

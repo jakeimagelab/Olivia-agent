@@ -613,8 +613,17 @@ export function saveDesktopState() {
 // knownAppIds는 호출부(OliviaDesktop.tsx)가 oliviaAppRegistry에서 뽑아 넘긴다 — 이 store
 // 파일이 components/의 Registry(그리고 그 안의 무거운 앱 컴포넌트들)를 직접 import하지
 // 않기 위해서다.
-export function loadDesktopState(knownAppIds: Set<string>) {
+export function loadDesktopState(knownAppIds: Set<string>, options: { startAtHome?: boolean } = {}) {
   if (typeof window === "undefined") return;
+  if (options.startAtHome) {
+    useOliviaDesktopStore.setState({
+      activeWindowId: null,
+      dragHint: null,
+      dockHint: null,
+      showDesktopStash: null,
+      tiledSnapshot: null,
+    });
+  }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return;
@@ -645,7 +654,9 @@ export function loadDesktopState(knownAppIds: Set<string>) {
       };
     }
     const migratedActiveAppId = migratePersistedAppId(parsed.activeAppId);
-    const activeAppId = migratedActiveAppId && windows[migratedActiveAppId] ? migratedActiveAppId : null;
+    const activeAppId = options.startAtHome
+      ? null
+      : migratedActiveAppId && windows[migratedActiveAppId] ? migratedActiveAppId : null;
     useOliviaDesktopStore.setState({
       windows, activeWindowId: activeAppId, nextZIndex: zIndex, openCount: valid.length,
     });

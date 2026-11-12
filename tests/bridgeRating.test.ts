@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { collectAdobeBridgeMarks, collectAdobeBridgeRatings, readColorLabelFromXmpText } from "@/lib/selectMatch/bridgeRating";
+import { collectAdobeBridgeMarks, collectAdobeBridgeRatings, readBridgeMarkEmbedded, readColorLabelFromXmpText } from "@/lib/selectMatch/bridgeRating";
 
 function xmpFile(rating?: number) {
   const text = rating
@@ -36,7 +36,30 @@ describe("Adobe Bridge rating sync", () => {
   it("reads rating and color together from a RAW sidecar", async () => {
     const root = directory({ files: { "IMG_1000.xmp": new Blob(['<rdf:Description xmp:Rating="5" xmp:Label="Approved" />']) as File } });
     const result = await collectAdobeBridgeMarks(root, [{ name: "IMG_1000.CR3" }]);
-    expect(result.get("img_1000")).toEqual({ rating: 5, colorLabel: 8 });
+    expect(result.marks.get("img_1000")).toEqual({ rating: 5, colorLabel: 8 });
+    expect(result).toMatchObject({ read: 1, rated: 1, colored: 1, failed: 0 });
+  });
+
+  it("reads embedded rating and color after the old 128KB boundary", async () => {
+    const prefix = "x".repeat(300 * 1024);
+    const file = new Blob([prefix, '<x:xmpmeta><rdf:Description xmp:Rating="5" xmp:Label="Select" /></x:xmpmeta>']) as File;
+    await expect(readBridgeMarkEmbedded(file)).resolves.toEqual({ rating: 5, colorLabel: 6 });
+  });
+
+  it("uses sidecar values ahead of embedded XMP for rating and color", async () => {
+    const root = directory({ files: { "IMG_1002.xmp": new Blob(['<rdf:Description xmp:Rating="2" xmp:Label="Review" />']) as File } });
+    const embedded = new Blob(['<x:xmpmeta><rdf:Description xmp:Rating="5" xmp:Label="Approved" /></x:xmpmeta>']) as File;
+    const result = await collectAdobeBridgeMarks(root, [{ name: "IMG_1002.JPG", file: embedded }]);
+    expect(result.marks.get("img_1002")).toEqual({ rating: 2, colorLabel: 9 });
+  });
+
+  it("reports failed files instead of silently discarding read errors", async () => {
+    const root = directory({});
+    const result = await collectAdobeBridgeMarks(root, [{
+      name: "BROKEN.JPG",
+      handle: { getFile: async () => { throw new Error("permission denied"); } } as unknown as FileSystemFileHandle,
+    }]);
+    expect(result).toMatchObject({ read: 0, failed: 1, failedFileNames: ["BROKEN.JPG"], firstError: "permission denied" });
   });
   it("re-reads the file handle so ratings written after the folder scan are visible", async () => {
     const getFile = vi.fn(async () => xmpFile(4));

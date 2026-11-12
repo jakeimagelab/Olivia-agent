@@ -1,10 +1,12 @@
 import type { BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
-import { buildRawIndex } from "@/lib/selectMatch/rawIndex";
+import { buildRawIndex, shouldSkipRawScanDirectory } from "@/lib/selectMatch/rawIndex";
 
 export type RawFolderDiscoveryAttempt = {
   name: string;
   distance: 0 | 1 | 2;
   matchedSamples: number;
+  status: "checked" | "timeout" | "error";
+  message?: string;
 };
 
 export type RawFolderDiscoveryResult = {
@@ -44,7 +46,8 @@ export function representativeRawBasenames(names: Iterable<string>, limit = 2): 
 export async function discoverRawFolder(input: {
   candidates: readonly BridgeRawFolderCandidate[];
   selectedNames: Iterable<string>;
-  onCandidate?: (candidate: BridgeRawFolderCandidate) => void;
+  onCandidate?: (candidate: BridgeRawFolderCandidate, index: number, total: number) => void;
+  candidateTimeoutMs?: number;
 }): Promise<RawFolderDiscoveryResult> {
   const samples = representativeRawBasenames(input.selectedNames);
   const attempts: RawFolderDiscoveryAttempt[] = [];
@@ -53,14 +56,45 @@ export async function discoverRawFolder(input: {
   const targets = new Set(samples);
   let best: { candidate: BridgeRawFolderCandidate; matchedSamples: number } | null = null;
 
-  for (const candidate of input.candidates.slice(0, 3)) {
-    input.onCandidate?.(candidate);
-    const index = await buildRawIndex(candidate.handle, null, undefined, targets, { stopAfterFirstPerTarget: true });
-    const matchedSamples = samples.reduce((count, basename) => count + (index.has(basename) ? 1 : 0), 0);
-    attempts.push({ name: candidate.name, distance: candidate.distance, matchedSamples });
-    if (!best || matchedSamples > best.matchedSamples) best = { candidate, matchedSamples };
-    if (matchedSamples === samples.length) {
-      return { candidate, samples, matchedSamples, attempts };
+  const candidates = input.candidates.filter((candidate) => !shouldSkipRawScanDirectory(candidate.name)).slice(0, 3);
+  const timeoutMs = Math.max(1, input.candidateTimeoutMs ?? 5_000);
+  for (let candidateIndex = 0; candidateIndex < candidates.length; candidateIndex += 1) {
+    const candidate = candidates[candidateIndex];
+    input.onCandidate?.(candidate, candidateIndex + 1, candidates.length);
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const index = await Promise.race([
+        buildRawIndex(candidate.handle, null, undefined, targets, {
+          stopAfterFirstPerTarget: true,
+          maxDepth: 2,
+          signal: controller.signal,
+        }),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            controller.abort();
+            reject(new Error("RAW_DISCOVERY_TIMEOUT"));
+          }, timeoutMs);
+        }),
+      ]);
+      const matchedSamples = samples.reduce((count, basename) => count + (index.has(basename) ? 1 : 0), 0);
+      attempts.push({ name: candidate.name, distance: candidate.distance, matchedSamples, status: "checked" });
+      if (!best || matchedSamples > best.matchedSamples) best = { candidate, matchedSamples };
+      if (matchedSamples === samples.length) {
+        return { candidate, samples, matchedSamples, attempts };
+      }
+    } catch (error) {
+      const timedOut = error instanceof Error && error.message === "RAW_DISCOVERY_TIMEOUT";
+      attempts.push({
+        name: candidate.name,
+        distance: candidate.distance,
+        matchedSamples: 0,
+        status: timedOut ? "timeout" : "error",
+        message: timedOut ? "시간 초과" : error instanceof Error ? error.message : "확인 실패",
+      });
+    } finally {
+      if (timer) clearTimeout(timer);
+      controller.abort();
     }
   }
 

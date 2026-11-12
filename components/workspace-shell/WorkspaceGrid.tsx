@@ -4,10 +4,11 @@ import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import styles from "./WorkspaceShell.module.css";
 
-export function WorkspaceGrid({ children, guide, forceSingleColumn = false }: {
+export function WorkspaceGrid({ children, guide, forceSingleColumn = false, className = "" }: {
   children: ReactNode;
   guide?: ReactNode;
   forceSingleColumn?: boolean;
+  className?: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const guideId = useId();
@@ -30,7 +31,7 @@ export function WorkspaceGrid({ children, guide, forceSingleColumn = false }: {
 
   const singleColumn = compact || forceSingleColumn || !guide;
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} className={className}>
       {compact && guide ? (
         <button type="button" className={styles.guideToggle} aria-expanded={guideOpen} aria-controls={guideId} onClick={() => setGuideOpen((open) => !open)}>
           {guideOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}

@@ -21,6 +21,7 @@ import {
   buildMobileNavigationUrl,
   parseMobileNavigation,
   primaryViewForNavigation,
+  resolveMobileStartupNavigation,
   type MobileNavigationState,
   type MobileOliviaTarget,
   type MobilePrimaryView,
@@ -48,9 +49,7 @@ function currentNavigation(): MobileNavigationState {
 }
 
 export default function OliviaMobileShell({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
-  const [navigation, setNavigation] = useState<MobileNavigationState>(() => initialLaunch?.appId === "customer"
-    ? { view: "clients", ...(initialLaunch.clientId ? { targetId: initialLaunch.clientId } : {}) }
-    : currentNavigation());
+  const [navigation, setNavigation] = useState<MobileNavigationState>(() => resolveMobileStartupNavigation(initialLaunch));
   const [documentsSection, setDocumentsSection] = useState<MobileDocumentsSection>("quote-contract");
   const [oliviaTarget, setOliviaTarget] = useState<MobileOliviaTarget | null>(null);
   const chatReturnRef = useRef<MobileNavigationState>({ view: "home" });
@@ -60,6 +59,12 @@ export default function OliviaMobileShell({ initialLaunch }: { initialLaunch?: O
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (initialLaunch) return;
+    const homeUrl = buildMobileNavigationUrl(window.location.href, { view: "home" });
+    window.history.replaceState(window.history.state, "", homeUrl);
+  }, [initialLaunch]);
 
   useEffect(() => {
     if (initialLaunch?.appId !== "customer") return;

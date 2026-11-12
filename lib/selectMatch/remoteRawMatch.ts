@@ -30,8 +30,15 @@ export type RemoteRawMatchCopyPayload = {
 };
 
 export type RemoteRawMatchCopyFailure = {
+  stage: "raw_copy" | "jpg_move" | "xmp_move";
   path: string;
   error: string;
+};
+
+export type RemoteRawMatchCopyWarning = {
+  stage: "raw_copy" | "jpg_move" | "xmp_move";
+  path: string;
+  warning: string;
 };
 
 export type RemoteRawMatchCopyResult = {
@@ -39,11 +46,13 @@ export type RemoteRawMatchCopyResult = {
   status: "PHOTO_RAW_MATCH_COPY_COMPLETED";
   outputDir: string;
   copied: number;
+  alreadyCopied: number;
   rawMoved: number;
   jpgMoved: number;
   xmpMoved: number;
   failed: number;
   failures: RemoteRawMatchCopyFailure[];
+  warnings: RemoteRawMatchCopyWarning[];
   attributePassed: number;
   attributeFailed: number;
   logPath: string;
@@ -111,18 +120,36 @@ function parseResult(value: unknown): RemoteRawMatchCopyResult | null {
     if (!isRecord(entry) || typeof entry.path !== "string" || typeof entry.error !== "string") {
       throw new Error("Mac Studio RAW 복사 실패 목록이 올바르지 않습니다.");
     }
-    return { path: entry.path, error: entry.error };
+    const stage = entry.stage;
+    if (stage !== "raw_copy" && stage !== "jpg_move" && stage !== "xmp_move") {
+      throw new Error("Mac Studio RAW 복사 실패 단계가 올바르지 않습니다.");
+    }
+    return { stage: stage as RemoteRawMatchCopyFailure["stage"], path: entry.path, error: entry.error };
   });
+  const warnings = Array.isArray(value.warnings) ? value.warnings.map((entry) => {
+    if (!isRecord(entry) || typeof entry.path !== "string" || typeof entry.warning !== "string") {
+      throw new Error("Mac Studio RAW 복사 경고 목록이 올바르지 않습니다.");
+    }
+    const stage = entry.stage;
+    if (stage !== "raw_copy" && stage !== "jpg_move" && stage !== "xmp_move") {
+      throw new Error("Mac Studio RAW 복사 경고 단계가 올바르지 않습니다.");
+    }
+    return { stage: stage as RemoteRawMatchCopyWarning["stage"], path: entry.path, warning: entry.warning };
+  }) : [];
   return {
     ok: true,
     status: "PHOTO_RAW_MATCH_COPY_COMPLETED",
     outputDir: value.outputDir,
     copied: value.copied as number,
+    alreadyCopied: typeof value.alreadyCopied === "number" && Number.isInteger(value.alreadyCopied) && value.alreadyCopied >= 0
+      ? value.alreadyCopied
+      : 0,
     rawMoved: value.rawMoved as number,
     jpgMoved: value.jpgMoved as number,
     xmpMoved: value.xmpMoved as number,
     failed: value.failed as number,
     failures,
+    warnings,
     attributePassed: value.attributePassed as number,
     attributeFailed: value.attributeFailed as number,
     logPath: value.logPath,

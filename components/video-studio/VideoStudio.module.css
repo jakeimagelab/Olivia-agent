@@ -19,6 +19,45 @@
   color: var(--ui2-text);
 }
 
+/* OS 창에서는 프롬프터의 실행 화면이 문서 흐름에서 빠지는 absolute 레이어다.
+   작업실 본문부터 패널까지 실제 남은 높이를 연결해야 레이어가 0px 높이로 접히지 않는다. */
+.videoStudioTheme[data-embedded="true"] {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.videoStudioTheme[data-embedded="true"] .prompterContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.videoStudioTheme[data-embedded="true"] .prompterGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.videoStudioTheme[data-embedded="true"] .prompterGrid > div:last-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+}
+
+.videoStudioTheme[data-embedded="true"] .prompterPanel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .panel { padding: 22px 24px 26px; color: rgba(255, 255, 255, .86); }
 .panelIntro { margin: 0 0 18px; color: rgba(255, 255, 255, .55); font-size: 12px; line-height: 1.7; }
 .sectionTitle { margin: 22px 0 10px; color: #fff; font-size: 13px; font-weight: 600; }
@@ -57,7 +96,7 @@
 .embeddedWorkspace > :global(main),
 .embeddedWorkspace > :global(div) { min-height: 0 !important; }
 .embeddedWorkspace :global(.pc-content) { max-width: none; }
-.prompterWorkspace { position: relative; height: 100%; min-height: 0; overflow: hidden; }
+.prompterWorkspace { position: relative; flex: 1 1 auto; height: 100%; min-height: 0; overflow: hidden; }
 .prompterWorkspace > :global(main),
 .prompterWorkspace > :global(div) { height: 100%; min-height: 0; }
 .canvasWorkspace > :global(main) { height: min(760px, calc(100dvh - 210px)) !important; min-height: 560px !important; }

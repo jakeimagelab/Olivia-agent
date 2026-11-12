@@ -1,10 +1,21 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { resolveOliviaSurface, shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
-import { buildTabletNavigationUrl, parseTabletNavigation, parseTabletNavigationState } from "@/lib/olivia/tablet/navigation";
+import {
+  buildTabletNavigationUrl,
+  parseTabletNavigation,
+  parseTabletNavigationState,
+  resolveTabletStartupNavigation,
+} from "@/lib/olivia/tablet/navigation";
 import { TABLET_APPS, resolveTabletAppIconSource } from "@/components/olivia-tablet/tabletApps";
 
 describe("Olivia Tablet Shell", () => {
+  it("starts normal launches at home and keeps explicit customer launches", () => {
+    expect(resolveTabletStartupNavigation(null)).toEqual({ app: "home" });
+    expect(resolveTabletStartupNavigation({ appId: "customer", clientId: "client-a", workflowRunId: "run-a" }))
+      .toEqual({ app: "customer", clientId: "client-a", workflowRunId: "run-a" });
+  });
+
   it.each([
     [{ width: 390, height: 844, coarsePointer: true }, "mobile"],
     [{ width: 820, height: 1180, coarsePointer: true }, "tablet"],

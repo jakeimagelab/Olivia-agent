@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shouldUseOliviaMobileSurface } from "@/lib/olivia/mobile/adaptiveSurface";
-import { buildMobileNavigationUrl, parseMobileNavigation, primaryViewForNavigation } from "@/lib/olivia/mobile/navigation";
+import {
+  buildMobileNavigationUrl,
+  parseMobileNavigation,
+  primaryViewForNavigation,
+  resolveMobileStartupNavigation,
+} from "@/lib/olivia/mobile/navigation";
 import { auditMobileCapabilityCoverage, mobileCapabilityFor, visibleMobileCapabilities } from "@/lib/olivia/mobile/appCapabilities";
 import { normalizeMobileDocument, resourceReferenceFromToolResult } from "@/lib/olivia/mobile/resources";
 import { oliviaAppRegistry } from "@/components/olivia-os/registry/oliviaAppRegistry";
@@ -14,6 +19,12 @@ import {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Olivia Mobile OS", () => {
+  it("starts normal launches at home and keeps explicit customer launches", () => {
+    expect(resolveMobileStartupNavigation(null)).toEqual({ view: "home" });
+    expect(resolveMobileStartupNavigation({ appId: "customer", clientId: "client-a" }))
+      .toEqual({ view: "clients", targetId: "client-a" });
+  });
+
   it("selects a separate mobile surface for supported phones without affecting desktop", () => {
     expect(shouldUseOliviaMobileSurface({ width: 390, height: 844, coarsePointer: true })).toBe(true);
     expect(shouldUseOliviaMobileSurface({ width: 1440, height: 900, coarsePointer: true })).toBe(false);

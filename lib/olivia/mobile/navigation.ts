@@ -44,6 +44,12 @@ export type MobileNavigationState =
   | { view: MobilePrimaryView; targetId?: string; workflowRunId?: string }
   | { view: "preview"; resourceType: MobileResourceType; resourceId: string; temporaryDocumentId?: string };
 
+export function resolveMobileStartupNavigation(launch?: { appId: string; clientId?: string } | null): MobileNavigationState {
+  return launch?.appId === "customer"
+    ? { view: "clients", ...(launch.clientId ? { targetId: launch.clientId } : {}) }
+    : { view: "home" };
+}
+
 const PRIMARY_VIEWS = new Set<MobilePrimaryView>([
   "home",
   "clients",

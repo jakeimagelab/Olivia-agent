@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   buildTabletNavigationUrl,
   parseTabletNavigationState,
+  resolveTabletStartupNavigation,
   type TabletAppId,
   type TabletNavigationContext,
   type TabletNavigationState,
@@ -22,9 +23,7 @@ function currentNavigation(): TabletNavigationState {
 }
 
 export default function OliviaTabletShell({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
-  const [navigation, setNavigation] = useState<TabletNavigationState>(() => initialLaunch?.appId === "customer"
-    ? { app: "customer", clientId: initialLaunch.clientId, workflowRunId: initialLaunch.workflowRunId }
-    : currentNavigation());
+  const [navigation, setNavigation] = useState<TabletNavigationState>(() => resolveTabletStartupNavigation(initialLaunch));
   const activeApp = navigation.app;
 
   useEffect(() => {
@@ -40,6 +39,12 @@ export default function OliviaTabletShell({ initialLaunch }: { initialLaunch?: O
       document.body.style.overflow = previousBodyOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    if (initialLaunch) return;
+    const homeUrl = buildTabletNavigationUrl(window.location.href, "home");
+    window.history.replaceState(window.history.state, "", homeUrl);
+  }, [initialLaunch]);
 
   useEffect(() => {
     const viewport = window.visualViewport;

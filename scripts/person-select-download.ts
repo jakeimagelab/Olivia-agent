@@ -54,12 +54,23 @@ async function main() {
           const stem = candidate.replace(/\.[^.]+$/, "");
           const extensions = [".CR3", ".CR2", ".NEF", ".ARW", ".RAF", ".DNG", ".ORF", ".RW2"];
           source = "";
-          for (const extension of extensions) { try { await stat(`${stem}${extension}`); source = `${stem}${extension}`; break; } catch { /* try next */ } }
+          for (const extension of extensions) {
+            try {
+              await stat(`${stem}${extension}`);
+              source = `${stem}${extension}`;
+              break;
+            } catch (error) {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+            }
+          }
           if (!source) throw new Error(`RAW를 찾지 못했습니다: ${image.original_file_name}`);
         } else await stat(source);
         await copyFile(source, path.join(staging, `${String(completed + failed + 1).padStart(4, "0")}_${path.basename(source)}`));
         completed += 1;
-      } catch { failed += 1; }
+      } catch (error) {
+        failed += 1;
+        process.stderr.write(`[person-select-download] ${image.original_file_name}: ${error instanceof Error ? error.message : String(error)}\n`);
+      }
       report(completed + failed, images.length, `${completed + failed}/${images.length} 원본 준비`);
       await db.from("person_select_download_jobs").update({ completed_count: completed, failed_count: failed, updated_at: new Date().toISOString() }).eq("id", jobId);
     }

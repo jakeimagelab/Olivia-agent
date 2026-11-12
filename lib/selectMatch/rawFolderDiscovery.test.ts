@@ -47,12 +47,12 @@ describe("Bridge RAW folder discovery", () => {
 
     expect(result.candidate?.handle).toBe(parent);
     expect(result.matchedSamples).toBe(2);
-    expect(result.attempts.map((attempt) => attempt.name)).toEqual(["JPG", "촬영본"]);
+    expect(result.attempts.map((attempt) => attempt.name)).toEqual(["촬영본"]);
   });
 
   it("falls back to the closest candidate with the most sample matches", async () => {
     const current = directory("Scene", []);
-    const parent = directory("JPG", ["IMG_1001.ARW"]);
+    const parent = directory("RAW 후보", ["IMG_1001.ARW"]);
     const root = directory("행사", ["IMG_1002.ARW"]);
 
     const result = await discoverRawFolder({

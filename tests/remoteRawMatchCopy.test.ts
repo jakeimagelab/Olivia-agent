@@ -5,6 +5,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  copyOrMovePreservingMetadata,
   executeRemoteRawMatchCopy,
   readFileAttributeSnapshot,
   verifyFileAttributeSnapshot,
@@ -14,6 +15,17 @@ import { runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
 const execFileAsync = promisify(execFile);
 const temporaryRoots: string[] = [];
 
+function snapshot(input: Partial<Awaited<ReturnType<typeof readFileAttributeSnapshot>>> = {}) {
+  return {
+    size: 10,
+    mtimeSeconds: 100,
+    birthtimeSeconds: 200,
+    device: 1,
+    xattrs: {},
+    ...input,
+  };
+}
+
 async function temporaryRoot(): Promise<string> {
   const root = await mkdtemp(path.join(tmpdir(), "olivia-raw-worker-"));
   temporaryRoots.push(root);
@@ -22,6 +34,27 @@ async function temporaryRoot(): Promise<string> {
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+
+describe("RAW 속성 비교 허용 범위", () => {
+  it("mtime 1초 차이는 통과하고 3초 차이는 실패한다", () => {
+    expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ mtimeSeconds: 101 })).ok).toBe(true);
+    expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ mtimeSeconds: 103 }))).toMatchObject({ ok: false, reasons: ["수정일 불일치"] });
+  });
+
+  it("일반 확장속성 차이는 경고만 남기고 통과한다", () => {
+    const result = verifyFileAttributeSnapshot(
+      snapshot({ xattrs: { "com.apple.lastuseddate#PS": "aa" } }),
+      snapshot({ xattrs: { "com.apple.lastuseddate#PS": "bb" } }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual(["확장속성 차이: com.apple.lastuseddate#PS"]);
+  });
+
+  it("원본에 없던 quarantine 또는 WhereFroms가 생기면 실패한다", () => {
+    expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ xattrs: { "com.apple.quarantine": "added" } })).ok).toBe(false);
+    expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ xattrs: { "com.apple.metadata:kMDItemWhereFroms": "added" } })).ok).toBe(false);
+  });
 });
 
 describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복사", () => {
@@ -56,7 +89,7 @@ describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복�
     const destination = path.join(rawRoot, "Selected_RAW", "_AK_0177.CR2");
     const sourceAttributes = await readFileAttributeSnapshot(source);
     const destinationAttributes = await readFileAttributeSnapshot(destination);
-    expect(verifyFileAttributeSnapshot(sourceAttributes, destinationAttributes)).toEqual({ ok: true, reasons: [] });
+    expect(verifyFileAttributeSnapshot(sourceAttributes, destinationAttributes)).toEqual({ ok: true, reasons: [], warnings: [] });
     expect(destinationAttributes.xattrs["com.apple.quarantine"]).toBeUndefined();
     expect(result).toMatchObject({ copied: 1, failed: 0, attributePassed: 1, attributeFailed: 0 });
     expect(await readFile(result.logPath, "utf8")).toContain('"속성 확인"');
@@ -83,6 +116,64 @@ describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복�
     expect(result).toMatchObject({ copied: 0, failed: 1, attributePassed: 0, attributeFailed: 1, logPath: "" });
     expect(await readFile(destination, "utf8")).toBe("existing-destination");
     expect(await readFile(source, "utf8")).toBe("new-source");
+  });
+
+  it("대상에 크기와 mtime이 같은 파일이 있으면 이미 복사됨으로 성공 처리한다", async () => {
+    const root = await temporaryRoot();
+    const sourceDirectory = path.join(root, "source");
+    const destinationDirectory = path.join(root, "destination");
+    await mkdir(sourceDirectory);
+    await mkdir(destinationDirectory);
+    const source = path.join(sourceDirectory, "same.CR2");
+    const destination = path.join(destinationDirectory, "same.CR2");
+    await writeFile(source, "same-content");
+    await writeFile(destination, "same-content");
+    const sourceStats = await stat(source);
+    const destinationStats = await stat(destination);
+    const seconds = Math.floor(Math.min(sourceStats.mtimeMs, destinationStats.mtimeMs) / 1000);
+    await execFileAsync("/usr/bin/touch", ["-t", new Date(seconds * 1000).toISOString().replace(/[-:T]/g, "").slice(0, 12), source, destination]);
+
+    const result = await copyOrMovePreservingMetadata({ source, destinationDirectory, move: false });
+    expect(result.alreadyExisted).toBe(true);
+    expect(await readFile(destination, "utf8")).toBe("same-content");
+  });
+
+  it("RAW 성공 뒤 JPG 이동 실패는 jpg_move로 남고 재시도는 RAW를 건너뛴다", async () => {
+    const root = await temporaryRoot();
+    const rawRoot = path.join(root, "RAW");
+    const jpgRoot = path.join(root, "JPG");
+    const jpgDestination = path.join(jpgRoot, "1차보정본");
+    await mkdir(rawRoot);
+    await mkdir(jpgRoot);
+    await mkdir(jpgDestination);
+    await writeFile(path.join(rawRoot, "retry.CR2"), "raw-retry");
+    await writeFile(path.join(jpgRoot, "retry.JPG"), "jpg-retry");
+    await writeFile(path.join(jpgDestination, "retry.JPG"), "different-collision-content");
+    const rawStats = await stat(path.join(rawRoot, "retry.CR2"));
+    const jpgStats = await stat(path.join(jpgRoot, "retry.JPG"));
+    const payload = {
+      rawRootPath: rawRoot,
+      jpgRootPath: jpgRoot,
+      items: [{
+        rawPath: "retry.CR2",
+        destDir: "Selected_RAW",
+        rawExpectedSize: rawStats.size,
+        rawExpectedCaptureTimeMs: null,
+        jpgPath: "retry.JPG",
+        jpgDestDir: "1차보정본",
+        jpgExpectedSize: jpgStats.size,
+        jpgExpectedCaptureTimeMs: null,
+      }],
+      logRows: [],
+    };
+
+    const first = await executeRemoteRawMatchCopy(payload, { allowedRoots: [root] });
+    expect(first).toMatchObject({ copied: 1, alreadyCopied: 0, jpgMoved: 0, failed: 1 });
+    expect(first.failures[0]).toMatchObject({ stage: "jpg_move", path: "retry.JPG" });
+    await rm(path.join(jpgDestination, "retry.JPG"));
+
+    const second = await executeRemoteRawMatchCopy(payload, { allowedRoots: [root] });
+    expect(second).toMatchObject({ copied: 0, alreadyCopied: 1, jpgMoved: 1, failed: 0 });
   });
 
   it("브라우저 경로가 직접 열리지 않아도 /Volumes 아래 표본 크기가 맞는 폴더를 찾아 실행한다", async () => {

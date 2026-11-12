@@ -7,6 +7,8 @@ const RAW_SCAN_SKIPPED_DIRECTORIES = new Set([
   "selected_raw",
   "finished_raw",
   "jpg전체",
+  "jpg원본",
+  "jpg",
   ".olivia",
 ]);
 
@@ -14,7 +16,7 @@ function normalizedBasename(value: string): string {
   return value.normalize("NFC").toLocaleLowerCase("en-US");
 }
 
-function shouldSkipDirectory(name: string): boolean {
+export function shouldSkipRawScanDirectory(name: string): boolean {
   const normalized = normalizedBasename(name);
   return normalized.startsWith(".")
     || RAW_SCAN_SKIPPED_DIRECTORIES.has(normalized)
@@ -44,6 +46,9 @@ export type RawIndex = Map<string, RawIndexEntry[]>;
 export type BuildRawIndexOptions = {
   /** 자동 RAW 폴더 탐색의 표본 확인처럼 한 후보만 있으면 되는 경우에만 사용한다. */
   stopAfterFirstPerTarget?: boolean;
+  /** 자동 탐색에서는 촬영 폴더 전체를 훑지 않도록 깊이를 제한한다. */
+  maxDepth?: number;
+  signal?: AbortSignal;
 };
 
 /* ── 재귀 RAW 스캔 공통 함수 ── */
@@ -57,6 +62,10 @@ export async function buildRawIndex(
   options: BuildRawIndexOptions = {},
 ): Promise<RawIndex> {
   const rawIndex: RawIndex = new Map();
+  const maxDepth = Math.max(0, options.maxDepth ?? 5);
+  const throwIfAborted = () => {
+    if (options.signal?.aborted) throw new DOMException("RAW 폴더 확인이 취소되었습니다.", "AbortError");
+  };
   const remainingTargets = targetBasenames
     ? new Set(Array.from(targetBasenames, normalizedBasename).filter(Boolean))
     : null;
@@ -82,6 +91,7 @@ export async function buildRawIndex(
   };
 
   const probeTargetsInDirectory = async (directory: FileSystemDirectoryHandle) => {
+    throwIfAborted();
     if (!remainingTargets || remainingTargets.size === 0) return;
     const targets = [...remainingTargets];
     const extensions = [...SELECT_MATCH_RAW_EXTENSIONS];
@@ -89,6 +99,7 @@ export async function buildRawIndex(
     for (let start = 0; start < targets.length && !allTargetsFound(); start += RAW_DIRECT_LOOKUP_CONCURRENCY) {
       const chunk = targets.slice(start, start + RAW_DIRECT_LOOKUP_CONCURRENCY);
       await Promise.all(chunk.map(async (basename) => {
+        throwIfAborted();
         if (!remainingTargets.has(basename)) return;
         const upperBasename = basename.toLocaleUpperCase("en-US");
         for (const extension of extensions) {
@@ -100,6 +111,7 @@ export async function buildRawIndex(
             `${basename}.${extension}`,
           ]);
           for (const candidate of candidates) {
+            throwIfAborted();
             try {
               const fileHandle = await (directory as any).getFileHandle(candidate) as FileSystemFileHandle;
               addEntry(basename, fileHandle, directory, `${directory.name}/${candidate}`);
@@ -119,17 +131,20 @@ export async function buildRawIndex(
     let level: DirectoryTask[] = [{ directory: root, depth: 0, relativeDirectory: root.name }];
 
     while (level.length > 0 && !allTargetsFound()) {
+      throwIfAborted();
       const nextLevel: DirectoryTask[] = [];
       for (let start = 0; start < level.length && !allTargetsFound(); start += RAW_SCAN_DIRECTORY_CONCURRENCY) {
         const chunk = level.slice(start, start + RAW_SCAN_DIRECTORY_CONCURRENCY);
         const childGroups = await Promise.all(chunk.map(async ({ directory, depth, relativeDirectory }) => {
+          throwIfAborted();
           const children: DirectoryTask[] = [];
           if (allTargetsFound()) return children;
 
           for await (const [name, handle] of (directory as any).entries()) {
+            throwIfAborted();
             if (allTargetsFound()) break;
             if ((handle as FileSystemHandle).kind === "directory") {
-              if (depth < 5 && !shouldSkipDirectory(name)) {
+              if (depth < maxDepth && !shouldSkipRawScanDirectory(name)) {
                 children.push({
                   directory: handle as FileSystemDirectoryHandle,
                   depth: depth + 1,

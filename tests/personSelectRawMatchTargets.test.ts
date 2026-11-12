@@ -104,9 +104,10 @@ describe("person select RAW match targets", () => {
 });
 
 describe("legacy shared reviewer finalization", () => {
-  it("allows a legacy reviewer whose can_finalize value is null", () => {
+  it("always allows a legacy reviewer to finalize the shared selection", () => {
     expect(canPersonSelectReviewerFinalize({ is_legacy: true, can_finalize: null })).toBe(true);
     expect(canPersonSelectReviewerFinalize({ is_legacy: false, can_finalize: null })).toBe(false);
-    expect(canPersonSelectReviewerFinalize({ is_legacy: true, can_finalize: false })).toBe(false);
+    expect(canPersonSelectReviewerFinalize({ is_legacy: true, can_finalize: false })).toBe(true);
+    expect(canPersonSelectReviewerFinalize({ is_legacy: false, can_finalize: true })).toBe(true);
   });
 });

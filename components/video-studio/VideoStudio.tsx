@@ -341,9 +341,9 @@ export default function VideoStudio({
   }
 
   return (
-    <WorkspaceShell className={styles.videoStudioTheme}>
+    <WorkspaceShell className={styles.videoStudioTheme} data-embedded={desktopWindowMode ? "true" : undefined}>
       <ExecutionBar visible={requiredMode !== undefined} />
-      <WorkspaceContent>
+      <WorkspaceContent className={tool === "prompter" ? styles.prompterContent : ""}>
         {hideHeader ? null : (
           <header className={photoStyles.workspaceHeader}>
             <h1>영상작업실</h1>
@@ -360,8 +360,12 @@ export default function VideoStudio({
         {remote && requiredMode === "REMOTE_WORKER" && selectedPresence?.online === false ? (
           <p className={styles.error}>{videoStudioWorkerLabel(workerId)}가 오프라인입니다. 분석 요청은 대기열에 들어가고, 해당 컴퓨터가 켜지면 시작됩니다.</p>
         ) : null}
-        <WorkspaceGrid guide={<VideoStudioGuide tool={tool} result={tool === "interview" || tool === "reels" ? result : null} editRoot={editRoot} onEditRootChange={setEditRoot} />}>
+        <WorkspaceGrid
+          className={tool === "prompter" ? styles.prompterGrid : ""}
+          guide={<VideoStudioGuide tool={tool} result={tool === "interview" || tool === "reels" ? result : null} editRoot={editRoot} onEditRootChange={setEditRoot} />}
+        >
           <WorkPanel
+            className={tool === "prompter" ? styles.prompterPanel : ""}
             tone={tone}
             role="tabpanel"
             id={`video-studio-panel-${tool}`}

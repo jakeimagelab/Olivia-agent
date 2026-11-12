@@ -154,11 +154,27 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       ? await db.from("person_select_shared_selection_items").select("selection_id,reviewer_id,image_id,customer_rating,customer_color_label,memo").in("selection_id", latestSelectionIds)
       : { data: [], error: null };
     if (selectedItemsError) throw selectedItemsError;
+    const draftItemsByReviewer = new Map<string, Array<Record<string, unknown>>>((drafts ?? []).map((draft) => [
+      draft.reviewer_id,
+      Array.isArray(draft.items) ? draft.items as Array<Record<string, unknown>> : [],
+    ]));
     const imageById = new Map(imageGroups.map((image) => [image.id, image]));
-    const selectedThumbUrls = await signedImageUrls((selectedItems ?? []).flatMap((item) => {
-      const image = imageById.get(item.image_id);
+    const sharedItemImageIds = [
+      ...(selectedItems ?? []).map((item) => item.image_id),
+      ...[...draftItemsByReviewer.values()].flatMap((items) => items.map((item) => String(item.image_id ?? "")).filter(Boolean)),
+    ];
+    const sharedThumbUrls = await signedImageUrls([...new Set(sharedItemImageIds)].flatMap((imageId) => {
+      const image = imageById.get(imageId);
       return image?.thumb_path ? [image.thumb_path] : [];
     }));
+    const imageFor = (imageId: string) => {
+      const image = imageById.get(imageId);
+      return image ? {
+        original_file_name: image.original_file_name,
+        source_rel_path: image.source_rel_path,
+        thumb_url: sharedThumbUrls.get(image.thumb_path) ?? "",
+      } : null;
+    };
     type SelectedItem = NonNullable<typeof selectedItems>[number];
     const itemsBySelection = new Map<string, SelectedItem[]>();
     for (const item of selectedItems ?? []) {
@@ -167,21 +183,29 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
       else itemsBySelection.set(item.selection_id, [item]);
     }
     const itemsFor = (selectionId: string) => (itemsBySelection.get(selectionId) ?? []).map((item) => {
-      const image = imageById.get(item.image_id);
       return {
         ...item,
-        image: image ? {
-          original_file_name: image.original_file_name,
-          source_rel_path: image.source_rel_path,
-          thumb_url: selectedThumbUrls.get(image.thumb_path) ?? "",
-        } : null,
+        image: imageFor(item.image_id),
       };
+    });
+    const draftItemsFor = (reviewerId: string) => (draftItemsByReviewer.get(reviewerId) ?? []).flatMap((item) => {
+      const imageId = String(item.image_id ?? "");
+      if (!imageId) return [];
+      const rating = Number(item.customer_rating);
+      const colorLabel = Number(item.customer_color_label);
+      return [{
+        image_id: imageId,
+        customer_rating: Number.isInteger(rating) && rating >= 1 && rating <= 5 ? rating : null,
+        customer_color_label: Number.isInteger(colorLabel) && colorLabel >= 6 && colorLabel <= 9 ? colorLabel : null,
+        memo: typeof item.memo === "string" ? item.memo : "",
+        image: imageFor(imageId),
+      }];
     });
     const draftByReviewer = new Map((drafts ?? []).map((draft) => [draft.reviewer_id, draft]));
     const reviewerRows = (reviewers ?? []).map((reviewer) => {
       const draft = draftByReviewer.get(reviewer.id);
       const selection = latestByReviewer.get(reviewer.id);
-      const draftItems = Array.isArray(draft?.items) ? draft.items as Array<Record<string, unknown>> : [];
+      const draftItems = draftItemsByReviewer.get(reviewer.id) ?? [];
       return {
         ...reviewer,
         can_finalize: canPersonSelectReviewerFinalize(reviewer),
@@ -205,6 +229,8 @@ async function getPersonSelectAdminResponse(request: NextRequest, context: { par
             return imageId && memo ? [[imageId, memo]] : [];
           })),
           customerMemo: typeof draft.customer_memo === "string" ? draft.customer_memo : "",
+          items: draftItemsFor(reviewer.id),
+          updatedAt: draft.updated_at,
           updated_at: draft.updated_at,
         } : null,
         selection: selection ? { ...selection, items: itemsFor(selection.id) } : null,

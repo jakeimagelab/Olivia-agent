@@ -48,24 +48,25 @@ export type CaptureMatchPreflight = {
 
 /**
  * 기준 결과에 포함된 JPG만 사전 확인으로 넘긴다.
- * 같은 basename이 여러 폴더에 있더라도 한 장만 사용하고, 이전 N차보정본은 항상 제외한다.
+ * 같은 basename이어도 상대경로가 다르면 서로 다른 JPG로 유지하고, 이전 N차보정본만 제외한다.
  */
 export function resolveCaptureMatchJpgSources(input: {
   targetBasenames: ReadonlySet<string>;
   sources: readonly JpgMatchSource[];
 }): JpgMatchSource[] {
   const targets = new Set(Array.from(input.targetBasenames, normalizePhotoToolFileKey).filter(Boolean));
-  const sourceByBasename = new Map<string, JpgMatchSource>();
+  const seenPaths = new Set<string>();
+  const output: JpgMatchSource[] = [];
   for (const source of input.sources) {
     const basename = normalizePhotoToolFileKey(source.basename);
-    if (!targets.has(basename) || sourceByBasename.has(basename)) continue;
+    if (!targets.has(basename)) continue;
     if (isInsideDeliveredRoundFolder(source.relativePath)) continue;
-    sourceByBasename.set(basename, source);
+    const pathKey = source.relativePath.normalize("NFC").toLocaleLowerCase("en-US");
+    if (seenPaths.has(pathKey)) continue;
+    seenPaths.add(pathKey);
+    output.push(source);
   }
-  return Array.from(targets).flatMap((basename) => {
-    const source = sourceByBasename.get(basename);
-    return source ? [source] : [];
-  });
+  return output;
 }
 
 export function captureMatchSummaryTotal(preflight: CaptureMatchPreflight): number {

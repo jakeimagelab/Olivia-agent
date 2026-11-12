@@ -38,7 +38,9 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
     const previousBodyOverflow = document.body.style.overflow;
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-    loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)));
+    // 일반 실행·재실행은 저장된 작업 창을 보존하되 활성 창을 복원하지 않아 홈에서 시작한다.
+    // 명시적인 initialLaunch는 다음 effect가 정확한 앱을 다시 활성화한다.
+    loadDesktopState(new Set(oliviaAppRegistry.map((app) => app.id)), { startAtHome: true });
     return () => {
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;

@@ -39,6 +39,12 @@ export type TabletNavigationState = TabletNavigationContext & {
   app: TabletAppId;
 };
 
+export function resolveTabletStartupNavigation(launch?: { appId: string; clientId?: string; workflowRunId?: string } | null): TabletNavigationState {
+  return launch?.appId === "customer"
+    ? { app: "customer", clientId: launch.clientId, workflowRunId: launch.workflowRunId }
+    : { app: "home" };
+}
+
 export function parseTabletNavigation(search: string): TabletAppId {
   const value = new URLSearchParams(search).get("tabletApp") as TabletAppId | null;
   return value && TABLET_APP_IDS.has(value) ? value : "home";

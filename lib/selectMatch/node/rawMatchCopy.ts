@@ -20,10 +20,16 @@ import type {
   RemoteRawMatchCopyFailure,
   RemoteRawMatchCopyPayload,
   RemoteRawMatchCopyResult,
+  RemoteRawMatchCopyWarning,
 } from "@/lib/selectMatch/remoteRawMatch";
 
 const execFileAsync = promisify(execFile);
 const RAW_HEADER_BYTES = 4 * 1024 * 1024;
+const ATTRIBUTE_TIME_TOLERANCE_SECONDS = 2;
+const FORBIDDEN_ADDED_XATTRS = [
+  "com.apple.quarantine",
+  "com.apple.metadata:kMDItemWhereFroms",
+] as const;
 
 export type FileAttributeSnapshot = {
   size: number;
@@ -44,6 +50,8 @@ type PreservedOperationResult = {
   destination: string;
   attributeVerified: true;
   moved: boolean;
+  alreadyExisted: boolean;
+  warnings: string[];
 };
 
 function isInside(root: string, candidate: string): boolean {
@@ -146,16 +154,25 @@ export async function readFileAttributeSnapshot(filePath: string): Promise<FileA
 export function verifyFileAttributeSnapshot(
   source: FileAttributeSnapshot,
   destination: FileAttributeSnapshot,
-): { ok: boolean; reasons: string[] } {
+): { ok: boolean; reasons: string[]; warnings: string[] } {
   const reasons: string[] = [];
+  const warnings: string[] = [];
   if (source.size !== destination.size) reasons.push(`크기 불일치 ${destination.size}/${source.size}`);
-  if (source.mtimeSeconds !== destination.mtimeSeconds) reasons.push("수정일 불일치");
-  if (source.birthtimeSeconds !== destination.birthtimeSeconds) reasons.push("생성일 불일치");
-  if (JSON.stringify(source.xattrs) !== JSON.stringify(destination.xattrs)) reasons.push("확장속성 불일치");
-  if (!("com.apple.quarantine" in source.xattrs) && "com.apple.quarantine" in destination.xattrs) {
-    reasons.push("복사본에 격리 속성이 추가됨");
+  if (Math.abs(source.mtimeSeconds - destination.mtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("수정일 불일치");
+  if (Math.abs(source.birthtimeSeconds - destination.birthtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("생성일 불일치");
+  for (const name of FORBIDDEN_ADDED_XATTRS) {
+    if (!(name in source.xattrs) && name in destination.xattrs) {
+      reasons.push(name === "com.apple.quarantine"
+        ? "복사본에 격리 속성이 추가됨"
+        : "복사본에 다운로드 출처 속성이 추가됨");
+    }
   }
-  return { ok: reasons.length === 0, reasons };
+  const xattrNames = new Set([...Object.keys(source.xattrs), ...Object.keys(destination.xattrs)]);
+  for (const name of xattrNames) {
+    if (FORBIDDEN_ADDED_XATTRS.includes(name as typeof FORBIDDEN_ADDED_XATTRS[number])) continue;
+    if (source.xattrs[name] !== destination.xattrs[name]) warnings.push(`확장속성 차이: ${name}`);
+  }
+  return { ok: reasons.length === 0, reasons, warnings };
 }
 
 async function destinationExists(destination: string): Promise<boolean> {
@@ -179,9 +196,24 @@ export async function copyOrMovePreservingMetadata(input: {
   if (sourceMetadata.isSymbolicLink() || !sourceMetadata.isFile()) throw new Error("원본이 안전한 파일이 아닙니다.");
   const destinationDirectory = await realpath(input.destinationDirectory);
   const destination = path.join(destinationDirectory, path.basename(source));
-  if (await destinationExists(destination)) throw new Error("대상 폴더에 같은 이름이 있어 덮어쓰지 않음");
-
   const sourceSnapshot = await readFileAttributeSnapshot(source);
+  if (await destinationExists(destination)) {
+    const destinationSnapshot = await readFileAttributeSnapshot(destination);
+    if (sourceSnapshot.size !== destinationSnapshot.size
+      || Math.abs(sourceSnapshot.mtimeSeconds - destinationSnapshot.mtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) {
+      throw new Error("대상 폴더에 같은 이름이 있어 덮어쓰지 않음");
+    }
+    const checked = verifyFileAttributeSnapshot(sourceSnapshot, destinationSnapshot);
+    const forbiddenReasons = checked.reasons.filter((reason) => reason.includes("격리 속성") || reason.includes("다운로드 출처 속성"));
+    if (forbiddenReasons.length) throw new Error(`속성 확인 실패: ${forbiddenReasons.join(", ")}`);
+    const warnings = [
+      ...checked.warnings,
+      ...checked.reasons.filter((reason) => !forbiddenReasons.includes(reason)),
+    ];
+    if (input.move) await unlink(source);
+    return { source, destination, attributeVerified: true, moved: input.move, alreadyExisted: true, warnings };
+  }
+
   const destinationDirectoryMetadata = await stat(destinationDirectory);
   const sameVolume = Number(sourceMetadata.dev) === Number(destinationDirectoryMetadata.dev);
 
@@ -190,7 +222,7 @@ export async function copyOrMovePreservingMetadata(input: {
     try {
       const checked = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(destination));
       if (!checked.ok) throw new Error(`속성 확인 실패: ${checked.reasons.join(", ")}`);
-      return { source, destination, attributeVerified: true, moved: true };
+      return { source, destination, attributeVerified: true, moved: true, alreadyExisted: false, warnings: checked.warnings };
     } catch (error) {
       if (!(await destinationExists(source))) await rename(destination, source).catch(() => undefined);
       throw error;
@@ -206,7 +238,7 @@ export async function copyOrMovePreservingMetadata(input: {
     const finalCheck = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(destination));
     if (!finalCheck.ok) throw new Error(`최종 속성 확인 실패: ${finalCheck.reasons.join(", ")}`);
     if (input.move) await unlink(source);
-    return { source, destination, attributeVerified: true, moved: input.move };
+    return { source, destination, attributeVerified: true, moved: input.move, alreadyExisted: false, warnings: finalCheck.warnings };
   } catch (error) {
     await rm(temporary, { force: true }).catch(() => undefined);
     if (!input.move || await destinationExists(source)) await rm(destination, { force: true }).catch(() => undefined);
@@ -241,18 +273,22 @@ async function assertRawIdentity(filePath: string, expectedSize: number, expecte
 
 type RootIdentitySample = {
   relativePath: string;
+  alternativeRelativePaths?: string[];
   expectedSize: number;
   expectedCaptureTimeMs: number | null;
 };
 
 async function sampleMatches(root: string, sample: RootIdentitySample): Promise<boolean> {
-  try {
-    const source = await resolveSourceFile(root, sample.relativePath, "표본 파일");
-    await assertRawIdentity(source, sample.expectedSize, sample.expectedCaptureTimeMs);
-    return true;
-  } catch {
-    return false;
+  for (const relativePath of [sample.relativePath, ...(sample.alternativeRelativePaths ?? [])]) {
+    try {
+      const source = await resolveSourceFile(root, relativePath, "표본 파일");
+      await assertRawIdentity(source, sample.expectedSize, sample.expectedCaptureTimeMs);
+      return true;
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("기준 폴더 밖")) throw error;
+    }
   }
+  return false;
 }
 
 async function searchMatchingRoots(
@@ -348,11 +384,21 @@ export async function executeRemoteRawMatchCopy(
   if (!allowedRoots.length) throw new Error("Mac Studio 사진 저장소가 연결되어 있지 않습니다.");
   const rawSamples = payload.items.map((item) => ({
     relativePath: item.rawPath,
+    alternativeRelativePaths: item.rawAction === "move"
+      ? [path.posix.join(item.destDir, path.posix.basename(item.rawPath.replaceAll("\\", "/")))]
+      : [],
     expectedSize: item.rawExpectedSize,
     expectedCaptureTimeMs: item.rawExpectedCaptureTimeMs,
   }));
   const jpgSamples = payload.items.flatMap((item) => item.jpgPath && item.jpgExpectedSize !== undefined && item.jpgExpectedCaptureTimeMs !== undefined
-    ? [{ relativePath: item.jpgPath, expectedSize: item.jpgExpectedSize, expectedCaptureTimeMs: item.jpgExpectedCaptureTimeMs }]
+    ? [{
+        relativePath: item.jpgPath,
+        alternativeRelativePaths: item.jpgDestDir
+          ? [path.posix.join(item.jpgDestDir, path.posix.basename(item.jpgPath.replaceAll("\\", "/")))]
+          : [],
+        expectedSize: item.jpgExpectedSize,
+        expectedCaptureTimeMs: item.jpgExpectedCaptureTimeMs,
+      }]
     : []);
   const rawRoot = await resolveWorkerRoot(payload.rawRootPath, allowedRoots, "RAW 기준 폴더", rawSamples);
   const jpgRoot = payload.jpgRootPath
@@ -360,60 +406,157 @@ export async function executeRemoteRawMatchCopy(
     : null;
 
   // 잘못 연결된 브라우저 핸들 경로로 전체 작업을 시작하지 않도록 처음 두 표본을 먼저 확인한다.
-  for (const item of payload.items.slice(0, 2)) {
-    const source = await resolveSourceFile(rawRoot, item.rawPath, "RAW 원본");
-    await assertRawIdentity(source, item.rawExpectedSize, item.rawExpectedCaptureTimeMs);
+  for (const sample of rawSamples.slice(0, 2)) {
+    if (!await sampleMatches(rawRoot, sample)) throw new Error(`RAW 표본 파일을 찾지 못했습니다: ${sample.relativePath}`);
   }
 
   let copied = 0;
+  let alreadyCopied = 0;
   let rawMoved = 0;
   let jpgMoved = 0;
   let xmpMoved = 0;
   let attributePassed = 0;
   let attributeFailed = 0;
   const failures: RemoteRawMatchCopyFailure[] = [];
+  const warnings: RemoteRawMatchCopyWarning[] = [];
   const attributesByPath = new Map<string, "통과" | "실패">();
   let outputDir = "";
+
+  const recordWarnings = (
+    stage: RemoteRawMatchCopyFailure["stage"],
+    relativePath: string,
+    operationWarnings: readonly string[],
+  ) => {
+    for (const warning of operationWarnings) warnings.push({ stage, path: relativePath, warning });
+  };
+
+  const existingCompletedDestination = async (
+    root: string,
+    relativeSourcePath: string,
+    relativeDestinationDirectory: string,
+    expectedSize: number,
+    expectedCaptureTimeMs: number | null,
+  ): Promise<string | null> => {
+    const destinationDirectory = await resolveDestinationDirectory(root, relativeDestinationDirectory, "결과 폴더");
+    const destination = path.join(destinationDirectory, path.basename(relativeSourcePath));
+    if (!await destinationExists(destination)) return null;
+    try {
+      await assertRawIdentity(destination, expectedSize, expectedCaptureTimeMs);
+      return destination;
+    } catch {
+      return null;
+    }
+  };
 
   for (let index = 0; index < payload.items.length; index += 1) {
     if (await options.shouldCancel?.()) break;
     const item = payload.items[index];
     await options.onProgress?.({ current: index, total: payload.items.length, message: `${path.basename(item.rawPath)} 속성 보존 복사 중` });
+    let rawSucceeded = false;
     try {
-      const rawSource = await resolveSourceFile(rawRoot, item.rawPath, "RAW 원본");
-      await assertRawIdentity(rawSource, item.rawExpectedSize, item.rawExpectedCaptureTimeMs);
       const rawDestination = await resolveDestinationDirectory(rawRoot, item.destDir, "RAW 결과 폴더");
       outputDir = rawDestination;
-      await copyOrMovePreservingMetadata({
-        source: rawSource,
-        destinationDirectory: rawDestination,
-        move: item.rawAction === "move",
-      });
-      if (item.rawAction === "move") rawMoved += 1;
+      let rawOperation: PreservedOperationResult;
+      try {
+        const rawSource = await resolveSourceFile(rawRoot, item.rawPath, "RAW 원본");
+        await assertRawIdentity(rawSource, item.rawExpectedSize, item.rawExpectedCaptureTimeMs);
+        rawOperation = await copyOrMovePreservingMetadata({
+          source: rawSource,
+          destinationDirectory: rawDestination,
+          move: item.rawAction === "move",
+        });
+      } catch (error) {
+        const completed = await existingCompletedDestination(
+          rawRoot,
+          item.rawPath,
+          item.destDir,
+          item.rawExpectedSize,
+          item.rawExpectedCaptureTimeMs,
+        );
+        if (!completed) throw error;
+        rawOperation = {
+          source: item.rawPath,
+          destination: completed,
+          attributeVerified: true,
+          moved: item.rawAction === "move",
+          alreadyExisted: true,
+          warnings: ["원본이 없어 기존 완료 파일의 크기·촬영시각으로 재시도 상태를 확인함"],
+        };
+      }
+      if (rawOperation.alreadyExisted) alreadyCopied += 1;
+      else if (item.rawAction === "move") rawMoved += 1;
       else copied += 1;
       attributePassed += 1;
-
-      if (item.jpgPath && item.jpgDestDir) {
-        if (!jpgRoot) throw new Error("JPG 이동 기준 폴더가 없습니다.");
-        const jpgSource = await resolveSourceFile(jpgRoot, item.jpgPath, "JPG 원본");
-        const jpgDestination = await resolveDestinationDirectory(jpgRoot, item.jpgDestDir, "JPG 보정본 폴더");
-        const xmpSource = await matchingXmp(jpgSource);
-        await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: jpgDestination, move: true });
-        jpgMoved += 1;
-        attributePassed += 1;
-        if (xmpSource) {
-          await copyOrMovePreservingMetadata({ source: xmpSource, destinationDirectory: jpgDestination, move: true });
-          xmpMoved += 1;
-          attributePassed += 1;
-        }
-      }
+      recordWarnings("raw_copy", item.rawPath, rawOperation.warnings);
       attributesByPath.set(item.rawPath, "통과");
-      if (item.jpgPath) attributesByPath.set(item.jpgPath, "통과");
+      rawSucceeded = true;
     } catch (error) {
       attributeFailed += 1;
       attributesByPath.set(item.rawPath, "실패");
-      if (item.jpgPath) attributesByPath.set(item.jpgPath, "실패");
-      failures.push({ path: item.rawPath, error: error instanceof Error ? error.message : "파일 처리 실패" });
+      failures.push({ stage: "raw_copy", path: item.rawPath, error: error instanceof Error ? error.message : "RAW 처리 실패" });
+    }
+
+    if (rawSucceeded && item.jpgPath && item.jpgDestDir) {
+      if (!jpgRoot) {
+        attributeFailed += 1;
+        attributesByPath.set(item.jpgPath, "실패");
+        failures.push({ stage: "jpg_move", path: item.jpgPath, error: "JPG 이동 기준 폴더가 없습니다." });
+      } else {
+        let jpgSucceeded = false;
+        let xmpSource: string | null = null;
+        try {
+          const jpgDestination = await resolveDestinationDirectory(jpgRoot, item.jpgDestDir, "JPG 보정본 폴더");
+          let jpgOperation: PreservedOperationResult;
+          try {
+            const jpgSource = await resolveSourceFile(jpgRoot, item.jpgPath, "JPG 원본");
+            xmpSource = await matchingXmp(jpgSource);
+            jpgOperation = await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: jpgDestination, move: true });
+          } catch (error) {
+            const completed = item.jpgExpectedSize === undefined
+              ? null
+              : await existingCompletedDestination(
+                jpgRoot,
+                item.jpgPath,
+                item.jpgDestDir,
+                item.jpgExpectedSize,
+                item.jpgExpectedCaptureTimeMs ?? null,
+              );
+            if (!completed) throw error;
+            jpgOperation = {
+              source: item.jpgPath,
+              destination: completed,
+              attributeVerified: true,
+              moved: true,
+              alreadyExisted: true,
+              warnings: ["이미 이동된 JPG를 크기·촬영시각으로 확인함"],
+            };
+            const sourceCandidate = path.resolve(jpgRoot, safeRelativePath(item.jpgPath, "JPG 원본"));
+            xmpSource = await matchingXmp(sourceCandidate).catch(() => null);
+          }
+          if (!jpgOperation.alreadyExisted) jpgMoved += 1;
+          attributePassed += 1;
+          recordWarnings("jpg_move", item.jpgPath, jpgOperation.warnings);
+          attributesByPath.set(item.jpgPath, "통과");
+          jpgSucceeded = true;
+        } catch (error) {
+          attributeFailed += 1;
+          attributesByPath.set(item.jpgPath, "실패");
+          failures.push({ stage: "jpg_move", path: item.jpgPath, error: error instanceof Error ? error.message : "JPG 이동 실패" });
+        }
+
+        if (jpgSucceeded && xmpSource) {
+          try {
+            const jpgDestination = await resolveDestinationDirectory(jpgRoot, item.jpgDestDir, "JPG 보정본 폴더");
+            const xmpOperation = await copyOrMovePreservingMetadata({ source: xmpSource, destinationDirectory: jpgDestination, move: true });
+            if (!xmpOperation.alreadyExisted) xmpMoved += 1;
+            attributePassed += 1;
+            recordWarnings("xmp_move", path.relative(jpgRoot, xmpSource), xmpOperation.warnings);
+          } catch (error) {
+            attributeFailed += 1;
+            failures.push({ stage: "xmp_move", path: path.relative(jpgRoot, xmpSource), error: error instanceof Error ? error.message : "XMP 이동 실패" });
+          }
+        }
+      }
     }
     await options.onProgress?.({ current: index + 1, total: payload.items.length, message: `${index + 1}/${payload.items.length}장 처리` });
   }
@@ -430,11 +573,13 @@ export async function executeRemoteRawMatchCopy(
     status: "PHOTO_RAW_MATCH_COPY_COMPLETED",
     outputDir,
     copied,
+    alreadyCopied,
     rawMoved,
     jpgMoved,
     xmpMoved,
     failed: failures.length,
     failures,
+    warnings,
     attributePassed,
     attributeFailed,
     logPath,

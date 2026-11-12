@@ -317,6 +317,7 @@ export function SelectMatchWorkspace({
   const [rawOutputOpenError, setRawOutputOpenError] = useState("");
   const [result,     setResult]     = useState({
     matched: 0,
+    alreadyCopied: 0,
     missing: 0,
     selected: 0,
     jpgMoved: 0,
@@ -457,8 +458,13 @@ export function SelectMatchWorkspace({
     targetBasenames: authoritativeMatchTargets,
     sources: scannedJpgSources,
   }), [authoritativeMatchTargets, scannedJpgSources]);
+  const missingMatchTargetBasenames = useMemo(() => {
+    const sourceBasenames = new Set(selectedJpgSources.map((source) => source.basename));
+    return Array.from(authoritativeMatchTargets).filter((basename) => !sourceBasenames.has(basename));
+  }, [authoritativeMatchTargets, selectedJpgSources]);
+  const expectedMatchTargetCount = selectedJpgSources.length + missingMatchTargetBasenames.length;
   const preflightTargetCountMatches = preflight
-    ? isCaptureMatchTargetCountConsistent(authoritativeMatchTargets.size, preflight)
+    ? missingMatchTargetBasenames.length === 0 && isCaptureMatchTargetCountConsistent(selectedJpgSources.length, preflight)
     : false;
 
   useEffect(() => {
@@ -815,12 +821,10 @@ export function SelectMatchWorkspace({
     setRawScanCount(0);
     const rawIndex = await buildRawIndex(overrideRawDir, setRawScanCount);
     if (preflightRequestRef.current !== requestId) return;
-    const sourceBasenames = new Set(selectedJpgSources.map((source) => source.basename));
-    const missingSources = Array.from(authoritativeMatchTargets).filter((basename) => !sourceBasenames.has(basename));
-    if (missingSources.length > 0) {
+    if (missingMatchTargetBasenames.length > 0) {
       setRawDiscovery({
         status: "error",
-        message: `선택 JPG ${missingSources.length}장의 원본 파일을 찾지 못했습니다. JPG 폴더를 다시 열어 주세요.`,
+        message: `선택 JPG ${missingMatchTargetBasenames.length}장의 원본 파일을 찾지 못했습니다. JPG 폴더를 다시 열어 주세요.`,
       });
     }
     const capturePreflight = await buildCaptureMatchPreflight({
@@ -851,7 +855,7 @@ export function SelectMatchWorkspace({
     }
     if (preflightRequestRef.current !== requestId) return;
     setPreflight(capturePreflight);
-  }, [authoritativeMatchTargets, rootDir, rawRootDir, selectedJpgSources, buildRawIndex, rawIndexRef]);
+  }, [authoritativeMatchTargets, rootDir, rawRootDir, selectedJpgSources, missingMatchTargetBasenames, buildRawIndex, rawIndexRef]);
 
   useEffect(() => {
     if (!bridgeLinked || step !== "raw_pick" || authoritativeMatchTargets.size === 0 || selectedJpgSources.length === 0 || rawMatchFolderCandidates.length === 0) return;
@@ -865,13 +869,17 @@ export function SelectMatchWorkspace({
     void discoverRawFolder({
       candidates: rawMatchFolderCandidates,
       selectedNames: authoritativeMatchTargets,
-      onCandidate: (candidate) => {
-        if (!disposed) setRawDiscovery({ status: "searching", message: `${candidate.name} 폴더에서 표본 RAW를 확인하고 있습니다.`, folderName: candidate.name });
+      onCandidate: (candidate, index, total) => {
+        if (!disposed) setRawDiscovery({ status: "searching", message: `${candidate.name} 폴더 확인 중 (${index}/${total})`, folderName: candidate.name });
       },
     }).then(async (result) => {
       if (disposed) return;
       if (!result.candidate) {
-        setRawDiscovery({ status: "not_found", message: "현재 폴더와 상위 2단계에서 같은 이름의 RAW를 찾지 못했습니다." });
+        const timedOut = result.attempts.filter((attempt) => attempt.status === "timeout").map((attempt) => attempt.name);
+        setRawDiscovery({
+          status: "not_found",
+          message: `RAW 폴더를 찾지 못했어요 · 직접 지정${timedOut.length ? ` (${timedOut.join(", ")} 시간 초과)` : ""}`,
+        });
         return;
       }
       const folderName = result.candidate.name;
@@ -974,7 +982,8 @@ export function SelectMatchWorkspace({
       setRawOutputPath(remoteResult.outputDir);
       setProgress({ cur: approvedMatches.length, total: approvedMatches.length, msg: "RAW 매칭 완료" });
       setResult({
-        matched: remoteResult.copied + remoteResult.rawMoved,
+        matched: remoteResult.copied + remoteResult.rawMoved + remoteResult.alreadyCopied,
+        alreadyCopied: remoteResult.alreadyCopied,
         missing: missingNames.length,
         selected: preflight.items.length,
         jpgMoved: remoteResult.jpgMoved,
@@ -982,8 +991,12 @@ export function SelectMatchWorkspace({
         failed: remoteResult.failed,
         deliveredFolderName: remoteResult.jpgMoved > 0 ? deliveredFolderName.trim() : "",
         missingNames,
-        failedNames: remoteResult.failures.map((failure) => `${failure.path} — ${failure.error}`),
-        moveNotice: remoteResult.attributeFailed > 0 ? "일부 파일의 원본 속성 확인이 실패해 해당 파일은 완료 처리하지 않았습니다." : "",
+        failedNames: remoteResult.failures.map((failure) => `${failure.stage} · ${failure.path} — ${failure.error}`),
+        moveNotice: remoteResult.attributeFailed > 0
+          ? "일부 파일의 원본 속성 확인이 실패해 해당 단계는 완료 처리하지 않았습니다."
+          : remoteResult.warnings.length > 0
+            ? `허용 가능한 속성 차이 ${remoteResult.warnings.length}건을 경고로 기록했습니다.`
+            : "",
         cancelled: cancelRef.current,
         attributePassed: remoteResult.attributePassed,
         attributeFailed: remoteResult.attributeFailed,
@@ -1249,7 +1262,7 @@ export function SelectMatchWorkspace({
               >{label}</button>
             ))}
           </div>
-          <span style={{ marginLeft: "auto", color: uiAccent, fontSize: 12, fontWeight: 600 }}>매칭할 사진 {resolvedBridgeTargets.size.toLocaleString("ko-KR")}장</span>
+          <span style={{ marginLeft: "auto", color: uiAccent, fontSize: 12, fontWeight: 600 }}>매칭할 사진 {expectedMatchTargetCount.toLocaleString("ko-KR")}장</span>
         </div>
         <div style={{ display: "grid", gap: 9 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: ratingEnabled ? uiText : uiHint, opacity: ratingEnabled ? 1 : .45 }}>
@@ -1743,7 +1756,7 @@ export function SelectMatchWorkspace({
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "RAW 원본 폴더를 자동으로 찾습니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
-          {bridgeLinked ? "선택 기준에 맞는" : "고객 선택"} 파일명 <strong style={{ color: uiAccent }}>{authoritativeMatchTargets.size}개</strong>를 확인했습니다.<br />
+          {bridgeLinked ? "선택 기준에 맞는" : "고객 선택"} 사진 <strong style={{ color: uiAccent }}>{expectedMatchTargetCount}장</strong>을 확인했습니다.<br />
           {bridgeLinked ? <>선택 사진 1~2장을 기준으로 현재 폴더와 상위 2단계까지만 확인합니다.<br /></> : <>이제 RAW 파일이 들어있는 폴더를 선택하세요.<br /></>}
           매칭된 RAW 파일은 <strong>Selected_RAW/</strong> 폴더에 복사됩니다.
         </div>
@@ -1759,14 +1772,13 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          {bridgeLinked && rawDiscovery.status === "not_found" && (rawMatchDefaultFolder || currentLocalFolder || rootDir) ? <Btn onClick={() => void runPreflight(rawMatchDefaultFolder ?? currentLocalFolder ?? rootDir ?? undefined)}>기본 폴더로 전체 확인</Btn> : null}
           <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={async () => {
             try {
               const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
               setRawDiscovery({ status: "manual", folderName: dir.name, message: `${dir.name} 폴더를 직접 선택했습니다.` });
               await runPreflight(dir);
             } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
-          }}>{bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
+          }}>{bridgeLinked && (rawDiscovery.status === "not_found" || rawDiscovery.status === "error") ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
         </div>
       </div>
     </div>
@@ -1845,7 +1857,7 @@ export function SelectMatchWorkspace({
 
             {!preflightTargetCountMatches ? (
               <div role="alert" style={{ background: "#FEF2F2", border: "1px solid rgba(201,74,30,.35)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
-                대상 수가 맞지 않습니다. 매칭 기준 {authoritativeMatchTargets.size.toLocaleString("ko-KR")}장 · 사전 확인 {preflight.items.length.toLocaleString("ko-KR")}장 · 상태 합계 {preflightSummaryTotal.toLocaleString("ko-KR")}장입니다. 폴더를 다시 확인해 주세요.
+                대상 수가 맞지 않습니다. 매칭 기준 {expectedMatchTargetCount.toLocaleString("ko-KR")}장 · 사전 확인 {preflight.items.length.toLocaleString("ko-KR")}장 · 상태 합계 {preflightSummaryTotal.toLocaleString("ko-KR")}장입니다. 폴더를 다시 확인해 주세요.
               </div>
             ) : preflight.items.length === 0 ? (
               <div role="alert" style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginBottom: 16 }}>
@@ -2052,6 +2064,7 @@ export function SelectMatchWorkspace({
           </div>
           <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiText, lineHeight: 1.75, marginBottom: 16 }}>
             RAW {result.matched.toLocaleString("ko-KR")}장 Selected_RAW로 {rawSelectMode === "move" ? "이동" : "복사"}
+            {result.alreadyCopied ? <> · 이미 있음 {result.alreadyCopied.toLocaleString("ko-KR")}장</> : null}
             {result.deliveredFolderName ? <> · JPG {result.jpgMoved.toLocaleString("ko-KR")}장(+xmp {result.xmpMoved.toLocaleString("ko-KR")}개) {result.deliveredFolderName}으로 이동</> : null}
             {` · 검증 제외 ${result.missing.toLocaleString("ko-KR")}장 · 실패 ${result.failed.toLocaleString("ko-KR")}장 · _match_log.csv 기록`}
             <br />속성 확인: 통과 {result.attributePassed.toLocaleString("ko-KR")}개 파일 · 실패 {result.attributeFailed.toLocaleString("ko-KR")}개 파일

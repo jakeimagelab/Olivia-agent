@@ -28,6 +28,7 @@ import {
 } from "@/lib/person-select/rawMatch";
 import { restoreRawMarkXmp, updateRawMarkXmp } from "@/lib/person-select/node/rawMarkXmp";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
+import { fetchAllRowsByIdChunks } from "@/lib/person-select/rawMatchPaging";
 import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
 import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/rawMatchCopy";
@@ -203,23 +204,32 @@ async function loadTargets(input: {
     if (!latestSelectionByReviewer.has(selection.reviewer_id)) latestSelectionByReviewer.set(selection.reviewer_id, selection);
   }
   const selectionIds = [...latestSelectionByReviewer.values()].map((selection) => selection.id);
-  const { data: selectionItems, error: itemError } = selectionIds.length
-    ? await input.db.from("person_select_shared_selection_items").select("selection_id,image_id,customer_rating,customer_color_label").in("selection_id", selectionIds)
-    : { data: [], error: null };
-  if (itemError) throw itemError;
+  const selectionItems = selectionIds.length
+    ? await fetchAllRowsByIdChunks<SharedSelectionItemRow>(selectionIds, (ids, from, to) => input.db
+      .from("person_select_shared_selection_items")
+      .select("selection_id,image_id,customer_rating,customer_color_label")
+      .in("selection_id", [...ids])
+      .order("id")
+      .range(from, to))
+    : [];
   const allImageIds = new Set<string>();
   for (const draft of (drafts ?? []) as SharedDraftRow[]) {
     for (const item of Array.isArray(draft.items) ? draft.items : []) if (item.image_id) allImageIds.add(item.image_id);
   }
-  for (const item of (selectionItems ?? []) as SharedSelectionItemRow[]) allImageIds.add(item.image_id);
-  const { data: images, error: imagesError } = allImageIds.size
-    ? await input.db.from("person_select_images").select("id,original_file_name,source_rel_path").eq("event_id", input.eventId).in("id", [...allImageIds])
-    : { data: [], error: null };
-  if (imagesError) throw imagesError;
-  const imageById = new Map(((images ?? []) as SharedImageRow[]).map((image) => [image.id, imageRow(image)]));
+  for (const item of selectionItems) allImageIds.add(item.image_id);
+  const images = allImageIds.size
+    ? await fetchAllRowsByIdChunks<SharedImageRow>([...allImageIds], (ids, from, to) => input.db
+      .from("person_select_images")
+      .select("id,original_file_name,source_rel_path")
+      .eq("event_id", input.eventId)
+      .in("id", [...ids])
+      .order("id")
+      .range(from, to))
+    : [];
+  const imageById = new Map(images.map((image) => [image.id, imageRow(image)]));
   const submittedByReviewer = new Map<string, PersonSelectRawImage[]>();
   for (const [reviewerId, selection] of latestSelectionByReviewer) {
-    submittedByReviewer.set(reviewerId, ((selectionItems ?? []) as SharedSelectionItemRow[])
+    submittedByReviewer.set(reviewerId, selectionItems
       .filter((item) => item.selection_id === selection.id)
       .flatMap((item) => {
         const image = imageById.get(item.image_id);

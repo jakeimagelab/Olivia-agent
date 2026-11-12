@@ -47,7 +47,7 @@ const FEATURE_GROUPS: FeatureGroup[] = [
       { path: "/sns-manager", label: "홍보 콘텐츠 제작" },
       { path: "/review-studio", label: "리뷰컨텐츠" },
       { path: "/brand-analysis", label: "홈페이지 브랜드 분석" },
-      { path: "/ai-trust-gap", label: "AI 추천 병원 역분석" },
+      { path: "/geo-radar", label: "GEO 레이더" },
       { path: "/diagnosis", label: "병원이미지 진단" },
       { path: "/channel-analyzer", label: "병원 채널 분석" },
       { path: "/image-generator", label: "리얼 이미지 디렉터" },

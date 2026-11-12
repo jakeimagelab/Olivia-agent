@@ -168,6 +168,31 @@ describe("OLIVIA OS persisted workspace migration", () => {
     expect(state.activeWindowId).toBe("video-studio");
   });
 
+  it("keeps restored windows in the background when the OS starts at home", () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal("window", {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key),
+      },
+    });
+    values.set("olivia-os-desktop-state", JSON.stringify({
+      version: DESKTOP_STATE_VERSION,
+      activeAppId: "customer",
+      windows: [{
+        appId: "customer", title: "고객관리", x: 20, y: 30, width: 900, height: 640,
+        minimized: false, snapMode: "none",
+      }],
+    }));
+
+    loadDesktopState(new Set(["customer"]), { startAtHome: true });
+
+    const state = useOliviaDesktopStore.getState();
+    expect(state.activeWindowId).toBeNull();
+    expect(state.windows.customer).toMatchObject({ title: "고객관리", minimized: false });
+  });
+
   it("removes a stale customer from a restored person-select list window", () => {
     const values = new Map<string, string>();
     vi.stubGlobal("window", {

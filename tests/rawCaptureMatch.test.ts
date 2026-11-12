@@ -207,6 +207,34 @@ describe("RAW 촬영시각 안전 매칭", () => {
     expect(resolveCaptureMatchJpgSources({ targetBasenames: new Set(["a", "b"]), sources }).map((source) => source.id)).toEqual(["현재/A.JPG"]);
   });
 
+  it("같은 파일명 JPG가 다른 폴더에 있으면 각각 촬영시각이 맞는 RAW로 매칭한다", async () => {
+    const handle = (name: string, data: ArrayBuffer) => ({
+      name,
+      kind: "file",
+      getFile: async () => new File([data], name),
+    }) as unknown as FileSystemFileHandle;
+    const directory = { name: "RAW", kind: "directory" } as FileSystemDirectoryHandle;
+    const sources: JpgMatchSource[] = [
+      { id: "JPG/정연호/_AK_0008.JPG", name: "_AK_0008.JPG", basename: "_ak_0008", relativePath: "JPG/정연호/_AK_0008.JPG", handle: handle("_AK_0008.JPG", makeTiff("2026:11:10 10:00:00")), thumbUrl: null },
+      { id: "JPG/클라이언트/_AK_0008.JPG", name: "_AK_0008.JPG", basename: "_ak_0008", relativePath: "JPG/클라이언트/_AK_0008.JPG", handle: handle("_AK_0008.JPG", makeTiff("2026:11:10 10:00:10")), thumbUrl: null },
+    ];
+    const selectedSources = resolveCaptureMatchJpgSources({ targetBasenames: new Set(["_ak_0008"]), sources });
+    expect(selectedSources).toHaveLength(2);
+    const preflight = await buildCaptureMatchPreflight({
+      jpgSources: selectedSources,
+      rawIndex: new Map([["_ak_0008", [
+        { fileHandle: handle("_AK_0008.CR2", makeTiff("2026:11:10 10:00:00")), dirHandle: directory, relativePath: "RAW/정연호/_AK_0008.CR2" },
+        { fileHandle: handle("_AK_0008.CR2", makeTiff("2026:11:10 10:00:10")), dirHandle: directory, relativePath: "RAW/클라이언트/_AK_0008.CR2" },
+      ]]]),
+    });
+    expect(preflight).toMatchObject({ confirmed: 2, multipleCandidates: 0 });
+    expect(isCaptureMatchTargetCountConsistent(selectedSources.length, preflight)).toBe(true);
+    expect(preflight.items.map((item) => item.candidates.find((candidate) => candidate.id === item.confirmedCandidateId)?.entry.relativePath)).toEqual([
+      "RAW/정연호/_AK_0008.CR2",
+      "RAW/클라이언트/_AK_0008.CR2",
+    ]);
+  });
+
   it("사전 확인 항목 수나 상태 합계가 기준 수와 다르면 실행 불가로 판정한다", () => {
     const preflight = {
       items: [{ id: "only-one" }],
