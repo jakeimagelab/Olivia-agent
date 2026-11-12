@@ -1,7 +1,6 @@
 "use client";
 
-import { Card } from "../PhotoSortingWorkspace";
-import { C } from "../PhotoSortingWorkspace";
+import { C, Card } from "../PhotoSortingUi";
 import type { SceneWeightProfile } from "@/lib/photo-classifier/pattern-analysis";
 
 function levelLabel(weight: number): string {

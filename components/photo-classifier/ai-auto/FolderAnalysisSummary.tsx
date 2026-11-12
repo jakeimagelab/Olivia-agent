@@ -1,7 +1,6 @@
 "use client";
 
-import { Card } from "../PhotoSortingWorkspace";
-import { C } from "../PhotoSortingWorkspace";
+import { C, Card } from "../PhotoSortingUi";
 import type { FolderShootingPattern } from "@/lib/photo-classifier/pattern-analysis";
 
 export default function FolderAnalysisSummary({ analyzing, pattern, fileCount }: { analyzing: boolean; pattern: FolderShootingPattern | null; fileCount: number }) {

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, Btn } from "../PhotoSortingWorkspace";
-import { C } from "../PhotoSortingWorkspace";
+import { Btn, C, Card } from "../PhotoSortingUi";
 
 const QUICK_CHIPS = ["시간차 우선", "모델 변경 감지", "장소 변화 감지"];
 

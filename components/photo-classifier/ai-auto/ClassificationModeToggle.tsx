@@ -1,6 +1,6 @@
 "use client";
 
-import { C } from "../PhotoSortingWorkspace";
+import { C } from "../PhotoSortingUi";
 
 export type ClassificationUiMode = "ai-auto" | "advanced";
 
