@@ -46,6 +46,7 @@ import { useOliviaBridgeFolderActions } from "@/components/olivia-bridge/useOliv
 import { useOliviaBridgeToolLaunch } from "@/components/olivia-bridge/useOliviaBridgeToolLaunch";
 import { useOliviaBridgeWorkspaceSync } from "@/components/olivia-bridge/useOliviaBridgeWorkspaceSync";
 import { useOliviaBridgeFilters } from "@/components/olivia-bridge/useOliviaBridgeFilters";
+import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useOliviaBridgeSceneReviewModel";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -53,11 +54,9 @@ import {
 import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridgeOverlayLayer";
 import { OliviaBridgeTopBars } from "@/components/olivia-bridge/OliviaBridgeTopBars";
 import {
-  rebuildBridgeSceneAnalysis,
   type BridgeFolderScan,
   type BridgeJpgSortMode,
 } from "@/lib/photo-bridge/bridgeFiles";
-import { createBridgeClassificationPlan } from "@/lib/photo-bridge/classificationPlan";
 import type { BridgeFloatingWindowRect } from "@/lib/photo-bridge/floatingWindow";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
@@ -738,17 +737,31 @@ export default function OliviaBridgeWorkspace({
     { key: "selected", label: "모든 셀렉 사진만 보기", count: labeledCount },
     { key: "unselected", label: "셀렉 사진 제외하고 보기", count: selectionCounts.unselected },
   ];
-  const scenePhotoByName = useMemo(() => new Map(scan.jpgs.map((photo) => [photo.name, photo])), [scan.jpgs]);
-  const selectedSceneAnalysis = useMemo(() => {
-    if (!sceneReviewOpen || !sceneState.analysis || !selectedIds.size) return null;
-    return rebuildBridgeSceneAnalysis(sceneState.analysis.files.filter((file) => selectedIds.has(file.id)));
-  }, [sceneReviewOpen, sceneState.analysis, selectedIds]);
-  const selectedScenes = useMemo(() => selectedSceneAnalysis?.scenes ?? [], [selectedSceneAnalysis]);
-  const sceneBoundaryReviewCount = useMemo(() => selectedScenes.filter((scene) => scene.needsReview).length, [selectedScenes]);
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
-  const sceneAnalysisReady = sceneState.status === "complete" && Boolean(sceneState.analysis);
-  const selectedSceneAnalysisReady = sceneAnalysisReady && Boolean(selectedSceneAnalysis) && selectedScenes.length > 0;
-  const scenePlanReady = selectedSceneAnalysisReady && photoDepartmentResolution.status === "resolved" && !departmentLoading && !adobeSelectionLoading;
+  const {
+    scenePhotoByName,
+    selectedSceneAnalysis,
+    selectedScenes,
+    sceneBoundaryReviewCount,
+    selectedSceneAnalysisReady,
+    scenePlanReady,
+    applyScenePlan,
+  } = useOliviaBridgeSceneReviewModel({
+    jpgs: scan.jpgs,
+    selectedIds,
+    sceneReviewOpen,
+    sceneState,
+    photoDepartmentResolution,
+    departmentLoading,
+    adobeSelectionLoading,
+    hasActiveFolder,
+    activeFolder,
+    folderPath,
+    stageBridgeClassificationPlan,
+    setSceneReviewOpen,
+    setToolKey,
+    reportScenePlanError,
+  });
 
   const closeCompactPreview = useCallback(() => setCompactPreviewOpen(false), []);
   const openRootFolder = useCallback(() => {
@@ -767,25 +780,6 @@ export default function OliviaBridgeWorkspace({
       return next;
     });
   }, [focusedPhoto, setSelectedIds]);
-
-  const applyScenePlan = useCallback(() => {
-    if (!hasActiveFolder || !selectedSceneAnalysis || !scenePlanReady || photoDepartmentResolution.status !== "resolved") return;
-    try {
-      if (activeFolder) {
-        stageBridgeClassificationPlan(createBridgeClassificationPlan({
-          folderKey: folderPath,
-          folderName: activeFolder.name,
-          directory: activeFolder,
-          analysis: selectedSceneAnalysis,
-          departmentResolution: photoDepartmentResolution,
-        }));
-      }
-      setSceneReviewOpen(false);
-      setToolKey("classification");
-    } catch (error) {
-      reportScenePlanError(error);
-    }
-  }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, reportScenePlanError, scenePlanReady, selectedSceneAnalysis, stageBridgeClassificationPlan]);
 
   const openCompactPreview = useCallback(() => setCompactPreviewOpen(true), []);
   const openSceneReview = useCallback(() => {
