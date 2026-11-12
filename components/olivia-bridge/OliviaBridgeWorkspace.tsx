@@ -89,6 +89,7 @@ import { REMOTE_NAS_ROOT_NAME, type RemoteNasSelection } from "@/lib/remote-nas/
 import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/remote-nas/path";
 import { loadRemoteBridgeRatings } from "@/lib/photo-bridge/remoteRatings";
 import { loadRemoteBridgeThumbnails } from "@/lib/photo-bridge/remoteThumbnails";
+import { projectAdobeBridgeMarks } from "@/lib/photo-bridge/adobeMarkProjection";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
   bridgeGridNavigationTarget,
@@ -1015,31 +1016,17 @@ export default function OliviaBridgeWorkspace({
         const remote = await loadRemoteBridgeRatings(remoteFolder.path, { signal });
         if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
         const byKey = new Map(remote.ratings.map((item) => [item.key, item]));
-        const nextRatings: Record<string, number> = {};
-        const nextColors: BridgeColorLabels = {};
-        const nextRawMarks: Record<string, AdobeBridgeMark> = {};
-        const nextAdobeIds = new Set<string>();
         const rated = remote.ratings.filter((mark) => mark.rating !== null).length;
         const colored = remote.ratings.filter((mark) => mark.colorLabel !== null).length;
-        for (const photo of scan.jpgs) {
-          const mark = byKey.get(normalizePhotoToolFileKey(photo.name));
-          if (!mark) continue;
-          if (mark.rating) nextRatings[photo.id] = mark.rating;
-          if (mark.colorLabel) nextColors[photo.id] = mark.colorLabel;
-          nextAdobeIds.add(photo.id);
-        }
-        for (const raw of scan.raws) {
-          const mark = byKey.get(normalizePhotoToolFileKey(raw.name));
-          if (mark) nextRawMarks[raw.id] = { rating: mark.rating, colorLabel: mark.colorLabel };
-        }
-        setAdobeRatings(nextRatings);
-        setAdobeColorLabels(nextColors);
-        setRawAdobeMarks(nextRawMarks);
+        const projected = projectAdobeBridgeMarks(scan.jpgs, scan.raws, byKey);
+        setAdobeRatings(projected.ratings);
+        setAdobeColorLabels(projected.colorLabels);
+        setRawAdobeMarks(projected.rawMarks);
         setAdobeMarkStatus({ read: remote.scanned, total: remote.scanned, rated, colored, failed: 0, failedFileNames: [], firstError: null });
-        adobeRatingsRef.current = nextRatings;
-        adobeColorLabelsRef.current = nextColors;
-        publishRatingsForSource(selectionSourceRef.current, nextRatings);
-        commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
+        adobeRatingsRef.current = projected.ratings;
+        adobeColorLabelsRef.current = projected.colorLabels;
+        publishRatingsForSource(selectionSourceRef.current, projected.ratings);
+        commitSelectedIds(manualSelectedIdsRef.current, projected.selectedIds);
       } catch (error) {
         if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
         console.error("[olivia-bridge] Failed to sync remote Adobe Bridge ratings", error);
@@ -1070,26 +1057,12 @@ export default function OliviaBridgeWorkspace({
         },
       });
       if (signal?.aborted || generation !== adobeSelectionGenerationRef.current) return;
-      const nextRatings: Record<string, number> = {};
-      const nextColors: BridgeColorLabels = {};
-      const nextRawMarks: Record<string, AdobeBridgeMark> = {};
-      const nextAdobeIds = new Set<string>();
       // 파일명 기준 공용 저장소에도 넣는다. 손으로 준 별점은 applyRating이 넣고 있는데
       // 어도비에서 읽어온 별점만 빠져 있어서, RAW 매칭·사진 셀렉이 그 별점을 못 받았다.
-      for (const photo of scan.jpgs) {
-        const mark = found.marks.get(normalizePhotoToolFileKey(photo.name));
-        if (!mark) continue;
-        if (mark.rating) nextRatings[photo.id] = mark.rating;
-        if (mark.colorLabel) nextColors[photo.id] = mark.colorLabel;
-        nextAdobeIds.add(photo.id);
-      }
-      for (const raw of scan.raws) {
-        const mark = found.marks.get(normalizePhotoToolFileKey(raw.name));
-        if (mark) nextRawMarks[raw.id] = mark;
-      }
-      setAdobeRatings(nextRatings);
-      setAdobeColorLabels(nextColors);
-      setRawAdobeMarks(nextRawMarks);
+      const projected = projectAdobeBridgeMarks(scan.jpgs, scan.raws, found.marks);
+      setAdobeRatings(projected.ratings);
+      setAdobeColorLabels(projected.colorLabels);
+      setRawAdobeMarks(projected.rawMarks);
       setAdobeMarkStatus({
         read: found.read,
         total: found.total,
@@ -1099,10 +1072,10 @@ export default function OliviaBridgeWorkspace({
         failedFileNames: found.failedFileNames,
         firstError: found.firstError,
       });
-      adobeRatingsRef.current = nextRatings;
-      adobeColorLabelsRef.current = nextColors;
-      publishRatingsForSource(selectionSourceRef.current, nextRatings);
-      commitSelectedIds(manualSelectedIdsRef.current, nextAdobeIds);
+      adobeRatingsRef.current = projected.ratings;
+      adobeColorLabelsRef.current = projected.colorLabels;
+      publishRatingsForSource(selectionSourceRef.current, projected.ratings);
+      commitSelectedIds(manualSelectedIdsRef.current, projected.selectedIds);
     } catch (error) {
       if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
       console.error("[olivia-bridge] Failed to sync Adobe Bridge ratings", error);
