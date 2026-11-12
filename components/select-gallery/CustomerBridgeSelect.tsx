@@ -335,8 +335,9 @@ export default function CustomerBridgeSelect({
     [folderView, images, location.kind],
   );
   const childFolders = location.kind === "root" ? rootView.folders : folderView?.folders ?? EMPTY_FOLDERS;
-  // 고객/관리자에 표시하는 확정 셀렉은 항상 서버가 확인한 값만 사용한다.
-  const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
+  const serverSelectedIds = useMemo(() => customerBridgeSelectedIds(serverRatings, serverColorLabels), [serverColorLabels, serverRatings]);
+  // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
+  const customerSelectedIds = useMemo(() => customerBridgeSelectedIds(customerRatings, customerColorLabels), [customerColorLabels, customerRatings]);
   const filenameSearchTokens = useMemo(() => bridgeFilenameSearchTokens(filenameSearch), [filenameSearch]);
   const hasLabelFilters = hasActiveBridgeLabelFilters(labelFilters);
   const visibleImages = useMemo(() => folderImages.filter((image) => {
@@ -346,9 +347,9 @@ export default function CustomerBridgeSelect({
     if ((filter === "eyes_closed" || filter === "face_too_dark" || filter === "motion_blur") && !(quality?.flags.includes(filter) ?? false)) return false;
     if (filter === "quality_review" && quality?.status !== "needs_review") return false;
     if (filter === "quality_normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
-    if (hasLabelFilters && !matchesBridgeLabelFilters(image.id, labelFilters, serverRatings, serverColorLabels)) return false;
+    if (hasLabelFilters && !matchesBridgeLabelFilters(image.id, labelFilters, customerRatings, customerColorLabels)) return false;
     return matchesBridgeFilenameSearch(image.original_file_name, filenameSearchTokens);
-  }), [customerSelectedIds, filenameSearchTokens, filter, folderImages, hasLabelFilters, labelFilters, qualityResults, serverColorLabels, serverRatings]);
+  }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearchTokens, filter, folderImages, hasLabelFilters, labelFilters, qualityResults]);
   const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
   const renderedImages = useMemo(() => visibleImages.slice(0, renderLimit), [renderLimit, visibleImages]);
   const selectedInFolder = useMemo(() => folderImages.reduce((count, image) => count + (customerSelectedIds.has(image.id) ? 1 : 0), 0), [customerSelectedIds, folderImages]);
@@ -484,14 +485,14 @@ export default function CustomerBridgeSelect({
   }, [canManageQuality, qualityApi]);
 
   const downloadSelected = useCallback(async (format: "jpg" | "raw") => {
-    if (readOnly || downloadBusy || !customerSelectedIds.size) return;
+    if (readOnly || downloadBusy || selectionSync.pendingCount || !serverSelectedIds.size) return;
     setDownloadBusy(true);
     setDownloadState(`${format.toUpperCase()} 원본 다운로드를 준비하는 중입니다.`);
     try {
       const response = await fetch(`${endpointBase}/downloads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageIds: [...customerSelectedIds], format, requestKey: `download_${createRequestKey()}` }),
+        body: JSON.stringify({ imageIds: [...serverSelectedIds], format, requestKey: `download_${createRequestKey()}` }),
       });
       const created = await response.json().catch(() => ({}));
       if (!response.ok || !created.ok) throw new Error(created.error || "다운로드 작업을 만들지 못했습니다.");
@@ -502,7 +503,7 @@ export default function CustomerBridgeSelect({
         const statusResponse = await fetch(`${endpointBase}/downloads?jobId=${encodeURIComponent(jobId)}`, { cache: "no-store" });
         const status = await statusResponse.json().catch(() => ({}));
         if (!statusResponse.ok || !status.ok) throw new Error(status.error || "다운로드 상태를 확인하지 못했습니다.");
-        setDownloadState(`${Number(status.job?.completed_count ?? 0).toLocaleString("ko-KR")} / ${Number(status.job?.total_count ?? customerSelectedIds.size).toLocaleString("ko-KR")}장 준비`);
+        setDownloadState(`${Number(status.job?.completed_count ?? 0).toLocaleString("ko-KR")} / ${Number(status.job?.total_count ?? serverSelectedIds.size).toLocaleString("ko-KR")}장 준비`);
         if (status.downloadUrl) { window.location.assign(String(status.downloadUrl)); setDownloadState("다운로드를 시작했습니다."); return; }
         if (["failed", "canceled", "expired"].includes(String(status.job?.status ?? ""))) throw new Error(status.job?.error || "다운로드 준비에 실패했습니다.");
       }
@@ -510,7 +511,7 @@ export default function CustomerBridgeSelect({
     } catch (error) {
       setDownloadState(error instanceof Error ? error.message : "다운로드에 실패했습니다.");
     } finally { setDownloadBusy(false); }
-  }, [customerSelectedIds, downloadBusy, endpointBase, readOnly]);
+  }, [downloadBusy, endpointBase, readOnly, selectionSync.pendingCount, serverSelectedIds]);
 
   const applyRatingTo = useCallback((targetIds: ReadonlySet<string>, rating: 0 | CustomerBridgeRating) => {
     if (readOnly || !targetIds.size) return;
@@ -1079,8 +1080,8 @@ export default function CustomerBridgeSelect({
         {(["all", "selected", "unselected"] as const).map((value) => <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? `전체 ${folderImages.length}` : value === "selected" ? `고객 셀렉 ${selectedInFolder}` : `미선택 ${folderImages.length - selectedInFolder}`}</button>)}
       </div> : null}
       <button ref={guideButtonRef} type="button" className={`${styles.headerAction} ${styles.guideAction}`} title="사진 선택 이용 가이드" aria-haspopup="dialog" aria-expanded={guideOpen} onClick={() => setGuideOpen(true)}><BookOpenText size={14} /> 이용 가이드</button>
-      {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
-      {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!customerSelectedIds.size || downloadBusy} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
+      {gallery.download_jpg_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0} title={downloadState || "고객 셀렉 원본 JPG를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("jpg")}><Download size={14} /> {downloadBusy ? "준비 중" : "JPG 원본"}</button> : null}
+      {gallery.download_raw_enabled && !readOnly ? <button type="button" className={styles.headerAction} disabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0} title={downloadState || "고객 셀렉 RAW를 ZIP으로 준비합니다."} onClick={() => void downloadSelected("raw")}><Download size={14} /> {downloadBusy ? "준비 중" : "RAW 원본"}</button> : null}
       {messagesEnabled ? <button type="button" className={`${styles.headerAction} ${styles.mobileChatAction}`} onClick={() => { setSideTab("chat"); setMobileSideOpen(true); }}><MessageCircle size={14} /> 대화{unreadMessages ? ` ${unreadMessages}` : ""}</button> : null}
       {qualityApi && canManageQuality ? <button type="button" className={styles.headerAction} disabled={["queued", "running", "paused"].includes(String(qualityJob?.status ?? ""))} onClick={() => void startQuality()}><Sparkles size={14} /> {["queued", "running"].includes(String(qualityJob?.status ?? "")) ? "AI 검사 중" : qualityJob?.status === "paused" ? "AI 검사 정지" : "AI 검사 시작"}</button> : null}
       {adminToolbarAction}

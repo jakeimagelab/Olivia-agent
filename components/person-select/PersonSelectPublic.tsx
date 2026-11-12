@@ -379,6 +379,7 @@ function usePersonChoiceSync(input: {
     sendBatch,
     onSnapshot: installSnapshot,
     onRestore: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
+    onPendingChange: (pending) => setDisplayed(overlayPersonChoiceDiffs(confirmedRef.current, pending, images)),
   });
 
   useEffect(() => {
@@ -465,14 +466,13 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     images,
     enabled: Boolean(me && category && !me.event.locked),
   });
-  const selectedIds = useMemo(() => new Set(sync.confirmedChoices.map((choice) => choice.image_id)), [sync.confirmedChoices]);
   const displayedIds = useMemo(() => new Set(sync.displayedChoices.map((choice) => choice.image_id)), [sync.displayedChoices]);
 
   if (meLoading || loading) return <main className={styles.darkPage}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me || !category) return <main className={styles.darkPage}><div className={styles.done}>{error || "항목을 찾을 수 없어요."}</div></main>;
   const currentMe = me;
   const currentCategory = category;
-  const visibleChoices = sync.confirmedChoices;
+  const visibleChoices = sync.displayedChoices;
   const visibleCategory = { ...currentCategory, choices: visibleChoices };
 
   function choose(imageId: string) {
@@ -490,7 +490,7 @@ export function PersonSelectCategory({ slug, categoryKey }: { slug: string; cate
     setMessage("");
     sync.enqueue([{ imageId, selected: false }]);
   }
-  const shown = filter === "selected" ? images.filter((image) => selectedIds.has(image.id)) : images;
+  const shown = filter === "selected" ? images.filter((image) => displayedIds.has(image.id)) : images;
   const preview = previewIndex === null ? null : images[previewIndex];
   const count = visibleChoices.length;
   const extra = extraCount(visibleCategory);
@@ -708,8 +708,8 @@ function PcWorkspace({ slug, me, activeKey, pendingSyncCount }: { slug: string; 
     images,
     enabled: Boolean(active && !me.event.locked),
   });
-  const chosen = sync.confirmedChoices;
   const displayedChoices = sync.displayedChoices;
+  const chosen = displayedChoices;
   // 항목이나 사진 목록이 바뀔 때만 미리보기를 처음으로 돌린다. (사진을 고를 때마다 튀지 않게)
   useEffect(() => {
     setPreviewId((current) => images.some((image) => image.id === current) ? current : (serverChoices?.[0]?.image_id || images[0]?.id || ""));

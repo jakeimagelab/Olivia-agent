@@ -34,6 +34,7 @@ type SelectionSyncQueueOptions<TSnapshot> = {
   sendBatch: (input: { clientId: string; diffs: SelectionSyncDiff[] }) => Promise<TSnapshot>;
   onSnapshot: (snapshot: TSnapshot, pending: SelectionSyncDiff[]) => void;
   onRestore?: (pending: SelectionSyncDiff[]) => void;
+  onPendingChange?: (pending: SelectionSyncDiff[]) => void;
 };
 
 function createClientId() {
@@ -47,6 +48,7 @@ export function useSelectionSyncQueue<TSnapshot>({
   sendBatch,
   onSnapshot,
   onRestore,
+  onPendingChange,
 }: SelectionSyncQueueOptions<TSnapshot>) {
   const [status, setStatus] = useState<SelectionSyncQueueStatus>("saved");
   const [pendingCount, setPendingCount] = useState(0);
@@ -63,10 +65,12 @@ export function useSelectionSyncQueue<TSnapshot>({
   const sendBatchRef = useRef(sendBatch);
   const onSnapshotRef = useRef(onSnapshot);
   const onRestoreRef = useRef(onRestore);
+  const onPendingChangeRef = useRef(onPendingChange);
 
   useEffect(() => { sendBatchRef.current = sendBatch; }, [sendBatch]);
   useEffect(() => { onSnapshotRef.current = onSnapshot; }, [onSnapshot]);
   useEffect(() => { onRestoreRef.current = onRestore; }, [onRestore]);
+  useEffect(() => { onPendingChangeRef.current = onPendingChange; }, [onPendingChange]);
 
   const queueValues = useCallback(() => compactSelectionSyncDiffs([...queueRef.current.values()]), []);
 
@@ -172,7 +176,8 @@ export function useSelectionSyncQueue<TSnapshot>({
     const split = splitSelectionSyncPatches(patches, nextSeqRef.current);
     nextSeqRef.current = split.nextSeq;
     for (const diff of split.diffs) queueRef.current.set(selectionSyncDiffKey(diff), diff);
-    publishPending();
+    const pending = publishPending();
+    onPendingChangeRef.current?.(pending);
     setStatus("waiting");
     setMessage("");
     persist();
