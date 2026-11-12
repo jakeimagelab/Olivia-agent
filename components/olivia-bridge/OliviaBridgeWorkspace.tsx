@@ -56,6 +56,7 @@ import { useOliviaBridgePersonSelectionImport } from "@/components/olivia-bridge
 import { useOliviaBridgeCustomerSelectionImport } from "@/components/olivia-bridge/useOliviaBridgeCustomerSelectionImport";
 import { useOliviaBridgeFolderCounts } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
 import { useOliviaBridgeMarqueeSelection } from "@/components/olivia-bridge/useOliviaBridgeMarqueeSelection";
+import { useOliviaBridgeSelectionReview } from "@/components/olivia-bridge/useOliviaBridgeSelectionReview";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -85,10 +86,6 @@ import {
 } from "@/lib/photo-bridge/gridNavigation";
 import {
   bridgeKeyboardRangeSelection,
-  cycleBridgeReviewIndex,
-  removeBridgeReviewItem,
-  restoreBridgeReviewItem,
-  type BridgeReviewRemovedItem,
 } from "@/lib/photo-bridge/reviewMode";
 import {
   DEFAULT_BRIDGE_SELECTION_SOURCE,
@@ -153,7 +150,6 @@ const PhotoSourcePicker = dynamic(
 );
 
 type Breadcrumb = { name: string; handle: FileSystemDirectoryHandle };
-type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 
 const EMPTY_SCAN: BridgeFolderScan = {
   folders: [],
@@ -231,9 +227,6 @@ export default function OliviaBridgeWorkspace({
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
-  const [selectionReviewOpen, setSelectionReviewOpen] = useState(false);
-  const [reviewActiveId, setReviewActiveId] = useState<string | null>(null);
-  const [reviewRemoved, setReviewRemoved] = useState<ReviewRemovedSource[]>([]);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
@@ -465,12 +458,6 @@ export default function OliviaBridgeWorkspace({
     if (quality.status === "normal" || quality.reviewStatus === "confirmed_normal") counts.normal += 1;
     return counts;
   }, { eyes_closed: 0, face_too_dark: 0, motion_blur: 0, needs_review: 0, normal: 0 }), [qualityByBridgeId, scan.jpgs]);
-  const reviewPhotos = useMemo(() => sortBridgeJpgs(scan.jpgs.filter((photo) => selectedIds.has(photo.id)), jpgSortMode), [jpgSortMode, scan.jpgs, selectedIds]);
-  const resolvedReviewActiveId = reviewActiveId && reviewPhotos.some((photo) => photo.id === reviewActiveId)
-    ? reviewActiveId
-    : reviewPhotos[0]?.id ?? null;
-  const reviewActiveIndex = reviewPhotos.findIndex((photo) => photo.id === resolvedReviewActiveId);
-  const reviewActivePhoto = reviewPhotos[reviewActiveIndex] ?? null;
   const showRaws = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "raw");
   const showSidecars = comparisonFilter === "all" && !hasLabelFilters && !filenameSearchTokens.length && (fileFilter === "all" || fileFilter === "sidecar");
   const focusedIndex = useMemo(() => visibleJpgs.findIndex((photo) => photo.id === focusedId), [focusedId, visibleJpgs]);
@@ -535,6 +522,36 @@ export default function OliviaBridgeWorkspace({
     selectedIds,
     visibleJpgs,
     onCommit: commitMarqueeSelection,
+  });
+
+  const {
+    selectionReviewOpen,
+    reviewRemoved,
+    reviewPhotos,
+    resolvedReviewActiveId,
+    reviewActiveIndex,
+    reviewActivePhoto,
+    focusReviewPhoto,
+    openSelectionReview,
+    closeSelectionReview,
+    moveReview,
+    removeReviewPhoto,
+    restoreReviewPhoto,
+  } = useOliviaBridgeSelectionReview({
+    jpgs: scan.jpgs,
+    jpgSortMode,
+    selectedIds,
+    focusedId,
+    selectionSourceRef,
+    manualSelectedIdsRef,
+    adobeSelectedIdsRef,
+    workspaceRef: rootRef,
+    setSelectedIds,
+    setFocusedId,
+    setFocusedPlainId,
+    setAnchorId,
+    setPreviewSize,
+    showAdobeSelectionNotice,
   });
 
   const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
@@ -1014,73 +1031,6 @@ export default function OliviaBridgeWorkspace({
     elements.find((element) => element.dataset.bridgePhotoId === targetId)
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [anchorId, focusedId, setSelectedIds, visibleJpgs]);
-
-  const focusReviewPhoto = useCallback((id: string) => {
-    setReviewActiveId(id);
-    setFocusedId(id);
-    setFocusedPlainId(null);
-    setPreviewSize(undefined);
-  }, []);
-
-  const openSelectionReview = useCallback(() => {
-    const first = focusedId && selectedIds.has(focusedId)
-      ? focusedId
-      : scan.jpgs.find((photo) => selectedIds.has(photo.id))?.id ?? null;
-    if (!first) return;
-    setReviewRemoved([]);
-    setReviewActiveId(first);
-    setFocusedId(first);
-    setSelectionReviewOpen(true);
-  }, [focusedId, scan.jpgs, selectedIds]);
-
-  const closeSelectionReview = useCallback(() => {
-    setSelectionReviewOpen(false);
-    setReviewRemoved([]);
-    setAnchorId(resolvedReviewActiveId);
-    requestAnimationFrame(() => rootRef.current?.focus());
-  }, [resolvedReviewActiveId]);
-
-  const moveReview = useCallback((delta: -1 | 1) => {
-    if (!reviewPhotos.length) return;
-    const nextIndex = cycleBridgeReviewIndex(reviewActiveIndex, reviewPhotos.length, delta);
-    const next = reviewPhotos[nextIndex];
-    if (next) focusReviewPhoto(next.id);
-  }, [focusReviewPhoto, reviewActiveIndex, reviewPhotos]);
-
-  const removeReviewPhoto = useCallback(() => {
-    const activeId = resolvedReviewActiveId;
-    if (!activeId) return;
-    if (selectionSourceRef.current === "adobe") {
-      showAdobeSelectionNotice();
-      return;
-    }
-    const result = removeBridgeReviewItem(reviewPhotos.map((photo) => photo.id), activeId);
-    const removed = result.removed;
-    if (!removed) return;
-    const wasManual = manualSelectedIdsRef.current.has(activeId);
-    const wasAdobe = adobeSelectedIdsRef.current.has(activeId);
-    setSelectedIds((current) => {
-      const next = new Set(current);
-      next.delete(activeId);
-      return next;
-    });
-    setReviewRemoved((current) => [...current, { ...removed, wasManual, wasAdobe }]);
-    setReviewActiveId(result.nextActiveId);
-    setFocusedId(result.nextActiveId);
-  }, [resolvedReviewActiveId, reviewPhotos, setSelectedIds, showAdobeSelectionNotice]);
-
-  const restoreReviewPhoto = useCallback(() => {
-    const removed = reviewRemoved.at(-1);
-    if (!removed) return;
-    if (selectionSourceRef.current === "adobe") {
-      showAdobeSelectionNotice();
-      return;
-    }
-    const restored = restoreBridgeReviewItem(reviewPhotos.map((photo) => photo.id), removed);
-    setSelectedIds((current) => new Set(current).add(removed.id));
-    setReviewRemoved((current) => current.slice(0, -1));
-    if (restored.activeId) focusReviewPhoto(restored.activeId);
-  }, [focusReviewPhoto, reviewPhotos, reviewRemoved, setSelectedIds, showAdobeSelectionNotice]);
 
   const labelTargets = useCallback((focusedOnly = false) => {
     if (focusedOnly) return focusedId ? new Set([focusedId]) : new Set<string>();
