@@ -34,8 +34,8 @@ describe("person select final submission", () => {
 
   it("uses the same two-step confirmation dialog in all customer selection screens", async () => {
     const files = [
-      "components/person-select/PersonSelectPublic.tsx",
-      "components/person-select/SharedProjectSelect.tsx",
+      "components/person-select/PersonSelectHome.tsx",
+      "components/person-select/SharedProjectClassicSelect.tsx",
       "components/select-gallery/CustomerBridgeSelect.tsx",
     ];
     for (const file of files) {
