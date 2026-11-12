@@ -11,23 +11,16 @@ import {
   FolderOpen,
   Images,
   LayoutGrid,
-  Link2,
   LoaderCircle,
   Maximize2,
   Minus,
-  PencilLine,
   Plus,
   RefreshCw,
-  Scaling,
   ScanSearch,
   Search,
-  Scissors,
   SlidersHorizontal,
   Sparkles,
-  Users,
-  WandSparkles,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import {
   useCallback,
@@ -50,6 +43,11 @@ import {
   formatBytes,
 } from "@/components/olivia-bridge/OliviaBridgeMedia";
 import { BridgePaneDivider } from "@/components/olivia-bridge/OliviaBridgePaneDivider";
+import {
+  BRIDGE_TOOL_ITEMS,
+  OliviaBridgeActionBar,
+  type BridgeToolKey as ToolKey,
+} from "@/components/olivia-bridge/OliviaBridgeActionBar";
 import {
   OliviaBridgeFolderPanel,
   type BridgeWorkspaceFileFilter as FileFilter,
@@ -170,7 +168,6 @@ import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudi
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
-import type { PhotoFileOpsMode, PhotoSelectMode, PhotoWorkspaceMode } from "@/components/photo-workspace/types";
 import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
@@ -197,7 +194,6 @@ type SceneState = {
   analysis: BridgeSceneAnalysis | null;
   error?: string;
 };
-type ToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
 type ReviewRemovedSource = BridgeReviewRemovedItem & { wasManual: boolean; wasAdobe: boolean };
 type MarqueeCard = { id: string; element: HTMLElement; rectangle: BridgeRectangle };
 type MarqueeSession = {
@@ -253,24 +249,6 @@ function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
   return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 }
-
-const TOOL_ITEMS: Array<{
-  key: ToolKey;
-  label: string;
-  icon: LucideIcon;
-  mode: PhotoWorkspaceMode;
-  selectMode?: PhotoSelectMode;
-  fileOpsMode?: PhotoFileOpsMode;
-}> = [
-  { key: "jpg-prep", label: "JPG 정리", icon: Images, mode: "jpg-prep" },
-  { key: "select", label: "사진 셀렉", icon: Check, mode: "select", selectMode: "manual" },
-  { key: "raw-match", label: "RAW 매칭", icon: Link2, mode: "raw-match" },
-  { key: "tcut", label: "T컷 정리", icon: Scissors, mode: "select", selectMode: "tcut" },
-  { key: "resize", label: "리사이즈", icon: Scaling, mode: "file-ops", fileOpsMode: "resize" },
-  { key: "rename", label: "이름변경", icon: PencilLine, mode: "file-ops", fileOpsMode: "rename" },
-  { key: "retouch", label: "사진 보정", icon: WandSparkles, mode: "retouch" },
-  { key: "classification", label: "사진 분류", icon: ScanSearch, mode: "classification" },
-];
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
@@ -505,7 +483,7 @@ export default function OliviaBridgeWorkspace({
     ...(showSidecars ? scan.sidecars : []),
   ], [scan.raws, scan.sidecars, showRaws, showSidecars]);
   const focusedPlainFile = visiblePlainFiles.find((file) => file.id === focusedPlainId) ?? null;
-  const activeTool = TOOL_ITEMS.find((item) => item.key === toolKey);
+  const activeTool = BRIDGE_TOOL_ITEMS.find((item) => item.key === toolKey);
 
   const showTopNotice = useCallback((message: string, duration = 3_000) => {
     if (topNoticeTimerRef.current) clearTimeout(topNoticeTimerRef.current);
@@ -2374,21 +2352,23 @@ export default function OliviaBridgeWorkspace({
         />
       </main>
 
-      <section className={styles.actionBar} aria-label="Bridge 작업 도구">
-        <div className={styles.actionSummary}><span>선택 <b>{selectedIds.size}</b></span><span>레이블 <b>{labeledCount}</b></span><span>제외 <b>{excludedIds.size}</b></span></div>
-        <nav className={styles.actionTools}>
-          {TOOL_ITEMS.map(({ key, label, icon: Icon }) => {
-            const disabledReason = toolDisabledReason(key);
-            return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={toolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => openTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={12} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
-          })}
-          <button type="button" className={styles.customerSelectionButton} onClick={openGallerySelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "갤러리 고객 셀렉: 사진 폴더를 먼저 선택해 주세요." : "갤러리 고객 셀렉 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "사진선택 갤러리에 제출된 고객 셀렉을 비교합니다."}><Users size={12} strokeWidth={1.8} /><span>갤러리 고객 셀렉</span></button>
-          <button type="button" className={styles.customerSelectionButton} onClick={openPersonSelectImport} disabled={!hasActiveFolder || scanStatus !== "ready"} aria-label={!hasActiveFolder || scanStatus !== "ready" ? "고객 선택 불러오기: 사진 폴더를 먼저 선택해 주세요." : "개인별 사진선택 행사 불러오기"} title={!hasActiveFolder || scanStatus !== "ready" ? "사진 폴더를 먼저 선택해 주세요." : "개인별 사진 셀렉 행사에서 고객이 고른 사진을 불러옵니다."}><Users size={12} strokeWidth={1.8} /><span>고객 선택 불러오기</span></button>
-        </nav>
-      </section>
-
-      <footer className={styles.shortcutBar}>
-        <div className={styles.shortcutHints}>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span><span>X 제외</span>{scan.unreadableFolderCount ? <i>하위 폴더 {scan.unreadableFolderCount}곳을 읽지 못함</i> : null}{scan.ignoredCount ? <i>숨김·기타 {scan.ignoredCount}개 제외</i> : null}</div>
-      </footer>
+      <OliviaBridgeActionBar
+        selectedCount={selectedIds.size}
+        labeledCount={labeledCount}
+        excludedCount={excludedIds.size}
+        activeToolKey={toolKey}
+        sceneReviewOpen={sceneReviewOpen}
+        disabledReasonFor={toolDisabledReason}
+        onOpenTool={openTool}
+        hasActiveFolder={hasActiveFolder}
+        scanReady={scanStatus === "ready"}
+        onOpenGallerySelection={openGallerySelectImport}
+        onOpenPersonSelection={openPersonSelectImport}
+        activeRatingFilterName={activeRatingFilterName}
+        activeColorFilterName={activeColorFilterName}
+        unreadableFolderCount={scan.unreadableFolderCount}
+        ignoredCount={scan.ignoredCount}
+      />
 
       {sceneReviewOpen ? <BridgeFloatingWindow
         windowId="scene-review"

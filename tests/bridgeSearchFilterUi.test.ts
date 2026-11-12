@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 
 const adminBridge = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
 const adminFolderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
+const adminActionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
+const adminBridgeUi = `${adminBridge}\n${adminActionBar}`;
 const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
 const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
@@ -12,7 +14,7 @@ const customerKeyboard = readFileSync("components/select-gallery/useCustomerBrid
 
 describe("Bridge filename search and shared label shortcuts", () => {
   it("wires the same search and shortcut hook into both Bridge screens", () => {
-    for (const source of [adminBridge, customerBridge]) {
+    for (const source of [adminBridgeUi, customerBridge]) {
       expect(source).toContain("useBridgeSearchFilterShortcuts");
       expect(source).toContain('type="search"');
       expect(source).toContain('aria-label="파일명 검색"');
