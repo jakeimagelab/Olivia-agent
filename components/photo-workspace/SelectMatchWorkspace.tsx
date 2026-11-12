@@ -17,11 +17,9 @@ import {
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
-import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
 import {
   nextDeliveredRoundFolderName,
   rawMatchProgressPercent,
-  type RawMatchCriteria,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
   remoteRawMatchUnavailableReason,
@@ -47,6 +45,11 @@ import { useSelectMatchPreflight } from "@/components/photo-workspace/useSelectM
 import { useSelectMatchExecution } from "@/components/photo-workspace/useSelectMatchExecution";
 import { useSelectMatchClientInput } from "@/components/photo-workspace/useSelectMatchClientInput";
 import { useSelectMatchSceneThumbnails } from "@/components/photo-workspace/useSelectMatchSceneThumbnails";
+import {
+  RawMatchCriteriaPanel,
+  SelectMatchFeatureTabs,
+  type SelectMatchFeature,
+} from "@/components/photo-workspace/SelectMatchControls";
 
 const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
 const PROGRAM_ARCHIVE_ITEMS = [
@@ -187,7 +190,7 @@ export function SelectMatchWorkspace({
   const uiAccent = embedded ? "#4FD8B8" : C.teal;
 
   /* ── 기능 선택: RAW 매칭 vs 파일명 이동 vs 순서 검토 vs 프로그램 아카이브 ── */
-  const [feature, setFeature] = useState<"raw_match" | "find_move" | "seq_check" | "program_archive">("raw_match");
+  const [feature, setFeature] = useState<SelectMatchFeature>("raw_match");
 
   const {
     rootDir: scRootDir,
@@ -504,106 +507,41 @@ export function SelectMatchWorkspace({
 
   const totalPhotos = scenes.reduce((a, s) => a + s.photos.length, 0);
 
-  /* ── 상단 기능 전환 탭 (두 기능 진입점에서만 노출) ── */
-  const FeatureTabs = () => embedded ? null : (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8, marginBottom: 20 }}>
-      <button onClick={() => setFeature("raw_match")} style={{
-        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "raw_match" ? uiAccent : uiBorder}`,
-        background: feature === "raw_match" ? groupedSurface : surfaceCard,
-        color: feature === "raw_match" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
-      }}>셀렉 &amp; RAW 매칭</button>
-      <button onClick={() => setFeature("find_move")} style={{
-        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "find_move" ? uiAccent : uiBorder}`,
-        background: feature === "find_move" ? groupedSurface : surfaceCard,
-        color: feature === "find_move" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
-      }}>파일명으로 찾기</button>
-      <button onClick={() => setFeature("seq_check")} style={{
-        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "seq_check" ? uiAccent : uiBorder}`,
-        background: feature === "seq_check" ? groupedSurface : surfaceCard,
-        color: feature === "seq_check" ? uiAccent : uiMuted, fontSize: 12, fontWeight: 500,
-      }}>파일 순서 검토</button>
-      <button onClick={() => setFeature("program_archive")} style={{
-        padding: "10px 12px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-        border: `1.5px solid ${feature === "program_archive" ? uiAccent : uiBorder}`,
-        background: feature === "program_archive" ? groupedSurface : surfaceCard,
-        color: feature === "program_archive" ? uiAccent : uiMuted, fontSize: 11, fontWeight: 500,
-      }}>모바일 자동화 &gt; 프로그램 아카이브</button>
-    </div>
+  const controlColors = {
+    surfaceCard,
+    groupedSurface,
+    inputSurface,
+    uiBorder,
+    uiText,
+    uiMuted,
+    uiHint,
+    uiAccent,
+  };
+  const featureTabs = (
+    <SelectMatchFeatureTabs
+      embedded={embedded}
+      feature={feature}
+      onChange={setFeature}
+      colors={controlColors}
+    />
   );
-
-  const updateRawMatchCriteria = (next: RawMatchCriteria) => {
-    setRawMatchCriteria(next);
-    resetForCriteria();
-  };
-
-  const RawMatchCriteriaPanel = () => {
-    if (!bridgeLinked || selectedJpgNames.length === 0) return null;
-    const ratingEnabled = rawMatchCriteria.source !== "color";
-    const colorEnabled = rawMatchCriteria.source !== "rating";
-    return (
-      <section aria-label="RAW 매칭 기준" style={{ background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 12, padding: 14, marginBottom: 14 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-          <strong style={{ color: uiText, fontSize: 12 }}>매칭 기준</strong>
-          <div style={{ display: "inline-flex", border: `1px solid ${uiBorder}`, borderRadius: 9, overflow: "hidden" }}>
-            {([['rating', '별점'], ['color', '컬러'], ['both', '둘 다']] as const).map(([source, label]) => (
-              <button
-                key={source}
-                type="button"
-                aria-pressed={rawMatchCriteria.source === source}
-                onClick={() => updateRawMatchCriteria({ ...rawMatchCriteria, source })}
-                style={{ minHeight: 36, padding: "0 14px", border: 0, borderRight: source !== "both" ? `1px solid ${uiBorder}` : 0, background: rawMatchCriteria.source === source ? uiAccent : "transparent", color: rawMatchCriteria.source === source ? "#103E36" : uiMuted, font: "inherit", fontSize: 11, fontWeight: 600, cursor: "pointer" }}
-              >{label}</button>
-            ))}
-          </div>
-          <span style={{ marginLeft: "auto", color: uiAccent, fontSize: 12, fontWeight: 600 }}>매칭할 사진 {expectedMatchTargetCount.toLocaleString("ko-KR")}장</span>
-        </div>
-        <div style={{ display: "grid", gap: 9 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: ratingEnabled ? uiText : uiHint, opacity: ratingEnabled ? 1 : .45 }}>
-            <span style={{ width: 42, fontSize: 11, fontWeight: 600 }}>별점</span>
-            <select
-              value={rawMatchCriteria.minRating}
-              disabled={!ratingEnabled}
-              onChange={(event) => updateRawMatchCriteria({ ...rawMatchCriteria, minRating: Number(event.currentTarget.value) as RawMatchCriteria["minRating"] })}
-              style={{ minHeight: 36, border: `1px solid ${uiBorder}`, borderRadius: 8, background: inputSurface, color: uiText, padding: "0 10px", font: "inherit", fontSize: 11 }}
-            >
-              {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>★{rating} 이상</option>)}
-            </select>
-          </label>
-          <div aria-disabled={!colorEnabled} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: colorEnabled ? uiText : uiHint, opacity: colorEnabled ? 1 : .45 }}>
-            <span style={{ width: 42, fontSize: 11, fontWeight: 600 }}>컬러</span>
-            {([6, 7, 8, 9] as BridgeColorLabel[]).map((label) => {
-              const checked = rawMatchCriteria.colorLabels.includes(label);
-              return (
-                <label key={label} style={{ display: "inline-flex", alignItems: "center", gap: 5, minHeight: 36, cursor: colorEnabled ? "pointer" : "default", fontSize: 11 }}>
-                  <input
-                    type="checkbox"
-                    disabled={!colorEnabled}
-                    checked={checked}
-                    onChange={() => updateRawMatchCriteria({
-                      ...rawMatchCriteria,
-                      colorLabels: checked
-                        ? rawMatchCriteria.colorLabels.filter((value) => value !== label)
-                        : [...rawMatchCriteria.colorLabels, label].sort() as RawMatchCriteria["colorLabels"],
-                    })}
-                  />
-                  <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: "50%", background: BRIDGE_COLOR_LABELS[label].color }} />
-                  {label}
-                </label>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-    );
-  };
+  const rawMatchCriteriaPanel = (
+    <RawMatchCriteriaPanel
+      visible={bridgeLinked && selectedJpgNames.length > 0}
+      criteria={rawMatchCriteria}
+      expectedCount={expectedMatchTargetCount}
+      onChange={(next) => {
+        setRawMatchCriteria(next);
+        resetForCriteria();
+      }}
+      colors={controlColors}
+    />
+  );
 
   /* ── 모바일 자동화 > 프로그램 아카이브 ── */
   if (feature === "program_archive") return (
     <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
-      <FeatureTabs />
+      {featureTabs}
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         <Smartphone size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
         <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>모바일 자동화 &gt; 프로그램 아카이브</div>
@@ -637,7 +575,7 @@ export function SelectMatchWorkspace({
   if (feature === "find_move") {
     if (fmStep === "idle") return (
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        <FeatureTabs />
+        {featureTabs}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <FileText size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
           <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일명으로 찾기</div>
@@ -792,7 +730,7 @@ export function SelectMatchWorkspace({
   if (feature === "seq_check") {
     if (scStep === "idle") return (
       <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        <FeatureTabs />
+        {featureTabs}
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <ListOrdered size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
           <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일 순서 검토</div>
@@ -827,7 +765,7 @@ export function SelectMatchWorkspace({
       const hasMissing = scResult.missingRanges.length > 0;
       return (
         <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-          <FeatureTabs />
+          {featureTabs}
           <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24, marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 4 }}>
               총 {scResult.totalFiles}개 파일
@@ -879,7 +817,7 @@ export function SelectMatchWorkspace({
 
   if (step === "idle") return (
     <div style={{ maxWidth: 660, margin: embedded ? "0 auto" : "32px auto", padding: embedded ? "24px 20px 28px" : "0 20px" }}>
-      <FeatureTabs />
+      {featureTabs}
       {!embedded ? <div style={{ textAlign: "center", marginBottom: 20 }}>
         <div style={{ fontSize: 30, marginBottom: 8 }}>🎯</div>
         <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>RAW 매칭</div>
@@ -1048,7 +986,7 @@ export function SelectMatchWorkspace({
   /* ── RAW 폴더 선택 (client_input 이후) ── */
   if (step === "raw_pick") return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: "0 24px" }}>
-      <RawMatchCriteriaPanel />
+      {rawMatchCriteriaPanel}
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, padding: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 15, fontWeight: 600, color: uiAccent, marginBottom: 6 }}><FolderOpen size={17} aria-hidden="true" />{bridgeLinked ? "RAW 원본 폴더를 자동으로 찾습니다" : "RAW 폴더를 선택하세요"}</div>
         <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7, marginBottom: 20 }}>
@@ -1100,7 +1038,7 @@ export function SelectMatchWorkspace({
     const preflightSummaryTotal = preflight ? captureMatchSummaryTotal(preflight) : 0;
     return (
     <div style={{ maxWidth: 960, margin: "28px auto", padding: "0 24px" }}>
-      <RawMatchCriteriaPanel />
+      {rawMatchCriteriaPanel}
       <div style={{ background: surfaceCard, borderRadius: 16, border: `1px solid ${uiBorder}`, overflow: "hidden" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
           <ScanSearch size={16} aria-hidden="true" /> 매칭 사전 확인
