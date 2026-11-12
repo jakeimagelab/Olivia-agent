@@ -43,6 +43,7 @@ import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useO
 import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useOliviaBridgeSelectionSummary";
 import { useOliviaBridgeUiState } from "@/components/olivia-bridge/useOliviaBridgeUiState";
 import { useOliviaBridgeFolderNavigation } from "@/components/olivia-bridge/useOliviaBridgeFolderNavigation";
+import { useOliviaBridgePreviewNavigation } from "@/components/olivia-bridge/useOliviaBridgePreviewNavigation";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -624,15 +625,24 @@ export default function OliviaBridgeWorkspace({
     showAdobeSelectionNotice,
   });
 
-  const openFullscreenPreview = useCallback(() => {
-    if (selectionReviewOpen ? !reviewActivePhoto : !focusedPhoto || focusedIndex < 0) return;
-    setFullscreenPreviewOpen(true);
-  }, [focusedIndex, focusedPhoto, reviewActivePhoto, selectionReviewOpen]);
-
-  const moveFullscreenPreview = useCallback((delta: number) => {
-    if (selectionReviewOpen) moveReview(delta < 0 ? -1 : 1);
-    else moveFocus(delta);
-  }, [moveFocus, moveReview, selectionReviewOpen]);
+  const {
+    fullscreenPhoto,
+    fullscreenIndex,
+    fullscreenTotal,
+    openFullscreenPreview,
+    moveFullscreenPreview,
+  } = useOliviaBridgePreviewNavigation({
+    selectionReviewOpen,
+    reviewActivePhoto,
+    reviewActiveIndex,
+    reviewPhotoCount: reviewPhotos.length,
+    focusedPhoto,
+    focusedIndex,
+    visiblePhotoCount: visibleJpgs.length,
+    moveReview,
+    moveFocus,
+    setFullscreenPreviewOpen,
+  });
 
   const resizeThumbnails = useCallback((direction: -1 | 1) => {
     setThumbnailSize((value) => Math.min(
@@ -700,9 +710,6 @@ export default function OliviaBridgeWorkspace({
     setComparisonFilter("all");
   }, [customerSelectedIds, setSelectedIds]);
 
-  const fullscreenPhoto = selectionReviewOpen ? reviewActivePhoto : focusedPhoto;
-  const fullscreenIndex = selectionReviewOpen ? reviewActiveIndex : focusedIndex;
-  const fullscreenTotal = selectionReviewOpen ? reviewPhotos.length : visibleJpgs.length;
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
   const {
     scenePhotoByName,
