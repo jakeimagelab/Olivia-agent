@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8");
+const rawMatchControls = readFileSync("components/person-select/admin/RawMatchControls.tsx", "utf8");
 const bridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
 const bridgeCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
 
@@ -22,14 +23,14 @@ describe("person select RAW match admin UI", () => {
   });
 
   it("shows the submitted/current chooser and visible disabled reasons", () => {
-    expect(page).toContain("지금 고른 상태");
-    expect(page).toContain("최종 제출본만");
+    expect(rawMatchControls).toContain("지금 고른 상태");
+    expect(rawMatchControls).toContain("최종 제출본만");
     expect(page).toContain("원본 폴더를 Mac Studio 위치로 연결해 주세요.");
     expect(page).toContain("Mac Studio가 꺼져 있어요.");
     expect(page).toContain("고른 사진이 없어요.");
-    expect(page).toContain("JPG 위치");
-    expect(page).toContain("RAW 검색 범위");
-    expect(page).toContain("결과 저장 위치");
+    expect(rawMatchControls).toContain("JPG 위치");
+    expect(rawMatchControls).toContain("RAW 검색 범위");
+    expect(rawMatchControls).toContain("결과 저장 위치");
   });
 
   it("keeps the customer Bridge footer above the mobile safe area", () => {
