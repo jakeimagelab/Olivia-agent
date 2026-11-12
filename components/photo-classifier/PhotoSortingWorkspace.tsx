@@ -54,10 +54,6 @@ import { normalizeRemoteNasRelativePath, toRemoteNasDisplayPath } from "@/lib/re
 import {
   createRemotePhotoSortJob,
 } from "@/lib/photo-classifier/remotePhotoSort";
-import {
-  checkRemotePhotoWorkFolder,
-  type RemotePhotoWorkFolderCheck,
-} from "@/lib/photo-classifier/remotePhotoWorkFolderCheck";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import RemoteJobProgress from "@/components/photo-workspace/RemoteJobProgress";
@@ -126,18 +122,12 @@ import {
   SectionPill,
   Toggle,
 } from "./PhotoSortingUi";
+import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
 ═══════════════════════════════════════════════ */
 type PhotoMode = "field" | "studio";
-
-type RemoteWorkFolderCheckState =
-  | { status: "idle" }
-  | { status: "checking"; sourceFolder: string }
-  | { status: "available"; result: RemotePhotoWorkFolderCheck }
-  | { status: "resume"; result: RemotePhotoWorkFolderCheck }
-  | { status: "error"; sourceFolder: string; message: string };
 
 function isSimulatedRemoteResult(result: unknown): boolean {
   if (!result) return false;
@@ -318,58 +308,21 @@ function PhotoSortingInner({
   const [remotePhotoSortError, setRemotePhotoSortError] = useState("");
   const [remotePhotoSortSubmitting, setRemotePhotoSortSubmitting] = useState(false);
   const remotePhotoSortAbortRef = useRef<AbortController | null>(null);
-  const [remoteWorkFolderCheck, setRemoteWorkFolderCheck] = useState<RemoteWorkFolderCheckState>({ status: "idle" });
-  const remoteWorkFolderCheckAbortRef = useRef<AbortController | null>(null);
   const remotePhotoSortActive = remotePhotoSortSubmitting || remoteJobActive;
   const remoteWorkerOffline = workerPresence.online === false;
-  const remoteWorkFolderReady = (remoteWorkFolderCheck.status === "available" || remoteWorkFolderCheck.status === "resume")
-    && remoteWorkFolderCheck.result.sourceFolder === remoteSelection?.path;
-
-  const requestRemoteWorkFolderCheck = useCallback(async (sourceFolder: string) => {
-    remoteWorkFolderCheckAbortRef.current?.abort();
-    const controller = new AbortController();
-    remoteWorkFolderCheckAbortRef.current = controller;
-    setRemoteWorkFolderCheck({ status: "checking", sourceFolder });
-
-    try {
-      const result = await checkRemotePhotoWorkFolder(sourceFolder, { signal: controller.signal });
-      if (controller.signal.aborted) return;
-      setRemoteWorkFolderCheck(
-        result.jpgWorkFolderExists
-          ? { status: "resume", result }
-          : { status: "available", result },
-      );
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setRemoteWorkFolderCheck({
-        status: "error",
-        sourceFolder,
-        message: error instanceof Error ? error.message : "Agentstation 작업본을 확인하지 못했습니다.",
-      });
-    } finally {
-      if (remoteWorkFolderCheckAbortRef.current === controller) {
-        remoteWorkFolderCheckAbortRef.current = null;
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (executionMode !== "REMOTE_WORKER" || !remoteSelection?.path) {
-      remoteWorkFolderCheckAbortRef.current?.abort();
-      remoteWorkFolderCheckAbortRef.current = null;
-      setRemoteWorkFolderCheck({ status: "idle" });
-      return;
-    }
-    void requestRemoteWorkFolderCheck(remoteSelection.path);
-  }, [executionMode, remoteSelection?.path, requestRemoteWorkFolderCheck]);
+  const {
+    state: remoteWorkFolderCheck,
+    ready: remoteWorkFolderReady,
+    check: requestRemoteWorkFolderCheck,
+  } = useRemoteWorkFolderCheck({
+    enabled: executionMode === "REMOTE_WORKER",
+    sourceFolder: remoteSelection?.path,
+  });
 
   useEffect(() => () => {
     const controller = remotePhotoSortAbortRef.current;
     remotePhotoSortAbortRef.current = null;
     controller?.abort();
-    const workFolderController = remoteWorkFolderCheckAbortRef.current;
-    remoteWorkFolderCheckAbortRef.current = null;
-    workFolderController?.abort();
   }, []);
 
   /* ── field state ── */
