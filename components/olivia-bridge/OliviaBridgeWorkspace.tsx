@@ -110,6 +110,14 @@ import {
 import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
 import { resetBridgeThumbnailCache } from "@/lib/photo-bridge/thumbnailCache";
 import { createBridgeSelectionSummary } from "@/lib/photo-bridge/selectionSummary";
+import {
+  projectBridgeColorLabelsByName,
+  projectBridgeRatingsByName,
+  projectBridgeSelectedFiles,
+  projectBridgeSelectedNames,
+  resolveBridgeRatingsByName,
+  resolveBridgeSelectedIdsByName,
+} from "@/lib/photo-bridge/selectionProjection";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
@@ -336,7 +344,7 @@ export default function OliviaBridgeWorkspace({
     adobeSelectedIdsRef.current = nextAdobe;
     selectedIdsRef.current = next;
     setSelectedIdsState(next);
-    setSelectedJpgNames(scan.jpgs.filter((photo) => next.has(photo.id)).map((photo) => photo.name));
+    setSelectedJpgNames(projectBridgeSelectedNames(scan.jpgs, next));
   }, [scan.jpgs, setSelectedJpgNames]);
 
   const publishRatingsForSource = useCallback((
@@ -347,7 +355,7 @@ export default function OliviaBridgeWorkspace({
     const byId = Object.fromEntries(scan.jpgs.flatMap((photo) => resolved[photo.id] ? [[photo.id, resolved[photo.id]] as const] : []));
     lastPublishedRatingsRef.current = byId;
     setJpgRatingsByName(
-      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, resolved[photo.id] ?? 0])),
+      projectBridgeRatingsByName(scan.jpgs, resolved),
       { overwrite: true },
     );
   }, [scan.jpgs, setJpgRatingsByName]);
@@ -541,32 +549,24 @@ export default function OliviaBridgeWorkspace({
   }, []);
 
   useEffect(() => {
-    setSelectedJpgFiles(scan.jpgs
-      .filter((photo) => selectedIds.has(photo.id))
-      .map((photo) => photo.file)
-      .filter((file): file is File => Boolean(file)));
+    setSelectedJpgFiles(projectBridgeSelectedFiles(scan.jpgs, selectedIds));
   }, [scan.jpgs, selectedIds, setSelectedJpgFiles]);
 
   useEffect(() => {
     setJpgColorLabelsByName(
-      Object.fromEntries(scan.jpgs.map((photo) => [photo.name, effectiveColorLabels[photo.id] ?? 0])),
+      projectBridgeColorLabelsByName(scan.jpgs, effectiveColorLabels),
       { overwrite: true },
     );
   }, [effectiveColorLabels, scan.jpgs, setJpgColorLabelsByName]);
 
   useEffect(() => {
-    const selectedKeys = new Set(selectedJpgNames.map(normalizePhotoToolFileKey).filter(Boolean));
-    const next = new Set(scan.jpgs.filter((photo) => selectedKeys.has(normalizePhotoToolFileKey(photo.name))).map((photo) => photo.id));
+    const next = resolveBridgeSelectedIdsByName(scan.jpgs, selectedJpgNames);
     if (selectedIdsRef.current.size === next.size && [...selectedIdsRef.current].every((id) => next.has(id))) return;
     setSelectedIds(next);
   }, [scan.jpgs, selectedJpgNames, setSelectedIds]);
 
   useEffect(() => {
-    const next: Record<string, number> = {};
-    for (const photo of scan.jpgs) {
-      const rating = jpgRatingsByName[normalizePhotoToolFileKey(photo.name)];
-      if (rating) next[photo.id] = rating;
-    }
+    const next = resolveBridgeRatingsByName(scan.jpgs, jpgRatingsByName);
     const published = lastPublishedRatingsRef.current;
     if (published) {
       const publishedEntries = Object.entries(published);
@@ -814,8 +814,8 @@ export default function OliviaBridgeWorkspace({
       const jpgs = snapshot.jpgs;
       setScan({ ...EMPTY_SCAN, jpgs });
       lastPublishedRatingsRef.current = {};
-      setJpgRatingsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
-      setJpgColorLabelsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
+      setJpgRatingsByName(projectBridgeRatingsByName(jpgs, {}), { overwrite: true });
+      setJpgColorLabelsByName(projectBridgeColorLabelsByName(jpgs, {}), { overwrite: true });
       setFocusedId(jpgs[0]?.id ?? null);
       setScanStatus("ready");
       setRemoteLoadProgress(null);
@@ -992,10 +992,7 @@ export default function OliviaBridgeWorkspace({
     if (!toolSelection.size) return;
     if (!selectedIdsRef.current.size) {
       setSelectedIds(toolSelection);
-      setSelectedJpgFiles(visibleJpgs
-        .filter((photo) => toolSelection.has(photo.id))
-        .map((photo) => photo.file)
-        .filter((file): file is File => Boolean(file)));
+      setSelectedJpgFiles(projectBridgeSelectedFiles(visibleJpgs, toolSelection));
     }
     setSceneReviewOpen(false);
     if (key === "classification") {
