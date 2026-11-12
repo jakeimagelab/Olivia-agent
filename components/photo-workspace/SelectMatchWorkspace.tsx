@@ -11,13 +11,8 @@ import {
   parseNamesFromFiles,
 } from "@/lib/selectMatch/nameParsing";
 import {
-  buildRawIndex as buildRawIndexPure,
-  type RawIndex,
-} from "@/lib/selectMatch/rawIndex";
-import {
-  buildCaptureMatchPreflight,
   captureMatchSummaryTotal,
-  type CaptureMatchPreflight,
+  isCaptureMatchTargetCountConsistent,
 } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
 import { readRatingEmbedded, readRatingSidecar } from "@/lib/selectMatch/bridgeRating";
@@ -25,7 +20,6 @@ import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
-import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
 import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
 import {
   nextDeliveredRoundFolderName,
@@ -44,12 +38,14 @@ import {
   relativeToDirectoryRoot,
 } from "@/lib/selectMatch/workspaceHelpers";
 import { prepareScreenshotForOcr } from "@/lib/selectMatch/browserOcr";
+import { loadBrowserThumbnail, releaseObjectUrl } from "@/lib/selectMatch/browserThumbnail";
 import { useSelectMatchFindMove } from "@/components/photo-workspace/useSelectMatchFindMove";
 import {
   formatMissingSequenceRange,
   useSelectMatchSequenceCheck,
 } from "@/components/photo-workspace/useSelectMatchSequenceCheck";
 import { useSelectMatchTargets } from "@/components/photo-workspace/useSelectMatchTargets";
+import { useSelectMatchPreflight } from "@/components/photo-workspace/useSelectMatchPreflight";
 
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — 기능당 하나라
 // 재시작해도 이전 항목을 덮어쓴다.
@@ -71,29 +67,6 @@ type SceneFolder = SelectMatchFolderGroup;
 type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
 
 /* ── Helpers ── */
-function releaseObjectUrl(url: string | null | undefined): void {
-  if (url) URL.revokeObjectURL(url);
-}
-
-async function loadThumb(file: File, size = 120): Promise<string | null> {
-  return new Promise(res => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const s = Math.min(size / img.width, size / img.height, 1);
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-      c.toBlob((blob) => {
-        releaseObjectUrl(url);
-        res(blob ? URL.createObjectURL(blob) : null);
-      }, "image/jpeg", 0.6);
-    };
-    img.onerror = () => { releaseObjectUrl(url); res(null); };
-    img.src = url;
-  });
-}
-
 /* ── Component ── */
 function Btn({ children, onClick, disabled, variant, dark = false, style: s }: {
   children: React.ReactNode; onClick?: () => void;
@@ -180,30 +153,7 @@ export function SelectMatchWorkspace({
   );
   const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
-  const [rawRootDir,    setRawRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
   const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
-  const [preflight,  setPreflight]  = useState<CaptureMatchPreflight | null>(null);
-  const [manualRawChoices, setManualRawChoices] = useState<Record<string, string>>({});
-  const [rawScanCount, setRawScanCount] = useState(0);
-  const [rawIndexRef] = useState<{ map: RawIndex }>(() => ({ map: new Map() }));
-  const preflightRequestRef = useRef(0);
-  const [rawDiscovery, setRawDiscovery] = useState<{
-    status: "idle" | "searching" | "found" | "not_found" | "error" | "manual";
-    message: string;
-    folderName?: string;
-  }>({ status: "idle", message: "" });
-  const rawDiscoveryKeyRef = useRef("");
-  const approvedMatches = useMemo(() => (preflight?.items.flatMap((item) => {
-    const candidateId = manualRawChoices[item.id] ?? item.confirmedCandidateId;
-    if (!candidateId) return [];
-    const candidate = item.candidates.find((entry) => entry.id === candidateId);
-    return candidate ? [{ item, candidate, manual: Boolean(manualRawChoices[item.id]) }] : [];
-  }) ?? []), [manualRawChoices, preflight]);
-
-  useEffect(() => {
-    if (!bridgeLinked || rawRootDir || !rawMatchDefaultFolder) return;
-    setRawRootDir(rawMatchDefaultFolder);
-  }, [bridgeLinked, rawMatchDefaultFolder, rawRootDir]);
   // 매칭된 RAW 파일을 Selected_RAW/에 넣을 때 원본을 지울지(이동) 남겨둘지(복사) — 기본값은
   // 기존 동작(복사)과 동일하게 유지해 이 기능을 모르는 사용자에게 갑자기 원본이 사라지는
   // 일이 없게 한다.
@@ -317,6 +267,55 @@ export function SelectMatchWorkspace({
     reset: resetFindByName,
   } = useSelectMatchFindMove({ workerOnline: workerPresence.online });
 
+  const {
+    rawMatchCriteria,
+    setRawMatchCriteria,
+    criteriaReady,
+    resolvedBridgeTargets,
+    authoritativeMatchTargets,
+    selectedJpgSources,
+    missingMatchTargetBasenames,
+    expectedMatchTargetCount,
+  } = useSelectMatchTargets({
+    bridgeLinked,
+    folderKey: rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder",
+    selectedJpgNames,
+    jpgRatingsByName,
+    jpgColorLabelsByName,
+    selected,
+    scenes,
+  });
+  const {
+    rawRootDir,
+    setRawRootDir,
+    preflight,
+    manualRawChoices,
+    setManualRawChoices,
+    rawScanCount,
+    rawDiscovery,
+    approvedMatches,
+    runPreflight,
+    pickRawFolder,
+    pickRawFolderAndPreflight,
+    resetForCriteria,
+    cancelPreflight,
+  } = useSelectMatchPreflight({
+    bridgeLinked,
+    step,
+    setStep,
+    rootDir,
+    rawMatchDefaultFolder,
+    rawMatchFolderCandidates,
+    authoritativeMatchTargets,
+    selectedJpgSources,
+    missingMatchTargetBasenames,
+    thumbnailUrlsRef: sceneThumbnailUrlsRef,
+  });
+  const preflightTargetCountMatches = preflight
+    ? missingMatchTargetBasenames.length === 0
+      && isCaptureMatchTargetCountConsistent(selectedJpgSources.length, preflight)
+    : false;
+
   useEffect(() => {
     if (workerPathDirty) return;
     let jpgPath = defaultWorkerFolderPath(rawMatchFolderPath, rootDir?.name ?? currentLocalFolder?.name ?? "");
@@ -333,27 +332,6 @@ export function SelectMatchWorkspace({
       ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}`
       : rawName ? `/Volumes/${rawName}` : jpgPath);
   }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir, workerPathDirty]);
-
-  const {
-    rawMatchCriteria,
-    setRawMatchCriteria,
-    criteriaReady,
-    resolvedBridgeTargets,
-    authoritativeMatchTargets,
-    selectedJpgSources,
-    missingMatchTargetBasenames,
-    expectedMatchTargetCount,
-    preflightTargetCountMatches,
-  } = useSelectMatchTargets({
-    bridgeLinked,
-    folderKey: rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder",
-    selectedJpgNames,
-    jpgRatingsByName,
-    jpgColorLabelsByName,
-    selected,
-    scenes,
-    preflight,
-  });
 
   useEffect(() => {
     if (!rootDir) {
@@ -478,17 +456,6 @@ export function SelectMatchWorkspace({
     if (!bridgeLinked || initialView !== "raw" || (step !== "raw_pick" && step !== "preflight")) return;
     setSelected(new Set(resolvedBridgeTargets));
   }, [bridgeLinked, initialView, resolvedBridgeTargets, step]);
-
-  /* ── RAW 폴더 별도 선택 ── */
-  const pickRawFolder = useCallback(async () => {
-    try {
-      const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
-      setRawRootDir(dir);
-      setRawDiscovery({ status: "manual", folderName: dir.name, message: `${dir.name} 폴더를 직접 선택했습니다.` });
-    } catch (e: any) {
-      if (e?.name !== "AbortError") alert("폴더 선택 실패");
-    }
-  }, []);
 
   /* ── 폴더 로드: 이름 규칙 없이 JPG 폴더 재귀 스캔 ── */
   const scanFolder = useCallback(async (dir: FileSystemDirectoryHandle) => {
@@ -641,7 +608,7 @@ export function SelectMatchWorkspace({
       } else {
         try {
           const file = await photo.handle.getFile();
-          const url = await loadThumb(file, 130);
+          const url = await loadBrowserThumbnail(file, 130);
           if (url) sceneThumbnailUrlsRef.current.add(url);
           updated.push({ ...photo, thumbUrl: url });
         } catch {
@@ -663,110 +630,6 @@ export function SelectMatchWorkspace({
       void loadSceneThumbs(sceneIndex);
     }
   }, [loadSceneThumbs, queryTokens.length, scenes, visibleScenes]);
-
-  /* ── 재귀 RAW 스캔 공통 함수 (lib/selectMatch/rawIndex.ts로 추출된 순수 함수의 얇은 wrapper) ── */
-  const buildRawIndex = useCallback((
-    overrideRawDir?: FileSystemDirectoryHandle,
-    onProgress?: (scannedCount: number) => void,
-  ): Promise<RawIndex> => buildRawIndexPure(
-    overrideRawDir ?? rawRootDir,
-    rootDir,
-    onProgress,
-    authoritativeMatchTargets,
-  ), [authoritativeMatchTargets, rootDir, rawRootDir]);
-
-  /* ── 사전 확인 (preflight) ── */
-  const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
-    if (authoritativeMatchTargets.size === 0) return;
-    if (!rootDir && !rawRootDir && !overrideRawDir) return;
-    if (overrideRawDir) setRawRootDir(overrideRawDir);
-    const requestId = preflightRequestRef.current + 1;
-    preflightRequestRef.current = requestId;
-    setStep("preflight");
-    setPreflight(null);
-    setManualRawChoices({});
-    setRawScanCount(0);
-    const rawIndex = await buildRawIndex(overrideRawDir, setRawScanCount);
-    if (preflightRequestRef.current !== requestId) return;
-    if (missingMatchTargetBasenames.length > 0) {
-      setRawDiscovery({
-        status: "error",
-        message: `선택 JPG ${missingMatchTargetBasenames.length}장의 원본 파일을 찾지 못했습니다. JPG 폴더를 다시 열어 주세요.`,
-      });
-    }
-    const capturePreflight = await buildCaptureMatchPreflight({
-      jpgSources: selectedJpgSources,
-      rawIndex,
-      concurrency: 8,
-      onProgress: (completed) => setRawScanCount(completed),
-    });
-    if (preflightRequestRef.current !== requestId) return;
-    rawIndexRef.map.clear();
-    for (const [k, v] of rawIndex) rawIndexRef.map.set(k, v);
-    const unresolved = capturePreflight.items.filter((item) => item.status !== "confirmed" && !item.jpg.thumbUrl);
-    for (const item of unresolved) {
-      if (preflightRequestRef.current !== requestId) return;
-      try {
-        const url = await loadThumb(await item.jpg.handle.getFile(), 180);
-        if (url) {
-          if (preflightRequestRef.current !== requestId) {
-            releaseObjectUrl(url);
-            return;
-          }
-          sceneThumbnailUrlsRef.current.add(url);
-          item.jpg.thumbUrl = url;
-        }
-      } catch {
-        // 썸네일 실패는 촬영시각 안전 검사 결과에 영향을 주지 않는다.
-      }
-    }
-    if (preflightRequestRef.current !== requestId) return;
-    setPreflight(capturePreflight);
-  }, [authoritativeMatchTargets, rootDir, rawRootDir, selectedJpgSources, missingMatchTargetBasenames, buildRawIndex, rawIndexRef]);
-
-  useEffect(() => {
-    if (!bridgeLinked || step !== "raw_pick" || authoritativeMatchTargets.size === 0 || selectedJpgSources.length === 0 || rawMatchFolderCandidates.length === 0) return;
-    const selectionKey = Array.from(authoritativeMatchTargets).sort().join("|");
-    const discoveryKey = `${rawMatchFolderCandidates.map((item) => `${item.distance}:${item.name}`).join("|")}::${selectionKey}`;
-    if (rawDiscoveryKeyRef.current === discoveryKey) return;
-    rawDiscoveryKeyRef.current = discoveryKey;
-    let disposed = false;
-
-    setRawDiscovery({ status: "searching", message: "현재 폴더와 상위 폴더에서 RAW 원본 위치를 찾고 있습니다." });
-    void discoverRawFolder({
-      candidates: rawMatchFolderCandidates,
-      selectedNames: authoritativeMatchTargets,
-      onCandidate: (candidate, index, total) => {
-        if (!disposed) setRawDiscovery({ status: "searching", message: `${candidate.name} 폴더 확인 중 (${index}/${total})`, folderName: candidate.name });
-      },
-    }).then(async (result) => {
-      if (disposed) return;
-      if (!result.candidate) {
-        const timedOut = result.attempts.filter((attempt) => attempt.status === "timeout").map((attempt) => attempt.name);
-        setRawDiscovery({
-          status: "not_found",
-          message: `RAW 폴더를 찾지 못했어요 · 직접 지정${timedOut.length ? ` (${timedOut.join(", ")} 시간 초과)` : ""}`,
-        });
-        return;
-      }
-      const folderName = result.candidate.name;
-      setRawRootDir(result.candidate.handle);
-      setRawDiscovery({
-        status: "found",
-        folderName,
-        message: `${folderName}에서 표본 ${result.matchedSamples}/${result.samples.length}개를 찾았습니다. 전체 선택 파일을 확인합니다.`,
-      });
-      await runPreflight(result.candidate.handle);
-    }).catch((error) => {
-      if (disposed) return;
-      setRawDiscovery({
-        status: "error",
-        message: error instanceof Error ? error.message : "RAW 원본 폴더를 자동으로 찾지 못했습니다.",
-      });
-    });
-
-    return () => { disposed = true; };
-  }, [authoritativeMatchTargets, bridgeLinked, rawMatchFolderCandidates, runPreflight, selectedJpgSources.length, step]);
 
   /* ── 실제 복사 실행 ── */
   const runMatch = useCallback(async () => {
@@ -934,13 +797,8 @@ export function SelectMatchWorkspace({
   );
 
   const updateRawMatchCriteria = (next: RawMatchCriteria) => {
-    preflightRequestRef.current += 1;
-    rawDiscoveryKeyRef.current = "";
     setRawMatchCriteria(next);
-    rawIndexRef.map.clear();
-    setPreflight(null);
-    setManualRawChoices({});
-    if (step === "preflight") setStep("raw_pick");
+    resetForCriteria();
   };
 
   const RawMatchCriteriaPanel = () => {
@@ -1472,13 +1330,7 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={async () => {
-            try {
-              const dir = await (window as any).showDirectoryPicker({ mode: "readwrite" });
-              setRawDiscovery({ status: "manual", folderName: dir.name, message: `${dir.name} 폴더를 직접 선택했습니다.` });
-              await runPreflight(dir);
-            } catch (e: any) { if (e?.name !== "AbortError") alert("폴더 선택 실패"); }
-          }}>{bridgeLinked && (rawDiscovery.status === "not_found" || rawDiscovery.status === "error") ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
+          <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={pickRawFolderAndPreflight}>{bridgeLinked && (rawDiscovery.status === "not_found" || rawDiscovery.status === "error") ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
         </div>
       </div>
     </div>
@@ -1701,7 +1553,7 @@ export function SelectMatchWorkspace({
             {remoteExecutionError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{remoteExecutionError}</div> : null}
 
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="secondary" onClick={() => { preflightRequestRef.current += 1; setStep("ready"); }}>← 취소</Btn>
+              <Btn variant="secondary" onClick={cancelPreflight}>← 취소</Btn>
               {approvedMatches.length > 0 && (
                 <Btn disabled={!preflightTargetCountMatches || workerPresence.online !== true || !workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())} onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</Btn>
               )}

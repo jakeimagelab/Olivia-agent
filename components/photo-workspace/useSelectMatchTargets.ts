@@ -4,9 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { SelectMatchFolderGroup } from "@/lib/selectMatch/folderScanner";
 import {
-  isCaptureMatchTargetCountConsistent,
   resolveCaptureMatchJpgSources,
-  type CaptureMatchPreflight,
   type JpgMatchSource,
 } from "@/lib/selectMatch/captureMatch";
 import {
@@ -24,7 +22,6 @@ export function useSelectMatchTargets({
   jpgColorLabelsByName,
   selected,
   scenes,
-  preflight,
 }: {
   bridgeLinked: boolean;
   folderKey: string;
@@ -33,7 +30,6 @@ export function useSelectMatchTargets({
   jpgColorLabelsByName: Readonly<Record<string, number>>;
   selected: ReadonlySet<string>;
   scenes: readonly SelectMatchFolderGroup[];
-  preflight: CaptureMatchPreflight | null;
 }) {
   const [rawMatchCriteria, setRawMatchCriteria] = useState<RawMatchCriteria>(DEFAULT_RAW_MATCH_CRITERIA);
   const [criteriaReady, setCriteriaReady] = useState(!bridgeLinked);
@@ -73,10 +69,6 @@ export function useSelectMatchTargets({
   }, [authoritativeMatchTargets, selectedJpgSources]);
 
   const expectedMatchTargetCount = selectedJpgSources.length + missingMatchTargetBasenames.length;
-  const preflightTargetCountMatches = preflight
-    ? missingMatchTargetBasenames.length === 0
-      && isCaptureMatchTargetCountConsistent(selectedJpgSources.length, preflight)
-    : false;
 
   useEffect(() => {
     if (!bridgeLinked) return;
@@ -111,6 +103,5 @@ export function useSelectMatchTargets({
     selectedJpgSources,
     missingMatchTargetBasenames,
     expectedMatchTargetCount,
-    preflightTargetCountMatches,
   };
 }
