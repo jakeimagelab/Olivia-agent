@@ -34,7 +34,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  addCustomerBridgeRange,
   applyCustomerColorLabels,
   applyCustomerRatings,
   clearCustomerBridgeMarks,
@@ -87,6 +86,7 @@ import { PhotoOverlay, ReviewOverlay } from "./CustomerBridgeOverlays";
 import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
+import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { buildCustomerBridgePhotoView, type CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gallery/customerBridgeView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -95,10 +95,6 @@ const PAGE_SIZE = SELECTION_THUMBNAIL_PAGE_SIZE;
 const THUMB_MIN = 112;
 const THUMB_MAX = 260;
 
-function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-}
 function createRequestKey() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `bridge_${crypto.randomUUID()}`;
   return `bridge_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -776,104 +772,42 @@ export default function CustomerBridgeSelect({
     onFilterCommand: applyLabelFilterCommand,
   });
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (guideOpen || resetConfirmOpen) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          if (guideOpen) closeGuide();
-          else closeResetConfirm();
-        }
-        return;
-      }
-      if (handleSearchFilterShortcut(event)) return;
-      if (event.isComposing || isTypingTarget(event.target)) return;
-      if (event.key === "Escape") {
-        if (fullscreenId) closeFullscreen();
-        else if (reviewIds) closeReview();
-        else if (mobileSideOpen) setMobileSideOpen(false);
-        else setCompactFoldersOpen(false);
-        return;
-      }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
-        event.preventDefault();
-        openReview();
-        return;
-      }
-      if (event.key === " ") {
-        const fullscreenTargetId = reviewActiveId ?? focusedImageId;
-        if (fullscreenTargetId) {
-          event.preventDefault();
-          openFullscreen(fullscreenTargetId);
-          return;
-        }
-      }
-      if (!readOnly && /^[0-9]$/.test(event.key)) {
-        const value = Number(event.key);
-        const targets = reviewIds && reviewActiveId
-          ? new Set([reviewActiveId])
-          : fullscreenId
-            ? new Set([fullscreenId])
-            : customerBridgeRatingTargets(activeImageIds, focusedImageId);
-        if (!targets.size) return;
-        event.preventDefault();
-        if (value >= 6 && value <= 9) {
-          const colorLabel = value as CustomerBridgeColorLabel;
-          if (reviewIds && reviewActiveId && customerColorLabels[reviewActiveId] === colorLabel && !customerRatings[reviewActiveId]) {
-            removeFromReview(reviewActiveId);
-          } else {
-            toggleColorTo(targets, colorLabel);
-          }
-          return;
-        }
-        if (value > 5) return;
-        const rating = value as 0 | CustomerBridgeRating;
-        if (reviewIds && reviewActiveId) {
-          if (rating === 0) removeFromReview(reviewActiveId);
-          else applyRatingTo(new Set([reviewActiveId]), rating);
-          return;
-        }
-        if (fullscreenId) {
-          applyRatingTo(new Set([fullscreenId]), rating);
-          return;
-        }
-        applyRatingTo(targets, rating);
-        return;
-      }
-      if (reviewIds) {
-        if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && reviewIds.length) {
-          event.preventDefault();
-          moveReview(event.key === "ArrowLeft" ? -1 : 1);
-        } else if (event.key === "ArrowDown" && reviewActiveId) {
-          event.preventDefault();
-          removeFromReview(reviewActiveId);
-        } else if (event.key === "ArrowUp" && reviewRemoved) {
-          event.preventDefault();
-          restoreReview();
-        }
-        return;
-      }
-      if (fullscreenId && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-        event.preventDefault();
-        moveFullscreen(event.key === "ArrowLeft" ? -1 : 1);
-        return;
-      }
-      if (!focusedImageId || !event.key.startsWith("Arrow")) return;
-      const currentIndex = orderedIds.indexOf(focusedImageId);
-      if (currentIndex < 0) return;
-      const columns = Math.max(1, Math.floor((gridRef.current?.clientWidth ?? thumbSize) / (thumbSize + 10)));
-      const delta = event.key === "ArrowLeft" ? -1 : event.key === "ArrowRight" ? 1 : event.key === "ArrowUp" ? -columns : columns;
-      const nextId = orderedIds[Math.max(0, Math.min(orderedIds.length - 1, currentIndex + delta))];
-      if (!nextId) return;
-      event.preventDefault();
-      if (event.shiftKey && !readOnly) setActiveImageIds((current) => addCustomerBridgeRange({ current, orderedIds, anchorId: anchorId ?? focusedImageId, targetId: nextId }));
-      else setAnchorId(nextId);
-      setFocusedImageId(nextId);
-      gridRef.current?.querySelector<HTMLElement>(`[data-bridge-image-id="${CSS.escape(nextId)}"]`)?.scrollIntoView({ block: "nearest" });
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeImageIds, anchorId, applyRatingTo, closeFullscreen, closeGuide, closeResetConfirm, closeReview, customerColorLabels, customerRatings, focusedImageId, fullscreenId, guideOpen, handleSearchFilterShortcut, mobileSideOpen, moveFullscreen, moveReview, openFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReview, reviewActiveId, reviewIds, reviewRemoved, setActiveImageIds, setAnchorId, setFocusedImageId, thumbSize, toggleColorTo]);
+  useCustomerBridgeKeyboard({
+    guideOpen,
+    resetConfirmOpen,
+    mobileSideOpen,
+    closeGuide,
+    closeResetConfirm,
+    handleSearchFilterShortcut,
+    fullscreenId,
+    closeFullscreen,
+    openFullscreen,
+    moveFullscreen,
+    reviewIds,
+    reviewActiveId,
+    reviewRemoved,
+    openReview,
+    closeReview,
+    moveReview,
+    removeFromReview,
+    restoreReview,
+    readOnly,
+    activeImageIds,
+    focusedImageId,
+    orderedIds,
+    anchorId,
+    customerRatings,
+    customerColorLabels,
+    applyRatingTo,
+    toggleColorTo,
+    setActiveImageIds,
+    setAnchorId,
+    setFocusedImageId,
+    setMobileSideOpen,
+    setCompactFoldersOpen,
+    gridRef,
+    thumbSize,
+  });
 
   const beginResize = (pane: "folder" | "preview", event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();

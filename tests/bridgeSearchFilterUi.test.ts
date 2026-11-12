@@ -7,6 +7,7 @@ const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.mo
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
 const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcuts.ts", "utf8");
 const customerPhotoView = readFileSync("lib/select-gallery/customerBridgeView.ts", "utf8");
+const customerKeyboard = readFileSync("components/select-gallery/useCustomerBridgeKeyboard.ts", "utf8");
 
 describe("Bridge filename search and shared label shortcuts", () => {
   it("wires the same search and shortcut hook into both Bridge screens", () => {
@@ -31,7 +32,8 @@ describe("Bridge filename search and shared label shortcuts", () => {
     expect(labelShortcut).toBeGreaterThan(editableGuard);
     expect(adminBridge.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(adminBridge.indexOf("if (isTypingTarget(event.target)) return"));
     expect(adminBridge).toContain("handleUnfocusedBridgeShortcut");
-    expect(customerBridge.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(customerBridge.indexOf("event.isComposing || isTypingTarget(event.target)"));
+    expect(customerBridge).toContain("useCustomerBridgeKeyboard");
+    expect(customerKeyboard.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(customerKeyboard.indexOf("event.isComposing || isTypingTarget(event.target)"));
   });
 
   it("keeps folder statistics outside the independently scrolling list", () => {
