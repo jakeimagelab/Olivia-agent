@@ -27,6 +27,7 @@ type OliviaBridgeBrowserPanelProps = {
   centerFileCount: number;
   scan: BridgeFolderScan;
   scanStatus: "idle" | "restoring" | "loading" | "ready" | "error";
+  loadProgress: { received: number; total: number } | null;
   restoreTrailAvailable: boolean;
   restoreMessage: string;
   activeRatingFilterName: string | null;
@@ -79,6 +80,7 @@ export const OliviaBridgeBrowserPanel = memo(function OliviaBridgeBrowserPanel({
   centerFileCount,
   scan,
   scanStatus,
+  loadProgress,
   restoreTrailAvailable,
   restoreMessage,
   activeRatingFilterName,
@@ -148,9 +150,9 @@ export const OliviaBridgeBrowserPanel = memo(function OliviaBridgeBrowserPanel({
 
     {scanStatus === "idle" ? <div className={styles.emptyState}><FolderOpen size={34} /><strong>{restoreTrailAvailable ? "지난 작업 폴더를 다시 열까요?" : "촬영 폴더를 선택해 주세요"}</strong><p>{restoreMessage || "JPG는 썸네일로, RAW와 사이드카는 파일 정보로 표시합니다."}</p>{restoreTrailAvailable ? <div className={styles.restoreActions}><button type="button" onClick={onRestoreLastFolder}>지난 폴더 다시 열기</button></div> : null}</div> : null}
     {scanStatus === "restoring" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>지난 작업 폴더를 확인하는 중입니다</strong><p>권한이 유지되어 있으면 마지막 폴더를 그대로 엽니다.</p></div> : null}
-    {scanStatus === "loading" ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
+    {scanStatus === "loading" && !scan.jpgs.length ? <div className={styles.emptyState}><LoaderCircle className={styles.spin} size={30} /><strong>폴더를 읽는 중입니다</strong><p>화면에 필요한 JPG부터 썸네일을 만듭니다.</p></div> : null}
     {scanStatus === "error" ? <div className={styles.emptyState}><CircleAlert size={30} /><strong>폴더를 읽지 못했습니다</strong><p>폴더가 옮겨졌거나 이름이 바뀌었을 수 있습니다. 다시 골라 주세요.</p></div> : null}
-    {scanStatus === "ready" ? (
+    {scanStatus === "ready" || (scanStatus === "loading" && scan.jpgs.length) ? (
       <div
         ref={fileAreaRef}
         className={styles.fileArea}
@@ -163,6 +165,7 @@ export const OliviaBridgeBrowserPanel = memo(function OliviaBridgeBrowserPanel({
         onPointerCancel={onFileAreaPointerCancel}
       >
         <div ref={marqueeRef} className={styles.selectionMarquee} aria-hidden="true" />
+        {scanStatus === "loading" ? <div className={styles.incrementalLoading} role="status"><LoaderCircle className={styles.spin} size={13} /> NAS 사진을 불러오는 중 · {(loadProgress?.received ?? scan.jpgs.length).toLocaleString("ko-KR")}/{(loadProgress?.total ?? scan.jpgs.length).toLocaleString("ko-KR")}장</div> : null}
         {visibleJpgs.length ? <div data-bridge-thumbnail-grid className={styles.thumbnailGrid} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnailSize}px, 1fr))` }}>
           {visibleJpgs.map((photo) => {
             const selected = selectedIds.has(photo.id);

@@ -10,6 +10,7 @@ import {
 } from "@/lib/photo-bridge/folderSession";
 import {
   loadRemoteBridgeThumbnails,
+  type RemoteBridgeThumbnailPage,
   type RemoteBridgeThumbnailResult,
 } from "@/lib/photo-bridge/remoteThumbnails";
 import type { BridgeFolderTrailItem } from "@/lib/photo-bridge/recentFolder";
@@ -24,7 +25,16 @@ type BridgeFolderScanner = (
   options: { includeNestedJpgs: boolean; maxDepth: number },
 ) => Promise<BridgeFolderScan>;
 
-type RemoteThumbnailLoader = (folderPath: string) => Promise<RemoteBridgeThumbnailResult>;
+type RemoteThumbnailLoader = (
+  folderPath: string,
+  options?: { onPage?: (page: RemoteBridgeThumbnailPage) => void },
+) => Promise<RemoteBridgeThumbnailResult>;
+
+export type RemoteBridgeFolderProgress = {
+  jpgs: BridgeFolderScan["jpgs"];
+  received: number;
+  total: number;
+};
 
 export async function loadLocalBridgeFolderSnapshot({
   directory,
@@ -62,18 +72,32 @@ export async function loadRemoteBridgeFolderSnapshot({
   storage,
   selectionSource: suppliedSelectionSource,
   loadThumbnails = loadRemoteBridgeThumbnails,
+  onProgress,
 }: {
   selection: RemoteNasSelection;
   storage: StorageReader;
   selectionSource?: BridgeSelectionSource;
   loadThumbnails?: RemoteThumbnailLoader;
+  onProgress?: (progress: RemoteBridgeFolderProgress) => void;
 }) {
   const selectionSource = suppliedSelectionSource
     ?? readBridgeFolderSelectionSource(storage, selection.path);
-  const result = await loadThumbnails(selection.path);
+  const progressiveJpgs: BridgeFolderScan["jpgs"] = [];
+  const result = await loadThumbnails(selection.path, {
+    onPage: (page) => {
+      progressiveJpgs.push(...remoteBridgeThumbnailsToJpgs(selection.path, page.thumbs));
+      onProgress?.({
+        jpgs: [...progressiveJpgs],
+        received: page.received,
+        total: page.total,
+      });
+    },
+  });
   return {
     selectionSource,
-    jpgs: remoteBridgeThumbnailsToJpgs(selection.path, result.thumbs),
+    jpgs: progressiveJpgs.length === result.thumbs.length
+      ? progressiveJpgs
+      : remoteBridgeThumbnailsToJpgs(selection.path, result.thumbs),
     total: result.total,
   };
 }

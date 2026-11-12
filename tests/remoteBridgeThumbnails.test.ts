@@ -23,6 +23,7 @@ describe("remote Bridge thumbnails", () => {
   it("loads more than 400 thumbnails in verified pages", async () => {
     let created = 0;
     const posts: Array<Record<string, unknown>> = [];
+    const progress: Array<{ offset: number; received: number; count: number }> = [];
     const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (init?.method === "POST") {
@@ -48,6 +49,11 @@ describe("remote Bridge thumbnails", () => {
     const result = await loadRemoteBridgeThumbnails("shoot/JPG전체", {
       fetcher: fetcher as typeof fetch,
       pollIntervalMs: 0,
+      onPage: (page) => progress.push({
+        offset: page.offset,
+        received: page.received,
+        count: page.thumbs.length,
+      }),
     });
 
     expect(result.total).toBe(401);
@@ -57,6 +63,10 @@ describe("remote Bridge thumbnails", () => {
     expect(posts).toEqual([
       { remote_path: "shoot/JPG전체", max_count: 400, offset: 0 },
       { remote_path: "shoot/JPG전체", max_count: 400, offset: 400 },
+    ]);
+    expect(progress).toEqual([
+      { offset: 0, received: 400, count: 400 },
+      { offset: 400, received: 401, count: 1 },
     ]);
   });
 

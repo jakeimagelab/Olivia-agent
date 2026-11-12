@@ -233,6 +233,18 @@ describe("Olivia Bridge", () => {
     expect(bridgeFiles).toContain("await fetch(entry.thumbnailUrl)");
   });
 
+  it("NAS 썸네일은 전체 완료를 기다리지 않고 받은 페이지부터 표시한다", () => {
+    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
+    const remoteThumbnails = readFileSync("lib/photo-bridge/remoteThumbnails.ts", "utf8");
+
+    expect(remoteThumbnails).toContain("options.onPage?.");
+    expect(workspace).toContain("onProgress: (progress)");
+    expect(workspace).toContain("setScan({ ...EMPTY_SCAN, jpgs: progress.jpgs })");
+    expect(browserPanel).toContain('scanStatus === "loading" && scan.jpgs.length');
+    expect(browserPanel).toContain("NAS 사진을 불러오는 중");
+  });
+
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");

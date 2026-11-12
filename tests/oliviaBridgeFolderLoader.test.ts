@@ -67,24 +67,26 @@ describe("Bridge folder loader", () => {
   });
 
   it("NAS 호출 결과를 현재 경로의 Bridge 사진 스냅샷으로 만든다", async () => {
-    const loadThumbnails = vi.fn(async () => ({
-      folder: "root/JPG",
-      total: 1,
-      thumbs: [{
+    const thumbs = [{
         relativePath: "C1/A.JPG",
         name: "A.JPG",
         size: 100,
         lastModified: 200,
         dataUrl: "data:image/jpeg;base64,AA==",
-      }],
-    }));
+    }];
+    const loadThumbnails = vi.fn(async (_path: string, options?: { onPage?: (page: { folder: string; total: number; offset: number; received: number; thumbs: typeof thumbs }) => void }) => {
+      options?.onPage?.({ folder: "root/JPG", total: 1, offset: 0, received: 1, thumbs });
+      return { folder: "root/JPG", total: 1, thumbs };
+    });
+    const progress = vi.fn();
     const snapshot = await loadRemoteBridgeFolderSnapshot({
       selection: { path: "root/JPG", displayPath: "NAS/root/JPG", rootName: "NAS" },
       storage: storageWith({ "olivia-bridge-selection-source:root/JPG": "adobe" }),
       loadThumbnails,
+      onProgress: progress,
     });
 
-    expect(loadThumbnails).toHaveBeenCalledWith("root/JPG");
+    expect(loadThumbnails).toHaveBeenCalledWith("root/JPG", expect.objectContaining({ onPage: expect.any(Function) }));
     expect(snapshot.selectionSource).toBe("adobe");
     expect(snapshot.total).toBe(1);
     expect(snapshot.jpgs[0]).toMatchObject({
@@ -92,5 +94,6 @@ describe("Bridge folder loader", () => {
       relativeDirectory: "C1",
       relativePath: "C1/A.JPG",
     });
+    expect(progress).toHaveBeenCalledWith(expect.objectContaining({ received: 1, total: 1 }));
   });
 });

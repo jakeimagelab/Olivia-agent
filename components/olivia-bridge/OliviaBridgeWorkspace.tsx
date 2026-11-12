@@ -178,6 +178,7 @@ export default function OliviaBridgeWorkspace({
   const [remoteFolder, setRemoteFolder] = useState<RemoteNasSelection | null>(null);
   const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
   const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
+  const [remoteLoadProgress, setRemoteLoadProgress] = useState<{ received: number; total: number } | null>(null);
   const [, setScanError] = useState<string>();
   const [includeNestedJpgs, setIncludeNestedJpgs] = useState(false);
   const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
@@ -643,6 +644,7 @@ export default function OliviaBridgeWorkspace({
   ) => {
     remoteLoadGenerationRef.current += 1;
     resetBridgeThumbnailCache();
+    setRemoteLoadProgress(null);
     setExecutionMode("LOCAL_DIRECT");
     setScanStatus("loading");
     setScanError(undefined);
@@ -771,6 +773,7 @@ export default function OliviaBridgeWorkspace({
   const loadRemoteDirectory = useCallback(async (selection: RemoteNasSelection) => {
     const generation = ++remoteLoadGenerationRef.current;
     resetBridgeThumbnailCache();
+    setRemoteLoadProgress(null);
     setScanStatus("loading");
     setScanError(undefined);
     setToolKey(undefined);
@@ -800,6 +803,12 @@ export default function OliviaBridgeWorkspace({
         selection,
         storage: localStorage,
         selectionSource: nextSelectionSource,
+        onProgress: (progress) => {
+          if (generation !== remoteLoadGenerationRef.current) return;
+          setScan({ ...EMPTY_SCAN, jpgs: progress.jpgs });
+          setRemoteLoadProgress({ received: progress.received, total: progress.total });
+          setFocusedId((current) => current ?? progress.jpgs[0]?.id ?? null);
+        },
       });
       if (generation !== remoteLoadGenerationRef.current) return;
       const jpgs = snapshot.jpgs;
@@ -809,11 +818,13 @@ export default function OliviaBridgeWorkspace({
       setJpgColorLabelsByName(Object.fromEntries(jpgs.map((photo) => [photo.name, 0])), { overwrite: true });
       setFocusedId(jpgs[0]?.id ?? null);
       setScanStatus("ready");
+      setRemoteLoadProgress(null);
       rootRef.current?.focus();
     } catch (error) {
       if (generation !== remoteLoadGenerationRef.current) return;
       console.error("[olivia-bridge] Failed to read remote folder", error);
       setScanStatus("error");
+      setRemoteLoadProgress(null);
       setScanError(error instanceof Error ? error.message : "원격 썸네일을 읽지 못했습니다.");
     }
   }, [commitSelectedIds, resetAdobeMarks, setCurrentLocalFolder, setJpgColorLabelsByName, setJpgRatingsByName, setRawMatchFolderPath]);
@@ -1230,6 +1241,7 @@ export default function OliviaBridgeWorkspace({
           centerFileCount={centerFileCount}
           scan={scan}
           scanStatus={scanStatus}
+          loadProgress={remoteLoadProgress}
           restoreTrailAvailable={restoreTrail.length > 0}
           restoreMessage={restoreMessage}
           activeRatingFilterName={activeRatingFilterName}

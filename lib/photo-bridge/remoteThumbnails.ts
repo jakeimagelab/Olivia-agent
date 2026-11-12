@@ -22,11 +22,17 @@ export type RemoteBridgeThumbnailResult = {
   total: number;
 };
 
-type RemoteThumbnailOptions = {
+export type RemoteBridgeThumbnailPage = RemoteBridgeThumbnailResult & {
+  offset: number;
+  received: number;
+};
+
+export type RemoteThumbnailOptions = {
   fetcher?: typeof fetch;
   signal?: AbortSignal;
   pollIntervalMs?: number;
   timeoutMs?: number;
+  onPage?: (page: RemoteBridgeThumbnailPage) => void;
 };
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -148,21 +154,32 @@ export async function loadRemoteBridgeThumbnails(
     signal: options.signal,
   };
   const thumbs: RemoteBridgeThumbnail[] = [];
+  const seenPaths = new Set<string>();
   let total: number | null = null;
   let folder = path;
 
   while (total === null || thumbs.length < total) {
-    const page = await fetchPage(path, thumbs.length, resolved);
+    const offset = thumbs.length;
+    const page = await fetchPage(path, offset, resolved);
     if (total !== null && page.total !== total) throw new Error("원격 썸네일 전체 장수가 조회 중 달라졌습니다. 폴더를 다시 선택해 주세요.");
     total = page.total;
     folder = page.folder;
     if (page.thumbs.length > PAGE_SIZE) throw new Error("원격 썸네일 묶음 크기가 400장을 초과했습니다.");
     if (page.thumbs.length === 0 && thumbs.length < total) throw new Error(`원격 썸네일이 중간에 끊겼습니다. ${thumbs.length}/${total}장만 받았습니다.`);
+    for (const thumb of page.thumbs) {
+      if (seenPaths.has(thumb.relativePath)) throw new Error("원격 썸네일에 중복 파일이 있습니다. 폴더를 다시 선택해 주세요.");
+      seenPaths.add(thumb.relativePath);
+    }
     thumbs.push(...page.thumbs);
+    options.onPage?.({
+      folder,
+      thumbs: page.thumbs,
+      total,
+      offset,
+      received: thumbs.length,
+    });
   }
 
   if (thumbs.length !== total) throw new Error(`원격 썸네일 장수가 맞지 않습니다. ${thumbs.length}/${total}장입니다.`);
-  const unique = new Set(thumbs.map((thumb) => thumb.relativePath));
-  if (unique.size !== thumbs.length) throw new Error("원격 썸네일에 중복 파일이 있습니다. 폴더를 다시 선택해 주세요.");
   return { folder, thumbs, total };
 }
