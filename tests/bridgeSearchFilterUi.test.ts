@@ -4,17 +4,22 @@ import { describe, expect, it } from "vitest";
 const adminBridge = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
 const adminFolderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
 const adminActionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
-const adminBridgeUi = `${adminBridge}\n${adminActionBar}`;
+const adminBrowserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
+const adminBridgeUi = `${adminBridge}\n${adminActionBar}\n${adminBrowserPanel}`;
 const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
+const customerBrowserPanel = readFileSync("components/select-gallery/CustomerBridgeBrowserPanel.tsx", "utf8");
+const customerFolderPanel = readFileSync("components/select-gallery/CustomerBridgeFolderPanel.tsx", "utf8");
+const customerBridgeUi = `${customerBridge}\n${customerBrowserPanel}`;
 const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
 const shortcutHook = readFileSync("lib/photo-bridge/useBridgeSearchFilterShortcuts.ts", "utf8");
 const customerPhotoView = readFileSync("lib/select-gallery/customerBridgeView.ts", "utf8");
 const customerKeyboard = readFileSync("components/select-gallery/useCustomerBridgeKeyboard.ts", "utf8");
+const adminKeyboard = readFileSync("components/olivia-bridge/useOliviaBridgeKeyboard.ts", "utf8");
 
 describe("Bridge filename search and shared label shortcuts", () => {
   it("wires the same search and shortcut hook into both Bridge screens", () => {
-    for (const source of [adminBridgeUi, customerBridge]) {
+    for (const source of [adminBridgeUi, customerBridgeUi]) {
       expect(source).toContain("useBridgeSearchFilterShortcuts");
       expect(source).toContain('type="search"');
       expect(source).toContain('aria-label="파일명 검색"');
@@ -33,14 +38,14 @@ describe("Bridge filename search and shared label shortcuts", () => {
 
     expect(editableGuard).toBeGreaterThan(0);
     expect(labelShortcut).toBeGreaterThan(editableGuard);
-    expect(adminBridge.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(adminBridge.indexOf("if (isTypingTarget(event.target)) return"));
+    expect(adminKeyboard.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(adminKeyboard.indexOf("if (isTypingTarget(event.target)) return"));
     expect(adminBridge).toContain("handleUnfocusedBridgeShortcut");
     expect(customerBridge).toContain("useCustomerBridgeKeyboard");
     expect(customerKeyboard.indexOf("handleSearchFilterShortcut(event)")).toBeLessThan(customerKeyboard.indexOf("event.isComposing || isTypingTarget(event.target)"));
   });
 
   it("keeps folder statistics outside the independently scrolling list", () => {
-    for (const source of [adminFolderPanel, customerBridge]) {
+    for (const source of [adminFolderPanel, customerFolderPanel]) {
       expect(source.indexOf("styles.folderPanelScroll")).toBeGreaterThan(0);
       expect(source.indexOf("styles.folderSummary")).toBeGreaterThan(source.indexOf("styles.folderPanelScroll"));
     }

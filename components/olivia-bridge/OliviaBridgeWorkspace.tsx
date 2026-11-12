@@ -20,7 +20,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
@@ -58,6 +57,7 @@ import { useOliviaBridgeFolderCounts } from "@/components/olivia-bridge/useOlivi
 import { useOliviaBridgeMarqueeSelection } from "@/components/olivia-bridge/useOliviaBridgeMarqueeSelection";
 import { useOliviaBridgeSelectionReview } from "@/components/olivia-bridge/useOliviaBridgeSelectionReview";
 import { useOliviaBridgeSelectionLabels } from "@/components/olivia-bridge/useOliviaBridgeSelectionLabels";
+import { useOliviaBridgeKeyboard } from "@/components/olivia-bridge/useOliviaBridgeKeyboard";
 import {
   BridgeFolderSourceDialog,
   BridgeGallerySelectionDialog,
@@ -168,14 +168,6 @@ const THUMBNAIL_SIZE_DEFAULT = 156;
 function isMacControlClick(event: { ctrlKey: boolean; metaKey: boolean }) {
   if (!event.ctrlKey || event.metaKey) return false;
   return /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || (target instanceof HTMLElement && target.isContentEditable);
-}
-
-function isSpaceShortcutTarget(target: EventTarget | null, root: HTMLDivElement) {
-  return target === root || (target instanceof HTMLElement && Boolean(target.closest("[data-bridge-photo-id]")));
 }
 
 export default function OliviaBridgeWorkspace({
@@ -1123,91 +1115,44 @@ export default function OliviaBridgeWorkspace({
     folderPanelRef.current?.focus();
   }, [compactFiltersOpen]);
 
-  const handleKeyboard = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape" && compactFiltersOpen) {
-      event.preventDefault();
-      closeCompactFilters();
-      return;
-    }
-    if (event.key === "Escape" && (folderSourceOpen || nasPickerOpen || personSelectDialogOpen || gallerySelectDialogOpen || rawRootPromptOpen)) {
-      event.preventDefault();
-      setFolderSourceOpen(false);
-      setNasPickerOpen(false);
-      closePersonSelectImport();
-      closeGallerySelectImport();
-      setRawRootPromptOpen(false);
-      rootRef.current?.focus();
-      return;
-    }
-    if (handleSearchFilterShortcut(event)) return;
-    if (event.metaKey && !event.altKey && !event.ctrlKey) {
-      if (event.code === "Equal" || event.key === "+" || event.key === "=") {
-        event.preventDefault();
-        resizeThumbnails(1);
-        return;
-      }
-      if (event.code === "Minus" || event.key === "-" || event.key === "_") {
-        event.preventDefault();
-        resizeThumbnails(-1);
-        return;
-      }
-    }
-    if (isTypingTarget(event.target)) return;
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyB") {
-      event.preventDefault();
-      if (!toolKey && !sceneReviewOpen && !selectionReviewOpen) openSelectionReview();
-      return;
-    }
-    if (fullscreenPreviewOpen) {
-      if (event.key === "Escape" || event.key === " ") {
-        event.preventDefault();
-        closeFullscreenPreview();
-      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-        event.preventDefault();
-        moveFullscreenPreview(-1);
-      } else if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-        event.preventDefault();
-        moveFullscreenPreview(1);
-      } else if (/^[0-5]$/.test(event.key)) {
-        event.preventDefault();
-        applyRating(Number(event.key), true);
-      } else if (/^[6-9]$/.test(event.key)) {
-        event.preventDefault();
-        applyColorLabel(Number(event.key) as BridgeColorLabel, true);
-      } else if (event.key.toLocaleLowerCase("en-US") === "x") {
-        event.preventDefault();
-        toggleExcluded(true);
-      }
-      return;
-    }
-    if (selectionReviewOpen) {
-      if (event.key === "Escape") { event.preventDefault(); closeSelectionReview(); }
-      else if (event.key === "ArrowLeft") { event.preventDefault(); moveReview(-1); }
-      else if (event.key === "ArrowRight") { event.preventDefault(); moveReview(1); }
-      else if (event.key === "ArrowDown") { event.preventDefault(); removeReviewPhoto(); }
-      else if (event.key === "ArrowUp") { event.preventDefault(); restoreReviewPhoto(); }
-      else if (event.key === " ") { event.preventDefault(); openFullscreenPreview(); }
-      else if (/^[0-5]$/.test(event.key)) { event.preventDefault(); applyRating(Number(event.key), true); }
-      else if (/^[6-9]$/.test(event.key)) { event.preventDefault(); applyColorLabel(Number(event.key) as BridgeColorLabel, true); }
-      else if (event.key.toLocaleLowerCase("en-US") === "x") { event.preventDefault(); toggleExcluded(true); }
-      return;
-    }
-    if (event.key === "Escape") {
-      if (sceneReviewOpen) setSceneReviewOpen(false);
-      else if (toolKey) setToolKey(undefined);
-      return;
-    }
-    if (toolKey || sceneReviewOpen) return;
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA") { event.preventDefault(); selectAllVisibleJpgs(); }
-    else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left", event.shiftKey); }
-    else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right", event.shiftKey); }
-    else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up", event.shiftKey); }
-    else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down", event.shiftKey); }
-    else if (event.key === " " && isSpaceShortcutTarget(event.target, event.currentTarget)) { event.preventDefault(); openFullscreenPreview(); }
-    else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
-    else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
-    else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyRating, closeCompactFilters, closeFullscreenPreview, closeGallerySelectImport, closePersonSelectImport, closeSelectionReview, compactFiltersOpen, folderSourceOpen, fullscreenPreviewOpen, gallerySelectDialogOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, nasPickerOpen, openFullscreenPreview, openSelectionReview, personSelectDialogOpen, rawRootPromptOpen, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  const closeDialogs = useCallback(() => {
+    setFolderSourceOpen(false);
+    setNasPickerOpen(false);
+    closePersonSelectImport();
+    closeGallerySelectImport();
+    setRawRootPromptOpen(false);
+    rootRef.current?.focus();
+  }, [closeGallerySelectImport, closePersonSelectImport]);
+  const closeSceneReview = useCallback(() => setSceneReviewOpen(false), []);
+  const closeTool = useCallback(() => setToolKey(undefined), []);
+
+  const handleKeyboard = useOliviaBridgeKeyboard({
+    compactFiltersOpen,
+    closeCompactFilters,
+    dialogOpen: folderSourceOpen || nasPickerOpen || personSelectDialogOpen || gallerySelectDialogOpen || rawRootPromptOpen,
+    closeDialogs,
+    handleSearchFilterShortcut,
+    resizeThumbnails,
+    toolKey,
+    sceneReviewOpen,
+    selectionReviewOpen,
+    fullscreenPreviewOpen,
+    openSelectionReview,
+    closeSelectionReview,
+    closeFullscreenPreview,
+    moveFullscreenPreview,
+    moveReview,
+    removeReviewPhoto,
+    restoreReviewPhoto,
+    openFullscreenPreview,
+    applyRating,
+    applyColorLabel,
+    toggleExcluded,
+    closeSceneReview,
+    closeTool,
+    selectAllVisibleJpgs,
+    moveGridFocus,
+  });
 
   const openTool = useCallback((key: ToolKey) => {
     if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;

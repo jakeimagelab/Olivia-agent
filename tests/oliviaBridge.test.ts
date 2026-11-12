@@ -71,10 +71,10 @@ describe("Olivia Bridge", () => {
   });
 
   it("Command 또는 Ctrl+A로 현재 보이는 JPG 전체 선택을 실행한다", () => {
-    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const keyboard = readFileSync("components/olivia-bridge/useOliviaBridgeKeyboard.ts", "utf8");
     const actionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
-    expect(workspace).toContain('(event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA"');
-    expect(workspace).toContain("selectAllVisibleJpgs()");
+    expect(keyboard).toContain('(event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA"');
+    expect(keyboard).toContain("selectAllVisibleJpgs()");
     expect(actionBar).toContain("⌘/Ctrl+A 전체 선택");
   });
 
@@ -369,14 +369,15 @@ describe("Olivia Bridge", () => {
 
   it("Command +/-와 하단 게이지로 썸네일 크기를 조절한다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
+    const keyboard = readFileSync("components/olivia-bridge/useOliviaBridgeKeyboard.ts", "utf8");
     const folderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 
-    expect(workspace).toContain("event.metaKey && !event.altKey && !event.ctrlKey");
-    expect(workspace).toContain('event.code === "Equal"');
-    expect(workspace).toContain('event.code === "Minus"');
-    expect(workspace).toContain("resizeThumbnails(1)");
-    expect(workspace).toContain("resizeThumbnails(-1)");
+    expect(keyboard).toContain("event.metaKey && !event.altKey && !event.ctrlKey");
+    expect(keyboard).toContain('event.code === "Equal"');
+    expect(keyboard).toContain('event.code === "Minus"');
+    expect(keyboard).toContain("resizeThumbnails(1)");
+    expect(keyboard).toContain("resizeThumbnails(-1)");
     expect(folderPanel).toContain('type="range"');
     expect(workspace).toContain("thumbnailMin={THUMBNAIL_SIZE_MIN}");
     expect(workspace).toContain("thumbnailMax={THUMBNAIL_SIZE_MAX}");
