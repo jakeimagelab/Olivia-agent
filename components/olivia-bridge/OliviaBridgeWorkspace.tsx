@@ -47,6 +47,7 @@ import {
 import { BridgeFloatingWindow } from "@/components/olivia-bridge/BridgeFloatingWindow";
 import {
   BridgeFullscreenPreview,
+  BridgePhotoCard,
   BridgePreviewImage,
   BridgeSelectionReview,
   BridgeThumbnail,
@@ -494,6 +495,10 @@ export default function OliviaBridgeWorkspace({
     else if (qualityFilter === "normal" && quality?.status !== "normal" && quality?.reviewStatus !== "confirmed_normal") return false;
     return matchesCustomerSelectionComparison({ id: photo.id, filter: comparisonFilter, adminIds: selectedIds, customerIds: customerSelectedIds });
   }), jpgSortMode), [comparisonFilter, customerSelectedIds, effectiveColorLabels, effectiveRatings, excludedIds, fileFilter, filenameSearchTokens, hasLabelFilters, jpgSortMode, labelFilters, qualityByBridgeId, qualityFilter, scan.jpgs, selectedIds]);
+  const visiblePhotoById = useMemo(
+    () => new Map(visibleJpgs.map((photo) => [photo.id, photo] as const)),
+    [visibleJpgs],
+  );
   const comparisonCounts = useMemo(
     () => customerSelectionComparisonCounts(scan.jpgs.map((photo) => photo.id), selectedIds, customerSelectedIds),
     [customerSelectedIds, scan.jpgs, selectedIds],
@@ -2237,11 +2242,29 @@ export default function OliviaBridgeWorkspace({
               }}
               onClick={(event) => {
                 if (suppressThumbnailClickRef.current) return;
-                if (event.target instanceof Element && event.target.closest("[data-bridge-photo-id]")) return;
+                const photoCard = event.target instanceof Element
+                  ? event.target.closest("[data-bridge-photo-id]") as HTMLElement | null
+                  : null;
+                if (photoCard) {
+                  if (isMacControlClick(event)) return;
+                  const photo = visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "");
+                  if (photo) choosePhoto(photo, event);
+                  return;
+                }
                 setSelectedIds(new Set());
                 setAnchorId(null);
                 setFocusedId(null);
                 setPreviewSize(undefined);
+              }}
+              onContextMenu={(event) => { if (!isMacControlClick(event)) return;
+                if (!(event.target instanceof Element)) return;
+                const photoCard = event.target.closest<HTMLElement>("[data-bridge-photo-id]");
+                const photo = photoCard
+                  ? visiblePhotoById.get(photoCard.dataset.bridgePhotoId ?? "")
+                  : undefined;
+                if (!photo) return;
+                event.preventDefault();
+                choosePhoto(photo, event);
               }}
               onPointerDown={(event) => {
                 if (event.button !== 0 || event.pointerType !== "mouse") return;
@@ -2293,11 +2316,23 @@ export default function OliviaBridgeWorkspace({
                   const excluded = excludedIds.has(photo.id);
                   const rating = effectiveRatings[photo.id] ?? 0;
                   const colorLabel = effectiveColorLabels[photo.id];
-                  const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
                   const quality = qualityByBridgeId[photo.id];
                   const rawMark = rawMarkByFileKey.get(normalizePhotoToolFileKey(photo.name));
-                  const rawColor = rawMark?.colorLabel ? BRIDGE_COLOR_LABELS[rawMark.colorLabel] : null;
-                  return <button key={photo.id} type="button" data-bridge-photo-id={photo.id} data-nested={photo.relativeDirectory ? "true" : "false"} data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"} className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`} onClick={(event) => { if (isMacControlClick(event)) return; choosePhoto(photo, event); }} onContextMenu={(event) => { if (!isMacControlClick(event)) return; event.preventDefault(); choosePhoto(photo, event); }} aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`} aria-pressed={selected}><BridgeThumbnail photo={photo} alt={photo.name} />{adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}{selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}{customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRatings[photo.id] ? ` ★${customerRatings[photo.id]}` : ""}</span> : null}{quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.aiQualityBadge}><CircleAlert size={11} />{quality.flags.length || "?"}</span> : null}<span className={styles.photoName}>{photo.name}</span>{photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}{rawMark?.rating ? <span className={styles.rawMarkBadge}>RAW ★{rawMark.rating}</span> : null}{rawColor ? <span className={styles.rawColorBadge}><i style={{ background: rawColor.color }} />RAW {rawColor.name}</span> : null}{rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}{color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}{excluded ? <span className={styles.rejectMark}>X</span> : null}</button>;
+                  return <BridgePhotoCard
+                    key={photo.id}
+                    photo={photo}
+                    selected={selected}
+                    customerSelected={customerSelected}
+                    customerRating={customerRatings[photo.id] ?? 0}
+                    focused={focused}
+                    adobeSelected={adobeSelected}
+                    manualSelected={manualSelected}
+                    excluded={excluded}
+                    rating={rating}
+                    colorLabel={colorLabel}
+                    quality={quality}
+                    rawMark={rawMark}
+                  />;
                 })}
               </div> : null}
               {showRaws && scan.raws.length ? <section className={styles.plainFileSection}><header><strong>RAW</strong><span>미리보기 없이 형식과 파일명만 표시</span></header><div>{scan.raws.map((file) => <PlainFileCard key={file.id} file={file} mark={rawAdobeMarks[file.id]} active={focusedPlainFile?.id === file.id} onClick={() => { setFocusedPlainId(file.id); setFocusedId(null); }} />)}</div></section> : null}

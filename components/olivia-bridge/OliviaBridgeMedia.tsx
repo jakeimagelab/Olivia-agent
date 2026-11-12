@@ -5,6 +5,7 @@ import {
   ArrowUp,
   ChevronLeft,
   ChevronRight,
+  CircleAlert,
   File,
   Images,
   LoaderCircle,
@@ -12,7 +13,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import type { BridgeJpgFile, BridgeRawFile } from "@/lib/photo-bridge/bridgeFiles";
 import {
@@ -24,6 +25,7 @@ import {
   bridgeReviewLayout,
 } from "@/lib/photo-bridge/reviewMode";
 import type { AdobeBridgeMark } from "@/lib/selectMatch/bridgeRating";
+import type { PublicPhotoQualityResult } from "@/lib/photo-quality/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 const thumbnailCache = new Map<string, Promise<string>>();
@@ -114,6 +116,61 @@ export function BridgeThumbnail({
     </div>
   );
 }
+
+export const BridgePhotoCard = memo(function BridgePhotoCard({
+  photo,
+  selected,
+  customerSelected,
+  customerRating,
+  focused,
+  adobeSelected,
+  manualSelected,
+  excluded,
+  rating,
+  colorLabel,
+  quality,
+  rawMark,
+}: {
+  photo: BridgeJpgFile;
+  selected: boolean;
+  customerSelected: boolean;
+  customerRating: number;
+  focused: boolean;
+  adobeSelected: boolean;
+  manualSelected: boolean;
+  excluded: boolean;
+  rating: number;
+  colorLabel?: BridgeColorLabel;
+  quality?: PublicPhotoQualityResult;
+  rawMark?: AdobeBridgeMark;
+}) {
+  const color = colorLabel ? BRIDGE_COLOR_LABELS[colorLabel] : null;
+  const rawColor = rawMark?.colorLabel ? BRIDGE_COLOR_LABELS[rawMark.colorLabel] : null;
+  return (
+    <button
+      type="button"
+      data-bridge-photo-id={photo.id}
+      data-nested={photo.relativeDirectory ? "true" : "false"}
+      data-selection-source={adobeSelected ? "adobe" : manualSelected ? "manual" : "none"}
+      className={`${styles.thumbnailCard} ${selected ? styles.selected : ""} ${adobeSelected ? styles.adobeSelected : ""} ${manualSelected ? styles.manualSelected : ""} ${focused ? styles.focused : ""} ${excluded ? styles.excluded : ""}`}
+      aria-label={`${photo.name}${adobeSelected ? ", Adobe 선택" : manualSelected ? ", 직접 선택" : ""}${customerSelected ? ", 고객 선택" : ""}${focused ? ", 현재 포커스" : ""}`}
+      aria-pressed={selected}
+    >
+      <BridgeThumbnail photo={photo} alt={photo.name} />
+      {adobeSelected ? <span className={styles.sourceBadge}>Adobe</span> : null}
+      {selected ? <span className={styles.adminSelectionBadge}>내 셀렉</span> : null}
+      {customerSelected ? <span className={styles.customerSelectionBadge}>고객{customerRating ? ` ★${customerRating}` : ""}</span> : null}
+      {quality && (quality.flags.length || quality.status === "needs_review") ? <span className={styles.aiQualityBadge}><CircleAlert size={11} />{quality.flags.length || "?"}</span> : null}
+      <span className={styles.photoName}>{photo.name}</span>
+      {photo.relativeDirectory ? <span className={styles.photoPath}>{photo.relativeDirectory}</span> : null}
+      {rawMark?.rating ? <span className={styles.rawMarkBadge}>RAW ★{rawMark.rating}</span> : null}
+      {rawColor ? <span className={styles.rawColorBadge}><i style={{ background: rawColor.color }} />RAW {rawColor.name}</span> : null}
+      {rating ? <span className={styles.rating}><Star size={11} fill="currentColor" />{rating}</span> : null}
+      {color ? <span className={styles.colorLabelMark} style={{ background: color.color }} aria-label={`${color.name} 컬러 레이블`} /> : null}
+      {excluded ? <span className={styles.rejectMark}>X</span> : null}
+    </button>
+  );
+});
 
 export function BridgePreviewImage({
   photo,
