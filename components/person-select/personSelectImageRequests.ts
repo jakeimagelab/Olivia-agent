@@ -9,7 +9,7 @@ export type PersonSelectImagePage = {
 };
 
 const imageRequests = new Map<string, Promise<PersonSelectImagePage>>();
-const previewRequests = new Map<string, Promise<PersonSelectImageData[]>>();
+const previewRequests = new Map<string, Promise<PersonSelectImageData | null>>();
 
 function requestScopeKey(slug: string, category: string) {
   return `${slug}:${category}`;
@@ -57,16 +57,27 @@ export async function fetchPersonSelectImagePage(slug: string, category: string,
 export async function fetchPersonSelectPreviewUrls(slug: string, category: string, imageIds: readonly string[]) {
   const uniqueIds = [...new Set(imageIds.filter(Boolean))].slice(0, 8);
   if (!uniqueIds.length) return [];
-  const key = `${requestScopeKey(slug, category)}:${uniqueIds.slice().sort().join(",")}`;
-  const pending = previewRequests.get(key);
-  if (pending) return pending;
-  const request = fetch(buildPersonSelectPreviewUrl(slug, category, uniqueIds), { cache: "no-store" })
+  const scope = requestScopeKey(slug, category);
+  const requestKey = (imageId: string) => `${scope}:${imageId}`;
+  const missingIds = uniqueIds.filter((imageId) => !previewRequests.has(requestKey(imageId)));
+  if (missingIds.length) {
+    const batchRequest = fetch(buildPersonSelectPreviewUrl(slug, category, missingIds), { cache: "no-store" })
     .then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || "미리보기를 불러오지 못했어요.");
       return Array.isArray(data.images) ? data.images as PersonSelectImageData[] : [];
-    })
-    .finally(() => previewRequests.delete(key));
-  previewRequests.set(key, request);
-  return request;
+    });
+    for (const imageId of missingIds) {
+      const key = requestKey(imageId);
+      let request: Promise<PersonSelectImageData | null>;
+      request = batchRequest
+        .then((images) => images.find((image) => image.id === imageId) ?? null)
+        .finally(() => {
+          if (previewRequests.get(key) === request) previewRequests.delete(key);
+        });
+      previewRequests.set(key, request);
+    }
+  }
+  const previews = await Promise.all(uniqueIds.map((imageId) => previewRequests.get(requestKey(imageId))!));
+  return previews.filter((image): image is PersonSelectImageData => Boolean(image));
 }
