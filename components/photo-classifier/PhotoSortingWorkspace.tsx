@@ -15,7 +15,7 @@ import { getClassificationSettings } from "@/lib/photo-classifier/classification
 import { buildCandidateSegments, buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
 import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
-import { buildFieldScenesFromBoundaries, simpleSceneFolderName } from "@/lib/photo-classifier/scene-builder";
+import { buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import {
@@ -23,6 +23,14 @@ import {
   getClassificationCheckpoint, setCachedFeature, setCachedPattern, setClassificationCheckpoint,
 } from "@/lib/photo-classifier/scene-cache";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
+import {
+  createApproveSceneCorrection,
+  createMergeSceneCorrection,
+  createRenameSceneCorrection,
+  markBoundaryAsManuallyMerged,
+  mergePlannedFieldScenes,
+  splitPlannedFieldScene,
+} from "@/lib/photo-classifier/sceneReviewEdits";
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
@@ -142,11 +150,6 @@ const JPG_EXTS = CAMERA_JPG_EXTENSIONS;
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
 // 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
 const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
-const EMPTY_BOUNDARY_FEATURES = {
-  timeGapScore: 0, personChangeScore: 0, locationChangeScore: 0, equipmentChangeScore: 0,
-  poseChangeScore: 0, sceneTypeChangeScore: 0, visualChangeScore: 0, shotDistanceChangeScore: 0,
-};
-
 // 사진 분류는 Scene/촬영 카테고리 정리까지만 담당한다. JPG 셀렉과 RAW 매칭은
 // 각각 사진 셀렉/RAW 매칭 워크스페이스의 독립 단계다.
 const FIELD_STEPS  = ["설정","파일 분류","씬 검토","정리 중","완료"];
@@ -1198,32 +1201,12 @@ function PhotoSortingInner({
 
     if (!si.sceneDir || !sj.sceneDir) {
       // 승인 전 검토 모드: 메모리상 Scene 계획만 변경
-      if (sj.boundaryBefore) {
-        setSceneCorrections((previous) => [...previous, {
-          projectId: rootDir?.name ?? "local",
-          boundaryIndex: sj.boundaryBefore!.boundaryIndex,
-          boundaryFileName: sj.boundaryBefore!.afterFileName,
-          previousDecision: "split",
-          correctedDecision: "merge",
-          action: "merge",
-          features: sj.boundaryBefore!.features,
-          createdAt: new Date().toISOString(),
-        }]);
-        setBoundaryDecisions((previous) => previous.map((decision) => decision.boundaryIndex === sj.boundaryBefore!.boundaryIndex
-          ? { ...decision, decision: "merge", source: "user", needsReview: false, reasons: [...decision.reasons, "사용자가 병합함"] }
-          : decision));
+      const correction = createMergeSceneCorrection(sj, rootDir?.name ?? "local");
+      if (correction) {
+        setSceneCorrections((previous) => [...previous, correction]);
+        setBoundaryDecisions((previous) => markBoundaryAsManuallyMerged(previous, correction.boundaryIndex));
       }
-      setFieldScenes(prev => {
-        const copy = [...prev];
-        copy[i] = {
-          ...si,
-          files: [...si.files, ...sj.files],
-          fileCount: si.fileCount + sj.fileCount,
-          endTime: sj.endTime,
-          approved: false,
-        };
-        return copy.filter((_, idx) => idx !== j).map((scene, index) => ({ ...scene, index: index + 1 }));
-      });
+      setFieldScenes((previous) => mergePlannedFieldScenes(previous, i, j));
       return;
     }
 
@@ -1250,57 +1233,14 @@ function PhotoSortingInner({
 
   const splitFieldScene = useCallback((sceneIndex: number, offset: number) => {
     setFieldScenes((previous) => {
-      const scene = previous[sceneIndex];
-      if (!scene || scene.sceneDir || offset <= 0 || offset >= scene.files.length) return previous;
-      const boundaryIndex = previous.slice(0, sceneIndex).reduce((sum, item) => sum + item.files.length, 0) + offset;
-      const beforeFile = scene.files[offset - 1];
-      const afterFile = scene.files[offset];
-      const decision: SceneBoundaryDecision = {
-        boundaryIndex,
-        beforeFileName: beforeFile.name,
-        afterFileName: afterFile.name,
-        score: 1,
-        decision: "split",
-        forced: false,
-        source: "user",
-        reasons: ["사용자가 직접 경계를 추가함"],
-        features: EMPTY_BOUNDARY_FEATURES,
-        needsReview: false,
-      };
-      setBoundaryDecisions((items) => [...items.filter((item) => item.boundaryIndex !== boundaryIndex), decision].sort((a, b) => a.boundaryIndex - b.boundaryIndex));
-      setSceneCorrections((items) => [...items, {
-        projectId: rootDir?.name ?? "local",
-        boundaryIndex,
-        boundaryFileName: afterFile.name,
-        previousDecision: "merge",
-        correctedDecision: "split",
-        action: "split",
-        features: EMPTY_BOUNDARY_FEATURES,
-        createdAt: new Date().toISOString(),
-      }]);
-      const left: FieldScene = {
-        ...scene,
-        files: scene.files.slice(0, offset),
-        fileCount: offset,
-        endTime: beforeFile.mtime,
-        approved: false,
-      };
-      const rightIndex = sceneIndex + 2;
-      const rightName = simpleSceneFolderName(rightIndex);
-      const right: FieldScene = {
-        ...scene,
-        index: rightIndex,
-        folderName: rightName,
-        editedName: rightName,
-        suggestedName: rightName,
-        files: scene.files.slice(offset),
-        fileCount: scene.files.length - offset,
-        startTime: afterFile.mtime,
-        boundaryBefore: decision,
-        approved: false,
-      };
-      return [...previous.slice(0, sceneIndex), left, right, ...previous.slice(sceneIndex + 1)]
-        .map((item, index) => ({ ...item, index: index + 1 }));
+      const result = splitPlannedFieldScene(previous, sceneIndex, offset, rootDir?.name ?? "local");
+      if (!result) return previous;
+      setBoundaryDecisions((items) => [
+        ...items.filter((item) => item.boundaryIndex !== result.boundaryDecision.boundaryIndex),
+        result.boundaryDecision,
+      ].sort((a, b) => a.boundaryIndex - b.boundaryIndex));
+      setSceneCorrections((items) => [...items, result.correction]);
+      return result.scenes;
     });
   }, [rootDir]);
 
@@ -1312,17 +1252,10 @@ function PhotoSortingInner({
     if (!scene || !newName.trim()) return false;
     setFieldScenes((previous) => previous.map((s, j) => (j === sceneIndex ? { ...s, editedName: newName } : s)));
     if (newName !== scene.folderName) {
-      setSceneCorrections((previous) => [...previous, {
-        projectId: rootDir?.name ?? "local",
-        boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
-        boundaryFileName: scene.files[0]?.name ?? "",
-        previousDecision: "split",
-        correctedDecision: "split",
-        action: "rename",
-        features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
-        reason: `${scene.folderName} → ${newName}`,
-        createdAt: new Date().toISOString(),
-      }]);
+      setSceneCorrections((previous) => [
+        ...previous,
+        createRenameSceneCorrection(scene, newName, rootDir?.name ?? "local"),
+      ]);
     }
     return true;
   }, [fieldScenes, rootDir]);
@@ -1368,31 +1301,19 @@ function PhotoSortingInner({
     setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
     const scene = fieldScenes[sceneIndex];
     if (!scene || scene.approved) return;
-    setSceneCorrections((previous) => [...previous, {
-      projectId: rootDir?.name ?? "local",
-      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
-      boundaryFileName: scene.files[0]?.name ?? "",
-      previousDecision: scene.boundaryBefore?.decision === "merge" ? "merge" : "split",
-      correctedDecision: scene.boundaryBefore?.decision === "merge" ? "merge" : "split",
-      action: "approve",
-      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
-      createdAt: new Date().toISOString(),
-    }]);
+    setSceneCorrections((previous) => [
+      ...previous,
+      createApproveSceneCorrection(scene, rootDir?.name ?? "local"),
+    ]);
   }, [fieldScenes, rootDir]);
 
   const approveAllFieldScenes = useCallback(() => {
     const pending = fieldScenes.filter((scene) => !scene.approved);
     setFieldScenes((previous) => previous.map((scene) => ({ ...scene, approved: true })));
-    setSceneCorrections((previous) => [...previous, ...pending.map((scene) => ({
-      projectId: rootDir?.name ?? "local",
-      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
-      boundaryFileName: scene.files[0]?.name ?? "",
-      previousDecision: (scene.boundaryBefore?.decision === "merge" ? "merge" : "split") as "split" | "merge",
-      correctedDecision: (scene.boundaryBefore?.decision === "merge" ? "merge" : "split") as "split" | "merge",
-      action: "approve" as const,
-      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
-      createdAt: new Date().toISOString(),
-    }))]);
+    setSceneCorrections((previous) => [
+      ...previous,
+      ...pending.map((scene) => createApproveSceneCorrection(scene, rootDir?.name ?? "local")),
+    ]);
   }, [fieldScenes, rootDir]);
 
   const handleConfirmScenes = useCallback(async () => {
@@ -2396,17 +2317,10 @@ function PhotoSortingInner({
 
   const commitFieldSceneName = useCallback((scene: FieldScene) => {
     if (scene.editedName === scene.folderName) return;
-    setSceneCorrections((previous) => [...previous, {
-      projectId: rootDir?.name ?? "local",
-      boundaryIndex: scene.boundaryBefore?.boundaryIndex ?? 0,
-      boundaryFileName: scene.files[0]?.name ?? "",
-      previousDecision: "split",
-      correctedDecision: "split",
-      action: "rename",
-      features: scene.boundaryBefore?.features ?? EMPTY_BOUNDARY_FEATURES,
-      reason: `${scene.folderName} → ${scene.editedName}`,
-      createdAt: new Date().toISOString(),
-    }]);
+    setSceneCorrections((previous) => [
+      ...previous,
+      createRenameSceneCorrection(scene, scene.editedName, rootDir?.name ?? "local"),
+    ]);
   }, [rootDir]);
 
   const FieldStep2 = () => {
