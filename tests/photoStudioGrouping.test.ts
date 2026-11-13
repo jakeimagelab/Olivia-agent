@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPersonFeatureTags,
   buildPersonGroups,
   buildStudioGroups,
   computeClothingLabel,
@@ -44,6 +45,23 @@ function makePhoto(name: string, groupKey: string, overrides: Partial<StudioPhot
 }
 
 describe("studio photo grouping", () => {
+  it("builds the shared person feature tags used by edit and review views", () => {
+    expect(buildPersonFeatureTags({
+      ...BASE_FEATURES,
+      ageBand: "40s",
+      hairColor: "brown",
+      hasGlasses: true,
+    }, { includeHairLength: true })).toEqual(["여성", "40대", "갈색머리", "장발", "안경"]);
+
+    expect(buildPersonFeatureTags({
+      ...BASE_FEATURES,
+      gender: "unknown",
+      ageBand: "unknown",
+      hairColor: "unknown",
+      hairLength: "unknown",
+    })).toEqual([]);
+  });
+
   it("keeps the established clothing and folder naming rules", () => {
     expect(computeClothingLabel(true, "스크럽", false)).toBe("가운+스크럽");
     expect(computeClothingLabel(false, "셔츠", true)).toBe("가족프로필");

@@ -78,6 +78,25 @@ export const STUDIO_LIGHTING_SENSITIVITY: Record<LightingSensitivity, string> = 
   strict: "강함 — 얼굴 밝기가 조금만 낮아도 ETC",
 };
 
+const PERSON_FEATURE_LABELS: Record<string, string> = {
+  male: "남성",
+  female: "여성",
+  "20s": "20대",
+  "30s": "30대",
+  "40s": "40대",
+  "50s": "50대",
+  "60s+": "60대+",
+  black: "검정",
+  brown: "갈색",
+  blonde: "금발",
+  white_gray: "흰/회색",
+  other: "기타",
+  short: "단발",
+  medium: "중간",
+  long: "장발",
+  bald: "민머리",
+};
+
 const BLANK_PERSON_FEATURES: PersonFeatures = {
   gender: "unknown",
   ageBand: "unknown",
@@ -87,6 +106,21 @@ const BLANK_PERSON_FEATURES: PersonFeatures = {
   hasBeard: false,
   faceShape: "unknown",
 };
+
+export function buildPersonFeatureTags(
+  features: PersonFeatures,
+  options: { includeHairLength?: boolean } = {},
+) {
+  const tags: string[] = [];
+  if (features.gender !== "unknown") tags.push(PERSON_FEATURE_LABELS[features.gender]);
+  if (features.ageBand !== "unknown") tags.push(PERSON_FEATURE_LABELS[features.ageBand]);
+  if (features.hairColor !== "unknown") tags.push(`${PERSON_FEATURE_LABELS[features.hairColor]}머리`);
+  if (options.includeHairLength && features.hairLength !== "unknown") {
+    tags.push(PERSON_FEATURE_LABELS[features.hairLength]);
+  }
+  if (features.hasGlasses) tags.push("안경");
+  return tags;
+}
 
 export function computeClothingLabel(
   hasGown: boolean,
