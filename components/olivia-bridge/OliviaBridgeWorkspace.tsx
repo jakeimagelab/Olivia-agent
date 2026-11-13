@@ -42,6 +42,7 @@ import { useOliviaBridgeSceneReviewModel } from "@/components/olivia-bridge/useO
 import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useOliviaBridgeSelectionSummary";
 import { useOliviaBridgeUiState } from "@/components/olivia-bridge/useOliviaBridgeUiState";
 import { useOliviaBridgeFolderNavigation } from "@/components/olivia-bridge/useOliviaBridgeFolderNavigation";
+import { useOliviaBridgeFolderSession } from "@/components/olivia-bridge/useOliviaBridgeFolderSession";
 import { useOliviaBridgePreviewNavigation } from "@/components/olivia-bridge/useOliviaBridgePreviewNavigation";
 import { useOliviaBridgeSelectionActions } from "@/components/olivia-bridge/useOliviaBridgeSelectionActions";
 import {
@@ -50,33 +51,13 @@ import {
 } from "@/components/olivia-bridge/useOliviaBridgeMarkSync";
 import { OliviaBridgeOverlayLayer } from "@/components/olivia-bridge/OliviaBridgeOverlayLayer";
 import { OliviaBridgeTopBars } from "@/components/olivia-bridge/OliviaBridgeTopBars";
-import {
-  type BridgeFolderScan,
-  type BridgeJpgSortMode,
-} from "@/lib/photo-bridge/bridgeFiles";
-import type { RemoteNasSelection } from "@/lib/remote-nas/types";
-import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
+import { type BridgeJpgSortMode } from "@/lib/photo-bridge/bridgeFiles";
 import {
   normalizePhotoToolFileKey,
 } from "@/lib/photo-bridge/toolLinkage";
-import {
-  type BridgeFolderTrailItem,
-} from "@/lib/photo-bridge/recentFolder";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import styles from "./OliviaBridgeWorkspace.module.css";
-
-type Breadcrumb = BridgeFolderTrailItem;
-
-const EMPTY_SCAN: BridgeFolderScan = {
-  folders: [],
-  jpgs: [],
-  raws: [],
-  sidecars: [],
-  ignoredCount: 0,
-  nestedJpgCount: 0,
-  unreadableFolderCount: 0,
-};
 
 const THUMBNAIL_SIZE_MIN = 96;
 const THUMBNAIL_SIZE_MAX = 240;
@@ -110,15 +91,31 @@ export default function OliviaBridgeWorkspace({
     photoDepartmentResolution,
     setPhotoDepartmentResolution,
   } = usePhotoStudioExecution();
-  const [breadcrumbs, setBreadcrumbs] = useState<Breadcrumb[]>([]);
-  const [remoteFolder, setRemoteFolder] = useState<RemoteNasSelection | null>(null);
-  const [scan, setScan] = useState<BridgeFolderScan>(EMPTY_SCAN);
-  const [scanStatus, setScanStatus] = useState<"idle" | "restoring" | "loading" | "ready" | "error">("restoring");
-  const [remoteLoadProgress, setRemoteLoadProgress] = useState<{ received: number; total: number } | null>(null);
-  const [, setScanError] = useState<string>();
-  const [includeNestedJpgs, setIncludeNestedJpgs] = useState(false);
-  const [restoreTrail, setRestoreTrail] = useState<Breadcrumb[]>([]);
-  const [restoreMessage, setRestoreMessage] = useState("");
+  const {
+    breadcrumbs,
+    setBreadcrumbs,
+    remoteFolder,
+    setRemoteFolder,
+    scan,
+    setScan,
+    scanStatus,
+    setScanStatus,
+    remoteLoadProgress,
+    setRemoteLoadProgress,
+    setScanError,
+    includeNestedJpgs,
+    setIncludeNestedJpgs,
+    restoreTrail,
+    setRestoreTrail,
+    restoreMessage,
+    setRestoreMessage,
+    activeFolder,
+    folderPath,
+    folderSelectionSourceKey,
+    activeFolderName,
+    hasActiveFolder,
+    remoteProjectSelection,
+  } = useOliviaBridgeFolderSession();
   const {
     selectedIds,
     selectedIdsRef,
@@ -169,11 +166,6 @@ export default function OliviaBridgeWorkspace({
     updateFloatingWindowRect,
   } = useOliviaBridgeUiState({ rootRef });
 
-  const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
-  const folderPath = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join(" / ");
-  const folderSelectionSourceKey = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join("/");
-  const activeFolderName = activeFolder?.name ?? remoteFolder?.displayPath.split("/").filter(Boolean).at(-1) ?? "";
-  const hasActiveFolder = Boolean(activeFolder || remoteFolder);
   const {
     ratings,
     setRatings,
@@ -329,18 +321,6 @@ export default function OliviaBridgeWorkspace({
     workflowRunId,
     setDepartmentResolution: setPhotoDepartmentResolution,
   });
-  const remoteProjectSelection = useMemo<RemoteNasSelection | undefined>(() => {
-    if (!remoteFolder) return undefined;
-    const pathParts = remoteFolder.path.split("/").filter(Boolean);
-    const displayParts = remoteFolder.displayPath.split("/").filter(Boolean);
-    if (pathParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) pathParts.pop();
-    if (displayParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) displayParts.pop();
-    return {
-      ...remoteFolder,
-      path: pathParts.join("/"),
-      displayPath: displayParts.join("/"),
-    };
-  }, [remoteFolder]);
   const { effectiveRatings, effectiveColorLabels } = useOliviaBridgeEffectiveMarks({
     jpgs: scan.jpgs,
     selectionSource,
