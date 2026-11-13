@@ -128,6 +128,7 @@ import { PhotoClassificationProgressView } from "./PhotoClassificationProgressVi
 import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "./FieldSceneReviewList";
 import { StudioGroupEditView } from "./StudioGroupEditView";
+import { StudioGroupConfirmationView } from "./StudioGroupConfirmationView";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -3139,95 +3140,57 @@ function PhotoSortingInner({
   const StudioGroupStep4 = () => {
     const etcGroup    = personGroups.find(g=>g.isEtc);
     const normalGroups = personGroups.filter(g=>!g.isEtc);
-    const g = personGroups[activePersonGroup] ?? normalGroups[0];
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:14}}>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
-          {personGroups.map((grp,i)=>(
-            <button key={grp.id} onClick={()=>setActivePersonGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activePersonGroup?C.purple:C.border}`,background:i===activePersonGroup?"rgba(124,58,237,.16)":C.surface,fontSize:11,fontWeight:600,color:i===activePersonGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {grp.isEtc?"ETC":grp.editedFolderName}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
-            </button>
-          ))}
-        </div>
-        <div className="ps-stat4">
-          {[{label:"인물 수",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
-            <div key={label} style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:600,color}}>{value}</div>
-              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-            </div>
-          ))}
-        </div>
-        {g && (
-          <Card>
-            <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-              <span style={{fontSize:12,fontWeight:600,color:g.isEtc?C.red:C.purple}}>{g.editedFolderName}</span>
-              <span style={{fontSize:11,color:C.hint}}>{g.files.length}장</span>
-              {!g.isEtc && (() => {
-                const tags = buildPersonFeatureTags(g.features);
-                return tags.map((t,i)=><span key={i} style={{fontSize:10,background:C.light,color:C.teal,padding:"2px 8px",borderRadius:20}}>{t}</span>);
-              })()}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:6,padding:12}}>
-              {g.files.map(f=>(
-                <div key={f.name} style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
-                  {f.thumbUrl?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",aspectRatio:"3/2",objectFit:"cover",display:"block"}}/>:<div style={{width:"100%",aspectRatio:"3/2",background:C.border}}/>}
-                  <div style={{padding:"3px 6px",fontSize:8,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
-          <Btn style={{background:C.purple}} onClick={runGroupOutput}>파일 정리 시작</Btn>
-        </div>
-      </div>
+      <StudioGroupConfirmationView
+        groups={personGroups.map((group) => ({
+          id: group.id,
+          tabLabel: group.editedFolderName,
+          editedFolderName: group.editedFolderName,
+          isEtc: group.isEtc,
+          files: group.files,
+          tags: buildPersonFeatureTags(group.features).map((label) => ({ label })),
+        }))}
+        activeIndex={activePersonGroup}
+        stats={[
+          { label: "인물 수", value: normalGroups.length, color: C.purple },
+          { label: "전체 JPG", value: normalGroups.reduce((sum, group) => sum + group.files.length, 0), color: C.txt },
+          { label: "ETC", value: etcGroup?.files.length ?? 0, color: C.red },
+          { label: "RAW 파일", value: studioRawCount, color: C.muted },
+        ]}
+        onActiveIndexChange={setActivePersonGroup}
+        onBack={() => setStep(3)}
+        onStart={runGroupOutput}
+      />
     );
   };
 
   const StudioStep4 = () => {
     const etcGroup     = studioGroups.find(g=>g.isEtc);
     const normalGroups = studioGroups.filter(g=>!g.isEtc);
-    const g = studioGroups[activeGroup] ?? normalGroups[0];
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:14}}>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
-          {studioGroups.map((grp,i)=>(
-            <button key={grp.key} onClick={()=>setActiveGroup(i)} style={{padding:"6px 12px",borderRadius:8,border:`1.5px solid ${i===activeGroup?C.purple:C.border}`,background:i===activeGroup?"rgba(124,58,237,.16)":C.surface,fontSize:11,fontWeight:600,color:i===activeGroup?C.purple:C.muted,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-              {grp.isEtc?"ETC":grp.editedFolderName.split("_").slice(1).join("_")}<span style={{marginLeft:4,fontSize:9,color:C.hint}}>{grp.files.length}장</span>
-            </button>
-          ))}
-        </div>
-        <div className="ps-stat4">
-          {[{label:"전체 그룹",value:normalGroups.length,color:C.purple},{label:"전체 JPG",value:normalGroups.reduce((s,g)=>s+g.files.length,0),color:C.txt},{label:"ETC",value:etcGroup?.files.length??0,color:C.red},{label:"RAW 파일",value:studioRawCount,color:C.muted}].map(({label,value,color})=>(
-            <div key={label} style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:600,color}}>{value}</div>
-              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-            </div>
-          ))}
-        </div>
-        {g && (
-          <Card>
-            <div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:12,fontWeight:600,color:g.isEtc?C.red:C.purple}}>{g.editedFolderName}</span>
-              <span style={{fontSize:11,color:C.hint}}>{g.files.length}장</span>
-              {!g.isEtc&&<><span style={{fontSize:10,background:C.light,color:C.teal,padding:"2px 8px",borderRadius:20}}>{g.clothingLabel}</span><span style={{fontSize:10,background:"rgba(232,93,44,.10)",color:"#FFC3AD",padding:"2px 8px",borderRadius:20}}>{g.poseType}</span></>}
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:6,padding:12}}>
-              {g.files.map(f=>(
-                <div key={f.name} style={{borderRadius:8,overflow:"hidden",border:`1px solid ${C.border}`}}>
-                  {f.thumbUrl?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",aspectRatio:"3/2",objectFit:"cover",display:"block"}}/>:<div style={{width:"100%",aspectRatio:"3/2",background:C.border}}/>}
-                  <div style={{padding:"3px 6px",fontSize:8,color:C.hint,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(3)}>← 그룹 수정</Btn>
-          <Btn style={{background:C.purple}} onClick={runStudioOutput}>파일 정리 시작</Btn>
-        </div>
-      </div>
+      <StudioGroupConfirmationView
+        groups={studioGroups.map((group) => ({
+          id: group.key,
+          tabLabel: group.editedFolderName.split("_").slice(1).join("_"),
+          editedFolderName: group.editedFolderName,
+          isEtc: group.isEtc,
+          files: group.files,
+          tags: [
+            { label: group.clothingLabel },
+            { label: group.poseType, tone: "orange" as const },
+          ],
+        }))}
+        activeIndex={activeGroup}
+        stats={[
+          { label: "전체 그룹", value: normalGroups.length, color: C.purple },
+          { label: "전체 JPG", value: normalGroups.reduce((sum, group) => sum + group.files.length, 0), color: C.txt },
+          { label: "ETC", value: etcGroup?.files.length ?? 0, color: C.red },
+          { label: "RAW 파일", value: studioRawCount, color: C.muted },
+        ]}
+        onActiveIndexChange={setActiveGroup}
+        onBack={() => setStep(3)}
+        onStart={runStudioOutput}
+      />
     );
   };
 

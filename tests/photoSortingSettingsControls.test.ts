@@ -9,6 +9,7 @@ import { FieldSceneReviewOverview } from "@/components/photo-classifier/FieldSce
 import { FieldSceneReviewList } from "@/components/photo-classifier/FieldSceneReviewList";
 import { FieldSceneMergeCandidateCard } from "@/components/photo-classifier/FieldSceneMergeCandidateCard";
 import { StudioGroupEditView } from "@/components/photo-classifier/StudioGroupEditView";
+import { StudioGroupConfirmationView } from "@/components/photo-classifier/StudioGroupConfirmationView";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 function makeFieldScene(index: number, editedName: string): FieldScene {
@@ -248,5 +249,35 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("여성");
     expect(markup).toContain("안경");
     expect(markup).toContain("승인");
+  });
+
+  it("renders studio confirmation tabs, stats, tags, and file actions", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StudioGroupConfirmationView, {
+        groups: [{
+          id: "group-1",
+          tabLabel: "프로필_셔츠_Standing",
+          editedFolderName: "01_프로필_셔츠_Standing",
+          isEtc: false,
+          files: [{ name: "A.JPG", thumbUrl: null }],
+          tags: [{ label: "셔츠" }, { label: "Standing", tone: "orange" }],
+        }],
+        activeIndex: 0,
+        stats: [
+          { label: "전체 그룹", value: 1, color: "#7C3AED" },
+          { label: "전체 JPG", value: 1, color: "#111111" },
+        ],
+        onActiveIndexChange: () => undefined,
+        onBack: () => undefined,
+        onStart: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("프로필_셔츠_Standing");
+    expect(markup).toContain("전체 그룹");
+    expect(markup).toContain("셔츠");
+    expect(markup).toContain("Standing");
+    expect(markup).toContain("A.JPG");
+    expect(markup).toContain("파일 정리 시작");
   });
 });
