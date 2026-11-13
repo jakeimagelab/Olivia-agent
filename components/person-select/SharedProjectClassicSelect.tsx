@@ -1,20 +1,16 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CustomerBridgeDraft, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import {
   type SelectionMediaUrls,
   type SelectionMediaVariant,
 } from "@/lib/select-gallery/mediaLoading";
-import { toggleClassicSelectionId } from "@/lib/person-select/classicSelection";
-import { applySelectionDiffsToSharedSnapshot, type SelectionSyncDiff, type SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
-import { readSelectionJsonResponse, sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
+import type { SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { SharedProjectClassicPhotoCard } from "./SharedProjectClassicPhotoCard";
-import { useSelectionSyncQueue } from "./useSelectionSyncQueue";
-import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
 import { useSharedProjectClassicMedia } from "./useSharedProjectClassicMedia";
-import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
+import { useSharedProjectClassicSelection } from "./useSharedProjectClassicSelection";
 import styles from "./SharedProjectSelect.module.css";
 
 export type SharedProjectEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean };
@@ -40,14 +36,18 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
     customerMemo: draft?.customerMemo ?? selection?.customer_memo ?? "",
     updatedAt: draft?.updatedAt ?? null,
   };
-  const serverSnapshotRef = useRef(initialSnapshot);
-  const [selected, setSelected] = useState(() => new Set(seed));
-  const selectedRef = useRef(selected);
   const [filter, setFilter] = useState<"all" | "selected">("all");
   const [state, setState] = useState("");
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submitKey = useRef(requestKey());
+  const { selected, selectionSync, memoSync, toggle, saveState: syncedSaveState } = useSharedProjectClassicSelection({
+    shareToken,
+    eventId: event.id,
+    reviewerId: reviewer.id,
+    initialSnapshot,
+    onError: setState,
+  });
   const { images, renderedImages, sentinelRef } = useSharedProjectClassicMedia({
     initialImages,
     selected,
@@ -58,59 +58,6 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
     loadImageUrls,
     onError: setState,
   });
-
-  const replaceSelected = useCallback((next: Set<string>) => {
-    selectedRef.current = next;
-    setSelected(next);
-  }, []);
-
-  const installSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
-    serverSnapshotRef.current = snapshot;
-    replaceSelected(new Set(applySelectionDiffsToSharedSnapshot(snapshot, pending).selectedImageIds));
-    setState("");
-  }, [replaceSelected]);
-  const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
-    return sendSelectionSyncBatch<SharedSelectionSyncSnapshot>({
-      endpoint: `/api/pick/shared/${shareToken}/draft`,
-      clientId,
-      diffs,
-      responseKey: "draft",
-    });
-  }, [shareToken]);
-  const selectionSync = useSelectionSyncQueue({
-    storageKey: `person-select-classic-sync:${event.id}:${reviewer.id}`,
-    sendBatch,
-    onSnapshot: installSnapshot,
-    onRestore: (pending) => replaceSelected(new Set(applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending).selectedImageIds)),
-  });
-  const memoSync = useSharedCustomerMemoSync<SharedSelectionSyncSnapshot>({
-    storageKey: `person-select-classic-memo:${event.id}:${reviewer.id}`,
-    endpoint: `/api/pick/shared/${shareToken}/draft`,
-    initialValue: initialSnapshot.customerMemo,
-    enabled: true,
-    onSnapshot: (snapshot) => installSnapshot(snapshot, selectionSync.getPendingDiffs()),
-  });
-  const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
-  const enqueueSelectionSync = selectionSync.enqueue;
-
-  const refreshServerDraft = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/pick/shared/${shareToken}/draft`, { cache: "no-store" });
-      const result = await readSelectionJsonResponse<{ ok?: boolean; draft?: SharedSelectionSyncSnapshot }>(response);
-      if (response.ok && result?.ok && result.draft) installSnapshot(result.draft, getPendingSelectionDiffs());
-    } catch {
-      // 저장 대기 변경은 유지하고 다음 focus에서 다시 확인한다.
-    }
-  }, [getPendingSelectionDiffs, installSnapshot, shareToken]);
-  useVisibleSelectionRefresh({ refresh: refreshServerDraft });
-
-  const toggle = useCallback((id: string) => {
-    const update = toggleClassicSelectionId(selectedRef.current, id);
-    replaceSelected(update.selectedIds);
-    enqueueSelectionSync(update.selected
-      ? [{ imageId: id, rating: 5 }]
-      : [{ imageId: id, rating: null }, { imageId: id, colorLabel: null }]);
-  }, [enqueueSelectionSync, replaceSelected]);
 
   const openSubmitReview = async () => {
     if (!selected.size || selectionSync.pendingCount || memoSync.pending) return;
@@ -134,13 +81,7 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
       setSubmitting(false);
     }
   };
-  const saveState = state || (selectionSync.status === "saved" && memoSync.status === "saved"
-    ? "저장됨 · 서버 기준"
-    : selectionSync.status === "saving" || memoSync.status === "saving"
-      ? "저장 중…"
-      : selectionSync.status === "retrying" || memoSync.status === "retrying"
-        ? `저장 안 된 변경 ${selectionSync.pendingCount + (memoSync.pending ? 1 : 0)}건 · 잠시 후 자동 저장`
-        : `저장 안 된 변경 ${selectionSync.pendingCount + (memoSync.pending ? 1 : 0)}건 · 잠시 후 저장`);
+  const saveState = state || syncedSaveState;
   const reviewItems = useMemo(() => {
     if (!submitReviewOpen) return [];
     const items = [];
