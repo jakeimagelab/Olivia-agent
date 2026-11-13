@@ -111,13 +111,14 @@ describe("Olivia Bridge", () => {
   it("개인별 사진 셀렉 행사를 Bridge 선택 통로로 불러온다", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const personSelectionImport = readFileSync("components/olivia-bridge/useOliviaBridgePersonSelectionImport.ts", "utf8");
+    const personSelectionClient = readFileSync("components/olivia-bridge/oliviaBridgePersonSelectionClient.ts", "utf8");
     const actionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     expect(actionBar).toContain("고객 선택 불러오기");
-    expect(personSelectionImport).toContain('fetch("/api/person-select"');
-    expect(personSelectionImport).toContain("/exports/selected");
+    expect(personSelectionClient).toContain('fetch("/api/person-select"');
+    expect(personSelectionClient).toContain("/exports/selected");
     expect(personSelectionImport).toContain("지금 선택한 ${manualCount}장이 사라집니다. 계속할까요?");
-    expect(personSelectionImport).toContain("setSelectedJpgNames(match.fileNames)");
+    expect(personSelectionImport).toContain("setSelectedJpgNames(imported.fileNames)");
     expect(workspace).toContain("useOliviaBridgePersonSelectionImport");
     expect(dialogs).toContain("못 찾은 파일");
   });
@@ -171,16 +172,17 @@ describe("Olivia Bridge", () => {
   it("승인한 Scene 계획을 사진 분류가 일회 소비하고 기존 검토 단계에 적용한다", () => {
     const context = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
     const classifier = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+    const bridgePlan = readFileSync("components/photo-classifier/usePhotoSortingBridgePlan.ts", "utf8");
     const reviewOverview = readFileSync("components/photo-classifier/FieldSceneReviewOverview.tsx", "utf8");
     const planApply = readFileSync("lib/photo-bridge/classificationPlanApply.ts", "utf8");
-    const classifierRuntime = `${classifier}\n${reviewOverview}\n${planApply}`;
+    const classifierRuntime = `${classifier}\n${bridgePlan}\n${reviewOverview}\n${planApply}`;
 
     expect(context).toContain("pendingBridgeClassificationPlanRef.current = null");
     expect(context).toContain("takeBridgeClassificationPlan");
     expect(classifierRuntime).toContain("validateBridgeClassificationPlan(plan");
     expect(classifierRuntime).toContain("buildFieldScenesFromBridgePlan(plan)");
-    expect(classifier).toContain('setClassificationJobState("WAITING_REVIEW")');
-    expect(classifier).toContain('setStep(2)');
+    expect(classifierRuntime).toContain('setClassificationJobState("WAITING_REVIEW")');
+    expect(classifierRuntime).toContain('setStep(2)');
     expect(classifierRuntime).toContain("Bridge 계획 적용됨");
   });
 
@@ -203,10 +205,12 @@ describe("Olivia Bridge", () => {
     const overlayLayer = readFileSync("components/olivia-bridge/OliviaBridgeOverlayLayer.tsx", "utf8");
     const topBars = readFileSync("components/olivia-bridge/OliviaBridgeTopBars.tsx", "utf8");
     const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
+    const localFolderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeLocalFolderLoading.ts", "utf8");
+    const remoteFolderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeRemoteFolderLoading.ts", "utf8");
     const folderActions = readFileSync("components/olivia-bridge/useOliviaBridgeFolderActions.ts", "utf8");
     const toolLaunch = readFileSync("components/olivia-bridge/useOliviaBridgeToolLaunch.ts", "utf8");
     const workspaceUi = `${workspace}\n${overlayLayer}\n${topBars}`;
-    const workspaceRuntime = `${workspace}\n${folderLoading}\n${folderActions}\n${toolLaunch}`;
+    const workspaceRuntime = `${workspace}\n${folderLoading}\n${localFolderLoading}\n${remoteFolderLoading}\n${folderActions}\n${toolLaunch}`;
     const dialogs = readFileSync("components/olivia-bridge/OliviaBridgeDialogs.tsx", "utf8");
     const folderRestore = readFileSync("components/olivia-bridge/useOliviaBridgeFolderRestore.ts", "utf8");
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
@@ -251,7 +255,7 @@ describe("Olivia Bridge", () => {
   });
 
   it("NAS 썸네일은 전체 완료를 기다리지 않고 받은 페이지부터 표시한다", () => {
-    const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeFolderLoading.ts", "utf8");
+    const folderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeRemoteFolderLoading.ts", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
     const remoteThumbnails = readFileSync("lib/photo-bridge/remoteThumbnails.ts", "utf8");
 
@@ -263,7 +267,6 @@ describe("Olivia Bridge", () => {
   });
 
   it("빈 영역 클릭은 선택과 미리보기를 해제한다", () => {
-    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const browserPanel = readFileSync("components/olivia-bridge/OliviaBridgeBrowserPanel.tsx", "utf8");
     const marqueeSelection = readFileSync("components/olivia-bridge/useOliviaBridgeMarqueeSelection.ts", "utf8");
     const photoNavigation = readFileSync("components/olivia-bridge/useOliviaBridgePhotoNavigation.ts", "utf8");
@@ -279,7 +282,6 @@ describe("Olivia Bridge", () => {
   });
 
   it("중앙 파일 영역은 남은 높이를 쓰고 좁은 창에서도 같은 필터를 연다", () => {
-    const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const topBars = readFileSync("components/olivia-bridge/OliviaBridgeTopBars.tsx", "utf8");
     const folderPanel = readFileSync("components/olivia-bridge/OliviaBridgeFolderPanel.tsx", "utf8");
     const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
