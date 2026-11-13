@@ -9,7 +9,6 @@ import {
   manualPhotoDepartmentResolution,
   resolvePhotoDepartmentEvidence,
 } from "@/lib/photo-classifier/departmentResolver";
-import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
 import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
 import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
@@ -44,12 +43,7 @@ import {
   analyzeBrowserSceneBoundary,
   appendBrowserPurposeTransitionCandidates,
 } from "@/lib/photo-classifier/fieldBoundaryAnalysis";
-import {
-  applySceneAiResponse,
-  buildSceneAnalysisSampleIndices,
-  markDermatologyTransitionCandidates,
-  type SceneAiTransitionResult,
-} from "@/lib/photo-classifier/sceneAiAnalysis";
+import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
 import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
 import {
   applyOverrides, adjustGranularity, computeFolderStats,
@@ -918,60 +912,15 @@ function PhotoSortingInner({
   }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status]);
 
   const runSceneAiAnalysis = async (scenes: FieldScene[]) => {
-    const transitions = new Map<number, SceneAiTransitionResult>();
-    let updated = await runStudioAnalysisConcurrently({
-      items: scenes.map((scene) => ({ ...scene })),
-      concurrency: 1,
-      analyze: async (scene, index) => {
-        const files = scene.files;
-        const n = files.length;
-        const images: { fileName: string; base64: string }[] = [];
-        for (const sampleIndex of buildSceneAnalysisSampleIndices(n)) {
-          try {
-            const file = await files[sampleIndex].handle.getFile();
-            images.push({ fileName: files[sampleIndex].name, base64: await getApiThumb(file) });
-          } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-        }
-        const sceneId = scene.folderName;
-        const data = await withTimeout((async () => {
-          const res = await fetch("/api/photo-scene-analyze", {
-            method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ department, sceneId, images, options: { useHighModel: false } }),
-          });
-          return res.json();
-        })(), 45000, "AI 씬 분석");
-        const applied = applySceneAiResponse(scene, data, {
-          department,
-          departmentLogicEnabled,
-          aiNamingEnabled,
-        });
-        if (applied.transition) transitions.set(index, applied.transition);
-        return applied.scene;
-      },
-      recover: (_error, scene) => ({ ...scene, nameLoading: false }),
-      onProgress: ({ items }) => setFieldScenes(items),
+    const result = await runFieldSceneAiAnalysis({
+      scenes,
+      department,
+      departmentLogicEnabled,
+      aiNamingEnabled,
+      onProgress: setFieldScenes,
     });
-
-    // 피부과 2차 분리 후보 감지
-    if (department === "dermatology" && transitions.size >= 2) {
-      updated = markDermatologyTransitionCandidates(updated, transitions);
-      setFieldScenes([...updated]);
-    }
-
-    // 병합/분리 후보 생성 (전 진료과 적용)
-    if (updated.length >= 2) {
-      const snapshots = updated.map(sc => ({
-        folderName: sc.folderName,
-        editedName: sc.editedName,
-        sceneType: sc.sceneType ?? "",
-        patientPosture: sc.aiPatientPosture,
-        hasHandpiece: sc.aiHasHandpiece,
-        hasTreatmentDevice: sc.aiHasTreatmentDevice,
-        hasTreatmentBed: sc.aiHasTreatmentBed,
-        hasConsultationDesk: sc.aiHasConsultationDesk,
-      }));
-      const candidates = buildMergeCandidates(snapshots, department);
-      setMergeCandidates(candidates);
+    if (result.mergeCandidates) {
+      setMergeCandidates(result.mergeCandidates);
       setDismissedCandidates(new Set());
       setMergeDecisions([]);
     }
