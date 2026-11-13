@@ -62,13 +62,14 @@ import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
 import {
+  assignStudioPersonGroups,
   buildPersonFeatureTags,
   buildPersonGroups,
   buildStudioGroups,
   computeClothingLabel,
   computeGroupKey,
-  personMatchScore,
-  type PersonFeatures,
+  groupStudioPhotosByTimeGap,
+  normalizePersonFeatures,
   type PersonGroup,
   type StudioGroup,
   type StudioGroupSortMode,
@@ -1791,26 +1792,8 @@ function PhotoSortingInner({
     });
   }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
 
-  // 파일 크기 기반 ETC 임계값 계산 (중앙값 대비 35% 이하 = 어두운 컷)
-  const calcEtcSizeThreshold = (files: StudioPhotoFile[]): number => {
-    const sizes = files.map(f => f.fileSize).sort((a,b) => a-b);
-    const median = sizes[Math.floor(sizes.length / 2)] ?? 0;
-    return median * 0.35;
-  };
-
   const runGapSort = async (files: StudioPhotoFile[]) => {
-    const etcThreshold = calcEtcSizeThreshold(files);
-    const gapMs = studioGapMinutes * 60 * 1000;
-    let personCount = 0;
-    const result = files.map((f, i) => {
-      if (i === 0 || f.mtime - files[i-1].mtime > gapMs) personCount++;
-      const isSizeEtc = f.fileSize < etcThreshold;
-      return {
-        ...f, analyzed: true,
-        groupKey: isSizeEtc ? "__ETC__" : `person_${personCount}`,
-        lightingStatus: (isSizeEtc ? "etc_dark" : "normal") as StudioLightingStatus,
-      };
-    });
+    const result = groupStudioPhotosByTimeGap(files, studioGapMinutes, { markAnalyzed: true });
     setStudioFiles(result);
     setPersonGroups(buildPersonGroups(result));
     setStep(3);
@@ -1818,18 +1801,7 @@ function PhotoSortingInner({
 
   const runGapAiSort = async (files: StudioPhotoFile[]) => {
     // 1단계: 파일 크기로 ETC 사전 필터 + 시간차로 인물 구분
-    const etcThreshold = calcEtcSizeThreshold(files);
-    const gapMs = studioGapMinutes * 60 * 1000;
-    let personCount = 0;
-    const withGap = files.map((f, i) => {
-      if (i === 0 || f.mtime - files[i-1].mtime > gapMs) personCount++;
-      const isSizeEtc = f.fileSize < etcThreshold;
-      return {
-        ...f,
-        groupKey: isSizeEtc ? "__ETC__" : `person_${personCount}`,
-        lightingStatus: (isSizeEtc ? "etc_dark" : "normal") as StudioLightingStatus,
-      };
-    });
+    const withGap = groupStudioPhotosByTimeGap(files, studioGapMinutes);
 
     // 2단계: 크기로 통과한 컷만 AI 조명 검사
     const result = [...withGap];
@@ -1985,18 +1957,7 @@ function PhotoSortingInner({
             return res.json();
           })(), 45000, "얼굴 분석");
           if (data.ok && data.lightingStatus === "normal") {
-            const GENDERS = ["male","female"], AGES = ["20s","30s","40s","50s","60s+"];
-            const HCOLORS = ["black","brown","blonde","white_gray","other"], HLENS = ["short","medium","long","bald"];
-            const FSHAPES = ["oval","round","square","heart"];
-            const features: PersonFeatures = {
-              gender:     GENDERS.includes(data.gender)     ? data.gender     : "unknown",
-              ageBand:    AGES.includes(data.ageBand)        ? data.ageBand    : "unknown",
-              hairColor:  HCOLORS.includes(data.hairColor)  ? data.hairColor  : "unknown",
-              hairLength: HLENS.includes(data.hairLength)   ? data.hairLength : "unknown",
-              hasGlasses: data.hasGlasses === true,
-              hasBeard:   data.hasBeard   === true,
-              faceShape:  FSHAPES.includes(data.faceShape)  ? data.faceShape  : "unknown",
-            };
+            const features = normalizePersonFeatures(data);
             result[idx] = { ...file, lightingStatus:"normal", personFeatures:features, analyzed:true, groupKey:"PENDING" };
           } else {
             result[idx] = { ...file, analyzed:true, lightingStatus:data.lightingStatus||"etc_test", groupKey:"__ETC__" };
@@ -2010,29 +1971,7 @@ function PhotoSortingInner({
     };
     await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
 
-    // Client-side person matching: best-score nearest neighbor
-    const knownPersons: Array<{id: string; features: PersonFeatures; scoreSum: number; count: number}> = [];
-    let personCount = 0;
-    const final = result.map(file => {
-      if (file.groupKey === "__ETC__") return file;
-      if (!file.personFeatures) return { ...file, groupKey:"__ETC__" };
-      // 점수 기반 최적 매치 탐색
-      let bestScore = 0, bestId: string | null = null, bestIdx = -1;
-      knownPersons.forEach((p, i) => {
-        const s = personMatchScore(file.personFeatures!, p.features);
-        if (s > bestScore) { bestScore = s; bestId = p.id; bestIdx = i; }
-      });
-      if (bestScore >= 0.62 && bestId !== null) {
-        // 기존 인물 특징을 지수이동평균으로 업데이트 (안정적 매칭)
-        const p = knownPersons[bestIdx];
-        p.scoreSum += bestScore; p.count++;
-        return { ...file, groupKey: bestId };
-      }
-      personCount++;
-      const id = `person_${personCount}`;
-      knownPersons.push({ id, features: file.personFeatures, scoreSum: 1, count: 1 });
-      return { ...file, groupKey: id };
-    });
+    const final = assignStudioPersonGroups(result);
 
     setStudioFiles(final);
     setPersonGroups(buildPersonGroups(final));

@@ -122,6 +122,81 @@ export function buildPersonFeatureTags(
   return tags;
 }
 
+export function calculateStudioEtcSizeThreshold(files: StudioPhotoFile[]) {
+  const sizes = files.map((file) => file.fileSize).sort((first, second) => first - second);
+  const median = sizes[Math.floor(sizes.length / 2)] ?? 0;
+  return median * 0.35;
+}
+
+export function groupStudioPhotosByTimeGap(
+  files: StudioPhotoFile[],
+  gapMinutes: number,
+  options: { markAnalyzed?: boolean } = {},
+) {
+  const etcThreshold = calculateStudioEtcSizeThreshold(files);
+  const gapMs = gapMinutes * 60 * 1000;
+  let personCount = 0;
+  return files.map((file, index) => {
+    if (index === 0 || file.mtime - files[index - 1].mtime > gapMs) personCount += 1;
+    const isSizeEtc = file.fileSize < etcThreshold;
+    return {
+      ...file,
+      analyzed: options.markAnalyzed ?? file.analyzed,
+      groupKey: isSizeEtc ? "__ETC__" : `person_${personCount}`,
+      lightingStatus: (isSizeEtc ? "etc_dark" : "normal") as StudioLightingStatus,
+    };
+  });
+}
+
+export function normalizePersonFeatures(input: Record<string, unknown>): PersonFeatures {
+  const genders = ["male", "female"];
+  const ageBands = ["20s", "30s", "40s", "50s", "60s+"];
+  const hairColors = ["black", "brown", "blonde", "white_gray", "other"];
+  const hairLengths = ["short", "medium", "long", "bald"];
+  const faceShapes = ["oval", "round", "square", "heart"];
+  return {
+    gender: genders.includes(String(input.gender)) ? input.gender as PersonFeatures["gender"] : "unknown",
+    ageBand: ageBands.includes(String(input.ageBand)) ? input.ageBand as PersonFeatures["ageBand"] : "unknown",
+    hairColor: hairColors.includes(String(input.hairColor)) ? input.hairColor as PersonFeatures["hairColor"] : "unknown",
+    hairLength: hairLengths.includes(String(input.hairLength)) ? input.hairLength as PersonFeatures["hairLength"] : "unknown",
+    hasGlasses: input.hasGlasses === true,
+    hasBeard: input.hasBeard === true,
+    faceShape: faceShapes.includes(String(input.faceShape)) ? input.faceShape as PersonFeatures["faceShape"] : "unknown",
+  };
+}
+
+export function assignStudioPersonGroups(files: StudioPhotoFile[], minimumScore = 0.62) {
+  const knownPersons: Array<{ id: string; features: PersonFeatures; scoreSum: number; count: number }> = [];
+  let personCount = 0;
+  return files.map((file) => {
+    if (file.groupKey === "__ETC__") return file;
+    if (!file.personFeatures) return { ...file, groupKey: "__ETC__" };
+
+    let bestScore = 0;
+    let bestId: string | null = null;
+    let bestIndex = -1;
+    knownPersons.forEach((person, index) => {
+      const score = personMatchScore(file.personFeatures!, person.features);
+      if (score > bestScore) {
+        bestScore = score;
+        bestId = person.id;
+        bestIndex = index;
+      }
+    });
+    if (bestScore >= minimumScore && bestId !== null) {
+      const person = knownPersons[bestIndex];
+      person.scoreSum += bestScore;
+      person.count += 1;
+      return { ...file, groupKey: bestId };
+    }
+
+    personCount += 1;
+    const id = `person_${personCount}`;
+    knownPersons.push({ id, features: file.personFeatures, scoreSum: 1, count: 1 });
+    return { ...file, groupKey: id };
+  });
+}
+
 export function computeClothingLabel(
   hasGown: boolean,
   innerWear: StudioInnerWear,

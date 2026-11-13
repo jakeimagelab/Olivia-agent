@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  assignStudioPersonGroups,
   buildPersonFeatureTags,
   buildPersonGroups,
   buildStudioGroups,
+  calculateStudioEtcSizeThreshold,
   computeClothingLabel,
   computeGroupKey,
   createStudioFolderName,
+  groupStudioPhotosByTimeGap,
+  normalizePersonFeatures,
   personMatchScore,
   type PersonFeatures,
   type StudioPhotoFile,
@@ -96,5 +100,44 @@ describe("studio photo grouping", () => {
 
     expect(groups.map((group) => group.id)).toEqual(["__ETC__", "person-a"]);
     expect(groups[1]).toMatchObject({ sampleThumb: "a-thumb", editedFolderName: "01_인물1" });
+  });
+
+  it("groups studio photos by time gap and file-size ETC threshold", () => {
+    const files = [
+      makePhoto("A.JPG", "PENDING", { mtime: 0, fileSize: 100 }),
+      makePhoto("B.JPG", "PENDING", { mtime: 30_000, fileSize: 10 }),
+      makePhoto("C.JPG", "PENDING", { mtime: 180_000, fileSize: 110 }),
+    ];
+
+    expect(calculateStudioEtcSizeThreshold(files)).toBe(35);
+    expect(groupStudioPhotosByTimeGap(files, 1, { markAnalyzed: true }).map((file) => ({
+      key: file.groupKey,
+      status: file.lightingStatus,
+      analyzed: file.analyzed,
+    }))).toEqual([
+      { key: "person_1", status: "normal", analyzed: true },
+      { key: "__ETC__", status: "etc_dark", analyzed: true },
+      { key: "person_2", status: "normal", analyzed: true },
+    ]);
+  });
+
+  it("normalizes AI person features and assigns matching identities", () => {
+    const features = normalizePersonFeatures({
+      gender: "female",
+      ageBand: "30s",
+      hairColor: "black",
+      hairLength: "long",
+      hasGlasses: false,
+      hasBeard: false,
+      faceShape: "oval",
+    });
+    const grouped = assignStudioPersonGroups([
+      makePhoto("A.JPG", "PENDING", { personFeatures: features }),
+      makePhoto("B.JPG", "PENDING", { personFeatures: { ...features } }),
+      makePhoto("C.JPG", "PENDING", { personFeatures: { ...features, gender: "male" } }),
+    ]);
+
+    expect(grouped.map((file) => file.groupKey)).toEqual(["person_1", "person_1", "person_2"]);
+    expect(normalizePersonFeatures({ gender: "invalid" }).gender).toBe("unknown");
   });
 });
