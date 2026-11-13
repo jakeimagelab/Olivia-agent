@@ -44,7 +44,7 @@ describe("scene AI analysis rules", () => {
       confidence: 0.91,
       reason: "장비 확인",
       equipmentName: "레이저",
-      namingEvidence: ["장비", 2],
+      namingEvidence: ["장비", "레이저"],
     }, {
       department: "dermatology",
       departmentLogicEnabled: true,
@@ -56,7 +56,7 @@ describe("scene AI analysis rules", () => {
       suggestedName: "02_시술",
       sceneType: "treatment",
       aiEquipmentName: "레이저",
-      aiNamingEvidence: ["장비", "2"],
+      aiNamingEvidence: ["장비", "레이저"],
       nameLoading: false,
     });
     expect(result.transition?.confidence).toBe(0.91);

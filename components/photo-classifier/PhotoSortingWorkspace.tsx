@@ -48,6 +48,12 @@ import {
   type SceneAiTransitionResult,
 } from "@/lib/photo-classifier/sceneAiAnalysis";
 import {
+  buildFieldSecondaryReportFiles,
+  describePortraitAssessment,
+  normalizePortraitAssessment,
+  resolveQualityRejectReason,
+} from "@/lib/photo-classifier/fieldSecondaryReports";
+import {
   applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
   type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
@@ -1384,9 +1390,6 @@ function PhotoSortingInner({
     }
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
-  // 프로필 제외 장면 타입 (이 타입이면 절대 프로필로 보내지 않음)
-  const PROFILE_EXCLUDE_TYPES = PROFILE_EXCLUDED_SCENE_TYPES;
-
   const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
     const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);
     let done = 0, qualityRejectTotal = 0, profileTotal = 0;
@@ -1401,7 +1404,7 @@ function PhotoSortingInner({
       if (cancelRef.current) break;
       const sceneType = updated[si].sceneType ?? "";
       // 시술/상담 장면은 프로필 검사 자체를 건너뜀
-      const skipProfile = PROFILE_EXCLUDE_TYPES.has(sceneType);
+      const skipProfile = PROFILE_EXCLUDED_SCENE_TYPES.has(sceneType);
 
       for (let fi = 0; fi < updated[si].files.length; fi++) {
         if (cancelRef.current) break;
@@ -1418,10 +1421,7 @@ function PhotoSortingInner({
 
           if (qualityAnalysisEnabled) {
             const { blurScore, brightness } = await analyzeJpg(file);
-            let rejectReason = "";
-            if (blurScore < 18) rejectReason = "흔들림";
-            else if (brightness < 38) rejectReason = "조명불량";
-            else if (brightness > 230) rejectReason = "확인필요";
+            const rejectReason = resolveQualityRejectReason(blurScore, brightness);
 
             if (rejectReason && updated[si].sceneDir && fieldJpgBaseDir) {
               if (!qualityExcDir) qualityExcDir = await (fieldJpgBaseDir as any).getDirectoryHandle("00_QUALITY_EXCLUDED", { create:true }) as FileSystemDirectoryHandle;
@@ -1438,7 +1438,7 @@ function PhotoSortingInner({
             // 절대 기준: (1) 사람이 정확히 1명 AND (2) 정면 응시 또는 팔짱/손깍지 등 의도된 정지 포즈.
             // 픽셀 대칭성/중앙정렬만 보던 예전 휴리스틱은 인원수·시선·포즈를 전혀 판단하지 못해
             // AI 비전 판정(/api/portrait-check)으로 교체했다.
-            let personCount = 0, facingForward = false, intentionalPose = false, isProfileCandidate = false, confidence = 0;
+            let assessment = normalizePortraitAssessment(null);
             try {
               const data = await withTimeout((async () => {
                 const thumb = await getApiThumb(file);
@@ -1448,41 +1448,30 @@ function PhotoSortingInner({
                 });
                 return res.json();
               })(), 45000, "프로필 판정");
-              if (data.ok) {
-                personCount = data.personCount ?? 0;
-                facingForward = data.facingForward === true;
-                intentionalPose = data.intentionalPose === true;
-                isProfileCandidate = data.isProfile === true;
-                confidence = data.confidence ?? 0;
-              }
+              assessment = normalizePortraitAssessment(data);
             } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
             let movedTo = "";
-            let rejectReason = "";
 
-            if (isProfileCandidate && updated[si].sceneDir && rootDir) {
+            if (assessment.isProfileCandidate && updated[si].sceneDir && rootDir) {
               if (!profileDir) profileDir = await (rootDir as any).getDirectoryHandle("PROFILE", { create:true }) as FileSystemDirectoryHandle;
               await copyFileHandle(pf.handle, profileDir, pf.name);
               try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
               movedTo = "PROFILE/";
               profileTotal++;
               updated[si].profileCount++;
-            } else if (!isProfileCandidate) {
-              rejectReason = personCount !== 1
-                ? `인원수 불일치(${personCount}명) — 1인이 아님`
-                : `정면 응시·의도된 포즈 아님 (facingForward:${facingForward}, intentionalPose:${intentionalPose})`;
             }
 
             profileRows.push([
               pf.name,
               updated[si].editedName,
-              confidence.toFixed(2),
-              isProfileCandidate ? "true" : "false",
-              String(personCount), "",
-              facingForward ? "true" : "false",
-              intentionalPose ? "true" : "false",
+              assessment.confidence.toFixed(2),
+              assessment.isProfileCandidate ? "true" : "false",
+              String(assessment.personCount), "",
+              assessment.facingForward ? "true" : "false",
+              assessment.intentionalPose ? "true" : "false",
               "", "", "", "", "", "", "", "",
-              rejectReason || (isProfileCandidate ? "프로필 조건 충족" : ""),
+              describePortraitAssessment(assessment),
               movedTo,
             ]);
           } else if (profileClassificationEnabled && skipProfile) {
@@ -1508,88 +1497,30 @@ function PhotoSortingInner({
         const w = await fh.createWritable();
         await w.write("﻿" + content); await w.close();
       };
-      if (qualityRows.length > 0)
-        await wr("quality_report.csv", makeCSV(["file_name","scene","reason","note"], qualityRows));
-      if (profileRows.length > 0)
-        await wr("profile_report.csv", makeCSV([
-          "file_name","original_scene","profile_confidence","is_profile",
-          "main_person_count","has_patient","is_looking_at_camera","has_intentional_pose",
-          "has_tool","has_medical_device","has_handpiece","has_syringe",
-          "has_consultation_object","is_consultation","is_treatment","is_procedure",
-          "reason","moved_to",
-        ], profileRows));
-
-      // scene_merge_report.csv
-      if (mergeCandidates.length > 0) {
-        const allDecisions = [...mergeDecisions];
-        // 미결 후보도 기록
-        for (const cand of mergeCandidates) {
-          if (!allDecisions.find(d => d.candidateId === cand.id)) {
-            allDecisions.push({
-              candidateId: cand.id,
-              userAction: dismissedCandidates.has(cand.id) ? "keep_split" : "keep_split",
-              fromFolderName: cand.fromFolderName,
-              toFolderName: cand.toFolderName,
-              fromSceneType: cand.fromSceneType,
-              toSceneType: cand.toSceneType,
-              mergeScore: cand.mergeScore,
-              matchedSignals: cand.matchedSignals,
-              blockedSignals: cand.blockedSignals,
-              recommendedAction: cand.recommendedAction,
-            });
-          }
-        }
-        const mergeRows = allDecisions.map(d => [
-          d.candidateId,
-          d.fromFolderName,
-          d.toFolderName,
-          d.fromSceneType,
-          d.toSceneType,
-          d.mergeScore.toFixed(2),
-          d.recommendedAction,
-          d.userAction,
-          d.matchedSignals.join("|"),
-          d.blockedSignals.join("|"),
-        ]);
-        await wr("scene_merge_report.csv", makeCSV([
-          "candidate_id","from_scene","to_scene","from_scene_type","to_scene_type",
-          "merge_score","recommended_action","user_action","matched_signals","blocked_signals",
-        ], mergeRows));
-      }
-
-      // summary.json
-      const summary = {
-        mode: "field",
-        fastAnalyzeMode,
-        classificationMode: fastAnalyzeMode ? "fast" : "precise",
-        rawInitialMoveEnabled: false,
-        exifMode: fastAnalyzeMode ? "fast" : "precise",
-        thumbnailMode: "lazy",
-        profileStrictMode: true,
-        dermatologySecondPassEnhanced: department === "dermatology",
-        department,
-        departmentDisplayName: DEPARTMENT_DISPLAY[department],
-        gapMinutes,
-        timeGapBuildsCandidatesOnly: !fastAnalyzeMode,
-        departmentLogicEnabled,
-        aiNamingEnabled,
-        qualityAnalysisEnabled,
-        profileClassificationEnabled,
-        rawSelectMode,
-        strongTransitionDetectionEnabled: true,
-        mergeCandidateEnabled: true,
-        reviewRequiredBeforeMove: true,
-        totalJpg: total,
-        totalRaw: fieldRawCount,
-        totalInitialScenes: updated.length,
-        totalMergeCandidates: mergeCandidates.filter(c => c.recommendedAction === "merge").length,
-        totalKeepSplitRecommendations: mergeCandidates.filter(c => c.recommendedAction === "keep_split").length,
-        totalFinalScenes: updated.length,
-        totalProfile: profileTotal,
-        totalQualityReject: qualityRejectTotal,
-        createdAt: new Date().toISOString(),
-      };
-      await wr("summary.json", JSON.stringify(summary, null, 2));
+      const reports = buildFieldSecondaryReportFiles({
+        qualityRows,
+        profileRows,
+        mergeCandidates,
+        mergeDecisions,
+        summary: {
+          fastAnalyzeMode,
+          department,
+          departmentDisplayName: DEPARTMENT_DISPLAY[department],
+          gapMinutes,
+          departmentLogicEnabled,
+          aiNamingEnabled,
+          qualityAnalysisEnabled,
+          profileClassificationEnabled,
+          rawSelectMode,
+          totalJpg: total,
+          totalRaw: fieldRawCount,
+          totalInitialScenes: updated.length,
+          totalFinalScenes: updated.length,
+          totalProfile: profileTotal,
+          totalQualityReject: qualityRejectTotal,
+        },
+      });
+      for (const report of reports) await wr(report.name, report.content);
     } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
 
     setFieldStats({

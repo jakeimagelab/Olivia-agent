@@ -78,7 +78,7 @@ export function applySceneAiResponse(
       aiProcedureName: response.procedureName ?? null,
       aiProcedureCategory: response.procedureCategory ?? null,
       aiProcedureConfidence: response.procedureConfidence ?? null,
-      aiNamingEvidence: Array.isArray(response.namingEvidence) ? response.namingEvidence.map(String) : [],
+      aiNamingEvidence: Array.isArray(response.namingEvidence) ? response.namingEvidence as string[] : [],
     },
     transition: {
       sceneType: response.sceneType ?? "etc",
