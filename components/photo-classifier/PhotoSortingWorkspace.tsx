@@ -15,7 +15,7 @@ import { getClassificationSettings } from "@/lib/photo-classifier/classification
 import { buildCandidateSegments, buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
 import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
-import { buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
+import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import {
@@ -691,51 +691,31 @@ function PhotoSortingInner({
     // ③ JPG → 시간순 정렬 → Scene 분리
     const sortedEntries = sortTimestampedFiles(jpgEntries);
     jpgEntries.splice(0, jpgEntries.length, ...sortedEntries);
-    const gapMs = Math.max(5, effectiveGapMinutes) * 60 * 1000;
-    const groups: typeof jpgEntries[] = jpgEntries.length > 0 ? [[jpgEntries[0]]] : [];
-    for (let i = 1; i < jpgEntries.length; i++) {
-      if (jpgEntries[i].mtime - jpgEntries[i-1].mtime > gapMs) groups.push([jpgEntries[i]]);
-      else groups[groups.length-1].push(jpgEntries[i]);
-    }
-
-    const total = jpgEntries.length; let done = 0;
+    const total = jpgEntries.length;
     const newScenes: FieldScene[] = [];
 
     if (fastAnalyzeMode) {
       // ═══ 빠른 분석 모드: 파일을 이동하지 않고 Scene 계획만 생성 ═══
-      for (let si = 0; si < groups.length; si++) {
+      const sceneFiles: SceneFile[] = [];
+      let done = 0;
+      for (const entry of jpgEntries) {
         if (cancelRef.current) break;
-        const sceneNum = String(si+1).padStart(2,"0");
-        const folderName = `Scene${sceneNum}`;
-        const sceneFiles: SceneFile[] = [];
-
-        for (const entry of groups[si]) {
-          if (cancelRef.current) break;
-          done++;
-          if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
-            setProgress({ cur:done, total, msg:`씬 계획 생성: ${folderName} (${done}/${total})` });
-            lastUpdate = Date.now();
-          }
-          // 파일 이동 없음, 썸네일 생성 없음
-          sceneFiles.push({
-            name: entry.name,
-            basename: entry.name.replace(/\.[^.]+$/, ""),
-            handle: entry.handle,
-            mtime: entry.mtime,
-            thumbUrl: null,
-          });
+        done += 1;
+        if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
+          setProgress({ cur: done, total, msg: `씬 계획 생성 (${done}/${total})` });
+          lastUpdate = Date.now();
         }
-
-        newScenes.push({
-          index: si+1, folderName, editedName: folderName,
-          startTime: groups[si][0].mtime,
-          endTime: groups[si][groups[si].length-1].mtime,
-          fileCount: sceneFiles.length, files: sceneFiles, sceneDir: null,
-          sceneType: null, suggestedName: null, aiConfidence: null, aiReason: null,
-          subScenes: [], profileCount: 0, qualityRejectCount: 0,
-          nameLoading: aiNamingEnabled || departmentLogicEnabled,
+        sceneFiles.push({
+          name: entry.name,
+          basename: entry.name.replace(/\.[^.]+$/u, ""),
+          handle: entry.handle,
+          mtime: entry.mtime,
+          thumbUrl: null,
         });
       }
+      newScenes.push(...buildFastFieldScenes(sceneFiles, effectiveGapMinutes, {
+        nameLoading: aiNamingEnabled || departmentLogicEnabled,
+      }));
       setCopyLog([
         `✅ 빠른 분석 완료 — JPG ${total}장 / RAW ${rawFiles.length}개 / Scene ${newScenes.length}개`,
         `📋 파일 이동 없음 — Scene 계획만 생성됨 (RAW 원본 위치 유지)`,

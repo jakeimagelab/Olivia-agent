@@ -37,6 +37,68 @@ export type SceneRange = {
   boundaryBefore?: SceneBoundaryDecision;
 };
 
+export type FastSceneRange = {
+  index: number;
+  startIndex: number;
+  endIndex: number;
+  folderName: string;
+  startTime: number;
+  endTime: number;
+};
+
+export function buildFastSceneRanges(
+  files: readonly { mtime: number }[],
+  gapMinutes: number,
+): FastSceneRange[] {
+  if (files.length === 0) return [];
+  const gapMs = Math.max(5, gapMinutes) * 60_000;
+  const starts = [0];
+  for (let index = 1; index < files.length; index += 1) {
+    if (files[index].mtime - files[index - 1].mtime > gapMs) starts.push(index);
+  }
+  starts.push(files.length);
+  return starts.slice(0, -1).map((startIndex, part) => {
+    const endIndex = starts[part + 1];
+    const index = part + 1;
+    return {
+      index,
+      startIndex,
+      endIndex,
+      folderName: `Scene${String(index).padStart(2, "0")}`,
+      startTime: files[startIndex].mtime,
+      endTime: files[endIndex - 1].mtime,
+    };
+  });
+}
+
+export function buildFastFieldScenes(
+  files: SceneFile[],
+  gapMinutes: number,
+  options: { nameLoading?: boolean } = {},
+): FieldScene[] {
+  return buildFastSceneRanges(files, gapMinutes).map((range) => {
+    const sceneFiles = files.slice(range.startIndex, range.endIndex);
+    return {
+      index: range.index,
+      folderName: range.folderName,
+      editedName: range.folderName,
+      startTime: range.startTime,
+      endTime: range.endTime,
+      fileCount: sceneFiles.length,
+      files: sceneFiles,
+      sceneDir: null,
+      sceneType: null,
+      suggestedName: null,
+      aiConfidence: null,
+      aiReason: null,
+      subScenes: [],
+      profileCount: 0,
+      qualityRejectCount: 0,
+      nameLoading: options.nameLoading ?? false,
+    };
+  });
+}
+
 /**
  * File-handle-independent Scene plan shared by browser and Node runners.
  * `endIndex` is exclusive, matching Array#slice.

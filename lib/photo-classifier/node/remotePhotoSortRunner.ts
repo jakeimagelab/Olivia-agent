@@ -24,7 +24,7 @@ import {
   RAW_PHOTO_EXTENSIONS,
 } from "@/lib/photo-classifier/constants";
 import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
-import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
+import { buildFastSceneRanges, buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { getDepartmentConfig } from "@/lib/photo-classifier/departments";
 import { resolveDermatologyProcedure } from "@/lib/photo-classifier/departments/dermatologyEquipment";
 import { computeFolderStats, type SceneWeightProfile } from "@/lib/photo-classifier/pattern-analysis";
@@ -194,23 +194,14 @@ async function scanWorkFolder(
 }
 
 function buildFastScenes(entries: NodePhotoEntry[], gapMinutes: number): NodePhotoScene[] {
-  if (!entries.length) return [];
-  const groups: NodePhotoEntry[][] = [[entries[0]]];
-  // Fast mode still obeys the v1 five-minute hard split floor. The legacy
-  // setting remains accepted for compatibility but cannot split earlier.
-  const gapMs = Math.max(5, gapMinutes) * 60_000;
-  for (let index = 1; index < entries.length; index++) {
-    if (entries[index].mtime - entries[index - 1].mtime > gapMs) groups.push([entries[index]]);
-    else groups[groups.length - 1].push(entries[index]);
-  }
-  return groups.map((files, index) => {
-    const folderName = `Scene${String(index + 1).padStart(2, "0")}`;
+  return buildFastSceneRanges(entries, gapMinutes).map((range) => {
+    const files = entries.slice(range.startIndex, range.endIndex);
     return {
-      index: index + 1,
-      folderName,
-      editedName: folderName,
-      startTime: files[0].mtime,
-      endTime: files[files.length - 1].mtime,
+      index: range.index,
+      folderName: range.folderName,
+      editedName: range.folderName,
+      startTime: range.startTime,
+      endTime: range.endTime,
       files,
       sceneType: null,
       classificationOrigin: "unclassified",
