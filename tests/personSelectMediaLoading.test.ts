@@ -10,8 +10,21 @@ import {
 } from "@/lib/select-gallery/mediaLoading";
 import { isPersonSelectImagePageNearEnd, mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
 import { sharedProjectClassicPhotoCardPropsEqual } from "@/components/person-select/SharedProjectClassicPhotoCard";
+import {
+  buildPersonSelectImagePageUrl,
+  buildPersonSelectPreviewUrl,
+} from "@/components/person-select/personSelectImageRequests";
 
 describe("person select media loading", () => {
+  it("builds paged thumbnail and bounded preview request URLs", () => {
+    expect(buildPersonSelectImagePageUrl("event", "profile", "next cursor")).toBe(
+      "/api/pick/event/images?category=profile&variant=thumbnail&limit=72&cursor=next+cursor",
+    );
+    expect(buildPersonSelectPreviewUrl("event", "profile", ["a", "b"])).toBe(
+      "/api/pick/event/images?category=profile&variant=preview&imageId=a&imageId=b",
+    );
+  });
+
   it("limits the first thumbnail page to a small shared batch", () => {
     expect(SELECTION_THUMBNAIL_PAGE_SIZE).toBe(72);
     expect(SELECTION_MEDIA_URL_CACHE_LIMIT).toBeGreaterThan(SELECTION_THUMBNAIL_PAGE_SIZE);

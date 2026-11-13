@@ -1,23 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PERSON_SELECT_IMAGE_PAGE_SIZE } from "@/lib/person-select/imagePaging";
 import type { PersonSelectImageData } from "./usePersonChoiceSync";
+import {
+  clearPersonSelectImageRequestCache,
+  fetchPersonSelectImagePage,
+  fetchPersonSelectPreviewUrls,
+  type PersonSelectImagePage,
+} from "./personSelectImageRequests";
 
 type ImageCacheEntry = {
   images: PersonSelectImageData[];
   fetchedAt: number;
   nextCursor: string | null;
 };
-type PersonSelectImagePage = {
-  images: PersonSelectImageData[];
-  nextCursor: string | null;
-};
-
 const IMAGE_CACHE_MAX_AGE_MS = 9 * 60_000;
 const imageCache = new Map<string, ImageCacheEntry>();
-const imageRequests = new Map<string, Promise<PersonSelectImagePage>>();
-const previewRequests = new Map<string, Promise<PersonSelectImageData[]>>();
 
 function imageCacheKey(slug: string, category: string) {
   return `${slug}:${category}`;
@@ -25,37 +23,12 @@ function imageCacheKey(slug: string, category: string) {
 
 export function clearPersonSelectImageCache(slug: string) {
   for (const key of imageCache.keys()) if (key.startsWith(`${slug}:`)) imageCache.delete(key);
-  for (const key of imageRequests.keys()) if (key.startsWith(`${slug}:`)) imageRequests.delete(key);
-  for (const key of previewRequests.keys()) if (key.startsWith(`${slug}:`)) previewRequests.delete(key);
+  clearPersonSelectImageRequestCache(slug);
 }
 
 function cachedEntry(slug: string, category: string) {
   const cached = imageCache.get(imageCacheKey(slug, category));
   return cached && Date.now() - cached.fetchedAt < IMAGE_CACHE_MAX_AGE_MS ? cached : null;
-}
-
-async function fetchImagePage(slug: string, category: string, cursor: string | null) {
-  const key = `${imageCacheKey(slug, category)}:${cursor ?? "first"}`;
-  const pending = imageRequests.get(key);
-  if (pending) return pending;
-  const params = new URLSearchParams({
-    category,
-    variant: "thumbnail",
-    limit: String(PERSON_SELECT_IMAGE_PAGE_SIZE),
-  });
-  if (cursor) params.set("cursor", cursor);
-  const request = fetch(`/api/pick/${slug}/images?${params.toString()}`, { cache: "no-store" })
-    .then(async (response) => {
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "사진을 불러오지 못했어요.");
-      return {
-        images: Array.isArray(data.images) ? data.images as PersonSelectImageData[] : [],
-        nextCursor: typeof data.nextCursor === "string" ? data.nextCursor : null,
-      };
-    })
-    .finally(() => imageRequests.delete(key));
-  imageRequests.set(key, request);
-  return request;
 }
 
 function imageSortOrder(image: PersonSelectImageData) {
@@ -93,25 +66,6 @@ export function mergePersonSelectPreviewUrls(
 
 export function isPersonSelectImagePageNearEnd(index: number, loadedCount: number, threshold = 12) {
   return loadedCount > 0 && index >= Math.max(0, loadedCount - threshold);
-}
-
-async function fetchPreviewUrls(slug: string, category: string, imageIds: readonly string[]) {
-  const uniqueIds = [...new Set(imageIds.filter(Boolean))].slice(0, 8);
-  if (!uniqueIds.length) return [];
-  const key = `${slug}:${category}:${uniqueIds.slice().sort().join(",")}`;
-  const pending = previewRequests.get(key);
-  if (pending) return pending;
-  const params = new URLSearchParams({ category, variant: "preview" });
-  uniqueIds.forEach((imageId) => params.append("imageId", imageId));
-  const request = fetch(`/api/pick/${slug}/images?${params.toString()}`, { cache: "no-store" })
-    .then(async (response) => {
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || "미리보기를 불러오지 못했어요.");
-      return data.images as PersonSelectImageData[];
-    })
-    .finally(() => previewRequests.delete(key));
-  previewRequests.set(key, request);
-  return request;
 }
 
 export function usePersonSelectImages(
@@ -162,7 +116,7 @@ export function usePersonSelectImages(
       return () => { active = false; };
     }
     setLoading(true);
-    void fetchImagePage(slug, category, null)
+    void fetchPersonSelectImagePage(slug, category, null)
       .then((page) => {
         if (!active) return;
         installPage(page, true);
@@ -186,8 +140,7 @@ export function usePersonSelectImages(
     const scopeKey = imageCacheKey(slug, category);
     setLoadingMore(true);
     setPageError("");
-    let request: Promise<boolean>;
-    request = fetchImagePage(slug, category, cursor)
+    const request = fetchPersonSelectImagePage(slug, category, cursor)
       .then((page) => {
         if (scopeRef.current !== scopeKey) return false;
         installPage(page.nextCursor === cursor ? { ...page, nextCursor: null } : page, false);
@@ -213,7 +166,7 @@ export function usePersonSelectImages(
       return image && !image.preview_url;
     });
     if (!missingIds.length) return;
-    const previews = await fetchPreviewUrls(slug, category, missingIds);
+    const previews = await fetchPersonSelectPreviewUrls(slug, category, missingIds);
     setImages((current) => {
       const merged = mergePersonSelectPreviewUrls(current, previews);
       imagesRef.current = merged;
