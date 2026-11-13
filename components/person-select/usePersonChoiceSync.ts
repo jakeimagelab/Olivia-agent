@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   compactSelectionSyncDiffs,
   type SelectionSyncDiff,
-  type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
 import { readSelectionJsonResponse, sendSelectionSyncBatch } from "@/lib/person-select/selectionSyncClient";
 import { useSelectionSyncQueue } from "./useSelectionSyncQueue";
@@ -44,6 +43,35 @@ type PersonChoiceSyncSnapshot = {
 
 function choiceMap(choices: readonly PersonSelectChoice[]) {
   return new Map(choices.map((choice) => [choice.image_id, choice]));
+}
+
+function sameRetouchKeys(left: readonly string[], right: readonly string[]) {
+  return left === right || (left.length === right.length && left.every((key, index) => key === right[index]));
+}
+
+function samePersonChoice(left: PersonSelectChoice, right: PersonSelectChoice) {
+  return left.image_id === right.image_id
+    && left.original_file_name === right.original_file_name
+    && left.thumb_url === right.thumb_url
+    && left.memo === right.memo
+    && sameRetouchKeys(left.retouch_keys, right.retouch_keys);
+}
+
+export function reconcilePersonChoiceMaps(
+  previous: ReadonlyMap<string, PersonSelectChoice>,
+  incoming: ReadonlyMap<string, PersonSelectChoice>,
+) {
+  let changed = previous.size !== incoming.size;
+  const next = new Map<string, PersonSelectChoice>();
+  for (const [imageId, choice] of incoming) {
+    const current = previous.get(imageId);
+    if (current && samePersonChoice(current, choice)) next.set(imageId, current);
+    else {
+      changed = true;
+      next.set(imageId, choice);
+    }
+  }
+  return changed ? next : previous;
 }
 
 export function overlayPersonChoiceDiffs(
@@ -106,13 +134,13 @@ export function usePersonChoiceSync({
 
   const installSnapshot = useCallback((snapshot: PersonChoiceSyncSnapshot, pending: SelectionSyncDiff[]) => {
     const previous = confirmedRef.current;
-    const next = new Map<string, PersonSelectChoice>();
+    const incoming = new Map<string, PersonSelectChoice>();
     for (const item of snapshot.items ?? []) {
       if (!item.selected || item.categoryKey !== categoryKey) continue;
       const image = imageById.get(item.imageId);
       const old = previous.get(item.imageId);
       if (!image && !old) continue;
-      next.set(item.imageId, {
+      incoming.set(item.imageId, {
         id: old?.id ?? `server-${item.imageId}`,
         image_id: item.imageId,
         original_file_name: image?.original_file_name ?? old?.original_file_name ?? "",
@@ -122,9 +150,10 @@ export function usePersonChoiceSync({
         updated_at: item.updatedAt ?? snapshot.updatedAt ?? new Date().toISOString(),
       });
     }
+    const next = reconcilePersonChoiceMaps(previous, incoming);
     confirmedRef.current = next;
-    setConfirmed(next);
-    setDisplayed(overlayPersonChoiceDiffs(next, pending, imageById));
+    setConfirmed((current) => current === next ? current : next);
+    setDisplayed((current) => reconcilePersonChoiceMaps(current, overlayPersonChoiceDiffs(next, pending, imageById)));
   }, [categoryKey, imageById]);
 
   const sendBatch = useCallback(async ({ clientId, diffs }: { clientId: string; diffs: SelectionSyncDiff[] }) => {
@@ -148,10 +177,10 @@ export function usePersonChoiceSync({
 
   useEffect(() => {
     if (sync.pendingCount) return;
-    const next = choiceMap(initialChoices);
+    const next = reconcilePersonChoiceMaps(confirmedRef.current, choiceMap(initialChoices));
     confirmedRef.current = next;
-    setConfirmed(next);
-    setDisplayed(next);
+    setConfirmed((current) => current === next ? current : next);
+    setDisplayed((current) => reconcilePersonChoiceMaps(current, next));
   }, [initialChoices, sync.pendingCount]);
 
   const refresh = useCallback(async () => {
@@ -165,10 +194,13 @@ export function usePersonChoiceSync({
 
   useVisibleSelectionRefresh({ enabled, refresh });
 
+  const confirmedChoices = useMemo(() => [...confirmed.values()], [confirmed]);
+  const displayedChoices = useMemo(() => [...displayed.values()], [displayed]);
+
   return {
     ...sync,
-    enqueue: (patches: readonly SelectionSyncPatch[]) => sync.enqueue(patches),
-    confirmedChoices: [...confirmed.values()],
-    displayedChoices: [...displayed.values()],
+    enqueue: sync.enqueue,
+    confirmedChoices,
+    displayedChoices,
   };
 }

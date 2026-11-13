@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { overlayPersonChoiceDiffs, type PersonSelectChoice, type PersonSelectImageData } from "@/components/person-select/usePersonChoiceSync";
+import {
+  overlayPersonChoiceDiffs,
+  reconcilePersonChoiceMaps,
+  type PersonSelectChoice,
+  type PersonSelectImageData,
+} from "@/components/person-select/usePersonChoiceSync";
 import { personSelectPhotoTilePropsEqual } from "@/components/person-select/PersonSelectPhotoTile";
 import { splitSelectionSyncPatches } from "@/lib/person-select/selectionSync";
 
@@ -46,5 +51,42 @@ describe("person choice optimistic display", () => {
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous })).toBe(true);
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous, selected: true })).toBe(false);
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous, pending: true })).toBe(false);
+  });
+
+  it("keeps the same choice map and item objects for an unchanged server refresh", () => {
+    const current: PersonSelectChoice = {
+      id: "choice-a",
+      image_id: "image-a",
+      original_file_name: "A.JPG",
+      thumb_url: "thumb-a",
+      retouch_keys: ["skin"],
+      memo: "자연스럽게",
+      updated_at: "2026-11-12T09:00:00.000Z",
+    };
+    const refreshed = { ...current, retouch_keys: ["skin"], updated_at: "2026-11-12T10:00:00.000Z" };
+    const previous = new Map([[current.image_id, current]]);
+    const reconciled = reconcilePersonChoiceMaps(previous, new Map([[refreshed.image_id, refreshed]]));
+
+    expect(reconciled).toBe(previous);
+    expect(reconciled.get("image-a")).toBe(current);
+  });
+
+  it("replaces only a choice whose customer-visible value changed", () => {
+    const current: PersonSelectChoice = {
+      id: "choice-a",
+      image_id: "image-a",
+      original_file_name: "A.JPG",
+      thumb_url: "thumb-a",
+      retouch_keys: [],
+      memo: "",
+      updated_at: "2026-11-12T09:00:00.000Z",
+    };
+    const changed = { ...current, memo: "안경 반사 제거" };
+    const reconciled = reconcilePersonChoiceMaps(
+      new Map([[current.image_id, current]]),
+      new Map([[changed.image_id, changed]]),
+    );
+
+    expect(reconciled.get("image-a")).toBe(changed);
   });
 });
