@@ -222,3 +222,5 @@ export function useSelectMatchFindMove({
     reset,
   };
 }
+
+export type SelectMatchFindMoveController = ReturnType<typeof useSelectMatchFindMove>;

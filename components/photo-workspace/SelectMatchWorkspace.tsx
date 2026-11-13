@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, FileText, FolderOpen, MessageSquare, ScanSearch, Upload } from "lucide-react";
+import { CheckCircle2, FolderOpen, MessageSquare, ScanSearch, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
   type SelectMatchFolderGroup,
@@ -26,7 +26,6 @@ import {
 } from "@/lib/selectMatch/remoteRawMatch";
 import {
   defaultWorkerFolderPath,
-  parseFileNameQueries,
 } from "@/lib/selectMatch/workspaceHelpers";
 import {
   collectRatedBasenames,
@@ -49,6 +48,7 @@ import {
   type SelectMatchFeature,
 } from "@/components/photo-workspace/SelectMatchControls";
 import { SelectMatchProgramArchiveView, SelectMatchSequenceCheckView } from "@/components/photo-workspace/SelectMatchUtilityViews";
+import { SelectMatchFindMoveView } from "@/components/photo-workspace/SelectMatchFindMoveView";
 
 /* ── Types ── */
 type SceneFolder = SelectMatchFolderGroup;
@@ -168,29 +168,7 @@ export function SelectMatchWorkspace({
     reset: resetSequenceCheck,
   } = useSelectMatchSequenceCheck();
 
-  const {
-    rootDir: fmRootDir,
-    text: fmText,
-    setText: setFmText,
-    folderName: fmFolderName,
-    setFolderName: setFmFolderName,
-    step: fmStep,
-    matches: fmMatches,
-    missing: fmMissing,
-    progress: fmProgress,
-    movedCount: fmMovedCount,
-    ocrLoading: fmOcrLoading,
-    ocrMessage: fmOcrMessage,
-    ocrFileRef: fmOcrFileRef,
-    workerRootPath: fmWorkerRootPath,
-    setWorkerRootPath: setFmWorkerRootPath,
-    moveError: fmMoveError,
-    pickFolder: pickFmFolder,
-    extractNamesFromScreenshot: extractFmNamesFromScreenshot,
-    runFindByName,
-    runMoveMatched,
-    reset: resetFindByName,
-  } = useSelectMatchFindMove({ workerOnline: workerPresence.online });
+  const findMove = useSelectMatchFindMove({ workerOnline: workerPresence.online });
 
   const {
     rawMatchCriteria,
@@ -509,159 +487,13 @@ export function SelectMatchWorkspace({
   if (feature === "program_archive") return <SelectMatchProgramArchiveView featureTabs={featureTabs} colors={controlColors} />;
 
   /* ── 파일명으로 찾아 이동 ── */
-  if (feature === "find_move") {
-    if (fmStep === "idle") return (
-      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        {featureTabs}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <FileText size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
-          <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일명으로 찾기</div>
-          <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>파일명 목록을 붙여넣으면 폴더에서 찾아 선택 폴더로 이동합니다.</div>
-        </div>
-
-        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>1. 검색할 폴더 선택 (하위 폴더까지 검색)</div>
-            {!hasFS ? (
-              <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
-            ) : (
-              <SelectMatchButton onClick={pickFmFolder}>{fmRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{fmRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</SelectMatchButton>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>2. 파일명 목록 (한 줄에 하나씩, 또는 쉼표로 구분)</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-              <input
-                ref={fmOcrFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                hidden
-                onChange={(e) => extractFmNamesFromScreenshot(e.target.files?.[0] ?? null)}
-              />
-              <SelectMatchButton
-                variant="secondary"
-                disabled={fmOcrLoading}
-                onClick={() => fmOcrFileRef.current?.click()}
-                style={{ padding: "8px 13px" }}
-              >
-                {fmOcrLoading ? "이미지 읽는 중..." : <><ScanSearch size={15} aria-hidden="true" />스크린샷에서 파일명 추출</>}
-              </SelectMatchButton>
-              <span style={{ fontSize: 11, color: uiHint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
-            </div>
-            {fmOcrMessage && (
-              <div style={{
-                marginBottom: 10, borderRadius: 8, padding: "9px 12px", fontSize: 11, fontWeight: 500,
-                color: fmOcrMessage.ok ? C.green : C.red,
-                background: fmOcrMessage.ok ? groupedSurface : "#FEF2F2",
-              }}>
-                {fmOcrMessage.text}
-              </div>
-            )}
-            <textarea
-              value={fmText}
-              onChange={(e) => setFmText(e.target.value)}
-              placeholder={"예시:\nDSC_0142.jpg\nDSC_0145.mp4\nDSC_0148  ← 확장자 생략 시 모든 확장자 파일을 찾습니다"}
-              rows={7}
-              style={{ width: "100%", border: `1px solid ${uiBorder}`, borderRadius: 8, padding: "10px 12px", fontSize: 12, fontFamily: "monospace", resize: "vertical", background: inputSurface, color: uiText, boxSizing: "border-box" }}
-            />
-            {fmText.trim() && (
-              <div style={{ marginTop: 10, background: groupedSurface, borderRadius: 8, padding: "10px 14px", fontSize: 11, color: uiMuted }}>
-                파일명 <strong style={{ color: uiAccent }}>{parseFileNameQueries(fmText).length}개</strong> 입력됨
-              </div>
-            )}
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 8 }}>3. 이동할 선택 폴더 이름</div>
-            <input
-              value={fmFolderName}
-              onChange={(e) => setFmFolderName(e.target.value || "선택")}
-              style={{ width: "100%", border: `1px solid ${uiBorder}`, borderRadius: 8, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }}
-            />
-            <div style={{ fontSize: 11, color: uiHint, marginTop: 6 }}>선택한 폴더 안에 이 이름으로 폴더가 생성되고, 찾은 파일이 그 안으로 이동합니다.</div>
-          </div>
-
-          <div style={{ textAlign: "center" }}>
-            <SelectMatchButton onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>폴더에서 찾기</SelectMatchButton>
-          </div>
-        </div>
-      </div>
-    );
-
-    if (fmStep === "scanning") return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <ScanSearch size={28} aria-hidden="true" style={{ marginBottom: 12, color: uiAccent }} />
-        <div style={{ fontSize: 13, color: uiMuted }}>폴더를 검색하는 중입니다...</div>
-      </div>
-    );
-
-    if (fmStep === "result") return (
-      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
-          <div style={{ padding: "14px 20px", borderBottom: `1px solid ${uiBorder}`, fontSize: 13, fontWeight: 600, color: uiAccent }}>
-            검색 결과 — 찾음 {fmMatches.length}개 · 못 찾음 {fmMissing.length}개
-          </div>
-          <div style={{ padding: 20 }}>
-            {fmMatches.length > 0 && (
-              <div style={{ maxHeight: 220, overflowY: "auto", marginBottom: fmMissing.length > 0 ? 14 : 0 }}>
-                {fmMatches.map((m) => (
-                  <div key={m.name} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 12, color: uiText, borderBottom: `1px solid ${uiBorder}` }}>
-                    <span>{m.name}</span>
-                    <span style={{ color: uiHint }}>{m.query}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {fmMissing.length > 0 && (
-              <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red }}>
-                ⚠️ 못 찾은 파일명 {fmMissing.length}개: {fmMissing.join(", ")}
-              </div>
-            )}
-          </div>
-        </div>
-        <div style={{ marginBottom: 14, padding: "12px 14px", border: `1px solid ${uiBorder}`, borderRadius: 10, background: groupedSurface }}>
-          <label style={{ display: "grid", gap: 6, color: uiText, fontSize: 11, fontWeight: 600 }}>
-            Mac Studio에서 보이는 기준 폴더 경로
-            <input
-              value={fmWorkerRootPath}
-              onChange={(event) => setFmWorkerRootPath(event.currentTarget.value)}
-              placeholder="/Volumes/Agentstation/촬영폴더"
-              style={{ minHeight: 42, border: `1px solid ${uiBorder}`, borderRadius: 8, background: inputSurface, color: uiText, padding: "0 10px", font: "inherit", fontSize: 11 }}
-            />
-          </label>
-          <p style={{ margin: "7px 0 0", color: uiHint, fontSize: 10, lineHeight: 1.5 }}>자동 경로가 다르면 Mac Studio Finder에서 보이는 절대경로로 고쳐 주세요. 실제 이동은 Mac Studio가 원본 속성을 보존해 처리합니다.</p>
-        </div>
-        {fmMoveError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{fmMoveError}</div> : null}
-        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <SelectMatchButton variant="secondary" onClick={resetFindByName}>← 다시 검색</SelectMatchButton>
-          <SelectMatchButton onClick={runMoveMatched} disabled={fmMatches.length === 0 || workerPresence.online !== true || !fmWorkerRootPath.trim()}>{fmFolderName}/ 폴더로 이동</SelectMatchButton>
-        </div>
-      </div>
-    );
-
-    if (fmStep === "moving") {
-      const pct = fmProgress.total > 0 ? Math.round((fmProgress.cur / fmProgress.total) * 100) : 0;
-      return (
-        <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px" }}>
-          <div style={{ fontSize: 13, color: uiMuted, marginBottom: 8, textAlign: "center" }}>{fmProgress.cur} / {fmProgress.total} 이동 중...</div>
-          <div style={{ height: 8, background: uiBorder, borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: uiAccent, transition: "width .2s" }} />
-          </div>
-        </div>
-      );
-    }
-
-    if (fmStep === "done") return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <CheckCircle2 size={28} aria-hidden="true" style={{ marginBottom: 12, color: C.green }} />
-        <div style={{ fontSize: 14, fontWeight: 500, color: uiText, marginBottom: 20 }}>
-          {fmMovedCount}개 파일을 <strong style={{ color: uiAccent }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
-        </div>
-        <SelectMatchButton onClick={resetFindByName}>새로 검색하기</SelectMatchButton>
-      </div>
-    );
-  }
+  if (feature === "find_move") return <SelectMatchFindMoveView
+    featureTabs={featureTabs}
+    hasFileSystemAccess={hasFS}
+    workerOnline={workerPresence.online}
+    controller={findMove}
+    colors={controlColors}
+  />;
 
   /* ── 파일 순서 검토 ── */
   if (feature === "seq_check") return <SelectMatchSequenceCheckView
