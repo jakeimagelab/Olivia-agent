@@ -27,9 +27,6 @@ import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import {
-  prepareBridgeClassificationPlan,
-} from "@/lib/photo-bridge/classificationPlanApply";
-import {
   type PersonGroup,
   type StudioGroup,
   type StudioGroupSortMode,
@@ -86,6 +83,7 @@ import {
   PHOTO_CLASSIFY_JOB_ID,
   usePhotoSortingFieldActions,
 } from "./usePhotoSortingFieldActions";
+import { usePhotoSortingBridgePlan } from "./usePhotoSortingBridgePlan";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -535,76 +533,40 @@ function PhotoSortingInner({
     analyzeScenes: runSceneAiAnalysis,
   });
 
-  useEffect(() => {
-    if (!isEmbedded || executionMode !== "LOCAL_DIRECT" || !pendingBridgeClassificationPlan) return;
-    const plan = takeBridgeClassificationPlan();
-    if (!plan) return;
-
-    setBridgePlanSummary(null);
-    setDirPickError("");
-    setPhotoMode("field");
-    setFastAnalyzeMode(false);
-    dismissSavedSession();
-    setStep(1);
-    setProgress({ cur: 0, total: plan.files.length, msg: "Bridge Scene 계획 확인 중..." });
-    setClassificationJobState("CREATING_SCENES");
-
-    void (async () => {
-      try {
-        const prepared = await prepareBridgeClassificationPlan({ currentLocalFolder, plan });
-        departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${plan.directory.name}`;
-        setCurrentLocalFolder(plan.directory);
-        setDepartment(plan.departmentResolution.department);
-        setPhotoDepartmentResolution(plan.departmentResolution);
-        setDepartmentContextError("");
-        setDepartmentPickerOpen(false);
-        setRootDir(plan.directory);
-        setFieldJpgBaseDir(null);
-        setFieldRawHandles(prepared.rawFiles);
-        setFieldRawCount(prepared.rawFiles.length);
-        setBoundaryDecisions(plan.boundaries);
-        setSceneCorrections([]);
-        setMergeCandidates([]);
-        setDismissedCandidates(new Set());
-        setMergeDecisions([]);
-        setFieldScenes(prepared.scenes);
-        setFieldStats(prepared.stats);
-        setCopyLog(prepared.copyLog);
-        setProgress({ cur: plan.files.length, total: plan.files.length, msg: "Bridge Scene 계획 적용 완료" });
-        setClassificationJobState("WAITING_REVIEW");
-        setBridgePlanSummary(prepared.summary);
-        setStep(2);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Bridge Scene 계획을 적용하지 못했습니다.";
-        setBridgePlanSummary(null);
-        setFieldScenes([]);
-        setBoundaryDecisions([]);
-        setFieldRawHandles([]);
-        setFieldRawCount(0);
-        setFieldStats(null);
-        setCopyLog([`❌ ${message}`]);
-        setClassificationJobState("FAILED");
-        setDirPickError(message);
-        setRootDir(plan.directory);
-        setStep(0);
-      }
-    })();
-  }, [
+  usePhotoSortingBridgePlan({
+    enabled: isEmbedded && executionMode === "LOCAL_DIRECT",
+    pendingPlan: pendingBridgeClassificationPlan,
+    takePlan: takeBridgeClassificationPlan,
     currentLocalFolder,
     clientId,
+    workflowRunId,
     departmentContextKeyRef,
     dismissSavedSession,
-    executionMode,
-    isEmbedded,
-    pendingBridgeClassificationPlan,
+    updateProgress: setProgress,
     setCurrentLocalFolder,
+    setRootDirectory: setRootDir,
+    setPhotoMode,
+    setFastAnalyzeMode,
+    setDepartment,
+    setDepartmentResolution: setPhotoDepartmentResolution,
     setDepartmentContextError,
     setDepartmentPickerOpen,
-    setProgress,
-    setPhotoDepartmentResolution,
-    takeBridgeClassificationPlan,
-    workflowRunId,
-  ]);
+    setStep,
+    setClassificationJobState,
+    setBridgePlanSummary,
+    setDirectoryError: setDirPickError,
+    setJpgBaseDirectory: setFieldJpgBaseDir,
+    setRawFiles: setFieldRawHandles,
+    setRawCount: setFieldRawCount,
+    setBoundaryDecisions,
+    setSceneCorrections,
+    setMergeCandidates,
+    setDismissedCandidates,
+    setMergeDecisions,
+    setScenes: setFieldScenes,
+    setStats: setFieldStats,
+    setCopyLog,
+  });
 
   const {
     approveAllScenes: approveAllFieldScenes,
