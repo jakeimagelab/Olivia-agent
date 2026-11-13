@@ -6,6 +6,7 @@ import {
   type PersonSelectRawMatchSource,
 } from "@/lib/person-select/rawMatch";
 import { fetchAllRowsByIdChunks } from "@/lib/person-select/rawMatchPaging";
+import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 
 type RawMatchDb = ReturnType<typeof getSupabaseAdmin>;
 
@@ -18,6 +19,18 @@ type ChoiceRow = {
     original_file_name: string;
     source_rel_path: string;
   } | null;
+};
+
+type PersonRow = {
+  id: string;
+  display_name: string;
+  submitted_at?: string | null;
+};
+
+type ReviewerRow = {
+  id: string;
+  display_name: string;
+  active?: boolean | null;
 };
 
 type SharedDraftItem = {
@@ -72,29 +85,28 @@ export async function loadPersonSelectRawMatchTargets(input: {
   reviewerIds?: string[];
 }) {
   if (input.accessMode !== "project_shared") {
-    const [
-      { data: people, error: peopleError },
-      { data: choices, error: choiceError },
-    ] = await Promise.all([
-      input.db
+    const [people, choices] = await Promise.all([
+      readAllPersonSelectRows<PersonRow>((from, to) => input.db
         .from("person_select_people")
         .select("id,display_name,submitted_at")
-        .eq("event_id", input.eventId),
-      input.db
+        .eq("event_id", input.eventId)
+        .order("id")
+        .range(from, to)),
+      readAllPersonSelectRows<ChoiceRow>((from, to) => input.db
         .from("person_select_choices")
         .select("person_id,image_id,updated_at,person_select_images(id,original_file_name,source_rel_path)")
-        .eq("event_id", input.eventId),
+        .eq("event_id", input.eventId)
+        .order("id")
+        .range(from, to) as unknown as PromiseLike<{ data: ChoiceRow[] | null; error: { message?: string } | null }>),
     ]);
-    if (peopleError) throw peopleError;
-    if (choiceError) throw choiceError;
     const result = resolveIndividualRawMatchTargets({
       source: input.source,
-      people: (people ?? []).map((person) => ({
+      people: people.map((person) => ({
         id: person.id,
         displayName: person.display_name,
         submittedAt: person.submitted_at,
       })),
-      choices: ((choices ?? []) as unknown as ChoiceRow[]).map((choice) => ({
+      choices: choices.map((choice) => ({
         personId: choice.person_id,
         image: choice.person_select_images
           ? imageRow(choice.person_select_images, { markSavedAt: choice.updated_at ?? null })
@@ -104,38 +116,37 @@ export async function loadPersonSelectRawMatchTargets(input: {
     return {
       ...result,
       reviewerIds: [] as string[],
-      submittedPeople: (people ?? []).filter((person) => Boolean(person.submitted_at)).length,
-      notSubmitted: (people ?? [])
+      submittedPeople: people.filter((person) => Boolean(person.submitted_at)).length,
+      notSubmitted: people
         .filter((person) => !person.submitted_at)
         .map((person) => String(person.display_name)),
     };
   }
 
-  const [
-    { data: reviewers, error: reviewersError },
-    { data: drafts, error: draftsError },
-    { data: selections, error: selectionsError },
-  ] = await Promise.all([
-    input.db
+  const [reviewers, drafts, selections] = await Promise.all([
+    readAllPersonSelectRows<ReviewerRow>((from, to) => input.db
       .from("person_select_shared_reviewers")
       .select("id,display_name,active")
-      .eq("event_id", input.eventId),
-    input.db
+      .eq("event_id", input.eventId)
+      .order("id")
+      .range(from, to)),
+    readAllPersonSelectRows<SharedDraftRow>((from, to) => input.db
       .from("person_select_shared_drafts")
       .select("reviewer_id,updated_at,items")
-      .eq("event_id", input.eventId),
-    input.db
+      .eq("event_id", input.eventId)
+      .order("reviewer_id")
+      .range(from, to) as unknown as PromiseLike<{ data: SharedDraftRow[] | null; error: { message?: string } | null }>),
+    readAllPersonSelectRows<SharedSelectionRow>((from, to) => input.db
       .from("person_select_shared_selections")
       .select("id,reviewer_id,submitted_at")
       .eq("event_id", input.eventId)
-      .order("submitted_at", { ascending: false }),
+      .order("submitted_at", { ascending: false })
+      .order("id")
+      .range(from, to)),
   ]);
-  if (reviewersError) throw reviewersError;
-  if (draftsError) throw draftsError;
-  if (selectionsError) throw selectionsError;
 
   const latestSelectionByReviewer = new Map<string, SharedSelectionRow>();
-  for (const selection of (selections ?? []) as SharedSelectionRow[]) {
+  for (const selection of selections) {
     if (!latestSelectionByReviewer.has(selection.reviewer_id)) {
       latestSelectionByReviewer.set(selection.reviewer_id, selection);
     }
@@ -151,7 +162,7 @@ export async function loadPersonSelectRawMatchTargets(input: {
     : [];
 
   const allImageIds = new Set<string>();
-  for (const draft of (drafts ?? []) as SharedDraftRow[]) {
+  for (const draft of drafts) {
     for (const item of Array.isArray(draft.items) ? draft.items : []) {
       if (item.image_id) allImageIds.add(item.image_id);
     }
@@ -184,7 +195,7 @@ export async function loadPersonSelectRawMatchTargets(input: {
   }
 
   const draftByReviewer = new Map<string, PersonSelectRawImage[]>();
-  for (const draft of (drafts ?? []) as SharedDraftRow[]) {
+  for (const draft of drafts) {
     draftByReviewer.set(draft.reviewer_id, (Array.isArray(draft.items) ? draft.items : [])
       .flatMap((item) => {
         const image = item.image_id ? imageById.get(item.image_id) : null;
@@ -200,7 +211,7 @@ export async function loadPersonSelectRawMatchTargets(input: {
   const result = resolveSharedRawMatchTargets({
     source: input.source,
     binarySelection: input.binarySelection,
-    reviewers: (reviewers ?? []).map((reviewer) => ({
+    reviewers: reviewers.map((reviewer) => ({
       id: reviewer.id,
       displayName: reviewer.display_name,
       active: reviewer.active !== false,
