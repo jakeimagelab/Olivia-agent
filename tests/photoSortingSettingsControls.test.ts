@@ -10,6 +10,7 @@ import { FieldSceneReviewList } from "@/components/photo-classifier/FieldSceneRe
 import { FieldSceneMergeCandidateCard } from "@/components/photo-classifier/FieldSceneMergeCandidateCard";
 import { StudioGroupEditView } from "@/components/photo-classifier/StudioGroupEditView";
 import { StudioGroupConfirmationView } from "@/components/photo-classifier/StudioGroupConfirmationView";
+import { StudioClassificationCompleteView } from "@/components/photo-classifier/StudioClassificationCompleteView";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 function makeFieldScene(index: number, editedName: string): FieldScene {
@@ -279,5 +280,28 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("Standing");
     expect(markup).toContain("A.JPG");
     expect(markup).toContain("파일 정리 시작");
+  });
+
+  it("renders the extracted studio completion summary and actions", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StudioClassificationCompleteView, {
+        stats: [
+          { label: "인물 그룹", value: 4, color: "#7C3AED" },
+          { label: "정상 JPG", value: 80, color: "#155855" },
+        ],
+        rootFolderName: "촬영본",
+        groupDescription: "인물별",
+        downloadLabel: "↓ 인물 요약 CSV",
+        onDownload: () => undefined,
+        onReset: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("스튜디오 분류 완료");
+    expect(markup).toContain("인물 그룹");
+    expect(markup).toContain("분류_촬영본/");
+    expect(markup).toContain("인물별");
+    expect(markup).toContain("인물 요약 CSV");
+    expect(markup).toContain("처음으로");
   });
 });

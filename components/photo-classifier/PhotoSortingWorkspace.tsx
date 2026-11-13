@@ -129,6 +129,7 @@ import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "./FieldSceneReviewList";
 import { StudioGroupEditView } from "./StudioGroupEditView";
 import { StudioGroupConfirmationView } from "./StudioGroupConfirmationView";
+import { StudioClassificationCompleteView } from "./StudioClassificationCompleteView";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -3208,37 +3209,41 @@ function PhotoSortingInner({
   const StudioStep6 = () => {
     if (!studioStats) return null;
     const isGroup = studioSubMode === "group";
-    const rows = [
-      {label: isGroup ? "인물 그룹" : "의상·포즈 그룹", value:studioStats.totalGroups, color:C.purple},
-      {label:"정상 JPG",value:studioStats.totalNormal,color:C.teal},
-      {label:"ETC 분리",value:studioStats.totalEtc,color:C.red},
-      {label:"원본 RAW",value:studioStats.totalRaw,color:C.muted},
-    ];
     return (
-      <Card style={{maxWidth:600}}>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.purple}}>✅ 스튜디오 분류 완료!</div>
-        <div style={{padding:20}}>
-          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {rows.map(({label,value,color})=>(
-              <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:20,fontWeight:600,color}}>{value}</div>
-                <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
-            📁 <strong style={{color:C.teal}}>분류_{rootDir?.name}/</strong> — {isGroup ? "인물별" : "의상·포즈별"} 하위 폴더에 JPG 정리<br/>
-            📊 <strong style={{color:C.teal}}>AI_SELECT_REPORT/</strong> — 3종 CSV + summary.json
-          </div>
-          <div className="ps-btn-row">
-            {isGroup
-              ? <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["인물","폴더명","장수"],personGroups.filter(g=>!g.isEtc).map(g=>[g.label,g.editedFolderName,String(g.files.length)])),"person_group_summary.csv")}>↓ 인물 요약 CSV</Btn>
-              : <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["그룹","폴더명","의상","포즈","장수"],studioGroups.filter(g=>!g.isEtc).map(g=>[String(g.index),g.editedFolderName,g.clothingLabel,g.poseType,String(g.files.length)])),"studio_group_summary.csv")}>↓ 그룹 요약 CSV</Btn>
-            }
-            <Btn onClick={()=>{setStep(0);setStudioFiles([]);setStudioGroups([]);setPersonGroups([]);setRootDir(null);setStudioRawCount(0);setStudioCopyLog([]);setStudioStats(null);}}>처음으로</Btn>
-          </div>
-        </div>
-      </Card>
+      <StudioClassificationCompleteView
+        stats={[
+          { label: isGroup ? "인물 그룹" : "의상·포즈 그룹", value: studioStats.totalGroups, color: C.purple },
+          { label: "정상 JPG", value: studioStats.totalNormal, color: C.teal },
+          { label: "ETC 분리", value: studioStats.totalEtc, color: C.red },
+          { label: "원본 RAW", value: studioStats.totalRaw, color: C.muted },
+        ]}
+        rootFolderName={rootDir?.name ?? ""}
+        groupDescription={isGroup ? "인물별" : "의상·포즈별"}
+        downloadLabel={isGroup ? "↓ 인물 요약 CSV" : "↓ 그룹 요약 CSV"}
+        onDownload={() => {
+          if (isGroup) {
+            downloadCSV(
+              makeCSV(["인물", "폴더명", "장수"], personGroups.filter((group) => !group.isEtc).map((group) => [group.label, group.editedFolderName, String(group.files.length)])),
+              "person_group_summary.csv",
+            );
+            return;
+          }
+          downloadCSV(
+            makeCSV(["그룹", "폴더명", "의상", "포즈", "장수"], studioGroups.filter((group) => !group.isEtc).map((group) => [String(group.index), group.editedFolderName, group.clothingLabel, group.poseType, String(group.files.length)])),
+            "studio_group_summary.csv",
+          );
+        }}
+        onReset={() => {
+          setStep(0);
+          setStudioFiles([]);
+          setStudioGroups([]);
+          setPersonGroups([]);
+          setRootDir(null);
+          setStudioRawCount(0);
+          setStudioCopyLog([]);
+          setStudioStats(null);
+        }}
+      />
     );
   };
 
