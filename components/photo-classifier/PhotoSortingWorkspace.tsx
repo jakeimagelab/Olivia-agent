@@ -12,12 +12,11 @@ import {
 import { buildMergeCandidates } from "@/lib/photo-classifier/scene-merge-candidate";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
 import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
-import { buildCandidateSegments, buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
+import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
 import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
 import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
-import { buildPurposeSampleIndices, findPurposeTransitions } from "@/lib/photo-classifier/purpose-scan";
 import {
   clearClassificationCheckpoint, featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
   getClassificationCheckpoint, setCachedFeature, setCachedPattern, setClassificationCheckpoint,
@@ -37,10 +36,14 @@ import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
-  AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
-  SceneCorrection, SceneFrameAnalysis,
+  AccuracyReport, ClassificationJobState, LocalVisualFeatures, SceneBoundaryDecision,
+  SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
 import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
+import {
+  analyzeBrowserSceneBoundary,
+  appendBrowserPurposeTransitionCandidates,
+} from "@/lib/photo-classifier/fieldBoundaryAnalysis";
 import {
   applySceneAiResponse,
   buildSceneAnalysisSampleIndices,
@@ -105,7 +108,6 @@ import {
   analyzeJpg,
   buildQuickProposals,
   getApiThumb,
-  getBoundaryApiImage,
   getStudioThumb,
   loadThumb,
   mapWithConcurrency,
@@ -761,7 +763,7 @@ function PhotoSortingInner({
       }
 
       setClassificationJobState("DETECTING_BOUNDARIES");
-      const candidates = buildVisualBoundaryCandidates(jpgEntries, safeFeatures, preciseSettings);
+      let candidates = buildVisualBoundaryCandidates(jpgEntries, safeFeatures, preciseSettings);
 
       // ── 2차 Scene 분석: 하드갭 기준 임시 Scene(구간) 내부에서 촬영목적 전환 지점을 찾는다.
       // buildVisualBoundaryCandidates는 시각적 diff가 큰 지점만 후보로 잡으므로, 상담→시술처럼
@@ -769,71 +771,21 @@ function PhotoSortingInner({
       // 여기서는 구간을 촘촘히(6장 고정이 아니라 크기 비례) 샘플링해 목적 라벨을 매기고,
       // 라벨이 바뀌는 지점을 새 경계 후보로 추가한다 — 정확한 사진 단위 위치는 기존 검증 루프가
       // (아래 mapWithConcurrency) 3장 윈도우 AI 검증으로 다시 확인하므로 근사치면 충분하다.
-      const purposeSegments = buildCandidateSegments(jpgEntries, preciseSettings.hardGapMinutes);
-      const existingBoundaryIndexes = new Set(candidates.map((candidate) => candidate.boundaryIndex));
-      setProgress({ cur: 0, total: purposeSegments.length, msg: "촬영목적 전환 스캔 준비" });
-      let scannedSegments = 0;
-      for (const segment of purposeSegments) {
-        scannedSegments += 1;
-        const segmentLength = segment.endIndex - segment.startIndex + 1;
-        if (segmentLength < 8 || cancelRef.current || abortController.signal.aborted) continue;
-        setProgress({ cur: scannedSegments, total: purposeSegments.length, msg: `촬영목적 전환 스캔 ${scannedSegments}/${purposeSegments.length}` });
-        const localIndices = buildPurposeSampleIndices(segmentLength);
-        try {
-          const images = await Promise.all(localIndices.map(async (localIndex) => {
-            const entry = jpgEntries[segment.startIndex + localIndex];
-            return { fileName: entry.name, base64: await getApiThumb(entry.file), index: localIndex };
-          }));
-          const response = await withTimeout(fetch("/api/photo-scene-purpose-scan", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ department, images }),
-            signal: abortController.signal,
-          }), 60_000, "AI 목적 스캔");
-          const data = await response.json();
-          if (!response.ok || !data.ok) continue;
-          const samples = (data.labels ?? []) as { index: number; purpose: HybridSceneType }[];
-          const localTransitions = findPurposeTransitions(samples);
-          for (const localTransition of localTransitions) {
-            const globalIndex = segment.startIndex + localTransition;
-            if (globalIndex <= 0 || globalIndex >= jpgEntries.length || existingBoundaryIndexes.has(globalIndex)) continue;
-            existingBoundaryIndexes.add(globalIndex);
-            const timeGapMs = Math.max(0, jpgEntries[globalIndex].mtime - jpgEntries[globalIndex - 1].mtime);
-            candidates.push({ boundaryIndex: globalIndex, timeGapMs, visualChangeScore: 0, hardGap: false, requiresAi: true });
-          }
-        } catch {
-          // 목적 스캔 실패는 치명적이지 않음 — 시각적 경계 후보만으로 계속 진행
-        }
-      }
-      candidates.sort((left, right) => left.boundaryIndex - right.boundaryIndex);
+      const purposeScan = await appendBrowserPurposeTransitionCandidates({
+        entries: jpgEntries,
+        candidates,
+        department,
+        hardGapMinutes: preciseSettings.hardGapMinutes,
+        signal: abortController.signal,
+        isCancelled: () => cancelRef.current,
+        onProgress: (completed, segmentTotal) => setProgress({
+          cur: completed,
+          total: segmentTotal,
+          msg: `촬영목적 전환 스캔 ${completed}/${segmentTotal}`,
+        }),
+      });
+      candidates = purposeScan.candidates;
       setProgress({ cur: 0, total: candidates.length, msg: `경계 후보 ${candidates.length}개 분석 준비(목적 전환 포함)` });
-
-      const analyzeBoundary = async (boundaryIndex: number, windowSize: number, useHighModel: boolean): Promise<SceneFrameAnalysis> => {
-        const beforeEntries = jpgEntries.slice(Math.max(0, boundaryIndex - windowSize), boundaryIndex);
-        const afterEntries = jpgEntries.slice(boundaryIndex, Math.min(jpgEntries.length, boundaryIndex + windowSize));
-        const [before, after] = await Promise.all([
-          Promise.all(beforeEntries.map(async (entry) => ({ fileName: entry.name, base64: await getBoundaryApiImage(entry.file) }))),
-          Promise.all(afterEntries.map(async (entry) => ({ fileName: entry.name, base64: await getBoundaryApiImage(entry.file) }))),
-        ]);
-        let lastError = "AI 경계 분석 실패";
-        for (let attempt = 0; attempt < 2; attempt++) {
-          try {
-            const response = await withTimeout(fetch("/api/photo-scene-boundary-analyze", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ department, boundaryIndex, before, after, timeGapSeconds: (jpgEntries[boundaryIndex]?.mtime - jpgEntries[boundaryIndex - 1]?.mtime) / 1_000, options: { useHighModel } }),
-              signal: abortController.signal,
-            }), 60_000, "AI 경계 분석");
-            const data = await response.json();
-            if (response.ok && data.ok && data.analysis) return data.analysis as SceneFrameAnalysis;
-            lastError = data.error ?? lastError;
-          } catch (error) {
-            lastError = error instanceof Error ? error.message : String(error);
-          }
-          if (attempt === 0 && !abortController.signal.aborted) await new Promise((resolve) => setTimeout(resolve, 500));
-        }
-        throw new Error(lastError);
-      };
 
       setClassificationJobState("VERIFYING_BOUNDARIES");
       const checkpointId = `${rootDir.name}:${department}:${effectiveGapMinutes}:precise-v2`;
@@ -866,10 +818,24 @@ function PhotoSortingInner({
           return hardDecision;
         }
         try {
-          let analysis = await analyzeBoundary(candidate.boundaryIndex, 3, false);
+          let analysis = await analyzeBrowserSceneBoundary({
+            entries: jpgEntries,
+            boundaryIndex: candidate.boundaryIndex,
+            windowSize: 3,
+            useHighModel: false,
+            department,
+            signal: abortController.signal,
+          });
           let decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName, weights });
           if (decision.decision === "review") {
-            analysis = await analyzeBoundary(candidate.boundaryIndex, 5, true);
+            analysis = await analyzeBrowserSceneBoundary({
+              entries: jpgEntries,
+              boundaryIndex: candidate.boundaryIndex,
+              windowSize: 5,
+              useHighModel: true,
+              department,
+              signal: abortController.signal,
+            });
             decision = decideBoundary({ candidate, analysis, settings: preciseSettings, beforeFileName, afterFileName, weights });
           }
           checkpointDecisions[checkpointKey] = decision;
