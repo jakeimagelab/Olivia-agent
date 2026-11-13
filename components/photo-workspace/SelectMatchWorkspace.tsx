@@ -114,7 +114,6 @@ export function SelectMatchWorkspace({
     () => visibleScenes.reduce((sum, scene) => sum + scene.photos.length, 0),
     [visibleScenes],
   );
-  const [ratingLoaded,  setRatingLoaded]  = useState(false);
   const [ratingLoading, setRatingLoading] = useState(false);
   const [jpgScanRootDir, setJpgScanRootDir] = useState<FileSystemDirectoryHandle | null>(null);
   const autoScannedFolderRef = useRef<FileSystemDirectoryHandle | null>(null);
@@ -357,7 +356,6 @@ export function SelectMatchWorkspace({
       const sceneList = await collectJpgFolderGroups(scanDir);
       setScenes(sceneList);
       setExpanded(new Set());
-      setRatingLoaded(false);
 
       // XMP 사이드카 빠른 스캔 → 이후 JPG 내장 XMP 자동 딥스캔
       if (!(bridgeLinked && initialView === "raw")) setStep("ready");
@@ -384,7 +382,6 @@ export function SelectMatchWorkspace({
       }
       setSelected(autoKeys);
 
-      setRatingLoaded(true);
       setRatingLoading(false);
       if (bridgeLinked && initialView === "raw") setStep("raw_pick");
   }, [bridgeLinked, initialView, jpgRatingsByName, resetSceneThumbnails, resolvedBridgeTargets, selectedJpgNames, setJpgRatingsByName, setProgress]);
@@ -415,7 +412,6 @@ export function SelectMatchWorkspace({
     const updated = await loadFolderEmbeddedRatings(scenes);
     setScenes(updated);
     setJpgRatingsByName(collectRatingsByName(updated), { overwrite: false });
-    setRatingLoaded(true);
     setRatingLoading(false);
   }, [scenes, setJpgRatingsByName]);
 

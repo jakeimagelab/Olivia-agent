@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- browser FileSystemHandle에서 생성한 로컬 썸네일 URL */
+
 import { memo, type Dispatch, type SetStateAction } from "react";
 
 import type { SelectMatchFolderGroup } from "@/lib/selectMatch/folderScanner";
