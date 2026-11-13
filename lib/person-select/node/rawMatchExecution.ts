@@ -1,7 +1,6 @@
 import path from "node:path";
-import { mkdir, open } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 
-import { normalizeNfc } from "@/lib/person-select/core";
 import {
   type PersonSelectRawLabelNames,
   type PersonSelectRawMatchMode,
@@ -15,9 +14,14 @@ import {
   personSelectRawBasename,
   type PersonSelectRawFile,
 } from "@/lib/person-select/node/rawFileIndex";
-import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
-import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
+import type { CaptureTime } from "@/lib/selectMatch/captureTime";
 import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/rawMatchCopy";
+import {
+  createPersonSelectCaptureTimeCache,
+  readPersonSelectCaptureTime,
+  resolvePersonSelectRawCandidate,
+} from "@/lib/person-select/node/rawMatchCandidateResolution";
+import { normalizePersonSelectOutputFolderName } from "@/lib/person-select/node/rawMatchPaths";
 
 export type PersonSelectRawReviewItem = {
   owner: string;
@@ -69,54 +73,12 @@ type ExecutionDependencies = {
   }) => Promise<{ rawPath: string; sidecarPath: string; created: boolean }>;
 };
 
-async function readCaptureTime(filePath: string): Promise<CaptureTime | null> {
-  const handle = await open(filePath, "r");
-  try {
-    const metadata = await handle.stat();
-    const length = Math.min(4 * 1024 * 1024, metadata.size);
-    const buffer = Buffer.allocUnsafe(length);
-    const { bytesRead } = await handle.read(buffer, 0, length, 0);
-    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + bytesRead);
-    return parseCaptureTime(arrayBuffer);
-  } finally {
-    await handle.close();
-  }
-}
-
 const DEFAULT_DEPENDENCIES: ExecutionDependencies = {
-  readCaptureTime,
+  readCaptureTime: readPersonSelectCaptureTime,
   createDirectory: (directory) => mkdir(directory, { recursive: true }),
   copyRaw: (input) => copyOrMovePreservingMetadata(input),
   markRawSidecar: markPersonSelectRawSidecar,
 };
-
-function safeSourceFile(root: string, relativePath: string) {
-  const candidate = path.resolve(root, relativePath.split(/[\\/]+/u).filter(Boolean).join(path.sep));
-  const relative = path.relative(root, candidate);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-    if (relative === "") throw new Error("사진 파일 경로가 없습니다.");
-    throw new Error("사진 파일이 촬영 폴더 밖을 가리킵니다.");
-  }
-  return candidate;
-}
-
-function safeFolderName(value: string) {
-  return normalizeNfc(value).replace(/[\\/:*?"<>|\0]/g, "_").trim() || "이름없음";
-}
-
-function matchingDuplicateRaws(
-  picked: PersonSelectRawFile,
-  rawCandidates: PersonSelectRawFile[],
-  candidateTimes: Array<CaptureTime | null>,
-) {
-  const pickedIndex = rawCandidates.findIndex((candidate) => candidate.relPath === picked.relPath);
-  const pickedTime = candidateTimes[pickedIndex];
-  if (!pickedTime) return [picked];
-  return rawCandidates.filter((candidate, index) => (
-    candidate.size === picked.size
-    && candidateTimes[index]?.timestampMs === pickedTime.timestampMs
-  ));
-}
 
 export async function executePersonSelectRawMatch(input: {
   targets: readonly PersonSelectRawMatchTarget[];
@@ -153,41 +115,22 @@ export async function executePersonSelectRawMatch(input: {
   let conflictCount = 0;
   let done = 0;
 
-  const captureCache = new Map<string, Promise<CaptureTime | null>>();
-  const captureFor = (filePath: string) => {
-    let current = captureCache.get(filePath);
-    if (!current) {
-      current = runtime.readCaptureTime(filePath).catch(() => null);
-      captureCache.set(filePath, current);
-    }
-    return current;
-  };
+  const captureFor = createPersonSelectCaptureTimeCache(runtime.readCaptureTime);
 
   for (const choice of input.targets) {
     const name = choice.ownerName;
     const rawCandidates = input.rawIndex.get(personSelectRawBasename(choice.originalFileName)) ?? [];
-    const jpgPath = safeSourceFile(input.jpgRoot, choice.sourceRelPath);
-    const jpgCaptureTime = await captureFor(jpgPath);
-    const candidateTimes = await Promise.all(
-      rawCandidates.map((candidate) => captureFor(candidate.path)),
-    );
-    const resolved = resolveCaptureTimeCandidate({
-      jpgCaptureTime,
-      jpgRelativePath: choice.sourceRelPath,
-      candidates: rawCandidates.map((candidate, index) => ({
-        id: candidate.relPath,
-        captureTime: candidateTimes[index],
-        fileSize: candidate.size,
-        relativePath: candidate.relPath,
-      })),
+    const resolution = await resolvePersonSelectRawCandidate({
+      choice,
+      rawCandidates,
+      jpgRoot: input.jpgRoot,
+      captureFor,
     });
-    const picked = resolved.confirmedCandidateId
-      ? rawCandidates.find((candidate) => candidate.relPath === resolved.confirmedCandidateId) ?? null
-      : null;
+    const picked = resolution.picked;
 
     if (!picked) {
-      const candidates = rawCandidates.map((file) => file.relPath);
-      const reason = resolved.status;
+      const candidates = resolution.candidatePaths;
+      const reason = resolution.status;
       if (reason === "raw_missing") missing.push({ name, jpg: choice.originalFileName });
       else if (reason === "multiple_candidates") {
         ambiguous.push({ name, jpg: choice.originalFileName, candidates });
@@ -199,11 +142,10 @@ export async function executePersonSelectRawMatch(input: {
       reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason, candidates });
     } else if (input.mode === "mark") {
       input.onStageChange?.("WRITING_XMP");
-      const duplicateRaws = matchingDuplicateRaws(picked, rawCandidates, candidateTimes);
       if (choice.customerRating !== null) ratingCount += 1;
       if (choice.customerColorLabel !== null) colorCount += 1;
       if (choice.markConflict) conflictCount += 1;
-      for (const raw of duplicateRaws) {
+      for (const raw of resolution.duplicateRaws) {
         try {
           markedSidecars.push(await runtime.markRawSidecar({
             raw,
@@ -222,7 +164,7 @@ export async function executePersonSelectRawMatch(input: {
       }
     } else {
       input.onStageChange?.("COPYING_RAW");
-      const targetDir = path.join(input.outputRoot, safeFolderName(name));
+      const targetDir = path.join(input.outputRoot, normalizePersonSelectOutputFolderName(name));
       try {
         await runtime.createDirectory(targetDir);
         const operation = await runtime.copyRaw({
