@@ -4,12 +4,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { FieldScene, FieldStats, MedicalDepartment } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
-import {
-  manualPhotoDepartmentResolution,
-  resolvePhotoDepartmentEvidence,
-} from "@/lib/photo-classifier/departmentResolver";
+import { resolvePhotoDepartmentEvidence } from "@/lib/photo-classifier/departmentResolver";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
-import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
@@ -89,6 +85,7 @@ import { useFieldSceneReviewActions } from "./useFieldSceneReviewActions";
 import { usePhotoSortingSourceActions } from "./usePhotoSortingSourceActions";
 import { usePhotoSortingAiPreview } from "./usePhotoSortingAiPreview";
 import { usePhotoSortingStudioActions } from "./usePhotoSortingStudioActions";
+import { usePhotoSortingHandoff } from "./usePhotoSortingHandoff";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -749,60 +746,30 @@ function PhotoSortingInner({
     setStats: setStudioStats,
   });
 
-  // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
-  // usePhotoClassificationHandoffStore에 값이 실려 오고 이 Workspace가 열린다. 마운트 시 한 번
-  // 그 값으로 로컬 state를 채우고, rootDir가 실제로 반영된 다음 렌더에서 handleFieldSort/
-  // handleStudioSort를 "페이지 버튼을 누른 것과 동일하게" 호출한다 — 별도 실행 경로를
-  // 만들지 않는다. setRootDir 직후 같은 tick에서 바로 호출하면 handleFieldSort/handleStudioSort
-  // 클로저가 아직 이전(null) rootDir를 참조하므로, rootDir가 반영된 다음 렌더를 기다린다.
-  const handoffPendingRef = useRef(false);
-  useEffect(() => {
-    if (!isModal) return;
-    const handoff = usePhotoClassificationHandoffStore.getState().consume();
-    if (!handoff?.rootDir) return;
-    setPhotoMode(handoff.photoMode);
-    departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${handoff.rootDir.name}`;
-    setCurrentLocalFolder(handoff.rootDir);
-    setRootDir(handoff.rootDir);
-    if (handoff.photoMode === "field") {
-      if (handoff.department) {
-        setDepartment(handoff.department);
-        setPhotoDepartmentResolution(handoff.departmentResolution ?? manualPhotoDepartmentResolution(handoff.department));
-        setDepartmentPickerOpen(false);
-      }
-      if (handoff.gapMinutes != null) setGapMinutes(handoff.gapMinutes);
-      if (handoff.fastAnalyzeMode != null) setFastAnalyzeMode(handoff.fastAnalyzeMode);
-      if (handoff.departmentLogicEnabled != null) setDepartmentLogicEnabled(handoff.departmentLogicEnabled);
-      if (handoff.aiNamingEnabled != null) setAiNamingEnabled(handoff.aiNamingEnabled);
-      if (handoff.qualityAnalysisEnabled != null) setQualityAnalysisEnabled(handoff.qualityAnalysisEnabled);
-      if (handoff.profileClassificationEnabled != null) setProfileClassificationEnabled(handoff.profileClassificationEnabled);
-    } else {
-      if (handoff.lightingSensitivity) setStudioOpts((o) => ({ ...o, lightingSensitivity: handoff.lightingSensitivity! }));
-      if (handoff.studioSubMode) setStudioSubMode(handoff.studioSubMode);
-    }
-    handoffPendingRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModal]);
-
-  useEffect(() => {
-    if (!handoffPendingRef.current || !rootDir) return;
-    handoffPendingRef.current = false;
-    // handleFieldSort/handleStudioSort 내부의 개별 단계는 각자 로컬 try/catch로 대체값 처리를
-    // 하지만(체크포인트 복구), 폴더 접근 권한 상실처럼 그 전체를 깨는 예외는 여기서만 잡힌다 —
-    // 이 경우에만 "성공했다"는 오해가 안 생기게 실패를 채팅에 알린다(스펙 §37, §44).
-    const run = photoMode === "field" ? handleFieldSort() : handleStudioSort();
-    run.catch((error) => {
-      const message = error instanceof Error ? error.message : "사진 분류 중 오류가 발생했습니다.";
-      useOliviaConversationStore.getState().appendMessage({
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `사진 분류 중 오류가 발생했습니다. (${message})`,
-        blocks: [{ type: "text", text: `사진 분류 중 오류가 발생했습니다. (${message})` }],
-        createdAt: new Date().toISOString(),
-        status: "complete",
-      });
-    });
-  }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
+  usePhotoSortingHandoff({
+    enabled: isModal,
+    clientId,
+    workflowRunId,
+    rootDirectory: rootDir,
+    photoMode,
+    departmentContextKeyRef,
+    setCurrentLocalFolder,
+    setRootDirectory: setRootDir,
+    setPhotoMode,
+    setDepartment,
+    setDepartmentResolution: setPhotoDepartmentResolution,
+    setDepartmentPickerOpen,
+    setGapMinutes,
+    setFastAnalyzeMode,
+    setDepartmentLogicEnabled,
+    setAiNamingEnabled,
+    setQualityAnalysisEnabled,
+    setProfileClassificationEnabled,
+    setStudioOptions: setStudioOpts,
+    setStudioSubMode,
+    runFieldClassification: handleFieldSort,
+    runStudioClassification: handleStudioSort,
+  });
 
   const renderPhotoSourceControl = (emptyLabel: string) => (
     <PhotoSourceControl
