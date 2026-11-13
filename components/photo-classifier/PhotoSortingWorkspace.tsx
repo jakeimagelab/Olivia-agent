@@ -27,9 +27,8 @@ import type {
 } from "@/lib/photo-classifier/hybrid-types";
 import { analyzeBrowserFieldFolder } from "@/lib/photo-classifier/fieldFolderAnalysis";
 import { runBrowserFieldClassification } from "@/lib/photo-classifier/browserFieldClassificationRunner";
+import { runBrowserFieldReviewConfirmation } from "@/lib/photo-classifier/browserFieldReviewRunner";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
-import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
-import { executePlannedFieldOutput, renameConfirmedFieldScenes } from "@/lib/photo-classifier/fieldOutput";
 import {
   applyOverrides, adjustGranularity,
   DEFAULT_WEIGHT_PROFILE,
@@ -889,59 +888,36 @@ function PhotoSortingInner({
     setStep(3);
     setClassificationJobState("APPROVED");
     try {
-
-    if (fastAnalyzeMode || fieldScenes.some((scene) => !scene.sceneDir)) {
-      // 승인 전 계획 모드: 씬 검토 확정 후에만 실제 파일 이동 실행
       setProgress({ cur:0, total:0, msg:"폴더 정리 중..." });
-      const output = await executePlannedFieldOutput({
+      const result = await runBrowserFieldReviewConfirmation({
         rootDirectory: rootDir,
         scenes: fieldScenes,
+        jpgBaseDirectory: fieldJpgBaseDir,
         rawFiles: fieldRawHandles,
+        rawCount: fieldRawCount,
+        fastAnalyzeMode,
+        qualityAnalysisEnabled,
+        profileClassificationEnabled,
         boundaryDecisions,
         sceneCorrections,
         accuracyReport,
-        checkpointId: `${rootDir.name}:${department}:${gapMinutes}:precise-v2`,
+        mergeCandidates,
+        mergeDecisions,
+        department,
+        departmentDisplayName: DEPARTMENT_DISPLAY[department],
+        gapMinutes,
+        departmentLogicEnabled,
+        aiNamingEnabled,
+        rawSelectMode,
         isCancelled: () => cancelRef.current,
-        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+        onOutputProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+        onSecondaryProgress: ({ current, total, fileName }) => setProgress({ cur: current, total, msg: `분석: ${fileName}` }),
+        onScenesUpdated: setFieldScenes,
       });
-      const updated = output.scenes;
-      setFieldJpgBaseDir(output.jpgBaseDirectory);
-      setFieldScenes(updated);
-
-      if (qualityAnalysisEnabled || profileClassificationEnabled) {
-        await runSecondaryAnalysis(updated, output.jpgBaseDirectory);
-      } else {
-        setFieldStats({
-          totalJpg: output.totalFiles, totalRaw: fieldRawCount,
-          totalScenes: updated.length, totalSubScenes: 0,
-          totalProfile: 0, totalQualityReject: 0,
-          selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
-        });
-        setStep(4);
-      }
-      return;
-    }
-
-    // 정밀 정리 모드: 폴더 이름 변경만 적용
-    if (!fieldJpgBaseDir) return;
-    const updated = await renameConfirmedFieldScenes({
-      scenes: fieldScenes,
-      jpgBaseDirectory: fieldJpgBaseDir,
-    });
-    setFieldScenes(updated);
-
-    if (qualityAnalysisEnabled || profileClassificationEnabled) {
-      await runSecondaryAnalysis(updated);
-    } else {
+      setFieldJpgBaseDir(result.jpgBaseDirectory);
+      setFieldScenes(result.scenes);
+      setFieldStats(result.stats);
       setStep(4);
-      setFieldStats({
-        totalJpg: updated.reduce((s,sc)=>s+sc.fileCount,0),
-        totalRaw: fieldRawCount,
-        totalScenes: updated.length,
-        totalSubScenes: 0, totalProfile: 0, totalQualityReject: 0,
-        selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
-      });
-    }
     } catch (error) {
       // 2026-09-10 수정 지시서 3번 — "완료"(폴더 정리 실행) 버튼 핸들러에 최상위 try/catch가
       // 없어서, 폴더 핸들 획득 실패(권한 만료 등) 시 진행률 화면만 뜬 채 멈췄다. 일부 파일은
@@ -952,45 +928,7 @@ function PhotoSortingInner({
       setStep(2);
       setClassificationJobState("WAITING_REVIEW");
     }
-  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
-
-  const runSecondaryAnalysis = async (
-    scenes: FieldScene[],
-    jpgBaseDirectory: FileSystemDirectoryHandle | null = fieldJpgBaseDir,
-  ) => {
-    if (!rootDir) return;
-    const result = await runFieldSecondaryAnalysis({
-      scenes,
-      rootDir,
-      fieldJpgBaseDir: jpgBaseDirectory,
-      fieldRawCount,
-      qualityAnalysisEnabled,
-      profileClassificationEnabled,
-      mergeCandidates,
-      mergeDecisions,
-      reportContext: {
-        fastAnalyzeMode,
-        department,
-        departmentDisplayName: DEPARTMENT_DISPLAY[department],
-        gapMinutes,
-        departmentLogicEnabled,
-        aiNamingEnabled,
-        qualityAnalysisEnabled,
-        profileClassificationEnabled,
-        rawSelectMode,
-      },
-      isCancelled: () => cancelRef.current,
-      onProgress: ({ current, total, fileName }) => setProgress({ cur: current, total, msg: `분석: ${fileName}` }),
-      onScenesUpdated: setFieldScenes,
-    });
-    setFieldStats({
-      totalJpg: result.total, totalRaw: fieldRawCount,
-      totalScenes: result.scenes.length, totalSubScenes: 0,
-      totalProfile: result.profileTotal, totalQualityReject: result.qualityRejectTotal,
-      selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
-    });
-    setStep(4);
-  };
+  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, mergeCandidates, mergeDecisions, department, gapMinutes, departmentLogicEnabled, aiNamingEnabled, rawSelectMode, setProgress]);
 
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
