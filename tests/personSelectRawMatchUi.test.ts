@@ -5,7 +5,7 @@ const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8"
 const rawMatchControls = readFileSync("components/person-select/admin/RawMatchControls.tsx", "utf8");
 const rawMatchController = readFileSync("components/person-select/admin/hooks/usePersonSelectRawMatchController.ts", "utf8");
 const matchingPanels = readFileSync("components/person-select/admin/PersonSelectMatchingPanels.tsx", "utf8");
-const bridge = readFileSync("components/select-gallery/CustomerBridgeSelect.tsx", "utf8");
+const bridgeHeader = readFileSync("components/select-gallery/CustomerBridgeHeader.tsx", "utf8");
 const bridgeCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
 const adminCss = readFileSync("components/person-select/PersonSelectAdmin.module.css", "utf8");
 
@@ -20,9 +20,9 @@ describe("person select RAW match admin UI", () => {
   });
 
   it("renders the shared admin RAW action before Bridge review", () => {
-    const toolbar = bridge.slice(bridge.indexOf("{adminToolbarAction}"), bridge.indexOf("<section className={styles.workspace}"));
+    const toolbar = bridgeHeader.slice(bridgeHeader.indexOf("{adminToolbarAction}"), bridgeHeader.indexOf("{adminToolbarStatus"));
     expect(toolbar.indexOf("{adminToolbarAction}")).toBeGreaterThanOrEqual(0);
-    expect(toolbar.indexOf("openReview")).toBeGreaterThan(toolbar.indexOf("{adminToolbarAction}"));
+    expect(toolbar.indexOf("onOpenReview")).toBeGreaterThan(toolbar.indexOf("{adminToolbarAction}"));
   });
 
   it("shows the submitted/current chooser and visible disabled reasons", () => {

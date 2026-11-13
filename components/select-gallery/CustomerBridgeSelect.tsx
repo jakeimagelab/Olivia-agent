@@ -7,11 +7,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  customerBridgeRatingTargets,
-  type CustomerBridgeColorLabel,
-  type CustomerBridgeRating,
-} from "@/lib/select-gallery/customerBridge";
 import { type SelectionMediaUrls, type SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import type {
   PersonSelectClientImagePageState,
@@ -26,7 +21,6 @@ import type {
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
-import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
@@ -41,6 +35,7 @@ import { useCustomerBridgeResetController } from "./useCustomerBridgeResetContro
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
 import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserController";
+import { useCustomerBridgeSideController } from "./useCustomerBridgeSideController";
 import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -362,42 +357,27 @@ export default function CustomerBridgeSelect({
     unreadMessages,
     sendingMessage,
     messagesEndRef,
-    sendMessage,
-  } = useCustomerBridgeMessages({
+    openMessages,
+    closeMobileSide,
+    applyMainRating,
+    applyMainColor,
+    handleQualityReview,
+    handleSendMessage,
+    updateFocusedNote,
+  } = useCustomerBridgeSideController({
     endpointBase,
-    enabled: messagesEnabled,
+    messagesEnabled,
     mobile,
     focusedImageId,
+    activeImageIds,
+    applyRatingTo,
+    toggleColorTo,
+    updateNote,
+    reviewQuality,
   });
-  const openMessages = useCallback(() => {
-    setSideTab("chat");
-    setMobileSideOpen(true);
-  }, [setMobileSideOpen, setSideTab]);
   const startQualityAnalysis = useCallback(() => {
     void startQuality();
   }, [startQuality]);
-
-  const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
-    applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
-  }, [activeImageIds, applyRatingTo, focusedImageId]);
-
-  const applyMainColor = useCallback((colorLabel: CustomerBridgeColorLabel) => {
-    toggleColorTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), colorLabel);
-  }, [activeImageIds, focusedImageId, toggleColorTo]);
-
-  const closeMobileSide = useCallback(() => setMobileSideOpen(false), [setMobileSideOpen]);
-  const handleQualityReview = useCallback((imageId: string, status: "confirmed_issue" | "confirmed_normal") => {
-    void reviewQuality(imageId, status);
-  }, [reviewQuality]);
-
-  const handleSendMessage = useCallback(() => {
-    void sendMessage();
-  }, [sendMessage]);
-
-  const updateFocusedNote = useCallback((value: string) => {
-    if (!focusedImageId) return;
-    updateNote(focusedImageId, value);
-  }, [focusedImageId, updateNote]);
 
   const closeGuide = useCallback(() => {
     setGuideOpen(false);
