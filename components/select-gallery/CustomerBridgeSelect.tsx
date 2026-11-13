@@ -25,17 +25,16 @@ import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
-import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import {
   useCustomerBridgeMarksController,
   type CustomerBridgeInitialSelection,
 } from "./useCustomerBridgeMarksController";
 import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLayout";
-import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
 import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserController";
 import { useCustomerBridgeSideController } from "./useCustomerBridgeSideController";
+import { useCustomerBridgeFinalizeController } from "./useCustomerBridgeFinalizeController";
 import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -230,35 +229,6 @@ export default function CustomerBridgeSelect({
   const handleDownload = useCallback((format: CustomerBridgeDownloadFormat) => {
     void downloadSelected(format);
   }, [downloadSelected]);
-  // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
-  const {
-    error: submitError,
-    setError: setSubmitError,
-    submitting,
-    reviewOpen: submitReviewOpen,
-    openReview: openSubmitReview,
-    closeReview: closeSubmitReview,
-    submit,
-    reviewItems: submitReviewItems,
-    reviewSections: submitReviewSections,
-  } = useCustomerBridgeSubmission({
-    endpointBase,
-    localStorageScope,
-    readOnly,
-    selectedIds: customerSelectedIds,
-    ratings: customerRatings,
-    colorLabels: customerColorLabels,
-    notes,
-    images,
-    pendingCount: selectionSync.pendingCount,
-    flushNow: flushSelectionSync,
-    getRevision: getDraftRevision,
-    onSubmitted,
-    onStorageError: reportOptionalStorageError,
-  });
-  const openSubmitReviewAction = useCallback(() => {
-    void openSubmitReview();
-  }, [openSubmitReview]);
   const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const {
@@ -305,32 +275,43 @@ export default function CustomerBridgeSelect({
     if (focusedImageId) openFullscreen(focusedImageId);
   }, [focusedImageId, openFullscreen]);
 
-  const handleResetComplete = useCallback(() => {
-    clearActiveSelection();
-    resetReview();
-    setFilter("all");
-    setSubmitError("");
-  }, [clearActiveSelection, resetReview, setFilter, setSubmitError]);
   const {
+    submitError,
+    submitting,
+    submitReviewOpen,
+    openSubmitReview: openSubmitReviewAction,
+    closeSubmitReview,
+    submit,
+    submitReviewItems,
+    submitReviewSections,
     resetButtonRef,
     resetConfirmOpen,
     resetting,
     openResetConfirm,
     closeResetConfirm,
     resetSelection,
-  } = useCustomerBridgeResetController({
+  } = useCustomerBridgeFinalizeController({
+    endpointBase,
+    localStorageScope,
     readOnly,
-    customerRatings,
-    customerColorLabels,
+    selectedIds: customerSelectedIds,
+    ratings: customerRatings,
+    colorLabels: customerColorLabels,
     notes,
+    images,
+    pendingCount: selectionSync.pendingCount,
+    flushSelectionSync,
+    getDraftRevision,
+    onSubmitted,
+    onStorageError: reportOptionalStorageError,
     serverRatings,
     serverColorLabels,
     serverNotes,
     enqueueSelectionSync,
     clearDisplayedSelection,
-    flushSelectionSync,
-    onResetComplete: handleResetComplete,
-    onError: setSubmitError,
+    clearActiveSelection,
+    resetReview,
+    setFilter,
   });
 
   useCustomerBridgeMediaRequests({
