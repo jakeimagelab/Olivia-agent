@@ -1,17 +1,13 @@
 import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
-import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
 import { getConfiguredWorkerId, isKnownWorkerId } from "@/lib/remoteWorkerAuth";
 import {
   canRunOnNonPrimaryWorker,
   isRemoteJobUuid,
   normalizeRemoteJobAction,
 } from "@/lib/remote-jobs/requestValidation";
-import { normalizePersonSelectRequestPayload } from "@/lib/remote-jobs/personSelectRequestPayload";
-import { normalizeRawMatchCopyRequestPayload } from "@/lib/remote-jobs/rawMatchCopyRequestPayload";
-import { normalizePhotoBrowseRequestPayload } from "@/lib/remote-jobs/photoBrowseRequestPayload";
-import { normalizePhotoOperationRequestPayload } from "@/lib/remote-jobs/photoOperationRequestPayload";
+import { normalizeRemoteJobRequestPayload } from "@/lib/remote-jobs/requestPayload";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,62 +49,13 @@ export async function POST(request: NextRequest) {
       ? body.payload
       : {};
 
-  let payload: Record<string, unknown> = requestedPayload;
-
+  let payload: Record<string, unknown>;
   try {
-    const photoBrowsePayload = normalizePhotoBrowseRequestPayload(action, requestedPayload);
-    if (photoBrowsePayload !== null) payload = photoBrowsePayload;
+    payload = normalizeRemoteJobRequestPayload(action, requestedPayload);
   } catch (error) {
     return Response.json({
       ok: false,
-      error: error instanceof Error ? error.message : "올바르지 않은 원격 사진 탐색 요청입니다.",
-    }, { status: 400 });
-  }
-
-  try {
-    const photoOperationPayload = normalizePhotoOperationRequestPayload(action, requestedPayload);
-    if (photoOperationPayload !== null) payload = photoOperationPayload;
-  } catch (error) {
-    return Response.json({
-      ok: false,
-      error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다.",
-    }, { status: 400 });
-  }
-
-  if (action === "PHOTO_RAW_MATCH_COPY") {
-    try {
-      payload = normalizeRawMatchCopyRequestPayload(requestedPayload);
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 RAW 복사 요청입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "VIDEO_INTERVIEW_ANALYZE" || action === "VIDEO_AUDIO_EXTRACT") {
-    // 영상작업실: 촬영 폴더는 원격 NAS 브라우저(SOURCE_ROOT 기준)에서 고른 상대 경로다.
-    try {
-      const sourceRelativePath = normalizeRemoteNasRelativePath(
-        typeof requestedPayload.source_relative_path === "string" ? requestedPayload.source_relative_path : "",
-      );
-      if (!sourceRelativePath) throw new Error("촬영 폴더를 선택해 주세요.");
-      const context = typeof requestedPayload.context === "string"
-        ? requestedPayload.context.replace(/[\u0000-\u001f]/g, " ").replace(/^-+/, "").trim().slice(0, 500)
-        : "";
-      payload = {
-        source_relative_path: sourceRelativePath,
-        ...(action === "VIDEO_INTERVIEW_ANALYZE" && context ? { context } : {}),
-      };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 촬영 폴더입니다." }, { status: 400 });
-    }
-  }
-
-  try {
-    const personSelectPayload = normalizePersonSelectRequestPayload(action, requestedPayload);
-    if (personSelectPayload !== null) payload = personSelectPayload;
-  } catch (error) {
-    return Response.json({
-      ok: false,
-      error: error instanceof Error ? error.message : "올바르지 않은 개인별 사진 작업 요청입니다.",
+      error: error instanceof Error ? error.message : "올바르지 않은 원격 작업 요청입니다.",
     }, { status: 400 });
   }
 
