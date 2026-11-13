@@ -4,7 +4,7 @@ import {
   reconcilePersonChoiceMaps,
   type PersonSelectChoice,
   type PersonSelectImageData,
-} from "@/components/person-select/usePersonChoiceSync";
+} from "@/lib/person-select/personChoiceSyncState";
 import { personSelectPhotoTilePropsEqual } from "@/components/person-select/PersonSelectPhotoTile";
 import { personSelectFilmstripThumbnailPropsEqual } from "@/components/person-select/PersonSelectFilmstripImages";
 import { splitSelectionSyncPatches } from "@/lib/person-select/selectionSync";
