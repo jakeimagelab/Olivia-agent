@@ -55,6 +55,7 @@ import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
 import {
+  buildPersonFeatureTags,
   buildPersonGroups,
   buildStudioGroups,
   computeClothingLabel,
@@ -107,7 +108,6 @@ import {
   C,
   Card,
   ProgressBar,
-  SectionPill,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
@@ -127,6 +127,7 @@ import { StudioClassificationSettings } from "./StudioClassificationSettings";
 import { PhotoClassificationProgressView } from "./PhotoClassificationProgressView";
 import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "./FieldSceneReviewList";
+import { StudioGroupEditView } from "./StudioGroupEditView";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -3082,121 +3083,56 @@ function PhotoSortingInner({
     const etcGroup    = studioGroups.find(g=>g.isEtc);
     const normalGroups = studioGroups.filter(g=>!g.isEtc);
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:820}}>
-        <div style={{padding:14,background:"#F5F0FF",borderRadius:10,fontSize:12,color:C.purple,border:"1px solid #DDD6FE"}}>
+      <StudioGroupEditView
+        description={<>
           AI가 의상·포즈 기준으로 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
-        </div>
-        {etcGroup && (
-          <Card>
-            <div style={{padding:"12px 18px",background:"#FEF2F2",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:12,fontWeight:600,color:C.red}}>00_ETC_조명불량</span>
-              <span style={{fontSize:11,color:C.red,background:"#FEE2E2",padding:"2px 8px",borderRadius:20}}>{etcGroup.files.length}장</span>
-            </div>
-            <div style={{display:"flex",gap:4,padding:"10px 18px",overflowX:"auto"}}>
-              {etcGroup.files.slice(0,8).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:52,height:38,objectFit:"cover",borderRadius:4,flexShrink:0}} alt=""/>:<div key={f.name} style={{width:52,height:38,background:C.border,borderRadius:4,flexShrink:0}}/>)}
-            </div>
-          </Card>
-        )}
-        <Card>
-          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>
-            의상·포즈 그룹 — {normalGroups.length}개 / {normalGroups.reduce((s,g)=>s+g.files.length,0)}장
-          </div>
-          <div style={{padding:"8px 0"}}>
-            {normalGroups.map((g,i)=>(
-              <div key={g.key} style={{borderBottom:i<normalGroups.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
-                <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"100px 60px 1fr auto",gap:12,alignItems:"center"}}>
-                  <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                    {g.files.slice(0,4).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:22,height:16,objectFit:"cover",borderRadius:2}} alt=""/>:<div key={f.name} style={{width:22,height:16,background:C.border,borderRadius:2}}/>)}
-                  </div>
-                  <SectionPill label={g.poseType} count={g.files.length} color={g.poseType==="Standing"?C.teal:C.orange}/>
-                  <input value={g.editedFolderName} onChange={e=>setStudioGroups(prev=>prev.map(p=>p.key===g.key?{...p,editedFolderName:e.target.value}:p))} style={{height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
-                  <span style={{fontSize:9,background:C.light,color:C.teal,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap"}}>신뢰도 {Math.round(g.files.reduce((s,f)=>s+f.confidence,0)/g.files.length*100)}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>승인</Btn>
-        </div>
-      </div>
+        </>}
+        groupHeading="의상·포즈 그룹"
+        groupCountUnit="개"
+        etcFiles={etcGroup?.files ?? []}
+        groups={normalGroups.map((group) => ({
+          id: group.key,
+          kind: "concept" as const,
+          editedFolderName: group.editedFolderName,
+          files: group.files,
+          poseType: group.poseType,
+          confidence: group.files.reduce((sum, file) => sum + file.confidence, 0) / group.files.length,
+        }))}
+        onFolderNameChange={(groupId, value) => setStudioGroups((current) => current.map((group) => (
+          group.key === groupId ? { ...group, editedFolderName: value } : group
+        )))}
+        onBack={() => setStep(0)}
+        onApprove={() => setStep(4)}
+      />
     );
-  };
-
-  const PERSON_FEATURE_LABELS: Record<string,string> = {
-    male:"남성", female:"여성", unknown:"미확인",
-    "20s":"20대","30s":"30대","40s":"40대","50s":"50대","60s+":"60대+",
-    black:"검정",brown:"갈색",blonde:"금발",white_gray:"흰/회색",other:"기타",
-    short:"단발",medium:"중간",long:"장발",bald:"민머리",
   };
 
   const StudioGroupStep3 = () => {
     const etcGroup    = personGroups.find(g=>g.isEtc);
     const normalGroups = personGroups.filter(g=>!g.isEtc);
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:820}}>
-        <div style={{padding:14,background:"#F5F0FF",borderRadius:10,fontSize:12,color:C.purple,border:"1px solid #DDD6FE"}}>
+      <StudioGroupEditView
+        description={<>
           AI가 얼굴 특징(성별·연령·헤어·안경)을 기준으로 인물별 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
-        </div>
-        {etcGroup && (
-          <Card>
-            <div style={{padding:"12px 18px",background:"#FEF2F2",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:12,fontWeight:600,color:C.red}}>00_ETC_조명불량</span>
-              <span style={{fontSize:11,color:C.red,background:"#FEE2E2",padding:"2px 8px",borderRadius:20}}>{etcGroup.files.length}장</span>
-            </div>
-            <div style={{display:"flex",gap:4,padding:"10px 18px",overflowX:"auto"}}>
-              {etcGroup.files.slice(0,8).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:52,height:38,objectFit:"cover",borderRadius:4,flexShrink:0}} alt=""/>:<div key={f.name} style={{width:52,height:38,background:C.border,borderRadius:4,flexShrink:0}}/>)}
-            </div>
-          </Card>
-        )}
-        <Card>
-          <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>
-            인물 그룹 — {normalGroups.length}명 / {normalGroups.reduce((s,g)=>s+g.files.length,0)}장
-          </div>
-          <div style={{padding:"8px 0"}}>
-            {normalGroups.map((g,i)=>{
-              const pf = g.features;
-              const tags = [
-                pf.gender!=="unknown"?PERSON_FEATURE_LABELS[pf.gender]:null,
-                pf.ageBand!=="unknown"?PERSON_FEATURE_LABELS[pf.ageBand]:null,
-                pf.hairColor!=="unknown"?PERSON_FEATURE_LABELS[pf.hairColor]+"머리":null,
-                pf.hairLength!=="unknown"?PERSON_FEATURE_LABELS[pf.hairLength]:null,
-                pf.hasGlasses?"안경":null,
-              ].filter(Boolean);
-              return (
-                <div key={g.id} style={{borderBottom:i<normalGroups.length-1?`1px solid ${C.border}`:"none",padding:"12px 20px"}}>
-                  <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"56px auto 1fr 44px",gap:12,alignItems:"center"}}>
-                    {g.sampleThumb
-                      ? <img src={g.sampleThumb} style={{width:44,height:56,objectFit:"cover",borderRadius:6,border:`1px solid ${C.border}`}} alt=""/>
-                      : <div style={{width:44,height:56,background:C.border,borderRadius:6}}/>
-                    }
-                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                      <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                        {tags.map((tag,ti)=>(
-                          <span key={ti} style={{fontSize:9,background:C.light,color:C.teal,padding:"2px 6px",borderRadius:4,whiteSpace:"nowrap"}}>{tag}</span>
-                        ))}
-                        <span style={{fontSize:9,background:"rgba(232,93,44,.10)",color:"#FFC3AD",padding:"2px 6px",borderRadius:4}}>{g.files.length}장</span>
-                      </div>
-                      <div style={{display:"flex",gap:3}}>
-                        {g.files.slice(0,4).map(f=>f.thumbUrl?<img key={f.name} src={f.thumbUrl} style={{width:22,height:16,objectFit:"cover",borderRadius:2}} alt=""/>:<div key={f.name} style={{width:22,height:16,background:C.border,borderRadius:2}}/>)}
-                      </div>
-                    </div>
-                    <input value={g.editedFolderName}
-                      onChange={e=>setPersonGroups(prev=>prev.map(p=>p.id===g.id?{...p,editedFolderName:e.target.value}:p))}
-                      style={{height:34,border:`1.5px solid ${C.border}`,borderRadius:8,padding:"0 10px",fontSize:12,fontFamily:"inherit",outline:"none"}}/>
-                    <span style={{fontSize:9,background:C.light,color:C.muted,padding:"2px 6px",borderRadius:4,textAlign:"center"}}>{g.index}번</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn style={{background:C.purple}} onClick={()=>setStep(4)}>승인</Btn>
-        </div>
-      </div>
+        </>}
+        groupHeading="인물 그룹"
+        groupCountUnit="명"
+        etcFiles={etcGroup?.files ?? []}
+        groups={normalGroups.map((group) => ({
+          id: group.id,
+          kind: "person" as const,
+          editedFolderName: group.editedFolderName,
+          files: group.files,
+          sampleThumb: group.sampleThumb,
+          tags: buildPersonFeatureTags(group.features, { includeHairLength: true }),
+          index: group.index,
+        }))}
+        onFolderNameChange={(groupId, value) => setPersonGroups((current) => current.map((group) => (
+          group.id === groupId ? { ...group, editedFolderName: value } : group
+        )))}
+        onBack={() => setStep(0)}
+        onApprove={() => setStep(4)}
+      />
     );
   };
 
@@ -3227,8 +3163,7 @@ function PhotoSortingInner({
               <span style={{fontSize:12,fontWeight:600,color:g.isEtc?C.red:C.purple}}>{g.editedFolderName}</span>
               <span style={{fontSize:11,color:C.hint}}>{g.files.length}장</span>
               {!g.isEtc && (() => {
-                const pf = g.features;
-                const tags = [pf.gender!=="unknown"?PERSON_FEATURE_LABELS[pf.gender]:null, pf.ageBand!=="unknown"?PERSON_FEATURE_LABELS[pf.ageBand]:null, pf.hairColor!=="unknown"?PERSON_FEATURE_LABELS[pf.hairColor]+"머리":null, pf.hasGlasses?"안경":null].filter(Boolean);
+                const tags = buildPersonFeatureTags(g.features);
                 return tags.map((t,i)=><span key={i} style={{fontSize:10,background:C.light,color:C.teal,padding:"2px 8px",borderRadius:20}}>{t}</span>);
               })()}
             </div>

@@ -8,6 +8,7 @@ import { PhotoClassificationProgressView } from "@/components/photo-classifier/P
 import { FieldSceneReviewOverview } from "@/components/photo-classifier/FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "@/components/photo-classifier/FieldSceneReviewList";
 import { FieldSceneMergeCandidateCard } from "@/components/photo-classifier/FieldSceneMergeCandidateCard";
+import { StudioGroupEditView } from "@/components/photo-classifier/StudioGroupEditView";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 function makeFieldScene(index: number, editedName: string): FieldScene {
@@ -217,5 +218,35 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("02_시술");
     expect(markup).toContain("병합하기");
     expect(markup).toContain("분리 유지");
+  });
+
+  it("renders concept and person studio groups through the shared edit view", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StudioGroupEditView, {
+        description: "AI 그룹 검토 안내",
+        groupHeading: "인물 그룹",
+        groupCountUnit: "명",
+        etcFiles: [{ name: "DARK.JPG", thumbUrl: null }],
+        groups: [{
+          id: "person-1",
+          kind: "person",
+          editedFolderName: "01_인물1",
+          files: [{ name: "A.JPG", thumbUrl: null }],
+          tags: ["여성", "40대", "안경"],
+          index: 1,
+        }],
+        onFolderNameChange: () => undefined,
+        onBack: () => undefined,
+        onApprove: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("AI 그룹 검토 안내");
+    expect(markup).toContain("00_ETC_조명불량");
+    expect(markup).toContain("인물 그룹 — 1명 / 1장");
+    expect(markup).toContain('value="01_인물1"');
+    expect(markup).toContain("여성");
+    expect(markup).toContain("안경");
+    expect(markup).toContain("승인");
   });
 });
