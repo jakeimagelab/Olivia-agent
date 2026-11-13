@@ -6,14 +6,10 @@ import type { FieldScene, FieldStats, MedicalDepartment } from "@/lib/photo-clas
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import { resolvePhotoDepartmentEvidence } from "@/lib/photo-classifier/departmentResolver";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
-import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
-import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
   AccuracyReport, ClassificationJobState, SceneBoundaryDecision,
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
-import { runBrowserFieldClassification } from "@/lib/photo-classifier/browserFieldClassificationRunner";
-import { runBrowserFieldReviewConfirmation } from "@/lib/photo-classifier/browserFieldReviewRunner";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
 import {
   applyOverrides, adjustGranularity,
@@ -86,6 +82,10 @@ import { usePhotoSortingSourceActions } from "./usePhotoSortingSourceActions";
 import { usePhotoSortingAiPreview } from "./usePhotoSortingAiPreview";
 import { usePhotoSortingStudioActions } from "./usePhotoSortingStudioActions";
 import { usePhotoSortingHandoff } from "./usePhotoSortingHandoff";
+import {
+  PHOTO_CLASSIFY_JOB_ID,
+  usePhotoSortingFieldActions,
+} from "./usePhotoSortingFieldActions";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -95,9 +95,6 @@ type PhotoMode = PhotoShootingMode;
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
-// 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
-// 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
-const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
 // 사진 분류는 Scene/촬영 카테고리 정리까지만 담당한다. JPG 셀렉과 RAW 매칭은
 // 각각 사진 셀렉/RAW 매칭 워크스페이스의 독립 단계다.
 const FIELD_STEPS  = ["설정","파일 분류","씬 검토","정리 중","완료"];
@@ -490,92 +487,53 @@ function PhotoSortingInner({
     }
   }, [aiNamingEnabled, department, departmentLogicEnabled]);
 
-  /* ════════════════════════════════════════════
-     FIELD-MODE HANDLERS
-  ═══════════════════════════════════════════ */
-  const handleFieldSort = useCallback(async () => {
-    if (!rootDir) return;
-    if (photoDepartmentResolution.status !== "resolved") {
-      setDirPickError("진료과를 확인해야 분류를 시작할 수 있습니다.");
-      setDepartmentPickerOpen(true);
-      return;
-    }
-    setBridgePlanSummary(null);
-    setStep(1); cancelRef.current = false; setCopyLog([]); setBoundaryDecisions([]); setSceneCorrections([]);
-    try {
-    useBackgroundJobsStore.getState().startJob({
-      id: PHOTO_CLASSIFY_JOB_ID, label: "사진 분류 중",
-      cur: 0, total: 0, status: "running",
-      returnPath: "/photo-sorting?mode=classification", cancelRef,
-    });
-    classificationAbortRef.current?.abort();
-    const abortController = new AbortController();
-    classificationAbortRef.current = abortController;
-    const classification = await runBrowserFieldClassification({
-      rootDirectory: rootDir,
+  const {
+    classifyField: handleFieldSort,
+    confirmScenes: handleConfirmScenes,
+  } = usePhotoSortingFieldActions({
+    rootDirectory: rootDir,
+    departmentResolved: photoDepartmentResolution.status === "resolved",
+    announceCompletion: isModal || isEmbedded,
+    settings: {
       department,
       gapMinutes,
       fastAnalyzeMode,
       aiNamingEnabled,
       departmentLogicEnabled,
+      qualityAnalysisEnabled,
+      profileClassificationEnabled,
+      rawSelectMode,
       weightProfile: aiWeightProfile,
-      signal: abortController.signal,
-      isCancelled: () => cancelRef.current,
-      onStateChange: setClassificationJobState,
-      onProgress: setProgress,
-      onFilesScanned: (rawFiles) => {
-        setFieldRawCount(rawFiles.length);
-        setFieldRawHandles(rawFiles);
-      },
-    });
-    setBoundaryDecisions(classification.boundaryDecisions);
-    setCopyLog(classification.logs);
-    if (classification.status === "cancelled") {
-      useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "cancelled");
-      return;
-    }
-    const newScenes = classification.scenes;
-    const total = classification.total;
-
-    setFieldScenes(newScenes);
-    setStep(2);
-    useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "done");
-
-    // PHASE 4(2026-08-30) — 채팅/OS 창에서 시작했을 때만(isModal || isEmbedded) 결과 요약을
-    // 채팅에 남긴다. 실제 newScenes/jpgEntries 결과가 나온 뒤에만 부르므로 "성공했다"는 거짓
-    // 보고가 아니다(스펙 §44).
-    if (isModal || isEmbedded) {
-      const needsReviewCount = newScenes.filter((scene) => scene.boundaryBefore?.needsReview).length;
-      const summary = `사진 분류 완료\n\n총 사진 ${total}장\n분류 Scene ${newScenes.length}개${needsReviewCount > 0 ? `\n확인 필요 ${needsReviewCount}개` : ""}`;
-      useOliviaConversationStore.getState().appendMessage({
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: summary,
-        blocks: [{ type: "text", text: summary }],
-        createdAt: new Date().toISOString(),
-        status: "complete",
-      });
-    }
-
-    // ⑤ 백그라운드: AI 씬 분석 (옵션)
-    // 피부과 기본 Naming은 AI 씬 이름 추천 토글과 별개다. 이 토글은 고급 보정만 제어하고,
-    // 장비·핸드피스·시술 행동으로 이름을 붙이는 기본 단계는 항상 실행한다.
-    if (newScenes.length > 0 && (
-      (fastAnalyzeMode && (aiNamingEnabled || departmentLogicEnabled))
-      || (department === "dermatology" && departmentLogicEnabled)
-    )) {
-      runSceneAiAnalysis(newScenes);
-    }
-    } catch (error) {
-      // 2026-09-10 수정 지시서 3번 — 이 함수는 최상위 try/catch가 없어서, 폴더 핸들 획득 실패
-      // 등으로 예외가 나면 진행률 화면만 뜬 채 아무 반응도 없이 멈췄다(에러도 안 보이고 재시도도
-      // 못 함). 실패를 명확히 보여주고 재시도할 수 있는 상태로 되돌린다.
-      const message = error instanceof Error ? error.message : String(error);
-      setCopyLog((previous) => [...previous, `❌ 오류: 사진 분류를 진행하지 못했습니다 — ${message}`]);
-      setClassificationJobState("WAITING_REVIEW");
-      useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "error");
-    }
-  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status, runSceneAiAnalysis, setDepartmentPickerOpen, setProgress]);
+    },
+    review: {
+      scenes: fieldScenes,
+      jpgBaseDirectory: fieldJpgBaseDir,
+      rawFiles: fieldRawHandles,
+      rawCount: fieldRawCount,
+      boundaryDecisions,
+      sceneCorrections,
+      accuracyReport,
+      mergeCandidates,
+      mergeDecisions,
+    },
+    cancelRef,
+    classificationAbortRef,
+    updateProgress: setProgress,
+    setStep,
+    setDirectoryError: setDirPickError,
+    setDepartmentPickerOpen,
+    setBridgePlanSummary,
+    setCopyLog,
+    setBoundaryDecisions,
+    setSceneCorrections,
+    setClassificationJobState,
+    setRawCount: setFieldRawCount,
+    setRawFiles: setFieldRawHandles,
+    setScenes: setFieldScenes,
+    setJpgBaseDirectory: setFieldJpgBaseDir,
+    setStats: setFieldStats,
+    analyzeScenes: runSceneAiAnalysis,
+  });
 
   useEffect(() => {
     if (!isEmbedded || executionMode !== "LOCAL_DIRECT" || !pendingBridgeClassificationPlan) return;
@@ -672,53 +630,6 @@ function PhotoSortingInner({
     startClassification: handleFieldSort,
     submitNaturalLanguageRequest: submitAiNlRequest,
   });
-
-  const handleConfirmScenes = useCallback(async () => {
-    if (!rootDir) return;
-    setStep(3);
-    setClassificationJobState("APPROVED");
-    try {
-      setProgress({ cur:0, total:0, msg:"폴더 정리 중..." });
-      const result = await runBrowserFieldReviewConfirmation({
-        rootDirectory: rootDir,
-        scenes: fieldScenes,
-        jpgBaseDirectory: fieldJpgBaseDir,
-        rawFiles: fieldRawHandles,
-        rawCount: fieldRawCount,
-        fastAnalyzeMode,
-        qualityAnalysisEnabled,
-        profileClassificationEnabled,
-        boundaryDecisions,
-        sceneCorrections,
-        accuracyReport,
-        mergeCandidates,
-        mergeDecisions,
-        department,
-        departmentDisplayName: DEPARTMENT_DISPLAY[department],
-        gapMinutes,
-        departmentLogicEnabled,
-        aiNamingEnabled,
-        rawSelectMode,
-        isCancelled: () => cancelRef.current,
-        onOutputProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
-        onSecondaryProgress: ({ current, total, fileName }) => setProgress({ cur: current, total, msg: `분석: ${fileName}` }),
-        onScenesUpdated: setFieldScenes,
-      });
-      setFieldJpgBaseDir(result.jpgBaseDirectory);
-      setFieldScenes(result.scenes);
-      setFieldStats(result.stats);
-      setStep(4);
-    } catch (error) {
-      // 2026-09-10 수정 지시서 3번 — "완료"(폴더 정리 실행) 버튼 핸들러에 최상위 try/catch가
-      // 없어서, 폴더 핸들 획득 실패(권한 만료 등) 시 진행률 화면만 뜬 채 멈췄다. 일부 파일은
-      // 이미 이동됐을 수 있어(REPORT/file_operation_journal.json에 기록됨) 씬 검토로 되돌리고
-      // 그 사실을 안내한다.
-      const message = error instanceof Error ? error.message : String(error);
-      setCopyLog((previous) => [...previous, `❌ 오류: 폴더 정리를 완료하지 못했습니다 — ${message}`, "일부 파일은 이미 이동됐을 수 있어요 — REPORT 폴더의 file_operation_journal.json을 확인해주세요."]);
-      setStep(2);
-      setClassificationJobState("WAITING_REVIEW");
-    }
-  }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, mergeCandidates, mergeDecisions, department, gapMinutes, departmentLogicEnabled, aiNamingEnabled, rawSelectMode, setProgress]);
 
   const {
     classifyStudio: handleStudioSort,
