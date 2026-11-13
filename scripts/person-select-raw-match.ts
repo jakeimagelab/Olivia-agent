@@ -11,7 +11,7 @@
  */
 
 import path from "node:path";
-import { mkdir, open, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, readdir, stat, writeFile } from "node:fs/promises";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { normalizeNfc } from "@/lib/person-select/core";
 import {
@@ -20,10 +20,12 @@ import {
   normalizePersonSelectRawLabelNames,
   PERSON_SELECT_RAW_OUTPUT_FOLDER,
   resolvePersonSelectRawMatchPathPlan,
-  type PersonSelectRawLabelNames,
 } from "@/lib/person-select/rawMatch";
 import { loadPersonSelectRawMatchTargets } from "@/lib/person-select/node/rawMatchTargets";
-import { restoreRawMarkXmp, updateRawMarkXmp } from "@/lib/person-select/node/rawMarkXmp";
+import {
+  clearPersonSelectRawMarks,
+  markPersonSelectRawSidecar,
+} from "@/lib/person-select/node/rawMarkFileOperations";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
@@ -154,100 +156,6 @@ function safeFolderName(value: string) {
 const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.13-person-select-raw-copy-v2";
 let failureStage = "STARTING";
 
-async function existingSidecarPath(rawPath: string) {
-  const stem = rawPath.replace(/\.[^.]+$/u, "");
-  for (const extension of [".xmp", ".XMP"]) {
-    const candidate = `${stem}${extension}`;
-    if (await stat(candidate).then((value) => value.isFile()).catch(() => false)) return candidate;
-  }
-  return `${stem}.xmp`;
-}
-
-function ensureInside(root: string, candidate: string) {
-  const relative = path.relative(root, candidate);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-    throw new Error("XMP 경로가 촬영 폴더 밖을 가리킵니다.");
-  }
-  return candidate;
-}
-
-async function atomicWrite(filePath: string, text: string) {
-  const temporary = `${filePath}.olivia-${process.pid}-${Date.now()}.tmp`;
-  await writeFile(temporary, text, { encoding: "utf8", flag: "wx" });
-  try {
-    await rename(temporary, filePath);
-  } catch (error) {
-    await rm(temporary, { force: true }).catch(() => undefined);
-    throw error;
-  }
-}
-
-async function markRawSidecar(input: {
-  raw: RawFile;
-  shootingRoot: string;
-  jobId: string;
-  rating: number | null;
-  colorLabel: number | null;
-  labelNames: PersonSelectRawLabelNames;
-}) {
-  const rawBefore = await stat(input.raw.path);
-  const sidecarPath = ensureInside(input.shootingRoot, await existingSidecarPath(input.raw.path));
-  const existingXml = await readFile(sidecarPath, "utf8").catch((error: NodeJS.ErrnoException) => {
-    if (error.code === "ENOENT") return null;
-    throw error;
-  });
-  const label = input.colorLabel === 6 || input.colorLabel === 7 || input.colorLabel === 8 || input.colorLabel === 9
-    ? input.labelNames[input.colorLabel]
-    : null;
-  const update = updateRawMarkXmp(existingXml, { rating: input.rating, label, colorCode: input.colorLabel as 6 | 7 | 8 | 9 | null, jobId: input.jobId });
-  await atomicWrite(sidecarPath, update.xml);
-  const rawAfter = await stat(input.raw.path);
-  if (rawAfter.size !== rawBefore.size || rawAfter.mtimeMs !== rawBefore.mtimeMs) {
-    throw new Error(`RAW 원본 속성이 바뀌어 작업을 중단했습니다: ${input.raw.relPath}`);
-  }
-  return {
-    rawPath: input.raw.relPath,
-    sidecarPath: normalizeNfc(path.relative(input.shootingRoot, sidecarPath).split(path.sep).join("/")),
-    created: update.createdDocument,
-  };
-}
-
-async function clearRawMarks(input: {
-  shootingRoot: string;
-  previousResult: Record<string, unknown> | null;
-}) {
-  const previous = input.previousResult;
-  const jobId = typeof previous?.rawMarkJobId === "string" ? previous.rawMarkJobId : "";
-  const markedSidecars = Array.isArray(previous?.markedSidecars) ? previous.markedSidecars : [];
-  if (previous?.mode !== "mark" || !jobId || !markedSidecars.length) {
-    throw new Error("되돌릴 로우 셀렉 기록이 없습니다.");
-  }
-  let restored = 0;
-  let deleted = 0;
-  const failed: Array<{ sidecar: string; error: string }> = [];
-  for (const item of markedSidecars) {
-    const relativePath = item && typeof item === "object" && typeof (item as Record<string, unknown>).sidecarPath === "string"
-      ? String((item as Record<string, unknown>).sidecarPath)
-      : "";
-    try {
-      if (!relativePath) throw new Error("XMP 경로가 없습니다.");
-      const sidecarPath = ensureInside(input.shootingRoot, path.resolve(input.shootingRoot, relativePath));
-      const current = await readFile(sidecarPath, "utf8");
-      const restoredXmp = restoreRawMarkXmp(current, jobId);
-      if (restoredXmp.deleteSidecar) {
-        await rm(sidecarPath);
-        deleted += 1;
-      } else {
-        await atomicWrite(sidecarPath, restoredXmp.xml);
-        restored += 1;
-      }
-    } catch (error) {
-      failed.push({ sidecar: relativePath || "알 수 없음", error: error instanceof Error ? error.message : "복원 실패" });
-    }
-  }
-  return { restored, deleted, failed };
-}
-
 function matchingDuplicateRaws(
   picked: RawFile,
   rawCandidates: RawFile[],
@@ -295,7 +203,7 @@ async function main() {
   if (clearMark) {
     if (mode !== "mark") throw new Error("로우 셀렉 지우기는 mark 모드에서만 실행할 수 있습니다.");
     failureStage = "RESTORING_XMP";
-    const cleared = await clearRawMarks({
+    const cleared = await clearPersonSelectRawMarks({
       shootingRoot,
       previousResult: event.raw_match_result && typeof event.raw_match_result === "object"
         ? event.raw_match_result as Record<string, unknown>
@@ -391,7 +299,7 @@ async function main() {
         if (choice.markConflict) conflictCount += 1;
         for (const raw of duplicateRaws) {
           try {
-            markedSidecars.push(await markRawSidecar({
+            markedSidecars.push(await markPersonSelectRawSidecar({
               raw,
               shootingRoot,
               jobId: rawMarkJobId,
