@@ -1,10 +1,11 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import { FolderOpen } from "lucide-react";
 
 import type { SelectMatchFolderGroup } from "@/lib/selectMatch/folderScanner";
 import { SelectMatchButton, type SelectMatchControlColors } from "./SelectMatchControls";
+import { SelectMatchScenePanel } from "./SelectMatchScenePanel";
 
 export function SelectMatchReadyView({
   scenes,
@@ -55,11 +56,16 @@ export function SelectMatchReadyView({
   onLoadSceneThumbs: (sceneIndex: number) => void | Promise<void>;
   colors: SelectMatchControlColors;
 }) {
-  const ratingCounts = [5, 4, 3, 2, 1].map((rating) => ({
-    rating,
-    count: scenes.flatMap((scene) => scene.photos).filter((photo) => photo.rating !== null && photo.rating >= rating).length,
-  }));
-  const hasAnyRating = scenes.flatMap((scene) => scene.photos).some((photo) => photo.rating !== null);
+  const { ratingCounts, hasAnyRating } = useMemo(() => {
+    const photos = scenes.flatMap((scene) => scene.photos);
+    return {
+      ratingCounts: [5, 4, 3, 2, 1].map((rating) => ({
+        rating,
+        count: photos.filter((photo) => photo.rating !== null && photo.rating >= rating).length,
+      })),
+      hasAnyRating: photos.some((photo) => photo.rating !== null),
+    };
+  }, [scenes]);
 
   return (
     <div style={{ maxWidth: 960, margin: "0 auto", padding: "20px 16px" }}>
@@ -167,72 +173,21 @@ export function SelectMatchReadyView({
       {scenes.length === 0 ? <div style={{ textAlign: "center", padding: "60px 0", color: colors.uiHint, fontSize: 13 }}>JPG 파일을 찾지 못했습니다. 폴더를 다시 확인해주세요.</div> : queryTokens.length && visibleScenes.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: colors.uiHint, fontSize: 13 }}>&quot;{nameQuery.trim()}&quot;와 맞는 파일이 없습니다</div>
       ) : visibleScenes.map((scene, visibleIndex) => {
-        const sourceSceneIndex = queryTokens.length ? scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle) : visibleIndex;
-        const selectedCount = scene.photos.filter((photo) => selected.has(photo.basename.toLowerCase())).length;
-        const isExpanded = queryTokens.length > 0 || expanded.has(sourceSceneIndex);
-        return <div key={sourceSceneIndex} style={{ background: colors.surfaceCard, borderRadius: 12, border: `1px solid ${colors.uiBorder}`, overflow: "hidden", marginBottom: 10 }}>
-          <div
-            onClick={() => {
-              if (queryTokens.length) return;
-              setExpanded((previous) => {
-                const next = new Set(previous);
-                if (next.has(sourceSceneIndex)) next.delete(sourceSceneIndex);
-                else {
-                  next.add(sourceSceneIndex);
-                  void onLoadSceneThumbs(sourceSceneIndex);
-                }
-                return next;
-              });
-            }}
-            style={{ padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 8, background: selectedCount > 0 ? colors.uiAccent : colors.uiBorder, display: "flex", alignItems: "center", justifyContent: "center", color: selectedCount > 0 ? "#103E36" : colors.uiMuted, fontSize: 12, fontWeight: 500, transition: "background .2s", flexShrink: 0 }}>{sourceSceneIndex + 1}</div>
-              <div><div style={{ fontSize: 13, fontWeight: 500, color: colors.uiText }}>{scene.name}</div><div style={{ fontSize: 10, color: colors.uiHint }}>{scene.photos.length}장</div></div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {selectedCount > 0 ? <span style={{ fontSize: 11, fontWeight: 500, color: colors.uiAccent, background: colors.groupedSurface, padding: "3px 10px", borderRadius: 12 }}>✓ {selectedCount}장</span> : null}
-              <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const keys = scene.photos.map((photo) => photo.basename.toLowerCase());
-                  const allSelected = keys.every((key) => selected.has(key));
-                  setSelected((previous) => {
-                    const next = new Set(previous);
-                    if (allSelected) keys.forEach((key) => next.delete(key));
-                    else keys.forEach((key) => next.add(key));
-                    return next;
-                  });
-                }}
-                style={{ padding: "3px 8px", fontSize: 10, fontWeight: 500, background: colors.groupedSurface, border: `1px solid ${colors.uiBorder}`, borderRadius: 6, cursor: "pointer", color: colors.uiAccent, fontFamily: "inherit" }}
-              >{scene.photos.every((photo) => selected.has(photo.basename.toLowerCase())) ? "해제" : "씬 전체"}</button>
-              <span style={{ fontSize: 10, color: colors.uiHint, width: 12 }}>{isExpanded ? "▲" : "▼"}</span>
-            </div>
-          </div>
-          {isExpanded ? <div style={{ borderTop: `1px solid ${colors.uiBorder}`, padding: 12 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 6 }}>
-              {scene.photos.map((photo) => {
-                const key = photo.basename.toLowerCase();
-                const isSelected = selected.has(key);
-                return <div
-                  key={photo.name}
-                  onClick={() => setSelected((previous) => {
-                    const next = new Set(previous);
-                    if (next.has(key)) next.delete(key);
-                    else next.add(key);
-                    return next;
-                  })}
-                  style={{ position: "relative", cursor: "pointer", borderRadius: 7, overflow: "hidden", border: `1.5px solid ${colors.uiBorder}`, aspectRatio: "3/2", background: "#e5eeec" }}
-                >
-                  {photo.thumbUrl ? <img src={photo.thumbUrl} alt={photo.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", background: "#dde8e6" }} />}
-                  {isSelected ? <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: colors.uiAccent, boxShadow: "0 0 0 2px rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#103E36", fontWeight: 600 }}>✓</div> : null}
-                  {photo.rating !== null ? <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 4px", fontSize: 8, color: "#FBBF24", letterSpacing: -1 }}>{"★".repeat(photo.rating)}{"☆".repeat(5 - photo.rating)}</div> : null}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.5)", padding: "2px 4px", fontSize: 7, color: "rgba(255,255,255,.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{photo.name}</div>
-                </div>;
-              })}
-            </div>
-          </div> : null}
-        </div>;
+        const sourceSceneIndex = queryTokens.length
+          ? scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle)
+          : visibleIndex;
+        return <SelectMatchScenePanel
+          key={sourceSceneIndex}
+          scene={scene}
+          sourceSceneIndex={sourceSceneIndex}
+          queryActive={queryTokens.length > 0}
+          isExpanded={queryTokens.length > 0 || expanded.has(sourceSceneIndex)}
+          selected={selected}
+          setSelected={setSelected}
+          setExpanded={setExpanded}
+          onLoadSceneThumbs={onLoadSceneThumbs}
+          colors={colors}
+        />;
       })}
 
       {selected.size > 0 ? <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
