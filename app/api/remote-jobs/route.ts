@@ -2,19 +2,16 @@ import { NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { isAdminSession } from "@/lib/passkey";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
-import { validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
 import { getConfiguredWorkerId, isKnownWorkerId } from "@/lib/remoteWorkerAuth";
 import {
   canRunOnNonPrimaryWorker,
-  finiteNumber,
   isRemoteJobUuid,
   normalizeRemoteJobAction,
-  safeFileNames,
-  safeProjectSubpath,
 } from "@/lib/remote-jobs/requestValidation";
 import { normalizePersonSelectRequestPayload } from "@/lib/remote-jobs/personSelectRequestPayload";
 import { normalizeRawMatchCopyRequestPayload } from "@/lib/remote-jobs/rawMatchCopyRequestPayload";
 import { normalizePhotoBrowseRequestPayload } from "@/lib/remote-jobs/photoBrowseRequestPayload";
+import { normalizePhotoOperationRequestPayload } from "@/lib/remote-jobs/photoOperationRequestPayload";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,120 +65,14 @@ export async function POST(request: NextRequest) {
     }, { status: 400 });
   }
 
-  if (action === "PHOTO_PREPARE_SOURCE") {
-    const projectId = requestedPayload.project_id;
-    const sourceRelativePath = requestedPayload.source_relative_path;
-    if (!isRemoteJobUuid(projectId)) {
-      return Response.json({ ok: false, error: "PHOTO_PREPARE_SOURCE에는 올바른 project_id가 필요합니다." }, { status: 400 });
-    }
-    try {
-      const safeSourcePath = validatePhotoProjectRelativePath(sourceRelativePath);
-      payload = {
-        project_id: projectId,
-        source_relative_path: safeSourcePath,
-      };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 통합 경로입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "PHOTO_STAGE_JPG") {
-    const projectId = requestedPayload.project_id;
-    const sourceRelativePath = requestedPayload.source_relative_path;
-    const destinationRelativePath = requestedPayload.destination_relative_path;
-    if (!isRemoteJobUuid(projectId)) {
-      return Response.json({ ok: false, error: "PHOTO_STAGE_JPG에는 올바른 project_id가 필요합니다." }, { status: 400 });
-    }
-    try {
-      const safeSourcePath = validatePhotoProjectRelativePath(sourceRelativePath);
-      const safeDestinationPath = validatePhotoProjectRelativePath(destinationRelativePath);
-      if (safeDestinationPath !== safeSourcePath) {
-        return Response.json({ ok: false, error: "PHOTO_STAGE_JPG는 동일한 프로젝트 경로의 JPG전체로만 복사할 수 있습니다." }, { status: 400 });
-      }
-      payload = {
-        project_id: projectId,
-        source_relative_path: safeSourcePath,
-        destination_relative_path: safeDestinationPath,
-      };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 staging 경로입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "PHOTO_CLASSIFY_WORK") {
-    const projectId = requestedPayload.project_id;
-    const workRelativePath = requestedPayload.work_relative_path;
-    if (!isRemoteJobUuid(projectId)) {
-      return Response.json({ ok: false, error: "PHOTO_CLASSIFY_WORK에는 올바른 project_id가 필요합니다." }, { status: 400 });
-    }
-    try {
-      const safeWorkPath = validatePhotoProjectRelativePath(workRelativePath);
-      payload = {
-        project_id: projectId,
-        work_relative_path: safeWorkPath,
-        ...(typeof requestedPayload.department === "string" ? { department: requestedPayload.department } : {}),
-        ...(typeof requestedPayload.gap_minutes === "number" ? { gap_minutes: requestedPayload.gap_minutes } : {}),
-        ...(requestedPayload.classification_ui_mode === "advanced" || requestedPayload.classification_ui_mode === "ai-auto"
-          ? { classification_ui_mode: requestedPayload.classification_ui_mode } : {}),
-        ...(typeof requestedPayload.fast_analyze_mode === "boolean" ? { fast_analyze_mode: requestedPayload.fast_analyze_mode } : {}),
-        ...(typeof requestedPayload.department_logic_enabled === "boolean" ? { department_logic_enabled: requestedPayload.department_logic_enabled } : {}),
-        ...(typeof requestedPayload.ai_naming_enabled === "boolean" ? { ai_naming_enabled: requestedPayload.ai_naming_enabled } : {}),
-        ...(typeof requestedPayload.quality_analysis_enabled === "boolean" ? { quality_analysis_enabled: requestedPayload.quality_analysis_enabled } : {}),
-        ...(typeof requestedPayload.profile_classification_enabled === "boolean" ? { profile_classification_enabled: requestedPayload.profile_classification_enabled } : {}),
-      };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 SSD2 작업 경로입니다." }, { status: 400 });
-    }
-  }
-
-  if (["PHOTO_RAW_MATCH", "PHOTO_RESIZE", "PHOTO_AI_SELECT", "PHOTO_RETOUCH"].includes(action)) {
-    const projectId = requestedPayload.project_id;
-    const projectRelativePath = requestedPayload.project_relative_path;
-    if (!isRemoteJobUuid(projectId)) {
-      return Response.json({ ok: false, error: `${action}에는 올바른 project_id가 필요합니다.` }, { status: 400 });
-    }
-    try {
-      const safeProjectPath = validatePhotoProjectRelativePath(projectRelativePath);
-      if (action === "PHOTO_RAW_MATCH") {
-        const selectedFileNames = safeFileNames(requestedPayload.selected_file_names, { required: false, max: 10_000 });
-        payload = {
-          project_id: projectId,
-          project_relative_path: safeProjectPath,
-          ...(selectedFileNames ? { selected_file_names: selectedFileNames } : {}),
-          ...(isRemoteJobUuid(requestedPayload.selection_id) ? { selection_id: requestedPayload.selection_id } : {}),
-        };
-      } else if (action === "PHOTO_RESIZE") {
-        payload = {
-          project_id: projectId,
-          project_relative_path: safeProjectPath,
-          input_relative_path: safeProjectSubpath(requestedPayload.input_relative_path, "씬별분류"),
-          ...(finiteNumber(requestedPayload.long_edge, "long_edge", 500, 10_000, true) === undefined ? {} : { long_edge: requestedPayload.long_edge }),
-          ...(finiteNumber(requestedPayload.quality, "quality", 1, 100, true) === undefined ? {} : { quality: requestedPayload.quality }),
-        };
-      } else if (action === "PHOTO_AI_SELECT") {
-        const booleanKeys = ["quality_filter", "dup_removal"] as const;
-        for (const key of booleanKeys) if (requestedPayload[key] !== undefined && typeof requestedPayload[key] !== "boolean") throw new Error(`${key}는 boolean이어야 합니다.`);
-        payload = {
-          project_id: projectId,
-          project_relative_path: safeProjectPath,
-          input_relative_path: safeProjectSubpath(requestedPayload.input_relative_path, "씬별분류"),
-          ...Object.fromEntries(booleanKeys.filter((key) => requestedPayload[key] !== undefined).map((key) => [key, requestedPayload[key]])),
-          ...(finiteNumber(requestedPayload.blur_threshold, "blur_threshold", 0, 10_000) === undefined ? {} : { blur_threshold: requestedPayload.blur_threshold }),
-          ...(finiteNumber(requestedPayload.dark_threshold, "dark_threshold", 0, 255) === undefined ? {} : { dark_threshold: requestedPayload.dark_threshold }),
-          ...(finiteNumber(requestedPayload.overexp_threshold, "overexp_threshold", 0, 255) === undefined ? {} : { overexp_threshold: requestedPayload.overexp_threshold }),
-          ...(finiteNumber(requestedPayload.dup_threshold, "dup_threshold", 0, 100) === undefined ? {} : { dup_threshold: requestedPayload.dup_threshold }),
-        };
-      } else {
-        payload = {
-          project_id: projectId,
-          project_relative_path: safeProjectPath,
-          file_names: safeFileNames(requestedPayload.file_names, { required: true, max: 10 }),
-          check_type: requestedPayload.check_type === "gown" ? "gown" : "skin",
-        };
-      }
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다." }, { status: 400 });
-    }
+  try {
+    const photoOperationPayload = normalizePhotoOperationRequestPayload(action, requestedPayload);
+    if (photoOperationPayload !== null) payload = photoOperationPayload;
+  } catch (error) {
+    return Response.json({
+      ok: false,
+      error: error instanceof Error ? error.message : "올바르지 않은 사진 작업 payload입니다.",
+    }, { status: 400 });
   }
 
   if (action === "PHOTO_RAW_MATCH_COPY") {
