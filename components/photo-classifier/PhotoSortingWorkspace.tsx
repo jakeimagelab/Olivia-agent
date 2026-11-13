@@ -86,6 +86,7 @@ import {
   buildStudioPersonReportBundle,
 } from "@/lib/photo-classifier/studioReports";
 import { runStudioAnalysisConcurrently } from "@/lib/photo-classifier/studioAnalysisRunner";
+import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
 import {
   analyzeJpg,
   buildQuickProposals,
@@ -1874,38 +1875,26 @@ function PhotoSortingInner({
   const runStudioOutput = useCallback(async () => {
     if (!rootDir || studioGroups.length === 0) return;
     setStep(5); cancelRef.current = false;
-    const log: string[] = [];
     try {
-    const rootName = rootDir.name;
-    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`분류_${rootName}`, { create:true });
-    const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
-    const totalFiles = studioGroups.reduce((s,g)=>s+g.files.length,0);
-    let processed = 0;
-    for (const group of studioGroups) {
-      const folderName = group.editedFolderName || group.suggestedFolderName;
-      const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
-      for (const file of group.files) {
-        if (cancelRef.current) break;
-        setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
-        try {
-          await copyFileHandle(file.handle, groupDir, file.name);
-          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-          log.push(`✅ ${file.name} → ${folderName}/`);
-        } catch { log.push(`❌ ${file.name} 실패`); }
-        processed++; setStudioCopyLog([...log]);
-      }
-    }
-    const wr = async (name: string, content: string) => {
-      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    };
-    const reports = buildStudioConceptReportBundle(studioGroups, {
-      totalJpg: studioFiles.length,
-      totalRaw: studioRawCount,
-      rootName,
-    });
-    for (const report of reports.files) await wr(report.name, report.content);
-    setStudioStats(reports.stats);
-    setStep(6);
+      const reports = buildStudioConceptReportBundle(studioGroups, {
+        totalJpg: studioFiles.length,
+        totalRaw: studioRawCount,
+        rootName: rootDir.name,
+      });
+      await executeStudioOutput({
+        rootDirectory: rootDir,
+        groups: studioGroups.map((group) => ({
+          folderName: group.editedFolderName || group.suggestedFolderName,
+          files: group.files,
+        })),
+        reports: reports.files,
+        mode: studioFileMode,
+        isCancelled: () => cancelRef.current,
+        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+        onLog: setStudioCopyLog,
+      });
+      setStudioStats(reports.stats);
+      setStep(6);
     } catch (error) {
       // 2026-09-10 수정 지시서 3번
       const message = error instanceof Error ? error.message : String(error);
@@ -1950,38 +1939,26 @@ function PhotoSortingInner({
   const runGroupOutput = useCallback(async () => {
     if (!rootDir || personGroups.length === 0) return;
     setStep(5); cancelRef.current = false;
-    const log: string[] = [];
     try {
-    const rootName = rootDir.name;
-    const selectedJpgDir = await (rootDir as any).getDirectoryHandle(`분류_${rootName}`, { create:true });
-    const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
-    const totalFiles = personGroups.reduce((s,g) => s+g.files.length, 0);
-    let processed = 0;
-    for (const group of personGroups) {
-      const folderName = group.editedFolderName;
-      const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
-      for (const file of group.files) {
-        if (cancelRef.current) break;
-        setProgress({ cur:processed, total:totalFiles, msg:`${folderName}: ${file.name}` });
-        try {
-          await copyFileHandle(file.handle, groupDir, file.name);
-          if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
-          log.push(`✅ ${file.name} → ${folderName}/`);
-        } catch { log.push(`❌ ${file.name} 실패`); }
-        processed++; setStudioCopyLog([...log]);
-      }
-    }
-    const wr = async (name: string, content: string) => {
-      try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    };
-    const reports = buildStudioPersonReportBundle(personGroups, {
-      totalJpg: studioFiles.length,
-      totalRaw: studioRawCount,
-      rootName,
-    });
-    for (const report of reports.files) await wr(report.name, report.content);
-    setStudioStats(reports.stats);
-    setStep(6);
+      const reports = buildStudioPersonReportBundle(personGroups, {
+        totalJpg: studioFiles.length,
+        totalRaw: studioRawCount,
+        rootName: rootDir.name,
+      });
+      await executeStudioOutput({
+        rootDirectory: rootDir,
+        groups: personGroups.map((group) => ({
+          folderName: group.editedFolderName,
+          files: group.files,
+        })),
+        reports: reports.files,
+        mode: studioFileMode,
+        isCancelled: () => cancelRef.current,
+        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+        onLog: setStudioCopyLog,
+      });
+      setStudioStats(reports.stats);
+      setStep(6);
     } catch (error) {
       // 2026-09-10 수정 지시서 3번
       const message = error instanceof Error ? error.message : String(error);
