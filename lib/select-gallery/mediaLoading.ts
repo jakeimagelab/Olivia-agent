@@ -13,6 +13,35 @@ export type SelectionMediaUrlCache = {
   order: string[];
 };
 
+export type ResolvedSelectionMediaEntry<T> = {
+  source: T;
+  urls: SelectionMediaUrls;
+  value: T;
+};
+
+export function reconcileSelectionMediaImages<
+  T extends { id: string; image_url?: string; thumbnail_url?: string | null },
+>(
+  sourceImages: readonly T[],
+  records: Readonly<Record<string, SelectionMediaUrls>>,
+  previous: ReadonlyMap<string, ResolvedSelectionMediaEntry<T>> = new Map(),
+) {
+  const entries = new Map<string, ResolvedSelectionMediaEntry<T>>();
+  const images = sourceImages.map((source) => {
+    const urls = records[source.id];
+    if (!urls) return source;
+    const cached = previous.get(source.id);
+    if (cached?.source === source && cached.urls === urls) {
+      entries.set(source.id, cached);
+      return cached.value;
+    }
+    const entry = { source, urls, value: { ...source, ...urls } };
+    entries.set(source.id, entry);
+    return entry.value;
+  });
+  return { images, entries };
+}
+
 export function mergeSelectionMediaUrlRecords(
   current: Record<string, SelectionMediaUrls>,
   updates: Record<string, SelectionMediaUrls>,

@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   adjacentSelectionMediaIds,
   mergeSelectionMediaUrlCache,
+  reconcileSelectionMediaImages,
   SELECTION_THUMBNAIL_PAGE_SIZE,
+  type ResolvedSelectionMediaEntry,
   type SelectionMediaUrlCache,
   type SelectionMediaUrls,
   type SelectionMediaVariant,
@@ -50,11 +52,16 @@ export function useCustomerBridgeMediaStore({
   const refreshInFlightRef = useRef(new Map<string, Promise<void>>());
   const mediaFieldsInFlightRef = useRef(new Set<string>());
   const mediaSequenceRef = useRef(new Map<string, number>());
+  const resolvedImagesRef = useRef(new Map<string, ResolvedSelectionMediaEntry<CustomerBridgeImage>>());
 
-  const images = useMemo(
-    () => initialImages.map((image) => cache.records[image.id] ? { ...image, ...cache.records[image.id] } : image),
+  const resolvedImages = useMemo(
+    () => reconcileSelectionMediaImages(initialImages, cache.records, resolvedImagesRef.current),
     [cache.records, initialImages],
   );
+  useEffect(() => {
+    resolvedImagesRef.current = resolvedImages.entries;
+  }, [resolvedImages.entries]);
+  const images = resolvedImages.images;
   const imageIds = useMemo(() => new Set(images.map((image) => image.id)), [images]);
   const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
 

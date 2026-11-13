@@ -3,6 +3,7 @@ import {
   adjacentSelectionMediaIds,
   mergeSelectionMediaUrlCache,
   mergeSelectionMediaUrlRecords,
+  reconcileSelectionMediaImages,
   SELECTION_MEDIA_URL_CACHE_LIMIT,
   SELECTION_THUMBNAIL_PAGE_SIZE,
 } from "@/lib/select-gallery/mediaLoading";
@@ -103,5 +104,20 @@ describe("person select media loading", () => {
       "image-7",
     ]);
     expect(adjacentSelectionMediaIds(images, "image-0", 2)).toEqual(["image-0", "image-1", "image-2"]);
+  });
+
+  it("reuses resolved photo objects when another thumbnail is cached", () => {
+    const source = [
+      { id: "a", image_url: "", thumbnail_url: null },
+      { id: "b", image_url: "", thumbnail_url: null },
+    ];
+    const firstRecords = { a: { thumbnail_url: "thumb-a" } };
+    const first = reconcileSelectionMediaImages(source, firstRecords);
+    const secondRecords = { ...firstRecords, b: { thumbnail_url: "thumb-b" } };
+    const second = reconcileSelectionMediaImages(source, secondRecords, first.entries);
+
+    expect(second.images[0]).toBe(first.images[0]);
+    expect(second.images[1]).not.toBe(first.images[1]);
+    expect(second.images[1].thumbnail_url).toBe("thumb-b");
   });
 });
