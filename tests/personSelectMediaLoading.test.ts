@@ -124,7 +124,13 @@ describe("person select media loading", () => {
 
   it("does not rerender unchanged classic cards when another photo is selected", () => {
     const onToggle = () => undefined;
-    const image = { id: "a", original_file_name: "A.JPG", thumbnail_url: "thumb-a", image_url: "preview-a" };
+    const image = {
+      id: "a",
+      original_file_name: "A.JPG",
+      thumbnail_url: "thumb-a",
+      image_url: "preview-a",
+      sort_order: 0,
+    };
     const previous = { image, selected: false, pending: false, onToggle };
 
     expect(sharedProjectClassicPhotoCardPropsEqual(previous, { ...previous })).toBe(true);
