@@ -85,6 +85,17 @@ export type CustomerBridgeFolderTreeItem = CustomerBridgeFolder & {
   depth: number;
 };
 
+export function reconcileCustomerBridgeRecord<T>(
+  current: Readonly<Record<string, T>>,
+  incoming: Record<string, T>,
+) {
+  const currentKeys = Object.keys(current);
+  const incomingKeys = Object.keys(incoming);
+  if (currentKeys.length !== incomingKeys.length) return incoming;
+  for (const key of incomingKeys) if (!Object.is(current[key], incoming[key])) return incoming;
+  return current as Record<string, T>;
+}
+
 const SLASHES = /[\\/]+/g;
 
 /** 화면 표시에 쓸 상대경로. 대소문자와 폴더 이름은 보존하고 탈출 조각만 제거한다. */

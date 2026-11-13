@@ -12,6 +12,7 @@ import {
   customerBridgeRatingTargets,
   customerBridgeSelectedIds,
   customerBridgeSelectionItems,
+  reconcileCustomerBridgeRecord,
   customerSelectionComparisonCounts,
   matchCustomerSelectionToBridgeFiles,
   matchesCustomerSelectionComparison,
@@ -115,6 +116,15 @@ describe("customer Bridge selection", () => {
       colorLabels: {},
       patches: [{ imageId: "a", colorLabel: null }, { imageId: "b", colorLabel: null }],
     });
+  });
+
+  it("reuses unchanged mark records during a background server refresh", () => {
+    const current = { a: 5, b: 3 };
+    const reconciled = reconcileCustomerBridgeRecord(current, { a: 5, b: 3 });
+
+    expect(reconciled).toBe(current);
+    expect(reconcileCustomerBridgeRecord(current, { a: 5, b: 4 })).toEqual({ a: 5, b: 4 });
+    expect(reconcileCustomerBridgeRecord(current, { a: 5 })).toEqual({ a: 5 });
   });
 
   it("zooms review photos up on wheel-up and down on wheel-down within bounds", () => {
