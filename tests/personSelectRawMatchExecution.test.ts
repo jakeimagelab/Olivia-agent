@@ -115,4 +115,63 @@ describe("person select RAW match execution", () => {
     expect(result.ratingCount).toBe(1);
     expect(result.colorCount).toBe(1);
   });
+
+  it("reports a non-overwritable destination as a conflict requiring review", async () => {
+    const candidate = raw("RAW/홍길동/PHOTO_0001.CR2");
+    const times = new Map([
+      ["/shoot/JPG/홍길동/PHOTO_0001.JPG", capture(10_000)],
+      [candidate.path, capture(10_000)],
+    ]);
+
+    const result = await executePersonSelectRawMatch({
+      targets: [target()],
+      rawIndex: new Map([["photo_0001", [candidate]]]),
+      jpgRoot: "/shoot/JPG",
+      shootingRoot: "/shoot",
+      outputRoot: "/shoot/Selected_RAW",
+      mode: "copy",
+      labelNames: normalizePersonSelectRawLabelNames(undefined),
+      rawMarkJobId: "job-conflict",
+      dependencies: {
+        readCaptureTime: async (filePath) => times.get(filePath) ?? null,
+        createDirectory: async () => undefined,
+        copyRaw: async () => { throw new Error("같은 이름이 있어 덮어쓰지 않음"); },
+      },
+    });
+
+    expect(result.conflicts).toEqual([{ name: "홍길동", raw: "PHOTO_0001.CR2" }]);
+    expect(result.copyFailures).toEqual([]);
+    expect(result.reviewRequired).toHaveLength(1);
+    expect(result.reviewRequired[0]).toMatchObject({
+      owner: "홍길동",
+      jpg: "PHOTO_0001.JPG",
+      reason: "conflict",
+    });
+    expect(result.reviewRequired[0]).not.toHaveProperty("stage");
+  });
+
+  it("keeps a missing capture time out of copy operations", async () => {
+    const candidate = raw("RAW/홍길동/PHOTO_0001.CR2");
+    const copyRaw = async () => ({ alreadyExisted: false });
+
+    const result = await executePersonSelectRawMatch({
+      targets: [target()],
+      rawIndex: new Map([["photo_0001", [candidate]]]),
+      jpgRoot: "/shoot/JPG",
+      shootingRoot: "/shoot",
+      outputRoot: "/shoot/Selected_RAW",
+      mode: "copy",
+      labelNames: normalizePersonSelectRawLabelNames(undefined),
+      rawMarkJobId: "job-missing-time",
+      dependencies: {
+        readCaptureTime: async () => null,
+        createDirectory: async () => undefined,
+        copyRaw,
+      },
+    });
+
+    expect(result.missingTime).toHaveLength(1);
+    expect(result.matched).toEqual([]);
+    expect(result.reviewRequired[0]).toMatchObject({ reason: "missing_time" });
+  });
 });

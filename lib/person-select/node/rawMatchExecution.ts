@@ -1,4 +1,3 @@
-import path from "node:path";
 import { mkdir } from "node:fs/promises";
 
 import {
@@ -6,10 +5,7 @@ import {
   type PersonSelectRawMatchMode,
   type PersonSelectRawMatchTarget,
 } from "@/lib/person-select/rawMatch";
-import {
-  markPersonSelectRawSidecar,
-  type PersonSelectRawMarkFile,
-} from "@/lib/person-select/node/rawMarkFileOperations";
+import { markPersonSelectRawSidecar } from "@/lib/person-select/node/rawMarkFileOperations";
 import {
   personSelectRawBasename,
   type PersonSelectRawFile,
@@ -21,56 +17,22 @@ import {
   readPersonSelectCaptureTime,
   resolvePersonSelectRawCandidate,
 } from "@/lib/person-select/node/rawMatchCandidateResolution";
-import { normalizePersonSelectOutputFolderName } from "@/lib/person-select/node/rawMatchPaths";
+import {
+  copyResolvedPersonSelectRaw,
+  createPersonSelectRawMatchExecutionResult,
+  markResolvedPersonSelectRaw,
+  recordUnmatchedPersonSelectRaw,
+  type PersonSelectRawMatchExecutionDependencies,
+  type PersonSelectRawMatchExecutionResult,
+} from "@/lib/person-select/node/rawMatchOperations";
 
-export type PersonSelectRawReviewItem = {
-  owner: string;
-  jpg: string;
-  reason: string;
-  candidates?: string[];
-  stage?: string;
-  error?: string;
-};
+export type {
+  PersonSelectRawMatchExecutionResult,
+  PersonSelectRawReviewItem,
+} from "@/lib/person-select/node/rawMatchOperations";
 
-export type PersonSelectRawMatchExecutionResult = {
-  matched: Array<{ name: string; jpg: string; raw: string; attributeVerified: boolean }>;
-  alreadyCopied: Array<{ name: string; raw: string }>;
-  missing: Array<{ name: string; jpg: string }>;
-  ambiguous: Array<{ name: string; jpg: string; candidates: string[] }>;
-  timeMismatch: Array<{ name: string; jpg: string; candidates: string[] }>;
-  missingTime: Array<{ name: string; jpg: string; candidates: string[] }>;
-  conflicts: Array<{ name: string; raw: string }>;
-  markedSidecars: Array<{ rawPath: string; sidecarPath: string; created: boolean }>;
-  markFailures: Array<{ raw: string; error: string }>;
-  copyFailures: Array<{
-    stage: "raw_copy";
-    name: string;
-    jpg: string;
-    raw: string;
-    error: string;
-  }>;
-  reviewRequired: PersonSelectRawReviewItem[];
-  ratingCount: number;
-  colorCount: number;
-  conflictCount: number;
-};
-
-type ExecutionDependencies = {
+type ExecutionDependencies = PersonSelectRawMatchExecutionDependencies & {
   readCaptureTime: (filePath: string) => Promise<CaptureTime | null>;
-  createDirectory: (directory: string) => Promise<unknown>;
-  copyRaw: (input: {
-    source: string;
-    destinationDirectory: string;
-    move: false;
-  }) => Promise<{ alreadyExisted: boolean }>;
-  markRawSidecar: (input: {
-    raw: PersonSelectRawMarkFile;
-    shootingRoot: string;
-    jobId: string;
-    rating: number | null;
-    colorLabel: number | null;
-    labelNames: PersonSelectRawLabelNames;
-  }) => Promise<{ rawPath: string; sidecarPath: string; created: boolean }>;
 };
 
 const DEFAULT_DEPENDENCIES: ExecutionDependencies = {
@@ -99,26 +61,10 @@ export async function executePersonSelectRawMatch(input: {
   dependencies?: Partial<ExecutionDependencies>;
 }): Promise<PersonSelectRawMatchExecutionResult> {
   const runtime = { ...DEFAULT_DEPENDENCIES, ...input.dependencies };
-  const matched: PersonSelectRawMatchExecutionResult["matched"] = [];
-  const alreadyCopied: PersonSelectRawMatchExecutionResult["alreadyCopied"] = [];
-  const missing: PersonSelectRawMatchExecutionResult["missing"] = [];
-  const ambiguous: PersonSelectRawMatchExecutionResult["ambiguous"] = [];
-  const timeMismatch: PersonSelectRawMatchExecutionResult["timeMismatch"] = [];
-  const missingTime: PersonSelectRawMatchExecutionResult["missingTime"] = [];
-  const conflicts: PersonSelectRawMatchExecutionResult["conflicts"] = [];
-  const markedSidecars: PersonSelectRawMatchExecutionResult["markedSidecars"] = [];
-  const markFailures: PersonSelectRawMatchExecutionResult["markFailures"] = [];
-  const copyFailures: PersonSelectRawMatchExecutionResult["copyFailures"] = [];
-  const reviewRequired: PersonSelectRawReviewItem[] = [];
-  let ratingCount = 0;
-  let colorCount = 0;
-  let conflictCount = 0;
-  let done = 0;
-
+  const result = createPersonSelectRawMatchExecutionResult();
   const captureFor = createPersonSelectCaptureTimeCache(runtime.readCaptureTime);
 
-  for (const choice of input.targets) {
-    const name = choice.ownerName;
+  for (const [index, choice] of input.targets.entries()) {
     const rawCandidates = input.rawIndex.get(personSelectRawBasename(choice.originalFileName)) ?? [];
     const resolution = await resolvePersonSelectRawCandidate({
       choice,
@@ -126,114 +72,39 @@ export async function executePersonSelectRawMatch(input: {
       jpgRoot: input.jpgRoot,
       captureFor,
     });
-    const picked = resolution.picked;
 
-    if (!picked) {
-      const candidates = resolution.candidatePaths;
-      const reason = resolution.status;
-      if (reason === "raw_missing") missing.push({ name, jpg: choice.originalFileName });
-      else if (reason === "multiple_candidates") {
-        ambiguous.push({ name, jpg: choice.originalFileName, candidates });
-      } else if (reason === "time_mismatch") {
-        timeMismatch.push({ name, jpg: choice.originalFileName, candidates });
-      } else if (reason === "missing_time") {
-        missingTime.push({ name, jpg: choice.originalFileName, candidates });
-      }
-      reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason, candidates });
+    if (!resolution.picked) {
+      recordUnmatchedPersonSelectRaw(result, choice, resolution);
     } else if (input.mode === "mark") {
       input.onStageChange?.("WRITING_XMP");
-      if (choice.customerRating !== null) ratingCount += 1;
-      if (choice.customerColorLabel !== null) colorCount += 1;
-      if (choice.markConflict) conflictCount += 1;
-      for (const raw of resolution.duplicateRaws) {
-        try {
-          markedSidecars.push(await runtime.markRawSidecar({
-            raw,
-            shootingRoot: input.shootingRoot,
-            jobId: input.rawMarkJobId,
-            rating: choice.customerRating,
-            colorLabel: choice.customerColorLabel,
-            labelNames: input.labelNames,
-          }));
-        } catch (error) {
-          markFailures.push({
-            raw: raw.relPath,
-            error: error instanceof Error ? error.message : "XMP 기록 실패",
-          });
-        }
-      }
+      await markResolvedPersonSelectRaw({
+        result,
+        choice,
+        duplicateRaws: resolution.duplicateRaws,
+        shootingRoot: input.shootingRoot,
+        rawMarkJobId: input.rawMarkJobId,
+        labelNames: input.labelNames,
+        markRawSidecar: runtime.markRawSidecar,
+      });
     } else {
       input.onStageChange?.("COPYING_RAW");
-      const targetDir = path.join(input.outputRoot, normalizePersonSelectOutputFolderName(name));
-      try {
-        await runtime.createDirectory(targetDir);
-        const operation = await runtime.copyRaw({
-          source: picked.path,
-          destinationDirectory: targetDir,
-          move: false,
-        });
-        if (operation.alreadyExisted) alreadyCopied.push({ name, raw: picked.name });
-        else {
-          matched.push({
-            name,
-            jpg: choice.originalFileName,
-            raw: picked.relPath,
-            attributeVerified: true,
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "RAW 복사 실패";
-        if (message.includes("같은 이름이 있어 덮어쓰지 않음")) {
-          conflicts.push({ name, raw: picked.name });
-          reviewRequired.push({
-            owner: name,
-            jpg: choice.originalFileName,
-            reason: "conflict",
-            candidates: [picked.relPath],
-          });
-        } else {
-          copyFailures.push({
-            stage: "raw_copy",
-            name,
-            jpg: choice.originalFileName,
-            raw: picked.relPath,
-            error: message,
-          });
-          reviewRequired.push({
-            owner: name,
-            jpg: choice.originalFileName,
-            reason: "copy_failed",
-            candidates: [picked.relPath],
-            stage: "raw_copy",
-            error: message,
-          });
-        }
-      }
+      await copyResolvedPersonSelectRaw({
+        result,
+        choice,
+        picked: resolution.picked,
+        outputRoot: input.outputRoot,
+        createDirectory: runtime.createDirectory,
+        copyRaw: runtime.copyRaw,
+      });
     }
 
-    done += 1;
     input.onProgress?.({
       stage: input.mode === "mark" ? "MARKING" : "COPYING",
-      current: done,
+      current: index + 1,
       total: input.targets.length,
-      message: `${name} · ${choice.originalFileName}`,
+      message: `${choice.ownerName} · ${choice.originalFileName}`,
     });
   }
 
-  return {
-    matched,
-    alreadyCopied,
-    missing,
-    ambiguous,
-    timeMismatch,
-    missingTime,
-    conflicts,
-    markedSidecars,
-    markFailures,
-    copyFailures,
-    reviewRequired,
-    ratingCount,
-    colorCount,
-    conflictCount,
-  };
+  return result;
 }
