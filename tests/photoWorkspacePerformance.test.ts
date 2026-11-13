@@ -40,10 +40,13 @@ describe("photo workspace rendering safeguards", () => {
   });
 
   it("filters RAW matching scenes by basename without replacing the full selection", () => {
-    const rawMatch = source("components/photo-workspace/SelectMatchWorkspace.tsx");
+    const rawMatchWorkspace = source("components/photo-workspace/SelectMatchWorkspace.tsx");
+    const rawMatchReadyView = source("components/photo-workspace/SelectMatchReadyView.tsx");
+    const rawMatchScenePanel = source("components/photo-workspace/SelectMatchScenePanel.tsx");
+    const rawMatch = `${rawMatchWorkspace}\n${rawMatchReadyView}\n${rawMatchScenePanel}`;
     expect(rawMatch).toContain("nameQuery.toLowerCase().split(/[\\s,]+/)");
     expect(rawMatch).toContain("queryTokens.some((token) => photo.basename.toLowerCase().includes(token))");
-    expect(rawMatch).toContain("visibleScenes.map((scene, si)");
+    expect(rawMatchReadyView).toContain("visibleScenes.map((scene, visibleIndex)");
     expect(rawMatch).toContain("queryTokens.length > 0 || expanded.has(sourceSceneIndex)");
     expect(rawMatch).toContain("const next = new Set(previous)");
     expect(rawMatch).toContain("검색 결과 {matchedCount}장 선택");

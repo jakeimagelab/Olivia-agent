@@ -111,7 +111,6 @@ import {
 import {
   Btn,
   C,
-  ProgressBar,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
 import { useRemotePhotoSortSubmission } from "./useRemotePhotoSortSubmission";
@@ -124,7 +123,13 @@ import { PhotoDepartmentControl } from "./PhotoDepartmentControl";
 import type { PhotoShootingMode } from "./PhotoShootingModeControl";
 import { FieldClassificationSettings } from "./FieldClassificationSettings";
 import { StudioClassificationSettings } from "./StudioClassificationSettings";
-import { PhotoClassificationProgressView } from "./PhotoClassificationProgressView";
+import {
+  FieldAnalysisProgressStep,
+  FieldOutputProgressStep,
+  StudioFileScanProgressStep,
+  StudioOutputProgressStep,
+  StudioPhotoAnalysisProgressStep,
+} from "./PhotoSortingProgressSteps";
 import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "./FieldSceneReviewList";
 import { StudioGroupEditView } from "./StudioGroupEditView";
@@ -1545,23 +1550,6 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      FIELD STEPS
   ═══════════════════════════════════════════ */
-  const FieldStep1 = () => (
-    <PhotoClassificationProgressView
-      title={fastAnalyzeMode ? "⚡ 빠른 분석 중 (파일 이동 없음)..." : "🔍 하이브리드 Scene 분석 중..."}
-      progress={progress}
-      statusText={fastAnalyzeMode ? undefined : `현재 단계: ${classificationJobState}`}
-      hideProgressUntilStarted
-      logs={copyLog}
-      logLimit={20}
-      onCancel={fastAnalyzeMode ? undefined : () => {
-        cancelRef.current = true;
-        classificationAbortRef.current?.abort();
-        setClassificationJobState("CANCELLED");
-      }}
-      cancelLabel="분석 중단"
-    />
-  );
-
   const dismissFieldMergeCandidate = useCallback((candidateId: string) => {
     const candidate = mergeCandidates.find((item) => item.id === candidateId);
     if (candidate) {
@@ -1648,19 +1636,6 @@ function PhotoSortingInner({
     );
   };
 
-  const FieldStep3 = () => (
-    <PhotoClassificationProgressView
-      title={fastAnalyzeMode ? "📁 폴더 정리 실행 중..." : "분석 중..."}
-      progress={progress}
-      details={[
-        fastAnalyzeMode ? "• RAW 이동 → JPG 씬 폴더 정리 중" : "",
-        qualityAnalysisEnabled ? "• 흔들림·조명불량 분석 중" : "",
-        profileClassificationEnabled ? "• 프로필 자동 분류 중 (엄격 모드)" : "",
-      ].filter(Boolean).join("\n")}
-      onCancel={() => { cancelRef.current = true; }}
-    />
-  );
-
   const FieldStep4 = () => {
     if (!fieldStats) return null;
     return (
@@ -1683,35 +1658,6 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      STUDIO STEPS
   ═══════════════════════════════════════════ */
-  const StudioStep1 = () => (
-    <PhotoClassificationProgressView
-      title="파일 분류 중..."
-      titleColor={C.purple}
-      progress={progress}
-    />
-  );
-
-  const StudioStep2 = () => {
-    const analyzed = studioFiles.filter(f=>f.analyzed).length;
-    const total    = studioFiles.length;
-    return (
-      <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{fontSize:14,fontWeight:500,color:C.purple}}>
-        {studioSubMode === "group" ? "AI 얼굴 분석 중..." : "AI 의상·포즈·조명 분석 중..."}
-      </div>
-        <ProgressBar cur={analyzed} total={total} msg={progress.msg}/>
-        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
-          {[["전체 JPG",total,C.teal],["분석 완료",analyzed,C.green],["ETC 후보",studioFiles.filter(f=>f.groupKey==="__ETC__").length,C.red]].map(([l,v,c])=>(
-            <div key={l as string} style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"10px 14px",textAlign:"center"}}>
-              <div style={{fontSize:20,fontWeight:600,color:c as string}}>{v}</div>
-              <div style={{fontSize:10,color:C.hint}}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
   const StudioStep3 = () => {
     const etcGroup    = studioGroups.find(g=>g.isEtc);
     const normalGroups = studioGroups.filter(g=>!g.isEtc);
@@ -1825,17 +1771,6 @@ function PhotoSortingInner({
       />
     );
   };
-
-  const StudioStep5 = () => (
-    <PhotoClassificationProgressView
-      title="스튜디오 파일 정리 중..."
-      titleColor={C.purple}
-      progress={progress}
-      logs={studioCopyLog}
-      logColor={(line) => line.startsWith("✅") ? C.green : line.startsWith("❌") ? C.red : C.yellow}
-      maxWidth={680}
-    />
-  );
 
   const StudioStep6 = () => {
     if (!studioStats) return null;
@@ -1953,16 +1888,36 @@ function PhotoSortingInner({
         <div className="ps-wrap" style={{maxWidth:960,margin:"0 auto"}}>
           {step===0 && <Step0/>}
 
-          {photoMode==="field" && step===1 && <FieldStep1/>}
+          {photoMode==="field" && step===1 && (
+            <FieldAnalysisProgressStep
+              fastAnalyzeMode={fastAnalyzeMode}
+              progress={progress}
+              classificationJobState={classificationJobState}
+              copyLog={copyLog}
+              onCancel={() => {
+                cancelRef.current = true;
+                classificationAbortRef.current?.abort();
+                setClassificationJobState("CANCELLED");
+              }}
+            />
+          )}
           {photoMode==="field" && step===2 && <FieldStep2/>}
-          {photoMode==="field" && step===3 && <FieldStep3/>}
+          {photoMode==="field" && step===3 && (
+            <FieldOutputProgressStep
+              fastAnalyzeMode={fastAnalyzeMode}
+              progress={progress}
+              qualityAnalysisEnabled={qualityAnalysisEnabled}
+              profileClassificationEnabled={profileClassificationEnabled}
+              onCancel={() => { cancelRef.current = true; }}
+            />
+          )}
           {photoMode==="field" && step===4 && <FieldStep4/>}
 
-          {photoMode==="studio" && step===1 && <StudioStep1/>}
-          {photoMode==="studio" && step===2 && <StudioStep2/>}
+          {photoMode==="studio" && step===1 && <StudioFileScanProgressStep progress={progress} />}
+          {photoMode==="studio" && step===2 && <StudioPhotoAnalysisProgressStep progress={progress} studioFiles={studioFiles} studioSubMode={studioSubMode} />}
           {photoMode==="studio" && step===3 && (studioSubMode==="group" ? <StudioGroupStep3/> : <StudioStep3/>)}
           {photoMode==="studio" && step===4 && (studioSubMode==="group" ? <StudioGroupStep4/> : <StudioStep4/>)}
-          {photoMode==="studio" && step===5 && <StudioStep5/>}
+          {photoMode==="studio" && step===5 && <StudioOutputProgressStep progress={progress} copyLog={studioCopyLog} />}
           {photoMode==="studio" && step===6 && <StudioStep6/>}
         </div>
         {isEmbedded ? <footer style={{ minHeight:70, display:"flex", alignItems:"center", padding:"0 20px", borderTop:"1px solid rgba(255,255,255,.10)", color:"rgba(255,255,255,.48)", fontSize:11 }}>
