@@ -4,6 +4,17 @@ export type SelectionSyncPersistenceBuffer<T> = {
   hasPendingWrite: () => boolean;
 };
 
+export function readSelectionSyncStorageValue(
+  storage: Pick<Storage, "getItem">,
+  storageKey: string,
+) {
+  try {
+    return storage.getItem(storageKey);
+  } catch {
+    return null;
+  }
+}
+
 type PersistenceBufferOptions<T> = {
   write: (value: T) => void;
   scheduleTask?: (task: () => void) => () => void;

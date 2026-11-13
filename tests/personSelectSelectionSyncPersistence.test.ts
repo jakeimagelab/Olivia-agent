@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createSelectionSyncPersistenceBuffer } from "@/lib/person-select/selectionSyncPersistence";
+import {
+  createSelectionSyncPersistenceBuffer,
+  readSelectionSyncStorageValue,
+} from "@/lib/person-select/selectionSyncPersistence";
 
 describe("person selection sync persistence", () => {
   it("coalesces rapid changes into one write with the latest queue", () => {
@@ -56,5 +59,11 @@ describe("person selection sync persistence", () => {
     expect(buffer.flush()).toBe(true);
     expect(write).toHaveBeenCalledTimes(2);
     expect(buffer.hasPendingWrite()).toBe(false);
+  });
+
+  it("treats unavailable browser storage as an empty persisted queue", () => {
+    const storage = { getItem: vi.fn(() => { throw new Error("storage disabled"); }) };
+
+    expect(readSelectionSyncStorageValue(storage, "selection:v1")).toBeNull();
   });
 });
