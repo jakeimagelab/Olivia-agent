@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
-import {
-  buildClassicChoiceFeedbackPatches,
-  buildClassicChoiceSelectionPatches,
-} from "@/lib/person-select/classicChoicePatches";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectFilmstripImages } from "./PersonSelectFilmstripImages";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
-import { usePersonChoiceSync, type PersonSelectImageData } from "./usePersonChoiceSync";
+import type { PersonSelectImageData } from "./usePersonChoiceSync";
 import { usePersonSelectFinalSubmission } from "./usePersonSelectFinalSubmission";
 import { usePersonSelectImages } from "./usePersonSelectImages";
 import { usePersonSelectPcNavigation } from "./usePersonSelectPcNavigation";
+import { usePersonSelectPcChoices } from "./usePersonSelectPcChoices";
 import {
   PERSON_SELECT_FIRST_PHOTO_TIMER_KEY,
   formatPersonSelectWon,
@@ -48,28 +45,31 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
   const firstPhotoMeasured = useRef(false);
-  const serverChoices = active?.choices;
   const need = active?.need ?? 0;
   const limit = Math.max(1, active?.max || active?.pick || 1);
-  const sync = usePersonChoiceSync({
+  const {
+    sync,
+    displayedChoices,
+    chosenIds,
+    choiceByImageId,
+    full,
+    chooseImage,
+    clearChoice,
+    updateFeedback,
+  } = usePersonSelectPcChoices({
     slug,
-    categoryKey: active?.key ?? "profile",
-    initialChoices: serverChoices ?? [],
+    active,
     images,
-    enabled: Boolean(active && !me.event.locked),
+    limit,
+    locked: me.event.locked,
   });
-  const enqueueChoicePatches = sync.enqueue;
-  const displayedChoices = sync.displayedChoices;
   const chosen = displayedChoices;
   const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
   const imageIndexById = useMemo(() => new Map(images.map((image, index) => [image.id, index])), [images]);
-  const choiceByImageId = useMemo(() => new Map(displayedChoices.map((choice) => [choice.image_id, choice])), [displayedChoices]);
-  const chosenIds = useMemo(() => new Set(displayedChoices.map((item) => item.image_id)), [displayedChoices]);
-  const full = limit > 1 && displayedChoices.length >= limit;
 
   useEffect(() => {
-    setPreviewId((current) => imageById.has(current) ? current : (serverChoices?.[0]?.image_id || images[0]?.id || ""));
-  }, [activeKey, imageById, images, serverChoices]);
+    setPreviewId((current) => imageById.has(current) ? current : (active?.choices[0]?.image_id || images[0]?.id || ""));
+  }, [active?.choices, activeKey, imageById, images]);
 
   const preview = imageById.get(previewId) ?? images[0];
   const previewIndex = preview ? imageIndexById.get(preview.id) ?? -1 : -1;
@@ -81,23 +81,9 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   }, [previewChoice?.id, previewChoice?.memo, previewChoice?.retouch_keys, preview?.id]);
 
   const save = useCallback((imageId: string, nextKeys: string[], nextMemo: string) => {
-    if (!active || !imageById.has(imageId)) return;
-    const { patches, limitReached } = buildClassicChoiceSelectionPatches({
-      imageId,
-      selectedIds: chosenIds,
-      limit,
-      retouchKeys: nextKeys,
-      memo: nextMemo,
-    });
-    if (limitReached) return;
-    enqueueChoicePatches(patches);
+    if (!chooseImage(imageId, nextKeys, nextMemo)) return;
     if (imageId === preview?.id) { setKeys(nextKeys); setMemo(nextMemo); }
-  }, [active, chosenIds, enqueueChoicePatches, imageById, limit, preview?.id]);
-
-  const clearChoice = useCallback((imageId: string) => {
-    if (!active) return;
-    enqueueChoicePatches([{ imageId, selected: false }]);
-  }, [active, enqueueChoicePatches]);
+  }, [chooseImage, preview?.id]);
 
   const selectImage = useCallback((imageId: string) => {
     save(imageId, [], "");
@@ -143,11 +129,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
 
   function schedule(nextKeys: string[], nextMemo: string) {
     if (!previewChoice?.image_id) return;
-    enqueueChoicePatches(buildClassicChoiceFeedbackPatches(
-      previewChoice.image_id,
-      nextKeys,
-      nextMemo,
-    ));
+    updateFeedback(previewChoice.image_id, nextKeys, nextMemo);
   }
 
   if (!active) return null;
