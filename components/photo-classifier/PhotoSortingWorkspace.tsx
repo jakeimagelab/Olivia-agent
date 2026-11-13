@@ -16,14 +16,13 @@ import type {
   AccuracyReport, ClassificationJobState, SceneBoundaryDecision,
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
-import { analyzeBrowserFieldFolder } from "@/lib/photo-classifier/fieldFolderAnalysis";
 import { runBrowserFieldClassification } from "@/lib/photo-classifier/browserFieldClassificationRunner";
 import { runBrowserFieldReviewConfirmation } from "@/lib/photo-classifier/browserFieldReviewRunner";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
 import {
   applyOverrides, adjustGranularity,
   DEFAULT_WEIGHT_PROFILE,
-  type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
+  type ClassificationOverrides,
 } from "@/lib/photo-classifier/pattern-analysis";
 import type { ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
 import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
@@ -92,6 +91,7 @@ import { FieldClassificationCompleteView } from "./FieldClassificationCompleteVi
 import { PhotoSortingSetupView } from "./PhotoSortingSetupView";
 import { useFieldSceneReviewActions } from "./useFieldSceneReviewActions";
 import { usePhotoSortingSourceActions } from "./usePhotoSortingSourceActions";
+import { usePhotoSortingAiPreview } from "./usePhotoSortingAiPreview";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -288,15 +288,27 @@ function PhotoSortingInner({
   /* ── AI 사진 분류 2.0 — Step0의 "AI 자동 분류" 탭 상태(기존 필드 분류 엔진은 그대로,
      이 상태들은 그 엔진에 넘길 동적 weights/threshold만 들고 있다) ── */
   const [classificationUiMode, setClassificationUiMode] = useState<ClassificationUiMode>("ai-auto");
-  const [aiWeightProfile,      setAiWeightProfile]      = useState<SceneWeightProfile | null>(null);
-  const [aiShootingPattern,    setAiShootingPattern]    = useState<FolderShootingPattern | null>(null);
-  const [aiAnalyzing,          setAiAnalyzing]          = useState(false);
   const [aiRefining,           setAiRefining]           = useState(false);
   const [aiRefinementHistory,  setAiRefinementHistory]  = useState<string[]>([]);
-  const [aiSceneProposals,     setAiSceneProposals]     = useState<SceneProposal[]>([]);
-  const [aiScanFileCount,      setAiScanFileCount]      = useState(0);
-  // NL 재조정 시 폴더를 다시 스캔하지 않고 미리보기만 재계산하기 위한 스캔 결과 캐시(ref라 리렌더 유발 안 함)
-  const aiScanEntriesRef = useRef<{ name: string; mtime: number; file: File }[]>([]);
+  const {
+    weightProfile: aiWeightProfile,
+    setWeightProfile: setAiWeightProfile,
+    shootingPattern: aiShootingPattern,
+    analyzing: aiAnalyzing,
+    sceneProposals: aiSceneProposals,
+    setSceneProposals: setAiSceneProposals,
+    scanFileCount: aiScanFileCount,
+    scanEntriesRef: aiScanEntriesRef,
+  } = usePhotoSortingAiPreview({
+    executionMode,
+    rootDirectory: rootDir,
+    photoMode,
+    classificationMode: classificationUiMode,
+    step,
+    departmentResolved: photoDepartmentResolution.status === "resolved",
+    department,
+    gapMinutes,
+  });
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
   const [studioFileMode,      setStudioFileMode]      = useState<"copy"|"move">("copy");
@@ -428,50 +440,10 @@ function PhotoSortingInner({
   });
 
   useEffect(() => {
-    if (executionMode === "REMOTE_WORKER") {
-      setAiShootingPattern(null);
-      setAiSceneProposals([]);
-      setAiScanFileCount(0);
-      aiScanEntriesRef.current = [];
-    }
     setDirPickError("");
     departmentContextKeyRef.current = "";
     closePhotoSourcePicker();
   }, [closePhotoSourcePicker, departmentContextKeyRef, executionMode]);
-
-  // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
-  // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
-  // 캐시된 시각 feature만) — 새 Vision 호출·새 feature 추출 전부 안 함(스펙 §6/§29/§30).
-  // 결과(weights/threshold)는 handleFieldSort가 그대로 받아쓸 뿐, 엔진 자체는 그대로다.
-  const runAiFolderAnalysis = useCallback(async () => {
-    if (!rootDir) return;
-    setAiAnalyzing(true);
-    setAiShootingPattern(null);
-    setAiSceneProposals([]);
-    try {
-      const result = await analyzeBrowserFieldFolder({
-        rootDirectory: rootDir,
-        department,
-        fallbackGapMinutes: gapMinutes,
-      });
-      aiScanEntriesRef.current = result.entries;
-      setAiScanFileCount(result.entries.length);
-      if (!result.pattern) return;
-      setAiShootingPattern(result.pattern);
-      setAiWeightProfile(result.pattern.profile);
-      setAiSceneProposals(result.proposals);
-    } catch (error) {
-      console.error("[ai-folder-analysis]", error);
-    } finally {
-      setAiAnalyzing(false);
-    }
-  }, [rootDir, department, gapMinutes]);
-
-  useEffect(() => {
-    if (executionMode !== "LOCAL_DIRECT" || !rootDir || photoMode !== "field" || classificationUiMode !== "ai-auto" || step !== 0 || photoDepartmentResolution.status !== "resolved") return;
-    runAiFolderAnalysis();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [executionMode, rootDir, photoMode, classificationUiMode, step, photoDepartmentResolution.status]);
 
   // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
   // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
