@@ -1,11 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { CustomerBridgeDraft, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import {
-  reconcileSelectionMediaImages,
-  SELECTION_THUMBNAIL_PAGE_SIZE,
-  type ResolvedSelectionMediaEntry,
   type SelectionMediaUrls,
   type SelectionMediaVariant,
 } from "@/lib/select-gallery/mediaLoading";
@@ -16,6 +13,7 @@ import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { SharedProjectClassicPhotoCard } from "./SharedProjectClassicPhotoCard";
 import { useSelectionSyncQueue } from "./useSelectionSyncQueue";
 import { useSharedCustomerMemoSync } from "./useSharedCustomerMemoSync";
+import { useSharedProjectClassicMedia } from "./useSharedProjectClassicMedia";
 import { useVisibleSelectionRefresh } from "./useVisibleSelectionRefresh";
 import styles from "./SharedProjectSelect.module.css";
 
@@ -50,20 +48,16 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const submitKey = useRef(requestKey());
-  const [urlOverrides, setUrlOverrides] = useState<SharedProjectImageUrls>({});
-  const [renderLimit, setRenderLimit] = useState(SELECTION_THUMBNAIL_PAGE_SIZE);
-  const loadingIds = useRef(new Set<string>());
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const resolvedImagesRef = useRef(new Map<string, ResolvedSelectionMediaEntry<CustomerBridgeImage>>());
-  const resolvedImages = useMemo(
-    () => reconcileSelectionMediaImages(initialImages, urlOverrides, resolvedImagesRef.current),
-    [initialImages, urlOverrides],
-  );
-  const images = resolvedImages.images;
-  const visible = useMemo(() => filter === "selected" ? images.filter((image) => selected.has(image.id)) : images, [filter, images, selected]);
-  const rendered = useMemo(() => visible.slice(0, renderLimit), [renderLimit, visible]);
-
-  useEffect(() => { resolvedImagesRef.current = resolvedImages.entries; }, [resolvedImages.entries]);
+  const { images, renderedImages, sentinelRef } = useSharedProjectClassicMedia({
+    initialImages,
+    selected,
+    filter,
+    hasMoreImages,
+    imagePageLoading,
+    loadMoreImages,
+    loadImageUrls,
+    onError: setState,
+  });
 
   const replaceSelected = useCallback((next: Set<string>) => {
     selectedRef.current = next;
@@ -98,31 +92,6 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
   });
   const getPendingSelectionDiffs = selectionSync.getPendingDiffs;
   const enqueueSelectionSync = selectionSync.enqueue;
-
-  useEffect(() => { setRenderLimit(SELECTION_THUMBNAIL_PAGE_SIZE); }, [filter]);
-  useEffect(() => {
-    const missing = rendered.filter((image) => !image.thumbnail_url && !loadingIds.current.has(image.id)).map((image) => image.id);
-    if (!missing.length) return;
-    missing.forEach((id) => loadingIds.current.add(id));
-    void loadImageUrls(missing, { variant: "thumbnail" })
-      .then((next) => setUrlOverrides((current) => ({ ...current, ...next })))
-      .catch((cause) => setState(cause instanceof Error ? cause.message : "사진을 불러오지 못했습니다."))
-      .finally(() => missing.forEach((id) => loadingIds.current.delete(id)));
-  }, [loadImageUrls, rendered]);
-  useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries.some((entry) => entry.isIntersecting)) return;
-      setRenderLimit((current) => {
-        const next = Math.min(visible.length, current + SELECTION_THUMBNAIL_PAGE_SIZE);
-        if (next === current && hasMoreImages && !imagePageLoading) void loadMoreImages();
-        return next;
-      });
-    }, { rootMargin: "800px 0px" });
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [hasMoreImages, imagePageLoading, loadMoreImages, visible.length]);
 
   const refreshServerDraft = useCallback(async () => {
     try {
@@ -183,5 +152,5 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
     return items;
   }, [images, selected, submitReviewOpen]);
 
-  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {totalImageCount}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{rendered.map((image) => <SharedProjectClassicPhotoCard key={image.id} image={image} selected={selected.has(image.id)} pending={selectionSync.pendingImageIds.has(image.id)} onToggle={toggle} />)}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />{imagePageLoading ? <p className={styles.state}>사진 목록 불러오는 중…</p> : null}{imagePageError ? <button type="button" className={styles.state} onClick={() => void loadMoreImages()}>{imagePageError} · 다시 시도</button> : null}</section><footer className={styles.footer}><textarea value={memoSync.value} placeholder="전체 메모" maxLength={5000} onChange={(event) => memoSync.setValue(event.target.value)} /><button type="button" disabled={!selected.size || selectionSync.pendingCount > 0 || memoSync.pending || reviewer.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer.can_finalize === false ? "확정 권한 없음" : `선택 ${selected.size}장 제출하기`}</button><span className={styles.state}>{saveState}</span></footer>{submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={selected.size} sections={[{ label: "고객 셀렉", count: selected.size, detail: memoSync.value.trim() ? "전체 메모 있음" : "전체 메모 없음" }]} items={reviewItems} busy={submitting} error={state} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void submit()} /> : null}</main>;
+  return <main className={styles.shell}><header className={styles.header}><div><h1>{event.title}</h1><p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p></div><strong>{selected.size} / {totalImageCount}장 선택</strong></header><nav className={styles.toolbar}><button type="button" className={filter === "all" ? styles.active : ""} onClick={() => setFilter("all")}>전체 사진</button><button type="button" className={filter === "selected" ? styles.active : ""} onClick={() => setFilter("selected")}>선택한 사진</button></nav><section className={styles.grid}>{renderedImages.map((image) => <SharedProjectClassicPhotoCard key={image.id} image={image} selected={selected.has(image.id)} pending={selectionSync.pendingImageIds.has(image.id)} onToggle={toggle} />)}<div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />{imagePageLoading ? <p className={styles.state}>사진 목록 불러오는 중…</p> : null}{imagePageError ? <button type="button" className={styles.state} onClick={() => void loadMoreImages()}>{imagePageError} · 다시 시도</button> : null}</section><footer className={styles.footer}><textarea value={memoSync.value} placeholder="전체 메모" maxLength={5000} onChange={(event) => memoSync.setValue(event.target.value)} /><button type="button" disabled={!selected.size || selectionSync.pendingCount > 0 || memoSync.pending || reviewer.can_finalize === false} onClick={() => void openSubmitReview()}>{reviewer.can_finalize === false ? "확정 권한 없음" : `선택 ${selected.size}장 제출하기`}</button><span className={styles.state}>{saveState}</span></footer>{submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={selected.size} sections={[{ label: "고객 셀렉", count: selected.size, detail: memoSync.value.trim() ? "전체 메모 있음" : "전체 메모 없음" }]} items={reviewItems} busy={submitting} error={state} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void submit()} /> : null}</main>;
 }
