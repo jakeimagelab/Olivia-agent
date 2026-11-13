@@ -25,12 +25,17 @@ import { getStorageRoots } from "@/lib/photo-classifier/node/storageConfig";
 import { getPersonSelectRoots, resolvePersonSelectSourcePath, toPersonSelectVirtualPath } from "@/lib/person-select/sourceRoots";
 import { executeRemoteRawMatchCopy } from "@/lib/selectMatch/node/rawMatchCopy";
 import type { RemoteRawMatchCopyPayload } from "@/lib/selectMatch/remoteRawMatch";
+import {
+  workerBooleanValue as booleanValue,
+  workerNumberValue as numberValue,
+  workerStringArrayValue as arrayValue,
+  workerStringValue as stringValue,
+  type WorkerJsonRecord as JsonRecord,
+} from "@/lib/remote-jobs/workerPayload";
 
 const PROGRESS_PREFIX = "OLIVIA_REMOTE_PROGRESS ";
 const MAX_CAPTURE_BYTES = 64 * 1024 * 1024;
 const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.11-person-select-delivery-v1";
-
-type JsonRecord = Record<string, unknown>;
 
 export type ClaimedRemoteJob = {
   job_id: string;
@@ -127,39 +132,6 @@ export function createCoalescedProgressReporter(
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function stringValue(payload: JsonRecord, key: string, required = false): string | undefined {
-  const value = payload[key];
-  if (value === undefined || value === null || value === "") {
-    if (required) throw new Error(`${key} 값이 필요합니다.`);
-    return undefined;
-  }
-  if (typeof value !== "string") throw new Error(`${key} 값은 문자열이어야 합니다.`);
-  return value;
-}
-
-function numberValue(payload: JsonRecord, key: string): number | undefined {
-  const value = payload[key];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "number" || !Number.isFinite(value)) throw new Error(`${key} 값은 숫자여야 합니다.`);
-  return value;
-}
-
-function booleanValue(payload: JsonRecord, key: string): boolean | undefined {
-  const value = payload[key];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== "boolean") throw new Error(`${key} 값은 boolean이어야 합니다.`);
-  return value;
-}
-
-function arrayValue(payload: JsonRecord, key: string): string[] | undefined {
-  const value = payload[key];
-  if (value === undefined || value === null) return undefined;
-  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
-    throw new Error(`${key} 값은 문자열 배열이어야 합니다.`);
-  }
-  return value;
 }
 
 function addString(args: string[], flag: string, value: string | undefined): void {
