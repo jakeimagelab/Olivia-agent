@@ -1,4 +1,5 @@
 export type SelectionMediaVariant = "thumbnail" | "preview" | "both";
+export type SelectionMediaField = "thumbnail" | "preview";
 
 export const SELECTION_THUMBNAIL_PAGE_SIZE = 72;
 export const SELECTION_MEDIA_URL_CACHE_LIMIT = 240;
@@ -18,6 +19,49 @@ export type ResolvedSelectionMediaEntry<T> = {
   urls: SelectionMediaUrls;
   value: T;
 };
+
+export type SelectionMediaRequestCandidate = {
+  imageId: string;
+  fields: SelectionMediaField[];
+};
+
+export function selectionMediaFieldsForVariant(variant: SelectionMediaVariant): SelectionMediaField[] {
+  if (variant === "thumbnail") return ["thumbnail"];
+  if (variant === "preview") return ["preview"];
+  return ["thumbnail", "preview"];
+}
+
+export function selectionMediaFieldKey(field: SelectionMediaField, imageId: string) {
+  return `${field}:${imageId}`;
+}
+
+export function buildSelectionMediaRequestCandidates<
+  T extends { id: string; image_url?: string; thumbnail_url?: string | null },
+>({
+  imagesById,
+  requestedIds,
+  variant,
+  inFlightKeys,
+}: {
+  imagesById: ReadonlyMap<string, T>;
+  requestedIds: readonly string[];
+  variant: SelectionMediaVariant;
+  inFlightKeys: ReadonlySet<string>;
+}): SelectionMediaRequestCandidate[] {
+  const fields = selectionMediaFieldsForVariant(variant);
+  const candidates = [...new Set(requestedIds)].flatMap((imageId) => {
+    const image = imagesById.get(imageId);
+    if (!image) return [];
+    const missingFields = fields.filter((field) => {
+      const hasUrl = field === "thumbnail" ? Boolean(image.thumbnail_url) : Boolean(image.image_url);
+      return !hasUrl && !inFlightKeys.has(selectionMediaFieldKey(field, imageId));
+    });
+    return missingFields.length ? [{ imageId, fields: missingFields }] : [];
+  });
+  return variant === "thumbnail"
+    ? candidates.slice(0, SELECTION_THUMBNAIL_PAGE_SIZE)
+    : candidates;
+}
 
 export function reconcileSelectionMediaImages<
   T extends { id: string; image_url?: string; thumbnail_url?: string | null },

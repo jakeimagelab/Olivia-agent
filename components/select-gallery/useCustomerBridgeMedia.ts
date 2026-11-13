@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   adjacentSelectionMediaIds,
+  buildSelectionMediaRequestCandidates,
   mergeSelectionMediaUrlCache,
   reconcileSelectionMediaImages,
-  SELECTION_THUMBNAIL_PAGE_SIZE,
   type ResolvedSelectionMediaEntry,
+  selectionMediaFieldKey,
+  type SelectionMediaField,
   type SelectionMediaUrlCache,
   type SelectionMediaUrls,
   type SelectionMediaVariant,
@@ -16,7 +18,6 @@ import { useAdjacentPreviewPreload } from "./CustomerBridgeMedia";
 
 const EMPTY_MEDIA_CACHE: SelectionMediaUrlCache = { records: {}, order: [] };
 
-type MediaField = "thumbnail" | "preview";
 type LoadImageUrls = (
   imageIds: string[],
   options?: { variant: SelectionMediaVariant },
@@ -24,16 +25,6 @@ type LoadImageUrls = (
 type RefreshImageUrl = (
   imageId: string,
 ) => Promise<Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
-
-function mediaFieldsForVariant(variant: SelectionMediaVariant): MediaField[] {
-  if (variant === "thumbnail") return ["thumbnail"];
-  if (variant === "preview") return ["preview"];
-  return ["thumbnail", "preview"];
-}
-
-function mediaFieldKey(field: MediaField, imageId: string) {
-  return `${field}:${imageId}`;
-}
 
 function reportMediaLoadError(scope: string, error: unknown) {
   if (process.env.NODE_ENV !== "production") console.debug(`[customer-bridge:${scope}] media request failed`, error);
@@ -65,16 +56,16 @@ export function useCustomerBridgeMediaStore({
   const imageIds = useMemo(() => new Set(images.map((image) => image.id)), [images]);
   const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
 
-  const beginFieldRequest = useCallback((field: MediaField, imageId: string) => {
-    const key = mediaFieldKey(field, imageId);
+  const beginFieldRequest = useCallback((field: SelectionMediaField, imageId: string) => {
+    const key = selectionMediaFieldKey(field, imageId);
     const sequence = (mediaSequenceRef.current.get(key) ?? 0) + 1;
     mediaSequenceRef.current.set(key, sequence);
     mediaFieldsInFlightRef.current.add(key);
     return sequence;
   }, []);
 
-  const finishFieldRequest = useCallback((field: MediaField, imageId: string, sequence: number) => {
-    const key = mediaFieldKey(field, imageId);
+  const finishFieldRequest = useCallback((field: SelectionMediaField, imageId: string, sequence: number) => {
+    const key = selectionMediaFieldKey(field, imageId);
     if (mediaSequenceRef.current.get(key) === sequence) mediaFieldsInFlightRef.current.delete(key);
   }, []);
 
@@ -85,22 +76,16 @@ export function useCustomerBridgeMediaStore({
 
   const requestMedia = useCallback(async (requestedIds: readonly string[], variant: SelectionMediaVariant) => {
     if (!loadImageUrls) return;
-    const fields = mediaFieldsForVariant(variant);
-    const candidates = [...new Set(requestedIds)].flatMap((imageId) => {
-      const image = imageById.get(imageId);
-      if (!image) return [];
-      const missingFields = fields.filter((field) => {
-        const hasUrl = field === "thumbnail" ? Boolean(image.thumbnail_url) : Boolean(image.image_url);
-        return !hasUrl && !mediaFieldsInFlightRef.current.has(mediaFieldKey(field, imageId));
-      });
-      if (!missingFields.length) return [];
-      return [{ imageId, fields: missingFields }];
+    const candidates = buildSelectionMediaRequestCandidates({
+      imagesById: imageById,
+      requestedIds,
+      variant,
+      inFlightKeys: mediaFieldsInFlightRef.current,
     });
-    const requestLimit = variant === "thumbnail" ? SELECTION_THUMBNAIL_PAGE_SIZE : candidates.length;
-    const requests = candidates.slice(0, requestLimit).map(({ imageId, fields }) => ({
+    const requests = candidates.map(({ imageId, fields }) => ({
       imageId,
       fields,
-      sequences: Object.fromEntries(fields.map((field) => [field, beginFieldRequest(field, imageId)])) as Record<MediaField, number>,
+      sequences: Object.fromEntries(fields.map((field) => [field, beginFieldRequest(field, imageId)])) as Record<SelectionMediaField, number>,
     }));
     if (!requests.length) return;
 
@@ -112,12 +97,12 @@ export function useCustomerBridgeMediaStore({
         if (!urls) continue;
         const next: SelectionMediaUrls = {};
         if (request.fields.includes("thumbnail")
-          && mediaSequenceRef.current.get(mediaFieldKey("thumbnail", request.imageId)) === request.sequences.thumbnail
+          && mediaSequenceRef.current.get(selectionMediaFieldKey("thumbnail", request.imageId)) === request.sequences.thumbnail
           && urls.thumbnail_url !== undefined) {
           next.thumbnail_url = urls.thumbnail_url;
         }
         if (request.fields.includes("preview")
-          && mediaSequenceRef.current.get(mediaFieldKey("preview", request.imageId)) === request.sequences.preview
+          && mediaSequenceRef.current.get(selectionMediaFieldKey("preview", request.imageId)) === request.sequences.preview
           && urls.image_url !== undefined) {
           next.image_url = urls.image_url;
         }
@@ -140,8 +125,8 @@ export function useCustomerBridgeMediaStore({
     const request = refreshImageUrl(imageId)
       .then((urls) => {
         const accepted: SelectionMediaUrls = {};
-        if (mediaSequenceRef.current.get(mediaFieldKey("thumbnail", imageId)) === thumbnailSequence && urls.thumbnail_url !== undefined) accepted.thumbnail_url = urls.thumbnail_url;
-        if (mediaSequenceRef.current.get(mediaFieldKey("preview", imageId)) === previewSequence) accepted.image_url = urls.image_url;
+        if (mediaSequenceRef.current.get(selectionMediaFieldKey("thumbnail", imageId)) === thumbnailSequence && urls.thumbnail_url !== undefined) accepted.thumbnail_url = urls.thumbnail_url;
+        if (mediaSequenceRef.current.get(selectionMediaFieldKey("preview", imageId)) === previewSequence) accepted.image_url = urls.image_url;
         if (Object.keys(accepted).length) mergeAcceptedUrls({ [imageId]: accepted });
       })
       .catch((error) => reportMediaLoadError("refresh", error))

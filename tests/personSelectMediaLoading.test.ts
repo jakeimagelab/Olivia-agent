@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adjacentSelectionMediaIds,
+  buildSelectionMediaRequestCandidates,
   mergeSelectionMediaUrlCache,
   mergeSelectionMediaUrlRecords,
   reconcileSelectionMediaImages,
@@ -105,6 +106,35 @@ describe("person select media loading", () => {
       "image-7",
     ]);
     expect(adjacentSelectionMediaIds(images, "image-0", 2)).toEqual(["image-0", "image-1", "image-2"]);
+  });
+
+  it("requests only missing media fields and skips fields already in flight", () => {
+    const imagesById = new Map([
+      ["loaded", { id: "loaded", thumbnail_url: "thumb", image_url: "preview" }],
+      ["partial", { id: "partial", thumbnail_url: "thumb", image_url: "" }],
+      ["missing", { id: "missing", thumbnail_url: null, image_url: "" }],
+    ]);
+
+    expect(buildSelectionMediaRequestCandidates({
+      imagesById,
+      requestedIds: ["loaded", "partial", "missing", "missing"],
+      variant: "both",
+      inFlightKeys: new Set(["preview:partial"]),
+    })).toEqual([{ imageId: "missing", fields: ["thumbnail", "preview"] }]);
+  });
+
+  it("bounds a thumbnail request to one virtual-grid page", () => {
+    const imagesById = new Map(Array.from({ length: 100 }, (_, index) => [
+      `image-${index}`,
+      { id: `image-${index}`, thumbnail_url: null },
+    ]));
+
+    expect(buildSelectionMediaRequestCandidates({
+      imagesById,
+      requestedIds: [...imagesById.keys()],
+      variant: "thumbnail",
+      inFlightKeys: new Set(),
+    })).toHaveLength(SELECTION_THUMBNAIL_PAGE_SIZE);
   });
 
   it("reuses resolved photo objects when another thumbnail is cached", () => {
