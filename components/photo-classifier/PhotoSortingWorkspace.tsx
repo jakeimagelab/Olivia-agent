@@ -11,11 +11,6 @@ import type {
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
-import {
-  applyOverrides, adjustGranularity,
-  DEFAULT_WEIGHT_PROFILE,
-  type ClassificationOverrides,
-} from "@/lib/photo-classifier/pattern-analysis";
 import type { ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
 import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
 import ClassificationPrompt from "./ai-auto/ClassificationPrompt";
@@ -35,7 +30,6 @@ import {
   type StudioStats,
   type StudioSubMode,
 } from "@/lib/photo-classifier/studioGrouping";
-import { buildQuickProposals } from "@/lib/photo-classifier/browserProcessing";
 import {
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
@@ -84,6 +78,7 @@ import {
   usePhotoSortingFieldActions,
 } from "./usePhotoSortingFieldActions";
 import { usePhotoSortingBridgePlan } from "./usePhotoSortingBridgePlan";
+import { usePhotoSortingNaturalLanguage } from "./usePhotoSortingNaturalLanguage";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -277,8 +272,6 @@ function PhotoSortingInner({
   /* ── AI 사진 분류 2.0 — Step0의 "AI 자동 분류" 탭 상태(기존 필드 분류 엔진은 그대로,
      이 상태들은 그 엔진에 넘길 동적 weights/threshold만 들고 있다) ── */
   const [classificationUiMode, setClassificationUiMode] = useState<ClassificationUiMode>("ai-auto");
-  const [aiRefining,           setAiRefining]           = useState(false);
-  const [aiRefinementHistory,  setAiRefinementHistory]  = useState<string[]>([]);
   const {
     weightProfile: aiWeightProfile,
     setWeightProfile: setAiWeightProfile,
@@ -434,38 +427,6 @@ function PhotoSortingInner({
     closePhotoSourcePicker();
   }, [closePhotoSourcePicker, departmentContextKeyRef, executionMode]);
 
-  // 자연어 재조정 — 화이트리스트 필드(ClassificationOverrides)만 파싱해 현재 profile에 머지한다
-  // (스펙 §20, 임의 코드 실행 없음). Step0에서 아직 분류 전이면 미리보기만 갱신하고, 이미 결과를
-  // 검토 중이면(step>=1) handleFieldSort를 다시 돌린다 — 체크포인트 캐시가 이전 AI 분석 결과를
-  // weights만 바꿔 재사용하므로(boundary-score.ts) 이 재실행은 새 Vision 호출을 만들지 않는다.
-  const submitAiNlRequest = useCallback(async (message: string) => {
-    setAiRefining(true);
-    try {
-      const response = await fetch("/api/photo-classification-nl-override", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, context: aiRefinementHistory.length ? aiRefinementHistory.join(" / ") : undefined }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error ?? "요청을 이해하지 못했습니다.");
-      const base = aiWeightProfile ?? DEFAULT_WEIGHT_PROFILE;
-      const overrides = data.overrides as ClassificationOverrides;
-      let next = applyOverrides(base, overrides);
-      if (data.granularity === "coarser" || data.granularity === "finer") next = adjustGranularity(next, data.granularity);
-      setAiWeightProfile(next);
-      setAiRefinementHistory((previous) => [...previous, message]);
-      if (aiScanEntriesRef.current.length) {
-        setAiSceneProposals(await buildQuickProposals(aiScanEntriesRef.current, next.absoluteTimeGapMinutes ?? gapMinutes));
-      }
-      if (step >= 1) await handleFieldSort();
-    } catch (error) {
-      console.error("[ai-nl-override]", error);
-    } finally {
-      setAiRefining(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiWeightProfile, aiRefinementHistory, gapMinutes, step]);
-
   const stepLabels = photoMode === "studio"
     ? (studioSubMode === "group" ? STUDIO_GROUP_STEPS : STUDIO_STEPS)
     : FIELD_STEPS;
@@ -531,6 +492,20 @@ function PhotoSortingInner({
     setJpgBaseDirectory: setFieldJpgBaseDir,
     setStats: setFieldStats,
     analyzeScenes: runSceneAiAnalysis,
+  });
+
+  const {
+    refining: aiRefining,
+    history: aiRefinementHistory,
+    submitRequest: submitAiNlRequest,
+  } = usePhotoSortingNaturalLanguage({
+    weightProfile: aiWeightProfile,
+    setWeightProfile: setAiWeightProfile,
+    scanEntriesRef: aiScanEntriesRef,
+    setSceneProposals: setAiSceneProposals,
+    gapMinutes,
+    step,
+    startClassification: handleFieldSort,
   });
 
   usePhotoSortingBridgePlan({
