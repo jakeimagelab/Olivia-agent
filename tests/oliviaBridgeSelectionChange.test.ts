@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  mergeBridgeSelectionIds,
   resolveBridgeManualSelectionChange,
   sameBridgeIdSet,
 } from "@/lib/photo-bridge/selectionChange";
@@ -78,5 +79,15 @@ describe("Bridge manual selection change", () => {
   it("Set 비교는 순서와 무관하고 값 차이를 감지한다", () => {
     expect(sameBridgeIdSet(new Set(["a", "b"]), new Set(["b", "a"]))).toBe(true);
     expect(sameBridgeIdSet(new Set(["a"]), new Set(["b"]))).toBe(false);
+  });
+
+  it("고객 셀렉이 이미 포함되어 있으면 현재 Set을 유지한다", () => {
+    const current = new Set(["a", "b"]);
+
+    expect(mergeBridgeSelectionIds(current, new Set(["b"]))).toBe(current);
+  });
+
+  it("고객 셀렉 중 빠진 사진만 관리자 셀렉에 합친다", () => {
+    expect([...mergeBridgeSelectionIds(new Set(["a"]), new Set(["a", "b"]))]).toEqual(["a", "b"]);
   });
 });

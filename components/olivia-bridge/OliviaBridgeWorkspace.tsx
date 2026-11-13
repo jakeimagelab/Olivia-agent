@@ -43,6 +43,7 @@ import { useOliviaBridgeSelectionSummary } from "@/components/olivia-bridge/useO
 import { useOliviaBridgeUiState } from "@/components/olivia-bridge/useOliviaBridgeUiState";
 import { useOliviaBridgeFolderNavigation } from "@/components/olivia-bridge/useOliviaBridgeFolderNavigation";
 import { useOliviaBridgePreviewNavigation } from "@/components/olivia-bridge/useOliviaBridgePreviewNavigation";
+import { useOliviaBridgeSelectionActions } from "@/components/olivia-bridge/useOliviaBridgeSelectionActions";
 import {
   useOliviaBridgeEffectiveMarks,
   useOliviaBridgeRatingPublisher,
@@ -57,7 +58,6 @@ import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import {
   normalizePhotoToolFileKey,
-  type BridgeSelectionSource,
 } from "@/lib/photo-bridge/toolLinkage";
 import {
   type BridgeFolderTrailItem,
@@ -466,18 +466,6 @@ export default function OliviaBridgeWorkspace({
     showAdobeSelectionNotice,
   });
 
-  const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
-    activateSelectionSource(source);
-    if (folderSelectionSourceKey) {
-      try {
-        localStorage.setItem(`olivia-bridge-selection-source:${folderSelectionSourceKey}`, source);
-      } catch {
-        // 브라우저 저장소를 사용할 수 없어도 현재 창의 기준 변경은 유지한다.
-      }
-    }
-    publishRatingsForSource(source, adobeRatings);
-  }, [activateSelectionSource, adobeRatings, folderSelectionSourceKey, publishRatingsForSource]);
-
   useOliviaBridgeWorkspaceSync({
     focusedIndex,
     visibleJpgs,
@@ -703,12 +691,6 @@ export default function OliviaBridgeWorkspace({
     setToolKey,
   });
 
-  const addCustomerSelectionToAdminSelection = useCallback(() => {
-    if (!customerSelectedIds.size) return;
-    setSelectedIds((current) => new Set([...current, ...customerSelectedIds]));
-    setComparisonFilter("all");
-  }, [customerSelectedIds, setComparisonFilter, setSelectedIds]);
-
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
   const {
     scenePhotoByName,
@@ -735,13 +717,22 @@ export default function OliviaBridgeWorkspace({
     reportScenePlanError,
   });
 
-  const openSceneReview = useCallback(() => {
-    setSceneReviewOpen(true);
-    void syncAdobeBridgeSelection();
-  }, [syncAdobeBridgeSelection]);
-  const refreshAdobeMarks = useCallback(() => {
-    void syncAdobeBridgeSelection();
-  }, [syncAdobeBridgeSelection]);
+  const {
+    changeSelectionSource,
+    addCustomerSelectionToAdminSelection,
+    openSceneReview,
+    refreshAdobeMarks,
+  } = useOliviaBridgeSelectionActions({
+    folderSelectionSourceKey,
+    activateSelectionSource,
+    adobeRatings,
+    publishRatingsForSource,
+    customerSelectedIds,
+    setSelectedIds,
+    resetComparisonFilter,
+    syncAdobeBridgeSelection,
+    setSceneReviewOpen,
+  });
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
       <OliviaBridgeTopBars

@@ -58,3 +58,13 @@ export function resolveBridgeManualSelectionChange({
 export function sameBridgeIdSet(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {
   return left.size === right.size && [...left].every((id) => right.has(id));
 }
+
+export function mergeBridgeSelectionIds(
+  currentIds: ReadonlySet<string>,
+  additionalIds: ReadonlySet<string>,
+): Set<string> {
+  if (![...additionalIds].some((id) => !currentIds.has(id))) {
+    return currentIds instanceof Set ? currentIds : new Set(currentIds);
+  }
+  return new Set([...currentIds, ...additionalIds]);
+}
