@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useRef,
   useState,
   type ReactNode,
@@ -18,9 +17,8 @@ import type {
   CustomerBridgeGallery,
   CustomerBridgeImage,
 } from "@/lib/select-gallery/customerBridgeTypes";
-import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
-import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
+import { useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
@@ -35,6 +33,7 @@ import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
 import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserController";
 import { useCustomerBridgeSideController } from "./useCustomerBridgeSideController";
 import { useCustomerBridgeFinalizeController } from "./useCustomerBridgeFinalizeController";
+import { useCustomerBridgeViewerController } from "./useCustomerBridgeViewerController";
 import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -251,29 +250,23 @@ export default function CustomerBridgeSelect({
     moveReview,
     removeFromReview,
     restoreReview,
-  } = useCustomerBridgeReviewController({
+    openFocusedFullscreen,
+  } = useCustomerBridgeViewerController({
     images,
     visibleImages,
+    renderedImages,
     imageById,
     selectedIds: customerSelectedIds,
     focusedImageId,
     ratings: customerRatings,
     colorLabels: customerColorLabels,
-    onFocusImage: setFocusedImageId,
-    onApplyRating: applyRatingTo,
-    onApplyColor: applyColorTo,
+    setFocusedImageId,
+    applyRatingTo,
+    applyColorTo,
+    requestMedia,
+    setMobileImageOpener,
+    fullscreenCloseRef,
   });
-  useEffect(() => {
-    setMobileImageOpener(openFullscreen);
-  }, [openFullscreen, setMobileImageOpener]);
-  useEffect(() => {
-    fullscreenCloseRef.current = () => {
-      if (fullscreenId) closeFullscreen();
-    };
-  }, [closeFullscreen, fullscreenId]);
-  const openFocusedFullscreen = useCallback(() => {
-    if (focusedImageId) openFullscreen(focusedImageId);
-  }, [focusedImageId, openFullscreen]);
 
   const {
     submitError,
@@ -312,16 +305,6 @@ export default function CustomerBridgeSelect({
     clearActiveSelection,
     resetReview,
     setFilter,
-  });
-
-  useCustomerBridgeMediaRequests({
-    renderedImages,
-    visibleImages,
-    focusedImageId,
-    fullscreenId,
-    reviewImages,
-    reviewActiveId,
-    requestMedia,
   });
 
   const {
