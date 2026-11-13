@@ -6,6 +6,7 @@ import {
   type PersonSelectImageData,
 } from "@/components/person-select/usePersonChoiceSync";
 import { personSelectPhotoTilePropsEqual } from "@/components/person-select/PersonSelectPhotoTile";
+import { personSelectFilmstripThumbnailPropsEqual } from "@/components/person-select/PersonSelectFilmstripImages";
 import { splitSelectionSyncPatches } from "@/lib/person-select/selectionSync";
 
 const images: PersonSelectImageData[] = [{
@@ -51,6 +52,22 @@ describe("person choice optimistic display", () => {
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous })).toBe(true);
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous, selected: true })).toBe(false);
     expect(personSelectPhotoTilePropsEqual(previous, { ...previous, pending: true })).toBe(false);
+  });
+
+  it("does not rerender unchanged PC filmstrip thumbnails for a save status update", () => {
+    const onSelect = () => undefined;
+    const activeThumbRef = { current: null };
+    const previous = {
+      image: images[0],
+      current: false,
+      selected: false,
+      pending: false,
+      activeThumbRef,
+      onSelect,
+    };
+    expect(personSelectFilmstripThumbnailPropsEqual(previous, { ...previous })).toBe(true);
+    expect(personSelectFilmstripThumbnailPropsEqual(previous, { ...previous, pending: true })).toBe(false);
+    expect(personSelectFilmstripThumbnailPropsEqual(previous, { ...previous, current: true })).toBe(false);
   });
 
   it("keeps the same choice map and item objects for an unchanged server refresh", () => {

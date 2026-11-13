@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
 import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
+import { PersonSelectFilmstripImages } from "./PersonSelectFilmstripImages";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
 import { usePersonChoiceSync, type PersonSelectImageData } from "./usePersonChoiceSync";
 import { isPersonSelectImagePageNearEnd, usePersonSelectImages } from "./usePersonSelectImages";
@@ -203,6 +204,8 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     if (filmstrip.scrollWidth - filmstrip.scrollLeft - filmstrip.clientWidth < 800) void loadMore();
   }, [hasMore, loadMore]);
 
+  const selectPreview = useCallback((imageId: string) => setPreviewId(imageId), []);
+
   function measureFirstPhoto() {
     if (firstPhotoMeasured.current) return;
     firstPhotoMeasured.current = true;
@@ -235,7 +238,16 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
         </div>
         <div className={styles.pcFilmstrip}>
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripPrevious}`} type="button" aria-label="이전 사진 묶음" onClick={() => scrollFilmstrip(-1)}><ChevronLeft size={20} /></button>
-          <div ref={filmstripRef} className={styles.pcThumbs} onScroll={loadMoreNearFilmstripEnd}>{images.map((image) => <button ref={image.id === preview?.id ? activeThumbRef : null} key={image.id} className={`${styles.photoTile} ${image.id === preview?.id ? styles.pcThumbCurrent : ""} ${chosenIds.has(image.id) ? styles.photoTileSelected : ""} ${sync.pendingImageIds.has(image.id) ? styles.photoTilePending : ""}`} onClick={() => setPreviewId(image.id)}><img src={image.thumb_url} alt={image.original_file_name} loading="lazy" decoding="async" draggable={false} onContextMenu={(event) => event.preventDefault()} />{chosenIds.has(image.id) ? <span className={styles.check}><Check size={15} /></span> : null}{sync.pendingImageIds.has(image.id) ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}</button>)}</div>
+          <PersonSelectFilmstripImages
+            images={images}
+            previewId={preview?.id ?? ""}
+            selectedIds={chosenIds}
+            pendingImageIds={sync.pendingImageIds}
+            activeThumbRef={activeThumbRef}
+            filmstripRef={filmstripRef}
+            onSelect={selectPreview}
+            onScroll={loadMoreNearFilmstripEnd}
+          />
           <button className={`${styles.pcFilmstripArrow} ${styles.pcFilmstripNext}`} type="button" aria-label="다음 사진 묶음" onClick={() => scrollFilmstrip(1)}><ChevronRight size={20} /></button>
         </div>
         <p className={styles.pcKeyboardHint}>← → 사진 이동 · 1 선택 · 0 해제 · Space 사진 고르기</p>
