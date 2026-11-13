@@ -920,10 +920,9 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
-  const Step0 = () => {
-    const departmentReady = photoDepartmentResolution.status === "resolved";
-    return (
-      <PhotoSortingSetupView
+  const departmentReady = photoDepartmentResolution.status === "resolved";
+  const setupView = (
+    <PhotoSortingSetupView
         savedSession={savedSession}
         showSavedSession={photoSourceSurface === "desktop"}
         onRestoreSession={(session) => void handleRestore(session)}
@@ -992,17 +991,14 @@ function PhotoSortingInner({
             label: executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작",
           },
         }}
-      />
-    );
-  };
+    />
+  );
 
   /* ════════════════════════════════════════════
      FIELD STEPS
   ═══════════════════════════════════════════ */
-  const FieldStep4 = () => {
-    if (!fieldStats) return null;
-    return (
-      <FieldClassificationCompleteView
+  const fieldCompleteView = fieldStats ? (
+    <FieldClassificationCompleteView
         stats={([
           { label: "씬", value: fieldStats.totalScenes, color: C.teal },
           { label: "전체 JPG", value: fieldStats.totalJpg, color: C.txt },
@@ -1014,9 +1010,8 @@ function PhotoSortingInner({
         )}
         onReview={() => setStep(2)}
         onOpenPhotoSelect={onOpenPhotoSelect}
-      />
-    );
-  };
+    />
+  ) : null;
 
   /* ════════════════════════════════════════════
      STUDIO STEPS
@@ -1060,7 +1055,7 @@ function PhotoSortingInner({
         gapMinutes={gapMinutes}
         rootFolderName={rootDir?.name ?? ""}
       >
-        {step===0 && <Step0/>}
+        {step===0 && setupView}
 
         {photoMode==="field" && step===1 && (
           <FieldAnalysisProgressStep
@@ -1117,7 +1112,7 @@ function PhotoSortingInner({
             onCancel={() => { cancelRef.current = true; }}
           />
         )}
-        {photoMode==="field" && step===4 && <FieldStep4/>}
+        {photoMode==="field" && step===4 && fieldCompleteView}
 
         {photoMode==="studio" && step===1 && <StudioFileScanProgressStep progress={progress} />}
         {photoMode==="studio" && step===2 && <StudioPhotoAnalysisProgressStep progress={progress} studioFiles={studioFiles} studioSubMode={studioSubMode} />}

@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { FieldClassificationSettings } from "@/components/photo-classifier/FieldClassificationSettings";
 import { PhotoShootingModeControl } from "@/components/photo-classifier/PhotoShootingModeControl";
@@ -44,6 +45,14 @@ function makeFieldScene(index: number, editedName: string): FieldScene {
 }
 
 describe("photo sorting settings controls", () => {
+  it("does not recreate setup and completion component types inside the workspace render", () => {
+    const source = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+    expect(source).not.toContain("const Step0 = () =>");
+    expect(source).not.toContain("const FieldStep4 = () =>");
+    expect(source).toContain("step===0 && setupView");
+    expect(source).toContain("step===4 && fieldCompleteView");
+  });
+
   it("renders the extracted field setup without changing the existing controls", () => {
     const markup = renderToStaticMarkup(
       createElement(PhotoSortingSetupView, {
