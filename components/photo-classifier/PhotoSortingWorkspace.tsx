@@ -17,7 +17,7 @@ import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer"
 import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import {
-  clearClassificationCheckpoint, featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
+  featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
   getClassificationCheckpoint, setCachedFeature, setCachedPattern, setClassificationCheckpoint,
 } from "@/lib/photo-classifier/scene-cache";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
@@ -45,6 +45,7 @@ import {
 } from "@/lib/photo-classifier/fieldBoundaryAnalysis";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
 import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
+import { executePlannedFieldOutput, renameConfirmedFieldScenes } from "@/lib/photo-classifier/fieldOutput";
 import {
   applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
@@ -101,7 +102,6 @@ import {
 } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
-  renameDirHandle,
   splitRawAndJpg,
   withTimeout,
 } from "@/lib/photo-classifier/browserFileOps";
@@ -1149,100 +1149,31 @@ function PhotoSortingInner({
     if (!rootDir) return;
     setStep(3);
     setClassificationJobState("APPROVED");
-    let lastUpdate = Date.now();
     try {
 
     if (fastAnalyzeMode || fieldScenes.some((scene) => !scene.sceneDir)) {
       // 승인 전 계획 모드: 씬 검토 확정 후에만 실제 파일 이동 실행
       setProgress({ cur:0, total:0, msg:"폴더 정리 중..." });
-      const totalFiles = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
-      let done = 0;
-      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create: true }) as FileSystemDirectoryHandle;
-      const operations: Array<{ type: "copy_remove"; category: "RAW" | "JPG"; source: string; destination: string; status: "completed" | "failed"; error?: string; at: string }> = [];
-      const writeReport = async (name: string, content: string) => {
-        const handle = await (reportDir as any).getFileHandle(name, { create: true });
-        const writer = await handle.createWritable();
-        await writer.write("﻿" + content);
-        await writer.close();
-      };
-      const flushJournal = async () => writeReport("file_operation_journal.json", JSON.stringify({ version: 1, root: rootDir.name, operations, updatedAt: new Date().toISOString() }, null, 2));
-
-      // RAW → RAW/
-      const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
-      for (let i = 0; i < fieldRawHandles.length; i++) {
-        if (cancelRef.current) break;
-        if (i % 10 === 0 || Date.now() - lastUpdate > 300) {
-          setProgress({ cur:i, total:fieldRawHandles.length, msg:`RAW 이동: ${fieldRawHandles[i].name}` });
-          lastUpdate = Date.now();
-        }
-        try {
-          await copyFileHandle(fieldRawHandles[i].handle, rawBase, fieldRawHandles[i].name);
-          try { await (rootDir as any).removeEntry(fieldRawHandles[i].name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-          operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "completed", at: new Date().toISOString() });
-        } catch (error) {
-          operations.push({ type: "copy_remove", category: "RAW", source: fieldRawHandles[i].name, destination: `RAW/${fieldRawHandles[i].name}`, status: "failed", error: error instanceof Error ? error.message : String(error), at: new Date().toISOString() });
-        }
-        if (i % 10 === 0) await flushJournal();
-      }
-
-      // JPG → 씬별 폴더로 이동
-      const jpgBase = await (rootDir as any).getDirectoryHandle("JPG", { create:true }) as FileSystemDirectoryHandle;
-      setFieldJpgBaseDir(jpgBase);
-      try {
-        const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
-        await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create:true });
-      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-
-      const updated = fieldScenes.map(sc => ({...sc}));
-      for (let si = 0; si < updated.length; si++) {
-        if (cancelRef.current) break;
-        const sc = updated[si];
-        const targetName = sc.editedName;
-        const sceneDir = await (jpgBase as any).getDirectoryHandle(targetName, { create:true }) as FileSystemDirectoryHandle;
-        const newFiles: SceneFile[] = [];
-
-        for (const entry of sc.files) {
-          if (cancelRef.current) break;
-          if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
-            setProgress({ cur:done, total:totalFiles, msg:`${targetName}: ${entry.name}` });
-            lastUpdate = Date.now();
-          }
-          try {
-            await copyFileHandle(entry.handle, sceneDir, entry.name);
-            const destHandle = await (sceneDir as any).getFileHandle(entry.name) as FileSystemFileHandle;
-            try { await (rootDir as any).removeEntry(entry.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-            // 썸네일 lazy: 앞 4장만
-            let thumbUrl: string | null = null;
-            if (newFiles.length < 4) thumbUrl = await loadThumb(await destHandle.getFile(), 120);
-            newFiles.push({ ...entry, handle: destHandle, thumbUrl });
-            operations.push({ type: "copy_remove", category: "JPG", source: entry.name, destination: `JPG/${targetName}/${entry.name}`, status: "completed", at: new Date().toISOString() });
-          } catch (error) {
-            newFiles.push(entry);
-            operations.push({ type: "copy_remove", category: "JPG", source: entry.name, destination: `JPG/${targetName}/${entry.name}`, status: "failed", error: error instanceof Error ? error.message : String(error), at: new Date().toISOString() });
-          }
-          done++;
-          if (done % 10 === 0) await flushJournal();
-        }
-        updated[si] = { ...sc, folderName: targetName, sceneDir, files: newFiles };
-      }
+      const output = await executePlannedFieldOutput({
+        rootDirectory: rootDir,
+        scenes: fieldScenes,
+        rawFiles: fieldRawHandles,
+        boundaryDecisions,
+        sceneCorrections,
+        accuracyReport,
+        checkpointId: `${rootDir.name}:${department}:${gapMinutes}:precise-v2`,
+        isCancelled: () => cancelRef.current,
+        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+      });
+      const updated = output.scenes;
+      setFieldJpgBaseDir(output.jpgBaseDirectory);
       setFieldScenes(updated);
-      await flushJournal();
-      await clearClassificationCheckpoint(`${rootDir.name}:${department}:${gapMinutes}:precise-v2`);
-      await Promise.all([
-        writeReport("scene_boundaries.json", JSON.stringify({ version: 1, boundaries: boundaryDecisions, createdAt: new Date().toISOString() }, null, 2)),
-        writeReport("scene_corrections.json", JSON.stringify({ version: 1, corrections: sceneCorrections, createdAt: new Date().toISOString() }, null, 2)),
-        writeReport("scene_corrections.csv", makeCSV(
-          ["project_id", "boundary_index", "boundary_file", "previous_decision", "corrected_decision", "action", "reason", "created_at"],
-          sceneCorrections.map((item) => [item.projectId, String(item.boundaryIndex), item.boundaryFileName, item.previousDecision, item.correctedDecision, item.action, item.reason ?? "", item.createdAt]),
-        )),
-        ...(accuracyReport ? [writeReport("scene_accuracy_report.json", JSON.stringify({ ...accuracyReport, createdAt: new Date().toISOString() }, null, 2))] : []),
-      ]);
 
       if (qualityAnalysisEnabled || profileClassificationEnabled) {
-        await runSecondaryAnalysis(updated);
+        await runSecondaryAnalysis(updated, output.jpgBaseDirectory);
       } else {
         setFieldStats({
-          totalJpg: totalFiles, totalRaw: fieldRawCount,
+          totalJpg: output.totalFiles, totalRaw: fieldRawCount,
           totalScenes: updated.length, totalSubScenes: 0,
           totalProfile: 0, totalQualityReject: 0,
           selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
@@ -1254,20 +1185,10 @@ function PhotoSortingInner({
 
     // 정밀 정리 모드: 폴더 이름 변경만 적용
     if (!fieldJpgBaseDir) return;
-    const updated = [...fieldScenes];
-    for (let i = 0; i < updated.length; i++) {
-      const sc = updated[i];
-      if (sc.editedName !== sc.folderName && sc.sceneDir) {
-        try {
-          const newDir = await renameDirHandle(fieldJpgBaseDir as any, sc.folderName, sc.editedName, sc.sceneDir);
-          const newFiles = sc.files.map(f => ({...f}));
-          for (const pf of newFiles) {
-            try { pf.handle = await (newDir as any).getFileHandle(pf.name) as FileSystemFileHandle; } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-          }
-          updated[i] = { ...sc, folderName:sc.editedName, sceneDir:newDir, files:newFiles };
-        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-      }
-    }
+    const updated = await renameConfirmedFieldScenes({
+      scenes: fieldScenes,
+      jpgBaseDirectory: fieldJpgBaseDir,
+    });
     setFieldScenes(updated);
 
     if (qualityAnalysisEnabled || profileClassificationEnabled) {
@@ -1294,12 +1215,15 @@ function PhotoSortingInner({
     }
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
-  const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
+  const runSecondaryAnalysis = async (
+    scenes: FieldScene[],
+    jpgBaseDirectory: FileSystemDirectoryHandle | null = fieldJpgBaseDir,
+  ) => {
     if (!rootDir) return;
     const result = await runFieldSecondaryAnalysis({
       scenes,
       rootDir,
-      fieldJpgBaseDir,
+      fieldJpgBaseDir: jpgBaseDirectory,
       fieldRawCount,
       qualityAnalysisEnabled,
       profileClassificationEnabled,
