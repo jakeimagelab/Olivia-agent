@@ -9,7 +9,7 @@ import {
   type SequenceCheckResult,
 } from "@/lib/selectMatch/workspaceHelpers";
 
-type SequenceCheckStep = "idle" | "scanning" | "result";
+export type SequenceCheckStep = "idle" | "scanning" | "result";
 
 export function formatMissingSequenceRange(range: { start: number; end: number }): string {
   return range.start === range.end

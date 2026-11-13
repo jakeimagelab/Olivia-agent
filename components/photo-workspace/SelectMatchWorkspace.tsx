@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, FileText, FolderOpen, ListOrdered, MessageSquare, ScanSearch, Smartphone, Upload } from "lucide-react";
+import { CheckCircle2, FileText, FolderOpen, MessageSquare, ScanSearch, Upload } from "lucide-react";
 import {
   collectJpgFolderGroups,
   type SelectMatchFolderGroup,
@@ -36,10 +36,7 @@ import {
   mergeSharedRatings,
 } from "@/lib/selectMatch/folderRatings";
 import { useSelectMatchFindMove } from "@/components/photo-workspace/useSelectMatchFindMove";
-import {
-  formatMissingSequenceRange,
-  useSelectMatchSequenceCheck,
-} from "@/components/photo-workspace/useSelectMatchSequenceCheck";
+import { useSelectMatchSequenceCheck } from "@/components/photo-workspace/useSelectMatchSequenceCheck";
 import { useSelectMatchTargets } from "@/components/photo-workspace/useSelectMatchTargets";
 import { useSelectMatchPreflight } from "@/components/photo-workspace/useSelectMatchPreflight";
 import { useSelectMatchExecution } from "@/components/photo-workspace/useSelectMatchExecution";
@@ -47,46 +44,16 @@ import { useSelectMatchClientInput } from "@/components/photo-workspace/useSelec
 import { useSelectMatchSceneThumbnails } from "@/components/photo-workspace/useSelectMatchSceneThumbnails";
 import {
   RawMatchCriteriaPanel,
+  SelectMatchButton,
   SelectMatchFeatureTabs,
   type SelectMatchFeature,
 } from "@/components/photo-workspace/SelectMatchControls";
-
-const MOBILE_CONVERT_DOWNLOAD = "/assets/tools/mobile-convert/PhotoClinicMobile1500_fixed.zip";
-const PROGRAM_ARCHIVE_ITEMS = [
-  {
-    title: "PhotoClinic Mobile 1500px",
-    meta: "Mac 전용 · 사진 변환",
-    desc: "원본 사진 폴더를 선택하면 긴 변 1500px JPG로 변환하고 같은 위치의 Mobile_폴더명 폴더에 저장합니다.",
-    href: MOBILE_CONVERT_DOWNLOAD,
-  },
-];
+import { SelectMatchProgramArchiveView, SelectMatchSequenceCheckView } from "@/components/photo-workspace/SelectMatchUtilityViews";
 
 /* ── Types ── */
 type SceneFolder = SelectMatchFolderGroup;
 
 type Step = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
-
-/* ── Helpers ── */
-/* ── Component ── */
-function Btn({ children, onClick, disabled, variant, dark = false, style: s }: {
-  children: React.ReactNode; onClick?: () => void;
-  disabled?: boolean; variant?: "secondary"; dark?: boolean; style?: React.CSSProperties;
-}) {
-  return (
-    <button
-      onClick={onClick} disabled={disabled}
-      style={{
-        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-        padding: "9px 20px", fontSize: 13, fontWeight: 500, borderRadius: 10,
-        border: variant === "secondary" ? `1px solid ${dark ? "rgba(255,255,255,.18)" : C.border}` : "none",
-        cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
-        background: disabled ? "transparent" : variant === "secondary" ? "rgba(255,255,255,.06)" : "#37C39D",
-        color: disabled ? "rgba(255,255,255,.30)" : variant === "secondary" ? "#D9F6EE" : "#103E36",
-        opacity: disabled ? 0.6 : 1, transition: "opacity .15s", ...s,
-      } as React.CSSProperties}
-    >{children}</button>
-  );
-}
 
 export type SelectMatchInitialView = "raw" | "manual" | "client";
 
@@ -539,37 +506,7 @@ export function SelectMatchWorkspace({
   );
 
   /* ── 모바일 자동화 > 프로그램 아카이브 ── */
-  if (feature === "program_archive") return (
-    <div style={{ maxWidth: 760, margin: "32px auto", padding: "0 20px" }}>
-      {featureTabs}
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
-        <Smartphone size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
-        <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>모바일 자동화 &gt; 프로그램 아카이브</div>
-        <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>사진 작업실에서 사용하는 자동화 프로그램을 모아둔 자료실입니다.</div>
-      </div>
-
-      <div style={{ display: "grid", gap: 10 }}>
-        {PROGRAM_ARCHIVE_ITEMS.map((item) => (
-          <div key={item.href} style={{
-            background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14,
-            padding: 18, display: "grid", gridTemplateColumns: "1fr auto", gap: 16,
-            alignItems: "center",
-          }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 500, color: uiHint, marginBottom: 5 }}>{item.meta}</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: uiText, marginBottom: 6 }}>{item.title}</div>
-              <div style={{ fontSize: 12, color: uiMuted, lineHeight: 1.7 }}>{item.desc}</div>
-            </div>
-            <a href={item.href} download style={{
-              display: "inline-block", padding: "9px 16px", borderRadius: 10,
-              background: uiAccent, color: surfaceCard, fontSize: 12, fontWeight: 500,
-              textDecoration: "none", whiteSpace: "nowrap",
-            }}>다운로드</a>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  if (feature === "program_archive") return <SelectMatchProgramArchiveView featureTabs={featureTabs} colors={controlColors} />;
 
   /* ── 파일명으로 찾아 이동 ── */
   if (feature === "find_move") {
@@ -588,7 +525,7 @@ export function SelectMatchWorkspace({
             {!hasFS ? (
               <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
             ) : (
-              <Btn onClick={pickFmFolder}>{fmRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{fmRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</Btn>
+              <SelectMatchButton onClick={pickFmFolder}>{fmRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{fmRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</SelectMatchButton>
             )}
           </div>
 
@@ -602,14 +539,14 @@ export function SelectMatchWorkspace({
                 hidden
                 onChange={(e) => extractFmNamesFromScreenshot(e.target.files?.[0] ?? null)}
               />
-              <Btn
+              <SelectMatchButton
                 variant="secondary"
                 disabled={fmOcrLoading}
                 onClick={() => fmOcrFileRef.current?.click()}
                 style={{ padding: "8px 13px" }}
               >
                 {fmOcrLoading ? "이미지 읽는 중..." : <><ScanSearch size={15} aria-hidden="true" />스크린샷에서 파일명 추출</>}
-              </Btn>
+              </SelectMatchButton>
               <span style={{ fontSize: 11, color: uiHint }}>확장자를 제거하고 쉼표로 구분한 한 줄로 자동 입력합니다.</span>
             </div>
             {fmOcrMessage && (
@@ -646,7 +583,7 @@ export function SelectMatchWorkspace({
           </div>
 
           <div style={{ textAlign: "center" }}>
-            <Btn onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>폴더에서 찾기</Btn>
+            <SelectMatchButton onClick={runFindByName} disabled={!fmRootDir || !fmText.trim()}>폴더에서 찾기</SelectMatchButton>
           </div>
         </div>
       </div>
@@ -697,8 +634,8 @@ export function SelectMatchWorkspace({
         </div>
         {fmMoveError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{fmMoveError}</div> : null}
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <Btn variant="secondary" onClick={resetFindByName}>← 다시 검색</Btn>
-          <Btn onClick={runMoveMatched} disabled={fmMatches.length === 0 || workerPresence.online !== true || !fmWorkerRootPath.trim()}>{fmFolderName}/ 폴더로 이동</Btn>
+          <SelectMatchButton variant="secondary" onClick={resetFindByName}>← 다시 검색</SelectMatchButton>
+          <SelectMatchButton onClick={runMoveMatched} disabled={fmMatches.length === 0 || workerPresence.online !== true || !fmWorkerRootPath.trim()}>{fmFolderName}/ 폴더로 이동</SelectMatchButton>
         </div>
       </div>
     );
@@ -721,92 +658,23 @@ export function SelectMatchWorkspace({
         <div style={{ fontSize: 14, fontWeight: 500, color: uiText, marginBottom: 20 }}>
           {fmMovedCount}개 파일을 <strong style={{ color: uiAccent }}>{fmFolderName}/</strong> 폴더로 이동했습니다.
         </div>
-        <Btn onClick={resetFindByName}>새로 검색하기</Btn>
+        <SelectMatchButton onClick={resetFindByName}>새로 검색하기</SelectMatchButton>
       </div>
     );
   }
 
   /* ── 파일 순서 검토 ── */
-  if (feature === "seq_check") {
-    if (scStep === "idle") return (
-      <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-        {featureTabs}
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <ListOrdered size={28} aria-hidden="true" style={{ marginBottom: 8, color: uiAccent }} />
-          <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>파일 순서 검토</div>
-          <div style={{ fontSize: 12, color: uiMuted, marginTop: 4 }}>폴더를 지정하면 파일명 끝자리 번호(예: DSC03532 → 3532)로 넘버링이 끊긴 곳(누락 파일)이 있는지 검사합니다.</div>
-        </div>
-
-        <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24, textAlign: "center" }}>
-          {!hasFS ? (
-            <div style={{ fontSize: 12, color: C.red }}>Chrome 또는 Edge를 사용해주세요.</div>
-          ) : (
-            <>
-              <Btn onClick={pickScFolder}>{scRootDir ? <><CheckCircle2 size={16} aria-hidden="true" />{scRootDir.name}</> : <><FolderOpen size={16} aria-hidden="true" />폴더 선택</>}</Btn>
-              <div style={{ fontSize: 11, color: uiHint, marginTop: 10 }}>선택한 폴더의 하위 폴더까지 전부 검사합니다 — 파일이 여러 폴더에 나뉘어 있어도 파일명 기준으로 하나의 순서로 검사합니다.</div>
-              {scRootDir && (
-                <div style={{ marginTop: 16 }}>
-                  <Btn onClick={runSequenceCheck}>순서 검토 시작</Btn>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-
-    if (scStep === "scanning") return (
-      <div style={{ maxWidth: 480, margin: "80px auto", padding: "0 20px", textAlign: "center" }}>
-        <div style={{ fontSize: 13, color: uiMuted }}>폴더를 스캔하는 중...</div>
-      </div>
-    );
-
-    if (scStep === "result" && scResult) {
-      const hasMissing = scResult.missingRanges.length > 0;
-      return (
-        <div style={{ maxWidth: 660, margin: "32px auto", padding: "0 20px" }}>
-          {featureTabs}
-          <div style={{ background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 14, padding: 24, marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: uiText, marginBottom: 4 }}>
-              총 {scResult.totalFiles}개 파일
-              {scResult.min !== null && scResult.max !== null && ` · 번호 범위 ${scResult.min}~${scResult.max}`}
-            </div>
-
-            {scResult.recognizedNumbers.length === 0 ? (
-              <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", fontSize: 12, color: uiMuted, marginTop: 12 }}>
-                번호를 인식할 수 있는 파일이 없습니다.
-              </div>
-            ) : scResult.rangeTooLarge ? (
-              <div style={{ background: "#FEF2F2", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: C.red, marginTop: 12 }}>
-                ⚠️ 번호 범위가 비정상적으로 커서({scResult.min}~{scResult.max}) 검사할 수 없습니다. 파일명에 날짜·시간 등 다른 숫자가 섞여 잘못 인식됐을 가능성이 있습니다.
-              </div>
-            ) : hasMissing ? (
-              <div style={{ background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#C2410C", marginBottom: 6 }}>⚠️ 누락 {scResult.missingRanges.length}건</div>
-                <div style={{ fontSize: 12, color: uiText, lineHeight: 1.8 }}>
-                  {scResult.missingRanges.map(formatMissingSequenceRange).join(", ")}
-                </div>
-              </div>
-            ) : (
-              <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: "12px 14px", marginTop: 12, fontSize: 13, fontWeight: 500, color: C.green }}>
-                ✅ 번호가 모두 연속되어 있습니다. 누락된 파일이 없습니다.
-              </div>
-            )}
-
-            {scResult.unrecognizedFiles.length > 0 && (
-              <div style={{ background: inputSurface, borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: uiMuted, marginBottom: 6 }}>번호 인식 불가 (검사에서 제외됨) {scResult.unrecognizedFiles.length}개</div>
-                <div style={{ fontSize: 11, color: uiHint, maxHeight: 120, overflowY: "auto" }}>{scResult.unrecognizedFiles.join(", ")}</div>
-              </div>
-            )}
-          </div>
-          <div style={{ textAlign: "center" }}>
-            <Btn variant="secondary" onClick={resetSequenceCheck}>← 다시 선택</Btn>
-          </div>
-        </div>
-      );
-    }
-  }
+  if (feature === "seq_check") return <SelectMatchSequenceCheckView
+    featureTabs={featureTabs}
+    step={scStep}
+    rootDir={scRootDir}
+    result={scResult}
+    hasFileSystemAccess={hasFS}
+    onPickFolder={() => void pickScFolder()}
+    onRun={() => void runSequenceCheck()}
+    onReset={resetSequenceCheck}
+    colors={controlColors}
+  />;
 
   /* ── Idle ── */
   const entryModes = ([
@@ -852,7 +720,7 @@ export function SelectMatchWorkspace({
           {!hasFS ? (
             <div style={{ fontSize: 12, color: C.red, textAlign: "center" }}>Chrome 또는 Edge를 사용해주세요.</div>
           ) : (
-            <div style={{ textAlign: "center" }}><Btn dark={embedded} onClick={loadFolder}><FolderOpen size={16} aria-hidden="true" />폴더 선택</Btn></div>
+            <div style={{ textAlign: "center" }}><SelectMatchButton dark={embedded} onClick={loadFolder}><FolderOpen size={16} aria-hidden="true" />폴더 선택</SelectMatchButton></div>
           )}
           <div style={{ marginTop: 16, background: groupedSurface, borderRadius: 8, padding: "12px 14px", fontSize: 11, color: uiMuted, lineHeight: 1.9 }}>
             {selectionOnly ? (
@@ -895,9 +763,9 @@ export function SelectMatchWorkspace({
             );
           })()}
           <div style={{ marginTop: 14, textAlign: "center" }}>
-            <Btn dark={embedded} onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
+            <SelectMatchButton dark={embedded} onClick={() => confirmClientInput(parseNamesFromText(clientText))} disabled={!clientText.trim()}>
               {selectionOnly ? "선택 목록 저장" : "다음 — RAW 폴더 선택"}
-            </Btn>
+            </SelectMatchButton>
           </div>
         </div>
       )}
@@ -933,12 +801,12 @@ export function SelectMatchWorkspace({
                 {uploadedClientFiles.map((file) => file.name).join(", ")}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-                <Btn dark={embedded} variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>
+                <SelectMatchButton dark={embedded} variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>
                   파일명 그대로 사용
-                </Btn>
-                <Btn dark={embedded} variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>
+                </SelectMatchButton>
+                <SelectMatchButton dark={embedded} variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>
                   {uploadOcrLoading ? "🔎 이미지 분석 중..." : "🔎 이미지 속 파일명 분석"}
-                </Btn>
+                </SelectMatchButton>
               </div>
             </div>
           )}
@@ -974,7 +842,7 @@ export function SelectMatchWorkspace({
                 })}
               </div>
               <div style={{ padding: "0 12px 12px", textAlign: "right" }}>
-                <Btn dark={embedded} disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭`}</Btn>
+                <SelectMatchButton dark={embedded} disabled={selectedUploadOcrNames.size === 0} onClick={() => confirmClientInput(new Set(selectedUploadOcrNames))}>{selectionOnly ? "선택한 인식 목록 저장" : `선택한 ${selectedUploadOcrNames.size}개로 RAW 매칭`}</SelectMatchButton>
               </div>
             </div>
           )}
@@ -1005,8 +873,8 @@ export function SelectMatchWorkspace({
           {authoritativeMatchTargets.size > 5 && <div style={{ color: uiHint }}>... 외 {authoritativeMatchTargets.size - 5}개</div>}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <Btn variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</Btn>
-          <Btn variant={bridgeLinked ? "secondary" : undefined} onClick={pickRawFolderAndPreflight}>{bridgeLinked && (rawDiscovery.status === "not_found" || rawDiscovery.status === "error") ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</Btn>
+          <SelectMatchButton variant="secondary" onClick={() => { setStep("idle"); setSelected(new Set()); }}>← 취소</SelectMatchButton>
+          <SelectMatchButton variant={bridgeLinked ? "secondary" : undefined} onClick={pickRawFolderAndPreflight}>{bridgeLinked && (rawDiscovery.status === "not_found" || rawDiscovery.status === "error") ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</SelectMatchButton>
         </div>
       </div>
     </div>
@@ -1018,7 +886,7 @@ export function SelectMatchWorkspace({
         <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
         <div style={{ fontSize: 16, fontWeight: 600, color: uiAccent }}>사진 셀렉 완료</div>
         <p style={{ margin: "8px 0 20px", color: uiMuted, fontSize: 12, lineHeight: 1.7 }}>선택한 JPG {selected.size.toLocaleString("ko-KR")}장을 사진 작업실에 저장했습니다. RAW 매칭 탭에서 이 목록만 사용합니다.</p>
-        <Btn onClick={() => { setStep("idle"); setSelected(new Set()); }}>다시 선택하기</Btn>
+        <SelectMatchButton onClick={() => { setStep("idle"); setSelected(new Set()); }}>다시 선택하기</SelectMatchButton>
       </div>
     </div>
   );
@@ -1229,9 +1097,9 @@ export function SelectMatchWorkspace({
             {remoteExecutionError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{remoteExecutionError}</div> : null}
 
             <div style={{ display: "flex", gap: 8 }}>
-              <Btn variant="secondary" onClick={cancelPreflight}>← 취소</Btn>
+              <SelectMatchButton variant="secondary" onClick={cancelPreflight}>← 취소</SelectMatchButton>
               {approvedMatches.length > 0 && (
-                <Btn disabled={!preflightTargetCountMatches || workerPresence.online !== true || !workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())} onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</Btn>
+                <SelectMatchButton disabled={!preflightTargetCountMatches || workerPresence.online !== true || !workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())} onClick={runMatch}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatches.length}개)</SelectMatchButton>
               )}
             </div>
           </div>
@@ -1300,9 +1168,9 @@ export function SelectMatchWorkspace({
           {result.moveNotice ? <div role="status" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", color: "#D6BC7D", fontSize: 11 }}>{result.moveNotice}</div> : null}
           {rawOutputOpenError ? <div role="status" style={{ marginBottom: 12, color: uiMuted, fontSize: 11 }}>{rawOutputOpenError}</div> : null}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-            <Btn onClick={() => void openRawOutputFolder()} disabled={!rawOutputPath}><FolderOpen size={15} aria-hidden="true" />결과 경로 확인</Btn>
-            <Btn variant="secondary" onClick={() => { setStep("ready"); resetOutputStatus(); }}>← 다시 선택</Btn>
-            <Btn variant="secondary" onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); resetOutputStatus(); }}>처음으로</Btn>
+            <SelectMatchButton onClick={() => void openRawOutputFolder()} disabled={!rawOutputPath}><FolderOpen size={15} aria-hidden="true" />결과 경로 확인</SelectMatchButton>
+            <SelectMatchButton variant="secondary" onClick={() => { setStep("ready"); resetOutputStatus(); }}>← 다시 선택</SelectMatchButton>
+            <SelectMatchButton variant="secondary" onClick={() => { setStep("idle"); setRootDir(null); setScenes([]); setSelected(new Set()); resetOutputStatus(); }}>처음으로</SelectMatchButton>
           </div>
         </div>
       </div>
@@ -1398,14 +1266,14 @@ export function SelectMatchWorkspace({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {selectionOnly ? (
-            <Btn onClick={() => completeSelection(selected)} disabled={selected.size === 0}>
+            <SelectMatchButton onClick={() => completeSelection(selected)} disabled={selected.size === 0}>
               {selected.size > 0 ? `선택 ${selected.size}장 저장` : "사진을 선택하세요"}
-            </Btn>
+            </SelectMatchButton>
           ) : (
             <>
-              <Btn onClick={runPreflight} disabled={selected.size === 0}>
+              <SelectMatchButton onClick={runPreflight} disabled={selected.size === 0}>
                 {selected.size > 0 ? `${selected.size}장 RAW 매칭 확인` : "사진을 선택하세요"}
-              </Btn>
+              </SelectMatchButton>
               <button
                 onClick={pickRawFolder}
                 style={{

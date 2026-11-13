@@ -1,11 +1,14 @@
 "use client";
 
+import type { CSSProperties, ReactNode } from "react";
+
 import { BRIDGE_COLOR_LABELS, type BridgeColorLabel } from "@/lib/photo-bridge/labels";
 import type { RawMatchCriteria } from "@/lib/photo-bridge/rawMatchDelivery";
+import { C } from "@/lib/theme";
 
 export type SelectMatchFeature = "raw_match" | "find_move" | "seq_check" | "program_archive";
 
-type SelectMatchControlColors = {
+export type SelectMatchControlColors = {
   surfaceCard: string;
   groupedSurface: string;
   inputSurface: string;
@@ -15,6 +18,38 @@ type SelectMatchControlColors = {
   uiHint: string;
   uiAccent: string;
 };
+
+export function SelectMatchButton({
+  children,
+  onClick,
+  disabled,
+  variant,
+  dark = false,
+  style,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  variant?: "secondary";
+  dark?: boolean;
+  style?: CSSProperties;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+        padding: "9px 20px", fontSize: 13, fontWeight: 500, borderRadius: 10,
+        border: variant === "secondary" ? `1px solid ${dark ? "rgba(255,255,255,.18)" : C.border}` : "none",
+        cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit",
+        background: disabled ? "transparent" : variant === "secondary" ? "rgba(255,255,255,.06)" : "#37C39D",
+        color: disabled ? "rgba(255,255,255,.30)" : variant === "secondary" ? "#D9F6EE" : "#103E36",
+        opacity: disabled ? 0.6 : 1, transition: "opacity .15s", ...style,
+      }}
+    >{children}</button>
+  );
+}
 
 export function SelectMatchFeatureTabs({
   embedded,
