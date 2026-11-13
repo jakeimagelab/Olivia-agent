@@ -10,7 +10,11 @@ import {
   validateCategoryPicks,
 } from "@/lib/person-select/core";
 import { scanPersonFolders } from "@/scripts/person-select-import";
-import { indexRawFiles, personFolderOf, pickRawCandidate } from "@/scripts/person-select-raw-match";
+import {
+  indexPersonSelectRawFiles,
+  personSelectOwnerFolder,
+  pickPersonSelectRawCandidate,
+} from "@/lib/person-select/node/rawFileIndex";
 import { createRunnerInvocation } from "@/scripts/mac-studio-remote-bridge";
 
 const photo = { key: "photo", label: "사진", pick: 3 };
@@ -83,14 +87,17 @@ describe("person select RAW match", () => {
       await writeFile(path.join(root, "김춘자", "R5K_0001.CR3"), "a");
       await writeFile(path.join(root, "이지영", "R5K_0001.CR3"), "b");
       await writeFile(path.join(root, "김춘자", "JPG원본", "R5K_0001.JPG"), "jpg");
-      const index = await indexRawFiles(root);
+      const index = await indexPersonSelectRawFiles(root);
       const candidates = index.get("r5k_0001") ?? [];
       expect(candidates).toHaveLength(2);
-      const picked = pickRawCandidate(candidates, personFolderOf("김춘자/JPG원본/R5K_0001.JPG"));
+      const picked = pickPersonSelectRawCandidate(
+        candidates,
+        personSelectOwnerFolder("김춘자/JPG원본/R5K_0001.JPG"),
+      );
       expect(picked.status).toBe("matched");
       expect(picked.status === "matched" && picked.file.relPath).toBe("김춘자/R5K_0001.CR3");
-      expect(pickRawCandidate(candidates, "박없음").status).toBe("ambiguous");
-      expect(pickRawCandidate([], "김춘자").status).toBe("missing");
+      expect(pickPersonSelectRawCandidate(candidates, "박없음").status).toBe("ambiguous");
+      expect(pickPersonSelectRawCandidate([], "김춘자").status).toBe("missing");
     } finally {
       await rm(root, { recursive: true, force: true });
     }
@@ -105,7 +112,7 @@ describe("person select RAW match", () => {
       await writeFile(path.join(root, "RAW", "KEEP.CR3"), "keep");
       await writeFile(path.join(root, "JPG전체", "SKIP.CR3"), "skip");
       await writeFile(path.join(root, "2차보정본", "DELIVERED.CR3"), "skip");
-      const index = await indexRawFiles(root);
+      const index = await indexPersonSelectRawFiles(root);
       expect([...index.keys()]).toEqual(["keep"]);
     } finally {
       await rm(root, { recursive: true, force: true });

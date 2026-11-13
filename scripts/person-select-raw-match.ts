@@ -11,7 +11,7 @@
  */
 
 import path from "node:path";
-import { mkdir, open, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, open, writeFile } from "node:fs/promises";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { normalizeNfc } from "@/lib/person-select/core";
 import {
@@ -26,17 +26,17 @@ import {
   clearPersonSelectRawMarks,
   markPersonSelectRawSidecar,
 } from "@/lib/person-select/node/rawMarkFileOperations";
+import {
+  indexPersonSelectRawFiles,
+  personSelectRawBasename,
+  type PersonSelectRawFile,
+} from "@/lib/person-select/node/rawFileIndex";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
 import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
 import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/rawMatchCopy";
-import { SELECT_MATCH_RAW_EXTENSIONS } from "@/lib/selectMatch/nameParsing";
-import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
 
 export const PERSON_SELECT_RAW_OUTPUT = PERSON_SELECT_RAW_OUTPUT_FOLDER;
-const SKIP_DIRECTORIES = new Set([PERSON_SELECT_RAW_OUTPUT.toLowerCase(), "jpg", "jpg원본", "jpg전체"]);
-
-type RawFile = { path: string; relPath: string; name: string; size: number };
 
 function readArgs() {
   const values = process.argv.slice(2);
@@ -73,58 +73,6 @@ function report(stage: string, current: number, total: number, message: string) 
   process.stderr.write(`OLIVIA_REMOTE_PROGRESS ${JSON.stringify({ stage, current, total, message })}\n`);
 }
 
-function extension(name: string) {
-  const index = name.lastIndexOf(".");
-  return index >= 0 ? name.slice(index + 1).toLowerCase() : "";
-}
-
-export function rawBasename(fileName: string) {
-  return normalizeNfc(fileName).replace(/\.[^.]+$/, "").toLocaleLowerCase("en-US");
-}
-
-/** 촬영 폴더 안의 RAW를 파일 이름(확장자 제외)별로 모은다. */
-export async function indexRawFiles(root: string) {
-  const index = new Map<string, RawFile[]>();
-  const visit = async (directory: string): Promise<void> => {
-    for (const entry of await readdir(directory, { withFileTypes: true, encoding: "utf8" })) {
-      if (entry.name.startsWith(".") || entry.isSymbolicLink()) continue;
-      const fullPath = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        if (SKIP_DIRECTORIES.has(normalizeNfc(entry.name).toLowerCase()) || isDeliveredRoundFolder(entry.name)) continue;
-        await visit(fullPath);
-        continue;
-      }
-      if (!entry.isFile() || !SELECT_MATCH_RAW_EXTENSIONS.has(extension(entry.name))) continue;
-      const info = await stat(fullPath);
-      const file: RawFile = { path: fullPath, relPath: normalizeNfc(path.relative(root, fullPath).split(path.sep).join("/")), name: normalizeNfc(entry.name), size: info.size };
-      const key = rawBasename(entry.name);
-      index.set(key, [...(index.get(key) ?? []), file]);
-    }
-  };
-  await visit(root);
-  return index;
-}
-
-/** 고른 JPG 하나에 맞는 RAW 하나를 정한다. 사람 폴더 안을 먼저 보고, 없으면 전체에서 찾는다. */
-export function pickRawCandidate(candidates: RawFile[], personFolder: string) {
-  const prefix = `${normalizeNfc(personFolder)}/`;
-  const inPerson = candidates.filter((file) => file.relPath.startsWith(prefix));
-  const pool = inPerson.length ? inPerson : candidates;
-  if (pool.length === 1) return { status: "matched" as const, file: pool[0] };
-  if (pool.length > 1) return { status: "ambiguous" as const, files: pool };
-  return { status: "missing" as const };
-}
-
-/** source_rel_path에서 사진 주인의 폴더를 구한다. JPG원본 같은 하위 폴더는 떼어 낸다. */
-export function personFolderOf(sourceRelPath: string) {
-  const segments = normalizeNfc(sourceRelPath).split("/").filter(Boolean);
-  segments.pop();
-  const last = segments.at(-1)?.toLowerCase();
-  if (last && SKIP_DIRECTORIES.has(last)) segments.pop();
-  if (last === "jpg") segments.pop();
-  return segments.join("/");
-}
-
 function safeSourceFile(root: string, relativePath: string) {
   const candidate = path.resolve(root, relativePath.split(/[\\/]+/u).filter(Boolean).join(path.sep));
   const relative = path.relative(root, candidate);
@@ -157,8 +105,8 @@ const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2
 let failureStage = "STARTING";
 
 function matchingDuplicateRaws(
-  picked: RawFile,
-  rawCandidates: RawFile[],
+  picked: PersonSelectRawFile,
+  rawCandidates: PersonSelectRawFile[],
   candidateTimes: Array<CaptureTime | null>,
 ) {
   const pickedIndex = rawCandidates.findIndex((candidate) => candidate.relPath === picked.relPath);
@@ -239,7 +187,7 @@ async function main() {
 
   failureStage = "SCANNING_RAW";
   report("SCANNING", 0, targets.length, "촬영 폴더에서 RAW를 찾는 중입니다.");
-  const rawIndex = await indexRawFiles(shootingRoot);
+  const rawIndex = await indexPersonSelectRawFiles(shootingRoot);
 
   const outputRoot = path.join(shootingRoot, PERSON_SELECT_RAW_OUTPUT);
   const matched: { name: string; jpg: string; raw: string; attributeVerified: boolean }[] = [];
@@ -266,7 +214,7 @@ async function main() {
   const reviewRequired: Array<{ owner: string; jpg: string; reason: string; candidates?: string[]; stage?: string; error?: string }> = [];
   for (const choice of targets) {
     const name = choice.ownerName;
-    const rawCandidates = rawIndex.get(rawBasename(choice.originalFileName)) ?? [];
+    const rawCandidates = rawIndex.get(personSelectRawBasename(choice.originalFileName)) ?? [];
     const jpgPath = safeSourceFile(jpgRoot, choice.sourceRelPath);
     const jpgCaptureTime = await captureFor(jpgPath).catch(() => null);
     const candidateTimes = await Promise.all(rawCandidates.map((candidate) => captureFor(candidate.path)));
