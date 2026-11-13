@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, ArrowLeft, Clipboard, Download, Link2, MoreHorizontal, RefreshCw, SlidersHorizontal, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
@@ -9,8 +9,11 @@ import { formatSeoulDeadline } from "@/lib/person-select/date";
 import type { PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { PERSON_SELECT_ACCESS_MODE_LABELS } from "@/lib/person-select/projectSettings";
-import { formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminPerson as Person } from "@/lib/person-select/adminPerson";
+import {
+  buildPersonSelectAdminPresentation,
+  buildPersonSelectShellSelection,
+} from "@/lib/person-select/adminPresentation";
 import { readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import type { CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
@@ -32,11 +35,6 @@ import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 type Layout = PersonSelectImportLayout;
-
-function folderName(value: string | null | undefined) {
-  if (!value) return "";
-  return value.split("/").filter(Boolean).at(-1) ?? value;
-}
 
 export default function PersonSelectDetailPage() {
   const params = useParams<{ id: string }>(); const router = useRouter(); const windowRoute = useDesktopWindowRoute();
@@ -75,28 +73,22 @@ export default function PersonSelectDetailPage() {
       .then((body) => setWorkerOnline(body.worker?.online ?? false))
       .catch(() => setWorkerOnline(false));
   }, []);
-  const selectedPerson = data?.people.find((person) => person.id === selectedId) ?? null;
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const presentation = useMemo(() => data ? buildPersonSelectAdminPresentation({
+    data,
+    layout,
+    selectedReviewerId,
+    selectedPersonId: selectedId,
+    origin,
+  }) : null, [data, layout, origin, selectedId, selectedReviewerId]);
+  const selectedPerson = presentation?.selectedPerson ?? null;
   // Olivia OS에는 이전 고객이 아니라 이 창이 실제로 연 행사만 전달한다.
   useEffect(() => {
     if (!data) return;
-    const need = selectedPerson ? Object.values(selectedPerson.need_counts ?? {}).reduce((sum, value) => sum + value, 0) : 0;
-    const retouch = selectedPerson?.choices.reduce((sum, choice) => sum + choice.retouch_keys.length, 0) ?? 0;
-    const memos = selectedPerson?.choices.filter((choice) => choice.memo).map((choice) => `${choice.person_select_images?.original_file_name ?? ""}: ${choice.memo}`) ?? [];
-    emitShellSelection({
-      sourceAppId: "person-select",
-      sourceWindowId: "person-select",
-      itemId: selectedPerson?.id ?? data.event.id,
-      title: data.event.title,
-      subtitle: selectedPerson
-        ? `${selectedPerson.display_name} · ${selectedPerson.status_label} · 고른 사진 ${selectedPerson.choices.length} / ${need}장 · 보정 요청 ${retouch}개${selectedPerson.order?.total ? ` · 추가 주문 ${formatWon(selectedPerson.order.total)}` : ""}`
-        : `마감 ${formatSeoulDeadline(data.event.deadline_at)} · ${data.people.length}명`,
-      next: memos.length ? memos.join(" / ") : "행사 진행 현황과 고객 선택을 확인합니다.",
-      context: { contextScope: "none", routeHref: `/person-select/${data.event.id}`, resourceId: data.event.id, resourceType: "person-select-event", documentTitle: data.event.title, featureItemId: selectedPerson?.id ?? data.event.id },
-      featureItemId: selectedPerson?.id ?? data.event.id,
-    });
+    emitShellSelection(buildPersonSelectShellSelection(data, selectedPerson));
   }, [selectedPerson, data]);
-  const isShared = data?.event.access_mode === "project_shared";
-  const currentLayout: Layout = layout ?? (isShared ? "project" : data?.people.length && data.event.source_layout === "school" ? "school" : "person-folders");
+  const isShared = presentation?.isShared ?? false;
+  const currentLayout: Layout = presentation?.currentLayout ?? layout ?? "person-folders";
   const handleOriginalImportComplete = useCallback(() => setTab("matching"), []);
   const importController = usePersonSelectImportController({
     eventId: id,
@@ -167,21 +159,22 @@ export default function PersonSelectDetailPage() {
     navigate,
     setMessage: setError,
   });
-  if (!data) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
+  if (!data || !presentation) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
   // 가져오기 방식: 이미 가져온 행사는 그때 방식, 처음이면 이름 폴더 방식
-  const sharedReviewers = data.shared?.reviewers ?? [];
-  const selectedReviewer = sharedReviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? sharedReviewers[0] ?? null;
-  const selectedSharedSelection = selectedReviewer?.selection ?? null;
-  const isSchool = currentLayout === "school";
-  const categories = data.event.categories ?? [];
-  const categoryLabels = new Map(categories.map((item) => [item.key, item.label]));
-  const totalPhotos = isShared ? Number(data.shared?.image_count ?? 0) : data.people.reduce((sum, person) => sum + Object.entries(person.image_counts ?? {}).filter(([key]) => key !== "homeroom").reduce((acc, [, value]) => acc + value, 0), 0);
-  const pickText = isShared ? `프로젝트 공용 셀렉 · 검토자 ${sharedReviewers.filter((reviewer) => !reviewer.is_legacy).length}명` : categories.length === 1 ? `한 사람당 ${categories[0].pick}장` : categories.map((item) => `${item.label} ${item.pick}장`).join(" · ");
-  const sourceFolder = folderName(data.event.source_relative_path);
-  const labels = new Map(data.event.retouch_options.map((item) => [item.key, item.label]));
-  const loginGuide = isShared ? "공용 링크에서 프로젝트 사진을 함께 선택해 주세요" : isSchool ? "이름과 학교에서 받은 비밀번호 4자리로 들어오세요" : "이름과 포토클리닉에서 받은 비밀번호 4자리로 들어오세요";
-  const publicPath = isShared && data.event.shared_token ? `/pick/shared/${data.event.shared_token}` : `/pick/${data.event.slug}`;
-  const notice = `주소: ${typeof location !== "undefined" ? location.origin : ""}${publicPath} / ${loginGuide} / 마감: ${formatSeoulDeadline(data.event.deadline_at)}`;
+  const {
+    sharedReviewers,
+    selectedReviewer,
+    selectedSharedSelection,
+    isSchool,
+    categoryLabels,
+    totalPhotos,
+    pickText,
+    sourceFolder,
+    labels,
+    loginGuide,
+    publicPath,
+    notice,
+  } = presentation;
   const tabs = isShared
     ? [["matching", "사진 확인", UsersRound], ["progress", "고객 셀렉", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const
     : [["matching", "인원 매칭", UsersRound], ["progress", "진행 현황", Activity], ["upload", "사진 올리기", Upload], ["settings", "프로젝트 설정", SlidersHorizontal]] as const;
