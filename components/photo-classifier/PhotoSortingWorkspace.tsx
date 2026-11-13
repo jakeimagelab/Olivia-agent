@@ -65,22 +65,12 @@ import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
 import {
-  assignStudioPersonGroups,
   buildPersonFeatureTags,
-  buildPersonGroups,
-  buildStudioGroups,
-  computeClothingLabel,
-  computeGroupKey,
-  groupStudioPhotosByTimeGap,
-  normalizePersonFeatures,
   type PersonGroup,
   type StudioGroup,
   type StudioGroupSortMode,
-  type StudioInnerWear,
-  type StudioLightingStatus,
   type StudioOptions,
   type StudioPhotoFile,
-  type StudioPoseType,
   type StudioStats,
   type StudioSubMode,
 } from "@/lib/photo-classifier/studioGrouping";
@@ -88,19 +78,22 @@ import {
   buildStudioConceptReportBundle,
   buildStudioPersonReportBundle,
 } from "@/lib/photo-classifier/studioReports";
-import { runStudioAnalysisConcurrently } from "@/lib/photo-classifier/studioAnalysisRunner";
+import {
+  analyzeStudioConcepts,
+  analyzeStudioGapLighting,
+  analyzeStudioPeople,
+  groupStudioFilesByGap,
+} from "@/lib/photo-classifier/studioClassificationAnalysis";
 import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
 import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
 import {
   buildQuickProposals,
-  getStudioThumb,
   loadThumb,
   mapWithConcurrency,
 } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
   splitRawAndJpg,
-  withTimeout,
 } from "@/lib/photo-classifier/browserFileOps";
 import {
   downloadCSV,
@@ -1314,76 +1307,34 @@ function PhotoSortingInner({
   }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
 
   const runGapSort = async (files: StudioPhotoFile[]) => {
-    const result = groupStudioPhotosByTimeGap(files, studioGapMinutes, { markAnalyzed: true });
-    setStudioFiles(result);
-    setPersonGroups(buildPersonGroups(result));
+    const result = groupStudioFilesByGap(files, studioGapMinutes);
+    setStudioFiles(result.files);
+    setPersonGroups(result.personGroups);
     setStep(3);
   };
 
   const runGapAiSort = async (files: StudioPhotoFile[]) => {
-    // 1단계: 파일 크기로 ETC 사전 필터 + 시간차로 인물 구분
-    const withGap = groupStudioPhotosByTimeGap(files, studioGapMinutes);
-
-    // 2단계: 크기로 통과한 컷만 AI 조명 검사
-    const targetIndices = withGap.flatMap((file, index) => file.groupKey === "__ETC__" ? [] : [index]);
-    const result = await runStudioAnalysisConcurrently({
-      items: withGap,
-      targetIndices,
-      concurrency: 6,
-      analyze: async (studioFile) => {
-        const file = await studioFile.handle.getFile();
-        const thumb = await getStudioThumb(file);
-        const response = await fetch("/api/studio-face-analysis", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity, lightingOnly: true }),
-        });
-        const data = await response.json();
-        return data.ok && data.lightingStatus !== "normal"
-          ? { ...studioFile, analyzed: true, lightingStatus: data.lightingStatus as StudioLightingStatus, groupKey: "__ETC__" }
-          : { ...studioFile, analyzed: true };
-      },
-      recover: (_error, studioFile) => ({ ...studioFile, analyzed: true }),
-      onStart: ({ completed, total, item }) => {
-        setProgress({ cur: completed, total, msg: `AI 조명 검사: ${item.name}` });
-      },
-      onProgress: ({ items }) => setStudioFiles(items),
+    const result = await analyzeStudioGapLighting({
+      files,
+      gapMinutes: studioGapMinutes,
+      lightingSensitivity: studioOpts.lightingSensitivity,
+      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `AI 조명 검사: ${fileName}` }),
+      onProgress: setStudioFiles,
     });
-    setPersonGroups(buildPersonGroups(result));
+    setStudioFiles(result.files);
+    setPersonGroups(result.personGroups);
     setStep(3);
   };
 
   const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
-    const result = await runStudioAnalysisConcurrently({
-      items: files,
-      concurrency: 8,
-      analyze: async (file) => {
-        const data = await withTimeout((async () => {
-          const source = await file.handle.getFile();
-          const thumb = await getStudioThumb(source);
-          const response = await fetch("/api/studio-analysis", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity }),
-          });
-          return response.json();
-        })(), 45000, "AI 분석");
-        if (!data.ok) return { ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" };
-        const isEtc = data.lightingStatus !== "normal";
-        const hasGown: boolean = data.hasGown ?? false;
-        const innerWear: StudioInnerWear = (["셔츠", "넥타이셔츠", "스크럽", "블라우스", "탑", "기타"] as StudioInnerWear[]).includes(data.innerWear) ? data.innerWear : "기타";
-        const poseType: StudioPoseType = (["Standing", "Sitting", "Unknown"] as StudioPoseType[]).includes(data.poseType) ? data.poseType : "Unknown";
-        const isFamilyProfile: boolean = data.isFamilyProfile ?? false;
-        const clothingLabel = computeClothingLabel(hasGown, innerWear, isFamilyProfile);
-        const groupKey = isEtc ? "__ETC__" : computeGroupKey(hasGown, innerWear, poseType, isFamilyProfile);
-        return { ...file, lightingStatus: data.lightingStatus || "normal", hasGown, innerWear, clothingLabel, poseType, isFamilyProfile, confidence: data.confidence || 0.5, analyzed: true, groupKey };
-      },
-      recover: (_error, file) => ({ ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" }),
-      onStart: ({ completed, total, item }) => setProgress({ cur: completed, total, msg: `AI 분석: ${item.name}` }),
-      onProgress: ({ items }) => setStudioFiles(items),
+    const result = await analyzeStudioConcepts({
+      files,
+      lightingSensitivity: studioOpts.lightingSensitivity,
+      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `AI 분석: ${fileName}` }),
+      onProgress: setStudioFiles,
     });
-    const groups = buildStudioGroups(result);
-    setStudioGroups(groups);
+    setStudioFiles(result.files);
+    setStudioGroups(result.groups);
     setStep(3);
   };
 
@@ -1419,35 +1370,14 @@ function PhotoSortingInner({
   }, [studioGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
   const runGroupAnalysis = async (files: StudioPhotoFile[]) => {
-    const result = await runStudioAnalysisConcurrently({
-      items: files,
-      concurrency: 8,
-      analyze: async (file) => {
-        const data = await withTimeout((async () => {
-          const source = await file.handle.getFile();
-          const thumb = await getStudioThumb(source);
-          const response = await fetch("/api/studio-face-analysis", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity }),
-          });
-          return response.json();
-        })(), 45000, "얼굴 분석");
-        if (data.ok && data.lightingStatus === "normal") {
-          const features = normalizePersonFeatures(data);
-          return { ...file, lightingStatus: "normal" as const, personFeatures: features, analyzed: true, groupKey: "PENDING" };
-        }
-        return { ...file, analyzed: true, lightingStatus: data.lightingStatus || "etc_test", groupKey: "__ETC__" };
-      },
-      recover: (_error, file) => ({ ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" }),
-      onStart: ({ completed, total, item }) => setProgress({ cur: completed, total, msg: `얼굴 분석: ${item.name}` }),
-      onProgress: ({ items }) => setStudioFiles(items),
+    const result = await analyzeStudioPeople({
+      files,
+      lightingSensitivity: studioOpts.lightingSensitivity,
+      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `얼굴 분석: ${fileName}` }),
+      onProgress: setStudioFiles,
     });
-
-    const final = assignStudioPersonGroups(result);
-
-    setStudioFiles(final);
-    setPersonGroups(buildPersonGroups(final));
+    setStudioFiles(result.files);
+    setPersonGroups(result.personGroups);
     setStep(3);
   };
 
