@@ -54,29 +54,36 @@ export function useCustomerBridgeViewerController({
     onApplyRating: applyRatingTo,
     onApplyColor: applyColorTo,
   });
+  const {
+    closeFullscreen,
+    fullscreenId,
+    openFullscreen,
+    reviewActiveId,
+    reviewImages,
+  } = viewer;
 
   useEffect(() => {
-    setMobileImageOpener(viewer.openFullscreen);
-  }, [setMobileImageOpener, viewer.openFullscreen]);
+    setMobileImageOpener(openFullscreen);
+  }, [openFullscreen, setMobileImageOpener]);
   useEffect(() => {
     fullscreenCloseRef.current = () => {
-      if (viewer.fullscreenId) viewer.closeFullscreen();
+      if (fullscreenId) closeFullscreen();
     };
-  }, [fullscreenCloseRef, viewer.closeFullscreen, viewer.fullscreenId]);
+  }, [closeFullscreen, fullscreenCloseRef, fullscreenId]);
 
   useCustomerBridgeMediaRequests({
     renderedImages,
     visibleImages,
     focusedImageId,
-    fullscreenId: viewer.fullscreenId,
-    reviewImages: viewer.reviewImages,
-    reviewActiveId: viewer.reviewActiveId,
+    fullscreenId,
+    reviewImages,
+    reviewActiveId,
     requestMedia,
   });
 
   const openFocusedFullscreen = useCallback(() => {
-    if (focusedImageId) viewer.openFullscreen(focusedImageId);
-  }, [focusedImageId, viewer.openFullscreen]);
+    if (focusedImageId) openFullscreen(focusedImageId);
+  }, [focusedImageId, openFullscreen]);
 
   return { ...viewer, openFocusedFullscreen };
 }

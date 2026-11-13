@@ -98,12 +98,7 @@ export function useCustomerBridgeBrowserController({
     colorLabels,
     qualityResults,
   }), [colorLabels, filenameSearch, filter, folderImages, labelFilters, qualityResults, ratings, selectedIds]);
-  const {
-    visibleImages,
-    selectedInFolder,
-    qualityCounts,
-    searchActive,
-  } = photoView;
+  const { visibleImages } = photoView;
   const { state: imagePageState, requestNext: requestNextImagePage } = useCustomerBridgeImagePaging({
     location,
     filenameSearch,

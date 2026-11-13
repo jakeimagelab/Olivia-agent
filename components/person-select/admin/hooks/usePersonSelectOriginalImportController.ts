@@ -45,10 +45,12 @@ export function usePersonSelectOriginalImportController({
     setMessage,
     setResult,
   });
+  const { startLocalImport } = localController;
+  const { startRemoteImport } = remoteController;
 
   const startImport = useCallback(
-    () => sourceMode === "local" ? localController.startLocalImport() : remoteController.startRemoteImport(),
-    [localController.startLocalImport, remoteController.startRemoteImport, sourceMode],
+    () => sourceMode === "local" ? startLocalImport() : startRemoteImport(),
+    [sourceMode, startLocalImport, startRemoteImport],
   );
 
   const selectRemotePath = useCallback((nextPath: string) => {

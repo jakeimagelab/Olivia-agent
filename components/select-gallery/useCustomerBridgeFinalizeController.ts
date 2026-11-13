@@ -72,12 +72,23 @@ export function useCustomerBridgeFinalizeController({
     onSubmitted,
     onStorageError,
   });
+  const {
+    closeReview,
+    error,
+    openReview,
+    reviewItems,
+    reviewOpen,
+    reviewSections,
+    setError,
+    submit,
+    submitting,
+  } = submission;
   const handleResetComplete = useCallback(() => {
     clearActiveSelection();
     resetReview();
     setFilter("all");
-    submission.setError("");
-  }, [clearActiveSelection, resetReview, setFilter, submission.setError]);
+    setError("");
+  }, [clearActiveSelection, resetReview, setError, setFilter]);
   const reset = useCustomerBridgeResetController({
     readOnly,
     customerRatings: ratings,
@@ -90,21 +101,21 @@ export function useCustomerBridgeFinalizeController({
     clearDisplayedSelection,
     flushSelectionSync,
     onResetComplete: handleResetComplete,
-    onError: submission.setError,
+    onError: setError,
   });
   const openSubmitReview = useCallback(() => {
-    void submission.openReview();
-  }, [submission.openReview]);
+    void openReview();
+  }, [openReview]);
 
   return {
-    submitError: submission.error,
-    submitting: submission.submitting,
-    submitReviewOpen: submission.reviewOpen,
+    submitError: error,
+    submitting,
+    submitReviewOpen: reviewOpen,
     openSubmitReview,
-    closeSubmitReview: submission.closeReview,
-    submit: submission.submit,
-    submitReviewItems: submission.reviewItems,
-    submitReviewSections: submission.reviewSections,
+    closeSubmitReview: closeReview,
+    submit,
+    submitReviewItems: reviewItems,
+    submitReviewSections: reviewSections,
     ...reset,
   };
 }

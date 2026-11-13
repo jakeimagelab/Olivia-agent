@@ -36,14 +36,19 @@ export function useCustomerBridgeSideController({
     mobile,
     focusedImageId,
   });
+  const {
+    sendMessage,
+    setMobileSideOpen,
+    setSideTab,
+  } = messagesController;
 
   const openMessages = useCallback(() => {
-    messagesController.setSideTab("chat");
-    messagesController.setMobileSideOpen(true);
-  }, [messagesController.setMobileSideOpen, messagesController.setSideTab]);
+    setSideTab("chat");
+    setMobileSideOpen(true);
+  }, [setMobileSideOpen, setSideTab]);
   const closeMobileSide = useCallback(
-    () => messagesController.setMobileSideOpen(false),
-    [messagesController.setMobileSideOpen],
+    () => setMobileSideOpen(false),
+    [setMobileSideOpen],
   );
   const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
     applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
@@ -55,8 +60,8 @@ export function useCustomerBridgeSideController({
     void reviewQuality(imageId, status);
   }, [reviewQuality]);
   const handleSendMessage = useCallback(() => {
-    void messagesController.sendMessage();
-  }, [messagesController.sendMessage]);
+    void sendMessage();
+  }, [sendMessage]);
   const updateFocusedNote = useCallback((value: string) => {
     if (focusedImageId) updateNote(focusedImageId, value);
   }, [focusedImageId, updateNote]);
