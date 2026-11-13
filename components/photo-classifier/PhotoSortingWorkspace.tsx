@@ -16,10 +16,8 @@ import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
 import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import {
-  featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
-  getClassificationCheckpoint, setCachedPattern, setClassificationCheckpoint,
+  getClassificationCheckpoint, setClassificationCheckpoint,
 } from "@/lib/photo-classifier/scene-cache";
-import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import {
   createApproveSceneCorrection,
   createMergeSceneCorrection,
@@ -34,11 +32,12 @@ import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
-  AccuracyReport, ClassificationJobState, LocalVisualFeatures, SceneBoundaryDecision,
+  AccuracyReport, ClassificationJobState, SceneBoundaryDecision,
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
 import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
 import { extractBrowserFieldFeatures } from "@/lib/photo-classifier/fieldFeatureExtraction";
+import { analyzeBrowserFieldFolder } from "@/lib/photo-classifier/fieldFolderAnalysis";
 import {
   analyzeBrowserSceneBoundary,
   appendBrowserPurposeTransitionCandidates,
@@ -47,7 +46,7 @@ import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunn
 import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
 import { executePlannedFieldOutput, renameConfirmedFieldScenes } from "@/lib/photo-classifier/fieldOutput";
 import {
-  applyOverrides, adjustGranularity, computeFolderStats,
+  applyOverrides, adjustGranularity,
   DEFAULT_WEIGHT_PROFILE,
   type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
 } from "@/lib/photo-classifier/pattern-analysis";
@@ -62,7 +61,6 @@ import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import { Stepper } from "@/components/workspace-shell/Stepper";
-import { CAMERA_JPG_EXTENSIONS } from "@/lib/photo/extensions";
 import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
@@ -95,7 +93,6 @@ import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
 import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
 import {
   buildQuickProposals,
-  getApiThumb,
   getStudioThumb,
   loadThumb,
   mapWithConcurrency,
@@ -151,7 +148,6 @@ type PhotoMode = PhotoShootingMode;
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
-const JPG_EXTS = CAMERA_JPG_EXTENSIONS;
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
 // 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
 const PHOTO_CLASSIFY_JOB_ID = "photo-classify";
@@ -540,46 +536,17 @@ function PhotoSortingInner({
     setAiShootingPattern(null);
     setAiSceneProposals([]);
     try {
-      const entries: { name: string; mtime: number; file: File }[] = [];
-      for await (const [name, handle] of (rootDir as any).entries()) {
-        if (handle.kind !== "file") continue;
-        const ext = name.split(".").pop()?.toLowerCase() ?? "";
-        if (!JPG_EXTS.has(ext)) continue;
-        const file = await (handle as FileSystemFileHandle).getFile();
-        const exif = await readPhotoTimestamp(file);
-        entries.push({ name, mtime: exif?.timestamp ?? file.lastModified, file });
-      }
-      entries.sort((a, b) => a.mtime - b.mtime);
-      aiScanEntriesRef.current = entries;
-      setAiScanFileCount(entries.length);
-      if (!entries.length) return;
-
-      const fingerprint = folderFingerprint(rootDir.name, entries.map((entry) => ({ name: entry.name, size: entry.file.size, lastModified: entry.file.lastModified })));
-      const cachedPattern = await getCachedPattern<FolderShootingPattern>(fingerprint);
-      if (cachedPattern) {
-        setAiShootingPattern(cachedPattern);
-        setAiWeightProfile(cachedPattern.profile);
-        setAiSceneProposals(await buildQuickProposals(entries, cachedPattern.profile.absoluteTimeGapMinutes ?? gapMinutes));
-        return;
-      }
-
-      const cachedFeatures = (await Promise.all(
-        entries.map((entry) => getCachedFeature(featureCacheKey(rootDir.name, entry.file))),
-      )).filter((feature): feature is LocalVisualFeatures => Boolean(feature));
-      const stats = computeFolderStats(entries.map((entry) => entry.mtime), cachedFeatures, 1);
-
-      const response = await fetch("/api/photo-classification-pattern", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ department, stats }),
+      const result = await analyzeBrowserFieldFolder({
+        rootDirectory: rootDir,
+        department,
+        fallbackGapMinutes: gapMinutes,
       });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error ?? "폴더 분석 실패");
-      const pattern = data.pattern as FolderShootingPattern;
-      setAiShootingPattern(pattern);
-      setAiWeightProfile(pattern.profile);
-      await setCachedPattern(fingerprint, pattern);
-      setAiSceneProposals(await buildQuickProposals(entries, pattern.profile.absoluteTimeGapMinutes ?? gapMinutes));
+      aiScanEntriesRef.current = result.entries;
+      setAiScanFileCount(result.entries.length);
+      if (!result.pattern) return;
+      setAiShootingPattern(result.pattern);
+      setAiWeightProfile(result.pattern.profile);
+      setAiSceneProposals(result.proposals);
     } catch (error) {
       console.error("[ai-folder-analysis]", error);
     } finally {
