@@ -28,7 +28,6 @@ import {
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
 import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
-import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
   AccuracyReport, ClassificationJobState, SceneBoundaryDecision,
@@ -107,7 +106,6 @@ import {
   restoreUnmovedSortingScenes,
 } from "@/lib/photo-classifier/sortingSessionRestore";
 import {
-  Btn,
   C,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
@@ -129,8 +127,7 @@ import {
   StudioPhotoAnalysisProgressStep,
 } from "./PhotoSortingProgressSteps";
 import { PhotoSortingWorkspaceShell } from "./PhotoSortingWorkspaceShell";
-import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
-import { FieldSceneReviewList } from "./FieldSceneReviewList";
+import { FieldSceneReviewStep } from "./FieldSceneReviewStep";
 import { StudioGroupEditView } from "./StudioGroupEditView";
 import { StudioGroupConfirmationView } from "./StudioGroupConfirmationView";
 import { StudioClassificationCompleteView } from "./StudioClassificationCompleteView";
@@ -1565,64 +1562,15 @@ function PhotoSortingInner({
     ]);
   }, [rootDir]);
 
-  const FieldStep2 = () => {
-    const allLoaded = fieldScenes.every(s=>!s.nameLoading);
-    const allApproved = fieldScenes.length > 0 && fieldScenes.every((scene) => scene.approved);
-    const boundaryReviewCount = boundaryDecisions.filter((decision) => decision.needsReview).length;
-    const totalJpg = fieldScenes.reduce((s,sc)=>s+sc.fileCount,0);
-    const allFieldFiles = fieldScenes.flatMap((scene) => scene.files);
-    return (
-      <div style={{display:"flex",flexDirection:"column",gap:16,maxWidth:860}}>
-        <FieldSceneReviewOverview
-          bridgePlanSummary={bridgePlanSummary}
-          fastAnalyzeMode={fastAnalyzeMode}
-          boundaryReviewCount={boundaryReviewCount}
-          aiAnalysisPending={(aiNamingEnabled || departmentLogicEnabled) && !allLoaded}
-          approvedCount={fieldScenes.filter((scene) => scene.approved).length}
-          sceneCount={fieldScenes.length}
-          onApproveAll={approveAllFieldScenes}
-          evaluationMode={evaluationMode}
-          onEvaluationModeChange={setEvaluationMode}
-          files={allFieldFiles}
-          groundTruthSelection={groundTruthSelection}
-          onGroundTruthSelectionChange={setGroundTruthSelection}
-          groundTruthBoundaries={groundTruthBoundaries}
-          onGroundTruthBoundariesChange={setGroundTruthBoundaries}
-          boundaryDecisions={boundaryDecisions}
-          accuracyReport={accuracyReport}
-          onAccuracyReportChange={setAccuracyReport}
-          mergeCandidates={mergeCandidates}
-          dismissedCandidates={dismissedCandidates}
-        />
+  const updateFieldSceneName = useCallback((sceneIndex: number, value: string) => {
+    setFieldScenes((previous) => previous.map((scene, index) => (
+      index === sceneIndex ? { ...scene, editedName: value } : scene
+    )));
+  }, []);
 
-        <FieldSceneReviewList
-          scenes={fieldScenes}
-          totalJpg={totalJpg}
-          rawCount={fieldRawCount}
-          departmentLabel={DEPARTMENT_DISPLAY[department]}
-          mergeCandidates={mergeCandidates}
-          dismissedCandidates={dismissedCandidates}
-          splitPositions={splitPositions}
-          onSceneFocus={(sceneIndex) => useOliviaContextStore.getState().setSelection("photo_scene", String(sceneIndex))}
-          onSceneNameChange={(sceneIndex, value) => setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, editedName: value } : scene))}
-          onSceneNameCommit={commitFieldSceneName}
-          onSuggestedNameApply={(sceneIndex, value) => setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, editedName: value } : scene))}
-          onSplitPositionChange={(sceneIndex, value) => setSplitPositions((previous) => ({ ...previous, [sceneIndex]: value }))}
-          onSplitScene={splitFieldScene}
-          onMergeScenes={(fromIndex, toIndex, candidateId) => void mergeFieldScenes(fromIndex, toIndex, candidateId)}
-          onApproveScene={approveFieldScene}
-          onDismissCandidate={dismissFieldMergeCandidate}
-        />
-
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(0)}>← 처음으로</Btn>
-          <Btn onClick={handleConfirmScenes} disabled={!allLoaded || !allApproved}>
-            {!allLoaded ? "AI 분석 중..." : !allApproved ? "Scene 승인 필요" : "승인 결과로 폴더 정리"}
-          </Btn>
-        </div>
-      </div>
-    );
-  };
+  const updateSplitPosition = useCallback((sceneIndex: number, value: number) => {
+    setSplitPositions((previous) => ({ ...previous, [sceneIndex]: value }));
+  }, []);
 
   const FieldStep4 = () => {
     if (!fieldStats) return null;
@@ -1832,7 +1780,39 @@ function PhotoSortingInner({
             }}
           />
         )}
-        {photoMode==="field" && step===2 && <FieldStep2/>}
+        {photoMode==="field" && step===2 && (
+          <FieldSceneReviewStep
+            scenes={fieldScenes}
+            rawCount={fieldRawCount}
+            departmentLabel={DEPARTMENT_DISPLAY[department]}
+            bridgePlanSummary={bridgePlanSummary}
+            fastAnalyzeMode={fastAnalyzeMode}
+            boundaryDecisions={boundaryDecisions}
+            aiAnalysisEnabled={aiNamingEnabled || departmentLogicEnabled}
+            evaluationMode={evaluationMode}
+            onEvaluationModeChange={setEvaluationMode}
+            groundTruthSelection={groundTruthSelection}
+            onGroundTruthSelectionChange={setGroundTruthSelection}
+            groundTruthBoundaries={groundTruthBoundaries}
+            onGroundTruthBoundariesChange={setGroundTruthBoundaries}
+            accuracyReport={accuracyReport}
+            onAccuracyReportChange={setAccuracyReport}
+            mergeCandidates={mergeCandidates}
+            dismissedCandidates={dismissedCandidates}
+            splitPositions={splitPositions}
+            onApproveAll={approveAllFieldScenes}
+            onSceneNameChange={updateFieldSceneName}
+            onSceneNameCommit={commitFieldSceneName}
+            onSuggestedNameApply={updateFieldSceneName}
+            onSplitPositionChange={updateSplitPosition}
+            onSplitScene={splitFieldScene}
+            onMergeScenes={(fromIndex, toIndex, candidateId) => void mergeFieldScenes(fromIndex, toIndex, candidateId)}
+            onApproveScene={approveFieldScene}
+            onDismissCandidate={dismissFieldMergeCandidate}
+            onBack={() => setStep(0)}
+            onConfirm={handleConfirmScenes}
+          />
+        )}
         {photoMode==="field" && step===3 && (
           <FieldOutputProgressStep
             fastAnalyzeMode={fastAnalyzeMode}
