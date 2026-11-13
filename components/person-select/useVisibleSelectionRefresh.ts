@@ -20,8 +20,7 @@ export function useVisibleSelectionRefresh({
 
   const refreshVisible = useCallback(() => {
     if (document.visibilityState !== "visible" || inFlightRef.current) return;
-    let request: Promise<void>;
-    request = Promise.resolve(refreshRef.current())
+    const request = Promise.resolve(refreshRef.current())
       .catch(() => undefined)
       .then(() => undefined)
       .finally(() => {

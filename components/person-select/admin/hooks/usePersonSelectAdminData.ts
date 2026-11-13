@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
 import type { CustomerBridgeDraft } from "@/components/select-gallery/CustomerBridgeSelect";
@@ -12,6 +12,7 @@ import type {
 } from "@/lib/person-select/adminData";
 
 const PERSON_SELECT_LOAD_RETRY_DELAYS_MS = [700, 1_500] as const;
+const PERSON_SELECT_ADMIN_REFRESH_INTERVAL_MS = 30_000;
 
 function wait(milliseconds: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, milliseconds));
@@ -27,7 +28,6 @@ export function usePersonSelectAdminData({
   const [data, setData] = useState<PersonSelectAdminData | null>(null);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [selectedReviewerId, setSelectedReviewerId] = useState<string | null>(null);
-  const adminRefreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const load = useCallback(async (options?: { preserveAssignments?: boolean }) => {
     for (let attempt = 0; ; attempt += 1) {
@@ -53,23 +53,14 @@ export function usePersonSelectAdminData({
     void load().catch((cause) => onError(cause instanceof Error ? cause.message : "사진선택 데이터를 불러오지 못했습니다."));
   }, [load, onError]);
 
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState !== "visible" || adminRefreshInFlightRef.current) return;
-      const request = load({ preserveAssignments: true }).catch(() => undefined).finally(() => {
-        if (adminRefreshInFlightRef.current === request) adminRefreshInFlightRef.current = null;
-      });
-      adminRefreshInFlightRef.current = request;
-    };
-    const timer = window.setInterval(refresh, 30_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [load]);
+  const refreshAdminData = useCallback(
+    () => load({ preserveAssignments: true }),
+    [load],
+  );
+  useVisibleSelectionRefresh({
+    refresh: refreshAdminData,
+    intervalMs: PERSON_SELECT_ADMIN_REFRESH_INTERVAL_MS,
+  });
 
   useEffect(() => {
     const reviewers = data?.shared?.reviewers ?? [];
