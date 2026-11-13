@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import styles from "./SharedProjectSelect.module.css";
 
 type SharedProjectClassicPhotoCardProps = {

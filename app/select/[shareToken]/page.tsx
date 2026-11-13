@@ -9,7 +9,8 @@ import {
   normalizeSelectionCategory,
   type SelectionCategoryKey,
 } from "@/lib/select-core";
-import CustomerBridgeSelect, { type CustomerBridgeDraft } from "@/components/select-gallery/CustomerBridgeSelect";
+import CustomerBridgeSelect from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeDraft } from "@/lib/select-gallery/customerBridgeTypes";
 
 /* ══════════════════════════
    TYPES

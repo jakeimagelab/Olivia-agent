@@ -1,7 +1,7 @@
 import type {
   CustomerBridgeDraft,
   CustomerBridgeImage,
-} from "@/components/select-gallery/CustomerBridgeSelect";
+} from "@/lib/select-gallery/customerBridgeTypes";
 import type {
   PersonSelectAccessMode,
   PersonSelectCustomerViewMode,

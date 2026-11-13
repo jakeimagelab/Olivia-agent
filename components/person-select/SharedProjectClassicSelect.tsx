@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CustomerBridgeDraft, CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeDraft, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import {
   reconcileSelectionMediaImages,
   SELECTION_THUMBNAIL_PAGE_SIZE,

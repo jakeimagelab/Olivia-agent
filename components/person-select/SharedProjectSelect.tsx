@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import CustomerBridgeSelect, { type CustomerBridgeDraft, type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
-import type { CustomerBridgeFolderManifest } from "@/lib/select-gallery/customerBridgeTypes";
+import CustomerBridgeSelect from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeDraft, CustomerBridgeFolderManifest, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
 import type {
   PersonSelectClientImagePage,

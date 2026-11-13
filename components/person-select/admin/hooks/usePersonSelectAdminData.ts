@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useVisibleSelectionRefresh } from "@/components/person-select/useVisibleSelectionRefresh";
-import type { CustomerBridgeDraft } from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeDraft } from "@/lib/select-gallery/customerBridgeTypes";
 import { isRetryableApiError, readApiResponse } from "@/lib/http/apiResponse";
 import type {
   PersonSelectAdminData,

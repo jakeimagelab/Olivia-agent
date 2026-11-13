@@ -16,7 +16,7 @@ import {
 } from "@/lib/person-select/adminPresentation";
 import { readApiResponse } from "@/lib/http/apiResponse";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
-import type { CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import { RawMatchDialog, RawMatchResult } from "@/components/person-select/admin/RawMatchControls";
 import { PinListDialog } from "@/components/person-select/admin/PinListDialog";
 import { PersonDetailDrawer } from "@/components/person-select/admin/PersonDetailDrawer";

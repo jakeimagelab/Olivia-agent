@@ -3,7 +3,8 @@
 import type { ReactNode } from "react";
 import { Folder, Info, Link2, UsersRound } from "lucide-react";
 
-import CustomerBridgeSelect, { type CustomerBridgeImage } from "@/components/select-gallery/CustomerBridgeSelect";
+import CustomerBridgeSelect from "@/components/select-gallery/CustomerBridgeSelect";
+import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 import type { PersonSelectAdminPerson } from "@/lib/person-select/adminPerson";
 import type { PersonSelectSharedReviewer, PersonSelectSharedSelection } from "@/lib/person-select/adminData";
