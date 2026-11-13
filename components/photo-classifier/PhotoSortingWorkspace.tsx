@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { FolderTree } from "lucide-react";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
@@ -34,7 +33,7 @@ import type {
   SceneCorrection, SceneFrameAnalysis, TimestampSource,
 } from "@/lib/photo-classifier/hybrid-types";
 import {
-  applyOverrides, adjustGranularity, computeFolderStats, sceneProposalFromFieldScene,
+  applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
   type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
 } from "@/lib/photo-classifier/pattern-analysis";
@@ -50,7 +49,7 @@ import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudi
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import { Stepper } from "@/components/workspace-shell/Stepper";
 import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
-import { CAMERA_JPG_EXTENSIONS, RAW_PHOTO_EXTENSIONS } from "@/lib/photo/extensions";
+import { CAMERA_JPG_EXTENSIONS } from "@/lib/photo/extensions";
 import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
@@ -92,7 +91,6 @@ import {
 import {
   downloadCSV,
   estimatedRemaining,
-  formatTime,
   makeCSV,
 } from "@/lib/photo-classifier/workspaceFormatting";
 import {
@@ -140,7 +138,6 @@ type PhotoMode = PhotoShootingMode;
 /* ════════════════════════════════════════════════
    CONSTANTS
 ═══════════════════════════════════════════════ */
-const RAW_EXTS = RAW_PHOTO_EXTENSIONS;
 const JPG_EXTS = CAMERA_JPG_EXTENSIONS;
 // 우상단 전역 작업 팝업(BackgroundJobsWidget)에 등록할 때 쓰는 고정 job id — handleFieldSort만
 // 이 id로 startJob을 부른다(스튜디오 모드 handleStudioSort는 범위 밖, 이 id로 등록 안 함).
@@ -206,7 +203,6 @@ function PhotoSortingInner({
   const isModal = mode === "modal";
   const isEmbedded = mode === "embedded";
   const sp = useSearchParams();
-  const router = useRouter();
   const clientId = modalClientId ?? sp.get("clientId") ?? sp.get("client_id") ?? "";
   const workflowRunId = modalWorkflowRunId ?? sp.get("workflowRunId") ?? "";
   const photoSourceSurface = usePhotoSourceSurface();
@@ -287,7 +283,6 @@ function PhotoSortingInner({
   const [fieldRawCount,              setFieldRawCount]              = useState(0);
   const [fieldRawHandles,            setFieldRawHandles]            = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
   const [fieldJpgBaseDir,            setFieldJpgBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
-  const [fieldRawBaseDir,            setFieldRawBaseDir]            = useState<FileSystemDirectoryHandle | null>(null);
   const [fieldStats,                 setFieldStats]                 = useState<FieldStats | null>(null);
   const [copyLog,                    setCopyLog]                    = useState<string[]>([]);
   const [classificationJobState,     setClassificationJobState]     = useState<ClassificationJobState>("IDLE");
@@ -350,14 +345,6 @@ function PhotoSortingInner({
   // 이 ref로 최신 값을 읽어야 한다.
   const fieldScenesRef = useRef<FieldScene[]>([]);
   useEffect(() => { fieldScenesRef.current = fieldScenes; }, [fieldScenes]);
-
-  /* ── 셀렉 & 매칭 탭 state ── */
-  const [selectTabView,          setSelectTabView]          = useState<"guide"|"select">("guide");
-  const [inAppSelected,          setInAppSelected]          = useState<Set<string>>(new Set());
-  const [selectExpandedScenes,   setSelectExpandedScenes]   = useState<Set<number>>(new Set());
-
-  const [creatingGallery, setCreatingGallery] = useState(false);
-  const [galleryProgress, setGalleryProgress] = useState<{ step: string; cur: number; total: number } | null>(null);
 
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
@@ -428,7 +415,6 @@ function PhotoSortingInner({
       const h = await pickPhotoFolder("readwrite");
       if (!h) return;
       const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
-      const rawBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("RAW").catch(() => null);
 
       departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${h.name}`;
       setCurrentLocalFolder(h);
@@ -451,7 +437,6 @@ function PhotoSortingInner({
       setClassificationJobState(saved.classificationJobState ?? "WAITING_REVIEW");
       setBoundaryDecisions(saved.boundaryDecisions ?? []);
       setSceneCorrections(saved.sceneCorrections ?? []);
-      if (rawBase) setFieldRawBaseDir(rawBase);
       setFieldStats(saved.fieldStats);
 
       // JPG/ 폴더가 있으면 씬까지 복원, 없으면 설정(step 0)으로만 복원
@@ -1134,7 +1119,6 @@ function PhotoSortingInner({
         setDepartmentPickerOpen(false);
         setRootDir(plan.directory);
         setFieldJpgBaseDir(null);
-        setFieldRawBaseDir(null);
         setFieldRawHandles(prepared.rawFiles);
         setFieldRawCount(prepared.rawFiles.length);
         setBoundaryDecisions(plan.boundaries);
@@ -1435,7 +1419,6 @@ function PhotoSortingInner({
 
       // RAW → RAW/
       const rawBase = await (rootDir as any).getDirectoryHandle("RAW", { create:true }) as FileSystemDirectoryHandle;
-      setFieldRawBaseDir(rawBase);
       for (let i = 0; i < fieldRawHandles.length; i++) {
         if (cancelRef.current) break;
         if (i % 10 === 0 || Date.now() - lastUpdate > 300) {
@@ -1777,203 +1760,6 @@ function PhotoSortingInner({
     });
     setStep(4);
   };
-
-  const runRawSelect = useCallback(async () => {
-    if (!rootDir || !fieldRawBaseDir) return;
-    setClassificationJobState("RAW_MATCHING");
-    setStep(5); cancelRef.current = false;
-    const log: string[] = [];
-
-    // SELECT/JPG_SELECT/ 스캔 → 선택된 JPG basename 수집
-    const selectedBasenames = new Set<string>();
-    try {
-      const selectDir = await (rootDir as any).getDirectoryHandle("SELECT");
-      const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT");
-      for await (const [name] of (jpgSelectDir as any).entries()) {
-        const ext = name.split(".").pop()?.toLowerCase() ?? "";
-        if (JPG_EXTS.has(ext)) selectedBasenames.add(name.replace(/\.[^.]+$/,"").toLowerCase());
-      }
-    } catch {
-      log.push("⚠️ SELECT/JPG_SELECT/ 폴더를 찾을 수 없습니다. 폴더에 선택 JPG를 넣어주세요.");
-      setCopyLog([...log]); return;
-    }
-
-    try {
-    // RAW/ 인덱스 생성 (RAW/ 폴더 또는 원본 위치에서 스캔)
-    const rawIndex = new Map<string, FileSystemFileHandle>();
-    const rawScanDir = fieldRawBaseDir ?? rootDir;
-    for await (const [name, handle] of (rawScanDir as any).entries()) {
-      if (handle.kind !== "file") continue;
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/,"").toLowerCase(), handle as FileSystemFileHandle);
-    }
-
-    // SELECT/RAW_SELECT/ 생성
-    const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create:true });
-    const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create:true }) as FileSystemDirectoryHandle;
-
-    let rawMoved = 0, rawMissing = 0; let processed = 0;
-    const rawRows: string[][] = [];
-
-    for (const basename of selectedBasenames) {
-      if (cancelRef.current) break;
-      setProgress({ cur:processed, total:selectedBasenames.size, msg:`RAW 매칭: ${basename}` });
-      const handle = rawIndex.get(basename);
-      if (handle) {
-        const rawFile = await handle.getFile();
-        try {
-          if (rawSelectMode === "move") {
-            await copyFileHandle(handle, rawSelectDir, rawFile.name);
-            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-            log.push(`✅ 이동: ${rawFile.name}`);
-          } else {
-            await copyFileHandle(handle, rawSelectDir, rawFile.name);
-            log.push(`✅ 복사: ${rawFile.name}`);
-          }
-          rawRows.push([`${basename}.jpg`, rawFile.name, "완료", `RAW/${rawFile.name}`, `SELECT/RAW_SELECT/${rawFile.name}`, "basename"]);
-          rawMoved++;
-        } catch {
-          log.push(`❌ 실패: ${rawFile.name}`);
-          rawRows.push([`${basename}.jpg`, rawFile.name, "실패", "", "", ""]);
-        }
-      } else {
-        log.push(`⚠️ RAW 없음: ${basename}`);
-        rawRows.push([`${basename}.jpg`, "", "누락", "", "", ""]);
-        rawMissing++;
-      }
-      processed++; setCopyLog([...log]);
-    }
-
-    // REPORT 생성
-    try {
-      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create:true });
-      const wr = async (name: string, content: string) => {
-        const fh = await (reportDir as any).getFileHandle(name, { create:true });
-        const w = await fh.createWritable();
-        await w.write("﻿" + content); await w.close();
-      };
-      await wr("raw_select_report.csv", makeCSV(["jpg_file","raw_file","status","source_path","destination_path","matched_by"], rawRows));
-      const summary = {
-        mode:"field", fastAnalyzeMode, rawInitialMoveEnabled: !fastAnalyzeMode,
-        exifMode: fastAnalyzeMode ? "fast" : "precise", thumbnailMode: "lazy",
-        profileStrictMode: true, dermatologySecondPassEnhanced: department === "dermatology",
-        department, departmentDisplayName:DEPARTMENT_DISPLAY[department],
-        gapMinutes, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled,
-        rawSelectMode,
-        totalJpg: fieldStats?.totalJpg ?? 0, totalRaw: fieldRawCount,
-        totalScenes: fieldStats?.totalScenes ?? 0, totalSubScenes: 0,
-        totalProfile: fieldStats?.totalProfile ?? 0, totalQualityReject: fieldStats?.totalQualityReject ?? 0,
-        selectedJpg: selectedBasenames.size, selectedRawMoved: rawMoved, rawMissing,
-        createdAt: new Date().toISOString(),
-      };
-      await wr("summary.json", JSON.stringify(summary, null, 2));
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-
-    setFieldStats(prev => prev ? { ...prev, selectedJpg:selectedBasenames.size, selectedRawMoved:rawMoved, rawMissing } : null);
-    setClassificationJobState("COMPLETED");
-    setStep(6);
-    } catch (error) {
-      // 2026-09-10 수정 지시서 3번 — RAW SELECT 실행 버튼도 최상위 보호가 없어서 폴더 생성/스캔
-      // 실패 시 진행률 화면에 멈췄다.
-      const message = error instanceof Error ? error.message : String(error);
-      setCopyLog((previous) => [...previous, `❌ 오류: RAW 매칭을 완료하지 못했습니다 — ${message}`]);
-      setClassificationJobState("WAITING_REVIEW");
-      setStep(4);
-    }
-  }, [rootDir, fieldRawBaseDir, rawSelectMode, fieldStats, fieldRawCount, department, gapMinutes, fastAnalyzeMode, departmentLogicEnabled, aiNamingEnabled, qualityAnalysisEnabled, profileClassificationEnabled]);
-
-  /* ── 앱 내 셀렉 탭: 씬 썸네일 로딩 ── */
-  const loadSceneThumbs = useCallback(async (sceneIdx: number) => {
-    const scene = fieldScenes[sceneIdx];
-    if (!scene) return;
-    const updates = await Promise.all(
-      scene.files.map(async (f) => {
-        if (f.thumbUrl) return { basename: f.basename, thumbUrl: f.thumbUrl };
-        try {
-          const file = await f.handle.getFile();
-          const url = await loadThumb(file, 120);
-          return { basename: f.basename, thumbUrl: url };
-        } catch { return { basename: f.basename, thumbUrl: null }; }
-      })
-    );
-    setFieldScenes(prev => prev.map((sc, i) => {
-      if (i !== sceneIdx) return sc;
-      return { ...sc, files: sc.files.map(f => {
-        const u = updates.find(x => x.basename === f.basename);
-        return u ? { ...f, thumbUrl: u.thumbUrl } : f;
-      })};
-    }));
-  }, [fieldScenes]);
-
-  /* ── 앱 내 셀렉 탭: RAW 매칭 실행 ── */
-  const runInAppRawMatch = useCallback(async () => {
-    if (!rootDir || !fieldRawBaseDir || inAppSelected.size === 0) return;
-    setStep(5); cancelRef.current = false;
-    const log: string[] = [];
-
-    // 선택된 JPG 파일 핸들 수집
-    const selectedHandles = new Map<string, FileSystemFileHandle>();
-    for (const scene of fieldScenes) {
-      for (const f of scene.files) {
-        if (inAppSelected.has(f.basename.toLowerCase())) {
-          selectedHandles.set(f.basename.toLowerCase(), f.handle);
-        }
-      }
-    }
-
-    // SELECT/JPG_SELECT/ 에 선택 JPG 복사
-    const selectDir = await (rootDir as any).getDirectoryHandle("SELECT", { create: true });
-    const jpgSelectDir = await (selectDir as any).getDirectoryHandle("JPG_SELECT", { create: true });
-    let done = 0;
-    for (const [, handle] of selectedHandles) {
-      if (cancelRef.current) break;
-      const file = await handle.getFile();
-      setProgress({ cur: done, total: selectedHandles.size, msg: `JPG 복사: ${file.name}` });
-      try { await copyFileHandle(handle, jpgSelectDir, file.name); log.push(`📋 ${file.name}`); }
-      catch { log.push(`❌ 복사 실패: ${file.name}`); }
-      done++; setCopyLog([...log]);
-    }
-
-    // RAW 인덱스 생성
-    const rawIndex = new Map<string, FileSystemFileHandle>();
-    for await (const [name, handle] of (fieldRawBaseDir as any).entries()) {
-      if ((handle as FileSystemHandle).kind !== "file") continue;
-      const ext = name.split(".").pop()?.toLowerCase() ?? "";
-      if (RAW_EXTS.has(ext)) rawIndex.set(name.replace(/\.[^.]+$/, "").toLowerCase(), handle as FileSystemFileHandle);
-    }
-
-    // SELECT/RAW_SELECT/ 생성 후 매칭
-    const rawSelectDir = await (selectDir as any).getDirectoryHandle("RAW_SELECT", { create: true }) as FileSystemDirectoryHandle;
-    let rawMoved = 0, rawMissing = 0; done = 0;
-    const rawRows: string[][] = [];
-
-    for (const basename of inAppSelected) {
-      if (cancelRef.current) break;
-      setProgress({ cur: done, total: inAppSelected.size, msg: `RAW 매칭: ${basename}` });
-      const handle = rawIndex.get(basename);
-      if (handle) {
-        const rawFile = await handle.getFile();
-        try {
-          await copyFileHandle(handle, rawSelectDir, rawFile.name);
-          if (rawSelectMode === "move") {
-            try { await (fieldRawBaseDir as any).removeEntry(rawFile.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-            log.push(`✅ 이동: ${rawFile.name}`);
-          } else {
-            log.push(`✅ 복사: ${rawFile.name}`);
-          }
-          rawRows.push([`${basename}.jpg`, rawFile.name, "완료", `RAW/${rawFile.name}`, `SELECT/RAW_SELECT/${rawFile.name}`, "basename"]);
-          rawMoved++;
-        } catch { log.push(`❌ 실패: ${rawFile.name}`); }
-      } else {
-        log.push(`⚠️ RAW 없음: ${basename}`);
-        rawMissing++;
-      }
-      done++; setCopyLog([...log]);
-    }
-
-    setFieldStats(prev => prev ? { ...prev, selectedJpg: inAppSelected.size, selectedRawMoved: rawMoved, rawMissing } : prev);
-    setStep(6);
-  }, [rootDir, fieldRawBaseDir, inAppSelected, fieldScenes, rawSelectMode]);
 
   /* ════════════════════════════════════════════
      STUDIO-MODE HANDLERS
@@ -2695,177 +2481,6 @@ function PhotoSortingInner({
     />
   );
 
-  // Kept only so pre-existing browser sessions can finish their in-memory state;
-  // it is not rendered from the separated Photo Workspace any longer.
-  const LegacyFieldSelectionStep = () => {
-    if (!fieldStats) return null;
-
-    /* ── 셀렉 탭: 썸네일 그리드 + 선택 UI ── */
-    const SelectTab = () => {
-      const totalPhotos = fieldScenes.reduce((a, s) => a + s.files.length, 0);
-      const totalSelected = inAppSelected.size;
-      const smallBtn: React.CSSProperties = {
-        padding:"4px 10px", fontSize:11, fontWeight:500, background:C.surface,
-        border:`1px solid ${C.border}`, borderRadius:6, cursor:"pointer", color:C.muted, fontFamily:"inherit",
-      };
-      return (
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {/* 선택 현황 헤더 */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",background:C.surface,borderRadius:10,border:`1px solid ${C.border}`}}>
-            <div>
-              <span style={{fontSize:14,fontWeight:600,color:C.teal}}>{totalSelected}장 선택됨</span>
-              <span style={{fontSize:11,color:C.hint,marginLeft:8}}>/ 전체 {totalPhotos}장</span>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <button style={smallBtn} onClick={()=>setInAppSelected(new Set(fieldScenes.flatMap(s=>s.files.map(f=>f.basename.toLowerCase()))))}>전체 선택</button>
-              <button style={smallBtn} onClick={()=>setInAppSelected(new Set())}>전체 해제</button>
-            </div>
-          </div>
-
-          {/* 씬별 썸네일 그리드 */}
-          {fieldScenes.map((scene, si)=>{
-            const sceneSelected = scene.files.filter(f=>inAppSelected.has(f.basename.toLowerCase())).length;
-            const isExpanded = selectExpandedScenes.has(si);
-            return (
-              <div key={si} style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,overflow:"hidden"}}>
-                <div
-                  onClick={()=>{
-                    setSelectExpandedScenes(prev=>{
-                      const next = new Set(prev);
-                      if (next.has(si)) { next.delete(si); }
-                      else { next.add(si); loadSceneThumbs(si); }
-                      return next;
-                    });
-                  }}
-                  style={{padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",cursor:"pointer",userSelect:"none"}}
-                >
-                  <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <div style={{width:28,height:28,borderRadius:6,background:sceneSelected>0?C.teal:C.border,display:"flex",alignItems:"center",justifyContent:"center",color:sceneSelected>0?"#103E36":C.muted,fontSize:11,fontWeight:500,transition:"background .2s"}}>{si+1}</div>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:500,color:C.txt}}>{scene.editedName}</div>
-                      <div style={{fontSize:10,color:C.hint}}>{scene.fileCount}장</div>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    {sceneSelected>0&&<span style={{fontSize:11,fontWeight:500,color:C.teal,background:C.light,padding:"2px 8px",borderRadius:10}}>✓ {sceneSelected}</span>}
-                    <span style={{fontSize:10,color:C.hint}}>{isExpanded?"▲":"▼"}</span>
-                  </div>
-                </div>
-                {isExpanded&&(
-                  <div style={{borderTop:`1px solid ${C.border}`,padding:12}}>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(90px,1fr))",gap:6}}>
-                      {scene.files.map(f=>{
-                        const k = f.basename.toLowerCase();
-                        const isSel = inAppSelected.has(k);
-                        return (
-                          <div
-                            key={f.name}
-                            onClick={()=>setInAppSelected(prev=>{ const n=new Set(prev); n.has(k)?n.delete(k):n.add(k); return n; })}
-                            style={{position:"relative",cursor:"pointer",borderRadius:6,overflow:"hidden",border:isSel?`2.5px solid ${C.teal}`:`1.5px solid ${C.border}`,aspectRatio:"3/2",background:C.border}}
-                          >
-                            {f.thumbUrl
-                              ?<img src={f.thumbUrl} alt={f.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                              :<div style={{width:"100%",height:"100%",background:C.border}}/>
-                            }
-                            {isSel&&<div style={{position:"absolute",top:3,right:3,width:16,height:16,borderRadius:"50%",background:C.teal,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#103E36",fontWeight:600}}>✓</div>}
-                            <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(0,0,0,.55)",padding:"2px 4px",fontSize:7,color:"rgba(255,255,255,.85)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{f.name}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {/* 액션 버튼 */}
-          <div className="ps-btn-row" style={{paddingTop:4}}>
-            <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
-            <Btn onClick={runInAppRawMatch} style={{opacity:totalSelected===0?0.4:1}} disabled={totalSelected===0}>
-              {totalSelected>0?`${totalSelected}장 선택 후 RAW 매칭`:"사진을 선택하세요"}
-            </Btn>
-          </div>
-        </div>
-      );
-    };
-
-    /* ── Bridge 가이드 탭 (기존 내용) ── */
-    const GuideTab = () => (
-      <div style={{display:"flex",flexDirection:"column",gap:16}}>
-        <div style={{background:"#F0FDF4",borderRadius:12,border:"1px solid #86EFAC",padding:20}}>
-          <div style={{fontSize:13,fontWeight:500,color:"#166534",marginBottom:10}}>베스트컷 선택 방법 (Bridge/Finder)</div>
-          <div style={{fontSize:12,color:"#166534",lineHeight:2}}>
-            1. Finder에서 <strong>JPG/</strong> 폴더 열기<br/>
-            2. 각 씬 폴더 안에서 베스트컷 선택<br/>
-            3. 선택한 JPG를 <strong>SELECT/JPG_SELECT/</strong> 폴더로 복사<br/>
-            4. 완료되면 아래 [RAW SELECT 시작] 클릭
-          </div>
-        </div>
-        <div style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"14px 16px"}}>
-          <div style={{fontSize:10,color:C.hint,marginBottom:6,fontWeight:500}}>폴더 구조</div>
-          <div style={{fontSize:11,fontFamily:"monospace",color:C.txt,lineHeight:2}}>
-            {rootDir?.name ?? "폴더명"}/<br/>
-            &nbsp;&nbsp;├ RAW/ (전체 RAW)<br/>
-            &nbsp;&nbsp;├ JPG/<br/>
-            &nbsp;&nbsp;│&nbsp;&nbsp;├ Scene01/<br/>
-            &nbsp;&nbsp;│&nbsp;&nbsp;└ Scene02/<br/>
-            {fieldStats.totalProfile>0&&<>&nbsp;&nbsp;├ PROFILE/<br/></>}
-            &nbsp;&nbsp;└ <strong>SELECT/</strong><br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├ <strong>JPG_SELECT/</strong> ← 베스트컷 여기에<br/>
-            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└ RAW_SELECT/ (자동 생성됨)
-          </div>
-        </div>
-        <div className="ps-btn-row">
-          <Btn variant="secondary" onClick={()=>setStep(2)}>← 씬 검토</Btn>
-          <Btn variant="secondary" onClick={()=>{ const a=document.createElement("a"); a.href="bridge://"; a.click(); }}>Bridge 열기</Btn>
-          <Btn onClick={runRawSelect}>RAW SELECT 시작</Btn>
-        </div>
-      </div>
-    );
-
-    return (
-      <div style={{maxWidth:640,display:"flex",flexDirection:"column",gap:16}}>
-        {/* 통계 요약 */}
-        <div style={{fontSize:14,fontWeight:500,color:C.green}}>분류 완료 — 베스트컷을 선택해주세요</div>
-        <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {([
-            {label:"씬",       value:fieldStats.totalScenes,       color:C.teal},
-            {label:"전체 JPG", value:fieldStats.totalJpg,          color:C.txt},
-            {label:"프로필",   value:fieldStats.totalProfile,      color:C.purple},
-          ] as { label: string; value: number; color: string }[]).concat(fieldStats.totalQualityReject>0?[{label:"품질제외",value:fieldStats.totalQualityReject,color:C.red}]:[]).map(({label,value,color})=>(
-            <div key={label} style={{background:C.surface,borderRadius:10,border:`1px solid ${C.border}`,padding:"12px 16px",textAlign:"center"}}>
-              <div style={{fontSize:22,fontWeight:600,color}}>{value}</div>
-              <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* 내부 탭 */}
-        <div style={{display:"flex",gap:0,borderBottom:`2px solid ${C.border}`,marginBottom:4}}>
-          {(["guide","select"] as const).map(t=>{
-            const label = t==="guide" ? "Bridge 가이드" : "앱에서 셀렉 & 매칭";
-            const active = selectTabView===t;
-            return (
-              <button
-                key={t}
-                onClick={()=>setSelectTabView(t)}
-                style={{
-                  padding:"9px 18px", fontSize:12, fontWeight:600,
-                  color:active?C.teal:C.hint, background:"none", border:"none",
-                  borderBottom:active?`2.5px solid ${C.teal}`:"2.5px solid transparent",
-                  cursor:"pointer", fontFamily:"inherit", marginBottom:-2, whiteSpace:"nowrap",
-                }}
-              >{label}</button>
-            );
-          })}
-        </div>
-
-        {selectTabView==="guide" ? <GuideTab/> : <SelectTab/>}
-      </div>
-    );
-  };
-
   const FieldStep4 = () => {
     if (!fieldStats) return null;
     return (
@@ -2882,161 +2497,6 @@ function PhotoSortingInner({
         onReview={() => setStep(2)}
         onOpenPhotoSelect={onOpenPhotoSelect}
       />
-    );
-  };
-
-  const FieldStep5 = () => (
-    <PhotoClassificationProgressView
-      title="RAW SELECT 처리 중..."
-      progress={progress}
-      logs={copyLog}
-      logColor={(line) => line.startsWith("✅") ? C.green : line.startsWith("❌") ? C.red : C.yellow}
-      notice="원본 RAW 파일은 삭제되지 않습니다. 선택된 RAW만 SELECT/RAW_SELECT/로 이동합니다."
-      maxWidth={680}
-    />
-  );
-
-  const FieldStep6 = () => {
-    if (!fieldStats) return null;
-    const rows = [
-      {label:"처리된 씬",       value:fieldStats.totalScenes,         color:C.teal},
-      {label:"전체 JPG",         value:fieldStats.totalJpg,            color:C.txt},
-      {label:"원본 RAW",         value:fieldStats.totalRaw,            color:C.muted},
-      {label:"품질 제외",        value:fieldStats.totalQualityReject,  color:C.red},
-      {label:"프로필 분류",      value:fieldStats.totalProfile,        color:"#7C3AED"},
-      {label:"선택 JPG",         value:fieldStats.selectedJpg,         color:C.teal},
-      {label:"RAW SELECT 완료",  value:fieldStats.selectedRawMoved,    color:C.green},
-      {label:"RAW 누락",         value:fieldStats.rawMissing,          color:fieldStats.rawMissing>0?C.red:C.hint},
-    ];
-    return (
-      <Card style={{maxWidth:580}}>
-        <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.green}}>✅ 완료!</div>
-        <div style={{padding:20}}>
-          <div className="pc-mobile-form-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-            {rows.map(({label,value,color})=>(
-              <div key={label} style={{background:C.bg,borderRadius:8,padding:"12px 14px"}}>
-                <div style={{fontSize:20,fontWeight:600,color:color??C.txt}}>{value}</div>
-                <div style={{fontSize:10,color:C.hint,marginTop:2}}>{label}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{background:C.light,borderRadius:10,padding:14,fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.9}}>
-            📁 <strong style={{color:C.teal}}>RAW/</strong> — 전체 RAW (이동 완료)<br/>
-            📁 <strong style={{color:C.teal}}>JPG/SceneXX/</strong> — 씬별 JPG<br/>
-            📁 <strong style={{color:C.teal}}>SELECT/RAW_SELECT/</strong> — 선택 RAW ({rawSelectMode==="move"?"이동":"복사"} 완료)<br/>
-            📊 <strong style={{color:C.teal}}>REPORT/</strong> — scene_report, quality_report, raw_select_report, summary.json
-          </div>
-          <div className="ps-btn-row">
-            <Btn variant="secondary" onClick={()=>downloadCSV(makeCSV(["scene","folder_name","file_count","start_time","end_time","scene_type"],fieldScenes.map(sc=>[String(sc.index),sc.editedName,String(sc.fileCount),new Date(sc.startTime).toISOString(),new Date(sc.endTime).toISOString(),sc.sceneType??""])),"scene_report.csv")}>↓ 씬 리포트 CSV</Btn>
-            <Btn onClick={()=>{clearSession();setStep(0);setFieldScenes([]);setRootDir(null);setFieldRawCount(0);setCopyLog([]);setFieldStats(null);setMergeCandidates([]);setDismissedCandidates(new Set());setMergeDecisions([]);}}>처음으로</Btn>
-          </div>
-          {fieldScenes.length > 0 && (
-            <div style={{marginTop:16,padding:16,background:"#EAF4F2",borderRadius:10,border:"1.5px solid #B2D8D4"}}>
-              <div style={{fontSize:13,fontWeight:500,color:C.teal,marginBottom:4}}>📸 고객 셀렉 갤러리 자동 생성</div>
-              <div style={{fontSize:12,color:C.muted,marginBottom:12,lineHeight:1.7}}>
-                분류된 씬의 실제 JPG를 Supabase Storage에 업로드하고 셀렉 갤러리를 만듭니다.<br/>
-                업로드 후 브랜드메일 초안을 자동 생성합니다.
-              </div>
-
-              {galleryProgress && (
-                <div style={{marginBottom:12,background:C.surface,borderRadius:8,padding:"12px 14px",fontSize:12}}>
-                  <div style={{fontWeight:500,color:C.teal,marginBottom:6}}>{galleryProgress.step}</div>
-                  {galleryProgress.total > 0 && (
-                    <>
-                      <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden",marginBottom:4}}>
-                        <div style={{height:"100%",width:`${Math.round(galleryProgress.cur/galleryProgress.total*100)}%`,background:C.teal,borderRadius:3,transition:"width .2s"}}/>
-                      </div>
-                      <div style={{color:C.muted}}>{galleryProgress.cur} / {galleryProgress.total}장</div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              <Btn disabled={creatingGallery} onClick={async () => {
-                setCreatingGallery(true);
-                setGalleryProgress({ step: "1. 갤러리 레코드 생성 중...", cur: 0, total: 0 });
-                try {
-                  // 1) 갤러리 생성 (파일명 메타데이터만)
-                  const scenes = fieldScenes.map((sc, i) => ({
-                    sceneId: `scene-${i+1}`,
-                    sceneName: sc.editedName,
-                    sceneType: sc.sceneType,
-                    folderName: sc.folderName ?? `Scene${String(i+1).padStart(2,"0")}`,
-                    images: sc.files.map((f, j) => ({
-                      originalFileName: f.name,
-                      basename: f.basename,
-                      sortOrder: j,
-                    })),
-                  }));
-                  const createRes = await fetch("/api/select-galleries/create-from-photo-sorting", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      clientId: clientId || undefined,
-                      workflowRunId: workflowRunId || undefined,
-                      title: `${rootDir?.name ?? "촬영"} 셀렉 갤러리`,
-                      shootingDate: new Date().toISOString().slice(0,10),
-                      scenes,
-                    }),
-                  });
-                  const createData = await createRes.json();
-                  if (!createData.ok) throw new Error(createData.error ?? "갤러리 생성 실패");
-                  const galleryId = createData.gallery.id;
-                  const advanceReason: string | null = createData.advance?.advanced === false ? (createData.advance.reason ?? null) : null;
-
-                  // 2) 실제 JPG 파일 업로드 (씬별, 배치 5장)
-                  const allFiles: { handle: FileSystemFileHandle; name: string; sceneName: string; sceneType: string; folderName: string; sortOrder: number }[] = [];
-                  fieldScenes.forEach((sc, si) => {
-                    sc.files.forEach((f, fi) => {
-                      allFiles.push({ handle: f.handle, name: f.name, sceneName: sc.editedName, sceneType: sc.sceneType ?? "", folderName: sc.folderName ?? `Scene${String(si+1).padStart(2,"0")}`, sortOrder: si * 10000 + fi });
-                    });
-                  });
-
-                  const BATCH = 5;
-                  let uploaded = 0;
-                  const failed: string[] = [];
-
-                  for (let i = 0; i < allFiles.length; i += BATCH) {
-                    const batch = allFiles.slice(i, i + BATCH);
-                    setGalleryProgress({ step: `2. JPG 업로드 중... (${uploaded}/${allFiles.length}장)`, cur: uploaded, total: allFiles.length });
-                    const fd = new FormData();
-                    for (const item of batch) {
-                      try {
-                        const file = await item.handle.getFile();
-                        fd.append("files", file, item.name);
-                        fd.append("relative_paths", `${item.folderName}/${item.name}`);
-                      } catch { failed.push(item.name); }
-                    }
-                    fd.set("scene_name", batch[0]?.sceneName ?? "");
-                    fd.set("scene_type", batch[0]?.sceneType ?? "");
-                    fd.set("folder_name", batch[0]?.folderName ?? "");
-                    try {
-                      const upRes = await fetch(`/api/select-galleries/${galleryId}/upload-images`, { method: "POST", body: fd });
-                      const upData = await upRes.json();
-                      uploaded += upData.uploaded ?? 0;
-                    } catch { batch.forEach(b => failed.push(b.name)); }
-                  }
-
-                  setGalleryProgress({ step: `3. 완료! ${uploaded}장 업로드${failed.length ? ` (실패 ${failed.length}장)` : ""}${advanceReason ? ` — 단계 전환 보류: ${advanceReason}` : ""}`, cur: uploaded, total: allFiles.length });
-
-                  // 3) 페이지 이동
-                  await new Promise(r => setTimeout(r, 800));
-                  const navParams = new URLSearchParams();
-                  if (clientId) navParams.set("clientId", clientId);
-                  if (workflowRunId) navParams.set("workflowRunId", workflowRunId);
-                  navParams.set("stepKey", "client_selection");
-                  router.push(`/select-galleries/${galleryId}?${navParams.toString()}`);
-                } catch(e:any) {
-                  alert("오류: " + e.message);
-                  setGalleryProgress(null);
-                }
-                setCreatingGallery(false);
-              }}>
-                {creatingGallery ? "업로드 중..." : "고객 셀렉 갤러리 자동 생성"}
-              </Btn>
-            </div>
-          )}
-        </div>
-      </Card>
     );
   };
 

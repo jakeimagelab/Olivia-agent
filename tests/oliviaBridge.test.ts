@@ -170,8 +170,9 @@ describe("Olivia Bridge", () => {
   it("승인한 Scene 계획을 사진 분류가 일회 소비하고 기존 검토 단계에 적용한다", () => {
     const context = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
     const classifier = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+    const reviewOverview = readFileSync("components/photo-classifier/FieldSceneReviewOverview.tsx", "utf8");
     const planApply = readFileSync("lib/photo-bridge/classificationPlanApply.ts", "utf8");
-    const classifierRuntime = `${classifier}\n${planApply}`;
+    const classifierRuntime = `${classifier}\n${reviewOverview}\n${planApply}`;
 
     expect(context).toContain("pendingBridgeClassificationPlanRef.current = null");
     expect(context).toContain("takeBridgeClassificationPlan");
@@ -179,7 +180,7 @@ describe("Olivia Bridge", () => {
     expect(classifierRuntime).toContain("buildFieldScenesFromBridgePlan(plan)");
     expect(classifier).toContain('setClassificationJobState("WAITING_REVIEW")');
     expect(classifier).toContain('setStep(2)');
-    expect(classifier).toContain("Bridge 계획 적용됨");
+    expect(classifierRuntime).toContain("Bridge 계획 적용됨");
   });
 
   it("마지막 Bridge 폴더를 기억하고 권한에 따라 자동 복원한다", () => {
