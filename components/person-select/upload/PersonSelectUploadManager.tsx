@@ -1,8 +1,15 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPersonSelectDerivatives, type LocalPersonSelectCandidate, type LocalPersonSelectScan, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
-import { indexUploadFilesByPath, pendingUploadPaths, uploadFileIdempotencyKey, type PersonSelectUploadJob, type UploadManifestFile } from "@/lib/person-select/uploadQueue";
+import { createPersonSelectDerivatives, type LocalPersonSelectScan, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
+import { pendingUploadPaths, type PersonSelectUploadJob } from "@/lib/person-select/uploadQueue";
+import {
+  createPersonSelectUploadRuntime,
+  personSelectUploadManifest,
+  resumablePersonSelectUploadPaths,
+  type PersonSelectUploadJobFile,
+  type PersonSelectUploadRuntime,
+} from "@/lib/person-select/uploadRuntime";
 
 type StartUploadInput = {
   eventId: string;
@@ -10,19 +17,6 @@ type StartUploadInput = {
   layout: PersonSelectImportLayout;
   sourceName: string;
   scan: LocalPersonSelectScan;
-};
-
-type RuntimeJob = {
-  eventId: string;
-  layout: PersonSelectImportLayout;
-  files: Map<string, LocalPersonSelectCandidate>;
-  sortOrderByPath: Map<string, number>;
-  queue: string[];
-  attempts: Map<string, number>;
-  paused: boolean;
-  canceled: boolean;
-  pumping: boolean;
-  controllers: Set<AbortController>;
 };
 
 type UploadManagerValue = {
@@ -39,22 +33,14 @@ type UploadManagerValue = {
 const UploadManagerContext = createContext<UploadManagerValue | null>(null);
 const CONCURRENCY = 3;
 const MAX_RETRIES = 2;
-type UploadJobFileResponse = { relative_path: string; file_size: number; last_modified: number; status: string };
 type UploadJsonBody = {
   ok?: boolean;
   error?: string;
   job?: PersonSelectUploadJob;
   jobs?: PersonSelectUploadJob[];
-  files?: UploadJobFileResponse[];
+  files?: PersonSelectUploadJobFile[];
   completedPaths?: unknown[];
 };
-
-function manifestFor(scan: LocalPersonSelectScan): UploadManifestFile[] {
-  return scan.files.map((candidate) => {
-    const base = { relativePath: candidate.relativePath, fileName: candidate.fileName, size: candidate.file.size, lastModified: candidate.file.lastModified };
-    return { ...base, idempotencyKey: uploadFileIdempotencyKey(base) };
-  });
-}
 
 async function readJson(response: Response) {
   return response.json().catch(() => ({})) as Promise<UploadJsonBody>;
@@ -63,7 +49,7 @@ async function readJson(response: Response) {
 export function PersonSelectUploadProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<PersonSelectUploadJob[]>([]);
   const mountedRef = useRef(true);
-  const runtimesRef = useRef(new Map<string, RuntimeJob>());
+  const runtimesRef = useRef(new Map<string, PersonSelectUploadRuntime>());
 
   const mergeJob = useCallback((job: PersonSelectUploadJob) => {
     if (!mountedRef.current) return;
@@ -103,7 +89,7 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
     return { job: body.job as PersonSelectUploadJob, files: body.files ?? [] };
   }, [mergeJob]);
 
-  const uploadOne = useCallback(async (jobId: string, runtime: RuntimeJob, relativePath: string) => {
+  const uploadOne = useCallback(async (jobId: string, runtime: PersonSelectUploadRuntime, relativePath: string) => {
     const candidate = runtime.files.get(relativePath);
     if (!candidate) return;
     const attempt = (runtime.attempts.get(relativePath) ?? 0) + 1;
@@ -181,7 +167,7 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
 
   const startLocalUpload = useCallback(async (input: StartUploadInput) => {
     if (!input.scan.files.length) throw new Error("올릴 JPG가 없습니다.");
-    const manifest = manifestFor(input.scan);
+    const manifest = personSelectUploadManifest(input.scan);
     const prepareResponse = await fetch(`/api/person-select/${input.eventId}/local-import`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -198,19 +184,12 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
     if (!jobResponse.ok || !result.ok || !result.job) throw new Error(result.error || "업로드 작업을 만들지 못했습니다.");
     const completedPaths = Array.isArray(result.completedPaths) ? result.completedPaths.map(String) : [];
     const pending = pendingUploadPaths(input.scan.files, completedPaths);
-    const indexedFiles = indexUploadFilesByPath(input.scan.files);
-    const runtime: RuntimeJob = {
+    const runtime = createPersonSelectUploadRuntime({
       eventId: input.eventId,
       layout: input.layout,
-      files: indexedFiles.filesByPath,
-      sortOrderByPath: indexedFiles.sortOrderByPath,
+      files: input.scan.files,
       queue: pending.map((file) => file.relativePath),
-      attempts: new Map(),
-      paused: false,
-      canceled: false,
-      pumping: false,
-      controllers: new Set(),
-    };
+    });
     runtimesRef.current.set(result.job.id, runtime);
     mergeJob(result.job as PersonSelectUploadJob);
     void pump(result.job.id);
@@ -221,15 +200,10 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
     const job = jobs.find((item) => item.id === jobId);
     if (!job) throw new Error("업로드 작업을 찾을 수 없습니다.");
     const details = await readJobFiles(job.event_id, jobId);
-    const indexedFiles = indexUploadFilesByPath(scan.files);
-    const available = indexedFiles.filesByPath;
-    const pendingRows = details.files.filter((file) => file.status === "pending" || file.status === "failed" || file.status === "uploading");
-    const queue = pendingRows.filter((file) => {
-      const selected = available.get(file.relative_path);
-      return selected && selected.file.size === Number(file.file_size) && selected.file.lastModified === Number(file.last_modified);
-    }).map((file) => file.relative_path);
+    const runtime = createPersonSelectUploadRuntime({ eventId: job.event_id, layout: job.layout, files: scan.files, queue: [] });
+    const queue = resumablePersonSelectUploadPaths(details.files, runtime.files);
     if (!queue.length) throw new Error("남은 파일과 일치하는 JPG를 찾지 못했습니다. 같은 원본 폴더를 다시 선택해 주세요.");
-    const runtime: RuntimeJob = { eventId: job.event_id, layout: job.layout, files: available, sortOrderByPath: indexedFiles.sortOrderByPath, queue, attempts: new Map(), paused: false, canceled: false, pumping: false, controllers: new Set() };
+    runtime.queue = queue;
     runtimesRef.current.set(jobId, runtime);
     await patchJob(job, { action: "retry_failed" });
     void pump(jobId);
