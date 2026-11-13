@@ -58,17 +58,9 @@ import {
   type StudioSubMode,
 } from "@/lib/photo-classifier/studioGrouping";
 import {
-  buildStudioConceptReportBundle,
-  buildStudioPersonReportBundle,
-} from "@/lib/photo-classifier/studioReports";
-import {
-  analyzeStudioConcepts,
-  analyzeStudioGapLighting,
-  analyzeStudioPeople,
-  groupStudioFilesByGap,
-} from "@/lib/photo-classifier/studioClassificationAnalysis";
-import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
-import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
+  runBrowserStudioClassification,
+  runBrowserStudioOutput,
+} from "@/lib/photo-classifier/browserStudioClassificationRunner";
 import { buildQuickProposals } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
@@ -1008,38 +1000,35 @@ function PhotoSortingInner({
     setStep(1); cancelRef.current = false;
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     try {
-    const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
-    setStudioRawCount(rawFiles.length);
-    const total = jpgFiles.length;
-    const files = await prepareStudioPhotoFiles(jpgFiles, {
-      onProgress: ({ completed, total: scanTotal, fileName }) => {
-        setProgress({ cur: completed, total: scanTotal, msg: `스캔: ${fileName}` });
-      },
-    });
-    setStudioFiles(files);
-    setProgress({ cur:total, total, msg:`파일 분류 완료 — JPG ${jpgFiles.length}장 / RAW ${rawFiles.length}개` });
-    setStep(2);
-    if (studioSubMode === "group") {
-      if (studioGroupSortMode === "gap") await runGapSort(files);
-      else if (studioGroupSortMode === "gap_ai") await runGapAiSort(files);
-      else await runGroupAnalysis(files);
-    } else {
-      await runStudioAnalysis(files);
-    }
-    // PHASE 4(2026-08-30) — handleFieldSort와 동일한 원칙, isModal || isEmbedded일 때만 채팅에
-    // 요약 보고. 그룹 개수는 runGapSort/runGroupAnalysis 등이 각자 비동기로 state를 채워서
-    // 여기서 안전하게 읽을 수 없어(클로저가 이전 값을 참조) 확실히 아는 값(총 사진 수)만 보고한다.
-    if (isModal || isEmbedded) {
-      const summary = `사진 분류 완료\n\n총 사진 ${jpgFiles.length}장`;
-      useOliviaConversationStore.getState().appendMessage({
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: summary,
-        blocks: [{ type: "text", text: summary }],
-        createdAt: new Date().toISOString(),
-        status: "complete",
+      const result = await runBrowserStudioClassification({
+        rootDirectory: rootDir,
+        subMode: studioSubMode,
+        groupSortMode: studioGroupSortMode,
+        gapMinutes: studioGapMinutes,
+        lightingSensitivity: studioOpts.lightingSensitivity,
+        onProgress: setProgress,
+        onFilesScanned: (files, rawCount) => {
+          setStudioRawCount(rawCount);
+          setStudioFiles(files);
+          setStep(2);
+        },
+        onFilesChange: setStudioFiles,
       });
-    }
+      setStudioFiles(result.files);
+      setStudioGroups(result.conceptGroups);
+      setPersonGroups(result.personGroups);
+      setStep(3);
+      if (isModal || isEmbedded) {
+        const summary = `사진 분류 완료\n\n총 사진 ${result.total}장`;
+        useOliviaConversationStore.getState().appendMessage({
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: summary,
+          blocks: [{ type: "text", text: summary }],
+          createdAt: new Date().toISOString(),
+          status: "complete",
+        });
+      }
     } catch (error) {
       // 2026-09-10 수정 지시서 3번 — 스튜디오 모드도 같은 패턴(최상위 try/catch 없음)이라
       // 동일하게 고친다.
@@ -1047,7 +1036,7 @@ function PhotoSortingInner({
       setStudioCopyLog((previous) => [...previous, `❌ 오류: 파일 분류를 진행하지 못했습니다 — ${message}`]);
       setStep(0);
     }
-  }, [rootDir, studioOpts, studioSubMode, studioGroupSortMode, studioGapMinutes, isModal, isEmbedded]);
+  }, [rootDir, studioOpts.lightingSensitivity, studioSubMode, studioGroupSortMode, studioGapMinutes, isModal, isEmbedded, setProgress]);
 
   // PHASE 4(채팅 핸드오프, 2026-08-30) — 채팅에서 설정을 다 모으고 [사진 분류 시작]을 누르면
   // usePhotoClassificationHandoffStore에 값이 실려 오고 이 Workspace가 열린다. 마운트 시 한 번
@@ -1104,60 +1093,23 @@ function PhotoSortingInner({
     });
   }, [rootDir, photoMode, handleFieldSort, handleStudioSort]);
 
-  const runGapSort = async (files: StudioPhotoFile[]) => {
-    const result = groupStudioFilesByGap(files, studioGapMinutes);
-    setStudioFiles(result.files);
-    setPersonGroups(result.personGroups);
-    setStep(3);
-  };
-
-  const runGapAiSort = async (files: StudioPhotoFile[]) => {
-    const result = await analyzeStudioGapLighting({
-      files,
-      gapMinutes: studioGapMinutes,
-      lightingSensitivity: studioOpts.lightingSensitivity,
-      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `AI 조명 검사: ${fileName}` }),
-      onProgress: setStudioFiles,
-    });
-    setStudioFiles(result.files);
-    setPersonGroups(result.personGroups);
-    setStep(3);
-  };
-
-  const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
-    const result = await analyzeStudioConcepts({
-      files,
-      lightingSensitivity: studioOpts.lightingSensitivity,
-      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `AI 분석: ${fileName}` }),
-      onProgress: setStudioFiles,
-    });
-    setStudioFiles(result.files);
-    setStudioGroups(result.groups);
-    setStep(3);
-  };
-
   const runStudioOutput = useCallback(async () => {
-    if (!rootDir || studioGroups.length === 0) return;
+    if (!rootDir || (studioSubMode === "group" ? personGroups.length === 0 : studioGroups.length === 0)) return;
     setStep(5); cancelRef.current = false;
     try {
-      const reports = buildStudioConceptReportBundle(studioGroups, {
+      const stats = await runBrowserStudioOutput({
+        rootDirectory: rootDir,
+        subMode: studioSubMode,
+        personGroups,
+        conceptGroups: studioGroups,
         totalJpg: studioFiles.length,
         totalRaw: studioRawCount,
-        rootName: rootDir.name,
-      });
-      await executeStudioOutput({
-        rootDirectory: rootDir,
-        groups: studioGroups.map((group) => ({
-          folderName: group.editedFolderName || group.suggestedFolderName,
-          files: group.files,
-        })),
-        reports: reports.files,
-        mode: studioFileMode,
+        fileMode: studioFileMode,
         isCancelled: () => cancelRef.current,
-        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
+        onProgress: setProgress,
         onLog: setStudioCopyLog,
       });
-      setStudioStats(reports.stats);
+      setStudioStats(stats);
       setStep(6);
     } catch (error) {
       // 2026-09-10 수정 지시서 3번
@@ -1165,50 +1117,7 @@ function PhotoSortingInner({
       setStudioCopyLog((previous) => [...previous, `❌ 오류: 파일 정리를 완료하지 못했습니다 — ${message}`]);
       setStep(4);
     }
-  }, [studioGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
-
-  const runGroupAnalysis = async (files: StudioPhotoFile[]) => {
-    const result = await analyzeStudioPeople({
-      files,
-      lightingSensitivity: studioOpts.lightingSensitivity,
-      onStart: ({ completed, total, fileName }) => setProgress({ cur: completed, total, msg: `얼굴 분석: ${fileName}` }),
-      onProgress: setStudioFiles,
-    });
-    setStudioFiles(result.files);
-    setPersonGroups(result.personGroups);
-    setStep(3);
-  };
-
-  const runGroupOutput = useCallback(async () => {
-    if (!rootDir || personGroups.length === 0) return;
-    setStep(5); cancelRef.current = false;
-    try {
-      const reports = buildStudioPersonReportBundle(personGroups, {
-        totalJpg: studioFiles.length,
-        totalRaw: studioRawCount,
-        rootName: rootDir.name,
-      });
-      await executeStudioOutput({
-        rootDirectory: rootDir,
-        groups: personGroups.map((group) => ({
-          folderName: group.editedFolderName,
-          files: group.files,
-        })),
-        reports: reports.files,
-        mode: studioFileMode,
-        isCancelled: () => cancelRef.current,
-        onProgress: ({ completed, total, message }) => setProgress({ cur: completed, total, msg: message }),
-        onLog: setStudioCopyLog,
-      });
-      setStudioStats(reports.stats);
-      setStep(6);
-    } catch (error) {
-      // 2026-09-10 수정 지시서 3번
-      const message = error instanceof Error ? error.message : String(error);
-      setStudioCopyLog((previous) => [...previous, `❌ 오류: 파일 정리를 완료하지 못했습니다 — ${message}`]);
-      setStep(4);
-    }
-  }, [personGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
+  }, [rootDir, studioSubMode, personGroups, studioGroups, studioFiles.length, studioRawCount, studioFileMode, setProgress]);
 
   const renderPhotoSourceControl = (emptyLabel: string) => (
     <PhotoSourceControl
@@ -1513,7 +1422,7 @@ function PhotoSortingInner({
             rawCount={studioRawCount}
             onActiveIndexChange={setActivePersonGroup}
             onBack={() => setStep(3)}
-            onStart={runGroupOutput}
+            onStart={runStudioOutput}
           />
         ) : (
           <StudioConceptConfirmationStep
