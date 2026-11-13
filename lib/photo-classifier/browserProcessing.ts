@@ -185,6 +185,46 @@ export async function getStudioThumb(file: File, maxSize = 480): Promise<string>
   });
 }
 
+export async function loadStudioPreviewMetrics(file: File, thumbnailSize = 100): Promise<{
+  thumbUrl: string | null;
+  brightness: number;
+}> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(thumbnailSize / image.width, thumbnailSize / image.height, 1);
+      const thumbnailCanvas = document.createElement("canvas");
+      thumbnailCanvas.width = Math.max(1, Math.round(image.width * scale));
+      thumbnailCanvas.height = Math.max(1, Math.round(image.height * scale));
+      thumbnailCanvas.getContext("2d")?.drawImage(image, 0, 0, thumbnailCanvas.width, thumbnailCanvas.height);
+
+      const brightnessCanvas = document.createElement("canvas");
+      brightnessCanvas.width = 64;
+      brightnessCanvas.height = 64;
+      const context = brightnessCanvas.getContext("2d");
+      let brightness = 128;
+      if (context) {
+        context.drawImage(image, 0, 0, 64, 64);
+        const data = context.getImageData(0, 0, 64, 64).data;
+        let sum = 0;
+        for (let index = 0; index < data.length; index += 4) {
+          sum += 0.299 * data[index] + 0.587 * data[index + 1] + 0.114 * data[index + 2];
+        }
+        brightness = sum / (64 * 64);
+      }
+      const thumbUrl = thumbnailCanvas.toDataURL("image/jpeg", 0.6);
+      URL.revokeObjectURL(url);
+      resolve({ thumbUrl, brightness });
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve({ thumbUrl: null, brightness: 128 });
+    };
+    image.src = url;
+  });
+}
+
 export async function quickBrightness(file: File): Promise<number> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);

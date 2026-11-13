@@ -87,6 +87,7 @@ import {
 } from "@/lib/photo-classifier/studioReports";
 import { runStudioAnalysisConcurrently } from "@/lib/photo-classifier/studioAnalysisRunner";
 import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
+import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
 import {
   analyzeJpg,
   buildQuickProposals,
@@ -95,7 +96,6 @@ import {
   getStudioThumb,
   loadThumb,
   mapWithConcurrency,
-  quickBrightness,
 } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
@@ -1699,17 +1699,12 @@ function PhotoSortingInner({
     try {
     const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
     setStudioRawCount(rawFiles.length);
-    jpgFiles.sort((a,b)=>a.mtime-b.mtime);
-    const total = jpgFiles.length; let done = 0;
-    const files: StudioPhotoFile[] = [];
-    for (const sf of jpgFiles) {
-      setProgress({ cur:done, total, msg:`스캔: ${sf.name}` });
-      const file = await sf.handle.getFile();
-      const thumb = await loadThumb(file, 100);
-      const brightness = await quickBrightness(file);
-      files.push({ name:sf.name, basename:sf.name.replace(/\.[^.]+$/,""), handle:sf.handle, mtime:sf.mtime, fileSize:sf.fileSize, thumbUrl:thumb, brightness, lightingStatus:"normal", hasGown:false, innerWear:"기타", clothingLabel:"미분류", poseType:"Unknown", isFamilyProfile:false, confidence:0, analyzed:false, groupKey:"__PENDING__" });
-      done++;
-    }
+    const total = jpgFiles.length;
+    const files = await prepareStudioPhotoFiles(jpgFiles, {
+      onProgress: ({ completed, total: scanTotal, fileName }) => {
+        setProgress({ cur: completed, total: scanTotal, msg: `스캔: ${fileName}` });
+      },
+    });
     setStudioFiles(files);
     setProgress({ cur:total, total, msg:`파일 분류 완료 — JPG ${jpgFiles.length}장 / RAW ${rawFiles.length}개` });
     setStep(2);
