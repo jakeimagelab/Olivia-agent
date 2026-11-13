@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, Folder, X } from "lucide-react";
 import {
   useCallback,
   useMemo,
@@ -421,7 +420,7 @@ export default function OliviaBridgeWorkspace({
     setFocusedId(focusedPhotoId);
     setAnchorId(focusedPhotoId);
     setPreviewSize(undefined);
-  }, [setSelectedIds]);
+  }, [setPreviewSize, setSelectedIds]);
 
   const {
     fileAreaRef,
@@ -708,7 +707,7 @@ export default function OliviaBridgeWorkspace({
     if (!customerSelectedIds.size) return;
     setSelectedIds((current) => new Set([...current, ...customerSelectedIds]));
     setComparisonFilter("all");
-  }, [customerSelectedIds, setSelectedIds]);
+  }, [customerSelectedIds, setComparisonFilter, setSelectedIds]);
 
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
   const {

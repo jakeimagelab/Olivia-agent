@@ -134,15 +134,16 @@ describe("Olivia Bridge", () => {
     const aiSelect = readFileSync("components/photo-workspace/PhotoSelectWorkspace.tsx", "utf8");
     const aiPanel = readFileSync("components/photo-workspace/AiPhotoSelectPanel.tsx", "utf8");
     const rawMatch = readFileSync("components/photo-workspace/SelectMatchWorkspace.tsx", "utf8");
+    const rawMatchStatus = readFileSync("components/photo-workspace/SelectMatchStatusViews.tsx", "utf8");
     const rawMatchPreflight = readFileSync("components/photo-workspace/useSelectMatchPreflight.ts", "utf8");
-    const rawMatchRuntime = `${rawMatch}\n${rawMatchPreflight}`;
+    const rawMatchRuntime = `${rawMatch}\n${rawMatchStatus}\n${rawMatchPreflight}`;
     const executionContext = readFileSync("components/photo-workspace/PhotoStudioExecutionContext.tsx", "utf8");
 
     expect(embeddedTool).toContain("bridgeEmbedded");
     expect(embeddedTool).toContain("bridgeLinked");
     expect(aiSelect).toContain("initialFolder={currentLocalFolder}");
     expect(aiPanel).toContain("현재 Bridge 폴더");
-    expect(rawMatch).toContain("RAW 원본 폴더를 자동으로 찾습니다");
+    expect(rawMatchStatus).toContain("RAW 원본 폴더를 자동으로 찾습니다");
     expect(rawMatchRuntime).toContain("discoverRawFolder");
     expect(executionContext).toContain("rawMatchDefaultFolder");
     expect(executionContext).toContain("rawMatchFolderCandidates");
