@@ -50,12 +50,7 @@ import {
   markDermatologyTransitionCandidates,
   type SceneAiTransitionResult,
 } from "@/lib/photo-classifier/sceneAiAnalysis";
-import {
-  buildFieldSecondaryReportFiles,
-  describePortraitAssessment,
-  normalizePortraitAssessment,
-  resolveQualityRejectReason,
-} from "@/lib/photo-classifier/fieldSecondaryReports";
+import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
 import {
   applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
@@ -72,7 +67,6 @@ import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
 import { Stepper } from "@/components/workspace-shell/Stepper";
-import { PROFILE_EXCLUDED_SCENE_TYPES } from "@/lib/photo-classifier/constants";
 import { CAMERA_JPG_EXTENSIONS } from "@/lib/photo/extensions";
 import {
   prepareBridgeClassificationPlan,
@@ -105,7 +99,6 @@ import { runStudioAnalysisConcurrently } from "@/lib/photo-classifier/studioAnal
 import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
 import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
 import {
-  analyzeJpg,
   buildQuickProposals,
   getApiThumb,
   getStudioThumb,
@@ -1353,142 +1346,35 @@ function PhotoSortingInner({
   }, [fieldScenes, fieldJpgBaseDir, fieldRawHandles, qualityAnalysisEnabled, profileClassificationEnabled, fieldRawCount, fastAnalyzeMode, rootDir, boundaryDecisions, sceneCorrections, accuracyReport, department, gapMinutes]);
 
   const runSecondaryAnalysis = async (scenes: FieldScene[]) => {
-    const total = scenes.reduce((s,sc)=>s+sc.fileCount,0);
-    let done = 0, qualityRejectTotal = 0, profileTotal = 0;
-    const qualityRows: string[][] = [];
-    const profileRows: string[][] = [];
-    let qualityExcDir: FileSystemDirectoryHandle | null = null;
-    let profileDir: FileSystemDirectoryHandle | null = null;
-    const updated = scenes.map(s => ({...s}));
-    let lastUpdate = Date.now();
-
-    for (let si = 0; si < updated.length; si++) {
-      if (cancelRef.current) break;
-      const sceneType = updated[si].sceneType ?? "";
-      // 시술/상담 장면은 프로필 검사 자체를 건너뜀
-      const skipProfile = PROFILE_EXCLUDED_SCENE_TYPES.has(sceneType);
-
-      for (let fi = 0; fi < updated[si].files.length; fi++) {
-        if (cancelRef.current) break;
-        const pf = updated[si].files[fi];
-
-        // 진행률 throttle: 20장 단위 또는 300ms마다
-        if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
-          setProgress({ cur:done, total, msg:`분석: ${pf.name}` });
-          lastUpdate = Date.now();
-        }
-
-        try {
-          const file = await pf.handle.getFile();
-
-          if (qualityAnalysisEnabled) {
-            const { blurScore, brightness } = await analyzeJpg(file);
-            const rejectReason = resolveQualityRejectReason(blurScore, brightness);
-
-            if (rejectReason && updated[si].sceneDir && fieldJpgBaseDir) {
-              if (!qualityExcDir) qualityExcDir = await (fieldJpgBaseDir as any).getDirectoryHandle("00_QUALITY_EXCLUDED", { create:true }) as FileSystemDirectoryHandle;
-              const subDir = await (qualityExcDir as any).getDirectoryHandle(rejectReason, { create:true }) as FileSystemDirectoryHandle;
-              await copyFileHandle(pf.handle, subDir, pf.name);
-              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-              qualityRows.push([pf.name, updated[si].editedName, rejectReason, ""]);
-              qualityRejectTotal++;
-              updated[si].qualityRejectCount++;
-            }
-          }
-
-          if (profileClassificationEnabled && !skipProfile) {
-            // 절대 기준: (1) 사람이 정확히 1명 AND (2) 정면 응시 또는 팔짱/손깍지 등 의도된 정지 포즈.
-            // 픽셀 대칭성/중앙정렬만 보던 예전 휴리스틱은 인원수·시선·포즈를 전혀 판단하지 못해
-            // AI 비전 판정(/api/portrait-check)으로 교체했다.
-            let assessment = normalizePortraitAssessment(null);
-            try {
-              const data = await withTimeout((async () => {
-                const thumb = await getApiThumb(file);
-                const res = await fetch("/api/portrait-check", {
-                  method: "POST", headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ thumbnail: thumb }),
-                });
-                return res.json();
-              })(), 45000, "프로필 판정");
-              assessment = normalizePortraitAssessment(data);
-            } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-
-            let movedTo = "";
-
-            if (assessment.isProfileCandidate && updated[si].sceneDir && rootDir) {
-              if (!profileDir) profileDir = await (rootDir as any).getDirectoryHandle("PROFILE", { create:true }) as FileSystemDirectoryHandle;
-              await copyFileHandle(pf.handle, profileDir, pf.name);
-              try { await (updated[si].sceneDir as any).removeEntry(pf.name); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-              movedTo = "PROFILE/";
-              profileTotal++;
-              updated[si].profileCount++;
-            }
-
-            profileRows.push([
-              pf.name,
-              updated[si].editedName,
-              assessment.confidence.toFixed(2),
-              assessment.isProfileCandidate ? "true" : "false",
-              String(assessment.personCount), "",
-              assessment.facingForward ? "true" : "false",
-              assessment.intentionalPose ? "true" : "false",
-              "", "", "", "", "", "", "", "",
-              describePortraitAssessment(assessment),
-              movedTo,
-            ]);
-          } else if (profileClassificationEnabled && skipProfile) {
-            // 시술/상담 장면 — 프로필 제외 기록
-            profileRows.push([
-              pf.name, updated[si].editedName, "0.00", "false",
-              "", "", "", "", "", "", "", "", "", "", "", "",
-              `${sceneType} 장면이므로 프로필 제외`,
-              "",
-            ]);
-          }
-        } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-        done++;
-      }
-      setFieldScenes([...updated]);
-    }
-
-    // 리포트 생성 (REPORT/ 폴더)
-    try {
-      const reportDir = await (rootDir as any).getDirectoryHandle("REPORT", { create:true });
-      const wr = async (name: string, content: string) => {
-        const fh = await (reportDir as any).getFileHandle(name, { create:true });
-        const w = await fh.createWritable();
-        await w.write("﻿" + content); await w.close();
-      };
-      const reports = buildFieldSecondaryReportFiles({
-        qualityRows,
-        profileRows,
-        mergeCandidates,
-        mergeDecisions,
-        summary: {
-          fastAnalyzeMode,
-          department,
-          departmentDisplayName: DEPARTMENT_DISPLAY[department],
-          gapMinutes,
-          departmentLogicEnabled,
-          aiNamingEnabled,
-          qualityAnalysisEnabled,
-          profileClassificationEnabled,
-          rawSelectMode,
-          totalJpg: total,
-          totalRaw: fieldRawCount,
-          totalInitialScenes: updated.length,
-          totalFinalScenes: updated.length,
-          totalProfile: profileTotal,
-          totalQualityReject: qualityRejectTotal,
-        },
-      });
-      for (const report of reports) await wr(report.name, report.content);
-    } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-
+    if (!rootDir) return;
+    const result = await runFieldSecondaryAnalysis({
+      scenes,
+      rootDir,
+      fieldJpgBaseDir,
+      fieldRawCount,
+      qualityAnalysisEnabled,
+      profileClassificationEnabled,
+      mergeCandidates,
+      mergeDecisions,
+      reportContext: {
+        fastAnalyzeMode,
+        department,
+        departmentDisplayName: DEPARTMENT_DISPLAY[department],
+        gapMinutes,
+        departmentLogicEnabled,
+        aiNamingEnabled,
+        qualityAnalysisEnabled,
+        profileClassificationEnabled,
+        rawSelectMode,
+      },
+      isCancelled: () => cancelRef.current,
+      onProgress: ({ current, total, fileName }) => setProgress({ cur: current, total, msg: `분석: ${fileName}` }),
+      onScenesUpdated: setFieldScenes,
+    });
     setFieldStats({
-      totalJpg: total, totalRaw: fieldRawCount,
-      totalScenes: updated.length, totalSubScenes: 0,
-      totalProfile: profileTotal, totalQualityReject: qualityRejectTotal,
+      totalJpg: result.total, totalRaw: fieldRawCount,
+      totalScenes: result.scenes.length, totalSubScenes: 0,
+      totalProfile: result.profileTotal, totalQualityReject: result.qualityRejectTotal,
       selectedJpg: 0, selectedRawMoved: 0, rawMissing: 0,
     });
     setStep(4);
