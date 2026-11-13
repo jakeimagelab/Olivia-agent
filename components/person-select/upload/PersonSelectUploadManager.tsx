@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPersonSelectDerivatives, type LocalPersonSelectScan, type PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { pendingUploadPaths, type PersonSelectUploadJob } from "@/lib/person-select/uploadQueue";
+import { pumpPersonSelectUploadRuntime, type PersonSelectUploadExecutionDependencies } from "@/lib/person-select/uploadExecution";
 import {
   createPersonSelectUploadRuntime,
   personSelectUploadManifest,
@@ -38,8 +39,6 @@ type UploadManagerValue = {
 };
 
 const UploadManagerContext = createContext<UploadManagerValue | null>(null);
-const CONCURRENCY = 3;
-const MAX_RETRIES = 2;
 export function PersonSelectUploadProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<PersonSelectUploadJob[]>([]);
   const mountedRef = useRef(true);
@@ -74,79 +73,28 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
     return result;
   }, [mergeJob]);
 
-  const uploadOne = useCallback(async (jobId: string, runtime: PersonSelectUploadRuntime, relativePath: string) => {
-    const candidate = runtime.files.get(relativePath);
-    if (!candidate) return;
-    const attempt = (runtime.attempts.get(relativePath) ?? 0) + 1;
-    runtime.attempts.set(relativePath, attempt);
-    const controller = new AbortController();
-    runtime.controllers.add(controller);
-    try {
-      await patchJob({ id: jobId, event_id: runtime.eventId }, { action: "file_uploading", relativePath, attempts: attempt });
-      const derivative = await createPersonSelectDerivatives(candidate.file);
-      if (runtime.paused || runtime.canceled || controller.signal.aborted) {
-        if (runtime.paused && !runtime.canceled && !runtime.queue.includes(relativePath)) runtime.queue.unshift(relativePath);
-        return;
-      }
-      const form = new FormData();
-      form.set("layout", runtime.layout);
-      form.set("relativePath", candidate.relativePath);
-      form.set("sortOrder", String(runtime.sortOrderByPath.get(relativePath) ?? 0));
-      form.set("sourceWidth", String(derivative.sourceWidth));
-      form.set("sourceHeight", String(derivative.sourceHeight));
-      form.set("uploadJobId", jobId);
-      form.set("thumb", derivative.thumb, `${candidate.fileName}.thumb.jpg`);
-      form.set("preview", derivative.preview, `${candidate.fileName}.preview.jpg`);
-      await uploadPersonSelectDerivative(runtime.eventId, form, controller.signal);
-    } catch (error) {
-      if (controller.signal.aborted || runtime.paused || runtime.canceled) {
-        if (runtime.paused && !runtime.canceled) runtime.queue.unshift(relativePath);
-        return;
-      }
-      if (attempt <= MAX_RETRIES) {
-        await new Promise((resolve) => window.setTimeout(resolve, 350 * attempt));
-        if (!runtime.canceled && !runtime.queue.includes(relativePath)) {
-          if (runtime.paused) runtime.queue.unshift(relativePath);
-          else runtime.queue.push(relativePath);
-        }
-        return;
-      }
-      try {
-        await patchJob({ id: jobId, event_id: runtime.eventId }, { action: "file_failed", relativePath, attempts: attempt, error: error instanceof Error ? error.message : "업로드 실패" });
-      } catch (checkpointError) {
-        // 서버에 실패 체크포인트를 남기지 못한 경우 파일을 잃지 않고 다음 네트워크 복구 때 다시 시도한다.
-        if (!runtime.queue.includes(relativePath)) runtime.queue.push(relativePath);
-        if (process.env.NODE_ENV !== "production") console.debug("[person-select-upload] failure checkpoint retry", checkpointError);
-      }
-    } finally {
-      runtime.controllers.delete(controller);
-    }
-  }, [patchJob]);
-
   const pump = useCallback(async (jobId: string) => {
     const runtime = runtimesRef.current.get(jobId);
-    if (!runtime || runtime.pumping || runtime.paused || runtime.canceled) return;
-    runtime.pumping = true;
+    if (!runtime) return;
+    const dependencies: PersonSelectUploadExecutionDependencies = {
+      checkpoint: (body) => patchJob({ id: jobId, event_id: runtime.eventId }, body),
+      createDerivatives: createPersonSelectDerivatives,
+      upload: uploadPersonSelectDerivative,
+      delay: (milliseconds) => new Promise((resolve) => window.setTimeout(resolve, milliseconds)),
+      onDeferredCheckpoint: (_phase, error) => {
+        if (process.env.NODE_ENV !== "production") console.debug("[person-select-upload] failure checkpoint retry", error);
+      },
+    };
+    const started = await pumpPersonSelectUploadRuntime({ jobId, runtime, dependencies });
+    if (!started) return;
     try {
-      const worker = async () => {
-        while (!runtime.paused && !runtime.canceled) {
-          const relativePath = runtime.queue.shift();
-          if (!relativePath) return;
-          await uploadOne(jobId, runtime, relativePath);
-        }
-      };
-      await Promise.all(Array.from({ length: Math.min(CONCURRENCY, Math.max(1, runtime.queue.length)) }, () => worker()));
-      try {
-        const details = await readJobFiles(runtime.eventId, jobId);
-        if (["completed", "partial_failed", "failed", "canceled"].includes(details.job.status)) runtimesRef.current.delete(jobId);
-      } catch (checkpointError) {
-        // 파일 POST 응답이 성공한 상태이므로 서버 체크포인트는 다음 전역 poll에서 복구한다.
-        if (process.env.NODE_ENV !== "production") console.debug("[person-select-upload] final checkpoint refresh deferred", checkpointError);
-      }
-    } finally {
-      runtime.pumping = false;
+      const details = await readJobFiles(runtime.eventId, jobId);
+      if (["completed", "partial_failed", "failed", "canceled"].includes(details.job.status)) runtimesRef.current.delete(jobId);
+    } catch (checkpointError) {
+      // 파일 POST 응답이 성공한 상태이므로 서버 체크포인트는 다음 전역 poll에서 복구한다.
+      if (process.env.NODE_ENV !== "production") console.debug("[person-select-upload] final checkpoint refresh deferred", checkpointError);
     }
-  }, [readJobFiles, uploadOne]);
+  }, [patchJob, readJobFiles]);
 
   const startLocalUpload = useCallback(async (input: StartUploadInput) => {
     if (!input.scan.files.length) throw new Error("올릴 JPG가 없습니다.");
