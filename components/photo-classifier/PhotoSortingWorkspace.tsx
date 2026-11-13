@@ -9,16 +9,7 @@ import {
   resolvePhotoDepartmentEvidence,
 } from "@/lib/photo-classifier/departmentResolver";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
-import {
-  createApproveSceneCorrection,
-  createMergeSceneCorrection,
-  createRenameSceneCorrection,
-  markBoundaryAsManuallyMerged,
-  mergePlannedFieldScenes,
-  splitPlannedFieldScene,
-} from "@/lib/photo-classifier/sceneReviewEdits";
 import { usePhotoClassificationHandoffStore } from "@/lib/store/usePhotoClassificationHandoffStore";
-import { usePhotoClassificationActionsStore } from "@/lib/store/usePhotoClassificationActionsStore";
 import { useBackgroundJobsStore } from "@/lib/store/useBackgroundJobsStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
@@ -62,10 +53,6 @@ import {
 } from "@/lib/photo-classifier/browserStudioClassificationRunner";
 import { buildQuickProposals } from "@/lib/photo-classifier/browserProcessing";
 import {
-  copyFileHandle,
-  splitRawAndJpg,
-} from "@/lib/photo-classifier/browserFileOps";
-import {
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
 import {
@@ -105,6 +92,7 @@ import {
 } from "./StudioClassificationReviewSteps";
 import { FieldClassificationCompleteView } from "./FieldClassificationCompleteView";
 import { PhotoSortingSetupView } from "./PhotoSortingSetupView";
+import { useFieldSceneReviewActions } from "./useFieldSceneReviewActions";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -310,12 +298,6 @@ function PhotoSortingInner({
   const [aiScanFileCount,      setAiScanFileCount]      = useState(0);
   // NL 재조정 시 폴더를 다시 스캔하지 않고 미리보기만 재계산하기 위한 스캔 결과 캐시(ref라 리렌더 유발 안 함)
   const aiScanEntriesRef = useRef<{ name: string; mtime: number; file: File }[]>([]);
-  // Olivia Chat이 "분류했어요"라고 말해도 되는 시점을 정직하게 판단하려고(스펙 §37/44) fieldScenes를
-  // 그대로 미러링한다 — handleFieldSort는 비동기라 await 직후 클로저의 fieldScenes가 아니라
-  // 이 ref로 최신 값을 읽어야 한다.
-  const fieldScenesRef = useRef<FieldScene[]>([]);
-  useEffect(() => { fieldScenesRef.current = fieldScenes; }, [fieldScenes]);
-
   /* ── studio state ── */
   const [studioOpts,          setStudioOpts]          = useState<StudioOptions>({ lightingSensitivity:"medium" });
   const [studioFileMode,      setStudioFileMode]      = useState<"copy"|"move">("copy");
@@ -731,157 +713,30 @@ function PhotoSortingInner({
     workflowRunId,
   ]);
 
-  const mergeFieldScenes = useCallback(async (i: number, j: number, candidateId?: string) => {
-    const si = fieldScenes[i];
-    const sj = fieldScenes[j];
-
-    // 병합 결정 기록
-    if (candidateId) {
-      const cand = mergeCandidates.find(c => c.id === candidateId);
-      if (cand) {
-        setMergeDecisions(prev => [...prev, {
-          candidateId: cand.id,
-          userAction: "merge",
-          fromFolderName: cand.fromFolderName,
-          toFolderName: cand.toFolderName,
-          fromSceneType: cand.fromSceneType,
-          toSceneType: cand.toSceneType,
-          mergeScore: cand.mergeScore,
-          matchedSignals: cand.matchedSignals,
-          blockedSignals: cand.blockedSignals,
-          recommendedAction: cand.recommendedAction,
-        }]);
-      }
-    }
-
-    // 병합된 두 씬과 관련된 candidate를 모두 dismiss (stale 방지)
-    const affectedNames = new Set([si.folderName, sj.folderName]);
-    setDismissedCandidates(prev => {
-      const next = new Set([...prev]);
-      for (const cand of mergeCandidates) {
-        if (affectedNames.has(cand.fromFolderName) || affectedNames.has(cand.toFolderName)) {
-          next.add(cand.id);
-        }
-      }
-      return next;
-    });
-
-    if (!si.sceneDir || !sj.sceneDir) {
-      // 승인 전 검토 모드: 메모리상 Scene 계획만 변경
-      const correction = createMergeSceneCorrection(sj, rootDir?.name ?? "local");
-      if (correction) {
-        setSceneCorrections((previous) => [...previous, correction]);
-        setBoundaryDecisions((previous) => markBoundaryAsManuallyMerged(previous, correction.boundaryIndex));
-      }
-      setFieldScenes((previous) => mergePlannedFieldScenes(previous, i, j));
-      return;
-    }
-
-    // 정밀 정리 모드: 실제 파일 이동
-    if (!fieldJpgBaseDir || !si.sceneDir || !sj.sceneDir) return;
-    for (const f of sj.files) {
-      try {
-        await copyFileHandle(f.handle, si.sceneDir as FileSystemDirectoryHandle, f.name);
-        await (sj.sceneDir as any).removeEntry(f.name);
-      } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    }
-    try { await (fieldJpgBaseDir as any).removeEntry(sj.folderName); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-    setFieldScenes(prev => {
-      const copy = [...prev];
-      copy[i] = {
-        ...si,
-        files: [...si.files, ...sj.files],
-        fileCount: si.fileCount + sj.fileCount,
-        endTime: sj.endTime,
-      };
-      return copy.filter((_, idx) => idx !== j);
-    });
-  }, [fieldScenes, fieldJpgBaseDir, mergeCandidates, rootDir]);
-
-  const splitFieldScene = useCallback((sceneIndex: number, offset: number) => {
-    setFieldScenes((previous) => {
-      const result = splitPlannedFieldScene(previous, sceneIndex, offset, rootDir?.name ?? "local");
-      if (!result) return previous;
-      setBoundaryDecisions((items) => [
-        ...items.filter((item) => item.boundaryIndex !== result.boundaryDecision.boundaryIndex),
-        result.boundaryDecision,
-      ].sort((a, b) => a.boundaryIndex - b.boundaryIndex));
-      setSceneCorrections((items) => [...items, result.correction]);
-      return result.scenes;
-    });
-  }, [rootDir]);
-
-  // PHASE 4(2026-08-30) — 아래 씬 검토 화면의 이름 입력칸(onChange+onBlur)이 하던 것과 정확히
-  // 같은 일을 하나의 호출 가능한 함수로 뽑았다(로직 변경 없음, 이름만 붙임) — 채팅에서 "3번 씬
-  // 이름 상담으로 바꿔"를 처리하려면 부를 수 있는 함수가 필요했다. 기존 입력칸 동작은 그대로 둔다.
-  const renameFieldScene = useCallback((sceneIndex: number, newName: string) => {
-    const scene = fieldScenes[sceneIndex];
-    if (!scene || !newName.trim()) return false;
-    setFieldScenes((previous) => previous.map((s, j) => (j === sceneIndex ? { ...s, editedName: newName } : s)));
-    if (newName !== scene.folderName) {
-      setSceneCorrections((previous) => [
-        ...previous,
-        createRenameSceneCorrection(scene, newName, rootDir?.name ?? "local"),
-      ]);
-    }
-    return true;
-  }, [fieldScenes, rootDir]);
-
-  // AI 사진 분류 2.0 — Olivia Chat이 "지금 열려 있는 화면"에서 AI 자동 분류를 실행/재조정하게
-  // 하는 채팅 전용 래퍼(스펙 §35/36). rename/merge/splitFieldScene과 달리 둘 다 비동기라(네트워크
-  // 호출 포함) 완료를 기다렸다가 실제 결과(fieldScenesRef)를 함께 돌려준다 — 그래야 채팅이
-  // "분류했습니다"를 실제 grouping 결과가 있을 때만 말할 수 있다(스펙 §37/44).
-  const startAiClassificationForChat = useCallback(async (): Promise<{ ok: boolean; reason?: string; sceneCount?: number }> => {
-    if (!rootDir) return { ok: false, reason: "먼저 화면에서 폴더를 선택해주세요." };
-    await handleFieldSort();
-    return { ok: true, sceneCount: fieldScenesRef.current.length };
-  }, [rootDir, handleFieldSort]);
-
-  const submitAiNlRequestForChat = useCallback(async (message: string): Promise<{ ok: boolean; sceneCount?: number }> => {
-    await submitAiNlRequest(message);
-    return { ok: true, sceneCount: fieldScenesRef.current.length };
-  }, [submitAiNlRequest]);
-
-  // PHASE 4(2026-08-30) — 채팅 도구(rename/merge/split_photo_scene)가 이 Workspace가 실제로
-  // 열려 있을 때만 씬 편집을 실행할 수 있게, 지금 마운트된 인스턴스의 최신 함수를 등록해둔다
-  // (useContractPdfHandlerStore와 동일 패턴). 언마운트되면 등록을 해제한다.
-  // OLIVIA OS Phase 3 — isEmbedded(OS 창/PhotoWorkspace.tsx 탭)도 등록 대상에 추가했다. 원래
-  // isModal(채팅→모달 플로우)만 체크해서, OS Desktop 창 안에서는(PhotoWorkspaceWindowContent가
-  // mode="embedded"로 렌더) "이 폴더 분류해줘" 같은 RUN 액션이 조용히 실행할 대상을 못 찾는
-  // 버그가 있었다.
-  useEffect(() => {
-    if (isModal || isEmbedded) {
-      const bundle = {
-        renameScene: renameFieldScene, mergeScenes: mergeFieldScenes, splitScene: splitFieldScene,
-        startAiClassification: startAiClassificationForChat, submitNlRequest: submitAiNlRequestForChat,
-      };
-      usePhotoClassificationActionsStore.getState().registerActions(bundle);
-      return () => {
-        if (usePhotoClassificationActionsStore.getState().actions === bundle) {
-          usePhotoClassificationActionsStore.getState().registerActions(null);
-        }
-      };
-    }
-  }, [isModal, isEmbedded, renameFieldScene, mergeFieldScenes, splitFieldScene, startAiClassificationForChat, submitAiNlRequestForChat]);
-
-  const approveFieldScene = useCallback((sceneIndex: number) => {
-    setFieldScenes((previous) => previous.map((scene, index) => index === sceneIndex ? { ...scene, approved: true } : scene));
-    const scene = fieldScenes[sceneIndex];
-    if (!scene || scene.approved) return;
-    setSceneCorrections((previous) => [
-      ...previous,
-      createApproveSceneCorrection(scene, rootDir?.name ?? "local"),
-    ]);
-  }, [fieldScenes, rootDir]);
-
-  const approveAllFieldScenes = useCallback(() => {
-    const pending = fieldScenes.filter((scene) => !scene.approved);
-    setFieldScenes((previous) => previous.map((scene) => ({ ...scene, approved: true })));
-    setSceneCorrections((previous) => [
-      ...previous,
-      ...pending.map((scene) => createApproveSceneCorrection(scene, rootDir?.name ?? "local")),
-    ]);
-  }, [fieldScenes, rootDir]);
+  const {
+    approveAllScenes: approveAllFieldScenes,
+    approveScene: approveFieldScene,
+    commitSceneName: commitFieldSceneName,
+    dismissMergeCandidate: dismissFieldMergeCandidate,
+    mergeScenes: mergeFieldScenes,
+    splitScene: splitFieldScene,
+    updateSceneName: updateFieldSceneName,
+    updateSplitPosition,
+  } = useFieldSceneReviewActions({
+    actionsEnabled: isModal || isEmbedded,
+    rootDirectory: rootDir,
+    jpgBaseDirectory: fieldJpgBaseDir,
+    scenes: fieldScenes,
+    mergeCandidates,
+    setScenes: setFieldScenes,
+    setBoundaryDecisions,
+    setSceneCorrections,
+    setDismissedCandidates,
+    setMergeDecisions,
+    setSplitPositions,
+    startClassification: handleFieldSort,
+    submitNaturalLanguageRequest: submitAiNlRequest,
+  });
 
   const handleConfirmScenes = useCallback(async () => {
     if (!rootDir) return;
@@ -1179,43 +1034,6 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      FIELD STEPS
   ═══════════════════════════════════════════ */
-  const dismissFieldMergeCandidate = useCallback((candidateId: string) => {
-    const candidate = mergeCandidates.find((item) => item.id === candidateId);
-    if (candidate) {
-      setMergeDecisions((previous) => [...previous, {
-        candidateId: candidate.id,
-        userAction: "keep_split",
-        fromFolderName: candidate.fromFolderName,
-        toFolderName: candidate.toFolderName,
-        fromSceneType: candidate.fromSceneType,
-        toSceneType: candidate.toSceneType,
-        mergeScore: candidate.mergeScore,
-        matchedSignals: candidate.matchedSignals,
-        blockedSignals: candidate.blockedSignals,
-        recommendedAction: candidate.recommendedAction,
-      }]);
-    }
-    setDismissedCandidates((previous) => new Set([...previous, candidateId]));
-  }, [mergeCandidates]);
-
-  const commitFieldSceneName = useCallback((scene: FieldScene) => {
-    if (scene.editedName === scene.folderName) return;
-    setSceneCorrections((previous) => [
-      ...previous,
-      createRenameSceneCorrection(scene, scene.editedName, rootDir?.name ?? "local"),
-    ]);
-  }, [rootDir]);
-
-  const updateFieldSceneName = useCallback((sceneIndex: number, value: string) => {
-    setFieldScenes((previous) => previous.map((scene, index) => (
-      index === sceneIndex ? { ...scene, editedName: value } : scene
-    )));
-  }, []);
-
-  const updateSplitPosition = useCallback((sceneIndex: number, value: number) => {
-    setSplitPositions((previous) => ({ ...previous, [sceneIndex]: value }));
-  }, []);
-
   const FieldStep4 = () => {
     if (!fieldStats) return null;
     return (
