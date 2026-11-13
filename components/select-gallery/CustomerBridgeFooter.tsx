@@ -1,10 +1,10 @@
 "use client";
 
-import type { RefObject } from "react";
+import { memo, type RefObject } from "react";
 import { RotateCcw } from "lucide-react";
 import styles from "./CustomerBridgeSelect.module.css";
 
-export function CustomerBridgeFooter({
+export const CustomerBridgeFooter = memo(function CustomerBridgeFooter({
   readOnly,
   totalPhotoCount,
   selectedPhotoCount,
@@ -52,4 +52,4 @@ export function CustomerBridgeFooter({
     <button className={styles.reviewButton} type="button" disabled={!selectedPhotoCount} onClick={onReview}>리뷰</button>
     <button className={styles.submitButton} type="button" disabled={!selectedPhotoCount || submitting || pendingCount > 0 || saveStatus !== "saved" || !canFinalize} onClick={onSubmit}>{!canFinalize ? "확정 권한 없음" : submitting ? "제출 중" : "제출하기"}</button>
   </footer>;
-}
+});

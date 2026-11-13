@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode, RefObject } from "react";
+import { memo, type ReactNode, type RefObject } from "react";
 import {
   BookOpenText,
   ChevronLeft,
@@ -18,7 +18,7 @@ import type { CustomerBridgePhotoFilter as PhotoFilter } from "@/lib/select-gall
 import type { CustomerBridgeLocation } from "./useCustomerBridgeLocation";
 import styles from "./CustomerBridgeSelect.module.css";
 
-export function CustomerBridgeHeader({
+export const CustomerBridgeHeader = memo(function CustomerBridgeHeader({
   gallery,
   reviewer,
   totalImageCount,
@@ -131,4 +131,4 @@ export function CustomerBridgeHeader({
 
     {adminToolbarStatus ? <div className={styles.adminToolbarStatus}>{adminToolbarStatus}</div> : null}
   </>;
-}
+});

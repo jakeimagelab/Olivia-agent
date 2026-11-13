@@ -33,6 +33,7 @@ import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./u
 import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
+import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
 import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
 import { buildCustomerBridgePhotoView } from "@/lib/select-gallery/customerBridgeView";
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
@@ -172,6 +173,8 @@ export default function CustomerBridgeSelect({
     workspaceStyle,
   } = useCustomerBridgeWorkspaceLayout();
   const [guideOpen, setGuideOpen] = useState(false);
+  const openCompactFolders = useCallback(() => setCompactFoldersOpen(true), [setCompactFoldersOpen]);
+  const openGuide = useCallback(() => setGuideOpen(true), []);
 
   const gridRef = useRef<HTMLDivElement>(null);
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
@@ -207,6 +210,9 @@ export default function CustomerBridgeSelect({
     pendingCount: selectionSync.pendingCount,
     selectedIds: serverSelectedIds,
   });
+  const handleDownload = useCallback((format: CustomerBridgeDownloadFormat) => {
+    void downloadSelected(format);
+  }, [downloadSelected]);
   // 화면은 즉시 반응하되 미저장 사진에는 pending 표시를 남기고, 제출은 저장 완료 뒤에만 허용한다.
   const {
     error: submitError,
@@ -233,6 +239,9 @@ export default function CustomerBridgeSelect({
     onSubmitted,
     onStorageError: reportOptionalStorageError,
   });
+  const openSubmitReviewAction = useCallback(() => {
+    void openSubmitReview();
+  }, [openSubmitReview]);
   const { visibleImages, selectedInFolder, qualityCounts, searchActive } = useMemo(() => buildCustomerBridgePhotoView({
     images: folderImages,
     filter,
@@ -335,6 +344,9 @@ export default function CustomerBridgeSelect({
       if (fullscreenId) closeFullscreen();
     };
   }, [closeFullscreen, fullscreenId]);
+  const openFocusedFullscreen = useCallback(() => {
+    if (focusedImageId) openFullscreen(focusedImageId);
+  }, [focusedImageId, openFullscreen]);
 
   const handleResetComplete = useCallback(() => {
     clearActiveSelection();
@@ -395,6 +407,13 @@ export default function CustomerBridgeSelect({
     mobile,
     focusedImageId,
   });
+  const openMessages = useCallback(() => {
+    setSideTab("chat");
+    setMobileSideOpen(true);
+  }, [setMobileSideOpen, setSideTab]);
+  const startQualityAnalysis = useCallback(() => {
+    void startQuality();
+  }, [startQuality]);
 
   const applyMainRating = useCallback((rating: 0 | CustomerBridgeRating) => {
     applyRatingTo(customerBridgeRatingTargets(activeImageIds, focusedImageId), rating);
@@ -497,7 +516,7 @@ export default function CustomerBridgeSelect({
       saveStatusMessage={saveStatusMessage}
       selectionStatus={selectionSync.status}
       compactFoldersOpen={compactFoldersOpen}
-      onOpenCompactFolders={() => setCompactFoldersOpen(true)}
+      onOpenCompactFolders={openCompactFolders}
       location={location}
       onGoToParentFolder={goToParentFolder}
       onOpenLocation={openLocation}
@@ -509,30 +528,30 @@ export default function CustomerBridgeSelect({
       unselectedInLocation={unselectedInLocation}
       guideButtonRef={guideButtonRef}
       guideOpen={guideOpen}
-      onOpenGuide={() => setGuideOpen(true)}
+      onOpenGuide={openGuide}
       jpgDownloadEnabled={Boolean(gallery.download_jpg_enabled && !readOnly)}
       rawDownloadEnabled={Boolean(gallery.download_raw_enabled && !readOnly)}
       downloadDisabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0}
       downloadBusy={downloadBusy}
       downloadState={downloadState}
-      onDownload={(kind) => void downloadSelected(kind)}
+      onDownload={handleDownload}
       messagesEnabled={messagesEnabled}
       unreadMessages={unreadMessages}
-      onOpenMessages={() => { setSideTab("chat"); setMobileSideOpen(true); }}
+      onOpenMessages={openMessages}
       qualityEnabled={Boolean(qualityApi)}
       canManageQuality={canManageQuality}
       qualityStatus={String(qualityJob?.status ?? "")}
-      onStartQuality={() => void startQuality()}
+      onStartQuality={startQualityAnalysis}
       adminToolbarAction={adminToolbarAction}
       selectedImageCount={customerSelectedIds.size}
       onOpenReview={openReview}
       focusedImageId={focusedImageId}
-      onOpenFullscreen={() => { if (focusedImageId) openFullscreen(focusedImageId); }}
+      onOpenFullscreen={openFocusedFullscreen}
       adminToolbarStatus={adminToolbarStatus}
     />
 
     <section className={styles.workspace} style={workspaceStyle}>
-      {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={() => setCompactFoldersOpen(false)} /> : null}
+      {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={closeCompactFolders} /> : null}
       <CustomerBridgeFolderPanel
         compactOpen={compactFoldersOpen}
         location={location}
@@ -658,7 +677,7 @@ export default function CustomerBridgeSelect({
       onReview={openReview}
       submitting={submitting}
       pendingCount={selectionSync.pendingCount}
-      onSubmit={() => void openSubmitReview()}
+      onSubmit={openSubmitReviewAction}
     />
 
     <CustomerBridgeOverlayLayer
