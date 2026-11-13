@@ -104,3 +104,5 @@ export function useSelectMatchClientInput({
     analyzeUploadedFileNames,
   };
 }
+
+export type SelectMatchClientInputController = ReturnType<typeof useSelectMatchClientInput>;
