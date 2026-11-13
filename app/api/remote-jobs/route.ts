@@ -14,6 +14,7 @@ import {
 } from "@/lib/remote-jobs/requestValidation";
 import { normalizePersonSelectRequestPayload } from "@/lib/remote-jobs/personSelectRequestPayload";
 import { normalizeRawMatchCopyRequestPayload } from "@/lib/remote-jobs/rawMatchCopyRequestPayload";
+import { normalizePhotoBrowseRequestPayload } from "@/lib/remote-jobs/photoBrowseRequestPayload";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,117 +58,14 @@ export async function POST(request: NextRequest) {
 
   let payload: Record<string, unknown> = requestedPayload;
 
-  if (action === "LIST_FOLDER") {
-    const remotePath = requestedPayload.remote_path;
-    const root = requestedPayload.root;
-    const foldersOnly = requestedPayload.folders_only;
-
-    if (remotePath !== undefined && remotePath !== null && typeof remotePath !== "string") {
-      return Response.json(
-        { ok: false, error: "LIST_FOLDER의 remote_path는 문자열이어야 합니다." },
-        { status: 400 }
-      );
-    }
-
-    if (foldersOnly !== undefined && typeof foldersOnly !== "boolean") {
-      return Response.json(
-        { ok: false, error: "folders_only는 boolean이어야 합니다." },
-        { status: 400 }
-      );
-    }
-
-    if (root !== undefined && typeof root !== "boolean") {
-      return Response.json(
-        { ok: false, error: "LIST_FOLDER의 root는 boolean이어야 합니다." },
-        { status: 400 }
-      );
-    }
-
-    try {
-      // 경로의 Unicode form은 Worker가 반환한 그대로 유지한다. 절대경로와
-      // traversal만 차단한다. 빈 값/누락은 NAS Root를 뜻하며 LIST_FOLDER에
-      // 불필요한 payload 필드는 전달하지 않는다.
-      const normalizedPath = normalizeRemoteNasRelativePath(remotePath ?? "");
-      if (root === true && normalizedPath) {
-        return Response.json(
-          { ok: false, error: "LIST_FOLDER의 root와 remote_path를 동시에 지정할 수 없습니다." },
-          { status: 400 }
-        );
-      }
-      payload = {
-        ...(root === true || !normalizedPath ? { root: true } : { remote_path: normalizedPath }),
-        ...(foldersOnly === true ? { folders_only: true } : {}),
-      };
-    } catch (error) {
-      return Response.json(
-        {
-          ok: false,
-          error: error instanceof Error ? error.message : "올바르지 않은 NAS 경로입니다.",
-        },
-        { status: 400 }
-      );
-    }
-  }
-
-  if (action === "PHOTO_SORT" || action === "PHOTO_CHECK_WORK_FOLDER") {
-    const sourceFolder = requestedPayload.source_folder;
-
-    if (typeof sourceFolder !== "string") {
-      return Response.json(
-        { ok: false, error: `${action}에는 source_folder 상대경로가 필요합니다.` },
-        { status: 400 }
-      );
-    }
-
-    try {
-      const safeSourceFolder = normalizeRemoteNasRelativePath(sourceFolder);
-      if (!safeSourceFolder) {
-        return Response.json(
-          { ok: false, error: "NAS Root가 아닌 촬영 폴더를 선택해주세요." },
-          { status: 400 }
-        );
-      }
-
-      // Worker가 반환한 NFD 상대경로는 그대로 유지한다. 브라우저에서 절대경로를
-      // 보내거나 NAS Root 밖으로 이동하는 path segment만 차단한다.
-      payload = action === "PHOTO_SORT"
-        ? { ...requestedPayload, source_folder: safeSourceFolder }
-        : { source_folder: safeSourceFolder };
-    } catch (error) {
-      return Response.json(
-        {
-          ok: false,
-          error: error instanceof Error ? error.message : "올바르지 않은 NAS 작업 경로입니다.",
-        },
-        { status: 400 }
-      );
-    }
-  }
-
-  if (action === "PHOTO_THUMBS") {
-    try {
-      const remotePath = normalizeRemoteNasRelativePath(
-        typeof requestedPayload.remote_path === "string" ? requestedPayload.remote_path : "",
-      );
-      if (!remotePath) throw new Error("NAS 촬영 폴더를 선택해 주세요.");
-      const maxCount = finiteNumber(requestedPayload.max_count, "max_count", 1, 400, true) ?? 400;
-      const offset = finiteNumber(requestedPayload.offset, "offset", 0, 100_000, true) ?? 0;
-      payload = { remote_path: remotePath, max_count: maxCount, offset };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 썸네일 요청입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "PHOTO_XMP_RATINGS") {
-    try {
-      const remotePath = normalizeRemoteNasRelativePath(
-        typeof requestedPayload.remote_path === "string" ? requestedPayload.remote_path : "",
-      );
-      if (!remotePath) throw new Error("NAS 촬영 폴더를 선택해 주세요.");
-      payload = { remote_path: remotePath };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 별점 요청입니다." }, { status: 400 });
-    }
+  try {
+    const photoBrowsePayload = normalizePhotoBrowseRequestPayload(action, requestedPayload);
+    if (photoBrowsePayload !== null) payload = photoBrowsePayload;
+  } catch (error) {
+    return Response.json({
+      ok: false,
+      error: error instanceof Error ? error.message : "올바르지 않은 원격 사진 탐색 요청입니다.",
+    }, { status: 400 });
   }
 
   if (action === "PHOTO_PREPARE_SOURCE") {
