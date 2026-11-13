@@ -11,9 +11,8 @@
  */
 
 import path from "node:path";
-import { mkdir, open, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { normalizeNfc } from "@/lib/person-select/core";
 import {
   normalizePersonSelectRawMatchSource,
   normalizePersonSelectRawMatchMode,
@@ -24,17 +23,12 @@ import {
 import { loadPersonSelectRawMatchTargets } from "@/lib/person-select/node/rawMatchTargets";
 import {
   clearPersonSelectRawMarks,
-  markPersonSelectRawSidecar,
 } from "@/lib/person-select/node/rawMarkFileOperations";
 import {
   indexPersonSelectRawFiles,
-  personSelectRawBasename,
-  type PersonSelectRawFile,
 } from "@/lib/person-select/node/rawFileIndex";
+import { executePersonSelectRawMatch } from "@/lib/person-select/node/rawMatchExecution";
 import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
-import { resolveCaptureTimeCandidate } from "@/lib/selectMatch/captureMatch";
-import { parseCaptureTime, type CaptureTime } from "@/lib/selectMatch/captureTime";
-import { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/rawMatchCopy";
 
 export const PERSON_SELECT_RAW_OUTPUT = PERSON_SELECT_RAW_OUTPUT_FOLDER;
 
@@ -73,50 +67,8 @@ function report(stage: string, current: number, total: number, message: string) 
   process.stderr.write(`OLIVIA_REMOTE_PROGRESS ${JSON.stringify({ stage, current, total, message })}\n`);
 }
 
-function safeSourceFile(root: string, relativePath: string) {
-  const candidate = path.resolve(root, relativePath.split(/[\\/]+/u).filter(Boolean).join(path.sep));
-  const relative = path.relative(root, candidate);
-  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
-    if (relative === "") throw new Error("사진 파일 경로가 없습니다.");
-    throw new Error("사진 파일이 촬영 폴더 밖을 가리킵니다.");
-  }
-  return candidate;
-}
-
-async function readCaptureTime(filePath: string): Promise<CaptureTime | null> {
-  const handle = await open(filePath, "r");
-  try {
-    const metadata = await handle.stat();
-    const length = Math.min(4 * 1024 * 1024, metadata.size);
-    const buffer = Buffer.allocUnsafe(length);
-    const { bytesRead } = await handle.read(buffer, 0, length, 0);
-    const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + bytesRead);
-    return parseCaptureTime(arrayBuffer);
-  } finally {
-    await handle.close();
-  }
-}
-
-function safeFolderName(value: string) {
-  return normalizeNfc(value).replace(/[\\/:*?"<>|\0]/g, "_").trim() || "이름없음";
-}
-
 const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.13-person-select-raw-copy-v2";
 let failureStage = "STARTING";
-
-function matchingDuplicateRaws(
-  picked: PersonSelectRawFile,
-  rawCandidates: PersonSelectRawFile[],
-  candidateTimes: Array<CaptureTime | null>,
-) {
-  const pickedIndex = rawCandidates.findIndex((candidate) => candidate.relPath === picked.relPath);
-  const pickedTime = candidateTimes[pickedIndex];
-  if (!pickedTime) return [picked];
-  return rawCandidates.filter((candidate, index) => (
-    candidate.size === picked.size
-    && candidateTimes[index]?.timestampMs === pickedTime.timestampMs
-  ));
-}
 
 function csvCell(value: unknown) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
@@ -190,98 +142,35 @@ async function main() {
   const rawIndex = await indexPersonSelectRawFiles(shootingRoot);
 
   const outputRoot = path.join(shootingRoot, PERSON_SELECT_RAW_OUTPUT);
-  const matched: { name: string; jpg: string; raw: string; attributeVerified: boolean }[] = [];
-  const alreadyCopied: { name: string; raw: string }[] = [];
-  const missing: { name: string; jpg: string }[] = [];
-  const ambiguous: { name: string; jpg: string; candidates: string[] }[] = [];
-  const timeMismatch: { name: string; jpg: string; candidates: string[] }[] = [];
-  const missingTime: { name: string; jpg: string; candidates: string[] }[] = [];
-  const conflicts: { name: string; raw: string }[] = [];
-  const markedSidecars: Array<{ rawPath: string; sidecarPath: string; created: boolean }> = [];
-  const markFailures: Array<{ raw: string; error: string }> = [];
-  const copyFailures: Array<{ stage: "raw_copy"; name: string; jpg: string; raw: string; error: string }> = [];
   const rawMarkJobId = `${eventId}-${Date.now().toString(36)}`;
-  let ratingCount = 0;
-  let colorCount = 0;
-  let conflictCount = 0;
-  let done = 0;
-  const captureCache = new Map<string, Promise<CaptureTime | null>>();
-  const captureFor = (filePath: string) => {
-    let current = captureCache.get(filePath);
-    if (!current) { current = readCaptureTime(filePath).catch(() => null); captureCache.set(filePath, current); }
-    return current;
-  };
-  const reviewRequired: Array<{ owner: string; jpg: string; reason: string; candidates?: string[]; stage?: string; error?: string }> = [];
-  for (const choice of targets) {
-    const name = choice.ownerName;
-    const rawCandidates = rawIndex.get(personSelectRawBasename(choice.originalFileName)) ?? [];
-    const jpgPath = safeSourceFile(jpgRoot, choice.sourceRelPath);
-    const jpgCaptureTime = await captureFor(jpgPath).catch(() => null);
-    const candidateTimes = await Promise.all(rawCandidates.map((candidate) => captureFor(candidate.path)));
-    const resolved = resolveCaptureTimeCandidate({
-      jpgCaptureTime,
-      jpgRelativePath: choice.sourceRelPath,
-      candidates: rawCandidates.map((candidate, index) => ({
-        id: candidate.relPath,
-        captureTime: candidateTimes[index],
-        fileSize: candidate.size,
-        relativePath: candidate.relPath,
-      })),
-    });
-    const picked = resolved.confirmedCandidateId
-      ? rawCandidates.find((candidate) => candidate.relPath === resolved.confirmedCandidateId) ?? null
-      : null;
-    if (!picked) {
-      const reason = resolved.status;
-      if (reason === "raw_missing") missing.push({ name, jpg: choice.originalFileName });
-      else if (reason === "multiple_candidates") ambiguous.push({ name, jpg: choice.originalFileName, candidates: rawCandidates.map((file) => file.relPath) });
-      else if (reason === "time_mismatch") timeMismatch.push({ name, jpg: choice.originalFileName, candidates: rawCandidates.map((file) => file.relPath) });
-      else if (reason === "missing_time") missingTime.push({ name, jpg: choice.originalFileName, candidates: rawCandidates.map((file) => file.relPath) });
-      reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason, candidates: rawCandidates.map((file) => file.relPath) });
-    } else {
-      if (mode === "mark") {
-        failureStage = "WRITING_XMP";
-        const duplicateRaws = matchingDuplicateRaws(picked, rawCandidates, candidateTimes);
-        if (choice.customerRating !== null) ratingCount += 1;
-        if (choice.customerColorLabel !== null) colorCount += 1;
-        if (choice.markConflict) conflictCount += 1;
-        for (const raw of duplicateRaws) {
-          try {
-            markedSidecars.push(await markPersonSelectRawSidecar({
-              raw,
-              shootingRoot,
-              jobId: rawMarkJobId,
-              rating: choice.customerRating,
-              colorLabel: choice.customerColorLabel,
-              labelNames,
-            }));
-          } catch (error) {
-            markFailures.push({ raw: raw.relPath, error: error instanceof Error ? error.message : "XMP 기록 실패" });
-          }
-        }
-      } else {
-        failureStage = "COPYING_RAW";
-        const targetDir = path.join(outputRoot, safeFolderName(name));
-        try {
-          await mkdir(targetDir, { recursive: true });
-          const operation = await copyOrMovePreservingMetadata({ source: picked.path, destinationDirectory: targetDir, move: false });
-          if (operation.alreadyExisted) alreadyCopied.push({ name, raw: picked.name });
-          else matched.push({ name, jpg: choice.originalFileName, raw: picked.relPath, attributeVerified: true });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "RAW 복사 실패";
-          if (message.includes("같은 이름이 있어 덮어쓰지 않음")) {
-            conflicts.push({ name, raw: picked.name });
-            reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "conflict", candidates: [picked.relPath] });
-          } else {
-            copyFailures.push({ stage: "raw_copy", name, jpg: choice.originalFileName, raw: picked.relPath, error: message });
-            reviewRequired.push({ owner: name, jpg: choice.originalFileName, reason: "copy_failed", candidates: [picked.relPath], stage: "raw_copy", error: message });
-          }
-        }
-      }
-    }
-    done += 1;
-    report(mode === "mark" ? "MARKING" : "COPYING", done, targets.length, `${name} · ${choice.originalFileName}`);
-  }
+  const execution = await executePersonSelectRawMatch({
+    targets,
+    rawIndex,
+    jpgRoot,
+    shootingRoot,
+    outputRoot,
+    mode,
+    labelNames,
+    rawMarkJobId,
+    onStageChange: (stage) => { failureStage = stage; },
+    onProgress: ({ stage, current, total, message }) => report(stage, current, total, message),
+  });
+  const {
+    matched,
+    alreadyCopied,
+    missing,
+    ambiguous,
+    timeMismatch,
+    missingTime,
+    conflicts,
+    markedSidecars,
+    markFailures,
+    copyFailures,
+    reviewRequired,
+    ratingCount,
+    colorCount,
+    conflictCount,
+  } = execution;
 
   const result = {
     ok: true,
