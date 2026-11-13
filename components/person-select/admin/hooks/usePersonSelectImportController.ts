@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
+import { usePersonSelectDeliveryImportController } from "@/components/person-select/admin/hooks/usePersonSelectDeliveryImportController";
 import { usePersonSelectUploadManager } from "@/components/person-select/upload/PersonSelectUploadManager";
 import { readApiResponse } from "@/lib/http/apiResponse";
 import {
@@ -40,9 +41,6 @@ export function usePersonSelectImportController({
   const [localScan, setLocalScan] = useState<LocalPersonSelectScan | null>(null);
   const [jobId, setJobId] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [deliveryJobId, setDeliveryJobId] = useState("");
-  const [deliveryResult, setDeliveryResult] = useState<Record<string, unknown> | null>(null);
-  const [deliveryAssignments, setDeliveryAssignments] = useState<Record<string, string>>({});
   const localInputRef = useRef<HTMLInputElement>(null);
   const handledUploadJobRef = useRef<string | null>(null);
   const uploadManager = usePersonSelectUploadManager();
@@ -58,18 +56,12 @@ export function usePersonSelectImportController({
     },
   });
 
-  useRemoteJobPoller({
-    jobId: deliveryJobId,
-    label: "보정본 가져오기 상태",
-    onTerminal: async (job) => {
-      const nextResult = resolveRemoteJobResult(job, "보정본 가져오기에 실패했습니다.");
-      setDeliveryResult(nextResult);
-      if (job.status !== "COMPLETED") {
-        setMessage(`보정본 가져오기 실패: ${String(nextResult.error ?? job.error ?? "작업 결과를 확인해 주세요.")}`);
-      }
-      setDeliveryJobId("");
-      await load();
-    },
+  const deliveryController = usePersonSelectDeliveryImportController({
+    eventId,
+    isShared,
+    path,
+    load,
+    setMessage,
   });
 
   const eventUploadJob = uploadManager.jobs.find((job) => job.event_id === eventId) ?? null;
@@ -191,66 +183,6 @@ export function usePersonSelectImportController({
 
   const startImport = useCallback(() => sourceMode === "local" ? startLocalImport() : startRemoteImport(), [sourceMode, startLocalImport, startRemoteImport]);
 
-  const startDeliveryImport = useCallback(async () => {
-    if (!path) {
-      setMessage("Mac Studio의 보정본 폴더를 선택해 주세요.");
-      return;
-    }
-    setMessage("");
-    setDeliveryResult(null);
-    try {
-      const response = await fetch(`/api/person-select/${eventId}/deliveries/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourcePath: path }),
-      });
-      const body = await readApiResponse<{ job?: { id?: string } }>(response, "보정본 가져오기");
-      setDeliveryJobId(body.job?.id ?? "");
-      setDeliveryResult({ message: "보정본 원본과 미리보기를 안전하게 올리고 있어요." });
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "보정본 가져오기를 시작하지 못했습니다.");
-    }
-  }, [eventId, path, setMessage]);
-
-  const assignDelivery = useCallback(async (deliveryId: string) => {
-    const value = deliveryAssignments[deliveryId]?.trim() ?? "";
-    if (!value) {
-      setMessage(isShared ? "연결할 폴더 이름을 입력해 주세요." : "연결할 고객을 선택해 주세요.");
-      return;
-    }
-    try {
-      const response = await fetch(`/api/person-select/${eventId}/deliveries/${deliveryId}/assign`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(isShared ? { groupLabel: value } : { personId: value }),
-      });
-      await readApiResponse(response, "보정본 연결");
-      setDeliveryAssignments((current) => {
-        const next = { ...current };
-        delete next[deliveryId];
-        return next;
-      });
-      await load();
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "보정본 연결을 저장하지 못했습니다.");
-    }
-  }, [deliveryAssignments, eventId, isShared, load, setMessage]);
-
-  const changeDeliveryOwner = useCallback(async (action: "reopen" | "extend", personId?: string) => {
-    try {
-      const endpoint = action === "reopen" ? "state" : "retention";
-      const response = await fetch(`/api/person-select/${eventId}/deliveries/${endpoint}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(action === "reopen" ? { action: "reopen", personId } : { personId }),
-      });
-      await readApiResponse(response, action === "reopen" ? "보정본 다시 열기" : "보관 기간 연장");
-      await load();
-    } catch (cause) {
-      setMessage(cause instanceof Error ? cause.message : "보정본 상태를 바꾸지 못했습니다.");
-    }
-  }, [eventId, load, setMessage]);
-
   const resumeLocalImport = useCallback(async () => {
     if (!eventUploadJob) return;
     try {
@@ -270,10 +202,6 @@ export function usePersonSelectImportController({
     setPickerOpen(false);
   }, []);
 
-  const updateDeliveryAssignment = useCallback((deliveryId: string, value: string) => {
-    setDeliveryAssignments((current) => ({ ...current, [deliveryId]: value }));
-  }, []);
-
   return {
     pickerOpen,
     setPickerOpen,
@@ -288,21 +216,21 @@ export function usePersonSelectImportController({
     localInputRef,
     jobId,
     result,
-    deliveryJobId,
-    deliveryResult,
-    deliveryAssignments,
+    deliveryJobId: deliveryController.deliveryJobId,
+    deliveryResult: deliveryController.deliveryResult,
+    deliveryAssignments: deliveryController.deliveryAssignments,
     eventUploadJob,
     localBusy,
     localProgress,
     selectLocalFolder,
     selectLocalFileList,
     startImport,
-    startDeliveryImport,
-    assignDelivery,
-    changeDeliveryOwner,
+    startDeliveryImport: deliveryController.startDeliveryImport,
+    assignDelivery: deliveryController.assignDelivery,
+    changeDeliveryOwner: deliveryController.changeDeliveryOwner,
     resumeLocalImport,
     clearLocalSelection,
     selectRemotePath,
-    updateDeliveryAssignment,
+    updateDeliveryAssignment: deliveryController.updateDeliveryAssignment,
   };
 }
