@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { parsePersistedSelectionSyncQueue } from "@/lib/person-select/selectionSync";
-import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncQueue";
+import { SELECTION_SYNC_STORAGE_EVENT } from "./useSelectionSyncBrowserPersistence";
 import type { PersonSelectMeData } from "./personSelectPublicModel";
 
 export async function personSelectJsonFetch<T>(url: string, init?: RequestInit): Promise<T> {

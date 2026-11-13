@@ -15,12 +15,12 @@ import {
   type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
 import { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
-import { createSelectionSyncPersistenceBuffer } from "@/lib/person-select/selectionSyncPersistence";
+import { useSelectionSyncBrowserPersistence } from "@/components/person-select/useSelectionSyncBrowserPersistence";
 
 export { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
+export { SELECTION_SYNC_STORAGE_EVENT } from "@/components/person-select/useSelectionSyncBrowserPersistence";
 
 export type SelectionSyncQueueStatus = "saved" | "waiting" | "saving" | "retrying" | "error";
-export const SELECTION_SYNC_STORAGE_EVENT = "olivia-selection-sync-storage";
 
 type SelectionSyncQueueOptions<TSnapshot> = {
   storageKey: string;
@@ -29,11 +29,6 @@ type SelectionSyncQueueOptions<TSnapshot> = {
   onSnapshot: (snapshot: TSnapshot, pending: SelectionSyncDiff[]) => void;
   onRestore?: (pending: SelectionSyncDiff[]) => void;
   onPendingChange?: (pending: SelectionSyncDiff[]) => void;
-};
-
-type PersistRequest = {
-  storageKey: string;
-  payload: PersistedSelectionSyncQueue;
 };
 
 function createClientId() {
@@ -65,20 +60,7 @@ export function useSelectionSyncQueue<TSnapshot>({
   const onSnapshotRef = useRef(onSnapshot);
   const onRestoreRef = useRef(onRestore);
   const onPendingChangeRef = useRef(onPendingChange);
-  const persistenceRef = useRef<ReturnType<typeof createSelectionSyncPersistenceBuffer<PersistRequest>> | null>(null);
-
-  if (!persistenceRef.current) {
-    persistenceRef.current = createSelectionSyncPersistenceBuffer<PersistRequest>({
-      write: ({ storageKey: targetStorageKey, payload }) => {
-        localStorage.setItem(targetStorageKey, JSON.stringify(payload));
-        window.dispatchEvent(new CustomEvent(SELECTION_SYNC_STORAGE_EVENT, { detail: { storageKey: targetStorageKey } }));
-      },
-      scheduleTask: (task) => {
-        const timer = window.setTimeout(task, 0);
-        return () => window.clearTimeout(timer);
-      },
-    });
-  }
+  const { schedulePersistence, flushPersistence } = useSelectionSyncBrowserPersistence();
 
   useEffect(() => { sendBatchRef.current = sendBatch; }, [sendBatch]);
   useEffect(() => { onSnapshotRef.current = onSnapshot; }, [onSnapshot]);
@@ -107,10 +89,8 @@ export function useSelectionSyncQueue<TSnapshot>({
       diffs: prepared ?? queueValues(),
       lastSavedAt: lastSavedAtRef.current,
     };
-    persistenceRef.current?.schedule({ storageKey, payload });
-  }, [queueValues, storageKey]);
-
-  const flushPersistence = useCallback(() => persistenceRef.current?.flush() ?? true, []);
+    schedulePersistence(storageKey, payload);
+  }, [queueValues, schedulePersistence, storageKey]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
