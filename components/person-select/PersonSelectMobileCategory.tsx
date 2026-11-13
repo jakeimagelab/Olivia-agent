@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, X } from "lucide-react";
-import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import { buildClassicChoiceSelectionPatches } from "@/lib/person-select/classicChoicePatches";
 import {
   formatPersonSelectWon as won,
   isPersonSelectCategoryComplete as isComplete,
@@ -77,10 +77,12 @@ export function PersonSelectMobileCategory({ slug, categoryKey }: { slug: string
     if (currentMe.event.locked) return;
     setMessage("");
     const limit = Math.max(1, currentCategory.max || currentCategory.pick || 1);
-    const patches: SelectionSyncPatch[] = [];
-    if (limit === 1) for (const selectedId of displayedIds) if (selectedId !== imageId) patches.push({ imageId: selectedId, selected: false });
-    if (limit > 1 && displayedIds.size >= limit && !displayedIds.has(imageId)) { setMessage(`${limit}장까지 고를 수 있어요.`); return; }
-    patches.push({ imageId, selected: true }, { imageId, retouchKeys: [] }, { imageId, memo: "" });
+    const { patches, limitReached } = buildClassicChoiceSelectionPatches({
+      imageId,
+      selectedIds: displayedIds,
+      limit,
+    });
+    if (limitReached) { setMessage(`${limit}장까지 고를 수 있어요.`); return; }
     sync.enqueue(patches);
   }
 

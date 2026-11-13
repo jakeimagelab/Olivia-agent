@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
-import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import {
+  buildClassicChoiceFeedbackPatches,
+  buildClassicChoiceSelectionPatches,
+} from "@/lib/person-select/classicChoicePatches";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectFilmstripImages } from "./PersonSelectFilmstripImages";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
@@ -81,10 +84,14 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
 
   const save = useCallback((imageId: string, nextKeys: string[], nextMemo: string) => {
     if (!active || !imageById.has(imageId)) return;
-    const patches: SelectionSyncPatch[] = [];
-    if (limit === 1) for (const selectedId of chosenIds) if (selectedId !== imageId) patches.push({ imageId: selectedId, selected: false });
-    if (limit > 1 && chosenIds.size >= limit && !chosenIds.has(imageId)) return;
-    patches.push({ imageId, selected: true }, { imageId, retouchKeys: nextKeys }, { imageId, memo: nextMemo });
+    const { patches, limitReached } = buildClassicChoiceSelectionPatches({
+      imageId,
+      selectedIds: chosenIds,
+      limit,
+      retouchKeys: nextKeys,
+      memo: nextMemo,
+    });
+    if (limitReached) return;
     enqueueChoicePatches(patches);
     if (imageId === preview?.id) { setKeys(nextKeys); setMemo(nextMemo); }
   }, [active, chosenIds, enqueueChoicePatches, imageById, limit, preview?.id]);
@@ -121,10 +128,11 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
 
   function schedule(nextKeys: string[], nextMemo: string) {
     if (!previewChoice?.image_id) return;
-    enqueueChoicePatches([
-      { imageId: previewChoice.image_id, retouchKeys: nextKeys },
-      { imageId: previewChoice.image_id, memo: nextMemo },
-    ]);
+    enqueueChoicePatches(buildClassicChoiceFeedbackPatches(
+      previewChoice.image_id,
+      nextKeys,
+      nextMemo,
+    ));
   }
 
   if (!active) return null;

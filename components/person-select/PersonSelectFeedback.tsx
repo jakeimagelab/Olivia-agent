@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
-import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
+import { buildClassicChoiceFeedbackPatches } from "@/lib/person-select/classicChoicePatches";
 import { shortPersonSelectFileName as shortFileName } from "./personSelectPublicModel";
 import { usePersonChoiceSync, type PersonSelectImageData as ImageData } from "./usePersonChoiceSync";
 import {
@@ -53,10 +53,7 @@ export function PersonSelectFeedback({ slug, categoryKey }: { slug: string; cate
     try {
       sync.enqueue(currentCategory.choices.flatMap((choice) => {
         const draft = drafts[choice.id] ?? { keys: choice.retouch_keys, memo: choice.memo };
-        return [
-          { imageId: choice.image_id, retouchKeys: draft.keys },
-          { imageId: choice.image_id, memo: draft.memo },
-        ] satisfies SelectionSyncPatch[];
+        return buildClassicChoiceFeedbackPatches(choice.image_id, draft.keys, draft.memo);
       }));
       if (!(await sync.flushNow())) throw new Error("저장되지 않은 변경이 있습니다.");
       router.push(`/pick/${slug}/home`);
