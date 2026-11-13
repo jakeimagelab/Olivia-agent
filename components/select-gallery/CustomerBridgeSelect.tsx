@@ -18,7 +18,6 @@ import type {
   PersonSelectClientImagePageState,
   PersonSelectClientImageQuery,
 } from "@/lib/person-select/imagePageClient";
-import styles from "./CustomerBridgeSelect.module.css";
 import type {
   CustomerBridgeDraft,
   CustomerBridgeFolderManifest,
@@ -39,20 +38,15 @@ import { buildCustomerBridgePhotoView } from "@/lib/select-gallery/customerBridg
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
 import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
-import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
-import { CustomerBridgeBrowserPanel } from "./CustomerBridgeBrowserPanel";
-import { CustomerBridgeFolderPanel } from "./CustomerBridgeFolderPanel";
 import {
   useCustomerBridgeMarksController,
   type CustomerBridgeInitialSelection,
 } from "./useCustomerBridgeMarksController";
 import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLayout";
 import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
-import { CustomerBridgeHeader } from "./CustomerBridgeHeader";
-import { CustomerBridgeFooter } from "./CustomerBridgeFooter";
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
-import { CustomerBridgeOverlayLayer } from "./CustomerBridgeOverlayLayer";
+import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 
@@ -508,217 +502,212 @@ export default function CustomerBridgeSelect({
     pendingCount: selectionSync.pendingCount,
   });
 
-  return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${adminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
-    <CustomerBridgeHeader
-      gallery={gallery}
-      reviewer={reviewer}
-      totalImageCount={totalImageCount}
-      saveStatusMessage={saveStatusMessage}
-      selectionStatus={selectionSync.status}
-      compactFoldersOpen={compactFoldersOpen}
-      onOpenCompactFolders={openCompactFolders}
-      location={location}
-      onGoToParentFolder={goToParentFolder}
-      onOpenLocation={openLocation}
-      breadcrumbs={folderView?.breadcrumbs ?? []}
-      filter={filter}
-      onFilterChange={setFilter}
-      locationTotalCount={locationTotalCount}
-      selectedInFolder={selectedInFolder}
-      unselectedInLocation={unselectedInLocation}
-      guideButtonRef={guideButtonRef}
-      guideOpen={guideOpen}
-      onOpenGuide={openGuide}
-      jpgDownloadEnabled={Boolean(gallery.download_jpg_enabled && !readOnly)}
-      rawDownloadEnabled={Boolean(gallery.download_raw_enabled && !readOnly)}
-      downloadDisabled={!serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0}
-      downloadBusy={downloadBusy}
-      downloadState={downloadState}
-      onDownload={handleDownload}
-      messagesEnabled={messagesEnabled}
-      unreadMessages={unreadMessages}
-      onOpenMessages={openMessages}
-      qualityEnabled={Boolean(qualityApi)}
-      canManageQuality={canManageQuality}
-      qualityStatus={String(qualityJob?.status ?? "")}
-      onStartQuality={startQualityAnalysis}
-      adminToolbarAction={adminToolbarAction}
-      selectedImageCount={customerSelectedIds.size}
-      onOpenReview={openReview}
-      focusedImageId={focusedImageId}
-      onOpenFullscreen={openFocusedFullscreen}
-      adminToolbarStatus={adminToolbarStatus}
-    />
-
-    <section className={styles.workspace} style={workspaceStyle}>
-      {compactFoldersOpen ? <button type="button" className={styles.folderBackdrop} aria-label="폴더 닫기" onClick={closeCompactFolders} /> : null}
-      <CustomerBridgeFolderPanel
-        compactOpen={compactFoldersOpen}
-        location={location}
-        folderTree={folderTree}
-        rootFolderCount={rootView.folders.length}
-        totalImageCount={totalImageCount}
-        hasRootPhotos={hasRootPhotos}
-        rootPhotoCount={rootPhotoCount}
-        filter={filter}
-        locationTotalCount={locationTotalCount}
-        selectedInFolder={selectedInFolder}
-        unselectedInLocation={unselectedInLocation}
-        qualityEnabled={Boolean(qualityApi)}
-        qualityCounts={qualityCounts}
-        qualityState={qualityState}
-        qualityJob={qualityJob}
-        canManageQuality={canManageQuality}
-        activeImageCount={activeImageIds.size}
-        selectedImageCount={customerSelectedIds.size}
-        onCloseCompact={closeCompactFolders}
-        onOpenLocation={openLocation}
-        onFilterChange={setFilter}
-        onControlQuality={controlQuality}
-      />
-
-      <button type="button" className={styles.paneDivider} aria-label="폴더 패널 너비 조절" onPointerDown={(event) => beginResize("folder", event)} />
-
-      <CustomerBridgeBrowserPanel
-        location={location}
-        locationLabel={locationLabel}
-        locationCount={locationCount}
-        browserPhotoCount={browserPhotoCount}
-        searchActive={searchActive}
-        filenameSearch={filenameSearch}
-        searchInputRef={searchInputRef}
-        activeRatingFilterName={activeRatingFilterName}
-        activeColorFilterName={activeColorFilterName}
-        labelFilters={labelFilters}
-        thumbSize={thumbSize}
-        thumbMin={THUMB_MIN}
-        thumbMax={THUMB_MAX}
-        gridRef={gridRef}
-        thumbnailGridRef={thumbnailGridRef}
-        childFolders={childFolders}
-        hasRootPhotos={hasRootPhotos}
-        rootPhotoCount={rootPhotoCount}
-        virtualTotalHeight={virtualGrid.totalHeight}
-        virtualTopPadding={virtualGrid.topPadding}
-        virtualBottomPadding={virtualGrid.bottomPadding}
-        renderedImages={renderedImages}
-        visibleImageCount={visibleImages.length}
-        activeImageIds={activeImageIds}
-        focusedImageId={focusedImageId}
-        customerRatings={customerRatings}
-        customerColorLabels={customerColorLabels}
-        pendingImageIds={selectionSync.pendingImageIds}
-        qualityResults={qualityResults}
-        mobile={mobile}
-        marquee={marquee}
-        onApplyLabelFilterCommand={applyLabelFilterCommand}
-        onFilenameSearchChange={setFilenameSearch}
-        onClearFilenameSearch={clearFilenameSearch}
-        onThumbSizeChange={setThumbSize}
-        onOpenLocation={openLocation}
-        onPhotoClick={handlePhotoClick}
-        onImageError={handleImageError}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-      />
-
-      <button type="button" className={styles.paneDivider} aria-label="미리보기 패널 너비 조절" onPointerDown={(event) => beginResize("preview", event)} />
-
-      <CustomerBridgeSidePanel
-        sideTab={sideTab}
-        onSideTabChange={setSideTab}
-        mobileSideOpen={mobileSideOpen}
-        onCloseMobile={closeMobileSide}
-        messagesEnabled={messagesEnabled}
-        unreadMessages={unreadMessages}
-        activeCount={activeImageIds.size}
-        focusedImage={focusedImage}
-        orderedIds={orderedIds}
-        onFocusImage={setFocusedImageId}
-        onOpenFullscreen={openFullscreen}
-        onImageError={handleImageError}
-        quality={focusedImage ? qualityResults[focusedImage.id] : undefined}
-        canManageQuality={canManageQuality}
-        onReviewQuality={handleQualityReview}
-        readOnly={readOnly}
-        rating={focusedImage ? customerRatings[focusedImage.id] ?? 0 : 0}
-        colorLabel={focusedImage ? customerColorLabels[focusedImage.id] ?? null : null}
-        note={focusedImage ? notes[focusedImage.id] ?? "" : ""}
-        onRate={applyMainRating}
-        onColor={applyMainColor}
-        onNote={updateFocusedNote}
-        messages={messages}
-        messageText={messageText}
-        setMessageText={setMessageText}
-        messageState={messageState}
-        messageImageScoped={messageImageScoped}
-        setMessageImageScoped={setMessageImageScoped}
-        sendingMessage={sendingMessage}
-        messagesEndRef={messagesEndRef}
-        onSendMessage={handleSendMessage}
-      />
-    </section>
-
-    <CustomerBridgeFooter
-      readOnly={readOnly}
-      totalPhotoCount={images.length}
-      selectedPhotoCount={customerSelectedIds.size}
-      saveStatus={selectionSync.status}
-      saveStatusMessage={saveStatusMessage}
-      onRetrySave={selectionSync.retry}
-      downloadState={downloadState}
-      submitError={submitError}
-      canFinalize={reviewer?.can_finalize !== false}
-      resetButtonRef={resetButtonRef}
-      resetting={resetting}
-      hasNotes={Boolean(Object.keys(notes).length)}
-      onReset={openResetConfirm}
-      onReview={openReview}
-      submitting={submitting}
-      pendingCount={selectionSync.pendingCount}
-      onSubmit={openSubmitReviewAction}
-    />
-
-    <CustomerBridgeOverlayLayer
-      fullscreenImage={fullscreenImage}
-      fullscreenIndex={fullscreenIndex}
-      fullscreenTotal={visibleImages.length}
-      zoomed={zoomed}
-      reviewOpen={Boolean(reviewIds)}
-      reviewImages={reviewImages}
-      reviewActiveId={reviewActiveId}
-      reviewRemoved={reviewRemoved}
-      ratings={customerRatings}
-      colorLabels={customerColorLabels}
-      notes={notes}
-      guideOpen={guideOpen}
-      resetConfirmOpen={resetConfirmOpen}
-      resetting={resetting}
-      submitReviewOpen={submitReviewOpen}
-      submitReviewSections={submitReviewSections}
-      submitReviewItems={submitReviewItems}
-      selectedCount={customerSelectedIds.size}
-      submitting={submitting}
-      submitError={submitError}
-      readOnly={readOnly}
-      onToggleFullscreenZoom={toggleFullscreenZoom}
-      onCloseFullscreen={closeFullscreen}
-      onMoveFullscreen={moveFullscreen}
-      onApplyRating={applyRatingTo}
-      onToggleColor={toggleColorTo}
-      onUpdateNote={updateNote}
-      onImageError={handleImageError}
-      onSetReviewActive={setReviewActiveId}
-      onCloseReview={closeReview}
-      onRemoveFromReview={removeFromReview}
-      onRestoreReview={restoreReview}
-      onOpenFullscreen={openFullscreen}
-      onCloseGuide={closeGuide}
-      onCloseReset={closeResetConfirm}
-      onReset={resetSelection}
-      onCloseSubmitReview={closeSubmitReview}
-      onSubmit={submit}
-    />
-  </main>;
+  return <CustomerBridgeWorkspaceView
+    embedded={embedded}
+    readOnly={readOnly}
+    hasAdminToolbarStatus={Boolean(adminToolbarStatus)}
+    workspaceStyle={workspaceStyle}
+    compactFoldersOpen={compactFoldersOpen}
+    onCloseCompactFolders={closeCompactFolders}
+    onBeginResize={beginResize}
+    headerProps={{
+      gallery,
+      reviewer,
+      totalImageCount,
+      saveStatusMessage,
+      selectionStatus: selectionSync.status,
+      compactFoldersOpen,
+      onOpenCompactFolders: openCompactFolders,
+      location,
+      onGoToParentFolder: goToParentFolder,
+      onOpenLocation: openLocation,
+      breadcrumbs: folderView?.breadcrumbs ?? [],
+      filter,
+      onFilterChange: setFilter,
+      locationTotalCount,
+      selectedInFolder,
+      unselectedInLocation,
+      guideButtonRef,
+      guideOpen,
+      onOpenGuide: openGuide,
+      jpgDownloadEnabled: Boolean(gallery.download_jpg_enabled && !readOnly),
+      rawDownloadEnabled: Boolean(gallery.download_raw_enabled && !readOnly),
+      downloadDisabled: !serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0,
+      downloadBusy,
+      downloadState,
+      onDownload: handleDownload,
+      messagesEnabled,
+      unreadMessages,
+      onOpenMessages: openMessages,
+      qualityEnabled: Boolean(qualityApi),
+      canManageQuality,
+      qualityStatus: String(qualityJob?.status ?? ""),
+      onStartQuality: startQualityAnalysis,
+      adminToolbarAction,
+      selectedImageCount: customerSelectedIds.size,
+      onOpenReview: openReview,
+      focusedImageId,
+      onOpenFullscreen: openFocusedFullscreen,
+      adminToolbarStatus,
+    }}
+    folderPanelProps={{
+      compactOpen: compactFoldersOpen,
+      location,
+      folderTree,
+      rootFolderCount: rootView.folders.length,
+      totalImageCount,
+      hasRootPhotos,
+      rootPhotoCount,
+      filter,
+      locationTotalCount,
+      selectedInFolder,
+      unselectedInLocation,
+      qualityEnabled: Boolean(qualityApi),
+      qualityCounts,
+      qualityState,
+      qualityJob,
+      canManageQuality,
+      activeImageCount: activeImageIds.size,
+      selectedImageCount: customerSelectedIds.size,
+      onCloseCompact: closeCompactFolders,
+      onOpenLocation: openLocation,
+      onFilterChange: setFilter,
+      onControlQuality: controlQuality,
+    }}
+    browserPanelProps={{
+      location,
+      locationLabel,
+      locationCount,
+      browserPhotoCount,
+      searchActive,
+      filenameSearch,
+      searchInputRef,
+      activeRatingFilterName,
+      activeColorFilterName,
+      labelFilters,
+      thumbSize,
+      thumbMin: THUMB_MIN,
+      thumbMax: THUMB_MAX,
+      gridRef,
+      thumbnailGridRef,
+      childFolders,
+      hasRootPhotos,
+      rootPhotoCount,
+      virtualTotalHeight: virtualGrid.totalHeight,
+      virtualTopPadding: virtualGrid.topPadding,
+      virtualBottomPadding: virtualGrid.bottomPadding,
+      renderedImages,
+      visibleImageCount: visibleImages.length,
+      activeImageIds,
+      focusedImageId,
+      customerRatings,
+      customerColorLabels,
+      pendingImageIds: selectionSync.pendingImageIds,
+      qualityResults,
+      mobile,
+      marquee,
+      onApplyLabelFilterCommand: applyLabelFilterCommand,
+      onFilenameSearchChange: setFilenameSearch,
+      onClearFilenameSearch: clearFilenameSearch,
+      onThumbSizeChange: setThumbSize,
+      onOpenLocation: openLocation,
+      onPhotoClick: handlePhotoClick,
+      onImageError: handleImageError,
+      onPointerDown: handlePointerDown,
+      onPointerMove: handlePointerMove,
+      onPointerUp: handlePointerUp,
+    }}
+    sidePanelProps={{
+      sideTab,
+      onSideTabChange: setSideTab,
+      mobileSideOpen,
+      onCloseMobile: closeMobileSide,
+      messagesEnabled,
+      unreadMessages,
+      activeCount: activeImageIds.size,
+      focusedImage,
+      orderedIds,
+      onFocusImage: setFocusedImageId,
+      onOpenFullscreen: openFullscreen,
+      onImageError: handleImageError,
+      quality: focusedImage ? qualityResults[focusedImage.id] : undefined,
+      canManageQuality,
+      onReviewQuality: handleQualityReview,
+      readOnly,
+      rating: focusedImage ? customerRatings[focusedImage.id] ?? 0 : 0,
+      colorLabel: focusedImage ? customerColorLabels[focusedImage.id] ?? null : null,
+      note: focusedImage ? notes[focusedImage.id] ?? "" : "",
+      onRate: applyMainRating,
+      onColor: applyMainColor,
+      onNote: updateFocusedNote,
+      messages,
+      messageText,
+      setMessageText,
+      messageState,
+      messageImageScoped,
+      setMessageImageScoped,
+      sendingMessage,
+      messagesEndRef,
+      onSendMessage: handleSendMessage,
+    }}
+    footerProps={{
+      readOnly,
+      totalPhotoCount: images.length,
+      selectedPhotoCount: customerSelectedIds.size,
+      saveStatus: selectionSync.status,
+      saveStatusMessage,
+      onRetrySave: selectionSync.retry,
+      downloadState,
+      submitError,
+      canFinalize: reviewer?.can_finalize !== false,
+      resetButtonRef,
+      resetting,
+      hasNotes: Boolean(Object.keys(notes).length),
+      onReset: openResetConfirm,
+      onReview: openReview,
+      submitting,
+      pendingCount: selectionSync.pendingCount,
+      onSubmit: openSubmitReviewAction,
+    }}
+    overlayProps={{
+      fullscreenImage,
+      fullscreenIndex,
+      fullscreenTotal: visibleImages.length,
+      zoomed,
+      reviewOpen: Boolean(reviewIds),
+      reviewImages,
+      reviewActiveId,
+      reviewRemoved,
+      ratings: customerRatings,
+      colorLabels: customerColorLabels,
+      notes,
+      guideOpen,
+      resetConfirmOpen,
+      resetting,
+      submitReviewOpen,
+      submitReviewSections,
+      submitReviewItems,
+      selectedCount: customerSelectedIds.size,
+      submitting,
+      submitError,
+      readOnly,
+      onToggleFullscreenZoom: toggleFullscreenZoom,
+      onCloseFullscreen: closeFullscreen,
+      onMoveFullscreen: moveFullscreen,
+      onApplyRating: applyRatingTo,
+      onToggleColor: toggleColorTo,
+      onUpdateNote: updateNote,
+      onImageError: handleImageError,
+      onSetReviewActive: setReviewActiveId,
+      onCloseReview: closeReview,
+      onRemoveFromReview: removeFromReview,
+      onRestoreReview: restoreReview,
+      onOpenFullscreen: openFullscreen,
+      onCloseGuide: closeGuide,
+      onCloseReset: closeResetConfirm,
+      onReset: resetSelection,
+      onCloseSubmitReview: closeSubmitReview,
+      onSubmit: submit,
+    }}
+  />;
 }
