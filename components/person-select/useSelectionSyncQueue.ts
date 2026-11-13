@@ -15,6 +15,7 @@ import {
   type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
 import { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
+import { createSelectionSyncPersistenceBuffer } from "@/lib/person-select/selectionSyncPersistence";
 
 export { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
 
@@ -28,6 +29,11 @@ type SelectionSyncQueueOptions<TSnapshot> = {
   onSnapshot: (snapshot: TSnapshot, pending: SelectionSyncDiff[]) => void;
   onRestore?: (pending: SelectionSyncDiff[]) => void;
   onPendingChange?: (pending: SelectionSyncDiff[]) => void;
+};
+
+type PersistRequest = {
+  storageKey: string;
+  payload: PersistedSelectionSyncQueue;
 };
 
 function createClientId() {
@@ -59,6 +65,20 @@ export function useSelectionSyncQueue<TSnapshot>({
   const onSnapshotRef = useRef(onSnapshot);
   const onRestoreRef = useRef(onRestore);
   const onPendingChangeRef = useRef(onPendingChange);
+  const persistenceRef = useRef<ReturnType<typeof createSelectionSyncPersistenceBuffer<PersistRequest>> | null>(null);
+
+  if (!persistenceRef.current) {
+    persistenceRef.current = createSelectionSyncPersistenceBuffer<PersistRequest>({
+      write: ({ storageKey: targetStorageKey, payload }) => {
+        localStorage.setItem(targetStorageKey, JSON.stringify(payload));
+        window.dispatchEvent(new CustomEvent(SELECTION_SYNC_STORAGE_EVENT, { detail: { storageKey: targetStorageKey } }));
+      },
+      scheduleTask: (task) => {
+        const timer = window.setTimeout(task, 0);
+        return () => window.clearTimeout(timer);
+      },
+    });
+  }
 
   useEffect(() => { sendBatchRef.current = sendBatch; }, [sendBatch]);
   useEffect(() => { onSnapshotRef.current = onSnapshot; }, [onSnapshot]);
@@ -80,20 +100,17 @@ export function useSelectionSyncQueue<TSnapshot>({
   }, [queueValues]);
 
   const persist = useCallback((prepared?: SelectionSyncDiff[]) => {
-    try {
-      const payload: PersistedSelectionSyncQueue = {
-        version: 1,
-        clientId: clientIdRef.current,
-        nextSeq: nextSeqRef.current,
-        diffs: prepared ?? queueValues(),
-        lastSavedAt: lastSavedAtRef.current,
-      };
-      localStorage.setItem(storageKey, JSON.stringify(payload));
-      window.dispatchEvent(new CustomEvent(SELECTION_SYNC_STORAGE_EVENT, { detail: { storageKey } }));
-    } catch {
-      // 브라우저 저장소를 사용할 수 없어도 현재 탭의 재시도 큐는 유지한다.
-    }
+    const payload: PersistedSelectionSyncQueue = {
+      version: 1,
+      clientId: clientIdRef.current,
+      nextSeq: nextSeqRef.current,
+      diffs: prepared ?? queueValues(),
+      lastSavedAt: lastSavedAtRef.current,
+    };
+    persistenceRef.current?.schedule({ storageKey, payload });
   }, [queueValues, storageKey]);
+
+  const flushPersistence = useCallback(() => persistenceRef.current?.flush() ?? true, []);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -121,6 +138,7 @@ export function useSelectionSyncQueue<TSnapshot>({
       return true;
     }
     clearTimer();
+    flushPersistence();
     setStatus("saving");
     setMessage("");
     const request = (async () => {
@@ -167,7 +185,7 @@ export function useSelectionSyncQueue<TSnapshot>({
     })();
     inFlightRef.current = request;
     return request;
-  }, [clearTimer, enabled, persist, publishPending, queueValues, schedule]);
+  }, [clearTimer, enabled, flushPersistence, persist, publishPending, queueValues, schedule]);
 
   useEffect(() => { flushRef.current = flush; }, [flush]);
 
@@ -202,6 +220,7 @@ export function useSelectionSyncQueue<TSnapshot>({
   }, [schedule]);
 
   useEffect(() => {
+    flushPersistence();
     clearTimer();
     queueRef.current = new Map();
     retryAttemptRef.current = 0;
@@ -231,14 +250,20 @@ export function useSelectionSyncQueue<TSnapshot>({
     return () => {
       clearTimer();
     };
-  }, [clearTimer, publishPending, queueValues, schedule, storageKey]);
+  }, [clearTimer, flushPersistence, publishPending, queueValues, schedule, storageKey]);
 
   useEffect(() => {
     if (!pendingCount) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    const warn = (event: BeforeUnloadEvent) => {
+      flushPersistence();
+      event.preventDefault();
+      event.returnValue = "";
+    };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [pendingCount]);
+  }, [flushPersistence, pendingCount]);
+
+  useEffect(() => () => { flushPersistence(); }, [flushPersistence]);
 
   return useMemo(() => ({
     enqueue,
