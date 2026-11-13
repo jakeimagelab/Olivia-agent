@@ -20,6 +20,7 @@ describe("person select admin UI modules", () => {
   it("keeps the page as the shell for the extracted dialogs", () => {
     const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8");
     const importController = readFileSync("components/person-select/admin/hooks/usePersonSelectImportController.ts", "utf8");
+    const originalImportController = readFileSync("components/person-select/admin/hooks/usePersonSelectOriginalImportController.ts", "utf8");
     const projectActions = readFileSync("components/person-select/admin/hooks/usePersonSelectProjectActions.ts", "utf8");
     const uploadPanel = readFileSync("components/person-select/admin/PersonSelectUploadPanel.tsx", "utf8");
     const settingsPanel = readFileSync("components/person-select/admin/PersonSelectSettingsPanel.tsx", "utf8");
@@ -44,7 +45,8 @@ describe("person select admin UI modules", () => {
     expect(matchingPanels).toContain("CustomerBridgeSelect");
     expect(page).not.toContain("async function startRemoteImport(");
     expect(page).not.toContain("async function deleteProject(");
-    expect(importController).toContain('action: "PERSON_SELECT_IMPORT"');
+    expect(importController).toContain("usePersonSelectOriginalImportController");
+    expect(originalImportController).toContain('action: "PERSON_SELECT_IMPORT"');
     expect(importController).toContain("startDeliveryImport");
     expect(projectActions).toContain("ACCESS_MODE_CONFIRMATION_REQUIRED");
     expect(projectActions).toContain('method: "DELETE"');
