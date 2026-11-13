@@ -509,6 +509,21 @@ function PhotoSortingInner({
     ? (studioSubMode === "group" ? STUDIO_GROUP_STEPS : STUDIO_STEPS)
     : FIELD_STEPS;
 
+  const runSceneAiAnalysis = useCallback(async (scenes: FieldScene[]) => {
+    const result = await runFieldSceneAiAnalysis({
+      scenes,
+      department,
+      departmentLogicEnabled,
+      aiNamingEnabled,
+      onProgress: setFieldScenes,
+    });
+    if (result.mergeCandidates) {
+      setMergeCandidates(result.mergeCandidates);
+      setDismissedCandidates(new Set());
+      setMergeDecisions([]);
+    }
+  }, [aiNamingEnabled, department, departmentLogicEnabled]);
+
   /* ════════════════════════════════════════════
      FIELD-MODE HANDLERS
   ═══════════════════════════════════════════ */
@@ -594,22 +609,7 @@ function PhotoSortingInner({
       setClassificationJobState("WAITING_REVIEW");
       useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "error");
     }
-  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status]);
-
-  const runSceneAiAnalysis = async (scenes: FieldScene[]) => {
-    const result = await runFieldSceneAiAnalysis({
-      scenes,
-      department,
-      departmentLogicEnabled,
-      aiNamingEnabled,
-      onProgress: setFieldScenes,
-    });
-    if (result.mergeCandidates) {
-      setMergeCandidates(result.mergeCandidates);
-      setDismissedCandidates(new Set());
-      setMergeDecisions([]);
-    }
-  };
+  }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status, runSceneAiAnalysis, setDepartmentPickerOpen, setProgress]);
 
   useEffect(() => {
     if (!isEmbedded || executionMode !== "LOCAL_DIRECT" || !pendingBridgeClassificationPlan) return;
@@ -668,10 +668,14 @@ function PhotoSortingInner({
   }, [
     currentLocalFolder,
     clientId,
+    departmentContextKeyRef,
+    dismissSavedSession,
     executionMode,
     isEmbedded,
     pendingBridgeClassificationPlan,
     setCurrentLocalFolder,
+    setDepartmentContextError,
+    setDepartmentPickerOpen,
     setProgress,
     setPhotoDepartmentResolution,
     takeBridgeClassificationPlan,

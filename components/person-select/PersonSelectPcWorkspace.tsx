@@ -59,6 +59,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     images,
     enabled: Boolean(active && !me.event.locked),
   });
+  const enqueueChoicePatches = sync.enqueue;
   const displayedChoices = sync.displayedChoices;
   const chosen = displayedChoices;
   const imageById = useMemo(() => new Map(images.map((image) => [image.id, image])), [images]);
@@ -77,7 +78,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   useEffect(() => {
     setKeys(previewChoice?.retouch_keys ?? []);
     setMemo(previewChoice?.memo ?? "");
-  }, [previewChoice?.id, preview?.id]);
+  }, [previewChoice?.id, previewChoice?.memo, previewChoice?.retouch_keys, preview?.id]);
 
   const save = useCallback((imageId: string, nextKeys: string[], nextMemo: string) => {
     if (!active || !imageById.has(imageId)) return;
@@ -85,18 +86,18 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     if (limit === 1) for (const selectedId of chosenIds) if (selectedId !== imageId) patches.push({ imageId: selectedId, selected: false });
     if (limit > 1 && chosenIds.size >= limit && !chosenIds.has(imageId)) return;
     patches.push({ imageId, selected: true }, { imageId, retouchKeys: nextKeys }, { imageId, memo: nextMemo });
-    sync.enqueue(patches);
+    enqueueChoicePatches(patches);
     if (imageId === preview?.id) { setKeys(nextKeys); setMemo(nextMemo); }
-  }, [active, chosenIds, imageById, limit, preview?.id, sync]);
+  }, [active, chosenIds, enqueueChoicePatches, imageById, limit, preview?.id]);
 
   const clearChoice = useCallback((imageId: string) => {
     if (!active) return;
-    sync.enqueue([{ imageId, selected: false }]);
-  }, [active, sync]);
+    enqueueChoicePatches([{ imageId, selected: false }]);
+  }, [active, enqueueChoicePatches]);
 
   function schedule(nextKeys: string[], nextMemo: string) {
     if (!previewChoice?.image_id) return;
-    sync.enqueue([
+    enqueueChoicePatches([
       { imageId: previewChoice.image_id, retouchKeys: nextKeys },
       { imageId: previewChoice.image_id, memo: nextMemo },
     ]);
