@@ -42,6 +42,12 @@ import type {
 } from "@/lib/photo-classifier/hybrid-types";
 import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
 import {
+  applySceneAiResponse,
+  buildSceneAnalysisSampleIndices,
+  markDermatologyTransitionCandidates,
+  type SceneAiTransitionResult,
+} from "@/lib/photo-classifier/sceneAiAnalysis";
+import {
   applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
   type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
@@ -950,41 +956,22 @@ function PhotoSortingInner({
     }
   }, [rootDir, gapMinutes, aiNamingEnabled, departmentLogicEnabled, department, fastAnalyzeMode, isModal, isEmbedded, aiWeightProfile, photoDepartmentResolution.status]);
 
-  // 피부과 2차 분리: 강한 전환 신호 감지
-  const isDermatologyStrongTransition = (
-    prevType: string, nextType: string,
-    prevPosture?: string, nextPosture?: string,
-    prevHandpiece?: boolean, nextHandpiece?: boolean,
-    prevDevice?: boolean, nextDevice?: boolean,
-  ): boolean => {
-    const consultTypes = new Set(["doctor_consultation", "manager_consultation", "skin_care"]);
-    const treatTypes   = new Set(["device_treatment", "lifting_laser_treatment", "laser_treatment", "injection_treatment"]);
-    if (consultTypes.has(prevType) && treatTypes.has(nextType)) return true;
-    if (prevPosture === "seated" && nextPosture === "lying_down") return true;
-    if (!prevHandpiece && nextHandpiece) return true;
-    if (!prevDevice && nextDevice) return true;
-    return false;
-  };
-
   const runSceneAiAnalysis = async (scenes: FieldScene[]) => {
-    const updated = scenes.map(s => ({...s}));
-    // 피부과 2차 분리를 위한 AI 응답 캐시
-    const aiResults: Record<number, { sceneType: string; patientPosture?: string; hasHandpiece?: boolean; hasTreatmentDevice?: boolean; confidence: number }> = {};
-
-    for (let i = 0; i < updated.length; i++) {
-      try {
-        const files = updated[i].files;
+    const transitions = new Map<number, SceneAiTransitionResult>();
+    let updated = await runStudioAnalysisConcurrently({
+      items: scenes.map((scene) => ({ ...scene })),
+      concurrency: 1,
+      analyze: async (scene, index) => {
+        const files = scene.files;
         const n = files.length;
-        const idxSet = new Set([0, Math.min(1,n-1), Math.floor(n/2), Math.min(Math.floor(n/2)+1,n-1), Math.max(0,n-2), n-1]);
         const images: { fileName: string; base64: string }[] = [];
-        for (const idx of idxSet) {
+        for (const sampleIndex of buildSceneAnalysisSampleIndices(n)) {
           try {
-            const f = await files[idx].handle.getFile();
-            images.push({ fileName: files[idx].name, base64: await getApiThumb(f) });
+            const file = await files[sampleIndex].handle.getFile();
+            images.push({ fileName: files[sampleIndex].name, base64: await getApiThumb(file) });
           } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-          if (images.length >= 6) break;
         }
-        const sceneId = updated[i].folderName;
+        const sceneId = scene.folderName;
         const data = await withTimeout((async () => {
           const res = await fetch("/api/photo-scene-analyze", {
             method:"POST", headers:{"Content-Type":"application/json"},
@@ -992,69 +979,21 @@ function PhotoSortingInner({
           });
           return res.json();
         })(), 45000, "AI 씬 분석");
-        if (data.ok) {
-          const num = String(updated[i].index).padStart(2,"0");
-          const dermatologyBaseNaming = department === "dermatology" && departmentLogicEnabled;
-          const suggested = (aiNamingEnabled || dermatologyBaseNaming) && data.suggestedFolderName
-            ? `${num}_${data.suggestedFolderName}` : null;
-          updated[i] = {
-            ...updated[i],
-            sceneType: data.sceneType ?? null,
-            suggestedName: suggested,
-            aiConfidence: data.confidence ?? null,
-            aiReason: data.reason ?? null,
-            editedName: (aiNamingEnabled || dermatologyBaseNaming) && suggested ? suggested : updated[i].editedName,
-            nameLoading: false,
-            aiPatientPosture: data.patientPosture ?? null,
-            aiHasHandpiece: data.hasHandpiece ?? null,
-            aiHasTreatmentDevice: data.hasTreatmentDevice ?? null,
-            aiHasTreatmentBed: data.hasTreatmentBed ?? null,
-            aiHasConsultationDesk: data.hasConsultationDesk ?? null,
-            aiEquipmentName: data.equipmentName ?? null,
-            aiEquipmentBrand: data.equipmentBrand ?? null,
-            aiHandpieceName: data.handpieceName ?? null,
-            aiProcedureName: data.procedureName ?? null,
-            aiProcedureCategory: data.procedureCategory ?? null,
-            aiProcedureConfidence: data.procedureConfidence ?? null,
-            aiNamingEvidence: Array.isArray(data.namingEvidence) ? data.namingEvidence : [],
-          };
-          aiResults[i] = {
-            sceneType: data.sceneType ?? "etc",
-            patientPosture: data.patientPosture,
-            hasHandpiece: data.hasHandpiece,
-            hasTreatmentDevice: data.hasTreatmentDevice,
-            confidence: data.confidence ?? 0,
-          };
-        } else {
-          updated[i] = { ...updated[i], nameLoading: false };
-        }
-      } catch {
-        updated[i] = { ...updated[i], nameLoading: false };
-      }
-      setFieldScenes([...updated]);
-    }
+        const applied = applySceneAiResponse(scene, data, {
+          department,
+          departmentLogicEnabled,
+          aiNamingEnabled,
+        });
+        if (applied.transition) transitions.set(index, applied.transition);
+        return applied.scene;
+      },
+      recover: (_error, scene) => ({ ...scene, nameLoading: false }),
+      onProgress: ({ items }) => setFieldScenes(items),
+    });
 
     // 피부과 2차 분리 후보 감지
-    if (department === "dermatology" && Object.keys(aiResults).length >= 2) {
-      const keys = Object.keys(aiResults).map(Number).sort((a,b)=>a-b);
-      for (let k = 1; k < keys.length; k++) {
-        const prev = aiResults[keys[k-1]];
-        const curr = aiResults[keys[k]];
-        if (!prev || !curr) continue;
-        const isStrong = isDermatologyStrongTransition(
-          prev.sceneType, curr.sceneType,
-          prev.patientPosture, curr.patientPosture,
-          prev.hasHandpiece, curr.hasHandpiece,
-          prev.hasTreatmentDevice, curr.hasTreatmentDevice,
-        );
-        if (isStrong && curr.confidence >= 0.72) {
-          const sceneIdx = keys[k];
-          updated[sceneIdx] = {
-            ...updated[sceneIdx],
-            aiReason: `⚠️ 2차 분리 후보: 이전 씬(${updated[keys[k-1]].editedName})과 장면 전환 감지 — ${updated[sceneIdx].aiReason ?? ""}`,
-          };
-        }
-      }
+    if (department === "dermatology" && transitions.size >= 2) {
+      updated = markDermatologyTransitionCandidates(updated, transitions);
       setFieldScenes([...updated]);
     }
 
