@@ -2,18 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  compactSelectionSyncDiffs,
   parsePersistedSelectionSyncQueue,
   pendingSelectionImageIds,
-  selectionSyncDiffKey,
   selectionSyncRetryDelay,
   SELECTION_SYNC_BATCH_LIMIT,
   SELECTION_SYNC_DEBOUNCE_MS,
-  splitSelectionSyncPatches,
-  type PersistedSelectionSyncQueue,
   type SelectionSyncDiff,
   type SelectionSyncPatch,
 } from "@/lib/person-select/selectionSync";
+import { SelectionSyncQueueBuffer } from "@/lib/person-select/selectionSyncQueueBuffer";
 import { SelectionSyncRequestError } from "@/lib/person-select/selectionSyncClient";
 import { useSelectionSyncBrowserPersistence } from "@/components/person-select/useSelectionSyncBrowserPersistence";
 
@@ -49,10 +46,7 @@ export function useSelectionSyncQueue<TSnapshot>({
   const [pendingImageIds, setPendingImageIds] = useState<Set<string>>(() => new Set());
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [message, setMessage] = useState("");
-  const queueRef = useRef(new Map<string, SelectionSyncDiff>());
-  const clientIdRef = useRef(createClientId());
-  const nextSeqRef = useRef(1);
-  const lastSavedAtRef = useRef<string | null>(null);
+  const bufferRef = useRef(new SelectionSyncQueueBuffer(createClientId()));
   const timerRef = useRef<number | null>(null);
   const inFlightRef = useRef<Promise<boolean> | null>(null);
   const retryAttemptRef = useRef(0);
@@ -67,7 +61,7 @@ export function useSelectionSyncQueue<TSnapshot>({
   useEffect(() => { onRestoreRef.current = onRestore; }, [onRestore]);
   useEffect(() => { onPendingChangeRef.current = onPendingChange; }, [onPendingChange]);
 
-  const queueValues = useCallback(() => compactSelectionSyncDiffs([...queueRef.current.values()]), []);
+  const queueValues = useCallback(() => bufferRef.current.values(), []);
 
   const publishPending = useCallback((prepared?: SelectionSyncDiff[]) => {
     const pending = prepared ?? queueValues();
@@ -82,15 +76,8 @@ export function useSelectionSyncQueue<TSnapshot>({
   }, [queueValues]);
 
   const persist = useCallback((prepared?: SelectionSyncDiff[]) => {
-    const payload: PersistedSelectionSyncQueue = {
-      version: 1,
-      clientId: clientIdRef.current,
-      nextSeq: nextSeqRef.current,
-      diffs: prepared ?? queueValues(),
-      lastSavedAt: lastSavedAtRef.current,
-    };
-    schedulePersistence(storageKey, payload);
-  }, [queueValues, schedulePersistence, storageKey]);
+    schedulePersistence(storageKey, bufferRef.current.persisted(prepared));
+  }, [schedulePersistence, storageKey]);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -101,7 +88,7 @@ export function useSelectionSyncQueue<TSnapshot>({
 
   const schedule = useCallback((delay = SELECTION_SYNC_DEBOUNCE_MS) => {
     clearTimer();
-    if (!enabled || !queueRef.current.size) return;
+    if (!enabled || !bufferRef.current.size) return;
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       void flushRef.current();
@@ -109,9 +96,9 @@ export function useSelectionSyncQueue<TSnapshot>({
   }, [clearTimer, enabled]);
 
   const flush = useCallback(async (): Promise<boolean> => {
-    if (!enabled) return queueRef.current.size === 0;
+    if (!enabled) return bufferRef.current.size === 0;
     if (inFlightRef.current) return inFlightRef.current;
-    const batch = queueValues().slice(0, SELECTION_SYNC_BATCH_LIMIT);
+    const batch = bufferRef.current.batch(SELECTION_SYNC_BATCH_LIMIT);
     if (!batch.length) {
       setStatus("saved");
       setMessage("");
@@ -123,15 +110,11 @@ export function useSelectionSyncQueue<TSnapshot>({
     setMessage("");
     const request = (async () => {
       try {
-        const snapshot = await sendBatchRef.current({ clientId: clientIdRef.current, diffs: batch });
-        for (const sent of batch) {
-          const key = selectionSyncDiffKey(sent);
-          const current = queueRef.current.get(key);
-          if (current && current.clientSeq <= sent.clientSeq) queueRef.current.delete(key);
-        }
+        const snapshot = await sendBatchRef.current({ clientId: bufferRef.current.clientId, diffs: batch });
+        bufferRef.current.acknowledge(batch);
         retryAttemptRef.current = 0;
         const savedAt = new Date().toISOString();
-        lastSavedAtRef.current = savedAt;
+        bufferRef.current.markSaved(savedAt);
         setLastSavedAt(savedAt);
         const pending = queueValues();
         publishPending(pending);
@@ -171,30 +154,27 @@ export function useSelectionSyncQueue<TSnapshot>({
 
   const enqueue = useCallback((patches: readonly SelectionSyncPatch[]) => {
     if (!enabled || !patches.length) return;
-    const split = splitSelectionSyncPatches(patches, nextSeqRef.current);
-    nextSeqRef.current = split.nextSeq;
-    for (const diff of split.diffs) queueRef.current.set(selectionSyncDiffKey(diff), diff);
-    const pending = queueValues();
+    const pending = bufferRef.current.enqueue(patches);
     publishPending(pending);
     onPendingChangeRef.current?.(pending);
     setStatus("waiting");
     setMessage("");
     persist(pending);
     schedule();
-  }, [enabled, persist, publishPending, queueValues, schedule]);
+  }, [enabled, persist, publishPending, schedule]);
 
   const flushNow = useCallback(async () => {
     clearTimer();
-    while (queueRef.current.size) {
+    while (bufferRef.current.size) {
       const done = await flushRef.current(true);
-      if (!done && queueRef.current.size) return false;
+      if (!done && bufferRef.current.size) return false;
     }
-    return queueRef.current.size === 0;
+    return bufferRef.current.size === 0;
   }, [clearTimer]);
 
   const retry = useCallback(() => {
     retryAttemptRef.current = 0;
-    setStatus(queueRef.current.size ? "waiting" : "saved");
+    setStatus(bufferRef.current.size ? "waiting" : "saved");
     setMessage("");
     schedule(0);
   }, [schedule]);
@@ -202,11 +182,8 @@ export function useSelectionSyncQueue<TSnapshot>({
   useEffect(() => {
     flushPersistence();
     clearTimer();
-    queueRef.current = new Map();
+    bufferRef.current.reset(createClientId());
     retryAttemptRef.current = 0;
-    clientIdRef.current = createClientId();
-    nextSeqRef.current = 1;
-    lastSavedAtRef.current = null;
     setPendingCount(0);
     setPendingImageIds(new Set());
     setLastSavedAt(null);
@@ -214,12 +191,8 @@ export function useSelectionSyncQueue<TSnapshot>({
     setMessage("");
     const restored = parsePersistedSelectionSyncQueue(localStorage.getItem(storageKey));
     if (restored) {
-      clientIdRef.current = restored.clientId;
-      nextSeqRef.current = restored.nextSeq;
-      lastSavedAtRef.current = restored.lastSavedAt;
-      queueRef.current = new Map(restored.diffs.map((diff) => [selectionSyncDiffKey(diff), diff]));
+      const pending = bufferRef.current.restore(restored);
       setLastSavedAt(restored.lastSavedAt);
-      const pending = queueValues();
       publishPending(pending);
       if (pending.length) {
         setStatus("retrying");
@@ -230,7 +203,7 @@ export function useSelectionSyncQueue<TSnapshot>({
     return () => {
       clearTimer();
     };
-  }, [clearTimer, flushPersistence, publishPending, queueValues, schedule, storageKey]);
+  }, [clearTimer, flushPersistence, publishPending, schedule, storageKey]);
 
   useEffect(() => {
     if (!pendingCount) return;
