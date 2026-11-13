@@ -8,64 +8,26 @@ import {
   fetchPersonSelectPreviewUrls,
   type PersonSelectImagePage,
 } from "./personSelectImageRequests";
+import {
+  clearPersonSelectImageCacheEntries,
+  personSelectImageCacheKey,
+  readPersonSelectImageCache,
+  writePersonSelectImageCache,
+} from "./personSelectImageCache";
+import {
+  mergePersonSelectImagePages,
+  mergePersonSelectPreviewUrls,
+} from "./personSelectImageState";
 
-type ImageCacheEntry = {
-  images: PersonSelectImageData[];
-  fetchedAt: number;
-  nextCursor: string | null;
-};
-const IMAGE_CACHE_MAX_AGE_MS = 9 * 60_000;
-const imageCache = new Map<string, ImageCacheEntry>();
-
-function imageCacheKey(slug: string, category: string) {
-  return `${slug}:${category}`;
-}
+export {
+  isPersonSelectImagePageNearEnd,
+  mergePersonSelectImagePages,
+  mergePersonSelectPreviewUrls,
+} from "./personSelectImageState";
 
 export function clearPersonSelectImageCache(slug: string) {
-  for (const key of imageCache.keys()) if (key.startsWith(`${slug}:`)) imageCache.delete(key);
+  clearPersonSelectImageCacheEntries(slug);
   clearPersonSelectImageRequestCache(slug);
-}
-
-function cachedEntry(slug: string, category: string) {
-  const cached = imageCache.get(imageCacheKey(slug, category));
-  return cached && Date.now() - cached.fetchedAt < IMAGE_CACHE_MAX_AGE_MS ? cached : null;
-}
-
-function imageSortOrder(image: PersonSelectImageData) {
-  return Number.isFinite(image.sort_order) ? Number(image.sort_order) : Number.MAX_SAFE_INTEGER;
-}
-
-export function mergePersonSelectImagePages(
-  current: readonly PersonSelectImageData[],
-  incoming: readonly PersonSelectImageData[],
-) {
-  const byId = new Map(current.map((image) => [image.id, image]));
-  for (const image of incoming) {
-    const previous = byId.get(image.id);
-    byId.set(image.id, {
-      ...previous,
-      ...image,
-      thumb_url: image.thumb_url || previous?.thumb_url || "",
-      preview_url: image.preview_url || previous?.preview_url || "",
-    });
-  }
-  return [...byId.values()].sort((left, right) => (
-    imageSortOrder(left) - imageSortOrder(right)
-    || left.original_file_name.localeCompare(right.original_file_name, "ko-KR")
-    || left.id.localeCompare(right.id)
-  ));
-}
-
-export function mergePersonSelectPreviewUrls(
-  images: readonly PersonSelectImageData[],
-  previews: readonly Pick<PersonSelectImageData, "id" | "preview_url">[],
-) {
-  const previewById = new Map(previews.map((image) => [image.id, image.preview_url]));
-  return images.map((image) => previewById.has(image.id) ? { ...image, preview_url: previewById.get(image.id) ?? image.preview_url } : image);
-}
-
-export function isPersonSelectImagePageNearEnd(index: number, loadedCount: number, threshold = 12) {
-  return loadedCount > 0 && index >= Math.max(0, loadedCount - threshold);
 }
 
 export function usePersonSelectImages(
@@ -73,7 +35,7 @@ export function usePersonSelectImages(
   category: string,
   seedImages: readonly PersonSelectImageData[] = [],
 ) {
-  const initialCache = cachedEntry(slug, category);
+  const initialCache = readPersonSelectImageCache(slug, category);
   const [images, setImages] = useState<PersonSelectImageData[]>(() => mergePersonSelectImagePages(initialCache?.images ?? [], seedImages));
   const [loading, setLoading] = useState(() => !initialCache);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -83,17 +45,20 @@ export function usePersonSelectImages(
   const imageByIdRef = useRef(new Map(images.map((image) => [image.id, image])));
   const nextCursorRef = useRef(nextCursor);
   const loadMoreRef = useRef<Promise<boolean> | null>(null);
-  const scopeRef = useRef(imageCacheKey(slug, category));
-  scopeRef.current = imageCacheKey(slug, category);
+  const scopeRef = useRef(personSelectImageCacheKey(slug, category));
+  scopeRef.current = personSelectImageCacheKey(slug, category);
   useEffect(() => { imagesRef.current = images; }, [images]);
   const installPage = useCallback((page: PersonSelectImagePage, reset: boolean) => {
-    const key = imageCacheKey(slug, category);
     const base = reset ? seedImages : imagesRef.current;
     const merged = mergePersonSelectImagePages(base, page.images);
     imagesRef.current = merged;
     imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
     nextCursorRef.current = page.nextCursor;
-    imageCache.set(key, { images: merged, fetchedAt: Date.now(), nextCursor: page.nextCursor });
+    writePersonSelectImageCache(slug, category, {
+      images: merged,
+      fetchedAt: Date.now(),
+      nextCursor: page.nextCursor,
+    });
     setImages(merged);
     setNextCursor(page.nextCursor);
     setPageError("");
@@ -103,7 +68,7 @@ export function usePersonSelectImages(
     let active = true;
     loadMoreRef.current = null;
     setLoadingMore(false);
-    const entry = cachedEntry(slug, category);
+    const entry = readPersonSelectImageCache(slug, category);
     const seeded = mergePersonSelectImagePages(entry?.images ?? [], seedImages);
     imagesRef.current = seeded;
     imageByIdRef.current = new Map(seeded.map((image) => [image.id, image]));
@@ -137,7 +102,7 @@ export function usePersonSelectImages(
     const cursor = nextCursorRef.current;
     if (!cursor) return Promise.resolve(false);
     if (loadMoreRef.current) return loadMoreRef.current;
-    const scopeKey = imageCacheKey(slug, category);
+    const scopeKey = personSelectImageCacheKey(slug, category);
     setLoadingMore(true);
     setPageError("");
     const request = fetchPersonSelectImagePage(slug, category, cursor)
@@ -171,11 +136,10 @@ export function usePersonSelectImages(
       const merged = mergePersonSelectPreviewUrls(current, previews);
       imagesRef.current = merged;
       imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
-      const cached = imageCache.get(imageCacheKey(slug, category));
-      imageCache.set(imageCacheKey(slug, category), {
+      writePersonSelectImageCache(slug, category, {
         images: merged,
         fetchedAt: Date.now(),
-        nextCursor: cached?.nextCursor ?? null,
+        nextCursor: nextCursorRef.current,
       });
       return merged;
     });
