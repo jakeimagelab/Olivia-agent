@@ -58,7 +58,7 @@ import {
   DEFAULT_WEIGHT_PROFILE,
   type FolderShootingPattern, type SceneWeightProfile, type SceneProposal, type ClassificationOverrides,
 } from "@/lib/photo-classifier/pattern-analysis";
-import ClassificationModeToggle, { type ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
+import type { ClassificationUiMode } from "./ai-auto/ClassificationModeToggle";
 import FolderAnalysisSummary from "./ai-auto/FolderAnalysisSummary";
 import ClassificationPrompt from "./ai-auto/ClassificationPrompt";
 import SceneProposalList from "./ai-auto/SceneProposalList";
@@ -132,7 +132,6 @@ import {
 import {
   Btn,
   C,
-  Card,
   ProgressBar,
 } from "./PhotoSortingUi";
 import { useRemoteWorkFolderCheck } from "./useRemoteWorkFolderCheck";
@@ -143,11 +142,7 @@ import { usePhotoSortingSession } from "./usePhotoSortingSession";
 import { usePhotoClassificationProgress } from "./usePhotoClassificationProgress";
 import { PhotoSourceControl } from "./PhotoSourceControl";
 import { PhotoDepartmentControl } from "./PhotoDepartmentControl";
-import { SavedPhotoSortingSessionBanner } from "./SavedPhotoSortingSessionBanner";
-import {
-  PhotoShootingModeControl,
-  type PhotoShootingMode,
-} from "./PhotoShootingModeControl";
+import type { PhotoShootingMode } from "./PhotoShootingModeControl";
 import { FieldClassificationSettings } from "./FieldClassificationSettings";
 import { StudioClassificationSettings } from "./StudioClassificationSettings";
 import { PhotoClassificationProgressView } from "./PhotoClassificationProgressView";
@@ -157,6 +152,7 @@ import { StudioGroupEditView } from "./StudioGroupEditView";
 import { StudioGroupConfirmationView } from "./StudioGroupConfirmationView";
 import { StudioClassificationCompleteView } from "./StudioClassificationCompleteView";
 import { FieldClassificationCompleteView } from "./FieldClassificationCompleteView";
+import { PhotoSortingSetupView } from "./PhotoSortingSetupView";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -1860,110 +1856,57 @@ function PhotoSortingInner({
      STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
   const Step0 = () => {
-    const aiAutoActive = photoMode === "field" && classificationUiMode === "ai-auto";
     const departmentReady = photoDepartmentResolution.status === "resolved";
     return (
-      <div style={{display:"flex",flexDirection:"column",gap:20,maxWidth: aiAutoActive ? 1120 : 700}}>
-
-        {/* 이전 작업 복원 배너 */}
-        {savedSession && photoSourceSurface === "desktop" && (
-          <SavedPhotoSortingSessionBanner
-            session={savedSession}
-            onRestore={(session) => void handleRestore(session)}
-            onClear={clearSession}
-          />
-        )}
-
-        <PhotoShootingModeControl mode={photoMode} onChange={setPhotoMode} />
-
-        {photoMode === "field" && (
-          <>
-            <ClassificationModeToggle mode={classificationUiMode} onChange={setClassificationUiMode} />
-
-            {aiAutoActive ? (
-              <div className="pc-ai-auto-grid" style={{display:"grid",gridTemplateColumns:"minmax(0,1.25fr) minmax(340px,.82fr)",gap:16,alignItems:"start"}}>
-                {/* LEFT — 폴더/진료과(간단) + 자연어 요청 */}
-                <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                  <Card>
-                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>폴더 선택</div>
-                    <div style={{padding:20}}>
-                      {renderPhotoSourceControl("RAW+JPG 혼합 폴더 선택")}
-                    </div>
-                  </Card>
-
-                  <Card>
-                    <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과</div>
-                    {renderDepartmentControl(true)}
-                  </Card>
-
-                  <ClassificationPrompt onSubmit={submitAiNlRequest} busy={aiRefining} history={aiRefinementHistory} />
-                </div>
-
-                {/* CENTER — AI 분석 결과 + Scene 미리보기 + 시작 버튼 */}
-                <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                  <FolderAnalysisSummary analyzing={aiAnalyzing} pattern={aiShootingPattern} fileCount={aiScanFileCount} />
-                  <SceneProposalList proposals={aiSceneProposals} />
-                  {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
-                  <Btn
-                    onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                    disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||aiAnalyzing||!departmentReady) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline||!departmentReady)}
-                  >
-                    {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작"}
-                  </Btn>
-                  {(Boolean(rootDir) || Boolean(remoteSelection?.path)) && !departmentReady ? (
-                    <div style={{fontSize:10.5,color:C.hint,textAlign:"center"}}>진료과를 확인해야 분류를 시작할 수 있습니다.</div>
-                  ) : null}
-                  <ClassificationProfilePanel profile={aiWeightProfile} onOpenAdvanced={() => setClassificationUiMode("advanced")} />
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* 폴더 선택 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>폴더 선택</div>
-                  <div style={{padding:20}}>
-                    {renderPhotoSourceControl("RAW+JPG 혼합 폴더 선택")}
-                  </div>
-                </Card>
-
-                {/* 진료과 선택 */}
-                <Card>
-                  <div style={{padding:"14px 20px",borderBottom:`1px solid ${C.border}`,fontSize:12,fontWeight:600,color:C.teal}}>진료과</div>
-                  {renderDepartmentControl()}
-                </Card>
-
-                <FieldClassificationSettings
-                  gapMinutes={gapMinutes}
-                  onGapMinutesChange={setGapMinutes}
-                  fastAnalyzeMode={fastAnalyzeMode}
-                  onFastAnalyzeModeChange={setFastAnalyzeMode}
-                  departmentLogicEnabled={departmentLogicEnabled}
-                  onDepartmentLogicEnabledChange={setDepartmentLogicEnabled}
-                  aiNamingEnabled={aiNamingEnabled}
-                  onAiNamingEnabledChange={setAiNamingEnabled}
-                  qualityAnalysisEnabled={qualityAnalysisEnabled}
-                  onQualityAnalysisEnabledChange={setQualityAnalysisEnabled}
-                  profileClassificationEnabled={profileClassificationEnabled}
-                  onProfileClassificationEnabledChange={setProfileClassificationEnabled}
-                />
-
-                {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
-                <Btn
-                  onClick={executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort}
-                  disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS||!departmentReady) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline||!departmentReady)}
-                >
-                  {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작"}
-                </Btn>
-                {(Boolean(rootDir) || Boolean(remoteSelection?.path)) && !departmentReady ? (
-                  <div style={{fontSize:10.5,color:C.hint,textAlign:"center"}}>진료과를 확인해야 분류를 시작할 수 있습니다.</div>
-                ) : null}
-              </>
-            )}
-          </>
-        )}
-
-        {photoMode === "studio" && (
-          <>
+      <PhotoSortingSetupView
+        savedSession={savedSession}
+        showSavedSession={photoSourceSurface === "desktop"}
+        onRestoreSession={(session) => void handleRestore(session)}
+        onClearSession={clearSession}
+        photoMode={photoMode}
+        onPhotoModeChange={setPhotoMode}
+        showBrowserWarning={executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS}
+        field={{
+          classificationMode: classificationUiMode,
+          onClassificationModeChange: setClassificationUiMode,
+          sourceControl: renderPhotoSourceControl("RAW+JPG 혼합 폴더 선택"),
+          departmentControl: renderDepartmentControl(),
+          compactDepartmentControl: renderDepartmentControl(true),
+          prompt: <ClassificationPrompt onSubmit={submitAiNlRequest} busy={aiRefining} history={aiRefinementHistory} />,
+          analysisSummary: <FolderAnalysisSummary analyzing={aiAnalyzing} pattern={aiShootingPattern} fileCount={aiScanFileCount} />,
+          sceneProposals: <SceneProposalList proposals={aiSceneProposals} />,
+          classificationProfile: <ClassificationProfilePanel profile={aiWeightProfile} onOpenAdvanced={() => setClassificationUiMode("advanced")} />,
+          advancedSettings: (
+            <FieldClassificationSettings
+              gapMinutes={gapMinutes}
+              onGapMinutesChange={setGapMinutes}
+              fastAnalyzeMode={fastAnalyzeMode}
+              onFastAnalyzeModeChange={setFastAnalyzeMode}
+              departmentLogicEnabled={departmentLogicEnabled}
+              onDepartmentLogicEnabledChange={setDepartmentLogicEnabled}
+              aiNamingEnabled={aiNamingEnabled}
+              onAiNamingEnabledChange={setAiNamingEnabled}
+              qualityAnalysisEnabled={qualityAnalysisEnabled}
+              onQualityAnalysisEnabledChange={setQualityAnalysisEnabled}
+              profileClassificationEnabled={profileClassificationEnabled}
+              onProfileClassificationEnabledChange={setProfileClassificationEnabled}
+            />
+          ),
+          autoStart: {
+            onStart: executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort,
+            disabled: executionMode === "LOCAL_DIRECT" ? (!rootDir || !hasFS || aiAnalyzing || !departmentReady) : (!remoteSelection?.path || !remoteWorkFolderReady || remotePhotoSortActive || remoteWorkerOffline || !departmentReady),
+            label: executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "AI 자동 분류 시작",
+          },
+          advancedStart: {
+            onStart: executionMode === "LOCAL_DIRECT" ? handleFieldSort : handleRemotePhotoSort,
+            disabled: executionMode === "LOCAL_DIRECT" ? (!rootDir || !hasFS || !departmentReady) : (!remoteSelection?.path || !remoteWorkFolderReady || remotePhotoSortActive || remoteWorkerOffline || !departmentReady),
+            label: executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "현장촬영 분류 시작",
+          },
+          hasSource: Boolean(rootDir) || Boolean(remoteSelection?.path),
+          departmentReady,
+        }}
+        studio={{
+          settings: (
             <StudioClassificationSettings
               subMode={studioSubMode}
               onSubModeChange={setStudioSubMode}
@@ -1977,17 +1920,14 @@ function PhotoSortingInner({
               fileMode={studioFileMode}
               onFileModeChange={setStudioFileMode}
             />
-            {executionMode === "LOCAL_DIRECT" && photoSourceSurface === "desktop" && !hasFS && <div style={{padding:14,background:"rgba(214,188,125,.12)",borderRadius:10,fontSize:12,color:"#D6BC7D",border:"1px solid rgba(214,188,125,.36)"}}>⚠️ Chrome 또는 Edge 브라우저에서만 로컬 파일 시스템 접근이 가능합니다.</div>}
-            <Btn
-              style={{background:C.purple}}
-              onClick={executionMode === "LOCAL_DIRECT" ? handleStudioSort : handleRemotePhotoSort}
-              disabled={executionMode === "LOCAL_DIRECT" ? (!rootDir||!hasFS) : (!remoteSelection?.path||!remoteWorkFolderReady||remotePhotoSortActive||remoteWorkerOffline)}
-            >
-              {executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작"}
-            </Btn>
-          </>
-        )}
-      </div>
+          ),
+          start: {
+            onStart: executionMode === "LOCAL_DIRECT" ? handleStudioSort : handleRemotePhotoSort,
+            disabled: executionMode === "LOCAL_DIRECT" ? (!rootDir || !hasFS) : (!remoteSelection?.path || !remoteWorkFolderReady || remotePhotoSortActive || remoteWorkerOffline),
+            label: executionMode === "REMOTE_WORKER" ? "Mac Studio에서 AI 자동 분류 시작" : "스튜디오 분류 시작",
+          },
+        }}
+      />
     );
   };
 

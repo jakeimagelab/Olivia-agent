@@ -12,6 +12,7 @@ import { StudioGroupEditView } from "@/components/photo-classifier/StudioGroupEd
 import { StudioGroupConfirmationView } from "@/components/photo-classifier/StudioGroupConfirmationView";
 import { StudioClassificationCompleteView } from "@/components/photo-classifier/StudioClassificationCompleteView";
 import { FieldClassificationCompleteView } from "@/components/photo-classifier/FieldClassificationCompleteView";
+import { PhotoSortingSetupView } from "@/components/photo-classifier/PhotoSortingSetupView";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 function makeFieldScene(index: number, editedName: string): FieldScene {
@@ -43,6 +44,85 @@ function makeFieldScene(index: number, editedName: string): FieldScene {
 }
 
 describe("photo sorting settings controls", () => {
+  it("renders the extracted field setup without changing the existing controls", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PhotoSortingSetupView, {
+        savedSession: null,
+        showSavedSession: false,
+        onRestoreSession: () => undefined,
+        onClearSession: () => undefined,
+        photoMode: "field",
+        onPhotoModeChange: () => undefined,
+        field: {
+          classificationMode: "advanced",
+          onClassificationModeChange: () => undefined,
+          sourceControl: createElement("div", null, "원본 폴더 선택"),
+          departmentControl: createElement("div", null, "안과 선택"),
+          compactDepartmentControl: createElement("div", null, "간단 진료과 선택"),
+          prompt: null,
+          analysisSummary: null,
+          sceneProposals: null,
+          classificationProfile: null,
+          advancedSettings: createElement("div", null, "고급 설정"),
+          autoStart: { onStart: () => undefined, disabled: false, label: "AI 자동 분류 시작" },
+          advancedStart: { onStart: () => undefined, disabled: true, label: "현장촬영 분류 시작" },
+          hasSource: true,
+          departmentReady: false,
+        },
+        studio: {
+          settings: createElement("div", null, "스튜디오 설정"),
+          start: { onStart: () => undefined, disabled: false, label: "스튜디오 분류 시작" },
+        },
+        showBrowserWarning: true,
+      }),
+    );
+
+    expect(markup).toContain("병원 현장촬영 ✓");
+    expect(markup).toContain("고급 설정");
+    expect(markup).toContain("원본 폴더 선택");
+    expect(markup).toContain("Chrome 또는 Edge");
+    expect(markup).toContain("현장촬영 분류 시작");
+    expect(markup).toContain("진료과를 확인해야 분류를 시작할 수 있습니다.");
+  });
+
+  it("renders the extracted studio setup and start action", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PhotoSortingSetupView, {
+        savedSession: null,
+        showSavedSession: false,
+        onRestoreSession: () => undefined,
+        onClearSession: () => undefined,
+        photoMode: "studio",
+        onPhotoModeChange: () => undefined,
+        field: {
+          classificationMode: "ai-auto",
+          onClassificationModeChange: () => undefined,
+          sourceControl: null,
+          departmentControl: null,
+          compactDepartmentControl: null,
+          prompt: null,
+          analysisSummary: null,
+          sceneProposals: null,
+          classificationProfile: null,
+          advancedSettings: null,
+          autoStart: { onStart: () => undefined, disabled: false, label: "AI 자동 분류 시작" },
+          advancedStart: { onStart: () => undefined, disabled: false, label: "현장촬영 분류 시작" },
+          hasSource: false,
+          departmentReady: false,
+        },
+        studio: {
+          settings: createElement("div", null, "스튜디오 설정"),
+          start: { onStart: () => undefined, disabled: false, label: "스튜디오 분류 시작" },
+        },
+        showBrowserWarning: false,
+      }),
+    );
+
+    expect(markup).toContain("스튜디오 프로필촬영 ✓");
+    expect(markup).toContain("스튜디오 설정");
+    expect(markup).toContain("스튜디오 분류 시작");
+  });
+
   it("renders the selected shooting mode without changing the existing labels", () => {
     const markup = renderToStaticMarkup(
       createElement(PhotoShootingModeControl, {
