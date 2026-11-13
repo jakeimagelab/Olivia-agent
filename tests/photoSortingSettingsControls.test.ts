@@ -11,6 +11,7 @@ import { FieldSceneMergeCandidateCard } from "@/components/photo-classifier/Fiel
 import { StudioGroupEditView } from "@/components/photo-classifier/StudioGroupEditView";
 import { StudioGroupConfirmationView } from "@/components/photo-classifier/StudioGroupConfirmationView";
 import { StudioClassificationCompleteView } from "@/components/photo-classifier/StudioClassificationCompleteView";
+import { FieldClassificationCompleteView } from "@/components/photo-classifier/FieldClassificationCompleteView";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 function makeFieldScene(index: number, editedName: string): FieldScene {
@@ -303,5 +304,25 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("인물별");
     expect(markup).toContain("인물 요약 CSV");
     expect(markup).toContain("처음으로");
+  });
+
+  it("renders the field completion summary and photo select handoff", () => {
+    const markup = renderToStaticMarkup(
+      createElement(FieldClassificationCompleteView, {
+        stats: [
+          { label: "씬", value: 8, color: "#155855" },
+          { label: "전체 JPG", value: 120, color: "#111111" },
+          { label: "프로필", value: 4, color: "#7C3AED" },
+        ],
+        onReview: () => undefined,
+        onOpenPhotoSelect: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("사진 분류 완료");
+    expect(markup).toContain("전체 JPG");
+    expect(markup).toContain("사진 셀렉");
+    expect(markup).toContain("RAW 매칭");
+    expect(markup).toContain("사진 셀렉으로 이동");
   });
 });
