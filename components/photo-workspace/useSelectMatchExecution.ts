@@ -24,7 +24,7 @@ const RAW_MATCH_JOB_ID = "raw-match";
 
 type SelectMatchStep = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
 
-type RawMatchResult = {
+export type RawMatchResult = {
   matched: number;
   alreadyCopied: number;
   missing: number;
