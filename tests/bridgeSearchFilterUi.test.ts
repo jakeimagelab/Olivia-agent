@@ -11,6 +11,7 @@ const customerBridge = readFileSync("components/select-gallery/CustomerBridgeSel
 const customerBrowserPanel = readFileSync("components/select-gallery/CustomerBridgeBrowserPanel.tsx", "utf8");
 const customerFolderPanel = readFileSync("components/select-gallery/CustomerBridgeFolderPanel.tsx", "utf8");
 const customerFilters = readFileSync("components/select-gallery/useCustomerBridgeFilters.ts", "utf8");
+const customerBrowserController = readFileSync("components/select-gallery/useCustomerBridgeBrowserController.ts", "utf8");
 const customerBridgeUi = `${customerBridge}\n${customerBrowserPanel}\n${customerFilters}`;
 const adminCss = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
 const customerCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
@@ -31,7 +32,7 @@ describe("Bridge filename search and shared label shortcuts", () => {
     expect(adminBridge).toContain("useOliviaBridgeVisibleFiles");
     expect(adminPhotoView).toContain("matchesBridgeFilenameSearch");
     expect(adminPhotoView).toContain("matchesBridgeLabelFilters");
-    expect(customerBridge).toContain("buildCustomerBridgePhotoView");
+    expect(customerBrowserController).toContain("buildCustomerBridgePhotoView");
     expect(customerPhotoView).toContain("matchesBridgeFilenameSearch");
     expect(customerPhotoView).toContain("matchesBridgeLabelFilters");
   });

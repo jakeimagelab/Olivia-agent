@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -24,8 +23,6 @@ import type {
   CustomerBridgeGallery,
   CustomerBridgeImage,
 } from "@/lib/select-gallery/customerBridgeTypes";
-import { useCustomerBridgeLocation } from "./useCustomerBridgeLocation";
-import { useCustomerBridgeActiveSelection } from "./useCustomerBridgeActiveSelection";
 import { useCustomerBridgeReviewController } from "./useCustomerBridgeReviewController";
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaRequests, useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
@@ -33,10 +30,7 @@ import { useCustomerBridgeMessages } from "./useCustomerBridgeMessages";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
-import { useVirtualPhotoGrid } from "./useVirtualPhotoGrid";
-import { buildCustomerBridgePhotoView } from "@/lib/select-gallery/customerBridgeView";
 import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
-import { useCustomerBridgeImagePaging } from "./useCustomerBridgeImagePaging";
 import { useCustomerBridgeSubmission } from "./useCustomerBridgeSubmission";
 import {
   useCustomerBridgeMarksController,
@@ -46,6 +40,7 @@ import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLa
 import { useCustomerBridgeResetController } from "./useCustomerBridgeResetController";
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
+import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserController";
 import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -179,24 +174,57 @@ export default function CustomerBridgeSelect({
     canManageQuality,
   });
 
-  const locationSelectionResetRef = useRef<(images: readonly CustomerBridgeImage[]) => void>(() => undefined);
-  const fullscreenOpenRef = useRef<(imageId: string) => void>(() => undefined);
   const {
     location,
     folderTree,
     rootView,
     folderView,
-    folderImages,
     childFolders,
     locationTotalCount,
     openLocation,
     goToParentFolder,
-  } = useCustomerBridgeLocation({
+    visibleImages,
+    selectedInFolder,
+    qualityCounts,
+    searchActive,
+    imagePageState,
+    orderedIds,
+    focusedImageId,
+    setFocusedImageId,
+    activeImageIds,
+    setActiveImageIds,
+    anchorId,
+    setAnchorId,
+    marquee,
+    clearActiveSelection,
+    handlePhotoClick,
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    virtualGrid,
+    renderedImages,
+    setMobileImageOpener,
+  } = useCustomerBridgeBrowserController({
     images,
     manifest: imageManifest,
     storageScope: localStorageScope,
-    onLocationOpened: (nextImages) => locationSelectionResetRef.current(nextImages),
+    filter,
+    filenameSearch,
+    labelFilters,
+    selectedIds: customerSelectedIds,
+    ratings: customerRatings,
+    colorLabels: customerColorLabels,
+    qualityResults,
+    mobile,
+    readOnly,
+    thumbSize,
+    gridRef,
+    thumbnailGridRef,
+    onCloseCompactFolders: closeCompactFolders,
     onStorageError: reportOptionalStorageError,
+    loadNextImagePage,
+    ensureImagePage,
+    getImagePageState,
   });
   const { downloadState, downloadBusy, downloadSelected } = useCustomerBridgeDownload({
     endpointBase,
@@ -236,67 +264,7 @@ export default function CustomerBridgeSelect({
   const openSubmitReviewAction = useCallback(() => {
     void openSubmitReview();
   }, [openSubmitReview]);
-  const { visibleImages, selectedInFolder, qualityCounts, searchActive } = useMemo(() => buildCustomerBridgePhotoView({
-    images: folderImages,
-    filter,
-    filenameSearch,
-    labelFilters,
-    selectedIds: customerSelectedIds,
-    ratings: customerRatings,
-    colorLabels: customerColorLabels,
-    qualityResults,
-  }), [customerColorLabels, customerRatings, customerSelectedIds, filenameSearch, filter, folderImages, labelFilters, qualityResults]);
   const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
-  const { state: imagePageState, requestNext: requestNextImagePage } = useCustomerBridgeImagePaging({
-    location,
-    filenameSearch,
-    loadNextImagePage,
-    ensureImagePage,
-    getImagePageState,
-  });
-  const orderedIds = useMemo(() => visibleImages.map((image) => image.id), [visibleImages]);
-  const openMobileImage = useCallback((imageId: string) => fullscreenOpenRef.current(imageId), []);
-  const {
-    focusedImageId,
-    setFocusedImageId,
-    activeImageIds,
-    setActiveImageIds,
-    anchorId,
-    setAnchorId,
-    marquee,
-    resetLocationSelection,
-    clearActiveSelection,
-    handlePhotoClick,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-  } = useCustomerBridgeActiveSelection({
-    orderedIds,
-    mobile,
-    readOnly,
-    gridRef,
-    onMobileOpen: openMobileImage,
-  });
-  locationSelectionResetRef.current = (nextImages) => {
-    resetLocationSelection(nextImages);
-    setCompactFoldersOpen(false);
-  };
-  const virtualGrid = useVirtualPhotoGrid({
-    items: visibleImages,
-    containerRef: gridRef,
-    gridRef: thumbnailGridRef,
-    thumbSize,
-    mobile,
-    resetKey: `${location.kind}:${location.kind === "folder" ? location.path : ""}:${filter}:${filenameSearch}:${labelFilters.rating ?? ""}:${labelFilters.color ?? ""}`,
-    onNearEnd: loadNextImagePage ? requestNextImagePage : undefined,
-  });
-  const renderedImages = virtualGrid.renderedItems;
-  const scrollToVirtualIndex = virtualGrid.scrollToIndex;
-  useEffect(() => {
-    if (!focusedImageId || location.kind === "root") return;
-    if (gridRef.current?.querySelector(`[data-bridge-image-id="${CSS.escape(focusedImageId)}"]`)) return;
-    scrollToVirtualIndex(orderedIds.indexOf(focusedImageId));
-  }, [focusedImageId, location.kind, orderedIds, scrollToVirtualIndex]);
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const {
     fullscreenId,
@@ -331,8 +299,8 @@ export default function CustomerBridgeSelect({
     onApplyColor: applyColorTo,
   });
   useEffect(() => {
-    fullscreenOpenRef.current = openFullscreen;
-  }, [openFullscreen]);
+    setMobileImageOpener(openFullscreen);
+  }, [openFullscreen, setMobileImageOpener]);
   useEffect(() => {
     fullscreenCloseRef.current = () => {
       if (fullscreenId) closeFullscreen();
