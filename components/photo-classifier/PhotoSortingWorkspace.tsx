@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FolderTree } from "lucide-react";
 import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import {
@@ -60,7 +59,6 @@ import { usePhotoSourceSurface } from "./usePhotoSourceSurface";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { usePhotoFolderPicker } from "@/lib/photo/useFolderPicker";
-import { Stepper } from "@/components/workspace-shell/Stepper";
 import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
@@ -130,6 +128,7 @@ import {
   StudioOutputProgressStep,
   StudioPhotoAnalysisProgressStep,
 } from "./PhotoSortingProgressSteps";
+import { PhotoSortingWorkspaceShell } from "./PhotoSortingWorkspaceShell";
 import { FieldSceneReviewOverview } from "./FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "./FieldSceneReviewList";
 import { StudioGroupEditView } from "./StudioGroupEditView";
@@ -1417,17 +1416,6 @@ function PhotoSortingInner({
     }
   }, [personGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
-  /* ════════════════════════════════════════════
-     STEP INDICATOR
-  ═══════════════════════════════════════════ */
-  const renderStepIndicator = () => (
-    <Stepper
-      items={stepLabels.map((label, index) => ({ id: `${photoMode}-${index}`, label }))}
-      activeIndex={Math.max(0, Math.min(step, stepLabels.length - 1))}
-      ariaLabel="사진 분류 진행 단계"
-    />
-  );
-
   const renderPhotoSourceControl = (emptyLabel: string) => (
     <PhotoSourceControl
       emptyLabel={emptyLabel}
@@ -1818,112 +1806,51 @@ function PhotoSortingInner({
   ═══════════════════════════════════════════ */
   return (
     <div>
-
-      {step > 0 && (
-        <div className="ps-mode-badge" style={{background:photoMode==="studio"?"#F5F0FF":C.light,color:photoMode==="studio"?C.purple:C.teal,borderBottom:`1px solid ${photoMode==="studio"?"#DDD6FE":C.border}`}}>
-          {photoMode==="studio"
-            ? (studioSubMode==="group" ? "스튜디오 · 여러명 모드" : "스튜디오 · 한명 모드")
-            : `현장촬영 — ${DEPARTMENT_DISPLAY[department]} — ${gapMinutes}분`}
-        </div>
-      )}
-
-      <section
-        className="photo-sorting-surface"
-        data-photo-sorting-surface={isEmbedded ? "workspace" : "standalone"}
-        style={{background:isEmbedded?"#2A2A2A":C.bg,minHeight:isModal||isEmbedded?undefined:"100vh",color:isEmbedded?"rgba(255,255,255,.88)":C.txt,paddingBottom:isEmbedded?24:0}}
+      <PhotoSortingWorkspaceShell
+        embedded={isEmbedded}
+        modal={isModal}
+        step={step}
+        stepLabels={stepLabels}
+        photoMode={photoMode}
+        studioSubMode={studioSubMode}
+        department={department}
+        gapMinutes={gapMinutes}
+        rootFolderName={rootDir?.name ?? ""}
       >
-        {isEmbedded ? (
-          <style>{`
-            [data-photo-sorting-surface="workspace"] select,
-            [data-photo-sorting-surface="workspace"] textarea,
-            [data-photo-sorting-surface="workspace"] input:not([type="checkbox"]):not([type="radio"]) {
-              background: rgba(0,0,0,.16) !important;
-              border-color: rgba(255,255,255,.15) !important;
-              color: rgba(255,255,255,.88) !important;
-              color-scheme: dark;
-            }
-            [data-photo-sorting-surface="workspace"] select:focus,
-            [data-photo-sorting-surface="workspace"] textarea:focus,
-            [data-photo-sorting-surface="workspace"] input:focus {
-              border-color: #4FD8B8 !important;
-              box-shadow: 0 0 0 3px rgba(79,216,184,.10);
-              outline: none;
-            }
-            @container (max-width: 700px) {
-              [data-photo-sorting-surface="workspace"] .pc-mobile-form-grid,
-              [data-photo-sorting-surface="workspace"] .pc-ai-auto-grid,
-              [data-photo-sorting-surface="workspace"] .ps-stat4 {
-                grid-template-columns: minmax(0, 1fr) !important;
-              }
-              [data-photo-sorting-surface="workspace"] .ps-btn-row {
-                align-items: stretch !important;
-                flex-direction: column !important;
-              }
-              [data-photo-sorting-surface="workspace"] .ps-wrap {
-                width: 100%;
-                max-width: none !important;
-                padding-inline: 12px;
-              }
-              [data-photo-sorting-surface="workspace"] > header > span:last-child {
-                display: none !important;
-              }
-            }
-          `}</style>
-        ) : null}
-        {isEmbedded ? (
-          <header style={{ minHeight: 70, display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid rgba(255,255,255,.10)" }}>
-            <span aria-hidden="true" style={{ width: 34, height: 34, borderRadius: 10, display: "grid", placeItems: "center", background: "rgba(79,216,184,.12)", color: "#4FD8B8", flexShrink: 0 }}>
-              <FolderTree size={18} strokeWidth={1.8} />
-            </span>
-            <span style={{ minWidth: 0 }}>
-              <strong style={{ display: "block", fontSize: 18, fontWeight: 600, color: "rgba(255,255,255,.88)" }}>사진 분류</strong>
-              <span style={{ display: "block", marginTop: 2, fontSize: 12, color: "rgba(255,255,255,.52)" }}>사진을 분석해 장면별 폴더 구조로 정리합니다.</span>
-            </span>
-            <span style={{ marginLeft: "auto", maxWidth: "42%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", border: "1px solid rgba(255,255,255,.13)", borderRadius: 999, padding: "7px 10px", color: "rgba(255,255,255,.65)", fontSize: 11 }}>
-              현재 작업 폴더: <strong style={{ color: "rgba(255,255,255,.88)", fontWeight: 500 }}>{rootDir?.name ?? "선택 안 됨"}</strong>
-            </span>
-          </header>
-        ) : null}
-        {renderStepIndicator()}
-        <div className="ps-wrap" style={{maxWidth:960,margin:"0 auto"}}>
-          {step===0 && <Step0/>}
+        {step===0 && <Step0/>}
 
-          {photoMode==="field" && step===1 && (
-            <FieldAnalysisProgressStep
-              fastAnalyzeMode={fastAnalyzeMode}
-              progress={progress}
-              classificationJobState={classificationJobState}
-              copyLog={copyLog}
-              onCancel={() => {
-                cancelRef.current = true;
-                classificationAbortRef.current?.abort();
-                setClassificationJobState("CANCELLED");
-              }}
-            />
-          )}
-          {photoMode==="field" && step===2 && <FieldStep2/>}
-          {photoMode==="field" && step===3 && (
-            <FieldOutputProgressStep
-              fastAnalyzeMode={fastAnalyzeMode}
-              progress={progress}
-              qualityAnalysisEnabled={qualityAnalysisEnabled}
-              profileClassificationEnabled={profileClassificationEnabled}
-              onCancel={() => { cancelRef.current = true; }}
-            />
-          )}
-          {photoMode==="field" && step===4 && <FieldStep4/>}
+        {photoMode==="field" && step===1 && (
+          <FieldAnalysisProgressStep
+            fastAnalyzeMode={fastAnalyzeMode}
+            progress={progress}
+            classificationJobState={classificationJobState}
+            copyLog={copyLog}
+            onCancel={() => {
+              cancelRef.current = true;
+              classificationAbortRef.current?.abort();
+              setClassificationJobState("CANCELLED");
+            }}
+          />
+        )}
+        {photoMode==="field" && step===2 && <FieldStep2/>}
+        {photoMode==="field" && step===3 && (
+          <FieldOutputProgressStep
+            fastAnalyzeMode={fastAnalyzeMode}
+            progress={progress}
+            qualityAnalysisEnabled={qualityAnalysisEnabled}
+            profileClassificationEnabled={profileClassificationEnabled}
+            onCancel={() => { cancelRef.current = true; }}
+          />
+        )}
+        {photoMode==="field" && step===4 && <FieldStep4/>}
 
-          {photoMode==="studio" && step===1 && <StudioFileScanProgressStep progress={progress} />}
-          {photoMode==="studio" && step===2 && <StudioPhotoAnalysisProgressStep progress={progress} studioFiles={studioFiles} studioSubMode={studioSubMode} />}
-          {photoMode==="studio" && step===3 && (studioSubMode==="group" ? <StudioGroupStep3/> : <StudioStep3/>)}
-          {photoMode==="studio" && step===4 && (studioSubMode==="group" ? <StudioGroupStep4/> : <StudioStep4/>)}
-          {photoMode==="studio" && step===5 && <StudioOutputProgressStep progress={progress} copyLog={studioCopyLog} />}
-          {photoMode==="studio" && step===6 && <StudioStep6/>}
-        </div>
-        {isEmbedded ? <footer style={{ minHeight:70, display:"flex", alignItems:"center", padding:"0 20px", borderTop:"1px solid rgba(255,255,255,.10)", color:"rgba(255,255,255,.48)", fontSize:11 }}>
-          {step === 0 ? "작업 폴더와 분류 기준을 선택하세요." : "분류 결과를 확인하고 다음 단계를 진행하세요."}
-        </footer> : null}
-      </section>
+        {photoMode==="studio" && step===1 && <StudioFileScanProgressStep progress={progress} />}
+        {photoMode==="studio" && step===2 && <StudioPhotoAnalysisProgressStep progress={progress} studioFiles={studioFiles} studioSubMode={studioSubMode} />}
+        {photoMode==="studio" && step===3 && (studioSubMode==="group" ? <StudioGroupStep3/> : <StudioStep3/>)}
+        {photoMode==="studio" && step===4 && (studioSubMode==="group" ? <StudioGroupStep4/> : <StudioStep4/>)}
+        {photoMode==="studio" && step===5 && <StudioOutputProgressStep progress={progress} copyLog={studioCopyLog} />}
+        {photoMode==="studio" && step===6 && <StudioStep6/>}
+      </PhotoSortingWorkspaceShell>
 
       {photoSourcePickerOpen ? (
         <PhotoSourcePicker
