@@ -16,6 +16,7 @@ import {
 } from "./personSelectImageCache";
 import {
   mergePersonSelectImagePages,
+  mergePersonSelectSeedImages,
   mergePersonSelectPreviewUrls,
 } from "./personSelectImageState";
 
@@ -42,14 +43,17 @@ export function usePersonSelectImages(
   const [nextCursor, setNextCursor] = useState<string | null>(initialCache?.nextCursor ?? null);
   const [pageError, setPageError] = useState("");
   const imagesRef = useRef(images);
+  const seedImagesRef = useRef(seedImages);
   const imageByIdRef = useRef(new Map(images.map((image) => [image.id, image])));
   const nextCursorRef = useRef(nextCursor);
   const loadMoreRef = useRef<Promise<boolean> | null>(null);
   const scopeRef = useRef(personSelectImageCacheKey(slug, category));
+  const seedScopeRef = useRef(scopeRef.current);
   scopeRef.current = personSelectImageCacheKey(slug, category);
+  seedImagesRef.current = seedImages;
   useEffect(() => { imagesRef.current = images; }, [images]);
   const installPage = useCallback((page: PersonSelectImagePage, reset: boolean) => {
-    const base = reset ? seedImages : imagesRef.current;
+    const base = reset ? seedImagesRef.current : imagesRef.current;
     const merged = mergePersonSelectImagePages(base, page.images);
     imagesRef.current = merged;
     imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
@@ -62,14 +66,14 @@ export function usePersonSelectImages(
     setImages(merged);
     setNextCursor(page.nextCursor);
     setPageError("");
-  }, [category, seedImages, slug]);
+  }, [category, slug]);
 
   useEffect(() => {
     let active = true;
     loadMoreRef.current = null;
     setLoadingMore(false);
     const entry = readPersonSelectImageCache(slug, category);
-    const seeded = mergePersonSelectImagePages(entry?.images ?? [], seedImages);
+    const seeded = mergePersonSelectImagePages(entry?.images ?? [], seedImagesRef.current);
     imagesRef.current = seeded;
     imageByIdRef.current = new Map(seeded.map((image) => [image.id, image]));
     nextCursorRef.current = entry?.nextCursor ?? null;
@@ -88,7 +92,7 @@ export function usePersonSelectImages(
       })
       .catch((cause) => {
         if (!active || imagesRef.current.length) return;
-        const fallback = mergePersonSelectImagePages([], seedImages);
+        const fallback = mergePersonSelectImagePages([], seedImagesRef.current);
         imagesRef.current = fallback;
         imageByIdRef.current = new Map(fallback.map((image) => [image.id, image]));
         setImages(fallback);
@@ -96,7 +100,27 @@ export function usePersonSelectImages(
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [category, installPage, seedImages, slug]);
+  }, [category, installPage, slug]);
+
+  useEffect(() => {
+    const scopeKey = personSelectImageCacheKey(slug, category);
+    if (seedScopeRef.current !== scopeKey) {
+      seedScopeRef.current = scopeKey;
+      return;
+    }
+    setImages((current) => {
+      const merged = mergePersonSelectSeedImages(current, seedImages);
+      if (merged === current) return current;
+      imagesRef.current = merged;
+      imageByIdRef.current = new Map(merged.map((image) => [image.id, image]));
+      writePersonSelectImageCache(slug, category, {
+        images: merged,
+        fetchedAt: Date.now(),
+        nextCursor: nextCursorRef.current,
+      });
+      return merged;
+    });
+  }, [category, seedImages, slug]);
 
   const loadMore = useCallback(() => {
     const cursor = nextCursorRef.current;

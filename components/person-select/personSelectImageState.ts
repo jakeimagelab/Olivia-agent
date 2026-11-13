@@ -25,6 +25,47 @@ export function mergePersonSelectImagePages(
   ));
 }
 
+export function mergePersonSelectSeedImages(
+  current: PersonSelectImageData[],
+  seeds: readonly PersonSelectImageData[],
+) {
+  if (!seeds.length) return current;
+  const currentById = new Map(current.map((image, index) => [image.id, { image, index }]));
+  let next: PersonSelectImageData[] | null = null;
+
+  for (const seed of seeds) {
+    const entry = currentById.get(seed.id);
+    if (!entry) {
+      next ??= [...current];
+      next.push(seed);
+      currentById.set(seed.id, { image: seed, index: next.length - 1 });
+      continue;
+    }
+
+    const merged = {
+      ...entry.image,
+      original_file_name: entry.image.original_file_name || seed.original_file_name,
+      thumb_url: entry.image.thumb_url || seed.thumb_url,
+      preview_url: entry.image.preview_url || seed.preview_url,
+    };
+    if (
+      merged.original_file_name === entry.image.original_file_name
+      && merged.thumb_url === entry.image.thumb_url
+      && merged.preview_url === entry.image.preview_url
+    ) continue;
+    next ??= [...current];
+    next[entry.index] = merged;
+    currentById.set(seed.id, { image: merged, index: entry.index });
+  }
+
+  if (!next) return current;
+  return next.sort((left, right) => (
+    imageSortOrder(left) - imageSortOrder(right)
+    || left.original_file_name.localeCompare(right.original_file_name, "ko-KR")
+    || left.id.localeCompare(right.id)
+  ));
+}
+
 export function mergePersonSelectPreviewUrls(
   images: readonly PersonSelectImageData[],
   previews: readonly Pick<PersonSelectImageData, "id" | "preview_url">[],

@@ -9,6 +9,7 @@ import {
   SELECTION_THUMBNAIL_PAGE_SIZE,
 } from "@/lib/select-gallery/mediaLoading";
 import { isPersonSelectImagePageNearEnd, mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
+import { mergePersonSelectSeedImages } from "@/components/person-select/personSelectImageState";
 import { sharedProjectClassicPhotoCardPropsEqual } from "@/components/person-select/SharedProjectClassicPhotoCard";
 import {
   buildPersonSelectImagePageUrl,
@@ -101,6 +102,51 @@ describe("person select media loading", () => {
       preview_url: "selected-preview",
       sort_order: 80,
     });
+  });
+
+  it("does not rebuild a loaded personal photo page when only the selection seed repeats", () => {
+    const current = [{
+      id: "selected",
+      original_file_name: "A.JPG",
+      thumb_url: "fresh-thumb",
+      preview_url: "preview",
+      width: 1200,
+      height: 800,
+      sort_order: 1,
+    }];
+    const repeatedSeed = [{
+      id: "selected",
+      original_file_name: "A.JPG",
+      thumb_url: "selected-thumb",
+      preview_url: "",
+      width: null,
+      height: null,
+    }];
+
+    expect(mergePersonSelectSeedImages(current, repeatedSeed)).toBe(current);
+  });
+
+  it("adds a selected photo missing from the loaded personal photo page", () => {
+    const current = [{
+      id: "first",
+      original_file_name: "A.JPG",
+      thumb_url: "first-thumb",
+      preview_url: "",
+      width: 1200,
+      height: 800,
+      sort_order: 1,
+    }];
+    const selectedSeed = [{
+      id: "selected-late",
+      original_file_name: "B.JPG",
+      thumb_url: "selected-thumb",
+      preview_url: "",
+      width: null,
+      height: null,
+    }];
+
+    expect(mergePersonSelectSeedImages(current, selectedSeed).map((image) => image.id))
+      .toEqual(["first", "selected-late"]);
   });
 
   it("requests the next personal photo page only near the loaded tail", () => {
