@@ -1,18 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { resolveRemoteJobResult, useRemoteJobPoller } from "@/components/person-select/admin/hooks/useRemoteJobPoller";
 import type { PersonSelectAdminData } from "@/lib/person-select/adminData";
 import {
   PERSON_SELECT_RAW_LABEL_NAMES,
-  resolveIndividualRawMatchTargets,
   resolvePersonSelectRawMatchPathPlan,
-  resolveSharedRawMatchTargets,
   type PersonSelectRawLabelNames,
   type PersonSelectRawMatchMode,
   type PersonSelectRawMatchSource,
 } from "@/lib/person-select/rawMatch";
+import { resolvePersonSelectAdminRawMatchModel } from "@/lib/person-select/rawMatchAdmin";
 import { readApiResponse } from "@/lib/http/apiResponse";
 
 export function usePersonSelectRawMatchController({
@@ -96,57 +95,16 @@ export function usePersonSelectRawMatchController({
     },
   });
 
-  const sharedReviewers = data?.shared?.reviewers ?? [];
-  const sharedImageById = new Map((data?.shared?.images ?? []).map((image) => [image.id, {
-    id: image.id,
-    originalFileName: image.original_file_name,
-    sourceRelPath: image.relative_path ?? image.original_file_name,
-  }]));
-  const sharedSubmittedByReviewer = new Map(sharedReviewers.map((reviewer) => [reviewer.id, (reviewer.selection?.items ?? []).flatMap((item) => {
-    const image = sharedImageById.get(item.image_id);
-    return image ? [{
-      ...image,
-      customerRating: item.customer_rating ?? 1,
-      customerColorLabel: item.customer_color_label ?? null,
-      markSavedAt: reviewer.selection?.submitted_at ?? null,
-    }] : [];
-  })]));
-  const sharedDraftByReviewer = new Map(sharedReviewers.flatMap((reviewer) => reviewer.draft ? [[reviewer.id, reviewer.draft.selectedImageIds.flatMap((imageId) => {
-    const image = sharedImageById.get(imageId);
-    return image ? [{
-      ...image,
-      customerRating: reviewer.draft?.ratings?.[imageId] ?? 1,
-      customerColorLabel: reviewer.draft?.colorLabels?.[imageId] ?? null,
-      markSavedAt: reviewer.draft?.updated_at ?? null,
-    }] : [];
-  })] as const] : []));
-  const sharedRawInput = {
-    reviewers: sharedReviewers.map((reviewer) => ({ id: reviewer.id, displayName: reviewer.display_name, active: reviewer.active })),
-    reviewerIds: rawReviewerScope === "all" ? undefined : [rawReviewerScope],
-    submittedByReviewer: sharedSubmittedByReviewer,
-    draftByReviewer: sharedDraftByReviewer,
-  };
-  const individualRawInput = {
-    people: (data?.people ?? []).map((person) => ({ id: person.id, displayName: person.display_name, submittedAt: person.submitted_at })),
-    choices: (data?.people ?? []).flatMap((person) => person.choices.map((choice) => ({
-      personId: person.id,
-      image: choice.person_select_images ? {
-        id: choice.image_id,
-        originalFileName: choice.person_select_images.original_file_name,
-        sourceRelPath: choice.person_select_images.source_rel_path,
-      } : null,
-    }))),
-  };
-  const rawPreview = isShared
-    ? resolveSharedRawMatchTargets({ source: rawSource, ...sharedRawInput })
-    : resolveIndividualRawMatchTargets({ source: rawSource, ...individualRawInput });
-  const rawSubmittedAll = isShared
-    ? resolveSharedRawMatchTargets({ source: "submitted", ...sharedRawInput, reviewerIds: undefined })
-    : resolveIndividualRawMatchTargets({ source: "submitted", ...individualRawInput });
-  const rawCurrentAll = isShared
-    ? resolveSharedRawMatchTargets({ source: "current", ...sharedRawInput, reviewerIds: undefined })
-    : resolveIndividualRawMatchTargets({ source: "current", ...individualRawInput });
-  const hasRawSelection = rawSubmittedAll.targets.length > 0 || rawCurrentAll.targets.length > 0;
+  const rawMatchModel = useMemo(() => resolvePersonSelectAdminRawMatchModel({
+    data,
+    isShared,
+    source: rawSource,
+    reviewerScope: rawReviewerScope,
+  }), [data, isShared, rawReviewerScope, rawSource]);
+  const rawPreview = rawMatchModel.preview;
+  const rawSubmittedAll = rawMatchModel.submittedAll;
+  const rawCurrentAll = rawMatchModel.currentAll;
+  const hasRawSelection = rawMatchModel.hasSelection;
   const rawBusy = Boolean(rawJobId);
   const rawDisabledReason = !hasRawSelection
     ? "고른 사진이 없어요."
