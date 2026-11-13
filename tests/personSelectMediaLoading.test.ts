@@ -8,6 +8,7 @@ import {
   SELECTION_THUMBNAIL_PAGE_SIZE,
 } from "@/lib/select-gallery/mediaLoading";
 import { isPersonSelectImagePageNearEnd, mergePersonSelectImagePages, mergePersonSelectPreviewUrls } from "@/components/person-select/usePersonSelectImages";
+import { sharedProjectClassicPhotoCardPropsEqual } from "@/components/person-select/SharedProjectClassicPhotoCard";
 
 describe("person select media loading", () => {
   it("limits the first thumbnail page to a small shared batch", () => {
@@ -119,5 +120,15 @@ describe("person select media loading", () => {
     expect(second.images[0]).toBe(first.images[0]);
     expect(second.images[1]).not.toBe(first.images[1]);
     expect(second.images[1].thumbnail_url).toBe("thumb-b");
+  });
+
+  it("does not rerender unchanged classic cards when another photo is selected", () => {
+    const onToggle = () => undefined;
+    const image = { id: "a", original_file_name: "A.JPG", thumbnail_url: "thumb-a", image_url: "preview-a" };
+    const previous = { image, selected: false, pending: false, onToggle };
+
+    expect(sharedProjectClassicPhotoCardPropsEqual(previous, { ...previous })).toBe(true);
+    expect(sharedProjectClassicPhotoCardPropsEqual(previous, { ...previous, selected: true })).toBe(false);
+    expect(sharedProjectClassicPhotoCardPropsEqual(previous, { ...previous, pending: true })).toBe(false);
   });
 });
