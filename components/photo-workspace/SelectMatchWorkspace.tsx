@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderOpen } from "lucide-react";
 import {
   collectJpgFolderGroups,
   type SelectMatchFolderGroup,
@@ -31,7 +30,6 @@ import { useSelectMatchClientInput } from "@/components/photo-workspace/useSelec
 import { useSelectMatchSceneThumbnails } from "@/components/photo-workspace/useSelectMatchSceneThumbnails";
 import {
   RawMatchCriteriaPanel,
-  SelectMatchButton,
   SelectMatchFeatureTabs,
   type SelectMatchFeature,
 } from "@/components/photo-workspace/SelectMatchControls";
@@ -46,6 +44,7 @@ import {
 } from "@/components/photo-workspace/SelectMatchStatusViews";
 import { SelectMatchPreflightView } from "@/components/photo-workspace/SelectMatchPreflightView";
 import { SelectMatchEntryView } from "@/components/photo-workspace/SelectMatchEntryView";
+import { SelectMatchReadyView } from "@/components/photo-workspace/SelectMatchReadyView";
 
 /* ── Types ── */
 type SceneFolder = SelectMatchFolderGroup;
@@ -577,250 +576,35 @@ export function SelectMatchWorkspace({
   />;
 
   /* ── Ready: 썸네일 그리드 선택 UI ── */
-  const ratingCounts = [5,4,3,2,1].map(r => ({
-    r,
-    count: scenes.flatMap(s => s.photos).filter(p => p.rating !== null && p.rating >= r).length,
-  }));
-  const hasAnyRating = scenes.flatMap(s => s.photos).some(p => p.rating !== null);
-
-  return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "20px 16px" }}>
-
-      {/* Bridge 별점 자동 선택 바 */}
-      <div style={{ background: "rgba(214,188,125,.12)", border: "1px solid rgba(214,188,125,.36)", borderRadius: 12, padding: "12px 18px", marginBottom: 12, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        <div style={{ fontSize: 12, fontWeight: 500, color: "#92400E" }}>
-          ⭐ Bridge 별점으로 자동 선택
-          {ratingLoading && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: "#B45309" }}>읽는 중...</span>}
-        </div>
-        {hasAnyRating ? (
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {ratingCounts.map(({ r, count }) => (
-              <button
-                key={r}
-                onClick={() => autoSelectByRating(r)}
-                disabled={count === 0}
-                style={{
-                  padding: "4px 12px", fontSize: 11, fontWeight: 500, borderRadius: 8,
-                  border: "1px solid #FDE68A", cursor: count === 0 ? "not-allowed" : "pointer",
-                  background: count > 0 ? "#FEF3C7" : "#F9FAFB", color: count > 0 ? "#92400E" : "#9CA3AF",
-                  fontFamily: "inherit",
-                }}
-              >{"★".repeat(r)}{"☆".repeat(5-r)} 이상 ({count}장)</button>
-            ))}
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: 11, color: "#B45309" }}>
-              {ratingLoading ? "XMP 사이드카 스캔 중..." : "사이드카(.xmp) 없음 — JPG 내 XMP 스캔"}
-            </span>
-            {!ratingLoading && (
-              <button
-                onClick={loadEmbeddedRatings}
-                style={{ padding: "4px 12px", fontSize: 11, fontWeight: 500, background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, cursor: "pointer", color: "#92400E", fontFamily: "inherit" }}
-              >JPG에서 별점 읽기</button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 상단 액션바 */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, padding: "12px 18px", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <span style={{ fontSize: 15, fontWeight: 600, color: uiAccent }}>{selected.size}장 선택됨</span>
-            <span style={{ fontSize: 11, color: uiHint, marginLeft: 8 }}>
-              {queryTokens.length ? `${matchedCount}장 찾음 / 전체 ${totalPhotos}장` : `/ 전체 ${totalPhotos}장 (${scenes.length}씬)`}
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button
-              onClick={() => setSelected(new Set(scenes.flatMap(s => s.photos.map(p => p.basename.toLowerCase()))))}
-              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit" }}
-            >전체 선택</button>
-            <button
-              onClick={() => setSelected(new Set())}
-              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: surfaceCard, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
-            >전체 해제</button>
-            <input
-              type="search"
-              value={nameQuery}
-              onChange={(event) => setNameQuery(event.currentTarget.value)}
-              placeholder="파일명 검색 (R5K, DSC…)"
-              aria-label="파일명 검색"
-              autoComplete="off"
-              style={{ width: 190, maxWidth: "100%", padding: "4px 10px", fontSize: 11, background: inputSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, color: uiText, fontFamily: "inherit", outline: "none" }}
-            />
-            {queryTokens.length ? <button
-              type="button"
-              onClick={() => setSelected((previous) => {
-                const next = new Set(previous);
-                for (const scene of visibleScenes) {
-                  for (const photo of scene.photos) next.add(photo.basename.toLowerCase());
-                }
-                return next;
-              })}
-              style={{ padding: "4px 10px", fontSize: 11, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit", whiteSpace: "nowrap" }}
-            >검색 결과 {matchedCount}장 선택</button> : null}
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          {selectionOnly ? (
-            <SelectMatchButton onClick={() => completeSelection(selected)} disabled={selected.size === 0}>
-              {selected.size > 0 ? `선택 ${selected.size}장 저장` : "사진을 선택하세요"}
-            </SelectMatchButton>
-          ) : (
-            <>
-              <SelectMatchButton onClick={runPreflight} disabled={selected.size === 0}>
-                {selected.size > 0 ? `${selected.size}장 RAW 매칭 확인` : "사진을 선택하세요"}
-              </SelectMatchButton>
-              <button
-                onClick={pickRawFolder}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 5,
-                  padding: "6px 12px", fontSize: 11, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-                  background: rawRootDir ? "#DCFCE7" : "#FEF9C3",
-                  border: `1px solid ${rawRootDir ? "#86EFAC" : "#FDE68A"}`,
-                  borderRadius: 8, color: rawRootDir ? "#166534" : "#92400E",
-                }}
-                title={rawRootDir ? `RAW 폴더: ${rawRootDir.name}` : "RAW 파일이 있는 폴더를 별도로 선택"}
-              >{rawRootDir ? <><FolderOpen size={14} aria-hidden="true" />{rawRootDir.name}</> : <><FolderOpen size={14} aria-hidden="true" />RAW 폴더 선택</>}</button>
-            </>
-          )}
-          {!bridgeLinked ? <button
-            onClick={() => { setStep("idle"); setRootDir(null); setRawRootDir(null); setScenes([]); setSelected(new Set()); }}
-            style={{ padding: "6px 10px", fontSize: 11, background: "transparent", border: `1px solid ${uiBorder}`, borderRadius: 8, cursor: "pointer", color: uiMuted, fontFamily: "inherit" }}
-          >폴더 변경</button> : null}
-        </div>
-      </div>
-
-      {/* 씬별 패널 */}
-      {scenes.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: uiHint, fontSize: 13 }}>
-          JPG 파일을 찾지 못했습니다. 폴더를 다시 확인해주세요.
-        </div>
-      ) : queryTokens.length && visibleScenes.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px 0", color: uiHint, fontSize: 13 }}>
-          &quot;{nameQuery.trim()}&quot;와 맞는 파일이 없습니다
-        </div>
-      ) : (
-        visibleScenes.map((scene, si) => {
-          const sourceSceneIndex = queryTokens.length
-            ? scenes.findIndex((candidate) => candidate.dirHandle === scene.dirHandle)
-            : si;
-          const sceneSelCount = scene.photos.filter(p => selected.has(p.basename.toLowerCase())).length;
-          const isExpanded = queryTokens.length > 0 || expanded.has(sourceSceneIndex);
-          return (
-            <div key={sourceSceneIndex} style={{ background: surfaceCard, borderRadius: 12, border: `1px solid ${uiBorder}`, overflow: "hidden", marginBottom: 10 }}>
-              {/* 씬 헤더 */}
-              <div
-                onClick={() => {
-                  if (queryTokens.length) return;
-                  setExpanded(prev => {
-                    const next = new Set(prev);
-                    if (next.has(sourceSceneIndex)) { next.delete(sourceSceneIndex); }
-                    else { next.add(sourceSceneIndex); loadSceneThumbs(sourceSceneIndex); }
-                    return next;
-                  });
-                }}
-                style={{ padding: "13px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", userSelect: "none" }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8, background: sceneSelCount > 0 ? uiAccent : uiBorder,
-                    display: "flex", alignItems: "center", justifyContent: "center", color: sceneSelCount > 0 ? "#103E36" : uiMuted, fontSize: 12, fontWeight: 500, transition: "background .2s", flexShrink: 0,
-                  }}>{sourceSceneIndex + 1}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: uiText }}>{scene.name}</div>
-                    <div style={{ fontSize: 10, color: uiHint }}>{scene.photos.length}장</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {sceneSelCount > 0 && (
-                    <span style={{ fontSize: 11, fontWeight: 500, color: uiAccent, background: groupedSurface, padding: "3px 10px", borderRadius: 12 }}>✓ {sceneSelCount}장</span>
-                  )}
-                  {/* 빠른 전체선택 */}
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      const keys = scene.photos.map(p => p.basename.toLowerCase());
-                      const allSel = keys.every(k => selected.has(k));
-                      setSelected(prev => {
-                        const next = new Set(prev);
-                        if (allSel) keys.forEach(k => next.delete(k));
-                        else keys.forEach(k => next.add(k));
-                        return next;
-                      });
-                    }}
-                    style={{ padding: "3px 8px", fontSize: 10, fontWeight: 500, background: groupedSurface, border: `1px solid ${uiBorder}`, borderRadius: 6, cursor: "pointer", color: uiAccent, fontFamily: "inherit" }}
-                  >{scene.photos.every(p => selected.has(p.basename.toLowerCase())) ? "해제" : "씬 전체"}</button>
-                  <span style={{ fontSize: 10, color: uiHint, width: 12 }}>{isExpanded ? "▲" : "▼"}</span>
-                </div>
-              </div>
-
-              {/* 썸네일 그리드 */}
-              {isExpanded && (
-                <div style={{ borderTop: `1px solid ${uiBorder}`, padding: 12 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 6 }}>
-                    {scene.photos.map(p => {
-                      const k = p.basename.toLowerCase();
-                      const isSel = selected.has(k);
-                      return (
-                        <div
-                          key={p.name}
-                          onClick={() => setSelected(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; })}
-                          style={{
-                            // OLIVIA OS 1차 작업 지시서 6단계 — 선택 표시를 테두리가 아니라
-                            // 우상단 체크 배지로 통일한다(배지는 이미 있었다, 테두리 강조만
-                            // 없앤다). 테두리를 선택 여부와 무관하게 고정해서 사진 색 판단에
-                            // 방해되는 색 테두리 대비를 없앤다.
-                            position: "relative", cursor: "pointer", borderRadius: 7, overflow: "hidden",
-                            border: `1.5px solid ${uiBorder}`,
-                            aspectRatio: "3/2", background: "#e5eeec",
-                          }}
-                        >
-                          {p.thumbUrl
-                            ? <img src={p.thumbUrl} alt={p.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                            : <div style={{ width: "100%", height: "100%", background: "#dde8e6" }} />
-                          }
-                          {isSel && (
-                            <div style={{ position: "absolute", top: 4, right: 4, width: 18, height: 18, borderRadius: "50%", background: uiAccent, boxShadow: "0 0 0 2px rgba(255,255,255,.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#103E36", fontWeight: 600 }}>✓</div>
-                          )}
-                          {p.rating !== null && (
-                            <div style={{ position: "absolute", top: 4, left: 4, background: "rgba(0,0,0,.6)", borderRadius: 4, padding: "1px 4px", fontSize: 8, color: "#FBBF24", letterSpacing: -1 }}>
-                              {"★".repeat(p.rating)}{"☆".repeat(5 - p.rating)}
-                            </div>
-                          )}
-                          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.5)", padding: "2px 4px", fontSize: 7, color: "rgba(255,255,255,.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {p.name}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-
-      {/* 하단 플로팅 알약 바 (선택 시만) — OLIVIA OS 1차 작업 지시서 6단계: 선택 개수 /
-          전체 해제 / 다음 단계를 한 알약 안에 모은다. borderRadius를 완전한 캡슐 모양으로. */}
-      {selected.size > 0 && (
-        <div style={{ position: "sticky", bottom: 16, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
-          <div style={{ pointerEvents: "all", background: uiAccent, color: "#103E36", borderRadius: 999, padding: "10px 12px 10px 22px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 4px 20px rgba(21,88,85,.35)" }}>
-            <span style={{ fontSize: 13, fontWeight: 500, whiteSpace: "nowrap" }}>{selected.size}장 선택됨</span>
-            <button
-              onClick={() => setSelected(new Set())}
-              style={{ padding: "7px 16px", background: "transparent", border: "1px solid rgba(16,62,54,.4)", borderRadius: 999, color: "#103E36", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}
-            >전체 해제</button>
-            <button
-              onClick={() => runPreflight()}
-              style={{ padding: "7px 18px", background: "rgba(16,62,54,.12)", border: "1px solid rgba(16,62,54,.4)", borderRadius: 999, color: "#103E36", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily:"inherit", whiteSpace: "nowrap" }}
-            >RAW 매칭 확인</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <SelectMatchReadyView
+    scenes={scenes}
+    visibleScenes={visibleScenes}
+    queryTokens={queryTokens}
+    nameQuery={nameQuery}
+    onNameQueryChange={setNameQuery}
+    matchedCount={matchedCount}
+    totalPhotos={totalPhotos}
+    selected={selected}
+    setSelected={setSelected}
+    expanded={expanded}
+    setExpanded={setExpanded}
+    ratingLoading={ratingLoading}
+    onAutoSelectByRating={autoSelectByRating}
+    onLoadEmbeddedRatings={loadEmbeddedRatings}
+    selectionOnly={selectionOnly}
+    bridgeLinked={bridgeLinked}
+    rawRootDir={rawRootDir}
+    onCompleteSelection={completeSelection}
+    onRunPreflight={runPreflight}
+    onPickRawFolder={pickRawFolder}
+    onChangeFolder={() => {
+      setStep("idle");
+      setRootDir(null);
+      setRawRootDir(null);
+      setScenes([]);
+      setSelected(new Set());
+    }}
+    onLoadSceneThumbs={loadSceneThumbs}
+    colors={controlColors}
+  />;
 }
