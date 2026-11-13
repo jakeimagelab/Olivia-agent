@@ -62,7 +62,6 @@ import {
   prepareBridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlanApply";
 import {
-  buildPersonFeatureTags,
   type PersonGroup,
   type StudioGroup,
   type StudioGroupSortMode,
@@ -93,9 +92,7 @@ import {
   splitRawAndJpg,
 } from "@/lib/photo-classifier/browserFileOps";
 import {
-  downloadCSV,
   estimatedRemaining,
-  makeCSV,
 } from "@/lib/photo-classifier/workspaceFormatting";
 import {
   type SavedSortingSession,
@@ -128,9 +125,13 @@ import {
 } from "./PhotoSortingProgressSteps";
 import { PhotoSortingWorkspaceShell } from "./PhotoSortingWorkspaceShell";
 import { FieldSceneReviewStep } from "./FieldSceneReviewStep";
-import { StudioGroupEditView } from "./StudioGroupEditView";
-import { StudioGroupConfirmationView } from "./StudioGroupConfirmationView";
-import { StudioClassificationCompleteView } from "./StudioClassificationCompleteView";
+import {
+  StudioClassificationCompletionStep,
+  StudioConceptConfirmationStep,
+  StudioConceptEditStep,
+  StudioPersonConfirmationStep,
+  StudioPersonEditStep,
+} from "./StudioClassificationReviewSteps";
 import { FieldClassificationCompleteView } from "./FieldClassificationCompleteView";
 import { PhotoSortingSetupView } from "./PhotoSortingSetupView";
 
@@ -1594,160 +1595,28 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      STUDIO STEPS
   ═══════════════════════════════════════════ */
-  const StudioStep3 = () => {
-    const etcGroup    = studioGroups.find(g=>g.isEtc);
-    const normalGroups = studioGroups.filter(g=>!g.isEtc);
-    return (
-      <StudioGroupEditView
-        description={<>
-          AI가 의상·포즈 기준으로 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
-        </>}
-        groupHeading="의상·포즈 그룹"
-        groupCountUnit="개"
-        etcFiles={etcGroup?.files ?? []}
-        groups={normalGroups.map((group) => ({
-          id: group.key,
-          kind: "concept" as const,
-          editedFolderName: group.editedFolderName,
-          files: group.files,
-          poseType: group.poseType,
-          confidence: group.files.reduce((sum, file) => sum + file.confidence, 0) / group.files.length,
-        }))}
-        onFolderNameChange={(groupId, value) => setStudioGroups((current) => current.map((group) => (
-          group.key === groupId ? { ...group, editedFolderName: value } : group
-        )))}
-        onBack={() => setStep(0)}
-        onApprove={() => setStep(4)}
-      />
-    );
-  };
+  const updateStudioGroupFolderName = useCallback((groupId: string, value: string) => {
+    setStudioGroups((current) => current.map((group) => (
+      group.key === groupId ? { ...group, editedFolderName: value } : group
+    )));
+  }, []);
 
-  const StudioGroupStep3 = () => {
-    const etcGroup    = personGroups.find(g=>g.isEtc);
-    const normalGroups = personGroups.filter(g=>!g.isEtc);
-    return (
-      <StudioGroupEditView
-        description={<>
-          AI가 얼굴 특징(성별·연령·헤어·안경)을 기준으로 인물별 그룹을 분류했습니다. 폴더명을 수정한 후 <strong>승인</strong>해주세요.
-        </>}
-        groupHeading="인물 그룹"
-        groupCountUnit="명"
-        etcFiles={etcGroup?.files ?? []}
-        groups={normalGroups.map((group) => ({
-          id: group.id,
-          kind: "person" as const,
-          editedFolderName: group.editedFolderName,
-          files: group.files,
-          sampleThumb: group.sampleThumb,
-          tags: buildPersonFeatureTags(group.features, { includeHairLength: true }),
-          index: group.index,
-        }))}
-        onFolderNameChange={(groupId, value) => setPersonGroups((current) => current.map((group) => (
-          group.id === groupId ? { ...group, editedFolderName: value } : group
-        )))}
-        onBack={() => setStep(0)}
-        onApprove={() => setStep(4)}
-      />
-    );
-  };
+  const updatePersonGroupFolderName = useCallback((groupId: string, value: string) => {
+    setPersonGroups((current) => current.map((group) => (
+      group.id === groupId ? { ...group, editedFolderName: value } : group
+    )));
+  }, []);
 
-  const StudioGroupStep4 = () => {
-    const etcGroup    = personGroups.find(g=>g.isEtc);
-    const normalGroups = personGroups.filter(g=>!g.isEtc);
-    return (
-      <StudioGroupConfirmationView
-        groups={personGroups.map((group) => ({
-          id: group.id,
-          tabLabel: group.editedFolderName,
-          editedFolderName: group.editedFolderName,
-          isEtc: group.isEtc,
-          files: group.files,
-          tags: buildPersonFeatureTags(group.features).map((label) => ({ label })),
-        }))}
-        activeIndex={activePersonGroup}
-        stats={[
-          { label: "인물 수", value: normalGroups.length, color: C.purple },
-          { label: "전체 JPG", value: normalGroups.reduce((sum, group) => sum + group.files.length, 0), color: C.txt },
-          { label: "ETC", value: etcGroup?.files.length ?? 0, color: C.red },
-          { label: "RAW 파일", value: studioRawCount, color: C.muted },
-        ]}
-        onActiveIndexChange={setActivePersonGroup}
-        onBack={() => setStep(3)}
-        onStart={runGroupOutput}
-      />
-    );
-  };
-
-  const StudioStep4 = () => {
-    const etcGroup     = studioGroups.find(g=>g.isEtc);
-    const normalGroups = studioGroups.filter(g=>!g.isEtc);
-    return (
-      <StudioGroupConfirmationView
-        groups={studioGroups.map((group) => ({
-          id: group.key,
-          tabLabel: group.editedFolderName.split("_").slice(1).join("_"),
-          editedFolderName: group.editedFolderName,
-          isEtc: group.isEtc,
-          files: group.files,
-          tags: [
-            { label: group.clothingLabel },
-            { label: group.poseType, tone: "orange" as const },
-          ],
-        }))}
-        activeIndex={activeGroup}
-        stats={[
-          { label: "전체 그룹", value: normalGroups.length, color: C.purple },
-          { label: "전체 JPG", value: normalGroups.reduce((sum, group) => sum + group.files.length, 0), color: C.txt },
-          { label: "ETC", value: etcGroup?.files.length ?? 0, color: C.red },
-          { label: "RAW 파일", value: studioRawCount, color: C.muted },
-        ]}
-        onActiveIndexChange={setActiveGroup}
-        onBack={() => setStep(3)}
-        onStart={runStudioOutput}
-      />
-    );
-  };
-
-  const StudioStep6 = () => {
-    if (!studioStats) return null;
-    const isGroup = studioSubMode === "group";
-    return (
-      <StudioClassificationCompleteView
-        stats={[
-          { label: isGroup ? "인물 그룹" : "의상·포즈 그룹", value: studioStats.totalGroups, color: C.purple },
-          { label: "정상 JPG", value: studioStats.totalNormal, color: C.teal },
-          { label: "ETC 분리", value: studioStats.totalEtc, color: C.red },
-          { label: "원본 RAW", value: studioStats.totalRaw, color: C.muted },
-        ]}
-        rootFolderName={rootDir?.name ?? ""}
-        groupDescription={isGroup ? "인물별" : "의상·포즈별"}
-        downloadLabel={isGroup ? "↓ 인물 요약 CSV" : "↓ 그룹 요약 CSV"}
-        onDownload={() => {
-          if (isGroup) {
-            downloadCSV(
-              makeCSV(["인물", "폴더명", "장수"], personGroups.filter((group) => !group.isEtc).map((group) => [group.label, group.editedFolderName, String(group.files.length)])),
-              "person_group_summary.csv",
-            );
-            return;
-          }
-          downloadCSV(
-            makeCSV(["그룹", "폴더명", "의상", "포즈", "장수"], studioGroups.filter((group) => !group.isEtc).map((group) => [String(group.index), group.editedFolderName, group.clothingLabel, group.poseType, String(group.files.length)])),
-            "studio_group_summary.csv",
-          );
-        }}
-        onReset={() => {
-          setStep(0);
-          setStudioFiles([]);
-          setStudioGroups([]);
-          setPersonGroups([]);
-          setRootDir(null);
-          setStudioRawCount(0);
-          setStudioCopyLog([]);
-          setStudioStats(null);
-        }}
-      />
-    );
-  };
+  const resetStudioClassification = useCallback(() => {
+    setStep(0);
+    setStudioFiles([]);
+    setStudioGroups([]);
+    setPersonGroups([]);
+    setRootDir(null);
+    setStudioRawCount(0);
+    setStudioCopyLog([]);
+    setStudioStats(null);
+  }, []);
 
   /* ════════════════════════════════════════════
      LAYOUT
@@ -1826,10 +1695,51 @@ function PhotoSortingInner({
 
         {photoMode==="studio" && step===1 && <StudioFileScanProgressStep progress={progress} />}
         {photoMode==="studio" && step===2 && <StudioPhotoAnalysisProgressStep progress={progress} studioFiles={studioFiles} studioSubMode={studioSubMode} />}
-        {photoMode==="studio" && step===3 && (studioSubMode==="group" ? <StudioGroupStep3/> : <StudioStep3/>)}
-        {photoMode==="studio" && step===4 && (studioSubMode==="group" ? <StudioGroupStep4/> : <StudioStep4/>)}
+        {photoMode==="studio" && step===3 && (studioSubMode==="group" ? (
+          <StudioPersonEditStep
+            groups={personGroups}
+            onFolderNameChange={updatePersonGroupFolderName}
+            onBack={() => setStep(0)}
+            onApprove={() => setStep(4)}
+          />
+        ) : (
+          <StudioConceptEditStep
+            groups={studioGroups}
+            onFolderNameChange={updateStudioGroupFolderName}
+            onBack={() => setStep(0)}
+            onApprove={() => setStep(4)}
+          />
+        ))}
+        {photoMode==="studio" && step===4 && (studioSubMode==="group" ? (
+          <StudioPersonConfirmationStep
+            groups={personGroups}
+            activeIndex={activePersonGroup}
+            rawCount={studioRawCount}
+            onActiveIndexChange={setActivePersonGroup}
+            onBack={() => setStep(3)}
+            onStart={runGroupOutput}
+          />
+        ) : (
+          <StudioConceptConfirmationStep
+            groups={studioGroups}
+            activeIndex={activeGroup}
+            rawCount={studioRawCount}
+            onActiveIndexChange={setActiveGroup}
+            onBack={() => setStep(3)}
+            onStart={runStudioOutput}
+          />
+        ))}
         {photoMode==="studio" && step===5 && <StudioOutputProgressStep progress={progress} copyLog={studioCopyLog} />}
-        {photoMode==="studio" && step===6 && <StudioStep6/>}
+        {photoMode==="studio" && step===6 && studioStats && (
+          <StudioClassificationCompletionStep
+            stats={studioStats}
+            subMode={studioSubMode}
+            rootFolderName={rootDir?.name ?? ""}
+            personGroups={personGroups}
+            conceptGroups={studioGroups}
+            onReset={resetStudioClassification}
+          />
+        )}
       </PhotoSortingWorkspaceShell>
 
       {photoSourcePickerOpen ? (
