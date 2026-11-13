@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildJpgPrepPlan, isJpgIntegratedRoot } from "@/components/photo-workspace/PhotoJpgPrepWorkspace";
+import { buildJpgPrepPlan, isJpgIntegratedRoot } from "@/lib/photo-workspace/jpgPrep";
 
 type TestEntry = TestDirectory | TestFile;
 
@@ -114,7 +114,7 @@ describe("JPG정리 계획", () => {
   });
 
   it("calls moveFileFast only with JPG plan rows and documents RAW as untouched", () => {
-    const source = readFileSync(new URL("../components/photo-workspace/PhotoJpgPrepWorkspace.tsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../lib/photo-workspace/jpgPrep.ts", import.meta.url), "utf8");
     expect(source).toContain("moveFileFast({ src: row.fileHandle");
     expect(source).toContain("RAW_PHOTO_EXTENSIONS.has(fileExtension)");
     expect(source).not.toMatch(/moveFileFast\([\s\S]*?RAW_PHOTO_EXTENSIONS/);
