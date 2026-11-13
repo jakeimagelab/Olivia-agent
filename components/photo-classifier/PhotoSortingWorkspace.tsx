@@ -2,16 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { FieldScene, FieldStats, MedicalDepartment, SceneFile } from "@/lib/photo-classifier/types";
+import type { FieldScene, FieldStats, MedicalDepartment } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
 import {
   manualPhotoDepartmentResolution,
   resolvePhotoDepartmentEvidence,
 } from "@/lib/photo-classifier/departmentResolver";
 import type { SceneMergeCandidate, MergeDecision } from "@/lib/photo-classifier/scene-merge-types";
-import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
-import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo-classifier/candidate-builder";
-import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import {
   createApproveSceneCorrection,
   createMergeSceneCorrection,
@@ -28,13 +25,8 @@ import type {
   AccuracyReport, ClassificationJobState, SceneBoundaryDecision,
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
-import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
-import { extractBrowserFieldFeatures } from "@/lib/photo-classifier/fieldFeatureExtraction";
 import { analyzeBrowserFieldFolder } from "@/lib/photo-classifier/fieldFolderAnalysis";
-import {
-  appendBrowserPurposeTransitionCandidates,
-} from "@/lib/photo-classifier/fieldBoundaryAnalysis";
-import { verifyBrowserFieldBoundaries } from "@/lib/photo-classifier/fieldBoundaryVerification";
+import { runBrowserFieldClassification } from "@/lib/photo-classifier/browserFieldClassificationRunner";
 import { runFieldSceneAiAnalysis } from "@/lib/photo-classifier/fieldSceneAiRunner";
 import { runFieldSecondaryAnalysis } from "@/lib/photo-classifier/fieldSecondaryAnalysisRunner";
 import { executePlannedFieldOutput, renameConfirmedFieldScenes } from "@/lib/photo-classifier/fieldOutput";
@@ -77,18 +69,11 @@ import {
 } from "@/lib/photo-classifier/studioClassificationAnalysis";
 import { executeStudioOutput } from "@/lib/photo-classifier/studioOutput";
 import { prepareStudioPhotoFiles } from "@/lib/photo-classifier/studioScanning";
-import {
-  buildQuickProposals,
-  loadThumb,
-  mapWithConcurrency,
-} from "@/lib/photo-classifier/browserProcessing";
+import { buildQuickProposals } from "@/lib/photo-classifier/browserProcessing";
 import {
   copyFileHandle,
   splitRawAndJpg,
 } from "@/lib/photo-classifier/browserFileOps";
-import {
-  estimatedRemaining,
-} from "@/lib/photo-classifier/workspaceFormatting";
 import {
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
@@ -607,169 +592,31 @@ function PhotoSortingInner({
     classificationAbortRef.current?.abort();
     const abortController = new AbortController();
     classificationAbortRef.current = abortController;
-    // Scene Engine v2 — AI 폴더 분석은 threshold/weight만 조정한다.
-    // 60–180초는 mandatory AI, 180초 이상은 가중치와 무관하게 강제 분리한다.
-    const effectiveGapMinutes = aiWeightProfile?.absoluteTimeGapMinutes ?? gapMinutes;
-    const preciseSettings = {
-      ...getClassificationSettings(department === "dermatology" ? "dermatology" : "default", "precise"),
-      ...(aiWeightProfile ? { splitThreshold: aiWeightProfile.splitThreshold, reviewThreshold: aiWeightProfile.reviewThreshold } : {}),
-    };
-
-    // ① 스캔
-    setClassificationJobState("SCANNING_FILES");
-    setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
-    let lastUpdate = Date.now();
-
-    const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
-    // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF DateTimeOriginal을
-    // 우선한다. 제한된 병렬 처리로 읽되 반환 순서는 원본 목록과 동일하게 유지한다.
-    setClassificationJobState("READING_EXIF");
-    const jpgEntries = await readBrowserPhotoTimestamps(jpgFiles, {
-      onProgress: ({ completed, total, fileName }) => {
-        if (completed === total || completed % 20 === 0 || Date.now() - lastUpdate > 300) {
-          setProgress({ cur: completed, total, msg: `촬영시각 확인: ${fileName}` });
-          lastUpdate = Date.now();
-        }
+    const classification = await runBrowserFieldClassification({
+      rootDirectory: rootDir,
+      department,
+      gapMinutes,
+      fastAnalyzeMode,
+      aiNamingEnabled,
+      departmentLogicEnabled,
+      weightProfile: aiWeightProfile,
+      signal: abortController.signal,
+      isCancelled: () => cancelRef.current,
+      onStateChange: setClassificationJobState,
+      onProgress: setProgress,
+      onFilesScanned: (rawFiles) => {
+        setFieldRawCount(rawFiles.length);
+        setFieldRawHandles(rawFiles);
       },
     });
-    setFieldRawCount(rawFiles.length);
-    setFieldRawHandles(rawFiles);
-
-    // ③ JPG → 시간순 정렬 → Scene 분리
-    const sortedEntries = sortTimestampedFiles(jpgEntries);
-    jpgEntries.splice(0, jpgEntries.length, ...sortedEntries);
-    const total = jpgEntries.length;
-    const newScenes: FieldScene[] = [];
-
-    if (fastAnalyzeMode) {
-      // ═══ 빠른 분석 모드: 파일을 이동하지 않고 Scene 계획만 생성 ═══
-      const sceneFiles: SceneFile[] = [];
-      let done = 0;
-      for (const entry of jpgEntries) {
-        if (cancelRef.current) break;
-        done += 1;
-        if (done % 20 === 0 || Date.now() - lastUpdate > 300) {
-          setProgress({ cur: done, total, msg: `씬 계획 생성 (${done}/${total})` });
-          lastUpdate = Date.now();
-        }
-        sceneFiles.push({
-          name: entry.name,
-          basename: entry.name.replace(/\.[^.]+$/u, ""),
-          handle: entry.handle,
-          mtime: entry.mtime,
-          thumbUrl: null,
-        });
-      }
-      newScenes.push(...buildFastFieldScenes(sceneFiles, effectiveGapMinutes, {
-        nameLoading: aiNamingEnabled || departmentLogicEnabled,
-      }));
-      setCopyLog([
-        `✅ 빠른 분석 완료 — JPG ${total}장 / RAW ${rawFiles.length}개 / Scene ${newScenes.length}개`,
-        `📋 파일 이동 없음 — Scene 계획만 생성됨 (RAW 원본 위치 유지)`,
-        `👆 씬 검토 후 [폴더 정리 실행]을 눌러 실제 파일을 정리하세요`,
-      ]);
-
-    } else {
-      // ═══ 정밀 분류 모드: 승인 전에는 파일을 이동하지 않음 ═══
-      setClassificationJobState("EXTRACTING_FEATURES");
-      setProgress({ cur: 0, total, msg: "저비용 시각 특징 추출 준비 중..." });
-      const featureStartedAt = Date.now();
-      const featureResult = await extractBrowserFieldFeatures({
-        entries: jpgEntries,
-        rootName: rootDir.name,
-        concurrency: preciseSettings.maxConcurrentJobs,
-        signal: abortController.signal,
-        onProgress: ({ completed, total: featureTotal, uncachedCompleted, uncachedTotal }) => setProgress({
-          cur: completed,
-          total,
-          msg: `시각 특징 추출 ${completed}/${featureTotal}${estimatedRemaining(uncachedCompleted, uncachedTotal, featureStartedAt)}`,
-        }),
-      });
-      const safeFeatures = featureResult.features;
-      const failedImages = featureResult.failedImages;
-
-      if (abortController.signal.aborted || cancelRef.current) {
-        setClassificationJobState("CANCELLED");
-        setCopyLog((previous) => [...previous, "⏸ 정밀 분류가 중단되었습니다. 원본 파일은 이동되지 않았습니다."]);
-        useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "cancelled");
-        return;
-      }
-
-      setClassificationJobState("DETECTING_BOUNDARIES");
-      let candidates = buildVisualBoundaryCandidates(jpgEntries, safeFeatures, preciseSettings);
-
-      // ── 2차 Scene 분석: 하드갭 기준 임시 Scene(구간) 내부에서 촬영목적 전환 지점을 찾는다.
-      // buildVisualBoundaryCandidates는 시각적 diff가 큰 지점만 후보로 잡으므로, 상담→시술처럼
-      // 같은 공간·비슷한 톤으로 이어지는 목적 전환은 후보 자체가 안 생겨 놓치는 문제가 있었다.
-      // 여기서는 구간을 촘촘히(6장 고정이 아니라 크기 비례) 샘플링해 목적 라벨을 매기고,
-      // 라벨이 바뀌는 지점을 새 경계 후보로 추가한다 — 정확한 사진 단위 위치는 기존 검증 루프가
-      // (아래 mapWithConcurrency) 3장 윈도우 AI 검증으로 다시 확인하므로 근사치면 충분하다.
-      const purposeScan = await appendBrowserPurposeTransitionCandidates({
-        entries: jpgEntries,
-        candidates,
-        department,
-        hardGapMinutes: preciseSettings.hardGapMinutes,
-        signal: abortController.signal,
-        isCancelled: () => cancelRef.current,
-        onProgress: (completed, segmentTotal) => setProgress({
-          cur: completed,
-          total: segmentTotal,
-          msg: `촬영목적 전환 스캔 ${completed}/${segmentTotal}`,
-        }),
-      });
-      candidates = purposeScan.candidates;
-      setProgress({ cur: 0, total: candidates.length, msg: `경계 후보 ${candidates.length}개 분석 준비(목적 전환 포함)` });
-
-      setClassificationJobState("VERIFYING_BOUNDARIES");
-      const checkpointId = `${rootDir.name}:${department}:${effectiveGapMinutes}:precise-v2`;
-      const boundaryStartedAt = Date.now();
-      const stabilized = await verifyBrowserFieldBoundaries({
-        entries: jpgEntries,
-        candidates,
-        settings: preciseSettings,
-        department,
-        checkpointId,
-        weights: aiWeightProfile?.weights,
-        signal: abortController.signal,
-        onProgress: ({ completed, total: boundaryTotal, restored }) => {
-          setProgress({
-            cur: completed,
-            total: boundaryTotal,
-            msg: `${restored ? "경계 검증 복원" : "경계 검증"} ${completed}/${boundaryTotal}${estimatedRemaining(completed, boundaryTotal, boundaryStartedAt)}`,
-          });
-        },
-      });
-      setBoundaryDecisions(stabilized);
-
-      setClassificationJobState("CREATING_SCENES");
-      const sceneFiles: SceneFile[] = jpgEntries.map((entry, index) => ({
-        name: entry.name,
-        basename: entry.name.replace(/\.[^.]+$/, ""),
-        handle: entry.handle,
-        mtime: entry.mtime,
-        timestampSource: entry.timestampSource,
-        thumbUrl: null,
-        visualFeatures: safeFeatures[index],
-      }));
-      const preciseScenes = buildFieldScenesFromBoundaries(sceneFiles, stabilized);
-      await mapWithConcurrency(preciseScenes, 3, async (scene) => {
-        const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
-        await Promise.all(thumbIndexes.map(async (index) => {
-          try { scene.files[index].thumbUrl = await loadThumb(await scene.files[index].handle.getFile(), 160); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-        }));
-        return scene;
-      });
-      newScenes.push(...preciseScenes);
-      const fallbackCount = jpgEntries.filter((entry) => entry.timestampSource === "mtime").length;
-      setCopyLog([
-        `✅ 하이브리드 분류 완료 — JPG ${total}장 / RAW ${rawFiles.length}개 / Scene ${newScenes.length}개`,
-        `🧭 경계 후보 ${candidates.length}개 / AI 검토 필요 ${stabilized.filter((decision) => decision.needsReview).length}개`,
-        `🕒 EXIF 없음·mtime 대체 ${fallbackCount}장 / 손상·특징 실패 ${failedImages}장`,
-        `🔒 승인 전 파일 이동 없음 — 씬 검토 후 폴더 정리를 실행하세요`,
-      ]);
-      setProgress({ cur: total, total, msg: "하이브리드 Scene 계획 생성 완료" });
-      setClassificationJobState("WAITING_REVIEW");
+    setBoundaryDecisions(classification.boundaryDecisions);
+    setCopyLog(classification.logs);
+    if (classification.status === "cancelled") {
+      useBackgroundJobsStore.getState().finishJob(PHOTO_CLASSIFY_JOB_ID, "cancelled");
+      return;
     }
+    const newScenes = classification.scenes;
+    const total = classification.total;
 
     setFieldScenes(newScenes);
     setStep(2);
