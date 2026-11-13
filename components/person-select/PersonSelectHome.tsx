@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight, ImageIcon, ShoppingBag } from "lucide-react";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
@@ -8,6 +8,7 @@ import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectHeader as Header } from "./PersonSelectHeader";
 import { PersonSelectOfferNotice as OfferNotice } from "./PersonSelectOfferNotice";
 import { PersonSelectPcWorkspace as PcWorkspace } from "./PersonSelectPcWorkspace";
+import { usePersonSelectFinalSubmission } from "./usePersonSelectFinalSubmission";
 import {
   formatPersonSelectWon as won,
   isPersonSelectCategoryComplete as isComplete,
@@ -18,21 +19,28 @@ import {
   personSelectRetouchCount as retouchCount,
   shortPersonSelectFileName as shortFileName,
 } from "./personSelectPublicModel";
-import {
-  personSelectJsonFetch as jsonFetch,
-  usePendingPersonChoiceSyncCount,
-  usePersonSelectData as useSelectionData,
-} from "./usePersonSelectPublicData";
+import { usePendingPersonChoiceSyncCount, usePersonSelectData as useSelectionData } from "./usePersonSelectPublicData";
 import styles from "./PersonSelectPublic.module.css";
 
 export function PersonSelectHome({ slug }: { slug: string }) {
   const router = useRouter();
   const { me, loading, error } = useSelectionData(slug);
   const pendingSyncCount = usePendingPersonChoiceSyncCount(slug);
-  const [submitError, setSubmitError] = useState("");
-  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [pcActiveKey, setPcActiveKey] = useState("profile");
+  const navigateToDone = useCallback(() => router.push(`/pick/${slug}/done`), [router, slug]);
+  const {
+    submitError,
+    submitReviewOpen,
+    submitting,
+    openSubmitReview,
+    closeSubmitReview,
+    confirmSubmit,
+  } = usePersonSelectFinalSubmission({
+    slug,
+    pendingCount: pendingSyncCount,
+    pendingErrorMessage: `저장 안 된 변경 ${pendingSyncCount}건을 먼저 저장해 주세요.`,
+    onSubmitted: navigateToDone,
+  });
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
   if (me.event.customer_stage === "delivery") return <PersonSelectDeliveryReview apiBase={`/api/pick/${slug}`} title={me.event.title} viewerName={me.person.display_name} />;
@@ -44,20 +52,6 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const missing = required.find((category) => !isComplete(category));
   const resolvedPcActiveKey = visibleCategories.some((category) => category.key === pcActiveKey) ? pcActiveKey : visibleCategories[0]?.key ?? "profile";
   const review = finalReviewData(visibleCategories);
-
-  function openSubmitReview() {
-    setSubmitError("");
-    if (pendingSyncCount) { setSubmitError(`저장 안 된 변경 ${pendingSyncCount}건을 먼저 저장해 주세요.`); return; }
-    setSubmitReviewOpen(true);
-  }
-
-  async function confirmSubmit() {
-    if (submitting) return;
-    setSubmitting(true); setSubmitError("");
-    try { await jsonFetch(`/api/pick/${slug}/submit`, { method: "POST", body: JSON.stringify({ confirmed: true }) }); router.push(`/pick/${slug}/done`); }
-    catch (cause) { setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요."); }
-    finally { setSubmitting(false); }
-  }
 
   return <main className={`${styles.page} ${styles.pcHomePage}`}>
     <Header me={me} slug={slug} desktopControls={<>
@@ -87,7 +81,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
       <div className={styles.stepsCard}><h3>사진 셀렉은 이렇게 진행돼요</h3><div className={styles.stepList}><span><b>1</b>사진 확인</span><span><b>2</b>보정 요청</span><span><b>3</b>최종 제출</span></div></div>
     </section>
     <PcWorkspace slug={slug} me={me} activeKey={resolvedPcActiveKey} pendingSyncCount={pendingSyncCount} />
-    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={openSubmitReview}>제출하기 ({completed}/{required.length})</button></div></footer>
-    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void confirmSubmit()} /> : null}
+    <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={() => void openSubmitReview()}>제출하기 ({completed}/{required.length})</button></div></footer>
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={closeSubmitReview} onConfirm={() => void confirmSubmit()} /> : null}
   </main>;
 }

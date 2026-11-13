@@ -10,6 +10,7 @@ import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectFilmstripImages } from "./PersonSelectFilmstripImages";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
 import { usePersonChoiceSync, type PersonSelectImageData } from "./usePersonChoiceSync";
+import { usePersonSelectFinalSubmission } from "./usePersonSelectFinalSubmission";
 import { usePersonSelectImages } from "./usePersonSelectImages";
 import { usePersonSelectPcNavigation } from "./usePersonSelectPcNavigation";
 import {
@@ -21,7 +22,7 @@ import {
   shortPersonSelectFileName,
   type PersonSelectMeData,
 } from "./personSelectPublicModel";
-import { personSelectJsonFetch, personSelectionSyncStatus } from "./usePersonSelectPublicData";
+import { personSelectionSyncStatus } from "./usePersonSelectPublicData";
 import styles from "./PersonSelectPublic.module.css";
 
 export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount }: {
@@ -46,9 +47,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   const [previewId, setPreviewId] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
   const [memo, setMemo] = useState("");
-  const [submitError, setSubmitError] = useState("");
-  const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const firstPhotoMeasured = useRef(false);
   const serverChoices = active?.choices;
   const need = active?.need ?? 0;
@@ -125,6 +123,23 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     selectImage,
     clearImage: clearChoice,
   });
+  const navigateToDone = useCallback(() => {
+    window.location.href = `/pick/${slug}/done`;
+  }, [slug]);
+  const {
+    submitError,
+    submitReviewOpen,
+    submitting,
+    openSubmitReview,
+    closeSubmitReview,
+    confirmSubmit,
+  } = usePersonSelectFinalSubmission({
+    slug,
+    pendingCount: pendingSyncCount + sync.pendingCount,
+    pendingErrorMessage: "저장되지 않은 변경을 먼저 저장해 주세요.",
+    flushPending: sync.flushNow,
+    onSubmitted: navigateToDone,
+  });
 
   function schedule(nextKeys: string[], nextMemo: string) {
     if (!previewChoice?.image_id) return;
@@ -142,29 +157,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     : !isPersonSelectCategoryComplete(item));
   const reviewCategories = categories.map((category) => category.key === active.key ? { ...category, choices: chosen } : category);
   const review = personSelectFinalReviewData(reviewCategories);
-
-  async function openSubmitReview() {
-    setSubmitError("");
-    if (pendingSyncCount || sync.pendingCount || !(await sync.flushNow())) {
-      setSubmitError("저장되지 않은 변경을 먼저 저장해 주세요.");
-      return;
-    }
-    setSubmitReviewOpen(true);
-  }
-
-  async function confirmSubmit() {
-    if (submitting) return;
-    setSubmitting(true);
-    setSubmitError("");
-    try {
-      await personSelectJsonFetch(`/api/pick/${slug}/submit`, { method: "POST", body: JSON.stringify({ confirmed: true }) });
-      window.location.href = `/pick/${slug}/done`;
-    } catch (cause) {
-      setSubmitError(cause instanceof Error ? cause.message : "제출하지 못했어요.");
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   const selectPreview = useCallback((imageId: string) => setPreviewId(imageId), []);
 
@@ -228,6 +220,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
         <div className={styles.pcSubmitArea}>{(me.event.offers ?? []).length || me.event.extra_price ? <a className={styles.pcOrderLink} href={`/pick/${slug}/order`}><ShoppingBag size={15} /><span>추가 주문{me.order?.lines.length ? ` · ${me.order.lines.map((line) => line.label).join(", ")}` : " · 추가 보정·액자·앨범"}</span><strong>{me.order?.total ? formatPersonSelectWon(me.order.total) : "신청하기"}</strong></a> : null}<p className={styles.autoSave}>{pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : personSelectionSyncStatus(sync)}</p>{missing || submitError ? <p className={styles.submitReason}>{submitError || missingText}</p> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0 || sync.pendingCount > 0 || sync.status !== "saved"} onClick={() => void openSubmitReview()}>제출하기</button></div>
       </aside>
     </div>
-    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={() => { if (!submitting) setSubmitReviewOpen(false); }} onConfirm={() => void confirmSubmit()} /> : null}
+    {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={closeSubmitReview} onConfirm={() => void confirmSubmit()} /> : null}
   </section>;
 }

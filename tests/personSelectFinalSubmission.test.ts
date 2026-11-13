@@ -41,9 +41,12 @@ describe("person select final submission", () => {
     for (const file of files) {
       const source = await readFile(path.join(process.cwd(), file), "utf8");
       const isCustomerBridge = file.endsWith("CustomerBridgeSelect.tsx");
+      const isPersonalHome = file.endsWith("PersonSelectHome.tsx");
       const submissionSource = isCustomerBridge
         ? await readFile(path.join(process.cwd(), "components/select-gallery/useCustomerBridgeSubmission.ts"), "utf8")
-        : source;
+        : isPersonalHome
+          ? await readFile(path.join(process.cwd(), "components/person-select/usePersonSelectFinalSubmission.ts"), "utf8")
+          : source;
       const presentationSource = isCustomerBridge
         ? await readFile(path.join(process.cwd(), "components/select-gallery/CustomerBridgeOverlayLayer.tsx"), "utf8")
         : source;
