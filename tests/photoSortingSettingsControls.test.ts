@@ -7,7 +7,36 @@ import { StudioClassificationSettings } from "@/components/photo-classifier/Stud
 import { PhotoClassificationProgressView } from "@/components/photo-classifier/PhotoClassificationProgressView";
 import { FieldSceneReviewOverview } from "@/components/photo-classifier/FieldSceneReviewOverview";
 import { FieldSceneReviewList } from "@/components/photo-classifier/FieldSceneReviewList";
+import { FieldSceneMergeCandidateCard } from "@/components/photo-classifier/FieldSceneMergeCandidateCard";
 import type { FieldScene } from "@/lib/photo-classifier/types";
+
+function makeFieldScene(index: number, editedName: string): FieldScene {
+  return {
+    index,
+    folderName: `Scene0${index}`,
+    editedName,
+    startTime: index * 1_000,
+    endTime: index * 2_000,
+    fileCount: 1,
+    files: [{
+      name: `${index}.JPG`,
+      basename: String(index),
+      handle: {} as FileSystemFileHandle,
+      mtime: index * 1_000,
+      thumbUrl: null,
+    }],
+    sceneDir: null,
+    sceneType: "consultation",
+    suggestedName: null,
+    aiConfidence: null,
+    aiReason: "상담 장면",
+    subScenes: [],
+    profileCount: 0,
+    qualityRejectCount: 0,
+    nameLoading: false,
+    approved: true,
+  };
+}
 
 describe("photo sorting settings controls", () => {
   it("renders the selected shooting mode without changing the existing labels", () => {
@@ -128,31 +157,7 @@ describe("photo sorting settings controls", () => {
   });
 
   it("renders field scene details through the extracted review list", () => {
-    const scene: FieldScene = {
-      index: 1,
-      folderName: "Scene01",
-      editedName: "01_상담",
-      startTime: 1_000,
-      endTime: 2_000,
-      fileCount: 1,
-      files: [{
-        name: "A.JPG",
-        basename: "A",
-        handle: {} as FileSystemFileHandle,
-        mtime: 1_000,
-        thumbUrl: null,
-      }],
-      sceneDir: null,
-      sceneType: "consultation",
-      suggestedName: null,
-      aiConfidence: null,
-      aiReason: "상담 장면",
-      subScenes: [],
-      profileCount: 0,
-      qualityRejectCount: 0,
-      nameLoading: false,
-      approved: true,
-    };
+    const scene = makeFieldScene(1, "01_상담");
     const markup = renderToStaticMarkup(
       createElement(FieldSceneReviewList, {
         scenes: [scene],
@@ -179,5 +184,38 @@ describe("photo sorting settings controls", () => {
     expect(markup).toContain("consultation");
     expect(markup).toContain("상담 장면");
     expect(markup).toContain("승인됨");
+  });
+
+  it("renders the extracted merge candidate with both scene names and actions", () => {
+    const markup = renderToStaticMarkup(
+      createElement(FieldSceneMergeCandidateCard, {
+        scene: makeFieldScene(1, "01_상담"),
+        nextScene: makeFieldScene(2, "02_시술"),
+        candidate: {
+          id: "merge-1-2",
+          fromFolderName: "Scene01",
+          toFolderName: "Scene02",
+          fromDisplayName: "01_상담",
+          toDisplayName: "02_시술",
+          fromSceneType: "consultation",
+          toSceneType: "consultation",
+          mergeScore: 0.84,
+          transitionStrength: 0.16,
+          recommendedAction: "merge",
+          reason: "인물과 장소가 같습니다.",
+          matchedSignals: ["같은 인물", "같은 장소"],
+          blockedSignals: [],
+        },
+        onMerge: () => undefined,
+        onKeepSplit: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain("병합 후보");
+    expect(markup).toContain("유사도 84%");
+    expect(markup).toContain("01_상담");
+    expect(markup).toContain("02_시술");
+    expect(markup).toContain("병합하기");
+    expect(markup).toContain("분리 유지");
   });
 });

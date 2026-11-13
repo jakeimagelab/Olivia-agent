@@ -4,6 +4,7 @@ import type { FieldScene } from "@/lib/photo-classifier/types";
 import type { SceneMergeCandidate } from "@/lib/photo-classifier/scene-merge-types";
 import { formatTime } from "@/lib/photo-classifier/workspaceFormatting";
 import { C, Card } from "./PhotoSortingUi";
+import { FieldSceneMergeCandidateCard } from "./FieldSceneMergeCandidateCard";
 
 export function FieldSceneReviewList({
   scenes,
@@ -385,155 +386,14 @@ export function FieldSceneReviewList({
                 </div>
               </div>
 
-              {candidate ? (
-                <div
-                  style={{
-                    margin: "0 12px",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: candidate.recommendedAction === "merge"
-                      ? "1.5px solid #B8CBD8"
-                      : "1.5px solid #FED7AA",
-                    background: candidate.recommendedAction === "merge"
-                      ? "rgba(53,173,147,.12)"
-                      : "rgba(214,188,125,.12)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 13 }}>{candidate.recommendedAction === "merge" ? "🔗" : "✂️"}</span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: candidate.recommendedAction === "merge" ? "#155855" : "#C2410C",
-                        }}
-                      >
-                        {candidate.recommendedAction === "merge" ? "병합 후보" : "분리 유지 추천"}
-                      </span>
-                      {candidate.recommendedAction === "merge" ? (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: "#A8F1DC",
-                            background: "rgba(53,173,147,.12)",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                          }}
-                        >
-                          유사도 {Math.round(candidate.mergeScore * 100)}%
-                        </span>
-                      ) : (
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: "#D6BC7D",
-                            background: "rgba(214,188,125,.12)",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                          }}
-                        >
-                          전환 강도 {Math.round(candidate.transitionStrength * 100)}%
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {nextScene ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        alignItems: "stretch",
-                        background: "rgba(0,0,0,.04)",
-                        borderRadius: 6,
-                        padding: "6px 8px",
-                      }}
-                    >
-                      <ScenePreview scene={scene} />
-                      <div style={{ width: 1, background: "#D1D5DB", margin: "0 2px" }} />
-                      <ScenePreview scene={nextScene} />
-                    </div>
-                  ) : null}
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: candidate.recommendedAction === "merge" ? "#155855" : "#9A3412",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {candidate.reason}
-                  </div>
-
-                  {candidate.matchedSignals.length > 0 && candidate.recommendedAction === "merge" ? (
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {candidate.matchedSignals.map((signal, signalIndex) => (
-                        <span
-                          key={`${signal}-${signalIndex}`}
-                          style={{
-                            fontSize: 9,
-                            background: "#EAF4F2",
-                            color: "#155855",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                          }}
-                        >
-                          {signal}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {candidate.blockedSignals.length > 0 && candidate.recommendedAction === "keep_split" ? (
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {candidate.blockedSignals.slice(0, 3).map((signal, signalIndex) => (
-                        <span
-                          key={`${signal}-${signalIndex}`}
-                          style={{
-                            fontSize: 9,
-                            background: "#FFEDD5",
-                            color: "#9A3412",
-                            borderRadius: 4,
-                            padding: "1px 6px",
-                          }}
-                        >
-                          {signal}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
-                    {candidate.recommendedAction === "merge" ? (
-                      <>
-                        <CandidateActionButton
-                          primary
-                          onClick={() => onMergeScenes(listIndex, listIndex + 1, candidate.id)}
-                        >
-                          병합하기
-                        </CandidateActionButton>
-                        <CandidateActionButton onClick={() => onDismissCandidate(candidate.id)}>
-                          분리 유지
-                        </CandidateActionButton>
-                      </>
-                    ) : (
-                      <>
-                        <CandidateActionButton primary onClick={() => onDismissCandidate(candidate.id)}>
-                          분리 유지
-                        </CandidateActionButton>
-                        <CandidateActionButton
-                          onClick={() => onMergeScenes(listIndex, listIndex + 1, candidate.id)}
-                        >
-                          병합하기
-                        </CandidateActionButton>
-                      </>
-                    )}
-                  </div>
-                </div>
+              {candidate && nextScene ? (
+                <FieldSceneMergeCandidateCard
+                  scene={scene}
+                  nextScene={nextScene}
+                  candidate={candidate}
+                  onMerge={() => onMergeScenes(listIndex, listIndex + 1, candidate.id)}
+                  onKeepSplit={() => onDismissCandidate(candidate.id)}
+                />
               ) : null}
             </div>
           );
@@ -555,59 +415,3 @@ const secondaryActionStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-function ScenePreview({ scene }: { scene: FieldScene }) {
-  return (
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 8, color: "#6B7280", marginBottom: 3, fontWeight: 500 }}>
-        {scene.editedName}
-      </div>
-      <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-        {scene.files.slice(0, 5).map((file, fileIndex) => (
-          file.thumbUrl ? (
-            <img
-              key={`${file.name}-${fileIndex}`}
-              src={file.thumbUrl}
-              style={{ width: 44, height: 32, objectFit: "cover", borderRadius: 3, flexShrink: 0 }}
-              alt=""
-            />
-          ) : (
-            <div
-              key={`${file.name}-${fileIndex}`}
-              style={{ width: 44, height: 32, background: "#D1D5DB", borderRadius: 3, flexShrink: 0 }}
-            />
-          )
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CandidateActionButton({
-  primary = false,
-  onClick,
-  children,
-}: {
-  primary?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "5px 12px",
-        background: primary ? "#37C39D" : "rgba(255,255,255,.06)",
-        color: primary ? "#103E36" : "#D9F6EE",
-        border: primary ? "none" : "1px solid rgba(255,255,255,.18)",
-        borderRadius: 6,
-        fontSize: 10,
-        fontWeight: primary ? 600 : 500,
-        cursor: "pointer",
-        fontFamily: "inherit",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
