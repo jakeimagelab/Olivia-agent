@@ -11,11 +11,11 @@ import {
   normalizeRemoteJobAction,
   safeFileNames,
   safeLogText,
-  safePersonSelectSourcePath,
   safeProjectSubpath,
   safeWorkerAbsolutePath,
   safeWorkerRelativePath,
 } from "@/lib/remote-jobs/requestValidation";
+import { normalizePersonSelectRequestPayload } from "@/lib/remote-jobs/personSelectRequestPayload";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -375,99 +375,14 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (action === "PERSON_SELECT_IMPORT") {
-    try {
-      if (!isRemoteJobUuid(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
-      const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
-      if (!sourceRelativePath) throw new Error("학교전달 폴더를 선택해 주세요.");
-      if (requestedPayload.layout === "person-folders" || requestedPayload.layout === "project") {
-        // 이름 폴더는 폴더 이름으로 사람을 정하고, 공용 프로젝트는 하위 JPG를 소유자 없이 가져온다.
-        // 두 방식 모두 학교용 category/owner 매핑이 필요하지 않다.
-        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, layout: requestedPayload.layout };
-      } else {
-        const mappings = requestedPayload.mappings;
-        if (!Array.isArray(mappings) || mappings.length === 0 || mappings.some((entry) => {
-          if (!entry || typeof entry !== "object" || Array.isArray(entry)) return true;
-          const value = entry as Record<string, unknown>;
-          return typeof value.folder !== "string" || typeof value.category !== "string" || !["person", "group"].includes(String(value.owner));
-        })) throw new Error("가져오기 항목 매핑이 올바르지 않습니다.");
-        payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath, mappings };
-      }
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 사진 가져오기 요청입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "PERSON_SELECT_DELIVERY_IMPORT") {
-    try {
-      if (!isRemoteJobUuid(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
-      const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
-      payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 보정본 가져오기 요청입니다." }, { status: 400 });
-    }
-  }
-
-  if (action === "PERSON_SELECT_DELIVERY_PURGE") payload = {};
-
-  if (action === "PERSON_SELECT_RAW_MATCH") {
-    if (!isRemoteJobUuid(requestedPayload.event_id)) {
-      return Response.json({ ok: false, error: "올바른 event_id가 필요합니다." }, { status: 400 });
-    }
-    const source = requestedPayload.source === undefined ? "submitted" : requestedPayload.source;
-    const mode = requestedPayload.mode === undefined ? "copy" : requestedPayload.mode;
-    if (source !== "submitted" && source !== "current") {
-      return Response.json({ ok: false, error: "워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요." }, { status: 400 });
-    }
-    if (mode !== "copy" && mode !== "mark") {
-      return Response.json({ ok: false, error: "워커 코드가 오래되었습니다. 최신화 후 다시 실행하세요." }, { status: 400 });
-    }
-    const reviewerIds = requestedPayload.reviewerIds;
-    if (reviewerIds !== undefined && (
-      !Array.isArray(reviewerIds)
-      || reviewerIds.length > 100
-      || reviewerIds.some((reviewerId) => !isRemoteJobUuid(reviewerId))
-    )) {
-      return Response.json({ ok: false, error: "RAW 매칭 검토자 범위가 올바르지 않습니다." }, { status: 400 });
-    }
-    const clearMark = requestedPayload.clear_mark === true;
-    if (clearMark && mode !== "mark") {
-      return Response.json({ ok: false, error: "로우 셀렉 지우기는 mark 모드에서만 실행할 수 있습니다." }, { status: 400 });
-    }
-    const rawLabelNames = requestedPayload.labelNames;
-    if (rawLabelNames !== undefined && (
-      !rawLabelNames || typeof rawLabelNames !== "object" || Array.isArray(rawLabelNames)
-      || ["6", "7", "8", "9"].some((key) => typeof (rawLabelNames as Record<string, unknown>)[key] !== "string")
-    )) {
-      return Response.json({ ok: false, error: "로우 셀렉 컬러 라벨 설정이 올바르지 않습니다." }, { status: 400 });
-    }
-    payload = {
-      event_id: requestedPayload.event_id,
-      mode,
-      source,
-      ...(clearMark ? { clear_mark: true } : {}),
-      ...(rawLabelNames ? { labelNames: rawLabelNames } : {}),
-      ...(Array.isArray(reviewerIds) && reviewerIds.length ? { reviewerIds: [...new Set(reviewerIds)] } : {}),
-    };
-  }
-
-  if (action === "PERSON_SELECT_LIST_FOLDER") {
-    try {
-      const remotePath = requestedPayload.remote_path;
-      const root = requestedPayload.root;
-      const foldersOnly = requestedPayload.folders_only;
-      if (remotePath !== undefined && remotePath !== null && typeof remotePath !== "string") throw new Error("폴더 경로가 올바르지 않습니다.");
-      if (root !== undefined && typeof root !== "boolean") throw new Error("root는 boolean이어야 합니다.");
-      if (foldersOnly !== undefined && typeof foldersOnly !== "boolean") throw new Error("folders_only는 boolean이어야 합니다.");
-      const safePath = remotePath ? normalizeRemoteNasRelativePath(remotePath) : "";
-      if (root === true && safePath) throw new Error("root와 remote_path를 동시에 지정할 수 없습니다.");
-      payload = {
-        ...(root === true || !safePath ? { root: true } : { remote_path: safePath }),
-        ...(foldersOnly === true ? { folders_only: true } : {}),
-      };
-    } catch (error) {
-      return Response.json({ ok: false, error: error instanceof Error ? error.message : "올바르지 않은 개인별 사진 폴더입니다." }, { status: 400 });
-    }
+  try {
+    const personSelectPayload = normalizePersonSelectRequestPayload(action, requestedPayload);
+    if (personSelectPayload !== null) payload = personSelectPayload;
+  } catch (error) {
+    return Response.json({
+      ok: false,
+      error: error instanceof Error ? error.message : "올바르지 않은 개인별 사진 작업 요청입니다.",
+    }, { status: 400 });
   }
 
   const targetWorker =
