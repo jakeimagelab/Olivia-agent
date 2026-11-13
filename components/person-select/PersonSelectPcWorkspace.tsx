@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, ShoppingBag } from "lucide-react";
-import { resolveClassicSelectionShortcut } from "@/lib/person-select/classicSelection";
 import type { SelectionSyncPatch } from "@/lib/person-select/selectionSync";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { PersonSelectFilmstripImages } from "./PersonSelectFilmstripImages";
 import { PersonSelectOfferNotice } from "./PersonSelectOfferNotice";
 import { usePersonChoiceSync, type PersonSelectImageData } from "./usePersonChoiceSync";
-import { isPersonSelectImagePageNearEnd, usePersonSelectImages } from "./usePersonSelectImages";
+import { usePersonSelectImages } from "./usePersonSelectImages";
+import { usePersonSelectPcNavigation } from "./usePersonSelectPcNavigation";
 import {
   PERSON_SELECT_FIRST_PHOTO_TIMER_KEY,
   formatPersonSelectWon,
@@ -46,8 +46,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   const [submitError, setSubmitError] = useState("");
   const [submitReviewOpen, setSubmitReviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const filmstripRef = useRef<HTMLDivElement | null>(null);
-  const activeThumbRef = useRef<HTMLButtonElement | null>(null);
   const firstPhotoMeasured = useRef(false);
   const serverChoices = active?.choices;
   const need = active?.need ?? 0;
@@ -66,6 +64,7 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
   const imageIndexById = useMemo(() => new Map(images.map((image, index) => [image.id, index])), [images]);
   const choiceByImageId = useMemo(() => new Map(displayedChoices.map((choice) => [choice.image_id, choice])), [displayedChoices]);
   const chosenIds = useMemo(() => new Set(displayedChoices.map((item) => item.image_id)), [displayedChoices]);
+  const full = limit > 1 && displayedChoices.length >= limit;
 
   useEffect(() => {
     setPreviewId((current) => imageById.has(current) ? current : (serverChoices?.[0]?.image_id || images[0]?.id || ""));
@@ -95,6 +94,31 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
     enqueueChoicePatches([{ imageId, selected: false }]);
   }, [active, enqueueChoicePatches]);
 
+  const selectImage = useCallback((imageId: string) => {
+    save(imageId, [], "");
+  }, [save]);
+
+  const {
+    filmstripRef,
+    activeThumbRef,
+    scrollFilmstrip,
+    loadMoreNearFilmstripEnd,
+  } = usePersonSelectPcNavigation({
+    images,
+    previewId,
+    preview,
+    previewIndex,
+    chosenIds,
+    full,
+    locked: me.event.locked,
+    hasMore,
+    loadMore,
+    ensurePreviews,
+    setPreviewId,
+    selectImage,
+    clearImage: clearChoice,
+  });
+
   function schedule(nextKeys: string[], nextMemo: string) {
     if (!previewChoice?.image_id) return;
     enqueueChoicePatches([
@@ -102,64 +126,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
       { imageId: previewChoice.image_id, memo: nextMemo },
     ]);
   }
-
-  useEffect(() => {
-    if (previewIndex < 0) return;
-    const ids = [-2, -1, 0, 1, 2].flatMap((offset) => images[previewIndex + offset]?.id ? [images[previewIndex + offset].id] : []);
-    void ensurePreviews(ids);
-  }, [ensurePreviews, images, previewIndex]);
-
-  useEffect(() => {
-    if (hasMore && isPersonSelectImagePageNearEnd(previewIndex, images.length)) void loadMore();
-  }, [hasMore, images.length, loadMore, previewIndex]);
-
-  useEffect(() => {
-    const filmstrip = filmstripRef.current;
-    const thumbnail = activeThumbRef.current;
-    if (!filmstrip || !thumbnail) return;
-    filmstrip.scrollTo({
-      left: thumbnail.offsetLeft - (filmstrip.clientWidth - thumbnail.clientWidth) / 2,
-      behavior: "smooth",
-    });
-  }, [previewId]);
-
-  useEffect(() => {
-    const filmstrip = filmstripRef.current;
-    if (!filmstrip) return;
-    const handleWheel = (event: WheelEvent) => {
-      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      event.preventDefault();
-      filmstrip.scrollLeft += event.deltaY;
-    };
-    filmstrip.addEventListener("wheel", handleWheel, { passive: false });
-    return () => filmstrip.removeEventListener("wheel", handleWheel);
-  }, []);
-
-  const full = limit > 1 && displayedChoices.length >= limit;
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const target = event.target;
-      if (!preview || event.repeat
-        || target instanceof HTMLInputElement
-        || target instanceof HTMLTextAreaElement
-        || target instanceof HTMLSelectElement
-        || (target instanceof HTMLElement && target.isContentEditable)) return;
-      if (event.key === "ArrowLeft") { event.preventDefault(); setPreviewId(images[Math.max(0, previewIndex - 1)]?.id ?? preview.id); }
-      if (event.key === "ArrowRight") { event.preventDefault(); setPreviewId(images[Math.min(images.length - 1, previewIndex + 1)]?.id ?? preview.id); }
-      if (event.key === " ") { event.preventDefault(); if (!chosenIds.has(preview.id) && !full) save(preview.id, [], ""); }
-      const shortcut = resolveClassicSelectionShortcut(event.key);
-      if (shortcut === "select") {
-        event.preventDefault();
-        if (!chosenIds.has(preview.id) && !full && !me.event.locked) save(preview.id, [], "");
-      }
-      if (shortcut === "clear") {
-        event.preventDefault();
-        if (chosenIds.has(preview.id) && !me.event.locked) clearChoice(preview.id);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [chosenIds, clearChoice, full, images, me.event.locked, preview, previewIndex, save]);
 
   if (!active) return null;
   const required = categories.filter((item) => item.need > 0);
@@ -191,19 +157,6 @@ export function PersonSelectPcWorkspace({ slug, me, activeKey, pendingSyncCount 
       setSubmitting(false);
     }
   }
-
-  function scrollFilmstrip(direction: -1 | 1) {
-    const filmstrip = filmstripRef.current;
-    if (!filmstrip) return;
-    filmstrip.scrollBy({ left: direction * filmstrip.clientWidth, behavior: "smooth" });
-    if (direction > 0 && hasMore) void loadMore();
-  }
-
-  const loadMoreNearFilmstripEnd = useCallback(() => {
-    const filmstrip = filmstripRef.current;
-    if (!filmstrip || !hasMore) return;
-    if (filmstrip.scrollWidth - filmstrip.scrollLeft - filmstrip.clientWidth < 800) void loadMore();
-  }, [hasMore, loadMore]);
 
   const selectPreview = useCallback((imageId: string) => setPreviewId(imageId), []);
 
