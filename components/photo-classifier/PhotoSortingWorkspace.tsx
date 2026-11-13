@@ -38,8 +38,9 @@ import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaConversationStore } from "@/lib/store/useOliviaConversationStore";
 import type {
   AccuracyReport, ClassificationJobState, HybridSceneType, LocalVisualFeatures, SceneBoundaryDecision,
-  SceneCorrection, SceneFrameAnalysis, TimestampSource,
+  SceneCorrection, SceneFrameAnalysis,
 } from "@/lib/photo-classifier/hybrid-types";
+import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
 import {
   applyOverrides, adjustGranularity, computeFolderStats,
   DEFAULT_WEIGHT_PROFILE,
@@ -661,30 +662,22 @@ function PhotoSortingInner({
     };
 
     // ① 스캔
-    const jpgEntries: { name: string; handle: FileSystemFileHandle; file: File; mtime: number; timestampSource: TimestampSource; warning?: string }[] = [];
     setClassificationJobState("SCANNING_FILES");
     setProgress({ cur:0, total:0, msg:"폴더 스캔 중..." });
     let lastUpdate = Date.now();
 
     const { rawFiles, jpgFiles } = await splitRawAndJpg(rootDir);
-    for (const entry of jpgFiles) {
-      // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF
-      // DateTimeOriginal을 우선한다. 빠른 모드는 이후의 시각/AI 분석만 줄인다.
-      setClassificationJobState("READING_EXIF");
-      const exif = await readPhotoTimestamp(entry.file);
-      jpgEntries.push({
-        name: entry.name,
-        handle: entry.handle,
-        file: entry.file,
-        mtime: exif?.timestamp ?? entry.mtime,
-        timestampSource: exif?.source ?? "mtime",
-        warning: exif ? undefined : "EXIF 촬영시간 없음 — mtime 사용",
-      });
-      if (Date.now() - lastUpdate > 300) {
-        setProgress({ cur:0, total:0, msg:`스캔: ${entry.name}` });
-        lastUpdate = Date.now();
-      }
-    }
+    // Scene Engine v1: 빠른 모드도 capture ordering만큼은 EXIF DateTimeOriginal을
+    // 우선한다. 제한된 병렬 처리로 읽되 반환 순서는 원본 목록과 동일하게 유지한다.
+    setClassificationJobState("READING_EXIF");
+    const jpgEntries = await readBrowserPhotoTimestamps(jpgFiles, {
+      onProgress: ({ completed, total, fileName }) => {
+        if (completed === total || completed % 20 === 0 || Date.now() - lastUpdate > 300) {
+          setProgress({ cur: completed, total, msg: `촬영시각 확인: ${fileName}` });
+          lastUpdate = Date.now();
+        }
+      },
+    });
     setFieldRawCount(rawFiles.length);
     setFieldRawHandles(rawFiles);
 
