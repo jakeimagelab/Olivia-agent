@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useSelectionSyncQueue } from "@/components/person-select/useSelectionSyncQueue";
 import {
-  applySelectionDiffsToSharedSnapshot,
   type SelectionSyncDiff,
   type SharedSelectionSyncSnapshot,
 } from "@/lib/person-select/selectionSync";
@@ -20,6 +19,9 @@ import {
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
+import {
+  resolveCustomerBridgeSnapshotState,
+} from "@/lib/select-gallery/customerBridgeSnapshot";
 import type { CustomerBridgeDraft } from "@/lib/select-gallery/customerBridgeTypes";
 
 export type CustomerBridgeInitialSelection = {
@@ -87,34 +89,19 @@ export function useCustomerBridgeMarksController({
   }, []);
 
   const installServerSnapshot = useCallback((snapshot: SharedSelectionSyncSnapshot, pending: SelectionSyncDiff[]) => {
-    const normalized = normalizeCustomerBridgeSelectionMarks({
-      selectedImageIds: snapshot.selectedImageIds,
-      ratings: snapshot.ratings,
-      colorLabels: snapshot.colorLabels,
-    });
-    const imageNotes = snapshot.imageNotes ?? {};
-    const canonical: SharedSelectionSyncSnapshot = {
-      revision: Number(snapshot.revision ?? 0),
-      selectedImageIds: [...customerBridgeSelectedIds(normalized.ratings, normalized.colorLabels)],
-      ratings: normalized.ratings,
-      colorLabels: normalized.colorLabels,
-      imageNotes,
-      customerMemo: typeof snapshot.customerMemo === "string" ? snapshot.customerMemo : "",
-      updatedAt: snapshot.updatedAt ?? null,
-    };
+    const { canonical, displayed } = resolveCustomerBridgeSnapshotState(snapshot, pending);
     serverSnapshotRef.current = canonical;
     revisionRef.current = canonical.revision;
     setServerRatings((current) => reconcileCustomerBridgeRecord(current, canonical.ratings as Record<string, CustomerBridgeRating>));
     setServerColorLabels((current) => reconcileCustomerBridgeRecord(current, canonical.colorLabels as Record<string, CustomerBridgeColorLabel>));
     setServerNotes((current) => reconcileCustomerBridgeRecord(current, canonical.imageNotes));
-    const displayed = applySelectionDiffsToSharedSnapshot(canonical, pending);
     replaceCustomerRatings(displayed.ratings as Record<string, CustomerBridgeRating>);
     replaceCustomerColorLabels(displayed.colorLabels as Record<string, CustomerBridgeColorLabel>);
     setNotes((current) => reconcileCustomerBridgeRecord(current, displayed.imageNotes));
   }, [replaceCustomerColorLabels, replaceCustomerRatings]);
 
   const restorePending = useCallback((pending: SelectionSyncDiff[]) => {
-    const displayed = applySelectionDiffsToSharedSnapshot(serverSnapshotRef.current, pending);
+    const { displayed } = resolveCustomerBridgeSnapshotState(serverSnapshotRef.current, pending);
     replaceCustomerRatings(displayed.ratings as Record<string, CustomerBridgeRating>);
     replaceCustomerColorLabels(displayed.colorLabels as Record<string, CustomerBridgeColorLabel>);
     setNotes((current) => reconcileCustomerBridgeRecord(current, displayed.imageNotes));
