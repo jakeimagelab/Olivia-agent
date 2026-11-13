@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canRestoreUnmovedSortingSession,
   restoreMovedSortingScenes,
+  restoreSortingSession,
   restoreUnmovedSortingScenes,
 } from "@/lib/photo-classifier/sortingSessionRestore";
 import type { SavedSortingSession } from "@/lib/photo-classifier/sortingSession";
@@ -101,5 +102,31 @@ describe("sorting session restore", () => {
       ...saved,
       sceneSummary: [{ ...saved.sceneSummary[0], fileNames: undefined }],
     })).toBe(false);
+  });
+
+  it("returns one restore plan for a moved JPG session", async () => {
+    const sceneDir = directoryHandle("Scene01", [["A.JPG", fileHandle("A.JPG")]]);
+    const jpgBase = directoryHandle("JPG", [], { Scene01: sceneDir });
+    const root = directoryHandle("촬영", [], { JPG: jpgBase });
+
+    const restored = await restoreSortingSession(root, { ...saved, step: 3 });
+
+    expect(restored).toMatchObject({ kind: "moved", jpgBase, targetStep: 2 });
+    expect(restored.kind === "moved" ? restored.scenes[0].files[0].name : null).toBe("A.JPG");
+  });
+
+  it("returns an unmoved plan only when saved file names can be reconnected", async () => {
+    const root = directoryHandle("촬영", [
+      ["A.JPG", fileHandle("A.JPG")],
+      ["B.JPG", fileHandle("B.JPG")],
+      ["A.CR3", fileHandle("A.CR3")],
+    ]);
+
+    const restored = await restoreSortingSession(root, saved);
+    const settingsOnly = await restoreSortingSession(root, { ...saved, version: 1 });
+
+    expect(restored).toMatchObject({ kind: "unmoved", targetStep: 2 });
+    expect(restored.kind === "unmoved" ? restored.rawFiles.map((file) => file.name) : []).toEqual(["A.CR3"]);
+    expect(settingsOnly).toEqual({ kind: "settings", targetStep: 0 });
   });
 });

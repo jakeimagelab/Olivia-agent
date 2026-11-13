@@ -56,9 +56,7 @@ import {
   type SavedSortingSession,
 } from "@/lib/photo-classifier/sortingSession";
 import {
-  canRestoreUnmovedSortingSession,
-  restoreMovedSortingScenes,
-  restoreUnmovedSortingScenes,
+  restoreSortingSession,
 } from "@/lib/photo-classifier/sortingSessionRestore";
 import {
   C,
@@ -366,7 +364,7 @@ function PhotoSortingInner({
     try {
       const h = await pickPhotoFolder("readwrite");
       if (!h) return;
-      const jpgBase = await (h as FileSystemDirectoryHandle).getDirectoryHandle("JPG").catch(() => null);
+      const restored = await restoreSortingSession(h, saved);
 
       departmentContextKeyRef.current = `${clientId}:${workflowRunId}:${h.name}`;
       setCurrentLocalFolder(h);
@@ -391,32 +389,16 @@ function PhotoSortingInner({
       setSceneCorrections(saved.sceneCorrections ?? []);
       setFieldStats(saved.fieldStats);
 
-      // JPG/ 폴더가 있으면 씬까지 복원, 없으면 설정(step 0)으로만 복원
-      if (jpgBase) {
-        setFieldJpgBaseDir(jpgBase);
-
-        // Reconstruct scenes by re-scanning JPG/SceneXX/ directories
-        if (saved.sceneSummary.length > 0) {
-          setFieldScenes(await restoreMovedSortingScenes(jpgBase, saved.sceneSummary));
-        }
-
-        dismissSavedSession();
-        const targetStep = saved.step === 3 ? 2 : saved.step;
-        setStep(targetStep);
-      } else {
-        // v2 정밀 분류는 승인 전 파일을 이동하지 않으므로 원본 폴더에서 Scene 계획을 복원한다.
-        if (canRestoreUnmovedSortingSession(saved)) {
-          const restored = await restoreUnmovedSortingScenes(h, saved.sceneSummary);
-          setFieldRawHandles(restored.rawFiles);
-          setFieldRawCount(restored.rawFiles.length);
-          setFieldScenes(restored.scenes);
-          dismissSavedSession();
-          setStep(2);
-        } else {
-          dismissSavedSession();
-          setStep(0);
-        }
+      if (restored.kind === "moved") {
+        setFieldJpgBaseDir(restored.jpgBase);
+        setFieldScenes(restored.scenes);
+      } else if (restored.kind === "unmoved") {
+        setFieldRawHandles(restored.rawFiles);
+        setFieldRawCount(restored.rawFiles.length);
+        setFieldScenes(restored.scenes);
       }
+      dismissSavedSession();
+      setStep(restored.targetStep);
     } catch (err: any) {
       if (err?.name === "AbortError") return;
       setDirPickError("이전 작업을 이어서 열지 못했습니다. 같은 폴더가 맞는지 확인 후 다시 시도해주세요.");

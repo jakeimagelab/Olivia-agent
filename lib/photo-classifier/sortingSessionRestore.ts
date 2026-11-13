@@ -107,3 +107,41 @@ export async function restoreUnmovedSortingScenes(
 
   return { rawFiles, scenes };
 }
+
+export type SortingSessionRestoreResult =
+  | {
+    kind: "moved";
+    jpgBase: FileSystemDirectoryHandle;
+    scenes: FieldScene[];
+    targetStep: number;
+  }
+  | {
+    kind: "unmoved";
+    rawFiles: Array<{ name: string; handle: FileSystemFileHandle }>;
+    scenes: FieldScene[];
+    targetStep: 2;
+  }
+  | {
+    kind: "settings";
+    targetStep: 0;
+  };
+
+export async function restoreSortingSession(
+  root: FileSystemDirectoryHandle,
+  saved: SavedSortingSession,
+): Promise<SortingSessionRestoreResult> {
+  const jpgBase = await root.getDirectoryHandle("JPG").catch(() => null);
+  if (jpgBase) {
+    return {
+      kind: "moved",
+      jpgBase,
+      scenes: saved.sceneSummary.length
+        ? await restoreMovedSortingScenes(jpgBase, saved.sceneSummary)
+        : [],
+      targetStep: saved.step === 3 ? 2 : saved.step,
+    };
+  }
+  if (!canRestoreUnmovedSortingSession(saved)) return { kind: "settings", targetStep: 0 };
+  const restored = await restoreUnmovedSortingScenes(root, saved.sceneSummary);
+  return { kind: "unmoved", ...restored, targetStep: 2 };
+}
