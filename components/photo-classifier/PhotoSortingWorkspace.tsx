@@ -91,6 +91,7 @@ import {
 import { FieldClassificationCompleteView } from "./FieldClassificationCompleteView";
 import { PhotoSortingSetupView } from "./PhotoSortingSetupView";
 import { useFieldSceneReviewActions } from "./useFieldSceneReviewActions";
+import { usePhotoSortingSourceActions } from "./usePhotoSortingSourceActions";
 
 /* ════════════════════════════════════════════════
    SHARED TYPES
@@ -405,15 +406,26 @@ function PhotoSortingInner({
     }
   };
 
-  const pickDir = async () => {
-    setDirPickError("");
-    const h = await pickPhotoFolder("readwrite");
-    if (!h) return;
-    departmentContextKeyRef.current = "";
-    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
-    setRootDir(h);
-    closePhotoSourcePicker();
-  };
+  const {
+    handleFolderClick,
+    handleFolderPointerDown,
+    selectRemoteFolder,
+  } = usePhotoSortingSourceActions({
+    executionMode,
+    pickPhotoFolder,
+    closePhotoSourcePicker,
+    openRemotePhotoSourcePicker,
+    selectRemotePhotoSource,
+    departmentContextKeyRef,
+    setPhotoDepartmentResolution,
+    setRootDirectory: setRootDir,
+    setDepartmentContextError,
+    setDepartmentPickerOpen,
+    remoteJobActive,
+    clearRemoteJob,
+    clearRemotePhotoSortError,
+    setDirectoryError: setDirPickError,
+  });
 
   useEffect(() => {
     if (executionMode === "REMOTE_WORKER") {
@@ -426,35 +438,6 @@ function PhotoSortingInner({
     departmentContextKeyRef.current = "";
     closePhotoSourcePicker();
   }, [closePhotoSourcePicker, departmentContextKeyRef, executionMode]);
-
-  const openPhotoSourcePicker = () => {
-    setDirPickError("");
-    openRemotePhotoSourcePicker();
-  };
-
-  const selectRemoteFolder = (selection: RemoteNasSelection) => {
-    selectRemotePhotoSource(selection);
-    departmentContextKeyRef.current = "";
-    setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
-    setDepartmentContextError("");
-    setDepartmentPickerOpen(false);
-    if (!remoteJobActive) clearRemoteJob();
-    clearRemotePhotoSortError();
-    setDirPickError("");
-  };
-
-  const handleFolderPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (executionMode === "LOCAL_DIRECT" && event.button === 0) void pickDir();
-  };
-
-  const handleFolderClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (executionMode === "REMOTE_WORKER") {
-      openPhotoSourcePicker();
-      return;
-    }
-    // Pointer로 연 Finder를 click에서 다시 열지 않고, 키보드 활성화만 보완한다.
-    if (event.detail === 0) void pickDir();
-  };
 
   // AI 사진 분류 2.0 — 폴더를 고르면 실제 정밀 분류(handleFieldSort, Vision 호출 포함)를 돌리기
   // 전에 먼저 가볍게 "이번 촬영엔 뭐가 중요한지" 물어본다. 이미지 전송 없음(메타데이터+이미
