@@ -4,42 +4,21 @@ import { isAdminSession } from "@/lib/passkey";
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
 import { validatePhotoProjectRelativePath } from "@/lib/photo-storage/server";
 import { getConfiguredWorkerId, isKnownWorkerId } from "@/lib/remoteWorkerAuth";
+import {
+  canRunOnNonPrimaryWorker,
+  finiteNumber,
+  isRemoteJobUuid,
+  normalizeRemoteJobAction,
+  safeFileNames,
+  safeLogText,
+  safePersonSelectSourcePath,
+  safeProjectSubpath,
+  safeWorkerAbsolutePath,
+  safeWorkerRelativePath,
+} from "@/lib/remote-jobs/requestValidation";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const ALLOWED_ACTIONS = new Set([
-  "PING",
-  "PHOTO_SORT",
-  "PHOTO_THUMBS",
-  "PHOTO_XMP_RATINGS",
-  "PHOTO_CHECK_WORK_FOLDER",
-  "COPY_TEST",
-  "LIST_FOLDER",
-  "PHOTO_PREPARE_SOURCE",
-  "PHOTO_STAGE_JPG",
-  "PHOTO_CLASSIFY_WORK",
-  "PHOTO_RAW_MATCH",
-  "PHOTO_RAW_MATCH_COPY",
-  "PHOTO_RESIZE",
-  "PHOTO_AI_SELECT",
-  "PHOTO_RETOUCH",
-  "PERSON_SELECT_IMPORT",
-  "PERSON_SELECT_DELIVERY_IMPORT",
-  "PERSON_SELECT_DELIVERY_PURGE",
-  "PERSON_SELECT_RAW_MATCH",
-  "PERSON_SELECT_LIST_FOLDER",
-  "VIDEO_INTERVIEW_ANALYZE",
-  "VIDEO_AUDIO_EXTRACT",
-]);
-const NON_PRIMARY_WORKER_ACTIONS = new Set([
-  "VIDEO_INTERVIEW_ANALYZE",
-  "VIDEO_AUDIO_EXTRACT",
-  "LIST_FOLDER",
-  "PING",
-]);
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isInternalRequest(request: NextRequest): boolean {
   const expected = process.env.INTERNAL_API_KEY;
@@ -52,62 +31,6 @@ function isAuthorized(request: NextRequest): boolean {
   return isAdminSession(request) || isInternalRequest(request);
 }
 
-function safeProjectSubpath(value: unknown, fallback: string): string {
-  const candidate = value === undefined ? fallback : value;
-  if (typeof candidate !== "string" || !candidate.trim() || candidate.includes("\0") || candidate.includes("\\") || candidate.startsWith("/")) {
-    throw new Error("프로젝트 내부 경로는 안전한 상대경로여야 합니다.");
-  }
-  const segments = candidate.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === "..")) throw new Error("프로젝트 내부 경로가 올바르지 않습니다.");
-  return segments.join("/");
-}
-
-function safeFileNames(value: unknown, options: { required: boolean; max: number }): string[] | undefined {
-  if (value === undefined && !options.required) return undefined;
-  if (!Array.isArray(value) || value.length === 0 || value.length > options.max) throw new Error(`파일명은 1~${options.max}개 문자열 배열이어야 합니다.`);
-  return value.map((entry) => {
-    if (typeof entry !== "string" || !entry.trim() || entry.includes("\0") || entry.includes("/") || entry.includes("\\")) throw new Error("파일명에 경로를 포함할 수 없습니다.");
-    return entry.trim();
-  });
-}
-
-function finiteNumber(value: unknown, label: string, min: number, max: number, integer = false): number | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max || (integer && !Number.isInteger(value))) throw new Error(`${label} 값이 올바르지 않습니다.`);
-  return value;
-}
-
-function safeWorkerAbsolutePath(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim() || !value.startsWith("/") || value.includes("\0")) {
-    throw new Error(`${label}은 Mac Studio의 안전한 절대경로여야 합니다.`);
-  }
-  const segments = value.split("/");
-  if (segments.some((segment) => segment === "..")) throw new Error(`${label}에 상위 경로를 포함할 수 없습니다.`);
-  return value.trim().replace(/\/+$/u, "");
-}
-
-function safeWorkerRelativePath(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim() || value.startsWith("/") || value.includes("\0") || value.includes("\\")) {
-    throw new Error(`${label}은 안전한 상대경로여야 합니다.`);
-  }
-  const segments = value.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === "..")) throw new Error(`${label}이 올바르지 않습니다.`);
-  return segments.join("/");
-}
-
-function safeLogText(value: unknown, label: string, max = 2_000): string {
-  if (typeof value !== "string" || value.length > max || value.includes("\0")) throw new Error(`${label} 값이 올바르지 않습니다.`);
-  return value;
-}
-
-/** 개인별 사진 셀렉은 전용 Worker에서만 실제 허용 루트를 realpath로 검증한다. */
-function safePersonSelectSourcePath(value: unknown): string {
-  if (typeof value !== "string" || !value.trim() || value.includes("\0")) throw new Error("학교전달 폴더를 선택해 주세요.");
-  const path = value.trim();
-  if (path.split(/[\\/]/).some((segment) => segment === "..")) throw new Error("허용 루트 밖의 경로는 사용할 수 없습니다.");
-  return path;
-}
-
 export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return Response.json(
@@ -118,12 +41,9 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
 
-  const action =
-    typeof body.action === "string"
-      ? body.action.trim().toUpperCase()
-      : "";
+  const action = normalizeRemoteJobAction(body.action);
 
-  if (!ALLOWED_ACTIONS.has(action)) {
+  if (!action) {
     return Response.json(
       { ok: false, error: "지원하지 않는 작업입니다." },
       { status: 400 }
@@ -255,7 +175,7 @@ export async function POST(request: NextRequest) {
   if (action === "PHOTO_PREPARE_SOURCE") {
     const projectId = requestedPayload.project_id;
     const sourceRelativePath = requestedPayload.source_relative_path;
-    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+    if (!isRemoteJobUuid(projectId)) {
       return Response.json({ ok: false, error: "PHOTO_PREPARE_SOURCE에는 올바른 project_id가 필요합니다." }, { status: 400 });
     }
     try {
@@ -273,7 +193,7 @@ export async function POST(request: NextRequest) {
     const projectId = requestedPayload.project_id;
     const sourceRelativePath = requestedPayload.source_relative_path;
     const destinationRelativePath = requestedPayload.destination_relative_path;
-    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+    if (!isRemoteJobUuid(projectId)) {
       return Response.json({ ok: false, error: "PHOTO_STAGE_JPG에는 올바른 project_id가 필요합니다." }, { status: 400 });
     }
     try {
@@ -295,7 +215,7 @@ export async function POST(request: NextRequest) {
   if (action === "PHOTO_CLASSIFY_WORK") {
     const projectId = requestedPayload.project_id;
     const workRelativePath = requestedPayload.work_relative_path;
-    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+    if (!isRemoteJobUuid(projectId)) {
       return Response.json({ ok: false, error: "PHOTO_CLASSIFY_WORK에는 올바른 project_id가 필요합니다." }, { status: 400 });
     }
     try {
@@ -321,7 +241,7 @@ export async function POST(request: NextRequest) {
   if (["PHOTO_RAW_MATCH", "PHOTO_RESIZE", "PHOTO_AI_SELECT", "PHOTO_RETOUCH"].includes(action)) {
     const projectId = requestedPayload.project_id;
     const projectRelativePath = requestedPayload.project_relative_path;
-    if (typeof projectId !== "string" || !UUID_PATTERN.test(projectId)) {
+    if (!isRemoteJobUuid(projectId)) {
       return Response.json({ ok: false, error: `${action}에는 올바른 project_id가 필요합니다.` }, { status: 400 });
     }
     try {
@@ -332,7 +252,7 @@ export async function POST(request: NextRequest) {
           project_id: projectId,
           project_relative_path: safeProjectPath,
           ...(selectedFileNames ? { selected_file_names: selectedFileNames } : {}),
-          ...(typeof requestedPayload.selection_id === "string" && UUID_PATTERN.test(requestedPayload.selection_id) ? { selection_id: requestedPayload.selection_id } : {}),
+          ...(isRemoteJobUuid(requestedPayload.selection_id) ? { selection_id: requestedPayload.selection_id } : {}),
         };
       } else if (action === "PHOTO_RESIZE") {
         payload = {
@@ -457,7 +377,7 @@ export async function POST(request: NextRequest) {
 
   if (action === "PERSON_SELECT_IMPORT") {
     try {
-      if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+      if (!isRemoteJobUuid(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
       const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
       if (!sourceRelativePath) throw new Error("학교전달 폴더를 선택해 주세요.");
       if (requestedPayload.layout === "person-folders" || requestedPayload.layout === "project") {
@@ -480,7 +400,7 @@ export async function POST(request: NextRequest) {
 
   if (action === "PERSON_SELECT_DELIVERY_IMPORT") {
     try {
-      if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+      if (!isRemoteJobUuid(requestedPayload.event_id)) throw new Error("올바른 event_id가 필요합니다.");
       const sourceRelativePath = safePersonSelectSourcePath(requestedPayload.source_relative_path);
       payload = { event_id: requestedPayload.event_id, source_relative_path: sourceRelativePath };
     } catch (error) {
@@ -491,7 +411,7 @@ export async function POST(request: NextRequest) {
   if (action === "PERSON_SELECT_DELIVERY_PURGE") payload = {};
 
   if (action === "PERSON_SELECT_RAW_MATCH") {
-    if (typeof requestedPayload.event_id !== "string" || !UUID_PATTERN.test(requestedPayload.event_id)) {
+    if (!isRemoteJobUuid(requestedPayload.event_id)) {
       return Response.json({ ok: false, error: "올바른 event_id가 필요합니다." }, { status: 400 });
     }
     const source = requestedPayload.source === undefined ? "submitted" : requestedPayload.source;
@@ -506,7 +426,7 @@ export async function POST(request: NextRequest) {
     if (reviewerIds !== undefined && (
       !Array.isArray(reviewerIds)
       || reviewerIds.length > 100
-      || reviewerIds.some((reviewerId) => typeof reviewerId !== "string" || !UUID_PATTERN.test(reviewerId))
+      || reviewerIds.some((reviewerId) => !isRemoteJobUuid(reviewerId))
     )) {
       return Response.json({ ok: false, error: "RAW 매칭 검토자 범위가 올바르지 않습니다." }, { status: 400 });
     }
@@ -558,7 +478,7 @@ export async function POST(request: NextRequest) {
   if (!isKnownWorkerId(targetWorker)) {
     return Response.json({ ok: false, error: "등록되지 않은 Worker입니다." }, { status: 400 });
   }
-  if (targetWorker !== getConfiguredWorkerId() && !NON_PRIMARY_WORKER_ACTIONS.has(action)) {
+  if (targetWorker !== getConfiguredWorkerId() && !canRunOnNonPrimaryWorker(action)) {
     return Response.json({ ok: false, error: "선택한 Worker에서는 이 작업을 실행할 수 없습니다." }, { status: 400 });
   }
 
@@ -610,7 +530,7 @@ export async function GET(request: NextRequest) {
     const jobId = request.nextUrl.searchParams.get("id")?.trim() || "";
 
     if (jobId) {
-      if (!UUID_PATTERN.test(jobId)) {
+      if (!isRemoteJobUuid(jobId)) {
         return Response.json(
           { ok: false, error: "올바르지 않은 작업 ID입니다." },
           { status: 400 }
@@ -673,7 +593,7 @@ export async function DELETE(request: NextRequest) {
   if (!isAuthorized(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
 
   const jobId = request.nextUrl.searchParams.get("id")?.trim() || "";
-  if (!UUID_PATTERN.test(jobId)) return Response.json({ ok: false, error: "올바른 작업 ID가 아닙니다." }, { status: 400 });
+  if (!isRemoteJobUuid(jobId)) return Response.json({ ok: false, error: "올바른 작업 ID가 아닙니다." }, { status: 400 });
 
   try {
     const supabase = getSupabaseAdmin();
