@@ -85,6 +85,7 @@ import {
   buildStudioConceptReportBundle,
   buildStudioPersonReportBundle,
 } from "@/lib/photo-classifier/studioReports";
+import { runStudioAnalysisConcurrently } from "@/lib/photo-classifier/studioAnalysisRunner";
 import {
   analyzeJpg,
   buildQuickProposals,
@@ -1808,81 +1809,63 @@ function PhotoSortingInner({
     const withGap = groupStudioPhotosByTimeGap(files, studioGapMinutes);
 
     // 2단계: 크기로 통과한 컷만 AI 조명 검사
-    const result = [...withGap];
-    const needsAI = withGap.map((f,i) => ({f,i})).filter(({f}) => f.groupKey !== "__ETC__");
-    const total = needsAI.length; let done = 0;
-    const CONCURRENCY = 6;
-    let qi = 0;
-    const worker = async () => {
-      while (qi < needsAI.length) {
-        const { f, i } = needsAI[qi++];
-        setProgress({ cur: done, total, msg: `AI 조명 검사: ${f.name}` });
-        try {
-          const file = await f.handle.getFile();
-          const thumb = await getStudioThumb(file);
-          const res = await fetch("/api/studio-face-analysis", {
-            method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity, lightingOnly:true }),
-          });
-          const data = await res.json();
-          if (data.ok && data.lightingStatus !== "normal") {
-            result[i] = { ...result[i], analyzed:true, lightingStatus:data.lightingStatus as StudioLightingStatus, groupKey:"__ETC__" };
-          } else {
-            result[i] = { ...result[i], analyzed:true };
-          }
-        } catch {
-          result[i] = { ...result[i], analyzed:true };
-        }
-        done++;
-        setStudioFiles([...result]);
-      }
-    };
-    await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+    const targetIndices = withGap.flatMap((file, index) => file.groupKey === "__ETC__" ? [] : [index]);
+    const result = await runStudioAnalysisConcurrently({
+      items: withGap,
+      targetIndices,
+      concurrency: 6,
+      analyze: async (studioFile) => {
+        const file = await studioFile.handle.getFile();
+        const thumb = await getStudioThumb(file);
+        const response = await fetch("/api/studio-face-analysis", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity, lightingOnly: true }),
+        });
+        const data = await response.json();
+        return data.ok && data.lightingStatus !== "normal"
+          ? { ...studioFile, analyzed: true, lightingStatus: data.lightingStatus as StudioLightingStatus, groupKey: "__ETC__" }
+          : { ...studioFile, analyzed: true };
+      },
+      recover: (_error, studioFile) => ({ ...studioFile, analyzed: true }),
+      onStart: ({ completed, total, item }) => {
+        setProgress({ cur: completed, total, msg: `AI 조명 검사: ${item.name}` });
+      },
+      onProgress: ({ items }) => setStudioFiles(items),
+    });
     setPersonGroups(buildPersonGroups(result));
     setStep(3);
   };
 
   const runStudioAnalysis = async (files: StudioPhotoFile[]) => {
-    const total = files.length; let done = 0;
-    const CONCURRENCY = 8;
-    const result = files.map(f => ({...f}));
-    const indices = Array.from({length: total}, (_, i) => i);
-    let qi = 0;
-    const worker = async () => {
-      while (qi < indices.length) {
-        const idx = indices[qi++];
-        const file = result[idx];
-        setProgress({ cur:done, total, msg:`AI 분석: ${file.name}` });
-        try {
-          const data = await withTimeout((async () => {
-            const f = await file.handle.getFile();
-            const thumb = await getStudioThumb(f);
-            const res = await fetch("/api/studio-analysis", {
-              method:"POST", headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
-            });
-            return res.json();
-          })(), 45000, "AI 분석");
-          if (data.ok) {
-            const isEtc = data.lightingStatus !== "normal";
-            const hasGown: boolean = data.hasGown ?? false;
-            const innerWear: StudioInnerWear = (["셔츠","넥타이셔츠","스크럽","블라우스","탑","기타"] as StudioInnerWear[]).includes(data.innerWear) ? data.innerWear : "기타";
-            const poseType: StudioPoseType = (["Standing","Sitting","Unknown"] as StudioPoseType[]).includes(data.poseType) ? data.poseType : "Unknown";
-            const isFamilyProfile: boolean = data.isFamilyProfile ?? false;
-            const clothingLabel = computeClothingLabel(hasGown, innerWear, isFamilyProfile);
-            const groupKey = isEtc ? "__ETC__" : computeGroupKey(hasGown, innerWear, poseType, isFamilyProfile);
-            result[idx] = { ...file, lightingStatus:data.lightingStatus||"normal", hasGown, innerWear, clothingLabel, poseType, isFamilyProfile, confidence:data.confidence||0.5, analyzed:true, groupKey };
-          } else {
-            result[idx] = { ...file, analyzed:true, lightingStatus:"etc_test", groupKey:"__ETC__" };
-          }
-        } catch {
-          result[idx] = { ...file, analyzed:true, lightingStatus:"etc_test", groupKey:"__ETC__" };
-        }
-        done++;
-        setStudioFiles([...result]);
-      }
-    };
-    await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
+    const result = await runStudioAnalysisConcurrently({
+      items: files,
+      concurrency: 8,
+      analyze: async (file) => {
+        const data = await withTimeout((async () => {
+          const source = await file.handle.getFile();
+          const thumb = await getStudioThumb(source);
+          const response = await fetch("/api/studio-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity }),
+          });
+          return response.json();
+        })(), 45000, "AI 분석");
+        if (!data.ok) return { ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" };
+        const isEtc = data.lightingStatus !== "normal";
+        const hasGown: boolean = data.hasGown ?? false;
+        const innerWear: StudioInnerWear = (["셔츠", "넥타이셔츠", "스크럽", "블라우스", "탑", "기타"] as StudioInnerWear[]).includes(data.innerWear) ? data.innerWear : "기타";
+        const poseType: StudioPoseType = (["Standing", "Sitting", "Unknown"] as StudioPoseType[]).includes(data.poseType) ? data.poseType : "Unknown";
+        const isFamilyProfile: boolean = data.isFamilyProfile ?? false;
+        const clothingLabel = computeClothingLabel(hasGown, innerWear, isFamilyProfile);
+        const groupKey = isEtc ? "__ETC__" : computeGroupKey(hasGown, innerWear, poseType, isFamilyProfile);
+        return { ...file, lightingStatus: data.lightingStatus || "normal", hasGown, innerWear, clothingLabel, poseType, isFamilyProfile, confidence: data.confidence || 0.5, analyzed: true, groupKey };
+      },
+      recover: (_error, file) => ({ ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" }),
+      onStart: ({ completed, total, item }) => setProgress({ cur: completed, total, msg: `AI 분석: ${item.name}` }),
+      onProgress: ({ items }) => setStudioFiles(items),
+    });
     const groups = buildStudioGroups(result);
     setStudioGroups(groups);
     setStep(3);
@@ -1932,40 +1915,30 @@ function PhotoSortingInner({
   }, [studioGroups, rootDir, studioFiles, studioRawCount, studioFileMode]);
 
   const runGroupAnalysis = async (files: StudioPhotoFile[]) => {
-    const total = files.length; let done = 0;
-    const CONCURRENCY = 8;
-    const result = files.map(f => ({...f}));
-    const indices = Array.from({length: total}, (_, i) => i);
-    let qi = 0;
-    const worker = async () => {
-      while (qi < indices.length) {
-        const idx = indices[qi++];
-        const file = result[idx];
-        setProgress({ cur:done, total, msg:`얼굴 분석: ${file.name}` });
-        try {
-          const data = await withTimeout((async () => {
-            const f = await file.handle.getFile();
-            const thumb = await getStudioThumb(f);
-            const res = await fetch("/api/studio-face-analysis", {
-              method:"POST", headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({ thumbnail:thumb, lightingSensitivity:studioOpts.lightingSensitivity }),
-            });
-            return res.json();
-          })(), 45000, "얼굴 분석");
-          if (data.ok && data.lightingStatus === "normal") {
-            const features = normalizePersonFeatures(data);
-            result[idx] = { ...file, lightingStatus:"normal", personFeatures:features, analyzed:true, groupKey:"PENDING" };
-          } else {
-            result[idx] = { ...file, analyzed:true, lightingStatus:data.lightingStatus||"etc_test", groupKey:"__ETC__" };
-          }
-        } catch {
-          result[idx] = { ...file, analyzed:true, lightingStatus:"etc_test", groupKey:"__ETC__" };
+    const result = await runStudioAnalysisConcurrently({
+      items: files,
+      concurrency: 8,
+      analyze: async (file) => {
+        const data = await withTimeout((async () => {
+          const source = await file.handle.getFile();
+          const thumb = await getStudioThumb(source);
+          const response = await fetch("/api/studio-face-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ thumbnail: thumb, lightingSensitivity: studioOpts.lightingSensitivity }),
+          });
+          return response.json();
+        })(), 45000, "얼굴 분석");
+        if (data.ok && data.lightingStatus === "normal") {
+          const features = normalizePersonFeatures(data);
+          return { ...file, lightingStatus: "normal" as const, personFeatures: features, analyzed: true, groupKey: "PENDING" };
         }
-        done++;
-        setStudioFiles([...result]);
-      }
-    };
-    await Promise.all(Array.from({length: CONCURRENCY}, () => worker()));
+        return { ...file, analyzed: true, lightingStatus: data.lightingStatus || "etc_test", groupKey: "__ETC__" };
+      },
+      recover: (_error, file) => ({ ...file, analyzed: true, lightingStatus: "etc_test" as const, groupKey: "__ETC__" }),
+      onStart: ({ completed, total, item }) => setProgress({ cur: completed, total, msg: `얼굴 분석: ${item.name}` }),
+      onProgress: ({ items }) => setStudioFiles(items),
+    });
 
     const final = assignStudioPersonGroups(result);
 
