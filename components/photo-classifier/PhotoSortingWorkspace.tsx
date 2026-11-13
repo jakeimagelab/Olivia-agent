@@ -15,10 +15,9 @@ import { buildVisualBoundaryCandidates, sortTimestampedFiles } from "@/lib/photo
 import { decideBoundary } from "@/lib/photo-classifier/boundary-score";
 import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer";
 import { buildFastFieldScenes, buildFieldScenesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
-import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import {
   featureCacheKey, folderFingerprint, getCachedFeature, getCachedPattern,
-  getClassificationCheckpoint, setCachedFeature, setCachedPattern, setClassificationCheckpoint,
+  getClassificationCheckpoint, setCachedPattern, setClassificationCheckpoint,
 } from "@/lib/photo-classifier/scene-cache";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import {
@@ -39,6 +38,7 @@ import type {
   SceneCorrection,
 } from "@/lib/photo-classifier/hybrid-types";
 import { readBrowserPhotoTimestamps } from "@/lib/photo-classifier/fieldScanning";
+import { extractBrowserFieldFeatures } from "@/lib/photo-classifier/fieldFeatureExtraction";
 import {
   analyzeBrowserSceneBoundary,
   appendBrowserPurposeTransitionCandidates,
@@ -716,31 +716,20 @@ function PhotoSortingInner({
       // ═══ 정밀 분류 모드: 승인 전에는 파일을 이동하지 않음 ═══
       setClassificationJobState("EXTRACTING_FEATURES");
       setProgress({ cur: 0, total, msg: "저비용 시각 특징 추출 준비 중..." });
-      const cacheKeys = jpgEntries.map((entry) => featureCacheKey(rootDir.name, entry.file));
-      const cached = await Promise.all(cacheKeys.map((key) => getCachedFeature(key)));
-      const missingIndices = cached.flatMap((feature, index) => feature ? [] : [index]);
-      const missingFiles = missingIndices.map((index) => jpgEntries[index].file);
       const featureStartedAt = Date.now();
-      const extracted = await extractFeaturesWithWorkers({
-        files: missingFiles,
+      const featureResult = await extractBrowserFieldFeatures({
+        entries: jpgEntries,
+        rootName: rootDir.name,
         concurrency: preciseSettings.maxConcurrentJobs,
         signal: abortController.signal,
-        onProgress: (completed) => setProgress({
-          cur: cached.filter(Boolean).length + completed,
+        onProgress: ({ completed, total: featureTotal, uncachedCompleted, uncachedTotal }) => setProgress({
+          cur: completed,
           total,
-          msg: `시각 특징 추출 ${cached.filter(Boolean).length + completed}/${total}${estimatedRemaining(completed, missingFiles.length, featureStartedAt)}`,
+          msg: `시각 특징 추출 ${completed}/${featureTotal}${estimatedRemaining(uncachedCompleted, uncachedTotal, featureStartedAt)}`,
         }),
       });
-      const features = [...cached] as Array<LocalVisualFeatures | null>;
-      await Promise.all(extracted.map(async (result, offset) => {
-        const originalIndex = missingIndices[offset];
-        features[originalIndex] = result.features;
-        if (result.features) await setCachedFeature(cacheKeys[originalIndex], result.features);
-      }));
-      const blankFeature: LocalVisualFeatures = { dHash: "0".repeat(64), colorHistogram: new Array(64).fill(0), backgroundGrid: new Array(24).fill(0), compositionGrid: new Array(16).fill(0), brightness: 0 };
-      const firstValid = features.find((feature): feature is LocalVisualFeatures => Boolean(feature)) ?? blankFeature;
-      const safeFeatures = features.map((feature, index) => feature ?? features[index - 1] ?? firstValid);
-      const failedImages = extracted.filter((result) => !result.features).length;
+      const safeFeatures = featureResult.features;
+      const failedImages = featureResult.failedImages;
 
       if (abortController.signal.aborted || cancelRef.current) {
         setClassificationJobState("CANCELLED");
