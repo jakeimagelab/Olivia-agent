@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { pendingUploadPaths, uploadFileIdempotencyKey, uploadJobStatusFromCounts } from "@/lib/person-select/uploadQueue";
+import { indexUploadFilesByPath, pendingUploadPaths, uploadFileIdempotencyKey, uploadJobStatusFromCounts } from "@/lib/person-select/uploadQueue";
 
 describe("person-select persistent upload queue", () => {
   it("does not collapse same basenames from different relative paths", () => {
@@ -17,5 +17,13 @@ describe("person-select persistent upload queue", () => {
     expect(uploadJobStatusFromCounts({ total: 3, completed: 2, failed: 1, pending: 0, active: 0 })).toBe("partial_failed");
     expect(uploadJobStatusFromCounts({ total: 2, completed: 0, failed: 2, pending: 0, active: 0 })).toBe("failed");
     expect(uploadJobStatusFromCounts({ total: 3, completed: 1, failed: 0, pending: 2, active: 0, paused: true })).toBe("paused");
+  });
+
+  it("indexes large upload folders once while preserving the original sort order", () => {
+    const files = Array.from({ length: 2_500 }, (_, index) => ({ relativePath: `person/photo-${index}.jpg` }));
+    const indexed = indexUploadFilesByPath(files);
+
+    expect(indexed.filesByPath.get("person/photo-2499.jpg")).toBe(files[2499]);
+    expect(indexed.sortOrderByPath.get("person/photo-2499.jpg")).toBe(2_499);
   });
 });

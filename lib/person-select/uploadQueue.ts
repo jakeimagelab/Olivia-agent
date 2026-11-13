@@ -60,3 +60,13 @@ export function pendingUploadPaths<T extends { relativePath: string }>(files: T[
   const completed = new Set(completedPaths);
   return files.filter((file) => !completed.has(file.relativePath));
 }
+
+export function indexUploadFilesByPath<T extends { relativePath: string }>(files: readonly T[]) {
+  const filesByPath = new Map<string, T>();
+  const sortOrderByPath = new Map<string, number>();
+  files.forEach((file, index) => {
+    filesByPath.set(file.relativePath, file);
+    sortOrderByPath.set(file.relativePath, index);
+  });
+  return { filesByPath, sortOrderByPath };
+}
