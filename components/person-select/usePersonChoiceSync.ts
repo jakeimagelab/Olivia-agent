@@ -58,9 +58,9 @@ function samePersonChoice(left: PersonSelectChoice, right: PersonSelectChoice) {
 }
 
 export function reconcilePersonChoiceMaps(
-  previous: ReadonlyMap<string, PersonSelectChoice>,
+  previous: Map<string, PersonSelectChoice>,
   incoming: ReadonlyMap<string, PersonSelectChoice>,
-) {
+): Map<string, PersonSelectChoice> {
   let changed = previous.size !== incoming.size;
   const next = new Map<string, PersonSelectChoice>();
   for (const [imageId, choice] of incoming) {
