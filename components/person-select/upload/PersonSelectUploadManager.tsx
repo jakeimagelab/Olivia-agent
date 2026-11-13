@@ -7,9 +7,16 @@ import {
   createPersonSelectUploadRuntime,
   personSelectUploadManifest,
   resumablePersonSelectUploadPaths,
-  type PersonSelectUploadJobFile,
   type PersonSelectUploadRuntime,
 } from "@/lib/person-select/uploadRuntime";
+import {
+  createPersonSelectUploadJob,
+  loadPersonSelectUploadJob,
+  loadPersonSelectUploadJobs,
+  preparePersonSelectLocalImport,
+  updatePersonSelectUploadJob,
+  uploadPersonSelectDerivative,
+} from "@/lib/person-select/uploadClient";
 
 type StartUploadInput = {
   eventId: string;
@@ -33,19 +40,6 @@ type UploadManagerValue = {
 const UploadManagerContext = createContext<UploadManagerValue | null>(null);
 const CONCURRENCY = 3;
 const MAX_RETRIES = 2;
-type UploadJsonBody = {
-  ok?: boolean;
-  error?: string;
-  job?: PersonSelectUploadJob;
-  jobs?: PersonSelectUploadJob[];
-  files?: PersonSelectUploadJobFile[];
-  completedPaths?: unknown[];
-};
-
-async function readJson(response: Response) {
-  return response.json().catch(() => ({})) as Promise<UploadJsonBody>;
-}
-
 export function PersonSelectUploadProvider({ children }: { children: ReactNode }) {
   const [jobs, setJobs] = useState<PersonSelectUploadJob[]>([]);
   const mountedRef = useRef(true);
@@ -57,11 +51,10 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
   }, []);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/person-select/upload-jobs?limit=20", { cache: "no-store" });
-    const body = await readJson(response);
-    if (!response.ok || !body.ok || !mountedRef.current) return;
+    const jobs = await loadPersonSelectUploadJobs();
+    if (!jobs || !mountedRef.current) return;
     const runtimeIds = new Set(runtimesRef.current.keys());
-    setJobs((body.jobs ?? []).map((job) => {
+    setJobs(jobs.map((job) => {
       const active = ["queued", "uploading", "paused"].includes(job.status);
       if (active && !runtimeIds.has(job.id)) return { ...job, needs_file_reselection: true, active_count: 0 };
       if (active && runtimeIds.has(job.id)) return { ...job, needs_file_reselection: false };
@@ -70,23 +63,15 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
   }, []);
 
   const patchJob = useCallback(async (job: PersonSelectUploadJob | { id: string; event_id: string }, body: Record<string, unknown>) => {
-    const response = await fetch(`/api/person-select/${job.event_id}/upload-jobs/${job.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const result = await readJson(response);
-    if (!response.ok || !result.ok) throw new Error(result.error || "업로드 상태를 저장하지 못했습니다.");
-    if (result.job) mergeJob(result.job as PersonSelectUploadJob);
-    return result.job as PersonSelectUploadJob;
+    const result = await updatePersonSelectUploadJob(job, body);
+    mergeJob(result);
+    return result;
   }, [mergeJob]);
 
   const readJobFiles = useCallback(async (eventId: string, jobId: string) => {
-    const response = await fetch(`/api/person-select/${eventId}/upload-jobs/${jobId}`, { cache: "no-store" });
-    const body = await readJson(response);
-    if (!response.ok || !body.ok) throw new Error(body.error || "업로드 작업을 불러오지 못했습니다.");
-    if (body.job) mergeJob(body.job as PersonSelectUploadJob);
-    return { job: body.job as PersonSelectUploadJob, files: body.files ?? [] };
+    const result = await loadPersonSelectUploadJob(eventId, jobId);
+    mergeJob(result.job);
+    return result;
   }, [mergeJob]);
 
   const uploadOne = useCallback(async (jobId: string, runtime: PersonSelectUploadRuntime, relativePath: string) => {
@@ -112,9 +97,7 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
       form.set("uploadJobId", jobId);
       form.set("thumb", derivative.thumb, `${candidate.fileName}.thumb.jpg`);
       form.set("preview", derivative.preview, `${candidate.fileName}.preview.jpg`);
-      const response = await fetch(`/api/person-select/${runtime.eventId}/local-import`, { method: "POST", body: form, signal: controller.signal });
-      const body = await readJson(response);
-      if (!response.ok || !body.ok) throw new Error(body.error || "업로드 실패");
+      await uploadPersonSelectDerivative(runtime.eventId, form, controller.signal);
     } catch (error) {
       if (controller.signal.aborted || runtime.paused || runtime.canceled) {
         if (runtime.paused && !runtime.canceled) runtime.queue.unshift(relativePath);
@@ -168,22 +151,18 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
   const startLocalUpload = useCallback(async (input: StartUploadInput) => {
     if (!input.scan.files.length) throw new Error("올릴 JPG가 없습니다.");
     const manifest = personSelectUploadManifest(input.scan);
-    const prepareResponse = await fetch(`/api/person-select/${input.eventId}/local-import`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: input.layout, files: manifest.map(({ relativePath, fileName }) => ({ relativePath, fileName })) }),
+    await preparePersonSelectLocalImport(
+      input.eventId,
+      input.layout,
+      manifest.map(({ relativePath, fileName }) => ({ relativePath, fileName })),
+    );
+    const result = await createPersonSelectUploadJob({
+      eventId: input.eventId,
+      layout: input.layout,
+      sourceName: input.sourceName,
+      files: manifest,
     });
-    const prepared = await readJson(prepareResponse);
-    if (!prepareResponse.ok || !prepared.ok) throw new Error(prepared.error || "사진 업로드를 준비하지 못했습니다.");
-    const jobResponse = await fetch(`/api/person-select/${input.eventId}/upload-jobs`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ layout: input.layout, sourceName: input.sourceName, files: manifest }),
-    });
-    const result = await readJson(jobResponse);
-    if (!jobResponse.ok || !result.ok || !result.job) throw new Error(result.error || "업로드 작업을 만들지 못했습니다.");
-    const completedPaths = Array.isArray(result.completedPaths) ? result.completedPaths.map(String) : [];
-    const pending = pendingUploadPaths(input.scan.files, completedPaths);
+    const pending = pendingUploadPaths(input.scan.files, result.completedPaths);
     const runtime = createPersonSelectUploadRuntime({
       eventId: input.eventId,
       layout: input.layout,
@@ -191,7 +170,7 @@ export function PersonSelectUploadProvider({ children }: { children: ReactNode }
       queue: pending.map((file) => file.relativePath),
     });
     runtimesRef.current.set(result.job.id, runtime);
-    mergeJob(result.job as PersonSelectUploadJob);
+    mergeJob(result.job);
     void pump(result.job.id);
     return String(result.job.id);
   }, [mergeJob, pump]);
