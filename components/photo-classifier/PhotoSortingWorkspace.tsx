@@ -82,6 +82,10 @@ import {
   type StudioSubMode,
 } from "@/lib/photo-classifier/studioGrouping";
 import {
+  buildStudioConceptReportBundle,
+  buildStudioPersonReportBundle,
+} from "@/lib/photo-classifier/studioReports";
+import {
   analyzeJpg,
   buildQuickProposals,
   getApiThumb,
@@ -1894,7 +1898,6 @@ function PhotoSortingInner({
     const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
     const totalFiles = studioGroups.reduce((s,g)=>s+g.files.length,0);
     let processed = 0;
-    const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [];
     for (const group of studioGroups) {
       const folderName = group.editedFolderName || group.suggestedFolderName;
       const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
@@ -1906,26 +1909,19 @@ function PhotoSortingInner({
           if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
           log.push(`✅ ${file.name} → ${folderName}/`);
         } catch { log.push(`❌ ${file.name} 실패`); }
-        if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), "", "", ""]);
-        classRows.push([file.name, "", folderName, file.clothingLabel, file.poseType, file.lightingStatus, String(Math.round(file.confidence*100)/100), ""]);
         processed++; setStudioCopyLog([...log]);
-      }
-      if (!group.isEtc) {
-        const f = group.files[0], l = group.files[group.files.length-1];
-        const avgConf = group.files.reduce((s,x)=>s+x.confidence,0)/group.files.length;
-        groupRows.push([String(group.index),folderName,group.clothingLabel,group.poseType,String(group.files.length),f.name,l.name,String(Math.round(avgConf*100)/100)]);
       }
     }
     const wr = async (name: string, content: string) => {
       try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     };
-    await wr("studio_classification_report.csv", makeCSV(["file_name","original_path","assigned_folder","clothing_label","pose_type","lighting_status","confidence","note"], classRows));
-    await wr("studio_group_report.csv",           makeCSV(["group_id","folder_name","clothing_label","pose_type","file_count","first_file","last_file","confidence"], groupRows));
-    await wr("studio_etc_report.csv",             makeCSV(["file_name","reason","brightness_score","face_brightness_score","previous_frame_delta","ai_comment"], etcRows));
-    const etcGroup = studioGroups.find(g=>g.isEtc);
-    const summary = { mode:"studio", total_jpg:studioFiles.length, total_raw:studioRawCount, total_groups:studioGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), output_path:`분류_${rootName}/`, created_at:new Date().toISOString() };
-    await wr("summary.json", JSON.stringify(summary, null, 2));
-    setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:studioGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:studioGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
+    const reports = buildStudioConceptReportBundle(studioGroups, {
+      totalJpg: studioFiles.length,
+      totalRaw: studioRawCount,
+      rootName,
+    });
+    for (const report of reports.files) await wr(report.name, report.content);
+    setStudioStats(reports.stats);
     setStep(6);
     } catch (error) {
       // 2026-09-10 수정 지시서 3번
@@ -1988,7 +1984,6 @@ function PhotoSortingInner({
     const reportDir      = await (rootDir as any).getDirectoryHandle("AI_SELECT_REPORT", { create:true });
     const totalFiles = personGroups.reduce((s,g) => s+g.files.length, 0);
     let processed = 0;
-    const classRows: string[][] = [], groupRows: string[][] = [], etcRows: string[][] = [];
     for (const group of personGroups) {
       const folderName = group.editedFolderName;
       const groupDir = await (selectedJpgDir as any).getDirectoryHandle(folderName, { create:true });
@@ -2000,26 +1995,19 @@ function PhotoSortingInner({
           if (studioFileMode === "move") await (rootDir as any).removeEntry(file.name).catch((error: unknown) => { console.error("[OLIVIA] Suppressed promise rejection", error); });
           log.push(`✅ ${file.name} → ${folderName}/`);
         } catch { log.push(`❌ ${file.name} 실패`); }
-        if (group.isEtc) etcRows.push([file.name, file.lightingStatus, String(Math.round(file.brightness??0)), ""]);
-        const pf = group.features;
-        classRows.push([file.name, folderName, group.label, pf.gender, pf.ageBand, pf.hairColor, pf.hairLength, String(pf.hasGlasses), file.lightingStatus]);
         processed++; setStudioCopyLog([...log]);
-      }
-      if (!group.isEtc) {
-        const f = group.files[0], l = group.files[group.files.length-1];
-        groupRows.push([String(group.index), folderName, group.label, String(group.files.length), f.name, l.name]);
       }
     }
     const wr = async (name: string, content: string) => {
       try { const fh = await (reportDir as any).getFileHandle(name,{create:true}); const w = await fh.createWritable(); await w.write("﻿"+content); await w.close(); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
     };
-    await wr("group_person_report.csv",    makeCSV(["group_id","folder_name","label","file_count","first_file","last_file"], groupRows));
-    await wr("classification_detail.csv", makeCSV(["file_name","assigned_folder","person_label","gender","age_band","hair_color","hair_length","has_glasses","lighting_status"], classRows));
-    await wr("etc_report.csv",             makeCSV(["file_name","reason","brightness","note"], etcRows));
-    const etcGroup = personGroups.find(g=>g.isEtc);
-    const summary = { mode:"studio_group", total_jpg:studioFiles.length, total_raw:studioRawCount, total_persons:personGroups.filter(g=>!g.isEtc).length, total_etc:etcGroup?.files.length??0, total_normal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0), output_path:`분류_${rootName}/`, created_at:new Date().toISOString() };
-    await wr("summary.json", JSON.stringify(summary, null, 2));
-    setStudioStats({ totalJpg:studioFiles.length, totalRaw:studioRawCount, totalGroups:personGroups.filter(g=>!g.isEtc).length, totalEtc:etcGroup?.files.length??0, totalNormal:personGroups.filter(g=>!g.isEtc).reduce((s,g)=>s+g.files.length,0) });
+    const reports = buildStudioPersonReportBundle(personGroups, {
+      totalJpg: studioFiles.length,
+      totalRaw: studioRawCount,
+      rootName,
+    });
+    for (const report of reports.files) await wr(report.name, report.content);
+    setStudioStats(reports.stats);
     setStep(6);
     } catch (error) {
       // 2026-09-10 수정 지시서 3번
