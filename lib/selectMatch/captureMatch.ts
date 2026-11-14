@@ -1,6 +1,9 @@
 import type { RawIndex, RawIndexEntry } from "@/lib/selectMatch/rawIndex";
 import { isInsideDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
-import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
+import {
+  normalizePhotoToolFileKey,
+  normalizePhotoToolSelectionKey,
+} from "@/lib/photo-bridge/toolLinkage";
 import {
   formatCaptureTime,
   readJpgCaptureTime,
@@ -54,14 +57,21 @@ export function resolveCaptureMatchJpgSources(input: {
   targetBasenames: ReadonlySet<string>;
   sources: readonly JpgMatchSource[];
 }): JpgMatchSource[] {
-  const targets = new Set(Array.from(input.targetBasenames, normalizePhotoToolFileKey).filter(Boolean));
+  const exactTargets = new Set(Array.from(input.targetBasenames)
+    .filter((target) => /[\\/]/u.test(target))
+    .map(normalizePhotoToolSelectionKey)
+    .filter(Boolean));
+  const legacyBasenames = new Set(Array.from(input.targetBasenames)
+    .filter((target) => !/[\\/]/u.test(target))
+    .map(normalizePhotoToolFileKey)
+    .filter(Boolean));
   const seenPaths = new Set<string>();
   const output: JpgMatchSource[] = [];
   for (const source of input.sources) {
     const basename = normalizePhotoToolFileKey(source.basename);
-    if (!targets.has(basename)) continue;
+    const pathKey = normalizePhotoToolSelectionKey(source.relativePath);
+    if (!exactTargets.has(pathKey) && !legacyBasenames.has(basename)) continue;
     if (isInsideDeliveredRoundFolder(source.relativePath)) continue;
-    const pathKey = source.relativePath.normalize("NFC").toLocaleLowerCase("en-US");
     if (seenPaths.has(pathKey)) continue;
     seenPaths.add(pathKey);
     output.push(source);

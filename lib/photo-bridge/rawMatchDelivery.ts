@@ -1,4 +1,7 @@
-import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
+import {
+  normalizePhotoToolFileKey,
+  normalizePhotoToolSelectionKey,
+} from "@/lib/photo-bridge/toolLinkage";
 
 export type RawMatchCriteriaSource = "rating" | "color" | "both";
 
@@ -36,15 +39,18 @@ export function normalizeRawMatchCriteria(value: unknown): RawMatchCriteria {
 }
 
 function normalizedNumberMap(input: Readonly<Record<string, number | null | undefined>>) {
-  const output: Record<string, number> = {};
+  const exact: Record<string, number> = {};
+  const legacy: Record<string, number> = {};
   for (const [name, value] of Object.entries(input)) {
-    const key = normalizePhotoToolFileKey(name);
-    if (key && typeof value === "number" && Number.isFinite(value)) output[key] = value;
+    const key = normalizePhotoToolSelectionKey(name);
+    if (!key || typeof value !== "number" || !Number.isFinite(value)) continue;
+    if (/[\\/]/u.test(name)) exact[key] = value;
+    else legacy[normalizePhotoToolFileKey(name)] = value;
   }
-  return output;
+  return { exact, legacy };
 }
 
-/** 브릿지에서 전달된 파일명 중 현재 RAW 매칭 기준에 맞는 basename만 돌려준다. */
+/** 브릿지에서 전달된 사진 중 현재 RAW 매칭 기준에 맞는 상대경로 식별자를 돌려준다. */
 export function resolveRawMatchTargets(input: {
   names: readonly string[];
   ratingsByName: Readonly<Record<string, number | null | undefined>>;
@@ -58,10 +64,13 @@ export function resolveRawMatchTargets(input: {
   const targets = new Set<string>();
 
   for (const name of input.names) {
-    const key = normalizePhotoToolFileKey(name);
-    if (!key) continue;
-    const ratingMatch = (ratings[key] ?? 0) >= criteria.minRating;
-    const colorMatch = enabledColors.has(colors[key] as 6 | 7 | 8 | 9);
+    const key = normalizePhotoToolSelectionKey(name);
+    const basename = normalizePhotoToolFileKey(name);
+    if (!key || !basename) continue;
+    const rating = ratings.exact[key] ?? ratings.legacy[basename] ?? 0;
+    const color = colors.exact[key] ?? colors.legacy[basename] ?? 0;
+    const ratingMatch = rating >= criteria.minRating;
+    const colorMatch = enabledColors.has(color as 6 | 7 | 8 | 9);
     if (
       (criteria.source === "rating" && ratingMatch)
       || (criteria.source === "color" && colorMatch)

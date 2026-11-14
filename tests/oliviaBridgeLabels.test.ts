@@ -20,13 +20,15 @@ import {
 } from "@/lib/photo-bridge/labels";
 
 describe("Olivia Bridge labels", () => {
-  it("keeps app edits, including an explicit clear, above later Adobe refreshes", () => {
+  it("keeps positive app edits above Adobe and does not clear Adobe with a local zero", () => {
     const targets = new Set(["photo-a"]);
     const five = updateBridgeRatingEdits({}, targets, 5);
     expect(resolveBridgeRatings("both", {}, { "photo-a": 3 }, five)).toEqual({ "photo-a": 5 });
 
     const cleared = updateBridgeRatingEdits(five, targets, 0);
-    expect(resolveBridgeRatings("both", {}, { "photo-a": 4 }, cleared)).toEqual({});
+    expect(resolveBridgeRatings("both", {}, { "photo-a": 4 }, cleared)).toEqual({ "photo-a": 4 });
+    expect(resolveBridgeRatings("olivia", { "photo-a": 2 }, {}, cleared)).toEqual({});
+    expect(resolveBridgeRatings("adobe", { "photo-a": 2 }, { "photo-a": 4 }, five)).toEqual({ "photo-a": 4 });
     expect(cleared).toEqual({ "photo-a": 0 });
   });
 

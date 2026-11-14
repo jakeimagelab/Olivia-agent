@@ -527,7 +527,6 @@ export default function OliviaBridgeWorkspace({
     loadRemoteDirectory,
     setIncludeNestedJpgs,
     setBreadcrumbs,
-    setCurrentLocalFolder,
     setRawMatchFolderPath,
     setRawMatchDefaultFolder,
     setRawMatchFolderCandidates,

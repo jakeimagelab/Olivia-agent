@@ -34,7 +34,6 @@ export function useOliviaBridgeFolderActions({
   loadRemoteDirectory,
   setIncludeNestedJpgs,
   setBreadcrumbs,
-  setCurrentLocalFolder,
   setRawMatchFolderPath,
   setRawMatchDefaultFolder,
   setRawMatchFolderCandidates,
@@ -56,7 +55,6 @@ export function useOliviaBridgeFolderActions({
   loadRemoteDirectory: (selection: RemoteNasSelection) => Promise<void>;
   setIncludeNestedJpgs: Dispatch<SetStateAction<boolean>>;
   setBreadcrumbs: Dispatch<SetStateAction<BridgeFolderTrailItem[]>>;
-  setCurrentLocalFolder: (folder: FileSystemDirectoryHandle | null) => void;
   setRawMatchFolderPath: (path: string) => void;
   setRawMatchDefaultFolder: (folder: FileSystemDirectoryHandle | null) => void;
   setRawMatchFolderCandidates: (folders: readonly BridgeRawFolderCandidate[]) => void;
@@ -117,9 +115,7 @@ export function useOliviaBridgeFolderActions({
         setRawRootPromptError(`고른 폴더 안에서 지금 열린 폴더(${activeFolderName || activeFolder.name})를 찾지 못했습니다.\n지금 폴더를 담고 있는 촬영 폴더를 골라 주세요. 같은 폴더라도 NAS 동기화 경로와 SSD 경로는 다른 폴더로 봅니다.`);
         return;
       }
-      const current = trail.at(-1)?.handle ?? activeFolder;
       setBreadcrumbs(trail);
-      setCurrentLocalFolder(current);
       setRawMatchFolderPath(trail.map((item) => item.name).join(" / "));
       setRawMatchDefaultFolder(bridgeRawMatchDefaultFolder(trail));
       setRawMatchFolderCandidates(bridgeRawMatchFolderCandidates(trail));
@@ -137,7 +133,7 @@ export function useOliviaBridgeFolderActions({
     } catch (error) {
       setRawRootPromptError(error instanceof Error ? error.message : "촬영 상위 폴더를 확인하지 못했습니다.");
     }
-  }, [activeFolder, activeFolderName, picker, setBreadcrumbs, setCurrentLocalFolder, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath, setToolKey, showTopNotice]);
+  }, [activeFolder, activeFolderName, picker, setBreadcrumbs, setRawMatchDefaultFolder, setRawMatchFolderCandidates, setRawMatchFolderPath, setToolKey, showTopNotice]);
 
   const openRawRootPrompt = useCallback(() => {
     setRawRootPromptError("");

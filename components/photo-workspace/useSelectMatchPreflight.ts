@@ -20,6 +20,7 @@ import { loadBrowserThumbnail, releaseObjectUrl } from "@/lib/selectMatch/browse
 import { buildRawIndex, type RawIndex } from "@/lib/selectMatch/rawIndex";
 import { discoverRawFolder } from "@/lib/selectMatch/rawFolderDiscovery";
 import type { BridgeRawFolderCandidate } from "@/lib/photo-bridge/recentFolder";
+import { normalizePhotoToolFileKey } from "@/lib/photo-bridge/toolLinkage";
 
 type SelectMatchStep = "idle" | "loading" | "ready" | "preflight" | "matching" | "done" | "client_input" | "raw_pick" | "selection_done";
 
@@ -66,6 +67,10 @@ export function useSelectMatchPreflight({
   const preflightRequestRef = useRef(0);
   const [rawDiscovery, setRawDiscovery] = useState<RawDiscoveryState>({ status: "idle", message: "" });
   const rawDiscoveryKeyRef = useRef("");
+  const rawTargetBasenames = useMemo(
+    () => new Set(selectedJpgSources.map((source) => normalizePhotoToolFileKey(source.basename)).filter(Boolean)),
+    [selectedJpgSources],
+  );
 
   const approvedMatches = useMemo<ApprovedCaptureMatch[]>(() => (preflight?.items.flatMap((item) => {
     const candidateId = manualRawChoices[item.id] ?? item.confirmedCandidateId;
@@ -86,8 +91,8 @@ export function useSelectMatchPreflight({
     overrideRawDir ?? rawRootDir,
     rootDir,
     onProgress,
-    authoritativeMatchTargets,
-  ), [authoritativeMatchTargets, rawRootDir, rootDir]);
+    rawTargetBasenames,
+  ), [rawRootDir, rawTargetBasenames, rootDir]);
 
   const runPreflight = useCallback(async (overrideRawDir?: FileSystemDirectoryHandle) => {
     if (!authoritativeMatchTargets.size || (!rootDir && !rawRootDir && !overrideRawDir)) return;
@@ -145,7 +150,7 @@ export function useSelectMatchPreflight({
     setRawDiscovery({ status: "searching", message: "현재 폴더와 상위 폴더에서 RAW 원본 위치를 찾고 있습니다." });
     void discoverRawFolder({
       candidates: rawMatchFolderCandidates,
-      selectedNames: authoritativeMatchTargets,
+      selectedNames: rawTargetBasenames,
       onCandidate: (candidate, index, total) => {
         if (!disposed) {
           setRawDiscovery({
@@ -184,7 +189,7 @@ export function useSelectMatchPreflight({
     });
 
     return () => { disposed = true; };
-  }, [authoritativeMatchTargets, bridgeLinked, rawMatchFolderCandidates, runPreflight, selectedJpgSources.length, step]);
+  }, [authoritativeMatchTargets, bridgeLinked, rawMatchFolderCandidates, rawTargetBasenames, runPreflight, selectedJpgSources.length, step]);
 
   const pickRawFolder = useCallback(async () => {
     try {

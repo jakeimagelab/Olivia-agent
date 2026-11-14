@@ -122,6 +122,21 @@ async function resolveDestinationDirectory(root: string, relativePath: string, l
   return canonical;
 }
 
+async function resolveExistingDestinationDirectory(
+  root: string,
+  relativePath: string,
+  label: string,
+): Promise<string | null> {
+  const candidate = path.resolve(root, safeRelativePath(relativePath, label));
+  if (!isInside(root, candidate)) throw new Error(`${label}이 기준 폴더 밖입니다.`);
+  if (!await destinationExists(candidate)) return null;
+  const canonical = await realpath(candidate);
+  if (!isInside(root, canonical)) throw new Error(`${label}이 기준 폴더 밖을 가리킵니다.`);
+  const metadata = await lstat(canonical);
+  if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${label}이 안전한 폴더가 아닙니다.`);
+  return canonical;
+}
+
 async function readXattrs(filePath: string): Promise<Record<string, string>> {
   if (process.platform !== "darwin") return {};
   const { stdout } = await execFileAsync("/usr/bin/xattr", [filePath], { maxBuffer: 4 * 1024 * 1024 });
@@ -441,7 +456,8 @@ export async function executeRemoteRawMatchCopy(
     expectedSize: number,
     expectedCaptureTimeMs: number | null,
   ): Promise<string | null> => {
-    const destinationDirectory = await resolveDestinationDirectory(root, relativeDestinationDirectory, "결과 폴더");
+    const destinationDirectory = await resolveExistingDestinationDirectory(root, relativeDestinationDirectory, "결과 폴더");
+    if (!destinationDirectory) return null;
     const destination = path.join(destinationDirectory, path.basename(relativeSourcePath));
     if (!await destinationExists(destination)) return null;
     try {
@@ -458,12 +474,11 @@ export async function executeRemoteRawMatchCopy(
     await options.onProgress?.({ current: index, total: payload.items.length, message: `${path.basename(item.rawPath)} 속성 보존 복사 중` });
     let rawSucceeded = false;
     try {
-      const rawDestination = await resolveDestinationDirectory(rawRoot, item.destDir, "RAW 결과 폴더");
-      outputDir = rawDestination;
       let rawOperation: PreservedOperationResult;
       try {
         const rawSource = await resolveSourceFile(rawRoot, item.rawPath, "RAW 원본");
         await assertRawIdentity(rawSource, item.rawExpectedSize, item.rawExpectedCaptureTimeMs);
+        const rawDestination = await resolveDestinationDirectory(rawRoot, item.destDir, "RAW 결과 폴더");
         rawOperation = await copyOrMovePreservingMetadata({
           source: rawSource,
           destinationDirectory: rawDestination,
@@ -486,6 +501,11 @@ export async function executeRemoteRawMatchCopy(
           alreadyExisted: true,
           warnings: ["원본이 없어 기존 완료 파일의 크기·촬영시각으로 재시도 상태를 확인함"],
         };
+      }
+      if (!outputDir) {
+        const outputRootName = safeRelativePath(item.destDir, "RAW 결과 폴더").split(path.sep)[0];
+        outputDir = await resolveExistingDestinationDirectory(rawRoot, outputRootName, "RAW 결과 폴더")
+          ?? path.dirname(rawOperation.destination);
       }
       if (rawOperation.alreadyExisted) alreadyCopied += 1;
       else if (item.rawAction === "move") rawMoved += 1;
@@ -565,7 +585,17 @@ export async function executeRemoteRawMatchCopy(
     await options.onProgress?.({ current: index + 1, total: payload.items.length, message: `${index + 1}/${payload.items.length}장 처리` });
   }
 
-  if (!outputDir) outputDir = await resolveDestinationDirectory(rawRoot, payload.items[0].destDir, "RAW 결과 폴더");
+  const rawSuccessCount = copied + alreadyCopied + rawMoved;
+  if (rawSuccessCount === 0) {
+    const firstFailures = failures
+      .filter((failure) => failure.stage === "raw_copy")
+      .slice(0, 3)
+      .map((failure) => `${failure.path}: ${failure.error}`)
+      .join(" · ");
+    throw new Error(firstFailures
+      ? `RAW 복사가 모두 실패했습니다. ${firstFailures}`
+      : "RAW 복사가 완료되지 않았습니다.");
+  }
   const logPath = payload.logRows.length ? path.join(outputDir, "_match_log.csv") : "";
   if (logPath) await writeFile(logPath, buildWorkerMatchLog(payload.logRows, attributesByPath), { encoding: "utf8", flag: "w" });
   if (payload.openOutput && process.platform === "darwin") {

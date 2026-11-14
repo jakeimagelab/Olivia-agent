@@ -25,6 +25,19 @@ export function defaultWorkerFolderPath(displayPath: string, fallbackName: strin
   return segments.length ? `/Volumes/${segments.join("/")}` : "";
 }
 
+/** RAW 폴더가 현재 breadcrumb 안에 있을 때만 Mac Studio 절대경로를 추론한다. */
+export function inferWorkerRawRootPath(jpgPath: string, rawFolderName: string): string {
+  const rawName = rawFolderName.trim().normalize("NFC");
+  if (!rawName) return "";
+  const pathSegments = jpgPath
+    .replace(/^\/Volumes\//u, "")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  const rawIndex = pathSegments.findLastIndex((segment) => segment.normalize("NFC") === rawName);
+  return rawIndex >= 0 ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}` : "";
+}
+
 export function relativeToDirectoryRoot(relativePath: string, rootName: string): string {
   const normalized = relativePath.replaceAll("\\", "/");
   const prefix = `${rootName.normalize("NFC")}/`;

@@ -57,6 +57,30 @@ describe("RAW 속성 비교 허용 범위", () => {
   });
 });
 
+describe("RAW 전체 실패 판정", () => {
+  it("원본과 다른 기존 파일 때문에 0장 처리되면 완료 결과를 반환하지 않는다", async () => {
+    const root = await temporaryRoot();
+    const rawRoot = path.join(root, "RAW");
+    const destinationDirectory = path.join(rawRoot, "Selected_RAW");
+    await mkdir(destinationDirectory, { recursive: true });
+    const source = path.join(rawRoot, "collision.CR2");
+    await writeFile(source, "source");
+    await writeFile(path.join(destinationDirectory, "collision.CR2"), "different-existing-file");
+    const sourceStat = await stat(source);
+
+    await expect(executeRemoteRawMatchCopy({
+      rawRootPath: rawRoot,
+      items: [{
+        rawPath: "collision.CR2",
+        destDir: "Selected_RAW",
+        rawExpectedSize: sourceStat.size,
+        rawExpectedCaptureTimeMs: null,
+      }],
+      logRows: [],
+    }, { allowedRoots: [root] })).rejects.toThrow("RAW 복사가 모두 실패했습니다");
+  });
+});
+
 describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복사", () => {
   it("ditto 복사 후 크기·mtime·birthtime·확장속성이 원본과 같고 quarantine가 없다", async () => {
     const root = await temporaryRoot();
@@ -107,15 +131,27 @@ describe.runIf(process.platform === "darwin")("Mac Studio RAW 속성 보존 복�
     await writeFile(destination, "existing-destination");
     const sourceStat = await stat(source);
 
-    const result = await executeRemoteRawMatchCopy({
+    await expect(executeRemoteRawMatchCopy({
       rawRootPath: rawRoot,
       items: [{ rawPath: "A.CR2", destDir: "Selected_RAW", rawExpectedSize: sourceStat.size, rawExpectedCaptureTimeMs: null }],
       logRows: [],
-    }, { allowedRoots: [root] });
+    }, { allowedRoots: [root] })).rejects.toThrow("RAW 복사가 모두 실패했습니다");
 
-    expect(result).toMatchObject({ copied: 0, failed: 1, attributePassed: 0, attributeFailed: 1, logPath: "" });
     expect(await readFile(destination, "utf8")).toBe("existing-destination");
     expect(await readFile(source, "utf8")).toBe("new-source");
+  });
+
+  it("원본 경로가 틀리면 빈 Selected_RAW 폴더를 만들지 않고 실패한다", async () => {
+    const root = await temporaryRoot();
+    const rawRoot = path.join(root, "RAW");
+    await mkdir(rawRoot);
+
+    await expect(executeRemoteRawMatchCopy({
+      rawRootPath: rawRoot,
+      items: [{ rawPath: "missing.CR2", destDir: "Selected_RAW", rawExpectedSize: 10, rawExpectedCaptureTimeMs: null }],
+      logRows: [],
+    }, { allowedRoots: [root] })).rejects.toThrow();
+    await expect(stat(path.join(rawRoot, "Selected_RAW"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("대상에 크기와 mtime이 같은 파일이 있으면 이미 복사됨으로 성공 처리한다", async () => {

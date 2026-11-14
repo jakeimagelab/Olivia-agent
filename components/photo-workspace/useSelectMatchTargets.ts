@@ -13,6 +13,10 @@ import {
   resolveRawMatchTargets,
   type RawMatchCriteria,
 } from "@/lib/photo-bridge/rawMatchDelivery";
+import {
+  normalizePhotoToolFileKey,
+  normalizePhotoToolSelectionKey,
+} from "@/lib/photo-bridge/toolLinkage";
 
 export function useSelectMatchTargets({
   bridgeLinked,
@@ -64,8 +68,13 @@ export function useSelectMatchTargets({
   }), [authoritativeMatchTargets, scannedJpgSources]);
 
   const missingMatchTargetBasenames = useMemo(() => {
+    const sourcePaths = new Set(selectedJpgSources.map((source) => normalizePhotoToolSelectionKey(source.relativePath)));
     const sourceBasenames = new Set(selectedJpgSources.map((source) => source.basename));
-    return Array.from(authoritativeMatchTargets).filter((basename) => !sourceBasenames.has(basename));
+    return Array.from(authoritativeMatchTargets).filter((target) => (
+      /[\\/]/u.test(target)
+        ? !sourcePaths.has(normalizePhotoToolSelectionKey(target))
+        : !sourceBasenames.has(normalizePhotoToolFileKey(target))
+    ));
   }, [authoritativeMatchTargets, selectedJpgSources]);
 
   const expectedMatchTargetCount = selectedJpgSources.length + missingMatchTargetBasenames.length;

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   checkFileSequence,
   defaultWorkerFolderPath,
+  inferWorkerRawRootPath,
   parseFileNameQueries,
   relativeToDirectoryRoot,
 } from "@/lib/selectMatch/workspaceHelpers";
@@ -27,6 +28,8 @@ describe("select match workspace helpers", () => {
     expect(defaultWorkerFolderPath("Agentstation / 촬영 / JPG전체", "")).toBe("/Volumes/Agentstation/촬영/JPG전체");
     expect(defaultWorkerFolderPath("", "촬영")).toBe("/Volumes/촬영");
     expect(relativeToDirectoryRoot("촬영/JPG전체/_AK_0177.JPG", "촬영")).toBe("JPG전체/_AK_0177.JPG");
+    expect(inferWorkerRawRootPath("/Volumes/Agentstation/촬영/RAW/JPG전체", "RAW")).toBe("/Volumes/Agentstation/촬영/RAW");
+    expect(inferWorkerRawRootPath("/Volumes/Agentstation/촬영/JPG전체", "다른 RAW")).toBe("");
   });
 
   it("groups missing file number ranges and ignores duplicates", () => {

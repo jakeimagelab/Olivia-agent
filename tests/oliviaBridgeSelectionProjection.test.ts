@@ -23,6 +23,14 @@ function photo(id: string, name: string, file?: File): BridgeJpgFile {
   };
 }
 
+function nestedPhoto(id: string, directory: string, name: string): BridgeJpgFile {
+  return {
+    ...photo(id, name),
+    relativeDirectory: directory,
+    relativePath: `${directory}/${name}`,
+  };
+}
+
 describe("Bridge selection projection", () => {
   it("선택 ID를 사진 순서의 이름과 사용 가능한 File로 투영한다", () => {
     const first = new File(["first"], "FIRST.JPG", { lastModified: 10 });
@@ -49,7 +57,7 @@ describe("Bridge selection projection", () => {
     const decomposed = composed.normalize("NFD");
     const jpgs = [photo("a", composed), photo("b", "SECOND.JPEG")];
 
-    expect(resolveBridgeSelectedIdsByName(jpgs, [`folder/${decomposed.toLocaleLowerCase("en-US")}`, "second.jpg"])).toEqual(new Set(["a", "b"]));
+    expect(resolveBridgeSelectedIdsByName(jpgs, [decomposed.toLocaleLowerCase("en-US"), "second.jpg"])).toEqual(new Set(["a", "b"]));
     expect(resolveBridgeRatingsByName(jpgs, {
       [decomposed.replace(/\.JPG$/, "").toLocaleLowerCase("en-US")]: 4,
       second: 2,
@@ -61,5 +69,21 @@ describe("Bridge selection projection", () => {
 
     expect(resolveBridgeSelectedIdsByName(jpgs, ["missing.jpg"])).toEqual(new Set());
     expect(resolveBridgeRatingsByName(jpgs, { a: 0, missing: 5 })).toEqual({});
+  });
+
+  it("동일 파일명은 상대경로로 구분하고 basename-only 입력은 레거시 호환한다", () => {
+    const jpgs = [
+      nestedPhoto("c1", "C1", "_AK_0008.JPG"),
+      nestedPhoto("c2", "C2", "_AK_0008.JPG"),
+    ];
+
+    expect(projectBridgeSelectedNames(jpgs, new Set(["c2"]))).toEqual(["C2/_AK_0008.JPG"]);
+    expect(projectBridgeRatingsByName(jpgs, { c1: 3, c2: 5 })).toEqual({
+      "C1/_AK_0008.JPG": 3,
+      "C2/_AK_0008.JPG": 5,
+    });
+    expect(resolveBridgeSelectedIdsByName(jpgs, ["C2/_AK_0008.JPG"])).toEqual(new Set(["c2"]));
+    expect(resolveBridgeSelectedIdsByName(jpgs, ["_AK_0008.JPG"])).toEqual(new Set(["c1", "c2"]));
+    expect(resolveBridgeRatingsByName(jpgs, { "C2/_AK_0008.JPG": 5 })).toEqual({ c2: 5 });
   });
 });

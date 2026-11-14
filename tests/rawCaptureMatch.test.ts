@@ -235,6 +235,18 @@ describe("RAW 촬영시각 안전 매칭", () => {
     ]);
   });
 
+  it("상대경로 선택은 같은 basename의 다른 폴더 JPG를 포함하지 않는다", () => {
+    const handle = { name: "_AK_0008.JPG", kind: "file" } as FileSystemFileHandle;
+    const sources: JpgMatchSource[] = [
+      { id: "C1/_AK_0008.JPG", name: "_AK_0008.JPG", basename: "_ak_0008", relativePath: "C1/_AK_0008.JPG", handle, thumbUrl: null },
+      { id: "C2/_AK_0008.JPG", name: "_AK_0008.JPG", basename: "_ak_0008", relativePath: "C2/_AK_0008.JPG", handle, thumbUrl: null },
+    ];
+    expect(resolveCaptureMatchJpgSources({
+      targetBasenames: new Set(["c2/_ak_0008"]),
+      sources,
+    }).map((source) => source.id)).toEqual(["C2/_AK_0008.JPG"]);
+  });
+
   it("사전 확인 항목 수나 상태 합계가 기준 수와 다르면 실행 불가로 판정한다", () => {
     const preflight = {
       items: [{ id: "only-one" }],

@@ -27,6 +27,15 @@ describe("RAW 매칭 기준", () => {
     expect([...resolveRawMatchTargets({ names, ratingsByName, colorsByName, criteria: { source: "color", minRating: 1, colorLabels: [6] } })]).toEqual(["d"]);
     expect([...resolveRawMatchTargets({ names, ratingsByName, colorsByName, criteria: { source: "both", minRating: 3, colorLabels: [6] } })]).toEqual(["b", "c", "d"]);
   });
+
+  it("동일 basename의 하위 폴더 사진은 상대경로별 별점을 유지한다", () => {
+    expect([...resolveRawMatchTargets({
+      names: ["C1/_AK_0008.JPG", "C2/_AK_0008.JPG"],
+      ratingsByName: { "C1/_AK_0008.JPG": 0, "C2/_AK_0008.JPG": 5 },
+      colorsByName: {},
+      criteria: { source: "rating", minRating: 1, colorLabels: [6, 7, 8, 9] },
+    })]).toEqual(["c2/_ak_0008"]);
+  });
 });
 
 describe("보정본 전달 폴더", () => {

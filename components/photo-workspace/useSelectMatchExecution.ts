@@ -19,6 +19,7 @@ import {
   type RemoteRawMatchJob,
 } from "@/lib/selectMatch/remoteRawMatch";
 import { relativeToDirectoryRoot } from "@/lib/selectMatch/workspaceHelpers";
+import { resolveRawMatchDestinationDirectories } from "@/lib/selectMatch/rawMatchDestination";
 
 const RAW_MATCH_JOB_ID = "raw-match";
 
@@ -134,14 +135,18 @@ export function useSelectMatchExecution({
       .filter((item) => !approvedMatches.some((approved) => approved.item.id === item.id))
       .map((item) => `${item.jpg.name} — ${item.status === "time_mismatch" ? "촬영시각 불일치" : item.status === "multiple_candidates" ? "후보 여러 개" : item.status === "missing_time" ? "촬영시각 없음" : "RAW 없음"}`);
     const approvedById = new Map(approvedMatches.map((match) => [match.item.id, match]));
+    const approvedRawPaths = approvedMatches.map(({ candidate }) => (
+      relativeToDirectoryRoot(candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? "")
+    ));
+    const destinationDirectories = resolveRawMatchDestinationDirectories(approvedRawPaths);
     const payload: RemoteRawMatchCopyPayload = {
       rawRootPath: workerRawRootPath.trim(),
       ...(moveMatchedJpgs ? { jpgRootPath: workerJpgRootPath.trim() } : {}),
-      items: await Promise.all(approvedMatches.map(async ({ item, candidate }) => {
+      items: await Promise.all(approvedMatches.map(async ({ item, candidate }, index) => {
         const jpgFile = moveMatchedJpgs ? await item.jpg.handle.getFile() : null;
         return {
-          rawPath: relativeToDirectoryRoot(candidate.entry.relativePath, rawRootDir?.name ?? rootDir?.name ?? ""),
-          destDir: "Selected_RAW",
+          rawPath: approvedRawPaths[index],
+          destDir: destinationDirectories[index],
           rawAction: rawSelectMode,
           rawExpectedSize: candidate.fileSize,
           rawExpectedCaptureTimeMs: candidate.captureTime?.timestampMs ?? null,

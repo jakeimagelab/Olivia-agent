@@ -24,11 +24,11 @@ describe("Olivia Bridge selection source", () => {
     const edits = { adobe: 3, shared: 0 } as const;
 
     expect(resolveBridgeRatings("olivia", base, adobeRatings, {})).toEqual(base);
-    expect(resolveBridgeRatings("adobe", base, adobeRatings, {})).toEqual({ manual: 2, adobe: 4, shared: 5 });
+    expect(resolveBridgeRatings("adobe", base, adobeRatings, {})).toEqual({ adobe: 4, shared: 5 });
     expect(resolveBridgeRatings("both", base, adobeRatings, {})).toEqual({ manual: 2, adobe: 4, shared: 5 });
     expect(resolveBridgeRatings("olivia", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3 });
-    expect(resolveBridgeRatings("adobe", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3 });
-    expect(resolveBridgeRatings("both", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3 });
+    expect(resolveBridgeRatings("adobe", base, adobeRatings, edits)).toEqual({ adobe: 4, shared: 5 });
+    expect(resolveBridgeRatings("both", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3, shared: 5 });
   });
 
   it("defaults missing or invalid stored values to Olivia", () => {

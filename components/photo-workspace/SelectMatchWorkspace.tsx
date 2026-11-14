@@ -13,7 +13,9 @@ import {
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
   defaultWorkerFolderPath,
+  inferWorkerRawRootPath,
 } from "@/lib/selectMatch/workspaceHelpers";
+import { resolveJpgScanRootDirectory } from "@/lib/selectMatch/jpgScanRoot";
 import {
   collectRatedBasenames,
   collectRatingsByName,
@@ -248,14 +250,8 @@ export function SelectMatchWorkspace({
       jpgPath = `${jpgPath.replace(/\/$/u, "")}/${jpgScanRootDir.name}`;
     }
     setWorkerJpgRootPath(jpgPath);
-    const pathSegments = jpgPath.replace(/^\/Volumes\//u, "").split("/").filter(Boolean);
     const rawName = rawRootDir?.name.normalize("NFC") ?? "";
-    const rawIndex = rawName
-      ? pathSegments.findLastIndex((segment) => segment.normalize("NFC") === rawName)
-      : -1;
-    setWorkerRawRootPath(rawIndex >= 0
-      ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}`
-      : rawName ? `/Volumes/${rawName}` : jpgPath);
+    setWorkerRawRootPath(inferWorkerRawRootPath(jpgPath, rawName));
   }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir, workerPathDirty]);
 
   useEffect(() => {
@@ -265,12 +261,7 @@ export function SelectMatchWorkspace({
     }
     let disposed = false;
     void (async () => {
-      let next = rootDir;
-      try {
-        next = await rootDir.getDirectoryHandle("JPG");
-      } catch {
-        // 선택한 폴더가 곧 JPG 폴더인 일반적인 Bridge 경로다.
-      }
+      const next = await resolveJpgScanRootDirectory(rootDir);
       if (!disposed) setJpgScanRootDir(next);
     })();
     return () => { disposed = true; };
@@ -345,12 +336,7 @@ export function SelectMatchWorkspace({
       setStep("loading");
       setProgress({ cur: 0, total: 0, msg: "JPG 폴더 스캔 중..." });
 
-      // JPG/ 폴더 탐색
-      let jpgBase: FileSystemDirectoryHandle | null = null;
-      try { jpgBase = await (dir as any).getDirectoryHandle("JPG"); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
-
-      // JPG/ 없으면 루트 직접 사용
-      const scanDir = jpgBase ?? dir;
+      const scanDir = await resolveJpgScanRootDirectory(dir);
       setJpgScanRootDir(scanDir);
       setDeliveredFolderNameDirty(false);
       const sceneList = await collectJpgFolderGroups(scanDir);

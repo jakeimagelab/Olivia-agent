@@ -63,17 +63,22 @@ export function normalizeBridgeRatingEdits(value: unknown): BridgeRatingEdits {
   return edits;
 }
 
-/** Adobe 값과 앱 편집값을 분리하고, 앱의 0점도 명시적인 해제 상태로 유지한다. */
+/** 셀렉 기준별 원본을 분리하고, 둘 다에서는 0점 편집이 Adobe 값을 지우지 않게 한다. */
 export function resolveBridgeRatings(
   source: BridgeSelectionSource,
   base: Readonly<Record<string, number>>,
   adobe: Readonly<Record<string, number>>,
   edits: Readonly<BridgeRatingEdits>,
 ) {
+  if (source === "adobe") return { ...adobe };
   const next = source === "olivia" ? { ...base } : { ...base, ...adobe };
   for (const [id, rating] of Object.entries(edits)) {
-    if (rating === 0) delete next[id];
-    else next[id] = rating;
+    if (rating > 0) {
+      next[id] = rating;
+      continue;
+    }
+    if (source === "both" && adobe[id]) next[id] = adobe[id];
+    else delete next[id];
   }
   return next;
 }
