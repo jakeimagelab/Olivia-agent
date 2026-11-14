@@ -20,6 +20,7 @@ import {
 } from "@/lib/photo-bridge/toolLinkage";
 import { matchPersonSelectFileNames } from "@/lib/photo-bridge/personSelectImport";
 import { countOliviaBridgeFolderImages } from "@/components/olivia-bridge/useOliviaBridgeFolderCounts";
+import { bridgeToolShortcutFromEvent } from "@/lib/photo-bridge/toolShortcuts";
 
 describe("Olivia Bridge", () => {
   it("JPG·RAW·사이드카를 구분하고 숨김·기타 파일은 탐색 대상에서 제외한다", () => {
@@ -76,6 +77,18 @@ describe("Olivia Bridge", () => {
     expect(keyboard).toContain('(event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA"');
     expect(keyboard).toContain("selectAllVisibleJpgs()");
     expect(actionBar).toContain("⌘/Ctrl+A 전체 선택");
+  });
+
+  it("Bridge 도구 단축키를 버튼과 같은 도구 키로 해석한다", () => {
+    const shortcut = (code: string, metaKey = false) => bridgeToolShortcutFromEvent({ code, metaKey, ctrlKey: false, altKey: false });
+
+    expect(shortcut("KeyJ", true)).toBe("jpg-prep");
+    expect(shortcut("KeyS", true)).toBe("select");
+    expect(shortcut("KeyM")).toBe("raw-match");
+    expect(shortcut("KeyR")).toBe("resize");
+    expect(shortcut("KeyT")).toBe("tcut");
+    expect(shortcut("KeyJ")).toBeNull();
+    expect(bridgeToolShortcutFromEvent({ code: "KeyM", metaKey: false, ctrlKey: false, altKey: true })).toBeNull();
   });
 
   it("Bridge와 사진 도구의 파일명·선택·별점을 같은 키로 연결한다", () => {
@@ -295,6 +308,17 @@ describe("Olivia Bridge", () => {
     expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.folderPanel\s*\{[^}]*grid-template-rows:\s*38px minmax\(0, 1fr\) auto auto/);
     expect(styles).toMatch(/\.folderPanelScroll\s*\{[^}]*overflow-y:\s*auto/);
     expect(styles).toMatch(/max-width:\s*900px[\s\S]*grid-template-rows:\s*minmax\(0, 1fr\)/);
+  });
+
+  it("새 폴더와 하위 JPG 재스캔은 이전 자동 복원 결과에 덮이지 않는다", () => {
+    const localFolderLoading = readFileSync("components/olivia-bridge/useOliviaBridgeLocalFolderLoading.ts", "utf8");
+    const styles = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.module.css", "utf8");
+
+    expect(localFolderLoading).toContain("const generation = ++loadGenerationRef.current");
+    expect(localFolderLoading).toMatch(/await loadLocalBridgeFolderSnapshot\([\s\S]*if \(generation !== loadGenerationRef\.current\) return;[\s\S]*setBreadcrumbs\(trail\)/);
+    expect(localFolderLoading).toMatch(/catch \(error\) \{\s*if \(generation !== loadGenerationRef\.current\) return;/);
+    expect(styles).toMatch(/\.fileCountSummary\s*\{[^}]*color:\s*var\(--ui2-run, #C94A1E\)/);
+    expect(styles).toMatch(/\.bridge\[data-desktop-ui="true"\] \.browserHeader span\s*\{[^}]*color:\s*var\(--ui2-run, #C94A1E\)/);
   });
 
   it("폴더 스캔은 JPG·RAW·사이드카 메타데이터와 하위 폴더를 유지한다", async () => {

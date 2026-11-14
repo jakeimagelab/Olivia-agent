@@ -6,6 +6,7 @@ import {
   isInsideDeliveredRoundFolder,
   nextDeliveredRoundFolderName,
   rawMatchProgressPercent,
+  resolveBridgeRawMatchTargets,
   resolveRawMatchTargets,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 
@@ -35,6 +36,23 @@ describe("RAW 매칭 기준", () => {
       colorsByName: {},
       criteria: { source: "rating", minRating: 1, colorLabels: [6, 7, 8, 9] },
     })]).toEqual(["c2/_ak_0008"]);
+  });
+
+  it("Bridge에서 직접 지정한 작업 대상은 별점이 없어도 그대로 RAW 매칭 대상으로 쓴다", () => {
+    expect([...resolveBridgeRawMatchTargets({
+      mode: "active-selection",
+      names: ["C1/A.JPG", "C2/B.JPG"],
+      ratingsByName: {},
+      colorsByName: {},
+      criteria: DEFAULT_RAW_MATCH_CRITERIA,
+    })]).toEqual(["c1/a", "c2/b"]);
+    expect(resolveBridgeRawMatchTargets({
+      mode: "criteria",
+      names: ["C1/A.JPG", "C2/B.JPG"],
+      ratingsByName: {},
+      colorsByName: {},
+      criteria: DEFAULT_RAW_MATCH_CRITERIA,
+    }).size).toBe(0);
   });
 });
 

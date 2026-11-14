@@ -53,7 +53,7 @@ export function useOliviaBridgeLocalFolderLoading(
     trail: BridgeFolderTrailItem[],
     nestedJpgs = includeNestedJpgs,
   ) => {
-    loadGenerationRef.current += 1;
+    const generation = ++loadGenerationRef.current;
     resetBridgeThumbnailCache();
     setRemoteLoadProgress(null);
     setExecutionMode("LOCAL_DIRECT");
@@ -68,6 +68,9 @@ export function useOliviaBridgeLocalFolderLoading(
         includeNestedJpgs: nestedJpgs,
         storage: localStorage,
       });
+      // 최근 폴더 자동 복원과 사용자의 새 폴더 선택이 겹치면 먼저 시작한
+      // 스캔이 더 늦게 끝날 수 있다. 최신 요청이 아니면 화면·경로를 덮지 않는다.
+      if (generation !== loadGenerationRef.current) return;
       resetSelectionState(snapshot.selectionSource);
       setRatings(snapshot.marks.ratings);
       setRatingEdits(snapshot.marks.ratingEdits);
@@ -95,6 +98,7 @@ export function useOliviaBridgeLocalFolderLoading(
       });
       rootRef.current?.focus();
     } catch (error) {
+      if (generation !== loadGenerationRef.current) return;
       console.error("[olivia-bridge] Failed to read local folder", error);
       setScanStatus("error");
       setScanError(error instanceof Error ? error.message : "폴더를 읽지 못했습니다.");

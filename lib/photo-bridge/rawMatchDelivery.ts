@@ -4,6 +4,7 @@ import {
 } from "@/lib/photo-bridge/toolLinkage";
 
 export type RawMatchCriteriaSource = "rating" | "color" | "both";
+export type BridgeRawMatchTargetMode = "criteria" | "active-selection";
 
 export type RawMatchCriteria = {
   source: RawMatchCriteriaSource;
@@ -78,6 +79,25 @@ export function resolveRawMatchTargets(input: {
     ) targets.add(key);
   }
   return targets;
+}
+
+/**
+ * Bridge에서 사용자가 작업 대상을 직접 지정한 뒤 RAW 매칭을 열면 그 목록 자체가
+ * 실행 대상이다. 작업 대상이 없어서 현재 화면 전체를 넘긴 경우에만 별점·컬러
+ * 기준으로 다시 거른다. 두 경우를 구분하지 않으면 직접 고른 무별점 사진이 0장으로
+ * 사라져 RAW 매칭 창이 아무 반응도 하지 않는 것처럼 보인다.
+ */
+export function resolveBridgeRawMatchTargets(input: {
+  mode: BridgeRawMatchTargetMode;
+  names: readonly string[];
+  ratingsByName: Readonly<Record<string, number | null | undefined>>;
+  colorsByName: Readonly<Record<string, number | null | undefined>>;
+  criteria: RawMatchCriteria;
+}): Set<string> {
+  if (input.mode === "criteria") return resolveRawMatchTargets(input);
+  return new Set(input.names
+    .map(normalizePhotoToolSelectionKey)
+    .filter((name) => name && !isInsideDeliveredRoundFolder(name)));
 }
 
 export function isDeliveredRoundFolder(name: string): boolean {

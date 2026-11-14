@@ -6,6 +6,7 @@ import { Clock3, Files } from "lucide-react";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { SelectMatchWorkspace } from "./SelectMatchWorkspace";
+import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
 import styles from "./PhotoWorkspace.module.css";
 
 const MetadataSelectWorkspace = dynamic(
@@ -27,10 +28,12 @@ export default function PhotoRawMatchWorkspace({
   selectedJpgNames,
   initialMethod = "filename",
   bridgeLinked = false,
+  bridgeTargetMode = "criteria",
 }: {
   selectedJpgNames: readonly string[];
   initialMethod?: RawMatchMethod;
   bridgeLinked?: boolean;
+  bridgeTargetMode?: BridgeRawMatchTargetMode;
 }) {
   const [method, setMethod] = useState<RawMatchMethod>(initialMethod);
   useEffect(() => setMethod(initialMethod), [initialMethod]);
@@ -39,7 +42,7 @@ export default function PhotoRawMatchWorkspace({
     <div>
       <div style={{ marginBottom: 14, border: "1px solid rgba(79,216,184,.20)", borderRadius: 9, padding: "10px 12px", background: "rgba(79,216,184,.08)", color: "rgba(255,255,255,.68)", fontSize: 11.5, lineHeight: 1.6 }}>
         {selectedJpgNames.length
-          ? <>사진 셀렉에서 확정한 JPG <strong style={{ color: "#a8f1dc" }}>{selectedJpgNames.length.toLocaleString("ko-KR")}장</strong>을 매칭 대상으로 불러왔습니다.</>
+          ? <>{bridgeLinked && bridgeTargetMode === "active-selection" ? "Bridge에서 직접 고른 작업 대상" : "사진 셀렉에서 확정한 JPG"} <strong style={{ color: "#a8f1dc" }}>{selectedJpgNames.length.toLocaleString("ko-KR")}장</strong>을 매칭 대상으로 불러왔습니다.</>
           : <>사진 셀렉을 거치지 않아도 됩니다. 아래에서 매칭할 JPG 폴더·파일명 목록을 직접 지정하세요.</>}
       </div>
       <WorkspaceSubTabs
@@ -53,7 +56,7 @@ export default function PhotoRawMatchWorkspace({
         ]}
       />
       <div id="raw-match-method-panel" role="tabpanel" aria-labelledby={`raw-match-method-${method}`}>
-        {method === "filename" ? <SelectMatchWorkspace embedded bridgeLinked={bridgeLinked} initialView="raw" selectedJpgNames={selectedJpgNames} /> : null}
+        {method === "filename" ? <SelectMatchWorkspace embedded bridgeLinked={bridgeLinked} bridgeTargetMode={bridgeTargetMode} initialView="raw" selectedJpgNames={selectedJpgNames} /> : null}
         {method === "metadata" ? <DesktopWindowProvider value={true}><MetadataSelectWorkspace bridgeLinked={bridgeLinked} selectedJpgNames={selectedJpgNames} /></DesktopWindowProvider> : null}
       </div>
     </div>

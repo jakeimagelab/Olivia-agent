@@ -55,6 +55,7 @@ import { type BridgeJpgSortMode } from "@/lib/photo-bridge/bridgeFiles";
 import {
   normalizePhotoToolFileKey,
 } from "@/lib/photo-bridge/toolLinkage";
+import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import styles from "./OliviaBridgeWorkspace.module.css";
@@ -136,6 +137,7 @@ export default function OliviaBridgeWorkspace({
   const [anchorId, setAnchorId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [toolKey, setToolKey] = useState<ToolKey>();
+  const [rawMatchTargetMode, setRawMatchTargetMode] = useState<BridgeRawMatchTargetMode>("criteria");
   const [sceneReviewOpen, setSceneReviewOpen] = useState(false);
   const [thumbnailSize, setThumbnailSize] = useState(THUMBNAIL_SIZE_DEFAULT);
   const [jpgSortMode, setJpgSortMode] = useState<BridgeJpgSortMode>("filename");
@@ -626,6 +628,23 @@ export default function OliviaBridgeWorkspace({
   const closeSceneReview = useCallback(() => setSceneReviewOpen(false), []);
   const closeTool = useCallback(() => setToolKey(undefined), []);
 
+  const { openTool, toolDisabledReason } = useOliviaBridgeToolLaunch({
+    currentLocalFolder,
+    remoteFolder,
+    scanStatus,
+    selectedIds,
+    selectedIdsRef,
+    visibleJpgs,
+    breadcrumbsLength: breadcrumbs.length,
+    setSelectedIds,
+    setSelectedJpgFiles,
+    setSceneReviewOpen,
+    setRawMatchTargetMode,
+    syncAdobeBridgeSelection,
+    openRawRootPrompt,
+    setToolKey,
+  });
+
   const handleKeyboard = useOliviaBridgeKeyboard({
     compactFiltersOpen,
     closeCompactFilters,
@@ -650,24 +669,9 @@ export default function OliviaBridgeWorkspace({
     toggleExcluded,
     closeSceneReview,
     closeTool,
+    openTool,
     selectAllVisibleJpgs,
     moveGridFocus,
-  });
-
-  const { openTool, toolDisabledReason } = useOliviaBridgeToolLaunch({
-    currentLocalFolder,
-    remoteFolder,
-    scanStatus,
-    selectedIds,
-    selectedIdsRef,
-    visibleJpgs,
-    breadcrumbsLength: breadcrumbs.length,
-    setSelectedIds,
-    setSelectedJpgFiles,
-    setSceneReviewOpen,
-    syncAdobeBridgeSelection,
-    openRawRootPrompt,
-    setToolKey,
   });
 
   const centerFileCount = visibleJpgs.length + (showRaws ? scan.raws.length : 0) + (showSidecars ? scan.sidecars.length : 0);
@@ -949,7 +953,7 @@ export default function OliviaBridgeWorkspace({
           rect: floatingWindowRectsRef.current[`tool-${activeTool.key}`],
           onRectChange: (rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect),
           onClose: () => setToolKey(undefined),
-          embeddedTool: { clientId, workflowRunId, initialRemoteSelection: remoteProjectSelection },
+          embeddedTool: { clientId, workflowRunId, initialRemoteSelection: remoteProjectSelection, rawMatchTargetMode },
         } : null}
         selectionReview={selectionReviewOpen ? {
           photos: reviewPhotos,

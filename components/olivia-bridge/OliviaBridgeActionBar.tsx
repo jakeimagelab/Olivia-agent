@@ -92,7 +92,7 @@ export const OliviaBridgeActionBar = memo(function OliviaBridgeActionBar({
     </section>
 
     <footer className={styles.shortcutBar}>
-      <div className={styles.shortcutHints}>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}<span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span><span>X 제외</span>{unreadableFolderCount ? <i>하위 폴더 {unreadableFolderCount}곳을 읽지 못함</i> : null}{ignoredCount ? <i>숨김·기타 {ignoredCount}개 제외</i> : null}</div>
+      <div className={styles.shortcutHints}>{activeRatingFilterName ? <b className={styles.shortcutActiveFilter}>{activeRatingFilterName}</b> : null}{activeColorFilterName ? <b className={styles.shortcutActiveFilter}>{activeColorFilterName}</b> : null}<span>⌘J JPG 정리 · ⌘S 사진 셀렉</span><span>M RAW 매칭 · R 리사이즈 · T T컷</span><span>드래그 영역 선택</span><span>⌘/Ctrl 클릭 추가 선택</span><span>Shift+←↑↓→ 범위 선택</span><span>⌘/Ctrl+A 전체 선택</span><span>⌘/Ctrl+B 선택 리뷰</span><span>← ↑ ↓ → 사진 이동</span><span>Space OS 창 미리보기</span><span>1–5 별점 · 0 해제</span><span>6–9 컬러 · 같은 키 해제</span><span>⌥⌘숫자 필터 · ⌥⌘A 전체 · ⌘F 검색</span><span>X 제외</span>{unreadableFolderCount ? <i>하위 폴더 {unreadableFolderCount}곳을 읽지 못함</i> : null}{ignoredCount ? <i>숨김·기타 {ignoredCount}개 제외</i> : null}</div>
     </footer>
   </>;
 });

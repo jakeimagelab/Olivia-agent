@@ -10,6 +10,7 @@ import {
 } from "@/lib/photo-bridge/bridgeFiles";
 import { projectBridgeSelectedFiles } from "@/lib/photo-bridge/selectionProjection";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
 
 export function useOliviaBridgeToolLaunch({
   currentLocalFolder,
@@ -22,6 +23,7 @@ export function useOliviaBridgeToolLaunch({
   setSelectedIds,
   setSelectedJpgFiles,
   setSceneReviewOpen,
+  setRawMatchTargetMode,
   syncAdobeBridgeSelection,
   openRawRootPrompt,
   setToolKey,
@@ -36,6 +38,7 @@ export function useOliviaBridgeToolLaunch({
   setSelectedIds: (value: BridgeSelectedIdsUpdater) => void;
   setSelectedJpgFiles: (files: readonly File[]) => void;
   setSceneReviewOpen: Dispatch<SetStateAction<boolean>>;
+  setRawMatchTargetMode: Dispatch<SetStateAction<BridgeRawMatchTargetMode>>;
   syncAdobeBridgeSelection: () => void | Promise<void>;
   openRawRootPrompt: () => void;
   setToolKey: Dispatch<SetStateAction<BridgeToolKey | undefined>>;
@@ -47,6 +50,9 @@ export function useOliviaBridgeToolLaunch({
       visibleJpgs.map((photo) => photo.id),
     );
     if (!toolSelection.size) return;
+    if (key === "raw-match") {
+      setRawMatchTargetMode(selectedIdsRef.current.size ? "active-selection" : "criteria");
+    }
     if (!selectedIdsRef.current.size) {
       setSelectedIds(toolSelection);
       setSelectedJpgFiles(projectBridgeSelectedFiles(visibleJpgs, toolSelection));
@@ -63,7 +69,7 @@ export function useOliviaBridgeToolLaunch({
       return;
     }
     setToolKey(key);
-  }, [breadcrumbsLength, currentLocalFolder, openRawRootPrompt, remoteFolder, selectedIdsRef, setSceneReviewOpen, setSelectedIds, setSelectedJpgFiles, setToolKey, syncAdobeBridgeSelection, visibleJpgs]);
+  }, [breadcrumbsLength, currentLocalFolder, openRawRootPrompt, remoteFolder, selectedIdsRef, setRawMatchTargetMode, setSceneReviewOpen, setSelectedIds, setSelectedJpgFiles, setToolKey, syncAdobeBridgeSelection, visibleJpgs]);
 
   const toolDisabledReason = useCallback((key: BridgeToolKey) => {
     if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";

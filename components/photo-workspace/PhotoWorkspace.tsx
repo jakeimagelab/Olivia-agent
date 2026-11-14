@@ -23,6 +23,7 @@ import RemoteUnsupportedNotice from "./RemoteUnsupportedNotice";
 import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner";
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
 
 const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"), {
   ssr: false,
@@ -57,6 +58,7 @@ export type PhotoWorkspaceEmbeddedToolProps = {
   clientId?: string;
   workflowRunId?: string;
   initialRemoteSelection?: RemoteNasSelection;
+  rawMatchTargetMode?: BridgeRawMatchTargetMode;
 };
 
 /**
@@ -72,6 +74,7 @@ export function PhotoWorkspaceEmbeddedTool({
   clientId,
   workflowRunId,
   initialRemoteSelection,
+  rawMatchTargetMode = "criteria",
 }: PhotoWorkspaceEmbeddedToolProps) {
   const [mode, setMode] = useState(initialMode);
   const [selectMode, setSelectMode] = useState(initialSelectMode);
@@ -100,7 +103,7 @@ export function PhotoWorkspaceEmbeddedTool({
             </span>
             <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
           </header>
-          <PhotoRawMatchWorkspace bridgeLinked selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
+          <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
         </div>
       ) : null}
       {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={initialRemoteSelection} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}

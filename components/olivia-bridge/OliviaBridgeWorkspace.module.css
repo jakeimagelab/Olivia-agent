@@ -853,7 +853,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .topNotice { position: absolute; z-index: 5; left: 50%; max-width: min(520px, 58%); overflow: hidden; border: 1px solid var(--ui2-line-strong, rgba(79,216,184,.42)); border-radius: 7px; padding: 6px 10px; color: var(--ui2-green, #dffff6); background: var(--ui2-card, #123336); box-shadow: 0 4px 14px rgba(27,42,39,.12); font-size: var(--ui2-f1, 9px); text-overflow: ellipsis; white-space: nowrap; transform: translateX(-50%); }
 .nestedJpgPathToggle { display: inline-flex; align-items: center; gap: 6px; color: var(--ui2-dim); font-size: var(--ui2-f1); white-space: nowrap; }
 .nestedJpgPathToggle input { accent-color: var(--ui2-green); }
-.fileCountSummary { color: var(--ui2-dim); font-size: var(--ui2-f1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fileCountSummary { color: var(--ui2-run, #C94A1E); font-size: var(--ui2-f1); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .compactFilterEntry,
 .compactInspectorEntry { display: none; }
 .compactFilterClose,
@@ -1017,7 +1017,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
   background: #103E36;
 }
 .bridge[data-desktop-ui="true"] .browserHeader strong { color: #fff; font-size: var(--ui2-f3); }
-.bridge[data-desktop-ui="true"] .browserHeader span { color: rgba(255, 255, 255, .55); font-size: var(--ui2-f1); }
+.bridge[data-desktop-ui="true"] .browserHeader span { color: var(--ui2-run, #C94A1E); font-size: var(--ui2-f1); font-weight: 600; }
 .bridge[data-desktop-ui="true"] .thumbnailControls button { color: rgba(255, 255, 255, .55); }
 .bridge[data-desktop-ui="true"] .thumbnailControls button:hover { color: #fff; background: rgba(255, 255, 255, .08); }
 .bridge[data-desktop-ui="true"] .thumbnailControls > svg { color: rgba(255, 255, 255, .55); }

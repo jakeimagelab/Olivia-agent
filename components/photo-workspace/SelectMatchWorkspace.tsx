@@ -10,6 +10,7 @@ import { C } from "@/lib/theme";
 import { usePhotoStudioExecution } from "./PhotoStudioExecutionContext";
 import {
   nextDeliveredRoundFolderName,
+  type BridgeRawMatchTargetMode,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
   defaultWorkerFolderPath,
@@ -58,6 +59,7 @@ export type SelectMatchInitialView = "raw" | "manual" | "client";
 export function SelectMatchWorkspace({
   embedded = false,
   bridgeLinked = false,
+  bridgeTargetMode = "criteria",
   initialView = "raw",
   selectionOnly = false,
   selectedJpgNames = [],
@@ -65,6 +67,7 @@ export function SelectMatchWorkspace({
 }: {
   embedded?: boolean;
   bridgeLinked?: boolean;
+  bridgeTargetMode?: BridgeRawMatchTargetMode;
   initialView?: SelectMatchInitialView;
   /** 사진 셀렉 탭에서는 JPG 목록만 저장하고 RAW 탐색 UI를 렌더하지 않는다. */
   selectionOnly?: boolean;
@@ -178,6 +181,7 @@ export function SelectMatchWorkspace({
     expectedMatchTargetCount,
   } = useSelectMatchTargets({
     bridgeLinked,
+    bridgeTargetMode,
     folderKey: rawMatchFolderPath || currentLocalFolder?.name || rootDir?.name || "current-folder",
     selectedJpgNames,
     jpgRatingsByName,
@@ -433,7 +437,7 @@ export function SelectMatchWorkspace({
   );
   const rawMatchCriteriaPanel = (
     <RawMatchCriteriaPanel
-      visible={bridgeLinked && selectedJpgNames.length > 0}
+      visible={bridgeLinked && bridgeTargetMode === "criteria" && selectedJpgNames.length > 0}
       criteria={rawMatchCriteria}
       expectedCount={expectedMatchTargetCount}
       onChange={(next) => {

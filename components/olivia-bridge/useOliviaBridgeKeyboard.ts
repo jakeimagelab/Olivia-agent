@@ -5,6 +5,7 @@ import { useCallback, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { BridgeToolKey } from "@/components/olivia-bridge/OliviaBridgeActionBar";
 import type { BridgeGridDirection } from "@/lib/photo-bridge/gridNavigation";
 import type { BridgeColorLabel } from "@/lib/photo-bridge/labels";
+import { bridgeToolShortcutFromEvent } from "@/lib/photo-bridge/toolShortcuts";
 
 function isTypingTarget(target: EventTarget | null) {
   return target instanceof HTMLInputElement
@@ -41,6 +42,7 @@ type UseOliviaBridgeKeyboardOptions = {
   toggleExcluded: (focusedOnly?: boolean) => void;
   closeSceneReview: () => void;
   closeTool: () => void;
+  openTool: (key: BridgeToolKey) => void;
   selectAllVisibleJpgs: () => void;
   moveGridFocus: (direction: BridgeGridDirection, extendRange?: boolean) => void;
 };
@@ -69,6 +71,7 @@ export function useOliviaBridgeKeyboard({
   toggleExcluded,
   closeSceneReview,
   closeTool,
+  openTool,
   selectAllVisibleJpgs,
   moveGridFocus,
 }: UseOliviaBridgeKeyboardOptions) {
@@ -141,6 +144,12 @@ export function useOliviaBridgeKeyboard({
       else if (toolKey) closeTool();
       return;
     }
+    const toolShortcut = bridgeToolShortcutFromEvent(event);
+    if (toolShortcut) {
+      event.preventDefault();
+      openTool(toolShortcut);
+      return;
+    }
     if (toolKey || sceneReviewOpen) return;
     if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA") { event.preventDefault(); selectAllVisibleJpgs(); }
     else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left", event.shiftKey); }
@@ -151,5 +160,5 @@ export function useOliviaBridgeKeyboard({
     else if (/^[0-5]$/.test(event.key)) applyRating(Number(event.key));
     else if (/^[6-9]$/.test(event.key)) applyColorLabel(Number(event.key) as BridgeColorLabel);
     else if (event.key.toLocaleLowerCase("en-US") === "x" || (event.altKey && event.key === "Delete")) { event.preventDefault(); toggleExcluded(); }
-  }, [applyColorLabel, applyRating, closeCompactFilters, closeDialogs, closeFullscreenPreview, closeSceneReview, closeSelectionReview, closeTool, compactFiltersOpen, dialogOpen, fullscreenPreviewOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, openFullscreenPreview, openSelectionReview, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
+  }, [applyColorLabel, applyRating, closeCompactFilters, closeDialogs, closeFullscreenPreview, closeSceneReview, closeSelectionReview, closeTool, compactFiltersOpen, dialogOpen, fullscreenPreviewOpen, handleSearchFilterShortcut, moveFullscreenPreview, moveGridFocus, moveReview, openFullscreenPreview, openSelectionReview, openTool, removeReviewPhoto, resizeThumbnails, restoreReviewPhoto, sceneReviewOpen, selectAllVisibleJpgs, selectionReviewOpen, toggleExcluded, toolKey]);
 }

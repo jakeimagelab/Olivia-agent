@@ -10,7 +10,8 @@ import {
 import {
   DEFAULT_RAW_MATCH_CRITERIA,
   normalizeRawMatchCriteria,
-  resolveRawMatchTargets,
+  resolveBridgeRawMatchTargets,
+  type BridgeRawMatchTargetMode,
   type RawMatchCriteria,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
@@ -20,6 +21,7 @@ import {
 
 export function useSelectMatchTargets({
   bridgeLinked,
+  bridgeTargetMode,
   folderKey,
   selectedJpgNames,
   jpgRatingsByName,
@@ -28,6 +30,7 @@ export function useSelectMatchTargets({
   scenes,
 }: {
   bridgeLinked: boolean;
+  bridgeTargetMode: BridgeRawMatchTargetMode;
   folderKey: string;
   selectedJpgNames: readonly string[];
   jpgRatingsByName: Readonly<Record<string, number>>;
@@ -39,12 +42,13 @@ export function useSelectMatchTargets({
   const [criteriaReady, setCriteriaReady] = useState(!bridgeLinked);
   const criteriaStorageKey = `olivia-raw-match-criteria:${folderKey || "current-folder"}`;
 
-  const resolvedBridgeTargets = useMemo(() => resolveRawMatchTargets({
+  const resolvedBridgeTargets = useMemo(() => resolveBridgeRawMatchTargets({
+    mode: bridgeTargetMode,
     names: selectedJpgNames,
     ratingsByName: jpgRatingsByName,
     colorsByName: jpgColorLabelsByName,
     criteria: rawMatchCriteria,
-  }), [jpgColorLabelsByName, jpgRatingsByName, rawMatchCriteria, selectedJpgNames]);
+  }), [bridgeTargetMode, jpgColorLabelsByName, jpgRatingsByName, rawMatchCriteria, selectedJpgNames]);
 
   const authoritativeMatchTargets = useMemo(
     () => bridgeLinked ? new Set(resolvedBridgeTargets) : new Set(selected),
