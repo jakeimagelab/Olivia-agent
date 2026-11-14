@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import type { Dirent } from "node:fs";
 import {
   lstat,
@@ -7,10 +6,7 @@ import {
   open,
   readdir,
   realpath,
-  rename,
-  rm,
   stat,
-  unlink,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -22,36 +18,26 @@ import type {
   RemoteRawMatchCopyResult,
   RemoteRawMatchCopyWarning,
 } from "@/lib/selectMatch/remoteRawMatch";
+import {
+  copyOrMovePreservingMetadata,
+  fileSystemEntryExists as destinationExists,
+  type PreservedOperationResult,
+} from "@/lib/selectMatch/node/preservedFileOperation";
+
+export { copyOrMovePreservingMetadata } from "@/lib/selectMatch/node/preservedFileOperation";
+export {
+  readFileAttributeSnapshot,
+  verifyFileAttributeSnapshot,
+  type FileAttributeSnapshot,
+} from "@/lib/selectMatch/node/rawMatchFileAttributes";
 
 const execFileAsync = promisify(execFile);
 const RAW_HEADER_BYTES = 4 * 1024 * 1024;
-const ATTRIBUTE_TIME_TOLERANCE_SECONDS = 2;
-const FORBIDDEN_ADDED_XATTRS = [
-  "com.apple.quarantine",
-  "com.apple.metadata:kMDItemWhereFroms",
-] as const;
-
-export type FileAttributeSnapshot = {
-  size: number;
-  mtimeSeconds: number;
-  birthtimeSeconds: number;
-  device: number;
-  xattrs: Record<string, string>;
-};
 
 export type RawMatchCopyExecutionOptions = {
   allowedRoots?: string[];
   shouldCancel?: () => Promise<boolean>;
   onProgress?: (progress: { current: number; total: number; message: string }) => Promise<void> | void;
-};
-
-type PreservedOperationResult = {
-  source: string;
-  destination: string;
-  attributeVerified: true;
-  moved: boolean;
-  alreadyExisted: boolean;
-  warnings: string[];
 };
 
 function isInside(root: string, candidate: string): boolean {
@@ -135,134 +121,6 @@ async function resolveExistingDestinationDirectory(
   const metadata = await lstat(canonical);
   if (metadata.isSymbolicLink() || !metadata.isDirectory()) throw new Error(`${label}이 안전한 폴더가 아닙니다.`);
   return canonical;
-}
-
-async function readXattrs(filePath: string): Promise<Record<string, string>> {
-  if (process.platform !== "darwin") return {};
-  const { stdout } = await execFileAsync("/usr/bin/xattr", [filePath], { maxBuffer: 4 * 1024 * 1024 });
-  const names = stdout.split(/\r?\n/u).map((value) => value.trim()).filter(Boolean).sort();
-  const values = await Promise.all(names.map(async (name) => {
-    const result = await execFileAsync("/usr/bin/xattr", ["-px", name, filePath], { maxBuffer: 4 * 1024 * 1024 });
-    return [name, result.stdout.replace(/\s+/gu, "").toLocaleLowerCase("en-US")] as const;
-  }));
-  return Object.fromEntries(values);
-}
-
-async function darwinStatSeconds(filePath: string, format: "%m" | "%B", fallback: number): Promise<number> {
-  if (process.platform !== "darwin") return Math.trunc(fallback / 1000);
-  const { stdout } = await execFileAsync("/usr/bin/stat", ["-f", format, filePath]);
-  const value = Number(stdout.trim());
-  return Number.isFinite(value) ? value : Math.trunc(fallback / 1000);
-}
-
-export async function readFileAttributeSnapshot(filePath: string): Promise<FileAttributeSnapshot> {
-  const metadata = await stat(filePath);
-  return {
-    size: metadata.size,
-    mtimeSeconds: await darwinStatSeconds(filePath, "%m", metadata.mtimeMs),
-    birthtimeSeconds: await darwinStatSeconds(filePath, "%B", metadata.birthtimeMs),
-    device: Number(metadata.dev),
-    xattrs: await readXattrs(filePath),
-  };
-}
-
-export function verifyFileAttributeSnapshot(
-  source: FileAttributeSnapshot,
-  destination: FileAttributeSnapshot,
-): { ok: boolean; reasons: string[]; warnings: string[] } {
-  const reasons: string[] = [];
-  const warnings: string[] = [];
-  if (source.size !== destination.size) reasons.push(`크기 불일치 ${destination.size}/${source.size}`);
-  if (Math.abs(source.mtimeSeconds - destination.mtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("수정일 불일치");
-  if (Math.abs(source.birthtimeSeconds - destination.birthtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) reasons.push("생성일 불일치");
-  for (const name of FORBIDDEN_ADDED_XATTRS) {
-    if (!(name in source.xattrs) && name in destination.xattrs) {
-      reasons.push(name === "com.apple.quarantine"
-        ? "복사본에 격리 속성이 추가됨"
-        : "복사본에 다운로드 출처 속성이 추가됨");
-    }
-  }
-  const xattrNames = new Set([...Object.keys(source.xattrs), ...Object.keys(destination.xattrs)]);
-  for (const name of xattrNames) {
-    if (FORBIDDEN_ADDED_XATTRS.includes(name as typeof FORBIDDEN_ADDED_XATTRS[number])) continue;
-    if (source.xattrs[name] !== destination.xattrs[name]) warnings.push(`확장속성 차이: ${name}`);
-  }
-  return { ok: reasons.length === 0, reasons, warnings };
-}
-
-async function destinationExists(destination: string): Promise<boolean> {
-  try {
-    await lstat(destination);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
-    throw error;
-  }
-}
-
-/** Finder 복사와 같은 ditto/rename 경로만 사용하며 대상 파일을 절대 덮어쓰지 않는다. */
-export async function copyOrMovePreservingMetadata(input: {
-  source: string;
-  destinationDirectory: string;
-  move: boolean;
-}): Promise<PreservedOperationResult> {
-  const source = await realpath(input.source);
-  const sourceMetadata = await lstat(source);
-  if (sourceMetadata.isSymbolicLink() || !sourceMetadata.isFile()) throw new Error("원본이 안전한 파일이 아닙니다.");
-  const destinationDirectory = await realpath(input.destinationDirectory);
-  const destination = path.join(destinationDirectory, path.basename(source));
-  const sourceSnapshot = await readFileAttributeSnapshot(source);
-  if (await destinationExists(destination)) {
-    const destinationSnapshot = await readFileAttributeSnapshot(destination);
-    if (sourceSnapshot.size !== destinationSnapshot.size
-      || Math.abs(sourceSnapshot.mtimeSeconds - destinationSnapshot.mtimeSeconds) > ATTRIBUTE_TIME_TOLERANCE_SECONDS) {
-      throw new Error("대상 폴더에 같은 이름이 있어 덮어쓰지 않음");
-    }
-    const checked = verifyFileAttributeSnapshot(sourceSnapshot, destinationSnapshot);
-    const forbiddenReasons = checked.reasons.filter((reason) => reason.includes("격리 속성") || reason.includes("다운로드 출처 속성"));
-    if (forbiddenReasons.length) throw new Error(`속성 확인 실패: ${forbiddenReasons.join(", ")}`);
-    const warnings = [
-      ...checked.warnings,
-      ...checked.reasons.filter((reason) => !forbiddenReasons.includes(reason)),
-    ];
-    if (input.move) await unlink(source);
-    return { source, destination, attributeVerified: true, moved: input.move, alreadyExisted: true, warnings };
-  }
-
-  const destinationDirectoryMetadata = await stat(destinationDirectory);
-  const sameVolume = Number(sourceMetadata.dev) === Number(destinationDirectoryMetadata.dev);
-
-  if (input.move && sameVolume) {
-    await rename(source, destination);
-    try {
-      const checked = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(destination));
-      if (!checked.ok) throw new Error(`속성 확인 실패: ${checked.reasons.join(", ")}`);
-      return { source, destination, attributeVerified: true, moved: true, alreadyExisted: false, warnings: checked.warnings };
-    } catch (error) {
-      if (!(await destinationExists(source))) await rename(destination, source).catch(() => undefined);
-      throw error;
-    }
-  }
-
-  const temporary = path.join(destinationDirectory, `.olivia-copy-${randomUUID()}-${path.basename(source)}`);
-  try {
-    await execFileAsync("/usr/bin/ditto", [source, temporary], { maxBuffer: 4 * 1024 * 1024 });
-    // 일부 SMB/NAS 서버는 ditto가 보존한 mtime을 파일 생성 시각으로 다시 쓴다.
-    // 원본은 건드리지 않고 복사본의 수정일만 원본과 재동기화한 뒤, 아래에서
-    // 크기·mtime·birthtime·위험 xattr을 다시 검증한다.
-    await execFileAsync("/usr/bin/touch", ["-r", source, temporary], { maxBuffer: 4 * 1024 * 1024 });
-    const checked = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(temporary));
-    if (!checked.ok) throw new Error(`속성 확인 실패: ${checked.reasons.join(", ")}`);
-    await rename(temporary, destination);
-    const finalCheck = verifyFileAttributeSnapshot(sourceSnapshot, await readFileAttributeSnapshot(destination));
-    if (!finalCheck.ok) throw new Error(`최종 속성 확인 실패: ${finalCheck.reasons.join(", ")}`);
-    if (input.move) await unlink(source);
-    return { source, destination, attributeVerified: true, moved: input.move, alreadyExisted: false, warnings: finalCheck.warnings };
-  } catch (error) {
-    await rm(temporary, { force: true }).catch(() => undefined);
-    if (!input.move || await destinationExists(source)) await rm(destination, { force: true }).catch(() => undefined);
-    throw error;
-  }
 }
 
 async function readCaptureTimeMs(filePath: string): Promise<number | null> {
