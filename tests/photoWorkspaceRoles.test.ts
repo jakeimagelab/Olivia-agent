@@ -28,15 +28,19 @@ describe("사진 작업실 역할 분리", () => {
     expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "raw-match", rawMatchMethod: "metadata" });
   });
 
-  it("routes customer selection import to RAW matching", () => {
+  it("keeps customer selection import inside RAW matching", () => {
     expect(resolvePhotoWorkspaceToolState("select-raw")).toMatchObject({
       mode: "raw-match",
       rawMatchMethod: "filename",
     });
     const select = source("components/photo-workspace/PhotoSelectWorkspace.tsx");
-    expect(select).toContain('if (next === "client")');
-    expect(select).toContain("onStartRawMatch()");
-    expect(select).not.toContain('initialView="client" selectionOnly');
+    expect(select).not.toContain('label: "고객 선택 불러오기"');
+    expect(select).not.toContain('initialView="client"');
+    const entry = source("components/photo-workspace/SelectMatchEntryView.tsx");
+    expect(entry).toContain('title: "고객 전달 폴더"');
+    expect(entry).toContain('setAttribute("webkitdirectory", "")');
+    expect(entry).toContain("setUploadedFolderFromDrop");
+    expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=select&selectMode=client"))?.toString()).toBe("mode=raw-match");
   });
 
   it("normalizes former top-level modes to their new subtabs", () => {

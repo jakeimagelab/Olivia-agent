@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FolderOpen, MessageSquare, Upload } from "lucide-react";
+import { FolderInput, FolderOpen, MessageSquare } from "lucide-react";
 
 import { parseNamesFromFiles, parseNamesFromText } from "@/lib/selectMatch/nameParsing";
 import { C } from "@/lib/theme";
@@ -49,7 +49,7 @@ export function SelectMatchEntryView({
   const entryModes = ([
     { key: "folder", icon: <FolderOpen size={15} strokeWidth={2} aria-hidden="true" />, title: "폴더 직접 선택", desc: "JPG 폴더를 열어서\n시각적으로 베스트컷 선택" },
     { key: "text", icon: <MessageSquare size={15} strokeWidth={2} aria-hidden="true" />, title: "텍스트 붙여넣기", desc: "카카오톡·메모 등\n파일명 목록을 붙여넣기" },
-    { key: "upload", icon: <Upload size={15} strokeWidth={2} aria-hidden="true" />, title: "폴더 업로드", desc: "고객이 보낸 폴더를\n하위 폴더까지 모두 확인" },
+    { key: "upload", icon: <FolderInput size={15} strokeWidth={2} aria-hidden="true" />, title: "고객 전달 폴더", desc: "고객이 보낸 폴더를\n하위 폴더까지 모두 확인" },
   ] as const).filter((item) => initialView === "raw" || (initialView === "manual" ? item.key === "folder" : item.key !== "folder"));
 
   return (
@@ -130,6 +130,7 @@ export function SelectMatchEntryView({
       </div> : null}
 
       {inputMode === "upload" ? <div style={{ background: colors.surfaceCard, border: `1px solid ${colors.uiBorder}`, borderRadius: 14, padding: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: colors.uiAccent, marginBottom: 8 }}>고객 전달 폴더 불러오기</div>
         <div style={{ fontSize: 12, color: colors.uiMuted, lineHeight: 1.7, marginBottom: 14 }}>
           고객이 선택해서 보낸 폴더를 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
           <span style={{ color: colors.uiHint }}>하위 폴더의 사진까지 모두 읽고, 파일명 목록을 RAW 매칭에 사용합니다.</span>

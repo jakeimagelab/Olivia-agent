@@ -1,8 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useRef } from "react";
-import { MousePointer2, Scissors, Sparkles, Users } from "lucide-react";
+import { MousePointer2, Scissors, Sparkles } from "lucide-react";
 import AiPhotoSelectPanel from "./AiPhotoSelectPanel";
 import type { PhotoSelectMode } from "./types";
 import styles from "./PhotoWorkspace.module.css";
@@ -25,7 +24,6 @@ const PhotoTcutWorkspace = dynamic(() => import("./PhotoTcutWorkspace"), {
 const SELECT_TABS = [
   { mode: "ai", label: "AI 사진 셀렉", icon: Sparkles },
   { mode: "manual", label: "직접 셀렉", icon: MousePointer2 },
-  { mode: "client", label: "고객 선택 불러오기", icon: Users },
   { mode: "tcut", label: "T컷 정리", icon: Scissors },
 ] as const;
 
@@ -37,25 +35,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   bridgeEmbedded?: boolean;
 }) {
   const { currentLocalFolder, selectedJpgNames, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
-  const redirectedClientRef = useRef(false);
-  useEffect(() => {
-    if (remote || value !== "client") {
-      redirectedClientRef.current = false;
-      return;
-    }
-    if (redirectedClientRef.current) return;
-    redirectedClientRef.current = true;
-    onStartRawMatch();
-  }, [onStartRawMatch, remote, value]);
   if (remote && value !== "tcut") return <RemotePhotoSelectWorkspace />;
-
-  const handleSelectModeChange = (next: PhotoSelectMode) => {
-    if (next === "client") {
-      onStartRawMatch();
-      return;
-    }
-    onChange(next);
-  };
 
   return (
     <div>
@@ -63,7 +43,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         ariaLabel="사진 셀렉 방식"
         tone="dark"
         value={value}
-        onChange={handleSelectModeChange}
+        onChange={onChange}
         items={SELECT_TABS.map(({ mode, label, icon: Icon }) => ({
           value: mode,
           label,
@@ -73,7 +53,6 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
         {value === "ai" ? <AiPhotoSelectPanel initialFolder={currentLocalFolder} selectedJpgNames={selectedJpgNames} lockFolder={bridgeEmbedded} onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
-        {value === "client" ? <div className={styles.workspaceLoading}>고객 선택을 RAW 매칭으로 연결하는 중...</div> : null}
         {value === "tcut" ? (remote ? (
           <div className={styles.workspaceLoading}>T컷 정리는 이 기기에서 작업할 때 사용할 수 있습니다.</div>
         ) : <PhotoTcutWorkspace rootDir={currentLocalFolder} />) : null}

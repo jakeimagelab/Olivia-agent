@@ -32,7 +32,7 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: Link2, title: "RAW 매칭", description: "확인된 파일명의 RAW 원본을 복사합니다." },
   ],
   raw_match: [
-    { icon: Images, title: "셀렉 JPG 선택", description: "매칭할 JPG 또는 파일명 목록을 준비합니다." },
+    { icon: Images, title: "셀렉 JPG 선택", description: "Bridge 셀렉, 파일명 목록 또는 고객 전달 폴더를 준비합니다." },
     { icon: FolderOpen, title: "RAW 원본 선택", description: "RAW 원본이 있는 폴더를 선택하세요." },
     { icon: Link2, title: "자동 매칭", description: "기존 파일명 matcher로 RAW를 연결합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "매칭 성공과 누락 결과를 확인합니다." },

@@ -141,7 +141,10 @@ function PhotoWorkspaceContent({
   const rawMatchMethodParam = searchParams.get("rawMatchMethod");
   const remoteJobId = searchParams.get("remoteJobId");
   const legacyContiLink = rawTab === "plan" || searchParams.get("tool") === "conti";
-  const mode = toolState?.mode ?? legacyModeState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
+  const legacyCustomerImportState = rawMode === "select" && rawSelectMode === "client"
+    ? resolvePhotoWorkspaceToolState("select-raw")
+    : undefined;
+  const mode = toolState?.mode ?? legacyModeState?.mode ?? legacyCustomerImportState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? initialSelectMode ?? "ai");
   const fileOpsMode = toolState?.fileOpsMode ?? legacyModeState?.fileOpsMode ?? (rawFileOpsMode && FILE_OPS_MODES.has(rawFileOpsMode) ? rawFileOpsMode : initialToolState?.fileOpsMode ?? initialFileOpsMode ?? "resize");
   const rawMatchMethod = toolState?.rawMatchMethod ?? (rawMatchMethodParam === "metadata" ? "metadata" : initialToolState?.rawMatchMethod ?? "filename");

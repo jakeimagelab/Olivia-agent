@@ -53,7 +53,10 @@ export function canonicalizePhotoWorkspaceParams(input: URLSearchParams): URLSea
   const legacyTool = tool && ["ai-cull", "t-cut", "resize", "rename"].includes(tool)
     ? resolvePhotoWorkspaceToolState(tool)
     : undefined;
-  const state = legacyTool ?? legacyMode;
+  const legacyCustomerImport = input.get("mode") === "select" && input.get("selectMode") === "client"
+    ? TOOL_STATES["select-raw"]
+    : undefined;
+  const state = legacyTool ?? legacyMode ?? legacyCustomerImport;
   if (!state) return null;
 
   const output = new URLSearchParams(input.toString());
