@@ -93,7 +93,8 @@ export async function createPhotoThumbPage(input: {
   const resolved = await resolvePhotoWorkPath(remotePath);
   const canonicalSelected = resolved.canonicalPath;
 
-  const jpgFolder = path.basename(canonicalSelected).normalize("NFC") === JPG_INTEGRATED_DIRECTORY
+  const selectedSegments = canonicalSelected.split(path.sep).map((segment) => segment.normalize("NFC"));
+  const jpgFolder = selectedSegments.includes(JPG_INTEGRATED_DIRECTORY)
     ? canonicalSelected
     : path.join(canonicalSelected, JPG_INTEGRATED_DIRECTORY);
   const jpgMetadata = await lstat(jpgFolder);

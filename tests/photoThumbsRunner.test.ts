@@ -62,6 +62,22 @@ describe("photo thumbs runner", () => {
     expect(result).toEqual({ ok: true, folder: "root-0/shoot", thumbs: [], total: 0 });
   });
 
+  it("uses a selected folder below JPG전체 without appending JPG전체 again", async () => {
+    const { root, folder } = await fixture();
+    const groupFolder = path.join(folder, "단체사진");
+    await mkdir(groupFolder, { recursive: true });
+    const original = await sharp({ create: { width: 240, height: 160, channels: 3, background: "#155855" } })
+      .jpeg()
+      .toBuffer();
+    await writeFile(path.join(groupFolder, "GROUP_0001.JPG"), original);
+    process.env.OLIVIA_PERSON_SELECT_ROOTS = JSON.stringify([root]);
+
+    const result = await createPhotoThumbPage({ remotePath: "root-0/shoot/JPG전체/단체사진" });
+
+    expect(result.total).toBe(1);
+    expect(result.thumbs[0]?.name).toBe("GROUP_0001.JPG");
+  });
+
   it("reads Adobe sidecar ratings from a virtual person-select root", async () => {
     const { root, folder } = await fixture();
     process.env.OLIVIA_PERSON_SELECT_ROOTS = JSON.stringify([root]);
