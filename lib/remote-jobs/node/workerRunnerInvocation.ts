@@ -182,6 +182,7 @@ export function createRunnerInvocation(job: WorkerJob, repoRoot: string): Runner
     case "PERSON_SELECT_LIST_FOLDER":
     case "PHOTO_CHECK_WORK_FOLDER":
     case "PHOTO_RAW_MATCH_COPY":
+    case "PHOTO_BRIDGE_RAW_MATCH":
       return null;
     default:
       throw new Error(`지원하지 않는 Worker action입니다: ${job.action}`);

@@ -953,7 +953,13 @@ export default function OliviaBridgeWorkspace({
           rect: floatingWindowRectsRef.current[`tool-${activeTool.key}`],
           onRectChange: (rect) => updateFloatingWindowRect(`tool-${activeTool.key}`, rect),
           onClose: () => setToolKey(undefined),
-          embeddedTool: { clientId, workflowRunId, initialRemoteSelection: remoteProjectSelection, rawMatchTargetMode },
+          embeddedTool: {
+            clientId,
+            workflowRunId,
+            initialRemoteSelection: remoteProjectSelection,
+            initialRemoteJpgs: remoteFolder ? selectedPhotos : undefined,
+            rawMatchTargetMode,
+          },
         } : null}
         selectionReview={selectionReviewOpen ? {
           photos: reviewPhotos,

@@ -12,6 +12,7 @@ describe("Mac Studio worker runner invocation", () => {
     "PERSON_SELECT_LIST_FOLDER",
     "PHOTO_CHECK_WORK_FOLDER",
     "PHOTO_RAW_MATCH_COPY",
+    "PHOTO_BRIDGE_RAW_MATCH",
   ])("leaves %s to the built-in executor", (action) => {
     expect(createRunnerInvocation({ action, payload: {} }, repoRoot)).toBeNull();
   });

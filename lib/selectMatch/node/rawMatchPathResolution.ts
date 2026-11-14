@@ -105,7 +105,7 @@ export async function resolveExistingDestinationDirectory(
   return canonical;
 }
 
-async function readCaptureTimeMs(filePath: string): Promise<number | null> {
+export async function readCaptureTimeMs(filePath: string): Promise<number | null> {
   const handle = await open(filePath, "r");
   try {
     const metadata = await handle.stat();

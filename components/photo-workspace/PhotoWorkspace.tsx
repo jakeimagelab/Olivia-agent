@@ -24,6 +24,8 @@ import RemotePhotoOperationResultBanner from "./RemotePhotoOperationResultBanner
 import { DesktopWindowProvider } from "@/lib/desktopWindowContext";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
 import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
+import type { BridgeJpgFile } from "@/lib/photo-bridge/bridgeFiles";
+import RemoteBridgeRawMatchWorkspace from "./RemoteBridgeRawMatchWorkspace";
 
 const PhotoRawMatchWorkspace = dynamic(() => import("./PhotoRawMatchWorkspace"), {
   ssr: false,
@@ -58,6 +60,7 @@ export type PhotoWorkspaceEmbeddedToolProps = {
   clientId?: string;
   workflowRunId?: string;
   initialRemoteSelection?: RemoteNasSelection;
+  initialRemoteJpgs?: readonly BridgeJpgFile[];
   rawMatchTargetMode?: BridgeRawMatchTargetMode;
 };
 
@@ -73,6 +76,7 @@ export function PhotoWorkspaceEmbeddedTool({
   clientId,
   workflowRunId,
   initialRemoteSelection,
+  initialRemoteJpgs = [],
   rawMatchTargetMode = "criteria",
 }: PhotoWorkspaceEmbeddedToolProps) {
   const [mode, setMode] = useState(initialMode);
@@ -100,9 +104,13 @@ export function PhotoWorkspaceEmbeddedTool({
               <strong>RAW 매칭</strong>
               <small>Bridge에서 선택한 JPG와 RAW 원본을 파일명·촬영시각으로 확인해 연결합니다.</small>
             </span>
-            <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
+            <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{initialRemoteSelection?.displayPath ?? currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
           </header>
-          <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} />
+          {initialRemoteSelection ? (
+            <RemoteBridgeRawMatchWorkspace remoteSelection={initialRemoteSelection} selectedJpgs={initialRemoteJpgs} />
+          ) : (
+            <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} />
+          )}
         </div>
       ) : null}
       {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={initialRemoteSelection} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}

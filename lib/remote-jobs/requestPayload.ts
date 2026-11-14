@@ -2,6 +2,7 @@ import { normalizePersonSelectRequestPayload } from "./personSelectRequestPayloa
 import { normalizePhotoBrowseRequestPayload } from "./photoBrowseRequestPayload";
 import { normalizePhotoOperationRequestPayload } from "./photoOperationRequestPayload";
 import { normalizeRawMatchCopyRequestPayload } from "./rawMatchCopyRequestPayload";
+import { normalizeBridgeRawMatchRequestPayload } from "./bridgeRawMatchRequestPayload";
 import type { RemoteJobAction } from "./requestValidation";
 import { normalizeVideoRequestPayload } from "./videoRequestPayload";
 
@@ -18,6 +19,7 @@ export function normalizeRemoteJobRequestPayload(
   if (photoOperation !== null) return photoOperation;
 
   if (action === "PHOTO_RAW_MATCH_COPY") return normalizeRawMatchCopyRequestPayload(requested);
+  if (action === "PHOTO_BRIDGE_RAW_MATCH") return normalizeBridgeRawMatchRequestPayload(requested);
 
   const video = normalizeVideoRequestPayload(action, requested);
   if (video !== null) return video;

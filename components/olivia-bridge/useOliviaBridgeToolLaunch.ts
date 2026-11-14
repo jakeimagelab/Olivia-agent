@@ -44,7 +44,7 @@ export function useOliviaBridgeToolLaunch({
   setToolKey: Dispatch<SetStateAction<BridgeToolKey | undefined>>;
 }) {
   const openTool = useCallback((key: BridgeToolKey) => {
-    if (!currentLocalFolder && !(remoteFolder && key === "classification")) return;
+    if (!currentLocalFolder && !(remoteFolder && (key === "classification" || key === "raw-match"))) return;
     const toolSelection = resolveBridgeToolSelection(
       selectedIdsRef.current,
       visibleJpgs.map((photo) => photo.id),
@@ -64,7 +64,7 @@ export function useOliviaBridgeToolLaunch({
       void syncAdobeBridgeSelection();
       return;
     }
-    if (key === "raw-match" && breadcrumbsLength < 3) {
+    if (key === "raw-match" && !remoteFolder && breadcrumbsLength < 3) {
       openRawRootPrompt();
       return;
     }
@@ -75,7 +75,7 @@ export function useOliviaBridgeToolLaunch({
     if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";
     if (!selectedIds.size && !visibleJpgs.length) return "현재 화면에 작업할 JPG가 없습니다.";
     if (currentLocalFolder) return undefined;
-    if (remoteFolder && key === "classification") return undefined;
+    if (remoteFolder && (key === "classification" || key === "raw-match")) return undefined;
     if (remoteFolder) return "이 도구는 현재 로컬 폴더에서만 실행할 수 있습니다.";
     return "사진 폴더를 먼저 선택해 주세요.";
   }, [currentLocalFolder, remoteFolder, scanStatus, selectedIds.size, visibleJpgs.length]);

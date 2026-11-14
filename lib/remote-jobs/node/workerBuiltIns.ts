@@ -24,7 +24,9 @@ import {
   toPersonSelectVirtualPath,
 } from "@/lib/person-select/sourceRoots";
 import { executeRemoteRawMatchCopy } from "@/lib/selectMatch/node/rawMatchCopy";
+import { executeRemoteBridgeRawMatch } from "@/lib/selectMatch/node/remoteBridgeRawMatch";
 import type { RemoteRawMatchCopyPayload } from "@/lib/selectMatch/remoteRawMatch";
+import type { RemoteBridgeRawMatchPayload } from "@/lib/selectMatch/remoteBridgeRawMatchTypes";
 import {
   workerBooleanValue,
   workerStringValue,
@@ -222,6 +224,20 @@ export async function executeWorkerBuiltIn(
       shouldCancel: options.shouldCancel,
       onProgress: async (progress) => options.onProgress?.({
         stage: "copying",
+        current: progress.current,
+        total: progress.total,
+        message: progress.message,
+      }),
+    });
+  }
+  if (job.action === "PHOTO_BRIDGE_RAW_MATCH") {
+    const workerHome = process.env.OLIVIA_WORKER_HOME?.trim() || path.join(homedir(), "OliviaWorker");
+    const stateDirectory = process.env.OLIVIA_WORKER_STATE_DIR?.trim() || path.join(workerHome, "state");
+    return executeRemoteBridgeRawMatch(job.payload as RemoteBridgeRawMatchPayload, {
+      rootCacheFilePath: path.join(stateDirectory, "raw-match-root-cache.json"),
+      shouldCancel: options.shouldCancel,
+      onProgress: async (progress) => options.onProgress?.({
+        stage: "matching",
         current: progress.current,
         total: progress.total,
         message: progress.message,
