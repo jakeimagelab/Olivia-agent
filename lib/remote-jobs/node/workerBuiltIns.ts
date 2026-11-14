@@ -237,7 +237,10 @@ export async function executeWorkerBuiltIn(
       rootCacheFilePath: path.join(stateDirectory, "raw-match-root-cache.json"),
       shouldCancel: options.shouldCancel,
       onProgress: async (progress) => options.onProgress?.({
-        stage: "matching",
+        // Remote job progress accepts the shared uppercase stage vocabulary.
+        // The API normalizes casing, but an unknown stage rejects the entire
+        // worker report and turns a healthy RAW match into a failed job.
+        stage: "SCANNING",
         current: progress.current,
         total: progress.total,
         message: progress.message,
