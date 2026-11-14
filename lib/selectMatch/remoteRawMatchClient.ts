@@ -27,6 +27,16 @@ export function remoteRawMatchUnavailableReason(workerOnline: boolean | null): s
   return workerOnline === true ? null : "맥스튜디오 워커가 꺼져 있어 원본 속성을 지킬 수 없습니다";
 }
 
+/** RAW 매칭 실행 버튼을 막을 수 있는 두 가지 조건을 한 곳에서 계산한다. */
+export function remoteRawMatchRunDisabledReason(
+  approvedMatchCount: number,
+  workerOnline: boolean | null,
+): string | null {
+  if (approvedMatchCount < 1) return "확정된 RAW가 1장 이상 필요합니다.";
+  if (workerOnline !== true) return "Mac Studio 워커가 연결되어 있지 않습니다.";
+  return null;
+}
+
 export async function runRemoteRawMatchCopy(
   payload: RemoteRawMatchCopyPayload,
   options: RunRemoteRawMatchOptions,

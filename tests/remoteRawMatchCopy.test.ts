@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -10,7 +10,8 @@ import {
   readFileAttributeSnapshot,
   verifyFileAttributeSnapshot,
 } from "@/lib/selectMatch/node/rawMatchCopy";
-import { runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
+import { resolveWorkerRootByLocator } from "@/lib/selectMatch/node/rawMatchPathResolution";
+import { remoteRawMatchRunDisabledReason, runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
 
 const execFileAsync = promisify(execFile);
 const temporaryRoots: string[] = [];
@@ -54,6 +55,59 @@ describe("RAW 속성 비교 허용 범위", () => {
   it("원본에 없던 quarantine 또는 WhereFroms가 생기면 실패한다", () => {
     expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ xattrs: { "com.apple.quarantine": "added" } })).ok).toBe(false);
     expect(verifyFileAttributeSnapshot(snapshot(), snapshot({ xattrs: { "com.apple.metadata:kMDItemWhereFroms": "added" } })).ok).toBe(false);
+  });
+});
+
+describe("RAW 매칭 실행 가능 조건", () => {
+  it("확정 1장 이상과 워커 연결만을 버튼 조건으로 사용한다", () => {
+    expect(remoteRawMatchRunDisabledReason(12, true)).toBeNull();
+    expect(remoteRawMatchRunDisabledReason(0, true)).toContain("확정된 RAW");
+    expect(remoteRawMatchRunDisabledReason(12, false)).toContain("워커");
+  });
+});
+
+describe("Mac Studio RAW 폴더 자동 탐색", () => {
+  it("NFD 폴더와 SMB 재마운트 이름을 표본 2개로 찾고 프로젝트별로 캐시한다", async () => {
+    const root = await temporaryRoot();
+    const mount = path.join(root, "Agentstation-1");
+    const projectName = "1114_서울예방치과교실";
+    const nfdProjectName = projectName.normalize("NFD");
+    const rawRoot = path.join(mount, "촬영", nfdProjectName);
+    await mkdir(rawRoot, { recursive: true });
+    await writeFile(path.join(rawRoot, "A.CR2"), "raw-a");
+    await writeFile(path.join(rawRoot, "B.CR2"), "raw-b");
+    const a = await stat(path.join(rawRoot, "A.CR2"));
+    const b = await stat(path.join(rawRoot, "B.CR2"));
+    const cacheFilePath = path.join(root, "state", "raw-match-root-cache.json");
+
+    const resolved = await resolveWorkerRootByLocator({
+      projectKey: "seoul-preventive-dentistry",
+      folderName: projectName,
+      relativePath: `촬영/${projectName}`,
+      kind: "raw",
+    }, [root], "RAW 원본 폴더", [
+      { relativePath: "A.CR2", expectedSize: a.size, expectedCaptureTimeMs: null },
+      { relativePath: "B.CR2", expectedSize: b.size, expectedCaptureTimeMs: null },
+    ], { cacheFilePath });
+
+    expect(resolved).toBe(await realpath(rawRoot));
+    expect(await readFile(cacheFilePath, "utf8")).toContain("seoul-preventive-dentistry");
+  });
+
+  it("폴더를 찾지 못하면 폴더 이름과 찾은 후보를 오류에 남긴다", async () => {
+    const root = await temporaryRoot();
+    const candidate = path.join(root, "JPG전체", "단체사진");
+    await mkdir(candidate, { recursive: true });
+    await writeFile(path.join(candidate, "A.JPG"), "wrong-size");
+
+    await expect(resolveWorkerRootByLocator({
+      projectKey: "seoul-preventive-dentistry",
+      folderName: "단체사진",
+      relativePath: "JPG전체/단체사진",
+      kind: "jpg",
+    }, [root], "JPG 기준 폴더", [
+      { relativePath: "A.JPG", expectedSize: 1, expectedCaptureTimeMs: null },
+    ])).rejects.toThrow(/JPG 기준 폴더.*단체사진.*찾은 후보/u);
   });
 });
 

@@ -12,10 +12,6 @@ import {
   nextDeliveredRoundFolderName,
   type BridgeRawMatchTargetMode,
 } from "@/lib/photo-bridge/rawMatchDelivery";
-import {
-  automaticWorkerRawRootPath,
-  defaultWorkerFolderPath,
-} from "@/lib/selectMatch/workspaceHelpers";
 import { resolveJpgScanRootDirectory } from "@/lib/selectMatch/jpgScanRoot";
 import {
   collectRatedBasenames,
@@ -125,8 +121,6 @@ export function SelectMatchWorkspace({
   const [moveMatchedJpgs, setMoveMatchedJpgs] = useState(true);
   const [deliveredFolderName, setDeliveredFolderName] = useState("1차보정본");
   const [deliveredFolderNameDirty, setDeliveredFolderNameDirty] = useState(false);
-  const [workerJpgRootPath, setWorkerJpgRootPath] = useState("");
-  const [workerRawRootPath, setWorkerRawRootPath] = useState("");
 
   const {
     thumbnailUrlsRef: sceneThumbnailUrlsRef,
@@ -220,7 +214,6 @@ export function SelectMatchWorkspace({
     : false;
   const {
     rawSelectMode,
-    setRawSelectMode,
     progress,
     setProgress,
     rawOutputPath,
@@ -238,23 +231,15 @@ export function SelectMatchWorkspace({
     jpgScanRootName: jpgScanRootDir?.name ?? "",
     preflight,
     approvedMatches,
-    preflightTargetCountMatches,
     workerOnline: workerPresence.online,
-    workerRawRootPath,
-    workerJpgRootPath,
+    projectKey: rawMatchFolderPath || rootDir?.name || currentLocalFolder?.name || "current-project",
+    rawRootName: rawRootDir?.name ?? rawDiscovery.folderName ?? "",
+    rawRootRelativePath: rawRootDir?.name ?? rawDiscovery.folderName,
+    jpgRootName: jpgScanRootDir?.name ?? rootDir?.name ?? currentLocalFolder?.name ?? "",
+    jpgRootRelativePath: rawMatchFolderPath || jpgScanRootDir?.name || rootDir?.name,
     moveMatchedJpgs,
     deliveredFolderName,
   });
-
-  useEffect(() => {
-    let jpgPath = defaultWorkerFolderPath(rawMatchFolderPath, rootDir?.name ?? currentLocalFolder?.name ?? "");
-    if (jpgScanRootDir && rootDir && jpgScanRootDir.name.normalize("NFC") !== rootDir.name.normalize("NFC")) {
-      jpgPath = `${jpgPath.replace(/\/$/u, "")}/${jpgScanRootDir.name}`;
-    }
-    setWorkerJpgRootPath(jpgPath);
-    const rawName = rawRootDir?.name.normalize("NFC") ?? "";
-    setWorkerRawRootPath(automaticWorkerRawRootPath(jpgPath, rawName));
-  }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir]);
 
   useEffect(() => {
     if (!rootDir) {
@@ -514,8 +499,6 @@ export function SelectMatchWorkspace({
     expectedTargetCount={expectedMatchTargetCount}
     targetCountMatches={preflightTargetCountMatches}
     approvedMatchCount={approvedMatches.length}
-    rawSelectMode={rawSelectMode}
-    onRawSelectModeChange={setRawSelectMode}
     moveMatchedJpgs={moveMatchedJpgs}
     onMoveMatchedJpgsChange={setMoveMatchedJpgs}
     deliveredFolderName={deliveredFolderName}

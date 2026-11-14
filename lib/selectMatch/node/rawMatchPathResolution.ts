@@ -3,19 +3,27 @@ import {
   lstat,
   mkdir,
   open,
+  readFile,
   readdir,
   realpath,
+  rename,
   stat,
+  writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 
 import { fileSystemEntryExists } from "@/lib/selectMatch/node/preservedFileOperation";
 import { parseCaptureTime } from "@/lib/selectMatch/captureTime";
+import type { RemoteRawMatchRootLocator } from "@/lib/selectMatch/remoteRawMatchTypes";
 
 const RAW_HEADER_BYTES = 4 * 1024 * 1024;
+const WORKER_ROOT_SEARCH_DEPTH = 4;
+const WORKER_ROOT_SEARCH_LIMIT = 50_000;
 
 function isInside(root: string, candidate: string): boolean {
-  const relative = path.relative(root, candidate);
+  // macOS/SMB에서 동일한 한글 경로가 directory entry에서는 NFD,
+  // realpath 결과에서는 NFC로 돌아올 수 있다. 비교만 NFC로 통일한다.
+  const relative = path.relative(path.resolve(root).normalize("NFC"), path.resolve(candidate).normalize("NFC"));
   return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
@@ -175,6 +183,149 @@ async function searchMatchingRoots(
     }
   }
   return found;
+}
+
+function normalizedFolderIdentity(value: string): string {
+  return value.normalize("NFC").trim().toLocaleLowerCase("en-US").replace(/-\d+$/u, "");
+}
+
+function normalizedPathParts(value: string): string[] {
+  return value
+    .replaceAll("\\", "/")
+    .split("/")
+    .map((part) => normalizedFolderIdentity(part))
+    .filter(Boolean);
+}
+
+function pathMatchesHint(candidate: string, relativePath?: string): boolean {
+  if (!relativePath?.trim()) return false;
+  const candidateParts = normalizedPathParts(candidate);
+  const hintParts = normalizedPathParts(relativePath);
+  if (!hintParts.length || hintParts.length > candidateParts.length) return false;
+  return hintParts.every((part, index) => part === candidateParts[candidateParts.length - hintParts.length + index]);
+}
+
+type WorkerRootCache = Record<string, string>;
+
+function workerRootCacheKey(locator: RemoteRawMatchRootLocator): string {
+  return `${locator.projectKey.normalize("NFC")}::${locator.kind}::${normalizedFolderIdentity(locator.folderName)}`;
+}
+
+async function readWorkerRootCache(cacheFilePath?: string): Promise<WorkerRootCache> {
+  if (!cacheFilePath) return {};
+  try {
+    const parsed: unknown = JSON.parse(await readFile(cacheFilePath, "utf8"));
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+  } catch {
+    return {};
+  }
+}
+
+async function writeWorkerRootCache(cacheFilePath: string | undefined, cache: WorkerRootCache): Promise<void> {
+  if (!cacheFilePath) return;
+  await mkdir(path.dirname(cacheFilePath), { recursive: true });
+  const temporaryPath = `${cacheFilePath}.${process.pid}.tmp`;
+  await writeFile(temporaryPath, JSON.stringify(cache, null, 2), "utf8");
+  await rename(temporaryPath, cacheFilePath);
+}
+
+async function candidateMatchesSamples(candidate: string, samples: readonly RootIdentitySample[]): Promise<boolean> {
+  if (!samples.length) return false;
+  const matches = await Promise.all(samples.slice(0, 2).map((sample) => sampleMatches(candidate, sample)));
+  return matches.length > 0 && matches.every(Boolean);
+}
+
+async function workerRootSearchQueue(allowedRoots: readonly string[]): Promise<Array<{ directory: string; depth: number }>> {
+  const queue: Array<{ directory: string; depth: number }> = [];
+  for (const root of allowedRoots) {
+    if (path.basename(root) !== "Volumes") {
+      queue.push({ directory: root, depth: 0 });
+      continue;
+    }
+    try {
+      for (const entry of await readdir(root, { withFileTypes: true })) {
+        if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name.startsWith(".")) continue;
+        // "/Volumes/* 아래 4단계"로 깊이를 계산하기 위해 각 마운트를 0단계로 시작한다.
+        queue.push({ directory: path.join(root, entry.name), depth: 0 });
+      }
+    } catch {
+      // 마운트 목록을 읽지 못한 루트는 검색 후보에서 제외한다.
+    }
+  }
+  return queue;
+}
+
+/**
+ * 브라우저가 넘긴 폴더 이름과 파일 표본만으로 Mac Studio의 실제 마운트 경로를 찾는다.
+ * 절대경로 추측은 하지 않으며, 프로젝트별 마지막 성공 경로를 먼저 재검증한다.
+ */
+export async function resolveWorkerRootByLocator(
+  locator: RemoteRawMatchRootLocator,
+  allowedRoots: readonly string[],
+  label: string,
+  samples: readonly RootIdentitySample[],
+  options: { cacheFilePath?: string } = {},
+): Promise<string> {
+  const canonicalAllowedRoots = await Promise.all(allowedRoots.map((root) => realpath(root)));
+  const cache = await readWorkerRootCache(options.cacheFilePath);
+  const cacheKey = workerRootCacheKey(locator);
+  const cachedPath = cache[cacheKey];
+  if (cachedPath) {
+    try {
+      const canonical = await resolveRoot(cachedPath, canonicalAllowedRoots, label);
+      if (await candidateMatchesSamples(canonical, samples)) return canonical;
+    } catch {
+      // 재마운트나 폴더 이동으로 무효화된 캐시는 아래 자동 탐색으로 교체한다.
+    }
+    delete cache[cacheKey];
+  }
+
+  const requestedName = normalizedFolderIdentity(locator.folderName);
+  const nameCandidates: string[] = [];
+  const matchedCandidates: string[] = [];
+  const queue = await workerRootSearchQueue(canonicalAllowedRoots);
+  const visited = new Set<string>();
+  while (queue.length && visited.size < WORKER_ROOT_SEARCH_LIMIT) {
+    const current = queue.shift()!;
+    const canonicalKey = current.directory.normalize("NFC");
+    if (visited.has(canonicalKey)) continue;
+    visited.add(canonicalKey);
+    if (normalizedFolderIdentity(path.basename(current.directory)) === requestedName) {
+      nameCandidates.push(current.directory);
+      if (await candidateMatchesSamples(current.directory, samples)) matchedCandidates.push(current.directory);
+    }
+    if (current.depth >= WORKER_ROOT_SEARCH_DEPTH) continue;
+    let entries: Dirent[];
+    try {
+      entries = await readdir(current.directory, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.isSymbolicLink() || entry.name.startsWith(".")) continue;
+      queue.push({ directory: path.join(current.directory, entry.name), depth: current.depth + 1 });
+    }
+  }
+
+  const preferred = matchedCandidates.filter((candidate) => pathMatchesHint(candidate, locator.relativePath));
+  const resolved = preferred.length === 1
+    ? preferred[0]
+    : preferred.length === 0 && matchedCandidates.length === 1
+      ? matchedCandidates[0]
+      : null;
+  if (!resolved) {
+    const candidates = (matchedCandidates.length ? matchedCandidates : nameCandidates).slice(0, 10);
+    const candidateText = candidates.length ? candidates.join(" · ") : "없음";
+    if (matchedCandidates.length > 1) {
+      throw new Error(`${label} '${locator.folderName}' 후보가 여러 곳입니다. 찾은 후보: ${candidateText}`);
+    }
+    throw new Error(`${label} '${locator.folderName}'을 찾지 못했습니다. 찾은 후보: ${candidateText}`);
+  }
+
+  cache[cacheKey] = resolved;
+  await writeWorkerRootCache(options.cacheFilePath, cache);
+  return resolved;
 }
 
 export async function resolveWorkerRoot(

@@ -16,39 +16,6 @@ export type SequenceCheckResult = {
 
 const SEQUENCE_RANGE_LIMIT = 200_000;
 
-export function defaultWorkerFolderPath(displayPath: string, fallbackName: string): string {
-  const segments = displayPath
-    .split(/\s+\/\s+|\//u)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  if (!segments.length && fallbackName.trim()) segments.push(fallbackName.trim());
-  return segments.length ? `/Volumes/${segments.join("/")}` : "";
-}
-
-/** RAW 폴더가 현재 breadcrumb 안에 있을 때만 Mac Studio 절대경로를 추론한다. */
-export function inferWorkerRawRootPath(jpgPath: string, rawFolderName: string): string {
-  const rawName = rawFolderName.trim().normalize("NFC");
-  if (!rawName) return "";
-  const pathSegments = jpgPath
-    .replace(/^\/Volumes\//u, "")
-    .split("/")
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  const rawIndex = pathSegments.findLastIndex((segment) => segment.normalize("NFC") === rawName);
-  return rawIndex >= 0 ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}` : "";
-}
-
-/**
- * 브라우저 폴더 핸들과 Mac Studio의 마운트 이름이 달라도 워커가 같은 이름의
- * 폴더를 표본 파일로 찾아낼 수 있도록 자동 탐색용 절대경로 힌트를 만든다.
- */
-export function automaticWorkerRawRootPath(jpgPath: string, rawFolderName: string): string {
-  const inferred = inferWorkerRawRootPath(jpgPath, rawFolderName);
-  if (inferred) return inferred;
-  const normalizedName = rawFolderName.trim().normalize("NFC");
-  return normalizedName ? `/${normalizedName}` : "";
-}
-
 export function relativeToDirectoryRoot(relativePath: string, rootName: string): string {
   const normalized = relativePath.replaceAll("\\", "/");
   const prefix = `${rootName.normalize("NFC")}/`;

@@ -24,6 +24,7 @@ import {
   resolveExistingDestinationDirectory,
   resolveSourceFile,
   resolveWorkerRoot,
+  resolveWorkerRootByLocator,
   safeRelativePath,
   sampleMatches,
 } from "@/lib/selectMatch/node/rawMatchPathResolution";
@@ -39,6 +40,7 @@ const execFileAsync = promisify(execFile);
 
 export type RawMatchCopyExecutionOptions = {
   allowedRoots?: string[];
+  rootCacheFilePath?: string;
   shouldCancel?: () => Promise<boolean>;
   onProgress?: (progress: { current: number; total: number; message: string }) => Promise<void> | void;
 };
@@ -93,9 +95,21 @@ export async function executeRemoteRawMatchCopy(
         expectedCaptureTimeMs: item.jpgExpectedCaptureTimeMs,
       }]
     : []);
-  const rawRoot = await resolveWorkerRoot(payload.rawRootPath, allowedRoots, "RAW 기준 폴더", rawSamples);
-  const jpgRoot = payload.jpgRootPath
-    ? await resolveWorkerRoot(payload.jpgRootPath, allowedRoots, "JPG 기준 폴더", jpgSamples)
+  await options.onProgress?.({ current: 0, total: payload.items.length, message: "RAW 원본 폴더를 찾는 중" });
+  const rawRoot = payload.rawRoot
+    ? await resolveWorkerRootByLocator(payload.rawRoot, allowedRoots, "RAW 원본 폴더", rawSamples, {
+        cacheFilePath: options.rootCacheFilePath,
+      })
+    : await resolveWorkerRoot(payload.rawRootPath ?? "", allowedRoots, "RAW 원본 폴더", rawSamples);
+  if (payload.jpgRoot || payload.jpgRootPath) {
+    await options.onProgress?.({ current: 0, total: payload.items.length, message: "JPG 기준 폴더를 찾는 중" });
+  }
+  const jpgRoot = payload.jpgRoot
+    ? await resolveWorkerRootByLocator(payload.jpgRoot, allowedRoots, "JPG 기준 폴더", jpgSamples, {
+        cacheFilePath: options.rootCacheFilePath,
+      })
+    : payload.jpgRootPath
+      ? await resolveWorkerRoot(payload.jpgRootPath, allowedRoots, "JPG 기준 폴더", jpgSamples)
     : null;
 
   // 잘못 연결된 브라우저 핸들 경로로 전체 작업을 시작하지 않도록 처음 두 표본을 먼저 확인한다.

@@ -129,7 +129,7 @@ export function RawMatchCriteriaPanel({
             {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>★{rating} 이상</option>)}
           </select>
         </label>
-        <div aria-disabled={!colorEnabled} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: colorEnabled ? colors.uiText : colors.uiHint, opacity: colorEnabled ? 1 : .45 }}>
+        {criteria.source !== "rating" ? <div aria-disabled={!colorEnabled} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 36, color: colorEnabled ? colors.uiText : colors.uiHint, opacity: colorEnabled ? 1 : .45 }}>
           <span style={{ width: 42, fontSize: 11, fontWeight: 600 }}>컬러</span>
           {([6, 7, 8, 9] as BridgeColorLabel[]).map((label) => {
             const checked = criteria.colorLabels.includes(label);
@@ -151,7 +151,7 @@ export function RawMatchCriteriaPanel({
               </label>
             );
           })}
-        </div>
+        </div> : null}
       </div>
     </section>
   );

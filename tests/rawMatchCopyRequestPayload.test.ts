@@ -28,6 +28,21 @@ function validPayload() {
 }
 
 describe("PHOTO_RAW_MATCH_COPY payload", () => {
+  it("절대경로 없이 폴더 식별 정보를 정규화한다", () => {
+    const payload = validPayload();
+    delete (payload as Partial<typeof payload>).rawRootPath;
+    delete (payload as Partial<typeof payload>).jpgRootPath;
+    Object.assign(payload, {
+      rawRoot: { projectKey: "1114-서울", folderName: " 1114_서울예방치과교실 ", kind: "raw" },
+      jpgRoot: { projectKey: "1114-서울", folderName: "단체사진", relativePath: "JPG전체/단체사진", kind: "jpg" },
+    });
+
+    expect(normalizeRawMatchCopyRequestPayload(payload)).toMatchObject({
+      rawRoot: { projectKey: "1114-서울", folderName: "1114_서울예방치과교실", kind: "raw" },
+      jpgRoot: { projectKey: "1114-서울", folderName: "단체사진", relativePath: "JPG전체/단체사진", kind: "jpg" },
+    });
+  });
+
   it("normalizes roots, copy defaults, samples, and log rows", () => {
     expect(normalizeRawMatchCopyRequestPayload(validPayload())).toEqual({
       rawRootPath: "/Volumes/Agentstation/촬영/RAW",

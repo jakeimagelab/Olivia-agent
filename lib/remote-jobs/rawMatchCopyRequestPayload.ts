@@ -98,6 +98,27 @@ function normalizeLogRow(entry: unknown, index: number): RemoteJobPayload {
   };
 }
 
+function normalizeRootLocator(entry: unknown, label: string): RemoteJobPayload {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error(`${label} 폴더 식별 정보가 필요합니다.`);
+  }
+  const locator = entry as RemoteJobPayload;
+  const folderName = safeLogText(locator.folderName, `${label}.folderName`, 255).trim().normalize("NFC");
+  if (!folderName || folderName === "." || folderName === ".." || /[/\\\0]/u.test(folderName)) {
+    throw new Error(`${label} 폴더 이름이 올바르지 않습니다.`);
+  }
+  const kind = locator.kind;
+  if (kind !== "raw" && kind !== "jpg") throw new Error(`${label}.kind가 올바르지 않습니다.`);
+  return {
+    projectKey: safeLogText(locator.projectKey, `${label}.projectKey`, 1000),
+    folderName,
+    kind,
+    ...(typeof locator.relativePath === "string" && locator.relativePath.trim()
+      ? { relativePath: safeLogText(locator.relativePath, `${label}.relativePath`, 2000) }
+      : {}),
+  };
+}
+
 export function normalizeRawMatchCopyRequestPayload(requested: RemoteJobPayload): RemoteJobPayload {
   const items = requested.items;
   const logRows = requested.logRows;
@@ -108,11 +129,19 @@ export function normalizeRawMatchCopyRequestPayload(requested: RemoteJobPayload)
     throw new Error("PHOTO_RAW_MATCH_COPY의 logRows가 올바르지 않습니다.");
   }
 
+  const rawRoot = requested.rawRoot === undefined ? undefined : normalizeRootLocator(requested.rawRoot, "rawRoot");
+  const rawRootPath = requested.rawRootPath === undefined || requested.rawRootPath === ""
+    ? undefined
+    : safeWorkerAbsolutePath(requested.rawRootPath, "RAW 기준 폴더");
+  if (!rawRoot && !rawRootPath) throw new Error("RAW 폴더 식별 정보가 필요합니다.");
+  const jpgRoot = requested.jpgRoot === undefined ? undefined : normalizeRootLocator(requested.jpgRoot, "jpgRoot");
+  const jpgRootPath = requested.jpgRootPath === undefined || requested.jpgRootPath === ""
+    ? undefined
+    : safeWorkerAbsolutePath(requested.jpgRootPath, "JPG 기준 폴더");
+
   return {
-    rawRootPath: safeWorkerAbsolutePath(requested.rawRootPath, "RAW 기준 폴더"),
-    ...(requested.jpgRootPath === undefined || requested.jpgRootPath === ""
-      ? {}
-      : { jpgRootPath: safeWorkerAbsolutePath(requested.jpgRootPath, "JPG 기준 폴더") }),
+    ...(rawRoot ? { rawRoot } : { rawRootPath }),
+    ...(jpgRoot ? { jpgRoot } : jpgRootPath ? { jpgRootPath } : {}),
     items: items.map(normalizeItem),
     logRows: logRows.map(normalizeLogRow),
     ...(typeof requested.openOutput === "boolean" ? { openOutput: requested.openOutput } : {}),

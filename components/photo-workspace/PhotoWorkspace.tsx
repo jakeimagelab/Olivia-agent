@@ -70,7 +70,6 @@ export function PhotoWorkspaceEmbeddedTool({
   mode: initialMode,
   selectMode: initialSelectMode = "manual",
   fileOpsMode: initialFileOpsMode = "resize",
-  rawMatchMethod = "filename",
   clientId,
   workflowRunId,
   initialRemoteSelection,
@@ -99,11 +98,11 @@ export function PhotoWorkspaceEmbeddedTool({
             <span className={styles.workspaceToolHeaderIcon}><Link2 size={18} aria-hidden="true" /></span>
             <span>
               <strong>RAW 매칭</strong>
-              <small>Bridge에서 선택한 JPG와 RAW 원본을 파일명 또는 촬영시간으로 연결합니다.</small>
+              <small>Bridge에서 선택한 JPG와 RAW 원본을 파일명·촬영시각으로 확인해 연결합니다.</small>
             </span>
             <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
           </header>
-          <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
+          <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} />
         </div>
       ) : null}
       {mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} initialRemoteSelection={initialRemoteSelection} onOpenPhotoSelect={() => { setSelectMode("manual"); setMode("select"); }} /> : null}
@@ -141,7 +140,6 @@ function PhotoWorkspaceContent({
   const rawTab = searchParams.get("tab");
   const rawSelectMode = searchParams.get("selectMode") as PhotoSelectMode | null;
   const rawFileOpsMode = searchParams.get("fileOpsMode") as PhotoFileOpsMode | null;
-  const rawMatchMethodParam = searchParams.get("rawMatchMethod");
   const remoteJobId = searchParams.get("remoteJobId");
   const legacyContiLink = rawTab === "plan" || searchParams.get("tool") === "conti";
   const legacyCustomerImportState = rawMode === "select" && rawSelectMode === "client"
@@ -150,7 +148,6 @@ function PhotoWorkspaceContent({
   const mode = toolState?.mode ?? legacyModeState?.mode ?? legacyCustomerImportState?.mode ?? (rawMode && WORKSPACE_MODES.has(rawMode) ? rawMode : initialToolState?.mode ?? initialMode);
   const selectMode = toolState?.selectMode ?? (rawSelectMode && SELECT_MODES.has(rawSelectMode) ? rawSelectMode : initialToolState?.selectMode ?? initialSelectMode ?? "ai");
   const fileOpsMode = toolState?.fileOpsMode ?? legacyModeState?.fileOpsMode ?? (rawFileOpsMode && FILE_OPS_MODES.has(rawFileOpsMode) ? rawFileOpsMode : initialToolState?.fileOpsMode ?? initialFileOpsMode ?? "resize");
-  const rawMatchMethod = toolState?.rawMatchMethod ?? (rawMatchMethodParam === "metadata" ? "metadata" : initialToolState?.rawMatchMethod ?? "filename");
   const { executionMode, currentLocalFolder, selectedJpgNames } = usePhotoStudioExecution();
   const remote = executionMode === "REMOTE_WORKER";
   const remoteUnavailable = remote && mode !== "jpg-prep" && mode !== "classification" && mode !== "select";
@@ -216,12 +213,12 @@ function PhotoWorkspaceContent({
                   <span className={styles.workspaceToolHeaderIcon}><Link2 size={18} aria-hidden="true" /></span>
                   <span>
                     <strong>RAW 매칭</strong>
-                    <small>선택한 JPG와 RAW 원본을 파일명 또는 촬영시간으로 연결합니다.</small>
+                    <small>선택한 JPG와 RAW 원본을 파일명·촬영시각으로 확인해 연결합니다.</small>
                   </span>
                   <span className={styles.workspaceToolFolder}>현재 작업 폴더: <b>{currentLocalFolder?.name ?? "선택 안 됨"}</b></span>
                 </header>
-                <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} initialMethod={rawMatchMethod} />
-                <footer className={styles.workspaceToolActions}>JPG 선택 방식과 RAW 원본 위치를 지정하면 매칭을 시작할 수 있습니다.</footer>
+                <PhotoRawMatchWorkspace selectedJpgNames={selectedJpgNames} />
+                <footer className={styles.workspaceToolActions}>JPG와 RAW 폴더를 선택하면 파일명·촬영시각을 확인해 매칭합니다.</footer>
               </div>
             ) : null}
             {!remoteUnavailable && mode === "classification" ? <PhotoSortingWorkspace mode="embedded" clientId={clientId} workflowRunId={workflowRunId} onOpenPhotoSelect={() => updateQuery("select", "manual")} /> : null}

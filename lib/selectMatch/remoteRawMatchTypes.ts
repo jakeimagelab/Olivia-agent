@@ -21,8 +21,19 @@ export type RemoteRawMatchLogRow = {
   result: RemoteRawMatchLogResult;
 };
 
+export type RemoteRawMatchRootLocator = {
+  projectKey: string;
+  folderName: string;
+  relativePath?: string;
+  kind: "raw" | "jpg";
+};
+
 export type RemoteRawMatchCopyPayload = {
-  rawRootPath: string;
+  /** 새 RAW 매칭은 절대경로 대신 폴더 식별 정보와 표본을 워커에 전달한다. */
+  rawRoot?: RemoteRawMatchRootLocator;
+  jpgRoot?: RemoteRawMatchRootLocator;
+  /** 파일명 이동 레거시 도구 호환용. RAW 매칭 UI에서는 생성하거나 노출하지 않는다. */
+  rawRootPath?: string;
   jpgRootPath?: string;
   items: RemoteRawMatchCopyItem[];
   logRows: RemoteRawMatchLogRow[];

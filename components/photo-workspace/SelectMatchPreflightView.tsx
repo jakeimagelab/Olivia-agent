@@ -5,7 +5,7 @@ import { ScanSearch } from "lucide-react";
 
 import { captureMatchSummaryTotal, type CaptureMatchPreflight } from "@/lib/selectMatch/captureMatch";
 import { formatCaptureTime } from "@/lib/selectMatch/captureTime";
-import { remoteRawMatchUnavailableReason } from "@/lib/selectMatch/remoteRawMatch";
+import { remoteRawMatchRunDisabledReason } from "@/lib/selectMatch/remoteRawMatch";
 import { C } from "@/lib/theme";
 import { SelectMatchButton, type SelectMatchControlColors } from "./SelectMatchControls";
 import type { RawDiscoveryState } from "./useSelectMatchPreflight";
@@ -20,8 +20,6 @@ export function SelectMatchPreflightView({
   expectedTargetCount,
   targetCountMatches,
   approvedMatchCount,
-  rawSelectMode,
-  onRawSelectModeChange,
   moveMatchedJpgs,
   onMoveMatchedJpgsChange,
   deliveredFolderName,
@@ -41,8 +39,6 @@ export function SelectMatchPreflightView({
   expectedTargetCount: number;
   targetCountMatches: boolean;
   approvedMatchCount: number;
-  rawSelectMode: "move" | "copy";
-  onRawSelectModeChange: (mode: "move" | "copy") => void;
   moveMatchedJpgs: boolean;
   onMoveMatchedJpgsChange: (checked: boolean) => void;
   deliveredFolderName: string;
@@ -56,9 +52,8 @@ export function SelectMatchPreflightView({
   const unresolvedItems = preflight?.items.filter((item) => item.status !== "confirmed") ?? [];
   const manualCount = Object.keys(manualRawChoices).length;
   const summaryTotal = preflight ? captureMatchSummaryTotal(preflight) : 0;
-  const unavailableReason = remoteRawMatchUnavailableReason(workerOnline);
-  const runDisabled = !targetCountMatches
-    || workerOnline !== true;
+  const runDisabledReason = remoteRawMatchRunDisabledReason(approvedMatchCount, workerOnline);
+  const runDisabled = runDisabledReason !== null;
 
   return (
     <div style={{ maxWidth: 960, margin: "28px auto", padding: "0 24px" }}>
@@ -158,21 +153,6 @@ export function SelectMatchPreflightView({
                 </div>;
               })}
             </div> : null}
-            {approvedMatchCount > 0 ? <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 10, fontWeight: 500, color: colors.uiHint, marginBottom: 6 }}>매칭된 RAW 처리 방식</div>
-              <div style={{ display: "flex", gap: 8 }}>
-                {([['copy', '복사 (원본 유지)'], ['move', '이동 (원본 삭제)']] as const).map(([mode, label]) => (
-                  <button key={mode} onClick={() => onRawSelectModeChange(mode)} style={{
-                    flex: 1, padding: "10px 0", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                    border: `1.5px solid ${rawSelectMode === mode ? colors.uiAccent : colors.uiBorder}`,
-                    background: rawSelectMode === mode ? colors.groupedSurface : colors.surfaceCard,
-                    color: rawSelectMode === mode ? colors.uiAccent : colors.uiMuted,
-                    fontSize: 12, fontWeight: 600,
-                  }}>{label}</button>
-                ))}
-              </div>
-              {rawSelectMode === "move" ? <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(214,188,125,.12)", borderRadius: 8, fontSize: 11, color: "#D6BC7D", border: "1px solid rgba(214,188,125,.36)" }}>⚠️ 이동을 선택하면 원본 RAW 파일이 원래 위치에서 삭제됩니다.</div> : null}
-            </div> : null}
             {approvedMatchCount > 0 ? <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid ${colors.uiBorder}`, borderRadius: 10, background: colors.groupedSurface }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, color: colors.uiText, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                 <input type="checkbox" checked={moveMatchedJpgs} onChange={(event) => onMoveMatchedJpgsChange(event.currentTarget.checked)} />
@@ -191,18 +171,11 @@ export function SelectMatchPreflightView({
               </div>
               <p style={{ margin: "8px 0 0", color: colors.uiHint, fontSize: 10, lineHeight: 1.55 }}>RAW 복사가 성공한 JPG와 같은 이름의 XMP만 Mac Studio가 이동합니다. 같은 볼륨은 이름만 옮기고, 다른 볼륨은 ditto 복사·속성 확인 후 원본을 지웁니다.</p>
             </div> : null}
-            {approvedMatchCount > 0 ? <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid ${colors.uiBorder}`, borderRadius: 10, background: colors.groupedSurface }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                <strong style={{ color: colors.uiText, fontSize: 11 }}>원본 자동 확인</strong>
-                <span style={{ color: workerOnline ? C.green : C.red, fontSize: 10 }}>{workerOnline ? "워커 연결됨" : "워커 연결 안 됨"}</span>
-              </div>
-              <p style={{ margin: 0, color: colors.uiMuted, fontSize: 10, lineHeight: 1.6 }}>브릿지에서 확인한 RAW 표본의 파일 크기와 촬영시각으로 Mac Studio가 실제 원본 폴더를 자동으로 찾습니다. 경로를 입력할 필요가 없습니다.</p>
-            </div> : null}
-            {unavailableReason ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{unavailableReason}</div> : null}
             {remoteExecutionError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{remoteExecutionError}</div> : null}
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <SelectMatchButton variant="secondary" onClick={onCancel}>← 취소</SelectMatchButton>
-              {approvedMatchCount > 0 ? <SelectMatchButton disabled={runDisabled} onClick={onRun}>{manualCount ? "확정 + 직접 선택" : "확정된 것만"} {rawSelectMode === "move" ? "이동" : "복사"} ({approvedMatchCount}개)</SelectMatchButton> : null}
+              <SelectMatchButton disabled={runDisabled} onClick={onRun}>RAW 매칭 실행 ({approvedMatchCount.toLocaleString("ko-KR")}장)</SelectMatchButton>
+              {runDisabledReason ? <span role="status" style={{ color: C.red, fontSize: 11 }}>{runDisabledReason}</span> : null}
             </div>
           </div>
         )}

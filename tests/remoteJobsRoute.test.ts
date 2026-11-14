@@ -178,8 +178,8 @@ describe("POST /api/remote-jobs PERSON_SELECT_IMPORT layout contract", () => {
 describe("POST /api/remote-jobs PHOTO_RAW_MATCH_COPY contract", () => {
   it("속성 검증 표본과 JPG 이동 정보를 Mac Studio 기본 워커에만 전달한다", async () => {
     const response = await postRawMatchCopy({
-      rawRootPath: "/Volumes/Agentstation/촬영/RAW",
-      jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+      rawRoot: { projectKey: "1114-서울", folderName: "1114_서울예방치과교실", kind: "raw" },
+      jpgRoot: { projectKey: "1114-서울", folderName: "단체사진", relativePath: "JPG전체/단체사진", kind: "jpg" },
       items: [{
         rawPath: "A.CR2",
         destDir: "Selected_RAW",
@@ -200,8 +200,8 @@ describe("POST /api/remote-jobs PHOTO_RAW_MATCH_COPY contract", () => {
       action: "PHOTO_RAW_MATCH_COPY",
       target_worker: "jake-macstudio-01",
       payload: {
-        rawRootPath: "/Volumes/Agentstation/촬영/RAW",
-        jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+        rawRoot: { projectKey: "1114-서울", folderName: "1114_서울예방치과교실", kind: "raw" },
+        jpgRoot: { projectKey: "1114-서울", folderName: "단체사진", relativePath: "JPG전체/단체사진", kind: "jpg" },
         openOutput: true,
       },
       status: "QUEUED",
@@ -210,8 +210,8 @@ describe("POST /api/remote-jobs PHOTO_RAW_MATCH_COPY contract", () => {
 
   it("JPG 이동 표본 정보가 빠지면 job을 만들지 않는다", async () => {
     const response = await postRawMatchCopy({
-      rawRootPath: "/Volumes/Agentstation/촬영/RAW",
-      jpgRootPath: "/Volumes/Agentstation/촬영/JPG전체",
+      rawRoot: { projectKey: "1114-서울", folderName: "1114_서울예방치과교실", kind: "raw" },
+      jpgRoot: { projectKey: "1114-서울", folderName: "단체사진", relativePath: "JPG전체/단체사진", kind: "jpg" },
       items: [{
         rawPath: "A.CR2",
         destDir: "Selected_RAW",

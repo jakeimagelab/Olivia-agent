@@ -66,10 +66,12 @@ export function useSelectMatchExecution({
   jpgScanRootName,
   preflight,
   approvedMatches,
-  preflightTargetCountMatches,
   workerOnline,
-  workerRawRootPath,
-  workerJpgRootPath,
+  projectKey,
+  rawRootName,
+  rawRootRelativePath,
+  jpgRootName,
+  jpgRootRelativePath,
   moveMatchedJpgs,
   deliveredFolderName,
 }: {
@@ -79,14 +81,16 @@ export function useSelectMatchExecution({
   jpgScanRootName: string;
   preflight: CaptureMatchPreflight | null;
   approvedMatches: readonly ApprovedCaptureMatch[];
-  preflightTargetCountMatches: boolean;
   workerOnline: boolean | null;
-  workerRawRootPath: string;
-  workerJpgRootPath: string;
+  projectKey: string;
+  rawRootName: string;
+  rawRootRelativePath?: string;
+  jpgRootName: string;
+  jpgRootRelativePath?: string;
   moveMatchedJpgs: boolean;
   deliveredFolderName: string;
 }) {
-  const [rawSelectMode, setRawSelectMode] = useState<"move" | "copy">("copy");
+  const rawSelectMode = "copy" as const;
   const [progress, setProgressState] = useState({ cur: 0, total: 0, msg: "" });
   const [rawOutputPath, setRawOutputPath] = useState("");
   const [rawOutputOpenError, setRawOutputOpenError] = useState("");
@@ -101,14 +105,21 @@ export function useSelectMatchExecution({
   }, []);
 
   const runMatch = useCallback(async () => {
-    if ((!rootDir && !rawRootDir) || !preflight || !approvedMatches.length || !preflightTargetCountMatches) return;
+    if (!preflight || !approvedMatches.length) {
+      setRemoteExecutionError("확정된 RAW가 1장 이상 필요합니다.");
+      return;
+    }
     const unavailableReason = remoteRawMatchUnavailableReason(workerOnline);
     if (unavailableReason) {
       setRemoteExecutionError(unavailableReason);
       return;
     }
-    if (!workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())) {
-      setRemoteExecutionError("원본 폴더를 자동 확인할 정보가 없습니다. 브릿지에서 촬영 폴더를 다시 선택해 주세요.");
+    if (!rawRootName.trim()) {
+      setRemoteExecutionError("RAW 원본 폴더 이름을 확인할 수 없습니다. RAW 폴더를 다시 선택해 주세요.");
+      return;
+    }
+    if (moveMatchedJpgs && !jpgRootName.trim()) {
+      setRemoteExecutionError("JPG 기준 폴더 이름을 확인할 수 없습니다. JPG 폴더를 다시 선택해 주세요.");
       return;
     }
     setStep("matching");
@@ -118,7 +129,7 @@ export function useSelectMatchExecution({
     setRawOutputOpenError("");
     useBackgroundJobsStore.getState().startJob({
       id: RAW_MATCH_JOB_ID,
-      label: `RAW ${rawSelectMode === "move" ? "이동" : "복사"} 중`,
+      label: "RAW 복사 중",
       cur: 0,
       total: approvedMatches.length,
       status: "running",
@@ -140,14 +151,26 @@ export function useSelectMatchExecution({
     ));
     const destinationDirectories = resolveRawMatchDestinationDirectories(approvedRawPaths);
     const payload: RemoteRawMatchCopyPayload = {
-      rawRootPath: workerRawRootPath.trim(),
-      ...(moveMatchedJpgs ? { jpgRootPath: workerJpgRootPath.trim() } : {}),
+      rawRoot: {
+        projectKey,
+        folderName: rawRootName.trim(),
+        ...(rawRootRelativePath?.trim() ? { relativePath: rawRootRelativePath.trim() } : {}),
+        kind: "raw",
+      },
+      ...(moveMatchedJpgs ? {
+        jpgRoot: {
+          projectKey,
+          folderName: jpgRootName.trim(),
+          ...(jpgRootRelativePath?.trim() ? { relativePath: jpgRootRelativePath.trim() } : {}),
+          kind: "jpg" as const,
+        },
+      } : {}),
       items: await Promise.all(approvedMatches.map(async ({ item, candidate }, index) => {
         const jpgFile = moveMatchedJpgs ? await item.jpg.handle.getFile() : null;
         return {
           rawPath: approvedRawPaths[index],
           destDir: destinationDirectories[index],
-          rawAction: rawSelectMode,
+          rawAction: "copy",
           rawExpectedSize: candidate.fileSize,
           rawExpectedCaptureTimeMs: candidate.captureTime?.timestampMs ?? null,
           ...(moveMatchedJpgs && jpgFile ? {
@@ -232,7 +255,7 @@ export function useSelectMatchExecution({
     } finally {
       remoteRawMatchJobIdRef.current = "";
     }
-  }, [approvedMatches, deliveredFolderName, jpgScanRootName, moveMatchedJpgs, preflight, preflightTargetCountMatches, rawRootDir, rawSelectMode, rootDir, setProgress, setStep, workerJpgRootPath, workerOnline, workerRawRootPath]);
+  }, [approvedMatches, deliveredFolderName, jpgRootName, jpgRootRelativePath, jpgScanRootName, moveMatchedJpgs, preflight, projectKey, rawRootDir, rawRootName, rawRootRelativePath, rootDir, setProgress, setStep, workerOnline]);
 
   const cancelRemoteRawMatch = useCallback(() => {
     cancelRef.current = true;
@@ -257,7 +280,6 @@ export function useSelectMatchExecution({
 
   return {
     rawSelectMode,
-    setRawSelectMode,
     progress,
     setProgress,
     rawOutputPath,
