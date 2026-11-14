@@ -38,6 +38,17 @@ export function inferWorkerRawRootPath(jpgPath: string, rawFolderName: string): 
   return rawIndex >= 0 ? `/Volumes/${pathSegments.slice(0, rawIndex + 1).join("/")}` : "";
 }
 
+/**
+ * 브라우저 폴더 핸들과 Mac Studio의 마운트 이름이 달라도 워커가 같은 이름의
+ * 폴더를 표본 파일로 찾아낼 수 있도록 자동 탐색용 절대경로 힌트를 만든다.
+ */
+export function automaticWorkerRawRootPath(jpgPath: string, rawFolderName: string): string {
+  const inferred = inferWorkerRawRootPath(jpgPath, rawFolderName);
+  if (inferred) return inferred;
+  const normalizedName = rawFolderName.trim().normalize("NFC");
+  return normalizedName ? `/${normalizedName}` : "";
+}
+
 export function relativeToDirectoryRoot(relativePath: string, rootName: string): string {
   const normalized = relativePath.replaceAll("\\", "/");
   const prefix = `${rootName.normalize("NFC")}/`;

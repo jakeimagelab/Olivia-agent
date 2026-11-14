@@ -27,10 +27,6 @@ export function SelectMatchPreflightView({
   deliveredFolderName,
   onDeliveredFolderNameChange,
   workerOnline,
-  workerRawRootPath,
-  workerJpgRootPath,
-  onWorkerRawRootPathChange,
-  onWorkerJpgRootPathChange,
   remoteExecutionError,
   onCancel,
   onRun,
@@ -52,10 +48,6 @@ export function SelectMatchPreflightView({
   deliveredFolderName: string;
   onDeliveredFolderNameChange: (value: string) => void;
   workerOnline: boolean | null;
-  workerRawRootPath: string;
-  workerJpgRootPath: string;
-  onWorkerRawRootPathChange: (value: string) => void;
-  onWorkerJpgRootPathChange: (value: string) => void;
   remoteExecutionError: string;
   onCancel: () => void;
   onRun: () => void;
@@ -66,9 +58,7 @@ export function SelectMatchPreflightView({
   const summaryTotal = preflight ? captureMatchSummaryTotal(preflight) : 0;
   const unavailableReason = remoteRawMatchUnavailableReason(workerOnline);
   const runDisabled = !targetCountMatches
-    || workerOnline !== true
-    || !workerRawRootPath.trim()
-    || (moveMatchedJpgs && !workerJpgRootPath.trim());
+    || workerOnline !== true;
 
   return (
     <div style={{ maxWidth: 960, margin: "28px auto", padding: "0 24px" }}>
@@ -203,18 +193,10 @@ export function SelectMatchPreflightView({
             </div> : null}
             {approvedMatchCount > 0 ? <div style={{ marginBottom: 16, padding: "12px 14px", border: `1px solid ${colors.uiBorder}`, borderRadius: 10, background: colors.groupedSurface }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
-                <strong style={{ color: colors.uiText, fontSize: 11 }}>Mac Studio 원본 경로</strong>
+                <strong style={{ color: colors.uiText, fontSize: 11 }}>원본 자동 확인</strong>
                 <span style={{ color: workerOnline ? C.green : C.red, fontSize: 10 }}>{workerOnline ? "워커 연결됨" : "워커 연결 안 됨"}</span>
               </div>
-              <label style={{ display: "grid", gap: 6, color: colors.uiMuted, fontSize: 10, marginBottom: 9 }}>
-                RAW 기준 폴더
-                <input value={workerRawRootPath} onChange={(event) => onWorkerRawRootPathChange(event.currentTarget.value)} placeholder="/Volumes/Agentstation/촬영폴더/RAW" style={{ minHeight: 40, border: `1px solid ${colors.uiBorder}`, borderRadius: 8, background: colors.inputSurface, color: colors.uiText, padding: "0 10px", font: "inherit", fontSize: 11 }} />
-              </label>
-              {moveMatchedJpgs ? <label style={{ display: "grid", gap: 6, color: colors.uiMuted, fontSize: 10 }}>
-                JPG 기준 폴더
-                <input value={workerJpgRootPath} onChange={(event) => onWorkerJpgRootPathChange(event.currentTarget.value)} placeholder="/Volumes/Agentstation/촬영폴더/JPG전체" style={{ minHeight: 40, border: `1px solid ${colors.uiBorder}`, borderRadius: 8, background: colors.inputSurface, color: colors.uiText, padding: "0 10px", font: "inherit", fontSize: 11 }} />
-              </label> : null}
-              <p style={{ margin: "8px 0 0", color: colors.uiHint, fontSize: 10, lineHeight: 1.55 }}>워커가 먼저 표본 2개의 크기와 촬영시각을 확인합니다. 자동으로 찾지 못할 때만 Mac Studio Finder의 절대경로로 고쳐 주세요.</p>
+              <p style={{ margin: 0, color: colors.uiMuted, fontSize: 10, lineHeight: 1.6 }}>브릿지에서 확인한 RAW 표본의 파일 크기와 촬영시각으로 Mac Studio가 실제 원본 폴더를 자동으로 찾습니다. 경로를 입력할 필요가 없습니다.</p>
             </div> : null}
             {unavailableReason ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{unavailableReason}</div> : null}
             {remoteExecutionError ? <div role="alert" style={{ marginBottom: 12, borderRadius: 8, padding: "10px 12px", background: "#FEF2F2", color: C.red, fontSize: 11 }}>{remoteExecutionError}</div> : null}

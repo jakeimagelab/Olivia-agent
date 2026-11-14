@@ -13,8 +13,8 @@ import {
   type BridgeRawMatchTargetMode,
 } from "@/lib/photo-bridge/rawMatchDelivery";
 import {
+  automaticWorkerRawRootPath,
   defaultWorkerFolderPath,
-  inferWorkerRawRootPath,
 } from "@/lib/selectMatch/workspaceHelpers";
 import { resolveJpgScanRootDirectory } from "@/lib/selectMatch/jpgScanRoot";
 import {
@@ -127,7 +127,6 @@ export function SelectMatchWorkspace({
   const [deliveredFolderNameDirty, setDeliveredFolderNameDirty] = useState(false);
   const [workerJpgRootPath, setWorkerJpgRootPath] = useState("");
   const [workerRawRootPath, setWorkerRawRootPath] = useState("");
-  const [workerPathDirty, setWorkerPathDirty] = useState(false);
 
   const {
     thumbnailUrlsRef: sceneThumbnailUrlsRef,
@@ -248,15 +247,14 @@ export function SelectMatchWorkspace({
   });
 
   useEffect(() => {
-    if (workerPathDirty) return;
     let jpgPath = defaultWorkerFolderPath(rawMatchFolderPath, rootDir?.name ?? currentLocalFolder?.name ?? "");
     if (jpgScanRootDir && rootDir && jpgScanRootDir.name.normalize("NFC") !== rootDir.name.normalize("NFC")) {
       jpgPath = `${jpgPath.replace(/\/$/u, "")}/${jpgScanRootDir.name}`;
     }
     setWorkerJpgRootPath(jpgPath);
     const rawName = rawRootDir?.name.normalize("NFC") ?? "";
-    setWorkerRawRootPath(inferWorkerRawRootPath(jpgPath, rawName));
-  }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir, workerPathDirty]);
+    setWorkerRawRootPath(automaticWorkerRawRootPath(jpgPath, rawName));
+  }, [currentLocalFolder?.name, jpgScanRootDir, rawMatchFolderPath, rawRootDir?.name, rootDir]);
 
   useEffect(() => {
     if (!rootDir) {
@@ -526,16 +524,6 @@ export function SelectMatchWorkspace({
       setDeliveredFolderName(value);
     }}
     workerOnline={workerPresence.online}
-    workerRawRootPath={workerRawRootPath}
-    workerJpgRootPath={workerJpgRootPath}
-    onWorkerRawRootPathChange={(value) => {
-      setWorkerPathDirty(true);
-      setWorkerRawRootPath(value);
-    }}
-    onWorkerJpgRootPathChange={(value) => {
-      setWorkerPathDirty(true);
-      setWorkerJpgRootPath(value);
-    }}
     remoteExecutionError={remoteExecutionError}
     onCancel={cancelPreflight}
     onRun={() => void runMatch()}

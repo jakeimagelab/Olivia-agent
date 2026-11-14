@@ -108,7 +108,7 @@ export function useSelectMatchExecution({
       return;
     }
     if (!workerRawRootPath.trim() || (moveMatchedJpgs && !workerJpgRootPath.trim())) {
-      setRemoteExecutionError("Mac Studio에서 보이는 RAW/JPG 폴더 경로를 확인해 주세요.");
+      setRemoteExecutionError("원본 폴더를 자동 확인할 정보가 없습니다. 브릿지에서 촬영 폴더를 다시 선택해 주세요.");
       return;
     }
     setStep("matching");

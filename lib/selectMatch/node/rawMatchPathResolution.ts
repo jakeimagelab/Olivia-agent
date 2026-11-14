@@ -191,8 +191,8 @@ export async function resolveWorkerRoot(
   } catch (directError) {
     const matches = await searchMatchingRoots(allowedRoots, input, samples);
     if (matches.length === 1) return matches[0];
-    if (matches.length > 1) throw new Error(`${label} 후보가 여러 곳입니다. Mac Studio의 절대경로를 직접 입력해 주세요.`);
-    throw new Error(`${directError instanceof Error ? directError.message : `${label}을 찾지 못했습니다.`} Mac Studio의 절대경로를 직접 입력해 주세요.`);
+    if (matches.length > 1) throw new Error(`${label} 후보가 여러 곳입니다. 브릿지에서 실제 촬영 폴더를 다시 선택해 주세요.`);
+    throw new Error(`${directError instanceof Error ? directError.message : `${label}을 찾지 못했습니다.`} 브릿지에서 실제 촬영 폴더를 다시 선택해 주세요.`);
   }
 }
 
