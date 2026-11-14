@@ -28,6 +28,17 @@ describe("사진 작업실 역할 분리", () => {
     expect(resolvePhotoWorkspaceToolState("metadata-match")).toMatchObject({ mode: "raw-match", rawMatchMethod: "metadata" });
   });
 
+  it("routes customer selection import to RAW matching", () => {
+    expect(resolvePhotoWorkspaceToolState("select-raw")).toMatchObject({
+      mode: "raw-match",
+      rawMatchMethod: "filename",
+    });
+    const select = source("components/photo-workspace/PhotoSelectWorkspace.tsx");
+    expect(select).toContain('if (next === "client")');
+    expect(select).toContain("onStartRawMatch()");
+    expect(select).not.toContain('initialView="client" selectionOnly');
+  });
+
   it("normalizes former top-level modes to their new subtabs", () => {
     expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=t-cut"))?.toString()).toBe("mode=select&selectMode=tcut");
     expect(canonicalizePhotoWorkspaceParams(new URLSearchParams("mode=resize"))?.toString()).toBe("mode=file-ops&fileOpsMode=resize");

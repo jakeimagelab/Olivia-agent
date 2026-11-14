@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useEffect, useRef } from "react";
 import { MousePointer2, Scissors, Sparkles, Users } from "lucide-react";
 import AiPhotoSelectPanel from "./AiPhotoSelectPanel";
 import type { PhotoSelectMode } from "./types";
@@ -36,7 +37,25 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
   bridgeEmbedded?: boolean;
 }) {
   const { currentLocalFolder, selectedJpgNames, setCurrentLocalFolder, setSelectedJpgNames } = usePhotoStudioExecution();
+  const redirectedClientRef = useRef(false);
+  useEffect(() => {
+    if (remote || value !== "client") {
+      redirectedClientRef.current = false;
+      return;
+    }
+    if (redirectedClientRef.current) return;
+    redirectedClientRef.current = true;
+    onStartRawMatch();
+  }, [onStartRawMatch, remote, value]);
   if (remote && value !== "tcut") return <RemotePhotoSelectWorkspace />;
+
+  const handleSelectModeChange = (next: PhotoSelectMode) => {
+    if (next === "client") {
+      onStartRawMatch();
+      return;
+    }
+    onChange(next);
+  };
 
   return (
     <div>
@@ -44,7 +63,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
         ariaLabel="사진 셀렉 방식"
         tone="dark"
         value={value}
-        onChange={onChange}
+        onChange={handleSelectModeChange}
         items={SELECT_TABS.map(({ mode, label, icon: Icon }) => ({
           value: mode,
           label,
@@ -54,7 +73,7 @@ export default function PhotoSelectWorkspace({ value, onChange, onStartRawMatch,
       <div role="tabpanel" id={`photo-select-panel-${value}`} aria-labelledby={`photo-select-tab-${value}`}>
         {value === "ai" ? <AiPhotoSelectPanel initialFolder={currentLocalFolder} selectedJpgNames={selectedJpgNames} lockFolder={bridgeEmbedded} onSelectFolder={setCurrentLocalFolder} onConfirmSelection={setSelectedJpgNames} onStartRawMatch={(names) => { setSelectedJpgNames(names); onStartRawMatch(); }} /> : null}
         {value === "manual" ? <SelectMatchWorkspace embedded initialView="manual" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
-        {value === "client" ? <SelectMatchWorkspace embedded initialView="client" selectionOnly selectedJpgNames={selectedJpgNames} onSelectionComplete={setSelectedJpgNames} /> : null}
+        {value === "client" ? <div className={styles.workspaceLoading}>고객 선택을 RAW 매칭으로 연결하는 중...</div> : null}
         {value === "tcut" ? (remote ? (
           <div className={styles.workspaceLoading}>T컷 정리는 이 기기에서 작업할 때 사용할 수 있습니다.</div>
         ) : <PhotoTcutWorkspace rootDir={currentLocalFolder} />) : null}

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { prepareScreenshotForOcr } from "@/lib/selectMatch/browserOcr";
+import { collectDroppedFolderFiles } from "@/lib/selectMatch/browserFolderUpload";
 
 export type SelectMatchClientInputMode = "folder" | "text" | "upload";
 
@@ -52,6 +53,20 @@ export function useSelectMatchClientInput({
     if (clientFileRef.current) clientFileRef.current.value = "";
   }, []);
 
+  const setUploadedFolderFromDrop = useCallback(async (dataTransfer: DataTransfer) => {
+    try {
+      setUploadedFiles(await collectDroppedFolderFiles(dataTransfer));
+    } catch (error) {
+      setUploadedClientFiles([]);
+      setUploadOcrNames([]);
+      setSelectedUploadOcrNames(new Set());
+      setUploadOcrMessage({
+        text: error instanceof Error ? `폴더를 읽지 못했습니다: ${error.message}` : "폴더를 읽지 못했습니다.",
+        ok: false,
+      });
+    }
+  }, [setUploadedFiles]);
+
   const analyzeUploadedFileNames = useCallback(async () => {
     if (!uploadedClientFiles.length || uploadOcrLoading) return;
     setUploadOcrLoading(true);
@@ -101,6 +116,7 @@ export function useSelectMatchClientInput({
     uploadOcrMessage,
     confirmClientInput,
     setUploadedFiles,
+    setUploadedFolderFromDrop,
     analyzeUploadedFileNames,
   };
 }

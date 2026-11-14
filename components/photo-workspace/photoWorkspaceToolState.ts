@@ -23,7 +23,7 @@ export type PhotoWorkspaceToolState = {
 // 다시 합치지 않는다.
 const TOOL_STATES: Record<PhotoWorkspaceToolId, PhotoWorkspaceToolState> = {
   "jpg-prep": { mode: "jpg-prep", selectMode: "manual" },
-  "select-raw": { mode: "select", selectMode: "client" },
+  "select-raw": { mode: "raw-match", selectMode: "client", rawMatchMethod: "filename" },
   "metadata-match": { mode: "raw-match", selectMode: "client", rawMatchMethod: "metadata" },
   "ai-cull": { mode: "select", selectMode: "tcut" },
   "t-cut": { mode: "select", selectMode: "tcut" },

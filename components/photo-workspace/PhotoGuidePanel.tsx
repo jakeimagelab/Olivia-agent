@@ -26,7 +26,7 @@ const GUIDES: Record<GuideKey, GuideStep[]> = {
     { icon: Link2, title: "RAW 매칭", description: "선택한 JPG와 같은 RAW를 연결합니다." },
   ],
   select_client: [
-    { icon: Users, title: "고객 선택 불러오기", description: "파일명 목록이나 고객 전달 파일을 불러옵니다." },
+    { icon: Users, title: "고객 선택 불러오기", description: "파일명 목록이나 고객 전달 폴더를 하위 폴더까지 불러옵니다." },
     { icon: ScanSearch, title: "JPG 매칭", description: "입력된 파일명을 실제 JPG와 대조합니다." },
     { icon: FileCheck2, title: "결과 확인", description: "찾은 파일과 누락된 파일을 확인합니다." },
     { icon: Link2, title: "RAW 매칭", description: "확인된 파일명의 RAW 원본을 복사합니다." },

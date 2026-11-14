@@ -43,12 +43,13 @@ export function SelectMatchEntryView({
     uploadOcrMessage,
     confirmClientInput,
     setUploadedFiles,
+    setUploadedFolderFromDrop,
     analyzeUploadedFileNames,
   } = controller;
   const entryModes = ([
     { key: "folder", icon: <FolderOpen size={15} strokeWidth={2} aria-hidden="true" />, title: "폴더 직접 선택", desc: "JPG 폴더를 열어서\n시각적으로 베스트컷 선택" },
     { key: "text", icon: <MessageSquare size={15} strokeWidth={2} aria-hidden="true" />, title: "텍스트 붙여넣기", desc: "카카오톡·메모 등\n파일명 목록을 붙여넣기" },
-    { key: "upload", icon: <Upload size={15} strokeWidth={2} aria-hidden="true" />, title: "파일 업로드", desc: "고객이 보낸 JPG 파일을\n직접 드래그 & 드롭" },
+    { key: "upload", icon: <Upload size={15} strokeWidth={2} aria-hidden="true" />, title: "폴더 업로드", desc: "고객이 보낸 폴더를\n하위 폴더까지 모두 확인" },
   ] as const).filter((item) => initialView === "raw" || (initialView === "manual" ? item.key === "folder" : item.key !== "folder"));
 
   return (
@@ -130,24 +131,24 @@ export function SelectMatchEntryView({
 
       {inputMode === "upload" ? <div style={{ background: colors.surfaceCard, border: `1px solid ${colors.uiBorder}`, borderRadius: 14, padding: 24 }}>
         <div style={{ fontSize: 12, color: colors.uiMuted, lineHeight: 1.7, marginBottom: 14 }}>
-          고객이 선택해서 보낸 JPG 파일 또는 셀렉 리포트 스크린샷을 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
-          <span style={{ color: colors.uiHint }}>일반 JPG는 파일명 그대로, 리포트 이미지는 화면 안의 파일명을 분석해 RAW 매칭에 사용합니다.</span>
+          고객이 선택해서 보낸 폴더를 아래 영역에 드래그하거나 클릭해서 선택하세요.<br />
+          <span style={{ color: colors.uiHint }}>하위 폴더의 사진까지 모두 읽고, 파일명 목록을 RAW 매칭에 사용합니다.</span>
         </div>
-        <input ref={clientFileRef} type="file" multiple accept="image/*,.jpg,.jpeg,.heic,.png,.tif" style={{ display: "none" }} onChange={(event) => { if (event.target.files) setUploadedFiles(event.target.files); }} />
+        <input ref={(input) => { clientFileRef.current = input; input?.setAttribute("webkitdirectory", ""); input?.setAttribute("directory", ""); }} type="file" multiple accept="image/*,.jpg,.jpeg,.heic,.png,.tif" style={{ display: "none" }} onChange={(event) => { if (event.target.files) setUploadedFiles(event.target.files); }} />
         <div
           onDragOver={(event) => { event.preventDefault(); setClientDragging(true); }}
           onDragLeave={() => setClientDragging(false)}
-          onDrop={(event) => { event.preventDefault(); setClientDragging(false); setUploadedFiles(event.dataTransfer.files); }}
+          onDrop={(event) => { event.preventDefault(); setClientDragging(false); void setUploadedFolderFromDrop(event.dataTransfer); }}
           onClick={() => clientFileRef.current?.click()}
           style={{ border: `2px dashed ${clientDragging ? colors.uiAccent : colors.uiBorder}`, borderRadius: 12, padding: "48px 24px", textAlign: "center", cursor: "pointer", background: clientDragging ? colors.groupedSurface : colors.inputSurface, transition: "all .2s" }}
         >
           <FolderOpen size={32} aria-hidden="true" style={{ marginBottom: 10, color: colors.uiAccent }} />
-          <div style={{ fontSize: 13, fontWeight: 500, color: colors.uiAccent, marginBottom: 4 }}>파일을 드래그하거나 클릭</div>
-          <div style={{ fontSize: 11, color: colors.uiHint }}>선택 후 파일명 그대로 사용하거나 이미지 안 파일명을 분석할 수 있습니다.</div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: colors.uiAccent, marginBottom: 4 }}>폴더를 드래그하거나 클릭</div>
+          <div style={{ fontSize: 11, color: colors.uiHint }}>선택한 폴더의 하위 사진까지 자동으로 확인합니다.</div>
         </div>
         {uploadedClientFiles.length > 0 ? <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: colors.inputSurface }}>
-          <div style={{ fontSize: 12, fontWeight: 500, color: colors.uiAccent }}>업로드한 파일 {uploadedClientFiles.length}개</div>
-          <div style={{ marginTop: 5, maxHeight: 52, overflowY: "auto", fontSize: 10, color: colors.uiMuted, lineHeight: 1.65 }}>{uploadedClientFiles.map((file) => file.name).join(", ")}</div>
+          <div style={{ fontSize: 12, fontWeight: 500, color: colors.uiAccent }}>폴더에서 확인한 파일 {uploadedClientFiles.length}개</div>
+          <div style={{ marginTop: 5, maxHeight: 52, overflowY: "auto", fontSize: 10, color: colors.uiMuted, lineHeight: 1.65 }}>{uploadedClientFiles.map((file) => file.webkitRelativePath || file.name).join(", ")}</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
             <SelectMatchButton dark={embedded} variant="secondary" onClick={() => confirmClientInput(parseNamesFromFiles(uploadedClientFiles))}>파일명 그대로 사용</SelectMatchButton>
             <SelectMatchButton dark={embedded} variant="secondary" disabled={uploadOcrLoading} onClick={() => void analyzeUploadedFileNames()}>{uploadOcrLoading ? "🔎 이미지 분석 중..." : "🔎 이미지 속 파일명 분석"}</SelectMatchButton>
