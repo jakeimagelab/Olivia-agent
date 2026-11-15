@@ -71,12 +71,15 @@ describe("Olivia 양쪽 실행 경로의 도구 미호출 방어", () => {
 
   it("시스템 상태 팝업은 공통 진단 결과와 내 차례를 계층형으로 표시한다", () => {
     const source = readFileSync("components/olivia-os/StatusPanelButton.tsx", "utf8");
+    const runtimeSource = readFileSync("components/olivia-os/OliviaRuntimeStatusProvider.tsx", "utf8");
+    const partsSource = readFileSync("components/olivia-os/StatusPanelParts.tsx", "utf8");
     const routeSource = readFileSync("app/api/olivia-os/status-panel/route.ts", "utf8");
     expect(source).toContain("systemAttentionItems(data)");
     expect(source).toContain('label="내 차례"');
     expect(source).toContain("STATUS_PANEL_STORAGE_KEY");
     expect(source).toContain("StatusPanelErrorBoundary");
-    expect(source).toContain("normalizeStatusPanelData(body)");
+    expect(runtimeSource).toContain("normalizeStatusPanelData(await loadStatusPanelData(options))");
+    expect(partsSource).toContain("export class StatusPanelErrorBoundary");
     expect(source).toContain("statusPanelActiveChip");
     expect(routeSource).toContain("collectSystemStatus({ db, now, includeSchemaChecks: false })");
   });

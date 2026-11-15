@@ -34,9 +34,11 @@ describe("photo workspace rendering safeguards", () => {
 
   it("polls remote tasks at visible, hidden, and empty-state intervals", () => {
     const statusBar = source("components/olivia-os/PhotoTaskStatusBar.tsx");
-    expect(statusBar).toContain('document.visibilityState === "hidden" ? 60_000');
-    expect(statusBar).toContain("visibleCount === 0 ? 30_000 : 5_000");
-    expect(statusBar).not.toContain("setInterval(");
+    const taskJobs = source("components/olivia-os/usePhotoTaskJobs.ts");
+    expect(statusBar).toContain("usePhotoTaskJobs()");
+    expect(taskJobs).toContain('document.visibilityState === "hidden" ? 60_000');
+    expect(taskJobs).toContain("visibleCount === 0 ? 30_000 : 5_000");
+    expect(taskJobs).not.toContain("setInterval(");
   });
 
   it("filters RAW matching scenes by basename without replacing the full selection", () => {
