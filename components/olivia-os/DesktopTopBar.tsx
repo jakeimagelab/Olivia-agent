@@ -1,16 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronDown, MessageCircle } from "lucide-react";
 import { useOliviaDesktopStore } from "@/lib/store/useOliviaDesktopStore";
 import { useOliviaDesktopUtilityStore } from "@/lib/store/useOliviaDesktopUtilityStore";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
+import { useOliviaRuntimeStatus } from "./OliviaRuntimeStatusProvider";
 import { StatusPanelButton } from "./StatusPanelButton";
-import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import styles from "./OliviaDesktop.module.css";
-
-type WorkerStatus = { online: boolean; nas_connected: boolean | null };
 
 export function DesktopTopBar() {
   const activeWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
@@ -19,23 +16,17 @@ export function DesktopTopBar() {
   const setGlobalSearchOpen = useOliviaDesktopUtilityStore((state) => state.setGlobalSearchOpen);
   const appChatOpen = useOliviaDesktopUtilityStore((state) => state.appChatOpen);
   const toggleAppChat = useOliviaDesktopUtilityStore((state) => state.toggleAppChat);
-  const [worker, setWorker] = useState<WorkerStatus | null>(null);
+  const { data: runtimeStatus, initialized: runtimeStatusInitialized } = useOliviaRuntimeStatus();
+  const workerStatus = runtimeStatus?.diagnostics.items.find((item) => item.id === "worker");
+  const nasStatus = runtimeStatus?.diagnostics.items.find((item) => item.id === "nas_connection");
+  const workerOnline = workerStatus?.level === "ok";
+  const nasConnected = nasStatus?.level === "ok";
 
-  useEffect(() => {
-    let disposed = false;
-    const load = () => loadRemoteWorkerStatus<{ worker?: WorkerStatus | null }>()
-      .then((payload) => { if (!disposed) setWorker(payload?.worker ?? null); })
-      .catch(() => { if (!disposed) setWorker(null); });
-    void load();
-    const timer = window.setInterval(load, 30_000);
-    return () => { disposed = true; window.clearInterval(timer); };
-  }, []);
-
-  const workerLabel = !worker
+  const workerLabel = !runtimeStatusInitialized
     ? "Mac Studio 확인 중 · NAS 확인 중"
-    : !worker.online
+    : !workerOnline
       ? "Mac Studio 꺼짐 · NAS 미확인"
-      : worker.nas_connected === false
+      : !nasConnected
         ? "Mac Studio 연결 · NAS 끊김"
         : "Mac Studio · NAS";
 
@@ -67,7 +58,7 @@ export function DesktopTopBar() {
           ) : null}
         </div>
         <StatusPanelButton />
-        <span className={styles.workerChip} data-online={Boolean(worker?.online)} data-nas={worker?.nas_connected !== false}>
+        <span className={styles.workerChip} data-online={workerOnline} data-nas={nasConnected}>
           <i />{workerLabel}
         </span>
         <button type="button" className={`${styles.topBarOliviaButton} ${appChatOpen ? styles.topBarOliviaButtonActive : ""}`} onClick={toggleAppChat} aria-label="Olivia 불러오기"><MessageCircle size={17} /><span>Olivia</span></button>

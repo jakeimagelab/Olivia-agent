@@ -28,7 +28,6 @@ import {
   groupStatusPanelEntries,
   hasConnectionProblem,
   limitStatusPanelEntryGroups,
-  normalizeStatusPanelData,
   parseStoredSectionState,
   retryableStatusIssueIds,
   STATUS_PANEL_STORAGE_KEY,
@@ -38,18 +37,15 @@ import {
   type StatusPanelSectionKey,
   type StatusPanelSectionState,
 } from "@/lib/system-status/panelModel";
-import type { StatusPanelAction, StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
-import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
+import type { StatusPanelAction, StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import type { SystemStatusItem } from "@/lib/system-status/types";
 import { useBackgroundJobsStore, type BackgroundJob } from "@/lib/store/useBackgroundJobsStore";
 import { cancelRemotePhotoSortJob } from "@/lib/photo-classifier/remotePhotoSort";
 import { useRemotePhotoJobStore } from "@/lib/store/useRemotePhotoJobStore";
+import { useOliviaRuntimeStatus } from "./OliviaRuntimeStatusProvider";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import styles from "./OliviaDesktop.module.css";
 
-const CLOSED_POLL_MS = 60_000;
-const OPEN_POLL_MS = 25_000;
-const ACTIVE_PHOTO_POLL_MS = 5_000;
 const TRANSIENT_RECHECK_MS = 30_000;
 
 type EntryActionState = { loading?: boolean; message?: string; error?: boolean };
@@ -305,17 +301,13 @@ function BrowserJobRow({ job, onOpen }: { job: BackgroundJob; onOpen: (href: str
 
 function StatusPanelButtonContent() {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<StatusPanelData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const { data, loading, error, refresh } = useOliviaRuntimeStatus();
   const [actionStates, setActionStates] = useState<Record<string, EntryActionState>>({});
   const [deferredIssueIds, setDeferredIssueIds] = useState<Set<string>>(() => new Set());
   const [sections, setSections] = useState<StatusPanelSectionState>(DEFAULT_STATUS_PANEL_SECTIONS);
   const [showAllProgress, setShowAllProgress] = useState(false);
   const [selectedRemoteProgress, setSelectedRemoteProgress] = useState<StatusPanelEntry | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const hasLoadedRef = useRef(false);
-  const requestSequenceRef = useRef(0);
   const recheckedIssueIdsRef = useRef(new Set<string>());
   const recheckTimersRef = useRef<number[]>([]);
   const autoActionIdsRef = useRef(new Set<string>());
@@ -323,36 +315,11 @@ function StatusPanelButtonContent() {
   const backgroundJobMap = useBackgroundJobsStore((state) => state.jobs);
   const backgroundJobs = useMemo(() => Object.values(backgroundJobMap), [backgroundJobMap]);
   const launchHref = useDesktopAppLauncher();
-  const hasActiveRemotePhotoProgress = Boolean(data?.progress.some((entry) => entry.kind === "remote_job_progress" && entry.remoteJob && ["QUEUED", "RUNNING"].includes(entry.remoteJob.status)));
-
-  const load = useCallback(async () => {
-    const requestSequence = ++requestSequenceRef.current;
-    setLoading(!hasLoadedRef.current);
-    try {
-      const body = await loadStatusPanelData();
-      if (requestSequence !== requestSequenceRef.current) return;
-      setData(normalizeStatusPanelData(body));
-      setError(false);
-      hasLoadedRef.current = true;
-    } catch {
-      if (requestSequence === requestSequenceRef.current) setError(true);
-    } finally {
-      if (requestSequence === requestSequenceRef.current) {
-        setLoading(false);
-      }
-    }
-  }, []);
+  const load = useCallback(() => refresh({ force: true }), [refresh]);
 
   useEffect(() => {
     setSections(parseStoredSectionState(window.localStorage.getItem(STATUS_PANEL_STORAGE_KEY)));
   }, []);
-
-  useEffect(() => {
-    void load();
-    const pollInterval = hasActiveRemotePhotoProgress ? ACTIVE_PHOTO_POLL_MS : open ? OPEN_POLL_MS : CLOSED_POLL_MS;
-    const timer = window.setInterval(() => void load(), pollInterval);
-    return () => window.clearInterval(timer);
-  }, [open, load, hasActiveRemotePhotoProgress]);
 
   useEffect(() => () => {
     for (const timer of recheckTimersRef.current) window.clearTimeout(timer);

@@ -16,6 +16,7 @@ import { DesktopAppChatPanel } from "./DesktopAppChatPanel";
 import { oliviaAppRegistry } from "./registry/oliviaAppRegistry";
 import { DesktopShellErrorBoundary } from "./DesktopShellErrorBoundary";
 import { PhotoTaskStatusBar } from "./PhotoTaskStatusBar";
+import { OliviaRuntimeStatusProvider } from "./OliviaRuntimeStatusProvider";
 import styles from "./OliviaDesktop.module.css";
 
 function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLaunch | null }) {
@@ -100,19 +101,21 @@ function OliviaDesktopContent({ initialLaunch }: { initialLaunch?: OliviaRootLau
 
   return (
     <div className={styles.desktop} data-home={!activeWindowId} data-olivia-desktop-root>
-      <HomeDashboardDataProvider>
-        <div className={styles.desktopBody} data-chat-open={showAppChat} data-active-app={activeWindow?.appId ?? "home"}>
-          <section className={styles.desktopStage}>
-            <DesktopTopBar />
-            <DesktopSurface />
-          </section>
-          {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={chatScreenTitle} onClose={() => setAppChatOpen(false)} /> : null}
-        </div>
-      </HomeDashboardDataProvider>
-      <div className={styles.dockArea}><DesktopDock /></div>
-      <DesktopGlobalSearch />
-      <DesktopUtilityToast />
-      <PhotoTaskStatusBar />
+      <OliviaRuntimeStatusProvider>
+        <HomeDashboardDataProvider>
+          <div className={styles.desktopBody} data-chat-open={showAppChat} data-active-app={activeWindow?.appId ?? "home"}>
+            <section className={styles.desktopStage}>
+              <DesktopTopBar />
+              <DesktopSurface />
+            </section>
+            {appChatMounted ? <DesktopAppChatPanel open={showAppChat} screenTitle={chatScreenTitle} onClose={() => setAppChatOpen(false)} /> : null}
+          </div>
+        </HomeDashboardDataProvider>
+        <div className={styles.dockArea}><DesktopDock /></div>
+        <DesktopGlobalSearch />
+        <DesktopUtilityToast />
+        <PhotoTaskStatusBar />
+      </OliviaRuntimeStatusProvider>
     </div>
   );
 }

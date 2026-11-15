@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowUpRight, FileText, Images, LayoutPanelTop, LoaderCircle } from "lucide-react";
 import { useHomeDashboardData } from "@/components/dashboard/HomeDashboardData";
-import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
-import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
+import type { StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { resolveOliviaAppRoute } from "./registry/oliviaAppRegistry";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
+import { useOliviaRuntimeStatus } from "./OliviaRuntimeStatusProvider";
 import styles from "./OliviaDesktop.module.css";
 
 type HomeFilter = "all" | "document" | "media";
@@ -38,19 +38,9 @@ function EntryIcon({ entry }: { entry: StatusPanelEntry }) {
 export function DesktopWidgets({ windowMode = false }: { windowMode?: boolean }) {
   const { data, state } = useHomeDashboardData();
   const launchHref = useDesktopAppLauncher();
-  const [panel, setPanel] = useState<StatusPanelData | null>(null);
-  const [panelLoaded, setPanelLoaded] = useState(false);
+  const { data: panel, initialized: panelLoaded } = useOliviaRuntimeStatus();
   const [filter, setFilter] = useState<HomeFilter>("all");
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    loadStatusPanelData()
-      .then((payload) => { if (active && payload?.ok) setPanel(payload as StatusPanelData); })
-      .catch(() => undefined)
-      .finally(() => { if (active) setPanelLoaded(true); });
-    return () => { active = false; };
-  }, []);
 
   const continueEntries = useMemo(() => {
     const merged = [...(panel?.myTurn ?? []), ...(panel?.recentActivity ?? [])];
