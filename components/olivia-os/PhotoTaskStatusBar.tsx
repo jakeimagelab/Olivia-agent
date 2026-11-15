@@ -23,11 +23,15 @@ const STAGE_LABEL: Record<string, string> = {
   ORGANIZING: "정리 중",
   FINAL_VERIFYING: "최종 검증 중",
   VERIFYING: "검증 중",
+  COLOR_MATCH: "색 맞춤 중",
+  COLOR_RENDER: "색 맞춤 저장 중",
 };
 
 function operationLabel(job: PhotoTaskJob): string {
   if (job.action === "PERSON_SELECT_IMPORT") return "개인별 사진 올리기";
   if (job.action === "PERSON_SELECT_DELIVERY_IMPORT") return "보정본 올리기";
+  if (job.action === "PERSON_SELECT_COLOR_MATCH") return "색 맞춤";
+  if (job.action === "PERSON_SELECT_COLOR_RENDER") return "색 맞춤 저장";
   if (job.action === "PERSON_SELECT_DELIVERY_PURGE") return "보정본 보관 정리";
   if (job.action === "PERSON_SELECT_RAW_MATCH") return "개인별 셀렉 RAW 매칭";
   if (job.action === "PHOTO_PREPARE_SOURCE") return "JPG정리";

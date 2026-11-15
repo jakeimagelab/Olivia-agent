@@ -248,6 +248,7 @@ export default function PersonSelectDetailPage() {
         onDeliveryAction={changeDeliveryOwner}
       /> : null}
       {tab === "upload" ? <PersonSelectUploadPanel
+        eventId={id}
         controller={importController}
         currentLayout={currentLayout}
         onLayoutChange={setLayout}

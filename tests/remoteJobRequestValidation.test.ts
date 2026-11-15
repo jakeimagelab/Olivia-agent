@@ -13,6 +13,8 @@ import {
 describe("remote job request validation", () => {
   it("normalizes known actions and rejects unknown actions", () => {
     expect(normalizeRemoteJobAction(" person_select_raw_match ")).toBe("PERSON_SELECT_RAW_MATCH");
+    expect(normalizeRemoteJobAction("person_select_color_match")).toBe("PERSON_SELECT_COLOR_MATCH");
+    expect(normalizeRemoteJobAction("person_select_color_render")).toBe("PERSON_SELECT_COLOR_RENDER");
     expect(normalizeRemoteJobAction("DELETE_EVERYTHING")).toBeNull();
     expect(normalizeRemoteJobAction(null)).toBeNull();
   });

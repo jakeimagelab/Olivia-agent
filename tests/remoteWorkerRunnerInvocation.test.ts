@@ -35,6 +35,21 @@ describe("Mac Studio worker runner invocation", () => {
     ]));
   });
 
+  it("maps color match and render jobs to their dedicated runners", () => {
+    const match = createRunnerInvocation({
+      action: "PERSON_SELECT_COLOR_MATCH",
+      payload: { event_id: "event", source_relative_path: "root-1/보정본", brightness: true, skin_tone: true, target_mode: "median" },
+    }, repoRoot);
+    expect(match?.args).toContain(path.join(repoRoot, "scripts/person-select-color-match.ts"));
+    expect(match?.args).toEqual(expect.arrayContaining(["--brightness", "true", "--skin-tone", "true"]));
+    const render = createRunnerInvocation({
+      action: "PERSON_SELECT_COLOR_RENDER",
+      payload: { event_id: "event", output_relative_path: "root-1/보정본_색맞춤", changes: [] },
+    }, repoRoot);
+    expect(render?.args).toContain(path.join(repoRoot, "scripts/person-select-color-render.ts"));
+    expect(render?.args).toEqual(expect.arrayContaining(["--changes-json", "[]"]));
+  });
+
   it("serializes selected RAW names into one CLI argument", () => {
     const invocation = createRunnerInvocation({
       action: "PHOTO_RAW_MATCH",

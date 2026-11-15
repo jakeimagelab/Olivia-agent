@@ -149,6 +149,21 @@ export function createRunnerInvocation(job: WorkerJob, repoRoot: string): Runner
       addString(args, "--event-id", workerStringValue(payload, "event_id", true));
       addString(args, "--source-relative-path", workerStringValue(payload, "source_relative_path", true));
       return runner(repoRoot, "person-select-delivery-import.ts", args);
+    case "PERSON_SELECT_COLOR_MATCH":
+      addString(args, "--event-id", workerStringValue(payload, "event_id", true));
+      addString(args, "--source-relative-path", workerStringValue(payload, "source_relative_path", true));
+      addBoolean(args, "--brightness", workerBooleanValue(payload, "brightness"));
+      addBoolean(args, "--skin-tone", workerBooleanValue(payload, "skin_tone"));
+      addString(args, "--target-mode", workerStringValue(payload, "target_mode") || "median");
+      addString(args, "--reference-file", workerStringValue(payload, "reference_file"));
+      return runner(repoRoot, "person-select-color-match.ts", args);
+    case "PERSON_SELECT_COLOR_RENDER":
+      addString(args, "--event-id", workerStringValue(payload, "event_id", true));
+      addString(args, "--output-relative-path", workerStringValue(payload, "output_relative_path", true));
+      if (Array.isArray(payload.changes)) addString(args, "--changes-json", JSON.stringify(payload.changes));
+      if (isRecord(payload.common_recipe)) addString(args, "--common-recipe-json", JSON.stringify(payload.common_recipe));
+      if (isRecord(payload.target_measurement)) addString(args, "--target-measurement-json", JSON.stringify(payload.target_measurement));
+      return runner(repoRoot, "person-select-color-render.ts", args);
     case "PERSON_SELECT_DELIVERY_PURGE":
       return runner(repoRoot, "person-select-delivery-purge.ts", args);
     case "PERSON_SELECT_RAW_MATCH":

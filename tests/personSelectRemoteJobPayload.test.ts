@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { normalizePersonSelectRequestPayload } from "@/lib/remote-jobs/personSelectRequestPayload";
+import { clonePhotoEditRecipe } from "@/lib/photo-edit";
 
 const eventId = "018e2f30-92af-78b1-8f21-67f4404f5027";
 const reviewerId = "018e2f30-92af-78b1-8f21-67f4404f5028";
 
 describe("person-select remote job payloads", () => {
+  it("normalizes color match and render jobs", () => {
+    expect(normalizePersonSelectRequestPayload("PERSON_SELECT_COLOR_MATCH", {
+      event_id: eventId,
+      source_relative_path: "root-1/보정본",
+      brightness: true,
+      skin_tone: true,
+      target_mode: "median",
+    })).toEqual({ event_id: eventId, source_relative_path: "root-1/보정본", brightness: true, skin_tone: true, target_mode: "median" });
+    expect(normalizePersonSelectRequestPayload("PERSON_SELECT_COLOR_RENDER", {
+      event_id: eventId,
+      output_relative_path: "root-1/보정본_색맞춤",
+      changes: [{ relativePath: "김원장/A.JPG", recipe: clonePhotoEditRecipe() }],
+    })).toMatchObject({ event_id: eventId, output_relative_path: "root-1/보정본_색맞춤" });
+  });
+
   it.each(["person-folders", "project"] as const)("keeps the %s import contract", (layout) => {
     expect(normalizePersonSelectRequestPayload("PERSON_SELECT_IMPORT", {
       event_id: eventId,

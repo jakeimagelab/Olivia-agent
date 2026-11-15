@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { usePersonSelectDeliveryImportController } from "@/components/person-select/admin/hooks/usePersonSelectDeliveryImportController";
+import { usePersonSelectColorMatchController } from "@/components/person-select/admin/hooks/usePersonSelectColorMatchController";
 import {
   usePersonSelectOriginalImportController,
   type PersonSelectSourceMode,
@@ -45,6 +46,12 @@ export function usePersonSelectImportController({
     load,
     setMessage,
   });
+  const colorMatchController = usePersonSelectColorMatchController({
+    eventId,
+    path: originalController.path,
+    setPath: originalController.setPath,
+    setMessage,
+  });
 
   return {
     ...originalController,
@@ -57,5 +64,6 @@ export function usePersonSelectImportController({
     assignDelivery: deliveryController.assignDelivery,
     changeDeliveryOwner: deliveryController.changeDeliveryOwner,
     updateDeliveryAssignment: deliveryController.updateDeliveryAssignment,
+    ...colorMatchController,
   };
 }

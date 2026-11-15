@@ -15,14 +15,18 @@ export async function ensurePersonSelectBucket() {
     const { error } = await storage.createBucket(PERSON_SELECT_BUCKET, {
       public: false,
       fileSizeLimit: 100 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg"],
+      allowedMimeTypes: ["image/jpeg", "application/json"],
     });
     if (error && !/already exists/i.test(error.message)) throw error;
-  } else if (Number(data.file_size_limit ?? 0) < 100 * 1024 * 1024) {
+  } else if (
+    Number(data.file_size_limit ?? 0) < 100 * 1024 * 1024
+    || !Array.isArray(data.allowed_mime_types)
+    || !data.allowed_mime_types.includes("application/json")
+  ) {
     const { error } = await storage.updateBucket(PERSON_SELECT_BUCKET, {
       public: false,
       fileSizeLimit: 100 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg"],
+      allowedMimeTypes: ["image/jpeg", "application/json"],
     });
     if (error) throw error;
   }

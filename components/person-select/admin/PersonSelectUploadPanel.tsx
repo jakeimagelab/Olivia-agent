@@ -5,6 +5,7 @@ import { FolderOpen, Monitor, Server, Upload, UserRound, UsersRound } from "luci
 import type { PersonSelectAdminPerson } from "@/lib/person-select/adminPerson";
 import type { PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { DeliveryImportResult } from "@/components/person-select/upload/DeliveryImportResult";
+import { ColorMatchPanel } from "@/components/person-select/upload/ColorMatchPanel";
 import type { usePersonSelectImportController } from "@/components/person-select/admin/hooks/usePersonSelectImportController";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
@@ -16,6 +17,7 @@ export function PersonSelectUploadPanel({
   workerOnline,
   people,
   sourceRelativePath,
+  eventId,
 }: {
   controller: ReturnType<typeof usePersonSelectImportController>;
   currentLayout: PersonSelectImportLayout;
@@ -24,6 +26,7 @@ export function PersonSelectUploadPanel({
   workerOnline: boolean | null;
   people: PersonSelectAdminPerson[];
   sourceRelativePath: string | null | undefined;
+  eventId: string;
 }) {
   const {
     path,
@@ -52,6 +55,7 @@ export function PersonSelectUploadPanel({
     resumeLocalImport,
     clearLocalSelection,
     updateDeliveryAssignment,
+    colorMatchJobId,
   } = controller;
   const isSchool = currentLayout === "school";
   const groupFolders = Array.isArray(result?.groupFolders) ? (result.groupFolders as unknown[]).map(String) : [];
@@ -81,12 +85,16 @@ export function PersonSelectUploadPanel({
       </> : <>
         <div className={styles.notice}>보정 완료 JPG/JPEG 폴더를 Mac Studio에서 선택합니다. 원본 파일은 그대로 private Storage에 보관하고, 고객 화면에는 2000px 미리보기를 사용합니다.</div>
         {workerOnline === false ? <div className={styles.warning}>Mac Studio가 꺼져 있어요. 켜진 뒤 다시 시도해 주세요.</div> : null}
+        <div className={styles.deliveryStep}><span className={styles.stepNumber}>1</span><div><strong>보정본 폴더 선택</strong><p className={styles.summary}>원본 보정본 폴더는 바꾸지 않고 색 맞춤 결과를 옆 폴더에 만듭니다.</p></div></div>
         <div className={styles.selectedPath}>{path || "선택된 Mac Studio 보정본 폴더가 없습니다."}</div>
-        <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={workerOnline === false || Boolean(deliveryJobId)} onClick={() => setPickerOpen(true)}><FolderOpen size={15} />폴더 선택</button><button className={styles.primary} disabled={workerOnline !== true || !path || Boolean(deliveryJobId)} onClick={() => void startDeliveryImport()}><Upload size={15} />{deliveryJobId ? "보정본 올리는 중" : "보정본 올리기"}</button></div>
+        <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.secondary} disabled={workerOnline === false || Boolean(deliveryJobId) || Boolean(colorMatchJobId)} onClick={() => setPickerOpen(true)}><FolderOpen size={15} />폴더 선택</button></div>
         <div className={styles.field} style={{ marginTop: 18 }}><label>경로 직접 입력</label><input className={styles.input} value={path} onChange={(event) => setPath(event.target.value)} placeholder="/Volumes/Agentstation(M.2SSD)/.../보정본" /><small className={styles.summary}>Mac Studio에서 보이는 폴더 경로를 입력합니다. Vercel 서버를 거쳐 파일을 전송하지 않습니다.</small></div>
+        <ColorMatchPanel controller={controller} eventId={eventId} workerOnline={workerOnline} />
+        <div className={styles.deliveryStep}><span className={styles.stepNumber}>4</span><div><strong>보정본 올리기</strong><p className={styles.summary}>결과를 확인한 뒤 고객 화면에 원본과 2000px 미리보기를 올립니다.</p></div></div>
+        <div className={styles.actions} style={{ justifyContent: "flex-start" }}><button className={styles.primary} disabled={workerOnline !== true || !path || Boolean(deliveryJobId) || Boolean(colorMatchJobId)} onClick={() => void startDeliveryImport()}><Upload size={15} />{deliveryJobId ? "보정본 올리는 중" : "보정본 올리기"}</button></div>
         {deliveryResult ? <DeliveryImportResult result={deliveryResult} people={people} isShared={isShared} assignments={deliveryAssignments} busy={Boolean(deliveryJobId)} onRetry={() => void startDeliveryImport()} onAssignmentChange={updateDeliveryAssignment} onAssign={(deliveryId) => void assignDelivery(deliveryId)} /> : null}
       </>}
     </section>
-    <aside className={styles.uploadCard}><h2>{uploadKind === "delivery" ? "보정본 연결 기준" : "가져오는 항목"}</h2>{uploadKind === "delivery" ? <><div className={styles.notice}>촬영시각 일치 → 파일명 앞 이름 → 상위 폴더 이름 순으로 고객과 연결합니다.<br />연결하지 못한 파일은 업로드 결과에서 직접 지정할 수 있습니다.</div><p className={styles.summary}>같은 파일명을 다시 올리면 새 버전으로 보관합니다. 고객이 수정 요청한 사진은 새 버전이 올라오면 “수정됨”으로 표시됩니다.</p></> : isShared ? <><div className={styles.notice}>선택한 프로젝트 폴더의 JPG를 하위 폴더까지 가져옵니다.<br />사람 계정이나 개인별 PIN은 만들지 않습니다.</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 상대경로를 보존한 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
+    <aside className={styles.uploadCard}><h2>{uploadKind === "delivery" ? "보정본 연결 기준" : "가져오는 항목"}</h2>{uploadKind === "delivery" ? <><div className={styles.notice}>촬영시각 일치 → 파일명 앞 이름 → 상위 폴더 이름 순으로 고객과 연결합니다.<br />연결하지 못한 파일은 업로드 결과에서 직접 지정할 수 있습니다.</div><div className={styles.colorMatchGuide}><h3>색 맞춤 순서</h3>{["보정본 폴더 선택", "색 맞춤", "결과 확인", "보정본 올리기"].map((label, index) => <div key={label}><span className={styles.stepNumber}>{index + 1}</span><p><strong>{label}</strong>{index === 0 ? "원본은 읽기만 합니다." : index === 1 ? "실제 피부 픽셀을 측정합니다." : index === 2 ? "차이와 미리보기를 확인합니다." : "확인한 결과만 고객에게 올립니다."}</p></div>)}</div><p className={styles.summary}>같은 파일명을 다시 올리면 새 버전으로 보관합니다. 고객이 수정 요청한 사진은 새 버전이 올라오면 “수정됨”으로 표시됩니다.</p></> : isShared ? <><div className={styles.notice}>선택한 프로젝트 폴더의 JPG를 하위 폴더까지 가져옵니다.<br />사람 계정이나 개인별 PIN은 만들지 않습니다.</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 상대경로를 보존한 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : isSchool ? <><div className={styles.notice}>선생님프로필 → 사람 이름으로 연결<br />담임선생님 → 반 단위로 등록 후 아래에서 연결</div><p className={styles.summary}>학생사진 폴더는 건너뛰고 가져오지 않습니다.<br />원본은 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.</p></> : <><div className={styles.notice}>김춘자 / 이지영 … 폴더 이름 → 로그인 이름<br />각 폴더 안 JPG원본 → 그 사람만 보는 사진<br />그룹1, 그룹2 … → 고객에게 올리지 않음<br />개인1, 개인2 … → 이름을 바꾼 뒤 다시 올리기</div><p className={styles.summary}>원본과 RAW는 업로드하지 않습니다. 480px 썸네일과 1600px 미리보기만 private Storage에 저장합니다.<br />RAW 매칭은 각 이름 폴더 안에서 같은 파일 이름의 RAW를 찾아 촬영 폴더/Selected_RAW/이름 으로 복사합니다.</p></>}</aside>
   </div>;
 }

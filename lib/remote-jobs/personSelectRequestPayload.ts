@@ -1,4 +1,5 @@
 import { normalizeRemoteNasRelativePath } from "@/lib/remote-nas/path";
+import { parsePhotoEditRecipe, parsePhotoMeasurement } from "@/lib/photo-edit/recipeValidation";
 import {
   isRemoteJobUuid,
   safePersonSelectSourcePath,
@@ -6,6 +7,56 @@ import {
 } from "./requestValidation";
 
 type RemoteJobPayload = Record<string, unknown>;
+
+function safeColorMatchRelativeFile(value: unknown, required = false): string | undefined {
+  if (value === undefined || value === null || value === "") {
+    if (required) throw new Error("색 맞춤 파일 경로가 필요합니다.");
+    return undefined;
+  }
+  if (typeof value !== "string" || value.length > 1_000 || value.includes("\0") || value.startsWith("/") || value.split(/[\\/]/u).some((segment) => !segment || segment === "." || segment === "..")) {
+    throw new Error("색 맞춤 파일 경로가 올바르지 않습니다.");
+  }
+  return value.replace(/\\/gu, "/").normalize("NFC");
+}
+
+function normalizeColorMatchPayload(requested: RemoteJobPayload): RemoteJobPayload {
+  if (!isRemoteJobUuid(requested.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+  if (requested.brightness !== undefined && typeof requested.brightness !== "boolean") throw new Error("밝기 맞춤 설정이 올바르지 않습니다.");
+  if (requested.skin_tone !== undefined && typeof requested.skin_tone !== "boolean") throw new Error("피부 톤 맞춤 설정이 올바르지 않습니다.");
+  const targetMode = requested.target_mode === undefined ? "median" : requested.target_mode;
+  if (targetMode !== "median" && targetMode !== "reference") throw new Error("색 맞춤 기준이 올바르지 않습니다.");
+  const referenceFile = safeColorMatchRelativeFile(requested.reference_file, targetMode === "reference");
+  return {
+    event_id: requested.event_id,
+    source_relative_path: safePersonSelectSourcePath(requested.source_relative_path),
+    brightness: requested.brightness !== false,
+    skin_tone: requested.skin_tone !== false,
+    target_mode: targetMode,
+    ...(referenceFile ? { reference_file: referenceFile } : {}),
+  };
+}
+
+function normalizeColorRenderPayload(requested: RemoteJobPayload): RemoteJobPayload {
+  if (!isRemoteJobUuid(requested.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+  const changes = requested.changes;
+  if (!Array.isArray(changes) || changes.length > 500 || changes.some((entry) => !entry || typeof entry !== "object" || Array.isArray(entry))) {
+    throw new Error("색 맞춤 저장 항목은 최대 500장이어야 합니다.");
+  }
+  const normalizedChanges = changes.map((entry) => {
+    const item = entry as RemoteJobPayload;
+    return { relativePath: safeColorMatchRelativeFile(item.relativePath, true)!, recipe: parsePhotoEditRecipe(item.recipe) };
+  });
+  const commonRecipe = requested.common_recipe === undefined ? undefined : parsePhotoEditRecipe(requested.common_recipe);
+  const targetMeasurement = requested.target_measurement === undefined ? undefined : parsePhotoMeasurement(requested.target_measurement);
+  if (!normalizedChanges.length && !commonRecipe) throw new Error("저장할 색 맞춤 변경값이 없습니다.");
+  return {
+    event_id: requested.event_id,
+    output_relative_path: safePersonSelectSourcePath(requested.output_relative_path),
+    changes: normalizedChanges,
+    ...(commonRecipe ? { common_recipe: commonRecipe } : {}),
+    ...(targetMeasurement ? { target_measurement: targetMeasurement } : {}),
+  };
+}
 
 function normalizeImportPayload(requested: RemoteJobPayload): RemoteJobPayload {
   if (!isRemoteJobUuid(requested.event_id)) throw new Error("올바른 event_id가 필요합니다.");
@@ -124,6 +175,10 @@ export function normalizePersonSelectRequestPayload(
         event_id: requested.event_id,
         source_relative_path: safePersonSelectSourcePath(requested.source_relative_path),
       };
+    case "PERSON_SELECT_COLOR_MATCH":
+      return normalizeColorMatchPayload(requested);
+    case "PERSON_SELECT_COLOR_RENDER":
+      return normalizeColorRenderPayload(requested);
     case "PERSON_SELECT_DELIVERY_PURGE":
       return {};
     case "PERSON_SELECT_RAW_MATCH":
