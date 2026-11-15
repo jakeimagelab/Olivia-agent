@@ -7,28 +7,16 @@ import {
   type CustomerBridgeColorLabel,
   type CustomerBridgeRating,
 } from "@/lib/select-gallery/customerBridge";
+import {
+  customerBridgeGridNavigationTarget,
+  resolveCustomerBridgeKeyboardCommand,
+} from "@/lib/select-gallery/customerBridgeKeyboard";
+
+export { customerBridgeGridNavigationTarget } from "@/lib/select-gallery/customerBridgeKeyboard";
 
 function isTypingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
-}
-
-export function customerBridgeGridNavigationTarget({
-  orderedIds,
-  currentId,
-  key,
-  columns,
-}: {
-  orderedIds: readonly string[];
-  currentId: string;
-  key: string;
-  columns: number;
-}) {
-  const currentIndex = orderedIds.indexOf(currentId);
-  if (currentIndex < 0 || !key.startsWith("Arrow")) return null;
-  const safeColumns = Math.max(1, columns);
-  const delta = key === "ArrowLeft" ? -1 : key === "ArrowRight" ? 1 : key === "ArrowUp" ? -safeColumns : safeColumns;
-  return orderedIds[Math.max(0, Math.min(orderedIds.length - 1, currentIndex + delta))] ?? null;
 }
 
 export function useCustomerBridgeKeyboard({
@@ -105,37 +93,75 @@ export function useCustomerBridgeKeyboard({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (guideOpen || resetConfirmOpen) {
-        if (event.key === "Escape") {
+        const modalCommand = resolveCustomerBridgeKeyboardCommand({
+          key: event.key,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          guideOpen,
+          resetConfirmOpen,
+          mobileSideOpen,
+          fullscreenId,
+          reviewOpen: Boolean(reviewIds),
+          reviewActiveId,
+          reviewCanRestore: Boolean(reviewRemoved),
+          focusedImageId,
+          readOnly,
+        });
+        if (modalCommand?.type === "close-guide") {
           event.preventDefault();
-          if (guideOpen) closeGuide();
-          else closeResetConfirm();
+          closeGuide();
+        } else if (modalCommand?.type === "close-reset") {
+          event.preventDefault();
+          closeResetConfirm();
         }
         return;
       }
       if (handleSearchFilterShortcut(event)) return;
       if (event.isComposing || isTypingTarget(event.target)) return;
-      if (event.key === "Escape") {
-        if (fullscreenId) closeFullscreen();
-        else if (reviewIds) closeReview();
-        else if (mobileSideOpen) setMobileSideOpen(false);
-        else setCompactFoldersOpen(false);
+      const command = resolveCustomerBridgeKeyboardCommand({
+        key: event.key,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        guideOpen,
+        resetConfirmOpen,
+        mobileSideOpen,
+        fullscreenId,
+        reviewOpen: Boolean(reviewIds),
+        reviewActiveId,
+        reviewCanRestore: Boolean(reviewRemoved),
+        focusedImageId,
+        readOnly,
+      });
+      if (!command || command.type === "blocked") return;
+
+      if (command.type === "close-fullscreen") {
+        closeFullscreen();
         return;
       }
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+      if (command.type === "close-review") {
+        closeReview();
+        return;
+      }
+      if (command.type === "close-mobile-side") {
+        setMobileSideOpen(false);
+        return;
+      }
+      if (command.type === "close-folders") {
+        setCompactFoldersOpen(false);
+        return;
+      }
+      if (command.type === "open-review") {
         event.preventDefault();
         openReview();
         return;
       }
-      if (event.key === " ") {
-        const fullscreenTargetId = reviewActiveId ?? focusedImageId;
-        if (fullscreenTargetId) {
-          event.preventDefault();
-          openFullscreen(fullscreenTargetId);
-          return;
-        }
+      if (command.type === "open-fullscreen") {
+        event.preventDefault();
+        openFullscreen(command.imageId);
+        return;
       }
-      if (!readOnly && /^[0-9]$/.test(event.key)) {
-        const value = Number(event.key);
+      if (command.type === "apply-mark") {
+        const value = command.value;
         const targets = reviewIds && reviewActiveId
           ? new Set([reviewActiveId])
           : fullscreenId
@@ -166,27 +192,30 @@ export function useCustomerBridgeKeyboard({
         applyRatingTo(targets, rating);
         return;
       }
-      if (reviewIds) {
-        if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && reviewIds.length) {
-          event.preventDefault();
-          moveReview(event.key === "ArrowLeft" ? -1 : 1);
-        } else if (event.key === "ArrowDown" && reviewActiveId) {
-          event.preventDefault();
-          removeFromReview(reviewActiveId);
-        } else if (event.key === "ArrowUp" && reviewRemoved) {
-          event.preventDefault();
-          restoreReview();
-        }
-        return;
-      }
-      if (fullscreenId && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      if (command.type === "move-review") {
+        if (!reviewIds?.length) return;
         event.preventDefault();
-        moveFullscreen(event.key === "ArrowLeft" ? -1 : 1);
+        moveReview(command.delta);
         return;
       }
-      if (!focusedImageId || !event.key.startsWith("Arrow")) return;
+      if (command.type === "remove-review-image") {
+        event.preventDefault();
+        removeFromReview(command.imageId);
+        return;
+      }
+      if (command.type === "restore-review-image") {
+        event.preventDefault();
+        restoreReview();
+        return;
+      }
+      if (command.type === "move-fullscreen") {
+        event.preventDefault();
+        moveFullscreen(command.delta);
+        return;
+      }
+      if (command.type !== "move-grid" || !focusedImageId) return;
       const columns = Math.max(1, Math.floor((gridRef.current?.clientWidth ?? thumbSize) / (thumbSize + 10)));
-      const nextId = customerBridgeGridNavigationTarget({ orderedIds, currentId: focusedImageId, key: event.key, columns });
+      const nextId = customerBridgeGridNavigationTarget({ orderedIds, currentId: focusedImageId, key: command.key, columns });
       if (!nextId) return;
       event.preventDefault();
       if (event.shiftKey && !readOnly) {
