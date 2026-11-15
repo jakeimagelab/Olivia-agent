@@ -21,6 +21,13 @@ type FieldOutputProgress = {
   message: string;
 };
 
+export function sanitizeFieldSceneFolderName(name: string, sceneIndex: number): string {
+  const sanitized = name
+    .replace(/[\\/:*?"<>|]/gu, "_")
+    .replace(/[. ]+$/gu, "");
+  return sanitized || `Scene_${String(sceneIndex + 1).padStart(2, "0")}`;
+}
+
 async function writeReport(
   reportDirectory: FileSystemDirectoryHandle,
   name: string,
@@ -69,16 +76,29 @@ export async function executePlannedFieldOutput({
   operations: FieldFileOperation[];
 }> {
   const totalFiles = scenes.reduce((sum, scene) => sum + scene.fileCount, 0);
-  const reportDirectory = await rootDirectory.getDirectoryHandle("REPORT", { create: true });
   const operations: FieldFileOperation[] = [];
   let completed = 0;
   let lastUpdate = Date.now();
-  const flushJournal = () => writeReport(reportDirectory, "file_operation_journal.json", JSON.stringify({
-    version: 1,
-    root: rootDirectory.name,
-    operations,
-    updatedAt: now(),
-  }, null, 2));
+  let reportDirectory: FileSystemDirectoryHandle | null = null;
+  try {
+    reportDirectory = await rootDirectory.getDirectoryHandle("REPORT", { create: true });
+  } catch (error) {
+    onSuppressedError(error);
+  }
+  let journalWriteChain = Promise.resolve();
+  const flushJournal = () => {
+    if (!reportDirectory) return journalWriteChain;
+    const snapshot = JSON.stringify({
+      version: 1,
+      root: rootDirectory.name,
+      operations,
+      updatedAt: now(),
+    }, null, 2);
+    journalWriteChain = journalWriteChain
+      .then(() => writeReport(reportDirectory, "file_operation_journal.json", snapshot))
+      .catch(onSuppressedError);
+    return journalWriteChain;
+  };
 
   const rawDirectory = await rootDirectory.getDirectoryHandle("RAW", { create: true });
   for (let index = 0; index < rawFiles.length; index += 1) {
@@ -125,8 +145,28 @@ export async function executePlannedFieldOutput({
   for (let sceneIndex = 0; sceneIndex < updated.length; sceneIndex += 1) {
     if (isCancelled()) break;
     const scene = updated[sceneIndex];
-    const targetName = scene.editedName;
-    const sceneDirectory = await jpgBaseDirectory.getDirectoryHandle(targetName, { create: true });
+    const targetName = sanitizeFieldSceneFolderName(scene.editedName, sceneIndex);
+    let sceneDirectory: FileSystemDirectoryHandle;
+    try {
+      sceneDirectory = await jpgBaseDirectory.getDirectoryHandle(targetName, { create: true });
+    } catch (error) {
+      const message = `씬 폴더 생성 실패: ${error instanceof Error ? error.message : String(error)}`;
+      for (const entry of scene.files) {
+        operations.push({
+          type: "copy_remove",
+          category: "JPG",
+          source: entry.name,
+          destination: `JPG/${targetName}/${entry.name}`,
+          status: "failed",
+          error: message,
+          at: now(),
+        });
+        completed += 1;
+      }
+      updated[sceneIndex] = { ...scene, editedName: targetName };
+      await flushJournal();
+      continue;
+    }
     const newFiles: SceneFile[] = [];
     for (const entry of scene.files) {
       if (isCancelled()) break;
@@ -168,42 +208,54 @@ export async function executePlannedFieldOutput({
     updated[sceneIndex] = {
       ...scene,
       folderName: targetName,
+      editedName: targetName,
       sceneDir: sceneDirectory,
       files: newFiles,
     };
   }
 
   await flushJournal();
-  await clearCheckpoint(checkpointId);
-  await Promise.all([
-    writeReport(reportDirectory, "scene_boundaries.json", JSON.stringify({
-      version: 1,
-      boundaries: boundaryDecisions,
-      createdAt: now(),
-    }, null, 2)),
-    writeReport(reportDirectory, "scene_corrections.json", JSON.stringify({
-      version: 1,
-      corrections: sceneCorrections,
-      createdAt: now(),
-    }, null, 2)),
-    writeReport(reportDirectory, "scene_corrections.csv", makeCSV(
-      ["project_id", "boundary_index", "boundary_file", "previous_decision", "corrected_decision", "action", "reason", "created_at"],
-      sceneCorrections.map((item) => [
-        item.projectId,
-        String(item.boundaryIndex),
-        item.boundaryFileName,
-        item.previousDecision,
-        item.correctedDecision,
-        item.action,
-        item.reason ?? "",
-        item.createdAt,
-      ]),
-    )),
-    ...(accuracyReport ? [writeReport(reportDirectory, "scene_accuracy_report.json", JSON.stringify({
-      ...accuracyReport,
-      createdAt: now(),
-    }, null, 2))] : []),
-  ]);
+  const finalizers: Array<() => Promise<unknown>> = [() => clearCheckpoint(checkpointId)];
+  if (reportDirectory) {
+    finalizers.push(
+      () => writeReport(reportDirectory, "scene_boundaries.json", JSON.stringify({
+        version: 1,
+        boundaries: boundaryDecisions,
+        createdAt: now(),
+      }, null, 2)),
+      () => writeReport(reportDirectory, "scene_corrections.json", JSON.stringify({
+        version: 1,
+        corrections: sceneCorrections,
+        createdAt: now(),
+      }, null, 2)),
+      () => writeReport(reportDirectory, "scene_corrections.csv", makeCSV(
+        ["project_id", "boundary_index", "boundary_file", "previous_decision", "corrected_decision", "action", "reason", "created_at"],
+        sceneCorrections.map((item) => [
+          item.projectId,
+          String(item.boundaryIndex),
+          item.boundaryFileName,
+          item.previousDecision,
+          item.correctedDecision,
+          item.action,
+          item.reason ?? "",
+          item.createdAt,
+        ]),
+      )),
+    );
+    if (accuracyReport) {
+      finalizers.push(() => writeReport(reportDirectory, "scene_accuracy_report.json", JSON.stringify({
+        ...accuracyReport,
+        createdAt: now(),
+      }, null, 2)));
+    }
+  }
+  await Promise.all(finalizers.map(async (finalize) => {
+    try {
+      await finalize();
+    } catch (error) {
+      onSuppressedError(error);
+    }
+  }));
 
   return { scenes: updated, jpgBaseDirectory, totalFiles, operations };
 }

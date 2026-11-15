@@ -50,7 +50,15 @@ describe("browser field review runner", () => {
       scenes: [plannedScene],
       jpgBaseDirectory,
       totalFiles: 1,
-      operations: [],
+      operations: [{
+        type: "copy_remove",
+        category: "JPG",
+        source: "A.JPG",
+        destination: "JPG/01_상담/A.JPG",
+        status: "failed",
+        error: "copy failed",
+        at: "2026-11-15T00:00:00.000Z",
+      }],
     });
     const runSecondaryAnalysis = vi.fn();
 
@@ -70,6 +78,7 @@ describe("browser field review runner", () => {
 
     expect(result).toMatchObject({
       outputMode: "planned",
+      failedOperationCount: 1,
       jpgBaseDirectory,
       stats: { totalJpg: 1, totalRaw: 2, totalScenes: 1, totalProfile: 0, totalQualityReject: 0 },
     });

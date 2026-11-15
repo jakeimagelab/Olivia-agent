@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { executePlannedFieldOutput, renameConfirmedFieldScenes } from "@/lib/photo-classifier/fieldOutput";
+import {
+  executePlannedFieldOutput,
+  renameConfirmedFieldScenes,
+  sanitizeFieldSceneFolderName,
+} from "@/lib/photo-classifier/fieldOutput";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 
 type FakeStoredFile = {
@@ -11,10 +15,13 @@ class FakeDirectory {
   readonly directories = new Map<string, FakeDirectory>();
   readonly files = new Map<string, FakeStoredFile>();
   readonly removed: string[] = [];
+  readonly failedDirectoryNames = new Set<string>();
+  failWrites = false;
 
   constructor(readonly name: string) {}
 
   async getDirectoryHandle(name: string) {
+    if (this.failedDirectoryNames.has(name)) throw new Error(`cannot create ${name}`);
     const existing = this.directories.get(name);
     if (existing) return existing;
     const created = new FakeDirectory(name);
@@ -30,10 +37,13 @@ class FakeDirectory {
     this.files.set(name, stored);
     return {
       getFile: async () => stored.file,
-      createWritable: async () => ({
-        write: async (content: string) => { stored.content = content; },
-        close: async () => undefined,
-      }),
+      createWritable: async () => {
+        if (this.failWrites) throw new Error(`cannot write ${name}`);
+        return {
+          write: async (content: string) => { stored.content = content; },
+          close: async () => undefined,
+        };
+      },
     };
   }
 
@@ -46,15 +56,20 @@ function asDirectory(directory: FakeDirectory) {
   return directory as unknown as FileSystemDirectoryHandle;
 }
 
-function makeScene(handle: FileSystemFileHandle): FieldScene {
+function makeScene(
+  handle: FileSystemFileHandle,
+  editedName = "01_상담",
+  fileName = "A.JPG",
+  index = 1,
+): FieldScene {
   return {
-    index: 1,
-    folderName: "Scene01",
-    editedName: "01_상담",
+    index,
+    folderName: `Scene${String(index).padStart(2, "0")}`,
+    editedName,
     startTime: 1,
     endTime: 2,
     fileCount: 1,
-    files: [{ name: "A.JPG", basename: "A", handle, mtime: 1 }],
+    files: [{ name: fileName, basename: fileName.replace(/\.[^.]+$/u, ""), handle, mtime: 1 }],
     sceneDir: null,
     sceneType: "consultation",
     suggestedName: null,
@@ -68,6 +83,11 @@ function makeScene(handle: FileSystemFileHandle): FieldScene {
 }
 
 describe("field output", () => {
+  it("sanitizes forbidden folder characters and supplies a stable fallback name", () => {
+    expect(sanitizeFieldSceneFolderName("상담/원장:*?\"<>|. ", 0)).toBe("상담_원장_______");
+    expect(sanitizeFieldSceneFolderName("... ", 1)).toBe("Scene_02");
+  });
+
   it("moves planned RAW and JPG files, writes reports, and returns destination handles", async () => {
     const root = new FakeDirectory("촬영");
     const sourceJpg = {} as FileSystemFileHandle;
@@ -129,6 +149,76 @@ describe("field output", () => {
     })]);
     expect(result.scenes[0].files[0].handle).toBe(sourceJpg);
     expect(root.removed).not.toContain("A.JPG");
+  });
+
+  it("keeps organizing files when journal, final reports, and checkpoint cleanup fail", async () => {
+    const root = new FakeDirectory("촬영");
+    const report = await root.getDirectoryHandle("REPORT");
+    report.failWrites = true;
+    const suppressed = vi.fn();
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(root),
+      scenes: [makeScene({} as FileSystemFileHandle)],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "checkpoint",
+      isCancelled: () => false,
+      copyFile: async (_source, destination, name) => {
+        await destination.getFileHandle(name, { create: true });
+      },
+      thumbnailLoader: async () => null,
+      clearCheckpoint: async () => { throw new Error("checkpoint unavailable"); },
+      onSuppressedError: suppressed,
+    });
+
+    expect(result.operations).toEqual([expect.objectContaining({ source: "A.JPG", status: "completed" })]);
+    expect(root.removed).toContain("A.JPG");
+    expect(suppressed).toHaveBeenCalledWith(expect.any(Error));
+  });
+
+  it("records a scene-directory failure and continues with later scenes", async () => {
+    const root = new FakeDirectory("촬영");
+    const jpg = await root.getDirectoryHandle("JPG");
+    jpg.failedDirectoryNames.add("차단");
+    const copied: string[] = [];
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(root),
+      scenes: [
+        makeScene({} as FileSystemFileHandle, "상담/원장. ", "A.JPG", 1),
+        makeScene({} as FileSystemFileHandle, "차단", "B.JPG", 2),
+        makeScene({} as FileSystemFileHandle, "마지막", "C.JPG", 3),
+      ],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "checkpoint",
+      isCancelled: () => false,
+      copyFile: async (_source, destination, name) => {
+        copied.push(name);
+        await destination.getFileHandle(name, { create: true });
+      },
+      thumbnailLoader: async () => null,
+      clearCheckpoint: async () => undefined,
+    });
+
+    expect(copied).toEqual(["A.JPG", "C.JPG"]);
+    expect(jpg.directories.has("상담_원장")).toBe(true);
+    expect(jpg.directories.has("마지막")).toBe(true);
+    expect(result.operations).toEqual([
+      expect.objectContaining({ source: "A.JPG", status: "completed" }),
+      expect.objectContaining({
+        source: "B.JPG",
+        status: "failed",
+        error: "씬 폴더 생성 실패: cannot create 차단",
+      }),
+      expect.objectContaining({ source: "C.JPG", status: "completed" }),
+    ]);
+    expect(root.removed).toEqual(["A.JPG", "C.JPG"]);
   });
 
   it("renames confirmed scene folders and refreshes every file handle", async () => {

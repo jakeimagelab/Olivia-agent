@@ -47,6 +47,25 @@ type UseOliviaBridgeKeyboardOptions = {
   moveGridFocus: (direction: BridgeGridDirection, extendRange?: boolean) => void;
 };
 
+type BridgeSelectAllShortcutEvent = Pick<
+  ReactKeyboardEvent<HTMLDivElement>,
+  "metaKey" | "ctrlKey" | "altKey" | "code" | "preventDefault"
+>;
+
+export function handleBridgeSelectAllShortcut(
+  event: BridgeSelectAllShortcutEvent,
+  {
+    toolKey,
+    sceneReviewOpen,
+    selectAllVisibleJpgs,
+  }: Pick<UseOliviaBridgeKeyboardOptions, "toolKey" | "sceneReviewOpen" | "selectAllVisibleJpgs">,
+): "grid" | "scene_review" | null {
+  if (toolKey || (!event.metaKey && !event.ctrlKey) || event.altKey || event.code !== "KeyA") return null;
+  event.preventDefault();
+  selectAllVisibleJpgs();
+  return sceneReviewOpen ? "scene_review" : "grid";
+}
+
 export function useOliviaBridgeKeyboard({
   compactFiltersOpen,
   closeCompactFilters,
@@ -150,9 +169,9 @@ export function useOliviaBridgeKeyboard({
       openTool(toolShortcut);
       return;
     }
+    if (handleBridgeSelectAllShortcut(event, { toolKey, sceneReviewOpen, selectAllVisibleJpgs })) return;
     if (toolKey || sceneReviewOpen) return;
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA") { event.preventDefault(); selectAllVisibleJpgs(); }
-    else if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left", event.shiftKey); }
+    if (event.key === "ArrowLeft") { event.preventDefault(); moveGridFocus("left", event.shiftKey); }
     else if (event.key === "ArrowRight") { event.preventDefault(); moveGridFocus("right", event.shiftKey); }
     else if (event.key === "ArrowUp") { event.preventDefault(); moveGridFocus("up", event.shiftKey); }
     else if (event.key === "ArrowDown") { event.preventDefault(); moveGridFocus("down", event.shiftKey); }

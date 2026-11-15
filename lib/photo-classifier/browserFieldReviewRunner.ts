@@ -72,12 +72,14 @@ export async function runBrowserFieldReviewConfirmation({
   jpgBaseDirectory: FileSystemDirectoryHandle;
   stats: FieldStats;
   outputMode: "planned" | "rename";
+  failedOperationCount: number;
 }> {
   const runtime = { ...DEFAULT_DEPENDENCIES, ...dependencies };
   const plannedOutput = fastAnalyzeMode || scenes.some((scene) => !scene.sceneDir);
   let updatedScenes: FieldScene[];
   let resolvedJpgBaseDirectory: FileSystemDirectoryHandle;
   let totalJpg: number;
+  let failedOperationCount = 0;
 
   if (plannedOutput) {
     const output = await runtime.executePlannedOutput({
@@ -94,6 +96,7 @@ export async function runBrowserFieldReviewConfirmation({
     updatedScenes = output.scenes;
     resolvedJpgBaseDirectory = output.jpgBaseDirectory;
     totalJpg = output.totalFiles;
+    failedOperationCount = output.operations.filter((operation) => operation.status === "failed").length;
   } else {
     if (!jpgBaseDirectory) {
       throw new Error("JPG 작업 폴더를 찾지 못했습니다. 촬영 폴더를 다시 열어주세요.");
@@ -109,6 +112,7 @@ export async function runBrowserFieldReviewConfirmation({
       scenes: updatedScenes,
       jpgBaseDirectory: resolvedJpgBaseDirectory,
       outputMode: plannedOutput ? "planned" : "rename",
+      failedOperationCount,
       stats: {
         totalJpg,
         totalRaw: rawCount,
@@ -152,6 +156,7 @@ export async function runBrowserFieldReviewConfirmation({
     scenes: secondary.scenes,
     jpgBaseDirectory: resolvedJpgBaseDirectory,
     outputMode: plannedOutput ? "planned" : "rename",
+    failedOperationCount,
     stats: {
       totalJpg: secondary.total,
       totalRaw: rawCount,

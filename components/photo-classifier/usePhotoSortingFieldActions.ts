@@ -266,6 +266,12 @@ export function usePhotoSortingFieldActions({
       setJpgBaseDirectory(result.jpgBaseDirectory);
       setScenes(result.scenes);
       setStats(result.stats);
+      if (result.failedOperationCount > 0) {
+        setCopyLog((previous) => [
+          ...previous,
+          `⚠️ 실패 ${result.failedOperationCount}건 — REPORT/file_operation_journal.json 확인`,
+        ]);
+      }
       setStep(4);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

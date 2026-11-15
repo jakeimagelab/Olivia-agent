@@ -74,7 +74,10 @@ describe("Olivia Bridge", () => {
   it("Command 또는 Ctrl+A로 현재 보이는 JPG 전체 선택을 실행한다", () => {
     const keyboard = readFileSync("components/olivia-bridge/useOliviaBridgeKeyboard.ts", "utf8");
     const actionBar = readFileSync("components/olivia-bridge/OliviaBridgeActionBar.tsx", "utf8");
-    expect(keyboard).toContain('(event.metaKey || event.ctrlKey) && !event.altKey && event.code === "KeyA"');
+    expect(keyboard).toContain('(!event.metaKey && !event.ctrlKey) || event.altKey || event.code !== "KeyA"');
+    expect(keyboard.indexOf("handleBridgeSelectAllShortcut(event")).toBeLessThan(
+      keyboard.indexOf("if (toolKey || sceneReviewOpen) return;"),
+    );
     expect(keyboard).toContain("selectAllVisibleJpgs()");
     expect(actionBar).toContain("⌘/Ctrl+A 전체 선택");
   });
