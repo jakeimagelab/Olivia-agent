@@ -103,9 +103,10 @@ export function CustomerBridgeWorkspaceComposer({
   onDownload,
   onStartQuality,
 }: CustomerBridgeWorkspaceComposerProps) {
+  const setCompactFoldersOpen = layout.setCompactFoldersOpen;
   const openCompactFolders = useCallback(
-    () => layout.setCompactFoldersOpen(true),
-    [layout.setCompactFoldersOpen],
+    () => setCompactFoldersOpen(true),
+    [setCompactFoldersOpen],
   );
   const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
   const presentation = buildCustomerBridgePresentation({
