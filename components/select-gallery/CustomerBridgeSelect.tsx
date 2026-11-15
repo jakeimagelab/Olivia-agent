@@ -20,8 +20,6 @@ import type {
 import { useCustomerBridgeKeyboard } from "./useCustomerBridgeKeyboard";
 import { useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
-import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
-import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
 import {
   useCustomerBridgeMarksController,
   type CustomerBridgeInitialSelection,
@@ -30,9 +28,7 @@ import { useCustomerBridgeWorkspaceLayout } from "./useCustomerBridgeWorkspaceLa
 import { useCustomerBridgeFilters } from "./useCustomerBridgeFilters";
 import { useCustomerBridgeDraftRefresh } from "./useCustomerBridgeDraftRefresh";
 import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserController";
-import { useCustomerBridgeSideController } from "./useCustomerBridgeSideController";
-import { useCustomerBridgeFinalizeController } from "./useCustomerBridgeFinalizeController";
-import { useCustomerBridgeViewerController } from "./useCustomerBridgeViewerController";
+import { useCustomerBridgeInteractionControllers } from "./useCustomerBridgeInteractionControllers";
 import { CustomerBridgeWorkspaceComposer } from "./CustomerBridgeWorkspaceComposer";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -90,38 +86,28 @@ export default function CustomerBridgeSelect({
 }) {
   const endpointBase = apiBase ?? `/api/select/${shareToken}`;
   const localStorageScope = storageScope ?? shareToken;
-  const { images, imageById, handleImageError, requestMedia } = useCustomerBridgeMediaStore({
+  const mediaController = useCustomerBridgeMediaStore({
     initialImages,
     refreshImageUrl,
     loadImageUrls,
   });
-  const {
-    serverRatings,
-    serverColorLabels,
-    serverNotes,
-    customerRatings,
-    customerColorLabels,
-    notes,
-    serverSelectedIds,
-    customerSelectedIds,
-    selectionSync,
-    enqueueSelectionSync,
-    flushSelectionSync,
-    getPendingSelectionDiffs,
-    installServerSnapshot,
-    getDraftRevision,
-    applyRatingTo,
-    applyColorTo,
-    toggleColorTo,
-    updateNote,
-    clearDisplayedSelection,
-  } = useCustomerBridgeMarksController({
+  const { images, handleImageError } = mediaController;
+  const marksController = useCustomerBridgeMarksController({
     endpointBase,
     localStorageScope,
     initialDraft,
     initialSelection,
     readOnly,
   });
+  const {
+    customerRatings,
+    customerColorLabels,
+    customerSelectedIds,
+    getPendingSelectionDiffs,
+    installServerSnapshot,
+    applyRatingTo,
+    toggleColorTo,
+  } = marksController;
   useCustomerBridgeDraftRefresh({
     enabled: !readOnly,
     endpointBase,
@@ -130,26 +116,21 @@ export default function CustomerBridgeSelect({
   });
   const fullscreenCloseRef = useRef<() => void>(() => undefined);
   const closeFullscreenBeforeFilterChange = useCallback(() => fullscreenCloseRef.current(), []);
+  const filtersController = useCustomerBridgeFilters({ onBeforeFilterChange: closeFullscreenBeforeFilterChange });
   const {
     filter,
     setFilter,
     labelFilters,
     filenameSearch,
-    setFilenameSearch,
-    searchInputRef,
-    clearFilenameSearch,
-    applyLabelFilterCommand,
     handleSearchFilterShortcut,
-  } = useCustomerBridgeFilters({ onBeforeFilterChange: closeFullscreenBeforeFilterChange });
+  } = filtersController;
   const [thumbSize, setThumbSize] = useState(156);
+  const layoutController = useCustomerBridgeWorkspaceLayout();
   const {
-    compactFoldersOpen,
     setCompactFoldersOpen,
     mobile,
     closeCompactFolders,
-    beginResize,
-    workspaceStyle,
-  } = useCustomerBridgeWorkspaceLayout();
+  } = layoutController;
   const [guideOpen, setGuideOpen] = useState(false);
   const openGuide = useCallback(() => setGuideOpen(true), []);
 
@@ -157,10 +138,11 @@ export default function CustomerBridgeSelect({
   const thumbnailGridRef = useRef<HTMLDivElement>(null);
   const guideButtonRef = useRef<HTMLButtonElement>(null);
 
-  const { qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality } = useCustomerBridgeQuality({
+  const qualityController = useCustomerBridgeQuality({
     qualityApi,
     canManageQuality,
   });
+  const { qualityResults, startQuality } = qualityController;
 
   const browserController = useCustomerBridgeBrowserController({
     images,
@@ -185,7 +167,6 @@ export default function CustomerBridgeSelect({
     getImagePageState,
   });
   const {
-    visibleImages,
     orderedIds,
     focusedImageId,
     setFocusedImageId,
@@ -193,129 +174,49 @@ export default function CustomerBridgeSelect({
     setActiveImageIds,
     anchorId,
     setAnchorId,
-    clearActiveSelection,
-    renderedImages,
-    setMobileImageOpener,
   } = browserController;
-  const { downloadState, downloadBusy, downloadSelected } = useCustomerBridgeDownload({
+  const {
+    download: downloadController,
+    handleDownload,
+    focusedImage,
+    viewer: viewerController,
+    finalize: finalizeController,
+    side: sideController,
+  } = useCustomerBridgeInteractionControllers({
     endpointBase,
+    localStorageScope,
     readOnly,
-    pendingCount: selectionSync.pendingCount,
-    selectedIds: serverSelectedIds,
+    messagesEnabled,
+    mobile,
+    images,
+    media: mediaController,
+    marks: marksController,
+    browser: browserController,
+    quality: qualityController,
+    fullscreenCloseRef,
+    onSubmitted,
+    setFilter,
+    onStorageError: reportOptionalStorageError,
   });
-  const handleDownload = useCallback((format: CustomerBridgeDownloadFormat) => {
-    void downloadSelected(format);
-  }, [downloadSelected]);
-  const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
+  const {
+    mobileSideOpen,
+    setMobileSideOpen,
+  } = sideController;
   const {
     fullscreenId,
-    fullscreenImage,
-    fullscreenIndex,
-    zoomed,
     openFullscreen,
     closeFullscreen,
-    toggleFullscreenZoom,
     moveFullscreen,
     reviewIds,
     reviewActiveId,
     reviewRemoved,
-    reviewImages,
-    setReviewActiveId,
     openReview,
     closeReview,
-    resetReview,
     moveReview,
     removeFromReview,
     restoreReview,
-    openFocusedFullscreen,
-  } = useCustomerBridgeViewerController({
-    images,
-    visibleImages,
-    renderedImages,
-    imageById,
-    selectedIds: customerSelectedIds,
-    focusedImageId,
-    ratings: customerRatings,
-    colorLabels: customerColorLabels,
-    setFocusedImageId,
-    applyRatingTo,
-    applyColorTo,
-    requestMedia,
-    setMobileImageOpener,
-    fullscreenCloseRef,
-  });
-
-  const {
-    submitError,
-    submitting,
-    submitReviewOpen,
-    openSubmitReview: openSubmitReviewAction,
-    closeSubmitReview,
-    submit,
-    submitReviewItems,
-    submitReviewSections,
-    resetButtonRef,
-    resetConfirmOpen,
-    resetting,
-    openResetConfirm,
-    closeResetConfirm,
-    resetSelection,
-  } = useCustomerBridgeFinalizeController({
-    endpointBase,
-    localStorageScope,
-    readOnly,
-    selectedIds: customerSelectedIds,
-    ratings: customerRatings,
-    colorLabels: customerColorLabels,
-    notes,
-    images,
-    pendingCount: selectionSync.pendingCount,
-    flushSelectionSync,
-    getDraftRevision,
-    onSubmitted,
-    onStorageError: reportOptionalStorageError,
-    serverRatings,
-    serverColorLabels,
-    serverNotes,
-    enqueueSelectionSync,
-    clearDisplayedSelection,
-    clearActiveSelection,
-    resetReview,
-    setFilter,
-  });
-
-  const {
-    sideTab,
-    setSideTab,
-    mobileSideOpen,
-    setMobileSideOpen,
-    messages,
-    messageText,
-    setMessageText,
-    messageState,
-    messageImageScoped,
-    setMessageImageScoped,
-    unreadMessages,
-    sendingMessage,
-    messagesEndRef,
-    openMessages,
-    closeMobileSide,
-    applyMainRating,
-    applyMainColor,
-    handleQualityReview,
-    handleSendMessage,
-    updateFocusedNote,
-  } = useCustomerBridgeSideController({
-    endpointBase,
-    messagesEnabled,
-    mobile,
-    focusedImageId,
-    activeImageIds,
-    applyRatingTo,
-    toggleColorTo,
-    updateNote,
-    reviewQuality,
-  });
+  } = viewerController;
+  const { resetConfirmOpen, closeResetConfirm } = finalizeController;
   const startQualityAnalysis = useCallback(() => {
     void startQuality();
   }, [startQuality]);
@@ -381,15 +282,15 @@ export default function CustomerBridgeSelect({
     guideButtonRef={guideButtonRef}
     gridRef={gridRef}
     thumbnailGridRef={thumbnailGridRef}
-    layout={{ compactFoldersOpen, setCompactFoldersOpen, mobile, closeCompactFolders, beginResize, workspaceStyle }}
-    filters={{ filter, setFilter, labelFilters, filenameSearch, setFilenameSearch, searchInputRef, clearFilenameSearch, applyLabelFilterCommand, handleSearchFilterShortcut }}
-    marks={{ serverRatings, serverColorLabels, serverNotes, customerRatings, customerColorLabels, notes, serverSelectedIds, customerSelectedIds, selectionSync, enqueueSelectionSync, flushSelectionSync, getPendingSelectionDiffs, installServerSnapshot, getDraftRevision, applyRatingTo, applyColorTo, toggleColorTo, updateNote, clearDisplayedSelection }}
+    layout={layoutController}
+    filters={filtersController}
+    marks={marksController}
     browser={{ ...browserController, handleImageError }}
-    download={{ downloadState, downloadBusy, downloadSelected }}
-    viewer={{ fullscreenId, fullscreenImage, fullscreenIndex, zoomed, openFullscreen, closeFullscreen, toggleFullscreenZoom, moveFullscreen, reviewIds, reviewActiveId, reviewRemoved, reviewImages, setReviewActiveId, openReview, closeReview, resetReview, moveReview, removeFromReview, restoreReview, openFocusedFullscreen }}
-    finalize={{ submitError, submitting, submitReviewOpen, openSubmitReview: openSubmitReviewAction, closeSubmitReview, submit, submitReviewItems, submitReviewSections, resetButtonRef, resetConfirmOpen, resetting, openResetConfirm, closeResetConfirm, resetSelection }}
-    side={{ sideTab, setSideTab, mobileSideOpen, setMobileSideOpen, messages, messageText, setMessageText, messageState, messageImageScoped, setMessageImageScoped, unreadMessages, sendingMessage, messagesEndRef, openMessages, closeMobileSide, applyMainRating, applyMainColor, handleQualityReview, handleSendMessage, updateFocusedNote }}
-    quality={{ qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality }}
+    download={downloadController}
+    viewer={viewerController}
+    finalize={finalizeController}
+    side={sideController}
+    quality={qualityController}
     onOpenGuide={openGuide}
     onCloseGuide={closeGuide}
     onDownload={handleDownload}
