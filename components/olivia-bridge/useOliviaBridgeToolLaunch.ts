@@ -24,7 +24,6 @@ export function useOliviaBridgeToolLaunch({
   setSelectedJpgFiles,
   setSceneReviewOpen,
   setRawMatchTargetMode,
-  syncAdobeBridgeSelection,
   openRawRootPrompt,
   setToolKey,
 }: {
@@ -39,7 +38,6 @@ export function useOliviaBridgeToolLaunch({
   setSelectedJpgFiles: (files: readonly File[]) => void;
   setSceneReviewOpen: Dispatch<SetStateAction<boolean>>;
   setRawMatchTargetMode: Dispatch<SetStateAction<BridgeRawMatchTargetMode>>;
-  syncAdobeBridgeSelection: () => void | Promise<void>;
   openRawRootPrompt: () => void;
   setToolKey: Dispatch<SetStateAction<BridgeToolKey | undefined>>;
 }) {
@@ -61,7 +59,6 @@ export function useOliviaBridgeToolLaunch({
     if (key === "classification") {
       setToolKey(undefined);
       setSceneReviewOpen(true);
-      void syncAdobeBridgeSelection();
       return;
     }
     if (key === "raw-match" && !remoteFolder && breadcrumbsLength < 3) {
@@ -69,7 +66,7 @@ export function useOliviaBridgeToolLaunch({
       return;
     }
     setToolKey(key);
-  }, [breadcrumbsLength, currentLocalFolder, openRawRootPrompt, remoteFolder, selectedIdsRef, setRawMatchTargetMode, setSceneReviewOpen, setSelectedIds, setSelectedJpgFiles, setToolKey, syncAdobeBridgeSelection, visibleJpgs]);
+  }, [breadcrumbsLength, currentLocalFolder, openRawRootPrompt, remoteFolder, selectedIdsRef, setRawMatchTargetMode, setSceneReviewOpen, setSelectedIds, setSelectedJpgFiles, setToolKey, visibleJpgs]);
 
   const toolDisabledReason = useCallback((key: BridgeToolKey) => {
     if (scanStatus !== "ready") return "사진 폴더를 먼저 선택해 주세요.";

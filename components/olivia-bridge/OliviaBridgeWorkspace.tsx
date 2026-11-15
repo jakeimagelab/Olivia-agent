@@ -304,6 +304,10 @@ export default function OliviaBridgeWorkspace({
     commitSelectedIds,
     publishRatingsForSource,
   });
+  const sceneAnalysisJpgs = useMemo(
+    () => selectedIds.size ? scan.jpgs.filter((photo) => selectedIds.has(photo.id)) : [],
+    [scan.jpgs, selectedIds],
+  );
   const {
     sceneState,
     departmentLoading,
@@ -314,9 +318,10 @@ export default function OliviaBridgeWorkspace({
     openDepartmentPicker,
     reportScenePlanError,
   } = useOliviaBridgeSceneAnalysis({
+    enabled: sceneReviewOpen,
     hasActiveFolder,
     scanStatus,
-    jpgs: scan.jpgs,
+    jpgs: sceneAnalysisJpgs,
     folderPath,
     activeFolderName,
     clientId,
@@ -640,7 +645,6 @@ export default function OliviaBridgeWorkspace({
     setSelectedJpgFiles,
     setSceneReviewOpen,
     setRawMatchTargetMode,
-    syncAdobeBridgeSelection,
     openRawRootPrompt,
     setToolKey,
   });
@@ -680,12 +684,13 @@ export default function OliviaBridgeWorkspace({
     selectedSceneAnalysis,
     selectedScenes,
     sceneBoundaryReviewCount,
-    selectedSceneAnalysisReady,
     scenePlanReady,
+    scenePlanDisabledReason,
     applyScenePlan,
   } = useOliviaBridgeSceneReviewModel({
     jpgs: scan.jpgs,
     selectedIds,
+    selectionSource,
     sceneReviewOpen,
     sceneState,
     photoDepartmentResolution,
@@ -929,7 +934,6 @@ export default function OliviaBridgeWorkspace({
           onClose: () => setSceneReviewOpen(false),
           content: {
             sceneState,
-            adobeSelectionLoading,
             departmentLoading,
             departmentError,
             departmentPickerOpen,
@@ -938,8 +942,8 @@ export default function OliviaBridgeWorkspace({
             scenePhotoByName,
             selectedFileCount: selectedSceneAnalysis?.files.length ?? 0,
             boundaryReviewCount: sceneBoundaryReviewCount,
-            selectedSceneAnalysisReady,
             scenePlanReady,
+            scenePlanDisabledReason,
             onRetry: retrySceneAnalysis,
             onOpenDepartmentPicker: openDepartmentPicker,
             onChooseDepartment: chooseDepartment,

@@ -28,7 +28,6 @@ export type OliviaBridgeSceneState = {
 
 type OliviaBridgeSceneReviewContentProps = {
   sceneState: OliviaBridgeSceneState;
-  adobeSelectionLoading: boolean;
   departmentLoading: boolean;
   departmentError: string;
   departmentPickerOpen: boolean;
@@ -37,8 +36,8 @@ type OliviaBridgeSceneReviewContentProps = {
   scenePhotoByName: ReadonlyMap<string, BridgeJpgFile>;
   selectedFileCount: number;
   boundaryReviewCount: number;
-  selectedSceneAnalysisReady: boolean;
   scenePlanReady: boolean;
+  scenePlanDisabledReason: string | null;
   onRetry: () => void;
   onOpenDepartmentPicker: () => void;
   onChooseDepartment: (department: MedicalDepartment) => void;
@@ -47,7 +46,6 @@ type OliviaBridgeSceneReviewContentProps = {
 
 export const OliviaBridgeSceneReviewContent = memo(function OliviaBridgeSceneReviewContent({
   sceneState,
-  adobeSelectionLoading,
   departmentLoading,
   departmentError,
   departmentPickerOpen,
@@ -56,8 +54,8 @@ export const OliviaBridgeSceneReviewContent = memo(function OliviaBridgeSceneRev
   scenePhotoByName,
   selectedFileCount,
   boundaryReviewCount,
-  selectedSceneAnalysisReady,
   scenePlanReady,
+  scenePlanDisabledReason,
   onRetry,
   onOpenDepartmentPicker,
   onChooseDepartment,
@@ -118,7 +116,7 @@ export const OliviaBridgeSceneReviewContent = memo(function OliviaBridgeSceneRev
           const photo = scenePhotoByName.get(scene.representativeFileName);
           return (
             <article key={scene.id}>
-              {photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} eager /> : null}
+              {photo ? <BridgeThumbnail photo={photo} alt={`${scene.label} 대표 사진`} /> : null}
               <div><strong>{scene.label}</strong><span>{scene.fileCount}장</span></div>
               <small>{scene.firstFileName} – {scene.lastFileName}</small>
               {scene.needsReview ? <i>경계 확인 필요</i> : null}
@@ -131,9 +129,15 @@ export const OliviaBridgeSceneReviewContent = memo(function OliviaBridgeSceneRev
     <footer>
       <div className={styles.sceneApprovalSummary}>
         <strong>Scene {selectedScenes.length.toLocaleString("ko-KR")}개 · 선택 JPG {selectedFileCount.toLocaleString("ko-KR")}장 · 경계 확인 {boundaryReviewCount.toLocaleString("ko-KR")}곳</strong>
-        <p>{adobeSelectionLoading ? "Adobe Bridge의 XMP 별점을 확인하고 있습니다." : scenePlanReady ? "Olivia와 Adobe Bridge 선택만 적용합니다. 파일은 아직 이동하지 않습니다." : selectedSceneAnalysisReady && departmentResolution.status !== "resolved" ? "진료과를 확인해야 Scene 계획을 적용할 수 있습니다." : sceneState.status === "complete" ? "Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요." : "분석이 끝나면 Scene 계획을 적용할 수 있습니다."}</p>
+        <p role={scenePlanDisabledReason ? "status" : undefined} data-disabled={scenePlanDisabledReason ? "true" : undefined}>{scenePlanDisabledReason ?? (scenePlanReady ? "Olivia와 Adobe Bridge 선택만 적용합니다. 파일은 아직 이동하지 않습니다." : "Scene 계획을 확인해 주세요.")}</p>
       </div>
-      <button type="button" disabled={!scenePlanReady} onClick={onApplyScenePlan}><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button>
+      <button
+        type="button"
+        disabled={Boolean(scenePlanDisabledReason)}
+        aria-label={scenePlanDisabledReason ? `계획 적용 불가: ${scenePlanDisabledReason}` : "계획 적용하고 Scene 검토"}
+        title={scenePlanDisabledReason ?? "계획 적용하고 Scene 검토"}
+        onClick={onApplyScenePlan}
+      ><ScanSearch size={16} /> 계획 적용하고 Scene 검토</button>
     </footer>
   </>;
 });

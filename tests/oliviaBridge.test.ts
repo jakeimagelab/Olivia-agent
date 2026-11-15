@@ -176,7 +176,7 @@ describe("Olivia Bridge", () => {
     expect(sceneReview).toContain("Scene {selectedScenes.length.toLocaleString");
     expect(adobeMarks).toContain("collectAdobeBridgeMarks");
     expect(sceneReview).toContain("Olivia 또는 Adobe Bridge에서 분류할 JPG를 선택해 주세요.");
-    expect(sceneReviewModel).toMatch(/rebuildBridgeSceneAnalysis\([\s\S]*sceneState\.analysis\.files\.filter/);
+    expect(sceneReviewModel).toMatch(/sceneState\.analysis\.files\.filter\([\s\S]*rebuildBridgeSceneAnalysis\(selectedFiles\)/);
     expect(sceneReview).toContain("계획 적용하고 Scene 검토");
     expect(workspace).toContain("stageBridgeClassificationPlan");
     expect(sceneReview).toContain("sceneApprovalSummary");

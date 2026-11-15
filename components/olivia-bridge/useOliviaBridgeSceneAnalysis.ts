@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { OliviaBridgeSceneState } from "@/components/olivia-bridge/OliviaBridgeSceneReviewContent";
 import { analyzeBridgeScenes, type BridgeJpgFile } from "@/lib/photo-bridge/bridgeFiles";
@@ -10,6 +10,7 @@ import {
   type PhotoDepartmentResolution,
 } from "@/lib/photo-classifier/departmentResolver";
 import type { MedicalDepartment } from "@/lib/photo-classifier/types";
+import { folderFingerprint } from "@/lib/photo-classifier/scene-cache";
 
 const EMPTY_SCENE_STATE: OliviaBridgeSceneState = {
   status: "idle",
@@ -20,7 +21,21 @@ const EMPTY_SCENE_STATE: OliviaBridgeSceneState = {
   analysis: null,
 };
 
+const SCENE_ANALYSIS_CACHE_LIMIT = 5;
+const sceneAnalysisCache = new Map<string, NonNullable<OliviaBridgeSceneState["analysis"]>>();
+
+function rememberSceneAnalysis(key: string, analysis: NonNullable<OliviaBridgeSceneState["analysis"]>) {
+  sceneAnalysisCache.delete(key);
+  sceneAnalysisCache.set(key, analysis);
+  while (sceneAnalysisCache.size > SCENE_ANALYSIS_CACHE_LIMIT) {
+    const oldestKey = sceneAnalysisCache.keys().next().value;
+    if (typeof oldestKey !== "string") break;
+    sceneAnalysisCache.delete(oldestKey);
+  }
+}
+
 export function useOliviaBridgeSceneAnalysis({
+  enabled,
   hasActiveFolder,
   scanStatus,
   jpgs,
@@ -30,6 +45,7 @@ export function useOliviaBridgeSceneAnalysis({
   workflowRunId,
   setDepartmentResolution,
 }: {
+  enabled: boolean;
   hasActiveFolder: boolean;
   scanStatus: "idle" | "restoring" | "loading" | "ready" | "error";
   jpgs: readonly BridgeJpgFile[];
@@ -44,30 +60,88 @@ export function useOliviaBridgeSceneAnalysis({
   const [departmentLoading, setDepartmentLoading] = useState(false);
   const [departmentError, setDepartmentError] = useState("");
   const [departmentPickerOpen, setDepartmentPickerOpen] = useState(false);
+  const jpgsRef = useRef(jpgs);
+  jpgsRef.current = jpgs;
+  const folderContextKey = hasActiveFolder && scanStatus === "ready" ? folderPath : "";
+  const analysisKey = useMemo(() => folderFingerprint(folderPath, jpgs.map((photo) => ({
+    name: photo.relativePath,
+    size: photo.size,
+    lastModified: photo.lastModified,
+  }))), [folderPath, jpgs]);
 
   useEffect(() => {
-    if (!hasActiveFolder || scanStatus !== "ready") {
+    if (!folderContextKey) {
       setSceneState(EMPTY_SCENE_STATE);
       return;
     }
-    if (!jpgs.length) {
-      setSceneState({ status: "complete", stage: "분석할 JPG가 없습니다", completed: 0, total: 0, scenes: [], analysis: null });
+    setSceneState({
+      status: "idle",
+      stage: "사진 분류를 열면 선택한 JPG를 분석합니다",
+      completed: 0,
+      total: 0,
+      scenes: [],
+      analysis: null,
+    });
+  }, [folderContextKey]);
+
+  useEffect(() => {
+    if (enabled) return;
+    setSceneState((previous) => previous.status === "running" ? {
+      status: "idle",
+      stage: "사진 분류를 열면 선택한 JPG를 분석합니다",
+      completed: 0,
+      total: 0,
+      scenes: [],
+      analysis: null,
+    } : previous);
+  }, [enabled]);
+
+  useEffect(() => {
+    if (!enabled || !hasActiveFolder || scanStatus !== "ready") return;
+    const targetJpgs = jpgsRef.current;
+    if (!targetJpgs.length) {
+      setSceneState({ status: "idle", stage: "분류할 JPG를 선택해 주세요", completed: 0, total: 0, scenes: [], analysis: null });
+      return;
+    }
+    const cachedAnalysis = sceneAnalysisCache.get(analysisKey);
+    if (cachedAnalysis) {
+      setSceneState({
+        status: "complete",
+        stage: "Scene 분류 계획 준비됨",
+        completed: cachedAnalysis.files.length,
+        total: cachedAnalysis.files.length,
+        scenes: cachedAnalysis.scenes,
+        analysis: cachedAnalysis,
+      });
       return;
     }
     const controller = new AbortController();
-    setSceneState({ status: "running", stage: "AI Scene 사전 분석 준비", completed: 0, total: jpgs.length, scenes: [], analysis: null });
+    let lastProgressAt = 0;
+    let lastProgressStage = "";
+    setSceneState({ status: "running", stage: "AI Scene 사전 분석 준비", completed: 0, total: targetJpgs.length, scenes: [], analysis: null });
     void analyzeBridgeScenes({
       folderKey: folderPath,
-      jpgs,
+      jpgs: targetJpgs,
       signal: controller.signal,
-      onProgress: (completed, total, stage) => setSceneState((previous) => ({ ...previous, status: "running", completed, total, stage })),
-    }).then((analysis) => setSceneState({ status: "complete", stage: "Scene 분류 계획 준비됨", completed: jpgs.length, total: jpgs.length, scenes: analysis.scenes, analysis }))
+      onProgress: (completed, total, stage) => {
+        if (controller.signal.aborted) return;
+        const now = performance.now();
+        if (stage === lastProgressStage && completed < total && now - lastProgressAt < 120) return;
+        lastProgressAt = now;
+        lastProgressStage = stage;
+        setSceneState((previous) => ({ ...previous, status: "running", completed, total, stage }));
+      },
+    }).then((analysis) => {
+      if (controller.signal.aborted) return;
+      rememberSceneAnalysis(analysisKey, analysis);
+      setSceneState({ status: "complete", stage: "Scene 분류 계획 준비됨", completed: targetJpgs.length, total: targetJpgs.length, scenes: analysis.scenes, analysis });
+    })
       .catch((error) => {
         if (controller.signal.aborted) return;
-        setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: jpgs.length, scenes: [], analysis: null, error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
+        setSceneState({ status: "error", stage: "Scene 분석 오류", completed: 0, total: targetJpgs.length, scenes: [], analysis: null, error: error instanceof Error ? error.message : "Scene 분석에 실패했습니다." });
       });
     return () => controller.abort();
-  }, [folderPath, hasActiveFolder, jpgs, scanStatus, sceneRunKey]);
+  }, [analysisKey, enabled, folderPath, hasActiveFolder, scanStatus, sceneRunKey]);
 
   useEffect(() => {
     if (!hasActiveFolder || !activeFolderName || scanStatus !== "ready") return;

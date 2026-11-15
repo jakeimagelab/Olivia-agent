@@ -42,8 +42,56 @@ export async function getCachedFeature(key: string): Promise<LocalVisualFeatures
   catch { return null; }
 }
 
+/** 여러 사진의 특징을 한 번의 IndexedDB 연결·트랜잭션으로 읽는다. */
+export async function getCachedFeatures(keys: readonly string[]): Promise<Array<LocalVisualFeatures | null>> {
+  if (!keys.length) return [];
+  let database: IDBDatabase | null = null;
+  try {
+    database = await openDatabase();
+    const activeDatabase = database;
+    return await new Promise<Array<LocalVisualFeatures | null>>((resolve, reject) => {
+      const transaction = activeDatabase.transaction(FEATURE_STORE, "readonly");
+      const store = transaction.objectStore(FEATURE_STORE);
+      const values = new Array<LocalVisualFeatures | null>(keys.length).fill(null);
+      keys.forEach((key, index) => {
+        const request = store.get(key) as IDBRequest<LocalVisualFeatures | undefined>;
+        request.onsuccess = () => { values[index] = request.result ?? null; };
+      });
+      transaction.oncomplete = () => resolve(values);
+      transaction.onerror = () => reject(transaction.error ?? new Error("사진 특징 캐시를 읽지 못했습니다."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("사진 특징 캐시 읽기가 취소되었습니다."));
+    });
+  } catch {
+    return new Array<LocalVisualFeatures | null>(keys.length).fill(null);
+  } finally {
+    database?.close();
+  }
+}
+
 export async function setCachedFeature(key: string, features: LocalVisualFeatures) {
   try { await transact(FEATURE_STORE, "readwrite", (store) => store.put(features, key)); } catch (error) { console.error("[OLIVIA] Suppressed error", error); }
+}
+
+/** 여러 사진의 특징을 한 번의 IndexedDB 연결·트랜잭션으로 저장한다. */
+export async function setCachedFeatures(entries: ReadonlyArray<{ key: string; features: LocalVisualFeatures }>) {
+  if (!entries.length) return;
+  let database: IDBDatabase | null = null;
+  try {
+    database = await openDatabase();
+    const activeDatabase = database;
+    await new Promise<void>((resolve, reject) => {
+      const transaction = activeDatabase.transaction(FEATURE_STORE, "readwrite");
+      const store = transaction.objectStore(FEATURE_STORE);
+      for (const entry of entries) store.put(entry.features, entry.key);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("사진 특징 캐시를 저장하지 못했습니다."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("사진 특징 캐시 저장이 취소되었습니다."));
+    });
+  } catch (error) {
+    console.error("[OLIVIA] Suppressed error", error);
+  } finally {
+    database?.close();
+  }
 }
 
 export async function getClassificationCheckpoint<T>(jobId: string): Promise<T | null> {

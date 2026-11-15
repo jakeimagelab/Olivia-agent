@@ -706,6 +706,7 @@ label.thumbnailGauge input[type="range"] { box-sizing: border-box; width: 94px; 
 .sceneApprovalSummary { min-width: 0; display: grid; gap: 4px; }
 .sceneApprovalSummary strong { overflow: hidden; color: rgba(255, 255, 255, .78); font-size: 9.5px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .sceneWindow > footer p { margin: 0; color: rgba(255, 255, 255, .45); font-size: var(--ui2-f1); }
+.sceneWindow > footer p[data-disabled="true"] { color: #ffb096; font-weight: 600; }
 .sceneWindow > footer button { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 16px; border: 1px solid var(--bridge-action); border-radius: 8px; color: #103e36; background: var(--bridge-action); font: 600 10px/1 inherit; cursor: pointer; }
 .sceneWindow > footer button:disabled { color: rgba(255, 255, 255, .32); border-color: rgba(255, 255, 255, .12); background: transparent; cursor: not-allowed; }
 

@@ -47,8 +47,7 @@ export function useOliviaBridgeSelectionActions({
 
   const openSceneReview = useCallback(() => {
     setSceneReviewOpen(true);
-    void syncAdobeBridgeSelection();
-  }, [setSceneReviewOpen, syncAdobeBridgeSelection]);
+  }, [setSceneReviewOpen]);
 
   const refreshAdobeMarks = useCallback(() => {
     void syncAdobeBridgeSelection();

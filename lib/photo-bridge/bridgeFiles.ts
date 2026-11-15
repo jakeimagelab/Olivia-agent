@@ -5,7 +5,7 @@ import { stabilizeBoundaries } from "@/lib/photo-classifier/boundary-stabilizer"
 import { getClassificationSettings } from "@/lib/photo-classifier/classification-settings";
 import { extractFeaturesWithWorkers } from "@/lib/photo-classifier/feature-worker-client";
 import type { LocalVisualFeatures, SceneBoundaryDecision, TimestampSource } from "@/lib/photo-classifier/hybrid-types";
-import { featureCacheKey, getCachedFeature, setCachedFeature } from "@/lib/photo-classifier/scene-cache";
+import { featureCacheKey, getCachedFeatures, setCachedFeatures } from "@/lib/photo-classifier/scene-cache";
 import { buildSceneRangesFromBoundaries } from "@/lib/photo-classifier/scene-builder";
 import { readPhotoTimestamp } from "@/lib/photo-classifier/timestamp";
 import { isDeliveredRoundFolder } from "@/lib/photo-bridge/rawMatchDelivery";
@@ -332,7 +332,7 @@ export async function analyzeBridgeScenes(input: {
   const cacheKeys = files.map((entry) => entry.file
     ? featureCacheKey(input.folderKey, entry.file)
     : `${input.folderKey}:${entry.relativePath}:${entry.size}:${entry.lastModified}`);
-  const cached = await Promise.all(cacheKeys.map((key) => getCachedFeature(key)));
+  const cached = await getCachedFeatures(cacheKeys);
   const missingIndices = cached.flatMap((feature, index) => feature ? [] : [index]);
   const extracted = missingIndices.length ? await extractFeaturesWithWorkers({
     files: await Promise.all(missingIndices.map(async (index) => {
@@ -352,11 +352,13 @@ export async function analyzeBridgeScenes(input: {
     onProgress: (completed, total) => input.onProgress?.(completed, total, "화면 특징 분석 중"),
   }) : [];
   const features = [...cached] as Array<LocalVisualFeatures | null>;
-  await Promise.all(extracted.map(async (result, offset) => {
+  const cacheEntries: Array<{ key: string; features: LocalVisualFeatures }> = [];
+  extracted.forEach((result, offset) => {
     const index = missingIndices[offset];
     features[index] = result.features;
-    if (result.features) await setCachedFeature(cacheKeys[index], result.features);
-  }));
+    if (result.features) cacheEntries.push({ key: cacheKeys[index], features: result.features });
+  });
+  await setCachedFeatures(cacheEntries);
   if (input.signal?.aborted) throw new DOMException("작업이 취소되었습니다.", "AbortError");
   const blank: LocalVisualFeatures = {
     dHash: "0".repeat(64),
