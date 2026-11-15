@@ -25,17 +25,8 @@ import type { ShellSelection, ShellSelectionEventDetail } from "@/lib/olivia/des
 import type { StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
 import { useOliviaRuntimeStatus } from "./OliviaRuntimeStatusProvider";
+import { useDesktopCaseData } from "./useDesktopCaseData";
 import styles from "./OliviaDesktop.module.css";
-
-type CasePayload = {
-  ok?: boolean;
-  client?: { id?: string; name?: string; hospital_name?: string; department?: string };
-  workflowRun?: { id?: string; project_name?: string; current_step_key?: string; status?: string };
-  workflowCheckProgress?: { done?: number; total?: number } | null;
-  resourceIds?: { quote?: string | null; conti?: string | null };
-};
-
-type Gallery = { id: string; title?: string | null; workflow_run_id?: string | null };
 type ShellTab = {
   key: string;
   label: string;
@@ -45,7 +36,6 @@ type ShellTab = {
   context?: WindowContext;
 };
 
-const CASE_APPS = new Set(["quote", "conti", "select-galleries"]);
 const DEDICATED_INSPECTOR_APPS = new Set(["olivia-bridge"]);
 const DEFAULT_CLOSED_PANEL_APPS = new Set(["olivia-bridge", "quote"]);
 const APP_LABELS: Record<string, string> = {
@@ -89,9 +79,6 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   const launchHref = useDesktopAppLauncher();
   const openApp = useOliviaDesktopStore((state) => state.openApp);
   const updateWindowContext = useOliviaDesktopStore((state) => state.updateWindowContext);
-  const [detail, setDetail] = useState<CasePayload | null>(null);
-  const [galleries, setGalleries] = useState<Gallery[]>([]);
-  const [caseLoadState, setCaseLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [panelOpen, setPanelOpen] = useState(!DEFAULT_CLOSED_PANEL_APPS.has(appId));
   const [panelTab, setPanelTab] = useState<"info" | "olivia">("info");
   const [focusMode, setFocusMode] = useState(false);
@@ -99,56 +86,14 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
   const [selection, setSelection] = useState<ShellSelection | null>(null);
   const selectedEntityId = useOliviaContextStore((state) => state.selectedEntityId);
   const selectedEntityType = useOliviaContextStore((state) => state.selectedEntityType);
-  const clientId = context?.clientId;
-  const workflowRunId = context?.workflowRunId ?? context?.projectId;
-  const caseRequested = Boolean(
-    clientId
-    && workflowRunId
-    && CASE_APPS.has(appId)
-    && (context?.launchIntent === "client-new" || context?.launchIntent === "document" || context?.targetVerified),
-  );
-  const caseEnabled = caseRequested && caseLoadState === "ready";
-
-  useEffect(() => {
-    if (!caseRequested || !clientId || !workflowRunId) {
-      setDetail(null);
-      setGalleries([]);
-      setCaseLoadState("idle");
-      return;
-    }
-    let active = true;
-    setDetail(null);
-    setGalleries([]);
-    setCaseLoadState("loading");
-    Promise.all([
-      fetch(`/api/clients/${encodeURIComponent(clientId)}?workflowRunId=${encodeURIComponent(workflowRunId)}&strictWorkflowRunId=1`, { cache: "no-store" }).then((response) => response.json()),
-      fetch(`/api/select-galleries?workflowRunId=${encodeURIComponent(workflowRunId)}`, { cache: "no-store" }).then((response) => response.json()),
-    ]).then(([clientPayload, galleryPayload]) => {
-      if (!active) return;
-      const clientMatches = clientPayload?.client?.id === clientId;
-      const runMatches = clientPayload?.workflowRun?.id === workflowRunId;
-      if (!clientPayload?.ok || !clientMatches || !runMatches) {
-        setCaseLoadState("error");
-        return;
-      }
-      setDetail(clientPayload);
-      const ownedGalleries = (galleryPayload?.ok ? galleryPayload.galleries ?? [] : [])
-        .filter((gallery: Gallery) => gallery.workflow_run_id === workflowRunId);
-      setGalleries(ownedGalleries);
-      setCaseLoadState("ready");
-      const latest = useOliviaDesktopStore.getState().windows[appId]?.context;
-      const latestRunId = latest?.workflowRunId ?? latest?.projectId;
-      if (latest?.clientId === clientId && latestRunId === workflowRunId && !latest.targetVerified) {
-        updateWindowContext(appId, {
-          ...latest,
-          targetVerified: true,
-          clientName: clientPayload.client.name ?? clientPayload.client.hospital_name ?? latest.clientName,
-          projectName: clientPayload.workflowRun.project_name ?? latest.projectName,
-        });
-      }
-    }).catch(() => { if (active) setCaseLoadState("error"); });
-    return () => { active = false; };
-  }, [appId, caseRequested, clientId, updateWindowContext, workflowRunId]);
+  const {
+    clientId,
+    workflowRunId,
+    detail,
+    galleries,
+    loadState: caseLoadState,
+    enabled: caseEnabled,
+  } = useDesktopCaseData(appId, context);
 
   useEffect(() => {
     setPanelOpen(!DEFAULT_CLOSED_PANEL_APPS.has(appId));
