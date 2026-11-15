@@ -22,9 +22,9 @@ import { useDesktopAppLauncher } from "./useDesktopAppLauncher";
 import { getOliviaApp } from "./registry/oliviaAppRegistry";
 import { withWindowContextScope } from "@/lib/olivia/desktop/windowContext";
 import type { ShellSelection, ShellSelectionEventDetail } from "@/lib/olivia/desktop/shellSelection";
-import type { StatusPanelData, StatusPanelEntry } from "@/lib/system-status/panelTypes";
-import { loadStatusPanelData } from "@/lib/system-status/statusPanelClient";
+import type { StatusPanelEntry } from "@/lib/system-status/panelTypes";
 import { useOliviaContextStore } from "@/lib/store/oliviaContextStore";
+import { useOliviaRuntimeStatus } from "./OliviaRuntimeStatusProvider";
 import styles from "./OliviaDesktop.module.css";
 
 type CasePayload = {
@@ -372,29 +372,18 @@ export function DesktopCaseChrome({ appId, context, children }: { appId: string;
 
 function DesktopRecentNotice() {
   const launchHref = useDesktopAppLauncher();
-  const [entries, setEntries] = useState<StatusPanelEntry[]>([]);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const { data, initialized, error } = useOliviaRuntimeStatus();
+  const entries = useMemo<StatusPanelEntry[]>(() => {
+    const seen = new Set<string>();
+    return (data?.recentActivity ?? []).filter((entry) => {
+      if (!entry.href || seen.has(entry.href)) return false;
+      seen.add(entry.href);
+      return true;
+    }).slice(0, 8);
+  }, [data]);
 
-  useEffect(() => {
-    let active = true;
-    loadStatusPanelData()
-      .then((payload: StatusPanelData & { ok?: boolean }) => {
-        if (!active) return;
-        if (!payload?.ok) throw new Error("status panel");
-        const seen = new Set<string>();
-        setEntries((payload.recentActivity ?? []).filter((entry) => {
-          if (!entry.href || seen.has(entry.href)) return false;
-          seen.add(entry.href);
-          return true;
-        }).slice(0, 8));
-        setState("ready");
-      })
-      .catch(() => { if (active) setState("error"); });
-    return () => { active = false; };
-  }, []);
-
-  if (state === "loading") return <div><History size={20} /><strong>최근 작업을 불러오는 중입니다</strong></div>;
-  if (state === "error") return <div><History size={20} /><strong>최근 작업을 불러오지 못했습니다</strong><p>홈의 이어할 작업에서 다시 확인할 수 있습니다.</p></div>;
+  if (!initialized) return <div><History size={20} /><strong>최근 작업을 불러오는 중입니다</strong></div>;
+  if (error && !data) return <div><History size={20} /><strong>최근 작업을 불러오지 못했습니다</strong><p>홈의 이어할 작업에서 다시 확인할 수 있습니다.</p></div>;
   if (!entries.length) return <div><History size={20} /><strong>최근 작업이 없습니다</strong></div>;
   return <div><History size={20} /><strong>최근 작업</strong><div>{entries.map((entry) => <button key={entry.id} type="button" onClick={() => entry.href && launchHref(entry.href, entry.title, { clientId: entry.clientId ?? undefined, workflowRunId: entry.workflowRunId ?? undefined, projectId: entry.workflowRunId ?? undefined, featureItemId: entry.id })}><span><b>{entry.title}</b><small>{entry.detail}</small></span><ArrowUpRight size={14} /></button>)}</div></div>;
 }

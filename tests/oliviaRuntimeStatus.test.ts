@@ -47,6 +47,7 @@ describe("Olivia OS shared runtime status", () => {
     const desktop = readFileSync("components/olivia-os/OliviaDesktop.tsx", "utf8");
     const topBar = readFileSync("components/olivia-os/DesktopTopBar.tsx", "utf8");
     const widgets = readFileSync("components/olivia-os/DesktopWidgets.tsx", "utf8");
+    const caseChrome = readFileSync("components/olivia-os/DesktopCaseChrome.tsx", "utf8");
     const panel = readFileSync("components/olivia-os/StatusPanelButton.tsx", "utf8");
 
     expect(provider).toContain("loadStatusPanelData");
@@ -55,6 +56,7 @@ describe("Olivia OS shared runtime status", () => {
     expect(topBar).not.toContain("loadRemoteWorkerStatus");
     expect(topBar).not.toContain("setInterval");
     expect(widgets).not.toContain("loadStatusPanelData");
+    expect(caseChrome).not.toContain("loadStatusPanelData");
     expect(panel).not.toContain("loadStatusPanelData");
     expect(panel).not.toContain("setInterval");
   });
