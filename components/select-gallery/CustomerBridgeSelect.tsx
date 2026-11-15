@@ -22,7 +22,6 @@ import { useCustomerBridgeMediaStore } from "./useCustomerBridgeMedia";
 import { useCustomerBridgeQuality } from "./useCustomerBridgeQuality";
 import { useCustomerBridgeDownload } from "./useCustomerBridgeDownload";
 import type { CustomerBridgeDownloadFormat } from "./useCustomerBridgeDownload";
-import { buildCustomerBridgePresentation } from "@/lib/select-gallery/customerBridgePresentation";
 import {
   useCustomerBridgeMarksController,
   type CustomerBridgeInitialSelection,
@@ -34,12 +33,9 @@ import { useCustomerBridgeBrowserController } from "./useCustomerBridgeBrowserCo
 import { useCustomerBridgeSideController } from "./useCustomerBridgeSideController";
 import { useCustomerBridgeFinalizeController } from "./useCustomerBridgeFinalizeController";
 import { useCustomerBridgeViewerController } from "./useCustomerBridgeViewerController";
-import { CustomerBridgeWorkspaceView } from "./CustomerBridgeWorkspaceView";
+import { CustomerBridgeWorkspaceComposer } from "./CustomerBridgeWorkspaceComposer";
 
 export type { CustomerBridgeDraft, CustomerBridgeGallery, CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
-
-const THUMB_MIN = 112;
-const THUMB_MAX = 260;
 
 function reportOptionalStorageError(scope: string, error: unknown) {
   if (process.env.NODE_ENV !== "production") console.debug(`[customer-bridge:${scope}] browser storage unavailable`, error);
@@ -155,7 +151,6 @@ export default function CustomerBridgeSelect({
     workspaceStyle,
   } = useCustomerBridgeWorkspaceLayout();
   const [guideOpen, setGuideOpen] = useState(false);
-  const openCompactFolders = useCallback(() => setCompactFoldersOpen(true), [setCompactFoldersOpen]);
   const openGuide = useCallback(() => setGuideOpen(true), []);
 
   const gridRef = useRef<HTMLDivElement>(null);
@@ -167,37 +162,7 @@ export default function CustomerBridgeSelect({
     canManageQuality,
   });
 
-  const {
-    location,
-    folderTree,
-    rootView,
-    folderView,
-    childFolders,
-    locationTotalCount,
-    openLocation,
-    goToParentFolder,
-    visibleImages,
-    selectedInFolder,
-    qualityCounts,
-    searchActive,
-    imagePageState,
-    orderedIds,
-    focusedImageId,
-    setFocusedImageId,
-    activeImageIds,
-    setActiveImageIds,
-    anchorId,
-    setAnchorId,
-    marquee,
-    clearActiveSelection,
-    handlePhotoClick,
-    handlePointerDown,
-    handlePointerMove,
-    handlePointerUp,
-    virtualGrid,
-    renderedImages,
-    setMobileImageOpener,
-  } = useCustomerBridgeBrowserController({
+  const browserController = useCustomerBridgeBrowserController({
     images,
     manifest: imageManifest,
     storageScope: localStorageScope,
@@ -219,6 +184,19 @@ export default function CustomerBridgeSelect({
     ensureImagePage,
     getImagePageState,
   });
+  const {
+    visibleImages,
+    orderedIds,
+    focusedImageId,
+    setFocusedImageId,
+    activeImageIds,
+    setActiveImageIds,
+    anchorId,
+    setAnchorId,
+    clearActiveSelection,
+    renderedImages,
+    setMobileImageOpener,
+  } = browserController;
   const { downloadState, downloadBusy, downloadSelected } = useCustomerBridgeDownload({
     endpointBase,
     readOnly,
@@ -228,7 +206,6 @@ export default function CustomerBridgeSelect({
   const handleDownload = useCallback((format: CustomerBridgeDownloadFormat) => {
     void downloadSelected(format);
   }, [downloadSelected]);
-  const totalImageCount = imageManifest?.totalCount ?? gallery.total_jpg_count ?? images.length;
   const focusedImage = focusedImageId ? imageById.get(focusedImageId) ?? null : null;
   const {
     fullscreenId,
@@ -385,241 +362,37 @@ export default function CustomerBridgeSelect({
     thumbSize,
   });
 
-  const {
-    locationLabel,
-    rootPhotoCount,
-    hasRootPhotos,
-    unselectedInLocation,
-    browserPhotoCount,
-    locationCount,
-    activeRatingFilterName,
-    activeColorFilterName,
-    saveStatusMessage,
-  } = buildCustomerBridgePresentation({
-    location,
-    manifestRootPhotoCount: imageManifest?.rootPhotoCount,
-    loadedRootPhotoCount: rootView.images.length,
-    childFolderCount: childFolders.length,
-    locationTotalCount,
-    selectedInFolder,
-    searchActive,
-    filter,
-    labelFilters,
-    imagePageInitialized: Boolean(imagePageState?.initialized),
-    imagePageTotalCount: imagePageState?.totalCount ?? 0,
-    visibleImageCount: visibleImages.length,
-    readOnly,
-    saveStatus: selectionSync.status,
-    lastSavedAt: selectionSync.lastSavedAt,
-    pendingCount: selectionSync.pendingCount,
-  });
-
-  return <CustomerBridgeWorkspaceView
+  return <CustomerBridgeWorkspaceComposer
     embedded={embedded}
     readOnly={readOnly}
-    hasAdminToolbarStatus={Boolean(adminToolbarStatus)}
-    workspaceStyle={workspaceStyle}
-    compactFoldersOpen={compactFoldersOpen}
-    onCloseCompactFolders={closeCompactFolders}
-    onBeginResize={beginResize}
-    headerProps={{
-      gallery,
-      reviewer,
-      totalImageCount,
-      saveStatusMessage,
-      selectionStatus: selectionSync.status,
-      compactFoldersOpen,
-      onOpenCompactFolders: openCompactFolders,
-      location,
-      onGoToParentFolder: goToParentFolder,
-      onOpenLocation: openLocation,
-      breadcrumbs: folderView?.breadcrumbs ?? [],
-      filter,
-      onFilterChange: setFilter,
-      locationTotalCount,
-      selectedInFolder,
-      unselectedInLocation,
-      guideButtonRef,
-      guideOpen,
-      onOpenGuide: openGuide,
-      jpgDownloadEnabled: Boolean(gallery.download_jpg_enabled && !readOnly),
-      rawDownloadEnabled: Boolean(gallery.download_raw_enabled && !readOnly),
-      downloadDisabled: !serverSelectedIds.size || downloadBusy || selectionSync.pendingCount > 0,
-      downloadBusy,
-      downloadState,
-      onDownload: handleDownload,
-      messagesEnabled,
-      unreadMessages,
-      onOpenMessages: openMessages,
-      qualityEnabled: Boolean(qualityApi),
-      canManageQuality,
-      qualityStatus: String(qualityJob?.status ?? ""),
-      onStartQuality: startQualityAnalysis,
-      adminToolbarAction,
-      selectedImageCount: customerSelectedIds.size,
-      onOpenReview: openReview,
-      focusedImageId,
-      onOpenFullscreen: openFocusedFullscreen,
-      adminToolbarStatus,
-    }}
-    folderPanelProps={{
-      compactOpen: compactFoldersOpen,
-      location,
-      folderTree,
-      rootFolderCount: rootView.folders.length,
-      totalImageCount,
-      hasRootPhotos,
-      rootPhotoCount,
-      filter,
-      locationTotalCount,
-      selectedInFolder,
-      unselectedInLocation,
-      qualityEnabled: Boolean(qualityApi),
-      qualityCounts,
-      qualityState,
-      qualityJob,
-      canManageQuality,
-      activeImageCount: activeImageIds.size,
-      selectedImageCount: customerSelectedIds.size,
-      onCloseCompact: closeCompactFolders,
-      onOpenLocation: openLocation,
-      onFilterChange: setFilter,
-      onControlQuality: controlQuality,
-    }}
-    browserPanelProps={{
-      location,
-      locationLabel,
-      locationCount,
-      browserPhotoCount,
-      searchActive,
-      filenameSearch,
-      searchInputRef,
-      activeRatingFilterName,
-      activeColorFilterName,
-      labelFilters,
-      thumbSize,
-      thumbMin: THUMB_MIN,
-      thumbMax: THUMB_MAX,
-      gridRef,
-      thumbnailGridRef,
-      childFolders,
-      hasRootPhotos,
-      rootPhotoCount,
-      virtualTotalHeight: virtualGrid.totalHeight,
-      virtualTopPadding: virtualGrid.topPadding,
-      virtualBottomPadding: virtualGrid.bottomPadding,
-      renderedImages,
-      visibleImageCount: visibleImages.length,
-      activeImageIds,
-      focusedImageId,
-      customerRatings,
-      customerColorLabels,
-      pendingImageIds: selectionSync.pendingImageIds,
-      qualityResults,
-      mobile,
-      marquee,
-      onApplyLabelFilterCommand: applyLabelFilterCommand,
-      onFilenameSearchChange: setFilenameSearch,
-      onClearFilenameSearch: clearFilenameSearch,
-      onThumbSizeChange: setThumbSize,
-      onOpenLocation: openLocation,
-      onPhotoClick: handlePhotoClick,
-      onImageError: handleImageError,
-      onPointerDown: handlePointerDown,
-      onPointerMove: handlePointerMove,
-      onPointerUp: handlePointerUp,
-    }}
-    sidePanelProps={{
-      sideTab,
-      onSideTabChange: setSideTab,
-      mobileSideOpen,
-      onCloseMobile: closeMobileSide,
-      messagesEnabled,
-      unreadMessages,
-      activeCount: activeImageIds.size,
-      focusedImage,
-      orderedIds,
-      onFocusImage: setFocusedImageId,
-      onOpenFullscreen: openFullscreen,
-      onImageError: handleImageError,
-      quality: focusedImage ? qualityResults[focusedImage.id] : undefined,
-      canManageQuality,
-      onReviewQuality: handleQualityReview,
-      readOnly,
-      rating: focusedImage ? customerRatings[focusedImage.id] ?? 0 : 0,
-      colorLabel: focusedImage ? customerColorLabels[focusedImage.id] ?? null : null,
-      note: focusedImage ? notes[focusedImage.id] ?? "" : "",
-      onRate: applyMainRating,
-      onColor: applyMainColor,
-      onNote: updateFocusedNote,
-      messages,
-      messageText,
-      setMessageText,
-      messageState,
-      messageImageScoped,
-      setMessageImageScoped,
-      sendingMessage,
-      messagesEndRef,
-      onSendMessage: handleSendMessage,
-    }}
-    footerProps={{
-      readOnly,
-      totalPhotoCount: images.length,
-      selectedPhotoCount: customerSelectedIds.size,
-      saveStatus: selectionSync.status,
-      saveStatusMessage,
-      onRetrySave: selectionSync.retry,
-      downloadState,
-      submitError,
-      canFinalize: reviewer?.can_finalize !== false,
-      resetButtonRef,
-      resetting,
-      hasNotes: Boolean(Object.keys(notes).length),
-      onReset: openResetConfirm,
-      onReview: openReview,
-      submitting,
-      pendingCount: selectionSync.pendingCount,
-      onSubmit: openSubmitReviewAction,
-    }}
-    overlayProps={{
-      fullscreenImage,
-      fullscreenIndex,
-      fullscreenTotal: visibleImages.length,
-      zoomed,
-      reviewOpen: Boolean(reviewIds),
-      reviewImages,
-      reviewActiveId,
-      reviewRemoved,
-      ratings: customerRatings,
-      colorLabels: customerColorLabels,
-      notes,
-      guideOpen,
-      resetConfirmOpen,
-      resetting,
-      submitReviewOpen,
-      submitReviewSections,
-      submitReviewItems,
-      selectedCount: customerSelectedIds.size,
-      submitting,
-      submitError,
-      readOnly,
-      onToggleFullscreenZoom: toggleFullscreenZoom,
-      onCloseFullscreen: closeFullscreen,
-      onMoveFullscreen: moveFullscreen,
-      onApplyRating: applyRatingTo,
-      onToggleColor: toggleColorTo,
-      onUpdateNote: updateNote,
-      onImageError: handleImageError,
-      onSetReviewActive: setReviewActiveId,
-      onCloseReview: closeReview,
-      onRemoveFromReview: removeFromReview,
-      onRestoreReview: restoreReview,
-      onOpenFullscreen: openFullscreen,
-      onCloseGuide: closeGuide,
-      onCloseReset: closeResetConfirm,
-      onReset: resetSelection,
-      onCloseSubmitReview: closeSubmitReview,
-      onSubmit: submit,
-    }}
+    gallery={gallery}
+    reviewer={reviewer}
+    messagesEnabled={messagesEnabled}
+    qualityApi={qualityApi}
+    canManageQuality={canManageQuality}
+    adminToolbarAction={adminToolbarAction}
+    adminToolbarStatus={adminToolbarStatus}
+    imageManifest={imageManifest}
+    images={images}
+    focusedImage={focusedImage}
+    thumbSize={thumbSize}
+    setThumbSize={setThumbSize}
+    guideOpen={guideOpen}
+    guideButtonRef={guideButtonRef}
+    gridRef={gridRef}
+    thumbnailGridRef={thumbnailGridRef}
+    layout={{ compactFoldersOpen, setCompactFoldersOpen, mobile, closeCompactFolders, beginResize, workspaceStyle }}
+    filters={{ filter, setFilter, labelFilters, filenameSearch, setFilenameSearch, searchInputRef, clearFilenameSearch, applyLabelFilterCommand, handleSearchFilterShortcut }}
+    marks={{ serverRatings, serverColorLabels, serverNotes, customerRatings, customerColorLabels, notes, serverSelectedIds, customerSelectedIds, selectionSync, enqueueSelectionSync, flushSelectionSync, getPendingSelectionDiffs, installServerSnapshot, getDraftRevision, applyRatingTo, applyColorTo, toggleColorTo, updateNote, clearDisplayedSelection }}
+    browser={{ ...browserController, handleImageError }}
+    download={{ downloadState, downloadBusy, downloadSelected }}
+    viewer={{ fullscreenId, fullscreenImage, fullscreenIndex, zoomed, openFullscreen, closeFullscreen, toggleFullscreenZoom, moveFullscreen, reviewIds, reviewActiveId, reviewRemoved, reviewImages, setReviewActiveId, openReview, closeReview, resetReview, moveReview, removeFromReview, restoreReview, openFocusedFullscreen }}
+    finalize={{ submitError, submitting, submitReviewOpen, openSubmitReview: openSubmitReviewAction, closeSubmitReview, submit, submitReviewItems, submitReviewSections, resetButtonRef, resetConfirmOpen, resetting, openResetConfirm, closeResetConfirm, resetSelection }}
+    side={{ sideTab, setSideTab, mobileSideOpen, setMobileSideOpen, messages, messageText, setMessageText, messageState, messageImageScoped, setMessageImageScoped, unreadMessages, sendingMessage, messagesEndRef, openMessages, closeMobileSide, applyMainRating, applyMainColor, handleQualityReview, handleSendMessage, updateFocusedNote }}
+    quality={{ qualityResults, qualityJob, qualityState, startQuality, controlQuality, reviewQuality }}
+    onOpenGuide={openGuide}
+    onCloseGuide={closeGuide}
+    onDownload={handleDownload}
+    onStartQuality={startQualityAnalysis}
   />;
 }

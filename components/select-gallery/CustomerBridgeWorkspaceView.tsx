@@ -13,7 +13,7 @@ import { CustomerBridgeOverlayLayer } from "./CustomerBridgeOverlayLayer";
 import { CustomerBridgeSidePanel } from "./CustomerBridgeSidePanel";
 import styles from "./CustomerBridgeSelect.module.css";
 
-type CustomerBridgeWorkspaceViewProps = {
+export type CustomerBridgeWorkspaceViewProps = {
   embedded: boolean;
   readOnly: boolean;
   hasAdminToolbarStatus: boolean;
