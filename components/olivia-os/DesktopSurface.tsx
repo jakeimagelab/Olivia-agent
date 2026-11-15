@@ -22,6 +22,11 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
   const visitIndexRef = useRef(-1);
   const lastActiveWindowIdRef = useRef<string | null>(null);
   const pendingHistoryTargetRef = useRef<string | null>(null);
+  const activeWindow = activeWindowId ? windows[activeWindowId] : undefined;
+  const activeApp = activeWindow && !activeWindow.minimized
+    ? oliviaAppRegistry.find((candidate) => candidate.id === activeWindow.appId)
+    : undefined;
+  const ActiveContent = activeApp?.component;
 
   // WindowLayer 자체를 측정해 모든 창 좌표를 viewport가 아닌 DesktopSurface 기준으로 통일한다.
   useEffect(() => {
@@ -156,29 +161,31 @@ export function DesktopSurface({ onDesktopContextMenu }: { onDesktopContextMenu?
       }}
     >
       <div className={styles.windowLayer}>
-        {Object.values(windows).map((win) => {
-          const app = oliviaAppRegistry.find((candidate) => candidate.id === win.appId);
-          if (!app?.component) return null;
-          const Content = app.component;
-          const active = win.id === activeWindowId && !win.minimized;
-          return (
-            <div key={win.id} className={styles.surfaceAppSlot} data-active={active ? "true" : "false"} aria-hidden={!active} inert={active ? undefined : true}>
-              <AppWindow windowId={win.id} workspaceRef={surfaceRef} minWidth={app.minSize?.width} minHeight={app.minSize?.height}>
-                <DesktopCaseChrome appId={win.appId} context={win.context}>
-                  <Content
-                    key={getDesktopContentKey({ windowId: win.id, appId: win.appId, context: win.context })}
-                    context={win.context}
-                  />
-                </DesktopCaseChrome>
-              </AppWindow>
-            </div>
-          );
-        })}
-        {!activeWindowId || !windows[activeWindowId] || windows[activeWindowId].minimized ? (
+        {activeWindow && activeApp && ActiveContent ? (
+          <div key={activeWindow.id} className={styles.surfaceAppSlot} data-active="true">
+            <AppWindow
+              windowId={activeWindow.id}
+              workspaceRef={surfaceRef}
+              minWidth={activeApp.minSize?.width}
+              minHeight={activeApp.minSize?.height}
+            >
+              <DesktopCaseChrome appId={activeWindow.appId} context={activeWindow.context}>
+                <ActiveContent
+                  key={getDesktopContentKey({
+                    windowId: activeWindow.id,
+                    appId: activeWindow.appId,
+                    context: activeWindow.context,
+                  })}
+                  context={activeWindow.context}
+                />
+              </DesktopCaseChrome>
+            </AppWindow>
+          </div>
+        ) : (
           <DesktopCaseChrome appId="home">
             <TodayWindowContent />
           </DesktopCaseChrome>
-        ) : null}
+        )}
       </div>
     </main>
   );

@@ -102,7 +102,9 @@ describe("Olivia desktop convenience controls", () => {
     expect(actions).toContain("useOliviaConversationStore");
     expect(utilityStore).toContain("chatCompact");
     expect(utilityStore).not.toContain("messages:");
-    expect(topBar).toContain('어디로 갈까요');
+    expect(topBar).toContain('getOliviaApp("all-apps")');
+    expect(topBar).toContain('작업실');
+    expect(topBar).toContain('openWorkspace');
     expect(topBar).toContain('toggleAppChat');
     expect(desktopCss).toContain("--desktop-dock-bottom: 18px");
     expect(desktopCss).toContain('.desktopBody[data-chat-open="true"]');
