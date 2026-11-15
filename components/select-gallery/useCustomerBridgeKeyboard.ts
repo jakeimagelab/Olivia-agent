@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type Dispatch, type RefObject, type SetStateAction } from "react";
+import { useEffect, useRef, type Dispatch, type RefObject, type SetStateAction } from "react";
 import {
   addCustomerBridgeRange,
   customerBridgeRatingTargets,
@@ -90,8 +90,8 @@ export function useCustomerBridgeKeyboard({
   gridRef: RefObject<HTMLDivElement | null>;
   thumbSize: number;
 }) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
+  const keydownHandlerRef = useRef<(event: KeyboardEvent) => void>(() => undefined);
+  keydownHandlerRef.current = (event: KeyboardEvent) => {
       if (guideOpen || resetConfirmOpen) {
         const modalCommand = resolveCustomerBridgeKeyboardCommand({
           key: event.key,
@@ -230,8 +230,11 @@ export function useCustomerBridgeKeyboard({
       }
       setFocusedImageId(nextId);
       gridRef.current?.querySelector<HTMLElement>(`[data-bridge-image-id="${CSS.escape(nextId)}"]`)?.scrollIntoView({ block: "nearest" });
-    };
+  };
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => keydownHandlerRef.current(event);
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeImageIds, anchorId, applyRatingTo, closeFullscreen, closeGuide, closeResetConfirm, closeReview, customerColorLabels, customerRatings, focusedImageId, fullscreenId, gridRef, guideOpen, handleSearchFilterShortcut, mobileSideOpen, moveFullscreen, moveReview, openFullscreen, openReview, orderedIds, readOnly, removeFromReview, resetConfirmOpen, restoreReview, reviewActiveId, reviewIds, reviewRemoved, setActiveImageIds, setAnchorId, setCompactFoldersOpen, setFocusedImageId, setMobileSideOpen, thumbSize, toggleColorTo]);
+  }, []);
 }
