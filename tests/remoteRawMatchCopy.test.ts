@@ -10,7 +10,7 @@ import {
   readFileAttributeSnapshot,
   verifyFileAttributeSnapshot,
 } from "@/lib/selectMatch/node/rawMatchCopy";
-import { resolveWorkerRootByLocator } from "@/lib/selectMatch/node/rawMatchPathResolution";
+import { resolveWorkerRootByLocator, resolveWorkerRootFromRemoteSelection } from "@/lib/selectMatch/node/rawMatchPathResolution";
 import { remoteRawMatchRunDisabledReason, runRemoteRawMatchCopy } from "@/lib/selectMatch/remoteRawMatch";
 
 const execFileAsync = promisify(execFile);
@@ -108,6 +108,25 @@ describe("Mac Studio RAW 폴더 자동 탐색", () => {
     }, [root], "JPG 기준 폴더", [
       { relativePath: "A.JPG", expectedSize: 1, expectedCaptureTimeMs: null },
     ])).rejects.toThrow(/JPG 기준 폴더.*단체사진.*찾은 후보/u);
+  });
+
+  it("NAS 선택기의 root-N 경로를 표본 JPG 없이 실제 촬영 폴더로 연다", async () => {
+    const root = await temporaryRoot();
+    const project = path.join(root, "1116_프로젝트");
+    await mkdir(project);
+    const previous = process.env.OLIVIA_PERSON_SELECT_ROOTS;
+    process.env.OLIVIA_PERSON_SELECT_ROOTS = JSON.stringify([root]);
+    try {
+      await expect(resolveWorkerRootFromRemoteSelection({
+        projectKey: "root-0/1116_프로젝트",
+        folderName: "1116_프로젝트",
+        relativePath: "root-0/1116_프로젝트",
+        kind: "raw",
+      }, [root], "NAS 촬영 폴더")).resolves.toBe(await realpath(project));
+    } finally {
+      if (previous === undefined) delete process.env.OLIVIA_PERSON_SELECT_ROOTS;
+      else process.env.OLIVIA_PERSON_SELECT_ROOTS = previous;
+    }
   });
 });
 

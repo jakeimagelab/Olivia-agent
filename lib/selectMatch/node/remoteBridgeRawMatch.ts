@@ -13,6 +13,7 @@ import {
   resolveDestinationDirectory,
   resolveSourceFile,
   resolveWorkerRootByLocator,
+  resolveWorkerRootFromRemoteSelection,
   type RootIdentitySample,
 } from "@/lib/selectMatch/node/rawMatchPathResolution";
 import type {
@@ -107,33 +108,44 @@ export async function executeRemoteBridgeRawMatch(
     onProgress?: (progress: { current: number; total: number; message: string }) => void | Promise<void>;
   } = {},
 ): Promise<RemoteBridgeRawMatchResult> {
+  const moveJpgs = payload.moveJpgs !== false;
   const allowedRoots = await existingAllowedRoots(process.env);
   if (!allowedRoots.length) throw new Error("Mac Studio에서 사진 저장소를 찾지 못했습니다.");
-  const samples: RootIdentitySample[] = payload.selectedJpgs.slice(0, 2).map((jpg) => ({
+  const samples: RootIdentitySample[] = moveJpgs ? payload.selectedJpgs.slice(0, 2).map((jpg) => ({
     relativePath: jpg.relativePath,
     expectedSize: jpg.size,
     expectedCaptureTimeMs: jpg.captureTimeMs,
-  }));
+  })) : [];
   await options.onProgress?.({ current: 0, total: payload.selectedJpgs.length, message: `${payload.projectRoot.folderName} 촬영 폴더를 찾는 중` });
-  const projectRoot = await resolveWorkerRootByLocator(
-    payload.projectRoot,
-    allowedRoots,
-    "촬영 폴더",
-    samples,
-    { cacheFilePath: options.rootCacheFilePath },
-  );
-  const jpgDirectory = await realpath(path.resolve(projectRoot, payload.currentJpgDirectory));
-  const jpgDirectoryMetadata = await lstat(jpgDirectory);
-  if (jpgDirectoryMetadata.isSymbolicLink() || !jpgDirectoryMetadata.isDirectory()) {
-    throw new Error(`JPG 폴더를 찾지 못했습니다: ${payload.currentJpgDirectory}`);
+  const projectRoot = moveJpgs
+    ? await resolveWorkerRootByLocator(
+      payload.projectRoot,
+      allowedRoots,
+      "촬영 폴더",
+      samples,
+      { cacheFilePath: options.rootCacheFilePath },
+    )
+    : await resolveWorkerRootFromRemoteSelection(payload.projectRoot, allowedRoots, "NAS 촬영 폴더");
+  if (moveJpgs) {
+    if (!payload.currentJpgDirectory) throw new Error("JPG 기준 폴더 경로가 없습니다.");
+    const jpgDirectory = await realpath(path.resolve(projectRoot, payload.currentJpgDirectory));
+    const jpgDirectoryMetadata = await lstat(jpgDirectory);
+    if (jpgDirectoryMetadata.isSymbolicLink() || !jpgDirectoryMetadata.isDirectory()) {
+      throw new Error(`JPG 폴더를 찾지 못했습니다: ${payload.currentJpgDirectory}`);
+    }
   }
 
   await options.onProgress?.({ current: 0, total: payload.selectedJpgs.length, message: "파일명과 촬영시각으로 RAW를 확인하는 중" });
   const selectedKeys = new Set(payload.selectedJpgs.map((jpg) => fileKey(jpg.name)));
   const candidatesByKey = await collectRawCandidates(projectRoot, selectedKeys);
   const outputDir = await resolveDestinationDirectory(projectRoot, "Selected_RAW", "RAW 결과 폴더");
-  const deliveredRelativeDirectory = path.join(payload.currentJpgDirectory, payload.deliveredFolderName);
-  const deliveredDir = await resolveDestinationDirectory(projectRoot, deliveredRelativeDirectory, "JPG 보정본 폴더");
+  const deliveredDir = moveJpgs
+    ? await resolveDestinationDirectory(
+      projectRoot,
+      path.join(payload.currentJpgDirectory ?? "", payload.deliveredFolderName ?? ""),
+      "JPG 보정본 폴더",
+    )
+    : "";
   const failures: RemoteBridgeRawMatchFailure[] = [];
   let confirmed = 0;
   let copied = 0;
@@ -183,22 +195,24 @@ export async function executeRemoteBridgeRawMatch(
       continue;
     }
 
-    let xmpPath: string | null = null;
-    try {
-      const jpgSource = await resolveSourceFile(projectRoot, jpg.relativePath, "JPG 원본");
-      xmpPath = await matchingXmp(jpgSource);
-      const operation = await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: deliveredDir, move: true });
-      if (!operation.alreadyExisted) jpgMoved += 1;
-    } catch (error) {
-      failures.push({ stage: "jpg_move", fileName: jpg.name, error: error instanceof Error ? error.message : "JPG 이동 실패" });
-      continue;
-    }
-    if (xmpPath) {
+    if (moveJpgs) {
+      let xmpPath: string | null = null;
       try {
-        const operation = await copyOrMovePreservingMetadata({ source: xmpPath, destinationDirectory: deliveredDir, move: true });
-        if (!operation.alreadyExisted) xmpMoved += 1;
+        const jpgSource = await resolveSourceFile(projectRoot, jpg.relativePath, "JPG 원본");
+        xmpPath = await matchingXmp(jpgSource);
+        const operation = await copyOrMovePreservingMetadata({ source: jpgSource, destinationDirectory: deliveredDir, move: true });
+        if (!operation.alreadyExisted) jpgMoved += 1;
       } catch (error) {
-        failures.push({ stage: "xmp_move", fileName: path.basename(xmpPath), error: error instanceof Error ? error.message : "XMP 이동 실패" });
+        failures.push({ stage: "jpg_move", fileName: jpg.name, error: error instanceof Error ? error.message : "JPG 이동 실패" });
+        continue;
+      }
+      if (xmpPath) {
+        try {
+          const operation = await copyOrMovePreservingMetadata({ source: xmpPath, destinationDirectory: deliveredDir, move: true });
+          if (!operation.alreadyExisted) xmpMoved += 1;
+        } catch (error) {
+          failures.push({ stage: "xmp_move", fileName: path.basename(xmpPath), error: error instanceof Error ? error.message : "XMP 이동 실패" });
+        }
       }
     }
     await options.onProgress?.({ current: index + 1, total: payload.selectedJpgs.length, message: `${index + 1}/${payload.selectedJpgs.length}장 처리` });

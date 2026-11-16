@@ -42,13 +42,22 @@ export function normalizeBridgeRawMatchRequestPayload(requested: JsonRecord): Js
   if (!Array.isArray(requested.selectedJpgs) || requested.selectedJpgs.length < 1 || requested.selectedJpgs.length > 10_000) {
     throw new Error("PHOTO_BRIDGE_RAW_MATCH에는 1~10000장의 JPG가 필요합니다.");
   }
-  const deliveredFolderName = safeLogText(requested.deliveredFolderName, "deliveredFolderName", 255).trim().normalize("NFC");
-  if (!/^\d+차보정본$/u.test(deliveredFolderName)) throw new Error("보정본 폴더 이름이 올바르지 않습니다.");
+  if (requested.moveJpgs !== undefined && typeof requested.moveJpgs !== "boolean") {
+    throw new Error("moveJpgs는 boolean이어야 합니다.");
+  }
+  const moveJpgs = requested.moveJpgs !== false;
+  const deliveredFolderName = moveJpgs
+    ? safeLogText(requested.deliveredFolderName, "deliveredFolderName", 255).trim().normalize("NFC")
+    : undefined;
+  if (moveJpgs && !/^\d+차보정본$/u.test(deliveredFolderName ?? "")) throw new Error("보정본 폴더 이름이 올바르지 않습니다.");
   return {
     projectRoot: normalizeRoot(requested.projectRoot),
-    currentJpgDirectory: safeWorkerRelativePath(requested.currentJpgDirectory, "currentJpgDirectory"),
+    ...(moveJpgs ? {
+      currentJpgDirectory: safeWorkerRelativePath(requested.currentJpgDirectory, "currentJpgDirectory"),
+      deliveredFolderName,
+    } : {}),
     selectedJpgs: requested.selectedJpgs.map(normalizeJpg),
-    deliveredFolderName,
+    moveJpgs,
     ...(typeof requested.openOutput === "boolean" ? { openOutput: requested.openOutput } : {}),
   };
 }

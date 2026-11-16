@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 
+import { resolvePhotoWorkPath } from "@/lib/person-select/sourceRoots";
 import { fileSystemEntryExists } from "@/lib/selectMatch/node/preservedFileOperation";
 import { parseCaptureTime } from "@/lib/selectMatch/captureTime";
 import type { RemoteRawMatchRootLocator } from "@/lib/selectMatch/remoteRawMatchTypes";
@@ -326,6 +327,58 @@ export async function resolveWorkerRootByLocator(
   cache[cacheKey] = resolved;
   await writeWorkerRootCache(options.cacheFilePath, cache);
   return resolved;
+}
+
+/**
+ * LIST_FOLDER에서 사용자가 직접 고른 NAS 폴더를 표본 파일 없이 다시 연다.
+ * 선택 경로는 SOURCE_ROOT 기준 상대경로이므로 허용 루트 각각에서만 확인하고,
+ * 이름이 같은 다른 폴더를 임의로 고르지 않는다.
+ */
+export async function resolveWorkerRootFromRemoteSelection(
+  locator: RemoteRawMatchRootLocator,
+  allowedRoots: readonly string[],
+  label: string,
+): Promise<string> {
+  if (!locator.relativePath?.trim()) throw new Error(`${label}의 NAS 선택 경로가 없습니다.`);
+  if (/^root-\d+(?:[\\/]|$)/u.test(locator.relativePath.trim())) {
+    const selected = await resolvePhotoWorkPath(locator.relativePath);
+    if (normalizedFolderIdentity(path.basename(selected.canonicalPath)) !== normalizedFolderIdentity(locator.folderName)) {
+      throw new Error(`${label}의 선택 폴더 이름이 일치하지 않습니다: ${locator.folderName}`);
+    }
+    return selected.canonicalPath;
+  }
+  const relativePath = safeRelativePath(locator.relativePath, label);
+  const requestedName = normalizedFolderIdentity(locator.folderName);
+  const resolved = new Set<string>();
+  const attempts: string[] = [];
+
+  for (const allowedRoot of allowedRoots) {
+    let canonicalRoot: string;
+    try {
+      canonicalRoot = await realpath(allowedRoot);
+    } catch {
+      continue;
+    }
+    const candidate = path.resolve(canonicalRoot, relativePath);
+    attempts.push(candidate);
+    if (!isInside(canonicalRoot, candidate)) continue;
+    try {
+      const canonical = await realpath(candidate);
+      if (!isInside(canonicalRoot, canonical)) continue;
+      const metadata = await lstat(canonical);
+      if (metadata.isSymbolicLink() || !metadata.isDirectory()) continue;
+      if (normalizedFolderIdentity(path.basename(canonical)) !== requestedName) continue;
+      resolved.add(canonical);
+    } catch {
+      // 다른 허용 루트에서 같은 상대경로를 계속 확인한다.
+    }
+  }
+
+  if (resolved.size === 1) return [...resolved][0];
+  if (resolved.size > 1) {
+    throw new Error(`${label} '${locator.folderName}' 후보가 여러 곳입니다. 찾은 후보: ${[...resolved].join(" · ")}`);
+  }
+  throw new Error(`${label} '${locator.folderName}'을 찾지 못했습니다. 확인한 후보: ${attempts.slice(0, 10).join(" · ") || "없음"}`);
 }
 
 export async function resolveWorkerRoot(

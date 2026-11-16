@@ -961,7 +961,7 @@ export default function OliviaBridgeWorkspace({
             clientId,
             workflowRunId,
             initialRemoteSelection: remoteProjectSelection,
-            initialRemoteJpgs: remoteFolder ? selectedPhotos : undefined,
+            initialRemoteJpgs: selectedPhotos,
             rawMatchTargetMode,
           },
         } : null}

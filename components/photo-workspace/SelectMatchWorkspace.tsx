@@ -60,6 +60,7 @@ export function SelectMatchWorkspace({
   selectionOnly = false,
   selectedJpgNames = [],
   onSelectionComplete,
+  onPickNasRawFolder,
 }: {
   embedded?: boolean;
   bridgeLinked?: boolean;
@@ -70,6 +71,7 @@ export function SelectMatchWorkspace({
   /** 사진 셀렉에서 확정한 JPG 이름. RAW 매칭 탭에서만 자동으로 이어받는다. */
   selectedJpgNames?: readonly string[];
   onSelectionComplete?: (names: string[]) => void;
+  onPickNasRawFolder?: (targetNames: readonly string[]) => void;
 } = {}) {
   const {
     currentLocalFolder,
@@ -476,6 +478,12 @@ export function SelectMatchWorkspace({
     targets={authoritativeMatchTargets}
     onCancel={() => { setStep("idle"); setSelected(new Set()); }}
     onPick={() => void pickRawFolderAndPreflight()}
+    onPickNas={onPickNasRawFolder ? () => onPickNasRawFolder([...authoritativeMatchTargets]) : undefined}
+    nasDisabledReason={workerPresence.online === false
+      ? "Mac Studio가 꺼져 있어요. 켠 뒤 다시 시도해 주세요."
+      : workerPresence.online === null
+        ? "Mac Studio 연결 상태를 확인하고 있어요."
+        : undefined}
     colors={controlColors}
   />;
 

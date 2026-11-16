@@ -109,7 +109,7 @@ export function PhotoWorkspaceEmbeddedTool({
           {initialRemoteSelection ? (
             <RemoteBridgeRawMatchWorkspace remoteSelection={initialRemoteSelection} selectedJpgs={initialRemoteJpgs} />
           ) : (
-            <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} />
+            <PhotoRawMatchWorkspace bridgeLinked bridgeTargetMode={rawMatchTargetMode} selectedJpgNames={selectedJpgNames} bridgeJpgs={initialRemoteJpgs} />
           )}
         </div>
       ) : null}

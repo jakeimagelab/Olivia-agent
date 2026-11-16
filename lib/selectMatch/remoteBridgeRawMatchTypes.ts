@@ -9,9 +9,12 @@ export type RemoteBridgeRawMatchJpg = {
 
 export type RemoteBridgeRawMatchPayload = {
   projectRoot: RemoteRawMatchRootLocator;
-  currentJpgDirectory: string;
+  /** NAS Bridge에서는 JPG 이동 기준 경로, 로컬 셀렉→NAS RAW 모드에서는 생략한다. */
+  currentJpgDirectory?: string;
   selectedJpgs: RemoteBridgeRawMatchJpg[];
-  deliveredFolderName: string;
+  deliveredFolderName?: string;
+  /** false면 RAW만 Selected_RAW에 복사하고 JPG/XMP는 건드리지 않는다. */
+  moveJpgs?: boolean;
   openOutput?: boolean;
 };
 

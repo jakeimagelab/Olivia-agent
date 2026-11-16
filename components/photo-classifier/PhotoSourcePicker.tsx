@@ -19,12 +19,15 @@ export default function PhotoSourcePicker({
   onSelectRemote,
   targetWorker,
   sourceScope = "photo",
+  rootLabel,
 }: {
   onCancel: () => void;
   onSelectRemote: (selection: RemoteNasSelection) => void;
   targetWorker?: string;
   /** 개인별 사진 셀렉은 기존 사진 작업과 분리된 다중 허용 루트를 쓴다. */
   sourceScope?: "photo" | "person-select";
+  /** 같은 다중 루트 선택기를 작업 문맥에 맞는 이름으로 표시한다. */
+  rootLabel?: string;
 }) {
   const isMacBook = targetWorker === "jake-macbookpro-01";
   const dataSource = useMemo(() => {
@@ -36,7 +39,7 @@ export default function PhotoSourcePicker({
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-label={`${workerLabel} 작업 폴더 선택`}>
       <RemoteNasBrowser
         dataSource={dataSource}
-        rootLabel={sourceScope === "person-select" ? "사진 가져오기 폴더" : isMacBook ? "MacBook Pro" : undefined}
+        rootLabel={rootLabel ?? (sourceScope === "person-select" ? "사진 가져오기 폴더" : isMacBook ? "MacBook Pro" : undefined)}
         workerLabel={workerLabel}
         foldersOnly
         onCancel={onCancel}
