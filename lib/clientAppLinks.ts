@@ -59,8 +59,7 @@ export function buildClientAppLink({
     return `/photo-sorting?${params.toString()}`;
   }
   if (app === "photo-retouching") {
-    params.set("tool", "retouch");
-    return `/photo-sorting?${params.toString()}`;
+    return `/photo-retouching?${params.toString()}`;
   }
   return `/${app}?${params.toString()}`;
 }

@@ -22,7 +22,7 @@ describe("resolveFeatureIntent — 완전 일치(동의어 포함)는 즉시 mat
     ["영상분류", "/video-studio?tab=post&tool=sorting"],
     ["인터뷰 분석", "/video-studio?tab=post&tool=interview"],
     ["음성 분리", "/video-studio?tab=post&tool=audio"],
-    ["색감보정", "/photo-sorting?tool=retouch"],
+    ["색감보정", "/photo-retouching"],
   ];
   for (const [query, expectedHref] of exactCases) {
     it(`"${query}" → ${expectedHref}, confidence 1`, () => {

@@ -33,7 +33,8 @@ describe("integrated workspace registry", () => {
       "/photo-sorting?mode=raw-match&clientId=client-1",
     );
     expect(getCanonicalWorkspaceHref("/metadata-select")).toBe("/photo-sorting?tool=metadata-match");
-    expect(getCanonicalWorkspaceHref("/photo-retouching")).toBe("/photo-sorting?tool=retouch");
+    expect(getCanonicalWorkspaceHref("/photo-retouching")).toBe("/photo-retouching");
+    expect(isIntegratedToolHref("/photo-retouching")).toBe(false);
   });
 
   it("moves video sorting out of the photo workspace into 영상작업실", () => {

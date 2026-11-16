@@ -23,6 +23,7 @@ describe("OLIVIA OS app registry navigation", () => {
       "customer",
       "calendar",
       "olivia-bridge",
+      "photo-retouching",
       "person-select",
       "video-studio",
       "quote",
@@ -32,6 +33,7 @@ describe("OLIVIA OS app registry navigation", () => {
     expect(getOliviaApp("today")).toBeDefined();
     expect(getOliviaApp("today")?.dockOrder).toBeUndefined();
     expect(dockApps.find((app) => app.id === "olivia-bridge")?.title).toBe("Olivia Bridge");
+    expect(dockApps.find((app) => app.id === "photo-retouching")?.title).toBe("사진 보정");
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });
 
@@ -92,7 +94,7 @@ describe("OLIVIA OS app registry navigation", () => {
       ["/select-match", "photo-workspace", "/photo-sorting?mode=raw-match"],
       ["/metadata-select?clientId=client-1", "metadata-select", "/metadata-select?clientId=client-1"],
       ["/raw-select", "photo-workspace", "/photo-sorting?mode=select&selectMode=tcut"],
-      ["/photo-retouching", "photo-workspace", "/photo-sorting?tool=retouch"],
+      ["/photo-retouching", "photo-retouching", "/photo-retouching"],
       ["/diagnosis", "hospital-brand-image-diagnosis", "/hospital-brand-image-diagnosis"],
       ["/clients/reviews", "review-studio", "/review-studio"],
       ["/photoclinic?resourceId=quote-1", "quote", "/quote?resourceId=quote-1"],

@@ -42,7 +42,6 @@ export const WORKSPACE_GROUPS: readonly WorkspaceGroup[] = [
       { id: "t-cut", title: "T컷 정리", href: "/photo-sorting?mode=select&selectMode=tcut", aliases: ["T컷", "T컷 정리", "AI T컷", "AI 컷 정리", "컷정리", "컷 정리", "실패컷"], sourceHrefs: ["/raw-select"] },
       { id: "resize", title: "사진 리사이즈", href: "/photo-sorting?mode=file-ops&fileOpsMode=resize", aliases: ["사진 리사이즈", "이미지 리사이즈", "사진 크기 변경"], sourceHrefs: [] },
       { id: "rename", title: "이름변경", href: "/photo-sorting?mode=file-ops&fileOpsMode=rename", aliases: ["이름변경", "파일명 변경", "사진 이름 변경"], sourceHrefs: [] },
-      { id: "retouch", title: "사진 보정", href: "/photo-sorting?tool=retouch", aliases: ["사진보정", "색감 보정", "리터칭"], sourceHrefs: ["/photo-retouching"] },
     ],
   },
   {

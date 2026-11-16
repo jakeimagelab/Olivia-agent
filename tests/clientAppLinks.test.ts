@@ -18,4 +18,18 @@ describe("photo workspace client links", () => {
 
     expect(new URL(link, "https://olivia.local").searchParams.has("mode")).toBe(false);
   });
+
+  it("opens retouching in the standalone photo retouching app", () => {
+    const link = buildStepAppLink({
+      stepKey: "retouching",
+      clientId: "client-1",
+      workflowRunId: "run-1",
+    });
+
+    const target = new URL(link, "https://olivia.local");
+    expect(target.pathname).toBe("/photo-retouching");
+    expect(target.searchParams.get("clientId")).toBe("client-1");
+    expect(target.searchParams.get("workflowRunId")).toBe("run-1");
+    expect(target.searchParams.has("tool")).toBe(false);
+  });
 });

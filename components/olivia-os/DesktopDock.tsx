@@ -11,6 +11,7 @@ import {
   LayoutPanelTop,
   MessageCircle,
   NotebookText,
+  Palette,
   UserCheck,
   UsersRound,
   type LucideIcon,
@@ -26,6 +27,7 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
   customer: UsersRound,
   calendar: CalendarDays,
   "olivia-bridge": Images,
+  "photo-retouching": Palette,
   "person-select": UserCheck,
   "video-studio": Film,
   quote: FileText,
@@ -35,6 +37,7 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
 
 const DOCK_LABELS: Record<string, string> = {
   "olivia-bridge": "브릿지",
+  "photo-retouching": "사진보정",
   "person-select": "사진선택",
   "video-studio": "영상",
 };
@@ -134,7 +137,7 @@ export function DesktopDock() {
         </button>
         {apps.map((app, index) => (
           <div className={styles.dockItemGroup} key={app.id}>
-            {index === 2 || index === 4 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
+            {index === 2 || index === 5 ? <span className={styles.dockDivider} aria-hidden="true" /> : null}
             <button type="button" className={`${styles.dockButton} ${activeWindowId === app.id ? styles.active : ""}`} onPointerUp={(event) => event.currentTarget.blur()} onClick={() => open(app.id, app.title, app.defaultSize.width, app.defaultSize.height, app.route)} aria-label={DOCK_LABELS[app.id] ?? app.title}>
               <span className={styles.dockGlyph} aria-hidden="true">{(() => {
                 const Icon = DOCK_ICONS[app.id] ?? FileText;

@@ -24,7 +24,7 @@ export const STEP_INFO: Record<string, ClientStepInfo> = {
   original_delivery: { icon: FileImage, desc: "원본 파일 NAS 링크 생성 및 발송", href: "/original-delivery" },
   client_selection: { icon: Images, desc: "원본 전달부터 고객 셀렉과 RAW 매칭까지 관리", href: "/select-galleries" },
   raw_matching: { icon: Search, desc: "선택 사진과 RAW 원본을 확인하고 복사 결과를 승인", href: "/select-galleries" },
-  retouching: { icon: Palette, desc: "색감 보정 및 보정 가이드 작성", href: "/photo-sorting?tool=retouch" },
+  retouching: { icon: Palette, desc: "색감 보정 및 보정 가이드 작성", href: "/photo-retouching" },
   revision: { icon: WandSparkles, desc: "수정 요청 접수 및 알람 발송", href: "/mailing" },
   seo_delivery: { icon: Search, desc: "SEO 파일명·ALT·캡션·메타데이터 자동 생성", href: "/seo-delivery" },
   final_delivery: { icon: FileCheck2, desc: "최종 파일 + 후기 요청 메일 발송", href: "/delivery-mail" },

@@ -19,13 +19,16 @@ const PhotoWorkspace = dynamic(() => import("@/components/photo-workspace/PhotoW
 export function PhotoWorkspaceWindowContent({ context }: { context?: WindowContext }) {
   const routeHref = context?.routeHref;
   const route = routeHref ? new URL(routeHref, "https://olivia.local") : null;
+  const standaloneRetouching = route?.pathname === "/photo-retouching";
   const initialTool = route?.searchParams.get("tool") ?? undefined;
   const modeParam = route?.searchParams.get("mode");
   const legacyMode = resolveLegacyPhotoWorkspaceMode(modeParam);
   const validModes: readonly string[] = ["jpg-prep", "select", "raw-match", "classification", "file-ops", "retouch"];
   const selectModeParam = route?.searchParams.get("selectMode");
   const fileOpsModeParam = route?.searchParams.get("fileOpsMode");
-  const initialMode = legacyMode?.mode ?? (modeParam && validModes.includes(modeParam) ? modeParam as PhotoWorkspaceMode : null);
+  const initialMode = legacyMode?.mode
+    ?? (modeParam && validModes.includes(modeParam) ? modeParam as PhotoWorkspaceMode : null)
+    ?? (standaloneRetouching ? "retouch" : null);
   const initialSelectMode = legacyMode?.selectMode
     ?? (selectModeParam && ["ai", "manual", "client", "tcut"].includes(selectModeParam) ? selectModeParam as PhotoSelectMode : null);
   const initialFileOpsMode = legacyMode?.fileOpsMode

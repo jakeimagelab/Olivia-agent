@@ -9,7 +9,6 @@ import {
   ScanSearch,
   Scissors,
   Users,
-  WandSparkles,
   type LucideIcon,
 } from "lucide-react";
 import { memo } from "react";
@@ -21,7 +20,7 @@ import type {
 } from "@/components/photo-workspace/types";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
-export type BridgeToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename" | "retouch";
+export type BridgeToolKey = "jpg-prep" | "select" | "raw-match" | "classification" | "tcut" | "resize" | "rename";
 
 export type BridgeToolItem = {
   key: BridgeToolKey;
@@ -39,7 +38,6 @@ export const BRIDGE_TOOL_ITEMS: BridgeToolItem[] = [
   { key: "tcut", label: "T컷 정리", icon: Scissors, mode: "select", selectMode: "tcut" },
   { key: "resize", label: "리사이즈", icon: Scaling, mode: "file-ops", fileOpsMode: "resize" },
   { key: "rename", label: "이름변경", icon: PencilLine, mode: "file-ops", fileOpsMode: "rename" },
-  { key: "retouch", label: "사진 보정", icon: WandSparkles, mode: "retouch" },
   { key: "classification", label: "사진 분류", icon: ScanSearch, mode: "classification" },
 ];
 
