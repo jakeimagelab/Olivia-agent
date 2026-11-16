@@ -22,6 +22,7 @@ import {
   buildRemoteNasBreadcrumbs,
   normalizeRemoteNasRelativePath,
   parentRemoteNasPath,
+  remoteNasSelectionFromFolder,
   toRemoteNasDisplayPath,
 } from "@/lib/remote-nas/path";
 import {
@@ -134,6 +135,9 @@ export default function RemoteNasBrowser({
       .then((nextResult) => {
         if (!active) return;
         setResult(nextResult);
+        // 폴더를 열거나 상위 경로로 이동했을 때 이전에 골랐던 숨은 하위 폴더를
+        // 그대로 적용하지 않는다. 현재 화면의 폴더를 기본 선택으로 맞춘다.
+        setSelectedFolder(remoteNasSelectionFromFolder(nextResult));
         setErrorConnection(null);
       })
       .catch((cause: unknown) => {
@@ -161,6 +165,7 @@ export default function RemoteNasBrowser({
 
   const navigateTo = (path: string) => {
     setQuery("");
+    setSelectedFolder(null);
     setCurrentPath(normalizeRemoteNasRelativePath(path));
   };
 
@@ -200,6 +205,7 @@ export default function RemoteNasBrowser({
     ? result.displayPath
     : currentPath ? toRemoteNasDisplayPath(currentPath) : rootLabel || "NAS Root";
   const connection = errorConnection ?? result?.connection;
+  const selectingCurrentFolder = selectedFolder?.path === currentPath;
   const sourceIsMock = connection?.source === "mock";
   const macStudioState = connection?.macStudio ?? "unknown";
   const nasState = connection?.nas ?? "unknown";
@@ -353,7 +359,7 @@ export default function RemoteNasBrowser({
         <div className={styles.footerActions}>
           <button type="button" className={styles.cancelButton} onClick={onCancel}>취소</button>
           <button type="button" className={styles.selectButton} onClick={handleSelect} disabled={!selectedFolder || loading || Boolean(error)}>
-            <FolderOpen size={17} strokeWidth={1.8} aria-hidden="true" /> 선택한 폴더 적용 ({selectedFolder ? 1 : 0}) <ArrowRight size={17} aria-hidden="true" />
+            <FolderOpen size={17} strokeWidth={1.8} aria-hidden="true" /> {selectingCurrentFolder ? "현재 폴더 적용" : "선택한 폴더 적용"} ({selectedFolder ? 1 : 0}) <ArrowRight size={17} aria-hidden="true" />
           </button>
         </div>
       </footer>

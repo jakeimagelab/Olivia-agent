@@ -98,4 +98,31 @@ describe("remote Bridge thumbnails", () => {
       pollIntervalMs: 0,
     })).rejects.toThrow("400/401장만 받았습니다");
   });
+
+  it("rejects thumbnails returned for a different NAS folder", async () => {
+    const fetcher = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        return response({ ok: true, job: { id: "job-wrong-folder" } });
+      }
+      return response({
+        ok: true,
+        job: {
+          id: "job-wrong-folder",
+          action: "PHOTO_THUMBS",
+          status: "COMPLETED",
+          result: {
+            ok: true,
+            folder: "another-shoot/JPG전체",
+            total: 1,
+            thumbs: [thumb(1)],
+          },
+        },
+      });
+    });
+
+    await expect(loadRemoteBridgeThumbnails("shoot/JPG전체", {
+      fetcher: fetcher as typeof fetch,
+      pollIntervalMs: 0,
+    })).rejects.toThrow("요청한 폴더와 다른 NAS 썸네일 결과");
+  });
 });

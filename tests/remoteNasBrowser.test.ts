@@ -5,6 +5,7 @@ import {
   joinRemoteNasPath,
   normalizeRemoteNasRelativePath,
   parentRemoteNasPath,
+  remoteNasSelectionFromFolder,
   toRemoteNasDisplayName,
 } from "@/lib/remote-nas/path";
 import { createMockRemoteNasDataSource } from "@/lib/remote-nas/remoteNasDataSource";
@@ -28,6 +29,23 @@ describe("Remote NAS path safety", () => {
       { path: "0819_진보형교수님", label: "0819_진보형교수님", root: false },
       { path: "0819_진보형교수님/JPG", label: "JPG", root: false },
     ]);
+  });
+
+  it("uses the currently opened folder as the picker selection", () => {
+    expect(remoteNasSelectionFromFolder({
+      path: "root-2/촬영/JPG전체",
+      displayPath: "root-2/촬영/JPG전체",
+      rootName: "사진 가져오기 폴더",
+    })).toEqual({
+      path: "root-2/촬영/JPG전체",
+      displayPath: "root-2/촬영/JPG전체",
+      rootName: "사진 가져오기 폴더",
+    });
+    expect(remoteNasSelectionFromFolder({
+      path: "",
+      displayPath: "",
+      rootName: "사진 가져오기 폴더",
+    })).toBeNull();
   });
 });
 
@@ -67,7 +85,7 @@ describe("Remote NAS mock data source", () => {
 });
 
 describe("Remote NAS mobile folder selection", () => {
-  it("keeps selection independent from navigation and applies only the selected row", () => {
+  it("discards a stale row selection and follows the opened folder", () => {
     const browser = readFileSync("components/remote-nas/RemoteNasBrowser.tsx", "utf8");
 
     expect(browser).toContain("const DOUBLE_TAP_MS = 300");
@@ -75,13 +93,15 @@ describe("Remote NAS mobile folder selection", () => {
     expect(browser).toContain("lastTapRef");
     expect(browser).toContain("handleDirectoryTap(entry)");
     expect(browser).toContain("navigateTo(entry.path)");
+    expect(browser).toContain("setSelectedFolder(null)");
+    expect(browser).toContain("setSelectedFolder(remoteNasSelectionFromFolder(nextResult))");
     expect(browser).toContain("onSelect?.(selectedFolder.path, selectedFolder)");
     expect(browser).toContain("한 번 탭:");
     expect(browser).toContain("두 번 탭:");
     expect(browser).toContain("formatFolderModifiedAt");
     expect(browser).toContain("visibleFolderCount");
     expect(browser).toContain("setHintVisible(false)");
-    expect(browser).toContain("선택한 폴더 적용");
+    expect(browser).toContain("현재 폴더 적용");
     expect(browser).toContain("disabled={!selectedFolder");
   });
 

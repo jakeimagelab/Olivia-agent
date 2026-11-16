@@ -1,4 +1,8 @@
-import type { RemoteNasEntry } from "./types";
+import type {
+  RemoteNasEntry,
+  RemoteNasFolderResult,
+  RemoteNasSelection,
+} from "./types";
 import { REMOTE_NAS_ROOT_NAME } from "./types";
 
 const UNSAFE_PATH_CHARACTERS = /[\\\0]/;
@@ -51,6 +55,18 @@ export function toRemoteNasDisplayPath(rawPath: string): string {
     .filter(Boolean)
     .map(toRemoteNasDisplayName)
     .join("/");
+}
+
+export function remoteNasSelectionFromFolder(
+  folder: Pick<RemoteNasFolderResult, "path" | "displayPath" | "rootName">,
+): RemoteNasSelection | null {
+  const path = normalizeRemoteNasRelativePath(folder.path);
+  if (!path) return null;
+  return {
+    path,
+    displayPath: folder.displayPath || toRemoteNasDisplayPath(path),
+    rootName: folder.rootName,
+  };
 }
 
 export type RemoteNasBreadcrumb = {

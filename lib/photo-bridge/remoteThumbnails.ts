@@ -161,9 +161,13 @@ export async function loadRemoteBridgeThumbnails(
   while (total === null || thumbs.length < total) {
     const offset = thumbs.length;
     const page = await fetchPage(path, offset, resolved);
+    const pageFolder = normalizeRemoteNasRelativePath(page.folder);
+    if (pageFolder !== path) {
+      throw new Error("요청한 폴더와 다른 NAS 썸네일 결과가 반환되었습니다. 폴더를 다시 선택해 주세요.");
+    }
     if (total !== null && page.total !== total) throw new Error("원격 썸네일 전체 장수가 조회 중 달라졌습니다. 폴더를 다시 선택해 주세요.");
     total = page.total;
-    folder = page.folder;
+    folder = pageFolder;
     if (page.thumbs.length > PAGE_SIZE) throw new Error("원격 썸네일 묶음 크기가 400장을 초과했습니다.");
     if (page.thumbs.length === 0 && thumbs.length < total) throw new Error(`원격 썸네일이 중간에 끊겼습니다. ${thumbs.length}/${total}장만 받았습니다.`);
     for (const thumb of page.thumbs) {
