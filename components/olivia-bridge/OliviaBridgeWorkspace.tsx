@@ -517,7 +517,6 @@ export default function OliviaBridgeWorkspace({
     pickLocalFolder,
     pickNasFolder,
     pickRawSearchRoot,
-    openRawRootPrompt,
     closeRawRootPrompt,
     openRawMatchWithCurrentScope,
     cancelNasPicker,
@@ -640,12 +639,10 @@ export default function OliviaBridgeWorkspace({
     selectedIds,
     selectedIdsRef,
     visibleJpgs,
-    breadcrumbsLength: breadcrumbs.length,
     setSelectedIds,
     setSelectedJpgFiles,
     setSceneReviewOpen,
     setRawMatchTargetMode,
-    openRawRootPrompt,
     setToolKey,
   });
 

@@ -149,6 +149,7 @@ export default function RemoteBridgeRawMatchWorkspace({
   const cardColor = dark ? "rgba(255,255,255,.04)" : C.light;
   const insetColor = dark ? "rgba(0,0,0,.16)" : C.bg;
   const accentColor = dark ? "#4FD8B8" : C.teal;
+  const outputDisplayPath = `${remoteSelection.displayPath.replace(/[\\/]+$/u, "") || remoteSelection.rootName}/Selected_RAW`;
 
   const run = useCallback(async () => {
     if (disabledReason || busy) return;
@@ -200,11 +201,12 @@ export default function RemoteBridgeRawMatchWorkspace({
           <Link2 size={18} color={accentColor} aria-hidden="true" />
           <div><strong style={{ fontSize: 15 }}>NAS RAW 매칭 실행</strong><p style={{ margin: "4px 0 0", color: mutedColor, fontSize: 12 }}>Mac Studio가 선택한 NAS 촬영 폴더에서 파일명·촬영시각을 확인합니다.</p></div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, marginTop: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginTop: 16 }}>
           <div style={{ borderRadius: 10, background: insetColor, padding: 14 }}><span style={{ display: "block", color: mutedColor, fontSize: 11 }}>확정 셀렉</span><b style={{ display: "block", marginTop: 4, color: dark ? accentColor : C.orange, fontSize: 22 }}>{selectedJpgs.length.toLocaleString("ko-KR")}장</b></div>
           <div style={{ borderRadius: 10, background: insetColor, padding: 14 }}><span style={{ display: "block", color: mutedColor, fontSize: 11 }}>NAS 촬영 폴더</span><b style={{ display: "block", marginTop: 6, fontSize: 13 }}>{remoteSelection.displayPath}</b></div>
+          <div style={{ borderRadius: 10, background: insetColor, padding: 14 }}><span style={{ display: "block", color: mutedColor, fontSize: 11 }}>결과 폴더</span><b style={{ display: "block", marginTop: 6, fontSize: 13, overflowWrap: "anywhere" }}>{outputDisplayPath}</b></div>
         </div>
-        {rawOnly ? <p style={{ margin: "12px 0 0", color: mutedColor, fontSize: 11 }}>RAW만 NAS의 Selected_RAW에 복사합니다. 로컬 JPG와 NAS JPG/XMP는 이동하지 않습니다.</p> : null}
+        {rawOnly ? <p style={{ margin: "12px 0 0", color: mutedColor, fontSize: 11 }}>RAW만 복사합니다. 로컬 JPG와 NAS JPG/XMP는 변경하지 않습니다.</p> : null}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16, flexWrap: "wrap" }}>
           <button type="button" disabled={Boolean(disabledReason) || busy} onClick={() => void run()} style={{ border: Boolean(disabledReason) || busy ? `1px solid ${borderColor}` : 0, borderRadius: 9, padding: "10px 18px", background: Boolean(disabledReason) || busy ? "transparent" : dark ? "#37C39D" : C.orange, color: Boolean(disabledReason) || busy ? mutedColor : dark ? "#103E36" : "white", fontWeight: 600, cursor: Boolean(disabledReason) || busy ? "not-allowed" : "pointer" }}>
             {busy ? preparing ? `촬영시각 확인 중 ${preparing.completed}/${preparing.total}` : "RAW 매칭 실행 중…" : `RAW 매칭 실행 (${selectedJpgs.length.toLocaleString("ko-KR")}장)`}
@@ -217,7 +219,7 @@ export default function RemoteBridgeRawMatchWorkspace({
 
       {job && (job.status === "QUEUED" || job.status === "RUNNING") ? <div style={{ border: `1px solid ${borderColor}`, borderRadius: 12, background: cardColor, padding: 16 }} role="status"><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><LoaderCircle size={16} className="spin" />{job.progress?.message || "Mac Studio 작업 대기 중"}</span><b>{progressPercent}%</b></div><div style={{ height: 8, marginTop: 10, borderRadius: 99, overflow: "hidden", background: borderColor }}><div style={{ width: `${progressPercent}%`, height: "100%", background: accentColor }} /></div></div> : null}
       {error ? <div role="alert" style={{ border: "1px solid rgba(229,138,113,.7)", borderRadius: 12, background: dark ? "rgba(201,74,30,.12)" : "#fff0ea", color: dark ? "#F0A98C" : "#a13c20", padding: 16, whiteSpace: "pre-wrap" }}><strong style={{ display: "flex", gap: 8, alignItems: "center" }}><AlertTriangle size={17} />RAW 매칭 실패</strong><p style={{ margin: "8px 0 0", fontSize: 12, lineHeight: 1.6 }}>{error}</p></div> : null}
-      {result ? <div role="status" style={{ border: `1px solid ${dark ? "rgba(79,216,184,.45)" : "#90b9a8"}`, borderRadius: 12, background: dark ? "rgba(55,195,157,.10)" : "#edf8f2", color: dark ? "#A8F1DC" : C.teal, padding: 16 }}><strong style={{ display: "flex", gap: 8, alignItems: "center" }}><CheckCircle2 size={18} />RAW 매칭 완료</strong><p style={{ margin: "8px 0 0", lineHeight: 1.7 }}>확정 {result.confirmed}장 · 새로 복사 {result.copied}장 · 이미 있음 {result.alreadyCopied}장{rawOnly ? "" : ` · JPG ${result.jpgMoved}장 이동 · XMP ${result.xmpMoved}개 이동`} · 확인 필요 {result.needsReview}장</p>{result.failures.length ? <p style={{ margin: "6px 0 0", color: dark ? "#F0A98C" : "#a13c20", fontSize: 12 }}>{result.failures.slice(0, 5).map((failure) => `${failure.fileName}: ${failure.error}`).join(" · ")}</p> : null}</div> : null}
+      {result ? <div role="status" style={{ border: `1px solid ${dark ? "rgba(79,216,184,.45)" : "#90b9a8"}`, borderRadius: 12, background: dark ? "rgba(55,195,157,.10)" : "#edf8f2", color: dark ? "#A8F1DC" : C.teal, padding: 16 }}><strong style={{ display: "flex", gap: 8, alignItems: "center" }}><CheckCircle2 size={18} />RAW 매칭 완료</strong><p style={{ margin: "8px 0 0", lineHeight: 1.7 }}>확정 {result.confirmed}장 · 새로 복사 {result.copied}장 · 이미 있음 {result.alreadyCopied}장{rawOnly ? "" : ` · JPG ${result.jpgMoved}장 이동 · XMP ${result.xmpMoved}개 이동`} · 확인 필요 {result.needsReview}장</p>{rawOnly ? <p style={{ margin: "6px 0 0", color: mutedColor, fontSize: 12, overflowWrap: "anywhere" }}>결과: {outputDisplayPath}</p> : null}{result.failures.length ? <p style={{ margin: "6px 0 0", color: dark ? "#F0A98C" : "#a13c20", fontSize: 12 }}>{result.failures.slice(0, 5).map((failure) => `${failure.fileName}: ${failure.error}`).join(" · ")}</p> : null}</div> : null}
     </section>
   );
 }

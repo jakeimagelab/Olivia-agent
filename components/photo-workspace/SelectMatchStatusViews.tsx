@@ -52,11 +52,11 @@ export function SelectMatchRawFolderView({
           {targets.size > 5 ? <div style={{ color: colors.uiHint }}>... 외 {targets.size - 5}개</div> : null}
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <SelectMatchButton variant="secondary" onClick={onCancel}>← 취소</SelectMatchButton>
-          <SelectMatchButton variant={bridgeLinked ? "secondary" : undefined} onClick={onPick}>{bridgeLinked && discoveryFailed && onPickNas ? "이 기기에서 RAW 폴더 선택" : bridgeLinked && discoveryFailed ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</SelectMatchButton>
-          {bridgeLinked && discoveryFailed && onPickNas ? <SelectMatchButton variant="secondary" disabled={Boolean(nasDisabledReason)} onClick={onPickNas}>NAS 촬영 폴더 선택</SelectMatchButton> : null}
+          <SelectMatchButton variant="secondary" onClick={onCancel}>취소</SelectMatchButton>
+          <SelectMatchButton variant={bridgeLinked ? "secondary" : undefined} onClick={onPick}>{bridgeLinked && onPickNas ? "이 기기에서 찾기" : bridgeLinked && discoveryFailed ? "RAW 폴더 직접 지정" : bridgeLinked ? "다른 RAW 폴더 선택" : "RAW 폴더 선택"}</SelectMatchButton>
+          {bridgeLinked && onPickNas ? <SelectMatchButton variant="secondary" disabled={Boolean(nasDisabledReason)} onClick={onPickNas}>NAS에서 찾기</SelectMatchButton> : null}
         </div>
-        {bridgeLinked && discoveryFailed && onPickNas && nasDisabledReason ? <p style={{ margin: "10px 0 0", color: "#F0A98C", fontSize: 11 }}>{nasDisabledReason}</p> : null}
+        {bridgeLinked && onPickNas && nasDisabledReason ? <p style={{ margin: "10px 0 0", color: "#F0A98C", fontSize: 11 }}>{nasDisabledReason}</p> : null}
       </div>
     </div>
   );

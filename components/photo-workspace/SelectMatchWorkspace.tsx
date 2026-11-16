@@ -479,11 +479,13 @@ export function SelectMatchWorkspace({
     onCancel={() => { setStep("idle"); setSelected(new Set()); }}
     onPick={() => void pickRawFolderAndPreflight()}
     onPickNas={onPickNasRawFolder ? () => onPickNasRawFolder([...authoritativeMatchTargets]) : undefined}
-    nasDisabledReason={workerPresence.online === false
-      ? "Mac Studio가 꺼져 있어요. 켠 뒤 다시 시도해 주세요."
-      : workerPresence.online === null
-        ? "Mac Studio 연결 상태를 확인하고 있어요."
-        : undefined}
+    nasDisabledReason={expectedMatchTargetCount === 0
+      ? "매칭할 사진이 없어요. 별점 또는 컬러 기준을 확인해 주세요."
+      : workerPresence.online === false
+        ? "Mac Studio가 꺼져 있어요. 켠 뒤 다시 시도해 주세요."
+        : workerPresence.online === null
+          ? "Mac Studio 연결 상태를 확인하고 있어요."
+          : undefined}
     colors={controlColors}
   />;
 
