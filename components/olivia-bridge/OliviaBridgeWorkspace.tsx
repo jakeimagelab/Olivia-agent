@@ -58,6 +58,8 @@ import {
 import type { BridgeRawMatchTargetMode } from "@/lib/photo-bridge/rawMatchDelivery";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
 import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
+import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
+import { storePhotoRetouchHandoff } from "@/lib/photo-retouch/handoff";
 import styles from "./OliviaBridgeWorkspace.module.css";
 
 const THUMBNAIL_SIZE_MIN = 96;
@@ -74,6 +76,7 @@ export default function OliviaBridgeWorkspace({
 } = {}) {
   const sp = useSearchParams();
   const desktopWindowMode = useDesktopWindowMode();
+  const launchApp = useDesktopAppLauncher();
   const { routeHref } = useDesktopWindowRoute();
   const {
     currentLocalFolder,
@@ -646,6 +649,27 @@ export default function OliviaBridgeWorkspace({
     setToolKey,
   });
 
+  const retouchDisabledReason = scanStatus !== "ready"
+    ? "사진 폴더를 먼저 선택해 주세요."
+    : !remoteFolder
+      ? "브릿지에서 연 로컬 폴더는 Mac Studio 경로를 알 수 없어요. NAS에서 같은 폴더를 선택하세요."
+      : !scan.jpgs.length
+        ? "현재 폴더에 보정할 JPG가 없습니다."
+        : undefined;
+  const openPhotoRetouching = useCallback(() => {
+    if (retouchDisabledReason || !remoteFolder || typeof window === "undefined") {
+      if (retouchDisabledReason) showTopNotice(retouchDisabledReason, 5_000);
+      return;
+    }
+    const handoffId = storePhotoRetouchHandoff(window.sessionStorage, {
+      sourcePath: remoteFolder.path,
+      selectedFileNames: selectedPhotos.map((photo) => photo.relativePath),
+    });
+    const href = `/photo-retouching?tab=match&handoff=${encodeURIComponent(handoffId)}`;
+    if (desktopWindowMode) launchApp(href, "사진 보정");
+    else window.location.assign(href);
+  }, [desktopWindowMode, launchApp, remoteFolder, retouchDisabledReason, selectedPhotos, showTopNotice]);
+
   const handleKeyboard = useOliviaBridgeKeyboard({
     compactFiltersOpen,
     closeCompactFilters,
@@ -916,6 +940,8 @@ export default function OliviaBridgeWorkspace({
         scanReady={scanStatus === "ready"}
         onOpenGallerySelection={openGallerySelectImport}
         onOpenPersonSelection={openPersonSelectImport}
+        onOpenRetouch={openPhotoRetouching}
+        retouchDisabledReason={retouchDisabledReason}
         activeRatingFilterName={activeRatingFilterName}
         activeColorFilterName={activeColorFilterName}
         unreadableFolderCount={scan.unreadableFolderCount}

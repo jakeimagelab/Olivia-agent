@@ -444,6 +444,7 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
   const [initialHandoffId, setInitialHandoffId] = useState("");
   const [initialReturnPath, setInitialReturnPath] = useState("");
   const [editorOutputPath, setEditorOutputPath] = useState("");
+  const [editorEventId, setEditorEventId] = useState("");
   const [preview,  setPreview]  = useState("");
   const [imgB64,   setImgB64]   = useState("");
   const [imgMime,  setImgMime]  = useState("image/jpeg");
@@ -482,6 +483,7 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
     setInitialHandoffId(search.get("handoff") || "");
     setInitialReturnPath(search.get("return") || "");
     setEditorOutputPath(search.get("output_path") || "");
+    setEditorEventId(search.get("event_id") || "");
   }, [initialHref]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
@@ -621,7 +623,7 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
           onOpenEditor={(outputPath) => { setEditorOutputPath(outputPath); changeTab("edit"); }}
         /> : null}
 
-        {tab === "edit" ? <ColorMatchEditor embedded outputPath={editorOutputPath || undefined} onBack={() => changeTab("match")} /> : null}
+        {tab === "edit" ? <ColorMatchEditor embedded eventId={editorEventId || undefined} outputPath={editorOutputPath || undefined} onBack={() => changeTab("match")} /> : null}
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (

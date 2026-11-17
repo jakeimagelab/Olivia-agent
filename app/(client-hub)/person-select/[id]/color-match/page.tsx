@@ -1,6 +1,6 @@
-import { ColorMatchEditor } from "@/components/person-select/color-match/ColorMatchEditor";
+import { redirect } from "next/navigation";
 
 export default async function PersonSelectColorMatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <ColorMatchEditor eventId={id} />;
+  redirect(`/photo-retouching?tab=edit&event_id=${encodeURIComponent(id)}`);
 }

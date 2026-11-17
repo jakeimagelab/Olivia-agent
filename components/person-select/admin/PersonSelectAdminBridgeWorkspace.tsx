@@ -116,6 +116,7 @@ export function PersonSelectAdminBridgeWorkspace({
   onDeliveryDrop,
   onOffersOpenChange,
   onBack,
+  initialModal,
 }: {
   eventId: string;
   data: PersonSelectAdminData;
@@ -141,6 +142,7 @@ export function PersonSelectAdminBridgeWorkspace({
   onDeliveryDrop: (fileNames: string[], linkedImageId?: string) => void | Promise<void>;
   onOffersOpenChange: (open: boolean) => void | Promise<void>;
   onBack: () => void;
+  initialModal?: "upload" | "settings" | null;
 }) {
   const isShared = data.event.access_mode === "project_shared";
   const reviewers = useMemo(() => data.shared?.reviewers ?? [], [data.shared?.reviewers]);
@@ -162,8 +164,12 @@ export function PersonSelectAdminBridgeWorkspace({
   const [thumbnailSize, setThumbnailSize] = useState(140);
   const [sortMode, setSortMode] = useState<"filename" | "capture">("capture");
   const [inspectorTab, setInspectorTab] = useState<"customer" | "preview">("customer");
-  const [modal, setModal] = useState<"upload" | "settings" | null>(null);
+  const [modal, setModal] = useState<"upload" | "settings" | null>(initialModal ?? null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (initialModal) setModal(initialModal);
+  }, [initialModal]);
 
   useEffect(() => {
     const nextOwner = isShared ? selectedReviewer?.id ?? "shared" : selectedPersonId ?? data.people[0]?.id ?? "";

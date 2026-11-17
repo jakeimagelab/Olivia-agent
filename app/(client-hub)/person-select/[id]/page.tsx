@@ -20,6 +20,7 @@ import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
 import { buildPersonSelectAdminPresentation } from "@/lib/person-select/adminPresentation";
+import { consumePhotoRetouchReturn } from "@/lib/photo-retouch/handoff";
 import type { PersonSelectImportLayout } from "@/lib/person-select/localImport";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
@@ -88,6 +89,20 @@ export default function PersonSelectDetailPage() {
   const isShared = presentation?.isShared ?? false;
   const currentLayout: Layout = presentation?.currentLayout ?? layout ?? "person-folders";
   const importController = usePersonSelectImportController({ eventId: id, projectTitle: data?.event.title ?? "", layout: currentLayout, isShared, load, onOriginalImportComplete: () => undefined, setMessage: setError });
+  const routeSearch = windowRoute.routeHref
+    ? new URL(windowRoute.routeHref, "https://olivia.local").searchParams
+    : typeof window !== "undefined" ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const retouchReturnId = routeSearch.get("retouch") || "";
+  const initialAdminModal = routeSearch.get("panel") === "upload" || retouchReturnId ? "upload" as const : null;
+  useEffect(() => {
+    if (!retouchReturnId || typeof window === "undefined") return;
+    const returned = consumePhotoRetouchReturn(window.sessionStorage, retouchReturnId);
+    if (!returned) return;
+    importController.setPath(returned.outputPath);
+    importController.setUploadKind("delivery");
+    importController.setSourceMode("remote");
+    setError(`색 맞춤 결과 폴더로 바꿨어요: ${returned.outputPath}`);
+  }, [importController, retouchReturnId]);
   const reviewerActions = usePersonSelectReviewerActions({ eventId: id, isShared, load, setSelectedReviewerId, setMessage: setError });
   const {
     rawDialogOpen, setRawDialogOpen, rawMode, setRawMode, rawSource, changeRawSource,
@@ -134,6 +149,7 @@ export default function PersonSelectDetailPage() {
           await importController.startDeliveryImport();
         }}
         onOffersOpenChange={async (open) => { setData({ ...data, event: { ...data.event, offers_open: open } }); await saveSettings({ offers_open: open }); }}
+        initialModal={initialAdminModal}
         onBack={() => navigate("/person-select")}
     />
     {rawDialogOpen ? <RawMatchDialog mode={rawMode} onModeChange={setRawMode} source={rawSource} onSourceChange={changeRawSource} labelNames={rawLabelNames} onLabelNamesChange={setRawLabelNames} isShared={isShared} reviewerScope={rawReviewerScope} onReviewerScopeChange={setRawReviewerScope} reviewers={sharedReviewers.filter((reviewer) => reviewer.active)} selectedCount={rawPreview.targets.length} submittedCount={rawPreview.submittedSelectedCount} currentCount={rawPreview.currentUnsubmittedCount} pathPlan={rawPathPlan} busy={rawBusy} disabledReason={!rawPreview.targets.length ? "선택한 기준에 고른 사진이 없어요." : rawDisabledReason} onClose={() => setRawDialogOpen(false)} onRun={() => void startRawMatch()} /> : null}

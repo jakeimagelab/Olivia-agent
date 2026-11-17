@@ -5,6 +5,7 @@ import {
   Images,
   Link2,
   PencilLine,
+  Palette,
   Scaling,
   ScanSearch,
   Scissors,
@@ -53,6 +54,8 @@ export const OliviaBridgeActionBar = memo(function OliviaBridgeActionBar({
   scanReady,
   onOpenGallerySelection,
   onOpenPersonSelection,
+  onOpenRetouch,
+  retouchDisabledReason,
   activeRatingFilterName,
   activeColorFilterName,
   unreadableFolderCount,
@@ -69,6 +72,8 @@ export const OliviaBridgeActionBar = memo(function OliviaBridgeActionBar({
   scanReady: boolean;
   onOpenGallerySelection: () => void;
   onOpenPersonSelection: () => void;
+  onOpenRetouch: () => void;
+  retouchDisabledReason?: string;
   activeRatingFilterName: string | null;
   activeColorFilterName: string | null;
   unreadableFolderCount: number;
@@ -84,6 +89,7 @@ export const OliviaBridgeActionBar = memo(function OliviaBridgeActionBar({
           const disabledReason = disabledReasonFor(key);
           return <button key={key} type="button" data-primary={key === "classification" ? "true" : "false"} data-active={activeToolKey === key || (key === "classification" && sceneReviewOpen) ? "true" : "false"} onClick={() => onOpenTool(key)} disabled={Boolean(disabledReason)} aria-label={disabledReason ? `${label}: ${disabledReason}` : label} title={disabledReason ?? label}><Icon size={12} strokeWidth={1.8} /><span>{label}</span>{disabledReason ? <small>{disabledReason}</small> : null}</button>;
         })}
+        <button type="button" onClick={onOpenRetouch} disabled={Boolean(retouchDisabledReason)} aria-label={retouchDisabledReason ? `사진 보정: ${retouchDisabledReason}` : "사진 보정"} title={retouchDisabledReason ?? "현재 NAS 폴더를 사진보정 앱에서 엽니다."}><Palette size={12} strokeWidth={1.8} /><span>사진 보정</span>{retouchDisabledReason ? <small>{retouchDisabledReason}</small> : null}</button>
         <button type="button" className={styles.customerSelectionButton} onClick={onOpenGallerySelection} disabled={customerImportDisabled} aria-label={customerImportDisabled ? "갤러리 고객 셀렉: 사진 폴더를 먼저 선택해 주세요." : "갤러리 고객 셀렉 불러오기"} title={customerImportDisabled ? "사진 폴더를 먼저 선택해 주세요." : "사진선택 갤러리에 제출된 고객 셀렉을 비교합니다."}><Users size={12} strokeWidth={1.8} /><span>갤러리 고객 셀렉</span></button>
         <button type="button" className={styles.customerSelectionButton} onClick={onOpenPersonSelection} disabled={customerImportDisabled} aria-label={customerImportDisabled ? "고객 선택 불러오기: 사진 폴더를 먼저 선택해 주세요." : "개인별 사진선택 행사 불러오기"} title={customerImportDisabled ? "사진 폴더를 먼저 선택해 주세요." : "개인별 사진 셀렉 행사에서 고객이 고른 사진을 불러옵니다."}><Users size={12} strokeWidth={1.8} /><span>고객 선택 불러오기</span></button>
       </nav>
