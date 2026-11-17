@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { RefreshCw, Camera, Copy, Check } from "lucide-react";
+import { ColorMatchEditor } from "@/components/person-select/color-match/ColorMatchEditor";
+import { PhotoColorMatchPanel } from "@/components/photo-retouching/PhotoColorMatchPanel";
 import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
-import { useDesktopWindowMode } from "@/lib/desktopWindowContext";
 import { C } from "@/lib/theme";
 
 // 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
@@ -86,23 +87,23 @@ function PsSlider({ label, value }: { label: string; value: number }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
-        <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[0]}</span>
+        <span style={{ color: C.muted }}>{sides[0]}</span>
         <span style={{ fontWeight: 600, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
           {value > 0 ? `+${value}` : value}
         </span>
-        <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[1]}</span>
+        <span style={{ color: C.muted }}>{sides[1]}</span>
       </div>
-      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,.1)", position: "relative", overflow: "hidden" }}>
+      <div style={{ height: 6, borderRadius: 3, background: C.border, position: "relative", overflow: "hidden" }}>
         <div style={{
           position: "absolute", height: "100%", borderRadius: 3,
           background: isNeg ? "#93C5FD" : "#FCA5A5",
           width: `${pct / 2}%`,
           left: isNeg ? `${50 - pct / 2}%` : "50%",
         }}/>
-        <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "rgba(255,255,255,.3)" }}/>
+        <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: C.muted }}/>
       </div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,.45)", marginTop: 4 }}>
-        → <strong style={{ color: "rgba(255,255,255,.8)" }}>{activeSide}</strong> 방향으로 조정
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+        → <strong style={{ color: C.txt }}>{activeSide}</strong> 방향으로 조정
       </div>
     </div>
   );
@@ -137,18 +138,18 @@ function SyncSlider({ label, value }: { label: string; value: number }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 11 }}>
-        <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[0]}</span>
+        <span style={{ color: C.muted }}>{sides[0]}</span>
         <span style={{ fontWeight: 600, color: isNeg ? "#93C5FD" : "#FCA5A5", fontSize: 14 }}>
           {value > 0 ? `+${value}` : value}
         </span>
-        <span style={{ color: "rgba(255,255,255,.45)" }}>{sides[1]}</span>
+        <span style={{ color: C.muted }}>{sides[1]}</span>
       </div>
-      <div style={{ height: 6, borderRadius: 3, background: "rgba(255,255,255,.1)", position: "relative", overflow: "hidden" }}>
+      <div style={{ height: 6, borderRadius: 3, background: C.border, position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", height: "100%", borderRadius: 3, background: isNeg ? "#93C5FD" : "#FCA5A5", width: `${pct / 2}%`, left: isNeg ? `${50 - pct / 2}%` : "50%" }}/>
-        <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: "rgba(255,255,255,.3)" }}/>
+        <div style={{ position: "absolute", left: "50%", top: 0, width: 1, height: "100%", background: C.muted }}/>
       </div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)", marginTop: 4 }}>
-        → <strong style={{ color: "rgba(255,255,255,.75)" }}>{isNeg ? sides[0] : sides[1]}</strong> 방향
+      <div style={{ fontSize: 11, color: C.muted, marginTop: 4 }}>
+        → <strong style={{ color: C.txt }}>{isNeg ? sides[0] : sides[1]}</strong> 방향
       </div>
     </div>
   );
@@ -185,7 +186,7 @@ function SyncUpload({ label, preview, onFile, onClear, badge, embedded = false }
         </div>
       ) : (
         <div style={{ position: "relative", borderRadius: 14, overflow: "hidden", border: `2px solid ${badge === "기준" ? C.teal : C.orange}` }}>
-          <img src={preview} alt="" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }}/>
+          <img src={preview} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", display: "block", background: "#e6e6e6" }}/>
           <button onClick={onClear} style={{ position: "absolute", top: 8, right: 8, width: 28, height: 28,
             borderRadius: "50%", border: "none", background: "rgba(0,0,0,.55)", color: "#fff",
             cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
@@ -247,7 +248,7 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
   const scoreColor = sc >= 85 ? "#059669" : sc >= 65 ? "#D97706" : C.orange;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 900, margin: "0 auto" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20, width: "100%" }}>
 
       {/* 안내 */}
       <div style={{ background: C.mint, borderRadius: 12, padding: "14px 18px", display: "flex", gap: 12, alignItems: "center", borderLeft: `3px solid ${C.teal}` }}>
@@ -369,14 +370,14 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
           {/* Photoshop */}
           {resTab === "ps" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div style={{ background: "#1E2D2A", borderRadius: 14, padding: "20px" }}>
+              <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
                   <div>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026 · 대상 사진에 적용</div>
-                    <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 2 }}>색상 균형 (Color Balance)</div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B) · 중간 영역 · 광도 유지 ✓</div>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: C.hint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026 · 대상 사진에 적용</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: C.txt, marginBottom: 2 }}>색상 균형 (Color Balance)</div>
+                    <div style={{ fontSize: 11, color: C.muted }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B) · 중간 영역 · 광도 유지 ✓</div>
                   </div>
-                  <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+                  <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.teal, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
                     {copied ? <Check size={13}/> : <Copy size={13}/>}{copied ? "복사됨" : "복사"}
                   </button>
                 </div>
@@ -387,7 +388,7 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
                     <SyncSlider label="노랑↔파랑" value={result.photoshop.overall.yellowBlue} />
                   </>
                 ) : (
-                  <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,.5)", fontSize: 13 }}>
+                  <div style={{ textAlign: "center", padding: "20px 0", color: C.muted, fontSize: 13 }}>
                     ✓ 색상 균형 보정 불필요
                   </div>
                 )}
@@ -434,10 +435,15 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
   );
 }
 
-function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: { embedded?: boolean; initialFile?: File }) {
-  const embedded = embeddedOverride ?? useDesktopWindowMode();
+type PhotoRetouchTab = "match" | "edit" | "check" | "sync" | "recipe";
+
+export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initialHref }: { embedded?: boolean; initialFile?: File; initialHref?: string }) {
   const inputRef   = useRef<HTMLInputElement>(null);
-  const [tab,      setTab]      = useState<"check" | "sync" | "recipe">("check");
+  const [tab,      setTab]      = useState<PhotoRetouchTab>("match");
+  const [initialPath, setInitialPath] = useState("");
+  const [initialHandoffId, setInitialHandoffId] = useState("");
+  const [initialReturnPath, setInitialReturnPath] = useState("");
+  const [editorOutputPath, setEditorOutputPath] = useState("");
   const [preview,  setPreview]  = useState("");
   const [imgB64,   setImgB64]   = useState("");
   const [imgMime,  setImgMime]  = useState("image/jpeg");
@@ -465,6 +471,18 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
   useEffect(() => {
     if (initialFile && !preview) void processFile(initialFile);
   }, [initialFile, preview, processFile]);
+
+  useEffect(() => {
+    const search = initialHref
+      ? new URL(initialHref, "https://olivia.local").searchParams
+      : new URLSearchParams(window.location.search);
+    const requestedTab = search.get("tab");
+    if (requestedTab && ["match", "edit", "check", "sync", "recipe"].includes(requestedTab)) setTab(requestedTab as PhotoRetouchTab);
+    setInitialPath(search.get("path") || "");
+    setInitialHandoffId(search.get("handoff") || "");
+    setInitialReturnPath(search.get("return") || "");
+    setEditorOutputPath(search.get("output_path") || "");
+  }, [initialHref]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
     const items = Array.from(e.clipboardData.items);
@@ -502,24 +520,45 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
 
   const sc = result?.matchScore ?? 0;
   const scoreColor = sc >= 80 ? "#059669" : sc >= 60 ? "#D97706" : C.orange;
-  const card = embedded ? "rgba(255,255,255,.03)" : C.white;
-  const cardBorder = embedded ? "rgba(255,255,255,.13)" : C.border;
-  const bodyText = embedded ? "rgba(255,255,255,.82)" : C.txt;
-  const mutedText = embedded ? "rgba(255,255,255,.52)" : C.muted;
-  const panelTitle = tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피";
+  const card = C.white;
+  const cardBorder = C.border;
+  const bodyText = C.txt;
+  const mutedText = C.muted;
+  const panelTitle = tab === "match" ? "색 맞춤" : tab === "edit" ? "수동 편집" : tab === "check" ? "AI 색감 체크" : tab === "sync" ? "색감 동기화" : "포토클리닉 보정 레시피";
   const panelDescription = tab === "check"
     ? checkType === "gown"
       ? "가운은 순백색이 아니라 살짝 미색(웜톤 화이트)에 가까워야 합니다. 사진을 올리면 AI가 가운 색을 분석해 Photoshop 색상균형 보정 가이드를 드려요."
       : "사진 한 장을 업로드하면 포토클리닉 컬러 DNA와 비교해 보정 방향을 정리합니다."
     : tab === "sync"
       ? "기준 사진과 대상 사진을 비교해 같은 톤으로 맞추는 보정값을 안내합니다."
-      : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다.";
+      : tab === "match"
+        ? "NAS 보정본 폴더를 골라 얼굴 밝기와 톤을 한 번에 맞춥니다."
+        : tab === "edit"
+          ? "자동 색 맞춤 결과를 원본 비율 그대로 보며 사진별 또는 전체 공통으로 편집합니다."
+          : "Camera Raw와 Photoshop에서 바로 참고할 수 있는 기본 보정 기준입니다.";
+  const stepGuide = tab === "match"
+    ? "① 사진 폴더 선택 · ② 기준 선택 · ③ 색 맞춤 · ④ 결과 확인"
+    : tab === "edit"
+      ? "✓ 결과 열기 · ② 사진 선택 · ③ 수동 조정 · ④ 원본 해상도 저장"
+      : tab === "check"
+        ? "① 사진 올리기 · ② 분석 기준 · ③ 색감 분석 · ④ 보정값 확인"
+        : tab === "sync"
+          ? "① 기준 사진 · ② 대상 사진 · ③ 차이 분석 · ④ 보정값 확인"
+          : "✓ 기준 확인 · ② 편집 프로그램 적용 · ③ 전후 비교";
+
+  const changeTab = (next: PhotoRetouchTab) => {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", next);
+    if (next === "edit" && editorOutputPath) url.searchParams.set("output_path", editorOutputPath);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}`);
+  };
 
   return (
     <main
       // OLIVIA OS Desktop UI 제안서 유형 D + 1.5 — 사진 색을 판단하는 화면이라 중성 회색.
       data-photo-retouching-surface={embedded ? "workspace" : "standalone"}
-      style={{ background: "#2A2A2A", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: "rgba(255,255,255,.85)" }}
+      style={{ background: "var(--ui2-bg, #f0f4f2)", fontFamily: "'NanumSquare', 'Noto Sans KR', sans-serif", color: C.txt }}
       onPaste={handleGlobalPaste}
     >
       {embedded ? <style>{`
@@ -537,30 +576,33 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
         }
       `}</style> : null}
       {embedded ? (
-        <header style={{ height: 70, padding: "0 20px", borderBottom: "1px solid rgba(255,255,255,.10)", display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(79,216,184,.12)", color: "#4FD8B8", display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Camera size={18} aria-hidden="true" /></span>
+        <header style={{ height: 70, padding: "0 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 12, background: C.white }}>
+          <span style={{ width: 34, height: 34, borderRadius: 10, background: C.mint, color: C.teal, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><Camera size={18} aria-hidden="true" /></span>
           <span style={{ minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: 18, lineHeight: 1.2, fontWeight: 600, color: "rgba(255,255,255,.88)" }}>{panelTitle}</span>
-            <span style={{ display: "block", marginTop: 3, fontSize: 12, color: "rgba(255,255,255,.52)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{panelDescription}</span>
+            <span style={{ display: "block", fontSize: 18, lineHeight: 1.2, fontWeight: 600, color: C.txt }}>{panelTitle}</span>
+            <span style={{ display: "block", marginTop: 3, fontSize: 12, color: C.muted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{panelDescription}</span>
           </span>
         </header>
       ) : null}
-      <div style={{ padding: "12px 20px 0" }}>
+      <div style={{ padding: "12px 26px 0", display: "flex", alignItems: "end", justifyContent: "space-between", gap: 18, borderBottom: `1px solid ${C.border}`, background: C.white }}>
         <WorkspaceSubTabs
-          ariaLabel="색감 작업 선택"
+          ariaLabel="사진 보정 작업 선택"
           value={tab}
-          onChange={setTab}
-          tone="dark"
+          onChange={changeTab}
+          tone="light"
           items={[
+            { value: "match", label: "색 맞춤" },
+            { value: "edit", label: "수동 편집" },
             { value: "check", label: "색감 체크" },
             { value: "sync", label: "색감 동기화" },
             { value: "recipe", label: "보정 레시피" },
           ]}
         />
+        <p style={{ margin: "0 0 10px", color: C.muted, fontSize: 11, whiteSpace: "nowrap" }}>{stepGuide}</p>
       </div>
 
-      <div style={{ background: "#2A2A2A", minHeight: embedded ? 0 : "100vh", color: "rgba(255,255,255,.85)" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "16px 20px 80px" }}>
+      <div style={{ background: "var(--ui2-bg, #f0f4f2)", minHeight: embedded ? 0 : "100vh", color: C.txt }}>
+        <div style={{ width: "100%", padding: "18px 26px 80px" }}>
         {/* 페이지 안내 — 1.1: 화면 이름을 다시 말하지 않는다(타이틀바가 이미 보여준다).
             기존에 있던 "PHOTO RETOUCHING" 영문 이터브로우는 제거했다. */}
         {!embedded && <div style={{ background: card, border: `1px solid ${cardBorder}`, borderRadius: 14, padding: 18, marginBottom: 18 }}>
@@ -571,6 +613,15 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
             {panelDescription}
           </div>
         </div>}
+
+        {tab === "match" ? <PhotoColorMatchPanel
+          initialPath={initialPath}
+          initialHandoffId={initialHandoffId}
+          initialReturnPath={initialReturnPath}
+          onOpenEditor={(outputPath) => { setEditorOutputPath(outputPath); changeTab("edit"); }}
+        /> : null}
+
+        {tab === "edit" ? <ColorMatchEditor embedded outputPath={editorOutputPath || undefined} onBack={() => changeTab("match")} /> : null}
 
         {/* ── 색감 체크 ── */}
         {tab === "check" && (
@@ -584,7 +635,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                 <select
                   value={checkType}
                   onChange={(event) => { setCheckType(event.target.value as "skin" | "gown"); setPreview(""); setImgB64(""); setResult(null); setError(""); }}
-                  style={{ flex: 1, minHeight: 34, border: `1px solid ${embedded ? "rgba(255,255,255,.15)" : C.border}`, borderRadius: 8, padding: "0 10px", background: embedded ? "rgba(0,0,0,.16)" : "#fff", color: embedded ? "#fff" : C.teal, font: "inherit", fontWeight: 600 }}
+                  style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
                 >
                   <option value="skin">피부톤</option>
                   <option value="gown">가운 컬러</option>
@@ -598,14 +649,14 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                   onDragOver={e => { e.preventDefault(); setDragging(true); }}
                   onDragLeave={() => setDragging(false)}
                   style={{
-                    border: `1.5px dashed ${dragging ? "#4FD8B8" : embedded ? "rgba(255,255,255,.18)" : C.border}`, borderRadius: 14,
-                    background: dragging ? (embedded ? "rgba(48,174,146,.14)" : C.light) : card, padding: "52px 24px",
+                    border: `1.5px dashed ${dragging ? "#4FD8B8" : C.border}`, borderRadius: 14,
+                    background: dragging ? C.light : card, padding: "52px 24px",
                     textAlign: "center", cursor: "pointer", transition: "all .15s",
                     boxShadow: "0 8px 24px rgba(21,88,85,.04)",
                   }}>
                   <Camera size={34} strokeWidth={1.5} style={{ marginBottom: 14, color: C.teal }} aria-hidden="true" />
-                  <div style={{ fontSize: 15, fontWeight: 600, color: embedded ? "#d9f6ee" : C.teal, marginBottom: 8 }}>사진 업로드</div>
-                  <div style={{ fontSize: 12, color: embedded ? "rgba(255,255,255,.52)" : C.hint, lineHeight: 2 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: C.teal, marginBottom: 8 }}>사진 업로드</div>
+                  <div style={{ fontSize: 12, color: C.hint, lineHeight: 2 }}>
                     클릭하거나 드래그&드롭<br/>
                     포토샵·Preview에서 복사 후 <strong style={{ color: C.orange }}>Ctrl+V</strong> 붙여넣기<br/>
                     <span style={{ fontSize: 11 }}>JPG · PNG · WEBP</span>
@@ -615,7 +666,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                 </div>
               ) : (
                 <div style={{ background: card, borderRadius: 14, border: `1px solid ${cardBorder}`, overflow: "hidden" }}>
-                  <img src={preview} alt="" style={{ width: "100%", aspectRatio: "4/3", objectFit: "cover", display: "block" }}/>
+                  <img src={preview} alt="" style={{ width: "100%", height: "auto", objectFit: "contain", display: "block", background: "#e6e6e6" }}/>
                   <div style={{ padding: "12px 14px", display: "flex", gap: 8 }}>
                     <button onClick={analyze} disabled={loading} style={{
                       flex: 1, height: 44, border: "none", borderRadius: 10,
@@ -694,7 +745,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                         <div style={{ fontSize: 14, fontWeight: 600, color: bodyText, lineHeight: 1.5, marginBottom: 4 }}>
                           {checkType === "gown" ? result.gownNote : result.skinNote}
                         </div>
-                        <div style={{ fontSize: 11, color: embedded ? "rgba(255,255,255,.42)" : C.hint }}>
+                        <div style={{ fontSize: 11, color: C.hint }}>
                           {checkType === "gown"
                             ? <>{result.colorCast} · 신뢰도 {result.confidence}%</>
                             : <>{result.colorTemp} · 채도 {result.saturation} · 신뢰도 {result.confidence}%</>}
@@ -718,7 +769,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                       <select
                         value={resTab}
                         onChange={(event) => setResTab(event.target.value as "compare" | "ps" | "cameraraw")}
-                        style={{ flex: 1, minHeight: 34, border: `1px solid ${embedded ? "rgba(255,255,255,.15)" : C.border}`, borderRadius: 8, padding: "0 10px", background: embedded ? "rgba(0,0,0,.16)" : "#fff", color: embedded ? "#fff" : C.teal, font: "inherit", fontWeight: 600 }}
+                        style={{ flex: 1, minHeight: 34, border: `1px solid ${C.border}`, borderRadius: 8, padding: "0 10px", background: "#fff", color: C.teal, font: "inherit", fontWeight: 600 }}
                       >
                         <option value="compare">{checkType === "gown" ? "컬러 비교" : "피부톤 비교"}</option>
                         <option value="ps">Photoshop 보정</option>
@@ -746,14 +797,14 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                     {/* Photoshop 가이드 */}
                     {resTab === "ps" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        <div style={{ background: "#1E2D2A", borderRadius: 14, padding: "20px", border: `1px solid rgba(255,255,255,.06)` }}>
+                        <div style={{ background: C.white, borderRadius: 14, padding: "20px", border: `1px solid ${C.border}` }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 }}>
                             <div>
-                              <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026</div>
-                              <div style={{ fontSize: 16, fontWeight: 600, color: "#fff", marginBottom: 2 }}>색상 균형</div>
-                              <div style={{ fontSize: 11, color: "rgba(255,255,255,.4)" }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B)<br/>톤: 중간 영역 · 광도 유지 ✓</div>
+                              <div style={{ fontSize: 10, fontWeight: 600, color: C.hint, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 5 }}>Photoshop 2026</div>
+                              <div style={{ fontSize: 16, fontWeight: 600, color: C.txt, marginBottom: 2 }}>색상 균형</div>
+                              <div style={{ fontSize: 11, color: C.muted }}>이미지 → 조정 → 색상 균형 (Shift+Ctrl+B)<br/>톤: 중간 영역 · 광도 유지 ✓</div>
                             </div>
-                            <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(255,255,255,.15)", background: "rgba(255,255,255,.07)", color: "rgba(255,255,255,.8)", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+                            <button onClick={copyGuide} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.teal, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
                               {copied ? <Check size={13}/> : <Copy size={13}/>}
                               {copied ? "복사됨" : "가이드 복사"}
                             </button>
@@ -766,7 +817,7 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                               <PsSlider label="노랑↔파랑" value={result.photoshop.overall.yellowBlue} />
                             </>
                           ) : (
-                            <div style={{ textAlign: "center", padding: "20px 0", color: "rgba(255,255,255,.5)", fontSize: 13 }}>
+                            <div style={{ textAlign: "center", padding: "20px 0", color: C.muted, fontSize: 13 }}>
                               ✓ 색상 균형 보정 불필요 — DNA와 일치
                             </div>
                           )}
@@ -808,8 +859,8 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                     {/* Camera Raw */}
                     {resTab === "cameraraw" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        <div style={{ background: C.dark, borderRadius: 14, padding: "18px" }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,.4)", letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
+                        <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px" }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
                           <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                             {([
                               ["색온도", result.adjustments?.temperature ? `${5900 + result.adjustments.temperature}K` : "5900K", !!result.adjustments?.temperature],
@@ -822,9 +873,9 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
                               ["선명도", "+8", false],
                               ["Vibrance", String(result.adjustments?.vibrance ?? -5), result.adjustments?.vibrance !== -5],
                             ] as [string, string, boolean][]).map(([lbl, val, hi]) => (
-                              <div key={lbl} style={{ background: hi ? C.teal : "#243530", borderRadius: 10, padding: "12px 14px", border: hi ? `2px solid ${C.orange}` : "none" }}>
-                                <div style={{ fontSize: 10, color: "rgba(255,255,255,.4)", marginBottom: 4 }}>{lbl}</div>
-                                <div style={{ fontSize: 20, fontWeight: 600, color: val.startsWith("+") ? "#6EE7B7" : val.startsWith("-") ? "#FCA5A5" : "#fff" }}>{val}</div>
+                              <div key={lbl} style={{ background: hi ? C.mint : "#f3f7f5", borderRadius: 10, padding: "12px 14px", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
+                                <div style={{ fontSize: 10, color: C.muted, marginBottom: 4 }}>{lbl}</div>
+                                <div style={{ fontSize: 20, fontWeight: 600, color: val.startsWith("+") ? "#08785e" : val.startsWith("-") ? "#b84327" : C.txt }}>{val}</div>
                               </div>
                             ))}
                           </div>
@@ -863,21 +914,21 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
         )}
 
         {/* ── 색감 동기화 탭 ── */}
-        {tab === "sync" && <SyncTab embedded={embedded} />}
+        {tab === "sync" && <SyncTab embedded={false} />}
 
         {/* ── 보정 레시피 탭 ── */}
         {tab === "recipe" && (
-          <div style={{ maxWidth: 780, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ background: C.dark, borderRadius: 16, padding: "24px" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,.35)", letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>포토클리닉 컬러 DNA v1</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: "#fff", marginBottom: 4 }}>클린 뉴트럴 · 신뢰감형</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,.5)", lineHeight: 1.8, marginBottom: 16 }}>차갑지도 따뜻하지도 않은 중성 색온도. 채도를 절제해 의료 브랜딩 특유의 신뢰감 구현</div>
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 16, padding: "24px" }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: C.orange, letterSpacing: ".14em", textTransform: "uppercase", marginBottom: 6 }}>포토클리닉 컬러 DNA v1</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: C.txt, marginBottom: 4 }}>클린 뉴트럴 · 신뢰감형</div>
+              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.8, marginBottom: 16 }}>차갑지도 따뜻하지도 않은 중성 색온도. 채도를 절제해 의료 브랜딩 특유의 신뢰감 구현</div>
               <div style={{ display: "flex", gap: 10 }}>
                 {Object.values(DNA_TARGETS).map(t => (
                   <div key={t.hex} style={{ flex: 1 }}>
                     <div style={{ height: 36, borderRadius: 8, background: t.hex, marginBottom: 6 }}/>
-                    <div style={{ fontSize: 10, color: "rgba(255,255,255,.5)", textAlign: "center" }}>{t.label.split(" ")[0]}</div>
-                    <div style={{ fontSize: 9, color: "rgba(255,255,255,.3)", textAlign: "center" }}>R{t.r} G{t.g} B{t.b}</div>
+                    <div style={{ fontSize: 10, color: C.muted, textAlign: "center" }}>{t.label.split(" ")[0]}</div>
+                    <div style={{ fontSize: 9, color: C.hint, textAlign: "center" }}>R{t.r} G{t.g} B{t.b}</div>
                   </div>
                 ))}
               </div>
@@ -928,8 +979,8 @@ function PhotoRetouchingWorkspace({ embedded: embeddedOverride, initialFile }: {
           </div>
         )}
       </div>
-      {embedded ? <footer style={{ minHeight:70, display:"flex", alignItems:"center", padding:"0 20px", borderTop:"1px solid rgba(255,255,255,.10)", color:"rgba(255,255,255,.48)", fontSize:11 }}>
-        {tab === "check" ? "사진을 업로드하면 색감 분석을 시작할 수 있습니다." : tab === "sync" ? "기준 사진과 대상 사진을 올리면 색감 동기화를 시작할 수 있습니다." : "보정 기준을 확인하고 편집 프로그램에 적용하세요."}
+      {embedded ? <footer style={{ minHeight:70, display:"flex", alignItems:"center", padding:"0 20px", borderTop:`1px solid ${C.border}`, color:C.muted, fontSize:11, background:C.white }}>
+        {tab === "match" ? "NAS 보정본 폴더를 선택하면 색 맞춤을 시작할 수 있습니다." : tab === "edit" ? "색 맞춤 결과를 열고 사진별 보정값을 조정하세요." : tab === "check" ? "사진을 업로드하면 색감 분석을 시작할 수 있습니다." : tab === "sync" ? "기준 사진과 대상 사진을 올리면 색감 동기화를 시작할 수 있습니다." : "보정 기준을 확인하고 편집 프로그램에 적용하세요."}
       </footer> : null}
       </div>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

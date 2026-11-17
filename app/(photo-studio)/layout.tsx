@@ -9,13 +9,13 @@ import RemoteUnsupportedNotice from "@/components/photo-workspace/RemoteUnsuppor
 const TITLE: Record<string, { title: string; description: string }> = {
   "/olivia-bridge":    { title: "Olivia Bridge",      description: "Olivia Bridge에서 폴더를 중심으로 사진을 탐색하고 기존 사진 도구를 실행합니다." },
   "/photo-sorting":    { title: "사진 분류",         description: "사진 분류·색감 체크·피부톤 DNA 비교·Photoshop 보정 가이드를 한 화면에서 관리합니다." },
-  "/photo-retouching": { title: "사진 보정",         description: "사진을 업로드해 AI로 피부톤 또는 가운 색을 기준과 비교하고 Photoshop·Camera Raw 보정값을 제공합니다." },
+  "/photo-retouching": { title: "사진 보정",         description: "보정본의 얼굴 밝기·톤을 맞추고, 직접 편집하고, 색감을 분석합니다." },
   "/raw-select":       { title: "T컷 정리",          description: "JPG 실패컷 후보를 확인한 뒤 Trash_JPG로 안전하게 이동합니다." },
   "/select-match":     { title: "RAW 매칭",          description: "선택된 JPG와 대응하는 RAW 원본을 매칭해 복사하거나 이동합니다." },
 };
 
 const MESH_BG = "#f0f4f2";
-const REMOTE_READY_ROUTES = new Set(["/photo-sorting", "/olivia-bridge"]);
+const REMOTE_READY_ROUTES = new Set(["/photo-sorting", "/olivia-bridge", "/photo-retouching"]);
 
 function PhotoStudioRouteContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

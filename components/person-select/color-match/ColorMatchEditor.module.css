@@ -1,9 +1,9 @@
 .editor {
-  --cm-bg: #2A2A2A;
-  --cm-card: rgba(255,255,255,.04);
-  --cm-line: rgba(255,255,255,.10);
-  --cm-text: rgba(255,255,255,.92);
-  --cm-dim: rgba(255,255,255,.56);
+  --cm-bg: #f0f4f2;
+  --cm-card: #ffffff;
+  --cm-line: #cedbd6;
+  --cm-text: #173c35;
+  --cm-dim: #647a75;
   --cm-run: #37C39D;
   --cm-run-text: #103E36;
   --cm-selected: #4FD8B8;
@@ -13,10 +13,11 @@
   overflow: hidden;
   color: var(--cm-text);
   background: var(--cm-bg);
-  color-scheme: dark;
+  color-scheme: light;
 }
+.embedded { min-height: 680px; height: min(880px, calc(100dvh - 190px)); border: 1px solid var(--cm-line); border-radius: 16px; }
 .editor button, .editor input { font: inherit; }
-.topbar { min-height: 52px; display: grid; grid-template-columns: auto auto minmax(120px,1fr) minmax(220px,auto) auto; align-items: center; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--cm-line); background: #2A2A2A; font-size: 12px; }
+.topbar { min-height: 52px; display: grid; grid-template-columns: auto auto minmax(120px,1fr) minmax(220px,auto) auto; align-items: center; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--cm-line); background: #f8fbf9; font-size: 12px; }
 .topbar button { display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 0; color: var(--cm-text); background: transparent; cursor: pointer; }
 .topbar strong { font-size: 13px; font-weight: 600; }
 .topbar span { min-width: 0; overflow: hidden; color: var(--cm-dim); text-overflow: ellipsis; white-space: nowrap; }
@@ -28,22 +29,22 @@
 .viewerToolbar > button { gap: 6px; padding: 0 10px; cursor: pointer; }
 .viewSegment button { min-height: 26px; padding: 0 9px; border: 0; border-radius: 5px; color: var(--cm-dim); background: transparent; font-size: 11px; cursor: pointer; }
 .viewSegment .active, .viewerToolbar .maskActive { color: var(--cm-text); background: var(--cm-card); box-shadow: inset 0 0 0 1px var(--cm-line); }
-.canvas { position: relative; min-height: 0; display: grid; place-items: center; overflow: auto; padding: 18px; background: #252525; }
+.canvas { position: relative; min-height: 0; display: grid; place-items: center; overflow: auto; padding: 18px; background: #e6e6e6; }
 .canvas[data-eyedropper] { cursor: crosshair; }
 .mainImage { max-width: 100%; max-height: calc(100dvh - 250px); object-fit: contain; box-shadow: 0 12px 34px rgba(0,0,0,.24); }
 .splitView { width: 100%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.splitView figure { min-width: 0; min-height: 0; position: relative; display: grid; place-items: center; margin: 0; overflow: hidden; border: 1px solid var(--cm-line); background: #222; }
+.splitView figure { min-width: 0; min-height: 0; position: relative; display: grid; place-items: center; margin: 0; overflow: hidden; border: 1px solid var(--cm-line); background: #e6e6e6; }
 .splitView img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .splitView figcaption { position: absolute; left: 8px; bottom: 8px; padding: 3px 7px; border-radius: 4px; color: var(--cm-text); background: rgba(0,0,0,.58); font-size: 10px; }
-.allGrid { align-self: start; width: 100%; display: grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap: 8px; }
+.allGrid { align-self: start; width: 100%; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
 .allGrid button { min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--cm-line); border-radius: 6px; color: var(--cm-dim); background: var(--cm-card); cursor: pointer; }
-.allGrid img { width: 100%; aspect-ratio: 4/5; display: block; object-fit: cover; object-position: 50% 22%; }
+.allGrid img { width: auto; max-width: 220px; height: 190px; display: block; object-fit: contain; background: #e6e6e6; }
 .allGrid span { display: block; overflow: hidden; padding: 6px 8px; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .allGrid .selectedAll { border-color: var(--cm-selected); box-shadow: inset 0 0 0 1px var(--cm-selected); }
-.previewBusy { position: absolute; right: 24px; bottom: 20px; padding: 5px 8px; border: 1px solid var(--cm-line); border-radius: 5px; color: var(--cm-dim); background: rgba(20,20,20,.78); font-size: 10px; }
+.previewBusy { position: absolute; right: 24px; bottom: 20px; padding: 5px 8px; border: 1px solid var(--cm-line); border-radius: 5px; color: var(--cm-dim); background: rgba(255,255,255,.92); font-size: 10px; }
 .filmstrip { min-width: 0; display: flex; gap: 7px; overflow-x: auto; padding: 9px 12px 10px; border-top: 1px solid var(--cm-line); }
-.filmstrip button { position: relative; flex: 0 0 82px; min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--cm-line); border-radius: 5px; color: var(--cm-dim); background: var(--cm-card); cursor: pointer; }
-.filmstrip img { width: 100%; height: 66px; display: block; object-fit: cover; object-position: 50% 22%; }
+.filmstrip button { position: relative; flex: 0 0 auto; min-width: 68px; max-width: 142px; padding: 0; overflow: hidden; border: 1px solid var(--cm-line); border-radius: 5px; color: var(--cm-dim); background: var(--cm-card); cursor: pointer; }
+.filmstrip img { width: auto; max-width: 140px; height: 66px; display: block; object-fit: contain; background: #e6e6e6; }
 .filmstrip span { display: block; overflow: hidden; padding: 4px 5px; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .filmstrip i { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0,0,0,.4); }
 .filmstrip .selectedFilm { border-color: var(--cm-selected); box-shadow: inset 0 0 0 1px var(--cm-selected); }
@@ -51,8 +52,8 @@
 .check { color: #F0C95B; background: #F0C95B; }
 .review { color: #F27C62; background: #F27C62; }
 .noSkin { color: #8B9492; background: #8B9492; }
-.controls { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; background: #2A2A2A; }
-.histogram { height: 72px; margin: 12px 14px 4px; padding: 8px; border: 1px solid var(--cm-line); border-radius: 7px; background: #242424; }
+.controls { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; background: #f8fbf9; }
+.histogram { height: 72px; margin: 12px 14px 4px; padding: 8px; border: 1px solid var(--cm-line); border-radius: 7px; background: #edf2ef; }
 .histogram svg { width: 100%; height: 100%; overflow: visible; }
 .histogram path { fill: none; stroke-width: 1.1; opacity: .72; vector-effect: non-scaling-stroke; }
 .exif { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 5px 15px 11px; color: var(--cm-dim); font-size: 9.5px; }
@@ -86,17 +87,17 @@
 .skinActions { display: flex; flex-wrap: wrap; gap: 6px; }
 .skinActions .active { color: var(--cm-selected); border-color: var(--cm-selected); }
 .curveControl { display: grid; gap: 8px; }
-.curveControl > svg { width: 100%; height: 100px; border: 1px solid var(--cm-line); background: #242424; }
+.curveControl > svg { width: 100%; height: 100px; border: 1px solid var(--cm-line); background: #e7ece9; }
 .curveControl path { fill: none; stroke: var(--cm-text); stroke-width: 1; }
 .curveControl .curveGrid { stroke: var(--cm-line); stroke-width: .5; }
 .curveControl circle { fill: var(--cm-selected); }
-.message { margin: 8px 13px; padding: 8px 10px; border: 1px solid rgba(242,124,98,.36); border-radius: 6px; color: #F3A38E; background: rgba(242,124,98,.08); font-size: 10px; }
-.controls > footer { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 11px 13px; border-top: 1px solid var(--cm-line); background: #2A2A2A; }
+.message { margin: 8px 13px; padding: 8px 10px; border: 1px solid #efad96; border-radius: 6px; color: #9f3b1e; background: #fff1eb; font-size: 10px; }
+.controls > footer { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 11px 13px; border-top: 1px solid var(--cm-line); background: #f8fbf9; }
 .copyButton { min-height: 34px; }
 .saveButton { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--cm-run); border-radius: 7px; color: var(--cm-run-text); background: var(--cm-run); font-size: 11px; font-weight: 600; cursor: pointer; }
 .saveButton:disabled { color: var(--cm-dim); border-color: var(--cm-line); background: transparent; cursor: default; }
-.copyBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.62); }
-.copyDialog { width: min(620px, 100%); max-height: min(720px, calc(100dvh - 36px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--cm-line); border-radius: 10px; background: #2A2A2A; box-shadow: 0 24px 70px rgba(0,0,0,.38); }
+.copyBackdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 18px; background: rgba(18,40,35,.38); }
+.copyDialog { width: min(620px, 100%); max-height: min(720px, calc(100dvh - 36px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--cm-line); border-radius: 10px; background: #f8fbf9; box-shadow: 0 24px 70px rgba(22,66,55,.18); }
 .copyDialog > header { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--cm-line); }
 .copyDialog > header > div { display: grid; gap: 2px; }
 .copyDialog > header strong { font-size: 13px; }
@@ -110,7 +111,7 @@
 .copyChoices input, .copyPhotoList input { accent-color: var(--cm-selected); }
 .copyPhotoList { max-height: 360px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; overflow: auto; }
 .copyPhotoList label { min-width: 0; padding: 5px; border: 1px solid transparent; border-radius: 5px; background: var(--cm-card); }
-.copyPhotoList img { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 3px; object-fit: cover; object-position: 50% 22%; }
+.copyPhotoList img { width: auto; max-width: 48px; height: 34px; flex: 0 0 auto; border-radius: 3px; object-fit: contain; background: #e6e6e6; }
 .copyPhotoList span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .copyDialog > footer { display: flex; justify-content: flex-end; gap: 7px; padding: 11px 14px; }
 .copyDialog > footer button { min-height: 32px; padding: 0 11px; border: 1px solid var(--cm-line); border-radius: 6px; color: var(--cm-text); background: transparent; font-size: 10px; cursor: pointer; }

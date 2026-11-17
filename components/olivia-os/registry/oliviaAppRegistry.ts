@@ -3,6 +3,7 @@ import type { IconName } from "@/components/Icon";
 import { AppIcon } from "@/components/AppIcon";
 import type { WindowContext } from "@/lib/store/useOliviaDesktopStore";
 import { PhotoWorkspaceWindowContent } from "../adapters/PhotoWorkspaceWindowContent";
+import { PhotoRetouchingWindowContent } from "../adapters/PhotoRetouchingWindowContent";
 import { ClientsWindowContent } from "../adapters/ClientsWindowContent";
 import { CalendarWindowContent } from "../adapters/CalendarWindowContent";
 import { ReviewStudioWindowContent } from "../adapters/ReviewStudioWindowContent";
@@ -121,7 +122,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     minSize: { width: 680, height: 480 },
     singleton: true,
     dockOrder: 5,
-    component: PhotoWorkspaceWindowContent,
+    component: PhotoRetouchingWindowContent,
   },
   {
     id: "metadata-select",

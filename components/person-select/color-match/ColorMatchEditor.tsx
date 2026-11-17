@@ -135,7 +135,17 @@ function EditorSlider({ label, value, min, max, step = 1, track, onChange, onDra
   </label>;
 }
 
-export function ColorMatchEditor({ eventId }: { eventId: string }) {
+export function ColorMatchEditor({
+  eventId,
+  outputPath,
+  onBack,
+  embedded = false,
+}: {
+  eventId?: string;
+  outputPath?: string;
+  onBack?: () => void;
+  embedded?: boolean;
+}) {
   const router = useRouter();
   const [data, setData] = useState<ColorMatchPublicResult | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -160,8 +170,10 @@ export function ColorMatchEditor({ eventId }: { eventId: string }) {
   const [copySections, setCopySections] = useState<Set<SectionKey>>(new Set(Object.keys(SECTION_LABELS) as SectionKey[]));
   const [copyTargets, setCopyTargets] = useState<Set<string>>(new Set());
 
+  const endpoint = eventId ? `/api/person-select/${eventId}/color-match` : "/api/photo-retouch/color-match";
   const load = useCallback(async () => {
-    const response = await fetch(`/api/person-select/${eventId}/color-match`, { cache: "no-store" });
+    const query = !eventId && outputPath ? `?output_path=${encodeURIComponent(outputPath)}` : "";
+    const response = await fetch(`${endpoint}${query}`, { cache: "no-store" });
     const body = await readApiResponse<ApiResult>(response, "색 맞춤 편집기");
     if (!body.colorMatch) throw new Error("먼저 보정본 올리기에서 색 맞춤을 실행해 주세요.");
     setData(body.colorMatch);
@@ -174,7 +186,7 @@ export function ColorMatchEditor({ eventId }: { eventId: string }) {
       if (index >= 0) setSelectedIndex(index);
     }
     return body;
-  }, [eventId]);
+  }, [endpoint, eventId, outputPath]);
 
   useEffect(() => { void load().catch((error) => setMessage(error instanceof Error ? error.message : "색 맞춤 결과를 읽지 못했습니다.")); }, [load]);
   const dirty = dirtyFiles.size > 0 || commonDirty || targetDirty;
@@ -306,10 +318,12 @@ export function ColorMatchEditor({ eventId }: { eventId: string }) {
     setMessage("");
     try {
       const changes = [...dirtyFiles].map((relativePath) => ({ relativePath, recipe: recipes[relativePath] }));
-      const response = await fetch(`/api/person-select/${eventId}/color-match`, {
+      const response = await fetch(endpoint, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ outputRelativePath: data.outputVirtualPath, changes, commonRecipe: commonDirty ? commonRecipe : undefined, targetMeasurement: targetDirty ? targetMeasurement : undefined }),
+        body: JSON.stringify(eventId
+          ? { outputRelativePath: data.outputVirtualPath, changes, commonRecipe: commonDirty ? commonRecipe : undefined, targetMeasurement: targetDirty ? targetMeasurement : undefined }
+          : { outputPath: data.outputVirtualPath, changes, commonRecipe: commonDirty ? commonRecipe : undefined, targetMeasurement: targetDirty ? targetMeasurement : undefined }),
       });
       const body = await readApiResponse<{ job?: { id?: string } }>(response, "색 맞춤 저장");
       setSaveJobId(body.job?.id ?? "");
@@ -344,17 +358,18 @@ export function ColorMatchEditor({ eventId }: { eventId: string }) {
   };
 
   const leave = () => {
-    if (dirty && !window.confirm("저장하지 않은 변경이 있습니다. 보정본 올리기로 돌아갈까요?")) return;
-    router.back();
+    if (dirty && !window.confirm("저장하지 않은 변경이 있습니다. 색 맞춤 화면으로 돌아갈까요?")) return;
+    if (onBack) onBack();
+    else router.back();
   };
 
-  if (!data || !selected || !targetMeasurement) return <main className={styles.editor}><div className={styles.loading}>{message || "색 맞춤 편집기를 여는 중…"}</div></main>;
+  if (!data || !selected || !targetMeasurement) return <main className={`${styles.editor} ${embedded ? styles.embedded : ""}`}><div className={styles.loading}>{message || "색 맞춤 편집기를 여는 중…"}</div></main>;
   const shownUrl = originalHeld ? selected.sourcePreviewUrl : preview.previewUrl || selected.resultPreviewUrl;
   const currentLab = preview.measurementAfter?.skin?.lab ?? selected.measurementAfter.skin?.lab;
   const folderLabel = data.outputVirtualPath.split("/").filter(Boolean).at(-1) || "색 맞춤 결과";
-  return <main className={styles.editor}>
+  return <main className={`${styles.editor} ${embedded ? styles.embedded : ""}`}>
     <header className={styles.topbar}>
-      <button type="button" onClick={leave}><ChevronLeft size={18} />보정본 올리기</button>
+      <button type="button" onClick={leave}><ChevronLeft size={18} />색 맞춤</button>
       <strong>색 맞춤 · 수동 편집</strong><span>{folderLabel}</span>
       <span>{data.files.length}장 중 {selectedIndex + 1}번째 · {selected.fileName}</span>
       <em>기준: {data.targetMode === "median" ? "전체 중앙값" : "기준 사진 1장"}</em>
