@@ -2,6 +2,7 @@
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
+import { PERSON_SELECT_DOWNLOAD_BUCKET } from "@/lib/person-select/downloads";
 import { selectExpiredDeliveryOwners } from "@/lib/person-select/deliveries";
 
 async function removeOriginals(eventId: string, personId?: string) {
@@ -15,9 +16,24 @@ async function removeOriginals(eventId: string, personId?: string) {
   const { data: versions, error: versionError } = await db.from("person_select_delivery_versions")
     .select("storage_path_original").in("delivery_id", ids);
   if (versionError) throw versionError;
-  const paths = [...new Set((versions ?? []).map((version) => String(version.storage_path_original)).filter(Boolean))];
+  const paths = [...new Set((versions ?? []).flatMap((version) => typeof version.storage_path_original === "string" && version.storage_path_original
+    ? [version.storage_path_original]
+    : []))];
   for (let index = 0; index < paths.length; index += 100) {
     const { error: removeError } = await db.storage.from(PERSON_SELECT_BUCKET).remove(paths.slice(index, index + 100));
+    if (removeError && !/not found/i.test(removeError.message)) throw removeError;
+  }
+  return paths.length;
+}
+
+async function removeDeliveryArchives(eventId: string, personId?: string) {
+  const db = getSupabaseAdmin();
+  const prefix = `deliveries/${eventId}/${personId ?? "shared"}`;
+  const { data, error } = await db.storage.from(PERSON_SELECT_DOWNLOAD_BUCKET).list(prefix, { limit: 1_000 });
+  if (error && !/not found/i.test(error.message)) throw error;
+  const paths = (data ?? []).filter((item) => item.name.endsWith(".zip")).map((item) => `${prefix}/${item.name}`);
+  if (paths.length) {
+    const { error: removeError } = await db.storage.from(PERSON_SELECT_DOWNLOAD_BUCKET).remove(paths);
     if (removeError && !/not found/i.test(removeError.message)) throw removeError;
   }
   return paths.length;
@@ -51,10 +67,12 @@ async function main() {
   const now = new Date().toISOString();
   for (const event of expiredEvents) {
     deletedCount += await removeOriginals(event.id);
+    deletedCount += await removeDeliveryArchives(event.id);
     await db.from("person_select_events").update({ delivery_files_purged_at: now, updated_at: now }).eq("id", event.id);
   }
   for (const person of expiredPeople) {
     deletedCount += await removeOriginals(person.eventId, person.id);
+    deletedCount += await removeDeliveryArchives(person.eventId, person.id);
     await db.from("person_select_people").update({ delivery_files_purged_at: now, updated_at: now }).eq("id", person.id);
   }
   process.stdout.write(`${JSON.stringify({ ok: true, purgedProjects: expiredEvents.length, purgedPeople: expiredPeople.length, deletedCount })}\n`);

@@ -35,4 +35,20 @@ describe("remote job request payload dispatcher", () => {
       ignored: true,
     })).toEqual({});
   });
+
+  it("validates NAS delivery download ownership and bundle version", () => {
+    expect(normalizeRemoteJobRequestPayload("PERSON_SELECT_DELIVERY_DOWNLOAD", {
+      event_id: eventId,
+      person_id: eventId,
+      scope_key: `${eventId}:person:${eventId}`,
+      fingerprint: "a".repeat(32),
+      photo_count: 51,
+    })).toEqual({
+      event_id: eventId,
+      person_id: eventId,
+      scope_key: `${eventId}:person:${eventId}`,
+      fingerprint: "a".repeat(32),
+      photo_count: 51,
+    });
+  });
 });

@@ -7,8 +7,15 @@ import { parse as parseExif } from "exifr";
 import sharp from "sharp";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-select/server";
-import { resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
-import { normalizeDeliveryFileName, nextDeliveryStatus, resolveDeliveryOwner } from "@/lib/person-select/deliveries";
+import { resolvePersonSelectSourcePath, toPersonSelectVirtualPath } from "@/lib/person-select/sourceRoots";
+import {
+  type PersonSelectDeliveryLinkMethod,
+  normalizeDeliveryFileName,
+  nextDeliveryStatus,
+  personSelectDeliveryBundleKey,
+  resolveDeliveryOwner,
+  resolvePersonSelectDeliveryDownloadMode,
+} from "@/lib/person-select/deliveries";
 import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 
 type Candidate = { absolutePath: string; relativePath: string; fileName: string; parentFolderName: string | null };
@@ -69,6 +76,12 @@ async function main() {
   const source = await resolvePersonSelectSourcePath(input.sourceRelativePath);
   const files = await scan(source.canonicalPath);
   const db = getSupabaseAdmin();
+  const { error: schemaError } = await db.from("person_select_delivery_versions")
+    .select("source_virtual_path").limit(1);
+  if (schemaError && /source_virtual_path|schema cache|column/i.test(`${schemaError.message} ${schemaError.code ?? ""}`)) {
+    throw new Error("보정본 전달 DB 업데이트가 필요합니다. 20261117_person_select_hybrid_delivery.sql을 먼저 적용해 주세요.");
+  }
+  if (schemaError) throw schemaError;
   const { data: event, error: eventError } = await db.from("person_select_events")
     .select("id,title,access_mode,source_relative_path")
     .eq("id", input.eventId).single();
@@ -105,6 +118,57 @@ async function main() {
   const { data: existingData, error: existingError } = await db.from("person_select_deliveries").select("*").eq("event_id", event.id);
   if (existingError) throw existingError;
   const existing = existingData ?? [];
+  const linkPeople = (people ?? []).map((person) => ({ id: person.id, displayName: person.display_name }));
+  const prepared = [] as Array<{
+    file: Candidate;
+    capture: Capture;
+    owner: { personId: string | null; linkedImageId: string | null; method: PersonSelectDeliveryLinkMethod | null };
+    normalized: string;
+    groupLabel: string | null;
+    previous: (typeof existing)[number] | undefined;
+    bundleKey: string;
+  }>;
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    const capture = await captureTime(file.absolutePath);
+    const owner = event.access_mode === "project_shared"
+      ? (() => {
+        const matches = selectedImages.filter((image) => capture.timestampMs !== null && image.captureTimeMs !== null && Math.abs(image.captureTimeMs - capture.timestampMs) <= 2_000);
+        return matches.length === 1
+          ? { personId: null, linkedImageId: matches[0].id, method: "exif" as const }
+          : { personId: null, linkedImageId: null, method: null };
+      })()
+      : resolveDeliveryOwner({ fileName: file.fileName, parentFolderName: file.parentFolderName, captureTimeMs: capture.timestampMs }, linkPeople, selectedImages);
+    const normalized = normalizeDeliveryFileName(file.fileName);
+    const groupLabel = event.access_mode === "project_shared" ? file.parentFolderName : owner.personId ? null : file.parentFolderName;
+    const previous = existing.find((delivery) => delivery.person_id === owner.personId
+      && String(delivery.group_label ?? "") === String(groupLabel ?? "")
+      && delivery.normalized_file_name === normalized);
+    prepared.push({
+      file,
+      capture,
+      owner,
+      normalized,
+      groupLabel,
+      previous,
+      bundleKey: personSelectDeliveryBundleKey(event.access_mode, owner.personId),
+    });
+    if ((index + 1) % 25 === 0) progress(selectedUnique.size + index + 1, selectedUnique.size + files.length * 2, "보정본 전달 방식을 확인하고 있어요.");
+  }
+  const bundleEntries = new Map<string, Set<string>>();
+  for (const delivery of existing) {
+    const key = personSelectDeliveryBundleKey(event.access_mode, delivery.person_id);
+    const entries = bundleEntries.get(key) ?? new Set<string>();
+    entries.add(`existing:${delivery.id}`);
+    bundleEntries.set(key, entries);
+  }
+  for (const item of prepared) {
+    const entries = bundleEntries.get(item.bundleKey) ?? new Set<string>();
+    entries.add(item.previous?.id
+      ? `existing:${item.previous.id}`
+      : `new:${item.owner.personId ?? "none"}:${item.groupLabel ?? ""}:${item.normalized}`);
+    bundleEntries.set(item.bundleKey, entries);
+  }
   const result = {
     uploadedCount: 0,
     newVersionCount: 0,
@@ -112,49 +176,44 @@ async function main() {
     filenameCount: 0,
     folderCount: 0,
     unassignedCount: 0,
+    storageOriginalCount: 0,
+    nasOriginalCount: 0,
     unassigned: [] as Array<{ deliveryId: string; fileName: string; parentFolderName: string | null }>,
     failed: [] as Array<{ file: string; error: string }>,
   };
   const touchedPeople = new Set<string>();
   const storage = db.storage.from(PERSON_SELECT_BUCKET);
 
-  for (let index = 0; index < files.length; index += 1) {
-    const file = files[index];
+  for (let index = 0; index < prepared.length; index += 1) {
+    const item = prepared[index];
+    const { file, capture, owner, normalized, groupLabel, previous } = item;
     const createdStoragePaths: string[] = [];
     let createdDelivery = false;
     let createdVersion = false;
     let deliveryId = "";
     let version = 0;
     try {
-      const capture = await captureTime(file.absolutePath);
-      const owner = event.access_mode === "project_shared"
-        ? (() => {
-          const matches = selectedImages.filter((image) => capture.timestampMs !== null && image.captureTimeMs !== null && Math.abs(image.captureTimeMs - capture.timestampMs) <= 2_000);
-          return matches.length === 1 ? { personId: null, linkedImageId: matches[0].id, method: "exif" as const } : { personId: null, linkedImageId: null, method: null };
-        })()
-        : resolveDeliveryOwner({ fileName: file.fileName, parentFolderName: file.parentFolderName, captureTimeMs: capture.timestampMs }, (people ?? []).map((person) => ({ id: person.id, displayName: person.display_name })), selectedImages);
-      const normalized = normalizeDeliveryFileName(file.fileName);
-      const groupLabel = event.access_mode === "project_shared" ? file.parentFolderName : owner.personId ? null : file.parentFolderName;
-      const previous = existing.find((delivery) => delivery.person_id === owner.personId
-        && String(delivery.group_label ?? "") === String(groupLabel ?? "")
-        && delivery.normalized_file_name === normalized);
       deliveryId = previous?.id ?? randomUUID();
       version = previous ? Number(previous.current_version) + 1 : 1;
       const originalPath = `${event.id}/deliveries/${deliveryId}/v${version}/original.jpg`;
       const previewPath = `${event.id}/deliveries/${deliveryId}/v${version}/preview.jpg`;
-      const bytes = await readFile(file.absolutePath);
-      const image = sharp(bytes, { failOn: "none" }).rotate();
+      const bundleCount = bundleEntries.get(item.bundleKey)?.size ?? 0;
+      const downloadMode = owner.personId || event.access_mode === "project_shared"
+        ? resolvePersonSelectDeliveryDownloadMode(bundleCount)
+        : "storage";
+      const sourceRelativePath = [source.relativePath, file.relativePath].filter(Boolean).join("/");
+      const sourceVirtualPath = toPersonSelectVirtualPath(source.root, sourceRelativePath);
+      const image = sharp(file.absolutePath, { failOn: "none" }).rotate();
       const metadata = await image.metadata();
       const preview = await image.resize({ width: 2_000, height: 2_000, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-      const [originalUpload, previewUpload] = await Promise.all([
-        storage.upload(originalPath, bytes, { contentType: "image/jpeg", upsert: false }),
-        storage.upload(previewPath, preview, { contentType: "image/jpeg", upsert: false }),
-      ]);
-      if (originalUpload.error || previewUpload.error) {
-        await storage.remove([originalPath, previewPath]);
-        throw originalUpload.error || previewUpload.error;
+      const previewUpload = await storage.upload(previewPath, preview, { contentType: "image/jpeg", upsert: false });
+      if (previewUpload.error) throw previewUpload.error;
+      createdStoragePaths.push(previewPath);
+      if (downloadMode === "storage") {
+        const originalUpload = await storage.upload(originalPath, await readFile(file.absolutePath), { contentType: "image/jpeg", upsert: false });
+        if (originalUpload.error) throw originalUpload.error;
+        createdStoragePaths.push(originalPath);
       }
-      createdStoragePaths.push(originalPath, previewPath);
       const info = await stat(file.absolutePath);
       if (!previous) {
         const { error } = await db.from("person_select_deliveries").insert({
@@ -176,8 +235,9 @@ async function main() {
       const { error: versionError } = await db.from("person_select_delivery_versions").insert({
         delivery_id: deliveryId,
         version,
-        storage_path_original: originalPath,
+        storage_path_original: downloadMode === "storage" ? originalPath : null,
         storage_path_preview: previewPath,
+        source_virtual_path: sourceVirtualPath,
         size: info.size,
         width: metadata.width ?? null,
         height: metadata.height ?? null,
@@ -218,6 +278,8 @@ async function main() {
         });
       }
       result.uploadedCount += 1;
+      if (downloadMode === "storage") result.storageOriginalCount += 1;
+      else result.nasOriginalCount += 1;
       if (owner.method === "exif") result.exifCount += 1;
       else if (owner.method === "filename") result.filenameCount += 1;
       else if (owner.method === "folder") result.folderCount += 1;
@@ -238,7 +300,7 @@ async function main() {
       }
       result.failed.push({ file: file.relativePath, error: error instanceof Error ? error.message : "보정본 가져오기 실패" });
     }
-    progress(selectedUnique.size + index + 1, selectedUnique.size + files.length, file.fileName);
+    progress(selectedUnique.size + files.length + index + 1, selectedUnique.size + files.length * 2, file.fileName);
   }
 
   const now = new Date().toISOString();

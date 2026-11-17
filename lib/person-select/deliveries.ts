@@ -5,6 +5,18 @@ export type PersonSelectCustomerStage = "select" | "delivery";
 export type PersonSelectDeliveryStatus = typeof PERSON_SELECT_DELIVERY_STATUSES[number];
 export type PersonSelectDeliveryState = typeof PERSON_SELECT_DELIVERY_STATES[number];
 export type PersonSelectDeliveryLinkMethod = "exif" | "filename" | "folder" | "manual";
+export type PersonSelectDeliveryDownloadMode = "storage" | "nas";
+
+export const PERSON_SELECT_DIRECT_DELIVERY_LIMIT = 50;
+
+export function resolvePersonSelectDeliveryDownloadMode(photoCount: number): PersonSelectDeliveryDownloadMode {
+  return photoCount > PERSON_SELECT_DIRECT_DELIVERY_LIMIT ? "nas" : "storage";
+}
+
+export function personSelectDeliveryBundleKey(accessMode: string, personId: string | null | undefined) {
+  if (accessMode === "project_shared") return "shared";
+  return personId ? `person:${personId}` : "unassigned";
+}
 
 export type DeliveryLinkPerson = { id: string; displayName: string };
 export type DeliverySelectedImage = { id: string; personId: string | null; captureTimeMs: number | null };

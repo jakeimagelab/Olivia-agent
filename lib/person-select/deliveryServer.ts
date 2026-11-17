@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PERSON_SELECT_BUCKET, signedImageUrls } from "./server";
-import { deliveryExpiresAt, isDeliveryExpired } from "./deliveries";
+import { deliveryExpiresAt, isDeliveryExpired, resolvePersonSelectDeliveryDownloadMode } from "./deliveries";
 
 export type DeliveryOwnerState = {
   delivery_state?: string | null;
@@ -28,7 +28,7 @@ type DeliveryRow = {
 type DeliveryVersionRow = {
   delivery_id: string;
   version: number;
-  storage_path_original: string;
+  storage_path_original: string | null;
   storage_path_preview: string;
   size: number;
   width: number | null;
@@ -149,6 +149,13 @@ export function deliveryAccessSummary(input: {
   };
 }
 
+export function deliveryDownloadSummary(photoCount: number) {
+  return {
+    mode: resolvePersonSelectDeliveryDownloadMode(photoCount),
+    photoCount,
+  };
+}
+
 export async function createDeliveryDownloadUrls(
   db: SupabaseClient,
   scope: { eventId: string; personId?: string | null },
@@ -159,12 +166,14 @@ export async function createDeliveryDownloadUrls(
     .select("delivery_id,version,storage_path_original")
     .in("delivery_id", items.map((item) => item.id));
   if (error) throw error;
-  const currentPaths = new Map((versions ?? []).map((version) => [`${version.delivery_id}:${version.version}`, version.storage_path_original]));
+  const currentPaths = new Map((versions ?? []).flatMap((version) => version.storage_path_original
+    ? [[`${version.delivery_id}:${version.version}`, version.storage_path_original] as const]
+    : []));
   const bucket = db.storage.from(PERSON_SELECT_BUCKET);
   const output: Array<{ id: string; fileName: string; url: string }> = [];
   for (const item of items) {
     const storagePath = currentPaths.get(`${item.id}:${item.current_version}`);
-    if (!storagePath) continue;
+    if (!storagePath) throw new Error(`${item.display_name} 원본은 NAS 전달로 준비해야 합니다.`);
     const { data, error: signError } = await bucket.createSignedUrl(storagePath, 600, { download: item.display_name });
     if (signError) throw signError;
     output.push({ id: item.id, fileName: item.display_name, url: data.signedUrl });

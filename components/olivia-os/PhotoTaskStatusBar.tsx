@@ -30,6 +30,7 @@ const STAGE_LABEL: Record<string, string> = {
 function operationLabel(job: PhotoTaskJob): string {
   if (job.action === "PERSON_SELECT_IMPORT") return "개인별 사진 올리기";
   if (job.action === "PERSON_SELECT_DELIVERY_IMPORT") return "보정본 올리기";
+  if (job.action === "PERSON_SELECT_DELIVERY_DOWNLOAD") return "보정본 NAS 전달";
   if (job.action === "PERSON_SELECT_COLOR_MATCH") return "색 맞춤";
   if (job.action === "PERSON_SELECT_COLOR_RENDER") return "색 맞춤 저장";
   if (job.action === "PERSON_SELECT_DELIVERY_PURGE") return "보정본 보관 정리";

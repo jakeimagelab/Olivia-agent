@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { deliveryAccessSummary, loadDeliveryItems } from "@/lib/person-select/deliveryServer";
+import { deliveryAccessSummary, deliveryDownloadSummary, loadDeliveryItems } from "@/lib/person-select/deliveryServer";
 import { getPublicSessionContext } from "@/lib/person-select/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
     event: { title: ctx.event.title, retentionDays: ctx.event.delivery_retention_days ?? 30 },
     viewer: { displayName: ctx.person.display_name, canFinalize: true },
     access,
+    download: deliveryDownloadSummary(items.length),
     items,
   });
 }

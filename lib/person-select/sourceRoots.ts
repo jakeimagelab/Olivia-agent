@@ -112,6 +112,31 @@ export async function resolvePersonSelectSourcePath(input: string, raw = process
   return { root: canonicalRoot, canonicalPath, relativePath: path.relative(canonicalRoot.canonicalPath, canonicalPath).split(path.sep).join("/") };
 }
 
+/** 허용 루트 가상경로가 가리키는 실제 파일을 symlink 탈출 없이 해석한다. */
+export async function resolvePersonSelectSourceFile(input: string, raw = process.env[PERSON_SELECT_ROOTS_ENV]) {
+  const requested = input.trim();
+  if (!requested || containsTraversal(requested)) throw new Error("허용 루트 밖의 파일은 사용할 수 없습니다.");
+  const normalized = requested.replace(/\\/g, "/");
+  const parts = normalized.split("/").filter(Boolean);
+  const rootId = parts.shift();
+  const roots = getPersonSelectRoots(raw);
+  const selectedRoot = roots.find((root) => root.id === rootId);
+  if (!selectedRoot || !parts.length) throw new Error("보정본 원본 경로가 올바르지 않습니다.");
+  const canonicalRoot = await canonicalDirectory(selectedRoot.path);
+  const candidate = path.resolve(canonicalRoot, ...parts);
+  if (!isInside(canonicalRoot, candidate)) throw new Error("허용 루트 밖의 파일은 사용할 수 없습니다.");
+  try {
+    const canonicalPath = await realpath(candidate);
+    const info = await lstat(canonicalPath);
+    if (!info.isFile() || info.isSymbolicLink() || !isInside(canonicalRoot, canonicalPath)) {
+      throw new Error("조회 대상이 안전한 파일이 아닙니다.");
+    }
+    return { root: selectedRoot, canonicalPath, relativePath: parts.join("/") };
+  } catch (error) {
+    throw sourceError(error);
+  }
+}
+
 /**
  * 사진 작업 러너용 경로 해석.
  * "root-N/..." 으로 시작하면 허용 루트 목록에서 찾고,

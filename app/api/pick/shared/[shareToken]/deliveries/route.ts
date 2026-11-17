@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { deliveryAccessSummary, loadDeliveryItems } from "@/lib/person-select/deliveryServer";
+import { deliveryAccessSummary, deliveryDownloadSummary, loadDeliveryItems } from "@/lib/person-select/deliveryServer";
 import { enforcePublicSelectionRateLimit, publicSelectionErrorResponse } from "@/lib/select-gallery/publicSelection";
 import { resolveSharedPersonSelectAccess } from "@/lib/person-select/sharedPublic";
 import { getSupabaseAdmin } from "@/lib/supabase";
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sha
       event: { title: event.title, retentionDays: event.delivery_retention_days ?? 30 },
       viewer: { displayName: reviewer.display_name, canFinalize: reviewer.can_finalize !== false },
       access,
+      download: deliveryDownloadSummary(items.length),
       items,
     });
   } catch (error) { return publicSelectionErrorResponse(error); }

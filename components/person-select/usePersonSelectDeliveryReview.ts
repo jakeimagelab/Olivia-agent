@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loadPersonSelectDeliveries,
   loadPersonSelectDeliveryDownloadUrls,
+  loadPersonSelectDeliveryNasDownload,
+  startPersonSelectDeliveryNasDownload,
   submitPersonSelectDeliveries,
   updatePersonSelectDelivery,
 } from "@/components/person-select/personSelectDeliveryClient";
@@ -19,6 +21,19 @@ function savePersonSelectDeliveryBlob(blob: Blob, fileName: string) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 2_000);
+}
+
+function startPersonSelectDeliveryUrl(url: string, fileName: string) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
 export function usePersonSelectDeliveryReview({
@@ -129,6 +144,26 @@ export function usePersonSelectDeliveryReview({
     setError("");
     setDownloadState("전체 보정본을 준비하고 있어요.");
     try {
+      if (data?.download.mode === "nas") {
+        let result = await startPersonSelectDeliveryNasDownload(apiBase);
+        for (let attempt = 0; attempt < 300; attempt += 1) {
+          const job = result.job;
+          if (job.status === "COMPLETED" && job.downloadUrl) {
+            startPersonSelectDeliveryUrl(job.downloadUrl, job.fileName || `${data.event.title || title}_보정본.zip`);
+            setDownloadState("NAS 보정본 다운로드를 시작했습니다.");
+            return;
+          }
+          if (job.status === "FAILED" || job.status === "CANCELED") {
+            throw new Error(job.error || "NAS 보정본을 준비하지 못했습니다.");
+          }
+          const current = Number(job.progress?.current ?? 0);
+          const total = Number(job.progress?.total ?? data.download.photoCount);
+          setDownloadState(current > 0 ? `NAS에서 ${current} / ${total}장 준비 중` : "Mac Studio가 NAS 보정본을 준비하고 있어요.");
+          await wait(2_000);
+          result = await loadPersonSelectDeliveryNasDownload(apiBase, job.id);
+        }
+        throw new Error("NAS 보정본 준비 시간이 길어지고 있습니다. 잠시 후 다시 눌러 주세요.");
+      }
       const result = await loadPersonSelectDeliveryDownloadUrls(apiBase);
       const files: Record<string, Uint8Array> = {};
       const usedNames = new Set<string>();
@@ -160,7 +195,7 @@ export function usePersonSelectDeliveryReview({
     } finally {
       setBusy(false);
     }
-  }, [apiBase, data?.event.title, title]);
+  }, [apiBase, data, title]);
 
   return {
     data,

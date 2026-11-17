@@ -32,10 +32,11 @@ describe("Olivia OS photo task jobs", () => {
     const jobs = [
       job("import", "PERSON_SELECT_IMPORT", "QUEUED"),
       job("delivery", "PERSON_SELECT_DELIVERY_IMPORT", "RUNNING"),
+      job("delivery-download", "PERSON_SELECT_DELIVERY_DOWNLOAD", "RUNNING"),
       job("purge", "PERSON_SELECT_DELIVERY_PURGE", "RUNNING"),
       job("raw", "PERSON_SELECT_RAW_MATCH", "RUNNING"),
     ];
 
-    expect(filterVisiblePhotoTaskJobs(jobs).map((item) => item.id)).toEqual(["import", "delivery", "purge", "raw"]);
+    expect(filterVisiblePhotoTaskJobs(jobs).map((item) => item.id)).toEqual(["import", "delivery", "delivery-download", "purge", "raw"]);
   });
 });

@@ -50,6 +50,15 @@ describe("Mac Studio worker runner invocation", () => {
     expect(render?.args).toEqual(expect.arrayContaining(["--changes-json", "[]"]));
   });
 
+  it("maps NAS delivery packages to the dedicated runner", () => {
+    const invocation = createRunnerInvocation({
+      action: "PERSON_SELECT_DELIVERY_DOWNLOAD",
+      payload: { event_id: "event", person_id: "person", fingerprint: "a".repeat(32) },
+    }, repoRoot);
+    expect(invocation?.args).toContain(path.join(repoRoot, "scripts/person-select-delivery-download.ts"));
+    expect(invocation?.args).toEqual(expect.arrayContaining(["--person-id", "person", "--fingerprint", "a".repeat(32)]));
+  });
+
   it("serializes selected RAW names into one CLI argument", () => {
     const invocation = createRunnerInvocation({
       action: "PHOTO_RAW_MATCH",

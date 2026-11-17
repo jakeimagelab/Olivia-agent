@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canFinalizeDeliveries,
   nextDeliveryStatus,
+  personSelectDeliveryBundleKey,
+  resolvePersonSelectDeliveryDownloadMode,
   resolveDeliveryOwner,
   selectExpiredDeliveryOwners,
 } from "@/lib/person-select/deliveries";
@@ -35,6 +37,7 @@ vi.mock("@/lib/select-gallery/publicSelection", async (importOriginal) => {
 
 import { GET as getMe } from "@/app/api/pick/[eventSlug]/me/route";
 import { GET as getDownloadUrls } from "@/app/api/pick/[eventSlug]/deliveries/download-urls/route";
+import { POST as startNasDownload } from "@/app/api/pick/[eventSlug]/deliveries/download/route";
 
 function updateQuery() {
   const query = { eq: vi.fn(() => query), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: null }).then(resolve) };
@@ -61,6 +64,13 @@ describe("person select delivery linking", () => {
     expect(canFinalizeDeliveries(["approved", "revised"])).toBe(false);
     expect(canFinalizeDeliveries(["approved", "approved"])).toBe(true);
     expect(canFinalizeDeliveries([])).toBe(false);
+  });
+
+  it("uses Storage through 50 photos and NAS from 51 photos per recipient bundle", () => {
+    expect(resolvePersonSelectDeliveryDownloadMode(50)).toBe("storage");
+    expect(resolvePersonSelectDeliveryDownloadMode(51)).toBe("nas");
+    expect(personSelectDeliveryBundleKey("individual", "person-1")).toBe("person:person-1");
+    expect(personSelectDeliveryBundleKey("project_shared", null)).toBe("shared");
   });
 
   it("selects only retention-expired owners that have not already been purged", () => {
@@ -101,5 +111,11 @@ describe("person select delivery public safety", () => {
     const response = await getDownloadUrls(new NextRequest("http://localhost/api/pick/event/deliveries/download-urls"), { params: Promise.resolve({ eventSlug: "event" }) });
     expect(response.status).toBe(403);
     expect(mocks.createDownloadUrls).not.toHaveBeenCalled();
+  });
+
+  it("does not start a NAS package before final approval", async () => {
+    const response = await startNasDownload(new NextRequest("http://localhost/api/pick/event/deliveries/download", { method: "POST" }), { params: Promise.resolve({ eventSlug: "event" }) });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: "최종 확인 후 다운로드할 수 있습니다." });
   });
 });

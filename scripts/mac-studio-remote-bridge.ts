@@ -22,7 +22,7 @@ export type { RunnerInvocation };
 export { createCoalescedProgressReporter };
 export { resolveRunnerError };
 
-const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.16-person-select-color-match-v1";
+const WORKER_CODE_VERSION = process.env.OLIVIA_WORKER_CODE_VERSION?.trim() || "2026.11.17-person-select-hybrid-delivery-v1";
 
 export type ClaimedRemoteJob = {
   job_id: string;

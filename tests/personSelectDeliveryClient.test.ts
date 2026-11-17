@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   loadPersonSelectDeliveries,
   loadPersonSelectDeliveryDownloadUrls,
+  loadPersonSelectDeliveryNasDownload,
+  startPersonSelectDeliveryNasDownload,
   submitPersonSelectDeliveries,
   updatePersonSelectDelivery,
 } from "@/components/person-select/personSelectDeliveryClient";
@@ -22,11 +24,13 @@ describe("person select delivery client", () => {
     const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
       if (url.endsWith("download-urls")) return jsonResponse({ ok: true, files: [] });
+      if (url.includes("/deliveries/download")) return jsonResponse({ ok: true, job: { id: "job-1", status: "RUNNING" } });
       if (url.endsWith("/submit")) return jsonResponse({ ok: true });
       if (init?.method === "PATCH") return jsonResponse({ ok: true });
       return jsonResponse({
         ok: true,
         event: { title: "프로필", retentionDays: 30 },
+        download: { mode: "storage", photoCount: 0 },
         viewer: { displayName: "고객", canFinalize: true },
         access: {
           state: "reviewing",
@@ -50,6 +54,8 @@ describe("person select delivery client", () => {
     });
     await submitPersonSelectDeliveries("/api/pick/example", "finalize");
     await expect(loadPersonSelectDeliveryDownloadUrls("/api/pick/example")).resolves.toEqual({ ok: true, files: [] });
+    await expect(startPersonSelectDeliveryNasDownload("/api/pick/example")).resolves.toMatchObject({ job: { id: "job-1" } });
+    await expect(loadPersonSelectDeliveryNasDownload("/api/pick/example", "job-1")).resolves.toMatchObject({ job: { status: "RUNNING" } });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/pick/example/deliveries/delivery-1", expect.objectContaining({
       method: "PATCH",

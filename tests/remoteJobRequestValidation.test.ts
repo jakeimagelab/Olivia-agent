@@ -15,6 +15,7 @@ describe("remote job request validation", () => {
     expect(normalizeRemoteJobAction(" person_select_raw_match ")).toBe("PERSON_SELECT_RAW_MATCH");
     expect(normalizeRemoteJobAction("person_select_color_match")).toBe("PERSON_SELECT_COLOR_MATCH");
     expect(normalizeRemoteJobAction("person_select_color_render")).toBe("PERSON_SELECT_COLOR_RENDER");
+    expect(normalizeRemoteJobAction("person_select_delivery_download")).toBe("PERSON_SELECT_DELIVERY_DOWNLOAD");
     expect(normalizeRemoteJobAction("DELETE_EVERYTHING")).toBeNull();
     expect(normalizeRemoteJobAction(null)).toBeNull();
   });

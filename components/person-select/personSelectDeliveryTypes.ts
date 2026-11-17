@@ -14,6 +14,7 @@ export type PersonSelectDeliveryItem = {
 export type PersonSelectDeliveryResponse = {
   ok: true;
   event: { title: string; retentionDays: number };
+  download: { mode: "storage" | "nas"; photoCount: number };
   viewer: { displayName: string; canFinalize: boolean };
   access: {
     state: "none" | "reviewing" | "revision_sent" | "approved";
@@ -30,6 +31,18 @@ export type PersonSelectDeliveryDownloadFile = {
   id: string;
   fileName: string;
   url: string;
+};
+
+export type PersonSelectDeliveryNasDownload = {
+  ok: true;
+  job: {
+    id: string;
+    status: "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELED";
+    progress?: { current?: number; total?: number; message?: string } | null;
+    downloadUrl?: string;
+    fileName?: string;
+    error?: string;
+  };
 };
 
 export function personSelectDeliveryStatusLabel(status: PersonSelectDeliveryItem["status"]) {

@@ -175,6 +175,20 @@ export function normalizePersonSelectRequestPayload(
         event_id: requested.event_id,
         source_relative_path: safePersonSelectSourcePath(requested.source_relative_path),
       };
+    case "PERSON_SELECT_DELIVERY_DOWNLOAD": {
+      if (!isRemoteJobUuid(requested.event_id)) throw new Error("올바른 event_id가 필요합니다.");
+      if (requested.person_id !== undefined && !isRemoteJobUuid(requested.person_id)) throw new Error("올바른 person_id가 필요합니다.");
+      if (typeof requested.scope_key !== "string" || requested.scope_key.length > 200) throw new Error("보정본 전달 범위가 올바르지 않습니다.");
+      if (typeof requested.fingerprint !== "string" || !/^[0-9a-f]{32}$/iu.test(requested.fingerprint)) throw new Error("보정본 전달 버전이 올바르지 않습니다.");
+      if (!Number.isInteger(requested.photo_count) || Number(requested.photo_count) < 1 || Number(requested.photo_count) > 5_000) throw new Error("보정본 장수가 올바르지 않습니다.");
+      return {
+        event_id: requested.event_id,
+        ...(requested.person_id ? { person_id: requested.person_id } : {}),
+        scope_key: requested.scope_key,
+        fingerprint: requested.fingerprint,
+        photo_count: requested.photo_count,
+      };
+    }
     case "PERSON_SELECT_COLOR_MATCH":
       return normalizeColorMatchPayload(requested);
     case "PERSON_SELECT_COLOR_RENDER":

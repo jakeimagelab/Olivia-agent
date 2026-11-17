@@ -149,6 +149,11 @@ export function createRunnerInvocation(job: WorkerJob, repoRoot: string): Runner
       addString(args, "--event-id", workerStringValue(payload, "event_id", true));
       addString(args, "--source-relative-path", workerStringValue(payload, "source_relative_path", true));
       return runner(repoRoot, "person-select-delivery-import.ts", args);
+    case "PERSON_SELECT_DELIVERY_DOWNLOAD":
+      addString(args, "--event-id", workerStringValue(payload, "event_id", true));
+      addString(args, "--person-id", workerStringValue(payload, "person_id"));
+      addString(args, "--fingerprint", workerStringValue(payload, "fingerprint", true));
+      return runner(repoRoot, "person-select-delivery-download.ts", args);
     case "PERSON_SELECT_COLOR_MATCH":
       addString(args, "--event-id", workerStringValue(payload, "event_id", true));
       addString(args, "--source-relative-path", workerStringValue(payload, "source_relative_path", true));

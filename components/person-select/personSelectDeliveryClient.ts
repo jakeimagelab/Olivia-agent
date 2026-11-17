@@ -1,5 +1,6 @@
 import type {
   PersonSelectDeliveryDownloadFile,
+  PersonSelectDeliveryNasDownload,
   PersonSelectDeliveryResponse,
 } from "@/components/person-select/personSelectDeliveryTypes";
 
@@ -49,4 +50,14 @@ export function loadPersonSelectDeliveryDownloadUrls(apiBase: string) {
       ok: true;
       files: PersonSelectDeliveryDownloadFile[];
     }>(response));
+}
+
+export function startPersonSelectDeliveryNasDownload(apiBase: string) {
+  return fetch(`${apiBase}/deliveries/download`, { method: "POST" })
+    .then((response) => readPersonSelectDeliveryJson<PersonSelectDeliveryNasDownload>(response));
+}
+
+export function loadPersonSelectDeliveryNasDownload(apiBase: string, jobId: string) {
+  return fetch(`${apiBase}/deliveries/download?jobId=${encodeURIComponent(jobId)}`, { cache: "no-store" })
+    .then((response) => readPersonSelectDeliveryJson<PersonSelectDeliveryNasDownload>(response));
 }
