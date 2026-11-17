@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw, Trash2, X } from "lucide-react";
 import { formatWon } from "@/lib/person-select/format";
 import type { PersonSelectAdminChoice, PersonSelectAdminPerson } from "@/lib/person-select/adminPerson";
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
@@ -24,6 +24,8 @@ export function PersonDetailDrawer({ person, personWord, eventId, labels, catego
   const [editing, setEditing] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
   const [keys, setKeys] = useState<string[]>([]);
+  const [deletingDeliveryId, setDeletingDeliveryId] = useState<string | null>(null);
+  const [deliveryDeleteError, setDeliveryDeleteError] = useState("");
 
   async function save(choice: PersonSelectAdminChoice) {
     const response = await fetch(`/api/person-select/${eventId}/choices/${choice.id}`, {
@@ -34,6 +36,23 @@ export function PersonDetailDrawer({ person, personWord, eventId, labels, catego
     if (!response.ok) return;
     setEditing(null);
     await onSaved();
+  }
+
+  async function deleteDelivery(delivery: NonNullable<PersonSelectAdminPerson["deliveries"]>[number]) {
+    const confirmed = window.confirm(`${delivery.display_name} 보정본을 삭제할까요?\n모든 버전과 업로드 파일이 영구 삭제되며 복구할 수 없습니다.`);
+    if (!confirmed) return;
+    setDeletingDeliveryId(delivery.id);
+    setDeliveryDeleteError("");
+    try {
+      const response = await fetch(`/api/person-select/${eventId}/deliveries/${delivery.id}`, { method: "DELETE" });
+      const body = await response.json().catch(() => null) as { error?: string } | null;
+      if (!response.ok) throw new Error(body?.error || "보정본을 삭제하지 못했습니다.");
+      await onSaved();
+    } catch (error) {
+      setDeliveryDeleteError(error instanceof Error ? error.message : "보정본을 삭제하지 못했습니다.");
+    } finally {
+      setDeletingDeliveryId(null);
+    }
   }
 
   return <div className={styles.drawerBackdrop} onClick={onClose}>
@@ -58,7 +77,9 @@ export function PersonDetailDrawer({ person, personWord, eventId, labels, catego
         <div className={styles.deliveryPreviewList}>{person.deliveries.map((delivery) => <article key={delivery.id}>
           {delivery.preview_url ? <img src={delivery.preview_url} alt={delivery.display_name} loading="lazy" /> : <span className={styles.matchingPhotoEmpty}>미리보기 없음</span>}
           <div><strong>{delivery.display_name}</strong><p>v{delivery.current_version} · {delivery.status === "revision_requested" ? "수정 요청" : delivery.status === "revised" ? "수정됨" : delivery.status === "approved" ? "확인 완료" : "확인 전"}</p>{delivery.customer_memo ? <small>{delivery.customer_memo}</small> : null}</div>
+          <button type="button" className={styles.deliveryDeleteButton} disabled={Boolean(deletingDeliveryId)} aria-label={`${delivery.display_name} 보정본 삭제`} title="보정본 삭제" onClick={() => void deleteDelivery(delivery)}><Trash2 size={15} aria-hidden="true" /></button>
         </article>)}</div>
+        {deliveryDeleteError ? <p className={styles.deliveryDeleteError} role="alert">{deliveryDeleteError}</p> : null}
       </section> : null}
       {person.order?.lines.length ? <section className={styles.choiceDetail}><h3>추가 주문 · {formatWon(person.order.total)}</h3>{person.order.lines.map((line, index) => <p key={index}>{line.label}{line.detail ? ` · ${line.detail}` : ""} — {line.qty} × {formatWon(line.unitPrice)} = {formatWon(line.amount)}</p>)}</section> : null}
       <button className={styles.secondary} style={{ marginTop: 18 }} onClick={() => void onPin()}><RefreshCw size={15} style={{ verticalAlign: -3, marginRight: 5 }} />PIN 재발급</button>
