@@ -118,14 +118,15 @@ export function usePersonSelectDeliveryReview({
     }
   }, [apiBase, counts.revision, load]);
 
-  const downloadOne = useCallback(async () => {
-    if (!focused) return;
+  const downloadOne = useCallback(async (deliveryId?: string) => {
+    const target = deliveryId ? data?.items.find((item) => item.id === deliveryId) ?? null : focused;
+    if (!target) return;
     setBusy(true);
     setError("");
     setDownloadState("원본 주소를 준비하고 있어요.");
     try {
       const result = await loadPersonSelectDeliveryDownloadUrls(apiBase);
-      const file = result.files.find((item) => item.id === focused.id);
+      const file = result.files.find((item) => item.id === target.id);
       if (!file) throw new Error("이 사진의 원본을 찾지 못했습니다.");
       const response = await fetch(file.url);
       if (!response.ok) throw new Error("원본 사진을 내려받지 못했습니다.");
@@ -137,7 +138,7 @@ export function usePersonSelectDeliveryReview({
     } finally {
       setBusy(false);
     }
-  }, [apiBase, focused]);
+  }, [apiBase, data?.items, focused]);
 
   const downloadZip = useCallback(async () => {
     setBusy(true);

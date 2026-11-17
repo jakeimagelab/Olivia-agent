@@ -100,6 +100,19 @@
 .summaryRow { display: grid; grid-template-columns: 76px 1fr; gap: 14px; padding: 14px; border: 1px solid #D5DBD3; border-radius: 13px; background: #fff; }
 .summaryRow img { width: 76px; height: 90px; object-fit: cover; border-radius: 8px; }
 .pcWorkspace { display: none; }
+.pcStageControls { display: none; }
+.pastSelection { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 72px; }
+.pastSelection > div:first-child h2, .pastSelection > div:first-child p, .pastSelection > div:first-child span { margin: 0; }
+.pastSelection > div:first-child h2 { margin: 4px 0; font-size: 22px; }
+.pastSelection > div:first-child span { color: #626D65; font-size: 13px; }
+.pastSelectionGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; margin-top: 20px; }
+.pastSelectionGrid article { position: relative; min-width: 0; padding: 8px; border: 1px solid #D5DBD3; border-radius: 10px; background: #fff; }
+.pastSelectionGrid article > div { aspect-ratio: 3 / 4; display: grid; place-items: center; overflow: hidden; border-radius: 7px; background: #E8ECE8; }
+.pastSelectionGrid article img { width: 100%; height: 100%; object-fit: cover; }
+.pastSelectionGrid article i { position: absolute; top: 14px; right: 14px; width: 25px; height: 25px; display: grid; place-items: center; border-radius: 50%; background: #37C39D; color: #103E36; font-size: 11px; font-style: normal; font-weight: 800; }
+.pastSelectionGrid article strong, .pastSelectionGrid article span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pastSelectionGrid article strong { margin-top: 8px; font-size: 12px; }
+.pastSelectionGrid article span { margin-top: 3px; color: #76827C; font-size: 10px; }
 .toast { position: fixed; left: 50%; bottom: 24px; z-index: 80; transform: translateX(-50%); padding: 12px 16px; border-radius: 10px; color: #fff; background: #2F3833; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
 
 @media (min-width: 1024px) {
@@ -113,6 +126,8 @@
   .pcHomePage .weak { min-width: 44px; min-height: 44px; padding: 0; }
   .mobileOnly { display: none !important; }
   .pcWorkspace { height: calc(100dvh - 56px); min-height: 0; display: block; overflow: hidden; }
+  .pcHomePageWithStage .pcStageControls { min-height: 52px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid #D5DBD3; background: #F4F3EF; }
+  .pcHomePageWithStage .pcWorkspace { height: calc(100dvh - 194px); }
   .pcHomePageWithTabs .pcWorkspace { height: calc(100dvh - 108px); }
   .pillbar { min-width: 0; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #E8EBE5; }
   .pill { min-height: 36px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 0 13px; color: #626D65; background: transparent; font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }

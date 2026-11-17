@@ -1,12 +1,11 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ChevronRight, ImageIcon, ShoppingBag } from "lucide-react";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
-import { PersonSelectCustomerTabs, type PersonSelectCustomerView } from "./PersonSelectCustomerTabs";
+import { PersonSelectCustomerStageHeader } from "./PersonSelectCustomerStageHeader";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
-import { PersonSelectHeader as Header } from "./PersonSelectHeader";
 import { PersonSelectOfferNotice as OfferNotice } from "./PersonSelectOfferNotice";
 import { PersonSelectPcWorkspace as PcWorkspace } from "./PersonSelectPcWorkspace";
 import { usePersonSelectFinalSubmission } from "./usePersonSelectFinalSubmission";
@@ -22,14 +21,21 @@ import {
 } from "./personSelectPublicModel";
 import { usePendingPersonChoiceSyncCount, usePersonSelectData as useSelectionData } from "./usePersonSelectPublicData";
 import styles from "./PersonSelectPublic.module.css";
+import { resolvePersonSelectCustomerStage, type PersonSelectCustomerStageNumber } from "@/lib/person-select/adminWorkspace";
 
 export function PersonSelectHome({ slug }: { slug: string }) {
   const router = useRouter();
   const { me, loading, error } = useSelectionData(slug);
   const pendingSyncCount = usePendingPersonChoiceSyncCount(slug);
   const [pcActiveKey, setPcActiveKey] = useState("profile");
-  const [customerView, setCustomerView] = useState<PersonSelectCustomerView | null>(null);
-  const navigateToDone = useCallback(() => router.push(`/pick/${slug}/done`), [router, slug]);
+  const [viewingStage, setViewingStage] = useState<PersonSelectCustomerStageNumber>(1);
+  const currentStage = resolvePersonSelectCustomerStage({
+    submittedAt: me?.person.submitted_at,
+    deliveryState: me?.person.delivery_state,
+    deliveries: me?.event.delivery_available ? [{ status: me.person.delivery_state === "approved" ? "approved" : "pending" }] : [],
+  });
+  useEffect(() => { setViewingStage(currentStage); }, [currentStage]);
+  const navigateAfterSubmit = useCallback(() => { window.location.href = `/pick/${slug}/home`; }, [slug]);
   const {
     submitError,
     submitReviewOpen,
@@ -41,14 +47,13 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     slug,
     pendingCount: pendingSyncCount,
     pendingErrorMessage: `저장 안 된 변경 ${pendingSyncCount}건을 먼저 저장해 주세요.`,
-    onSubmitted: navigateToDone,
+    onSubmitted: navigateAfterSubmit,
   });
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
-  const deliveryAvailable = me.event.delivery_available === true || me.event.customer_stage === "delivery";
-  const activeCustomerView = customerView ?? (me.event.customer_stage === "delivery" ? "delivery" : "original");
-  const customerTabs = deliveryAvailable ? <PersonSelectCustomerTabs active={activeCustomerView} deliveryAvailable={deliveryAvailable} onChange={setCustomerView} /> : null;
-  if (activeCustomerView === "delivery" && deliveryAvailable) return <PersonSelectDeliveryReview apiBase={`/api/pick/${slug}`} title={me.event.title} viewerName={me.person.display_name} viewTabs={customerTabs} />;
+  const stageHeader = <PersonSelectCustomerStageHeader title={me.event.title} viewerName={me.person.display_name} currentStage={currentStage} viewingStage={viewingStage} onStageChange={setViewingStage} offersOpen={me.event.offers_open === true} offersHref={`/pick/${slug}/order`} />;
+  const originalsByImageId = Object.fromEntries(me.categories.flatMap((category) => category.choices.flatMap((choice) => choice.thumb_url ? [[choice.image_id, choice.thumb_url] as const] : [])));
+  if (viewingStage === 2 || viewingStage === 3) return <PersonSelectDeliveryReview apiBase={`/api/pick/${slug}`} title={me.event.title} viewerName={me.person.display_name} topContent={stageHeader} mode={viewingStage === 3 ? "download" : "review"} originalsByImageId={originalsByImageId} />;
   const visibleCategories = me.categories
     .filter((category) => category.image_count > 0)
     .filter((category) => category.key !== "homeroom" || Boolean(me.person.group_label));
@@ -58,12 +63,14 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const resolvedPcActiveKey = visibleCategories.some((category) => category.key === pcActiveKey) ? pcActiveKey : visibleCategories[0]?.key ?? "profile";
   const review = finalReviewData(visibleCategories);
 
-  return <main className={`${styles.page} ${styles.pcHomePage} ${deliveryAvailable ? styles.pcHomePageWithTabs : ""}`}>
-    <Header me={me} slug={slug} desktopControls={<>
+  if (currentStage > 1) return <main className={styles.page}>{stageHeader}<PastSelectionSummary me={me} /></main>;
+
+  return <main className={`${styles.page} ${styles.pcHomePage} ${styles.pcHomePageWithStage}`}>
+    {stageHeader}
+    <div className={styles.pcStageControls}>
       <div className={styles.pillbar}>{visibleCategories.map((category) => <button key={category.key} className={`${styles.pill} ${resolvedPcActiveKey === category.key ? styles.pillActive : ""}`} onClick={() => setPcActiveKey(category.key)}>{isComplete(category) ? <Check size={14} aria-hidden="true" /> : null}{category.label}{category.key === "homeroom" && me.person.group_label ? ` · ${me.person.group_label}` : ""}{category.need > 1 ? ` ${category.choices.length}/${category.need}` : ""}</button>)}</div>
       <strong className={styles.pcHeaderProgress}>{completed} / {required.length} 선택</strong>
-    </>} />
-    {customerTabs}
+    </div>
     <section className={`${styles.content} ${styles.mobileOnly}`}>
       <div className={styles.hello}><div><p className={styles.eyebrow}>사진 셀렉</p><h1>{me.person.display_name} {isSchoolEvent(me.event) ? "선생님" : "님"}</h1><p className={styles.muted}>각 항목에서 정해진 장수만큼 사진을 골라주세요.</p></div><div className={styles.progressText}>{completed} / {required.length} 선택</div></div>
       {me.event.locked ? <div className={styles.notice}>선택이 마감됐어요. 변경이 필요하면 포토클리닉에 연락해 주세요.</div> : null}
@@ -77,7 +84,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
           <ChevronRight size={18} />
         </button>;
       })}
-        {(me.event.offers ?? []).length || me.event.extra_price ? <button className={styles.categoryRow} onClick={() => router.push(`/pick/${slug}/order`)}>
+        {me.event.offers_open === true && ((me.event.offers ?? []).length || me.event.extra_price) ? <button className={styles.categoryRow} onClick={() => router.push(`/pick/${slug}/order`)}>
           <span className={`${styles.choiceThumb} ${styles.emptyThumb}`}><ShoppingBag size={21} /></span>
           <div><h3>추가 주문</h3><p>{me.order?.lines.length ? me.order.lines.map((line) => line.label).join(" · ") : "추가 보정 · 액자 · 앨범 신청"}</p></div>
           <span className={`${styles.badge} ${me.order?.total ? styles.badgePending : ""}`}>{me.order?.total ? won(me.order.total) : "선택 사항"}</span>
@@ -90,4 +97,9 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     <footer className={`${styles.submitDock} ${styles.mobileOnly}`}><div className={styles.submitDockInner}>{missing || submitError || pendingSyncCount ? <span className={styles.submitReason}>{submitError || (pendingSyncCount ? `저장 안 된 변경 ${pendingSyncCount}건 · 다시 시도` : missing ? needMessage(missing) : "")}</span> : null}<button className={styles.primary} disabled={Boolean(missing) || me.event.locked || pendingSyncCount > 0} onClick={() => void openSubmitReview()}>제출하기 ({completed}/{required.length})</button></div></footer>
     {submitReviewOpen ? <FinalSelectionSubmitDialog selectedCount={review.selectedCount} sections={review.sections} items={review.items} busy={submitting} error={submitError} onCancel={closeSubmitReview} onConfirm={() => void confirmSubmit()} /> : null}
   </main>;
+}
+
+function PastSelectionSummary({ me }: { me: NonNullable<ReturnType<typeof useSelectionData>["me"]> }) {
+  const choices = useMemo(() => me.categories.flatMap((category) => category.choices.map((choice) => ({ ...choice, categoryLabel: category.label }))), [me.categories]);
+  return <section className={styles.pastSelection}><div><p className={styles.eyebrow}>제출한 선택</p><h2>고른 사진 {choices.length}장</h2><span>지난 단계는 확인만 할 수 있어요. 변경이 필요하면 포토클리닉에 요청해 주세요.</span></div><div className={styles.pastSelectionGrid}>{choices.map((choice, index) => <article key={choice.image_id}><div>{choice.thumb_url ? <img src={choice.thumb_url} alt={choice.original_file_name} /> : <ImageIcon />}</div><i>{index + 1}</i><strong>{choice.categoryLabel}</strong><span>{choice.original_file_name}</span></article>)}</div></section>;
 }

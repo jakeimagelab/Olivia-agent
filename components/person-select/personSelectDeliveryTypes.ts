@@ -1,5 +1,6 @@
 export type PersonSelectDeliveryItem = {
   id: string;
+  linked_image_id?: string | null;
   group_label: string | null;
   display_name: string;
   current_version: number;

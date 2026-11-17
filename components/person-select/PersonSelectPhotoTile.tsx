@@ -8,11 +8,12 @@ import styles from "./PersonSelectPublic.module.css";
 type PersonSelectPhotoTileProps = {
   image: PersonSelectImageData;
   selected: boolean;
+  selectionOrder?: number;
   pending: boolean;
   onOpen: (imageId: string) => void;
 };
 
-function PersonSelectPhotoTileComponent({ image, selected, pending, onOpen }: PersonSelectPhotoTileProps) {
+function PersonSelectPhotoTileComponent({ image, selected, selectionOrder, pending, onOpen }: PersonSelectPhotoTileProps) {
   return <button
     type="button"
     className={`${styles.photoTile} ${selected ? styles.photoTileSelected : ""} ${pending ? styles.photoTilePending : ""}`}
@@ -26,7 +27,7 @@ function PersonSelectPhotoTileComponent({ image, selected, pending, onOpen }: Pe
       draggable={false}
       onContextMenu={(event) => event.preventDefault()}
     />
-    {selected ? <span className={styles.check}><Check size={17} /></span> : null}
+    {selected ? <span className={styles.check}>{selectionOrder ? selectionOrder : <Check size={17} />}</span> : null}
     {pending ? <span className={styles.pendingDot} aria-label="저장 안 된 변경" /> : null}
   </button>;
 }
@@ -39,6 +40,7 @@ export function personSelectPhotoTilePropsEqual(
     && previous.image.thumb_url === next.image.thumb_url
     && previous.image.original_file_name === next.image.original_file_name
     && previous.selected === next.selected
+    && previous.selectionOrder === next.selectionOrder
     && previous.pending === next.pending
     && previous.onOpen === next.onOpen;
 }

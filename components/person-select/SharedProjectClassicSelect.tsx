@@ -14,12 +14,12 @@ import { useSharedProjectClassicSelection } from "./useSharedProjectClassicSelec
 import { useSharedProjectClassicSubmission } from "./useSharedProjectClassicSubmission";
 import styles from "./SharedProjectSelect.module.css";
 
-export type SharedProjectEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; delivery_available?: boolean; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean; offers_open?: boolean };
+export type SharedProjectEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; delivery_available?: boolean; delivery_state?: "none" | "reviewing" | "revision_sent" | "approved"; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean; offers_open?: boolean };
 export type SharedProjectReviewer = { id: string; display_name: string; role_label?: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean };
-export type SharedProjectSelection = { items?: Array<{ image_id: string; customer_rating?: number | null; customer_color_label?: number | null; memo?: string | null }>; customer_memo?: string | null } | null;
+export type SharedProjectSelection = { submitted_at?: string | null; items?: Array<{ image_id: string; customer_rating?: number | null; customer_color_label?: number | null; memo?: string | null }>; customer_memo?: string | null } | null;
 export type SharedProjectImageUrls = Record<string, SelectionMediaUrls>;
 
-export function SharedProjectClassicSelect({ shareToken, event, reviewer, images: initialImages, totalImageCount, hasMoreImages, imagePageLoading, imagePageError, loadMoreImages, draft, selection, onSubmitted, loadImageUrls, readOnly = false, viewTabs }: { shareToken: string; event: SharedProjectEvent; reviewer: SharedProjectReviewer; images: CustomerBridgeImage[]; totalImageCount: number; hasMoreImages: boolean; imagePageLoading: boolean; imagePageError: string; loadMoreImages: () => Promise<boolean>; draft: CustomerBridgeDraft | null; selection: SharedProjectSelection; onSubmitted: () => void; loadImageUrls: (imageIds: string[], options?: { variant: SelectionMediaVariant }) => Promise<SharedProjectImageUrls>; readOnly?: boolean; viewTabs?: ReactNode }) {
+export function SharedProjectClassicSelect({ shareToken, event, reviewer, images: initialImages, totalImageCount, hasMoreImages, imagePageLoading, imagePageError, loadMoreImages, draft, selection, onSubmitted, loadImageUrls, readOnly = false, topContent }: { shareToken: string; event: SharedProjectEvent; reviewer: SharedProjectReviewer; images: CustomerBridgeImage[]; totalImageCount: number; hasMoreImages: boolean; imagePageLoading: boolean; imagePageError: string; loadMoreImages: () => Promise<boolean>; draft: CustomerBridgeDraft | null; selection: SharedProjectSelection; onSubmitted: () => void; loadImageUrls: (imageIds: string[], options?: { variant: SelectionMediaVariant }) => Promise<SharedProjectImageUrls>; readOnly?: boolean; topContent?: ReactNode }) {
   const seed = draft?.selectedImageIds ?? selection?.items?.map((item) => item.image_id) ?? [];
   const seedRatings = draft?.ratings ?? Object.fromEntries((selection?.items ?? []).filter((item) => item.customer_rating).map((item) => [item.image_id, Number(item.customer_rating)]));
   const seedColors = draft?.colorLabels ?? Object.fromEntries((selection?.items ?? []).filter((item) => item.customer_color_label).map((item) => [item.image_id, Number(item.customer_color_label)]));
@@ -75,6 +75,7 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
 
   return (
     <main className={styles.shell}>
+      {topContent}
       <header className={styles.header}>
         <div>
           <h1>{event.title}</h1>
@@ -82,7 +83,6 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
         </div>
         <strong>{selected.size} / {totalImageCount}장 선택</strong>
       </header>
-      {viewTabs}
       <nav className={styles.toolbar}>
         <button
           type="button"

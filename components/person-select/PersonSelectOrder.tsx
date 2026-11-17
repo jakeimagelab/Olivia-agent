@@ -27,6 +27,7 @@ export function PersonSelectOrder({ slug }: { slug: string }) {
   const [message, setMessage] = useState("");
   useEffect(() => { if (me && items === null) setItems(me.order?.items ?? []); }, [me, items]);
   if (loading || !me || items === null) return <main className={styles.page}><div className={styles.done}>{error || "불러오는 중이에요"}</div></main>;
+  if (me.event.offers_open !== true) return <main className={styles.page}><div className={styles.done}><h1>지금은 액자·앨범 신청을 받지 않아요.</h1><button className={styles.secondary} onClick={() => router.push(`/pick/${slug}/home`)}>사진 화면으로 돌아가기</button></div></main>;
   const currentItems = items;
   const offers = me.event.offers ?? [];
   const photos = me.categories.flatMap((category) => category.choices);
