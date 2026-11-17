@@ -32,6 +32,12 @@ export type DeliveryLinkInput = {
   captureTimeMs?: number | null;
 };
 
+export type DeliverySourceVersionSnapshot = {
+  sourceVirtualPath: string | null | undefined;
+  size: number | string | null | undefined;
+  uploadedAt: string | null | undefined;
+};
+
 export function normalizeDeliveryPersonName(value: string) {
   return value
     .normalize("NFC")
@@ -62,6 +68,25 @@ export function deliveryCaptureFileKey(fileName: string) {
     .normalize("NFC")
     .toLocaleLowerCase("ko-KR")
     .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
+/**
+ * 같은 원본을 다시 선택한 경우 새 버전을 만들지 않는다.
+ * 업로드 뒤 파일 수정시각이 바뀌었거나 크기·가상 경로가 달라졌을 때만 새 버전으로 본다.
+ */
+export function isUnchangedDeliverySource(input: {
+  sourceVirtualPath: string;
+  size: number;
+  modifiedAtMs: number;
+  previous: DeliverySourceVersionSnapshot | null | undefined;
+}) {
+  if (!input.previous?.sourceVirtualPath || !input.previous.uploadedAt) return false;
+  const previousSize = Number(input.previous.size);
+  const uploadedAtMs = new Date(input.previous.uploadedAt).getTime();
+  if (!Number.isFinite(previousSize) || !Number.isFinite(uploadedAtMs)) return false;
+  return input.previous.sourceVirtualPath.normalize("NFC") === input.sourceVirtualPath.normalize("NFC")
+    && previousSize === input.size
+    && input.modifiedAtMs <= uploadedAtMs + 2_000;
 }
 
 /** EXIF → 파일명 앞 이름 → 상위 폴더 순서로 한 사람을 안전하게 연결한다. */

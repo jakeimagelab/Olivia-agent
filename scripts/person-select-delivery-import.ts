@@ -10,6 +10,7 @@ import { ensurePersonSelectBucket, PERSON_SELECT_BUCKET } from "@/lib/person-sel
 import { resolvePersonSelectSourcePath, toPersonSelectVirtualPath } from "@/lib/person-select/sourceRoots";
 import {
   type PersonSelectDeliveryLinkMethod,
+  isUnchangedDeliverySource,
   normalizeDeliveryFileName,
   nextDeliveryStatus,
   personSelectDeliveryBundleKey,
@@ -20,6 +21,71 @@ import { readAllPersonSelectRows } from "@/lib/person-select/paging";
 
 type Candidate = { absolutePath: string; relativePath: string; fileName: string; parentFolderName: string | null };
 type Capture = { timestampMs: number | null; iso: string | null };
+type DeliveryImportStage =
+  | "source_resolve"
+  | "source_scan"
+  | "schema_check"
+  | "project_load"
+  | "selection_load"
+  | "storage_prepare"
+  | "existing_delivery_load"
+  | "delivery_prepare"
+  | "delivery_import";
+type CurrentDeliveryVersion = {
+  delivery_id: string;
+  version: number;
+  size: number | string;
+  source_virtual_path: string | null;
+  storage_path_original: string | null;
+  uploaded_at: string;
+};
+
+const TRANSIENT_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
+let activeStage: DeliveryImportStage = "delivery_import";
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) return String((error as { message?: unknown }).message ?? "");
+  return String(error);
+}
+
+function isTransientDeliveryImportError(error: unknown) {
+  const message = errorMessage(error);
+  const status = error && typeof error === "object" && "status" in error
+    ? Number((error as { status?: unknown }).status)
+    : Number.NaN;
+  return status === 429 || status >= 500
+    || /Internal server error|fetch failed|network|ECONNRESET|ETIMEDOUT|timeout|temporar|502|503|504/iu.test(message);
+}
+
+export function isExistingStorageObjectError(error: unknown) {
+  return /already exists|resource exists|duplicate/iu.test(errorMessage(error));
+}
+
+export async function retryDeliveryImportOperation<T>(
+  operation: () => Promise<T>,
+  wait: (delayMs: number) => Promise<void> = (delayMs) => new Promise((resolve) => setTimeout(resolve, delayMs)),
+) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= TRANSIENT_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientDeliveryImportError(error) || attempt === TRANSIENT_RETRY_DELAYS_MS.length) throw error;
+      await wait(TRANSIENT_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+  throw lastError;
+}
+
+async function readSupabase<T>(operation: () => PromiseLike<{ data: T; error: unknown }>) {
+  return retryDeliveryImportOperation(async () => {
+    const { data, error } = await operation();
+    if (error) throw error;
+    return data;
+  });
+}
 
 function args() {
   const values = process.argv.slice(2);
@@ -73,27 +139,35 @@ async function captureTime(filePath: string): Promise<Capture> {
 async function main() {
   const input = args();
   if (!input.eventId || !input.sourceRelativePath) throw new Error("event_id와 보정본 폴더가 필요합니다.");
+  activeStage = "source_resolve";
   const source = await resolvePersonSelectSourcePath(input.sourceRelativePath);
+  activeStage = "source_scan";
   const files = await scan(source.canonicalPath);
   const db = getSupabaseAdmin();
-  const { error: schemaError } = await db.from("person_select_delivery_versions")
-    .select("source_virtual_path").limit(1);
-  if (schemaError && /source_virtual_path|schema cache|column/i.test(`${schemaError.message} ${schemaError.code ?? ""}`)) {
-    throw new Error("보정본 전달 DB 업데이트가 필요합니다. 20261117_person_select_hybrid_delivery.sql을 먼저 적용해 주세요.");
+  activeStage = "schema_check";
+  try {
+    await readSupabase(() => db.from("person_select_delivery_versions").select("source_virtual_path").limit(1));
+  } catch (error) {
+    const message = errorMessage(error);
+    const code = error && typeof error === "object" && "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+    if (/source_virtual_path|schema cache|column/i.test(`${message} ${code}`)) {
+      throw new Error("보정본 전달 DB 업데이트가 필요합니다. 20261117_person_select_hybrid_delivery.sql을 먼저 적용해 주세요.");
+    }
+    throw error;
   }
-  if (schemaError) throw schemaError;
-  const { data: event, error: eventError } = await db.from("person_select_events")
+  activeStage = "project_load";
+  const event = await readSupabase(() => db.from("person_select_events")
     .select("id,title,access_mode,source_relative_path")
-    .eq("id", input.eventId).single();
-  if (eventError || !event) throw new Error(eventError?.message || "프로젝트를 찾을 수 없습니다.");
-  const { data: people, error: peopleError } = await db.from("person_select_people").select("id,display_name").eq("event_id", event.id);
-  if (peopleError) throw peopleError;
+    .eq("id", input.eventId).single());
+  if (!event) throw new Error("프로젝트를 찾을 수 없습니다.");
+  const people = await readSupabase(() => db.from("person_select_people").select("id,display_name").eq("event_id", event.id));
 
-  const selectedRows = event.access_mode === "project_shared"
-    ? await readAllPersonSelectRows((from, to) => db.from("person_select_shared_selection_items")
+  activeStage = "selection_load";
+  const selectedRows = await retryDeliveryImportOperation(() => event.access_mode === "project_shared"
+    ? readAllPersonSelectRows((from, to) => db.from("person_select_shared_selection_items")
       .select("image_id,person_select_images(id,source_rel_path)").eq("event_id", event.id).order("id").range(from, to))
-    : await readAllPersonSelectRows((from, to) => db.from("person_select_choices")
-      .select("person_id,image_id,person_select_images(id,source_rel_path)").eq("event_id", event.id).order("id").range(from, to));
+    : readAllPersonSelectRows((from, to) => db.from("person_select_choices")
+      .select("person_id,image_id,person_select_images(id,source_rel_path)").eq("event_id", event.id).order("id").range(from, to)));
   const selectedUnique = new Map<string, { id: string; personId: string | null; sourceRelPath: string }>();
   for (const row of selectedRows) {
     const image = row.person_select_images as unknown as { id?: string; source_rel_path?: string } | null;
@@ -120,11 +194,30 @@ async function main() {
     }
   }
 
-  await ensurePersonSelectBucket();
-  const { data: existingData, error: existingError } = await db.from("person_select_deliveries").select("*").eq("event_id", event.id);
-  if (existingError) throw existingError;
+  activeStage = "storage_prepare";
+  await retryDeliveryImportOperation(() => ensurePersonSelectBucket());
+  activeStage = "existing_delivery_load";
+  const existingData = await readSupabase(() => db.from("person_select_deliveries").select("*").eq("event_id", event.id));
   const existing = existingData ?? [];
+  const currentVersionByDeliveryId = new Map<string, CurrentDeliveryVersion>();
+  for (let offset = 0; offset < existing.length; offset += 200) {
+    const deliveryChunk = existing.slice(offset, offset + 200);
+    const currentVersionById = new Map(deliveryChunk.map((delivery) => [delivery.id, Number(delivery.current_version)]));
+    const versionRows = await retryDeliveryImportOperation(() => readAllPersonSelectRows((from, to) => db
+      .from("person_select_delivery_versions")
+      .select("delivery_id,version,size,source_virtual_path,storage_path_original,uploaded_at")
+      .in("delivery_id", deliveryChunk.map((delivery) => delivery.id))
+      .order("delivery_id")
+      .order("version")
+      .range(from, to)));
+    for (const versionRow of versionRows as CurrentDeliveryVersion[]) {
+      if (Number(versionRow.version) === currentVersionById.get(versionRow.delivery_id)) {
+        currentVersionByDeliveryId.set(versionRow.delivery_id, versionRow);
+      }
+    }
+  }
   const linkPeople = (people ?? []).map((person) => ({ id: person.id, displayName: person.display_name }));
+  activeStage = "delivery_prepare";
   const prepared = [] as Array<{
     file: Candidate;
     capture: Capture;
@@ -175,6 +268,7 @@ async function main() {
   }
   const result = {
     uploadedCount: 0,
+    alreadyImportedCount: 0,
     newVersionCount: 0,
     exifCount: 0,
     filenameCount: 0,
@@ -183,11 +277,25 @@ async function main() {
     storageOriginalCount: 0,
     nasOriginalCount: 0,
     unassigned: [] as Array<{ deliveryId: string; fileName: string; parentFolderName: string | null }>,
-    failed: [] as Array<{ file: string; error: string }>,
+    failed: [] as Array<{ file: string; stage: string; error: string }>,
   };
   const touchedPeople = new Set<string>();
   const storage = db.storage.from(PERSON_SELECT_BUCKET);
+  const uploadStorageObject = async (objectPath: string, bytes: Buffer) => {
+    try {
+      await readSupabase(() => storage.upload(objectPath, bytes, { contentType: "image/jpeg", upsert: false }));
+      return true;
+    } catch (error) {
+      if (!isExistingStorageObjectError(error)) throw error;
+      const existingObject = await readSupabase(() => storage.download(objectPath));
+      if (!existingObject || existingObject.size !== bytes.byteLength) {
+        throw new Error(`같은 저장 경로에 크기가 다른 파일이 있습니다: ${objectPath}`);
+      }
+      return false;
+    }
+  };
 
+  activeStage = "delivery_import";
   for (let index = 0; index < prepared.length; index += 1) {
     const item = prepared[index];
     const { file, capture, owner, normalized, groupLabel, previous } = item;
@@ -196,6 +304,7 @@ async function main() {
     let createdVersion = false;
     let deliveryId = "";
     let version = 0;
+    let fileStage = "source_check";
     try {
       deliveryId = previous?.id ?? randomUUID();
       version = previous ? Number(previous.current_version) + 1 : 1;
@@ -207,20 +316,56 @@ async function main() {
         : "storage";
       const sourceRelativePath = [source.relativePath, file.relativePath].filter(Boolean).join("/");
       const sourceVirtualPath = toPersonSelectVirtualPath(source.root, sourceRelativePath);
+      const info = await stat(file.absolutePath);
+      const previousVersion = previous ? currentVersionByDeliveryId.get(previous.id) : undefined;
+      if (previous && isUnchangedDeliverySource({
+        sourceVirtualPath,
+        size: info.size,
+        modifiedAtMs: info.mtimeMs,
+        previous: previousVersion ? {
+          sourceVirtualPath: previousVersion.source_virtual_path,
+          size: previousVersion.size,
+          uploadedAt: previousVersion.uploaded_at,
+        } : null,
+      })) {
+        fileStage = "existing_link_update";
+        if (owner.personId || owner.linkedImageId) {
+          await readSupabase(() => db.from("person_select_deliveries").update({
+            person_id: owner.personId ?? previous.person_id,
+            group_label: owner.personId ? null : groupLabel,
+            linked_image_id: owner.linkedImageId ?? previous.linked_image_id,
+            link_method: owner.method ?? previous.link_method,
+            updated_at: new Date().toISOString(),
+          }).eq("id", deliveryId).select("id"));
+        }
+        result.alreadyImportedCount += 1;
+        if (previousVersion?.storage_path_original) result.storageOriginalCount += 1;
+        else result.nasOriginalCount += 1;
+        if (owner.method === "exif") result.exifCount += 1;
+        else if (owner.method === "filename") result.filenameCount += 1;
+        else if (owner.method === "folder") result.folderCount += 1;
+        else {
+          result.unassignedCount += 1;
+          result.unassigned.push({ deliveryId, fileName: file.fileName, parentFolderName: file.parentFolderName });
+        }
+        if (owner.personId) touchedPeople.add(owner.personId);
+        progress(selectedUnique.size + files.length + index + 1, selectedUnique.size + files.length * 2, `${file.fileName} · 이미 등록됨`);
+        continue;
+      }
+      fileStage = "preview_render";
       const image = sharp(file.absolutePath, { failOn: "none" }).rotate();
       const metadata = await image.metadata();
       const preview = await image.resize({ width: 2_000, height: 2_000, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
-      const previewUpload = await storage.upload(previewPath, preview, { contentType: "image/jpeg", upsert: false });
-      if (previewUpload.error) throw previewUpload.error;
-      createdStoragePaths.push(previewPath);
+      fileStage = "preview_upload";
+      if (await uploadStorageObject(previewPath, preview)) createdStoragePaths.push(previewPath);
       if (downloadMode === "storage") {
-        const originalUpload = await storage.upload(originalPath, await readFile(file.absolutePath), { contentType: "image/jpeg", upsert: false });
-        if (originalUpload.error) throw originalUpload.error;
-        createdStoragePaths.push(originalPath);
+        fileStage = "original_upload";
+        const original = await readFile(file.absolutePath);
+        if (await uploadStorageObject(originalPath, original)) createdStoragePaths.push(originalPath);
       }
-      const info = await stat(file.absolutePath);
+      fileStage = "delivery_save";
       if (!previous) {
-        const { error } = await db.from("person_select_deliveries").insert({
+        await readSupabase(() => db.from("person_select_deliveries").insert({
           id: deliveryId,
           event_id: event.id,
           person_id: owner.personId,
@@ -232,11 +377,10 @@ async function main() {
           status: "pending",
           linked_image_id: owner.linkedImageId,
           link_method: owner.method,
-        });
-        if (error) throw error;
+        }).select("id"));
         createdDelivery = true;
       }
-      const { error: versionError } = await db.from("person_select_delivery_versions").insert({
+      await readSupabase(() => db.from("person_select_delivery_versions").insert({
         delivery_id: deliveryId,
         version,
         storage_path_original: downloadMode === "storage" ? originalPath : null,
@@ -247,11 +391,10 @@ async function main() {
         height: metadata.height ?? null,
         exif_datetime: capture.iso,
         customer_memo_snapshot: previous?.customer_memo ?? "",
-      });
-      if (versionError) throw versionError;
+      }).select("id"));
       createdVersion = true;
       if (previous) {
-        const { error } = await db.from("person_select_deliveries").update({
+        await readSupabase(() => db.from("person_select_deliveries").update({
           person_id: owner.personId ?? previous.person_id,
           group_label: owner.personId ? null : groupLabel,
           current_version: version,
@@ -259,8 +402,7 @@ async function main() {
           linked_image_id: owner.linkedImageId ?? previous.linked_image_id,
           link_method: owner.method ?? previous.link_method,
           updated_at: new Date().toISOString(),
-        }).eq("id", deliveryId);
-        if (error) throw error;
+        }).eq("id", deliveryId).select("id"));
         Object.assign(previous, {
           person_id: owner.personId ?? previous.person_id,
           group_label: owner.personId ? null : groupLabel,
@@ -306,7 +448,7 @@ async function main() {
         try { await db.from("person_select_deliveries").delete().eq("id", deliveryId); }
         catch (cleanupError) { console.error(`[delivery-import] 보정본 행 롤백 실패: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`); }
       }
-      result.failed.push({ file: file.relativePath, error: error instanceof Error ? error.message : "보정본 가져오기 실패" });
+      result.failed.push({ file: file.relativePath, stage: fileStage, error: errorMessage(error) || "보정본 가져오기 실패" });
     }
     progress(selectedUnique.size + files.length + index + 1, selectedUnique.size + files.length * 2, file.fileName);
   }
@@ -322,11 +464,19 @@ async function main() {
   if (result.failed.length) process.exitCode = 1;
 }
 
-export function deliveryImportFailureOutput(error: unknown) {
-  return JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "보정본 가져오기 실패", stage: "delivery_import" });
+export function deliveryImportFailureOutput(error: unknown, stage: DeliveryImportStage = "delivery_import") {
+  const message = errorMessage(error) || "보정본 가져오기 실패";
+  return JSON.stringify({
+    ok: false,
+    error: /Internal server error/iu.test(message)
+      ? `서버가 일시적으로 응답하지 않았습니다. 자동 재시도 후에도 실패했습니다. (${message})`
+      : message,
+    stage,
+  });
 }
 
 if (process.env.NODE_ENV !== "test") main().catch((error) => {
-  process.stdout.write(`${deliveryImportFailureOutput(error)}\n`);
+  console.error(`[delivery-import:${activeStage}]`, error);
+  process.stdout.write(`${deliveryImportFailureOutput(error, activeStage)}\n`);
   process.exitCode = 1;
 });

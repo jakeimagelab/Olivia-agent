@@ -22,6 +22,15 @@ describe("remote job progress", () => {
     expect(() => parseRemoteJobProgress({ stage: "STAGING", current: 2, total: 1, message: "x" })).toThrow();
   });
 
+  it("accepts delivery import progress from the Mac Studio worker", () => {
+    expect(parseRemoteJobProgress({
+      stage: "DELIVERY_IMPORT",
+      current: 3,
+      total: 21,
+      message: "보정본을 올리고 있어요.",
+    })).toMatchObject({ stage: "DELIVERY_IMPORT", current: 3, total: 21 });
+  });
+
   it("accepts JPG staging progress and byte counters", () => {
     expect(parseRemoteJobProgress({
       stage: "COPYING",

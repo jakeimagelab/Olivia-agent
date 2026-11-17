@@ -2,13 +2,18 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   canFinalizeDeliveries,
+  isUnchangedDeliverySource,
   nextDeliveryStatus,
   personSelectDeliveryBundleKey,
   resolvePersonSelectDeliveryDownloadMode,
   resolveDeliveryOwner,
   selectExpiredDeliveryOwners,
 } from "@/lib/person-select/deliveries";
-import { deliveryImportFailureOutput } from "@/scripts/person-select-delivery-import";
+import {
+  deliveryImportFailureOutput,
+  isExistingStorageObjectError,
+  retryDeliveryImportOperation,
+} from "@/scripts/person-select-delivery-import";
 
 const mocks = vi.hoisted(() => ({
   ctx: null as Record<string, any> | null,
@@ -90,6 +95,32 @@ describe("person select delivery linking", () => {
     expect(personSelectDeliveryBundleKey("project_shared", null)).toBe("shared");
   });
 
+  it("skips an unchanged source on retry but creates a new version after the file changes", () => {
+    const previous = {
+      sourceVirtualPath: "root-1/보정본/사진.jpg",
+      size: 5_000_000,
+      uploadedAt: "2026-11-17T05:00:00.000Z",
+    };
+    expect(isUnchangedDeliverySource({
+      sourceVirtualPath: "root-1/보정본/사진.jpg",
+      size: 5_000_000,
+      modifiedAtMs: new Date("2026-11-17T04:59:59.000Z").getTime(),
+      previous,
+    })).toBe(true);
+    expect(isUnchangedDeliverySource({
+      sourceVirtualPath: previous.sourceVirtualPath,
+      size: 5_000_001,
+      modifiedAtMs: new Date("2026-11-17T04:59:59.000Z").getTime(),
+      previous,
+    })).toBe(false);
+    expect(isUnchangedDeliverySource({
+      sourceVirtualPath: previous.sourceVirtualPath,
+      size: 5_000_000,
+      modifiedAtMs: new Date("2026-11-17T05:00:03.000Z").getTime(),
+      previous,
+    })).toBe(false);
+  });
+
   it("selects only retention-expired owners that have not already been purged", () => {
     const owners = [
       { id: "expired", approvedAt: "2026-01-01T00:00:00.000Z", retentionDays: 30, purgedAt: null },
@@ -101,6 +132,32 @@ describe("person select delivery linking", () => {
 
   it("prints a structured runner failure as the final JSON line", () => {
     expect(JSON.parse(deliveryImportFailureOutput(new Error("storage failed")))).toEqual({ ok: false, error: "storage failed", stage: "delivery_import" });
+    expect(JSON.parse(deliveryImportFailureOutput(new Error("Internal server error."), "existing_delivery_load"))).toEqual({
+      ok: false,
+      error: "서버가 일시적으로 응답하지 않았습니다. 자동 재시도 후에도 실패했습니다. (Internal server error.)",
+      stage: "existing_delivery_load",
+    });
+  });
+
+  it("retries transient server failures without retrying permanent errors", async () => {
+    const transient = vi.fn()
+      .mockRejectedValueOnce(new Error("Internal server error."))
+      .mockRejectedValueOnce(new Error("fetch failed"))
+      .mockResolvedValue("ok");
+    const wait = vi.fn(async () => undefined);
+    await expect(retryDeliveryImportOperation(transient, wait)).resolves.toBe("ok");
+    expect(transient).toHaveBeenCalledTimes(3);
+    expect(wait).toHaveBeenCalledTimes(2);
+
+    const permanent = vi.fn().mockRejectedValue(new Error("폴더가 없습니다."));
+    await expect(retryDeliveryImportOperation(permanent, wait)).rejects.toThrow("폴더가 없습니다.");
+    expect(permanent).toHaveBeenCalledTimes(1);
+  });
+
+  it("recognizes an object left behind by a successful storage retry", () => {
+    expect(isExistingStorageObjectError(new Error("The resource already exists"))).toBe(true);
+    expect(isExistingStorageObjectError({ message: "Duplicate" })).toBe(true);
+    expect(isExistingStorageObjectError(new Error("Internal server error."))).toBe(false);
   });
 });
 
