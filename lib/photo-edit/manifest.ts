@@ -28,7 +28,9 @@ export type ColorMatchManifest = {
   manifestVersion: 1;
   runId: string;
   manifestStoragePath: string;
-  eventId: string;
+  /** Older person-select manifests always contain an event id. Folder jobs do not. */
+  eventId: string | null;
+  scope?: "person-select" | "photo";
   createdAt: string;
   updatedAt: string;
   sourcePath: string;

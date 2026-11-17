@@ -1,6 +1,7 @@
 import { normalizePersonSelectRequestPayload } from "./personSelectRequestPayload";
 import { normalizePhotoBrowseRequestPayload } from "./photoBrowseRequestPayload";
 import { normalizePhotoOperationRequestPayload } from "./photoOperationRequestPayload";
+import { normalizePhotoColorRequestPayload } from "./photoColorRequestPayload";
 import { normalizeRawMatchCopyRequestPayload } from "./rawMatchCopyRequestPayload";
 import { normalizeBridgeRawMatchRequestPayload } from "./bridgeRawMatchRequestPayload";
 import type { RemoteJobAction } from "./requestValidation";
@@ -17,6 +18,9 @@ export function normalizeRemoteJobRequestPayload(
 
   const photoOperation = normalizePhotoOperationRequestPayload(action, requested);
   if (photoOperation !== null) return photoOperation;
+
+  const photoColor = normalizePhotoColorRequestPayload(action, requested);
+  if (photoColor !== null) return photoColor;
 
   if (action === "PHOTO_RAW_MATCH_COPY") return normalizeRawMatchCopyRequestPayload(requested);
   if (action === "PHOTO_BRIDGE_RAW_MATCH") return normalizeBridgeRawMatchRequestPayload(requested);

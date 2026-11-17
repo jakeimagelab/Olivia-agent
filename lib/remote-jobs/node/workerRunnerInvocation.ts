@@ -133,6 +133,27 @@ export function createRunnerInvocation(job: WorkerJob, repoRoot: string): Runner
       addString(args, "--check-type", workerStringValue(payload, "check_type"));
       return runner(repoRoot, "photo-retouch-runner.ts", args);
     }
+    case "PHOTO_COLOR_MATCH": {
+      addString(args, "--scope", "photo");
+      addString(args, "--source-relative-path", workerStringValue(payload, "source_path", true));
+      addString(args, "--output-relative-path", workerStringValue(payload, "output_path"));
+      const options = isRecord(payload.options) ? payload.options : {};
+      const reference = isRecord(payload.reference) ? payload.reference : {};
+      addBoolean(args, "--brightness", workerBooleanValue(options, "brightness"));
+      addBoolean(args, "--skin-tone", workerBooleanValue(options, "skin_tone"));
+      addString(args, "--target-mode", workerStringValue(reference, "mode") || "median");
+      addString(args, "--reference-file", workerStringValue(reference, "file"));
+      const files = workerStringArrayValue(payload, "selected_file_names");
+      if (files) addString(args, "--selected-file-names-json", JSON.stringify(files));
+      return runner(repoRoot, "person-select-color-match.ts", args);
+    }
+    case "PHOTO_COLOR_RENDER":
+      addString(args, "--scope", "photo");
+      addString(args, "--output-relative-path", workerStringValue(payload, "output_path", true));
+      if (Array.isArray(payload.changes)) addString(args, "--changes-json", JSON.stringify(payload.changes));
+      if (isRecord(payload.common_recipe)) addString(args, "--common-recipe-json", JSON.stringify(payload.common_recipe));
+      if (isRecord(payload.target_measurement)) addString(args, "--target-measurement-json", JSON.stringify(payload.target_measurement));
+      return runner(repoRoot, "person-select-color-render.ts", args);
     case "PERSON_SELECT_IMPORT":
       addString(args, "--event-id", workerStringValue(payload, "event_id", true));
       addString(args, "--source-relative-path", workerStringValue(payload, "source_relative_path", true));

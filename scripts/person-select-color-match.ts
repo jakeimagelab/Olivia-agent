@@ -24,13 +24,20 @@ import { getSupabaseAdmin } from "@/lib/supabase";
 function readArgs() {
   const values = process.argv.slice(2);
   const take = (flag: string) => { const index = values.indexOf(flag); return index >= 0 ? values[index + 1] : undefined; };
+  const parse = <T>(flag: string): T | undefined => {
+    const raw = take(flag);
+    return raw ? JSON.parse(raw) as T : undefined;
+  };
   const boolean = (flag: string, fallback: boolean) => {
     const value = take(flag);
     return value === undefined ? fallback : value === "true";
   };
   return {
+    scope: take("--scope") === "photo" ? "photo" as const : "person-select" as const,
     eventId: take("--event-id"),
     sourceRelativePath: take("--source-relative-path"),
+    outputRelativePath: take("--output-relative-path"),
+    selectedFileNames: parse<string[]>("--selected-file-names-json") ?? [],
     brightness: boolean("--brightness", true),
     skinTone: boolean("--skin-tone", true),
     targetMode: (take("--target-mode") || "median") as ColorMatchTargetMode,
@@ -55,14 +62,27 @@ function summary(files: ColorMatchFileManifest[]) {
 
 async function main() {
   const input = readArgs();
-  if (!input.eventId || !input.sourceRelativePath) throw new Error("event_id와 보정본 폴더가 필요합니다.");
+  if (!input.sourceRelativePath) throw new Error("보정본 폴더가 필요합니다.");
+  if (input.scope === "person-select" && !input.eventId) throw new Error("event_id와 보정본 폴더가 필요합니다.");
   if (input.targetMode !== "median" && input.targetMode !== "reference") throw new Error("색 맞춤 기준이 올바르지 않습니다.");
   const source = await resolvePersonSelectSourcePath(input.sourceRelativePath);
-  const candidates = await scanColorMatchJpegs(source.canonicalPath);
+  const allCandidates = await scanColorMatchJpegs(source.canonicalPath);
+  const selected = new Set(input.selectedFileNames.map((value) => value.replace(/\\/gu, "/").normalize("NFC")));
+  const candidates = selected.size
+    ? allCandidates.filter((candidate) => selected.has(candidate.relativePath.normalize("NFC")) || selected.has(candidate.fileName.normalize("NFC")))
+    : allCandidates;
   if (!candidates.length) throw new Error("선택한 폴더에 JPG/JPEG 보정본이 없습니다.");
-  const outputPath = await reserveColorMatchOutputFolder(source.canonicalPath);
-  const outputVirtualPath = colorMatchVirtualPath(source.root, outputPath);
+  const explicitOutput = input.outputRelativePath
+    ? await resolvePersonSelectSourcePath(input.outputRelativePath)
+    : null;
+  const outputPath = explicitOutput?.canonicalPath ?? await reserveColorMatchOutputFolder(source.canonicalPath);
+  const outputVirtualPath = explicitOutput
+    ? colorMatchVirtualPath(explicitOutput.root, outputPath)
+    : colorMatchVirtualPath(source.root, outputPath);
   const runId = randomUUID();
+  const storagePrefix = input.scope === "photo"
+    ? `photo-retouch/${runId}`
+    : `${input.eventId}/color-match/${runId}`;
   const measurements = new Map<string, PhotoMeasurement>();
   const total = candidates.length * 2;
 
@@ -99,8 +119,8 @@ async function main() {
     const destination = path.join(outputPath, ...candidate.relativePath.split("/"));
     await writeEditedJpeg(destination, decoded.sourceBytes, edited);
     const previewKey = createHash("sha1").update(candidate.relativePath.normalize("NFC")).digest("hex").slice(0, 20);
-    const sourcePreviewPath = `${input.eventId}/color-match/${runId}/source/${previewKey}.jpg`;
-    const resultPreviewPath = `${input.eventId}/color-match/${runId}/result/${previewKey}.jpg`;
+    const sourcePreviewPath = `${storagePrefix}/source/${previewKey}.jpg`;
+    const resultPreviewPath = `${storagePrefix}/result/${previewKey}.jpg`;
     const [sourcePreview, resultPreview] = await Promise.all([
       createJpegPreview(candidate.absolutePath),
       createJpegPreview(destination),
@@ -131,12 +151,13 @@ async function main() {
   }
 
   const createdAt = new Date().toISOString();
-  const manifestStoragePath = `${input.eventId}/color-match/${runId}/recipes.json`;
+  const manifestStoragePath = `${storagePrefix}/recipes.json`;
   const manifest: ColorMatchManifest = {
     manifestVersion: 1,
     runId,
     manifestStoragePath,
-    eventId: input.eventId,
+    eventId: input.eventId ?? null,
+    scope: input.scope,
     createdAt,
     updatedAt: createdAt,
     sourcePath: source.canonicalPath,
@@ -156,7 +177,8 @@ async function main() {
   const result = {
     ok: true,
     status: `색 맞춤 ${files.length.toLocaleString()}장 완료`,
-    eventId: input.eventId,
+    ...(input.eventId ? { eventId: input.eventId } : {}),
+    scope: input.scope,
     outputPath,
     outputVirtualPath,
     manifestStoragePath,

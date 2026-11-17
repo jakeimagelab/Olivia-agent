@@ -28,6 +28,7 @@ function readArgs() {
     return raw ? JSON.parse(raw) as T : undefined;
   };
   return {
+    scope: take("--scope") === "photo" ? "photo" as const : "person-select" as const,
     eventId: take("--event-id"),
     outputRelativePath: take("--output-relative-path"),
     changes: parse<RecipeChange[]>("--changes-json") ?? [],
@@ -42,12 +43,19 @@ function report(current: number, total: number, message: string) {
 
 async function main() {
   const input = readArgs();
-  if (!input.eventId || !input.outputRelativePath) throw new Error("event_id와 색 맞춤 결과 폴더가 필요합니다.");
+  if (!input.outputRelativePath) throw new Error("색 맞춤 결과 폴더가 필요합니다.");
+  if (input.scope === "person-select" && !input.eventId) throw new Error("event_id와 색 맞춤 결과 폴더가 필요합니다.");
   const output = await resolvePersonSelectSourcePath(input.outputRelativePath);
   const manifestPath = path.join(output.canonicalPath, ".olivia-color-match", "recipes.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as ColorMatchManifest;
-  if (manifest.manifestVersion !== 1 || manifest.eventId !== input.eventId) throw new Error("색 맞춤 레시피가 프로젝트와 일치하지 않습니다.");
-  if (!manifest.manifestStoragePath.startsWith(`${input.eventId}/color-match/`)) throw new Error("색 맞춤 레시피 저장 경로가 프로젝트와 일치하지 않습니다.");
+  if (manifest.manifestVersion !== 1) throw new Error("색 맞춤 레시피 형식이 올바르지 않습니다.");
+  if (input.scope === "person-select") {
+    if (manifest.eventId !== input.eventId || !manifest.manifestStoragePath.startsWith(`${input.eventId}/color-match/`)) {
+      throw new Error("색 맞춤 레시피가 프로젝트와 일치하지 않습니다.");
+    }
+  } else if (manifest.eventId || !manifest.manifestStoragePath.startsWith("photo-retouch/")) {
+    throw new Error("사진보정 앱의 색 맞춤 레시피가 아닙니다.");
+  }
   const source = await resolvePersonSelectSourcePath(manifest.sourceVirtualPath);
   const changes = new Map(input.changes.map((change) => [change.relativePath.normalize("NFC"), change.recipe]));
   if (input.commonRecipe) manifest.commonRecipe = input.commonRecipe;
@@ -64,7 +72,8 @@ async function main() {
     const changedRecipe = changes.get(file.relativePath.normalize("NFC"));
     if (changedRecipe) file.recipe = changedRecipe;
     const relativeParts = safeColorMatchPathParts(file.relativePath);
-    if (!file.resultPreviewPath.startsWith(`${input.eventId}/color-match/`)) throw new Error(`${file.fileName}의 미리보기 경로가 프로젝트와 일치하지 않습니다.`);
+    const previewPrefix = input.scope === "photo" ? "photo-retouch/" : `${input.eventId}/color-match/`;
+    if (!file.resultPreviewPath.startsWith(previewPrefix)) throw new Error(`${file.fileName}의 미리보기 경로가 작업과 일치하지 않습니다.`);
     const sourcePath = path.join(source.canonicalPath, ...relativeParts);
     const destinationPath = path.join(output.canonicalPath, ...relativeParts);
     const decoded = await decodeJpegForPhotoEdit(sourcePath);
@@ -85,7 +94,7 @@ async function main() {
   await writeColorMatchManifest(manifest);
   const manifestUpload = await bucket.upload(manifest.manifestStoragePath, Buffer.from(`${JSON.stringify(manifest)}\n`), { contentType: "application/json", upsert: true });
   if (manifestUpload.error) throw manifestUpload.error;
-  process.stdout.write(`${JSON.stringify({ ok: true, status: `색 맞춤 저장 ${targets.length}장 완료`, eventId: input.eventId, outputVirtualPath: manifest.outputVirtualPath, manifestStoragePath: manifest.manifestStoragePath, renderedCount: targets.length })}\n`);
+  process.stdout.write(`${JSON.stringify({ ok: true, status: `색 맞춤 저장 ${targets.length}장 완료`, ...(input.eventId ? { eventId: input.eventId } : {}), scope: input.scope, outputVirtualPath: manifest.outputVirtualPath, manifestStoragePath: manifest.manifestStoragePath, renderedCount: targets.length })}\n`);
 }
 
 export function colorRenderFailureOutput(error: unknown) {

@@ -50,6 +50,30 @@ describe("Mac Studio worker runner invocation", () => {
     expect(render?.args).toEqual(expect.arrayContaining(["--changes-json", "[]"]));
   });
 
+  it("maps event-free photo color jobs to the shared runners", () => {
+    const match = createRunnerInvocation({
+      action: "PHOTO_COLOR_MATCH",
+      payload: {
+        source_path: "root-1/보정본",
+        options: { brightness: true, skin_tone: true },
+        reference: { mode: "median" },
+        selected_file_names: ["A.JPG"],
+      },
+    }, repoRoot);
+    expect(match?.args).toContain(path.join(repoRoot, "scripts/person-select-color-match.ts"));
+    expect(match?.args).toEqual(expect.arrayContaining([
+      "--scope", "photo", "--source-relative-path", "root-1/보정본",
+      "--selected-file-names-json", JSON.stringify(["A.JPG"]),
+    ]));
+
+    const render = createRunnerInvocation({
+      action: "PHOTO_COLOR_RENDER",
+      payload: { output_path: "root-1/보정본_색맞춤", changes: [] },
+    }, repoRoot);
+    expect(render?.args).toContain(path.join(repoRoot, "scripts/person-select-color-render.ts"));
+    expect(render?.args).toEqual(expect.arrayContaining(["--scope", "photo", "--output-relative-path", "root-1/보정본_색맞춤"]));
+  });
+
   it("maps NAS delivery packages to the dedicated runner", () => {
     const invocation = createRunnerInvocation({
       action: "PERSON_SELECT_DELIVERY_DOWNLOAD",
