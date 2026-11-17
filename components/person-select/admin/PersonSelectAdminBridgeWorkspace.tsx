@@ -34,6 +34,7 @@ import {
   PERSON_SELECT_ADMIN_STATUS_LABELS,
   pairSelectedImagesWithDeliveries,
   resolvePersonSelectAdminStatus,
+  togglePersonSelectRetouchKey,
   type PersonSelectAdminStatus,
 } from "@/lib/person-select/adminWorkspace";
 import type {
@@ -387,7 +388,7 @@ export function PersonSelectAdminBridgeWorkspace({
         </>}
       </section>
       <aside className={styles.inspector}>
-        {selectedPhoto ? <PhotoInspector photo={selectedPhoto} choice={selectedChoice} delivery={selectedDelivery} labels={data.event.retouch_options} onDeleteDelivery={deleteDelivery} /> : activePerson ? <PersonInspector person={activePerson} eventSlug={data.event.slug} rawMatchedAt={data.event.raw_matched_at} onOpenPinList={onOpenPinList} onDeliveryAction={onDeliveryAction} /> : selectedReviewer ? <SharedInspector reviewer={selectedReviewer} deliveryCount={deliveries.length} orderOpen={data.event.offers_open === true} /> : <div className={styles.emptyInspector}><UserRound /><span>고객 또는 사진을 선택하세요.</span></div>}
+        {selectedPhoto ? <PhotoInspector eventId={eventId} photo={selectedPhoto} choice={selectedChoice} delivery={selectedDelivery} labels={data.event.retouch_options} onDeleteDelivery={deleteDelivery} onReload={onReload} onMessage={onMessage} /> : activePerson ? <PersonInspector person={activePerson} eventSlug={data.event.slug} rawMatchedAt={data.event.raw_matched_at} onOpenPinList={onOpenPinList} onDeliveryAction={onDeliveryAction} /> : selectedReviewer ? <SharedInspector reviewer={selectedReviewer} deliveryCount={deliveries.length} orderOpen={data.event.offers_open === true} /> : <div className={styles.emptyInspector}><UserRound /><span>고객 또는 사진을 선택하세요.</span></div>}
       </aside>
     </div>
     <footer className={styles.statusBar}><span>전체 인원 <b>{data.people.length || reviewers.length}</b></span><span>제출 <b>{statusCounts.submitted}</b></span><span>보정 대기 <b>{statusCounts.retouch_pending}</b></span><span>수정 요청 <b>{statusCounts.revision_requested}</b></span><span>확정 <b>{statusCounts.approved}</b></span><span>RAW 매칭 완료 <b>{data.event.raw_matched_at ? "1" : "0"}</b></span><small>{deliverySourcePath ? `보정본 폴더 연결됨 · ${deliverySourcePath}` : workerOnline === false ? "Mac Studio가 꺼져 있어요" : "보정본 폴더 미연결"}</small></footer>
@@ -418,16 +419,42 @@ function SharedInspector({ reviewer, deliveryCount, orderOpen }: { reviewer: Non
   return <div className={styles.inspectorBody}><div className={styles.inspectorTitle}><UserRound /><div><h2>{reviewer.display_name}</h2><p>{reviewer.selection ? "최종 제출" : selectedCount ? "선택 중" : "미선택"}</p></div></div><dl className={styles.infoList}><div><dt>선택 사진</dt><dd>{selectedCount}장</dd></div><div><dt>보정본</dt><dd>{deliveryCount}장</dd></div><div><dt>액자·앨범</dt><dd>{orderOpen ? "공개" : "비공개"}</dd></div><div><dt>마지막 저장</dt><dd>{formatRelativeTime(reviewer.server_last_saved_at ?? null)}</dd></div></dl>{reviewer.selection?.customer_memo || reviewer.draft?.customerMemo ? <section className={styles.inspectorSection}><h3>전체 메모</h3><p>{reviewer.selection?.customer_memo || reviewer.draft?.customerMemo}</p></section> : null}</div>;
 }
 
-function PhotoInspector({ photo, choice, delivery, labels, onDeleteDelivery }: {
+function PhotoInspector({ eventId, photo, choice, delivery, labels, onDeleteDelivery, onReload, onMessage }: {
+  eventId: string;
   photo: WorkspacePhoto;
   choice: PersonSelectAdminChoice | PersonSelectSharedSelectionItem | null;
   delivery: PersonSelectAdminDeliveryItem | null;
   labels: { key: string; label: string }[];
   onDeleteDelivery: (delivery: PersonSelectAdminDeliveryItem) => void | Promise<void>;
+  onReload: () => Promise<void>;
+  onMessage: (message: string) => void;
 }) {
+  const editableChoice = choice && "retouch_keys" in choice ? choice : null;
   const labelMap = new Map(labels.map((label) => [label.key, label.label]));
   const memo = choice && "memo" in choice ? choice.memo : "";
   const retouchKeys = choice && "retouch_keys" in choice ? choice.retouch_keys : [];
-  return <div className={styles.inspectorBody}><div className={styles.inspectorTitle}><ImageIcon /><div><h2>{photo.original_file_name}</h2><p>{photo.source_rel_path}</p></div></div><dl className={styles.infoList}><div><dt>고객 선택</dt><dd>{choice ? "선택" : "미선택"}</dd></div><div><dt>보정 요청</dt><dd>{retouchKeys.map((key) => labelMap.get(key) ?? key).join(" · ") || "기본"}</dd></div></dl>{memo ? <section className={styles.inspectorSection}><h3>고객 메모</h3><p>{memo}</p></section> : null}{delivery ? <section className={styles.inspectorSection}><h3>보정본 버전</h3>{delivery.preview_url ? <img className={styles.inspectorPreview} src={delivery.preview_url} alt={delivery.display_name} /> : null}<p>{delivery.display_name}<b>v{delivery.current_version} · {delivery.status}</b></p>{delivery.customer_memo ? <p className={styles.revisionMemo}>{delivery.customer_memo}</p> : null}<div className={styles.versionList}>{(delivery.versions ?? []).map((version) => <span key={version.version}>v{version.version} · {formatRelativeTime(version.uploaded_at)}</span>)}</div><button className={styles.deleteButton} onClick={() => void onDeleteDelivery(delivery)}><Trash2 size={14} />해당 보정본 삭제</button></section> : <section className={styles.inspectorSection}><h3>보정본</h3><p>아직 연결된 보정본이 없습니다.</p></section>}</div>;
+  const [editing, setEditing] = useState(false);
+  const [editKeys, setEditKeys] = useState<string[]>(retouchKeys);
+  const [editMemo, setEditMemo] = useState(memo);
+  const [saving, setSaving] = useState(false);
+  const retouchKeySignature = retouchKeys.join("\u0000");
+  useEffect(() => { setEditing(false); setEditKeys(retouchKeySignature ? retouchKeySignature.split("\u0000") : []); setEditMemo(memo); }, [editableChoice?.id, memo, retouchKeySignature]);
+
+  async function saveChoice() {
+    if (!editableChoice) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/person-select/${eventId}/choices/${editableChoice.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ retouch_keys: editKeys, memo: editMemo }) });
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(body.error || "보정 요청을 저장하지 못했습니다.");
+      await onReload();
+      setEditing(false);
+      onMessage(`${photo.original_file_name} 보정 요청을 저장했습니다.`);
+    } catch (error) {
+      onMessage(error instanceof Error ? error.message : "보정 요청을 저장하지 못했습니다.");
+    } finally { setSaving(false); }
+  }
+
+  return <div className={styles.inspectorBody}><div className={styles.inspectorTitle}><ImageIcon /><div><h2>{photo.original_file_name}</h2><p>{photo.source_rel_path}</p></div></div><dl className={styles.infoList}><div><dt>고객 선택</dt><dd>{choice ? "선택" : "미선택"}</dd></div><div><dt>보정 요청</dt><dd>{retouchKeys.map((key) => labelMap.get(key) ?? key).join(" · ") || "기본"}</dd></div></dl>{editableChoice ? <section className={styles.inspectorSection}><h3>보정 요청·메모</h3>{editing ? <><div className={styles.editChips}>{labels.map((label) => <button key={label.key} className={editKeys.includes(label.key) ? styles.editChipActive : ""} onClick={() => setEditKeys(togglePersonSelectRetouchKey(editKeys, label.key))}>{label.label}</button>)}</div><textarea className={styles.inspectorTextarea} value={editMemo} maxLength={2_000} onChange={(event) => setEditMemo(event.target.value)} /><div className={styles.editActions}><button disabled={saving} onClick={() => setEditing(false)}>취소</button><button className={styles.saveButton} disabled={saving} onClick={() => void saveChoice()}>{saving ? "저장 중" : "관리자 수정 저장"}</button></div></> : <><p>{memo || "메모 없음"}</p><button className={styles.inspectorEditButton} onClick={() => setEditing(true)}>관리자 수정</button></>}</section> : memo ? <section className={styles.inspectorSection}><h3>고객 메모</h3><p>{memo}</p></section> : null}{delivery ? <section className={styles.inspectorSection}><h3>보정본 버전</h3>{delivery.preview_url ? <img className={styles.inspectorPreview} src={delivery.preview_url} alt={delivery.display_name} /> : null}<p>{delivery.display_name}<b>v{delivery.current_version} · {delivery.status}</b></p>{delivery.customer_memo ? <p className={styles.revisionMemo}>{delivery.customer_memo}</p> : null}<div className={styles.versionList}>{(delivery.versions ?? []).map((version) => <span key={version.version}>v{version.version} · {formatRelativeTime(version.uploaded_at)}</span>)}</div><button className={styles.deleteButton} onClick={() => void onDeleteDelivery(delivery)}><Trash2 size={14} />해당 보정본 삭제</button></section> : <section className={styles.inspectorSection}><h3>보정본</h3><p>아직 연결된 보정본이 없습니다.</p></section>}</div>;
 }
 

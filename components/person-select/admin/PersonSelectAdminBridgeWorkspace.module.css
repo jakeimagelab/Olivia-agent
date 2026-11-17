@@ -117,6 +117,12 @@
 .inspectorActions { display: grid; gap: 5px; }
 .inspectorActions button, .deleteButton { min-height: 32px; display: flex; align-items: center; justify-content: flex-start; gap: 6px; padding: 0 9px; border: 1px solid var(--dark-border); border-radius: 6px; color: rgba(255,255,255,.75); background: transparent; font: inherit; font-size: 10px; cursor: pointer; }
 .deleteButton { color: #ff9b78; border-color: rgba(255,155,120,.24); }
+.editChips { display: flex; flex-wrap: wrap; gap: 5px; }
+.editChips button, .inspectorEditButton, .editActions button { min-height: 29px; padding: 0 8px; border: 1px solid var(--dark-border); border-radius: 5px; color: rgba(255,255,255,.7); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
+.editChips .editChipActive { border-color: rgba(79,216,184,.5); color: var(--mint-strong); background: rgba(79,216,184,.09); }
+.inspectorTextarea { box-sizing: border-box; width: 100%; min-height: 74px; padding: 8px; border: 1px solid var(--dark-border); border-radius: 6px; color: #fff; background: rgba(0,0,0,.18); font: inherit; font-size: 11px; resize: vertical; }
+.editActions { display: flex; justify-content: flex-end; gap: 5px; }
+.editActions .saveButton { border-color: var(--mint); color: #103e36; background: var(--mint); }
 .emptyInspector { min-height: 300px; display: grid; place-items: center; align-content: center; gap: 8px; color: var(--dark-muted); font-size: 11px; }
 .statusBar { min-height: 34px; display: flex; align-items: center; gap: 16px; padding: 0 12px; border-top: 1px solid var(--dark-border); color: var(--dark-muted); background: #303030; font-size: 9px; }
 .statusBar b { color: #fff; font-weight: 500; }

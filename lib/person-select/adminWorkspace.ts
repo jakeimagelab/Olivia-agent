@@ -22,6 +22,10 @@ export type PersonSelectWorkspaceImage = {
   source_rel_path: string;
 };
 
+export function togglePersonSelectRetouchKey(keys: readonly string[], key: string) {
+  return keys.includes(key) ? keys.filter((current) => current !== key) : [...keys, key];
+}
+
 export function resolvePersonSelectAdminStatus(input: {
   submittedAt?: string | null;
   rawMatched?: boolean;
