@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { requestOpenAiColorVisionJson } from "@/lib/photoRetouch/openaiVision";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 90;
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+type Rgb = { r: number; g: number; b: number };
+type SkinVisionAnalysis = {
+  detected: boolean;
+  skinHighlight: Rgb;
+  skinMid: Rgb;
+  skinShadow: Rgb;
+  whiteRef: Rgb & { found: boolean };
+  colorTemp: string;
+  saturation: string;
+  skinNote: string;
+  confidence: number;
+};
 
 function toHex(r: number, g: number, b: number) {
   return `#${[r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
@@ -29,16 +40,10 @@ function calcCameraRawTemp(refWhite: any, tgtWhite: any): number {
 }
 
 async function analyzeImage(base64: string, mime: string, role: "reference" | "target") {
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 512,
-    messages: [{
-      role: "user",
-      content: [
-        { type: "image", source: { type: "base64", media_type: mime as any, data: base64 } },
-        {
-          type: "text",
-          text: `전문 사진 리터처로서 이 인물 사진(${role === "reference" ? "기준 사진" : "동기화 대상 사진"})의 피부톤 RGB를 정밀 분석하세요.
+  return await requestOpenAiColorVisionJson({
+    imageBase64: base64,
+    imageMime: mime,
+    prompt: `전문 사진 리터처로서 이 인물 사진(${role === "reference" ? "기준 사진" : "동기화 대상 사진"})의 피부톤 RGB를 정밀 분석하세요.
 
 JSON만 응답 (다른 텍스트 없이):
 {
@@ -53,15 +58,8 @@ JSON만 응답 (다른 텍스트 없이):
   "confidence":    0~100
 }
 
-인물/피부 없으면: {"detected": false}`
-        },
-      ],
-    }],
-  });
-  const raw = response.content.find((b): b is Anthropic.TextBlock => b.type === "text")?.text ?? "";
-  const m = raw.match(/\{[\s\S]*\}/);
-  if (!m) throw new Error(`${role} 분석 실패`);
-  return JSON.parse(m[0]);
+인물/피부 없으면: {"detected": false}`,
+  }) as unknown as SkinVisionAnalysis;
 }
 
 export async function POST(req: NextRequest) {

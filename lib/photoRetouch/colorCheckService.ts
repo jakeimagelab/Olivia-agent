@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { requestOpenAiColorVisionJson } from "@/lib/photoRetouch/openaiVision";
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -67,46 +67,10 @@ function diffRgb(current: Rgb, target: Rgb) {
   };
 }
 
-function extractJson(raw: string): Record<string, unknown> {
-  let text = raw.trim();
-  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenceMatch) text = fenceMatch[1].trim();
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    const start = text.indexOf("{");
-    if (start === -1) throw new Error("AI 응답에서 JSON을 찾지 못했습니다. 다시 시도해주세요.");
-    let depth = 0;
-    for (let index = start; index < text.length; index += 1) {
-      if (text[index] === "{") depth += 1;
-      else if (text[index] === "}") {
-        depth -= 1;
-        if (depth === 0) {
-          try {
-            return JSON.parse(text.slice(start, index + 1)) as Record<string, unknown>;
-          } catch {
-            throw new Error("AI 응답 해석에 실패했습니다. 다시 시도해주세요.");
-          }
-        }
-      }
-    }
-    throw new Error("AI 응답 해석에 실패했습니다. 다시 시도해주세요.");
-  }
-}
-
 async function requestVision(input: { imageBase64: string; imageMime: string; checkType: PhotoColorCheckType }): Promise<Record<string, unknown>> {
-  if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY가 설정되어 있지 않습니다.");
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const gown = input.checkType === "gown";
-  const response = await client.messages.create({
-    model: gown ? "claude-sonnet-5" : "claude-sonnet-4-6",
-    max_tokens: 512,
-    messages: [{
-      role: "user",
-      content: [
-        { type: "image", source: { type: "base64", media_type: input.imageMime as "image/jpeg", data: input.imageBase64 } },
-        { type: "text", text: gown
-          ? `전문 사진 리터처로서 이 병원 사진 속 의료진의 흰색 가운(白 가운) 색상을 분석하세요.
+  const prompt = gown
+    ? `전문 사진 리터처로서 이 병원 사진 속 의료진의 흰색 가운(白 가운) 색상을 분석하세요.
 가운은 순백색이 아니라 살짝 미색(웜톤 화이트 · 아이보리)에 가까워야 합니다. 형광등/창문광 등 조명에 의한 색캐스트가 있는지도 함께 판단하세요.
 
 반드시 JSON만 응답 (다른 텍스트 없이):
@@ -121,7 +85,7 @@ async function requestVision(input: { imageBase64: string; imageMime: string; ch
 }
 
 흰색 가운(의료복)이 화면에 보이지 않으면: {"detected": false}`
-          : `전문 사진 리터처로서 이 병원 인물 사진의 피부톤 RGB를 분석하세요.
+    : `전문 사진 리터처로서 이 병원 인물 사진의 피부톤 RGB를 분석하세요.
 
 반드시 JSON만 응답 (다른 텍스트 없이):
 {
@@ -136,12 +100,12 @@ async function requestVision(input: { imageBase64: string; imageMime: string; ch
   "confidence":    0~100
 }
 
-인물/피부가 없으면: {"detected": false}` },
-      ],
-    }],
+인물/피부가 없으면: {"detected": false}`;
+  return requestOpenAiColorVisionJson({
+    imageBase64: input.imageBase64,
+    imageMime: input.imageMime,
+    prompt,
   });
-  const raw = response.content.find((block): block is Anthropic.TextBlock => block.type === "text")?.text ?? "";
-  return extractJson(raw);
 }
 
 function decorateRgb(value: Rgb) {
