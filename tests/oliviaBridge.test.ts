@@ -232,7 +232,7 @@ describe("Olivia Bridge", () => {
     const folderLoader = readFileSync("lib/photo-bridge/folderLoader.ts", "utf8");
     const windowAdapter = readFileSync("components/olivia-os/adapters/OliviaBridgeWindowContent.tsx", "utf8");
 
-    expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge"])');
+    expect(layout).toContain('new Set(["/photo-sorting", "/olivia-bridge", "/photo-retouching"])');
     expect(layout).toContain('!REMOTE_READY_ROUTES.has(pathname)');
     expect(workspace).toContain("openFolderSourceChooser");
     expect(dialogs).toContain("이 Mac의 폴더");

@@ -6,6 +6,7 @@ import { ColorMatchEditor } from "@/components/person-select/color-match/ColorMa
 import { PhotoColorMatchPanel } from "@/components/photo-retouching/PhotoColorMatchPanel";
 import { WorkspaceSubTabs } from "@/components/workspace-shell/WorkspaceSubTabs";
 import { usePhotoStudioExecution } from "@/components/photo-workspace/PhotoStudioExecutionContext";
+import { useDesktopWindowMode, useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { C } from "@/lib/theme";
 
 // 원본 카메라/폰 사진은 수 MB~수십 MB에 달해 base64로 변환하면
@@ -77,6 +78,19 @@ type AnalysisResult = {
   colorCast?: string; gownNote?: string;
   adjustments?: any; photoshop?: any;
 };
+
+function formatCameraRawAdjustments(adjustments: Record<string, unknown> | undefined) {
+  const temperature = Number(adjustments?.temperature ?? 0);
+  const exposure = Number(adjustments?.exposure ?? 0);
+  const vibrance = Number(adjustments?.vibrance ?? 0);
+  const signed = (value: number, suffix = "") => `${value > 0 ? "+" : ""}${value}${suffix}`;
+  return [
+    "[Camera Raw 보정값]",
+    `색온도: ${signed(temperature, "K")}`,
+    `노출: ${signed(exposure)}`,
+    `Vibrance: ${signed(vibrance)}`,
+  ].join("\n");
+}
 
 function PsSlider({ label, value }: { label: string; value: number }) {
   if (Math.abs(value) < 2) return null;
@@ -424,7 +438,22 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
           {/* Camera Raw */}
           {resTab === "cameraraw" && (
             <div style={{ background: embedded ? "rgba(255,255,255,.03)" : C.white, borderRadius: 14, border: `1px solid ${embedded ? "rgba(255,255,255,.13)" : C.border}`, padding: "20px" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, marginBottom: 16 }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>대상 사진 → Camera Raw 조정 (기준 사진 기준)</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(formatCameraRawAdjustments(result.adjustments)).then(() => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    });
+                  }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #37C39D", background: "#37C39D", color: "#103E36", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
+                    {copied ? <Check size={13}/> : <Copy size={13}/>}{copied ? "복사됨" : "보정값 복사"}
+                  </button>
+                  <button onClick={() => setResTab("ps")} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.teal, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+                    포토샵 색상 균형 값 보기
+                  </button>
+                </div>
+              </div>
               <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
                 {[
                   ["색온도", result.adjustments.temperature ? (result.adjustments.temperature > 0 ? `+${result.adjustments.temperature}` : String(result.adjustments.temperature)) + "K" : "±0", result.adjustments.temperature !== 0],
@@ -453,7 +482,7 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
 
 type PhotoRetouchTab = "match" | "edit" | "check" | "sync" | "recipe";
 
-export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initialHref }: { embedded?: boolean; initialFile?: File; initialHref?: string }) {
+function PhotoRetouchingWorkspace({ embedded = false, initialFile, initialHref }: { embedded?: boolean; initialFile?: File; initialHref?: string }) {
   const inputRef   = useRef<HTMLInputElement>(null);
   const [tab,      setTab]      = useState<PhotoRetouchTab>("match");
   const [initialPath, setInitialPath] = useState("");
@@ -878,7 +907,22 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
                     {resTab === "cameraraw" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         <div style={{ background: C.white, border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px" }}>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".12em", textTransform: "uppercase", marginBottom: 14 }}>Camera Raw 적용값</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: C.muted, letterSpacing: ".12em", textTransform: "uppercase" }}>Camera Raw 적용값</div>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                              <button onClick={() => {
+                                navigator.clipboard.writeText(formatCameraRawAdjustments(result.adjustments)).then(() => {
+                                  setCopied(true);
+                                  setTimeout(() => setCopied(false), 2000);
+                                });
+                              }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 8, border: "1px solid #37C39D", background: "#37C39D", color: "#103E36", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
+                                {copied ? <Check size={13}/> : <Copy size={13}/>}{copied ? "복사됨" : "보정값 복사"}
+                              </button>
+                              <button onClick={() => setResTab("ps")} style={{ padding: "8px 14px", borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.teal, cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
+                                포토샵 색상 균형 값 보기
+                              </button>
+                            </div>
+                          </div>
                           <div className="pc-mobile-form-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                             {([
                               ["색온도", result.adjustments?.temperature ? `${5900 + result.adjustments.temperature}K` : "5900K", !!result.adjustments?.temperature],
@@ -1009,5 +1053,7 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
 
 export default function PhotoRetouchingPage() {
   const { selectedJpgFiles } = usePhotoStudioExecution();
-  return <PhotoRetouchingWorkspace initialFile={selectedJpgFiles[0]} />;
+  const embedded = useDesktopWindowMode();
+  const { routeHref } = useDesktopWindowRoute();
+  return <PhotoRetouchingWorkspace embedded={embedded} initialFile={selectedJpgFiles[0]} initialHref={routeHref} />;
 }
