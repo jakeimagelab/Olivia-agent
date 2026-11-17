@@ -7,6 +7,7 @@ import { isIndividualPersonSelectAccessAllowed } from "./projectSettings";
 
 export const PERSON_SELECT_BUCKET = "person-select";
 const PERSON_SELECT_SIGNED_URL_BATCH_SIZE = 1_000;
+const PERSON_SELECT_ALLOWED_MIME_TYPES = ["image/jpeg", "application/json"] as const;
 
 export async function ensurePersonSelectBucket() {
   const storage = getSupabaseAdmin().storage;
@@ -14,19 +15,23 @@ export async function ensurePersonSelectBucket() {
   if (!data) {
     const { error } = await storage.createBucket(PERSON_SELECT_BUCKET, {
       public: false,
-      fileSizeLimit: 100 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg", "application/json"],
+      fileSizeLimit: null,
+      allowedMimeTypes: [...PERSON_SELECT_ALLOWED_MIME_TYPES],
     });
     if (error && !/already exists/i.test(error.message)) throw error;
-  } else if (
-    Number(data.file_size_limit ?? 0) < 100 * 1024 * 1024
-    || !Array.isArray(data.allowed_mime_types)
-    || !data.allowed_mime_types.includes("application/json")
-  ) {
+  } else {
+    const existingMimeTypes = Array.isArray(data.allowed_mime_types) ? data.allowed_mime_types : [];
+    const allowedMimeTypes = [...new Set([...existingMimeTypes, ...PERSON_SELECT_ALLOWED_MIME_TYPES])];
+    const needsUpdate = data.public === true
+      || allowedMimeTypes.length !== existingMimeTypes.length
+      || PERSON_SELECT_ALLOWED_MIME_TYPES.some((mimeType) => !existingMimeTypes.includes(mimeType));
+    if (!needsUpdate) return;
     const { error } = await storage.updateBucket(PERSON_SELECT_BUCKET, {
       public: false,
-      fileSizeLimit: 100 * 1024 * 1024,
-      allowedMimeTypes: ["image/jpeg", "application/json"],
+      // 버킷별 제한은 프로젝트의 전역 Storage 상한보다 높게 설정할 수 없다.
+      // 기존에 검증된 제한을 그대로 보존하고 MIME 설정만 보완한다.
+      fileSizeLimit: data.file_size_limit ?? null,
+      allowedMimeTypes,
     });
     if (error) throw error;
   }
