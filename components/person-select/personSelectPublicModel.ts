@@ -28,6 +28,7 @@ export type PersonSelectEventData = {
   extra_price?: number;
   extra_max?: number;
   offers?: PersonSelectOffer[];
+  offers_open?: boolean;
 };
 
 export type PersonSelectOffer = {

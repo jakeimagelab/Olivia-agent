@@ -214,6 +214,15 @@ export async function loadPersonSelectAdminProject(db: SupabaseClient, eventId: 
 
   return {
     event,
+    images: images.map((image) => ({
+      id: image.id,
+      owner_person_id: image.owner_person_id,
+      owner_group: image.owner_group,
+      category_key: image.category_key,
+      original_file_name: image.original_file_name,
+      source_rel_path: image.source_rel_path,
+      sort_order: image.sort_order,
+    })),
     people: peopleRows,
     groups,
     shared,

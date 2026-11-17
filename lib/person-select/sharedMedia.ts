@@ -19,6 +19,7 @@ export function sharedPersonSelectEventResponse(event: PersonSelectEvent) {
     delivery_approved_at: event.delivery_approved_at ?? null,
     download_available: Boolean(event.source_relative_path),
     customer_ai_results_visible: event.customer_ai_results_visible === true,
+    offers_open: event.offers_open === true,
   };
 }
 

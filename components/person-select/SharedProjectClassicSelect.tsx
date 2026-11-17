@@ -14,7 +14,7 @@ import { useSharedProjectClassicSelection } from "./useSharedProjectClassicSelec
 import { useSharedProjectClassicSubmission } from "./useSharedProjectClassicSubmission";
 import styles from "./SharedProjectSelect.module.css";
 
-export type SharedProjectEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; delivery_available?: boolean; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean };
+export type SharedProjectEvent = { id: string; title: string; customer_view_mode?: "classic" | "bridge"; customer_stage?: "select" | "delivery"; delivery_available?: boolean; deadline_at: string; download_available?: boolean; customer_ai_results_visible?: boolean; offers_open?: boolean };
 export type SharedProjectReviewer = { id: string; display_name: string; role_label?: string | null; can_view_ai_results?: boolean; can_download_jpg?: boolean; can_download_raw?: boolean; can_finalize?: boolean };
 export type SharedProjectSelection = { items?: Array<{ image_id: string; customer_rating?: number | null; customer_color_label?: number | null; memo?: string | null }>; customer_memo?: string | null } | null;
 export type SharedProjectImageUrls = Record<string, SelectionMediaUrls>;

@@ -29,6 +29,8 @@ export type PersonSelectAdminDeliveryItem = {
   customer_memo: string;
   preview_url: string;
   link_method: string | null;
+  linked_image_id?: string | null;
+  updated_at?: string | null;
   versions?: Array<{ version: number; uploaded_at: string; customer_memo_snapshot: string }>;
 };
 

@@ -57,6 +57,8 @@ export type PersonSelectEvent = {
   extra_max?: number;
   /** 고객이 신청할 수 있는 상품 (액자·앨범 등) */
   offers?: PersonSelectOffer[];
+  /** 액자·앨범 신청 화면을 고객에게 공개할지 여부 */
+  offers_open?: boolean;
   created_at?: string;
   updated_at?: string;
 };

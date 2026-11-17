@@ -12,6 +12,7 @@ import {
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 
 export type PersonSelectOfferSettingsValue = {
+  offers_open?: boolean;
   offer_notice?: string;
   extra_price?: number;
   extra_max?: number;
@@ -65,6 +66,7 @@ export function OfferSettings({ event, onChange }: {
   return <div className={`${styles.field} ${styles.fieldFull}`}>
     <label>고객 안내 · 추가 주문</label>
     <div className={styles.offerBox}>
+      <label className={styles.check}><input type="checkbox" checked={event.offers_open === true} onChange={(input) => onChange({ offers_open: input.target.checked })} /> 고객 화면에 액자·앨범 보이기</label>
       {empty ? <div className={styles.offerEmpty}><span>아직 안내 문구와 상품이 없어요.</span><button className={styles.secondary} onClick={fillDefaults}>기본값 불러오기 (추가 보정 5만원 · 액자 · 앨범)</button></div> : null}
       <div className={styles.field}><small className={styles.summary}>고객 화면 맨 위에 보이는 글</small><textarea className={styles.textarea} maxLength={2000} value={event.offer_notice ?? ""} onChange={(event) => onChange({ offer_notice: event.target.value })} placeholder="예: 한 분당 보정본 1장을 드립니다." /></div>
       <div className={styles.offerRow}>

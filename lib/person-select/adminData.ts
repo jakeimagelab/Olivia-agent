@@ -45,6 +45,17 @@ export type PersonSelectAdminEvent = {
   shared_token_expires_at?: string | null;
   nas_download_url?: string | null;
   customer_ai_results_visible?: boolean;
+  offers_open?: boolean;
+};
+
+export type PersonSelectAdminImage = {
+  id: string;
+  owner_person_id: string | null;
+  owner_group: string | null;
+  category_key: string;
+  original_file_name: string;
+  source_rel_path: string;
+  sort_order: number;
 };
 
 export type PersonSelectSharedSelectionItem = {
@@ -110,6 +121,7 @@ export type PersonSelectAdminGroup = { label: string; image_count: number };
 
 export type PersonSelectAdminData = {
   event: PersonSelectAdminEvent;
+  images?: PersonSelectAdminImage[];
   people: PersonSelectAdminPerson[];
   groups: PersonSelectAdminGroup[];
   shared?: PersonSelectSharedAdminData | null;

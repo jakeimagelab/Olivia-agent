@@ -87,6 +87,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
       extra_price: Number(ctx.event.extra_price) || 0,
       extra_max: extraMax,
       offers,
+      offers_open: ctx.event.offers_open === true,
     },
     order: { items: orderItems, lines: priced.lines, total: priced.total },
     person: { display_name: ctx.person.display_name, group_label: ctx.person.group_label, submitted_at: ctx.person.submitted_at, delivery_state: ctx.person.delivery_state ?? "none" },

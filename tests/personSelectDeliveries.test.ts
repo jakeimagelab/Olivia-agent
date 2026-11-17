@@ -41,6 +41,7 @@ vi.mock("@/lib/select-gallery/publicSelection", async (importOriginal) => {
 });
 
 import { GET as getMe } from "@/app/api/pick/[eventSlug]/me/route";
+import { PUT as saveOrder } from "@/app/api/pick/[eventSlug]/orders/route";
 import { GET as getDownloadUrls } from "@/app/api/pick/[eventSlug]/deliveries/download-urls/route";
 import { POST as startNasDownload } from "@/app/api/pick/[eventSlug]/deliveries/download/route";
 
@@ -211,5 +212,15 @@ describe("person select delivery public safety", () => {
     const response = await startNasDownload(new NextRequest("http://localhost/api/pick/event/deliveries/download", { method: "POST" }), { params: Promise.resolve({ eventSlug: "event" }) });
     expect(response.status).toBe(403);
     expect(await response.json()).toMatchObject({ error: "최종 확인 후 다운로드할 수 있습니다." });
+  });
+
+  it("rejects order writes while frame and album offers are closed", async () => {
+    const response = await saveOrder(new NextRequest("http://localhost/api/pick/event/orders", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: [] }),
+    }), { params: Promise.resolve({ eventSlug: "event" }) });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: "지금은 신청을 받지 않아요" });
   });
 });

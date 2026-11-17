@@ -10,6 +10,7 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ eve
   const { eventSlug } = await context.params;
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) return Response.json({ ok: false, error: "다시 로그인해 주세요." }, { status: 401 });
+  if (ctx.event.offers_open !== true) return Response.json({ ok: false, error: "지금은 신청을 받지 않아요" }, { status: 403 });
   if (eventIsLocked(ctx.event)) return Response.json({ ok: false, error: "선택이 마감됐어요." }, { status: 423 });
   const body = await request.json().catch(() => ({})) as { items?: unknown };
   const db = getSupabaseAdmin();

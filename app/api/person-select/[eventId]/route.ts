@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
 export async function PATCH(request: NextRequest, context: { params: Promise<{ eventId: string }> }) {
   if (!isAdminSession(request)) return Response.json({ ok: false, error: "관리자 로그인이 필요합니다." }, { status: 401 });
   const { eventId } = await context.params; const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "project_type", "access_mode", "customer_view_mode", "customer_stage", "delivery_retention_days", "shared_link_active", "shared_token_expires_at", "nas_download_url", "customer_ai_results_visible"];
+  const allowed = ["title", "deadline_at", "status", "categories", "retouch_options", "memo_max", "offer_notice", "extra_price", "extra_max", "offers", "offers_open", "project_type", "access_mode", "customer_view_mode", "customer_stage", "delivery_retention_days", "shared_link_active", "shared_token_expires_at", "nas_download_url", "customer_ai_results_visible"];
   const update = Object.fromEntries(allowed.filter((key) => body[key] !== undefined).map((key) => [key, body[key]]));
   if (body.project_type !== undefined && !isPersonSelectProjectType(body.project_type)) return Response.json({ ok: false, error: "올바른 프로젝트 유형을 선택해 주세요." }, { status: 400 });
   if (body.customer_view_mode !== undefined && !isPersonSelectCustomerViewMode(body.customer_view_mode)) return Response.json({ ok: false, error: "올바른 고객 화면 방식을 선택해 주세요." }, { status: 400 });
@@ -59,6 +59,9 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ e
   }
   if (body.customer_ai_results_visible !== undefined && typeof body.customer_ai_results_visible !== "boolean") {
     return Response.json({ ok: false, error: "AI 품질 결과 공개 설정을 확인해 주세요." }, { status: 400 });
+  }
+  if (body.offers_open !== undefined && typeof body.offers_open !== "boolean") {
+    return Response.json({ ok: false, error: "액자·앨범 공개 설정을 확인해 주세요." }, { status: 400 });
   }
   if (body.deadline_at !== undefined) {
     const deadlineAt = parseSeoulDateTime(body.deadline_at);
