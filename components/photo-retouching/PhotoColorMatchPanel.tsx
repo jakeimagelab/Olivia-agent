@@ -84,6 +84,14 @@ export function PhotoColorMatchPanel({
   }, [loadRecent]);
 
   useEffect(() => {
+    if (initialPath) setSourcePath(initialPath);
+  }, [initialPath]);
+
+  useEffect(() => {
+    if (initialReturnPath) setReturnPath(initialReturnPath);
+  }, [initialReturnPath]);
+
+  useEffect(() => {
     if (!initialHandoffId || typeof window === "undefined") return;
     const handoff = consumePhotoRetouchHandoff(window.sessionStorage, initialHandoffId);
     if (!handoff) {

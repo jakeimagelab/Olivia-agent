@@ -112,6 +112,21 @@ function PsSlider({ label, value }: { label: string; value: number }) {
 function SwatchRow({ label, current, target, diff }: any) {
   const ok = diff.dist <= 12;
   const warn = diff.dist > 25;
+  const currentLight = (current.r + current.g + current.b) / 3;
+  const targetLight = (target.r + target.g + target.b) / 3;
+  const redDelta = current.r - target.r;
+  const greenDelta = current.g - target.g;
+  const judgement = ok
+    ? "통과"
+    : currentLight < targetLight - 12
+      ? "어두움"
+      : currentLight > targetLight + 12
+        ? "밝음"
+        : redDelta > 8 && greenDelta > 5
+          ? "노람"
+          : redDelta > 8
+            ? "붉음"
+            : `차이 ${diff.dist}`;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
       <div style={{ width: 40, height: 40, borderRadius: 8, background: current.hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
@@ -122,7 +137,7 @@ function SwatchRow({ label, current, target, diff }: any) {
       <div style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 6,
         background: ok ? "#E6F4EA" : warn ? "#FFF0EB" : "#FFFBEA",
         color: ok ? "#166534" : warn ? C.orange : "#92400E" }}>
-        {ok ? "✓ 일치" : `차이 ${diff.dist}`}
+        {ok ? "✓ 통과" : judgement}
       </div>
       <div style={{ width: 40, height: 40, borderRadius: 8, background: target.hex, border: `1px solid ${C.border}`, flexShrink: 0 }}/>
     </div>
@@ -416,9 +431,9 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
                   ["노출", result.adjustments.exposure > 0 ? `+${result.adjustments.exposure}` : String(result.adjustments.exposure || "±0"), Math.abs(result.adjustments.exposure) >= 0.05],
                   ["Vibrance", result.adjustments.vibrance > 0 ? `+${result.adjustments.vibrance}` : String(result.adjustments.vibrance || "±0"), result.adjustments.vibrance !== 0],
                 ].map(([lbl, val, hi]) => (
-                  <div key={String(lbl)} style={{ background: hi ? "#1C2B28" : "#F4F8F7", borderRadius: 12, padding: "16px", textAlign: "center", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
-                    <div style={{ fontSize: 11, color: hi ? "rgba(255,255,255,.4)" : C.hint, marginBottom: 6 }}>{lbl}</div>
-                    <div style={{ fontSize: 22, fontWeight: 600, color: hi ? (String(val).startsWith("+") ? "#6EE7B7" : "#FCA5A5") : C.muted }}>{val}</div>
+                  <div key={String(lbl)} style={{ background: hi ? C.mint : "#F4F8F7", borderRadius: 12, padding: "16px", textAlign: "center", border: hi ? `2px solid ${C.orange}` : `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 11, color: C.hint, marginBottom: 6 }}>{lbl}</div>
+                    <div style={{ fontSize: 22, fontWeight: 600, color: hi ? (String(val).startsWith("+") ? "#08785e" : "#b84327") : C.muted }}>{val}</div>
                   </div>
                 ))}
               </div>
@@ -429,6 +444,7 @@ function SyncTab({ embedded = false }: { embedded?: boolean }) {
               )}
             </div>
           )}
+          <p style={{ margin: 0, color: C.hint, fontSize: 10 }}>색감 분석: OpenAI · 결과는 참고값입니다</p>
         </div>
       )}
     </div>
@@ -912,6 +928,7 @@ export function PhotoRetouchingWorkspace({ embedded = false, initialFile, initia
                 )}
               </div>
             )}
+            {result ? <p style={{ margin: 0, color: C.hint, fontSize: 10 }}>색감 분석: OpenAI · 결과는 참고값입니다</p> : null}
           </div>
         )}
 
