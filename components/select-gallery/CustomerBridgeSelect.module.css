@@ -26,6 +26,10 @@
 .readOnly { grid-template-rows: 48px 45px minmax(0, 1fr); }
 .withAdminToolbarStatus { grid-template-rows: 48px 45px auto minmax(0, 1fr) auto; }
 .readOnly.withAdminToolbarStatus { grid-template-rows: 48px 45px auto minmax(0, 1fr); }
+.withTopContent { grid-template-rows: auto 48px 45px minmax(0, 1fr) auto; }
+.readOnly.withTopContent { grid-template-rows: auto 48px 45px minmax(0, 1fr); }
+.withAdminToolbarStatus.withTopContent { grid-template-rows: auto 48px 45px auto minmax(0, 1fr) auto; }
+.readOnly.withAdminToolbarStatus.withTopContent { grid-template-rows: auto 48px 45px auto minmax(0, 1fr); }
 
 .bridgeBar {
   min-width: 0;

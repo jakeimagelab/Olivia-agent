@@ -10,7 +10,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ eve
   const { eventSlug } = await context.params;
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) return Response.json({ ok: false, error: "다시 로그인해 주세요." }, { status: 401 });
-  if (ctx.event.customer_stage !== "delivery") return Response.json({ ok: false, error: "현재는 원본 사진 선택 단계입니다." }, { status: 409 });
   const db = getSupabaseAdmin();
   const items = await loadDeliveryItems(db, { eventId: ctx.event.id, personId: ctx.person.id });
   const access = deliveryAccessSummary({ owner: ctx.person, retentionDays: ctx.event.delivery_retention_days ?? 30 });

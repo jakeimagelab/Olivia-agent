@@ -113,6 +113,7 @@
   .pcHomePage .weak { min-width: 44px; min-height: 44px; padding: 0; }
   .mobileOnly { display: none !important; }
   .pcWorkspace { height: calc(100dvh - 56px); min-height: 0; display: block; overflow: hidden; }
+  .pcHomePageWithTabs .pcWorkspace { height: calc(100dvh - 108px); }
   .pillbar { min-width: 0; display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #E8EBE5; }
   .pill { min-height: 36px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 999px; padding: 0 13px; color: #626D65; background: transparent; font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; }
   .pillActive { color: #155855; background: #fff; box-shadow: 0 2px 8px rgba(31,58,52,.1); }

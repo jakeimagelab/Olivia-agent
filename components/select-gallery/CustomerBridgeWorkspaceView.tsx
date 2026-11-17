@@ -4,6 +4,7 @@ import type {
   ComponentProps,
   CSSProperties,
   PointerEvent as ReactPointerEvent,
+  ReactNode,
 } from "react";
 import { CustomerBridgeBrowserPanel } from "./CustomerBridgeBrowserPanel";
 import { CustomerBridgeFolderPanel } from "./CustomerBridgeFolderPanel";
@@ -16,6 +17,7 @@ import styles from "./CustomerBridgeSelect.module.css";
 export type CustomerBridgeWorkspaceViewProps = {
   embedded: boolean;
   readOnly: boolean;
+  topContent?: ReactNode;
   hasAdminToolbarStatus: boolean;
   workspaceStyle: CSSProperties;
   compactFoldersOpen: boolean;
@@ -35,6 +37,7 @@ export type CustomerBridgeWorkspaceViewProps = {
 export function CustomerBridgeWorkspaceView({
   embedded,
   readOnly,
+  topContent,
   hasAdminToolbarStatus,
   workspaceStyle,
   compactFoldersOpen,
@@ -47,7 +50,8 @@ export function CustomerBridgeWorkspaceView({
   footerProps,
   overlayProps,
 }: CustomerBridgeWorkspaceViewProps) {
-  return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${hasAdminToolbarStatus ? styles.withAdminToolbarStatus : ""}`}>
+  return <main className={`${styles.page} ${embedded ? styles.embedded : ""} ${readOnly ? styles.readOnly : ""} ${hasAdminToolbarStatus ? styles.withAdminToolbarStatus : ""} ${topContent ? styles.withTopContent : ""}`}>
+    {topContent}
     <CustomerBridgeHeader {...headerProps} />
 
     <section className={styles.workspace} style={workspaceStyle}>

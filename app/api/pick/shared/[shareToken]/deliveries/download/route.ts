@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 async function contextFor(shareToken: string) {
   const db = getSupabaseAdmin();
   const access = await resolveSharedPersonSelectAccess(db, shareToken, { touch: true });
-  if (access.event.customer_stage !== "delivery") throw new PublicSelectionRequestError("현재는 보정본 확인 단계가 아닙니다.", 409);
   const summary = deliveryAccessSummary({ owner: access.event, retentionDays: access.event.delivery_retention_days ?? 30 });
   if (!summary.downloadAvailable) throw new PublicSelectionRequestError(summary.expired ? "보관 기간이 끝났습니다. 포토클리닉에 요청해 주세요." : "최종 확인 후 다운로드할 수 있습니다.", 403);
   return { db, ...access };

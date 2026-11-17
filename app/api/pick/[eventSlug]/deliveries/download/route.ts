@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 async function contextFor(request: NextRequest, eventSlug: string) {
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) throw new PublicSelectionRequestError("다시 로그인해 주세요.", 401);
-  if (ctx.event.customer_stage !== "delivery") throw new PublicSelectionRequestError("현재는 보정본 확인 단계가 아닙니다.", 409);
   const access = deliveryAccessSummary({ owner: ctx.person, retentionDays: ctx.event.delivery_retention_days ?? 30 });
   if (!access.downloadAvailable) throw new PublicSelectionRequestError(access.expired ? "보관 기간이 끝났습니다. 포토클리닉에 요청해 주세요." : "최종 확인 후 다운로드할 수 있습니다.", 403);
   return ctx;

@@ -10,11 +10,13 @@ export default async function Page({ params }: { params: Promise<{ shareToken: s
   try {
     const db = getSupabaseAdmin();
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken, { touch: true });
-    const deliveryStage = event.customer_stage === "delivery";
-    const bootstrap = deliveryStage ? null : await loadSharedProjectSelectBootstrap(db, event.id, reviewer);
+    const [bootstrap, deliveryResult] = await Promise.all([
+      loadSharedProjectSelectBootstrap(db, event.id, reviewer),
+      db.from("person_select_deliveries").select("id", { count: "exact", head: true }).eq("event_id", event.id).is("person_id", null),
+    ]);
     return <SharedProjectSelect
       shareToken={shareToken}
-      event={sharedPersonSelectEventResponse(event)}
+      event={{ ...sharedPersonSelectEventResponse(event), delivery_available: (deliveryResult.count ?? 0) > 0 }}
       reviewer={reviewer}
       images={bootstrap?.images ?? []}
       imageManifest={bootstrap?.manifest ?? null}

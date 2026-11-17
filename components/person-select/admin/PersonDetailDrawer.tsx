@@ -53,6 +53,13 @@ export function PersonDetailDrawer({ person, personWord, eventId, labels, catego
           <button className={styles.secondary} onClick={() => { setEditing(choice.id); setKeys(choice.retouch_keys); setMemo(choice.memo); }}>관리자 수정</button>
         </>}
       </section>)}
+      {person.deliveries?.length ? <section className={styles.choiceDetail}>
+        <h3>보정본 · {person.deliveries.length}장</h3>
+        <div className={styles.deliveryPreviewList}>{person.deliveries.map((delivery) => <article key={delivery.id}>
+          {delivery.preview_url ? <img src={delivery.preview_url} alt={delivery.display_name} loading="lazy" /> : <span className={styles.matchingPhotoEmpty}>미리보기 없음</span>}
+          <div><strong>{delivery.display_name}</strong><p>v{delivery.current_version} · {delivery.status === "revision_requested" ? "수정 요청" : delivery.status === "revised" ? "수정됨" : delivery.status === "approved" ? "확인 완료" : "확인 전"}</p>{delivery.customer_memo ? <small>{delivery.customer_memo}</small> : null}</div>
+        </article>)}</div>
+      </section> : null}
       {person.order?.lines.length ? <section className={styles.choiceDetail}><h3>추가 주문 · {formatWon(person.order.total)}</h3>{person.order.lines.map((line, index) => <p key={index}>{line.label}{line.detail ? ` · ${line.detail}` : ""} — {line.qty} × {formatWon(line.unitPrice)} = {formatWon(line.amount)}</p>)}</section> : null}
       <button className={styles.secondary} style={{ marginTop: 18 }} onClick={() => void onPin()}><RefreshCw size={15} style={{ verticalAlign: -3, marginRight: 5 }} />PIN 재발급</button>
     </aside>

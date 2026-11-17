@@ -11,7 +11,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ ev
   const { eventSlug } = await context.params;
   const ctx = await getPublicSessionContext(request, eventSlug);
   if (!ctx) return Response.json({ ok: false, error: "다시 로그인해 주세요." }, { status: 401 });
-  if (ctx.event.customer_stage !== "delivery") return Response.json({ ok: false, error: "현재는 보정본 확인 단계가 아닙니다." }, { status: 409 });
   if (ctx.person.delivery_state === "approved") return Response.json({ ok: true, state: "approved", approvedAt: ctx.person.delivery_approved_at });
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const action = body.action;

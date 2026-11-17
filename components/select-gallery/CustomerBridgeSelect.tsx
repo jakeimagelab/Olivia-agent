@@ -56,6 +56,7 @@ export default function CustomerBridgeSelect({
   canManageQuality = false,
   adminToolbarAction,
   adminToolbarStatus,
+  topContent,
   imageManifest,
   loadNextImagePage,
   ensureImagePage,
@@ -79,6 +80,7 @@ export default function CustomerBridgeSelect({
   canManageQuality?: boolean;
   adminToolbarAction?: ReactNode;
   adminToolbarStatus?: ReactNode;
+  topContent?: ReactNode;
   imageManifest?: CustomerBridgeFolderManifest | null;
   loadNextImagePage?: (query: PersonSelectClientImageQuery) => Promise<boolean>;
   ensureImagePage?: (query: PersonSelectClientImageQuery) => Promise<boolean>;
@@ -273,6 +275,7 @@ export default function CustomerBridgeSelect({
     canManageQuality={canManageQuality}
     adminToolbarAction={adminToolbarAction}
     adminToolbarStatus={adminToolbarStatus}
+    topContent={topContent}
     imageManifest={imageManifest}
     images={images}
     focusedImage={focusedImage}

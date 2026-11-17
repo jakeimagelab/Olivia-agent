@@ -49,6 +49,20 @@ function updateQuery() {
   return { update: vi.fn(() => query) };
 }
 
+function readQuery(result: { data?: unknown[]; count?: number } = {}) {
+  const response = { data: result.data ?? [], count: result.count ?? 0, error: null };
+  const query = {
+    select: vi.fn(() => query),
+    eq: vi.fn(() => query),
+    is: vi.fn(() => query),
+    in: vi.fn(() => query),
+    order: vi.fn(() => query),
+    range: vi.fn(() => query),
+    then: (resolve: (value: unknown) => unknown) => Promise.resolve(response).then(resolve),
+  };
+  return query;
+}
+
 describe("person select delivery linking", () => {
   const people = [{ id: "p1", displayName: "김민수" }, { id: "p2", displayName: "이지영" }];
   const selected = [
@@ -165,18 +179,24 @@ describe("person select delivery public safety", () => {
   beforeEach(() => {
     mocks.from.mockReset();
     mocks.createDownloadUrls.mockReset();
-    mocks.from.mockImplementation(() => updateQuery());
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "person_select_people") return updateQuery();
+      if (table === "person_select_deliveries") return readQuery({ count: 1 });
+      return readQuery();
+    });
     mocks.ctx = {
-      event: { id: "event-1", slug: "event", title: "테스트", customer_stage: "delivery", delivery_retention_days: 30, retouch_options: [], memo_max: 300 },
+      event: { id: "event-1", slug: "event", title: "테스트", customer_stage: "delivery", delivery_retention_days: 30, retouch_options: [], memo_max: 300, categories: [], offers: [] },
       person: { id: "person-1", display_name: "고객", group_label: null, submitted_at: null, delivery_state: "reviewing", delivery_approved_at: null, delivery_downloaded_at: null },
     };
   });
 
-  it("does not return original categories or choices in delivery stage", async () => {
+  it("keeps the original tab available while opening the delivery tab by default", async () => {
     const response = await getMe(new NextRequest("http://localhost/api/pick/event/me"), { params: Promise.resolve({ eventSlug: "event" }) });
     const body = await response.json();
     expect(response.status).toBe(200);
     expect(body.event.customer_stage).toBe("delivery");
+    expect(body.event.delivery_available).toBe(true);
+    expect(body.event.locked).toBe(true);
     expect(body.categories).toEqual([]);
     expect(body).not.toHaveProperty("images");
   });

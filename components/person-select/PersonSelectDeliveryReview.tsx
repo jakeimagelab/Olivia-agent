@@ -1,15 +1,17 @@
 "use client";
 
 import { Check, Download, Expand, ImageIcon, LoaderCircle, MessageSquareText, PackageOpen, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { personSelectDeliveryStatusLabel } from "@/components/person-select/personSelectDeliveryTypes";
 import { usePersonSelectDeliveryReview } from "@/components/person-select/usePersonSelectDeliveryReview";
 import styles from "./PersonSelectDeliveryReview.module.css";
 
-export default function PersonSelectDeliveryReview({ apiBase, title, viewerName, canFinalize = true }: {
+export default function PersonSelectDeliveryReview({ apiBase, title, viewerName, canFinalize = true, viewTabs }: {
   apiBase: string;
   title: string;
   viewerName?: string;
   canFinalize?: boolean;
+  viewTabs?: ReactNode;
 }) {
   const {
     data,
@@ -39,6 +41,7 @@ export default function PersonSelectDeliveryReview({ apiBase, title, viewerName,
   const locked = data.access.state === "approved";
   const effectiveCanFinalize = canFinalize && data.viewer.canFinalize;
   return <main className={styles.page}>
+    {viewTabs}
     <header className={styles.header}>
       <div><p>PHOTO CLINIC · 보정본 확인</p><h1>{data.event.title || title}</h1><span>{viewerName || data.viewer.displayName}님 · 전체 {counts.total}장</span></div>
       <div className={styles.summary}><strong>{counts.approved}</strong><span>/ {counts.total}장 확인</span></div>

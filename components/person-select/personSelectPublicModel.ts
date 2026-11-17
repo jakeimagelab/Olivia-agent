@@ -19,6 +19,7 @@ export type PersonSelectEventData = {
   status: string;
   source_layout?: "school" | "person-folders" | null;
   customer_stage?: "select" | "delivery";
+  delivery_available?: boolean;
   delivery_retention_days?: number;
   retouch_options: { key: string; label: string }[];
   memo_max: number;

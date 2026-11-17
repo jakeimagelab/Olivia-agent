@@ -8,6 +8,7 @@ type SharedProjectClassicPhotoCardProps = {
   image: CustomerBridgeImage;
   selected: boolean;
   pending: boolean;
+  readOnly?: boolean;
   onToggle: (imageId: string) => void;
 };
 
@@ -15,6 +16,7 @@ function SharedProjectClassicPhotoCardComponent({
   image,
   selected,
   pending,
+  readOnly = false,
   onToggle,
 }: SharedProjectClassicPhotoCardProps) {
   return <button
@@ -22,6 +24,7 @@ function SharedProjectClassicPhotoCardComponent({
     className={styles.card}
     data-selected={selected}
     data-pending={pending}
+    disabled={readOnly}
     onClick={() => onToggle(image.id)}
   >
     {image.thumbnail_url || image.image_url
@@ -43,6 +46,7 @@ export function sharedProjectClassicPhotoCardPropsEqual(
     && previous.image.original_file_name === next.image.original_file_name
     && previous.selected === next.selected
     && previous.pending === next.pending
+    && previous.readOnly === next.readOnly
     && previous.onToggle === next.onToggle;
 }
 

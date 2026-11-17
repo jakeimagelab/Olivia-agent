@@ -12,7 +12,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sha
     const db = getSupabaseAdmin();
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken, { touch: true });
     await enforcePublicSelectionRateLimit({ db, request, token: `delivery:${reviewer.id}`, action: "person-shared-delivery-read", limit: 120, identityOnly: true });
-    if (event.customer_stage !== "delivery") return Response.json({ ok: false, error: "현재는 원본 사진 선택 단계입니다." }, { status: 409 });
     const items = await loadDeliveryItems(db, { eventId: event.id });
     const access = deliveryAccessSummary({ owner: event, retentionDays: event.delivery_retention_days ?? 30 });
     return Response.json({

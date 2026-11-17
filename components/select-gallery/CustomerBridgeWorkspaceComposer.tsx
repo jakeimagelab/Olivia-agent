@@ -44,6 +44,7 @@ type CustomerBridgeWorkspaceComposerProps = {
   canManageQuality: boolean;
   adminToolbarAction?: ReactNode;
   adminToolbarStatus?: ReactNode;
+  topContent?: ReactNode;
   imageManifest?: CustomerBridgeFolderManifest | null;
   images: readonly CustomerBridgeImage[];
   focusedImage: CustomerBridgeImage | null;
@@ -80,6 +81,7 @@ export function CustomerBridgeWorkspaceComposer({
   canManageQuality,
   adminToolbarAction,
   adminToolbarStatus,
+  topContent,
   imageManifest,
   images,
   focusedImage,
@@ -131,6 +133,7 @@ export function CustomerBridgeWorkspaceComposer({
   const workspaceProps: CustomerBridgeWorkspaceViewProps = {
     embedded,
     readOnly,
+    topContent,
     hasAdminToolbarStatus: Boolean(adminToolbarStatus),
     workspaceStyle: layout.workspaceStyle,
     compactFoldersOpen: layout.compactFoldersOpen,

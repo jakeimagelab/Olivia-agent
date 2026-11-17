@@ -9,6 +9,7 @@ import type {
   PersonSelectClientImageQuery,
 } from "@/lib/person-select/imagePageClient";
 import PersonSelectDeliveryReview from "./PersonSelectDeliveryReview";
+import { PersonSelectCustomerTabs, type PersonSelectCustomerView } from "./PersonSelectCustomerTabs";
 import {
   SharedProjectClassicSelect,
   type SharedProjectEvent,
@@ -23,6 +24,7 @@ const ALL_IMAGES_QUERY: PersonSelectClientImageQuery = { location: "all" };
 
 export default function SharedProjectSelect({ shareToken, event, reviewer, images: initialImages, imageManifest, initialImagePage, draft, selection }: { shareToken: string; event: SharedProjectEvent; reviewer: SharedProjectReviewer; images: CustomerBridgeImage[]; imageManifest?: CustomerBridgeFolderManifest | null; initialImagePage?: PersonSelectClientImagePage | null; draft: CustomerBridgeDraft | null; selection: SharedProjectSelection }) {
   const [submitted, setSubmitted] = useState(false);
+  const [customerView, setCustomerView] = useState<PersonSelectCustomerView | null>(null);
   const {
     images,
     loadNext: loadNextImagePage,
@@ -44,8 +46,11 @@ export default function SharedProjectSelect({ shareToken, event, reviewer, image
     return { image_url: String(result.image.image_url), thumbnail_url: result.image.thumbnail_url ? String(result.image.thumbnail_url) : null };
   }, [shareToken]);
 
-  if (event.customer_stage === "delivery") return <PersonSelectDeliveryReview apiBase={`/api/pick/shared/${shareToken}`} title={event.title} viewerName={reviewer.display_name} canFinalize={reviewer.can_finalize !== false} />;
+  const deliveryAvailable = event.delivery_available === true || event.customer_stage === "delivery";
+  const activeCustomerView = customerView ?? (event.customer_stage === "delivery" ? "delivery" : "original");
+  const customerTabs = deliveryAvailable ? <PersonSelectCustomerTabs active={activeCustomerView} deliveryAvailable={deliveryAvailable} onChange={setCustomerView} /> : null;
+  if (activeCustomerView === "delivery" && deliveryAvailable) return <PersonSelectDeliveryReview apiBase={`/api/pick/shared/${shareToken}`} title={event.title} viewerName={reviewer.display_name} canFinalize={reviewer.can_finalize !== false} viewTabs={customerTabs} />;
   if (submitted) return <main className={styles.done}><div><h1>사진 선택을 제출했어요.</h1><p>선택 내용과 메모가 안전하게 저장됐습니다.</p><button type="button" onClick={() => setSubmitted(false)}>선택 다시 확인</button></div></main>;
-  if (event.customer_view_mode !== "bridge") return <SharedProjectClassicSelect shareToken={shareToken} event={event} reviewer={reviewer} images={images} totalImageCount={imageManifest?.totalCount ?? allImagesState.totalCount ?? images.length} hasMoreImages={Boolean(allImagesState.nextCursor)} imagePageLoading={allImagesState.loading} imagePageError={allImagesState.error} loadMoreImages={loadMoreImages} draft={draft} selection={selection} onSubmitted={() => setSubmitted(true)} loadImageUrls={loadImageUrls} />;
-  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${reviewer.id}`} apiBase={`/api/pick/shared/${shareToken}`} qualityApi={event.customer_ai_results_visible && reviewer.can_view_ai_results ? `/api/pick/shared/${shareToken}/quality` : undefined} gallery={{ id: event.id, title: event.title, total_jpg_count: imageManifest?.totalCount ?? allImagesState.totalCount ?? images.length, allow_resubmit: true, download_jpg_enabled: event.download_available === true && reviewer.can_download_jpg === true, download_raw_enabled: event.download_available === true && reviewer.can_download_raw === true }} images={images} imageManifest={imageManifest} loadNextImagePage={loadNextImagePage} ensureImagePage={ensureImagePage} getImagePageState={getImagePageState} initialDraft={draft} initialSelection={selection} reviewer={reviewer} messagesEnabled onSubmitted={() => setSubmitted(true)} refreshImageUrl={refreshImageUrl} loadImageUrls={loadImageUrls} />;
+  if (event.customer_view_mode !== "bridge") return <SharedProjectClassicSelect shareToken={shareToken} event={event} reviewer={reviewer} images={images} totalImageCount={imageManifest?.totalCount ?? allImagesState.totalCount ?? images.length} hasMoreImages={Boolean(allImagesState.nextCursor)} imagePageLoading={allImagesState.loading} imagePageError={allImagesState.error} loadMoreImages={loadMoreImages} draft={draft} selection={selection} onSubmitted={() => setSubmitted(true)} loadImageUrls={loadImageUrls} readOnly={deliveryAvailable} viewTabs={customerTabs} />;
+  return <CustomerBridgeSelect shareToken={shareToken} storageScope={`person-shared:${event.id}:${reviewer.id}`} apiBase={`/api/pick/shared/${shareToken}`} qualityApi={event.customer_ai_results_visible && reviewer.can_view_ai_results ? `/api/pick/shared/${shareToken}/quality` : undefined} gallery={{ id: event.id, title: event.title, total_jpg_count: imageManifest?.totalCount ?? allImagesState.totalCount ?? images.length, allow_resubmit: true, download_jpg_enabled: event.download_available === true && reviewer.can_download_jpg === true, download_raw_enabled: event.download_available === true && reviewer.can_download_raw === true }} images={images} imageManifest={imageManifest} loadNextImagePage={loadNextImagePage} ensureImagePage={ensureImagePage} getImagePageState={getImagePageState} initialDraft={draft} initialSelection={selection} reviewer={reviewer} messagesEnabled readOnly={deliveryAvailable} topContent={customerTabs} onSubmitted={() => setSubmitted(true)} refreshImageUrl={refreshImageUrl} loadImageUrls={loadImageUrls} />;
 }

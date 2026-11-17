@@ -13,7 +13,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sh
     const db = getSupabaseAdmin();
     const { event, reviewer } = await resolveSharedPersonSelectAccess(db, shareToken, { touch: true });
     await enforcePublicSelectionRateLimit({ db, request, token: `delivery:${reviewer.id}`, action: "person-shared-delivery-submit", limit: 30, identityOnly: true });
-    if (event.customer_stage !== "delivery") return Response.json({ ok: false, error: "현재는 보정본 확인 단계가 아닙니다." }, { status: 409 });
     if (event.delivery_state === "approved") return Response.json({ ok: true, state: "approved", approvedAt: event.delivery_approved_at });
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     const action = body.action;
