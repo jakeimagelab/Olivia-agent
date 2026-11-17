@@ -29,6 +29,7 @@ import { PERSON_SELECT_ACCESS_MODE_LABELS } from "@/lib/person-select/projectSet
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
+import type { PersonSelectAdminImage } from "@/lib/person-select/adminData";
 
 type Layout = PersonSelectImportLayout;
 
@@ -65,6 +66,15 @@ export default function PersonSelectDetailPage() {
     const body = await response.json().catch(() => ({}));
     if (!response.ok || !body.ok) throw new Error(body.error || "사진 주소를 불러오지 못했습니다.");
     return body.images as Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>;
+  }, [id]);
+  const loadImages = useCallback(async (scope: { kind: "all" | "person" | "group"; ownerId?: string; groupLabel?: string }) => {
+    const params = new URLSearchParams({ scope: scope.kind });
+    if (scope.ownerId) params.set("ownerId", scope.ownerId);
+    if (scope.groupLabel) params.set("groupLabel", scope.groupLabel);
+    const response = await fetch(`/api/person-select/${id}/images?${params.toString()}`, { cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok || !Array.isArray(body.images)) throw new Error(body.error || "사진 목록을 불러오지 못했습니다.");
+    return body.images as PersonSelectAdminImage[];
   }, [id]);
 
   useEffect(() => {
@@ -121,7 +131,7 @@ export default function PersonSelectDetailPage() {
         eventId={id} data={data} selectedPersonId={selectedId} selectedReviewerId={selectedReviewerId}
         rawBusy={rawBusy} rawDisabled={rawDisabled} rawDisabledReason={rawDisabledReason} rawStatus={rawStatus}
         workerOnline={workerOnline} deliverySourcePath={importController.path} uploadPanel={uploadPanel} settingsPanel={settingsPanel}
-        loadImageUrls={loadImageUrls} onPersonSelect={setSelectedId} onReviewerSelect={setSelectedReviewerId}
+        loadImages={loadImages} loadImageUrls={loadImageUrls} onPersonSelect={setSelectedId} onReviewerSelect={setSelectedReviewerId}
         onRawOpen={(mode) => { setRawMode(mode); openRawMatchDialog(); }} onReload={load} onMessage={setError}
         onOpenPinList={() => setPinListOpen(true)} onOpenSync={() => setSyncDialogOpen(true)} onCopyNotice={() => void navigator.clipboard.writeText(notice)}
         onDeliveryAction={changeDeliveryOwner}

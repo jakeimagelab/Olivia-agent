@@ -93,6 +93,7 @@ export function PersonSelectAdminBridgeWorkspace({
   deliverySourcePath,
   uploadPanel,
   settingsPanel,
+  loadImages,
   loadImageUrls,
   onPersonSelect,
   onReviewerSelect,
@@ -118,6 +119,7 @@ export function PersonSelectAdminBridgeWorkspace({
   deliverySourcePath: string;
   uploadPanel: ReactNode;
   settingsPanel: ReactNode;
+  loadImages: (scope: { kind: "all" | "person" | "group"; ownerId?: string; groupLabel?: string }) => Promise<PersonSelectAdminImage[]>;
   loadImageUrls: (imageIds: string[], options?: { variant: SelectionMediaVariant }) => Promise<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>;
   onPersonSelect: (personId: string) => void;
   onReviewerSelect: (reviewerId: string) => void;
@@ -143,6 +145,9 @@ export function PersonSelectAdminBridgeWorkspace({
   const [previewPhotoId, setPreviewPhotoId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
+  const [scopedImages, setScopedImages] = useState<PersonSelectAdminImage[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [imagesError, setImagesError] = useState("");
   const [imageUrls, setImageUrls] = useState<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>({});
   const [visibleLimit, setVisibleLimit] = useState(96);
   const [modal, setModal] = useState<"upload" | "settings" | null>(null);
@@ -172,7 +177,24 @@ export function PersonSelectAdminBridgeWorkspace({
 
   const activePerson = !isShared ? data.people.find((person) => person.id === node.ownerId) ?? data.people[0] ?? null : null;
   const sharedItems = useMemo(() => selectedReviewer?.selection?.items ?? selectedReviewer?.draft?.items ?? [], [selectedReviewer]);
-  const allImages = useMemo(() => data.images ?? [], [data.images]);
+  const imageScope = useMemo<{ kind: "all" | "person" | "group"; ownerId?: string; groupLabel?: string }>(() => {
+    if (node.kind === "group") return { kind: "group" as const, groupLabel: node.groupLabel ?? "" };
+    if (isShared) return { kind: "all" as const };
+    return { kind: "person" as const, ownerId: activePerson?.id ?? "" };
+  }, [activePerson?.id, isShared, node.groupLabel, node.kind]);
+  useEffect(() => {
+    if (node.kind === "selected" || node.kind === "deliveries" || (imageScope.kind === "person" && !imageScope.ownerId)) return;
+    let active = true;
+    setScopedImages([]);
+    setImagesLoading(true);
+    setImagesError("");
+    void loadImages(imageScope)
+      .then((images) => { if (active) setScopedImages(images); })
+      .catch((error) => { if (active) { setScopedImages([]); setImagesError(error instanceof Error ? error.message : "사진 목록을 불러오지 못했습니다."); } })
+      .finally(() => { if (active) setImagesLoading(false); });
+    return () => { active = false; };
+  }, [imageScope, loadImages, node.kind]);
+  const allImages = scopedImages;
   const imageById = useMemo(() => new Map(allImages.map((image) => [image.id, image])), [allImages]);
 
   const selectedChoices = useMemo(() => {
@@ -191,13 +213,7 @@ export function PersonSelectAdminBridgeWorkspace({
     return color ? [[choice.image_id, color]] : [];
   })) as BridgeColorLabels, [selectedChoices]);
 
-  const ownerImages = useMemo(() => {
-    if (node.kind === "group") return allImages.filter((image) => image.owner_group === node.groupLabel);
-    if (isShared) return allImages;
-    if (!activePerson) return [];
-    return allImages.filter((image) => image.owner_person_id === activePerson.id
-      || (image.category_key === "homeroom" && Boolean(activePerson.group_label) && image.owner_group === activePerson.group_label));
-  }, [activePerson, allImages, isShared, node.groupLabel, node.kind]);
+  const ownerImages = allImages;
 
   const selectedPhotos = useMemo<WorkspacePhoto[]>(() => selectedChoices.flatMap((choice): WorkspacePhoto[] => {
     const imageId = choice.image_id;
@@ -390,7 +406,9 @@ export function PersonSelectAdminBridgeWorkspace({
             </button>;
           })}</div>
           {visibleLimit < filteredPhotos.length ? <button className={styles.loadMore} onClick={() => setVisibleLimit((count) => count + 96)}>더 보기 · {Math.min(96, filteredPhotos.length - visibleLimit)}장</button> : null}
-          {!filteredPhotos.length ? <div className={styles.empty}><ImageIcon /><strong>조건에 맞는 사진이 없어요.</strong><span>검색어나 필터를 지워 보세요.</span></div> : null}
+          {!filteredPhotos.length && !imagesLoading && !imagesError ? <div className={styles.empty}><ImageIcon /><strong>조건에 맞는 사진이 없어요.</strong><span>검색어나 필터를 지워 보세요.</span></div> : null}
+          {imagesLoading ? <div className={styles.empty}><ImageIcon /><strong>사진 목록을 불러오고 있어요.</strong></div> : null}
+          {imagesError ? <div className={styles.empty}><ImageIcon /><strong>{imagesError}</strong><span>고객을 다시 선택해 주세요.</span></div> : null}
         </>}
       </section>
       <aside className={styles.inspector}>

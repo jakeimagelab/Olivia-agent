@@ -121,7 +121,6 @@ export type PersonSelectAdminGroup = { label: string; image_count: number };
 
 export type PersonSelectAdminData = {
   event: PersonSelectAdminEvent;
-  images?: PersonSelectAdminImage[];
   people: PersonSelectAdminPerson[];
   groups: PersonSelectAdminGroup[];
   shared?: PersonSelectSharedAdminData | null;
