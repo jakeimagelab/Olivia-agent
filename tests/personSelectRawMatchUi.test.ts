@@ -10,14 +10,12 @@ const workspace = readFileSync("components/person-select/admin/PersonSelectAdmin
 const workspaceCss = readFileSync("components/person-select/admin/PersonSelectAdminBridgeWorkspace.module.css", "utf8");
 
 describe("person select RAW match admin UI", () => {
-  it("keeps the title row free of actions and places guidance in the workspace toolbar", () => {
-    const titleStart = page.indexOf('<div className={styles.titleRow}>');
-    const workspaceStart = page.indexOf("<PersonSelectAdminBridgeWorkspace", titleStart);
-    const titleSection = page.slice(titleStart, workspaceStart);
-    expect(titleSection).not.toContain("안내 문구 복사");
-    expect(titleSection).not.toContain("RAW 매칭");
+  it("removes the separate title shell and places actions in the Bridge action bar", () => {
+    expect(page).not.toContain('<div className={styles.titleRow}>');
+    expect(page).not.toContain('<section className={styles.body}>');
     expect(workspace).toContain("안내 문구 복사");
     expect(workspace).toContain("RAW 매칭");
+    expect(workspace).toContain("bridgeStyles.actionBar");
   });
 
   it("renders the shared admin RAW action before Bridge review", () => {
@@ -41,10 +39,10 @@ describe("person select RAW match admin UI", () => {
     expect(bridgeCss).toMatch(/\.footer\s*\{[\s\S]*?safe-area-inset-bottom/);
   });
 
-  it("keeps labeled RAW actions available in the responsive workspace toolbar", () => {
+  it("keeps labeled RAW actions available in the responsive Bridge action bar", () => {
     expect(workspace).toContain("RAW 매칭");
     expect(workspace).toContain("로우 셀렉");
-    expect(workspaceCss).toMatch(/@media \(max-width: 600px\)/);
-    expect(workspaceCss).toMatch(/\.toolbarActions/);
+    expect(workspaceCss).toMatch(/@container olivia-bridge \(max-width: 900px\)/);
+    expect(workspaceCss).toMatch(/\.actionTools/);
   });
 });

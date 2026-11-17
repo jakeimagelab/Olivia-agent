@@ -17,7 +17,7 @@ import {
 import { constantTimePinEqual, createUniquePin } from "@/lib/person-select/serverSecurity";
 import { DEFAULT_PERSON_SELECT_CATEGORIES } from "@/lib/person-select/types";
 import { findSkippedFolders, scanPersonSelectFolders } from "@/scripts/person-select-import";
-import { formatSeoulDeadline, formatSeoulDateTimeInput, parseSeoulDateTime, defaultSeoulDeadlineInput } from "@/lib/person-select/date";
+import { formatSeoulDeadline, formatSeoulDeadlineCompact, formatSeoulDateTimeInput, parseSeoulDateTime, defaultSeoulDeadlineInput } from "@/lib/person-select/date";
 import { getPersonSelectRoots, resolvePersonSelectSourcePath } from "@/lib/person-select/sourceRoots";
 
 describe("person select public access", () => {
@@ -173,8 +173,11 @@ describe("person select importer", () => {
 
   it("stores KST datetime-local values as timestamptz and formats deadline without seconds", () => {
     expect(parseSeoulDateTime("2026-10-31T18:00")).toBe("2026-10-31T09:00:00.000Z");
+    expect(parseSeoulDateTime("2027-01-01")).toBe("2027-01-01T14:59:00.000Z");
     expect(formatSeoulDateTimeInput("2026-10-31T09:00:00.000Z")).toBe("2026-10-31T18:00");
     expect(formatSeoulDeadline("2026-10-31T09:00:00.000Z")).toBe("10월 31일 (토) 오후 6:00");
+    expect(formatSeoulDeadline("2027-01-01")).toBe("1월 1일 (금) 오후 11:59");
+    expect(formatSeoulDeadlineCompact("2027-01-01")).toBe("1/1(금)");
     expect(defaultSeoulDeadlineInput(new Date("2026-10-19T17:00:00.000Z"))).toBe("2026-11-03T18:00");
   });
 

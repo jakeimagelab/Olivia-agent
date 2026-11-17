@@ -7,6 +7,7 @@ import {
   type SelectionMediaVariant,
 } from "@/lib/select-gallery/mediaLoading";
 import type { SharedSelectionSyncSnapshot } from "@/lib/person-select/selectionSync";
+import { formatSeoulDeadline } from "@/lib/person-select/date";
 import { FinalSelectionSubmitDialog } from "./FinalSelectionSubmitDialog";
 import { SharedProjectClassicPhotoCard } from "./SharedProjectClassicPhotoCard";
 import { useSharedProjectClassicMedia } from "./useSharedProjectClassicMedia";
@@ -79,7 +80,7 @@ export function SharedProjectClassicSelect({ shareToken, event, reviewer, images
       <header className={styles.header}>
         <div>
           <h1>{event.title}</h1>
-          <p>마감 {new Date(event.deadline_at).toLocaleString("ko-KR")}</p>
+          <p>마감 {formatSeoulDeadline(event.deadline_at)}</p>
         </div>
         <strong>{selected.size} / {totalImageCount}장 선택</strong>
       </header>

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getDeliveryImportUnassigned } from "@/components/person-select/upload/DeliveryImportResult";
 import { formatRelativeTime } from "@/lib/person-select/format";
+import { compactPersonSelectFilename } from "@/lib/person-select/adminWorkspace";
 
 describe("person select admin UI modules", () => {
   it("formats shared relative timestamps consistently", () => {
@@ -15,6 +16,11 @@ describe("person select admin UI modules", () => {
     expect(getDeliveryImportUnassigned({
       unassigned: [null, { deliveryId: "delivery-1", fileName: "retouched.jpg", parentFolderName: "홍길동" }, { fileName: "missing-id.jpg" }],
     })).toEqual([{ deliveryId: "delivery-1", fileName: "retouched.jpg", parentFolderName: "홍길동" }]);
+  });
+
+  it("shows the camera filename suffix while preserving the full name in the source", () => {
+    expect(compactPersonSelectFilename("선생님프로필_곽정호__AK_8712.JPG")).toBe("_AK_8712");
+    expect(compactPersonSelectFilename("short.JPG")).toBe("short");
   });
 
   it("keeps the page as the shell for the extracted dialogs", () => {
@@ -44,6 +50,10 @@ describe("person select admin UI modules", () => {
     expect(workspace).toContain("보정본");
     expect(workspace).toContain("PersonSelectAdminStatus");
     expect(workspace).toContain("useBridgeSearchFilterShortcuts");
+    expect(workspace).toContain('from "@/components/olivia-bridge/OliviaBridgeWorkspace.module.css"');
+    expect(workspace).toContain('data-desktop-ui="true"');
+    expect(workspace).toContain("expandedOwnerId === ownerId");
+    expect(workspace).not.toContain("RAW 매칭: {rawDisabledReason}");
     expect(page).not.toContain("async function startRemoteImport(");
     expect(page).not.toContain("async function deleteProject(");
     expect(importController).toContain("usePersonSelectOriginalImportController");

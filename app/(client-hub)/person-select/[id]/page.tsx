@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 
 import PhotoSourcePicker from "@/components/photo-classifier/PhotoSourcePicker";
@@ -19,13 +19,8 @@ import { usePersonSelectReviewerActions } from "@/components/person-select/admin
 import styles from "@/components/person-select/PersonSelectAdmin.module.css";
 import { useDesktopWindowRoute } from "@/lib/desktopWindowContext";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
-import {
-  buildPersonSelectAdminPresentation,
-  buildPersonSelectShellSelection,
-} from "@/lib/person-select/adminPresentation";
-import { formatSeoulDeadline } from "@/lib/person-select/date";
+import { buildPersonSelectAdminPresentation } from "@/lib/person-select/adminPresentation";
 import type { PersonSelectImportLayout } from "@/lib/person-select/localImport";
-import { PERSON_SELECT_ACCESS_MODE_LABELS } from "@/lib/person-select/projectSettings";
 import { loadRemoteWorkerStatus } from "@/lib/remote-jobs/workerStatusClient";
 import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
 import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
@@ -85,12 +80,10 @@ export default function PersonSelectDetailPage() {
 
   const origin = typeof window === "undefined" ? "" : window.location.origin;
   const presentation = useMemo(() => data ? buildPersonSelectAdminPresentation({ data, layout, selectedReviewerId, selectedPersonId: selectedId, origin }) : null, [data, layout, origin, selectedId, selectedReviewerId]);
-  const selectedPerson = presentation?.selectedPerson ?? null;
-
   useEffect(() => {
-    if (!data) return;
-    emitShellSelection(buildPersonSelectShellSelection(data, selectedPerson));
-  }, [data, selectedPerson]);
+    emitShellSelection({ clear: true, sourceAppId: "person-select", sourceWindowId: "person-select" });
+    return () => emitShellSelection({ clear: true, sourceAppId: "person-select", sourceWindowId: "person-select" });
+  }, []);
 
   const isShared = presentation?.isShared ?? false;
   const currentLayout: Layout = presentation?.currentLayout ?? layout ?? "person-folders";
@@ -110,9 +103,8 @@ export default function PersonSelectDetailPage() {
 
   if (!data || !presentation) return <main className={styles.shell}><div className={styles.loading}>{error || "행사를 불러오는 중이에요"}</div></main>;
 
-  const { sharedReviewers, totalPhotos, pickText, sourceFolder, loginGuide, publicPath, notice } = presentation;
-  const rawStatus = rawDisabledReason || displayedRawResult ? <>
-    {rawDisabledReason ? <p className={styles.rawDisabledReason}>{rawDisabledReason}</p> : null}
+  const { sharedReviewers, loginGuide, publicPath, notice } = presentation;
+  const rawStatus = displayedRawResult ? <>
     <RawMatchResult result={displayedRawResult} at={rawResult ? null : data.event.raw_matched_at ?? null} busy={rawBusy} onClear={() => void startRawMatch(true)} onRetry={openRawMatchDialog} />
   </> : null;
   const uploadPanel = <PersonSelectUploadPanel eventId={id} controller={importController} currentLayout={currentLayout} onLayoutChange={setLayout} isShared={isShared} workerOnline={workerOnline} people={data.people} sourceRelativePath={data.event.source_relative_path} />;
@@ -121,16 +113,15 @@ export default function PersonSelectDetailPage() {
     {data.groups.length ? <section className={styles.uploadCard} style={{ marginTop: 16 }}><h2>담임 반 연결</h2><p className={styles.summary}>반 사진을 담당 고객에게 연결합니다.</p><div className={styles.groupRows}>{data.groups.map((group) => <div className={styles.groupRow} key={group.label}><strong>{group.label}</strong><select className={styles.select} value={assignments[group.label] || ""} onChange={(event) => setAssignments({ ...assignments, [group.label]: event.target.value })}><option value="">미연결</option>{data.people.map((person) => <option key={person.id} value={person.id}>{person.display_name}</option>)}</select><span>{group.image_count}장</span></div>)}</div><div className={styles.formActions}><button className={styles.secondary} onClick={() => void saveGroups()}>담임 반 연결 저장</button></div></section> : null}
   </>;
 
-  return <main className={styles.shell}>
-    <section className={styles.body}>
-      <div className={styles.crumb}><button className={styles.crumbBack} onClick={() => navigate("/person-select")}><ArrowLeft size={14} />사진선택</button>{sourceFolder ? <><span aria-hidden="true">›</span><span>{sourceFolder}</span></> : null}</div>
-      <div className={styles.titleRow}><div><h1 className={styles.title}>{data.event.title}</h1><p className={styles.subtitle}>마감 {formatSeoulDeadline(data.event.deadline_at)} · {isShared ? PERSON_SELECT_ACCESS_MODE_LABELS.project_shared : `${data.people.length}명`} · {pickText}{totalPhotos ? ` · 사진 ${totalPhotos.toLocaleString()}장` : ""}</p></div></div>
+  return <main className={`${styles.shell} ${styles.bridgeShell}`}>
+    {(error || data.sync?.recent_failure_count) ? <div className={styles.bridgeNoticeStack}>
       {error ? <div className={styles.warning}>{error}</div> : null}
       {data.sync?.recent_failure_count ? <div className={styles.warning} role="alert">최근 고객 저장 실패 {data.sync.recent_failure_count}건이 있습니다. 동기화 확인에서 검토해 주세요.</div> : null}
-      <PersonSelectAdminBridgeWorkspace
+    </div> : null}
+    <PersonSelectAdminBridgeWorkspace
         eventId={id} data={data} selectedPersonId={selectedId} selectedReviewerId={selectedReviewerId}
         rawBusy={rawBusy} rawDisabled={rawDisabled} rawDisabledReason={rawDisabledReason} rawStatus={rawStatus}
-        workerOnline={workerOnline} deliverySourcePath={importController.path} uploadPanel={uploadPanel} settingsPanel={settingsPanel}
+        uploadPanel={uploadPanel} settingsPanel={settingsPanel}
         loadImages={loadImages} loadImageUrls={loadImageUrls} onPersonSelect={setSelectedId} onReviewerSelect={setSelectedReviewerId}
         onRawOpen={(mode) => { setRawMode(mode); openRawMatchDialog(); }} onReload={load} onMessage={setError}
         onOpenPinList={() => setPinListOpen(true)} onOpenSync={() => setSyncDialogOpen(true)} onCopyNotice={() => void navigator.clipboard.writeText(notice)}
@@ -143,8 +134,8 @@ export default function PersonSelectDetailPage() {
           await importController.startDeliveryImport();
         }}
         onOffersOpenChange={async (open) => { setData({ ...data, event: { ...data.event, offers_open: open } }); await saveSettings({ offers_open: open }); }}
-      />
-    </section>
+        onBack={() => navigate("/person-select")}
+    />
     {rawDialogOpen ? <RawMatchDialog mode={rawMode} onModeChange={setRawMode} source={rawSource} onSourceChange={changeRawSource} labelNames={rawLabelNames} onLabelNamesChange={setRawLabelNames} isShared={isShared} reviewerScope={rawReviewerScope} onReviewerScopeChange={setRawReviewerScope} reviewers={sharedReviewers.filter((reviewer) => reviewer.active)} selectedCount={rawPreview.targets.length} submittedCount={rawPreview.submittedSelectedCount} currentCount={rawPreview.currentUnsubmittedCount} pathPlan={rawPathPlan} busy={rawBusy} disabledReason={!rawPreview.targets.length ? "선택한 기준에 고른 사진이 없어요." : rawDisabledReason} onClose={() => setRawDialogOpen(false)} onRun={() => void startRawMatch()} /> : null}
     {pickerOpen ? <PhotoSourcePicker targetWorker="jake-macstudio-01" sourceScope="person-select" onCancel={() => setPickerOpen(false)} onSelectRemote={(selection) => selectRemotePath(selection.path)} /> : null}
     {pinListOpen ? <PinListDialog eventId={id} onClose={() => setPinListOpen(false)} onUpdated={load} /> : null}

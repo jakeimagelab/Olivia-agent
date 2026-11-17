@@ -26,6 +26,14 @@ export function togglePersonSelectRetouchKey(keys: readonly string[], key: strin
   return keys.includes(key) ? keys.filter((current) => current !== key) : [...keys, key];
 }
 
+export function compactPersonSelectFilename(fileName: string) {
+  const base = fileName.normalize("NFC").split(/[\\/]/).at(-1) ?? fileName;
+  const stem = base.replace(/\.[^.]+$/, "");
+  const cameraSuffix = stem.match(/(_[A-Za-z]{1,5}_?\d{3,})$/)?.[1];
+  if (cameraSuffix) return cameraSuffix;
+  return stem.length > 18 ? `…${stem.slice(-17)}` : stem;
+}
+
 export function resolvePersonSelectAdminStatus(input: {
   submittedAt?: string | null;
   rawMatched?: boolean;
