@@ -4,19 +4,20 @@ import { describe, expect, it } from "vitest";
 const page = readFileSync("app/(client-hub)/person-select/[id]/page.tsx", "utf8");
 const rawMatchControls = readFileSync("components/person-select/admin/RawMatchControls.tsx", "utf8");
 const rawMatchController = readFileSync("components/person-select/admin/hooks/usePersonSelectRawMatchController.ts", "utf8");
-const matchingPanels = readFileSync("components/person-select/admin/PersonSelectMatchingPanels.tsx", "utf8");
 const bridgeHeader = readFileSync("components/select-gallery/CustomerBridgeHeader.tsx", "utf8");
 const bridgeCss = readFileSync("components/select-gallery/CustomerBridgeSelect.module.css", "utf8");
-const adminCss = readFileSync("components/person-select/PersonSelectAdmin.module.css", "utf8");
+const workspace = readFileSync("components/person-select/admin/PersonSelectAdminBridgeWorkspace.tsx", "utf8");
+const workspaceCss = readFileSync("components/person-select/admin/PersonSelectAdminBridgeWorkspace.module.css", "utf8");
 
 describe("person select RAW match admin UI", () => {
-  it("keeps the title row free of actions and places guidance beside the tabs", () => {
+  it("keeps the title row free of actions and places guidance in the workspace toolbar", () => {
     const titleStart = page.indexOf('<div className={styles.titleRow}>');
-    const segmentStart = page.indexOf('<div className={styles.segmentRow}>', titleStart);
-    const titleSection = page.slice(titleStart, segmentStart);
+    const workspaceStart = page.indexOf("<PersonSelectAdminBridgeWorkspace", titleStart);
+    const titleSection = page.slice(titleStart, workspaceStart);
     expect(titleSection).not.toContain("안내 문구 복사");
     expect(titleSection).not.toContain("RAW 매칭");
-    expect(page.slice(segmentStart, segmentStart + 2_500)).toContain("안내 문구 복사");
+    expect(workspace).toContain("안내 문구 복사");
+    expect(workspace).toContain("RAW 매칭");
   });
 
   it("renders the shared admin RAW action before Bridge review", () => {
@@ -40,10 +41,10 @@ describe("person select RAW match admin UI", () => {
     expect(bridgeCss).toMatch(/\.footer\s*\{[\s\S]*?safe-area-inset-bottom/);
   });
 
-  it("keeps a labeled shared RAW match action visible on mobile", () => {
-    expect(matchingPanels).toContain("styles.mobileSharedRawMatchToolbar");
-    expect(adminCss).toMatch(/\.mobileSharedRawMatchToolbar\s*\{\s*display:\s*none/);
-    expect(adminCss).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.mobileSharedRawMatchToolbar\s*\{\s*display:\s*flex/);
-    expect(adminCss).toMatch(/@media \(max-width: 520px\)[\s\S]*?\.bridgeRawButton\s*\{\s*display:\s*none/);
+  it("keeps labeled RAW actions available in the responsive workspace toolbar", () => {
+    expect(workspace).toContain("RAW 매칭");
+    expect(workspace).toContain("로우 셀렉");
+    expect(workspaceCss).toMatch(/@media \(max-width: 600px\)/);
+    expect(workspaceCss).toMatch(/\.toolbarActions/);
   });
 });

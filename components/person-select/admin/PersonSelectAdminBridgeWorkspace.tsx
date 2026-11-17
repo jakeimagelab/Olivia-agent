@@ -1,0 +1,433 @@
+"use client";
+
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Clipboard,
+  Folder,
+  FolderOpen,
+  Image as ImageIcon,
+  Link2,
+  PackageCheck,
+  RefreshCw,
+  Search,
+  Settings,
+  ShoppingBag,
+  Star,
+  Trash2,
+  Upload,
+  UserRound,
+  X,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type ReactNode,
+} from "react";
+
+import {
+  PERSON_SELECT_ADMIN_STATUS_LABELS,
+  pairSelectedImagesWithDeliveries,
+  resolvePersonSelectAdminStatus,
+  type PersonSelectAdminStatus,
+} from "@/lib/person-select/adminWorkspace";
+import type {
+  PersonSelectAdminData,
+  PersonSelectAdminImage,
+  PersonSelectSharedSelectionItem,
+} from "@/lib/person-select/adminData";
+import type { PersonSelectAdminChoice, PersonSelectAdminDeliveryItem, PersonSelectAdminPerson } from "@/lib/person-select/adminPerson";
+import { formatRelativeTime, formatWon } from "@/lib/person-select/format";
+import {
+  BRIDGE_COLOR_LABELS,
+  EMPTY_BRIDGE_LABEL_FILTERS,
+  bridgeLabelFilterName,
+  matchesBridgeFilenameSearch,
+  matchesBridgeLabelFilters,
+  updateBridgeLabelFilters,
+  type BridgeLabelFilterCommand,
+  type BridgeLabelFilters,
+  type BridgeColorLabels,
+} from "@/lib/photo-bridge/labels";
+import { useBridgeSearchFilterShortcuts } from "@/lib/photo-bridge/useBridgeSearchFilterShortcuts";
+import type { CustomerBridgeImage } from "@/lib/select-gallery/customerBridgeTypes";
+import type { SelectionMediaVariant } from "@/lib/select-gallery/mediaLoading";
+import styles from "./PersonSelectAdminBridgeWorkspace.module.css";
+
+type TreeFilter = "all" | "retouch" | "revision" | "unsubmitted";
+type NodeKind = "all" | "selected" | "deliveries" | "group";
+type SelectedNode = { ownerId: string; kind: NodeKind; groupLabel?: string };
+
+type WorkspacePhoto = PersonSelectAdminImage & {
+  thumbnail_url?: string;
+  choice?: PersonSelectAdminChoice | PersonSelectSharedSelectionItem | null;
+  selectedOrder?: number | null;
+};
+
+const STATUS_COLORS: Record<PersonSelectAdminStatus, string> = {
+  selecting: "#8E9A98",
+  submitted: "#4B82C3",
+  retouch_pending: "#D97A2B",
+  approval_pending: "#D2A72C",
+  revision_requested: "#D54D43",
+  approved: "#4C9A5C",
+};
+
+const MEDIA_BATCH_SIZE = 72;
+
+export function PersonSelectAdminBridgeWorkspace({
+  eventId,
+  data,
+  selectedPersonId,
+  selectedReviewerId,
+  rawBusy,
+  rawDisabled,
+  rawDisabledReason,
+  rawStatus,
+  workerOnline,
+  deliverySourcePath,
+  uploadPanel,
+  settingsPanel,
+  loadImageUrls,
+  onPersonSelect,
+  onReviewerSelect,
+  onRawOpen,
+  onReload,
+  onMessage,
+  onOpenPinList,
+  onOpenSync,
+  onCopyNotice,
+  onDeliveryAction,
+  onDeliveryDrop,
+  onOffersOpenChange,
+}: {
+  eventId: string;
+  data: PersonSelectAdminData;
+  selectedPersonId: string | null;
+  selectedReviewerId: string | null;
+  rawBusy: boolean;
+  rawDisabled: boolean;
+  rawDisabledReason: string;
+  rawStatus: ReactNode;
+  workerOnline: boolean | null;
+  deliverySourcePath: string;
+  uploadPanel: ReactNode;
+  settingsPanel: ReactNode;
+  loadImageUrls: (imageIds: string[], options?: { variant: SelectionMediaVariant }) => Promise<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>;
+  onPersonSelect: (personId: string) => void;
+  onReviewerSelect: (reviewerId: string) => void;
+  onRawOpen: (mode: "copy" | "mark") => void;
+  onReload: () => Promise<void>;
+  onMessage: (message: string) => void;
+  onOpenPinList: () => void;
+  onOpenSync: () => void;
+  onCopyNotice: () => void;
+  onDeliveryAction: (action: "reopen" | "extend", personId?: string) => void | Promise<void>;
+  onDeliveryDrop: (fileNames: string[], linkedImageId?: string) => void | Promise<void>;
+  onOffersOpenChange: (open: boolean) => void | Promise<void>;
+}) {
+  const isShared = data.event.access_mode === "project_shared";
+  const reviewers = data.shared?.reviewers ?? [];
+  const selectedReviewer = reviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? reviewers[0] ?? null;
+  const [treeFilter, setTreeFilter] = useState<TreeFilter>("all");
+  const [treeQuery, setTreeQuery] = useState("");
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const defaultOwnerId = isShared ? selectedReviewer?.id ?? "shared" : selectedPersonId ?? data.people[0]?.id ?? "";
+  const [node, setNode] = useState<SelectedNode>(() => ({ ownerId: defaultOwnerId, kind: "all" }));
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
+  const [previewPhotoId, setPreviewPhotoId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [labelFilters, setLabelFilters] = useState<BridgeLabelFilters>(() => ({ ...EMPTY_BRIDGE_LABEL_FILTERS }));
+  const [imageUrls, setImageUrls] = useState<Record<string, Pick<CustomerBridgeImage, "image_url" | "thumbnail_url">>>({});
+  const [visibleLimit, setVisibleLimit] = useState(96);
+  const [modal, setModal] = useState<"upload" | "settings" | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const nextOwner = isShared ? selectedReviewer?.id ?? "shared" : selectedPersonId ?? data.people[0]?.id ?? "";
+    if (!nextOwner) return;
+    setNode((current) => current.ownerId === nextOwner ? current : { ownerId: nextOwner, kind: "all" });
+  }, [data.people, isShared, selectedPersonId, selectedReviewer?.id]);
+
+  const statusForPerson = useCallback((person: PersonSelectAdminPerson) => resolvePersonSelectAdminStatus({
+    submittedAt: person.submitted_at,
+    rawMatched: Boolean(data.event.raw_matched_at),
+    deliveryState: person.delivery_state,
+    deliveries: person.deliveries,
+  }), [data.event.raw_matched_at]);
+
+  const filteredPeople = useMemo(() => data.people.filter((person) => {
+    const status = statusForPerson(person);
+    if (treeQuery && !person.display_name.normalize("NFC").toLocaleLowerCase("ko-KR").includes(treeQuery.normalize("NFC").toLocaleLowerCase("ko-KR"))) return false;
+    if (treeFilter === "retouch") return status === "retouch_pending";
+    if (treeFilter === "revision") return status === "revision_requested";
+    if (treeFilter === "unsubmitted") return !person.submitted_at;
+    return true;
+  }), [data.people, statusForPerson, treeFilter, treeQuery]);
+
+  const activePerson = !isShared ? data.people.find((person) => person.id === node.ownerId) ?? data.people[0] ?? null : null;
+  const sharedItems = useMemo(() => selectedReviewer?.selection?.items ?? selectedReviewer?.draft?.items ?? [], [selectedReviewer]);
+  const allImages = data.images ?? [];
+  const imageById = useMemo(() => new Map(allImages.map((image) => [image.id, image])), [allImages]);
+
+  const selectedChoices = useMemo(() => {
+    if (isShared) return sharedItems;
+    return activePerson?.choices ?? [];
+  }, [activePerson?.choices, isShared, sharedItems]);
+  const selectedIds = useMemo(() => new Set(selectedChoices.map((choice) => "image_id" in choice ? choice.image_id : "")), [selectedChoices]);
+  const selectedOrder = useMemo(() => new Map(selectedChoices.map((choice, index) => [("image_id" in choice ? choice.image_id : ""), index + 1])), [selectedChoices]);
+  const ratings = useMemo(() => Object.fromEntries(selectedChoices.map((choice) => {
+    const rating = "customer_rating" in choice ? choice.customer_rating : null;
+    return [choice.image_id, rating || 5];
+  })), [selectedChoices]);
+  const colors = useMemo<BridgeColorLabels>(() => Object.fromEntries(selectedChoices.flatMap((choice) => {
+    const color = "customer_color_label" in choice ? choice.customer_color_label : null;
+    return color ? [[choice.image_id, color]] : [];
+  })) as BridgeColorLabels, [selectedChoices]);
+
+  const ownerImages = useMemo(() => {
+    if (node.kind === "group") return allImages.filter((image) => image.owner_group === node.groupLabel);
+    if (isShared) return allImages;
+    if (!activePerson) return [];
+    return allImages.filter((image) => image.owner_person_id === activePerson.id
+      || (image.category_key === "homeroom" && Boolean(activePerson.group_label) && image.owner_group === activePerson.group_label));
+  }, [activePerson, allImages, isShared, node.groupLabel, node.kind]);
+
+  const selectedPhotos = useMemo<WorkspacePhoto[]>(() => selectedChoices.flatMap((choice): WorkspacePhoto[] => {
+    const imageId = choice.image_id;
+    const base = imageById.get(imageId);
+    if (base) return [{ ...base, thumbnail_url: undefined, choice, selectedOrder: selectedOrder.get(imageId) ?? null }];
+    const linked = "person_select_images" in choice ? choice.person_select_images : choice.image;
+    if (!linked) return [];
+    return [{
+      id: imageId,
+      owner_person_id: activePerson?.id ?? null,
+      owner_group: activePerson?.group_label ?? null,
+      category_key: "category_key" in choice ? choice.category_key : "photo",
+      original_file_name: linked.original_file_name,
+      source_rel_path: linked.source_rel_path,
+      sort_order: selectedOrder.get(imageId) ?? 0,
+      thumbnail_url: linked.thumb_url,
+      choice,
+      selectedOrder: selectedOrder.get(imageId) ?? null,
+    }];
+  }), [activePerson, imageById, selectedChoices, selectedOrder]);
+
+  const deliveries = isShared ? data.shared?.deliveries ?? [] : activePerson?.deliveries ?? [];
+  const deliveryPairs = useMemo(() => pairSelectedImagesWithDeliveries(selectedPhotos, deliveries), [deliveries, selectedPhotos]);
+  const basePhotos: WorkspacePhoto[] = node.kind === "selected"
+    ? selectedPhotos
+    : ownerImages.map((image) => ({ ...image, choice: selectedChoices.find((choice) => choice.image_id === image.id) ?? null, selectedOrder: selectedOrder.get(image.id) ?? null }));
+  const filteredPhotos = useMemo(() => basePhotos.filter((photo) => {
+    if (!matchesBridgeFilenameSearch(photo.original_file_name, searchQuery)) return false;
+    return matchesBridgeLabelFilters(photo.id, labelFilters, ratings, colors);
+  }), [basePhotos, colors, labelFilters, ratings, searchQuery]);
+  const visiblePhotos = filteredPhotos.slice(0, visibleLimit);
+
+  useEffect(() => {
+    setVisibleLimit(96);
+    setSelectedPhotoId(null);
+  }, [node.kind, node.ownerId, node.groupLabel, searchQuery, labelFilters.color, labelFilters.rating]);
+
+  useEffect(() => {
+    if (node.kind === "deliveries") return;
+    const missing = visiblePhotos.map((photo) => photo.id).filter((id) => !imageUrls[id]);
+    if (!missing.length) return;
+    let active = true;
+    void (async () => {
+      for (let offset = 0; offset < missing.length; offset += MEDIA_BATCH_SIZE) {
+        const urls = await loadImageUrls(missing.slice(offset, offset + MEDIA_BATCH_SIZE), { variant: "thumbnail" });
+        if (!active) return;
+        setImageUrls((current) => ({ ...current, ...urls }));
+      }
+    })().catch((error) => { if (active) onMessage(error instanceof Error ? error.message : "사진 주소를 불러오지 못했습니다."); });
+    return () => { active = false; };
+  }, [imageUrls, loadImageUrls, node.kind, onMessage, visiblePhotos]);
+
+  const applyFilterCommand = useCallback((command: BridgeLabelFilterCommand) => {
+    setLabelFilters((current) => updateBridgeLabelFilters(current, command));
+  }, []);
+  const handleSearchFilterShortcut = useBridgeSearchFilterShortcuts({
+    searchInputRef,
+    searchQuery,
+    onSearchQueryChange: setSearchQuery,
+    onFilterCommand: applyFilterCommand,
+  });
+
+  const ownerIds = isShared ? reviewers.map((reviewer) => reviewer.id) : filteredPeople.map((person) => person.id);
+  const handleKeyboard = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (handleSearchFilterShortcut(event.nativeEvent)) return;
+    if (["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement)?.tagName)) return;
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const index = ownerIds.indexOf(node.ownerId);
+    if (index < 0 || !ownerIds.length) return;
+    event.preventDefault();
+    const nextIndex = event.key === "ArrowDown" ? Math.min(ownerIds.length - 1, index + 1) : Math.max(0, index - 1);
+    selectOwner(ownerIds[nextIndex]);
+  }, [handleSearchFilterShortcut, node.ownerId, ownerIds]);
+
+  function selectOwner(ownerId: string) {
+    setNode({ ownerId, kind: "all" });
+    if (isShared) onReviewerSelect(ownerId);
+    else onPersonSelect(ownerId);
+  }
+
+  function selectNode(ownerId: string, kind: NodeKind, groupLabel?: string) {
+    setNode({ ownerId, kind, groupLabel });
+    if (kind !== "group") {
+      if (isShared) onReviewerSelect(ownerId);
+      else onPersonSelect(ownerId);
+    }
+  }
+
+  function toggleExpanded(ownerId: string) {
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(ownerId)) next.delete(ownerId);
+      else next.add(ownerId);
+      return next;
+    });
+  }
+
+  const selectedPhoto = [...basePhotos, ...selectedPhotos].find((photo) => photo.id === selectedPhotoId) ?? null;
+  const selectedChoice = selectedChoices.find((choice) => choice.image_id === selectedPhotoId) ?? null;
+  const selectedDelivery = deliveries.find((delivery) => delivery.linked_image_id === selectedPhotoId) ?? null;
+  const previewPhoto = [...basePhotos, ...selectedPhotos].find((photo) => photo.id === previewPhotoId) ?? null;
+
+  async function deleteDelivery(delivery: PersonSelectAdminDeliveryItem) {
+    if (!window.confirm(`${delivery.display_name} 보정본을 삭제할까요?\n모든 버전과 업로드 파일이 삭제됩니다.`)) return;
+    const response = await fetch(`/api/person-select/${eventId}/deliveries/${delivery.id}`, { method: "DELETE" });
+    const body = await response.json().catch(() => ({})) as { error?: string };
+    if (!response.ok) throw new Error(body.error || "보정본을 삭제하지 못했습니다.");
+    await onReload();
+    onMessage(`${delivery.display_name} 보정본을 삭제했습니다.`);
+  }
+
+  function droppedFileNames(event: DragEvent<HTMLElement>) {
+    event.preventDefault();
+    return [...event.dataTransfer.files].map((file) => file.name).filter(Boolean);
+  }
+
+  const statusCounts = data.people.reduce<Record<PersonSelectAdminStatus, number>>((counts, person) => {
+    const status = statusForPerson(person);
+    counts[status] += 1;
+    return counts;
+  }, { selecting: 0, submitted: 0, retouch_pending: 0, approval_pending: 0, revision_requested: 0, approved: 0 });
+
+  return <section className={styles.workspace} tabIndex={-1} onKeyDown={handleKeyboard}>
+    <header className={styles.toolbar}>
+      <div className={styles.searchWrap}><Search size={15} /><input ref={searchInputRef} value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="파일명 검색 · ⌘F" aria-label="파일명 검색" />{searchQuery ? <button aria-label="검색 지우기" onClick={() => setSearchQuery("")}><X size={14} /></button> : null}</div>
+      <div className={styles.filterControls}>
+        <select aria-label="별점 필터" value={labelFilters.rating ?? ""} onChange={(event) => applyFilterCommand(event.target.value ? { kind: "rating", rating: Number(event.target.value) as 1 | 2 | 3 | 4 | 5 } : { kind: "all" })}><option value="">별점</option>{[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>★{rating} 이상</option>)}</select>
+        <select aria-label="컬러 필터" value={labelFilters.color ?? ""} onChange={(event) => applyFilterCommand(event.target.value ? { kind: "color", label: Number(event.target.value) as 6 | 7 | 8 | 9 } : { kind: "all" })}><option value="">컬러</option>{([6, 7, 8, 9] as const).map((label) => <option key={label} value={label}>{label} · {BRIDGE_COLOR_LABELS[label].name}</option>)}</select>
+        {labelFilters.rating ? <button className={styles.filterChip} onClick={() => applyFilterCommand({ kind: "rating", rating: labelFilters.rating! })}>{bridgeLabelFilterName({ kind: "rating", rating: labelFilters.rating })}<X size={12} /></button> : null}
+        {labelFilters.color ? <button className={styles.filterChip} onClick={() => applyFilterCommand({ kind: "color", label: labelFilters.color! })}>{bridgeLabelFilterName({ kind: "color", label: labelFilters.color })}<X size={12} /></button> : null}
+      </div>
+      <div className={styles.toolbarActions}>
+        <button className={styles.secondaryButton} disabled={rawDisabled} title={rawDisabledReason || "RAW 매칭"} onClick={() => onRawOpen("copy")}><Link2 size={15} />{rawBusy ? "실행 중" : "RAW 매칭"}</button>
+        <button className={styles.secondaryButton} disabled={rawDisabled} title={rawDisabledReason || "로우 셀렉"} onClick={() => onRawOpen("mark")}><Star size={15} />로우 셀렉</button>
+        <button className={styles.primaryButton} onClick={() => setModal("upload")}><Upload size={15} />보정본 올리기</button>
+        <button className={styles.iconButton} aria-label="설정" title="프로젝트 설정" onClick={() => setModal("settings")}><Settings size={17} /></button>
+      </div>
+    </header>
+    <div className={styles.offerStrip}>
+      <button className={data.event.offers_open ? styles.offerOpen : styles.offerClosed} onClick={() => void onOffersOpenChange(!data.event.offers_open)}><ShoppingBag size={14} />액자·앨범 {data.event.offers_open ? "공개 중" : "비공개"}</button>
+      <button onClick={onOpenSync}><RefreshCw size={14} />동기화 확인</button>
+      <button onClick={onCopyNotice}><Clipboard size={14} />안내 문구 복사</button>
+    </div>
+    {rawStatus ? <div className={styles.rawStatus}>{rawStatus}</div> : null}
+    <div className={styles.panes}>
+      <aside className={styles.treePane}>
+        <div className={styles.treeHead}><strong>{isShared ? "검토자·폴더" : "고객"}</strong><span>{isShared ? reviewers.length : data.people.length}</span></div>
+        <div className={styles.treeSearch}><Search size={14} /><input value={treeQuery} onChange={(event) => setTreeQuery(event.target.value)} placeholder="고객 검색" /></div>
+        {!isShared ? <div className={styles.treeFilters}>{([ ["all", "전체"], ["retouch", "보정 대기"], ["revision", "수정 요청"], ["unsubmitted", "미제출"] ] as const).map(([key, label]) => <button key={key} className={treeFilter === key ? styles.treeFilterActive : ""} onClick={() => setTreeFilter(key)}>{label}</button>)}</div> : null}
+        <div className={styles.treeScroll}>
+          {(isShared ? reviewers : filteredPeople).map((owner) => {
+            const ownerId = owner.id;
+            const person = !isShared ? owner as PersonSelectAdminPerson : null;
+            const reviewer = isShared ? owner as typeof reviewers[number] : null;
+            const ownerChoices = person?.choices ?? reviewer?.selection?.items ?? reviewer?.draft?.items ?? [];
+            const ownerDeliveries = person?.deliveries ?? data.shared?.deliveries ?? [];
+            const status = person ? statusForPerson(person) : resolvePersonSelectAdminStatus({ submittedAt: reviewer?.selection?.submitted_at, rawMatched: Boolean(data.event.raw_matched_at), deliveryState: data.event.delivery_state, deliveries: ownerDeliveries });
+            const open = expanded.has(ownerId);
+            return <div className={styles.treeOwner} key={ownerId}>
+              <div className={node.ownerId === ownerId && node.kind === "all" ? styles.treeRowActive : styles.treeRow}>
+                <button className={styles.disclosure} aria-label={open ? "접기" : "펼치기"} onClick={() => toggleExpanded(ownerId)}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</button>
+                <button className={styles.ownerButton} onClick={() => selectOwner(ownerId)}><span className={styles.statusDot} style={{ background: STATUS_COLORS[status] }} /><span><strong>{person?.display_name ?? reviewer?.display_name}</strong><small>{PERSON_SELECT_ADMIN_STATUS_LABELS[status]}</small></span><b>{ownerDeliveries.length}/{ownerChoices.length}</b></button>
+              </div>
+              {open ? <div className={styles.virtualFolders}><button className={node.ownerId === ownerId && node.kind === "selected" ? styles.virtualActive : ""} onClick={() => selectNode(ownerId, "selected")}><Folder size={14} />선택분 <b>{ownerChoices.length}</b></button><button className={node.ownerId === ownerId && node.kind === "deliveries" ? styles.virtualActive : ""} onClick={() => selectNode(ownerId, "deliveries")}><PackageCheck size={14} />보정본 <b>{ownerDeliveries.length}</b></button></div> : null}
+            </div>;
+          })}
+          {data.groups.length ? <div className={styles.groupSection}><strong>그룹사진</strong>{data.groups.map((group) => <button key={group.label} className={node.kind === "group" && node.groupLabel === group.label ? styles.virtualActive : ""} onClick={() => selectNode(`group:${group.label}`, "group", group.label)}><FolderOpen size={14} />{group.label}<b>{group.image_count}</b></button>)}</div> : null}
+        </div>
+      </aside>
+      <section className={styles.gridPane} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const names = droppedFileNames(event); if (names.length) void onDeliveryDrop(names); }}>
+        <div className={styles.gridHead}><div><strong>{node.kind === "selected" ? "선택분" : node.kind === "deliveries" ? "보정본" : node.kind === "group" ? node.groupLabel : activePerson?.display_name ?? selectedReviewer?.display_name ?? "사진"}</strong><span>{node.kind === "deliveries" ? `${deliveryPairs.slots.length}개 슬롯` : `${filteredPhotos.length.toLocaleString()}장`}</span></div><small>⌥⌘숫자 필터 · ⌘F 검색 · ↑↓ 고객 이동</small></div>
+        {node.kind === "deliveries" ? <div className={styles.deliveryGrid}>{deliveryPairs.slots.map(({ image, delivery }) => {
+          const thumb = image.thumbnail_url || imageUrls[image.id]?.thumbnail_url;
+          return <article key={image.id} className={`${styles.deliverySlot} ${selectedPhotoId === image.id ? styles.photoSelected : ""}`} onClick={() => setSelectedPhotoId(image.id)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.stopPropagation(); const names = droppedFileNames(event); if (names.length) void onDeliveryDrop(names, image.id); }}>
+            <div className={styles.compareThumb}>{thumb ? <img src={thumb} alt={image.original_file_name} /> : <span><ImageIcon /></span>}{delivery?.preview_url ? <img src={delivery.preview_url} alt={delivery.display_name} /> : <div className={styles.waitingSlot}><Upload size={20} /><b>업로드 대기</b><small>여기에 놓기</small></div>}</div>
+            <strong>{image.original_file_name}</strong>{delivery ? <p>v{delivery.current_version} · {delivery.status === "revision_requested" ? "수정 요청" : delivery.status === "approved" ? "확정" : delivery.status === "revised" ? "수정됨" : "확인 대기"}</p> : <p>선택 원본에 연결된 보정본 없음</p>}
+          </article>;
+        })}{deliveryPairs.unlinked.map((delivery) => <article key={delivery.id} className={styles.unlinkedDelivery}><div>{delivery.preview_url ? <img src={delivery.preview_url} alt={delivery.display_name} /> : <ImageIcon />}</div><strong>{delivery.display_name}</strong><p>연결 안 됨 · 수동 지정 필요</p></article>)}</div> : <>
+          <div className={styles.photoGrid}>{visiblePhotos.map((photo) => {
+            const thumb = photo.thumbnail_url || imageUrls[photo.id]?.thumbnail_url;
+            return <button key={photo.id} className={`${styles.photoCard} ${selectedIds.has(photo.id) ? styles.photoChosen : ""} ${selectedPhotoId === photo.id ? styles.photoSelected : ""}`} onClick={() => setSelectedPhotoId(photo.id)} onDoubleClick={() => setPreviewPhotoId(photo.id)}>
+              <span className={styles.photoFrame}>{thumb ? <img src={thumb} alt={photo.original_file_name} loading="lazy" /> : <span className={styles.photoPlaceholder}><ImageIcon /></span>}{photo.selectedOrder ? <b className={styles.selectionOrder}>{photo.selectedOrder}</b> : null}{ratings[photo.id] ? <span className={styles.ratingBadge}>★{ratings[photo.id]}</span> : null}{colors[photo.id] ? <span className={styles.colorBadge} style={{ background: BRIDGE_COLOR_LABELS[colors[photo.id] as 6 | 7 | 8 | 9].color }} /> : null}</span>
+              <span className={styles.photoName}>{photo.original_file_name}</span>
+            </button>;
+          })}</div>
+          {visibleLimit < filteredPhotos.length ? <button className={styles.loadMore} onClick={() => setVisibleLimit((count) => count + 96)}>더 보기 · {Math.min(96, filteredPhotos.length - visibleLimit)}장</button> : null}
+          {!filteredPhotos.length ? <div className={styles.empty}><ImageIcon /><strong>조건에 맞는 사진이 없어요.</strong><span>검색어나 필터를 지워 보세요.</span></div> : null}
+        </>}
+      </section>
+      <aside className={styles.inspector}>
+        {selectedPhoto ? <PhotoInspector photo={selectedPhoto} choice={selectedChoice} delivery={selectedDelivery} labels={data.event.retouch_options} onDeleteDelivery={deleteDelivery} /> : activePerson ? <PersonInspector person={activePerson} eventSlug={data.event.slug} rawMatchedAt={data.event.raw_matched_at} onOpenPinList={onOpenPinList} onDeliveryAction={onDeliveryAction} /> : selectedReviewer ? <SharedInspector reviewer={selectedReviewer} deliveryCount={deliveries.length} orderOpen={data.event.offers_open === true} /> : <div className={styles.emptyInspector}><UserRound /><span>고객 또는 사진을 선택하세요.</span></div>}
+      </aside>
+    </div>
+    <footer className={styles.statusBar}><span>전체 인원 <b>{data.people.length || reviewers.length}</b></span><span>제출 <b>{statusCounts.submitted}</b></span><span>보정 대기 <b>{statusCounts.retouch_pending}</b></span><span>수정 요청 <b>{statusCounts.revision_requested}</b></span><span>확정 <b>{statusCounts.approved}</b></span><span>RAW 매칭 완료 <b>{data.event.raw_matched_at ? "1" : "0"}</b></span><small>{deliverySourcePath ? `보정본 폴더 연결됨 · ${deliverySourcePath}` : workerOnline === false ? "Mac Studio가 꺼져 있어요" : "보정본 폴더 미연결"}</small></footer>
+    {modal ? <div className={styles.modalBackdrop} onClick={() => setModal(null)}><section className={styles.modal} role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><header><div><strong>{modal === "upload" ? "보정본 올리기" : "프로젝트 설정"}</strong><span>{data.event.title}</span></div><button aria-label="닫기" onClick={() => setModal(null)}><X /></button></header><div className={styles.modalBody}>{modal === "upload" ? uploadPanel : settingsPanel}</div></section></div> : null}
+    {previewPhoto ? <div className={styles.previewBackdrop} onClick={() => setPreviewPhotoId(null)}><div className={styles.previewDialog} onClick={(event) => event.stopPropagation()}><button aria-label="닫기" onClick={() => setPreviewPhotoId(null)}><X /></button>{imageUrls[previewPhoto.id]?.image_url || imageUrls[previewPhoto.id]?.thumbnail_url || previewPhoto.thumbnail_url ? <img src={imageUrls[previewPhoto.id]?.image_url || imageUrls[previewPhoto.id]?.thumbnail_url || previewPhoto.thumbnail_url} alt={previewPhoto.original_file_name} /> : <ImageIcon />}<strong>{previewPhoto.original_file_name}</strong></div></div> : null}
+  </section>;
+}
+
+function PersonInspector({ person, eventSlug, rawMatchedAt, onOpenPinList, onDeliveryAction }: {
+  person: PersonSelectAdminPerson;
+  eventSlug: string;
+  rawMatchedAt?: string | null;
+  onOpenPinList: () => void;
+  onDeliveryAction: (action: "reopen" | "extend", personId?: string) => void | Promise<void>;
+}) {
+  const status = resolvePersonSelectAdminStatus({ submittedAt: person.submitted_at, rawMatched: Boolean(rawMatchedAt), deliveryState: person.delivery_state, deliveries: person.deliveries });
+  return <div className={styles.inspectorBody}>
+    <div className={styles.inspectorTitle}><span className={styles.statusDot} style={{ background: STATUS_COLORS[status] }} /><div><h2>{person.display_name}</h2><p>{PERSON_SELECT_ADMIN_STATUS_LABELS[status]}</p></div></div>
+    <dl className={styles.infoList}><div><dt>고객 선택</dt><dd>{person.choices.length}장</dd></div><div><dt>기준 수</dt><dd>{Object.values(person.need_counts).reduce((sum, count) => sum + count, 0)}장</dd></div><div><dt>보정본 진행</dt><dd>{person.delivery_count ?? 0}장</dd></div><div><dt>RAW 매칭</dt><dd>{rawMatchedAt ? formatRelativeTime(rawMatchedAt) : "실행 전"}</dd></div></dl>
+    {person.choices.some((choice) => choice.memo) ? <section className={styles.inspectorSection}><h3>고객 메모</h3>{person.choices.filter((choice) => choice.memo).map((choice) => <p key={choice.id}>{choice.person_select_images?.original_file_name}<br /><b>{choice.memo}</b></p>)}</section> : null}
+    {person.order?.lines.length ? <section className={styles.inspectorSection}><h3>주문 · {formatWon(person.order.total)}</h3>{person.order.lines.map((line, index) => <p key={index}>{line.label}{line.detail ? ` · ${line.detail}` : ""}<b>{line.qty}개 · {formatWon(line.amount)}</b></p>)}</section> : null}
+    <div className={styles.inspectorActions}><button onClick={() => void navigator.clipboard.writeText(`${location.origin}/pick/${eventSlug}`)}><Clipboard size={14} />링크 복사</button><button onClick={onOpenPinList}><UserRound size={14} />비밀번호</button>{person.delivery_count ? <button onClick={() => void onDeliveryAction("reopen", person.id)}><RefreshCw size={14} />선택 다시 열기</button> : null}</div>
+  </div>;
+}
+
+function SharedInspector({ reviewer, deliveryCount, orderOpen }: { reviewer: NonNullable<PersonSelectAdminData["shared"]>["reviewers"][number]; deliveryCount: number; orderOpen: boolean }) {
+  const selectedCount = reviewer.selection?.items.length ?? reviewer.draft?.selected_count ?? 0;
+  return <div className={styles.inspectorBody}><div className={styles.inspectorTitle}><UserRound /><div><h2>{reviewer.display_name}</h2><p>{reviewer.selection ? "최종 제출" : selectedCount ? "선택 중" : "미선택"}</p></div></div><dl className={styles.infoList}><div><dt>선택 사진</dt><dd>{selectedCount}장</dd></div><div><dt>보정본</dt><dd>{deliveryCount}장</dd></div><div><dt>액자·앨범</dt><dd>{orderOpen ? "공개" : "비공개"}</dd></div><div><dt>마지막 저장</dt><dd>{formatRelativeTime(reviewer.server_last_saved_at ?? null)}</dd></div></dl>{reviewer.selection?.customer_memo || reviewer.draft?.customerMemo ? <section className={styles.inspectorSection}><h3>전체 메모</h3><p>{reviewer.selection?.customer_memo || reviewer.draft?.customerMemo}</p></section> : null}</div>;
+}
+
+function PhotoInspector({ photo, choice, delivery, labels, onDeleteDelivery }: {
+  photo: WorkspacePhoto;
+  choice: PersonSelectAdminChoice | PersonSelectSharedSelectionItem | null;
+  delivery: PersonSelectAdminDeliveryItem | null;
+  labels: { key: string; label: string }[];
+  onDeleteDelivery: (delivery: PersonSelectAdminDeliveryItem) => void | Promise<void>;
+}) {
+  const labelMap = new Map(labels.map((label) => [label.key, label.label]));
+  const memo = choice && "memo" in choice ? choice.memo : "";
+  const retouchKeys = choice && "retouch_keys" in choice ? choice.retouch_keys : [];
+  return <div className={styles.inspectorBody}><div className={styles.inspectorTitle}><ImageIcon /><div><h2>{photo.original_file_name}</h2><p>{photo.source_rel_path}</p></div></div><dl className={styles.infoList}><div><dt>고객 선택</dt><dd>{choice ? "선택" : "미선택"}</dd></div><div><dt>보정 요청</dt><dd>{retouchKeys.map((key) => labelMap.get(key) ?? key).join(" · ") || "기본"}</dd></div></dl>{memo ? <section className={styles.inspectorSection}><h3>고객 메모</h3><p>{memo}</p></section> : null}{delivery ? <section className={styles.inspectorSection}><h3>보정본 버전</h3>{delivery.preview_url ? <img className={styles.inspectorPreview} src={delivery.preview_url} alt={delivery.display_name} /> : null}<p>{delivery.display_name}<b>v{delivery.current_version} · {delivery.status}</b></p>{delivery.customer_memo ? <p className={styles.revisionMemo}>{delivery.customer_memo}</p> : null}<div className={styles.versionList}>{(delivery.versions ?? []).map((version) => <span key={version.version}>v{version.version} · {formatRelativeTime(version.uploaded_at)}</span>)}</div><button className={styles.deleteButton} onClick={() => void onDeleteDelivery(delivery)}><Trash2 size={14} />해당 보정본 삭제</button></section> : <section className={styles.inspectorSection}><h3>보정본</h3><p>아직 연결된 보정본이 없습니다.</p></section>}</div>;
+}
+
