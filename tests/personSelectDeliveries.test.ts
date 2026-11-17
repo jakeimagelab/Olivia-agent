@@ -58,6 +58,23 @@ describe("person select delivery linking", () => {
     expect(resolveDeliveryOwner({ fileName: "final.jpg", parentFolderName: "미확인" }, people, selected)).toEqual({ personId: null, linkedImageId: null, method: null });
   });
 
+  it("links renamed retouched files by the unique original capture filename without the source folder", () => {
+    const selectedWithNames = [
+      { id: "i1", personId: "p1", captureTimeMs: null, fileName: "선생님프로필_김민수__AK_7351.JPG" },
+      { id: "i2", personId: "p2", captureTimeMs: null, fileName: "담임선생님_2반_DSC04107.JPG" },
+    ];
+    expect(resolveDeliveryOwner({ fileName: "_AK_7351-EVT.jpg" }, people, selectedWithNames)).toEqual({ personId: "p1", linkedImageId: "i1", method: "filename" });
+    expect(resolveDeliveryOwner({ fileName: "DSC04107.jpg" }, people, selectedWithNames)).toEqual({ personId: "p2", linkedImageId: "i2", method: "filename" });
+  });
+
+  it("does not guess when the same capture filename belongs to multiple selected originals", () => {
+    const ambiguous = [
+      { id: "i1", personId: "p1", captureTimeMs: null, fileName: "A__AK_0001.JPG" },
+      { id: "i2", personId: "p2", captureTimeMs: null, fileName: "B__AK_0001.JPG" },
+    ];
+    expect(resolveDeliveryOwner({ fileName: "_AK_0001-EVT.jpg" }, people, ambiguous)).toEqual({ personId: null, linkedImageId: null, method: null });
+  });
+
   it("moves a requested photo to revised on a new version and requires every photo approved", () => {
     expect(nextDeliveryStatus("revision_requested", true)).toBe("revised");
     expect(nextDeliveryStatus("approved", true)).toBe("approved");

@@ -19,7 +19,13 @@ export function personSelectDeliveryBundleKey(accessMode: string, personId: stri
 }
 
 export type DeliveryLinkPerson = { id: string; displayName: string };
-export type DeliverySelectedImage = { id: string; personId: string | null; captureTimeMs: number | null };
+export type DeliverySelectedImage = {
+  id: string;
+  personId: string | null;
+  captureTimeMs: number | null;
+  /** 고객이 선택한 원본의 파일명. 원본 폴더가 이동돼도 보정본을 연결하는 안전한 폴백이다. */
+  fileName?: string | null;
+};
 export type DeliveryLinkInput = {
   fileName: string;
   parentFolderName?: string | null;
@@ -44,6 +50,20 @@ export function deliveryNamePrefix(fileName: string) {
   return withoutExtension.split(/[_-]/u, 1)[0] ?? withoutExtension;
 }
 
+/**
+ * 포토샵·Evoto가 붙인 전달용 접미사를 제거하고 촬영 파일명을 비교 가능한 키로 만든다.
+ * 사람/폴더 접두사가 붙은 원본 이름은 `endsWith`로 비교하되, 반드시 프로젝트 안에서
+ * 정확히 한 장만 일치할 때만 사용한다.
+ */
+export function deliveryCaptureFileKey(fileName: string) {
+  const baseName = fileName.replace(/^.*[\\/]/u, "").replace(/\.[^.]+$/u, "");
+  return baseName
+    .replace(/(?:[-_\s]+EVT)$/iu, "")
+    .normalize("NFC")
+    .toLocaleLowerCase("ko-KR")
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+
 /** EXIF → 파일명 앞 이름 → 상위 폴더 순서로 한 사람을 안전하게 연결한다. */
 export function resolveDeliveryOwner(
   input: DeliveryLinkInput,
@@ -54,6 +74,17 @@ export function resolveDeliveryOwner(
     const matches = selectedImages.filter((image) => image.captureTimeMs !== null
       && Math.abs(Number(image.captureTimeMs) - Number(input.captureTimeMs)) <= 2_000);
     if (matches.length === 1) return { personId: matches[0].personId, linkedImageId: matches[0].id, method: "exif" };
+  }
+
+  const captureKey = deliveryCaptureFileKey(input.fileName);
+  if (captureKey.length >= 4) {
+    const matches = selectedImages.filter((image) => {
+      const selectedKey = image.fileName ? deliveryCaptureFileKey(image.fileName) : "";
+      return selectedKey === captureKey || selectedKey.endsWith(captureKey);
+    });
+    if (matches.length === 1) {
+      return { personId: matches[0].personId, linkedImageId: matches[0].id, method: "filename" };
+    }
   }
 
   const byName = new Map(people.map((person) => [normalizeDeliveryPersonName(person.displayName), person.id]));

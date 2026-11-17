@@ -100,14 +100,20 @@ async function main() {
     if (!image?.id || !image.source_rel_path) continue;
     selectedUnique.set(image.id, { id: image.id, personId: "person_id" in row ? String(row.person_id) : null, sourceRelPath: image.source_rel_path });
   }
-  const selectedImages: Array<{ id: string; personId: string | null; captureTimeMs: number | null }> = [];
+  const selectedImages = [...selectedUnique.values()].map((selected) => ({
+    id: selected.id,
+    personId: selected.personId,
+    captureTimeMs: null as number | null,
+    fileName: path.basename(selected.sourceRelPath),
+  }));
   if (event.source_relative_path) {
     const originalRoot = await resolvePersonSelectSourcePath(event.source_relative_path).catch(() => null);
     if (originalRoot) {
       let done = 0;
       for (const selected of selectedUnique.values()) {
         const capture = await captureTime(path.join(originalRoot.canonicalPath, ...selected.sourceRelPath.split("/")));
-        selectedImages.push({ id: selected.id, personId: selected.personId, captureTimeMs: capture.timestampMs });
+        const target = selectedImages.find((image) => image.id === selected.id);
+        if (target) target.captureTimeMs = capture.timestampMs;
         done += 1;
         if (done % 25 === 0) progress(done, selectedUnique.size + files.length, "선택 원본의 촬영시각을 확인하고 있어요.");
       }
@@ -131,19 +137,17 @@ async function main() {
   for (let index = 0; index < files.length; index += 1) {
     const file = files[index];
     const capture = await captureTime(file.absolutePath);
-    const owner = event.access_mode === "project_shared"
-      ? (() => {
-        const matches = selectedImages.filter((image) => capture.timestampMs !== null && image.captureTimeMs !== null && Math.abs(image.captureTimeMs - capture.timestampMs) <= 2_000);
-        return matches.length === 1
-          ? { personId: null, linkedImageId: matches[0].id, method: "exif" as const }
-          : { personId: null, linkedImageId: null, method: null };
-      })()
-      : resolveDeliveryOwner({ fileName: file.fileName, parentFolderName: file.parentFolderName, captureTimeMs: capture.timestampMs }, linkPeople, selectedImages);
+    const owner = resolveDeliveryOwner(
+      { fileName: file.fileName, parentFolderName: file.parentFolderName, captureTimeMs: capture.timestampMs },
+      event.access_mode === "project_shared" ? [] : linkPeople,
+      selectedImages,
+    );
     const normalized = normalizeDeliveryFileName(file.fileName);
     const groupLabel = event.access_mode === "project_shared" ? file.parentFolderName : owner.personId ? null : file.parentFolderName;
-    const previous = existing.find((delivery) => delivery.person_id === owner.personId
-      && String(delivery.group_label ?? "") === String(groupLabel ?? "")
-      && delivery.normalized_file_name === normalized);
+    const previous = existing.find((delivery) => delivery.normalized_file_name === normalized
+      && ((delivery.person_id === owner.personId
+        && String(delivery.group_label ?? "") === String(groupLabel ?? ""))
+        || (owner.personId && !delivery.person_id && !delivery.linked_image_id)));
     prepared.push({
       file,
       capture,
@@ -248,6 +252,8 @@ async function main() {
       createdVersion = true;
       if (previous) {
         const { error } = await db.from("person_select_deliveries").update({
+          person_id: owner.personId ?? previous.person_id,
+          group_label: owner.personId ? null : groupLabel,
           current_version: version,
           status: nextDeliveryStatus(previous.status, true),
           linked_image_id: owner.linkedImageId ?? previous.linked_image_id,
@@ -256,6 +262,8 @@ async function main() {
         }).eq("id", deliveryId);
         if (error) throw error;
         Object.assign(previous, {
+          person_id: owner.personId ?? previous.person_id,
+          group_label: owner.personId ? null : groupLabel,
           current_version: version,
           status: nextDeliveryStatus(previous.status, true),
           linked_image_id: owner.linkedImageId ?? previous.linked_image_id,
