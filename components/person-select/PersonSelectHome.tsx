@@ -34,6 +34,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
     deliveryState: me?.person.delivery_state,
     deliveries: me?.event.delivery_available ? [{ status: me.person.delivery_state === "approved" ? "approved" : "pending" }] : [],
   });
+  const waitingForDelivery = Boolean(me?.person.submitted_at) && !me?.event.delivery_available;
   useEffect(() => { setViewingStage(currentStage); }, [currentStage]);
   const navigateAfterSubmit = useCallback(() => { window.location.href = `/pick/${slug}/home`; }, [slug]);
   const {
@@ -51,7 +52,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   });
   if (loading) return <main className={styles.page}><div className={styles.done}>사진을 불러오는 중이에요</div></main>;
   if (!me) return <main className={styles.page}><div className={styles.done}>{error || "다시 로그인해 주세요."}</div></main>;
-  const stageHeader = <PersonSelectCustomerStageHeader title={me.event.title} viewerName={me.person.display_name} currentStage={currentStage} viewingStage={viewingStage} onStageChange={setViewingStage} offersOpen={me.event.offers_open === true} offersHref={`/pick/${slug}/order`} />;
+  const stageHeader = <PersonSelectCustomerStageHeader title={me.event.title} viewerName={me.person.display_name} currentStage={currentStage} viewingStage={viewingStage} onStageChange={setViewingStage} offersOpen={me.event.offers_open === true} offersHref={`/pick/${slug}/order`} waitingForDelivery={waitingForDelivery} />;
   const originalsByImageId = Object.fromEntries(me.categories.flatMap((category) => category.choices.flatMap((choice) => choice.thumb_url ? [[choice.image_id, choice.thumb_url] as const] : [])));
   if (viewingStage === 2 || viewingStage === 3) return <PersonSelectDeliveryReview apiBase={`/api/pick/${slug}`} title={me.event.title} viewerName={me.person.display_name} topContent={stageHeader} mode={viewingStage === 3 ? "download" : "review"} originalsByImageId={originalsByImageId} />;
   const visibleCategories = me.categories
@@ -63,7 +64,7 @@ export function PersonSelectHome({ slug }: { slug: string }) {
   const resolvedPcActiveKey = visibleCategories.some((category) => category.key === pcActiveKey) ? pcActiveKey : visibleCategories[0]?.key ?? "profile";
   const review = finalReviewData(visibleCategories);
 
-  if (currentStage > 1) return <main className={styles.page}>{stageHeader}<PastSelectionSummary me={me} /></main>;
+  if (me.person.submitted_at) return <main className={styles.page}>{stageHeader}<PastSelectionSummary me={me} /></main>;
 
   return <main className={`${styles.page} ${styles.pcHomePage} ${styles.pcHomePageWithStage}`}>
     {stageHeader}

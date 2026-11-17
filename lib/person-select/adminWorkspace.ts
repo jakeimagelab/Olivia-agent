@@ -50,7 +50,7 @@ export function resolvePersonSelectCustomerStage(input: {
   const allApproved = deliveries.length > 0
     && deliveries.every((delivery) => delivery.status === "approved");
   if (input.deliveryState === "approved" && allApproved) return 3;
-  if (input.submittedAt || deliveries.length > 0) return 2;
+  if (deliveries.length > 0) return 2;
   return 1;
 }
 

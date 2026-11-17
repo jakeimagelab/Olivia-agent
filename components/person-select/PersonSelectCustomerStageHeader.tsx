@@ -19,6 +19,7 @@ export function PersonSelectCustomerStageHeader({
   onStageChange,
   offersOpen = false,
   offersHref,
+  waitingForDelivery = false,
   trailing,
 }: {
   title: string;
@@ -28,15 +29,20 @@ export function PersonSelectCustomerStageHeader({
   onStageChange: (stage: PersonSelectCustomerStageNumber) => void;
   offersOpen?: boolean;
   offersHref?: string;
+  waitingForDelivery?: boolean;
   trailing?: ReactNode;
 }) {
   const active = STAGES[viewingStage - 1];
+  const activeTitle = waitingForDelivery && viewingStage === 1 ? "보정본을 준비하고 있어요" : active.title;
+  const activeDescription = waitingForDelivery && viewingStage === 1
+    ? "선택한 사진은 안전하게 제출됐어요. 준비가 끝나면 같은 링크에서 확인할 수 있어요."
+    : active.description;
   return <header className={styles.shell}>
     <div className={styles.topline}>
       <div className={styles.heading}>
         <p>{title}{viewerName ? ` · ${viewerName} 님` : ""}</p>
-        <h1>{active.title}</h1>
-        <span>{active.description}</span>
+        <h1>{activeTitle}</h1>
+        <span>{activeDescription}</span>
       </div>
       <div className={styles.actions}>
         {trailing}
@@ -47,7 +53,7 @@ export function PersonSelectCustomerStageHeader({
       {STAGES.map((stage, index) => {
         const reached = stage.number <= currentStage;
         const selected = stage.number === viewingStage;
-        const past = stage.number < currentStage;
+        const past = stage.number < currentStage || (waitingForDelivery && stage.number === 1);
         return <button
           key={stage.number}
           type="button"

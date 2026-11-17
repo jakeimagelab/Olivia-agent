@@ -17,7 +17,8 @@ describe("person select admin workspace model", () => {
 
   it("derives the customer stage and reopens review for a revised photo", () => {
     expect(resolvePersonSelectCustomerStage({})).toBe(1);
-    expect(resolvePersonSelectCustomerStage({ submittedAt: "2026-11-17T00:00:00Z" })).toBe(2);
+    expect(resolvePersonSelectCustomerStage({ submittedAt: "2026-11-17T00:00:00Z" })).toBe(1);
+    expect(resolvePersonSelectCustomerStage({ submittedAt: "2026-11-17T00:00:00Z", deliveries: [{ status: "pending" }] })).toBe(2);
     expect(resolvePersonSelectCustomerStage({ deliveryState: "approved", deliveries: [{ status: "approved" }] })).toBe(3);
     expect(resolvePersonSelectCustomerStage({ deliveryState: "approved", deliveries: [{ status: "revised" }] })).toBe(2);
   });

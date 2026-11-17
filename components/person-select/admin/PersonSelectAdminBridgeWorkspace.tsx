@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Check,
   ChevronDown,
   ChevronRight,
   Clipboard,
@@ -133,7 +132,7 @@ export function PersonSelectAdminBridgeWorkspace({
   onOffersOpenChange: (open: boolean) => void | Promise<void>;
 }) {
   const isShared = data.event.access_mode === "project_shared";
-  const reviewers = data.shared?.reviewers ?? [];
+  const reviewers = useMemo(() => data.shared?.reviewers ?? [], [data.shared?.reviewers]);
   const selectedReviewer = reviewers.find((reviewer) => reviewer.id === selectedReviewerId) ?? reviewers[0] ?? null;
   const [treeFilter, setTreeFilter] = useState<TreeFilter>("all");
   const [treeQuery, setTreeQuery] = useState("");
@@ -173,7 +172,7 @@ export function PersonSelectAdminBridgeWorkspace({
 
   const activePerson = !isShared ? data.people.find((person) => person.id === node.ownerId) ?? data.people[0] ?? null : null;
   const sharedItems = useMemo(() => selectedReviewer?.selection?.items ?? selectedReviewer?.draft?.items ?? [], [selectedReviewer]);
-  const allImages = data.images ?? [];
+  const allImages = useMemo(() => data.images ?? [], [data.images]);
   const imageById = useMemo(() => new Map(allImages.map((image) => [image.id, image])), [allImages]);
 
   const selectedChoices = useMemo(() => {
@@ -182,6 +181,7 @@ export function PersonSelectAdminBridgeWorkspace({
   }, [activePerson?.choices, isShared, sharedItems]);
   const selectedIds = useMemo(() => new Set(selectedChoices.map((choice) => "image_id" in choice ? choice.image_id : "")), [selectedChoices]);
   const selectedOrder = useMemo(() => new Map(selectedChoices.map((choice, index) => [("image_id" in choice ? choice.image_id : ""), index + 1])), [selectedChoices]);
+  const choiceByImageId = useMemo(() => new Map(selectedChoices.map((choice) => [choice.image_id, choice])), [selectedChoices]);
   const ratings = useMemo(() => Object.fromEntries(selectedChoices.map((choice) => {
     const rating = "customer_rating" in choice ? choice.customer_rating : null;
     return [choice.image_id, rating || 5];
@@ -219,16 +219,20 @@ export function PersonSelectAdminBridgeWorkspace({
     }];
   }), [activePerson, imageById, selectedChoices, selectedOrder]);
 
-  const deliveries = isShared ? data.shared?.deliveries ?? [] : activePerson?.deliveries ?? [];
+  const deliveries = useMemo(
+    () => isShared ? data.shared?.deliveries ?? [] : activePerson?.deliveries ?? [],
+    [activePerson?.deliveries, data.shared?.deliveries, isShared],
+  );
   const deliveryPairs = useMemo(() => pairSelectedImagesWithDeliveries(selectedPhotos, deliveries), [deliveries, selectedPhotos]);
-  const basePhotos: WorkspacePhoto[] = node.kind === "selected"
+  const basePhotos = useMemo<WorkspacePhoto[]>(() => node.kind === "selected"
     ? selectedPhotos
-    : ownerImages.map((image) => ({ ...image, choice: selectedChoices.find((choice) => choice.image_id === image.id) ?? null, selectedOrder: selectedOrder.get(image.id) ?? null }));
+    : ownerImages.map((image) => ({ ...image, choice: choiceByImageId.get(image.id) ?? null, selectedOrder: selectedOrder.get(image.id) ?? null })),
+  [choiceByImageId, node.kind, ownerImages, selectedOrder, selectedPhotos]);
   const filteredPhotos = useMemo(() => basePhotos.filter((photo) => {
     if (!matchesBridgeFilenameSearch(photo.original_file_name, searchQuery)) return false;
     return matchesBridgeLabelFilters(photo.id, labelFilters, ratings, colors);
   }), [basePhotos, colors, labelFilters, ratings, searchQuery]);
-  const visiblePhotos = filteredPhotos.slice(0, visibleLimit);
+  const visiblePhotos = useMemo(() => filteredPhotos.slice(0, visibleLimit), [filteredPhotos, visibleLimit]);
 
   useEffect(() => {
     setVisibleLimit(96);
@@ -260,7 +264,15 @@ export function PersonSelectAdminBridgeWorkspace({
     onFilterCommand: applyFilterCommand,
   });
 
-  const ownerIds = isShared ? reviewers.map((reviewer) => reviewer.id) : filteredPeople.map((person) => person.id);
+  const ownerIds = useMemo(
+    () => isShared ? reviewers.map((reviewer) => reviewer.id) : filteredPeople.map((person) => person.id),
+    [filteredPeople, isShared, reviewers],
+  );
+  const selectOwner = useCallback((ownerId: string) => {
+    setNode({ ownerId, kind: "all" });
+    if (isShared) onReviewerSelect(ownerId);
+    else onPersonSelect(ownerId);
+  }, [isShared, onPersonSelect, onReviewerSelect]);
   const handleKeyboard = useCallback((event: React.KeyboardEvent<HTMLElement>) => {
     if (handleSearchFilterShortcut(event.nativeEvent)) return;
     if (["INPUT", "TEXTAREA", "SELECT"].includes((event.target as HTMLElement)?.tagName)) return;
@@ -270,13 +282,7 @@ export function PersonSelectAdminBridgeWorkspace({
     event.preventDefault();
     const nextIndex = event.key === "ArrowDown" ? Math.min(ownerIds.length - 1, index + 1) : Math.max(0, index - 1);
     selectOwner(ownerIds[nextIndex]);
-  }, [handleSearchFilterShortcut, node.ownerId, ownerIds]);
-
-  function selectOwner(ownerId: string) {
-    setNode({ ownerId, kind: "all" });
-    if (isShared) onReviewerSelect(ownerId);
-    else onPersonSelect(ownerId);
-  }
+  }, [handleSearchFilterShortcut, node.ownerId, ownerIds, selectOwner]);
 
   function selectNode(ownerId: string, kind: NodeKind, groupLabel?: string) {
     setNode({ ownerId, kind, groupLabel });
