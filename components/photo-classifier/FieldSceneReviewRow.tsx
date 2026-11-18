@@ -1,6 +1,8 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- File System Access thumbnails are local data URLs. */
 
 import type { CSSProperties } from "react";
+import { getSceneEdgePreviewItems } from "@/lib/photo-classifier/sceneViewer";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 import { formatTime } from "@/lib/photo-classifier/workspaceFormatting";
 import { C } from "./PhotoSortingUi";
@@ -18,6 +20,7 @@ export function FieldSceneReviewRow({
   onSplitScene,
   onMergeScenes,
   onApproveScene,
+  onOpenViewer,
 }: {
   scene: FieldScene;
   listIndex: number;
@@ -31,6 +34,7 @@ export function FieldSceneReviewRow({
   onSplitScene: (listIndex: number, offset: number) => void;
   onMergeScenes: (fromIndex: number, toIndex: number) => void;
   onApproveScene: (listIndex: number) => void;
+  onOpenViewer: (fileIndex: number) => void;
 }) {
   return (
     <>
@@ -44,12 +48,12 @@ export function FieldSceneReviewRow({
           className="pc-mobile-form-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "100px auto 1fr auto",
+            gridTemplateColumns: "204px auto minmax(180px, 1fr) auto",
             gap: 12,
             alignItems: "start",
           }}
         >
-          <SceneEdgePreviews scene={scene} />
+          <SceneEdgePreviews scene={scene} onOpenViewer={onOpenViewer} />
           <div
             style={{
               fontSize: 10,
@@ -304,24 +308,57 @@ function SceneBoundarySummary({ scene }: { scene: FieldScene }) {
   );
 }
 
-function SceneEdgePreviews({ scene }: { scene: FieldScene }) {
+function SceneEdgePreviews({
+  scene,
+  onOpenViewer,
+}: {
+  scene: FieldScene;
+  onOpenViewer: (fileIndex: number) => void;
+}) {
   return (
-    <div style={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
-      {Array.from(new Set([0, scene.files.length - 1])).map((fileIndex, previewIndex) => (
-        scene.files[fileIndex]?.thumbUrl ? (
-          <img
-            key={previewIndex}
-            src={scene.files[fileIndex].thumbUrl ?? undefined}
-            style={{ width: 44, height: 32, objectFit: "cover", borderRadius: 3 }}
-            alt={previewIndex === 0 ? "Scene 시작" : "Scene 마지막"}
-          />
-        ) : (
-          <div
-            key={previewIndex}
-            style={{ width: 44, height: 32, background: C.border, borderRadius: 3 }}
-          />
-        )
-      ))}
+    <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+      {getSceneEdgePreviewItems(scene.files.length).map(({ fileIndex, label }) => {
+        const file = scene.files[fileIndex];
+        return (
+          <button
+            key={`${fileIndex}-${label}`}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenViewer(fileIndex);
+            }}
+            aria-label={`${label} 사진 크게 보기: ${file?.name ?? "사진"}`}
+            title={`${file?.name ?? "사진"} 크게 보기`}
+            style={{
+              width: 96,
+              display: "grid",
+              gap: 4,
+              padding: 0,
+              border: 0,
+              background: "transparent",
+              color: C.muted,
+              cursor: "zoom-in",
+              fontFamily: "inherit",
+              fontSize: 9,
+              textAlign: "center",
+            }}
+          >
+            {file?.thumbUrl ? (
+              <img
+                src={file.thumbUrl}
+                style={{ width: 96, height: 64, objectFit: "cover", borderRadius: 4, display: "block" }}
+                alt=""
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                style={{ width: 96, height: 64, display: "block", background: C.border, borderRadius: 4 }}
+              />
+            )}
+            <span>{label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

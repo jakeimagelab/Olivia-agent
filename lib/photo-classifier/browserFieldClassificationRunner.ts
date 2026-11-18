@@ -215,7 +215,7 @@ export async function runBrowserFieldClassification({
     const thumbIndexes = Array.from(new Set([0, scene.files.length - 1]));
     await Promise.all(thumbIndexes.map(async (index) => {
       try {
-        scene.files[index].thumbUrl = await runtime.loadThumbnail(await scene.files[index].handle.getFile(), 160);
+        scene.files[index].thumbUrl = await runtime.loadThumbnail(await scene.files[index].handle.getFile(), 320);
       } catch (error) {
         console.error("[OLIVIA] Suppressed error", error);
       }

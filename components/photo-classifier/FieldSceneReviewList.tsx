@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import type { SceneMergeCandidate } from "@/lib/photo-classifier/scene-merge-types";
 import type { FieldScene } from "@/lib/photo-classifier/types";
 import { FieldSceneMergeCandidateCard } from "./FieldSceneMergeCandidateCard";
 import { FieldSceneReviewRow } from "./FieldSceneReviewRow";
 import { C, Card } from "./PhotoSortingUi";
+import { SceneImageViewer } from "./SceneImageViewer";
 
 export function FieldSceneReviewList({
   scenes,
@@ -41,59 +43,81 @@ export function FieldSceneReviewList({
   onApproveScene: (listIndex: number) => void;
   onDismissCandidate: (candidateId: string) => void;
 }) {
-  return (
-    <Card>
-      <div
-        style={{
-          padding: "14px 20px",
-          borderBottom: `1px solid ${C.border}`,
-          fontSize: 12,
-          fontWeight: 600,
-          color: C.teal,
-        }}
-      >
-        씬 검토 — JPG {totalJpg}장 / RAW {rawCount}개 / {departmentLabel}
-      </div>
-      <div style={{ padding: "8px 0" }}>
-        {scenes.map((scene, listIndex) => {
-          const nextScene = scenes[listIndex + 1];
-          const candidate = nextScene
-            ? mergeCandidates.find(
-                (item) => item.fromFolderName === scene.folderName
-                  && item.toFolderName === nextScene.folderName
-                  && !dismissedCandidates.has(item.id),
-              )
-            : undefined;
+  const [viewer, setViewer] = useState<{ sceneListIndex: number; fileIndex: number } | null>(null);
+  const viewerScene = viewer ? scenes[viewer.sceneListIndex] : undefined;
 
-          return (
-            <div key={scene.index}>
-              <FieldSceneReviewRow
-                scene={scene}
-                listIndex={listIndex}
-                sceneCount={scenes.length}
-                splitPosition={splitPositions[scene.index] ?? 1}
-                onSceneFocus={onSceneFocus}
-                onSceneNameChange={onSceneNameChange}
-                onSceneNameCommit={onSceneNameCommit}
-                onSuggestedNameApply={onSuggestedNameApply}
-                onSplitPositionChange={onSplitPositionChange}
-                onSplitScene={onSplitScene}
-                onMergeScenes={onMergeScenes}
-                onApproveScene={onApproveScene}
-              />
-              {candidate && nextScene ? (
-                <FieldSceneMergeCandidateCard
+  return (
+    <>
+      <Card>
+        <div
+          style={{
+            padding: "14px 20px",
+            borderBottom: `1px solid ${C.border}`,
+            fontSize: 12,
+            fontWeight: 600,
+            color: C.teal,
+          }}
+        >
+          씬 검토 — JPG {totalJpg}장 / RAW {rawCount}개 / {departmentLabel}
+        </div>
+        <div style={{ padding: "8px 0" }}>
+          {scenes.map((scene, listIndex) => {
+            const nextScene = scenes[listIndex + 1];
+            const candidate = nextScene
+              ? mergeCandidates.find(
+                  (item) => item.fromFolderName === scene.folderName
+                    && item.toFolderName === nextScene.folderName
+                    && !dismissedCandidates.has(item.id),
+                )
+              : undefined;
+
+            return (
+              <div key={scene.index}>
+                <FieldSceneReviewRow
                   scene={scene}
-                  nextScene={nextScene}
-                  candidate={candidate}
-                  onMerge={() => onMergeScenes(listIndex, listIndex + 1, candidate.id)}
-                  onKeepSplit={() => onDismissCandidate(candidate.id)}
+                  listIndex={listIndex}
+                  sceneCount={scenes.length}
+                  splitPosition={splitPositions[scene.index] ?? 1}
+                  onSceneFocus={onSceneFocus}
+                  onSceneNameChange={onSceneNameChange}
+                  onSceneNameCommit={onSceneNameCommit}
+                  onSuggestedNameApply={onSuggestedNameApply}
+                  onSplitPositionChange={onSplitPositionChange}
+                  onSplitScene={onSplitScene}
+                  onMergeScenes={onMergeScenes}
+                  onApproveScene={onApproveScene}
+                  onOpenViewer={(fileIndex) => setViewer({ sceneListIndex: listIndex, fileIndex })}
                 />
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
-    </Card>
+                {candidate && nextScene ? (
+                  <FieldSceneMergeCandidateCard
+                    scene={scene}
+                    nextScene={nextScene}
+                    candidate={candidate}
+                    onMerge={() => onMergeScenes(listIndex, listIndex + 1, candidate.id)}
+                    onKeepSplit={() => onDismissCandidate(candidate.id)}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {viewer && viewerScene ? (
+        <SceneImageViewer
+          scene={viewerScene}
+          currentIndex={viewer.fileIndex}
+          recommendedSplitPosition={splitPositions[viewerScene.index]}
+          onCurrentIndexChange={(fileIndex) => setViewer((current) => (
+            current ? { ...current, fileIndex } : null
+          ))}
+          onClose={() => setViewer(null)}
+          onSplit={(offset) => {
+            setViewer(null);
+            onSplitScene(viewer.sceneListIndex, offset);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
