@@ -3383,3 +3383,42 @@ button.homeSummaryRow:hover { background: var(--ui-green-soft, #E2EBE3); }
 .desktop .homeSummaryRow small {
   font-size: var(--ui2-f1) !important;
 }
+
+/* Olivia side chat keeps the OS structure, but needs a neutral reading surface.
+   Do not inherit the shell's green workspace tint into long conversations. */
+.desktop .appChatPanel,
+.desktop .appChatHeader,
+.desktop .appChatScope {
+  background: var(--ui2-card);
+}
+
+.desktop .appChatDock :global(.olivia-conversation),
+.desktop .appChatDock :global(.olivia-conversation__stage),
+.desktop .appChatDock :global(.olivia-conversation__main),
+.desktop .appChatDock :global(.olivia-conversation__messages),
+.desktop .appChatDock :global(.olivia-conversation__suggestions--desktop-panel),
+.desktop .appChatDock :global(.olivia-composer-shell) {
+  background: #F6F6F2;
+}
+
+.desktop .appChatDock :global(.olivia-message.is-assistant .olivia-message__body) {
+  border-color: var(--ui2-line);
+  background: #FFFFFF;
+  color: var(--ui2-text);
+}
+
+.desktop .appChatDock :global(.olivia-message.is-user .olivia-message__body) {
+  border-color: var(--ui2-run);
+  background: var(--ui2-run);
+  color: var(--ui2-on-run);
+  box-shadow: 0 4px 14px rgba(201, 74, 30, .14);
+}
+
+.desktop .appChatDock :global(.olivia-message.is-user .olivia-message__body :where(div, span, p, ol, ul, li, strong, em, code, a)) {
+  color: inherit;
+}
+
+.desktop .appChatDock :global(.olivia-composer) {
+  border-color: var(--ui2-line-strong);
+  background: #FFFFFF;
+}
