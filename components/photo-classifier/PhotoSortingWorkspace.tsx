@@ -520,7 +520,9 @@ function PhotoSortingInner({
   });
 
   usePhotoSortingBridgePlan({
-    enabled: isEmbedded && executionMode === "LOCAL_DIRECT",
+    // Bridge 계획 자체에 브라우저 폴더 핸들이 들어 있으므로, 이전에 저장된
+    // 실행 모드가 REMOTE_WORKER여도 계획을 소비해 Scene 검토로 진입해야 한다.
+    enabled: isEmbedded,
     pendingPlan: pendingBridgeClassificationPlan,
     takePlan: takeBridgeClassificationPlan,
     currentLocalFolder,

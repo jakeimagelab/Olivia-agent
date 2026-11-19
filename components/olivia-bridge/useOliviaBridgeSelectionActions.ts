@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { useCallback } from "react";
 
 import type { BridgeSelectedIdsUpdater } from "@/components/olivia-bridge/useOliviaBridgeSelectionState";
 import { mergeBridgeSelectionIds } from "@/lib/photo-bridge/selectionChange";
@@ -15,7 +15,6 @@ export function useOliviaBridgeSelectionActions({
   setSelectedIds,
   resetComparisonFilter,
   syncAdobeBridgeSelection,
-  setSceneReviewOpen,
 }: {
   folderSelectionSourceKey: string;
   activateSelectionSource: (source: BridgeSelectionSource) => void;
@@ -25,7 +24,6 @@ export function useOliviaBridgeSelectionActions({
   setSelectedIds: (value: BridgeSelectedIdsUpdater) => void;
   resetComparisonFilter: () => void;
   syncAdobeBridgeSelection: () => Promise<void>;
-  setSceneReviewOpen: Dispatch<SetStateAction<boolean>>;
 }) {
   const changeSelectionSource = useCallback((source: BridgeSelectionSource) => {
     activateSelectionSource(source);
@@ -45,10 +43,6 @@ export function useOliviaBridgeSelectionActions({
     resetComparisonFilter();
   }, [customerSelectedIds, resetComparisonFilter, setSelectedIds]);
 
-  const openSceneReview = useCallback(() => {
-    setSceneReviewOpen(true);
-  }, [setSceneReviewOpen]);
-
   const refreshAdobeMarks = useCallback(() => {
     void syncAdobeBridgeSelection();
   }, [syncAdobeBridgeSelection]);
@@ -56,7 +50,6 @@ export function useOliviaBridgeSelectionActions({
   return {
     changeSelectionSource,
     addCustomerSelectionToAdminSelection,
-    openSceneReview,
     refreshAdobeMarks,
   };
 }

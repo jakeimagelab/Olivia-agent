@@ -647,6 +647,9 @@ export default function OliviaBridgeWorkspace({
     setRawMatchTargetMode,
     setToolKey,
   });
+  const openClassificationReview = useCallback(() => {
+    openTool("classification");
+  }, [openTool]);
 
   const retouchDisabledReason = scanStatus !== "ready"
     ? "사진 폴더를 먼저 선택해 주세요."
@@ -729,7 +732,6 @@ export default function OliviaBridgeWorkspace({
   const {
     changeSelectionSource,
     addCustomerSelectionToAdminSelection,
-    openSceneReview,
     refreshAdobeMarks,
   } = useOliviaBridgeSelectionActions({
     folderSelectionSourceKey,
@@ -740,7 +742,6 @@ export default function OliviaBridgeWorkspace({
     setSelectedIds,
     resetComparisonFilter,
     syncAdobeBridgeSelection,
-    setSceneReviewOpen,
   });
   return (
     <div ref={rootRef} className={styles.bridge} data-desktop-ui={desktopWindowMode ? "true" : "false"} tabIndex={0} onKeyDown={handleKeyboard} aria-label="Olivia Bridge 사진 작업공간">
@@ -748,7 +749,7 @@ export default function OliviaBridgeWorkspace({
         hasActiveFolder={hasActiveFolder}
         sceneStatus={sceneState}
         connectionLabel={remoteFolder ? "NAS 연결" : activeFolder ? "Mac 연결" : "폴더 미연결"}
-        onOpenSceneReview={openSceneReview}
+        onOpenSceneReview={openClassificationReview}
         onOpenOlivia={openOliviaPreview}
         folderSourceOpen={folderSourceOpen}
         onOpenFolderSource={openFolderSourceChooser}

@@ -50,18 +50,25 @@ describe("Olivia Bridge Scene 검토 상태", () => {
     const workspace = readFileSync("components/olivia-bridge/OliviaBridgeWorkspace.tsx", "utf8");
     const analysisHook = readFileSync("components/olivia-bridge/useOliviaBridgeSceneAnalysis.ts", "utf8");
     const toolLaunch = readFileSync("components/olivia-bridge/useOliviaBridgeToolLaunch.ts", "utf8");
-    const selectionActions = readFileSync("components/olivia-bridge/useOliviaBridgeSelectionActions.ts", "utf8");
     const sceneCache = readFileSync("lib/photo-classifier/scene-cache.ts", "utf8");
     const bridgeFiles = readFileSync("lib/photo-bridge/bridgeFiles.ts", "utf8");
 
     expect(workspace).toContain("jpgs: sceneAnalysisJpgs");
     expect(workspace).toContain("enabled: sceneReviewOpen");
+    expect(workspace).toContain("openTool(\"classification\")");
+    expect(workspace).toContain("onOpenSceneReview={openClassificationReview}");
     expect(analysisHook).toContain("if (!enabled || !hasActiveFolder || scanStatus !== \"ready\") return");
     expect(toolLaunch).not.toContain("void syncAdobeBridgeSelection()");
-    expect(selectionActions).toContain("const openSceneReview = useCallback(() => {\n    setSceneReviewOpen(true);\n  }, [setSceneReviewOpen]);");
     expect(sceneCache).toContain("export async function getCachedFeatures");
     expect(sceneCache).toContain("export async function setCachedFeatures");
     expect(bridgeFiles).toContain("const cached = await getCachedFeatures(cacheKeys)");
     expect(bridgeFiles).toContain("await setCachedFeatures(cacheEntries)");
+  });
+
+  it("Bridge 계획은 이전 원격 실행 모드와 무관하게 Scene 검토로 적용한다", () => {
+    const workspace = readFileSync("components/photo-classifier/PhotoSortingWorkspace.tsx", "utf8");
+
+    expect(workspace).toContain("enabled: isEmbedded,");
+    expect(workspace).not.toContain("enabled: isEmbedded && executionMode === \"LOCAL_DIRECT\"");
   });
 });
