@@ -1,6 +1,7 @@
 import { copyFileHandle, renameDirHandle, type SplitRawFile } from "./browserFileOps";
 import { loadThumb } from "./browserProcessing";
 import { clearClassificationCheckpoint } from "./scene-cache";
+import { isCameraGeneratedFolderName } from "./departmentResolver";
 import type { AccuracyReport, SceneBoundaryDecision, SceneCorrection } from "./hybrid-types";
 import type { FieldScene, SceneFile } from "./types";
 import { makeCSV } from "./workspaceFormatting";
@@ -26,6 +27,78 @@ export function sanitizeFieldSceneFolderName(name: string, sceneIndex: number): 
     .replace(/[\\/:*?"<>|]/gu, "_")
     .replace(/[. ]+$/gu, "");
   return sanitized || `Scene_${String(sceneIndex + 1).padStart(2, "0")}`;
+}
+
+type DirectoryWithEntries = FileSystemDirectoryHandle & {
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
+};
+
+function cameraSourceFolderNames(
+  rootDirectory: FileSystemDirectoryHandle,
+  scenes: readonly FieldScene[],
+): string[] {
+  const rootName = rootDirectory.name.normalize("NFC");
+  const names = new Set<string>();
+  for (const scene of scenes) {
+    for (const entry of scene.files) {
+      if (!entry.sourceDirectory || entry.sourceDirectory === rootDirectory) continue;
+      const topLevelName = String(entry.relativePath ?? "")
+        .split(/[\\/]/u)
+        .map((segment) => segment.normalize("NFC").trim())
+        .find(Boolean);
+      const candidate = topLevelName || entry.sourceDirectory.name.normalize("NFC").trim();
+      if (!candidate || candidate === rootName || !isCameraGeneratedFolderName(candidate)) continue;
+      names.add(candidate);
+    }
+  }
+  return [...names];
+}
+
+async function pruneEmptyDirectoryTree({
+  parent,
+  directoryName,
+  relativePath,
+  removed,
+  onSuppressedError,
+}: {
+  parent: FileSystemDirectoryHandle;
+  directoryName: string;
+  relativePath: string;
+  removed: string[];
+  onSuppressedError: (error: unknown) => void;
+}): Promise<boolean> {
+  let directory: FileSystemDirectoryHandle;
+  try {
+    directory = await parent.getDirectoryHandle(directoryName);
+  } catch (error) {
+    onSuppressedError(error);
+    return false;
+  }
+
+  try {
+    const childDirectories: string[] = [];
+    for await (const [childName, handle] of (directory as DirectoryWithEntries).entries()) {
+      if (handle.kind === "directory") childDirectories.push(childName);
+    }
+    for (const childName of childDirectories) {
+      await pruneEmptyDirectoryTree({
+        parent: directory,
+        directoryName: childName,
+        relativePath: `${relativePath}/${childName}`,
+        removed,
+        onSuppressedError,
+      });
+    }
+
+    // 파일 이동 실패나 XMP·숨김 파일이 하나라도 남아 있으면 상위 폴더를 보존한다.
+    for await (const _entry of (directory as DirectoryWithEntries).entries()) return false;
+    await parent.removeEntry(directoryName);
+    removed.push(relativePath);
+    return true;
+  } catch (error) {
+    onSuppressedError(error);
+    return false;
+  }
 }
 
 async function writeReport(
@@ -74,12 +147,15 @@ export async function executePlannedFieldOutput({
   jpgBaseDirectory: FileSystemDirectoryHandle;
   totalFiles: number;
   operations: FieldFileOperation[];
+  removedSourceFolders: string[];
 }> {
   const totalFiles = scenes.reduce((sum, scene) => sum + scene.fileCount, 0);
   const directSceneOutput = scenes.some((scene) => scene.files.some((entry) => (
     Boolean(entry.sourceDirectory) && entry.sourceDirectory !== rootDirectory
   )));
   const operations: FieldFileOperation[] = [];
+  const sourceFolderNames = directSceneOutput ? cameraSourceFolderNames(rootDirectory, scenes) : [];
+  const removedSourceFolders: string[] = [];
   let completed = 0;
   let lastUpdate = Date.now();
   let reportDirectory: FileSystemDirectoryHandle | null = null;
@@ -233,6 +309,17 @@ export async function executePlannedFieldOutput({
   }
 
   await flushJournal();
+  if (!isCancelled()) {
+    for (const sourceFolderName of sourceFolderNames) {
+      await pruneEmptyDirectoryTree({
+        parent: rootDirectory,
+        directoryName: sourceFolderName,
+        relativePath: sourceFolderName,
+        removed: removedSourceFolders,
+        onSuppressedError,
+      });
+    }
+  }
   const finalizers: Array<() => Promise<unknown>> = [() => clearCheckpoint(checkpointId)];
   if (reportDirectory) {
     finalizers.push(
@@ -275,7 +362,7 @@ export async function executePlannedFieldOutput({
     }
   }));
 
-  return { scenes: updated, jpgBaseDirectory, totalFiles, operations };
+  return { scenes: updated, jpgBaseDirectory, totalFiles, operations, removedSourceFolders };
 }
 
 export async function renameConfirmedFieldScenes({

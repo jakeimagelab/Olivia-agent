@@ -12,6 +12,7 @@ type FakeStoredFile = {
 };
 
 class FakeDirectory {
+  readonly kind = "directory";
   readonly directories = new Map<string, FakeDirectory>();
   readonly files = new Map<string, FakeStoredFile>();
   readonly removed: string[] = [];
@@ -49,6 +50,17 @@ class FakeDirectory {
 
   async removeEntry(name: string) {
     this.removed.push(name);
+    this.files.delete(name);
+    this.directories.delete(name);
+  }
+
+  async *entries(): AsyncIterableIterator<[string, FileSystemHandle]> {
+    for (const [name, directory] of this.directories) {
+      yield [name, directory as unknown as FileSystemDirectoryHandle];
+    }
+    for (const name of this.files.keys()) {
+      yield [name, { kind: "file", name } as FileSystemFileHandle];
+    }
   }
 }
 
@@ -154,6 +166,8 @@ describe("field output", () => {
   it("카메라 하위 폴더 원본을 JPG전체 바로 아래 Scene으로 옮긴다", async () => {
     const jpgRoot = new FakeDirectory("JPG전체");
     const cameraFolder = new FakeDirectory("100MSDCF");
+    jpgRoot.directories.set(cameraFolder.name, cameraFolder);
+    await cameraFolder.getFileHandle("IMG_0001.JPG");
     const sourceJpg = {} as FileSystemFileHandle;
     const scene = makeScene(sourceJpg, "01_상담", "100MSDCF_IMG_0001.JPG");
     scene.files[0] = {
@@ -181,12 +195,117 @@ describe("field output", () => {
 
     expect(jpgRoot.directories.has("01_상담")).toBe(true);
     expect(jpgRoot.directories.has("JPG")).toBe(false);
+    expect(jpgRoot.directories.has("100MSDCF")).toBe(false);
     expect(cameraFolder.removed).toEqual(["IMG_0001.JPG"]);
+    expect(result.removedSourceFolders).toEqual(["100MSDCF"]);
     expect(result.operations).toEqual([expect.objectContaining({
       source: "100MSDCF/IMG_0001.JPG",
       destination: "01_상담/100MSDCF_IMG_0001.JPG",
       status: "completed",
     })]);
+  });
+
+  it("카메라 폴더에 XMP 등 다른 파일이 남으면 폴더를 보존한다", async () => {
+    const jpgRoot = new FakeDirectory("JPG전체");
+    const cameraFolder = new FakeDirectory("100MSDCF");
+    jpgRoot.directories.set(cameraFolder.name, cameraFolder);
+    await cameraFolder.getFileHandle("IMG_0001.JPG");
+    await cameraFolder.getFileHandle("IMG_0001.XMP");
+    const scene = makeScene({} as FileSystemFileHandle, "01_상담", "IMG_0001.JPG");
+    scene.files[0] = {
+      ...scene.files[0],
+      sourceDirectory: asDirectory(cameraFolder),
+      sourceName: "IMG_0001.JPG",
+      relativePath: "100MSDCF/IMG_0001.JPG",
+    };
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(jpgRoot),
+      scenes: [scene],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "camera-sidecar",
+      isCancelled: () => false,
+      copyFile: async (_source, destination, name) => {
+        await destination.getFileHandle(name, { create: true });
+      },
+      thumbnailLoader: async () => null,
+      clearCheckpoint: async () => undefined,
+    });
+
+    expect(jpgRoot.directories.has("100MSDCF")).toBe(true);
+    expect(cameraFolder.files.has("IMG_0001.XMP")).toBe(true);
+    expect(result.removedSourceFolders).toEqual([]);
+  });
+
+  it("빈 카메라 하위 폴더 구조를 아래에서부터 정리한다", async () => {
+    const jpgRoot = new FakeDirectory("JPG전체");
+    const cameraFolder = new FakeDirectory("100MSDCF");
+    const nestedFolder = new FakeDirectory("DAY_01");
+    jpgRoot.directories.set(cameraFolder.name, cameraFolder);
+    cameraFolder.directories.set(nestedFolder.name, nestedFolder);
+    await nestedFolder.getFileHandle("IMG_0001.JPG");
+    const scene = makeScene({} as FileSystemFileHandle, "01_상담", "IMG_0001.JPG");
+    scene.files[0] = {
+      ...scene.files[0],
+      sourceDirectory: asDirectory(nestedFolder),
+      sourceName: "IMG_0001.JPG",
+      relativePath: "100MSDCF/DAY_01/IMG_0001.JPG",
+    };
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(jpgRoot),
+      scenes: [scene],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "camera-nested",
+      isCancelled: () => false,
+      copyFile: async (_source, destination, name) => {
+        await destination.getFileHandle(name, { create: true });
+      },
+      thumbnailLoader: async () => null,
+      clearCheckpoint: async () => undefined,
+    });
+
+    expect(jpgRoot.directories.has("100MSDCF")).toBe(false);
+    expect(cameraFolder.removed).toContain("DAY_01");
+    expect(result.removedSourceFolders).toEqual(["100MSDCF/DAY_01", "100MSDCF"]);
+  });
+
+  it("이동에 실패한 JPG가 남으면 카메라 폴더를 보존한다", async () => {
+    const jpgRoot = new FakeDirectory("JPG전체");
+    const cameraFolder = new FakeDirectory("100MSDCF");
+    jpgRoot.directories.set(cameraFolder.name, cameraFolder);
+    await cameraFolder.getFileHandle("IMG_0001.JPG");
+    const scene = makeScene({} as FileSystemFileHandle, "01_상담", "IMG_0001.JPG");
+    scene.files[0] = {
+      ...scene.files[0],
+      sourceDirectory: asDirectory(cameraFolder),
+      sourceName: "IMG_0001.JPG",
+      relativePath: "100MSDCF/IMG_0001.JPG",
+    };
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(jpgRoot),
+      scenes: [scene],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "camera-failed",
+      isCancelled: () => false,
+      copyFile: async () => { throw new Error("copy failed"); },
+      clearCheckpoint: async () => undefined,
+    });
+
+    expect(jpgRoot.directories.has("100MSDCF")).toBe(true);
+    expect(cameraFolder.files.has("IMG_0001.JPG")).toBe(true);
+    expect(result.removedSourceFolders).toEqual([]);
+    expect(result.operations).toEqual([expect.objectContaining({ status: "failed", error: "copy failed" })]);
   });
 
   it("keeps organizing files when journal, final reports, and checkpoint cleanup fail", async () => {
