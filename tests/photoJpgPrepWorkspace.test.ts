@@ -113,6 +113,23 @@ describe("JPG정리 계획", () => {
     expect(destination.fileHandleLookups).toBe(0);
   });
 
+  it("평탄화할 때 같은 파일명은 카메라 폴더명을 붙여 구분한다", async () => {
+    const root = new TestDirectory("촬영");
+    root.add(new TestDirectory("100MSDCF").add(new TestFile("IMG_0001.JPG", 100, 5)));
+    root.add(new TestDirectory("101MSDCF").add(new TestFile("IMG_0001.JPG", 110, 6)));
+
+    const plan = await buildJpgPrepPlan(root as unknown as FileSystemDirectoryHandle, {
+      includeSubdirectories: true,
+      preserveStructure: false,
+    });
+
+    expect(plan.rows.map((row) => row.destinationPath)).toEqual([
+      "JPG전체/100MSDCF_IMG_0001.JPG",
+      "JPG전체/101MSDCF_IMG_0001.JPG",
+    ]);
+    expect(plan.rows.every((row) => row.status === "move")).toBe(true);
+  });
+
   it("calls moveFileFast only with JPG plan rows and documents RAW as untouched", () => {
     const source = readFileSync(new URL("../lib/photo-workspace/jpgPrep.ts", import.meta.url), "utf8");
     expect(source).toContain("moveFileFast({ src: row.fileHandle");

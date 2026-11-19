@@ -81,7 +81,7 @@ export async function collectAdobeBridgeMarks(
       const index = cursor++;
       if (index >= photos.length) return;
       const photo = photos[index];
-      const basename = photo.name.replace(/\.[^.]+$/, "");
+      const basename = (photo.sourceName ?? photo.name).replace(/\.[^.]+$/, "");
       try {
         const ratingDirectory = await directoryFor(photo);
         const freshFile = photo.handle ? await photo.handle.getFile() : photo.file;

@@ -40,7 +40,7 @@ export function useOliviaBridgeSceneAnalysis({
   scanStatus,
   jpgs,
   folderPath,
-  activeFolderName,
+  folderPathSegments,
   clientId,
   workflowRunId,
   setDepartmentResolution,
@@ -50,7 +50,7 @@ export function useOliviaBridgeSceneAnalysis({
   scanStatus: "idle" | "restoring" | "loading" | "ready" | "error";
   jpgs: readonly BridgeJpgFile[];
   folderPath: string;
-  activeFolderName: string;
+  folderPathSegments: readonly string[];
   clientId?: string;
   workflowRunId?: string;
   setDepartmentResolution: (resolution: PhotoDepartmentResolution) => void;
@@ -144,27 +144,27 @@ export function useOliviaBridgeSceneAnalysis({
   }, [analysisKey, enabled, folderPath, hasActiveFolder, scanStatus, sceneRunKey]);
 
   useEffect(() => {
-    if (!hasActiveFolder || !activeFolderName || scanStatus !== "ready") return;
+    if (!hasActiveFolder || !folderPathSegments.length || scanStatus !== "ready") return;
     const controller = new AbortController();
     setDepartmentLoading(true);
     setDepartmentError("");
     setDepartmentPickerOpen(false);
-    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName: activeFolderName }, { signal: controller.signal })
+    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderPath: folderPathSegments }, { signal: controller.signal })
       .then((resolution) => {
         setDepartmentResolution(resolution);
-        setDepartmentPickerOpen(resolution.status !== "resolved");
+        setDepartmentPickerOpen(false);
       })
       .catch((error) => {
         if (controller.signal.aborted) return;
         setDepartmentResolution({ status: "unknown", evidence: [] });
-        setDepartmentPickerOpen(true);
+        setDepartmentPickerOpen(false);
         setDepartmentError(error instanceof Error ? error.message : "진료과 정보를 확인하지 못했습니다.");
       })
       .finally(() => {
         if (!controller.signal.aborted) setDepartmentLoading(false);
       });
     return () => controller.abort();
-  }, [activeFolderName, clientId, hasActiveFolder, scanStatus, setDepartmentResolution, workflowRunId]);
+  }, [clientId, folderPathSegments, hasActiveFolder, scanStatus, setDepartmentResolution, workflowRunId]);
 
   const chooseDepartment = useCallback((department: MedicalDepartment) => {
     setDepartmentResolution(manualPhotoDepartmentResolution(department));

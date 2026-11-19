@@ -17,6 +17,10 @@ export type BridgeFileKind = "jpg" | "raw" | "sidecar" | "other";
 export type BridgeJpgFile = {
   id: string;
   name: string;
+  /** 카메라 하위 폴더 통합 시 실제 원본 파일명. */
+  sourceName?: string;
+  /** 사진 분류 출력에서만 사용하는 충돌 없는 파일명. 다른 Bridge 도구에는 영향을 주지 않는다. */
+  classificationName?: string;
   relativeDirectory: string;
   relativePath: string;
   extension: string;
@@ -44,6 +48,11 @@ export type BridgeFolderScan = {
   ignoredCount: number;
   nestedJpgCount: number;
   unreadableFolderCount: number;
+  classificationScope?: {
+    outputDirectory: FileSystemDirectoryHandle;
+    folderPath: string[];
+    sourceFolderNames: string[];
+  };
 };
 
 export type BridgeFolderScanOptions = {
@@ -315,6 +324,8 @@ async function timestampBridgeFiles(
   });
   return sortTimestampedFiles(metadata.map((entry): TimestampedBridgeFile => ({
     ...entry,
+    name: entry.classificationName ?? entry.name,
+    sourceName: entry.sourceName ?? entry.name,
     mtime: entry.captureTimestamp ?? entry.lastModified,
     timestampSource: entry.timestampSource ?? "mtime",
   })));

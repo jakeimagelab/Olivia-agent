@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { FieldScene, FieldStats, MedicalDepartment } from "@/lib/photo-classifier/types";
 import { DEPARTMENT_DISPLAY } from "@/lib/photo-classifier/types";
@@ -169,6 +169,7 @@ function PhotoSortingInner({
   const [photoMode,  setPhotoMode]  = useState<PhotoMode>("field");
   const [step,       setStep]       = useState(0);
   const [rootDir,    setRootDir]    = useState<FileSystemDirectoryHandle | null>(null);
+  const [rootFolderDisplayPath, setRootFolderDisplayPath] = useState("");
   useEffect(() => {
     if (rootDir) setCurrentLocalFolder(rootDir);
   }, [rootDir, setCurrentLocalFolder]);
@@ -242,6 +243,14 @@ function PhotoSortingInner({
   const departmentFolderName = executionMode === "LOCAL_DIRECT"
     ? rootDir?.name ?? ""
     : remoteSelection?.path ?? "";
+  const departmentFolderPath = useMemo(() => (
+    executionMode === "LOCAL_DIRECT"
+      ? (rootDir ? [rootDir.name] : [])
+      : (remoteSelection?.displayPath ?? remoteSelection?.path ?? "")
+        .split("/")
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+  ), [executionMode, remoteSelection?.displayPath, remoteSelection?.path, rootDir]);
   const {
     chooseDepartment: chooseFieldDepartment,
     contextKeyRef: departmentContextKeyRef,
@@ -256,6 +265,7 @@ function PhotoSortingInner({
     clientId,
     workflowRunId,
     folderName: departmentFolderName,
+    folderPath: departmentFolderPath,
     setDepartment,
     setResolution: setPhotoDepartmentResolution,
   });
@@ -287,7 +297,7 @@ function PhotoSortingInner({
     photoMode,
     classificationMode: classificationUiMode,
     step,
-    departmentResolved: photoDepartmentResolution.status === "resolved",
+    departmentResolved: photoDepartmentResolution.status === "resolved" || Boolean(remoteSelection?.path),
     department,
     gapMinutes,
   });
@@ -324,7 +334,7 @@ function PhotoSortingInner({
     aiNamingEnabled,
     qualityAnalysisEnabled,
     profileClassificationEnabled,
-    departmentResolved: photoDepartmentResolution.status === "resolved",
+    departmentResolved: photoDepartmentResolution.status === "resolved" || Boolean(rootDir),
     workerOffline: remoteWorkerOffline,
     workFolderState: remoteWorkFolderCheck,
     workFolderReady: remoteWorkFolderReady,
@@ -413,6 +423,7 @@ function PhotoSortingInner({
     departmentContextKeyRef,
     setPhotoDepartmentResolution,
     setRootDirectory: setRootDir,
+    setRootFolderDisplayPath,
     setDepartmentContextError,
     setDepartmentPickerOpen,
     remoteJobActive,
@@ -520,6 +531,7 @@ function PhotoSortingInner({
     updateProgress: setProgress,
     setCurrentLocalFolder,
     setRootDirectory: setRootDir,
+    setRootFolderDisplayPath,
     setPhotoMode,
     setFastAnalyzeMode,
     setDepartment,
@@ -662,7 +674,9 @@ function PhotoSortingInner({
   /* ════════════════════════════════════════════
      STEP 0 — 설정 (FIELD)
   ═══════════════════════════════════════════ */
-  const departmentReady = photoDepartmentResolution.status === "resolved";
+  const hasDepartmentSource = Boolean(rootDir) || Boolean(remoteSelection?.path);
+  const departmentReady = photoDepartmentResolution.status === "resolved"
+    || (hasDepartmentSource && !departmentContextLoading);
   const setupView = (
     <PhotoSortingSetupView
         savedSession={savedSession}
@@ -795,7 +809,7 @@ function PhotoSortingInner({
         studioSubMode={studioSubMode}
         department={department}
         gapMinutes={gapMinutes}
-        rootFolderName={rootDir?.name ?? ""}
+        rootFolderName={rootFolderDisplayPath || rootDir?.name || ""}
       >
         {step===0 && setupView}
 
@@ -897,7 +911,7 @@ function PhotoSortingInner({
           <StudioClassificationCompletionStep
             stats={studioStats}
             subMode={studioSubMode}
-            rootFolderName={rootDir?.name ?? ""}
+            rootFolderName={rootFolderDisplayPath || rootDir?.name || ""}
             personGroups={personGroups}
             conceptGroups={studioGroups}
             onReset={resetStudioClassification}

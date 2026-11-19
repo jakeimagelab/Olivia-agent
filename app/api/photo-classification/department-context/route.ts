@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
   const requestedClientId = params.get("clientId")?.trim() || "";
   const workflowRunId = params.get("workflowRunId")?.trim() || "";
   const folderName = params.get("folderName")?.trim() || "";
-  if (!requestedClientId && !workflowRunId && !folderName) {
+  const folderPath = params.getAll("folderPath").map((segment) => segment.trim()).filter(Boolean);
+  const folderContext = folderPath.length ? folderPath : folderName;
+  if (!requestedClientId && !workflowRunId && !folderName && !folderPath.length) {
     return Response.json({ ok: false, error: "고객, 프로젝트 또는 폴더 정보가 필요합니다." }, { status: 400 });
   }
 
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
     linkedSource = "linked_project";
   }
 
-  const normalizedClientName = folderName ? photoFolderClientName(folderName) : "";
+  const normalizedClientName = folderContext ? photoFolderClientName(folderContext) : "";
   const [linkedResult, matchedResult] = await Promise.all([
     linkedClientId
       ? db.from("clients").select("id,hospital_name,specialty").eq("id", linkedClientId).maybeSingle()
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
     warnings.push("같은 병원명의 등록 고객이 여러 명이라 폴더 고객 정보는 자동 적용하지 않았습니다.");
   }
 
-  const folderEvidence = photoDepartmentEvidence(folderName, "folder_name");
+  const folderEvidence = photoDepartmentEvidence(normalizedClientName, "folder_name");
   if (folderEvidence) evidence.push(folderEvidence);
 
   return Response.json({

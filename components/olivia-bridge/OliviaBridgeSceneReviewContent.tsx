@@ -92,7 +92,13 @@ export const OliviaBridgeSceneReviewContent = memo(function OliviaBridgeSceneRev
             <button type="button" onClick={onOpenDepartmentPicker}>변경</button>
           </div>
         ) : null}
-        {!departmentLoading && (departmentPickerOpen || departmentResolution.status !== "resolved") ? (
+        {!departmentLoading && departmentResolution.status !== "resolved" && !departmentPickerOpen ? (
+          <div className={styles.departmentStatus}>
+            <span><strong>진료과 미확인</strong> · 기타 기준으로 분류</span>
+            <button type="button" onClick={onOpenDepartmentPicker}>변경</button>
+          </div>
+        ) : null}
+        {!departmentLoading && departmentPickerOpen ? (
           <div className={styles.departmentPicker}>
             <span>{departmentError || (departmentResolution.status === "conflict" ? "등록 고객과 폴더명의 진료과가 다릅니다. 적용할 진료과를 확인해 주세요." : "등록 고객과 폴더명에서 진료과를 찾지 못했습니다.")}</span>
             <label>

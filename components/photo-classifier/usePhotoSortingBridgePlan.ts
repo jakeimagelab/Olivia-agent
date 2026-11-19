@@ -31,6 +31,7 @@ export function usePhotoSortingBridgePlan({
   updateProgress,
   setCurrentLocalFolder,
   setRootDirectory,
+  setRootFolderDisplayPath,
   setPhotoMode,
   setFastAnalyzeMode,
   setDepartment,
@@ -64,6 +65,7 @@ export function usePhotoSortingBridgePlan({
   updateProgress: (next: PhotoClassificationProgress) => void;
   setCurrentLocalFolder: (folder: FileSystemDirectoryHandle | null) => void;
   setRootDirectory: StateSetter<FileSystemDirectoryHandle | null>;
+  setRootFolderDisplayPath: StateSetter<string>;
   setPhotoMode: StateSetter<PhotoShootingMode>;
   setFastAnalyzeMode: StateSetter<boolean>;
   setDepartment: StateSetter<MedicalDepartment>;
@@ -110,6 +112,7 @@ export function usePhotoSortingBridgePlan({
         setDepartmentContextError("");
         setDepartmentPickerOpen(false);
         setRootDirectory(plan.directory);
+        setRootFolderDisplayPath(plan.folderPath.join(" / "));
         setJpgBaseDirectory(null);
         setRawFiles(prepared.rawFiles);
         setRawCount(prepared.rawFiles.length);
@@ -143,6 +146,7 @@ export function usePhotoSortingBridgePlan({
         setClassificationJobState("FAILED");
         setDirectoryError(message);
         setRootDirectory(plan.directory);
+        setRootFolderDisplayPath(plan.folderPath.join(" / "));
         setStep(0);
       }
     })();
@@ -172,6 +176,7 @@ export function usePhotoSortingBridgePlan({
     setRawCount,
     setRawFiles,
     setRootDirectory,
+    setRootFolderDisplayPath,
     setSceneCorrections,
     setScenes,
     setStats,

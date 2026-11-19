@@ -3,11 +3,7 @@ import {
   validateBridgeClassificationPlan,
   type BridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlan";
-import {
-  isSameDirectoryHandle,
-  splitRawAndJpg,
-  type SplitRawFile,
-} from "@/lib/photo-classifier/browserFileOps";
+import { splitRawAndJpg, type SplitRawFile } from "@/lib/photo-classifier/browserFileOps";
 import { loadThumb, mapWithConcurrency } from "@/lib/photo-classifier/browserProcessing";
 import type { FieldScene, FieldStats } from "@/lib/photo-classifier/types";
 
@@ -20,7 +16,7 @@ export type PreparedBridgeClassificationPlan = {
 };
 
 export async function prepareBridgeClassificationPlan({
-  currentLocalFolder,
+  currentLocalFolder: _currentLocalFolder,
   plan,
   loadThumbnail = async (handle) => loadThumb(await handle.getFile(), 160),
 }: {
@@ -28,18 +24,18 @@ export async function prepareBridgeClassificationPlan({
   plan: BridgeClassificationPlan;
   loadThumbnail?: (handle: FileSystemFileHandle) => Promise<string | null>;
 }): Promise<PreparedBridgeClassificationPlan> {
-  const [sameFolder, { rawFiles, jpgFiles }] = await Promise.all([
-    isSameDirectoryHandle(currentLocalFolder, plan.directory),
+  const [{ rawFiles }, currentFiles] = await Promise.all([
     splitRawAndJpg(plan.directory),
+    Promise.all(plan.files.map(async (entry) => {
+      if (!entry.handle) throw new Error(`${entry.name} 파일 핸들을 찾을 수 없습니다.`);
+      const file = await entry.handle.getFile();
+      return { name: entry.name, size: file.size, lastModified: file.lastModified };
+    })),
   ]);
   const validation = validateBridgeClassificationPlan(plan, {
-    sameFolder,
-    folderName: plan.directory.name,
-    jpgs: jpgFiles.map((entry) => ({
-      name: entry.name,
-      size: entry.fileSize,
-      lastModified: entry.mtime,
-    })),
+    sameFolder: true,
+    folderName: plan.folderName,
+    jpgs: currentFiles,
   });
   if (!validation.ok) throw new Error(validation.message);
 

@@ -13,6 +13,7 @@ import {
   type BridgeClassificationPlan,
 } from "@/lib/photo-bridge/classificationPlan";
 import type { PhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
+import { manualPhotoDepartmentResolution } from "@/lib/photo-classifier/departmentResolver";
 import type { BridgeSelectionSource } from "@/lib/photo-bridge/toolLinkage";
 
 export function resolveBridgeScenePlanDisabledReason(input: {
@@ -38,7 +39,6 @@ export function resolveBridgeScenePlanDisabledReason(input: {
   }
   if (!input.selectedSceneAnalysisReady) return "선택한 JPG의 Scene 계획을 준비하고 있습니다.";
   if (input.departmentLoading) return "진료과 정보를 확인하고 있습니다.";
-  if (input.departmentResolution.status !== "resolved") return "진료과를 선택해야 Scene 계획을 적용할 수 있습니다.";
   return null;
 }
 
@@ -54,6 +54,7 @@ export function useOliviaBridgeSceneReviewModel({
   hasActiveFolder,
   activeFolder,
   folderPath,
+  folderPathSegments,
   stageBridgeClassificationPlan,
   setSceneReviewOpen,
   setToolKey,
@@ -70,12 +71,13 @@ export function useOliviaBridgeSceneReviewModel({
   hasActiveFolder: boolean;
   activeFolder: FileSystemDirectoryHandle | null;
   folderPath: string;
+  folderPathSegments: readonly string[];
   stageBridgeClassificationPlan: (plan: BridgeClassificationPlan) => void;
   setSceneReviewOpen: Dispatch<SetStateAction<boolean>>;
   setToolKey: Dispatch<SetStateAction<BridgeToolKey | undefined>>;
   reportScenePlanError: (error: unknown) => void;
 }) {
-  const scenePhotoByName = useMemo(() => new Map(jpgs.map((photo) => [photo.name, photo])), [jpgs]);
+  const scenePhotoByName = useMemo(() => new Map(jpgs.map((photo) => [photo.classificationName ?? photo.name, photo])), [jpgs]);
   const selectedSceneAnalysis = useMemo(() => {
     if (!sceneReviewOpen || !sceneState.analysis || !selectedIds.size) return null;
     const selectedFiles = sceneState.analysis.files.filter((file) => selectedIds.has(file.id));
@@ -108,16 +110,18 @@ export function useOliviaBridgeSceneReviewModel({
       !hasActiveFolder
       || !selectedSceneAnalysis
       || !scenePlanReady
-      || photoDepartmentResolution.status !== "resolved"
     ) return;
     try {
       if (activeFolder) {
         stageBridgeClassificationPlan(createBridgeClassificationPlan({
           folderKey: folderPath,
           folderName: activeFolder.name,
+          folderPath: folderPathSegments,
           directory: activeFolder,
           analysis: selectedSceneAnalysis,
-          departmentResolution: photoDepartmentResolution,
+          departmentResolution: photoDepartmentResolution.status === "resolved"
+            ? photoDepartmentResolution
+            : manualPhotoDepartmentResolution("general"),
         }));
       }
       setSceneReviewOpen(false);
@@ -125,7 +129,7 @@ export function useOliviaBridgeSceneReviewModel({
     } catch (error) {
       reportScenePlanError(error);
     }
-  }, [activeFolder, folderPath, hasActiveFolder, photoDepartmentResolution, reportScenePlanError, scenePlanReady, selectedSceneAnalysis, setSceneReviewOpen, setToolKey, stageBridgeClassificationPlan]);
+  }, [activeFolder, folderPath, folderPathSegments, hasActiveFolder, photoDepartmentResolution, reportScenePlanError, scenePlanReady, selectedSceneAnalysis, setSceneReviewOpen, setToolKey, stageBridgeClassificationPlan]);
 
   return {
     scenePhotoByName,

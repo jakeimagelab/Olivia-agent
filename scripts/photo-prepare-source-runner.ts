@@ -29,6 +29,8 @@ async function main(): Promise<void> {
   if (!sourceRelativePath) throw new Error("--source-relative-path가 필요합니다.");
 
   const result = await preparePrimaryPhotoProject(sourceRelativePath, {
+    // 새 JPG정리 기본값: 카메라 메모리 폴더 구조를 만들지 않고 JPG전체에 평평하게 모은다.
+    flattenJpgs: true,
     onProgress: (progress) => process.stderr.write(`${PROGRESS_PREFIX}${JSON.stringify(progress)}\n`),
   });
 

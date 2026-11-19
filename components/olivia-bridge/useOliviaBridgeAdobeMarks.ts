@@ -133,6 +133,7 @@ export function useOliviaBridgeAdobeMarks({
         .filter((photo) => Boolean(photo.handle || ("file" in photo && photo.file)))
         .map((photo) => ({
           name: photo.name,
+          sourceName: photo.sourceName,
           file: ("file" in photo ? photo.file : undefined) as File | undefined,
           handle: photo.handle,
           parentHandle: photo.parentHandle,

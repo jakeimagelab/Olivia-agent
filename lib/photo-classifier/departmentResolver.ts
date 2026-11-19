@@ -119,9 +119,48 @@ export function manualPhotoDepartmentResolution(department: MedicalDepartment): 
   };
 }
 
-export function photoFolderClientName(folderName: string): string {
-  const leafName = folderName.normalize("NFC").split(/[\\/]/).at(-1) ?? folderName;
-  return leafName
+const CAMERA_GENERATED_FOLDER_NAMES = new Set([
+  "DCIM",
+  "PRIVATE",
+  "AVCHD",
+  "M4ROOT",
+  "CLIP",
+  "THMBNL",
+  "JPG전체",
+  "JPG원본",
+  "JPG",
+  "RAW",
+  "원본",
+]);
+
+function normalizePhotoFolderName(name: string): string {
+  return name.normalize("NFC").trim();
+}
+
+export function isCameraGeneratedFolderName(name: string): boolean {
+  const normalized = normalizePhotoFolderName(name).toLocaleUpperCase("en-US");
+  return CAMERA_GENERATED_FOLDER_NAMES.has(normalized)
+    || /^\d{3}[A-Z0-9_]{5}$/u.test(normalized);
+}
+
+export function photoFolderPathSegments(folderPath: string | readonly string[]): string[] {
+  const rawSegments = Array.isArray(folderPath)
+    ? folderPath
+    : String(folderPath).split(/[\\/]/u);
+  return rawSegments
+    .map((segment) => normalizePhotoFolderName(segment))
+    .filter(Boolean);
+}
+
+export function meaningfulPhotoFolderName(folderPath: string | readonly string[]): string {
+  return [...photoFolderPathSegments(folderPath)]
+    .reverse()
+    .find((segment) => !isCameraGeneratedFolderName(segment)) ?? "";
+}
+
+export function photoFolderClientName(folderPath: string | readonly string[]): string {
+  const meaningfulName = meaningfulPhotoFolderName(folderPath);
+  return meaningfulName
     .replace(/^\d{2,8}[\s._-]*/, "")
     .trim();
 }

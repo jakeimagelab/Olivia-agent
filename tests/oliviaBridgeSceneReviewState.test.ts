@@ -42,7 +42,7 @@ describe("Olivia Bridge Scene 검토 상태", () => {
     expect(resolveBridgeScenePlanDisabledReason({
       ...base,
       departmentResolution: { status: "unknown", evidence: [] },
-    })).toBe("진료과를 선택해야 Scene 계획을 적용할 수 있습니다.");
+    })).toBeNull();
     expect(resolveBridgeScenePlanDisabledReason(base)).toBeNull();
   });
 

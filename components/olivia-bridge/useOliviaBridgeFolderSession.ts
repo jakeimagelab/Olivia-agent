@@ -6,6 +6,7 @@ import type { BridgeFolderScan } from "@/lib/photo-bridge/bridgeFiles";
 import type { BridgeFolderTrailItem } from "@/lib/photo-bridge/recentFolder";
 import { JPG_INTEGRATED_DIRECTORY } from "@/lib/photo-classifier/node/storageLayout";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import { isCameraGeneratedFolderName } from "@/lib/photo-classifier/departmentResolver";
 
 export type OliviaBridgeScanStatus = "idle" | "restoring" | "loading" | "ready" | "error";
 
@@ -25,6 +26,8 @@ export function resolveOliviaBridgeRemoteProjectSelection(
   if (!remoteFolder) return undefined;
   const pathParts = remoteFolder.path.split("/").filter(Boolean);
   const displayParts = remoteFolder.displayPath.split("/").filter(Boolean);
+  if (pathParts.length > 1 && isCameraGeneratedFolderName(pathParts.at(-1) ?? "")) pathParts.pop();
+  if (displayParts.length > 1 && isCameraGeneratedFolderName(displayParts.at(-1) ?? "")) displayParts.pop();
   if (pathParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) pathParts.pop();
   if (displayParts.at(-1)?.normalize("NFC") === JPG_INTEGRATED_DIRECTORY) displayParts.pop();
   return {
@@ -49,6 +52,11 @@ export function useOliviaBridgeFolderSession() {
   const [restoreMessage, setRestoreMessage] = useState("");
 
   const activeFolder = breadcrumbs.at(-1)?.handle ?? null;
+  const folderPathSegments = useMemo(() => (
+    remoteFolder
+      ? remoteFolder.displayPath.split("/").map((segment) => segment.trim()).filter(Boolean)
+      : breadcrumbs.map((item) => item.name)
+  ), [breadcrumbs, remoteFolder]);
   const folderPath = remoteFolder?.path ?? breadcrumbs.map((item) => item.name).join(" / ");
   const folderSelectionSourceKey = remoteFolder?.path
     ?? breadcrumbs.map((item) => item.name).join("/");
@@ -81,6 +89,7 @@ export function useOliviaBridgeFolderSession() {
     setRestoreMessage,
     activeFolder,
     folderPath,
+    folderPathSegments,
     folderSelectionSourceKey,
     activeFolderName,
     hasActiveFolder,

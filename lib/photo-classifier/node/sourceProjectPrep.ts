@@ -40,6 +40,8 @@ export type SourceProjectPrepResult = {
 type SourceProjectPrepOptions = {
   roots?: RunnerRoots;
   onProgress?: (progress: RunnerProgress) => void;
+  /** JPG전체 바로 아래에 모으고, 중복 파일명에는 원본 폴더명을 붙인다. */
+  flattenJpgs?: boolean;
 };
 
 type SourceJpg = { source: string; relativePath: string; name: string; size: number; mtimeMs: number };
@@ -88,6 +90,50 @@ function extension(fileName: string): string {
 
 function relativeDisplayPath(root: string, target: string): string {
   return path.relative(root, target).split(path.sep).join("/");
+}
+
+function normalizedDestinationKey(value: string): string {
+  return value.normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function safeFlatPrefix(relativePath: string): string {
+  return path.posix.dirname(relativePath)
+    .split("/")
+    .filter((part) => part && part !== ".")
+    .join("_")
+    .normalize("NFC")
+    .replace(/[\\/:*?"<>|\s]+/gu, "_")
+    .replace(/^_+|_+$/gu, "");
+}
+
+/** 평면화 시 같은 basename을 결정적으로 구분한다. */
+function flatDestinationPaths(files: readonly SourceJpg[]): Map<SourceJpg, string> {
+  const counts = new Map<string, number>();
+  for (const file of files) {
+    const key = normalizedDestinationKey(file.name);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  const destinations = new Map<SourceJpg, string>();
+  const reserved = new Set<string>();
+  for (const file of files) {
+    const sourceKey = normalizedDestinationKey(file.name);
+    const prefix = safeFlatPrefix(file.relativePath);
+    let candidate = (counts.get(sourceKey) ?? 0) > 1 && prefix
+      ? `${prefix}_${file.name}`
+      : file.name;
+    const extensionIndex = candidate.lastIndexOf(".");
+    const stem = extensionIndex > 0 ? candidate.slice(0, extensionIndex) : candidate;
+    const suffix = extensionIndex > 0 ? candidate.slice(extensionIndex) : "";
+    let copy = 2;
+    while (reserved.has(normalizedDestinationKey(candidate))) {
+      candidate = `${stem}_${copy}${suffix}`;
+      copy += 1;
+    }
+    reserved.add(normalizedDestinationKey(candidate));
+    destinations.set(file, candidate);
+  }
+  return destinations;
 }
 
 async function assertNoSymlinkTree(projectRoot: string): Promise<void> {
@@ -162,8 +208,9 @@ export async function assertSafeSourceJpgRelocation(input: {
   projectRoot: string;
   source: string;
   destination: string;
+  allowRename?: boolean;
 }): Promise<void> {
-  const { sourceRoot, projectRoot, source, destination } = input;
+  const { sourceRoot, projectRoot, source, destination, allowRename = false } = input;
   for (const [value, label] of [[sourceRoot, "SOURCE_ROOT"], [projectRoot, "프로젝트"], [source, "JPG 원본"], [destination, "JPG 목적지"]] as const) {
     if (!value || value.includes("\0") || !path.isAbsolute(value)) throw new Error(`${label} 경로가 올바르지 않습니다.`);
   }
@@ -174,13 +221,14 @@ export async function assertSafeSourceJpgRelocation(input: {
   if (sourceSegments.some((segment) => isIntegratedDirectoryName(segment))) throw new Error("JPG전체 내부 파일은 다시 통합할 수 없습니다.");
   const destinationDirectory = path.dirname(destination);
   const destinationSegments = path.relative(projectRoot, destinationDirectory).split(path.sep).filter(Boolean);
-  // JPG전체 아래의 원래 상대경로를 보존한다. 하위 폴더 하나가 독립 촬영 묶음이므로
-  // 파일명을 한 곳에 평면화하면 서로 다른 날/카메라 촬영이 한 결과로 섞인다.
+  // 기본은 JPG전체 아래의 원래 상대경로를 보존한다. 명시적인 평면화 작업만
+  // 충돌 없는 목적지 이름으로 바꿀 수 있다.
   if (!destinationSegments.length || !isIntegratedDirectoryName(destinationSegments[0]) || !isWithin(projectRoot, destinationDirectory)) {
     throw new Error("JPG 목적지는 JPG전체 폴더 안이어야 합니다.");
   }
-  if (path.basename(source) !== path.basename(destination)) throw new Error("JPG 파일명 변경은 허용하지 않습니다.");
+  if (!allowRename && path.basename(source) !== path.basename(destination)) throw new Error("JPG 파일명 변경은 허용하지 않습니다.");
   const fileExtension = extension(path.basename(source));
+  if (extension(path.basename(destination)) !== fileExtension) throw new Error("JPG 확장자 변경은 허용하지 않습니다.");
   if (RAW_PHOTO_EXTENSIONS.has(fileExtension) || !JPG_PHOTO_EXTENSIONS.has(fileExtension)) throw new Error("SSD1에서는 JPG/JPEG 파일만 JPG전체로 이동할 수 있습니다.");
   const sourceMetadata = await lstat(source).catch(() => null);
   if (!sourceMetadata?.isFile() || sourceMetadata.isSymbolicLink()) throw new Error("JPG 원본이 안전한 일반 파일이 아닙니다.");
@@ -247,6 +295,8 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
 
   const rawBefore = await collectRawSnapshot(projectRoot);
   const sourceJpgs = await collectSourceJpgs(projectRoot);
+  const flattenedDestinations = options.flattenJpgs ? flatDestinationPaths(sourceJpgs) : null;
+  const destinationRelativePath = (file: SourceJpg) => flattenedDestinations?.get(file) ?? file.relativePath;
   const integratedDirectory = await resolveIntegratedDirectory(projectRoot);
   let existingDestinations: Map<string, SourceJpg>;
   try {
@@ -258,21 +308,28 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   const conflicts: SourceJpgConflict[] = [];
   let alreadyPrepared = existingDestinations.size;
   for (const file of sourceJpgs) {
-    const existing = existingDestinations.get(file.relativePath);
+    const targetRelativePath = destinationRelativePath(file);
+    const existing = existingDestinations.get(targetRelativePath);
     if (existing) {
       // 같은 파일은 이미 준비된 것으로 보고 source의 중복만 제거하지 않는다. 사람이
       // 파일을 바꿔 끼운 경우에만 검토로 올린다.
       if (existing.size !== file.size) {
-        conflicts.push({ source: relativeDisplayPath(sourceRoot, file.source), destination: relativeDisplayPath(sourceRoot, path.join(integratedDirectory, ...file.relativePath.split("/"))), reason: "destination_exists" });
+        conflicts.push({ source: relativeDisplayPath(sourceRoot, file.source), destination: relativeDisplayPath(sourceRoot, path.join(integratedDirectory, ...targetRelativePath.split("/"))), reason: "destination_exists" });
       }
     }
   }
   if (conflicts.length > 0) return conflictResult(relativeProject.split(path.sep).join("/"), projectRoot, conflicts, rawBefore.size);
 
-  const pendingJpgs = sourceJpgs.filter((file) => !existingDestinations.has(file.relativePath));
+  const pendingJpgs = sourceJpgs.filter((file) => !existingDestinations.has(destinationRelativePath(file)));
 
   // 모든 rename 계획을 확인한 뒤에만 JPG전체를 만들거나 파일을 움직인다.
-  for (const file of pendingJpgs) await assertSafeSourceJpgRelocation({ sourceRoot, projectRoot, source: file.source, destination: path.join(integratedDirectory, ...file.relativePath.split("/")) });
+  for (const file of pendingJpgs) await assertSafeSourceJpgRelocation({
+    sourceRoot,
+    projectRoot,
+    source: file.source,
+    destination: path.join(integratedDirectory, ...destinationRelativePath(file).split("/")),
+    allowRename: options.flattenJpgs,
+  });
 
   if (pendingJpgs.length === 0) {
     return { projectPath: relativeProject.split(path.sep).join("/"), projectRoot, jpgMoved: 0, jpgAlreadyPrepared: alreadyPrepared, rawUntouched: rawBefore.size, conflicts: [], status: "JPG_MERGE_COMPLETED" };
@@ -288,7 +345,7 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
       message: `JPG정리 이어하기 시작: ${relativeProject}`,
     });
     for (const [index, file] of pendingJpgs.entries()) {
-      const destination = path.join(destinationDirectory, ...file.relativePath.split("/"));
+      const destination = path.join(destinationDirectory, ...destinationRelativePath(file).split("/"));
       await prepareDirectory(path.dirname(destination));
       await rename(file.source, destination); // SSD1은 rename만 허용, EXDEV fallback 금지
       moved.push({ source: file.source, destination });
@@ -302,7 +359,7 @@ export async function preparePrimaryPhotoProject(projectPath: string, options: S
   } catch (error) {
     for (const item of moved.reverse()) await rename(item.destination, item.source).catch(() => undefined);
     const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-  if (code === "EXDEV") throw new Error("SSD1 JPG정리는 동일 볼륨 rename만 허용합니다(EXDEV).");
+    if (code === "EXDEV") throw new Error("SSD1 JPG정리는 동일 볼륨 rename만 허용합니다(EXDEV).");
     throw error;
   }
 

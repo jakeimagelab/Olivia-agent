@@ -8,7 +8,7 @@ import type {
   BridgeSceneAnalysis,
 } from "@/lib/photo-bridge/bridgeFiles";
 
-export const BRIDGE_CLASSIFICATION_PLAN_VERSION = 2 as const;
+export const BRIDGE_CLASSIFICATION_PLAN_VERSION = 3 as const;
 
 export type BridgeClassificationPlan = {
   version: typeof BRIDGE_CLASSIFICATION_PLAN_VERSION;
@@ -16,6 +16,7 @@ export type BridgeClassificationPlan = {
   createdAt: string;
   folderKey: string;
   folderName: string;
+  folderPath: string[];
   directory: FileSystemDirectoryHandle;
   departmentResolution: ResolvedPhotoDepartment;
   files: BridgeAnalyzedJpgFile[];
@@ -46,6 +47,7 @@ function generatedPlanId(analysis: BridgeSceneAnalysis) {
 export function createBridgeClassificationPlan(input: {
   folderKey: string;
   folderName: string;
+  folderPath?: readonly string[];
   directory: FileSystemDirectoryHandle;
   analysis: BridgeSceneAnalysis;
   departmentResolution: ResolvedPhotoDepartment;
@@ -58,6 +60,7 @@ export function createBridgeClassificationPlan(input: {
     createdAt: input.createdAt ?? new Date().toISOString(),
     folderKey: input.folderKey,
     folderName: input.folderName,
+    folderPath: [...(input.folderPath?.length ? input.folderPath : [input.folderName])],
     directory: input.directory,
     departmentResolution: input.departmentResolution,
     files: [...input.analysis.files],
@@ -142,6 +145,9 @@ export function buildFieldScenesFromBridgePlan(plan: BridgeClassificationPlan): 
     name: entry.name,
     basename: entry.name.replace(/\.[^.]+$/, ""),
     handle: entry.handle!,
+    sourceDirectory: entry.parentHandle,
+    sourceName: entry.sourceName ?? entry.name,
+    relativePath: entry.relativePath,
     mtime: entry.mtime,
     timestampSource: entry.timestampSource,
     thumbUrl: null,

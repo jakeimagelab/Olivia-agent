@@ -79,6 +79,25 @@ describe("SSD1 primary JPG preparation", () => {
     await expect(readFile(path.join(project, "JPG전체", "B", "same.JPG"), "utf8")).resolves.toBe("two");
   });
 
+  it("평평하게 모을 때 카메라 폴더를 만들지 않고 중복 파일명에 폴더명을 붙인다", async () => {
+    const { roots } = await testRoots();
+    const project = path.join(roots.sourceRoot, "camera-flat");
+    await mkdir(path.join(project, "100MSDCF"), { recursive: true });
+    await mkdir(path.join(project, "101MSDCF"), { recursive: true });
+    await writeFile(path.join(project, "100MSDCF", "IMG_0001.JPG"), "one");
+    await writeFile(path.join(project, "101MSDCF", "IMG_0001.JPG"), "two");
+
+    const result = await preparePrimaryPhotoProject("camera-flat", { roots, flattenJpgs: true });
+
+    expect(result).toMatchObject({ status: "JPG_MERGE_COMPLETED", jpgMoved: 2 });
+    expect(await readdir(path.join(project, "JPG전체"))).toEqual([
+      "100MSDCF_IMG_0001.JPG",
+      "101MSDCF_IMG_0001.JPG",
+    ]);
+    await expect(readFile(path.join(project, "JPG전체", "100MSDCF_IMG_0001.JPG"), "utf8")).resolves.toBe("one");
+    await expect(readFile(path.join(project, "JPG전체", "101MSDCF_IMG_0001.JPG"), "utf8")).resolves.toBe("two");
+  });
+
   it("preserves RAW filename, size, and mtime", async () => {
     const { roots } = await testRoots();
     const project = path.join(roots.sourceRoot, "shoot");

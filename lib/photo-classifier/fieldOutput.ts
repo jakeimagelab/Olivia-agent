@@ -76,6 +76,9 @@ export async function executePlannedFieldOutput({
   operations: FieldFileOperation[];
 }> {
   const totalFiles = scenes.reduce((sum, scene) => sum + scene.fileCount, 0);
+  const directSceneOutput = scenes.some((scene) => scene.files.some((entry) => (
+    Boolean(entry.sourceDirectory) && entry.sourceDirectory !== rootDirectory
+  )));
   const operations: FieldFileOperation[] = [];
   let completed = 0;
   let lastUpdate = Date.now();
@@ -100,7 +103,9 @@ export async function executePlannedFieldOutput({
     return journalWriteChain;
   };
 
-  const rawDirectory = await rootDirectory.getDirectoryHandle("RAW", { create: true });
+  const rawDirectory = rawFiles.length
+    ? await rootDirectory.getDirectoryHandle("RAW", { create: true })
+    : null;
   for (let index = 0; index < rawFiles.length; index += 1) {
     if (isCancelled()) break;
     const raw = rawFiles[index];
@@ -109,7 +114,7 @@ export async function executePlannedFieldOutput({
       lastUpdate = Date.now();
     }
     try {
-      await copyFile(raw.handle, rawDirectory, raw.name);
+      await copyFile(raw.handle, rawDirectory!, raw.name);
       await rootDirectory.removeEntry(raw.name).catch(onSuppressedError);
       operations.push({
         type: "copy_remove",
@@ -133,12 +138,16 @@ export async function executePlannedFieldOutput({
     if (index % 10 === 0) await flushJournal();
   }
 
-  const jpgBaseDirectory = await rootDirectory.getDirectoryHandle("JPG", { create: true });
-  try {
-    const selectDirectory = await rootDirectory.getDirectoryHandle("SELECT", { create: true });
-    await selectDirectory.getDirectoryHandle("JPG_SELECT", { create: true });
-  } catch (error) {
-    onSuppressedError(error);
+  const jpgBaseDirectory = directSceneOutput
+    ? rootDirectory
+    : await rootDirectory.getDirectoryHandle("JPG", { create: true });
+  if (!directSceneOutput) {
+    try {
+      const selectDirectory = await rootDirectory.getDirectoryHandle("SELECT", { create: true });
+      await selectDirectory.getDirectoryHandle("JPG_SELECT", { create: true });
+    } catch (error) {
+      onSuppressedError(error);
+    }
   }
 
   const updated = scenes.map((scene) => ({ ...scene }));
@@ -155,8 +164,8 @@ export async function executePlannedFieldOutput({
         operations.push({
           type: "copy_remove",
           category: "JPG",
-          source: entry.name,
-          destination: `JPG/${targetName}/${entry.name}`,
+          source: entry.relativePath ?? entry.sourceName ?? entry.name,
+          destination: `${directSceneOutput ? "" : "JPG/"}${targetName}/${entry.name}`,
           status: "failed",
           error: message,
           at: now(),
@@ -177,16 +186,25 @@ export async function executePlannedFieldOutput({
       try {
         await copyFile(entry.handle, sceneDirectory, entry.name);
         const destinationHandle = await sceneDirectory.getFileHandle(entry.name);
-        await rootDirectory.removeEntry(entry.name).catch(onSuppressedError);
+        const sourceDirectory = entry.sourceDirectory ?? rootDirectory;
+        const sourceName = entry.sourceName ?? entry.name;
+        await sourceDirectory.removeEntry(sourceName);
         const thumbUrl = newFiles.length < 4
           ? await thumbnailLoader(await destinationHandle.getFile(), 120)
           : null;
-        newFiles.push({ ...entry, handle: destinationHandle, thumbUrl });
+        newFiles.push({
+          ...entry,
+          handle: destinationHandle,
+          sourceDirectory: undefined,
+          sourceName: entry.name,
+          relativePath: `${targetName}/${entry.name}`,
+          thumbUrl,
+        });
         operations.push({
           type: "copy_remove",
           category: "JPG",
-          source: entry.name,
-          destination: `JPG/${targetName}/${entry.name}`,
+          source: entry.relativePath ?? sourceName,
+          destination: `${directSceneOutput ? "" : "JPG/"}${targetName}/${entry.name}`,
           status: "completed",
           at: now(),
         });
@@ -195,8 +213,8 @@ export async function executePlannedFieldOutput({
         operations.push({
           type: "copy_remove",
           category: "JPG",
-          source: entry.name,
-          destination: `JPG/${targetName}/${entry.name}`,
+          source: entry.relativePath ?? entry.sourceName ?? entry.name,
+          destination: `${directSceneOutput ? "" : "JPG/"}${targetName}/${entry.name}`,
           status: "failed",
           error: error instanceof Error ? error.message : String(error),
           at: now(),

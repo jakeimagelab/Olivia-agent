@@ -46,7 +46,7 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect, bridgeEmbedde
   const [remoteSelection, setRemoteSelection] = useState<RemoteNasSelection | null>(null);
   const [remotePickerOpen, setRemotePickerOpen] = useState(false);
   const [includeSubdirectories, setIncludeSubdirectories] = useState(true);
-  const [preserveStructure, setPreserveStructure] = useState(true);
+  const [preserveStructure, setPreserveStructure] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [message, setMessage] = useState(bridgeEmbedded
     ? "현재 Bridge 폴더를 미리보기로 확인한 뒤 JPG정리를 실행하세요."
@@ -267,8 +267,8 @@ export default function PhotoJpgPrepWorkspace({ onOpenPhotoSelect, bridgeEmbedde
               <span><strong>하위 폴더까지 모두 처리</strong><small>최대 5단계까지 확인합니다.</small></span>
             </label>
             <label className={styles.checkRow}>
-              <input type="checkbox" checked={preserveStructure} onChange={(event) => { setPreserveStructure(event.target.checked); setPlan(null); }} disabled={remote || busy} />
-              <span><strong>하위 폴더 구조를 유지해서 모으기</strong><small>JPG전체 아래에 원래 상대경로를 유지합니다.</small></span>
+              <input type="checkbox" checked={!preserveStructure} onChange={(event) => { setPreserveStructure(!event.target.checked); setPlan(null); }} disabled={remote || busy} />
+              <span><strong>JPG전체 바로 아래에 평평하게 모으기</strong><small>기본값입니다. 같은 파일명은 원본 폴더명을 붙여 구분합니다.</small></span>
             </label>
             {remote ? <p className={styles.sectionDescription}>Mac Studio 작업은 안전을 위해 두 옵션을 항상 켠 상태로 실행합니다.</p> : null}
           </section>

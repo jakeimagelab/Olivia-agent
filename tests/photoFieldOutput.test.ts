@@ -151,6 +151,44 @@ describe("field output", () => {
     expect(root.removed).not.toContain("A.JPG");
   });
 
+  it("카메라 하위 폴더 원본을 JPG전체 바로 아래 Scene으로 옮긴다", async () => {
+    const jpgRoot = new FakeDirectory("JPG전체");
+    const cameraFolder = new FakeDirectory("100MSDCF");
+    const sourceJpg = {} as FileSystemFileHandle;
+    const scene = makeScene(sourceJpg, "01_상담", "100MSDCF_IMG_0001.JPG");
+    scene.files[0] = {
+      ...scene.files[0],
+      sourceDirectory: asDirectory(cameraFolder),
+      sourceName: "IMG_0001.JPG",
+      relativePath: "100MSDCF/IMG_0001.JPG",
+    };
+
+    const result = await executePlannedFieldOutput({
+      rootDirectory: asDirectory(jpgRoot),
+      scenes: [scene],
+      rawFiles: [],
+      boundaryDecisions: [],
+      sceneCorrections: [],
+      accuracyReport: null,
+      checkpointId: "camera-scope",
+      isCancelled: () => false,
+      copyFile: async (_source, destination, name) => {
+        await destination.getFileHandle(name, { create: true });
+      },
+      thumbnailLoader: async () => null,
+      clearCheckpoint: async () => undefined,
+    });
+
+    expect(jpgRoot.directories.has("01_상담")).toBe(true);
+    expect(jpgRoot.directories.has("JPG")).toBe(false);
+    expect(cameraFolder.removed).toEqual(["IMG_0001.JPG"]);
+    expect(result.operations).toEqual([expect.objectContaining({
+      source: "100MSDCF/IMG_0001.JPG",
+      destination: "01_상담/100MSDCF_IMG_0001.JPG",
+      status: "completed",
+    })]);
+  });
+
   it("keeps organizing files when journal, final reports, and checkpoint cleanup fail", async () => {
     const root = new FakeDirectory("촬영");
     const report = await root.getDirectoryHandle("REPORT");

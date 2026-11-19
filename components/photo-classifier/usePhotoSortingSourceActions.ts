@@ -23,6 +23,7 @@ export function usePhotoSortingSourceActions({
   departmentContextKeyRef,
   setPhotoDepartmentResolution,
   setRootDirectory,
+  setRootFolderDisplayPath,
   setDepartmentContextError,
   setDepartmentPickerOpen,
   remoteJobActive,
@@ -38,6 +39,7 @@ export function usePhotoSortingSourceActions({
   departmentContextKeyRef: MutableRefObject<string>;
   setPhotoDepartmentResolution: (resolution: PhotoDepartmentResolution) => void;
   setRootDirectory: (handle: FileSystemDirectoryHandle) => void;
+  setRootFolderDisplayPath?: (path: string) => void;
   setDepartmentContextError: (message: string) => void;
   setDepartmentPickerOpen: (open: boolean) => void;
   remoteJobActive: boolean;
@@ -52,6 +54,7 @@ export function usePhotoSortingSourceActions({
     departmentContextKeyRef.current = "";
     setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
     setRootDirectory(handle);
+    setRootFolderDisplayPath?.(handle.name);
     closePhotoSourcePicker();
   }, [
     closePhotoSourcePicker,
@@ -60,6 +63,7 @@ export function usePhotoSortingSourceActions({
     setDirectoryError,
     setPhotoDepartmentResolution,
     setRootDirectory,
+    setRootFolderDisplayPath,
   ]);
 
   const openPhotoSourcePicker = useCallback(() => {
@@ -71,6 +75,7 @@ export function usePhotoSortingSourceActions({
     selectRemotePhotoSource(selection);
     departmentContextKeyRef.current = "";
     setPhotoDepartmentResolution({ status: "unknown", evidence: [] });
+    setRootFolderDisplayPath?.(selection.displayPath || selection.path);
     setDepartmentContextError("");
     setDepartmentPickerOpen(false);
     if (!remoteJobActive) clearRemoteJob();
@@ -86,6 +91,7 @@ export function usePhotoSortingSourceActions({
     setDepartmentPickerOpen,
     setDirectoryError,
     setPhotoDepartmentResolution,
+    setRootFolderDisplayPath,
   ]);
 
   const handleFolderPointerDown = useCallback((event: PointerEvent<HTMLButtonElement>) => {

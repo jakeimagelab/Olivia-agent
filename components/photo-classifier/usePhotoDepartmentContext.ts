@@ -12,12 +12,14 @@ export function photoDepartmentContextKey({
   clientId,
   workflowRunId,
   folderName,
+  folderPath,
 }: {
   clientId: string;
   workflowRunId: string;
   folderName: string;
+  folderPath?: readonly string[];
 }) {
-  return `${clientId}:${workflowRunId}:${folderName}`;
+  return `${clientId}:${workflowRunId}:${(folderPath?.length ? folderPath : [folderName]).join("/")}`;
 }
 
 export function usePhotoDepartmentContext({
@@ -25,6 +27,7 @@ export function usePhotoDepartmentContext({
   clientId,
   workflowRunId,
   folderName,
+  folderPath,
   setDepartment,
   setResolution,
 }: {
@@ -32,6 +35,7 @@ export function usePhotoDepartmentContext({
   clientId: string;
   workflowRunId: string;
   folderName: string;
+  folderPath?: readonly string[];
   setDepartment: (department: MedicalDepartment) => void;
   setResolution: (resolution: PhotoDepartmentResolution) => void;
 }) {
@@ -50,14 +54,14 @@ export function usePhotoDepartmentContext({
 
   useEffect(() => {
     if (!enabled || !folderName) return;
-    const contextKey = photoDepartmentContextKey({ clientId, workflowRunId, folderName });
+    const contextKey = photoDepartmentContextKey({ clientId, workflowRunId, folderName, folderPath });
     if (contextKeyRef.current === contextKey) return;
     contextKeyRef.current = contextKey;
 
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName }, { signal: controller.signal })
+    void fetchPhotoDepartmentContext({ clientId, workflowRunId, folderName, folderPath }, { signal: controller.signal })
       .then((resolution) => {
         if (controller.signal.aborted) return;
         setResolution(resolution);
@@ -65,13 +69,15 @@ export function usePhotoDepartmentContext({
           setDepartment(resolution.department);
           setPickerOpen(false);
         } else {
-          setPickerOpen(true);
+          setDepartment("general");
+          setPickerOpen(false);
         }
       })
       .catch((caughtError) => {
         if (controller.signal.aborted) return;
         setResolution({ status: "unknown", evidence: [] });
-        setPickerOpen(true);
+        setDepartment("general");
+        setPickerOpen(false);
         setError(caughtError instanceof Error ? caughtError.message : "진료과 정보를 확인하지 못했습니다.");
       })
       .finally(() => {
@@ -83,6 +89,7 @@ export function usePhotoDepartmentContext({
     clientId,
     enabled,
     folderName,
+    folderPath,
     setDepartment,
     setResolution,
     workflowRunId,

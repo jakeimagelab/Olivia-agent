@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   departmentFromPhotoText,
+  isCameraGeneratedFolderName,
   manualPhotoDepartmentResolution,
+  meaningfulPhotoFolderName,
   photoDepartmentEvidence,
   photoFolderClientName,
   resolvePhotoDepartmentEvidence,
@@ -63,5 +65,28 @@ describe("photo department resolver", () => {
     expect(photoFolderClientName("1025_강재활의학과")).toBe("강재활의학과");
     expect(photoFolderClientName("20261025 강재활의학과")).toBe("강재활의학과");
     expect(photoFolderClientName("병원촬영/20261025 강재활의학과")).toBe("강재활의학과");
+  });
+
+  it.each([
+    "100MSDCF",
+    "101MSDCF",
+    "100CANON",
+    "100EOS5D",
+    "100_FUJI",
+    "dcim",
+    "JPG전체",
+  ])("%s를 의미 없는 카메라·관리 폴더로 판정한다", (name) => {
+    expect(isCameraGeneratedFolderName(name)).toBe(true);
+  });
+
+  it("촬영 프로젝트 폴더는 카메라 폴더로 오인하지 않는다", () => {
+    expect(isCameraGeneratedFolderName("0923_전주푸른안과")).toBe(false);
+  });
+
+  it("전체 경로에서 가장 가까운 의미 있는 폴더로 고객명을 만든다", () => {
+    const path = ["0923_전주푸른안과", "JPG전체", "100MSDCF"];
+    expect(meaningfulPhotoFolderName(path)).toBe("0923_전주푸른안과");
+    expect(photoFolderClientName(path)).toBe("전주푸른안과");
+    expect(departmentFromPhotoText(photoFolderClientName(path))).toBe("ophthalmology");
   });
 });

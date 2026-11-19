@@ -112,6 +112,10 @@ export interface SceneFile {
   name: string;
   basename: string;
   handle: FileSystemFileHandle;
+  /** 원본이 현재 작업 루트의 하위 폴더에 있을 때 실제 부모와 이름을 보존한다. */
+  sourceDirectory?: FileSystemDirectoryHandle;
+  sourceName?: string;
+  relativePath?: string;
   mtime: number;          // EXIF time or lastModified
   timestampSource?: import("./hybrid-types").TimestampSource;
   thumbUrl?: string | null;

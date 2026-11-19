@@ -4,6 +4,7 @@ export type PhotoDepartmentContextInput = {
   clientId?: string;
   workflowRunId?: string;
   folderName?: string;
+  folderPath?: readonly string[];
 };
 
 type PhotoDepartmentContextResponse = {
@@ -20,6 +21,9 @@ export async function fetchPhotoDepartmentContext(
   if (input.clientId) params.set("clientId", input.clientId);
   if (input.workflowRunId) params.set("workflowRunId", input.workflowRunId);
   if (input.folderName) params.set("folderName", input.folderName);
+  for (const segment of input.folderPath ?? []) {
+    if (segment.trim()) params.append("folderPath", segment.trim());
+  }
   const response = await fetch(`/api/photo-classification/department-context?${params.toString()}`, {
     cache: "no-store",
     signal: options.signal,

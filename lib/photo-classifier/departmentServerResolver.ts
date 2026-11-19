@@ -15,10 +15,11 @@ type ClientDepartmentRow = {
 /** NAS 폴더명과 정확히 일치하는 등록 고객만 사용해 분류 진료과를 판정한다. */
 export async function resolveNasPhotoDepartment(
   db: SupabaseClient,
-  folderName: string,
+  folderPath: string | readonly string[],
 ): Promise<PhotoDepartmentResolution> {
+  const folderName = photoFolderClientName(folderPath);
   const folderEvidence = photoDepartmentEvidence(folderName, "folder_name");
-  const clientName = photoFolderClientName(folderName);
+  const clientName = photoFolderClientName(folderPath);
   if (!clientName) return resolvePhotoDepartmentEvidence([folderEvidence]);
 
   try {

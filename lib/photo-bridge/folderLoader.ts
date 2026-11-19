@@ -16,6 +16,7 @@ import {
 import type { BridgeFolderTrailItem } from "@/lib/photo-bridge/recentFolder";
 import type { BridgeSelectionSource } from "@/lib/photo-bridge/toolLinkage";
 import type { RemoteNasSelection } from "@/lib/remote-nas/types";
+import { scanBridgeCameraFolderScope } from "@/lib/photo-bridge/cameraFolderScope";
 
 type StorageReader = Pick<Storage, "getItem">;
 
@@ -52,7 +53,13 @@ export async function loadLocalBridgeFolderSnapshot({
   const folderPath = trail.map((item) => item.name).join(" / ");
   const selectionSourceKey = trail.map((item) => item.name).join("/");
   const selectionSource = readBridgeFolderSelectionSource(storage, selectionSourceKey);
-  const scan = await scanFolder(directory, folderPath, {
+  const cameraScopeScan = await scanBridgeCameraFolderScope({
+    directory,
+    trail,
+    folderPath,
+    scanFolder,
+  });
+  const scan = cameraScopeScan ?? await scanFolder(directory, folderPath, {
     includeNestedJpgs,
     maxDepth: 5,
   });

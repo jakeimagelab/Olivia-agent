@@ -16,6 +16,7 @@ type SourceJpg = {
 
 export type JpgPrepPlanRow = SourceJpg & {
   destinationDirectory: string[];
+  destinationName: string;
   destinationPath: string;
   status: JpgPrepPlanStatus;
   reason: string;
@@ -66,6 +67,38 @@ async function mapConcurrent<T, R>(
 
 function destinationKey(segments: readonly string[]): string {
   return segments.join("/").normalize("NFC").toLocaleLowerCase("en-US");
+}
+
+function flatDestinationNames(jpgs: readonly SourceJpg[]): Map<SourceJpg, string> {
+  const counts = new Map<string, number>();
+  for (const jpg of jpgs) {
+    const key = jpg.name.normalize("NFC").toLocaleLowerCase("en-US");
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const output = new Map<SourceJpg, string>();
+  const reserved = new Set<string>();
+  for (const jpg of jpgs) {
+    const sourceKey = jpg.name.normalize("NFC").toLocaleLowerCase("en-US");
+    const prefix = jpg.relativeDirectory
+      .join("_")
+      .normalize("NFC")
+      .replace(/[\\/:*?"<>|\s]+/gu, "_")
+      .replace(/^_+|_+$/gu, "");
+    let candidate = (counts.get(sourceKey) ?? 0) > 1 && prefix
+      ? `${prefix}_${jpg.name}`
+      : jpg.name;
+    const extensionIndex = candidate.lastIndexOf(".");
+    const stem = extensionIndex > 0 ? candidate.slice(0, extensionIndex) : candidate;
+    const extensionName = extensionIndex > 0 ? candidate.slice(extensionIndex) : "";
+    let suffix = 2;
+    while (reserved.has(candidate.normalize("NFC").toLocaleLowerCase("en-US"))) {
+      candidate = `${stem}_${suffix}${extensionName}`;
+      suffix += 1;
+    }
+    reserved.add(candidate.normalize("NFC").toLocaleLowerCase("en-US"));
+    output.set(jpg, candidate);
+  }
+  return output;
 }
 
 async function directoryIfPresent(
@@ -191,28 +224,30 @@ export async function buildJpgPrepPlan(
   ]);
   const plannedDestination = new Map<string, SourceJpg>();
   const rows: JpgPrepPlanRow[] = [];
+  const flattenedNames = options.preserveStructure ? null : flatDestinationNames(jpgs);
   for (const jpg of jpgs) {
     const destinationDirectory = options.preserveStructure ? jpg.relativeDirectory : [];
-    const destinationPath = [JPG_INTEGRATED_DIRECTORY, ...destinationDirectory, jpg.name].join("/");
-    const key = destinationKey([...destinationDirectory, jpg.name]);
+    const destinationName = flattenedNames?.get(jpg) ?? jpg.name;
+    const destinationPath = [JPG_INTEGRATED_DIRECTORY, ...destinationDirectory, destinationName].join("/");
+    const key = destinationKey([...destinationDirectory, destinationName]);
     const duplicatePlan = plannedDestination.get(key);
     if (duplicatePlan) {
-      rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: `다른 원본과 목적지 이름이 같습니다: ${duplicatePlan.name}` });
+      rows.push({ ...jpg, destinationDirectory, destinationName, destinationPath, status: "conflict", reason: `다른 원본과 목적지 이름이 같습니다: ${duplicatePlan.name}` });
       continue;
     }
     plannedDestination.set(key, jpg);
     if (destinationParentConflict(destinationIndex, destinationDirectory)) {
-      rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: "목적지 상위 경로에 같은 이름의 파일이 있습니다." });
+      rows.push({ ...jpg, destinationDirectory, destinationName, destinationPath, status: "conflict", reason: "목적지 상위 경로에 같은 이름의 파일이 있습니다." });
       continue;
     }
     const existing = destinationIndex.get(key);
     if (existing?.kind === "directory") {
-      rows.push({ ...jpg, destinationDirectory, destinationPath, status: "conflict", reason: "같은 이름의 폴더가 있습니다." });
+      rows.push({ ...jpg, destinationDirectory, destinationName, destinationPath, status: "conflict", reason: "같은 이름의 폴더가 있습니다." });
     } else if (existing?.kind === "file") {
       const identical = existing.file.size === jpg.size && existing.file.lastModified === jpg.lastModified;
-      rows.push({ ...jpg, destinationDirectory, destinationPath, status: identical ? "skip" : "conflict", reason: identical ? "이미 같은 파일이 있습니다." : "같은 이름이지만 크기 또는 수정시각이 다릅니다." });
+      rows.push({ ...jpg, destinationDirectory, destinationName, destinationPath, status: identical ? "skip" : "conflict", reason: identical ? "이미 같은 파일이 있습니다." : "같은 이름이지만 크기 또는 수정시각이 다릅니다." });
     } else {
-      rows.push({ ...jpg, destinationDirectory, destinationPath, status: "move", reason: "JPG전체로 옮깁니다." });
+      rows.push({ ...jpg, destinationDirectory, destinationName, destinationPath, status: "move", reason: "JPG전체로 옮깁니다." });
     }
   }
   rows.sort((left, right) => left.destinationPath.localeCompare(right.destinationPath, "ko", { numeric: true, sensitivity: "base" }));
@@ -230,20 +265,20 @@ export function jpgPrepStats(plan: JpgPrepPlan | null): JpgPrepStats {
 }
 
 export async function movePlannedJpg(root: FileSystemDirectoryHandle, row: JpgPrepPlanRow): Promise<void> {
-  const lateDestination = await existingDestination(root, row.destinationDirectory, row.name);
+  const lateDestination = await existingDestination(root, row.destinationDirectory, row.destinationName);
   if (lateDestination) throw new Error(`${row.destinationPath}에 파일이 새로 생겨 덮어쓰지 않았습니다.`);
   const destinationDirectory = await directoryForWrite(root, [JPG_INTEGRATED_DIRECTORY, ...row.destinationDirectory]);
-  const result = await moveFileFast({ src: row.fileHandle, destDir: destinationDirectory, fileName: row.name });
+  const result = await moveFileFast({ src: row.fileHandle, destDir: destinationDirectory, fileName: row.destinationName });
   if (result.method === "native-move") return;
-  const copied = await (await destinationDirectory.getFileHandle(row.name)).getFile();
+  const copied = await (await destinationDirectory.getFileHandle(row.destinationName)).getFile();
   if (copied.size !== row.size) {
-    await destinationDirectory.removeEntry(row.name).catch(() => undefined);
+    await destinationDirectory.removeEntry(row.destinationName).catch(() => undefined);
     throw new Error(`${row.name} 복사 검증에 실패했습니다.`);
   }
   try {
     await row.sourceDirectory.removeEntry(row.name);
   } catch (error) {
-    await destinationDirectory.removeEntry(row.name).catch(() => undefined);
+    await destinationDirectory.removeEntry(row.destinationName).catch(() => undefined);
     throw error;
   }
 }

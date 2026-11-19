@@ -7,6 +7,7 @@ export type AdobeBridgeMark = {
 
 export type AdobeBridgeRatingCandidate = {
   name: string;
+  sourceName?: string;
   file?: File;
   handle?: FileSystemFileHandle;
   relativeDirectory?: string;
