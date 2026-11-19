@@ -129,15 +129,15 @@ begin
     new.customer_id, new.contract_id, new.quote_id, new.workflow_run_id,
     new.supersedes_id, new.version, new.customer_snapshot, new.issuer_snapshot,
     new.contract_snapshot, new.items, new.subtotal, new.vat, new.total,
-    new.reason, new.evidence, new.bank_info, new.due_date, new.token_hash,
-    new.expires_at, new.verification_channel, new.verification_target_hash,
+    new.reason, new.evidence, new.bank_info, new.due_date,
+    new.verification_channel, new.verification_target_hash,
     new.verification_target_masked
   ) is distinct from row(
     old.customer_id, old.contract_id, old.quote_id, old.workflow_run_id,
     old.supersedes_id, old.version, old.customer_snapshot, old.issuer_snapshot,
     old.contract_snapshot, old.items, old.subtotal, old.vat, old.total,
-    old.reason, old.evidence, old.bank_info, old.due_date, old.token_hash,
-    old.expires_at, old.verification_channel, old.verification_target_hash,
+    old.reason, old.evidence, old.bank_info, old.due_date,
+    old.verification_channel, old.verification_target_hash,
     old.verification_target_masked
   ) then
     raise exception 'billing_consent_document_locked' using errcode = 'PT409';
@@ -184,6 +184,60 @@ begin
 end;
 $$;
 
+create or replace function public.finalize_billing_consent_signature(
+  p_consent_id uuid,
+  p_signer_name text,
+  p_consent_checks jsonb,
+  p_signed_at timestamptz,
+  p_signed_ip inet,
+  p_signed_ua text,
+  p_signature_path text,
+  p_signature_sha256 text,
+  p_document_evidence_sha256 text,
+  p_pdf_path text,
+  p_pdf_sha256 text
+)
+returns public.billing_consents
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  result public.billing_consents;
+begin
+  update public.billing_consents
+  set
+    status = 'signed',
+    signer_name = p_signer_name,
+    consent_checks = p_consent_checks,
+    signed_at = p_signed_at,
+    signed_ip = p_signed_ip,
+    signed_ua = p_signed_ua,
+    signature_path = p_signature_path,
+    signature_sha256 = p_signature_sha256,
+    document_evidence_sha256 = p_document_evidence_sha256,
+    pdf_path = p_pdf_path,
+    pdf_sha256 = p_pdf_sha256,
+    pdf_generated_at = p_signed_at
+  where id = p_consent_id
+    and status in ('sent', 'viewed')
+    and signed_at is null
+  returning * into result;
+
+  if result.id is null then
+    raise exception 'billing_consent_not_signable' using errcode = 'PT409';
+  end if;
+
+  insert into public.billing_consent_events (consent_id, type, at, ip, ua, meta)
+  values (p_consent_id, 'signed', p_signed_at, p_signed_ip, p_signed_ua, jsonb_build_object(
+    'documentEvidenceSha256', p_document_evidence_sha256,
+    'pdfSha256', p_pdf_sha256
+  ));
+
+  return result;
+end;
+$$;
+
 drop trigger if exists billing_consents_updated_at on public.billing_consents;
 create trigger billing_consents_updated_at
   before update on public.billing_consents
@@ -208,6 +262,8 @@ revoke all on function public.billing_consent_set_updated_at() from public, anon
 revoke all on function public.billing_consent_guard_immutable() from public, anon, authenticated;
 revoke all on function public.billing_consent_guard_delete() from public, anon, authenticated;
 revoke all on function public.billing_consent_event_append_only() from public, anon, authenticated;
+revoke all on function public.finalize_billing_consent_signature(uuid, text, jsonb, timestamptz, inet, text, text, text, text, text, text) from public, anon, authenticated;
+grant execute on function public.finalize_billing_consent_signature(uuid, text, jsonb, timestamptz, inet, text, text, text, text, text, text) to service_role;
 
 alter table public.billing_consents enable row level security;
 alter table public.billing_consent_events enable row level security;

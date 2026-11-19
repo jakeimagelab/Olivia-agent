@@ -21,6 +21,10 @@ function safeEqual(left: string, right: string) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+export function billingConsentSecureEqual(left: string, right: string) {
+  return safeEqual(left, right);
+}
+
 export function sha256Hex(value: string | Buffer | Uint8Array) {
   return createHash("sha256").update(value).digest("hex");
 }

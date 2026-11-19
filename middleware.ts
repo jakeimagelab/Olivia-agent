@@ -88,6 +88,7 @@ const protectedApiPrefixes = [
   "/api/photo-storage",
   "/api/video-studio",
   "/api/ai-trust",
+  "/api/billing-consents",
 ];
 
 // 외부 공유 링크가 허용하는 기능 페이지 → 그 기능에 실제로 필요한 API prefix만 나열.
@@ -230,6 +231,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
   if (pathname === "/portrait-consent" && !isAdminSession) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+  if ((pathname === "/billing-consents" || pathname.startsWith("/billing-consents/")) && !isAdminSession) {
     return NextResponse.redirect(new URL("/", req.url));
   }
   if ((pathname === "/voice-recorder" || pathname.startsWith("/voice-recorder/")) && !isAdminSession) {
