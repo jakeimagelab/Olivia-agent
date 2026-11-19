@@ -9,6 +9,7 @@ import {
   Home,
   Images,
   LayoutPanelTop,
+  Library,
   MessageCircle,
   NotebookText,
   Palette,
@@ -33,6 +34,7 @@ const DOCK_ICONS: Record<string, LucideIcon> = {
   quote: FileText,
   conti: LayoutPanelTop,
   "work-journal": NotebookText,
+  documents: Library,
 };
 
 const DOCK_LABELS: Record<string, string> = {
@@ -40,6 +42,7 @@ const DOCK_LABELS: Record<string, string> = {
   "photo-retouching": "사진보정",
   "person-select": "사진선택",
   "video-studio": "영상",
+  documents: "문서함",
 };
 
 export function DesktopDock() {

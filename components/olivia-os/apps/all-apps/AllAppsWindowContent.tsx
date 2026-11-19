@@ -29,6 +29,7 @@ import styles from "./AllAppsWindowContent.module.css";
 
 const TOOL_ICON_BY_HREF: Record<string, IconName> = {
   "/memo": "memo", "/team-chat": "team-chat", "/calendar": "work-calendar",
+  "/admin/documents": "library",
   "/work-journal": "work-log", "/team": "workspace", "/marketing": "marketing-dashboard",
   "/quote": "quote", "/contract": "contract", "/clients": "clients", "/select-galleries": "select-gallery", "/person-select": "select-gallery",
   "/conti": "storyboard",

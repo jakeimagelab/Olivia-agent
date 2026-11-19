@@ -28,12 +28,14 @@ describe("OLIVIA OS app registry navigation", () => {
       "video-studio",
       "quote",
       "conti",
+      "documents",
       "work-journal",
     ]);
     expect(getOliviaApp("today")).toBeDefined();
     expect(getOliviaApp("today")?.dockOrder).toBeUndefined();
     expect(dockApps.find((app) => app.id === "olivia-bridge")?.title).toBe("Olivia Bridge");
     expect(dockApps.find((app) => app.id === "photo-retouching")?.title).toBe("사진 보정");
+    expect(dockApps.find((app) => app.id === "documents")?.title).toBe("문서함");
     expect(getOliviaApp("olivia-chat")).toBeDefined();
   });
 
@@ -68,6 +70,11 @@ describe("OLIVIA OS app registry navigation", () => {
       app: expect.objectContaining({ id: "conti" }),
       href: "/conti?clientId=client-1",
     });
+  });
+
+  it("opens the document library from its public OS route", () => {
+    expect(getOliviaApp("documents")).toMatchObject({ title: "문서함", route: "/admin/documents" });
+    expect(getOliviaAppByRoute("/admin/documents")?.id).toBe("documents");
   });
 
   it("opens the staff guide as a hidden OS app without adding it to the Dock or Desktop", () => {

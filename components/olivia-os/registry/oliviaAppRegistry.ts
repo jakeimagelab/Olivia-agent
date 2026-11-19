@@ -183,7 +183,7 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     defaultSize: { width: 1180, height: 760 },
     minSize: { width: 620, height: 440 },
     singleton: true,
-    dockOrder: 10,
+    dockOrder: 11,
     component: WorkJournalWindowContent,
   },
   {
@@ -263,10 +263,12 @@ export const oliviaAppRegistry: OliviaAppDefinition[] = [
     id: "documents",
     title: "문서함",
     icon: appIcon("library"),
+    route: "/admin/documents",
     defaultSize: { width: 1050, height: 680 },
     minSize: { width: 640, height: 420 },
     singleton: true,
     desktopShortcutOrder: 4,
+    dockOrder: 10,
     component: DocumentsWindowContent,
   },
   {
