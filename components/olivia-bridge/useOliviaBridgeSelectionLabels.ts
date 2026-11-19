@@ -5,7 +5,6 @@ import {
   useEffect,
   useRef,
   useState,
-  type MutableRefObject,
 } from "react";
 
 import type { BridgeJpgFile } from "@/lib/photo-bridge/bridgeFiles";
@@ -16,27 +15,22 @@ import {
   type BridgeColorLabels,
   type BridgeRatingEdits,
 } from "@/lib/photo-bridge/labels";
-import type { BridgeSelectionSource } from "@/lib/photo-bridge/toolLinkage";
 
 type UseOliviaBridgeSelectionLabelsOptions = {
   jpgs: readonly BridgeJpgFile[];
   selectedIds: ReadonlySet<string>;
   focusedId: string | null;
-  selectionSourceRef: MutableRefObject<BridgeSelectionSource>;
   setJpgRatingsByName: (
     entries: Readonly<Record<string, number | null | undefined>>,
     options?: { overwrite?: boolean },
   ) => void;
-  showAdobeSelectionNotice: () => void;
 };
 
 export function useOliviaBridgeSelectionLabels({
   jpgs,
   selectedIds,
   focusedId,
-  selectionSourceRef,
   setJpgRatingsByName,
-  showAdobeSelectionNotice,
 }: UseOliviaBridgeSelectionLabelsOptions) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [ratingEdits, setRatingEdits] = useState<BridgeRatingEdits>({});
@@ -59,10 +53,6 @@ export function useOliviaBridgeSelectionLabels({
   }, [focusedId, selectedIds]);
 
   const applyRating = useCallback((rating: number, focusedOnly = false) => {
-    if (selectionSourceRef.current === "adobe") {
-      showAdobeSelectionNotice();
-      return;
-    }
     const targets = labelTargets(focusedOnly);
     if (!targets.size) return;
     setRatingEdits((previous) => {
@@ -83,7 +73,7 @@ export function useOliviaBridgeSelectionLabels({
       Object.fromEntries(jpgs.flatMap((photo) => targets.has(photo.id) ? [[photo.name, rating] as const] : [])),
       { overwrite: true },
     );
-  }, [jpgs, labelTargets, selectionSourceRef, setJpgRatingsByName, showAdobeSelectionNotice]);
+  }, [jpgs, labelTargets, setJpgRatingsByName]);
 
   const applyColorLabel = useCallback((label: BridgeColorLabel, focusedOnly = false) => {
     const targets = labelTargets(focusedOnly);

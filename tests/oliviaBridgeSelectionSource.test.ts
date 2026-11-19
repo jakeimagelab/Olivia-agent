@@ -18,7 +18,7 @@ describe("Olivia Bridge selection source", () => {
     expect([...resolveBridgeSelection("both", manual, adobe, removed)].sort()).toEqual(["adobe", "manual", "shared"]);
   });
 
-  it("ignores Adobe ratings for Olivia and keeps Adobe merge rules otherwise", () => {
+  it("uses Adobe as the base while allowing Olivia keyboard rating overrides", () => {
     const base = { manual: 2, shared: 1 };
     const adobeRatings = { adobe: 4, shared: 5 };
     const edits = { adobe: 3, shared: 0 } as const;
@@ -27,7 +27,7 @@ describe("Olivia Bridge selection source", () => {
     expect(resolveBridgeRatings("adobe", base, adobeRatings, {})).toEqual({ adobe: 4, shared: 5 });
     expect(resolveBridgeRatings("both", base, adobeRatings, {})).toEqual({ manual: 2, adobe: 4, shared: 5 });
     expect(resolveBridgeRatings("olivia", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3 });
-    expect(resolveBridgeRatings("adobe", base, adobeRatings, edits)).toEqual({ adobe: 4, shared: 5 });
+    expect(resolveBridgeRatings("adobe", base, adobeRatings, edits)).toEqual({ adobe: 3, shared: 5 });
     expect(resolveBridgeRatings("both", base, adobeRatings, edits)).toEqual({ manual: 2, adobe: 3, shared: 5 });
   });
 
@@ -38,12 +38,12 @@ describe("Olivia Bridge selection source", () => {
     expect(normalizeBridgeSelectionSource("adobe")).toBe("adobe");
   });
 
-  it("컬러 기준별로 올리비아·어도비 값을 같은 우선순위로 합친다", () => {
+  it("어도비 기준에서도 단축키로 지정한 컬러를 위에 적용한다", () => {
     const base = { manual: 6, shared: 8 } as const;
     const adobe = { adobe: 7, shared: 9 } as const;
 
     expect(resolveBridgeColorLabels("olivia", base, adobe)).toEqual(base);
-    expect(resolveBridgeColorLabels("adobe", base, adobe)).toEqual(adobe);
+    expect(resolveBridgeColorLabels("adobe", base, adobe)).toEqual({ adobe: 7, shared: 8, manual: 6 });
     expect(resolveBridgeColorLabels("both", base, adobe)).toEqual({ adobe: 7, shared: 8, manual: 6 });
   });
 });

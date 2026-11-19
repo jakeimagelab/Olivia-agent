@@ -28,7 +28,8 @@ describe("Olivia Bridge labels", () => {
     const cleared = updateBridgeRatingEdits(five, targets, 0);
     expect(resolveBridgeRatings("both", {}, { "photo-a": 4 }, cleared)).toEqual({ "photo-a": 4 });
     expect(resolveBridgeRatings("olivia", { "photo-a": 2 }, {}, cleared)).toEqual({});
-    expect(resolveBridgeRatings("adobe", { "photo-a": 2 }, { "photo-a": 4 }, five)).toEqual({ "photo-a": 4 });
+    expect(resolveBridgeRatings("adobe", { "photo-a": 2 }, { "photo-a": 4 }, five)).toEqual({ "photo-a": 5 });
+    expect(resolveBridgeRatings("adobe", { "photo-a": 2 }, { "photo-a": 4 }, cleared)).toEqual({ "photo-a": 4 });
     expect(cleared).toEqual({ "photo-a": 0 });
   });
 

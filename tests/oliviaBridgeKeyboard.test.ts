@@ -51,4 +51,11 @@ describe("Olivia Bridge keyboard", () => {
     const source = readFileSync("components/olivia-bridge/useOliviaBridgeSceneReviewModel.ts", "utf8");
     expect(source).toContain("[sceneReviewOpen, sceneState.analysis, selectedIds]");
   });
+
+  it("keeps rating shortcuts enabled when Adobe is the selection source", () => {
+    const source = readFileSync("components/olivia-bridge/useOliviaBridgeSelectionLabels.ts", "utf8");
+
+    expect(source).not.toContain('selectionSourceRef.current === "adobe"');
+    expect(source).toContain("updateBridgeRatingEdits(previous, targets, rating)");
+  });
 });

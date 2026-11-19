@@ -63,21 +63,27 @@ export function normalizeBridgeRatingEdits(value: unknown): BridgeRatingEdits {
   return edits;
 }
 
-/** 셀렉 기준별 원본을 분리하고, 둘 다에서는 0점 편집이 Adobe 값을 지우지 않게 한다. */
+/**
+ * 셀렉 기준의 원본 위에 Olivia 단축키 편집을 적용한다.
+ * 0점 편집은 Adobe 메타데이터를 지우지 않고 원래 Adobe 값을 다시 드러낸다.
+ */
 export function resolveBridgeRatings(
   source: BridgeSelectionSource,
   base: Readonly<Record<string, number>>,
   adobe: Readonly<Record<string, number>>,
   edits: Readonly<BridgeRatingEdits>,
 ) {
-  if (source === "adobe") return { ...adobe };
-  const next = source === "olivia" ? { ...base } : { ...base, ...adobe };
+  const next = source === "olivia"
+    ? { ...base }
+    : source === "adobe"
+      ? { ...adobe }
+      : { ...base, ...adobe };
   for (const [id, rating] of Object.entries(edits)) {
     if (rating > 0) {
       next[id] = rating;
       continue;
     }
-    if (source === "both" && adobe[id]) next[id] = adobe[id];
+    if (source !== "olivia" && adobe[id]) next[id] = adobe[id];
     else delete next[id];
   }
   return next;
@@ -89,7 +95,6 @@ export function resolveBridgeColorLabels(
   adobe: Readonly<BridgeColorLabels>,
 ): BridgeColorLabels {
   if (source === "olivia") return { ...base };
-  if (source === "adobe") return { ...adobe };
   return { ...adobe, ...base };
 }
 

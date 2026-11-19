@@ -190,9 +190,7 @@ export default function OliviaBridgeWorkspace({
     jpgs: scan.jpgs,
     selectedIds,
     focusedId,
-    selectionSourceRef,
     setJpgRatingsByName,
-    showAdobeSelectionNotice,
   });
   const folderImageCounts = useOliviaBridgeFolderCounts(activeFolder, scan.folders);
   const captureMetadataState = useOliviaBridgeCaptureMetadata({
