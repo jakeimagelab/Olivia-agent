@@ -124,8 +124,9 @@ describe("거래명세서 전환", () => {
       snapshot: buildTransactionStatementSnapshot(quoteRow()), confirmed_at: null, confirmed_by: null,
       business_details: { supplier: { businessCategory: "서비스", businessItem: "사진 촬영" }, recipient: { name: "<거래처>" } },
     };
-    const assets = { logo: "/assets/photoclinic-logo.png" };
-    const { sheet } = buildStatementPage(statement, assets);
+    const assets = { logo: "/assets/photoclinic-logo.png", koreanFont: "/assets/statement-font.ttf" };
+    const { css, sheet } = buildStatementPage(statement, assets);
+    expect(css).toContain("font-display:swap");
     expect(sheet).toContain("&lt;거래처&gt;");
     expect(sheet).toContain("서비스 · 사진 촬영");
     expect(buildStatementHtml(statement, assets)).toContain(sheet);

@@ -60,7 +60,7 @@ export function buildStatementPage(statement: StatementPageData, assets: Stateme
   const business = [supplier.businessCategory, supplier.businessItem].filter(Boolean).join(" · ");
   const recipientBusiness = [recipient.businessCategory, recipient.businessItem].filter(Boolean).join(" · ");
   const css = `
-    ${assets.koreanFont ? `@font-face{font-family:"Statement Korean";src:url("${assets.koreanFont}") format("truetype")}` : ""}
+    ${assets.koreanFont ? `@font-face{font-family:"Statement Korean";src:url("${assets.koreanFont}") format("truetype");font-display:swap}` : ""}
     @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#1c2b28;font:11px/1.52 "Statement Korean","Apple SD Gothic Neo",sans-serif}
     main{width:793px;min-height:1120px;padding:39px 48px 32px;display:flex;flex-direction:column}
     header,.columns,.total{display:flex;justify-content:space-between;gap:18px}
