@@ -115,7 +115,7 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   ${adjustment.supply || adjustment.vat ? `<tr class="adjustment"><td></td><td colspan="3">견적 조정 및 세액 차이</td>
     <td class="numeric">${money(adjustment.supply)}</td><td class="numeric">${money(adjustment.vat)}</td><td></td></tr>` : ""}
   </tbody></table>
-  <div class="columns"><section class="notes"><h2>비고</h2><p>본 거래명세서는 승인된 견적서 ${html(quoteNumber)}의 내용을 그대로 옮겨 작성되었습니다. 세금계산서는 별도로 발행됩니다.</p>
+  <div class="columns"><section class="notes"><h2>비고</h2><p>본 거래명세서는 견적서 ${html(quoteNumber)}의 내용을 그대로 옮겨 작성되었습니다. 세금계산서는 별도로 발행됩니다.</p>
   ${taxIncluded ? "<p>표에 적힌 단가는 부가세를 포함합니다.</p>" : ""}
   <div class="bank"><b>입금계좌</b> ${supplier.bank} ${supplier.account} (${supplier.accountHolder})</div></section>
   <section class="payment">${quote.discountTotal ? amount(quote.discountLabel || "할인", -quote.discountTotal) : ""}

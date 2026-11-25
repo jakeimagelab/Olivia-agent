@@ -5,7 +5,9 @@ import { buildStatementHtml } from "@/lib/quote/transactionStatementHtml";
 import { newStatementReceiptToken, statementReceiptTokenHash } from "@/lib/quote/transactionStatementReceipt";
 import { buildTransactionStatementSnapshot } from "@/lib/quote/transactionStatementSnapshot";
 import { createTransactionStatement, type TransactionStatement } from "@/lib/quote/transactionStatementStore";
+import { executeTransactionStatementTool, TRANSACTION_STATEMENT_TOOL } from "@/lib/olivia/v2/toolExecutors/transactionStatement";
 import { statementChatRequest, statementChoiceFromHistory } from "@/lib/olivia/v2/transactionStatementIntent";
+import * as supabase from "@/lib/supabase";
 
 const QUOTE_ID = "00000000-0000-4000-8000-000000000001";
 const STATEMENT_ID = "00000000-0000-4000-8000-000000000002";
@@ -55,10 +57,10 @@ function mockDatabase(quote: ReturnType<typeof quoteRow>) {
 }
 
 describe("거래명세서 전환", () => {
-  it("승인 전 견적서에서는 번호 발급이나 저장을 실행하지 않는다", async () => {
+  it("작성 중인 저장 견적서로 거래명세서를 만든다", async () => {
     const { db, rpc } = mockDatabase({ ...quoteRow(), status: "draft" });
-    await expect(createTransactionStatement(QUOTE_ID, db, NOW)).rejects.toMatchObject({ status: 409, message: expect.stringContaining("승인 후") });
-    expect(rpc).not.toHaveBeenCalled();
+    await expect(createTransactionStatement(QUOTE_ID, db, NOW)).resolves.toMatchObject({ id: STATEMENT_ID, status: "draft" });
+    expect(rpc).toHaveBeenCalledWith("insert_transaction_statement_from_quote", expect.objectContaining({ source_id: QUOTE_ID }));
   });
 
   it("저장한 스냅샷의 품목과 금액은 이후 견적 변경과 독립적이다", async () => {
@@ -107,6 +109,7 @@ describe("거래명세서 전환", () => {
     const html = buildStatementHtml(statement, { logo: "logo.png", signature: "sign.png", seal: "seal.png" });
     expect(html).not.toContain("업태·종목");
     expect(html).not.toContain("계약 안내");
+    expect(html).toContain("본 거래명세서는 견적서 PCQ-20261124-1001의 내용을 그대로 옮겨 작성되었습니다.");
     expect(html.match(/class="seal"/g)).toHaveLength(2);
     expect(html).toContain("rotate(0deg)");
     expect(html).toContain("포털에서 확인됨");
@@ -123,6 +126,35 @@ describe("거래명세서 전환", () => {
 });
 
 describe("거래명세서 채팅", () => {
+  it("작성 중인 저장 견적을 찾고 거래명세서로 전환한다", async () => {
+    const quote = { ...quoteRow(), status: "draft", created_at: NOW.toISOString() };
+    const { rpc } = mockDatabase(quote);
+    const clientQuery = {
+      select: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    const quoteQuery = {
+      select: vi.fn().mockReturnThis(),
+      ilike: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue({ data: [quote], error: null }),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: quote, error: null }),
+    };
+    const from = vi.fn((table: string) => table === "clients" ? clientQuery : quoteQuery);
+    const admin = vi.spyOn(supabase, "getSupabaseAdmin").mockReturnValue({ from, rpc } as unknown as SupabaseClient);
+    try {
+      const result = await executeTransactionStatementTool(TRANSACTION_STATEMENT_TOOL, {}, {
+        currentRequestText: "테스트치과 거래명세서 만들어줘", recentActions: [], revision: 0,
+      });
+      expect(result).toMatchObject({ success: true, data: { statementId: STATEMENT_ID } });
+      expect(rpc).toHaveBeenCalledWith("insert_transaction_statement_from_quote", expect.objectContaining({ source_id: QUOTE_ID }));
+    } finally {
+      admin.mockRestore();
+    }
+  });
+
   it("원문 고객명만 추출하고 현재 고객을 가리키는 표현으로 전환하지 않는다", () => {
     expect(statementChatRequest("강남스마트치과 거래명세서 만들어줘")).toEqual({ clientName: "강남스마트치과", quoteNumber: null });
     expect(statementChatRequest("이 견적서로 거래명세서 만들어줘")).toEqual({ clientName: "", quoteNumber: null });

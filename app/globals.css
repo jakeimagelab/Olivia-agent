@@ -159,7 +159,7 @@ main.quote-app { container-name: quote-app; container-type: inline-size; }
   }
   .quote-builder-layout--embedded > .quote-builder-preview {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     min-height: 0;
   }
 }

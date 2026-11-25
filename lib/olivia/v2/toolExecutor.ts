@@ -31,7 +31,7 @@ export const OLIVIA_V2_TOOLS: FunctionTool[] = [
   {
     type: "function",
     name: TRANSACTION_STATEMENT_TOOL,
-    description: "[WRITE] 사용자가 고객명을 적어 거래명세서 생성을 요청하면 승인 견적을 확인합니다. 사용자 원문에 적힌 고객명만 사용합니다. 여러 승인 견적이 있으면 선택 목록을 반환합니다. 이메일은 발송하지 않습니다.",
+    description: "[WRITE] 사용자가 고객명을 적어 거래명세서 생성을 요청하면 저장된 견적을 확인합니다. 사용자 원문에 적힌 고객명만 사용합니다. 견적이 여러 건이면 선택 목록을 반환합니다. 이메일은 발송하지 않습니다.",
     strict: true,
     parameters: { type: "object", additionalProperties: false, properties: {}, required: [] },
   },

@@ -1418,11 +1418,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         setRecentQuoteMessage(json.error || "최종완료 처리에 실패했습니다.");
         return;
       }
-      if (typeof json.status === "string") {
-        const status = json.status;
-        setRecentQuotes((previous) => previous.map((quote) => quote.id === quoteId ? { ...quote, status } : quote));
-        if (editorSessionRef.current.quoteId === quoteId) setCurrentQuoteStatus(status);
-      }
       setRecentQuoteMessage(
         json.advanced
           ? "견적서 단계를 최종완료 처리하고 다음 단계(계약서)로 진행했습니다."
@@ -2870,7 +2865,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       >
                         {publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}
                       </button>
-                      <TransactionStatementButton quoteId={item.quoteId ?? item.id} status={item.status} />
                     </div>
                   </div>
                 ))}
@@ -2975,9 +2969,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
               <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 가로 맞춤</p>
             </div>
-            {quoteDocumentId ? (
-              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId} status={effectiveQuoteStatus} />
-            ) : null}
             <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
               <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소">
                 <ZoomOut size={16} />
@@ -2997,6 +2988,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           {showFullscreenPreview && typeof document !== "undefined"
             ? createPortal(quotePreviewShellNode, document.body)
             : quotePreviewShellNode}
+          {quoteDocumentId ? (
+            <div className="mt-3 flex justify-end">
+              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId} />
+            </div>
+          ) : null}
         </aside>
       </section>
       {/* OLIVIA OS 1차 작업 지시서 2/3단계 — 창 하단 고정 액션 바. AppWindow의 .content가

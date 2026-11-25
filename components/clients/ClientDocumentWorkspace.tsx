@@ -12,7 +12,6 @@ import { ACTIVE_WORKFLOW_STEPS, getWorkflowDisplayStepKey } from "@/lib/workflow
 import { buildStepAppLink } from "@/lib/clientAppLinks";
 import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
 import { emitShellSelection } from "@/lib/olivia/desktop/shellSelection";
-import { TransactionStatementButton } from "@/components/quote/TransactionStatementButton";
 import styles from "./ClientDocumentWorkspace.module.css";
 
 const loadingEditor = () => <div className={styles.editorLoading}><LoaderCircle size={22} /> 문서를 불러오는 중...</div>;
@@ -376,7 +375,6 @@ function ClientCase({ detail, workDoc, returnToList, closeEditorRef, refreshAll,
                   <span className={styles.documentIcon}><Icon size={16} /></span><span><strong>{doc.label}</strong><small>{doc.status}</small></span>
                   {doc.key === "quote" || doc.key === "contract" || doc.key === "conti" ? <button type="button" disabled={!doc.exists} onClick={() => requestDocument(doc.key)}>수정</button>
                     : <a href={href || undefined} aria-disabled={!href} target="_blank" rel="noreferrer">열기</a>}
-                  {doc.key === "quote" && quote ? <TransactionStatementButton key={quote.id} quoteId={quote.id} status={quote.status} /> : null}
                 </div>;
               })}
             </section>

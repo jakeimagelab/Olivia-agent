@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { APPROVED_QUOTE_STATUSES } from "@/lib/clientWorkspace/quoteSelection";
-import { STATEMENT_UUID, transactionStatementMailPage, transactionStatementPath } from "@/lib/quote/transactionStatementSnapshot";
+import { transactionStatementMailPage, transactionStatementPath } from "@/lib/quote/transactionStatementSnapshot";
 import styles from "./TransactionStatement.module.css";
 
-export function TransactionStatementButton({ quoteId, status }: { quoteId: string; status?: string | null }) {
+export function TransactionStatementButton({ quoteId }: { quoteId: string }) {
   const [pending, setPending] = useState(false);
   const [id, setId] = useState<string>();
   const [error, setError] = useState("");
-  const approved = STATEMENT_UUID.test(quoteId) && APPROVED_QUOTE_STATUSES.has(status ?? "");
 
   async function create() {
     setPending(true);
@@ -31,10 +29,8 @@ export function TransactionStatementButton({ quoteId, status }: { quoteId: strin
   }
 
   return <div className={styles.inline}>
-    <button className={styles.secondary} type="button" disabled={!approved || pending}
-      title={!approved ? "견적서를 최종완료하거나 포털에 공개하면 만들 수 있습니다." : undefined}
-      onClick={() => void create()}>
-      {pending ? "만드는 중…" : approved ? "＋ 거래명세서 만들기" : "거래명세서 만들기 (승인 후 가능)"}
+    <button className={styles.secondary} type="button" disabled={pending} onClick={() => void create()}>
+      {pending ? "만드는 중…" : "＋ 거래명세서 만들기"}
     </button>
     {id ? <div className={styles.actions}>
       <a className={styles.secondary} href={`${transactionStatementPath(id)}/pdf`} target="_blank" rel="noreferrer">PDF 보기</a>

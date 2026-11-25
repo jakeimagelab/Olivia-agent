@@ -474,7 +474,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           activeAgentEngine = "legacy";
           chatRouteLabel = "DIRECT_TOOL";
           const toolCall = { id: crypto.randomUUID(), name: TRANSACTION_STATEMENT_TOOL, arguments: "{}" };
-          send({ type: "agent_status", status: "승인된 견적서를 확인하는 중…" });
+          send({ type: "agent_status", status: "저장된 견적서를 확인하는 중…" });
           send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
           const started = performance.now();
           const { result } = await executeAgentTool(toolCall, { ...effectiveContext, currentRequestText: statementRequest });

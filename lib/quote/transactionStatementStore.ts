@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { APPROVED_QUOTE_STATUSES } from "@/lib/clientWorkspace/quoteSelection";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import {
   buildTransactionStatementSnapshot,
@@ -67,9 +66,6 @@ export async function createTransactionStatement(
   const { data: quote, error } = await db.from("quotes").select("*").eq("id", quoteId).maybeSingle();
   if (error) throw new TransactionStatementError("견적서를 읽지 못했습니다.", 500);
   if (!quote) throw new TransactionStatementError("견적서를 찾지 못했습니다.", 404);
-  if (!APPROVED_QUOTE_STATUSES.has(String(quote.status))) {
-    throw new TransactionStatementError("거래명세서는 견적서 승인 후 만들 수 있습니다.", 409);
-  }
   const clientLookup = quote.client_id
     ? await db.from("clients").select("*").eq("id", quote.client_id).maybeSingle()
     : null;
@@ -84,12 +80,7 @@ export async function createTransactionStatement(
     statement_snapshot: snapshot,
   }).single<{ id: string; statement_number: string }>();
   if (insertError?.code === "PT409") {
-    throw new TransactionStatementError(
-      insertError.message === "quote_not_approved"
-        ? "거래명세서는 견적서 승인 후 만들 수 있습니다."
-        : "견적서가 방금 변경되었습니다. 최신 내용을 확인한 뒤 다시 만들어 주세요.",
-      409,
-    );
+    throw new TransactionStatementError("견적서가 방금 변경되었습니다. 최신 내용을 확인한 뒤 다시 만들어 주세요.", 409);
   }
   if (insertError?.code === "PT404") throw new TransactionStatementError("견적서를 찾지 못했습니다.", 404);
   if (insertError?.code === "PGRST202") {
