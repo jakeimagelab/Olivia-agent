@@ -1,26 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { transactionStatementMailPage, transactionStatementPath } from "@/lib/quote/transactionStatementSnapshot";
+import { useEffect, useState } from "react";
+import { createQuoteStatement, loadQuoteStatements } from "@/lib/quote/transactionStatementClient";
 import styles from "./TransactionStatement.module.css";
 
-export function TransactionStatementButton({ quoteId }: { quoteId: string }) {
+export function TransactionStatementButton({ quoteId, onOpen }: { quoteId: string; onOpen: (id: string) => void }) {
   const [pending, setPending] = useState(false);
-  const [id, setId] = useState<string>();
+  const [hasStatement, setHasStatement] = useState<boolean | null>(null);
   const [error, setError] = useState("");
 
-  async function create() {
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadQuoteStatements(quoteId, controller.signal)
+      .then(({ statements }) => { if (!controller.signal.aborted) setHasStatement(statements.length > 0); })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "거래명세서를 읽지 못했습니다.");
+      });
+    return () => controller.abort();
+  }, [quoteId]);
+
+  async function open() {
     setPending(true);
     setError("");
     try {
-      const response = await fetch("/api/transaction-statements", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteId }),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.statement?.id) throw new Error(result?.error || "거래명세서를 만들지 못했습니다.");
-      setId(result.statement.id);
+      const { statements } = await loadQuoteStatements(quoteId);
+      const statement = statements[0] ?? (await createQuoteStatement(quoteId)).statement;
+      onOpen(statement.id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "생성하지 못했습니다.");
     } finally {
@@ -28,14 +33,11 @@ export function TransactionStatementButton({ quoteId }: { quoteId: string }) {
     }
   }
 
+  const loading = hasStatement === null && !error;
   return <div className={styles.inline}>
-    <button className={styles.secondary} type="button" disabled={pending} onClick={() => void create()}>
-      {pending ? "만드는 중…" : "＋ 거래명세서 만들기"}
+    <button className={styles.secondary} type="button" disabled={pending || loading} onClick={() => void open()}>
+      {pending || loading ? "거래명세서 준비 중…" : hasStatement ? "거래명세서 열기" : "＋ 거래명세서 만들기"}
     </button>
-    {id ? <div className={styles.actions}>
-      <a className={styles.secondary} href={`${transactionStatementPath(id)}/pdf`} target="_blank" rel="noreferrer">PDF 보기</a>
-      <a className={styles.secondary} href={transactionStatementMailPage(id)} target="_blank" rel="noreferrer">메일 보내기</a>
-    </div> : null}
     {error ? <p className={styles.error} role="alert">{error}</p> : null}
   </div>;
 }

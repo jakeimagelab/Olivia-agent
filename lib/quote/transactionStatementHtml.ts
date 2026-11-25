@@ -1,8 +1,9 @@
 import { CONTRACT_BRAND_CONFIG } from "@/lib/contract/contractDocument";
 import { DOCUMENT_BRAND_COLORS, DOCUMENT_SUPPLIER } from "@/lib/contract/documentBrandStyle";
+import { matchesStatementSupplier, resolveStatementBusinessDetails } from "./transactionStatementDetails";
 import type { TransactionStatement } from "./transactionStatementStore";
 
-type StatementAssets = { logo: string; signature: string; seal?: string; koreanFont?: string };
+type StatementAssets = { logo: string; signature?: string; seal?: string; recipientSignature?: string; koreanFont?: string };
 
 const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const html = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
@@ -28,10 +29,12 @@ function koreanWon(value: number): string {
 }
 
 export function buildStatementHtml(statement: TransactionStatement, assets: StatementAssets) {
-  const { document: quote, recipient, quoteNumber, lines } = statement.snapshot;
+  const { document: quote, quoteNumber, lines } = statement.snapshot;
   const brand = CONTRACT_BRAND_CONFIG[quote.brand];
   const { ink, accent } = DOCUMENT_BRAND_COLORS[quote.brand];
-  const supplier = DOCUMENT_SUPPLIER;
+  const { supplier, recipient } = resolveStatementBusinessDetails(statement.snapshot, statement.business_details);
+  const signing = statement.receipt_mode === "sign";
+  const registeredSupplier = matchesStatementSupplier(supplier);
   const taxIncluded = quote.taxMode === "included";
   const taxExcluded = quote.taxMode === "excluded";
   const itemTaxes = lines.map(({ amount }) => {
@@ -51,13 +54,13 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   const confirmedTime = statement.confirmed_at
     ? new Date(statement.confirmed_at).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "medium", timeStyle: "short" })
     : null;
-  const seal = assets.seal ? `<span class="seal"><img src="${html(assets.seal)}" alt="공급자 직인"></span>` : "";
+  const seal = registeredSupplier && assets.seal ? `<span class="seal"><img src="${html(assets.seal)}" alt="공급자 직인"></span>` : "";
   const business = [supplier.businessCategory, supplier.businessItem].filter(Boolean).join(" · ");
+  const recipientBusiness = [recipient.businessCategory, recipient.businessItem].filter(Boolean).join(" · ");
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${html(statement.statement_number)} 거래명세서</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@700&display=swap">
   <style>
     ${assets.koreanFont ? `@font-face{font-family:"Statement Korean";src:url("${assets.koreanFont}") format("truetype")}` : ""}
-    @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#1c2b28;font:11px/1.52 "Noto Sans KR","Statement Korean","Apple SD Gothic Neo",sans-serif}
+    @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#1c2b28;font:11px/1.52 "Statement Korean","Apple SD Gothic Neo",sans-serif}
     main{width:793px;min-height:1120px;padding:39px 48px 32px;display:flex;flex-direction:column}
     header,.columns,.total{display:flex;justify-content:space-between;gap:18px}
     header{border-top:6px solid ${ink};border-bottom:2px solid ${ink};padding:20px 0 14px;margin-bottom:16px;align-items:center}
@@ -99,11 +102,13 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   <div class="metadata"><h1>거래명세서</h1><p>명세서번호 <b>${html(statement.statement_number)}</b></p>
   <p>거래일 ${html(statement.transaction_date)}${shootDate ? ` · 촬영일 ${html(shootDate)}` : ""}</p>
   <p>근거 견적서 ${html(quoteNumber)}</p></div></header>
-  <div class="columns parties"><section class="${seal ? "with-seal" : ""}"><h2>공급자</h2>${row("상호", brand.companyDisplayName)}
+  <div class="columns parties"><section class="${seal ? "with-seal" : ""}"><h2>공급자</h2>${row("상호", supplier.name)}
   ${row("사업자번호", supplier.businessNumber)}${row("대표자", supplier.representative)}${seal}
-  ${row("주소", supplier.address)}${business ? row("업태·종목", business) : ""}${row("연락처", supplier.phone)}</section>
-  <section><h2>공급받는자</h2>${row(brand.entityLabel, quote.customer.hospitalName)}${row("사업자번호", recipient.businessNumber)}
-  ${row("대표자", recipient.representative)}${row("주소", recipient.address)}${row("담당자", quote.customer.managerName)}${row("이메일", quote.customer.email)}</section></div>
+  ${row("주소", supplier.address)}${business ? row("업태·종목", business) : ""}${row("연락처", supplier.phone)}
+  ${supplier.managerName ? row("담당자", supplier.managerName) : ""}${supplier.email ? row("이메일", supplier.email) : ""}</section>
+  <section><h2>공급받는자</h2>${row("상호", recipient.name)}${row("사업자번호", recipient.businessNumber)}
+  ${row("대표자", recipient.representative)}${row("주소", recipient.address)}${recipientBusiness ? row("업태·종목", recipientBusiness) : ""}
+  ${row("담당자", recipient.managerName)}${row("이메일", recipient.email)}${recipient.phone ? row("연락처", recipient.phone) : ""}</section></div>
   <div class="total"><div><b>합계금액</b><br><small>공급가액 + 세액</small></div><span class="words">${koreanWon(quote.finalAmount)}</span><strong>₩${money(quote.finalAmount)}</strong></div>
   <table><thead><tr><th>No</th><th>품목 / 내용</th><th class="numeric">수량</th><th class="numeric">단가</th><th class="numeric">공급가액</th><th class="numeric">세액</th><th>비고</th></tr></thead><tbody>
   ${lines.map((item, index) => {
@@ -117,16 +122,16 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   </tbody></table>
   <div class="columns"><section class="notes"><h2>비고</h2><p>본 거래명세서는 견적서 ${html(quoteNumber)}의 내용을 그대로 옮겨 작성되었습니다. 세금계산서는 별도로 발행됩니다.</p>
   ${taxIncluded ? "<p>표에 적힌 단가는 부가세를 포함합니다.</p>" : ""}
-  <div class="bank"><b>입금계좌</b> ${supplier.bank} ${supplier.account} (${supplier.accountHolder})</div></section>
+  ${registeredSupplier ? `<div class="bank"><b>입금계좌</b> ${DOCUMENT_SUPPLIER.bank} ${DOCUMENT_SUPPLIER.account} (${DOCUMENT_SUPPLIER.accountHolder})</div>` : ""}</section>
   <section class="payment">${quote.discountTotal ? amount(quote.discountLabel || "할인", -quote.discountTotal) : ""}
   ${quote.specialAdjustmentAmount ? amount("특별조정", quote.specialAdjustmentAmount) : ""}
   ${quote.roundDownAmount ? amount("절삭", -quote.roundDownAmount) : ""}
   ${amount("공급가액", quote.supplyAmount)}${amount(taxLabel, quote.vat)}${amount("합계", quote.finalAmount, "sum")}
   ${amount(`선금 ${quote.depositRate}%`, quote.depositAmount)}${amount(`잔금 ${100 - quote.depositRate}%`, quote.balanceAmount, "balance")}</section></div>
-  <footer class="columns"><section class="sign"><h2>공급자</h2><p>${html(brand.companyDisplayName)}<br>대표 ${supplier.representative}</p>
-  <img class="signature" src="${html(assets.signature)}" alt="대표 서명">${seal}</section>
-  <section><h2>공급받는자 수신확인</h2>${confirmedTime
-    ? `<p class="receipt">✓ 포털에서 확인됨</p><p>${html(confirmedTime)} · ${html(statement.confirmed_by)}</p>`
-    : "<p>확인 대기</p>"}</section></footer>
+  <footer class="columns"><section class="sign"><h2>공급자</h2><p>${html(supplier.name)}<br>대표 ${html(supplier.representative)}</p>
+  ${registeredSupplier && assets.signature ? `<img class="signature" src="${html(assets.signature)}" alt="대표 서명">` : ""}${seal}</section>
+  <section><h2>${signing ? "공급받는자 서명" : "공급받는자 수신확인"}</h2>${confirmedTime
+    ? `<p class="receipt">${signing ? "✓ 서명 완료" : "✓ 포털에서 확인됨"}</p><p>${html(confirmedTime)} · ${html(statement.confirmed_by)}</p>${signing && assets.recipientSignature ? `<img class="signature" src="${html(assets.recipientSignature)}" alt="공급받는자 서명">` : ""}`
+    : signing ? "<p>서명 대기</p>" : "<p>확인 대기</p>"}</section></footer>
   <p class="tagline">${html(brand.footerTagline)}</p></main></body></html>`;
 }

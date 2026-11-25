@@ -3,6 +3,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import dynamic from "next/dynamic";
 import { TransactionStatementButton } from "./TransactionStatementButton";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
@@ -62,6 +63,9 @@ import {
 
 const PREVIEW_PAGE_WIDTH = 1123;
 const PREVIEW_PAGE_HEIGHT = 794;
+const TransactionStatementWorkspace = dynamic(() => import("./TransactionStatementWorkspace"), {
+  loading: () => <div className="quote-document-state">거래명세서를 불러오는 중…</div>,
+});
 
 type ContractQuoteItem = {
   id?: string;
@@ -415,7 +419,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
+  const [statementWorkspace, setStatementWorkspace] = useState<{ id: string; quoteId: string } | null>(null);
   const quoteDocumentId = editorSession.quoteId ?? undefined;
+  const activeStatement = statementWorkspace?.quoteId === quoteDocumentId ? statementWorkspace : null;
   const editorClientId = editorSession.clientId ?? undefined;
   const linkedWorkflowRunId = editorSession.workflowRunId ?? undefined;
   const documentLoading = editorSession.loadState === "loading";
@@ -482,7 +488,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [documentScopeError, setDocumentScopeError] = useState("");
-  const previewVisible = (!documentOnly || Boolean(resourceId)) && !documentLoading && !documentScopeError;
+  const previewVisible = (!documentOnly || Boolean(resourceId)) && !documentLoading && !documentScopeError && !activeStatement;
   const saveFailureNotice = saveFailureReason
     ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
@@ -1383,7 +1389,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     setManualSaving(false);
     return Boolean(saved);
   };
-  useSaveShortcut(handleManualSave);
+  useSaveShortcut(handleManualSave, !activeStatement);
 
   // 다운로드 — PDF/Excel 선택 팝오버(코드 요청서 3차 2번 항목, 2026-08-16). 콘티의
   // handlePDF/handleSpreadsheetDownload 팝오버 패턴을 그대로 견적서에 적용한다.
@@ -2197,6 +2203,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   if (documentScopeError) {
     return <div className="quote-document-state" role="alert">{documentScopeError}</div>;
   }
+  if (activeStatement) {
+    return <TransactionStatementWorkspace key={activeStatement.id} id={activeStatement.id} quoteId={activeStatement.quoteId}
+      embedded={isDesktopWindow} onBack={() => setStatementWorkspace(null)} />;
+  }
 
   return (
     <>
@@ -2990,7 +3000,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
             : quotePreviewShellNode}
           {quoteDocumentId ? (
             <div className="mt-3 flex justify-end">
-              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId} />
+              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId}
+                onOpen={(id) => { setShowFullscreenPreview(false); setStatementWorkspace({ id, quoteId: quoteDocumentId }); }} />
             </div>
           ) : null}
         </aside>

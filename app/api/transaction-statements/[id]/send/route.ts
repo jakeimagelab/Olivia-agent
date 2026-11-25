@@ -13,6 +13,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       to: body?.to,
       subject: body?.subject,
       confirmed: body?.confirmed,
+      mode: body?.mode,
+      updatedAt: body?.updatedAt,
     }, request.nextUrl.origin);
     return Response.json({ ok: true, ...result });
   } catch (error) {

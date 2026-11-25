@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import sharp from "sharp";
 import { buildTransactionStatementSnapshot } from "@/lib/quote/transactionStatementSnapshot";
 import { TransactionStatementError, type TransactionStatement } from "@/lib/quote/transactionStatementStore";
 import { newStatementReceiptToken } from "@/lib/quote/transactionStatementReceipt";
 import { sendTransactionStatement } from "@/lib/quote/sendTransactionStatement";
 import { POST as confirmReceipt } from "@/app/api/statement-receipts/[token]/route";
 import { POST as createStatement } from "@/app/api/transaction-statements/route";
+import { PATCH as saveDetails } from "@/app/api/transaction-statements/[id]/route";
+import { saveStatementRegistration } from "@/lib/quote/transactionStatementRegistration";
 import { NextRequest } from "next/server";
 
 const mock = vi.hoisted(() => ({
@@ -34,6 +37,7 @@ const initialStatement: TransactionStatement = {
   pdf_path: null,
   confirmed_at: null,
   confirmed_by: null,
+  updated_at: "2026-11-25T00:00:00.000Z",
 };
 
 function fakeDb() {
@@ -125,5 +129,54 @@ describe("거래명세서 발송·수신확인", () => {
     expect(first).toMatchObject({ ok: true, confirmedBy: "첫 확인자", confirmedAt: expect.any(String) });
     expect(second).toEqual(first);
     expect(row.status).toBe("confirmed");
+  });
+
+  it("서명 요청은 이름만으로 처리되지 않고 손서명이 들어간 PDF를 한 번 저장한다", async () => {
+    const { db, row, upload } = fakeDb();
+    mock.renderPdf.mockResolvedValue(pdf);
+    await sendTransactionStatement(id, { to, subject, confirmed: true, mode: "sign", updatedAt: row.updated_at }, origin, db);
+    const text: string = mock.sendMail.mock.calls[0][0].text;
+    expect(text).toContain("이름과 서명을 남겨 주세요");
+    expect(row.receipt_mode).toBe("sign");
+    const token = text.match(/transaction-statement\/([\w-]{43})/)![1];
+    const submit = (body: Record<string, unknown>) => confirmReceipt(new Request(`${origin}/api/statement-receipts/${token}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }), { params: Promise.resolve({ token }) });
+    expect((await submit({ name: "고객", acknowledged: true })).status).toBe(400);
+    expect(row.status).toBe("sent");
+    const png = await sharp({ create: { width: 60, height: 20, channels: 3, background: "#182a24" } }).png().toBuffer();
+    const signatureDataUrl = `data:image/png;base64,${png.toString("base64")}`;
+    const signed = await (await submit({ name: "고객", acknowledged: true, signatureDataUrl })).json();
+    expect(signed).toMatchObject({ ok: true, confirmedBy: "고객", signed: true });
+    expect(mock.renderPdf).toHaveBeenLastCalledWith(expect.objectContaining({ status: "confirmed", confirmed_by: "고객" }), true, signatureDataUrl);
+    expect(row.signed_pdf_path).toMatch(/\/signed\/[a-f\d-]+\.pdf$/);
+    expect(upload).toHaveBeenLastCalledWith(row.signed_pdf_path, pdf, { contentType: "application/pdf", upsert: false });
+    expect(await (await submit({ name: "다른 이름", acknowledged: true, signatureDataUrl })).json()).toEqual(signed);
+    expect(upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("관리자 작성 화면은 사업자 정보만 저장하고 발송 후에는 수정을 제한한다", async () => {
+    const { row } = fakeDb();
+    const request = () => new NextRequest(`${origin}/api/transaction-statements/${id}`, {
+      method: "PATCH", headers: { Cookie: "pc_admin_session=active", "Content-Type": "application/json" },
+      body: JSON.stringify({ updatedAt: row.updated_at, businessDetails: { supplier: { name: "공급 업체" }, recipient: { businessNumber: "123-45-67890" } } }),
+    });
+    const params = { params: Promise.resolve({ id }) };
+    const snapshot = structuredClone(row.snapshot);
+    const result = await (await saveDetails(request(), params)).json();
+    expect(result.statement.businessDetails).toMatchObject({ supplier: { name: "공급 업체" }, recipient: { businessNumber: "123-45-67890" } });
+    expect(row.snapshot).toEqual(snapshot);
+    row.status = "sent";
+    expect((await saveDetails(request(), params)).status).toBe(409);
+  });
+
+  it("등록증은 명세서별 비공개 경로에 저장하고 잘못된 형식은 등록하지 않는다", async () => {
+    const { db, row, upload } = fakeDb();
+    const invalid = new File(["not a PDF"], "등록증.pdf", { type: "application/pdf" });
+    await expect(saveStatementRegistration(row, "recipient", invalid, db)).rejects.toMatchObject({ status: 400 });
+    const valid = new File(["%PDF-1.7\nsynthetic"], "등록증.pdf", { type: "application/pdf" });
+    const saved = await saveStatementRegistration(row, "recipient", valid, db);
+    expect(saved.registration_documents?.recipient).toMatchObject({ name: "등록증.pdf", path: expect.stringContaining(`${id}/registration/recipient-`) });
+    expect(upload).toHaveBeenCalledTimes(1);
   });
 });

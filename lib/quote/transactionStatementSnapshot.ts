@@ -12,7 +12,7 @@ export type StatementLine = {
 export type TransactionStatementSnapshot = {
   document: QuoteDocumentData;
   quoteNumber: string;
-  recipient: { businessNumber: string; address: string; representative: string };
+  recipient: { businessNumber: string; address: string; representative: string; businessCategory?: string; businessItem?: string };
   lines: StatementLine[];
 };
 
@@ -105,6 +105,8 @@ export function buildTransactionStatementSnapshot(
       businessNumber: nonEmpty(quote.business_registration_number, client?.business_registration_number),
       address: nonEmpty(quote.address, client?.address),
       representative: nonEmpty(quote.director_name, client?.director_name),
+      businessCategory: nonEmpty(quote.business_category, client?.business_category),
+      businessItem: nonEmpty(quote.business_item, client?.business_item),
     },
     lines,
   };

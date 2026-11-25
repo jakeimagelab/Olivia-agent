@@ -107,6 +107,7 @@ describe("거래명세서 전환", () => {
       status: "confirmed", pdf_path: null, confirmed_at: "2026-11-25T05:02:00.000Z", confirmed_by: "<담당자>",
     };
     const html = buildStatementHtml(statement, { logo: "logo.png", signature: "sign.png", seal: "seal.png" });
+    expect(html).not.toContain("fonts.googleapis.com");
     expect(html).not.toContain("업태·종목");
     expect(html).not.toContain("계약 안내");
     expect(html).toContain("본 거래명세서는 견적서 PCQ-20261124-1001의 내용을 그대로 옮겨 작성되었습니다.");

@@ -42,12 +42,12 @@ export async function renderContractPdfBuffer(
   return { buffer: await renderA4HtmlPdf(html), quote, brand };
 }
 
-export async function renderA4HtmlPdf(html: string, options?: { fitSelector: string }): Promise<Buffer> {
+export async function renderA4HtmlPdf(html: string, options?: { fitSelector: string; embeddedAssets?: boolean }): Promise<Buffer> {
   let browser;
   try {
     browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 794, height: 1123 } });
-    await page.setContent(html, { waitUntil: "networkidle" });
+    await page.setContent(html, { waitUntil: options?.embeddedAssets ? "load" : "networkidle" });
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all(Array.from(document.images).map((image) => {

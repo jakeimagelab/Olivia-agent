@@ -1,6 +1,6 @@
 import sharp from "sharp";
 
-export async function parseBillingConsentSignature(dataUrl: unknown) {
+export async function parseBillingConsentSignature(dataUrl: unknown, limitInputPixels?: number) {
   if (typeof dataUrl !== "string") throw new Error("서명을 입력해 주세요.");
   const match = dataUrl.match(/^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) throw new Error("서명 형식이 올바르지 않습니다.");
@@ -8,7 +8,7 @@ export async function parseBillingConsentSignature(dataUrl: unknown) {
   if (buffer.length < 20 || buffer.length > 2 * 1024 * 1024) {
     throw new Error("서명 이미지 크기가 올바르지 않습니다.");
   }
-  const { data, info } = await sharp(buffer)
+  const { data, info } = await sharp(buffer, { limitInputPixels })
     .rotate()
     .ensureAlpha()
     .resize({ width: 1_000, height: 500, fit: "inside", withoutEnlargement: true })

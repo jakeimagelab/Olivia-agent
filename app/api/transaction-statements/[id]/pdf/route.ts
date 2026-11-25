@@ -10,7 +10,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
   try {
     const statement = await loadTransactionStatement((await context.params).id);
     if (!statement) return Response.json({ error: "거래명세서를 찾지 못했습니다." }, { status: 404 });
-    return await statementPdfResponse(statement);
+    return await statementPdfResponse(statement, request.nextUrl.searchParams.get("download") === "1");
   } catch (error) {
     return statementErrorResponse(error);
   }

@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { renderA4HtmlPdf } from "@/lib/contract/renderContractPdf";
 import { buildStatementHtml } from "./transactionStatementHtml";
+import { matchesStatementSupplier, resolveStatementBusinessDetails } from "./transactionStatementDetails";
 import { TransactionStatementError, STATEMENT_BUCKET, type TransactionStatement } from "./transactionStatementStore";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -16,39 +17,43 @@ export async function readTransactionStatementSeal() {
   }
 }
 
-export async function renderTransactionStatementPdf(statement: TransactionStatement, requireSeal = false) {
-  const seal = await readTransactionStatementSeal();
-  if (requireSeal && !seal) {
+export async function renderTransactionStatementPdf(statement: TransactionStatement, requireSeal = false, recipientSignature?: string) {
+  const { supplier } = resolveStatementBusinessDetails(statement.snapshot, statement.business_details);
+  const registeredSupplier = matchesStatementSupplier(supplier);
+  const seal = registeredSupplier ? await readTransactionStatementSeal() : null;
+  if (requireSeal && registeredSupplier && !seal) {
     throw new TransactionStatementError("공급자 직인 파일을 등록한 후 발송할 수 있습니다.", 422);
   }
   const [logo, signature, font] = await Promise.all([
     statement.snapshot.document.brand === "jakeimage"
       ? readFile(path.join(process.cwd(), "public/assets/jakeimage-logo.png"))
       : readFile(path.join(process.cwd(), "public/assets/photoclinic-logo.png")),
-    readFile(path.join(process.cwd(), "public/assets/ceo-signature.png")),
+    registeredSupplier ? readFile(path.join(process.cwd(), "public/assets/ceo-signature.png")) : null,
     readFile(path.join(process.cwd(), "lib/olivia/fonts/NanumSquare-Regular.ttf")),
   ]);
   return renderA4HtmlPdf(buildStatementHtml(statement, {
     logo: png(logo),
-    signature: png(signature),
+    signature: signature ? png(signature) : undefined,
+    recipientSignature,
     seal: seal ? png(seal) : undefined,
     koreanFont: `data:font/ttf;base64,${font.toString("base64")}`,
-  }), { fitSelector: ".statement-sheet" });
+  }), { fitSelector: ".statement-sheet", embeddedAssets: true });
 }
 
-export async function statementPdfResponse(statement: TransactionStatement) {
-  let buffer: Uint8Array<ArrayBuffer>;
-  if (statement.status === "sent" && statement.pdf_path) {
-    const { data, error } = await getSupabaseAdmin().storage.from(STATEMENT_BUCKET).download(statement.pdf_path);
-    if (error || !data) throw new TransactionStatementError("발송한 거래명세서 PDF를 읽지 못했습니다.", 500);
-    buffer = new Uint8Array(await data.arrayBuffer());
+export async function statementPdfResponse(statement: TransactionStatement, download = false) {
+  let body: BodyInit;
+  const savedPath = statement.signed_pdf_path || (statement.status === "sent" ? statement.pdf_path : null);
+  if (savedPath) {
+    const { data, error } = await getSupabaseAdmin().storage.from(STATEMENT_BUCKET).download(savedPath);
+    if (error || !data) throw new TransactionStatementError("저장한 거래명세서 PDF를 읽지 못했습니다.", 500);
+    body = data.stream();
   } else {
-    buffer = new Uint8Array(await renderTransactionStatementPdf(statement, statement.status !== "draft"));
+    body = new Uint8Array(await renderTransactionStatementPdf(statement, statement.status !== "draft"));
   }
-  return new Response(buffer, {
+  return new Response(body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${statement.statement_number}.pdf"`,
+      "Content-Disposition": `${download ? "attachment" : "inline"}; filename="${statement.statement_number}${statement.signed_pdf_path ? "-signed" : ""}.pdf"`,
       "Cache-Control": "private, no-store",
       "Referrer-Policy": "no-referrer",
     },

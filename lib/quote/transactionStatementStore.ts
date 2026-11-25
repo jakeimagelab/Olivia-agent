@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { resolveStatementBusinessDetails, statementMailDefaults, type StatementReceiptMode, type StatementRegistrationDocuments, type StatementSummary, type StatementWorkspaceData, type StoredStatementBusinessDetails } from "./transactionStatementDetails";
 import {
   buildTransactionStatementSnapshot,
   STATEMENT_UUID,
@@ -18,6 +19,12 @@ export type TransactionStatement = {
   pdf_path: string | null;
   confirmed_at: string | null;
   confirmed_by: string | null;
+  updated_at?: string;
+  send_attempt_id?: string | null;
+  business_details?: StoredStatementBusinessDetails;
+  registration_documents?: StatementRegistrationDocuments;
+  receipt_mode?: StatementReceiptMode;
+  signed_pdf_path?: string | null;
 };
 
 export class TransactionStatementError extends Error {
@@ -34,8 +41,16 @@ export function statementErrorResponse(error: unknown) {
   return Response.json({ ok: false, error: "거래명세서를 처리하지 못했습니다. 잠시 후 다시 시도해 주세요." }, { status: 500 });
 }
 
-const STATEMENT_COLUMNS = "id,statement_number,transaction_date,shoot_date,snapshot,status,pdf_path,confirmed_at,confirmed_by";
+const STATEMENT_COLUMNS = "id,statement_number,transaction_date,shoot_date,snapshot,status,pdf_path,confirmed_at,confirmed_by,updated_at,send_attempt_id,business_details,registration_documents,receipt_mode,signed_pdf_path";
 export const STATEMENT_BUCKET = "transaction-statements";
+
+export async function listTransactionStatements(quoteId: string, db = getSupabaseAdmin()): Promise<StatementSummary[]> {
+  if (!STATEMENT_UUID.test(quoteId)) throw new TransactionStatementError("견적서 ID를 확인해 주세요.", 400);
+  const { data, error } = await db.from("transaction_statements").select("id,statement_number,status,receipt_mode")
+    .eq("quote_id", quoteId).order("created_at", { ascending: false }).limit(30);
+  if (error) throw new TransactionStatementError("거래명세서 목록을 읽지 못했습니다.", 500);
+  return (data ?? []) as StatementSummary[];
+}
 
 export async function loadTransactionStatement(id: string, db = getSupabaseAdmin()) {
   if (!STATEMENT_UUID.test(id)) return null;
@@ -49,6 +64,40 @@ export async function loadStatementByReceiptHash(hash: string, db = getSupabaseA
     .eq("receipt_token_hash", hash).in("status", ["sent", "confirmed"]).maybeSingle();
   if (error) throw new TransactionStatementError("거래명세서를 읽지 못했습니다.", 500);
   return data as TransactionStatement | null;
+}
+
+export function assertStatementEditable(statement: TransactionStatement) {
+  if (statement.status !== "draft" || statement.send_attempt_id) {
+    throw new TransactionStatementError("발송 중이거나 발송된 거래명세서는 수정할 수 없습니다.", 409);
+  }
+}
+
+export function statementWorkspaceData(statement: TransactionStatement): StatementWorkspaceData {
+  return {
+    id: statement.id, number: statement.statement_number, quoteNumber: statement.snapshot.quoteNumber,
+    status: statement.status, receiptMode: statement.receipt_mode ?? "confirm", updatedAt: statement.updated_at ?? "",
+    confirmedAt: statement.confirmed_at, confirmedBy: statement.confirmed_by, sending: Boolean(statement.send_attempt_id),
+    businessDetails: resolveStatementBusinessDetails(statement.snapshot, statement.business_details),
+    registrationNames: { supplier: statement.registration_documents?.supplier?.name, recipient: statement.registration_documents?.recipient?.name },
+    mailSubject: statementMailDefaults(statement).subject,
+  };
+}
+
+export async function updateStatementDraft(
+  statement: TransactionStatement,
+  changes: Pick<TransactionStatement, "business_details" | "registration_documents">,
+  db = getSupabaseAdmin(),
+) {
+  assertStatementEditable(statement);
+  const revision = statement.updated_at;
+  if (!revision) throw new TransactionStatementError("거래명세서 저장 시각을 읽지 못했습니다.", 500);
+  const updatedAt = new Date().toISOString();
+  const { data, error } = await db.from("transaction_statements").update({ ...changes, updated_at: updatedAt })
+    .eq("id", statement.id).eq("status", "draft").is("send_attempt_id", null).eq("updated_at", revision)
+    .select(STATEMENT_COLUMNS).maybeSingle();
+  if (error) throw new TransactionStatementError("거래명세서 정보를 저장하지 못했습니다.", 500);
+  if (!data) throw new TransactionStatementError("다른 화면에서 변경했습니다. 최신 내용을 불러온 뒤 다시 저장해 주세요.", 409);
+  return data as TransactionStatement;
 }
 
 function validDate(value: string) {
