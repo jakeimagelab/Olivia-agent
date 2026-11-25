@@ -107,6 +107,16 @@ const JEONJU_REQUEST = `전주푸른안과 견적서 만들어.
 잔금 50%`;
 
 describe("quoteRequestParser", () => {
+  it.each([
+    ["총 금액 300만원, 부가세 별도", "separate", 3_300_000],
+    ["총액: 3,000,000원(VAT 포함)", "included", 3_000_000],
+    ["총액 300만 원, 부가가치세 제외", "excluded", 3_000_000],
+  ] as const)("총액과 세금 조건을 함께 읽는다: %s", (totalLine, taxMode, amount) => {
+    const request = parseQuoteRequest(`테스트안과 견적서\n의료진프로필\n${totalLine}`);
+    expect(request).toMatchObject({ taxMode, fixedTotal: 3_000_000, itemPricesHidden: true });
+    expect(buildQuoteDataFromParsedRequest({ request, brand: "photoclinic" }).totals.finalAmount).toBe(amount);
+  });
+
   it("대표의 제이크이미지 원문을 금액과 설명을 잃지 않고 읽고 절삭한다", () => {
     const request = parseQuoteRequest(JAKE_REQUEST);
     expect(request.clientName).toBe("1989 삼칠갈비");
@@ -401,7 +411,7 @@ describe("quoteRequestParser", () => {
   });
 
   it("대체 규칙도 촬영일 일자 수정 시 기존 연월을 유지한다", () => {
-    const revised = parseQuoteRequest(`${JEONJU_REQUEST}\n\n[수정 요청]\n촬영일 27일로`);
+    const revised = parseQuoteRequest(`${JEONJU_REQUEST}\n\n[수정 요청]\n촬영일 27일로`, new Date("2026-10-18T03:00:00Z"));
     expect(revised.shootDate).toBe("2026-10-27");
     expect(revised.unparsedLines).not.toContain("[수정 요청]");
     expect(revised.items.flatMap((item) => item.details)).not.toContain("[수정 요청]");

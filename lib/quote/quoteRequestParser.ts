@@ -43,11 +43,14 @@ const PHONE = /^0\d{1,2}[-\s]?\d{3,4}[-\s]?\d{4}$/;
 const CONTACT = /^(?=.{2,20}$)[가-힣A-Za-z][가-힣A-Za-z\s]*(?:대표|원장|팀장|실장|매니저|담당자|이사|부장|과장)?님$/;
 const EXTERNAL_ITEM = /(헤어\s*메이크업|메이크업|헤메|모델\s*섭외|모델료|섭외|외주)/i;
 const AMOUNTLESS_ITEM = /(프로필|연출|컨셉|인테리어|외관|영상|스케치|단체)/i;
-const SERVICE_HEADING = /^(?:서비스|혜택|서비스\s*\/\s*혜택|서비스\s*및\s*혜택|무료\s*제공)\s*:?$/i;
+const SERVICE_HEADING = /^(?:서비스(?:\s*항목)?|혜택|서비스\s*\/\s*혜택|서비스\s*및\s*혜택|무료\s*제공)\s*[:：]?$/i;
 const BLANK_CONTACT_INSTRUCTION = /(?:공란|비워|빈칸|없음).*(?:연락처|전화|메일|이메일)|(?:연락처|전화|메일|이메일).*(?:공란|비워|빈칸|없음)/i;
 const ITEM_PRICES_HIDDEN_INSTRUCTION = /(항목별로\s*나눌\s*필요\s*없|항목별\s*금액\s*없이|총액만)/i;
 const RETRY_INSTRUCTION = /(?:견적|견적서).*(?:다시|재시도|한번\s*더|다시\s*만들어|다시\s*해)/i;
 const QUANTITY_UNIT = "개장점벌세트부본";
+const VAT_TERM = String.raw`(?:부가\s*(?:가치\s*)?세|VAT)\s*[:：]?\s*(포함|별도|제외|없음)`;
+const VAT_DIRECTIVE = new RegExp(`^${VAT_TERM}$`, "iu");
+const VAT_IN_TEXT = new RegExp(VAT_TERM, "giu");
 const CATALOG: CatalogEntry[] = [
   ...packages.map((entry) => ({ ...entry, package: true })),
   ...singleItems,
@@ -202,8 +205,12 @@ export function correctedEmail(raw: string) {
   return { email, correctedFrom: email === extracted ? null : extracted };
 }
 
+export function quoteClientNameWithoutTitle(value: string) {
+  return value.trim().replace(/\s*견적서\s*$/iu, "").replace(/\s+브랜드\s*촬영\s*$/iu, "").trim();
+}
+
 function validClientCandidate(value: string) {
-  const candidate = value.trim().replace(/\s*견적서\s*$/i, "").trim();
+  const candidate = quoteClientNameWithoutTitle(value);
   if (isInstruction(value) || RETRY_INSTRUCTION.test(value)) return null;
   return candidate.length >= 2 && /[가-힣A-Za-z0-9]/.test(candidate) ? candidate : null;
 }
@@ -255,9 +262,18 @@ function shootDateFromLine(line: string, now = new Date(), previous: string | nu
 }
 
 function strictFixedTotal(line: string) {
-  const match = /^(?:전체\s*금액|총\s*금액|전체|총액|총|합계)\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(만원|만|원)?(?:\s*\([^)]*부가세[^)]*\))?\s*$/u.exec(line.trim());
+  const match = /^(?:전체\s*금액|총\s*금액|총\s*액|합계\s*금액|전체|총|합계)\s*[:：은는]?\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(만\s*원|만|원)?(.*)$/u.exec(line);
   if (!match) return null;
+  const tail = match[3].trim().replace(/^[,，·]\s*/u, "").replace(/[.!。]+$/u, "").trim().replace(/^\((.*)\)$/u, "$1").trim();
+  if (tail && !VAT_DIRECTIVE.test(tail)) return null;
   return moneyFromToken(match[1], match[2]);
+}
+
+export function explicitQuoteTaxMode(value: string): ParsedQuoteRequest["taxMode"] | null {
+  const mode = [...value.matchAll(VAT_IN_TEXT)].at(-1)?.[1];
+  if (!mode) return null;
+  if (mode === "포함") return "included";
+  return mode === "별도" ? "separate" : "excluded";
 }
 
 function isExplanatoryDetailLine(line: string) {
@@ -278,16 +294,17 @@ function titleDataFromClientLine(line: string) {
 
 function parseDirective(line: string, result: ParsedQuoteRequest) {
   if (ITEM_PRICES_HIDDEN_INSTRUCTION.test(line)) result.itemPricesHidden = true;
-  if (/부가세\s*포함/i.test(line)) result.taxMode = "included";
-  if (/부가세\s*(?:제외|없음)/i.test(line)) result.taxMode = "excluded";
+  result.taxMode = explicitQuoteTaxMode(line) ?? result.taxMode;
   const roundDown = /(\d[\d,]*)\s*원?\s*미만\s*절삭/.exec(line);
   if (roundDown) result.roundDownUnit = Number(roundDown[1].replaceAll(",", ""));
   if (/만원\s*미만\s*절삭/.test(line)) result.roundDownUnit = 10_000;
 
+  const split = /(?:선금|계약금)\s*\/\s*잔금\s*[:：]?\s*(\d+(?:\.\d+)?)\s*%?\s*[:/：]\s*(\d+(?:\.\d+)?)\s*%?/u.exec(line);
   const deposit = /(?:선금|계약금)(?:은|이)?\s*(\d+(?:\.\d+)?)\s*%/.exec(line);
   const balance = /잔금(?:은|이)?\s*(\d+(?:\.\d+)?)\s*%/.exec(line);
   if (deposit) result.depositRate = Number(deposit[1]);
   if (balance) result.depositRate = 100 - Number(balance[1]);
+  if (split && Number(split[1]) + Number(split[2]) === 100) result.depositRate = Number(split[1]);
 
   const amounts = moneyMatches(line);
   const percent = /(.*?)\s*(\d+(?:\.\d+)?)\s*%\s*할인/.exec(line);
@@ -318,7 +335,12 @@ function isPaidItemLine(line: string) {
   return Boolean(findMoney(line) || catalogMatch(line));
 }
 
-export function parseQuoteRequest(text: string): ParsedQuoteRequest {
+export function hasUnpricedQuoteBundle(request: Pick<ParsedQuoteRequest, "fixedTotal" | "items">) {
+  return request.fixedTotal !== null && request.items.some((item) => !item.free)
+    && request.items.every((item) => item.free || item.amount === null);
+}
+
+export function parseQuoteRequest(text: string, now = new Date()): ParsedQuoteRequest {
   const result: ParsedQuoteRequest = {
     clientName: null, titleSuffix: null, isEvent: false, contactName: null, phone: null, email: null,
     emailCorrectedFrom: null, items: [], discount: null, fixedTotal: null, roundDownUnit: null, checkTotal: null,
@@ -343,7 +365,7 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
       }
     }
 
-    const parsedShootDate = shootDateFromLine(line, new Date(), result.shootDate);
+    const parsedShootDate = shootDateFromLine(line, now, result.shootDate);
     if (parsedShootDate !== undefined) {
       result.shootDate = parsedShootDate;
       continue;
@@ -358,13 +380,13 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
     const fixedTotal = strictFixedTotal(line);
     if (fixedTotal !== null) {
       result.fixedTotal = fixedTotal;
-      if (/부가세\s*포함/i.test(line)) result.taxMode = "included";
+      result.taxMode = explicitQuoteTaxMode(line) ?? result.taxMode;
       serviceSection = false;
       continue;
     }
 
     // Commands are instructions, never clients. Their remaining fragments are intentionally discarded.
-    if (isInstruction(line)) {
+    if (isInstruction(line) || VAT_DIRECTIVE.test(line)) {
       serviceSection = false;
       parseDirective(line, result);
       continue;
@@ -444,6 +466,7 @@ export function parseQuoteRequest(text: string): ParsedQuoteRequest {
 
   const source = lines.join(" ");
   result.isEvent = result.isEvent || EVENT_PATTERN.test(source) || result.items.some((item) => /스케치\s*촬영/.test(item.name));
+  if (hasUnpricedQuoteBundle(result)) result.itemPricesHidden = true;
   return result;
 }
 

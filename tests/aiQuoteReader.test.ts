@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toParsedQuoteRequest, verifyReadingAgainstText, type QuoteReading } from "@/lib/quote/aiQuoteReader";
+import { resolveQuoteReading, toParsedQuoteRequest, verifyReadingAgainstText, type QuoteReading } from "@/lib/quote/aiQuoteReader";
 import { buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
 
 const SOURCE = `전주푸른안과 견적서 만들어.
@@ -52,6 +52,23 @@ describe("AI quote reader verification", () => {
 
   it("370만원과 3,700,000을 같은 값으로 검증한다", () => {
     expect(verifyReadingAgainstText(READING, SOURCE).fixedTotal).toBe(3_700_000);
+  });
+
+  it("AI가 합계와 VAT 조건을 놓치거나 총액을 한 항목에 넣어도 원문을 우선한다", () => {
+    const input = "테스트안과 브랜드 촬영 견적서\n의료진프로필\n연출(진료/수술)\n총 금액 300만 원, VAT 별도\n선금/잔금 30/70";
+    const reading = resolveQuoteReading({
+      ...READING, clientName: "테스트안과 브랜드 촬영", fixedTotal: null, vatIncluded: true,
+      itemPricesHidden: false, depositRate: 70,
+      items: [
+        { name: "의료진프로필", amount: 3_000_000, details: [], quantity: 1, free: false },
+        { name: "연출(진료/수술)", amount: null, details: [], quantity: 1, free: false },
+      ],
+    }, input);
+    const quote = buildQuoteDataFromParsedRequest({ request: toParsedQuoteRequest(reading), brand: "photoclinic" });
+    expect(quote.title).toBe("테스트안과 브랜드촬영 견적서");
+    expect(quote.formState.itemPricesHidden).toBe(true);
+    expect(quote.items).toEqual([expect.objectContaining({ unitPrice: 0 }), expect.objectContaining({ unitPrice: 0 })]);
+    expect(quote.totals).toMatchObject({ supplyAmount: 3_000_000, vat: 300_000, finalAmount: 3_300_000, depositAmount: 990_000, balanceAmount: 2_310_000 });
   });
 
   it("전주푸른안과 판독을 기존 계산기로만 계산한다", () => {

@@ -10,7 +10,7 @@ import {
   quoteReaderModel,
   readQuoteRequestWithAI,
   toParsedQuoteRequest,
-  verifyReadingAgainstText,
+  resolveQuoteReading,
   type QuoteReading,
 } from "@/lib/quote/aiQuoteReader";
 import { parseKoreanCount, parseKoreanMoney, parseKoreanPercent, resolveOrdinalReference } from "@/lib/olivia/naturalLanguageNumbers";
@@ -251,7 +251,7 @@ function koreaToday() {
 async function readQuoteForApproval(requestText: string) {
   const startedAt = performance.now();
   try {
-    const reading = verifyReadingAgainstText(await readQuoteRequestWithAI({ text: requestText, today: koreaToday() }), requestText);
+    const reading = resolveQuoteReading(await readQuoteRequestWithAI({ text: requestText, today: koreaToday() }), requestText);
     console.info("[quote-reader]", { ok: true, model: quoteReaderModel(), ms: Math.round(performance.now() - startedAt) });
     return { reading, fallbackNotice: null };
   } catch (error) {
@@ -363,7 +363,7 @@ export async function executeQuoteTool(
   if (name === "apply_quote_create") {
     const requestText = typeof input.requestText === "string" ? input.requestText.trim() : "";
     if (!requestText) throw new Error("승인할 견적 요청 원문을 찾지 못했어요.");
-    const reading = verifyReadingAgainstText(quoteReadingFromUnknown(input.reading), requestText);
+    const reading = resolveQuoteReading(quoteReadingFromUnknown(input.reading), requestText);
     const initialParsed = toParsedQuoteRequest(reading);
     if (!initialParsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
     const createContext = await resolveCreateQuoteContext({

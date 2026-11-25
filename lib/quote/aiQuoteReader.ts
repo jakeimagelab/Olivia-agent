@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { DEFAULT_CLAUDE_MODEL } from "@/lib/ai/claudeModel";
-import { correctedEmail, type ParsedQuoteRequest } from "@/lib/quote/quoteRequestParser";
+import { correctedEmail, explicitQuoteTaxMode, hasUnpricedQuoteBundle, parseQuoteRequest, quoteClientNameWithoutTitle, type ParsedQuoteRequest } from "@/lib/quote/quoteRequestParser";
 import { QUOTE_READING_RULES } from "@/lib/quote/quoteReadingRules";
 
 export type QuoteReadingItem = {
@@ -22,8 +22,10 @@ export type QuoteReading = {
   shootDate: string | null;
   items: QuoteReadingItem[];
   fixedTotal: number | null;
+  checkTotal?: number | null;
   itemPricesHidden: boolean;
   vatIncluded: boolean;
+  taxMode?: ParsedQuoteRequest["taxMode"];
   depositRate: number | null;
   discount: { label: string | null; type: "percent" | "amount"; value: number } | null;
   roundDownUnit: number | null;
@@ -33,12 +35,14 @@ export type QuoteReading = {
 };
 
 const TOOL_NAME = "save_quote_reading";
+const CREDIT_FAILURE_LABEL = "Anthropic 크레딧 부족";
 export type QuoteReaderFailureCode =
   | "NO_API_KEY"
   | "MODEL_NOT_FOUND"
   | "TIMEOUT"
   | "TOOL_NOT_CALLED"
   | "SCHEMA_ERROR"
+  | "INSUFFICIENT_CREDITS"
   | `API_ERROR${string}`;
 
 export class QuoteReaderError extends Error {
@@ -60,12 +64,16 @@ export function quoteReaderFailureDetails(error: unknown): { code: QuoteReaderFa
       TIMEOUT: "시간 초과",
       TOOL_NOT_CALLED: "판독 도구 응답 없음",
       SCHEMA_ERROR: "응답 형식 오류",
+      INSUFFICIENT_CREDITS: CREDIT_FAILURE_LABEL,
     };
     return { code: error.code, label: labels[error.code] || `API 오류${error.status ? ` ${error.status}` : ""}`, ...(error.status ? { status: error.status } : {}) };
   }
   const candidate = object(error);
   const status = typeof candidate.status === "number" ? candidate.status : undefined;
   const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/credit balance is too low|insufficient credits/i.test(message)) {
+    return { code: "INSUFFICIENT_CREDITS", label: CREDIT_FAILURE_LABEL, ...(status ? { status } : {}) };
+  }
   if (status === 404 || /model.*(?:not found|없)|not_found_error/i.test(message)) {
     return { code: "MODEL_NOT_FOUND", label: "모델을 찾지 못함", ...(status ? { status } : {}) };
   }
@@ -183,6 +191,8 @@ export function quoteReadingFromUnknown(value: unknown): QuoteReading {
       return [{ name, details: Array.isArray(item.details) ? item.details.filter((detail): detail is string => typeof detail === "string") : [], amount: nullableNumber(item.amount), quantity: Math.max(1, Math.floor(nullableNumber(item.quantity) ?? 1)), free: item.free === true }];
     }) : [],
     fixedTotal: nullableNumber(raw.fixedTotal), itemPricesHidden: raw.itemPricesHidden === true, vatIncluded: raw.vatIncluded === true,
+    checkTotal: nullableNumber(raw.checkTotal),
+    taxMode: raw.taxMode === "separate" || raw.taxMode === "included" || raw.taxMode === "excluded" ? raw.taxMode : undefined,
     depositRate: nullableNumber(raw.depositRate),
     discount: discountType && discountValue !== null ? { label: nullableString(rawDiscount.label), type: discountType, value: discountValue } : null,
     roundDownUnit: nullableNumber(raw.roundDownUnit),
@@ -199,7 +209,7 @@ export async function readQuoteRequestWithAI(input: { text: string; today: strin
     const response = await client.messages.create({
       model: quoteReaderModel(),
       max_tokens: 4000,
-      temperature: 0,
+      thinking: { type: "disabled" },
       system: `${QUOTE_READING_RULES}\n\n기준일(서울): ${input.today}`,
       messages: [{ role: "user", content: input.text }],
       tools: [TOOL],
@@ -271,6 +281,22 @@ export function verifyReadingAgainstText(reading: QuoteReading, text: string): Q
   return next;
 }
 
+export function resolveQuoteReading(reading: QuoteReading, text: string): QuoteReading {
+  const verified = verifyReadingAgainstText(reading, text);
+  const request = parseQuoteRequest(text);
+  const taxMode = explicitQuoteTaxMode(text) ?? (verified.vatIncluded ? "included" : "separate");
+  const fixedTotal = request.fixedTotal ?? verified.fixedTotal;
+  return {
+    ...verified,
+    clientName: verified.clientName ? quoteClientNameWithoutTitle(verified.clientName) || null : null,
+    fixedTotal, taxMode, vatIncluded: taxMode === "included",
+    checkTotal: fixedTotal === null ? request.checkTotal : null,
+    depositRate: request.depositRate ?? verified.depositRate,
+    itemPricesHidden: request.itemPricesHidden || verified.itemPricesHidden,
+    items: hasUnpricedQuoteBundle(request) ? verified.items.map((item) => item.free ? item : { ...item, amount: null }) : verified.items,
+  };
+}
+
 export function toParsedQuoteRequest(reading: QuoteReading): ParsedQuoteRequest {
   const mail = reading.email ? correctedEmail(reading.email) : null;
   return {
@@ -280,8 +306,8 @@ export function toParsedQuoteRequest(reading: QuoteReading): ParsedQuoteRequest 
     emailCorrectedFrom: reading.blankContact ? null : mail?.correctedFrom ?? null,
     items: reading.items.map((item) => ({ ...item, note: null, groupLabel: null, amount: item.free ? 0 : item.amount })),
     discount: reading.discount, fixedTotal: reading.fixedTotal, roundDownUnit: reading.roundDownUnit,
-    checkTotal: null, shootDate: reading.shootDate, itemPricesHidden: reading.itemPricesHidden,
-    taxMode: reading.vatIncluded ? "included" : "separate", vatIncluded: reading.vatIncluded,
+    checkTotal: reading.checkTotal ?? null, shootDate: reading.shootDate, itemPricesHidden: reading.itemPricesHidden,
+    taxMode: reading.taxMode ?? (reading.vatIncluded ? "included" : "separate"), vatIncluded: reading.vatIncluded,
     depositRate: reading.depositRate, memo: null, unparsedLines: reading.unreadLines,
   };
 }
@@ -292,7 +318,8 @@ export function quoteReadingFromParsedRequest(parsed: ParsedQuoteRequest): Quote
     contactName: parsed.contactName, phone: parsed.phone, email: parsed.email, blankContact: !parsed.phone && !parsed.email,
     shootDate: parsed.shootDate,
     items: parsed.items.map(({ name, details, amount, quantity, free }) => ({ name, details, amount, quantity, free })),
-    fixedTotal: parsed.fixedTotal, itemPricesHidden: parsed.itemPricesHidden, vatIncluded: parsed.taxMode === "included",
+    fixedTotal: parsed.fixedTotal, itemPricesHidden: parsed.itemPricesHidden, vatIncluded: parsed.taxMode === "included", taxMode: parsed.taxMode,
+    checkTotal: parsed.fixedTotal === null ? parsed.checkTotal : null,
     depositRate: parsed.depositRate, discount: parsed.discount, roundDownUnit: parsed.roundDownUnit,
     brandExplicit: null, unreadLines: parsed.unparsedLines, uncertain: [],
   };

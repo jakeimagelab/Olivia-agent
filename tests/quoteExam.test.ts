@@ -13,7 +13,7 @@ function brandFor(clientName: string | null) {
 }
 
 function evaluate(text: string) {
-  const initial = parseQuoteRequest(text);
+  const initial = parseQuoteRequest(text, new Date("2026-10-18T03:00:00Z"));
   const brand = brandFor(initial.clientName);
   const parsed = applyCatalogPricingToParsedRequest(initial, brand);
   const data = buildQuoteDataFromParsedRequest({ request: parsed, brand });
