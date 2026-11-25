@@ -1,3 +1,12 @@
+const statementPdfFiles = [
+  "./node_modules/@sparticuz/chromium/bin/**/*",
+  "./lib/olivia/fonts/NanumSquare-Regular.ttf",
+  "./public/assets/photoclinic-logo.png",
+  "./public/assets/jakeimage-logo.png",
+  "./public/assets/ceo-signature.png",
+  "./public/assets/jake-seal.png",
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Olivia 챗봇의 자유 형식 PDF 생성(generate_document)이 서버에서 한글 폰트 파일을 읽는데,
@@ -9,6 +18,9 @@ const nextConfig = {
     ],
     "/api/quotes/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/contracts/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/transaction-statements/**": statementPdfFiles,
+    "/api/statement-receipts/**": statementPdfFiles,
+    "/transaction-statements/**": ["./public/assets/jake-seal.png"],
     "/api/voice/interviews/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/olivia-os/status-panel": ["./supabase/migrations/*.sql"],
   },

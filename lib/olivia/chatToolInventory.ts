@@ -1,5 +1,6 @@
 export const CHAT_MODEL_TOOL_NAMES = [
   "create_quote",
+  "create_transaction_statement",
   "get_quote",
   "add_quote_item",
   "remove_quote_item",

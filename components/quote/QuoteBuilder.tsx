@@ -3,6 +3,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { TransactionStatementButton } from "./TransactionStatementButton";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
@@ -2901,6 +2902,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       >
                         {publishingQuoteId === item.id ? "공개 중..." : item.status === "published" ? "포털 다시 공개" : "포털 공개"}
                       </button>
+                      <TransactionStatementButton quoteId={item.quoteId ?? item.id} status={item.status} />
                     </div>
                   </div>
                 ))}

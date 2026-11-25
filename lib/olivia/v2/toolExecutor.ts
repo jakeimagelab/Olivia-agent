@@ -12,6 +12,7 @@ import { OliviaToolError } from "@/lib/olivia/v2/toolError";
 import { mergeVerification } from "./toolExecutors/verification";
 import { QUOTE_TOOL_NAMES, executeQuoteTool } from "./toolExecutors/quote";
 import { CONTRACT_TOOL_NAMES, executeContractTool } from "./toolExecutors/contract";
+import { TRANSACTION_STATEMENT_TOOL, executeTransactionStatementTool } from "./toolExecutors/transactionStatement";
 import { CALENDAR_TOOL_NAMES, executeCalendarTool } from "./toolExecutors/calendar";
 import { WORKFLOW_TOOL_NAMES, executeWorkflowTool } from "./toolExecutors/workflow";
 import { CLIENT_TOOL_NAMES, executeClientTool } from "./toolExecutors/client";
@@ -27,6 +28,13 @@ import { GALLERY_TOOL_NAMES, executeGalleryTool } from "./toolExecutors/gallery"
 import { validateMutationIntent } from "./mutationIntentGuard";
 
 export const OLIVIA_V2_TOOLS: FunctionTool[] = [
+  {
+    type: "function",
+    name: TRANSACTION_STATEMENT_TOOL,
+    description: "[WRITE] 사용자가 고객명을 적어 거래명세서 생성을 요청하면 승인 견적을 확인합니다. 사용자 원문에 적힌 고객명만 사용합니다. 여러 승인 견적이 있으면 선택 목록을 반환합니다. 이메일은 발송하지 않습니다.",
+    strict: true,
+    parameters: { type: "object", additionalProperties: false, properties: {}, required: [] },
+  },
   {
     type: "function",
     name: "select_project",
@@ -283,6 +291,7 @@ type ToolHandler = (name: string, input: Record<string, unknown>, context: Olivi
 const DOMAIN_EXECUTORS: ReadonlyArray<readonly [ReadonlyArray<string>, ToolHandler]> = [
   [QUOTE_TOOL_NAMES, executeQuoteTool],
   [CONTRACT_TOOL_NAMES, executeContractTool],
+  [[TRANSACTION_STATEMENT_TOOL], executeTransactionStatementTool],
   [CALENDAR_TOOL_NAMES, executeCalendarTool],
   [WORKFLOW_TOOL_NAMES, executeWorkflowTool],
   [CLIENT_TOOL_NAMES, executeClientTool],

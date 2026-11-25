@@ -260,6 +260,7 @@ export function selectOliviaTools(input:{requestClass:OliviaRequestClass;message
   const domains=getOliviaToolDomains(input.message,input.context,input.recentText);
   const names=new Set<string>();
   for(const domain of domains) for(const name of DOMAIN_TOOLS[domain]) names.add(name);
+  if (/거래\s*명세서/u.test(input.message)) names.add("create_transaction_statement");
   if(!names.size || input.requestClass==="NORMAL_CHAT") for(const name of SAFE_FALLBACK) names.add(name);
   if (hasClientPermanentDeleteIntent(input.message)) {
     names.delete("client_create");

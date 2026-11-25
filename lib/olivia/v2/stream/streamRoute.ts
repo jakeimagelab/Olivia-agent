@@ -10,6 +10,8 @@ import {
 import { isAdminSession } from "@/lib/passkey";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeAgentTool } from "@/lib/olivia/v2/toolExecutor";
+import { TRANSACTION_STATEMENT_TOOL } from "@/lib/olivia/v2/toolExecutors/transactionStatement";
+import { statementChatRequest, statementChoiceFromHistory, statementQuoteNumberReply } from "@/lib/olivia/v2/transactionStatementIntent";
 import { classifyOliviaRequest, routeOliviaModel } from "@/lib/olivia/v2/modelRouter";
 import { isDirectToolExecutionEnabled, resolveOliviaEngineRoute } from "@/lib/olivia/v2/engineRouting";
 import type { OliviaStreamEvent } from "@/lib/olivia/v2/types";
@@ -154,6 +156,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
   // 화면 선택보다 원문에 적힌 고객명·항목이 우선이다. 여러 줄 견적 원문은 파서가
   // 이미 직접 읽을 수 있으므로, 고객 선택 가드가 이를 "대상 없음"으로 막으면 안 된다.
   const directQuoteCandidate = isDirectQuoteCandidate(rawMessage);
+  const statementCommand = statementChatRequest(rawMessage);
   const quoteCreationTurn = isQuoteCreationTurn(rawMessage);
   const model = routeOliviaModel(requestClass);
   const persistentAgentRun = shouldCreatePersistentAgentRun(message, requestClass);
@@ -178,7 +181,7 @@ export async function handleOliviaStreamPost(req: NextRequest) {
     uiExecutionIntent: isUiExecutionIntent(message),
   });
   const useHermes = engineRoute.useHermes;
-  if (!systemStatusChatRequest && !removedFeatureNotice && !directQuoteCandidate && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
+  if (!systemStatusChatRequest && !removedFeatureNotice && !directQuoteCandidate && !statementCommand && !statementQuoteNumberReply(rawMessage) && !useHermes && !deterministic && !databaseFastPath && !persistentAgentRun && (!process.env.OPENAI_API_KEY || !model)) {
     return Response.json({ ok: false, error: "Olivia GPT 환경변수 설정을 확인해주세요." }, { status: 503 });
   }
 
@@ -465,6 +468,29 @@ export async function handleOliviaStreamPost(req: NextRequest) {
           });
           return saved.message;
         };
+
+        const statementRequest = statementCommand ? rawMessage : statementChoiceFromHistory(rawMessage, history);
+        if (statementRequest) {
+          activeAgentEngine = "legacy";
+          chatRouteLabel = "DIRECT_TOOL";
+          const toolCall = { id: crypto.randomUUID(), name: TRANSACTION_STATEMENT_TOOL, arguments: "{}" };
+          send({ type: "agent_status", status: "승인된 견적서를 확인하는 중…" });
+          send({ type: "tool_start", tool: toolCall.name, toolCallId: toolCall.id });
+          const started = performance.now();
+          const { result } = await executeAgentTool(toolCall, { ...effectiveContext, currentRequestText: statementRequest });
+          toolExecutionMs += performance.now() - started;
+          toolRounds += 1;
+          const text = String((result.success ? result.data?.summary : result.error) || "거래명세서를 처리하지 못했습니다.");
+          send({ type: "tool_result", tool: toolCall.name, toolCallId: toolCall.id, success: result.success, result: { message: text, ...result.data } });
+          await flushTextAsDeltas(text, send, messageId);
+          await saveTurnAssistant(text, {
+            blocks: [{ type: "text", text }],
+            routeDecision: "DIRECT_TRANSACTION_STATEMENT",
+            statementChoice: result.data?.statementChoice ?? null,
+            toolCalls: [{ id: toolCall.id, name: toolCall.name, success: result.success, verification: result.verification }],
+          });
+          return;
+        }
 
         if (removedFeatureNotice) {
           activeAgentEngine = "legacy";

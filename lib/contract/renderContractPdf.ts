@@ -39,6 +39,10 @@ export async function renderContractPdfBuffer(
     { baseUrl: options.baseUrl },
   );
 
+  return { buffer: await renderA4HtmlPdf(html), quote, brand };
+}
+
+export async function renderA4HtmlPdf(html: string, options?: { fitSelector: string }): Promise<Buffer> {
   let browser;
   try {
     browser = await launchBrowser();
@@ -56,6 +60,36 @@ export async function renderContractPdfBuffer(
     });
     await page.emulateMedia({ media: "print" });
 
+    if (options) {
+      await page.locator(options.fitSelector).evaluate((node) => {
+        const element = node as HTMLElement;
+        const pageHeight = 1120;
+        if (element.getBoundingClientRect().height <= pageHeight) return;
+        element.dataset.fit = "compact";
+        const { height, width } = element.getBoundingClientRect();
+        if (height <= pageHeight) return;
+
+        // Keep the scaled sheet in a single print box so Chromium cannot fragment its footer.
+        const scale = (pageHeight - 4) / height;
+        const frame = document.createElement("div");
+        Object.assign(frame.style, {
+          width: `${width}px`,
+          height: `${pageHeight}px`,
+          position: "relative",
+          overflow: "hidden",
+        });
+        element.replaceWith(frame);
+        frame.append(element);
+        Object.assign(element.style, {
+          position: "absolute",
+          top: "0",
+          left: `${(width - width * scale) / 2}px`,
+          transformOrigin: "top left",
+          transform: `scale(${scale})`,
+        });
+      });
+    }
+
     const pdf = await page.pdf({
       format: "A4",
       printBackground: true,
@@ -63,7 +97,7 @@ export async function renderContractPdfBuffer(
       margin: { top: "0mm", right: "0mm", bottom: "0mm", left: "0mm" },
     });
 
-    return { buffer: Buffer.from(pdf), quote, brand };
+    return Buffer.from(pdf);
   } finally {
     await browser?.close().catch((error) => {
       console.error("[ContractPdf] Chromium close failed", error);

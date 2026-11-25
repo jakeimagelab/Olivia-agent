@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import { gmailTransport as transporter } from "@/lib/mail/gmailTransport";
 
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({
@@ -8,19 +8,6 @@ function escapeHtml(value: string) {
     '"': "&quot;",
     "'": "&#39;",
   })[character] ?? character);
-}
-
-function transporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) throw new Error("이메일 발송 설정이 없습니다.");
-  return {
-    user,
-    client: nodemailer.createTransport({
-      service: "gmail",
-      auth: { user, pass },
-    }),
-  };
 }
 
 function emailShell(title: string, body: string) {

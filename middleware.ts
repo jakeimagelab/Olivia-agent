@@ -49,6 +49,7 @@ const protectedApiPrefixes = [
   "/api/projects",
   "/api/quotes",
   "/api/contracts",
+  "/api/transaction-statements",
   "/api/memo",
   "/api/calendar",
   "/api/mailing",

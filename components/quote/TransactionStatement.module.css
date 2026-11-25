@@ -1,0 +1,56 @@
+.surface {
+  min-height: 100dvh;
+  padding: 56px 20px;
+  background: #fdfcfa;
+  color: #1c2b28;
+}
+
+.card {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: clamp(20px, 5vw, 36px);
+  background: #fff;
+  border: 1px solid #d5e1de;
+  border-radius: 14px;
+}
+
+.card h1 { margin: 0 0 6px; font-size: 24px; font-weight: 600; color: #155855; }
+.meta { color: #5a7470; margin: 0 0 22px; line-height: 1.6; }
+.form, .field { display: grid; gap: 8px; }
+.form { gap: 16px; margin: 20px 0 0; }
+.field { font-size: 14px; font-weight: 500; }
+.field input {
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid #c8ddd9;
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #fff;
+  color: inherit;
+}
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.primary, .secondary {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 8px 14px;
+  border: 1px solid #155855;
+  border-radius: 8px;
+  color: #155855;
+  background: #fff;
+  font-weight: 600;
+  text-decoration: none;
+}
+.primary { background: #c94a1e; border-color: #c94a1e; color: #fff; }
+.primary:disabled, .secondary:disabled {
+  background: transparent;
+  border-color: #d5e1de;
+  color: #5a7470;
+  cursor: not-allowed;
+}
+.message { margin: 0; color: #5a7470; line-height: 1.6; font-size: 13px; }
+.error { margin: 0; color: #a33417; font-size: 13px; }
+.inline { display: grid; gap: 6px; grid-column: 1 / -1; }
+.inline button { justify-content: center; font-size: 13px; }
+.inline .actions a { font-size: 13px; }
