@@ -60,6 +60,9 @@ import {
   FileText
 } from "lucide-react";
 
+const PREVIEW_PAGE_WIDTH = 1123;
+const PREVIEW_PAGE_HEIGHT = 794;
+
 type ContractQuoteItem = {
   id?: string;
   name: string;
@@ -456,11 +459,10 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     };
   }, [canPublishOliviaContext, quoteDocumentId, setOliviaWorkspace]);
 
-  const [fullscreenPreviewScale, setFullscreenPreviewScale] = useState(1);
   const [recentQuotes, setRecentQuotes] = useState<ContractQuoteData[]>([]);
   const [publishingQuoteId, setPublishingQuoteId] = useState<string | null>(null);
   const [todayQuoteNumbers, setTodayQuoteNumbers] = useState<string[]>([]);
-  const previewScale = Number((basePreviewScale * previewZoom).toFixed(3));
+  const previewScale = basePreviewScale * (showFullscreenPreview ? 1 : previewZoom);
   const previewPercent = Math.round(previewZoom * 100);
 
   // Workspace Modal 모드 전용 — dirty 추적/자동저장/닫기 확인 (mode="page"일 땐 전부 미사용).
@@ -480,6 +482,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [documentScopeError, setDocumentScopeError] = useState("");
+  const previewVisible = (!documentOnly || Boolean(resourceId)) && !documentLoading && !documentScopeError;
   const saveFailureNotice = saveFailureReason
     ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
@@ -515,67 +518,38 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentOnly]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const shell = previewShellRef.current;
-    if (!shell) return;
+    if (!previewVisible || !shell) return;
 
-    const updateScale = () => {
-      const style = window.getComputedStyle(shell);
-      const paddingX =
-        Number.parseFloat(style.paddingLeft || "0") + Number.parseFloat(style.paddingRight || "0");
-      const borderX =
-        Number.parseFloat(style.borderLeftWidth || "0") + Number.parseFloat(style.borderRightWidth || "0");
-      const paddingY =
-        Number.parseFloat(style.paddingTop || "0") + Number.parseFloat(style.paddingBottom || "0");
-      const borderY =
-        Number.parseFloat(style.borderTopWidth || "0") + Number.parseFloat(style.borderBottomWidth || "0");
-      const shellWidth = shell.getBoundingClientRect().width;
-      const shellHeight = shell.getBoundingClientRect().height;
-      const availableWidth = Math.max(0, shellWidth - paddingX - borderX - 2);
-      const availableHeight = Math.max(0, shellHeight - paddingY - borderY - 2);
-      // 100%는 실제 캔버스에 가로·세로가 모두 들어오는 "화면 맞춤"이다. OS 안에서도
-      // 임의의 70% 상한을 두지 않고, 현재 패널·창 크기를 관찰해 다시 계산한다.
-      const widthScale = availableWidth / 1123;
-      const heightScale = availableHeight > 0 ? availableHeight / 794 : widthScale;
-      const nextScale = Math.min(1, Math.max(0.12, Math.min(widthScale, heightScale)));
-      setBasePreviewScale(Number(nextScale.toFixed(3)));
+    const updateScale = (width: number, height: number) => {
+      if (width <= 0 || (showFullscreenPreview && height <= 0)) return;
+      const widthScale = width / PREVIEW_PAGE_WIDTH;
+      setBasePreviewScale(showFullscreenPreview
+        ? Math.min(widthScale, height / PREVIEW_PAGE_HEIGHT)
+        : Math.min(1, widthScale));
     };
 
-    updateScale();
-    const observer = new ResizeObserver(updateScale);
+    const style = window.getComputedStyle(shell);
+    updateScale(
+      shell.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight),
+      shell.clientHeight - Number.parseFloat(style.paddingTop) - Number.parseFloat(style.paddingBottom),
+    );
+    const observer = new ResizeObserver(([entry]) => updateScale(entry.contentRect.width, entry.contentRect.height));
     observer.observe(shell);
-    window.addEventListener("resize", updateScale);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", updateScale);
-    };
-    // 전체화면 전환 시 previewShellRef가 portal로 다른 DOM 위치로 이동하면서
-    // React가 이 서브트리를 새로 마운트할 수 있어, 그때마다 다시 구독해야 한다.
-  }, [showFullscreenPreview, isDesktopWindow]);
+    return () => observer.disconnect();
+    // 견적 불러오기 또는 전체화면 전환 시 실제 미리보기 노드가 다시 마운트된다.
+  }, [previewVisible, showFullscreenPreview]);
 
   useEffect(() => {
     if (!showFullscreenPreview) return;
-
-    const updateFullscreenScale = () => {
-      const pad = 64;
-      const availableWidth = Math.max(0, window.innerWidth - pad * 2);
-      const availableHeight = Math.max(0, window.innerHeight - pad * 2);
-      const nextScale = Math.max(0.2, Math.min(availableWidth / 1123, availableHeight / 794));
-      setFullscreenPreviewScale(Number(nextScale.toFixed(3)));
-    };
-    updateFullscreenScale();
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setShowFullscreenPreview(false);
     };
 
-    window.addEventListener("resize", updateFullscreenScale);
     window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("resize", updateFullscreenScale);
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showFullscreenPreview]);
 
   const getPreviewZoomMax = () => {
@@ -1444,6 +1418,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
         setRecentQuoteMessage(json.error || "최종완료 처리에 실패했습니다.");
         return;
       }
+      if (typeof json.status === "string") {
+        const status = json.status;
+        setRecentQuotes((previous) => previous.map((quote) => quote.id === quoteId ? { ...quote, status } : quote));
+        if (editorSessionRef.current.quoteId === quoteId) setCurrentQuoteStatus(status);
+      }
       setRecentQuoteMessage(
         json.advanced
           ? "견적서 단계를 최종완료 처리하고 다음 단계(계약서)로 진행했습니다."
@@ -2173,14 +2152,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
             <div
               className="quote-preview-viewport"
               style={{
-                width: `${1123 * (showFullscreenPreview ? fullscreenPreviewScale : previewScale)}px`,
-                height: `${794 * (showFullscreenPreview ? fullscreenPreviewScale : previewScale)}px`
+                width: PREVIEW_PAGE_WIDTH * previewScale,
+                height: PREVIEW_PAGE_HEIGHT * previewScale,
               }}
             >
-            <QuoteDocument
-              data={quoteDocumentData}
-              scale={showFullscreenPreview ? fullscreenPreviewScale : previewScale}
-            />
+              <QuoteDocument data={quoteDocumentData} scale={previewScale} />
             </div>
           </div>
   );
@@ -2245,17 +2221,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           <ActiveMissionBar workflowRunId={linkedWorkflowRunId} />
         </div>
       ) : null}
-      {/* 이 그리드의 minmax() 하한이 곧 "이 아래로는 못 줄어든다"는 실제 폭 마지노선이다.
-          기존 440/560px(lg) 하한은 /quote 풀페이지처럼 뷰포트를 통째로 쓰는 화면 기준이었는데,
-          같은 컴포넌트가 워크스페이스 채팅 분할(고정 70% 폭, DynamicWorkspace.tsx가 overflow:hidden
-          으로 감싸 넘치면 스크롤 없이 그냥 잘려 보인다) 안에서도 mode="modal"로 그대로 쓰이면서
-          실제 폭이 하한보다 좁아져 미리보기 열이 잘려 보이는 문제가 있었다(2026-08-30 사용자
-          리포트). 미리보기 안쪽 A4 페이지는 이미 ResizeObserver로 실제 폭에 맞춰 scale을 다시
-          계산하므로(위 previewShellRef 참고) 그리드 하한만 낮춰도 잘림 없이 계속 축소된다 —
-          /quote 풀페이지는 폭이 넉넉해 fr 비율로 그대로 채워지므로 시각적으로 변화가 없다. */}
-      <section className={`${documentOnly ? "" : "mx-auto max-w-[1500px]"} ${isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden" : ""} grid min-w-0 gap-6 px-4 py-5 sm:px-6 lg:py-8 ${isModal ? documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]" : "md:grid-cols-[minmax(300px,0.85fr)_minmax(340px,1.15fr)]" : "md:grid-cols-[minmax(340px,0.82fr)_minmax(420px,1.18fr)] lg:grid-cols-[minmax(440px,0.9fr)_minmax(560px,1.1fr)]"}`}>
+      <section className={`quote-builder-layout ${isDesktopWindow ? "quote-builder-layout--embedded" : ""} ${documentOnly ? "w-full" : "mx-auto w-full max-w-[1720px]"} grid min-w-0 gap-4 p-3 sm:p-4`}>
         <div
-          className={`min-w-0 space-y-5 ${isDesktopWindow ? "md:min-h-0 md:overflow-y-auto md:overscroll-contain md:pr-1" : ""}`}
+          className="quote-builder-editor min-w-0 space-y-5"
           style={isDesktopWindow ? { alignSelf: "stretch" } : undefined}
         >
           <header className="rounded-lg border border-[var(--quote-ink)]/15 bg-white px-5 py-5 shadow-sm">
@@ -3001,12 +2969,15 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           )}
         </div>
 
-        <aside className="min-w-0">
+        <aside className="quote-builder-preview min-w-0">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
               <p className="text-sm font-bold text-[var(--quote-ink)]">실시간 견적서 미리보기</p>
-              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 화면 맞춤</p>
+              <p className="text-xs text-[#797168]">A4 가로형 1페이지 · 100%는 가로 맞춤</p>
             </div>
+            {quoteDocumentId ? (
+              <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId} status={effectiveQuoteStatus} />
+            ) : null}
             <div className="preview-zoom-controls" aria-label="견적서 미리보기 확대 축소">
               <button type="button" onClick={zoomOutPreview} aria-label="미리보기 축소">
                 <ZoomOut size={16} />

@@ -145,6 +145,29 @@ html.olivia-mobile-os .pcrm-form-modal .pc-btn--orange {
 
 /* 견적서 앱은 OS 우측 패널을 제외하고 실제로 받은 콘텐츠 폭을 기준으로 재배치한다. */
 main.quote-app { container-name: quote-app; container-type: inline-size; }
+.quote-builder-layout { grid-template-columns: minmax(0, 1fr); }
+.quote-builder-layout--embedded { flex: 1 1 auto; min-height: 0; overflow: auto; }
+.quote-builder-preview > .preview-shell { padding: 8px; scrollbar-gutter: stable; }
+
+@container quote-app (min-width: 760px) {
+  .quote-builder-layout { grid-template-columns: clamp(320px, 34%, 440px) minmax(0, 1fr); }
+  .quote-builder-layout--embedded { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .quote-builder-layout--embedded > .quote-builder-editor {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .quote-builder-layout--embedded > .quote-builder-preview {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+  }
+}
+
+@container quote-app (width < 760px) {
+  .quote-builder-preview > .preview-shell { height: auto; min-height: 0; }
+}
+
 .quote-workspace-layout {
   width: min(100%, 1720px);
   min-width: 0;
@@ -2800,14 +2823,16 @@ main:has(> .pc-header) {
   min-height: 0;
 }
 
-.preview-shell--fullscreen {
+.quote-app.preview-shell--fullscreen {
   position: fixed;
   inset: 0;
   z-index: 2000;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   border-radius: 0;
-  padding: 64px;
+  padding: 64px clamp(10px, 2vw, 24px) 16px;
   background: var(--ink);
   box-shadow: none;
 }

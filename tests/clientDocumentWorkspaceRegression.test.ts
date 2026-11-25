@@ -75,10 +75,13 @@ describe("고객 문서 워크스페이스 회귀 방지", () => {
   it("고객 작업창은 전체 폭을 쓰고 견적서는 실제 앱 폭을 기준으로 배치한다", () => {
     const workspaceStyles = source("components/clients/ClientDocumentWorkspace.module.css");
     const quoteBuilder = source("components/quote/QuoteBuilder.tsx");
+    const quoteStyles = source("app/globals.css");
 
     expect(workspaceStyles).toContain(".listPage{width:min(1380px,100%)");
     expect(workspaceStyles).toContain(".casePage{width:100%");
-    expect(quoteBuilder).toContain('documentOnly ? "md:grid-cols-[minmax(320px,420px)_minmax(340px,1fr)]"');
-    expect(quoteBuilder).toContain('isDesktopWindow ? "min-h-0 flex-1 overflow-y-auto md:overflow-hidden"');
+    expect(quoteBuilder).toContain('documentOnly ? "w-full"');
+    expect(quoteBuilder).toContain('isDesktopWindow ? "quote-builder-layout--embedded"');
+    expect(quoteStyles).toContain("main.quote-app { container-name: quote-app; container-type: inline-size; }");
+    expect(quoteStyles).toMatch(/@container quote-app \(min-width: 760px\)\s*{\s*\.quote-builder-layout\s*{\s*grid-template-columns:/);
   });
 });
