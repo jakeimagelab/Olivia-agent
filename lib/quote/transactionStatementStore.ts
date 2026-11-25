@@ -80,6 +80,9 @@ export function statementWorkspaceData(statement: TransactionStatement): Stateme
     businessDetails: resolveStatementBusinessDetails(statement.snapshot, statement.business_details),
     registrationNames: { supplier: statement.registration_documents?.supplier?.name, recipient: statement.registration_documents?.recipient?.name },
     mailSubject: statementMailDefaults(statement).subject,
+    draftPreview: statement.status === "draft" ? {
+      snapshot: statement.snapshot, transactionDate: statement.transaction_date, shootDate: statement.shoot_date,
+    } : null,
   };
 }
 

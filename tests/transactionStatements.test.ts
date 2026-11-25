@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { quoteDocumentDataFromRow } from "@/lib/quote/quoteDocumentData";
-import { buildStatementHtml } from "@/lib/quote/transactionStatementHtml";
+import { buildStatementHtml, buildStatementPage } from "@/lib/quote/transactionStatementHtml";
 import { newStatementReceiptToken, statementReceiptTokenHash } from "@/lib/quote/transactionStatementReceipt";
 import { buildTransactionStatementSnapshot } from "@/lib/quote/transactionStatementSnapshot";
 import { createTransactionStatement, type TransactionStatement } from "@/lib/quote/transactionStatementStore";
@@ -116,6 +116,19 @@ describe("거래명세서 전환", () => {
     expect(html).toContain("포털에서 확인됨");
     expect(html).toContain("&lt;담당자&gt;");
     expect(html).toContain("일금 이십삼만이천백원정");
+  });
+
+  it("입력 중인 사업자 정보를 다운로드 PDF와 같은 양식으로 그리고 HTML을 이스케이프한다", () => {
+    const statement = {
+      statement_number: "TS-20261125-01", transaction_date: "2026-11-25", shoot_date: null,
+      snapshot: buildTransactionStatementSnapshot(quoteRow()), confirmed_at: null, confirmed_by: null,
+      business_details: { supplier: { businessCategory: "서비스", businessItem: "사진 촬영" }, recipient: { name: "<거래처>" } },
+    };
+    const assets = { logo: "/assets/photoclinic-logo.png" };
+    const { sheet } = buildStatementPage(statement, assets);
+    expect(sheet).toContain("&lt;거래처&gt;");
+    expect(sheet).toContain("서비스 · 사진 촬영");
+    expect(buildStatementHtml(statement, assets)).toContain(sheet);
   });
 
   it("수신확인 토큰은 무작위 값이고 DB 조회는 해시를 사용한다", () => {

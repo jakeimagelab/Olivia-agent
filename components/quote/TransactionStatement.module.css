@@ -65,6 +65,13 @@
   color: var(--ui-text, #1c2b28);
 }
 .editor[data-embedded="true"] { height: 100%; min-height: 0; overflow: auto; }
+@media (prefers-reduced-motion: no-preference) {
+  .editor { animation: statementEnter 150ms ease-out; }
+}
+@keyframes statementEnter {
+  from { opacity: .88; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 .editorHeader, .pdfToolbar, .formActions, .editorNotice {
   display: flex;
   flex-wrap: wrap;
@@ -92,6 +99,7 @@
 .businessFields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
 .businessFields .field { gap: 3px; min-width: 0; }
 .businessFields .field[data-wide="true"] { grid-column: 1 / -1; }
+.optionalField { margin-inline-start: 5px; color: #5a7470; font-size: 11px; font-weight: 400; }
 .businessFields input { min-height: 34px; width: 100%; padding: 5px 8px; font: inherit; font-weight: 400; }
 .businessFields input:disabled { color: #455e56; background: #f3f6f3; }
 .registration { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; border-top: 1px solid #d5e1de; margin-top: 10px; padding-top: 9px; font-size: 12px; }
@@ -110,6 +118,8 @@
 .pdfPages { padding: clamp(8px, 2vw, 20px); }
 .pdfPages canvas { display: block; width: min(100%, 794px); height: auto; margin: 0 auto; background: #fff; box-shadow: 0 2px 8px #1c2b2826; }
 .pdfPages canvas + canvas { margin-top: 14px; }
+.draftPaper { position: relative; width: min(100%, 793px); aspect-ratio: 793 / 1120; margin: 0 auto; overflow: hidden; background: #fff; box-shadow: 0 2px 8px #1c2b2826; }
+.draftFrame { position: absolute; inset: 0; display: block; width: 793px; height: 1120px; border: 0; transform-origin: top left; }
 .previewPlaceholder { display: grid; flex: 1 1 auto; align-content: center; justify-items: center; padding: 16px; color: #5a7470; font-size: 13px; }
 
 @container (min-width: 800px) {

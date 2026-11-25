@@ -4,6 +4,8 @@ import { matchesStatementSupplier, resolveStatementBusinessDetails } from "./tra
 import type { TransactionStatement } from "./transactionStatementStore";
 
 type StatementAssets = { logo: string; signature?: string; seal?: string; recipientSignature?: string; koreanFont?: string };
+type StatementPageData = Pick<TransactionStatement,
+  "snapshot" | "statement_number" | "transaction_date" | "shoot_date" | "business_details" | "receipt_mode" | "confirmed_at" | "confirmed_by">;
 
 const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const html = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]);
@@ -28,7 +30,7 @@ function koreanWon(value: number): string {
   return `일금 ${value < 0 ? "마이너스 " : ""}${parts.join("") || "영"}원정`;
 }
 
-export function buildStatementHtml(statement: TransactionStatement, assets: StatementAssets) {
+export function buildStatementPage(statement: StatementPageData, assets: StatementAssets) {
   const { document: quote, quoteNumber, lines } = statement.snapshot;
   const brand = CONTRACT_BRAND_CONFIG[quote.brand];
   const { ink, accent } = DOCUMENT_BRAND_COLORS[quote.brand];
@@ -57,8 +59,7 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   const seal = registeredSupplier && assets.seal ? `<span class="seal"><img src="${html(assets.seal)}" alt="공급자 직인"></span>` : "";
   const business = [supplier.businessCategory, supplier.businessItem].filter(Boolean).join(" · ");
   const recipientBusiness = [recipient.businessCategory, recipient.businessItem].filter(Boolean).join(" · ");
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${html(statement.statement_number)} 거래명세서</title>
-  <style>
+  const css = `
     ${assets.koreanFont ? `@font-face{font-family:"Statement Korean";src:url("${assets.koreanFont}") format("truetype")}` : ""}
     @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;color:#1c2b28;font:11px/1.52 "Statement Korean","Apple SD Gothic Neo",sans-serif}
     main{width:793px;min-height:1120px;padding:39px 48px 32px;display:flex;flex-direction:column}
@@ -97,7 +98,8 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
     main[data-fit="compact"] td small{margin-left:5px;white-space:normal}
     main[data-fit="compact"] footer{padding-top:11px}
     main[data-fit="compact"] .parties .seal{top:49px}
-  </style></head><body><main class="statement-sheet">
+  `;
+  const sheet = `<main class="statement-sheet">
   <header><div><img src="${html(assets.logo)}" alt="${html(brand.logoAlt)}"><p><small>${html(brand.brandSub)}</small></p></div>
   <div class="metadata"><h1>거래명세서</h1><p>명세서번호 <b>${html(statement.statement_number)}</b></p>
   <p>거래일 ${html(statement.transaction_date)}${shootDate ? ` · 촬영일 ${html(shootDate)}` : ""}</p>
@@ -133,5 +135,11 @@ export function buildStatementHtml(statement: TransactionStatement, assets: Stat
   <section><h2>${signing ? "공급받는자 서명" : "공급받는자 수신확인"}</h2>${confirmedTime
     ? `<p class="receipt">${signing ? "✓ 서명 완료" : "✓ 포털에서 확인됨"}</p><p>${html(confirmedTime)} · ${html(statement.confirmed_by)}</p>${signing && assets.recipientSignature ? `<img class="signature" src="${html(assets.recipientSignature)}" alt="공급받는자 서명">` : ""}`
     : signing ? "<p>서명 대기</p>" : "<p>확인 대기</p>"}</section></footer>
-  <p class="tagline">${html(brand.footerTagline)}</p></main></body></html>`;
+  <p class="tagline">${html(brand.footerTagline)}</p></main>`;
+  return { css, sheet };
+}
+
+export function buildStatementHtml(statement: StatementPageData, assets: StatementAssets) {
+  const { css, sheet } = buildStatementPage(statement, assets);
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${html(statement.statement_number)} 거래명세서</title><style>${css}</style></head><body>${sheet}</body></html>`;
 }

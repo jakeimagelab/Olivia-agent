@@ -1,4 +1,5 @@
 import type { StatementSummary, StatementWorkspaceData } from "./transactionStatementDetails";
+import { transactionStatementPath } from "./transactionStatementSnapshot";
 
 export async function statementRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { cache: "no-store", ...init });
@@ -20,6 +21,19 @@ export function createQuoteStatement(quoteId: string) {
 }
 
 export type StatementWorkspaceResponse = { statement: StatementWorkspaceData };
+
+export function loadStatementWorkspace(id: string, signal?: AbortSignal) {
+  return statementRequest<StatementWorkspaceResponse>(transactionStatementPath(id), { signal });
+}
+
+export type StatementWorkspaceOpening = { statement: StatementWorkspaceData; statements: StatementSummary[] };
+
+export async function openQuoteStatement(quoteId: string, prefetched?: Promise<StatementSummary[]>): Promise<StatementWorkspaceOpening> {
+  const statements = prefetched ? await prefetched : (await loadQuoteStatements(quoteId)).statements;
+  const newest = statements[0] ?? (await createQuoteStatement(quoteId)).statement;
+  const { statement } = await loadStatementWorkspace(newest.id);
+  return { statement, statements: statements.length ? statements : [newest] };
+}
 
 export async function loadStatementPdf(url: string, signal?: AbortSignal) {
   const response = await fetch(url, { cache: "no-store", signal });

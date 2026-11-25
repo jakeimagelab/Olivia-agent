@@ -5,6 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffec
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { TransactionStatementButton } from "./TransactionStatementButton";
+import type { StatementWorkspaceOpening } from "@/lib/quote/transactionStatementClient";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
@@ -63,7 +64,8 @@ import {
 
 const PREVIEW_PAGE_WIDTH = 1123;
 const PREVIEW_PAGE_HEIGHT = 794;
-const TransactionStatementWorkspace = dynamic(() => import("./TransactionStatementWorkspace"), {
+const loadTransactionStatementWorkspace = () => import("./TransactionStatementWorkspace");
+const TransactionStatementWorkspace = dynamic(loadTransactionStatementWorkspace, {
   loading: () => <div className="quote-document-state">거래명세서를 불러오는 중…</div>,
 });
 
@@ -419,7 +421,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
-  const [statementWorkspace, setStatementWorkspace] = useState<{ id: string; quoteId: string } | null>(null);
+  const [statementWorkspace, setStatementWorkspace] = useState<{ opening: Promise<StatementWorkspaceOpening>; quoteId: string } | null>(null);
   const quoteDocumentId = editorSession.quoteId ?? undefined;
   const activeStatement = statementWorkspace?.quoteId === quoteDocumentId ? statementWorkspace : null;
   const editorClientId = editorSession.clientId ?? undefined;
@@ -2204,7 +2206,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     return <div className="quote-document-state" role="alert">{documentScopeError}</div>;
   }
   if (activeStatement) {
-    return <TransactionStatementWorkspace key={activeStatement.id} id={activeStatement.id} quoteId={activeStatement.quoteId}
+    return <TransactionStatementWorkspace key={activeStatement.quoteId} opening={activeStatement.opening} quoteId={activeStatement.quoteId}
       embedded={isDesktopWindow} onBack={() => setStatementWorkspace(null)} />;
   }
 
@@ -3001,7 +3003,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           {quoteDocumentId ? (
             <div className="mt-3 flex justify-end">
               <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId}
-                onOpen={(id) => { setShowFullscreenPreview(false); setStatementWorkspace({ id, quoteId: quoteDocumentId }); }} />
+                onPrepare={() => { void loadTransactionStatementWorkspace().catch(() => undefined); }}
+                onOpen={(opening) => { setShowFullscreenPreview(false); setStatementWorkspace({ opening, quoteId: quoteDocumentId }); }} />
             </div>
           ) : null}
         </aside>

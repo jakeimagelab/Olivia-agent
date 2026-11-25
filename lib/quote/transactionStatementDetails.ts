@@ -51,6 +51,7 @@ export type StatementWorkspaceData = {
   businessDetails: StatementBusinessDetails;
   registrationNames: Partial<Record<StatementPartyKey, string>>;
   mailSubject: string;
+  draftPreview: { snapshot: TransactionStatementSnapshot; transactionDate: string; shootDate: string | null } | null;
 };
 
 export function statementPartyKey(value: unknown): StatementPartyKey | null {

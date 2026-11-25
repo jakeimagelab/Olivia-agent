@@ -4,6 +4,7 @@ import {
   type ContractBrand,
   type ContractQuoteData,
 } from "@/lib/contract/contractDocument";
+import { fitA4Sheet } from "@/lib/contract/fitA4Sheet";
 
 async function launchBrowser() {
   const { chromium: playwrightChromium } = await import("playwright-core");
@@ -60,35 +61,7 @@ export async function renderA4HtmlPdf(html: string, options?: { fitSelector: str
     });
     await page.emulateMedia({ media: "print" });
 
-    if (options) {
-      await page.locator(options.fitSelector).evaluate((node) => {
-        const element = node as HTMLElement;
-        const pageHeight = 1120;
-        if (element.getBoundingClientRect().height <= pageHeight) return;
-        element.dataset.fit = "compact";
-        const { height, width } = element.getBoundingClientRect();
-        if (height <= pageHeight) return;
-
-        // Keep the scaled sheet in a single print box so Chromium cannot fragment its footer.
-        const scale = (pageHeight - 4) / height;
-        const frame = document.createElement("div");
-        Object.assign(frame.style, {
-          width: `${width}px`,
-          height: `${pageHeight}px`,
-          position: "relative",
-          overflow: "hidden",
-        });
-        element.replaceWith(frame);
-        frame.append(element);
-        Object.assign(element.style, {
-          position: "absolute",
-          top: "0",
-          left: `${(width - width * scale) / 2}px`,
-          transformOrigin: "top left",
-          transform: `scale(${scale})`,
-        });
-      });
-    }
+    if (options) await page.locator(options.fitSelector).evaluate(fitA4Sheet);
 
     const pdf = await page.pdf({
       format: "A4",

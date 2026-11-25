@@ -4,7 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Download, FileText, Mail, Paperclip, PenLine, Plus, RefreshCcw } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
-import { createQuoteStatement, loadQuoteStatements, loadStatementPdf, statementRequest, type StatementWorkspaceResponse } from "@/lib/quote/transactionStatementClient";
+import {
+  createQuoteStatement, loadStatementPdf, loadStatementWorkspace, openQuoteStatement, statementRequest,
+  type StatementWorkspaceOpening, type StatementWorkspaceResponse,
+} from "@/lib/quote/transactionStatementClient";
 import {
   STATEMENT_BUSINESS_FIELDS, STATEMENT_REGISTRATION_ACCEPT, STATEMENT_REGISTRATION_LIMIT,
   type StatementBusinessDetails, type StatementBusinessParty, type StatementPartyKey,
@@ -12,6 +15,7 @@ import {
 } from "@/lib/quote/transactionStatementDetails";
 import { transactionStatementPath } from "@/lib/quote/transactionStatementSnapshot";
 import { TransactionStatementMailForm } from "./TransactionStatementForms";
+import { TransactionStatementDraftPreview } from "./TransactionStatementDraftPreview";
 import { TransactionStatementPdfPreview } from "./TransactionStatementPdfPreview";
 import styles from "./TransactionStatement.module.css";
 
@@ -38,7 +42,8 @@ function PartyPanel({ party, details, disabled, registrationName, registrationUr
     <div className={styles.businessFields}>
       {STATEMENT_BUSINESS_FIELDS.map(({ key, label, max }) => (
         <label className={styles.field} data-wide={key === "address" || key === "email" || undefined} key={key}>
-          {label}<input maxLength={max} type={key === "email" ? "email" : "text"} value={details[key]}
+          <span>{label}{(key === "businessCategory" || key === "businessItem") && <small className={styles.optionalField}>선택</small>}</span>
+          <input maxLength={max} type={key === "email" ? "email" : "text"} value={details[key]}
             onChange={(event) => onChange(key, event.target.value)} />
         </label>
       ))}
@@ -58,50 +63,53 @@ function PartyPanel({ party, details, disabled, registrationName, registrationUr
   </fieldset>;
 }
 
-export default function TransactionStatementWorkspace({ id, quoteId, onBack, embedded }: {
-  id: string;
+export default function TransactionStatementWorkspace({ opening, quoteId, onBack, embedded }: {
+  opening: Promise<StatementWorkspaceOpening>;
   quoteId: string;
   onBack: () => void;
   embedded: boolean;
 }) {
-  const [selectedId, setSelectedId] = useState(id);
   const [history, setHistory] = useState<StatementSummary[]>([]);
-  const [loaded, setLoaded] = useState<StatementWorkspaceData | null>(null);
+  const [statement, setStatement] = useState<StatementWorkspaceData | null>(null);
   const [draft, setDraft] = useState<StatementBusinessDetails | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [mailMode, setMailMode] = useState<StatementReceiptMode | null>(null);
-  const statement = loaded?.id === selectedId ? loaded : null;
-  const endpoint = transactionStatementPath(selectedId);
+  const selectedId = statement?.id;
+  const endpoint = selectedId ? transactionStatementPath(selectedId) : "";
   const editable = statement?.status === "draft" && !statement.sending;
   const dirty = editable && JSON.stringify(draft) !== JSON.stringify(statement.businessDetails);
 
   const showError = useCallback((cause: unknown) => setError(cause instanceof Error ? cause.message : "거래명세서를 처리하지 못했습니다."), []);
   const applySaved = useCallback((value: StatementWorkspaceData) => {
-    setLoaded(value);
+    setStatement(value);
     setDraft(value.businessDetails);
     setHistory((previous) => previous.map((entry) => entry.id === value.id
       ? { ...entry, status: value.status, receipt_mode: value.receiptMode }
       : entry));
   }, []);
+
+  const applyOpening = useCallback(({ statement: current, statements }: StatementWorkspaceOpening) => {
+    setHistory(statements);
+    applySaved(current);
+  }, [applySaved]);
+
   const refresh = useCallback(async (signal?: AbortSignal) => {
-    const { statement: current } = await statementRequest<StatementWorkspaceResponse>(endpoint, { signal });
+    if (!selectedId) {
+      applyOpening(await openQuoteStatement(quoteId));
+      return;
+    }
+    const { statement: current } = await loadStatementWorkspace(selectedId, signal);
     if (!signal?.aborted) applySaved(current);
-  }, [applySaved, endpoint]);
+  }, [applyOpening, applySaved, quoteId, selectedId]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void refresh(controller.signal).catch((cause) => { if (!controller.signal.aborted) showError(cause); });
-    return () => controller.abort();
-  }, [refresh, showError]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadQuoteStatements(quoteId, controller.signal).then(({ statements }) => setHistory(statements))
-      .catch((cause) => { if (!controller.signal.aborted) showError(cause); });
-    return () => controller.abort();
-  }, [quoteId, showError]);
+    let active = true;
+    void opening.then((value) => { if (active) applyOpening(value); })
+      .catch((cause) => { if (active) showError(cause); });
+    return () => { active = false; };
+  }, [applyOpening, opening, showError]);
 
   const awaitingReceipt = statement?.status === "sent";
   useEffect(() => {
@@ -146,19 +154,19 @@ export default function TransactionStatementWorkspace({ id, quoteId, onBack, emb
   }
 
   const save = () => void perform(async () => { await saveIfDirty(); });
-  useSaveShortcut(save, editable && !mailMode);
+  useSaveShortcut(save, Boolean(editable && !mailMode));
 
   const canLeave = () => !busy && (!dirty || window.confirm("저장하지 않은 사업자 정보가 있습니다. 이 화면에서 나갈까요?"));
   const switchStatement = (next: string) => {
     if (next === selectedId || !canLeave()) return;
-    setError(""); setNotice(""); setSelectedId(next);
+    void perform(async () => applySaved((await loadStatementWorkspace(next)).statement));
   };
   const createNew = () => {
     if (!canLeave()) return;
     void perform(async () => {
       const { statement: next } = await createQuoteStatement(quoteId);
       setHistory((previous) => [next, ...previous]);
-      setSelectedId(next.id);
+      applySaved((await loadStatementWorkspace(next.id)).statement);
     });
   };
   const attach = (party: StatementPartyKey, file: File) => void perform(async () => {
@@ -211,10 +219,10 @@ export default function TransactionStatementWorkspace({ id, quoteId, onBack, emb
           details={draft[party]} disabled={busy || !editable} registrationName={statement.registrationNames[party]}
           registrationUrl={`${endpoint}/registration?party=${party}`}
           onAttach={(file) => attach(party, file)}
-          onChange={(key, value) => setDraft({ ...draft, [party]: { ...draft[party], [key]: value } })} />)}
+          onChange={(key, value) => setDraft((current) => current && { ...current, [party]: { ...current[party], [key]: value } })} />)}
         {editable ? <div className={styles.formActions}>
           <span>{dirty ? "저장할 변경사항이 있습니다." : "저장된 사업자 정보"}</span>
-          <button className={styles.primary} type="submit" disabled={busy || !dirty}>{busy ? "처리 중…" : "저장하고 미리보기"}</button>
+          <button className={styles.primary} type="submit" disabled={busy || !dirty}>{busy ? "처리 중…" : "사업자 정보 저장"}</button>
         </div> : null}
       </form>
       <section className={styles.pdfPanel} aria-label="거래명세서 PDF">
@@ -228,9 +236,20 @@ export default function TransactionStatementWorkspace({ id, quoteId, onBack, emb
             </> : null}
           </div>
         </div>
-        <TransactionStatementPdfPreview source={`${endpoint}/pdf?v=${encodeURIComponent(`${statement.updatedAt}-${statement.status}-${statement.receiptMode}`)}`} />
+        {statement.status === "draft" && statement.draftPreview
+          ? <TransactionStatementDraftPreview number={statement.number} preview={statement.draftPreview} details={draft} />
+          : <TransactionStatementPdfPreview source={`${endpoint}/pdf?v=${encodeURIComponent(`${statement.updatedAt}-${statement.status}-${statement.receiptMode}`)}`} />}
       </section>
-    </div> : !error ? <p className={styles.editorNotice} role="status">거래명세서를 불러오는 중…</p> : null}
+    </div> : !error ? <div className={styles.editorGrid} aria-busy="true">
+      <div className={styles.businessPanels} aria-hidden="true">
+        <fieldset className={styles.partyPanel}><legend>공급자</legend></fieldset>
+        <fieldset className={styles.partyPanel}><legend>공급받는자</legend></fieldset>
+      </div>
+      <section className={styles.pdfPanel}>
+        <div className={styles.pdfToolbar}><h2><FileText size={17} /> PDF 미리보기</h2></div>
+        <div className={`${styles.pdfFrame} ${styles.previewPlaceholder}`} role="status">거래명세서를 준비하는 중…</div>
+      </section>
+    </div> : null}
     {mailMode && statement ? <Modal open onClose={() => setMailMode(null)} title={mailMode === "sign" ? "서명 요청" : "PDF 보내기"}>
       <TransactionStatementMailForm endpoint={`${endpoint}/send`} mode={mailMode} updatedAt={statement.updatedAt}
         to={statement.businessDetails.recipient.email} subject={mailMode === "sign" ? `${statement.mailSubject} 서명 요청` : statement.mailSubject}
