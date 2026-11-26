@@ -104,6 +104,7 @@ async function describeSource(db: SupabaseClient, kind: DocumentMailKind, row: S
       number: statement?.statement_number || row.quote_number || "",
       title: (kind === "quote" && row.title) || `${customerName} ${DOCUMENT_MAIL_LABELS[kind]}`.trim(),
       requiresSignature: kind === "contract" && !signed,
+      ...(statement?.status === "draft" && !statement.send_attempt_id ? { canRequestReceipt: true } : {}),
     },
   };
 }
@@ -118,12 +119,12 @@ export async function loadDocumentMailSources(db: SupabaseClient, anchor: Docume
     return [await describeSource(db, anchor.kind, row)];
   }
   const list = async (kind: "statement" | "contract") => {
-    if (kind === anchor.kind) return [row];
     const { data, error } = await db.from(DOCUMENT_MAIL_SOURCE[kind]).select("*")
       .eq(kind === "contract" ? "source_quote_id" : "quote_id", quote.id)
       .order("created_at", { ascending: false }).limit(10);
     if (error) throw error;
-    return ((data ?? []) as SourceRow[]).filter((entry) => shareDocumentScope(quote, entry, kind));
+    const related = ((data ?? []) as SourceRow[]).filter((entry) => shareDocumentScope(quote, entry, kind));
+    return kind === anchor.kind && !related.some((entry) => entry.id === row.id) ? [row, ...related] : related;
   };
   const [statements, contracts] = await Promise.all([list("statement"), list("contract")]);
   return Promise.all([

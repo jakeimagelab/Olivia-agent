@@ -1,16 +1,95 @@
-.panel {
-  position: fixed;
-  z-index: 1100;
-  inset: 0 0 0 auto;
-  width: min(100%, 424px);
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  min-width: 0;
+  container: document-portal / inline-size;
+  background: var(--ui2-bg);
+  color: var(--ui2-text);
+}
+
+.workspace[data-embedded] { height: 100%; }
+
+.workspaceHeader,
+.workspaceTitle,
+.tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.workspaceHeader {
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: var(--ui2-card);
+  border-bottom: 1px solid var(--ui2-line);
+}
+
+.workspaceTitle h1 { margin: 0; color: var(--ui2-green); font-size: 17px; font-weight: 650; white-space: nowrap; }
+.workspaceTitle span { color: var(--ui2-dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tabs {
+  gap: 18px;
+  padding-inline: 16px;
+  background: var(--ui2-card);
+  border-bottom: 1px solid var(--ui2-line);
+}
+
+.tabs button {
+  min-height: 40px;
+  padding: 6px 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ui2-dim);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs button[aria-current] { border-bottom-color: var(--ui2-green); color: var(--ui2-green); }
+.tabs button:disabled { cursor: default; opacity: .56; }
+.workspace :is(button, a, select):focus-visible { outline: 2px solid var(--ui2-green); outline-offset: -2px; }
+
+.workspaceGrid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 28%, 392px);
+  min-height: 0;
+}
+
+.document { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: auto; }
+.document > :global(main) { flex: 1; min-width: 0; }
+.contractChooser { padding: 10px 16px; background: var(--ui2-card); border-bottom: 1px solid var(--ui2-line); }
+.workspaceMessage { margin: 0; padding: 20px; color: var(--ui2-dim); font-size: 14px; }
+.workspaceMessage p { margin: 0 0 12px; }
+.workspaceError { padding: 8px 16px; color: var(--ui2-risk); font-size: 13px; }
+.workspaceError button { margin-inline-start: 8px; }
+.mobileMail { display: none; }
+
+.mailRegion {
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   background: var(--ui2-card);
   border-left: 1px solid var(--ui2-line);
-  color: var(--ui2-text);
-  box-shadow: -12px 0 35px rgba(21, 88, 85, .15);
-  padding: 18px 20px max(18px, env(safe-area-inset-bottom));
 }
+
+.panel { padding: 16px 18px max(18px, env(safe-area-inset-bottom)); }
+.iconButton,
+.mobileMail {
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--ui2-line);
+  border-radius: 7px;
+  background: var(--ui2-card);
+  color: var(--ui2-green);
+  cursor: pointer;
+}
+.iconButton { display: inline-flex; flex: 0 0 auto; width: 31px; height: 31px; }
 
 .header {
   display: flex;
@@ -43,7 +122,8 @@
 }
 
 .field input,
-.field textarea {
+.field textarea,
+.field select {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -205,4 +285,13 @@
   .portal { padding-inline: 12px; }
   .row { grid-template-columns: auto minmax(0, 1fr); }
   .row .actions { grid-column: 2; }
+}
+
+@container document-portal (max-width: 920px) {
+  .workspaceTitle span { display: none; }
+  .mobileMail { display: inline-flex; flex: 0 0 auto; min-height: 36px; padding: 6px 10px; font-size: 13px; font-weight: 600; }
+  .workspaceGrid { grid-template-columns: minmax(0, 1fr); }
+  .mailRegion { display: none; border-left: 0; }
+  .workspaceGrid[data-mail-visible] .document { display: none; }
+  .workspaceGrid[data-mail-visible] .mailRegion { display: block; }
 }

@@ -17,18 +17,20 @@ function receiptBaseUrl(requestOrigin: string) {
 
 export async function sendTransactionStatement(
   id: string,
-  input: { to: unknown; subject: unknown; confirmed: unknown; mode?: unknown; updatedAt?: unknown },
+  input: { to: unknown; subject: unknown; message?: unknown; confirmed: unknown; mode?: unknown; updatedAt?: unknown },
   requestOrigin: string,
   db = getSupabaseAdmin(),
 ) {
   const to = typeof input.to === "string" ? input.to.trim() : "";
   const subject = typeof input.subject === "string" ? input.subject.trim() : "";
+  const message = typeof input.message === "string" ? input.message.trim() : "";
   if (input.confirmed !== true || !EMAIL.test(to) || to.length > 254 || !subject || subject.length > 250 || /[\r\n]/.test(subject)) {
     throw new TransactionStatementError("받는 사람과 제목을 확인한 다음 발송해 주세요.", 400);
   }
   if (input.mode !== undefined && input.mode !== "confirm" && input.mode !== "sign") {
     throw new TransactionStatementError("발송 방식을 확인해 주세요.", 400);
   }
+  if (message.length > 5000) throw new TransactionStatementError("메일 내용은 5,000자까지 입력해 주세요.", 400);
   const mode: StatementReceiptMode = input.mode ?? "confirm";
   const statement = await loadTransactionStatement(id, db);
   if (!statement) throw new TransactionStatementError("거래명세서를 찾지 못했습니다.", 404);
@@ -61,7 +63,7 @@ export async function sendTransactionStatement(
       from: { name: process.env.GMAIL_FROM_NAME || brandName, address: user },
       to,
       subject,
-      text: `안녕하세요. ${brandName}입니다.\n거래명세서 ${statement.statement_number}를 첨부합니다. 확인 후 아래 링크에서 ${mode === "sign" ? "이름과 서명을 남겨 주세요" : "수신확인을 남겨 주세요"}.\n\n${url}`,
+      text: `${message || `안녕하세요. ${brandName}입니다.\n거래명세서 ${statement.statement_number}를 첨부합니다.`}\n확인 후 아래 링크에서 ${mode === "sign" ? "이름과 서명을 남겨 주세요" : "수신확인을 남겨 주세요"}.\n\n${url}`,
       attachments: [{ filename: `${statement.statement_number}.pdf`, content: pdf, contentType: "application/pdf" }],
     });
   } catch (error) {

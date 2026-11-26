@@ -123,7 +123,8 @@ export async function sendDocumentMail(
     if (existing.data.state === "failed") throw new DocumentMailError("이 발송은 실패했습니다. 내용을 확인한 뒤 다시 시도해 주세요.", 409, "NOT_SENT");
     throw new DocumentMailError("발송하고 있거나 메일 서버의 응답을 확인 중입니다. 같은 요청을 잠시 후 확인해 주세요.", 409);
   }
-  const records = selectDocumentMailSources(await loadDocumentMailSources(db, anchor), selection);
+  const sources = await loadDocumentMailSources(db, anchor);
+  const records = selectDocumentMailSources(sources, selection);
   const selectedContract = records.find(({ choice }) => choice.kind === "contract");
   const customerName = records.find(({ row }) => row.hospital_name)?.row.hospital_name || "고객";
   const brand = brandLabel(records);
@@ -136,9 +137,10 @@ export async function sendDocumentMail(
   const token = createDocumentMailToken();
   const expiresAt = new Date(Date.now() + DOCUMENT_MAIL_EXPIRY_DAYS * 86_400_000).toISOString();
   const ids = Object.fromEntries(records.map(({ choice }) => [DOCUMENT_MAIL_SOURCE_ID[choice.kind], choice.id]));
+  const quoteId = sources.find(({ choice }) => choice.kind === "quote")?.choice.id;
   const { error: createError } = await db.from(DOCUMENT_MAIL_TABLE).insert({
     id, request_id: requestId, request_hash: requestHash, token_hash: documentMailHash(token),
-    state: "preparing", customer_name: customerName, recipient_email: to, subject, expires_at: expiresAt, ...ids,
+    state: "preparing", customer_name: customerName, recipient_email: to, subject, expires_at: expiresAt, ...ids, quote_id: quoteId ?? null,
     contract_version_at: selectedContract?.choice.version ?? null,
   });
   if (createError?.code === "23505") throw new DocumentMailError("이미 발송을 준비하고 있습니다.", 409);

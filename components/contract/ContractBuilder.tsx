@@ -2,7 +2,11 @@
 import type { PointerEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Mail } from "lucide-react";
+import { FolderOpen } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useDesktopAppLauncher } from "@/components/olivia-os/useDesktopAppLauncher";
+import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
+import { documentPortalHref } from "@/lib/document-mail/portal";
 import { createMailingDraft } from "@/lib/mailingQueue";
 import { useSaveShortcut } from "@/lib/hooks/useSaveShortcut";
 import { uploadWorkflowArtifact } from "@/lib/workflowArtifacts";
@@ -26,7 +30,6 @@ import {
 } from "@/lib/contract/contractDocument";
 import ContractDocumentPreview from "./ContractDocumentPreview";
 import ContractTermsEditor from "./ContractTermsEditor";
-import DocumentMailPanel from "@/components/document-mail/DocumentMailPanel";
 import styles from "./ContractBuilder.module.css";
 
 const THEME: Record<ContractBrand, {
@@ -76,6 +79,8 @@ export default function ContractBuilder({
 } = {}) {
   const isModal = mode === "modal";
   const isDesktopWindow = useDesktopWindowMode() && isModal;
+  const router = useRouter();
+  const launchDesktopApp = useDesktopAppLauncher();
   const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const isSigningRef = useRef(false);
   const [quote,      setQuote]      = useState<QuoteData | null>(null);
@@ -94,8 +99,7 @@ export default function ContractBuilder({
   const [publishState, setPublishState] = useState<"idle" | "publishing" | "done" | "error">("idle");
   const [completeState, setCompleteState] = useState<"idle" | "completing" | "done" | "error">("idle");
   const [showDownloadMenu, setShowDownloadMenu] = useState(false);
-  const [mailContractId, setMailContractId] = useState<string | null>(null);
-  const [openingMail, setOpeningMail] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
   const [customerSignature, setCustomerSignature] = useState<{ signerName: string; signedAt: string } | null>(null);
   const [brand, setBrand] = useState<ContractBrand>("photoclinic");
   const C = THEME[brand];
@@ -747,6 +751,7 @@ export default function ContractBuilder({
       setSaveFailureReason("");
       setAutosaveStatus("saved");
       setTimeout(() => setSaveState((state) => state === "saved" ? "idle" : state), 2000);
+      documentPortal?.onSaved();
       return savedId;
     } catch (saveError) {
       const reason = saveError instanceof Error ? saveError.message : "계약서를 저장하지 못했습니다.";
@@ -776,14 +781,23 @@ export default function ContractBuilder({
     return task;
   };
 
-  const openContractMail = async () => {
-    if (openingMail) return;
-    setOpeningMail(true);
+  const documentPortal = useDocumentPortalEditor(async () => {
+    if (!dirty || editLock) return true;
+    return Boolean(await handleSave());
+  });
+
+  const openContractPortal = async () => {
+    if (openingPortal) return;
+    setOpeningPortal(true);
     try {
       const id = await handleSave();
-      if (id) setMailContractId(id);
+      if (!id) return;
+      const anchor = sourceQuoteRecordId ? { kind: "quote" as const, id: sourceQuoteRecordId } : { kind: "contract" as const, id };
+      const href = documentPortalHref(anchor, "contract", id);
+      if (isDesktopWindow) launchDesktopApp(href, quote?.hospitalName);
+      else router.push(href);
     } finally {
-      setOpeningMail(false);
+      setOpeningPortal(false);
     }
   };
 
@@ -870,9 +884,9 @@ export default function ContractBuilder({
               }}>
               {saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : saveState === "error" ? "✕ 저장 실패" : "저장 (⌘S)"}
             </button>
-            <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" onClick={() => void openContractMail()} disabled={openingMail}>
-              <Mail size={15} /> {openingMail ? "메일 준비 중…" : "메일 보내기"}
-            </button>
+            {!documentPortal && <button type="button" className="pc-btn pc-btn--secondary pc-btn--sm" onClick={() => void openContractPortal()} disabled={openingPortal}>
+              <FolderOpen size={15} /> {openingPortal ? "문서 준비 중…" : "문서 포털"}
+            </button>}
             <div style={{ position: "relative" }}>
               <button onClick={() => setShowDownloadMenu((v) => !v)} disabled={pdfGenerating} className="pc-btn pc-btn--primary pc-btn--sm">
                 {pdfGenerating ? "PDF 생성 중..." : "다운로드 ▾"}
@@ -1062,17 +1076,16 @@ export default function ContractBuilder({
             </div>
           </div>
 
-          {/* 올리비아 메일링 자동 저장 안내 */}
-          <div style={{ background: mailingQueued ? C.mint : "#F8FAFA", border: `1px solid ${mailingQueued ? C.teal : C.border}`, borderRadius: 14, padding: "14px 18px" }}>
+          {!documentPortal && <div style={{ background: mailingQueued ? C.mint : "#F8FAFA", border: `1px solid ${mailingQueued ? C.teal : C.border}`, borderRadius: 14, padding: "14px 18px" }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: C.teal, marginBottom: 6 }}>📬 올리비아 메일링</div>
             {mailingNotice ? (
               <div style={{ fontSize: 12, color: C.teal, fontWeight: 700 }}>{mailingNotice}</div>
             ) : (
               <div style={{ fontSize: 11, color: C.muted, lineHeight: 1.7 }}>
-                메일 보내기에서 연결된 문서를 선택하고 고객에게 확인 링크를 전달할 수 있습니다.
+                문서 포털에서 연결된 문서를 선택하고 고객에게 확인 링크를 보낼 수 있습니다.
               </div>
             )}
-          </div>
+          </div>}
 
         </div>
       </div>
@@ -1104,7 +1117,7 @@ export default function ContractBuilder({
             actions={[
               { key: "save", label: saveState === "saving" ? "저장 중..." : saveState === "saved" ? "✓ 저장됨" : "저장 (⌘S)", onClick: () => void handleSave(), disabled: saveState === "saving" || !!editLock },
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
-              { key: "mail", label: openingMail ? "메일 준비 중…" : "메일 보내기", onClick: () => void openContractMail(), disabled: openingMail, icon: <Mail size={14} /> },
+              ...(!documentPortal ? [{ key: "portal", label: openingPortal ? "문서 준비 중…" : "문서 포털", onClick: () => void openContractPortal(), disabled: openingPortal, icon: <FolderOpen size={14} /> }] : []),
               { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
               { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: "primary" },
             ]}
@@ -1112,7 +1125,6 @@ export default function ContractBuilder({
         </div>
       ) : null}
     </div>
-    {mailContractId ? <DocumentMailPanel anchor={{ kind: "contract", id: mailContractId }} onClose={() => setMailContractId(null)} /> : null}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>

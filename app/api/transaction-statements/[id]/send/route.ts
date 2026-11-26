@@ -12,6 +12,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const result = await sendTransactionStatement((await context.params).id, {
       to: body?.to,
       subject: body?.subject,
+      message: body?.message,
       confirmed: body?.confirmed,
       mode: body?.mode,
       updatedAt: body?.updatedAt,

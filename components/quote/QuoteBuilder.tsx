@@ -3,10 +3,10 @@
 import type { ReactElement, ReactNode } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import dynamic from "next/dynamic";
-import { TransactionStatementButton } from "./TransactionStatementButton";
-import DocumentMailPanel from "@/components/document-mail/DocumentMailPanel";
-import type { StatementWorkspaceOpening } from "@/lib/quote/transactionStatementClient";
+import { useRouter } from "next/navigation";
+import { useDocumentPortalEditor } from "@/components/document-mail/DocumentPortalEditorContext";
+import { documentPortalHref } from "@/lib/document-mail/portal";
+import type { DocumentMailKind } from "@/lib/document-mail/shared";
 import GlobalHeader from "@/components/GlobalHeader";
 import ActionBar from "@/components/ui/ActionBar";
 import { ModalCloseButton } from "@/components/ui/ModalCloseButton";
@@ -61,15 +61,11 @@ import {
   ZoomIn,
   ZoomOut,
   FileText,
-  Mail,
+  FolderOpen,
 } from "lucide-react";
 
 const PREVIEW_PAGE_WIDTH = 1123;
 const PREVIEW_PAGE_HEIGHT = 794;
-const loadTransactionStatementWorkspace = () => import("./TransactionStatementWorkspace");
-const TransactionStatementWorkspace = dynamic(loadTransactionStatementWorkspace, {
-  loading: () => <div className="quote-document-state">거래명세서를 불러오는 중…</div>,
-});
 
 type ContractQuoteItem = {
   id?: string;
@@ -332,6 +328,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const activeDesktopWindowId = useOliviaDesktopStore((state) => state.activeWindowId);
   const canPublishOliviaContext = !isDesktopWindow || activeDesktopWindowId === "quote";
   const launchDesktopApp = useDesktopAppLauncher();
+  const router = useRouter();
   const setOliviaWorkspace = useOliviaContextStore((state) => state.setWorkspace);
   const setOliviaSelection = useOliviaContextStore((state) => state.setSelection);
   const selectedOliviaEntityId = useOliviaContextStore((state) => state.selectedEntityId);
@@ -423,11 +420,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   // 상태에서 이 prop이 나중에 바뀌어도(같은 리소스를 다시 미리보기) 재적용되지 않는다. 그
   // "이미 열려 있는" 경우는 olivia-quote-preview 이벤트 리스너가 대신 처리한다(아래 useEffect).
   const [showFullscreenPreview, setShowFullscreenPreview] = useState(() => !!startInPreview);
-  const [statementWorkspace, setStatementWorkspace] = useState<{ opening: Promise<StatementWorkspaceOpening>; quoteId: string } | null>(null);
-  const [mailQuoteId, setMailQuoteId] = useState<string | null>(null);
-  const [openingMail, setOpeningMail] = useState(false);
   const quoteDocumentId = editorSession.quoteId ?? undefined;
-  const activeStatement = statementWorkspace?.quoteId === quoteDocumentId ? statementWorkspace : null;
   const editorClientId = editorSession.clientId ?? undefined;
   const linkedWorkflowRunId = editorSession.workflowRunId ?? undefined;
   const documentLoading = editorSession.loadState === "loading";
@@ -494,7 +487,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   const [saveFailureReason, setSaveFailureReason] = useState("");
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [documentScopeError, setDocumentScopeError] = useState("");
-  const previewVisible = (!documentOnly || Boolean(resourceId)) && !documentLoading && !documentScopeError && !activeStatement;
+  const previewVisible = (!documentOnly || Boolean(resourceId)) && !documentLoading && !documentScopeError;
   const saveFailureNotice = saveFailureReason
     ? `저장 실패 — ${saveFailureReason}. 서버 메시지를 확인한 뒤 내용을 고치고 다시 저장해주세요.`
     : "저장 실패 — 서버가 사유를 보내지 않았습니다. 네트워크 연결을 확인한 뒤 다시 저장해주세요.";
@@ -1118,6 +1111,7 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           workflowRunId: nextSession.workflowRunId,
           documentTitle: data.title || data.hospitalName || "견적서",
         });
+        documentPortal?.onSaved();
         return savedData;
       } catch (error) {
         if (!isSameQuoteSession(editorSessionRef.current, requestSession)) return null;
@@ -1292,36 +1286,27 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     }
   };
 
-  const [openingContract, setOpeningContract] = useState(false);
-  const openContractWithQuote = async (data: ContractQuoteData, saveCurrent = true) => {
-    if (openingContract) return;
-    setOpeningContract(true);
+  const [openingPortal, setOpeningPortal] = useState(false);
+  const openQuotePortal = async (data: ContractQuoteData, tab: DocumentMailKind, saveCurrent = true) => {
+    if (openingPortal) return;
+    setOpeningPortal(true);
     setRecentQuoteMessage("");
     try {
-      // 현재 폼은 먼저 저장하고, 최근 목록의 다른 견적은 이미 저장된 해당 UUID를 그대로 쓴다.
-      const saved = saveCurrent ? await saveRecentQuote(data) : data.quoteId ? data : null;
+      await pendingSaveRef.current;
+      const currentId = editorSessionRef.current.quoteId;
+      const alreadySaved = currentId && quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current;
+      const saved = !saveCurrent ? data : alreadySaved ? { ...data, id: currentId } : await saveRecentQuote(data);
       if (!saved?.id) return;
-
+      const href = documentPortalHref({ kind: "quote", id: saved.id }, tab);
       if (isDesktopWindow) {
-        launchDesktopApp(
-          `/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`,
-          saved.hospitalName || "계약서",
-          {
-            clientId: saved.clientId ?? undefined,
-            projectId: saved.workflowRunId ?? undefined,
-            workflowRunId: saved.workflowRunId ?? undefined,
-            sourceQuoteId: saved.id,
-            resourceType: "quote",
-          },
-        );
-        setRecentQuoteMessage("저장된 견적 항목으로 계약서 창을 열었습니다.");
-        return;
+        launchDesktopApp(href, saved.hospitalName, {
+          clientId: saved.clientId ?? undefined, workflowRunId: saved.workflowRunId ?? undefined,
+        });
+      } else {
+        router.push(href);
       }
-
-      // 직접 URL/기존 분할 워크스페이스의 호환 경로도 큰 JSON 쿼리 대신 quoteId 하나만 쓴다.
-      window.open(`/contract?sourceQuoteId=${encodeURIComponent(saved.id)}`, "_blank");
     } finally {
-      setOpeningContract(false);
+      setOpeningPortal(false);
     }
   };
 
@@ -1374,24 +1359,9 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     }
   };
 
-  // 계약서 생성 페이지로 이동 (견적 데이터 전달)
-  const goToContract = () => {
-    const data = buildContractQuoteData();
-    void openContractWithQuote(data);
-  };
+  const goToContract = () => void openQuotePortal(buildContractQuoteData(), "contract");
 
   const [manualSaving, setManualSaving] = useState(false);
-  const openQuoteMail = async () => {
-    if (openingMail) return;
-    setOpeningMail(true);
-    try {
-      const saved = await saveRecentQuote(buildContractQuoteData());
-      if (saved?.id) setMailQuoteId(saved.id);
-    } finally {
-      setOpeningMail(false);
-    }
-  };
-
   const handleManualSave = async () => {
     setManualSaving(true);
     setRecentQuoteMessage("");
@@ -1406,7 +1376,13 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     setManualSaving(false);
     return Boolean(saved);
   };
-  useSaveShortcut(handleManualSave, !activeStatement);
+  useSaveShortcut(handleManualSave);
+  const documentPortal = useDocumentPortalEditor(async () => {
+    if (editorSessionRef.current.loadState !== "ready") return true;
+    await pendingSaveRef.current;
+    if (quoteFormSnapshot(quoteStore.getState()) === lastSavedFormStateRef.current) return true;
+    return handleManualSave();
+  });
 
   // 다운로드 — PDF/Excel 선택 팝오버(코드 요청서 3차 2번 항목, 2026-08-16). 콘티의
   // handlePDF/handleSpreadsheetDownload 팝오버 패턴을 그대로 견적서에 적용한다.
@@ -1484,7 +1460,8 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
     if (!resourceId) return;
     const current = editorSessionRef.current;
     if (current.quoteId === resourceId && current.loadState === "ready") return;
-    if (current.quoteId === resourceId && current.loadState === "loading" && documentLoadAbortRef.current) return;
+    const currentRequest = documentLoadAbortRef.current;
+    if (current.quoteId === resourceId && current.loadState === "loading" && currentRequest && !currentRequest.signal.aborted) return;
     void loadExistingQuote(resourceId, documentOnly ? { clientId, workflowRunId } : undefined);
     return () => documentLoadAbortRef.current?.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2220,10 +2197,6 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
   if (documentScopeError) {
     return <div className="quote-document-state" role="alert">{documentScopeError}</div>;
   }
-  if (activeStatement) {
-    return <TransactionStatementWorkspace key={activeStatement.quoteId} opening={activeStatement.opening} quoteId={activeStatement.quoteId}
-      embedded={isDesktopWindow} onBack={() => setStatementWorkspace(null)} />;
-  }
 
   return (
     <>
@@ -2878,11 +2851,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
                       <button
                         type="button"
                         className="inline-flex min-h-10 items-center justify-center gap-1 rounded-lg border border-[var(--quote-ink)] bg-[var(--quote-accent)] px-3 text-sm font-extrabold text-white transition hover:-translate-y-0.5"
-                        onClick={() => void openContractWithQuote(item, false)}
-                        disabled={openingContract}
+                        onClick={() => void openQuotePortal(item, "contract", false)}
+                        disabled={openingPortal}
                       >
                         <FileText size={15} />
-                        {openingContract ? "준비 중" : "계약서"}
+                        {openingPortal ? "준비 중" : "계약서"}
                       </button>
                       <button
                         type="button"
@@ -2976,11 +2949,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               className="primary-button"
               type="button"
               onClick={goToContract}
-              disabled={openingContract}
+              disabled={openingPortal}
               style={{ background: "var(--quote-accent)" }}
             >
               <FileText size={18} />
-              {openingContract ? "계약서 준비 중…" : "계약서 작성"}
+              {openingPortal ? "문서 준비 중…" : "계약서 작성"}
             </button> : null}
             {!documentOnly ? <button className="secondary-button" type="button" onClick={resetToNewQuote}>
               <RefreshCcw size={18} />
@@ -3015,14 +2988,11 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
           {showFullscreenPreview && typeof document !== "undefined"
             ? createPortal(quotePreviewShellNode, document.body)
             : quotePreviewShellNode}
-          <div className="mt-3 flex flex-wrap justify-end gap-2">
-            {!isDesktopWindow && <button className="secondary-button" type="button" disabled={openingMail} onClick={() => void openQuoteMail()}>
-              <Mail size={16} /> {openingMail ? "메일 준비 중…" : "메일 보내기"}
-            </button>}
-            {quoteDocumentId && <TransactionStatementButton key={quoteDocumentId} quoteId={quoteDocumentId}
-                onPrepare={() => { void loadTransactionStatementWorkspace().catch(() => undefined); }}
-                onOpen={(opening) => { setShowFullscreenPreview(false); setStatementWorkspace({ opening, quoteId: quoteDocumentId }); }} />}
-          </div>
+          {!documentPortal && <div className="mt-3 flex justify-end">
+            <button className="secondary-button" type="button" disabled={openingPortal} onClick={() => void openQuotePortal(buildContractQuoteData(), "quote")}>
+              <FolderOpen size={16} /> {openingPortal ? "문서 준비 중…" : "문서 포털"}
+            </button>
+          </div>}
         </aside>
       </section>
       {/* OLIVIA OS 1차 작업 지시서 2/3단계 — 창 하단 고정 액션 바. AppWindow의 .content가
@@ -3064,15 +3034,13 @@ const QuoteBuilderInner = forwardRef<QuoteBuilderHandle, QuoteBuilderProps>(func
               ...(!documentOnly ? [{ key: "reset", label: "초기화", onClick: resetToNewQuote, icon: <RefreshCcw size={14} /> }] : []),
               { key: "save", label: manualSaving ? "저장 중…" : "임시저장 (⌘S)", onClick: handleManualSave, disabled: manualSaving, icon: <Save size={14} /> },
               { key: "download", label: isGenerating ? "PDF 생성 중" : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), icon: <Download size={14} /> },
-              { key: "mail", label: openingMail ? "메일 준비 중…" : "메일 보내기", onClick: () => void openQuoteMail(), disabled: openingMail, icon: <Mail size={14} /> },
               { key: "complete", label: completingQuote ? "최종완료 처리 중…" : "최종완료", onClick: handleFinalComplete, disabled: completingQuote, icon: <CheckCircle2 size={14} /> },
-              ...(!documentOnly ? [{ key: "contract", label: openingContract ? "계약서 준비 중…" : "계약서 작성", onClick: goToContract, disabled: openingContract, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
+              ...(!documentOnly ? [{ key: "contract", label: openingPortal ? "문서 준비 중…" : "계약서 작성", onClick: goToContract, disabled: openingPortal, variant: "primary" as const, icon: <FileText size={14} /> }] : []),
             ]}
           />
         </div>
       )}
     </main>
-    {mailQuoteId ? <DocumentMailPanel anchor={{ kind: "quote", id: mailQuoteId }} onClose={() => setMailQuoteId(null)} /> : null}
     {isModal && closeConfirmOpen && typeof document !== "undefined" ? createPortal(
       <div className="pcrm-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && setCloseConfirmOpen(false)}>
         <div style={{ width: "min(420px, calc(100vw - 24px))", background: "#fff", borderRadius: 16, padding: 24, position: "relative" }}>

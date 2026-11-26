@@ -4,7 +4,8 @@ import {
   createDocumentMailToken, documentMailHash, loadReceivedDocuments, receivedPdfFileName, shareDocumentScope,
   visibleDeliveredDocuments, type DocumentMailDelivery, type DocumentMailSource,
 } from "@/lib/document-mail/repository";
-import { selectDocumentMailSources, sendDocumentMail } from "@/lib/document-mail/send";
+import { previewDocumentMail, selectDocumentMailSources, sendDocumentMail } from "@/lib/document-mail/send";
+import { documentPortalHref, readDocumentPortalTarget } from "@/lib/document-mail/portal";
 
 const quoteId = "41000000-0000-4000-8000-000000000001";
 const contractId = "41000000-0000-4000-8000-000000000002";
@@ -97,6 +98,27 @@ describe("document mail", () => {
     const token = /\/received\/([\w-]{43})/.exec(body)![1];
     expect(data.document_mail_deliveries[0]).toMatchObject({ token_hash: documentMailHash(token), state: "sent" });
     expect(JSON.stringify(data.document_mail_deliveries)).not.toContain(token);
+  });
+
+  it("keeps the same quote workspace when opening a linked contract and remembers a statement-only send there", async () => {
+    const anchor = { kind: "quote", id: quoteId } as const;
+    const url = new URL(documentPortalHref(anchor, "contract", contractId), "https://olivia.example.test");
+    expect(url.pathname).toBe("/quote");
+    expect(readDocumentPortalTarget("quote", url.searchParams)).toEqual({ anchor, tab: "contract", documentId: contractId });
+    expect(readDocumentPortalTarget("quote", new URLSearchParams({ resourceId: quoteId }))).toBeNull();
+
+    const { db, data } = mailDb();
+    data.contracts.push({ ...contract, id: requestId, source_quote_id: "unrelated-quote" });
+    const preview = await previewDocumentMail(db, anchor);
+    expect(preview.documents.map(({ id }) => id)).toEqual([quoteId, statementId, contractId]);
+    expect(preview.documents[1].canRequestReceipt).toBe(true);
+    const recipient = "test@example.test";
+    await sendDocumentMail(db, anchor, {
+      requestId, confirmed: true, to: recipient, subject: "거래명세서", message: "거래명세서를 보내드립니다.",
+      documents: [{ kind: "statement", id: statementId, version }],
+    }, "http://localhost:3000");
+    expect(data.document_mail_deliveries[0]).toMatchObject({ quote_id: quoteId, documents: [{ kind: "statement" }] });
+    expect((await previewDocumentMail(db, anchor)).latest?.recipient).toBe(recipient);
   });
 
   it("puts the customer signature on the archived document and retains the supplier's signature", () => {

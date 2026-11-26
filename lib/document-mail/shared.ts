@@ -9,6 +9,7 @@ export type DocumentMailChoice = DocumentMailSelection & {
   title: string;
   number: string;
   requiresSignature: boolean;
+  canRequestReceipt?: boolean;
 };
 
 export type DocumentMailPreview = {
