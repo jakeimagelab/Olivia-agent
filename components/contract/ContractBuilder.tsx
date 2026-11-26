@@ -1119,7 +1119,7 @@ export default function ContractBuilder({
               { key: "download", label: pdfGenerating ? "PDF 생성 중..." : "다운로드", onClick: () => setShowDownloadMenu((value) => !value), disabled: pdfGenerating },
               ...(!documentPortal ? [{ key: "portal", label: openingPortal ? "문서 준비 중…" : "문서 포털", onClick: () => void openContractPortal(), disabled: openingPortal, icon: <FolderOpen size={14} /> }] : []),
               { key: "complete", label: contractCoreCompleted ? "✓ 최종완료됨" : completeState === "completing" ? "완료 처리 중..." : "최종완료", onClick: () => void completeContractStep(), disabled: completeState === "completing" || contractCoreCompleted },
-              { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: "primary" },
+              { key: "publish", label: publishState === "publishing" ? "공개 중..." : publishState === "done" ? "✓ 공개됨" : "포털 공개", onClick: () => void publishToPortal(), disabled: publishState === "publishing", variant: documentPortal ? "secondary" : "primary" },
             ]}
           />
         </div>

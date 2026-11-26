@@ -239,7 +239,7 @@ export default function TransactionStatementWorkspace({ opening, quoteId }: {
           onChange={(key, value) => setDraft((current) => current && { ...current, [party]: { ...current[party], [key]: value } })} />)}
         {editable ? <div className={styles.formActions}>
           <span>{dirty ? "저장할 변경사항이 있습니다." : "저장된 사업자 정보"}</span>
-          <button className={styles.primary} type="submit" disabled={busy || !dirty}>{busy ? "처리 중…" : "사업자 정보 저장"}</button>
+          <button className={styles.secondary} type="submit" disabled={busy || !dirty}>{busy ? "처리 중…" : "사업자 정보 저장"}</button>
         </div> : null}
       </form>
       <section className={styles.pdfPanel} aria-label="거래명세서 PDF">
