@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isPcrmUuid } from "@/lib/pcrm/validation";
 import { resolveStatementBusinessDetails } from "@/lib/quote/transactionStatementDetails";
 import type { TransactionStatement } from "@/lib/quote/transactionStatementStore";
-import { DOCUMENT_MAIL_LABELS, type DeliveredDocument, type DocumentMailChoice, type DocumentMailKind, type DocumentMailReference } from "./shared";
+import { DOCUMENT_MAIL_LABELS, type DeliveredDocument, type DocumentMailChoice, type DocumentMailKind, type DocumentMailProgress, type DocumentMailReference } from "./shared";
 
 export const DOCUMENT_MAIL_TABLE = "document_mail_deliveries";
 export const DOCUMENT_MAIL_BUCKET = "document-mail";
@@ -56,7 +57,7 @@ export type DocumentMailSource = {
 export type DocumentMailDelivery = {
   id: string;
   token_hash: string;
-  state: "preparing" | "sending" | "sent" | "failed";
+  state: DocumentMailProgress["state"];
   customer_name: string;
   expires_at: string;
   contract_id: string | null;
@@ -68,6 +69,14 @@ export type DocumentMailDelivery = {
   signer_name: string | null;
   documents: DeliveredDocument[];
 };
+
+export async function readDocumentMailProgress(db: SupabaseClient, requestId: string): Promise<DocumentMailProgress | null> {
+  if (!isPcrmUuid(requestId)) throw new DocumentMailError("발송 요청 번호를 확인해 주세요.");
+  const { data, error } = await db.from(DOCUMENT_MAIL_TABLE)
+    .select("state,sent_at,documents").eq("request_id", requestId).maybeSingle();
+  if (error) throw error;
+  return data ? { state: data.state, sentAt: data.sent_at, documentCount: data.documents?.length ?? 0 } : null;
+}
 
 export async function loadSignedMailContract(db: SupabaseClient, contractId: string): Promise<SignedMailContract | null> {
   const { data, error } = await db.from(DOCUMENT_MAIL_TABLE).select("signed_pdf_path,signed_at,signer_name")

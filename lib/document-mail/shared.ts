@@ -21,6 +21,12 @@ export type DocumentMailPreview = {
   latest?: { recipient: string; sentAt: string; signedAt?: string };
 };
 
+export type DocumentMailProgress = {
+  state: "preparing" | "sending" | "sent" | "failed";
+  sentAt: string | null;
+  documentCount: number;
+};
+
 export type DeliveredDocument = {
   kind: DocumentMailKind;
   title: string;

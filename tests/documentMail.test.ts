@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { applyCustomerContractSignature, buildContractHtmlFromRow } from "@/lib/contract/contractDocument";
 import {
-  createDocumentMailToken, documentMailHash, loadReceivedDocuments, receivedPdfFileName, shareDocumentScope,
+  createDocumentMailToken, documentMailHash, loadReceivedDocuments, readDocumentMailProgress, receivedPdfFileName, shareDocumentScope,
   visibleDeliveredDocuments, type DocumentMailDelivery, type DocumentMailSource,
 } from "@/lib/document-mail/repository";
 import { previewDocumentMail, selectDocumentMailSources, sendDocumentMail } from "@/lib/document-mail/send";
 import { documentPortalHref, readDocumentPortalTarget } from "@/lib/document-mail/portal";
+import { defaultDocumentMailMessage, documentMailBody } from "@/lib/document-mail/email";
 
 const quoteId = "41000000-0000-4000-8000-000000000001";
 const contractId = "41000000-0000-4000-8000-000000000002";
@@ -14,15 +15,17 @@ const requestId = "41000000-0000-4000-8000-000000000004";
 const version = "2026-11-26T03:00:00.000Z";
 
 const mocks = vi.hoisted(() => ({
-  mail: vi.fn(async (_mail) => ({ accepted: ["test@example.test"] })),
+  mail: vi.fn<(mail: unknown) => Promise<{ accepted: string[] }>>(async () => ({ accepted: ["test@example.test"] })),
   quote: vi.fn(async () => ({ buffer: Buffer.from("quote-pdf") })),
   contract: vi.fn(async () => Buffer.from("contract-pdf")),
   statement: vi.fn(async () => Buffer.from("statement-pdf")),
+  withContext: vi.fn(async (render: (context: object) => Promise<unknown>) => render({})),
 }));
 vi.mock("@/lib/mail/gmailTransport", () => ({ gmailTransport: () => ({ user: "sender@example.test", client: { sendMail: mocks.mail } }) }));
 vi.mock("@/lib/quote/renderQuotePdf", () => ({ renderQuoteBuffer: mocks.quote }));
 vi.mock("@/lib/contract/renderContractPdf", () => ({ renderA4HtmlPdf: mocks.contract }));
 vi.mock("@/lib/quote/renderTransactionStatementPdf", () => ({ renderTransactionStatementPdf: mocks.statement }));
+vi.mock("@/lib/documentPdfBrowser", () => ({ withDocumentPdfContext: mocks.withContext }));
 
 const quote = { id: quoteId, quote_number: "PCQ-20261126-001", title: "테스트 견적서", hospital_name: "테스트", updated_at: version };
 const contract = {
@@ -39,7 +42,8 @@ function mailDb() {
   const data: Record<string, Record<string, unknown>[]> = {
     quotes: [quote], contracts: [contract], transaction_statements: [statement], document_mail_deliveries: [],
   };
-  const upload = vi.fn(async (_path: string, _body: Buffer) => ({ error: null }));
+  const upload = vi.fn<(path: string, body: Buffer) => Promise<{ error: null }>>(async () => ({ error: null }));
+  const remove = vi.fn<(paths: string[]) => Promise<{ error: null }>>(async () => ({ error: null }));
   const db = {
     from(table: string) {
       const filters: Array<(row: Record<string, unknown>) => boolean> = [];
@@ -61,9 +65,9 @@ function mailDb() {
       };
       return query;
     },
-    storage: { from: () => ({ upload, remove: vi.fn(async () => ({ error: null })) }) },
+    storage: { from: () => ({ upload, remove }) },
   };
-  return { db: db as never, data, upload };
+  return { db: db as never, data, upload, remove };
 }
 
 describe("document mail", () => {
@@ -81,6 +85,7 @@ describe("document mail", () => {
 
   it("sends one email with selected quote, statement and contract snapshots and retries idempotently", async () => {
     mocks.mail.mockClear();
+    mocks.withContext.mockClear();
     const { db, data, upload } = mailDb();
     const anchor = { kind: "quote", id: quoteId } as const;
     const input = {
@@ -91,13 +96,59 @@ describe("document mail", () => {
     expect(sent.documentCount).toBe(3);
     expect(await sendDocumentMail(db, anchor, input, "http://localhost:3000")).toEqual(sent);
     expect(mocks.mail).toHaveBeenCalledTimes(1);
+    expect(mocks.withContext).toHaveBeenCalledTimes(1);
     expect(upload).toHaveBeenCalledTimes(3);
-    const body = (mocks.mail.mock.calls[0][0] as { text: string }).text;
+    const { text: body, html } = mocks.mail.mock.calls[0][0] as { text: string; html: string };
     expect(body).toContain("요청하신 문서입니다.");
     expect(body).toContain("계약서는 문서함에서 전자서명해 주세요.");
     const token = /\/received\/([\w-]{43})/.exec(body)![1];
+    expect(html).toContain(`href="http://localhost:3000/client-portal/documents/received/${token}"`);
+    expect(html).toContain(">문서 확인하기</a>");
+    expect(html).not.toContain(`>${token}`);
     expect(data.document_mail_deliveries[0]).toMatchObject({ token_hash: documentMailHash(token), state: "sent" });
     expect(JSON.stringify(data.document_mail_deliveries)).not.toContain(token);
+    await expect(readDocumentMailProgress(db, requestId)).resolves.toEqual({ state: "sent", sentAt: sent.sentAt, documentCount: 3 });
+  });
+
+  it("uses a named greeting and keeps the portal URL inside the mail button", () => {
+    expect(defaultDocumentMailMessage("photoclinic", "김가상대표원장님").split("\n")).toEqual([
+      "안녕하세요. 김가상 대표원장님", "포토클리닉 정연호입니다.", "견적 및 계약 관련 서류를 보내드립니다.",
+      "아래 링크에서 확인 및 다운로드 가능합니다.", "감사합니다.", "정연호 드림.",
+    ]);
+    expect(defaultDocumentMailMessage("photoclinic", "")).toMatch(/^안녕하세요\.\n/);
+    const portalUrl = new URL("https://example.test/client-portal/documents/received/sample");
+    const { html, text } = documentMailBody({
+      brand: "photoclinic", message: "<테스트>\n감사합니다.", documents: [], portalUrl, requiresSignature: false,
+    });
+    expect(html).toContain("&lt;테스트&gt;<br>감사합니다.");
+    expect(html.split('href="')[1]?.split('"')[0]).toBe(portalUrl.href);
+    expect(html.replace(/<[^>]+>/g, "")).not.toContain(portalUrl.href);
+    expect(text).toContain(portalUrl.href);
+  });
+
+  it("waits for all parallel PDF writes before cleaning up a failed send", async () => {
+    mocks.mail.mockClear();
+    const { db, data, remove } = mailDb();
+    const rendering = Promise.withResolvers<void>();
+    const contractPdf = Promise.withResolvers<Buffer<ArrayBuffer>>();
+    mocks.quote.mockRejectedValueOnce(new Error("quote-render-error"));
+    mocks.contract.mockImplementationOnce(() => {
+      rendering.resolve();
+      return contractPdf.promise;
+    });
+    const sending = sendDocumentMail(db, { kind: "quote", id: quoteId }, {
+      requestId, confirmed: true, to: "test@example.test", subject: "문서", message: "안녕하세요.",
+      documents: [{ kind: "quote", id: quoteId, version }, { kind: "contract", id: contractId, version }],
+    }, "http://localhost:3000");
+    const failure = expect(sending).rejects.toMatchObject({ code: "NOT_SENT" });
+    await rendering.promise;
+    expect(data.document_mail_deliveries[0].state).toBe("preparing");
+    expect(remove).not.toHaveBeenCalled();
+    contractPdf.resolve(Buffer.from("prepared-contract"));
+    await failure;
+    await expect(readDocumentMailProgress(db, requestId)).resolves.toMatchObject({ state: "failed" });
+    expect(remove).toHaveBeenCalledWith([expect.stringMatching(/\/contract\.pdf$/)]);
+    expect(mocks.mail).not.toHaveBeenCalled();
   });
 
   it("keeps the same quote workspace when opening a linked contract and remembers a statement-only send there", async () => {

@@ -258,6 +258,8 @@
   background: var(--ui2-card);
 }
 
+.panel .actions > p { flex-basis: 100%; }
+
 .button {
   display: inline-flex;
   align-items: center;

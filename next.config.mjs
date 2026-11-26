@@ -18,6 +18,7 @@ const nextConfig = {
     ],
     "/api/quotes/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/contracts/**": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/admin/document-mail": statementPdfFiles,
     "/api/transaction-statements/**": statementPdfFiles,
     "/api/statement-receipts/**": statementPdfFiles,
     "/transaction-statements/**": ["./public/assets/jake-seal.png"],

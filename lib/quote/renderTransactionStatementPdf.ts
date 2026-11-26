@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import type { BrowserContext } from "playwright-core";
 import { renderA4HtmlPdf } from "@/lib/contract/renderContractPdf";
 import { buildStatementHtml } from "./transactionStatementHtml";
 import { matchesStatementSupplier, resolveStatementBusinessDetails } from "./transactionStatementDetails";
@@ -17,7 +18,9 @@ export async function readTransactionStatementSeal() {
   }
 }
 
-export async function renderTransactionStatementPdf(statement: TransactionStatement, requireSeal = false, recipientSignature?: string) {
+export async function renderTransactionStatementPdf(
+  statement: TransactionStatement, requireSeal = false, recipientSignature?: string, context?: BrowserContext,
+) {
   const { supplier } = resolveStatementBusinessDetails(statement.snapshot, statement.business_details);
   const registeredSupplier = matchesStatementSupplier(supplier);
   const seal = registeredSupplier ? await readTransactionStatementSeal() : null;
@@ -37,7 +40,7 @@ export async function renderTransactionStatementPdf(statement: TransactionStatem
     recipientSignature,
     seal: seal ? png(seal) : undefined,
     koreanFont: `data:font/ttf;base64,${font.toString("base64")}`,
-  }), { fitSelector: ".statement-sheet", embeddedAssets: true });
+  }), { fitSelector: ".statement-sheet", context });
 }
 
 export async function statementPdfResponse(statement: TransactionStatement, download = false) {
