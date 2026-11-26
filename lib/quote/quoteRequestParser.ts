@@ -32,6 +32,7 @@ export type ParsedQuoteRequest = {
   depositRate: number | null;
   memo: string | null;
   unparsedLines: string[];
+  needsInterpretation?: boolean;
 };
 
 type CatalogEntry = { id: string; name: string; price: number; package?: boolean };
@@ -368,6 +369,7 @@ export function parseQuoteRequest(text: string, now = new Date()): ParsedQuoteRe
     const parsedShootDate = shootDateFromLine(line, now, result.shootDate);
     if (parsedShootDate !== undefined) {
       result.shootDate = parsedShootDate;
+      if (!parsedShootDate && !/미정|미확정|추후|없음|비워/u.test(line)) result.needsInterpretation = true;
       continue;
     }
 
@@ -459,6 +461,7 @@ export function parseQuoteRequest(text: string, now = new Date()): ParsedQuoteRe
     }
     if (result.items.length > 0) {
       result.items[result.items.length - 1].details.push(line);
+      result.needsInterpretation = true;
       continue;
     }
     result.unparsedLines.push(line);
@@ -473,4 +476,10 @@ export function parseQuoteRequest(text: string, now = new Date()): ParsedQuoteRe
 export function quoteCreationTargetFromRequest(text: string): string | null {
   const request = parseQuoteRequest(text);
   return request.clientName && (request.items.length > 0 || request.fixedTotal !== null) ? request.clientName : null;
+}
+
+export function canReadQuoteWithRules(request: ParsedQuoteRequest) {
+  return Boolean(request.clientName && request.items.length > 0
+    && !request.needsInterpretation && request.unparsedLines.length === 0
+    && (request.fixedTotal !== null || (request.checkTotal === null && request.items.every((item) => item.free || item.amount !== null))));
 }

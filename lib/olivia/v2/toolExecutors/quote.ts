@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { executeOliviaCrud } from "@/lib/olivia/crud/executor";
 import { formatIncludedService, type QuoteIncludedService } from "@/lib/quote/agentQuote";
-import { parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
+import { canReadQuoteWithRules, parseQuoteRequest } from "@/lib/quote/quoteRequestParser";
 import { applyCatalogPricingToParsedRequest, buildQuoteDataFromParsedRequest } from "@/lib/quote/quoteRequestData";
 import {
   quoteReadingFromParsedRequest,
@@ -244,14 +244,19 @@ function addQuoteParseNotices(result: OliviaToolResult, notices: string[]) {
   return { ...result, data: { ...result.data, parserNotices: notices, summary: [summary, ...notices].join("\n") } };
 }
 
-function koreaToday() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+function koreaToday(now: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(now);
 }
 
 async function readQuoteForApproval(requestText: string) {
+  const now = new Date();
+  const parsed = parseQuoteRequest(requestText, now);
+  if (canReadQuoteWithRules(parsed)) {
+    return { reading: quoteReadingFromParsedRequest(parsed, now), fallbackNotice: null };
+  }
   const startedAt = performance.now();
   try {
-    const reading = resolveQuoteReading(await readQuoteRequestWithAI({ text: requestText, today: koreaToday() }), requestText);
+    const reading = resolveQuoteReading(await readQuoteRequestWithAI({ text: requestText, today: koreaToday(now) }), requestText, parsed);
     console.info("[quote-reader]", { ok: true, model: quoteReaderModel(), ms: Math.round(performance.now() - startedAt) });
     return { reading, fallbackNotice: null };
   } catch (error) {
@@ -263,8 +268,8 @@ async function readQuoteForApproval(requestText: string) {
       ms: Math.round(performance.now() - startedAt),
     });
     return {
-      reading: quoteReadingFromParsedRequest(parseQuoteRequest(requestText)),
-      fallbackNotice: `AI 읽기에 실패해 기본 규칙으로 읽었어요 (사유: ${failure.label})`,
+      reading: quoteReadingFromParsedRequest(parsed, now),
+      fallbackNotice: `Hermes 판독에 실패해 기본 규칙으로 읽었어요 (사유: ${failure.label})`,
     };
   }
 }
@@ -363,7 +368,11 @@ export async function executeQuoteTool(
   if (name === "apply_quote_create") {
     const requestText = typeof input.requestText === "string" ? input.requestText.trim() : "";
     if (!requestText) throw new Error("승인할 견적 요청 원문을 찾지 못했어요.");
-    const reading = resolveQuoteReading(quoteReadingFromUnknown(input.reading), requestText);
+    const candidate = quoteReadingFromUnknown(input.reading);
+    const readTime = Date.parse(candidate.ruleReadAt ?? "");
+    const reading = Number.isFinite(readTime)
+      ? quoteReadingFromParsedRequest(parseQuoteRequest(requestText, new Date(readTime)), new Date(readTime))
+      : resolveQuoteReading(candidate, requestText);
     const initialParsed = toParsedQuoteRequest(reading);
     if (!initialParsed.clientName) throw new Error("고객명을 못 읽었어요 — 알려주세요");
     const createContext = await resolveCreateQuoteContext({

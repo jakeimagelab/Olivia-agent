@@ -3,6 +3,24 @@
 이 디렉터리의 `bin/worker.sh`와 `bin/remote-bridge.sh`가 Mac Studio Worker의
 배포 원본이다. 실제 실행 위치는 기존과 동일한 `~/OliviaWorker/bin/`이다.
 
+## Hermes 견적 판독기
+
+Mac Studio의 Hermes가 `openai-codex` 모델과 기존 API 서버 키를 사용할 때
+`bash ops/mac-studio/install-hermes-quote-reader.sh`로 견적 판독기를 설치한다.
+판독기는 Hermes의 Codex 로그인을 사용하며 `127.0.0.1:8643`에서 실행된다.
+
+기존 Cloudflare 터널의 Hermes 호스트 규칙 위에 같은 호스트로 아래 경로 규칙을 둔다.
+
+```yaml
+    path: '^/olivia/quote-reader(/health)?$'
+    service: http://127.0.0.1:8643
+```
+
+터널 설정을 검증하고 연결을 갱신한 뒤 같은 HTTPS 호스트의
+`/olivia/quote-reader/health`가 기존 Bearer 키로 200, 키 없이 401을 반환하는지 확인한다.
+올리비아는 터널 호스트를 `HERMES_BASE_URL`에서 읽는다. 설치 명령을 다시 실행하면
+판독기를 갱신한다.
+
 ## 1. ZIP 복사본을 Git clone으로 교체
 
 Mac Studio 터미널에서 실행한다. 기존 ZIP 폴더는 삭제하지 않고 백업 이름으로 이동한다.

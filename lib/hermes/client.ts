@@ -47,7 +47,7 @@ export function getOliviaAgentEngine(): "legacy" | "hermes" {
 // Secure Tunnel 전환(Olivia↔Hermes network topology 개편) — HERMES_API_SECRET을 새 표준
 // 이름으로 쓰되, 기존 PoC부터 쓰던 HERMES_API_KEY도 그대로 인식한다(둘 다 있으면 SECRET 우선).
 // 이름을 강제로 바꾸면 이미 HERMES_API_KEY로 설정된 운영 환경이 조용히 깨진다.
-function getHermesConfig() {
+export function getHermesConfig() {
   const baseUrl = process.env.HERMES_BASE_URL?.trim().replace(/\/+$/, "");
   const apiKey = process.env.HERMES_API_SECRET?.trim() || process.env.HERMES_API_KEY?.trim();
   if (!baseUrl || !apiKey) throw new HermesChatError("Hermes Agent 환경변수 설정을 확인해주세요.", true);

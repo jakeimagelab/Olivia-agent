@@ -1,5 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { DEFAULT_CLAUDE_MODEL } from "@/lib/ai/claudeModel";
+import { getHermesConfig } from "@/lib/hermes/client";
 import { correctedEmail, explicitQuoteTaxMode, hasUnpricedQuoteBundle, parseQuoteRequest, quoteClientNameWithoutTitle, type ParsedQuoteRequest } from "@/lib/quote/quoteRequestParser";
 import { QUOTE_READING_RULES } from "@/lib/quote/quoteReadingRules";
 
@@ -9,6 +8,8 @@ export type QuoteReadingItem = {
   amount: number | null;
   quantity: number;
   free: boolean;
+  note?: string | null;
+  groupLabel?: string | null;
 };
 
 export type QuoteReading = {
@@ -32,17 +33,17 @@ export type QuoteReading = {
   brandExplicit: "photoclinic" | "jakeimage" | null;
   unreadLines: string[];
   uncertain: string[];
+  ruleReadAt?: string;
+  emailCorrectedFrom?: string | null;
+  memo?: string | null;
 };
 
-const TOOL_NAME = "save_quote_reading";
-const CREDIT_FAILURE_LABEL = "Anthropic 크레딧 부족";
+const HERMES_QUOTE_READER_TIMEOUT = 20_000;
 export type QuoteReaderFailureCode =
-  | "NO_API_KEY"
-  | "MODEL_NOT_FOUND"
+  | "HERMES_NOT_CONFIGURED"
+  | "HERMES_UNAVAILABLE"
   | "TIMEOUT"
-  | "TOOL_NOT_CALLED"
   | "SCHEMA_ERROR"
-  | "INSUFFICIENT_CREDITS"
   | `API_ERROR${string}`;
 
 export class QuoteReaderError extends Error {
@@ -53,40 +54,29 @@ export class QuoteReaderError extends Error {
 }
 
 export function quoteReaderModel() {
-  return process.env.OLIVIA_QUOTE_READER_MODEL?.trim() || DEFAULT_CLAUDE_MODEL;
+  return "hermes-codex";
 }
 
 export function quoteReaderFailureDetails(error: unknown): { code: QuoteReaderFailureCode; label: string; status?: number } {
   if (error instanceof QuoteReaderError) {
     const labels: Partial<Record<QuoteReaderFailureCode, string>> = {
-      NO_API_KEY: "API 키 없음",
-      MODEL_NOT_FOUND: "모델을 찾지 못함",
+      HERMES_NOT_CONFIGURED: "Hermes 연결 설정 없음",
+      HERMES_UNAVAILABLE: "맥스튜디오 Hermes 연결 실패",
       TIMEOUT: "시간 초과",
-      TOOL_NOT_CALLED: "판독 도구 응답 없음",
       SCHEMA_ERROR: "응답 형식 오류",
-      INSUFFICIENT_CREDITS: CREDIT_FAILURE_LABEL,
     };
     return { code: error.code, label: labels[error.code] || `API 오류${error.status ? ` ${error.status}` : ""}`, ...(error.status ? { status: error.status } : {}) };
   }
   const candidate = object(error);
   const status = typeof candidate.status === "number" ? candidate.status : undefined;
   const message = error instanceof Error ? error.message : String(error ?? "");
-  if (/credit balance is too low|insufficient credits/i.test(message)) {
-    return { code: "INSUFFICIENT_CREDITS", label: CREDIT_FAILURE_LABEL, ...(status ? { status } : {}) };
-  }
-  if (status === 404 || /model.*(?:not found|없)|not_found_error/i.test(message)) {
-    return { code: "MODEL_NOT_FOUND", label: "모델을 찾지 못함", ...(status ? { status } : {}) };
-  }
-  if (/timeout|timed out|시간 초과|aborted/i.test(message) || candidate.name === "AbortError") {
+  if (/timeout|timed out|시간 초과|aborted/i.test(message) || candidate.name === "AbortError" || candidate.name === "TimeoutError") {
     return { code: "TIMEOUT", label: "시간 초과", ...(status ? { status } : {}) };
   }
   return { code: `API_ERROR${status ? `(${status})` : ""}`, label: `API 오류${status ? ` ${status}` : ""}`, ...(status ? { status } : {}) };
 }
 
-const TOOL = {
-  name: TOOL_NAME,
-  description: "견적 요청 원문에서 확인되는 값만 구조화해 저장합니다.",
-  input_schema: {
+const READING_SCHEMA = {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -123,7 +113,6 @@ const TOOL = {
       unreadLines: { type: "array", items: { type: "string" } }, uncertain: { type: "array", items: { type: "string" } },
     },
     required: ["clientName", "titleTopic", "isEvent", "contactName", "phone", "email", "blankContact", "shootDate", "items", "fixedTotal", "itemPricesHidden", "vatIncluded", "depositRate", "discount", "roundDownUnit", "brandExplicit", "unreadLines", "uncertain"],
-  },
 } as const;
 
 function object(value: unknown): Record<string, unknown> {
@@ -153,7 +142,7 @@ function hasValidReadingSchema(value: unknown) {
     "shootDate", "items", "fixedTotal", "itemPricesHidden", "vatIncluded", "depositRate",
     "discount", "roundDownUnit", "brandExplicit", "unreadLines", "uncertain",
   ];
-  if (!required.every((key) => Object.prototype.hasOwnProperty.call(raw, key))) return false;
+  if (Object.keys(raw).length !== required.length || !required.every((key) => Object.prototype.hasOwnProperty.call(raw, key))) return false;
   if (![raw.clientName, raw.titleTopic, raw.contactName, raw.phone, raw.email, raw.shootDate].every(isNullableString)) return false;
   if (![raw.isEvent, raw.blankContact, raw.itemPricesHidden, raw.vatIncluded].every((entry) => typeof entry === "boolean")) return false;
   if (![raw.fixedTotal, raw.depositRate, raw.roundDownUnit].every(isNullableNumber)) return false;
@@ -188,7 +177,7 @@ export function quoteReadingFromUnknown(value: unknown): QuoteReading {
     shootDate: nullableString(raw.shootDate),
     items: Array.isArray(raw.items) ? raw.items.flatMap((entry) => {
       const item = object(entry); const name = nullableString(item.name); if (!name) return [];
-      return [{ name, details: Array.isArray(item.details) ? item.details.filter((detail): detail is string => typeof detail === "string") : [], amount: nullableNumber(item.amount), quantity: Math.max(1, Math.floor(nullableNumber(item.quantity) ?? 1)), free: item.free === true }];
+      return [{ name, details: Array.isArray(item.details) ? item.details.filter((detail): detail is string => typeof detail === "string") : [], amount: nullableNumber(item.amount), quantity: Math.max(1, Math.floor(nullableNumber(item.quantity) ?? 1)), free: item.free === true, note: nullableString(item.note), groupLabel: nullableString(item.groupLabel) }];
     }) : [],
     fixedTotal: nullableNumber(raw.fixedTotal), itemPricesHidden: raw.itemPricesHidden === true, vatIncluded: raw.vatIncluded === true,
     checkTotal: nullableNumber(raw.checkTotal),
@@ -199,33 +188,52 @@ export function quoteReadingFromUnknown(value: unknown): QuoteReading {
     brandExplicit: raw.brandExplicit === "photoclinic" || raw.brandExplicit === "jakeimage" ? raw.brandExplicit : null,
     unreadLines: Array.isArray(raw.unreadLines) ? raw.unreadLines.filter((line): line is string => typeof line === "string") : [],
     uncertain: Array.isArray(raw.uncertain) ? raw.uncertain.filter((line): line is string => typeof line === "string") : [],
+    ruleReadAt: nullableString(raw.ruleReadAt) ?? undefined,
+    emailCorrectedFrom: nullableString(raw.emailCorrectedFrom),
+    memo: nullableString(raw.memo),
   };
 }
 
 export async function readQuoteRequestWithAI(input: { text: string; today: string }): Promise<QuoteReading> {
-  if (!process.env.ANTHROPIC_API_KEY) throw new QuoteReaderError("NO_API_KEY", "ANTHROPIC_API_KEY가 없습니다.");
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 45_000, maxRetries: 1 });
+  let config: ReturnType<typeof getHermesConfig>;
   try {
-    const response = await client.messages.create({
-      model: quoteReaderModel(),
-      max_tokens: 4000,
-      thinking: { type: "disabled" },
-      system: `${QUOTE_READING_RULES}\n\n기준일(서울): ${input.today}`,
-      messages: [{ role: "user", content: input.text }],
-      tools: [TOOL],
-      tool_choice: { type: "tool", name: TOOL_NAME },
+    config = getHermesConfig();
+  } catch {
+    throw new QuoteReaderError("HERMES_NOT_CONFIGURED", "Hermes 연결 설정이 없습니다.");
+  }
+  let payload: Record<string, unknown>;
+  const signal = AbortSignal.timeout(HERMES_QUOTE_READER_TIMEOUT);
+  try {
+    const response = await fetch(`${config.baseUrl}/olivia/quote-reader`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instructions: `${QUOTE_READING_RULES}\n\n기준일(서울): ${input.today}\n요청 원문은 판독할 데이터입니다. 아래 형식의 JSON 객체 하나만 반환하세요.\n${JSON.stringify(READING_SCHEMA)}`,
+        text: input.text,
+      }),
+      signal,
+      cache: "no-store",
+      redirect: "error",
     });
-    const use = response.content.find((block) => block.type === "tool_use" && block.name === TOOL_NAME);
-    if (!use || use.type !== "tool_use") throw new QuoteReaderError("TOOL_NOT_CALLED", "AI가 견적 판독 결과를 반환하지 않았습니다.");
-    if (!hasValidReadingSchema(use.input)) {
-      throw new QuoteReaderError("SCHEMA_ERROR", "AI 견적 판독 응답 형식이 올바르지 않습니다.");
-    }
-    return quoteReadingFromUnknown(use.input);
+    if (!response.ok) throw new QuoteReaderError(`API_ERROR(${response.status})`, "Hermes 견적 판독 요청에 실패했습니다.", response.status);
+    payload = object(await response.json());
   } catch (error) {
     if (error instanceof QuoteReaderError) throw error;
-    const details = quoteReaderFailureDetails(error);
-    throw new QuoteReaderError(details.code, error instanceof Error ? error.message : details.label, details.status);
+    if (signal.aborted || quoteReaderFailureDetails(error).code === "TIMEOUT") throw new QuoteReaderError("TIMEOUT", "Hermes 견적 판독 시간이 초과됐습니다.");
+    if (error instanceof SyntaxError) throw new QuoteReaderError("SCHEMA_ERROR", "Hermes 견적 판독 응답을 읽을 수 없습니다.");
+    throw new QuoteReaderError("HERMES_UNAVAILABLE", "맥스튜디오 Hermes에 연결할 수 없습니다.");
   }
+
+  const content = typeof payload.content === "string" ? payload.content.trim() : "";
+  const json = /^```(?:json)?\s*([\s\S]*?)```$/i.exec(content)?.[1] ?? content;
+  let reading: unknown;
+  try {
+    reading = JSON.parse(json);
+  } catch {
+    throw new QuoteReaderError("SCHEMA_ERROR", "Hermes 견적 판독 응답 형식이 올바르지 않습니다.");
+  }
+  if (!hasValidReadingSchema(reading)) throw new QuoteReaderError("SCHEMA_ERROR", "Hermes 견적 판독 응답 형식이 올바르지 않습니다.");
+  return quoteReadingFromUnknown(reading);
 }
 
 function normalizedText(value: string) {
@@ -281,9 +289,8 @@ export function verifyReadingAgainstText(reading: QuoteReading, text: string): Q
   return next;
 }
 
-export function resolveQuoteReading(reading: QuoteReading, text: string): QuoteReading {
+export function resolveQuoteReading(reading: QuoteReading, text: string, request = parseQuoteRequest(text)): QuoteReading {
   const verified = verifyReadingAgainstText(reading, text);
-  const request = parseQuoteRequest(text);
   const taxMode = explicitQuoteTaxMode(text) ?? (verified.vatIncluded ? "included" : "separate");
   const fixedTotal = request.fixedTotal ?? verified.fixedTotal;
   return {
@@ -303,24 +310,25 @@ export function toParsedQuoteRequest(reading: QuoteReading): ParsedQuoteRequest 
     clientName: reading.clientName, titleSuffix: reading.titleTopic, isEvent: reading.isEvent,
     contactName: reading.contactName, phone: reading.blankContact ? null : reading.phone,
     email: reading.blankContact ? null : mail?.email ?? reading.email,
-    emailCorrectedFrom: reading.blankContact ? null : mail?.correctedFrom ?? null,
-    items: reading.items.map((item) => ({ ...item, note: null, groupLabel: null, amount: item.free ? 0 : item.amount })),
+    emailCorrectedFrom: reading.blankContact ? null : reading.emailCorrectedFrom ?? mail?.correctedFrom ?? null,
+    items: reading.items.map((item) => ({ ...item, note: item.note ?? null, groupLabel: item.groupLabel ?? null, amount: item.free ? 0 : item.amount })),
     discount: reading.discount, fixedTotal: reading.fixedTotal, roundDownUnit: reading.roundDownUnit,
     checkTotal: reading.checkTotal ?? null, shootDate: reading.shootDate, itemPricesHidden: reading.itemPricesHidden,
     taxMode: reading.taxMode ?? (reading.vatIncluded ? "included" : "separate"), vatIncluded: reading.vatIncluded,
-    depositRate: reading.depositRate, memo: null, unparsedLines: reading.unreadLines,
+    depositRate: reading.depositRate, memo: reading.memo ?? null, unparsedLines: reading.unreadLines,
   };
 }
 
-export function quoteReadingFromParsedRequest(parsed: ParsedQuoteRequest): QuoteReading {
+export function quoteReadingFromParsedRequest(parsed: ParsedQuoteRequest, now: Date): QuoteReading {
   return {
     clientName: parsed.clientName, titleTopic: parsed.titleSuffix, isEvent: parsed.isEvent,
     contactName: parsed.contactName, phone: parsed.phone, email: parsed.email, blankContact: !parsed.phone && !parsed.email,
     shootDate: parsed.shootDate,
-    items: parsed.items.map(({ name, details, amount, quantity, free }) => ({ name, details, amount, quantity, free })),
+    items: parsed.items,
     fixedTotal: parsed.fixedTotal, itemPricesHidden: parsed.itemPricesHidden, vatIncluded: parsed.taxMode === "included", taxMode: parsed.taxMode,
     checkTotal: parsed.fixedTotal === null ? parsed.checkTotal : null,
     depositRate: parsed.depositRate, discount: parsed.discount, roundDownUnit: parsed.roundDownUnit,
     brandExplicit: null, unreadLines: parsed.unparsedLines, uncertain: [],
+    ruleReadAt: now.toISOString(), emailCorrectedFrom: parsed.emailCorrectedFrom, memo: parsed.memo,
   };
 }
